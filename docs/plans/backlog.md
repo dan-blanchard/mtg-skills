@@ -190,19 +190,20 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   exceeds it, and the blend's percentiles move with page depth — reading the
   role's whole match set would remove both.
   (m) **Recall** (`precon-audit/misses.py`, at the largest guide's thirty
-  swaps and each precon's own guides' budget, `budgets.json`): 167 of 404
-  cuttable guide cuts, 44 of 610 in-scope guide adds (186 and 54 at $440 for
-  every precon). The levers by size: theme adds no search
+  swaps and each precon's own guides' budget, `budgets.json`): 165 of 404
+  cuttable guide cuts, 47 of 610 in-scope guide adds (2026-10-20, after theme
+  pages moved to the serve and IR hits got roles). The levers by size: theme adds no search
   reaches (229; measured at 238 before an upgrade stopped being capped at four
   mana in a top-heavy deck — 203 match no spec the tuner searched, 22 sit past a
   page's depth, 12 were the cap's; of the 203, 83 serve
   the main avenue, 44 another viable one, 72 only a non-viable lane such as
-  Blood Rites' sacrifice package). Paging the theme's serving predicate puts
-  them on the page but loses precision — 30 → 26 adds matching at ten swaps,
-  54 → 52 at thirty — so it waits on a ranking that can tell them apart, and
-  "payoff before enabler" is not that ranking (29 guide adds in the top ten
-  against 45 for the current order; don't re-suggest). Then adds outranked on a
-  page (171); cuts a budget-bound tune never reaches (42); cuts the popularity threshold still shields (75 — guides cut
+  Blood Rites' sacrifice package; 215 since a pattern-searched theme pages by
+  its serve). The serve page for a card-type (tribal) search loses — generic
+  tribal support outplays a tribe's own members — so tribes keep their type
+  search. "Payoff before enabler" lost (29 guide adds in the top ten against 45)
+  but was measured before IR-served hits had roles, so it is untested for those
+  themes. Then adds outranked on a page (167); cuts a budget-bound tune never
+  reaches (44); cuts the popularity threshold still shields (75 — guides cut
   popular off-theme cards like Feed the Swarm); commander-lane cards the
   guides trim (55). Six guide summaries don't tag sources per row
   (`guide_sizes.py` skips them).
@@ -219,6 +220,27 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   Auras (Swift Reconfiguration, often cast on your own creature; One with the
   Stars), and Imprisoned in the Moon and Minimus Containment still read as
   `ramp` (the enchanted permanent, usually an opponent's, taps for mana).
+  (o) **Theme matching off the IR, what's left** (2026-10-20). The tuner's theme
+  page is the theme's ``Serve`` where its spec searched by an oracle pattern
+  (``swaps._run_search``), but deck-forge's Find (``engine.py``) and
+  ``core.search_filters`` still page by the pattern, so Find and Tune disagree
+  on a theme's cards; the general shape is a spec that owns its candidate page
+  (derived from its serve, ``search`` kept only as a tribe's or a preset's
+  override), which would retire the 343 pattern searches. Serves were written
+  to credit a deck's own cards, not to page candidates: each OR arm (types,
+  keywords, cmc and stat floors) can admit a card on its own, as the
+  toughness >= 4 arm admitted Roaming Throne — a guard would pin each arm's
+  should / should-not real cards, the ``theme_presets`` way. And an IR hit's
+  role is read by lining the emitting unit's text up with an oracle clause,
+  then that clause with a compat ability (``ranking._hit_clauses``): reading
+  the payoff test off the unit itself would drop both text alignments, and
+  would give a role to the hits no single ability emits (a keyword's lifelink,
+  Crucible of Worlds' whole-card ident, a modal spell's text-less mode), which
+  still score structural. 150 of the pattern-searched themes have a serve that
+  is itself an oracle pattern (creature recursion, landfall, sacrifice outlets):
+  their page is still a pattern until those serves move to idents. The
+  replacement doublers (Anointed Procession, Parallel Lives, Hardened Scales)
+  read as enablers under the clause payoff test.
   (l) **Tune speed.** The first ramp or card-draw preset search in a process
   builds card trees across the pool (15-46 s, about 70% of a precon tune's
   time): those presets read concepts the persisted signals index doesn't seed.

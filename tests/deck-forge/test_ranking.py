@@ -838,3 +838,21 @@ def test_without_a_meta_read_the_ranking_is_unchanged():
         cards, active_signals=[ETB, LIFE], rank_by="fit", meta_share=lambda _n: 0.0
     )
     assert [r["card"]["name"] for r in zero] == [r["card"]["name"] for r in plain]
+
+
+@pytest.mark.parametrize(
+    ("name", "role"),
+    [("Syr Konrad, the Grim", "payoff"), ("Hedge Shredder", "enabler")],
+)
+def test_an_ir_served_hit_takes_its_abilitys_role(name, role):
+    """ "Your graveyard" serves on idents, with no pattern to find the clause
+    with: the hit is traced to the ability emitting the matched ident, and that
+    clause's payoff test decides its role. Before, every IR-served hit scored as
+    a bare type-line match (structural), so a payoff read like a filler card."""
+    card = test_card(name)
+    clusters = score_candidate(
+        card,
+        active_signals=[_sig("graveyard_matters", "you")],
+        focus_sets={"viable": {"Your graveyard"}},
+    )["clusters"]
+    assert [c["role"] for c in clusters if "Your graveyard" in c["lanes"]] == [role]

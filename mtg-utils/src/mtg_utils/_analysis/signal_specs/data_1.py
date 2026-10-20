@@ -1631,15 +1631,14 @@ SPECS_1: dict[tuple[str, str], SignalSpec] = {
         # (Emrakul's Influence, Donal)
         serve_idents=frozenset({"creature_cast_trigger|any|"}),
     ),
-    # Toughness-as-power (Doran, Arcades) and damage-reflection (Boros Reckoner) decks
-    # want big-TOUGHNESS bodies and Walls — credit them by toughness>=4 and Defender.
-    # ADR-0027 β: toughness_combat migrated to the Card IR (both regex producers' rows
-    # are deleted); the serve keeps the deleted regexes via the pinned
-    # TOUGHNESS_COMBAT_REGEX constant, so the high-toughness / Defender serve pool is
-    # unchanged.
+    # Toughness-as-power (Doran, Arcades) decks want bodies whose TOUGHNESS beats
+    # their power, and Walls: a creature assigns combat damage equal to its power
+    # (CR 510.1a), Doran swaps in toughness, so a 6/6 gains nothing. (Damage
+    # reflection keeps toughness >= 4 below: a big body survives to reflect.)
+    # ADR-0027 β: the serve keeps the deleted regex producers via the pinned
+    # TOUGHNESS_COMBAT_REGEX constant.
     ("toughness_combat", "you"): _sweep_spec_with_extras(
         "toughness_combat",
-        serve_toughness_min=4,
         serve_toughness_over_power=True,
         serve_keywords=("defender",),
         regex=TOUGHNESS_COMBAT_REGEX,

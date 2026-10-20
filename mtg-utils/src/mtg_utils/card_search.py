@@ -7,7 +7,7 @@ import re
 from collections.abc import Callable, Sequence
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, Protocol
 
 import click
 
@@ -124,6 +124,13 @@ def unreleased_ids_for(bulk_path: Path, cards: list[dict]) -> frozenset[str]:
     return ids
 
 
+class ThemeServe(Protocol):
+    """A theme's serving predicate (``signal_specs.Serve``), named structurally so
+    this module stays out of the signals index's source closure."""
+
+    def matches(self, card: dict) -> bool: ...
+
+
 def _matches_filters(
     card: dict,
     *,
@@ -145,6 +152,7 @@ def _matches_filters(
     any_presets: tuple[Preset, ...] = (),
     set_lower: str | None = None,
     partner_of: Sequence[Sequence[str]] | None = None,
+    serve: ThemeServe | None = None,
 ) -> bool:
     # Skip tokens and non-game cards
     if card.get("layout") in SKIP_LAYOUTS:
@@ -221,6 +229,11 @@ def _matches_filters(
         # ``unreleased`` status) — otherwise "commanders only" AND "include unreleased"
         # together would return nothing, which is exactly the combination someone
         # brewing around a spoiled commander reaches for.
+        return False
+
+    # A theme's serving predicate (``signal_specs.Serve.matches``): the cards the
+    # theme counts as serving it, read off their idents where the serve is IR.
+    if serve is not None and not serve.matches(card):
         return False
 
     # A second-commander search (``card_classify.valid_partner_search``): the card
@@ -363,6 +376,7 @@ def filter_records(
     any_preset_names: tuple[str, ...] = (),
     set_code: str | None = None,
     partner_of: Sequence[Sequence[str]] | None = None,
+    serve: ThemeServe | None = None,
 ) -> list[dict]:
     """The one filter implementation over an explicit record list: every per-query
     filter ``search_cards`` takes, then the cheapest-printing dedup by name, the sort
@@ -371,7 +385,9 @@ def filter_records(
     (``pool_search_fn``), so Find and the tuner search the pool with the SAME
     semantics. ``preset_names`` combine with AND (each must match);
     ``any_preset_names`` with OR (one must match) — a template role counted by
-    any of several presets (interaction) is searched by the same union."""
+    any of several presets (interaction) is searched by the same union.
+    ``serve`` keeps the cards a theme's serving predicate admits (the tuner's
+    theme pages: ``signal_specs.Serve.matches``)."""
     allowed_colors = set(color_identity.upper()) if color_identity else None
     try:
         oracle_re = re.compile(oracle, re.IGNORECASE) if oracle else None
@@ -411,6 +427,7 @@ def filter_records(
             any_presets=any_presets,
             set_lower=set_code.lower() if set_code else None,
             partner_of=partner_of,
+            serve=serve,
         )
     ]
 
@@ -474,6 +491,7 @@ def search_cards(
     any_preset_names: tuple[str, ...] = (),
     set_code: str | None = None,
     partner_of: Sequence[Sequence[str]] | None = None,
+    serve: ThemeServe | None = None,
 ) -> list[dict]:
     """Search bulk data for cards matching all specified filters.
 
@@ -490,7 +508,8 @@ def search_cards(
     ``partner_of`` keeps only the cards that can pair, as a second commander, with
     a card holding those partner abilities (``card_classify.valid_partner_search``
     builds it; CR 702.124) — a predicate over each card's trees, not an oracle
-    regex.
+    regex. ``serve`` keeps the cards a theme's serving predicate admits
+    (``signal_specs.Serve``: its idents, types and stats), the tuner's theme page.
     """
     fmt = get_format(format) if format is not None else FORMATS["commander"]
 
@@ -514,7 +533,7 @@ def search_cards(
     # A no-op for keyword/pattern-only presets (empty signal_keys) and for a
     # no-bulk/no-sidecar-buildable deployment (theme_presets falls back to its
     # existing live compute either way).
-    if any(p.signal_keys for p in presets):
+    if serve is not None or any(p.signal_keys for p in presets):
         from mtg_utils.theme_presets import seed_signal_key_index
 
         seed_signal_key_index(bulk_path)
@@ -554,6 +573,7 @@ def search_cards(
         any_preset_names=any_preset_names,
         set_code=set_code,
         partner_of=partner_of,
+        serve=serve,
     )
 
 

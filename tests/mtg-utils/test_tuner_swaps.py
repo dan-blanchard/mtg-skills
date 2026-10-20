@@ -2128,3 +2128,36 @@ def test_a_top_heavy_decks_upgrade_is_not_capped_at_four_mana():
     assert [(s["cut"]["name"], s["add"]["name"]) for s in out["swaps"]] == [
         ("Meteor Golem", "Duplicant")
     ]
+
+
+def test_a_pattern_searched_theme_pages_by_its_serve():
+    """A theme whose spec searches by an oracle pattern pages the cards its
+    serving predicate admits instead (the pattern missed most of them); a
+    search naming a card type stays (a tribe's serve also admits generic tribal
+    support that would crowd out its members; the land creatures' serve reads
+    cards that mention them, not the manlands)."""
+    from mtg_utils._analysis.signal_specs import Serve
+    from mtg_utils._tuner.swaps import _run_search
+
+    serve = Serve(keywords=frozenset({"defender"}))
+    calls: list[dict] = []
+
+    def search(**kw):
+        calls.append(kw)
+        return []
+
+    common = {
+        "identity": "WG",
+        "fmt": "commander",
+        "paper_only": True,
+        "cmc_cap": None,
+        "limit": 150,
+    }
+    _run_search(search, {"oracle": "toughness", "_serve": serve}, **common)
+    _run_search(search, {"card_type": "Sliver", "_serve": serve}, **common)
+    _run_search(
+        search, {"card_type": "Land", "oracle": "becomes", "_serve": serve}, **common
+    )
+    assert (calls[0]["oracle"], calls[0]["serve"]) == (None, serve)
+    assert (calls[1]["card_type"], calls[1]["serve"]) == ("Sliver", None)
+    assert (calls[2]["card_type"], calls[2]["serve"]) == ("Land", None)

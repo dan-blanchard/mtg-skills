@@ -2769,12 +2769,21 @@ def test_toughness_combat_credits_big_butts_and_walls():
     assert not _lane_covers(small, sig)
 
 
+def test_toughness_combat_skips_a_body_whose_toughness_is_its_power():
+    """A creature assigns damage equal to its power (CR 510.1a); Doran makes it
+    toughness, so a 2/3 assigns 3 (Doran's ruling) and a 6/6 gains nothing.
+    Rampaging Baloths and Roaming Throne cleared the old toughness >= 4 arm."""
+    sig = _sig("toughness_combat")
+    assert not _lane_covers(_card("Rampaging Baloths"), sig)
+    assert not _lane_covers(_card("Roaming Throne"), sig)
+
+
 def test_toughness_combat_serve_skips_base_pt_set():
     """The serve's oracle arm reads toughness as a VALUE ("deals damage equal to
     its toughness"), never a base-P/T set: Ambassador Blorpityblorpboop's "base
     toughness become equal to those stickers' total toughness" is layer 7b
-    (CR 613.4b), and its 3/3 body clears neither the toughness>=4 floor nor the
-    butt stat line — so it isn't served. Doran (the value read, on a 0/5)
+    (CR 613.4b), and its 3/3 body isn't a butt (toughness over power) — so it
+    isn't served. Doran (the value read, on a 0/5)
     still is."""
     sig = _sig("toughness_combat")
     assert not _lane_covers(_card("Ambassador Blorpityblorpboop"), sig)

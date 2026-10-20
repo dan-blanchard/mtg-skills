@@ -178,17 +178,19 @@ def test_role_over_deepens_the_commanders_lane_before_an_emerging_theme():
         [cheat, prolif],
         budgets,
     )
-    assert held.remedy_for("role_over", role="ramp").spec == dict(
-        spec_for(cheat).search
-    )
+    assert held.remedy_for("role_over", role="ramp").spec == {
+        **spec_for(cheat).search,
+        "_serve": spec_for(cheat).serve,
+    }
     unheld = Sourcing(
         _focus(viable=[{"label": main}], emerging=[{"label": emerging, "depth": 6}]),
         [cheat, prolif],
         budgets,
     )
-    assert unheld.remedy_for("role_over", role="ramp").spec == dict(
-        spec_for(prolif).search
-    )
+    assert unheld.remedy_for("role_over", role="ramp").spec == {
+        **spec_for(prolif).search,
+        "_serve": spec_for(prolif).serve,
+    }
 
 
 def test_issues_are_ranked_by_severity():

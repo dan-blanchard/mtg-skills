@@ -460,7 +460,9 @@ sacrifice package: Altar of Dementia, Pyre of Heroes, Victimize), and 4 nothing.
 The 12 the cap hides are top-band bodies: Gishath, Ghalta and Etali under
 Veloci-Ramp-Tor, The First Sliver and Sliver Legion.
 
-Two retries, both negative:
+Two retries, both negative — and both, it turned out, measured with a score that
+could not see an IR-served theme's payoffs (below, "Theme matching off the cards'
+IR"), so neither verdict holds for the IR-served themes:
 
 - **The serving predicate's page, at thirty swaps.** It made 515 swaps, 190 cuts
   and 52 adds matching, against 493 / 185 / 54. The wide page trades a tribe's own
@@ -469,8 +471,8 @@ Two retries, both negative:
 - **Payoff first.** On the 31 theme pages that hold a guide add (122 of them),
   ordering a candidate with a payoff clause first put 29 guide adds in the top ten,
   against 45 for the current order (fits, then most played). Play-rate alone put
-  43, synergy first 26. The guides do not add payoffs over enablers the way they
-  cut feeders over carers.
+  43, synergy first 26. On an IR-served theme the payoff weight read here was
+  always zero, so the test says nothing about those decks.
 
 Three lane misreads turned up on the way, each fixed: Cloud Key, Umori and Shimmer
 read as tribal payoffs (`chosen_type_matters`; they choose a card or land type, CR
@@ -511,6 +513,53 @@ it above Rhystic Study). At per-precon budgets: 437 swaps, 167 cuts and 44 adds
 matching (40 before the Remora fix); the card-draw adds are Garruk's Uprising in
 12 precons, Esper Sentinel in 8, Skullclamp in 6, Rhystic Study in 4.
 
+### Theme matching off the cards' IR (2026-10-20)
+
+Of the 376 theme specs, 343 searched their candidate page by an oracle pattern, and
+the synergy score found a hit's clause by the serve's pattern. 193 serves read the
+cards' IR idents instead, and a hit with no pattern scored as a bare type-line match
+(0.5, against 3.0 for a payoff), so on the ten precon main themes served by IR —
+"Your graveyard", "Toughness as power", "Energy", "Cheat into play" — the score
+could not tell a payoff from filler. Two changes:
+
+1. **The score reads an IR hit's role.** The idents the serve matched are traced to
+   the ability that emits them (`ident_provenance`), whose text lines up with an
+   oracle clause, and that clause takes the same payoff test as a pattern hit: Syr
+   Konrad is a payoff of "Your graveyard", Hedge Shredder an enabler. Alone: 436
+   swaps, 166 cuts and 41 adds matching (437 / 167 / 44 before) — a payoff now
+   scores 3.0, which lifts the fit floor past the type-line-only cards.
+2. **A pattern-searched theme pages by its serve.** The page is the identity's cards
+   the serve admits, most played first (`card_search`'s `serve` filter). A card-type
+   or preset search stays: a tribe's serve also admits the generic tribal support
+   (Roaming Throne, Urza's Incubator, Changeling Outcast), played more than any
+   tribe's own cards, which took every Sliver Swarm upgrade when tribes paged by
+   serve too. The toughness-as-power serve lost its toughness ≥ 4 arm: a creature
+   assigns damage equal to its power (CR 510.1a), Doran swaps in toughness, so a
+   6/6 gains nothing, and $48 Roaming Throne spent Abzan Armor's whole budget.
+
+Two limits remain. Of the 343 pattern-searched themes, 184 now page off the cards'
+idents; the other 150 (creature recursion, landfall, sacrifice outlets, attack
+triggers) have a serve that is itself an oracle pattern, so their page is still a
+pattern, now the serve's. And an IR hit whose ident no single ability emits — a
+keyword's (lifelink), a whole card's (Crucible of Worlds), a modal spell's text-less
+mode — still scores structural; a sampled 8-25 of every 60 served cards per theme.
+
+Both, at each precon's own budget: **411 swaps, 165 cuts and 47 adds matching**.
+The graveyard themes reach their guide adds (Syr Konrad twice, Ripples of Undeath,
+Crucible of Worlds, Life from the Loam, Exquisite Blood); four decks make fewer
+swaps, the wider page's picks costing more.
+
+| guide cuts in the decks (424) | n | | guide adds (745) | n |
+|---|---|---|---|---|
+| cut | 165 | | added | 47 |
+| popular: off-lane, inside `UPGRADE_RANK` | 75 | | out of scope | 135 |
+| a doer of the commander's lane, outside the deep-lane half | 55 | | a theme card no search looked for | 215 |
+| in a cut pool, not reached | 44 | | on a searched page, outranked | 167 |
+| a carer of a built theme | 27 | | on a page, gated (play-rate, cost band, job) | 101 |
+| other | 25 | | not on any page though its job was searched | 42 |
+| land / commander | 20 | | a role card no issue asked for | 38 |
+| protected (combo / closer / multiplier) | 13 | | | |
+
 ## What is left
 
 `docs/plans/backlog.md`, "What the polymorph tune and the 25-precon audit still
@@ -518,8 +567,7 @@ get wrong" and "Every held serve spec is converted": the phase gaps behind the
 interaction role, the superfriends veto, animation and the converted serves; the
 text-mirror leftovers; the phase gaps nothing can read; the lane gaps the censuses left (a destination subject on
 `creature_recursion`, a spell-type subject on `cost_reduction`, the edict lane,
-keyword token-copy makers, `FlipCoin.win_effect`); the ranking module's
-clause-cluster attribution for ident-served hits.
+keyword token-copy makers, `FlipCoin.win_effect`).
 
 ## Rerunning
 

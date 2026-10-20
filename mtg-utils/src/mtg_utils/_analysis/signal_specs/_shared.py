@@ -80,6 +80,15 @@ _ENCH_SUBTYPES = (
 )
 
 
+def _card_idents(card: dict) -> frozenset[str]:
+    """The card's "key|scope|subject" idents. Lazy import: theme_presets imports
+    _analysis.signals lazily for the same cycle reason its own docstring
+    records."""
+    from mtg_utils.theme_presets import _signal_idents_for
+
+    return _signal_idents_for(card)
+
+
 @dataclass(frozen=True)
 class Serve:
     """The precise classifier deciding whether a candidate card FEEDS a signal.
@@ -240,27 +249,34 @@ class Serve:
             and _max_color_pips(card.get("mana_cost") or "") >= self.min_devotion
         ):
             return True
-        if self.signal_idents:
-            # Costliest arm (a live crosswalk pass on a cold memo) — checked
-            # last, only after every record-shape dimension has missed. Lazy
-            # import: theme_presets imports _analysis.signals lazily for the
-            # same cycle reason its own docstring records.
-            from mtg_utils.theme_presets import _signal_idents_for
+        # Costliest arm (a live crosswalk pass on a cold memo) — checked last,
+        # only after every record-shape dimension has missed.
+        return bool(self.signal_idents) and any(
+            self._serves_ident(i) for i in _card_idents(card)
+        )
 
-            card_idents = _signal_idents_for(card)
-            if card_idents & self.signal_idents:
-                return True
-            # ``"key|scope|*"`` matches every subject of that key and scope — a
-            # token doubler serves ANY ``token_maker``, whatever the token's
-            # subtype (the serve-ident pass, 2026-10-18).
-            wildcards = [w[:-1] for w in self.signal_idents if w.endswith("|*")]
-            if wildcards and any(
-                ident.startswith(prefix)
-                for ident in card_idents
-                for prefix in wildcards
-            ):
-                return True
-        return False
+    def _serves_ident(self, ident: str) -> bool:
+        """Whether one of the card's idents is one this serve names, exactly or
+        through a ``"key|scope|*"`` wildcard (every subject of that key and
+        scope — a token doubler serves ANY ``token_maker``, whatever the
+        token's subtype; the serve-ident pass, 2026-10-18)."""
+        if ident in self.signal_idents:
+            return True
+        key_scope = ident.rpartition("|")[0]
+        return f"{key_scope}|*" in self.signal_idents
+
+    def matched_idents(self, card: dict) -> frozenset[str]:
+        """The card's own idents this serve's ``signal_idents`` match (with
+        every ``all_of`` sub-serve's, :meth:`_serves_ident`): what ties a
+        served card to the abilities that serve (``ident_provenance``)."""
+        own = (
+            {i for i in _card_idents(card) if self._serves_ident(i)}
+            if self.signal_idents
+            else set()
+        )
+        for sub in self.all_of:
+            own |= sub.matched_idents(card)
+        return frozenset(own)
 
     def as_dict(self) -> dict:
         """Serialize for an avenue dict (JSON-safe), so ranking can re-apply the

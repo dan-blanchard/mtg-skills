@@ -579,6 +579,13 @@ def _run_search(
     # matched any upgrade article. Where play-rate means something (the Commander
     # family: ``Calibration.playrate_meaningful``) the page is the most-played
     # matches instead; synergy still ranks within it.
+    #
+    # A theme searched by an oracle pattern pages the cards its ``Serve``
+    # admits instead (read off their idents where the theme is IR-served): the
+    # pattern missed most of what the theme serves. A search that names a card
+    # type or a preset stays: a tribe's serve also admits the generic tribal
+    # support that outplays its own members, and the land creatures' serve
+    # reads cards that mention them, not the manlands their search finds.
     spec_max = spec.get("cmc_max")
     if cmc_cap is None:
         cmc_max = spec_max
@@ -586,11 +593,13 @@ def _run_search(
         cmc_max = cmc_cap
     else:
         cmc_max = min(spec_max, cmc_cap)
+    pattern_only = spec.get("oracle") and not spec.get("card_type")
+    serve = spec.get("_serve") if pattern_only else None
     return search_fn(
         color_identity=spec.get("color_identity") or identity,
         exact_colors=False,
-        oracle=spec.get("oracle"),
-        card_type=spec.get("card_type"),
+        oracle=None if serve is not None else spec.get("oracle"),
+        card_type=None if serve is not None else spec.get("card_type"),
         name=spec.get("name"),
         cmc_min=spec.get("cmc_min"),
         cmc_max=cmc_max,
@@ -604,6 +613,7 @@ def _run_search(
         sort="edhrec-asc" if playrate else "cmc-asc",
         limit=limit,
         offset=0,
+        serve=serve,
     )
 
 

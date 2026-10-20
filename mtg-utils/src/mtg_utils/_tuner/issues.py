@@ -286,11 +286,13 @@ class Sourcing:
     # ── Avenues ─────────────────────────────────────────────────────────────────
 
     def avenue(self, label: str) -> dict | None:
-        """The serve spec of the deck signal behind an avenue label."""
+        """The candidate search for an avenue label: its spec's search, carrying
+        the spec's serving predicate (``_serve``), which pages the theme in
+        place of the search's pattern (``swaps._run_search``)."""
         for sig in self._signals:
             spec = spec_for(sig)
             if spec is not None and spec.label == label:
-                return dict(spec.search)
+                return {**spec.search, "_serve": spec.serve}
         return None
 
     def main_avenue(self) -> dict:

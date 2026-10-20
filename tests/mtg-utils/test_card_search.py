@@ -1292,3 +1292,18 @@ class TestPartnerOfFilter:
             )
         }
         assert names == {"Ellie, Vengeful Hunter", "Joel, Resolute Survivor"}
+
+
+def test_a_serve_keeps_the_cards_a_theme_admits():
+    """``serve`` keeps what a theme's serving predicate admits (the tuner's theme
+    page): here a Defender serve keeps the Wall and drops the Bears."""
+    from mtg_utils._analysis.signal_specs import Serve
+
+    cards = [
+        {**test_card("Wall of Omens"), "prices": {"usd": "0.50"}},
+        {**test_card("Grizzly Bears"), "prices": {"usd": "0.10"}},
+    ]
+    kept = filter_records(
+        cards, fmt=FORMATS["commander"], serve=Serve(keywords=frozenset({"defender"}))
+    )
+    assert [c["name"] for c in kept] == ["Wall of Omens"]

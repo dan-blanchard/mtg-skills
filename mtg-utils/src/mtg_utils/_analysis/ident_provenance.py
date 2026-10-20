@@ -18,11 +18,12 @@ Semantics:
   treat unattributed conservatively (no limiter discount, no per-ability
   tiebreak key) — the direction-safe fallback.
 
-Cost note: attribution runs N_units extractions per card. Rate v2's
-consumers only need it for pair-MATCHED candidates at scoring time (a
-few hundred cards per ranking), so there is no sidecar yet; if a
-whole-pool consumer appears, persist alongside the signals index with
-the same content-hash invalidation discipline.
+Cost note: attribution runs N_units extractions per card, memoized per
+oracle_id. Its consumers read it at scoring time — pair-MATCHED candidates,
+and since 2026-10-20 every candidate a theme serves through its idents
+(``ranking._hit_clauses``), pages of a few hundred cards — so there is no
+sidecar yet; if a whole-pool consumer appears, persist alongside the
+signals index with the same content-hash invalidation discipline.
 """
 
 from __future__ import annotations
@@ -32,6 +33,32 @@ import dataclasses
 from mtg_utils._analysis.lanes import extract_crosswalk_signals
 from mtg_utils._analysis.signal_trees import as_signal_tree
 from mtg_utils._card_ir.trees import trees_for
+
+#: oracle_id -> (the trees it was read from, per-unit attribution): the
+#: synergy score asks once per candidate whose theme hit came through its idents,
+#: across pages of hundreds. The source trees are kept so a re-seeded tree memo
+#: (the testkit swapping an oid's trees) is detected by identity and re-read,
+#: as ``signal_trees._SIGNAL_TREES_MEMO`` does.
+_UNIT_IDENTS_MEMO: dict[
+    str, tuple[tuple[object, ...], dict[tuple[int, int], frozenset[str]]]
+] = {}
+
+
+def emitting_unit_texts(card: dict, idents: frozenset[str]) -> list[str]:
+    """The descriptions (phase's per-ability oracle text) of the card's units
+    that emit any of ``idents`` — which ability makes the card serve a theme
+    read off its idents. Empty for an unattributed ident (see the module
+    docstring) or a card with no trees."""
+    if not idents:
+        return []
+    trees = trees_for(card)
+    out: list[str] = []
+    for (ti, ui), emitted in unit_idents_for(card).items():
+        if emitted & idents:
+            text = getattr(trees[ti].units[ui].node, "description", None)
+            if isinstance(text, str) and text:
+                out.append(text)
+    return out
 
 
 def unit_idents_for(card: dict) -> dict[tuple[int, int], frozenset[str]]:
@@ -43,9 +70,14 @@ def unit_idents_for(card: dict) -> dict[tuple[int, int], frozenset[str]]:
     """
     from mtg_utils.theme_presets import _signal_idents_for
 
+    oid = card.get("oracle_id") or ""
+    source = trees_for(card)
+    cached = _UNIT_IDENTS_MEMO.get(oid) if oid else None
+    if cached is not None and cached[0] is source:
+        return cached[1]
     full = frozenset(_signal_idents_for(card))
     out: dict[tuple[int, int], frozenset[str]] = {}
-    for ti, tree in enumerate(trees_for(card)):
+    for ti, tree in enumerate(source):
         for ui, unit in enumerate(tree.units):
             # Blank the tree-level raw text in the view: the synth
             # gap-filling stage and the b12 kept-oracle mirrors read it,
@@ -63,6 +95,8 @@ def unit_idents_for(card: dict) -> dict[tuple[int, int], frozenset[str]]:
                 for s in extract_crosswalk_signals(as_signal_tree(view))
             }
             out[(ti, ui)] = frozenset(emitted & full)
+    if oid:
+        _UNIT_IDENTS_MEMO[oid] = (source, out)
     return out
 
 

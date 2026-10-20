@@ -30,10 +30,11 @@ import math
 import re
 from collections.abc import Callable, Mapping, Sequence
 
+from mtg_utils._analysis.ident_provenance import emitting_unit_texts
 from mtg_utils._analysis.pair_reads import PairContext, pair_score
 from mtg_utils._analysis.rate import RateIndex, rate_for
 from mtg_utils._analysis.roles import DeckMana, role_of
-from mtg_utils._analysis.signal_specs import serve_from_dict, spec_for
+from mtg_utils._analysis.signal_specs import Serve, serve_from_dict, spec_for
 from mtg_utils._analysis.signals import clauses
 from mtg_utils._card_ir.compat_lookup import ir_for
 from mtg_utils.card_classify import (
@@ -266,15 +267,17 @@ def _stronger(a: str, b: str) -> str:
     return a if _ROLE_RANK[a] >= _ROLE_RANK[b] else b
 
 
-def _avenue_predicates(
-    avenues: Sequence[dict],
-) -> list[tuple[str, Callable[[dict], bool], re.Pattern[str] | None]]:
-    """(label, card->bool, oracle_regex|None) per avenue.
+_AvenuePred = tuple[str, Callable[[dict], bool], re.Pattern[str] | None, Serve | None]
+
+
+def _avenue_predicates(avenues: Sequence[dict]) -> list[_AvenuePred]:
+    """(label, card->bool, oracle_regex|None, serve|None) per avenue.
 
     The predicate decides membership (the same precise serve / oracle-AND-type
     test as before). The trailing oracle regex is the clause-attribution handle
     ``synergy_score`` uses to find which clause an avenue matched (``None`` when
-    the avenue is purely structured / type-gated).
+    the avenue is purely structured / type-gated); the serve, when the avenue
+    carries one, attributes an ident hit (:func:`_hit_clauses`).
 
     Two classification regimes, matching how each was authored:
       - explicit structured ``serve``: the SAME precise OR-predicate the spec
@@ -282,13 +285,13 @@ def _avenue_predicates(
       - bare ``search`` fragment (legacy): oracle regex AND card_type token,
         so an avenue scoped to ``card_type='Land'`` won't credit a non-land clone
         that merely matches the oracle regex."""
-    out: list[tuple[str, Callable[[dict], bool], re.Pattern[str] | None]] = []
+    out: list[_AvenuePred] = []
     for avenue in avenues:
         serve_data = avenue.get("serve")
         if serve_data is not None:
             label = avenue.get("label", "avenue")
             serve = serve_from_dict(serve_data)
-            out.append((label, serve.matches, serve.oracle))
+            out.append((label, serve.matches, serve.oracle, serve))
             continue
         search = avenue.get("search") or {}
         oracle = search.get("oracle")
@@ -302,7 +305,7 @@ def _avenue_predicates(
             except re.error:
                 continue  # an uncompilable avenue regex credits nothing
         out.append(
-            (avenue.get("label", "avenue"), _search_and(regex, card_type), regex)
+            (avenue.get("label", "avenue"), _search_and(regex, card_type), regex, None)
         )
     return out
 
@@ -345,8 +348,36 @@ def _prominence(label: str, focus_sets: Mapping[str, set] | None) -> float:
     return _PROM_DEFAULT
 
 
+def _hit_clauses(
+    card: dict,
+    pattern: re.Pattern[str] | None,
+    serve: Serve | None,
+    clause_list: Sequence[str],
+) -> tuple[int, ...]:
+    """The oracle clauses a served lane's hit belongs to: those its pattern
+    matches, else — a hit read off the card's IR, with no pattern to find its
+    clause by — those that line up with the abilities emitting the idents the
+    serve matched (``ident_provenance``). Empty when neither finds one: the hit
+    scores structural."""
+    if pattern is not None:
+        found = tuple(i for i, cl in enumerate(clause_list) if pattern.search(cl))
+        if found:
+            return found
+    idents = serve.matched_idents(card) if serve is not None else frozenset()
+    if not idents:
+        return ()
+    texts = [_norm_raw(t) for t in emitting_unit_texts(card, idents)]
+    if not texts:
+        return ()
+    return tuple(
+        i
+        for i, clause in enumerate(clause_list)
+        if any(_clause_overlaps(_norm_raw(clause), t) for t in texts)
+    )
+
+
 def _synergy_score(
-    hits: Sequence[tuple[str, re.Pattern[str] | None]],
+    hits: Sequence[tuple[str, tuple[int, ...]]],
     clause_list: Sequence[str],
     focus_sets: Mapping[str, set] | None,
     deck_tribes: frozenset[str] | None,
@@ -368,16 +399,12 @@ def _synergy_score(
     an enabler and no gate applies."""
     payoff_raws = _ir_payoff_raws(ir) if ir is not None else []
     gate_subtypes = _ir_gate_subtypes(ir) if ir is not None else []
-    # Attribute each hit to the clause(s) its oracle matched; lanes that matched
-    # only structurally (type/keyword/cmc) go to a structural bucket.
+    # Each hit carries the clause(s) it belongs to (:func:`_hit_clauses`); a
+    # lane that found no clause (a type, keyword or stat serve, an unattributed
+    # ident) goes to a structural bucket.
     clause_labels: dict[int, set[str]] = {}
     struct_labels: set[str] = set()
-    for label, pat in hits:
-        matched = (
-            [i for i, cl in enumerate(clause_list) if pat.search(cl)]
-            if pat is not None
-            else []
-        )
+    for label, matched in hits:
         if matched:
             for i in matched:
                 clause_labels.setdefault(i, set()).add(label)
@@ -463,8 +490,7 @@ def score_candidate(
     widening_base: str | None = None,
     focus_sets: Mapping[str, set] | None = None,
     deck_tribes: frozenset[str] | None = None,
-    _avenue_preds: list[tuple[str, Callable[[dict], bool], re.Pattern[str] | None]]
-    | None = None,
+    _avenue_preds: list[_AvenuePred] | None = None,
     _signal_specs: list | None = None,
     _ir_resolved: tuple[Card | None] | None = None,
     rate_index: RateIndex | None = None,
@@ -495,14 +521,16 @@ def score_candidate(
         if _signal_specs is not None
         else [spec_for(s) for s in active_signals]
     )
-    hits: list[tuple[str, re.Pattern[str] | None]] = []
+    hits: list[tuple[str, tuple[int, ...]]] = []
     for spec in specs:
         if spec is not None and spec.serve.matches(card):
-            hits.append((spec.label, spec.serve.oracle))
+            clause_ids = _hit_clauses(card, spec.serve.oracle, spec.serve, clause_list)
+            hits.append((spec.label, clause_ids))
     preds = _avenue_preds if _avenue_preds is not None else _avenue_predicates(avenues)
-    for label, predicate, oracle_re in preds:
+    for label, predicate, oracle_re, serve in preds:
         if predicate(card):
-            hits.append((label, oracle_re))
+            clause_ids = _hit_clauses(card, oracle_re, serve, clause_list)
+            hits.append((label, clause_ids))
 
     served = list(dict.fromkeys(label for label, _ in hits))
     synergy_score, clusters = _synergy_score(
