@@ -377,6 +377,32 @@ the deck runs — Skullclamp's X/1 creatures and token makers — and, gating th
 upgrades and the "card draw short" fill alike, took Skullclamp from the draw add
 in eleven precons to seven with no guide match lost.
 
+## Recall: what the tuner misses, and why (2026-10-19)
+
+Counting matches says how precise the swaps are; Dan asked for the other half — of
+what the guides cut and add, how much the tuner finds, and what stops the rest.
+`precon-audit/misses.py` reruns the tune with the cut ranking and the candidate
+searches recorded and gives every guide card one reason (first that applies):
+
+| guide cuts in the decks (424) | n | | guide adds (745) | n |
+|---|---|---|---|---|
+| cut | 109 | | added | 30 |
+| popular: off-lane, inside `UPGRADE_RANK` | 109 | | out of scope (in deck, land, banned, off-identity) | 135 |
+| a doer of the commander's lane, outside the deep-lane half | 91 | | a theme card no search looked for | 238 |
+| in a cut pool, not reached | 37 | | on a searched page, outranked or gated | 182 |
+| a carer of a built theme | 27 | | a role card no issue asked for | 81 |
+| land / commander | 20 | | not on any page though its job was searched | 56 |
+| other | 18 | | on a page, over the remaining budget | 23 |
+| protected (combo / closer / multiplier) | 13 | | | |
+
+Recall is 109 of the 404 cuttable guide cuts (27%) and 30 of the 610 in-scope adds
+(5%). The ceiling is structural too: ten swaps a deck against about seventeen guide
+cuts and thirty guide adds (two or three guides each). The levers, by size: the
+adds already on a page but outranked (182 — the cheapest recall), the cuts the
+popularity threshold shields (109), the commander-lane cards the guides trim (91),
+and the theme adds no search reaches (238: the upgrade's theme search only deepens
+the main theme, while the guides add sub-theme and commander-specific cards).
+
 ## What is left
 
 `docs/plans/backlog.md`, "What the polymorph tune and the 25-precon audit still
