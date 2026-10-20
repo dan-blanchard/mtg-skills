@@ -280414,6 +280414,171 @@
     "type_line": "Creature — Human Warrior"
    }
   },
+  "Denizen of the Deep": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Serpent"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Blue"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 6,
+      "shards": [
+       "Blue",
+       "Blue"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "3bf7e928-511c-4a31-b1fb-8c28bd41182a",
+       "89882438-6357-4ef9-9a52-f1ff49952c10",
+       "ca7959e9-8ae7-49f7-acf9-a0fc2afa219e",
+       "ccd2427a-9b63-4345-af20-46e2f530bab0"
+      ]
+     },
+     "name": "Denizen of the Deep",
+     "non_ability_text": null,
+     "oracle_text": "When this creature enters, return each other creature you control to its owner's hand.",
+     "power": {
+      "type": "Fixed",
+      "value": 11
+     },
+     "printings": [
+      "10E",
+      "DMR",
+      "DPA",
+      "P02",
+      "PS11",
+      "S99"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "fc1bb5b9-5e36-4154-b683-e62f4f66f2b6",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 11
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "When ~ enters, return each other creature you control to its owner's hand.",
+       "destination": "Battlefield",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "target": {
+          "controller": "You",
+          "properties": [
+           {
+            "type": "Another"
+           }
+          ],
+          "type": "Typed",
+          "type_filters": [
+           "Creature"
+          ]
+         },
+         "type": "BounceAll"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "ChangesZone",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 8.0,
+    "color_identity": [
+     "U"
+    ],
+    "colors": [
+     "U"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{6}{U}{U}",
+    "name": "Denizen of the Deep",
+    "oracle_id": "fc1bb5b9-5e36-4154-b683-e62f4f66f2b6",
+    "oracle_text": "When this creature enters, return each other creature you control to its owner's hand.",
+    "power": "11",
+    "toughness": "11",
+    "type_line": "Creature — Serpent"
+   }
+  },
   "Dense Canopy": {
    "phase_records": [
     {
@@ -570569,6 +570734,173 @@
     "oracle_id": "5f9dd005-1648-451e-b888-69ef81331c95",
     "oracle_text": "Target player returns each commander they control from the battlefield to the command zone.\nDraw a card.",
     "type_line": "Instant"
+   }
+  },
+  "Leaping Lizard": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": {
+        "cost": {
+         "generic": 1,
+         "shards": [
+          "Green"
+         ],
+         "type": "Cost"
+        },
+        "type": "Mana"
+       },
+       "description": "{1}{G}: ~ gets -0/-1 and gains flying until end of turn.",
+       "duration": "UntilEndOfTurn",
+       "effect": {
+        "duration": "UntilEndOfTurn",
+        "static_abilities": [
+         {
+          "active_zones": [],
+          "affected": {
+           "type": "SelfRef"
+          },
+          "affected_zone": null,
+          "characteristic_defining": false,
+          "condition": null,
+          "description": "get -0/-1 and gains flying",
+          "effect_zone": null,
+          "mode": "Continuous",
+          "modifications": [
+           {
+            "type": "AddPower",
+            "value": 0
+           },
+           {
+            "type": "AddToughness",
+            "value": -1
+           },
+           {
+            "keyword": "Flying",
+            "type": "AddKeyword"
+           }
+          ]
+         }
+        ],
+        "target": null,
+        "type": "GenericEffect"
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Lizard"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Green"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "pauper": "legal",
+      "paupercommander": "legal",
+      "premodern": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "Green",
+       "Green"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "4b0e4744-4d73-4e6e-950b-bb4c83229499",
+       "81665785-88f2-43e4-aebc-1086c5d908ca"
+      ]
+     },
+     "name": "Leaping Lizard",
+     "non_ability_text": null,
+     "oracle_text": "{1}{G}: This creature gets -0/-1 and gains flying until end of turn.",
+     "power": {
+      "type": "Fixed",
+      "value": 2
+     },
+     "printings": [
+      "HML",
+      "ME2"
+     ],
+     "rarities": [
+      "common"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "23d42beb-5293-4f12-a732-3531a0fa0ca0",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 3
+     },
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 3.0,
+    "color_identity": [
+     "G"
+    ],
+    "colors": [
+     "G"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "legal",
+     "paupercommander": "legal",
+     "penny": "legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}{G}{G}",
+    "name": "Leaping Lizard",
+    "oracle_id": "23d42beb-5293-4f12-a732-3531a0fa0ca0",
+    "oracle_text": "{1}{G}: This creature gets -0/-1 and gains flying until end of turn.",
+    "power": "2",
+    "toughness": "3",
+    "type_line": "Creature — Lizard"
    }
   },
   "Leashling": {

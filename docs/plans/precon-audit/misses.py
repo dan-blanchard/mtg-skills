@@ -74,7 +74,24 @@ def run_deck(args):
         cut_rank[:] = [(reason, c.name) for reason, c in out]
         return out
 
-    S._run_search, S.cut_candidates = rec_search, rec_cuts
+    upgrades, gate_fail = S._upgrades, {}
+
+    def rec_upgrades(candidate, cut, job, *, deck_mana=None, deck=None):
+        ok = upgrades(candidate, cut, job, deck_mana=deck_mana, deck=deck)
+        if not ok:
+            key = norm(candidate.get("name") or "")
+            if S._mv_band(candidate) > S._mv_band(cut.record):
+                why = "costs a higher mana-value band than the cut"
+            elif job is not None and upgrade_job(role_of(candidate, deck_mana=deck_mana), candidate) != job:
+                why = "does a different job than the cut"
+            elif not S._does_the_job(candidate, job, deck or (), cut.record):
+                why = "the job read says it doesn't do the job (or the deck can't fuel it)"
+            else:
+                why = "fewer decks play it than the cut"
+            gate_fail.setdefault(key, why)
+        return ok
+
+    S._run_search, S.cut_candidates, S._upgrades = rec_search, rec_cuts, rec_upgrades
     pool = CardPool.load(None)
     hd = acquire_for_cli(d / "deck.json", None)
     res = tune(hd, search_fn=functools.partial(card_search.search_cards, default_bulk_path()),
@@ -126,7 +143,8 @@ def run_deck(args):
         elif key in page_names:
             price = float((rec.get("prices") or {}).get("usd") or 0) or None
             if price is None or price > 100 - spent + 1e-9: why = "page held it — over budget"
-            else: why = "page held it — outranked or gated"
+            elif key in gate_fail: why = f"page held it — gated: {gate_fail[key]}"
+            else: why = "page held it — outranked (another card ranked first)"
         else:
             roles = role_of(rec); job = upgrade_job(roles, rec)
             kinds = {"ramp": "ramp", "card_draw": "card-draw", "board_wipe": "board-wipe", "interaction": "removal", "protection": "protects-board"}

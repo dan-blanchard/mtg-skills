@@ -403,6 +403,16 @@ popularity threshold shields (109), the commander-lane cards the guides trim (91
 and the theme adds no search reaches (238: the upgrade's theme search only deepens
 the main theme, while the guides add sub-theme and commander-specific cards).
 
+Of those 238, 115 serve the main theme by the tuner's own read, and 88 of them don't
+match the theme's search spec at all: a theme's candidate page is still its
+pattern search (Abzan Armor's "assigns combat damage equal to its toughness"), not
+its serving predicate (`Serve.matches`, which admits Fecund Greenshell and Perimeter
+Captain). Paging the identity's 3,000 most-played cards through the serving
+predicate as well, tried 2026-10-19, put the guide adds on the page but dropped the
+adds matching a guide from 30 to 26: one pick per swap, and a wider page lets a
+popular card that fits loosely win it. Widening the page costs precision without
+buying recall until the ranking can tell those apart.
+
 ## What is left
 
 `docs/plans/backlog.md`, "What the polymorph tune and the 25-precon audit still

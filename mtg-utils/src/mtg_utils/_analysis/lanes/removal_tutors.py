@@ -54,6 +54,7 @@ from mtg_utils._card_ir.crosswalk import (
     AbilityUnit,
     ConceptNode,
     ConceptTree,
+    affected_tag,
     cast_with_keyword_name,
     change_zone_dirs,
     counter_kind,
@@ -947,10 +948,10 @@ def _removal(tree: ConceptTree) -> list[Signal]:
                     return [Signal("removal", "you", "", c.raw, tree.name, "high")]
     for unit in tree.units:
         for c in unit.effects:
-            # A base toughness set to 0 or less kills outright (CR 704.5f):
-            # Multiply by Zero's 0/0 is removal, Turn to Frog's 1/1 only the
-            # 2HG scan's soft read.
-            if _sets_toughness_to_zero(c):
+            # A toughness set to 0 or lowered on the target can kill outright
+            # (CR 704.5f): Multiply by Zero's 0/0 and Nameless Inversion's
+            # +3/-3 are removal, Turn to Frog's 1/1 only the 2HG scan's soft read.
+            if _toughness_kill(c):
                 return [Signal("removal", "you", "", c.raw, tree.name, "high")]
     for unit in tree.units:
         for c in unit.effect_concepts("deal_damage"):
@@ -1100,17 +1101,31 @@ def _perm_answer_types(filt: object) -> frozenset[str]:
     return frozenset()
 
 
-def _sets_toughness_to_zero(c: ConceptNode) -> bool:
-    """A base-toughness SET to 0 or less on a permanent the caster doesn't
-    control (CR 704.5f: a creature with toughness 0 or less is put into its
-    owner's graveyard, and regeneration can't replace that)."""
+def _toughness_kill(c: ConceptNode) -> bool:
+    """A one-shot continuous effect that can put a creature the caster doesn't
+    control to 0 toughness (CR 704.5f: it goes to its owner's graveyard, and
+    regeneration can't replace that): a base-toughness SET to 0 or less
+    (Multiply by Zero's 0/0), or toughness LOWERED on the spell's or ability's
+    target (Nameless Inversion's "+3/-3" — the target's own shrink, not a
+    creature lowering itself: Argivian Avenger's "-1/-1" is SelfRef)."""
     filt = effect_filter(c.node)
     if filter_controller(filt) == "You" or recipient_tag(c.node) == "SelfRef":
         return False
-    return tag_of(c.node) == "GenericEffect" and any(
-        tag_of(m) == "SetToughness" and (v := mod_value(m)) is not None and v <= 0
-        for _, m in iter_mod_sites(c.node)
-    )
+    if tag_of(c.node) != "GenericEffect":
+        return False
+    for sdef, m in iter_mod_sites(c.node):
+        v = mod_value(m)
+        if v is None:
+            continue
+        if tag_of(m) == "SetToughness" and v <= 0:
+            return True
+        if (
+            tag_of(m) == "AddToughness"
+            and v < 0
+            and affected_tag(sdef) == "ParentTarget"
+        ):
+            return True
+    return False
 
 
 def _soft_answer_types(c: ConceptNode) -> frozenset[str] | None:
@@ -1261,10 +1276,11 @@ def _removal_answers(
                 )
             ):
                 yield c, _CREATURE
-            elif _sets_toughness_to_zero(c):
-                # A base toughness set to 0 or less kills the creature outright
-                # (CR 704.5f) — Multiply by Zero's 0/0 — so it is removal in its
-                # own right, where a 1/1 set (Turn to Frog) is only the soft read.
+            elif _toughness_kill(c):
+                # A toughness set to 0 or lowered on the target can kill outright
+                # (CR 704.5f) — Multiply by Zero's 0/0, Nameless Inversion's
+                # +3/-3 — so it is removal in its own right, where a 1/1 set
+                # (Turn to Frog) is only the soft read.
                 yield c, _CREATURE
             elif c.concept == "put_library_position":
                 if tag_of(c.node) not in (

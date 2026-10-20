@@ -2137,7 +2137,11 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
         # of Progress, Descent into Avernus, Sunspine Lynx, Mind Bomb, 27 in
         # all — and every damage sweep (Pestilence, Earthquake) also fires
         # ``mass_removal``.
-        signal_keys=("mass_removal",),
+        # ``mass_bounce`` (2026-10-19): a sweep that returns every creature
+        # or nonland permanent an opponent has to hand clears the board as a
+        # wipe does (Evacuation, Cyclonic Rift overloaded); your own side's
+        # bounce is not one (``_mass_bounce`` excludes it).
+        signal_keys=("mass_removal", "mass_bounce"),
         should_match=(
             "Wrath of God",
             "Farewell",
@@ -2147,6 +2151,7 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
             "Crux of Fate",
             "Culling Ritual",
             "Terminus",  # mass tuck (ChangeZoneAll -> Library, task #88)
+            "Cyclonic Rift",  # overloaded mass bounce (CR 702.96a)
         ),
         should_not_match=(
             "Lightning Bolt",

@@ -229,6 +229,21 @@ def test_a_shrink_on_one_creature_is_not_a_board_wipe(name):
     assert "board_wipe" not in role_of(_real(name))
 
 
+def test_a_targeted_toughness_shrink_is_removal():
+    """Nameless Inversion's "+3/-3" on its target can put it to 0 toughness
+    (CR 704.5f): interaction. A creature lowering its own toughness (Leaping
+    Lizard's "-0/-1") removes nothing."""
+    assert "interaction" in role_of(_real("Nameless Inversion"))
+    assert "interaction" not in role_of(_real("Leaping Lizard"))
+
+
+def test_a_mass_bounce_is_a_board_wipe():
+    """Returning every nonland permanent an opponent has to hand clears their
+    board as a wipe does: Cyclonic Rift overloaded (CR 702.96a), Evacuation."""
+    assert "board_wipe" in role_of(_real("Cyclonic Rift"))
+    assert "board_wipe" in role_of(_real("Evacuation"))
+
+
 def test_damage_to_each_player_is_not_a_board_wipe():
     """Damage only to players removes nothing from the board (CR 120.3a): the
     board-wipe view reads sweeps, not ``symmetric_damage_each``."""

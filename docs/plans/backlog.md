@@ -134,8 +134,6 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   Nahiri for Abrade and Lightning Bolt (its planeswalkers are not superfriends
   carers by the focus read), Veloci-Ramp-Tor trades Savage Stomp, which its
   Dinosaurs make cheaper, for Loran.
-  (f) A targeted static toughness shrink (Nameless Inversion's "+3/-3") is no
-  `removal` key, so it fills no interaction slot.
   (g) The guide cuts the tuner protects are still 124 — lane carers and doers
   the guides trim, which the upgrade issue reaches only through the deep
   lane's least-played half.
@@ -170,9 +168,7 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   main job is removal, and as a gate it only compares a cut with candidates of
   the same job. The `removal` preset takes `debuff_makers` whole, so a
   power-only "-1/-0" on the creature Animate Dead returns reads as removal (the
-  role, not the read — the read scores it None). Cyclonic Rift's overload reads
-  as `mass_bounce`, which the `board-wipe` view doesn't take, so the role still
-  counts it as interaction only.
+  role, not the read — the read scores it None).
   (k) **Job-read plumbing the eighth-pass review deferred.** Which effects count
   as a job should come from the lanes as unit iterators — `mass_removal_units`
   / `mass_bounce_units` in `mana_and_wipes`, the `_removal_answers` pattern —

@@ -1199,6 +1199,10 @@ def _mass_bounce(tree: ConceptTree) -> list[Signal]:
                 continue
             if not (set(filter_core_types(sub)) & {"Creature", "Permanent"}):
                 continue
+            # Your own creatures returned to your hand (Denizen of the Deep's
+            # drawback, Part the Veil's reset) sweep nothing of an opponent's.
+            if filter_controller(sub) == "You":
+                continue
             preds = set(filter_predicates(sub))
             if "InZone" in preds or "Owned" in preds:
                 continue

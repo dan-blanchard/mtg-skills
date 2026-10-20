@@ -7484,6 +7484,7 @@ def test_mass_removal_languish_negative_amount_is_typed():
         ("Evacuation", True),  # BounceAll creatures
         ("Devastation Tide", True),  # BounceAll nonland permanents
         ("Boomerang", False),  # single-target Bounce → bounce_tempo
+        ("Denizen of the Deep", False),  # returns YOUR other creatures: a drawback
         # base mode targeted; the overloaded sweep is read off it (CR 702.96a,
         # ``mana_and_wipes._overloaded``)
         ("Cyclonic Rift", True),
