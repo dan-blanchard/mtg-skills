@@ -4,8 +4,8 @@ tuner doesn't, the reason it doesn't (docs/plans/precon-audit-2026-10-18.md).
     cd mtg-utils && uv run python ../docs/plans/precon-audit/misses.py ROOT [Name ...]
 
 ROOT holds decks/<Name>/deck.json and articles/<Name>.md. Runs the tune per deck
-(--max-swaps 30 --budget 440, the largest guide's size — guide_sizes.py — as the
-rerun recipe does) with the cut ranking and
+(--max-swaps 30, the largest guide's swaps, and the precon's own budget from
+ROOT/budgets.json — guide_sizes.py — as the rerun recipe does) with the cut ranking and
 the candidate searches recorded, then sorts each guide card into one reason.
 
 CUT reasons, first that applies: cut (a hit); protected (a combo piece, an at-floor
@@ -23,9 +23,15 @@ of its kind was searched, but its spec or page depth missed the card).
 """
 import collections, functools, json, multiprocessing, pathlib, re, sys
 
-#: The largest upgrade guide's swaps and spend (guide_sizes.py, 2026-10-19), so the
-#: recipe never caps recall below what a guide does.
+#: The largest upgrade guide's swaps (guide_sizes.py, 2026-10-19), so the recipe
+#: never caps recall below what a guide does; the budget is the precon's own
+#: (ROOT/budgets.json), else the largest guide's spend.
 MAX_SWAPS, BUDGET = 30, 440
+
+
+def budget_for(root, name):
+    path = root / "budgets.json"
+    return json.loads(path.read_text()).get(name, BUDGET) if path.exists() else BUDGET
 
 
 def norm(n):
@@ -100,7 +106,7 @@ def run_deck(args):
     pool = CardPool.load(None)
     hd = acquire_for_cli(d / "deck.json", None)
     res = tune(hd, search_fn=functools.partial(card_search.search_cards, default_bulk_path()),
-               params=TuneParams(budget=BUDGET, max_swaps=MAX_SWAPS),
+               params=TuneParams(budget=budget_for(root, name), max_swaps=MAX_SWAPS),
                combos_fn=lambda deck: combo_search.combo_search(HydratedDeck.from_parsed(deck, by_name=hd.by_name)))
     sc = res["scorecard"]; f = sc["focus"]
     cut_made = {norm(s["cut"]["name"]) for s in res["swaps"] if s.get("cut")}
@@ -146,7 +152,7 @@ def run_deck(args):
             why = "out of scope"
         elif key in page_names:
             price = float((rec.get("prices") or {}).get("usd") or 0) or None
-            if price is not None and price > BUDGET: why = "page held it — costs more than the whole budget"
+            if price is not None and price > budget_for(root, name): why = "page held it — costs more than the whole budget"
             elif key in gate_fail: why = f"page held it — gated: {gate_fail[key]}"
             else: why = "page held it — outranked (another card ranked first)"
         else:

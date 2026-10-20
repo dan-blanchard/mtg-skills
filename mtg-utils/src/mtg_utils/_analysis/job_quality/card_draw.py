@@ -543,6 +543,14 @@ def _draw_cost(card: dict, sources: list[_Source]) -> float:
     return max(0.0, cost - max((s.treasure for s in sources), default=0))
 
 
+def _ends_itself(card: dict) -> bool:
+    """Whether the card carries cumulative upkeep (CR 702.24a): a permanent
+    whose upkeep cost climbs every turn until you stop paying and sacrifice it."""
+    return any(
+        "CumulativeUpkeep" in tree.card_keywords for tree in trees_for(card, bulk=card)
+    )
+
+
 def features(card: dict) -> dict[str, float] | None:
     """The card-draw read's features for ``card``, or ``None`` when no draw of its
     own nets it a card (looting, rummaging, connive, cycling, a gift)."""
@@ -572,17 +580,27 @@ def features(card: dict) -> dict[str, float] | None:
         broad.add("turn")
     flow = max((max(0, _advantage(s)) * s.rate for s in engines), default=0.0)
     face = faces(card)[0]
+    # An engine on a permanent with cumulative upkeep doesn't last: its upkeep
+    # cost grows by one payment every turn and it is sacrificed when you stop
+    # paying (CR 702.24a), so Mystic Remora draws for a few turns, then goes.
+    # It keeps its draw rate while it runs (``flow``) but none of a lasting
+    # engine's credit. Dan's call (2026-10-20), not a fitted weight: play-rate
+    # scores Remora with the lasting engines, and the read had it above Rhystic
+    # Study.
+    lasting = float(not _ends_itself(card))
     return {
-        "engine": float(bool(engines)),
+        "engine": float(bool(engines)) * lasting,
         "flow": math.log2(1 + flow),
-        "self_fuel": float(bool(broad & _SELF_FUEL) and "turn" not in broad),
-        "opp_fuel": float(bool(broad & _OPP_FUEL) and "turn" not in broad),
+        "self_fuel": float(bool(broad & _SELF_FUEL) and "turn" not in broad) * lasting,
+        "opp_fuel": float(bool(broad & _OPP_FUEL) and "turn" not in broad) * lasting,
         "combat": float(
             bool(fuels) and fuels <= {"combat", "other"} and "combat" in fuels
-        ),
+        )
+        * lasting,
         "act_engine": float(
             any(s.kind in ("activated", "loyalty") for s in engines) and not fuels
-        ),
+        )
+        * lasting,
         "one_eff": max(-1.0, min(one_eff, 2.0)),
         "act_eff": min(act_eff, 2.0),
         "cheap": float(cost <= 2),

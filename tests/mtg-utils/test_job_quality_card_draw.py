@@ -153,3 +153,14 @@ def test_a_deck_fit_lowers_a_score_by_the_share_it_cannot_fuel():
     card = {"name": "Test Engine", "oracle_id": ""}
     assert read(1.0, 0.4).score(card, deck=[card]) == 0.4
     assert read(-1.0, 0.4).score(card, deck=[card]) == -1.6
+
+
+def test_a_cumulative_upkeep_engine_reads_below_a_lasting_one():
+    """Mystic Remora's upkeep climbs every turn until it is sacrificed (CR
+    702.24a): a few turns of draws, not an engine. It reads below Rhystic Study,
+    the same opponent-fired draw on a permanent that stays, and below Phyrexian
+    Arena's one card a turn."""
+    remora = job_score(test_card("Mystic Remora"), "card_draw")
+    assert remora is not None
+    assert remora < job_score(test_card("Rhystic Study"), "card_draw")
+    assert remora < job_score(test_card("Phyrexian Arena"), "card_draw")

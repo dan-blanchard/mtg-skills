@@ -80,3 +80,11 @@ short") read the gate too. A read of part of a job (removal, of interaction) gat
 only a cut it reads as that part (`JobRead.whole_job`): an interaction fill may be
 a counterspell. On the 25 precons Skullclamp went from the card-draw add in eleven
 to seven, with no guide match lost (230 / 109 / 30).
+
+**Amendment (2026-10-20): a hand-set feature.** A read may override a fitted
+weight where play-rate scores a card for a reason the card itself contradicts,
+by Dan's call and documented at the feature. The first: a permanent with
+cumulative upkeep (CR 702.24a: its upkeep cost climbs every turn until it is
+sacrificed) gets none of a lasting engine's credit in the card-draw read
+(`card_draw._ends_itself`), only its draw rate. Mystic Remora read above Rhystic
+Study; it now reads below Phyrexian Arena.

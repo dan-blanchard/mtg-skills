@@ -6,9 +6,13 @@ the rerun recipe's --max-swaps and --budget (docs/plans/precon-audit-2026-10-18.
 Per source of each articles/<Name>.md: its cuts and adds (rows whose "Source #"
 names it), its stated budget (the Sources line), and the summed current price of
 its adds (the cheapest printing the card pool lists). Prints per-guide rows and
-the medians.
+the medians, and writes ROOT/budgets.json: each precon's budget, the most any of
+its own guides spent (the larger of its stated budget and its adds' price), or —
+for a summary that doesn't tag its rows by source — the price of all its adds.
+misses.py and the rerun recipe read it, so a $50-budget precon isn't tuned with
+the largest guide's $440.
 """
-import pathlib, re, statistics, sys
+import json, pathlib, re, statistics, sys
 
 from mtg_utils.card_pool import CardPool
 
@@ -47,6 +51,20 @@ def main(root):
                 spend += float(usd) if usd else 0.0
             m = re.search(r"\$\s?(\d+)", line)
             table.append((art.stem, n, c, len(a_names), int(m.group(1)) if m else None, round(spend, 2)))
+    budgets = {}
+    for art in sorted((root / "articles").glob("*.md")):
+        mine = [r for r in table if r[0] == art.stem]
+        spent = max((max(r[4] or 0, r[5]) for r in mine if r[2] or r[3]), default=0.0)
+        if not spent:  # untagged rows: every add the article lists
+            spent = sum(
+                float(((pool.by_name.get(nm) or pool.by_name.get(nm.split(" // ")[0]) or {})
+                       .get("prices") or {}).get("usd") or 0)
+                for names, _s in rows(art.read_text(), "Recommended adds") for nm in names
+            )
+            spent = max(spent, max((r[4] or 0 for r in mine), default=0))
+        if spent:  # an article with no guide lists (a brief) is no precon
+            budgets[art.stem] = round(spent, 2)
+    (root / "budgets.json").write_text(json.dumps(budgets, indent=1))
     for r in table:
         print(f"{r[0][:22]:22s} src{r[1]} cuts={r[2]:3d} adds={r[3]:3d} stated={r[4]} add-price=${r[5]}")
     sized = [r for r in table if r[2] or r[3]]
@@ -57,6 +75,7 @@ def main(root):
     print("stated budgets:", sorted(stated), "median", statistics.median(stated) if stated else None)
     print("median add price", statistics.median(r[5] for r in sized), "| quartiles",
           statistics.quantiles([r[5] for r in sized], n=4))
+    print("per-precon budgets:", sorted(budgets.values()), "median", statistics.median(budgets.values()))
 
 
 if __name__ == "__main__":

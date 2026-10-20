@@ -13,8 +13,10 @@ can be dated; where the tuner proposes a stronger, newer card that is fine.
    `Commander` / `Deck` list shape by `precon-audit/to_decktxt.py` and parsed
    with `parse-deck --format commander`. Collector's-edition duplicates skipped.
 2. Tune: `deck-tune <deck.json> --max-swaps 10 --budget 100` (passes one to eight;
-   from the recall pass on, `--max-swaps 30 --budget 440`, the largest guide's size —
-   `precon-audit/guide_sizes.py`), paper medium, no collection.
+   from the recall pass on, `--max-swaps 30`, the largest guide's swaps, and from
+   2026-10-20 each precon's own budget — the most any of its guides spent,
+   `budgets.json` from `precon-audit/guide_sizes.py` — where it was the largest
+   guide's $440 for every precon), paper medium, no collection.
 3. Guides: 2-3 per precon (EDHREC, Card Kingdom, Draftsim, TCGplayer, Star City
    Games, Hipsters of the Coast, Card Game Base, MTG Rocks), summarized by a
    research agent into `precon-audit/<Name>_<SET>.md`: sources, the plan as the
@@ -399,29 +401,35 @@ a median of 20 swaps):
 | 14 / $60 (the median guide) | 322 | 16 | 139 (43%) | 30 |
 | 22 / $200 (90th percentile) | 454 | 7 | 176 (39%) | 42 |
 | 30 / $440 (the largest guide) | 493 | 1 | 185 (38%) | 47 |
+| 30 / the precon's own guides' budget ($41–438, median $126; 2026-10-20) | 437 | — | 167 (38%) | 44 |
 
 Past 22 swaps the extra cuts match a guide 27% of the time, about the 24% base
-rate. The recipe is now **thirty swaps and $440**, so recall is never capped below
+rate. The recipe was **thirty swaps and $440** (since 2026-10-20 the budget is each
+precon's own, below), so recall is never capped below
 what a guide does; precision is read beside it.
 
 | guide cuts in the decks (424) | n | | guide adds (745) | n |
 |---|---|---|---|---|
-| cut | 186 | | added | 52 |
+| cut | 167 | | added | 44 |
 | popular: off-lane, inside `UPGRADE_RANK` | 75 | | out of scope (in deck, land, banned, off-identity) | 135 |
 | a doer of the commander's lane, outside the deep-lane half | 55 | | a theme card no search looked for | 229 |
-| a carer of a built theme | 27 | | on a searched page, outranked | 205 |
+| in a cut pool, not reached | 42 | | on a searched page, outranked | 171 |
+| a carer of a built theme | 27 | | on a page, gated (play-rate, cost band, job) | 86 |
 | other | 25 | | not on any page though its job was searched | 40 |
-| in a cut pool, not reached | 23 | | on a page, gated (play-rate, cost band, job) | 44 |
 | land / commander | 20 | | a role card no issue asked for | 40 |
 | protected (combo / closer / multiplier) | 13 | | | |
 
-Recall is 186 of the 404 cuttable guide cuts (46%) and 52 of the 610 in-scope adds
-(9%; 56 before the card-draw page held the repeating draw engines, 52 before an upgrade stopped being held to a top-heavy deck's four-mana cap,
-54 before the lane fixes below took two adds picked for misread roles, 47 before a job upgrade stopped requiring theme fit — the floor had kept
-Swords to Plowshares and Path to Exile behind Dragon Tempest in a goad deck). The
-levers, by size: the theme adds no search reaches (229), the adds outranked on a
-page (205), the cuts the popularity threshold still shields (75),
-and the commander-lane cards the guides trim (55).
+Recall at each precon's own budget (2026-10-20) is 167 of the 404 cuttable guide cuts
+(41%) and 44 of the 610 in-scope adds (7%). At $440 for every precon the same tree
+matched 186 and 54 (52 before Mystic Remora stopped reading as a lasting engine, 56
+before the card-draw page held the repeating draw engines, 52 before an upgrade
+stopped being held to a top-heavy deck's four-mana cap, 54 before the lane fixes
+below took two adds picked for misread roles, 47 before a job upgrade stopped
+requiring theme fit — the floor had kept Swords to Plowshares and Path to Exile
+behind Dragon Tempest in a goad deck). The levers, by size: the theme adds no
+search reaches (229), the adds outranked on a page (171), the cuts the popularity
+threshold still shields (75), the commander-lane cards the guides trim (55), and
+the cuts a budget-bound tune never reaches (42).
 
 Of those 238, 115 serve the main theme by the tuner's own read, and 88 of them don't
 match the theme's search spec at all: a theme's candidate page is still its
@@ -493,6 +501,16 @@ guides add none of the three, so adds matching fell to 52 (Skullclamp three time
 Deadly Dispute once). Kept: the role and its search now agree, and which engine a
 deck takes is the ranking's question (backlog "(e)").
 
+Two corrections followed (2026-10-20). The guides don't add Rhystic Study ($68, a
+Game Changer) or Esper Sentinel ($55) because most spend about $50, and the recipe
+gave every precon the largest guide's $440, nine times that. Each precon now gets
+its own guides' largest spend (`budgets.json`, $41–438). And Mystic Remora's
+cumulative upkeep grows every turn until it is sacrificed (CR 702.24a), so the
+card-draw read no longer credits it as a lasting engine (Dan's call; the read had
+it above Rhystic Study). At per-precon budgets: 437 swaps, 167 cuts and 44 adds
+matching (40 before the Remora fix); the card-draw adds are Garruk's Uprising in
+12 precons, Esper Sentinel in 8, Skullclamp in 6, Rhystic Study in 4.
+
 ## What is left
 
 `docs/plans/backlog.md`, "What the polymorph tune and the 25-precon audit still
@@ -510,7 +528,8 @@ clause-cluster attribution for ident-served hits.
 curl -sL https://mtgjson.com/api/v5/decks/SliverSwarm_CMM.json -o SliverSwarm_CMM.json
 python3 -I docs/plans/precon-audit/to_decktxt.py SliverSwarm_CMM.json deck.txt
 cd mtg-utils && uv run parse-deck deck.txt --format commander --output deck.json
-uv run deck-tune deck.json --max-swaps 30 --budget 440 --output tune.json  # the largest guide (guide_sizes.py)
+uv run python ../docs/plans/precon-audit/guide_sizes.py ROOT  # writes ROOT/budgets.json
+uv run deck-tune deck.json --max-swaps 30 --budget <budgets.json[Name]> --output tune.json
 # compare: decks/<Name>/tune.json beside precon-audit/<Name>.md
 python3 -I docs/plans/precon-audit/compare.py
 ```
