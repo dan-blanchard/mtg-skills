@@ -406,21 +406,21 @@ what a guide does; precision is read beside it.
 
 | guide cuts in the decks (424) | n | | guide adds (745) | n |
 |---|---|---|---|---|
-| cut | 185 | | added | 52 |
+| cut | 186 | | added | 56 |
 | popular: off-lane, inside `UPGRADE_RANK` | 75 | | out of scope (in deck, land, banned, off-identity) | 135 |
-| a doer of the commander's lane, outside the deep-lane half | 55 | | a theme card no search looked for | 239 |
-| a carer of a built theme | 27 | | on a searched page, outranked | 171 |
-| other | 25 | | not on any page though its job was searched | 68 |
-| in a cut pool, not reached | 24 | | on a page, gated (play-rate, cost band, job) | 37 |
-| land / commander | 20 | | a role card no issue asked for | 43 |
+| a doer of the commander's lane, outside the deep-lane half | 55 | | a theme card no search looked for | 229 |
+| a carer of a built theme | 27 | | on a searched page, outranked | 187 |
+| other | 25 | | not on any page though its job was searched | 53 |
+| in a cut pool, not reached | 23 | | on a page, gated (play-rate, cost band, job) | 45 |
+| land / commander | 20 | | a role card no issue asked for | 40 |
 | protected (combo / closer / multiplier) | 13 | | | |
 
-Recall is 185 of the 404 cuttable guide cuts (46%) and 52 of the 610 in-scope adds
-(9%; 54 before the lane fixes below took two adds picked for misread roles, 47
-before a job upgrade stopped requiring theme fit — the floor had kept
+Recall is 186 of the 404 cuttable guide cuts (46%) and 56 of the 610 in-scope adds
+(9%; 52 before an upgrade stopped being held to a top-heavy deck's four-mana cap,
+54 before the lane fixes below took two adds picked for misread roles, 47 before a job upgrade stopped requiring theme fit — the floor had kept
 Swords to Plowshares and Path to Exile behind Dragon Tempest in a goad deck). The
-levers, by size: the theme adds no search reaches (239), the adds outranked on a
-page (171), the cuts the popularity threshold still shields (75),
+levers, by size: the theme adds no search reaches (229), the adds outranked on a
+page (187), the cuts the popularity threshold still shields (75),
 and the commander-lane cards the guides trim (55).
 
 Of those 238, 115 serve the main theme by the tuner's own read, and 88 of them don't
@@ -474,6 +474,12 @@ return themselves to hand (`bounce_tempo` fired on Rancor, Batterskull, The Scar
 God). After the three: 493 swaps, 185 cuts and 52 adds matching. The two adds lost
 were picked for those misreads: Virtue and Valor traded Rancor in as an interaction
 fill, and traded Giant Inheritance, read as removal, for Stroke of Midnight.
+
+The cap was the one cause a rule could fix. A top-heavy deck searches every add at
+four mana or less, so a fix can't make its curve heavier, but an upgrade already
+takes no higher mana-value band than its cut. Lifting the cap for upgrades made 498
+swaps, 186 cuts and 56 adds matching: The First Sliver and Sliver Legion for Sliver
+Swarm, Ghalta and Etali for Veloci-Ramp-Tor, Conduit of Ruin for Eldrazi Unbound.
 
 ## What is left
 

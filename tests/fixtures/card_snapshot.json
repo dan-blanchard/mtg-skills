@@ -312991,6 +312991,221 @@
     "type_line": "Creature — Bird Horror"
    }
   },
+  "Duplicant": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Artifact",
+       "Creature"
+      ],
+      "subtypes": [
+       "Shapeshifter"
+      ],
+      "supertypes": []
+     },
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 6,
+      "shards": [],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "18723171-b9bb-434f-a4db-e751249c3af1",
+       "1a79eebd-89bf-49a2-9c22-f86af934633a",
+       "2b39497c-79fc-437b-9d63-86d906c0455a",
+       "74e04402-dbc3-4646-9857-fc42ecd8cc43",
+       "8e357856-99d6-407a-bfa2-3cddbf4affd3",
+       "9ecb184f-c282-42f3-9576-09781a116352",
+       "d48a96f2-738f-433f-bfae-fbf378832a3b",
+       "de6a3b58-ddb6-4524-9685-3a34a1fd9e8f",
+       "e9592749-f1a4-4ac4-bb6b-071c5906cad5",
+       "ea87504f-b373-448b-8444-46fdc3d93250"
+      ]
+     },
+     "name": "Duplicant",
+     "non_ability_text": null,
+     "oracle_text": "Imprint — When this creature enters, you may exile target nontoken creature.\nAs long as a card exiled with this creature is a creature card, this creature has the power, toughness, and creature types of the last creature card exiled with it. It's still a Shapeshifter.",
+     "power": {
+      "type": "Fixed",
+      "value": 2
+     },
+     "printings": [
+      "2XM",
+      "ARC",
+      "C18",
+      "C21",
+      "CM1",
+      "CMM",
+      "DRC",
+      "EMA",
+      "FDC",
+      "MOC",
+      "MPS",
+      "MRD",
+      "PRM",
+      "PZ1",
+      "TD2"
+     ],
+     "rarities": [
+      "rare",
+      "special"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2020-08-07",
+       "text": "Abilities that define a * in a creature's power and toughness apply while that card is in exile, but abilities that add or subtract power and toughness don't. For example, the ability of Crusader of Odric applies to determine Duplicant's power and toughness, but the ability of Death's Shadow doesn't."
+      },
+      {
+       "date": "2020-08-07",
+       "text": "Duplicant's base power and toughness change to the imprinted card's power and toughness. Counters and other effects that modify Duplicant's power and toughness still apply."
+      },
+      {
+       "date": "2020-08-07",
+       "text": "Duplicant's power and toughness are constantly updated if the exiled card's power and/or toughness change."
+      },
+      {
+       "date": "2020-08-07",
+       "text": "If a melded permanent or a merged permanent is exiled by Duplicant's triggered ability, that ability's controller chooses the relative timestamp of the exiled cards. Duplicant looks at the information of the one with the latest timestamp."
+      }
+     ],
+     "scryfall_oracle_id": "ea86abfa-6cab-4ef0-8463-34136fc25b59",
+     "static_abilities": [
+      {
+       "active_zones": [],
+       "affected": {
+        "type": "SelfRef"
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": {
+        "text": "a card exiled with ~ is a creature card",
+        "type": "Unrecognized"
+       },
+       "description": "As long as a card exiled with ~ is a creature card, ~ has the power, toughness, and creature types of the last creature card exiled with it. It's still a Shapeshifter.",
+       "effect_zone": null,
+       "mode": "Continuous",
+       "modifications": []
+      }
+     ],
+     "toughness": {
+      "type": "Fixed",
+      "value": 4
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "When ~ enters, you may exile target nontoken creature.",
+       "destination": "Battlefield",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "destination": "Exile",
+         "enter_tapped": false,
+         "enter_transformed": false,
+         "enters_attacking": false,
+         "origin": null,
+         "owner_library": false,
+         "target": {
+          "controller": null,
+          "properties": [
+           {
+            "type": "NonToken"
+           }
+          ],
+          "type": "Typed",
+          "type_filters": [
+           "Creature"
+          ]
+         },
+         "type": "ChangeZone"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": true,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "ChangesZone",
+       "optional": true,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 6.0,
+    "color_identity": [],
+    "colors": [],
+    "keywords": [
+     "Imprint"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{6}",
+    "name": "Duplicant",
+    "oracle_id": "ea86abfa-6cab-4ef0-8463-34136fc25b59",
+    "oracle_text": "Imprint — When this creature enters, you may exile target nontoken creature.\nAs long as a card exiled with this creature is a creature card, this creature has the power, toughness, and creature types of the last creature card exiled with it. It's still a Shapeshifter.",
+    "power": "2",
+    "toughness": "4",
+    "type_line": "Artifact Creature — Shapeshifter"
+   }
+  },
   "Duress": {
    "phase_records": [
     {
@@ -624995,6 +625210,200 @@
     "oracle_id": "69c8e690-c0a2-4c4e-910d-123c9c5b922f",
     "oracle_text": "Spree (Choose one or more additional costs.)\n+ {1} — Until end of turn, target creature becomes a white Rabbit with base power and toughness 0/1.\n+ {3} — Target player draws two cards.",
     "type_line": "Instant"
+   }
+  },
+  "Meteor Golem": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Artifact",
+       "Creature"
+      ],
+      "subtypes": [
+       "Golem"
+      ],
+      "supertypes": []
+     },
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "standard": "legal",
+      "standardbrawl": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 7,
+      "shards": [],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "0abc2aa2-b505-4e6b-8a37-4e818a8561bc",
+       "14e17f8c-c705-43ab-ae1a-cde48aceca0a",
+       "1bdb0b15-d651-4730-8be9-d0e01145311b",
+       "2add2ff0-4412-4710-aff7-ed82b1f684a8",
+       "32758999-b0f1-4acc-b59a-ead3dce27724",
+       "4894b26b-f1ee-4e08-8bab-082a8327c96f",
+       "5d096068-0740-4b28-8c05-f5a5b7109ab9",
+       "64cda05e-a1c8-451f-9d1f-b47b4e2b1e95",
+       "6930a901-7b3e-45ff-bba5-bc10e0085ee0",
+       "7aeddfc1-38b0-4491-92f1-0a9989a53439",
+       "9e72f3f6-7420-4d5c-bddb-7ea972adce81",
+       "a1a1cfec-72ca-499b-b621-fa2d8502ea20",
+       "a9a086bf-19d2-4827-af2c-a6f57d640782",
+       "ad4b5324-bd25-4651-bcbc-5439b74df361",
+       "b748341f-557c-4b6a-a36c-c08c9cc05b90",
+       "b81e9fd2-a539-4756-8146-b2e8311c095d",
+       "c4565ed0-36a1-4d36-987e-cae10e36830f",
+       "cd7af704-a770-4f90-8fe8-a45457785a35",
+       "d291ea1e-36bc-46b3-b3ae-084fa0ba69eb",
+       "e3c7a2f9-b3f3-4092-8ce9-777ad035baed",
+       "e681f44b-17af-4d4b-a7fa-9445e6001a5f",
+       "f6a705fc-c779-4813-80fb-eecf71caa23f"
+      ]
+     },
+     "name": "Meteor Golem",
+     "non_ability_text": null,
+     "oracle_text": "When this creature enters, destroy target nonland permanent an opponent controls.",
+     "power": {
+      "type": "Fixed",
+      "value": 3
+     },
+     "printings": [
+      "AFC",
+      "C19",
+      "C21",
+      "CLB",
+      "CMM",
+      "CMR",
+      "FDC",
+      "FDN",
+      "FIC",
+      "HBG",
+      "J22",
+      "JMP",
+      "KHC",
+      "M19",
+      "M20",
+      "MOC",
+      "MSC",
+      "PLST",
+      "SLD"
+     ],
+     "rarities": [
+      "uncommon",
+      "rare"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "d9f11aa1-9219-42a8-85a9-a8f204160706",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 3
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "When ~ enters, destroy target nonland permanent an opponent controls.",
+       "destination": "Battlefield",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "cant_regenerate": false,
+         "target": {
+          "controller": "Opponent",
+          "properties": [],
+          "type": "Typed",
+          "type_filters": [
+           "Permanent",
+           {
+            "Non": "Land"
+           }
+          ]
+         },
+         "type": "Destroy"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "ChangesZone",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 7.0,
+    "color_identity": [],
+    "colors": [],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "legal",
+     "standardbrawl": "legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{7}",
+    "name": "Meteor Golem",
+    "oracle_id": "d9f11aa1-9219-42a8-85a9-a8f204160706",
+    "oracle_text": "When this creature enters, destroy target nonland permanent an opponent controls.",
+    "power": "3",
+    "toughness": "3",
+    "type_line": "Artifact Creature — Golem"
    }
   },
   "Metropolis Angel": {

@@ -820,14 +820,22 @@ def propose_swaps(
         nonland_only: bool,
         limit: int,
         job: str | None = None,
+        capped: bool = True,
     ) -> list[dict]:
-        key = (tuple(sorted(spec.items())), synergy_first, nonland_only, limit, job)
+        key = (
+            tuple(sorted(spec.items())),
+            synergy_first,
+            nonland_only,
+            limit,
+            job,
+            capped,
+        )
         cached = _pool_memo.get(key)
         if cached is not None:
             return cached
         # One search per spec at the deepest page asked so far: the search
         # sorts before it pages, so a shorter page is the deeper one's head.
-        skey = tuple(sorted(spec.items()))
+        skey = (tuple(sorted(spec.items())), capped)
         deep = _search_memo.get(skey)
         if deep is None or deep[0] < limit:
             deep = (
@@ -838,7 +846,7 @@ def propose_swaps(
                     identity=ctx.identity,
                     fmt=ctx.fmt,
                     paper_only=ctx.paper_only,
-                    cmc_cap=cmc_cap,
+                    cmc_cap=cmc_cap if capped else None,
                     limit=limit,
                     playrate=ctx.playrate,
                 ),
@@ -992,6 +1000,10 @@ def propose_swaps(
             nonland_only=nonland_only,
             limit=limit,
             job=job,
+            # A top-heavy deck caps its adds at four mana so a fix can't make the
+            # curve heavier; an upgrade can't anyway — it takes no higher
+            # mana-value band than its cut (``_upgrades``).
+            capped=upgrade_of is None,
         )
         rejected_hits.clear()
         guard = role_fix and ctx.focus_result["verdict"] == "FOCUSED"

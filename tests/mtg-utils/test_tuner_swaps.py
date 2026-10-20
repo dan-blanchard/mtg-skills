@@ -2104,3 +2104,27 @@ def test_a_job_upgrade_is_not_held_to_theme_fit(monkeypatch):
         ),
     )
     assert [s["add"]["name"] for s in out["swaps"]] == ["Swords to Plowshares"]
+
+
+def test_a_top_heavy_decks_upgrade_is_not_capped_at_four_mana():
+    """A top-heavy deck caps its adds at four mana so a fix can't make the curve
+    heavier, but an upgrade takes no higher mana-value band than its cut: Meteor
+    Golem may still become Duplicant (the cap hid Gishath, Ghalta and The First
+    Sliver from the 25 precons' upgrades, 2026-10-19)."""
+    import dataclasses
+
+    golem = _real_cc("Meteor Golem", "spine", roles=["interaction"], edhrec_rank=8000)
+    pool = [_played("Duplicant", 500)]
+
+    def search(*, cmc_max=None, **_kw):
+        return [c for c in pool if cmc_max is None or c["cmc"] <= cmc_max]
+
+    ctx = dataclasses.replace(
+        _upgrade_ctx([golem], pool), top_heavy=True, search_fn=search
+    )
+    out = _swaps_for_issue_dicts(
+        [golem], [{"kind": "upgrade", "severity": 1, "count": 1}], ctx
+    )
+    assert [(s["cut"]["name"], s["add"]["name"]) for s in out["swaps"]] == [
+        ("Meteor Golem", "Duplicant")
+    ]

@@ -188,16 +188,17 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   role's whole match set would remove both.
   (m) **Recall** (`precon-audit/misses.py`, at the largest guide's thirty
   swaps and $440, where the tuner stops on its own): 185 of 404 cuttable guide
-  cuts, 52 of 610 in-scope guide adds. The levers by size: theme adds no search
-  reaches (238 — 203 match no spec the tuner searched, 22 sit past a page's
-  depth, 12 are cut by a top-heavy deck's four-mana cap; of the 203, 83 serve
+  cuts, 56 of 610 in-scope guide adds. The levers by size: theme adds no search
+  reaches (229; measured at 238 before an upgrade stopped being capped at four
+  mana in a top-heavy deck — 203 match no spec the tuner searched, 22 sit past a
+  page's depth, 12 were the cap's; of the 203, 83 serve
   the main avenue, 44 another viable one, 72 only a non-viable lane such as
   Blood Rites' sacrifice package). Paging the theme's serving predicate puts
   them on the page but loses precision — 30 → 26 adds matching at ten swaps,
   54 → 52 at thirty — so it waits on a ranking that can tell them apart, and
   "payoff before enabler" is not that ranking (29 guide adds in the top ten
   against 45 for the current order; don't re-suggest). Then adds outranked on a
-  page (171); cuts the popularity threshold still shields (75 — guides cut
+  page (187); cuts the popularity threshold still shields (75 — guides cut
   popular off-theme cards like Feed the Swarm); commander-lane cards the
   guides trim (55). Six guide summaries don't tag sources per row
   (`guide_sizes.py` skips them).
