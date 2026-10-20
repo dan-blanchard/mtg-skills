@@ -185,6 +185,16 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   reads a 600-card play-rate page (`_JOB_READ_PAGE`); five-colour removal
   exceeds it, and the blend's percentiles move with page depth — reading the
   role's whole match set would remove both.
+  (m) **Recall** (`precon-audit/misses.py`, at the median guide's fourteen
+  swaps and $60): 120 of 404 cuttable guide cuts, 31 of 610 in-scope guide
+  adds. The levers by size: theme adds no search reaches (238 — 88 of the 115
+  that serve the main theme don't match its pattern search; paging the theme's
+  serving predicate put them on the page but lost precision, 30 → 26 adds
+  matching, so it waits on a ranking that can tell them apart); adds outranked
+  on a page (170); cuts the popularity threshold shields (109 — guides cut
+  popular off-theme cards like Feed the Swarm); commander-lane cards the guides
+  trim (91). Six guide summaries don't tag sources per row
+  (`guide_sizes.py` falls back to the medians for them).
   (l) **Tune speed.** The first ramp or card-draw preset search in a process
   builds card trees across the pool (15-46 s, about 70% of a precon tune's
   time): those presets read concepts the persisted signals index doesn't seed.
