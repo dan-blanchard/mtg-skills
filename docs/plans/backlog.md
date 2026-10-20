@@ -266,6 +266,63 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   the same way. Until then a bare `build-card-snapshot` run drags the drift in —
   the 2026-10-17 regen spliced only its two new cards.
 
+- **Pass C holds: the 91 serves still on a regex, and the lane fixes that free
+  them** (2026-10-20; `docs/plans/serve-idents-and-avenue-support.md` "Pass C";
+  per-spec censuses in each spec's comment). Ranked by the precon themes each
+  unblocks:
+  1. **Keyword-grant subjects** (`triggers_damage.py` `keyword_grant_target` /
+     `team_evasion_grant` drop the granted keyword): a haste / flying / double
+     strike / infect subject unblocks `attack_matters` (8 precons, with keyword
+     attack triggers — firebending, granted myriad / exalted — and `extra_turns`),
+     `one_punch`, and turns the "Flying granters" and haste-arm extras into ident
+     serves. Same module: one-shot flash grants (`flash_makers`, `flash_grant`),
+     temporary / one-shot damage doublers (`damage_doubling`), symmetric "whenever
+     a player casts" punishers (`opponent_cast_matters`).
+  2. **The self-ETB payload set is broken** (`tree_synthesis/value_engines.py`
+     `_SELF_ETB_PAYLOAD_CONCEPTS` lists compat category names — "damage",
+     "exile" — that never match a concept, and omits make_token, change_zone,
+     gain_life, place_counter …): unblocks `permanent_recast` (3 precons),
+     `permanent_etb`, `self_etb_payload`; then the blink serves can revisit.
+  3. **Artifact / enchantment subtype token makers and counts**
+     (`board_and_ramp.py`: Thopter, Servo, Powerstone, Map, Role, Shard tokens;
+     "Equipment / Aura you control" counts) → `artifacts_matter` (4 precons),
+     `enchantments_matter` (2); a land-from-library-to-battlefield key off
+     `crosswalk.land_searches` → `landfall` (2), and a land subject on ramp →
+     `lands_matter`.
+  4. **`evasion_self` subject per kind** (unblockable vs menace / fear; team
+     grants out; `protection_and_sweep.py`, `tree_synthesis/combat.py`) →
+     `evasion_self`, `has_ninjutsu`, `damage_to_opp_matters`,
+     `combat_damage_matters` (2 precons).
+  5. **`graveyard_lifeloss.py`**: `copy_token` scoped `any` and a noncreature
+     BecomeCopy (`clone_makers`, `copy_permanent`, `wants_cloning`,
+     `token_copy_makers`); damage to an opponent is life loss (CR 120.3a) and
+     "an opponent lost life this turn" (`lifeloss_*|opponents`); phase's
+     `LifeLostThisTurn` quantity for `lifeloss_matters|you|`, which retires the
+     "life you have lost this turn" regex bridge on that serve.
+  6. **`card_advantage.py`**: a battlefield destination on `creature_recursion`
+     (`reanimator`, the reanimation remainders of `creature_etb` and
+     `damage_for_each`); `_activated_draw` excludes a self-sacrifice cost;
+     "each opponent draws" and optional wheels scoped right
+     (`opponent_draw_matters`, `card_draw_engine|each`); granted / symmetric
+     impulse and hideaway (`impulse_top_play`).
+  7. **Theft**: an exile from an opponent's library / hand / graveyard joined to a
+     play permission (`removal_tutors.py` / `value_engines.py`) →
+     `theft_makers`, `wants_theft` (1 precon).
+  8. **`keyword_mechanics.py`**: a spell-type subject on `spellcast_matters`
+     (`magecraft_matters`, Spellslinger); council's dilemma / secret council /
+     extra votes; domain enablers; disjunctive "attacks or blocks" triggers
+     (`blocked_matters`); `opponent_exile_makers` mass and replacement forms.
+  9. Each one spec: anthem_static symmetric colour / "for each" / emblem anthems
+     and `team_buff` subset grants (`mana_and_wipes.py`); `tap_down` "tap all
+     creatures target player controls", stax idioms, color changers, big-hand
+     operands (`stax_and_tempo.py`); granted wither / infect / persist, mill's
+     opponent scope, the membership floor's voltron signal and Role tokens
+     (`counters_voltron.py`, `membership_floor.py`); `untap_engine` attached
+     untaps; `win_lose_game` side; Island makers; a beginning-of-step trigger key
+     (`extra_upkeep` / `end_step` / `draw_step`); `power_matters`' pack tactics.
+  Test pins that still encode a regex serve (`test_signal_specs.py`: Bad Moon,
+  Sleep, Sun Quan, Boggart Brute, Master of the Feast, Reprieve, Aven Mindcensor,
+  the color-conditional payoffs) move with their lane fix.
 - **Every held serve spec is converted (2026-10-19); what the lanes still
   miss** (the per-spec censuses are in `docs/plans/serve-idents-and-avenue-support.md`
   §2; the 41 holds of the serve-ident pass and the six of the fourth pass are

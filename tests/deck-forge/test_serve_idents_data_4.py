@@ -156,3 +156,76 @@ def test_suspend_matters_serves_time_counter_references_not_its_own_name():
     assert serve.matches(_card("Paradox Haze"))
     # Impending Flux only names itself.
     assert not serve.matches(_card("Impending Flux"))
+
+
+# ── 2026-10-20 pass (the 0.4-0.9 and < 0.4 census rows) ─────────────────────
+
+
+def test_ltb_serves_bounce_payoffs_not_sacrifice_tethers():
+    serve = _ident_serve("ltb_matters")
+    # "Whenever a permanent is returned to your hand" — leaving the
+    # battlefield (CR 603.6c) the "leaves the battlefield" regex never read.
+    assert serve.matches(_card("Azorius Aethermage"))
+    # "When this Aura leaves, that creature's controller sacrifices it" is a
+    # tether on the reanimated creature, not a leaves payoff.
+    assert not serve.matches(_card("Animate Dead"))
+
+
+def test_lessons_serves_the_lane_and_learn_bearers():
+    serve = _ident_serve("lessons_matter")
+    # "If that spell is a Lesson" — a Lesson payoff the regex never named.
+    assert serve.matches(_card("Toph, Hardheaded Teacher"))
+    # Learn (CR 701.48a) rides the keyword field, as the regex served it.
+    assert serve.matches(_card("Academic Dispute"))
+
+
+def test_multicolor_serves_payoffs_and_converge_bearers():
+    serve = _ident_serve("multicolor_matters")
+    # Reveals one card of each colour pair: the regex wanted "multicolored".
+    assert serve.matches(_card("Niv-Mizzet Reborn"))
+    # Converge is an ability word (CR 207.2c): the keyword field carries it.
+    assert serve.matches(_card("Bring to Light"))
+
+
+def test_saga_serves_lore_payoffs_and_saga_references():
+    serve = _ident_serve("saga_matters")
+    assert "type_matters|you|Saga" in serve.signal_idents
+    # Saga replicate: a Saga payoff with no "lore counter" in its text.
+    assert serve.matches(_card("Ian Chesterton"))
+
+
+def test_base_power_serves_payoffs_not_base_pt_setters():
+    serve = _ident_serve("base_power_matters")
+    assert serve.matches(_card("Bess, Soul Nourisher"))
+    # A polymorph SETS base P/T (CR 613.4b); it rewards nothing.
+    assert not serve.matches(_card("Turn to Frog"))
+
+
+def test_arcane_serves_spirit_or_arcane_payoffs():
+    serve = _ident_serve("arcane_matters")
+    # Neither an Arcane card nor a splice card: the old serve missed both.
+    assert serve.matches(_card("The Unspeakable"))
+    assert serve.matches(_card("Petalmane Baku"))
+
+
+def test_enlist_serves_the_lane():
+    serve = _ident_serve("has_enlist")
+    card = _card("Argivian Cavalier")
+    assert serve.matches(card)
+    assert "has_enlist|you|" in serve.matched_idents(card)
+
+
+def test_exert_serves_the_keyword_not_the_vigilance_enablers():
+    spec = spec_for(_sig("exert_matters"))
+    assert spec is not None
+    assert spec.serve.oracle is None
+    assert spec.serve.matches(_card("Glorybringer"))
+    # The lane's own key fires on vigilance enablers — the side the avenue
+    # opens from, not the exert bodies it serves.
+    assert not spec.serve.matches(_card("Intangible Virtue"))
+
+
+def test_land_exchange_serves_land_steals():
+    serve = _ident_serve("land_exchange")
+    # "Gain control of a land you don't control" (no "exchange control of").
+    assert serve.matches(_card("Herald of Leshrac"))

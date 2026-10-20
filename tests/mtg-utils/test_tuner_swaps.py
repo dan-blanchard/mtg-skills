@@ -948,14 +948,12 @@ def test_cut_candidates_null_rank_low_value_is_medium_aware():
 # ── ADR-0040 companion: FOCUSED role-fix adds prefer an on-avenue candidate ──
 
 
-def _on_avenue_draw(name, cmc, rank):
+def _on_avenue_draw(rank):
+    """A real draw spell that proliferates (ADR-0056): the proliferate serve
+    reads the card's idents, which a synthetic record has none of."""
     return {
-        "name": name,
-        "type_line": "Sorcery",
-        "oracle_text": "Draw a card. Proliferate.",
-        "cmc": cmc,
+        **test_card("Tezzeret's Gambit"),
         "prices": {"usd": "2.00"},
-        "color_identity": [],
         "edhrec_rank": rank,
     }
 
@@ -987,7 +985,7 @@ def _role_fix_scenario():
         "message": "card draw short by 5",
     }
     off_avenue = _off_avenue_draw("Generic Draw", cmc=1.0, rank=50)
-    on_avenue = _on_avenue_draw("Prolif Draw", cmc=2.0, rank=2000)
+    on_avenue = _on_avenue_draw(rank=2000)
     return sig, label, classes, budgets, issue, off_avenue, on_avenue
 
 
@@ -1014,7 +1012,7 @@ def test_focused_role_fix_prefers_on_avenue_over_cheaper_off_avenue():
         ),
     )
     assert len(out["swaps"]) == 1
-    assert out["swaps"][0]["add"]["name"] == "Prolif Draw"
+    assert out["swaps"][0]["add"]["name"] == "Tezzeret's Gambit"
     assert "off-avenue fallback" not in out["swaps"][0]["reason"]
 
 

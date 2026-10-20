@@ -125,6 +125,24 @@ converted once the self-bleed engines moved to their own key, `wants_lifegain`
 (ADR-0034's `wants_<x>`): it shares the Lifegain label, so they are carers of the
 avenue, not cards it serves.
 
+
+**Pass C (2026-10-20): the pattern-only serves.** The tuner now pages a theme by
+its serve and scores hits off the cards' IR, so the 169 serves still matching on a
+regex alone (no ident arm) were the text left in theme matching. Four agents, one
+per spec file, converted where the existing idents reproduce the theme: **78
+converted**, 5 regex arms moved verbatim into SubAvenue extras as adjacency
+("Group burn", "Flying granters", "Untap, haste and cheaper activations",
+"Equipment movers"; storm payoffs became a keyword SubAvenue), keyword dims added
+where a keyword action or ability word is the theme (learn, converge, storm). Every
+conversion is pinned in `tests/deck-forge/test_serve_idents_data_{1..4}.py`; each
+spec's comment names its classified remainder. Three conversions were reverted in
+review as overreach and are held: `power_matters` (lost pack tactics and other
+power-threshold payoffs), `has_ninjutsu` (`evasion_self` admits conditional menace),
+`blink_flicker` / `self_blink` (served every ETB body their extra already serves).
+After: 272 of 376 serves read idents, **91 still serve on a regex alone**. Their
+lane gaps, ranked by the precon themes they unblock, are the backlog entry "Pass C
+holds" — the input to the lane-fix pass.
+
 ## 3. Pass B: an avenue needs cards that care
 
 `_tuner.metrics.focus` measures an avenue's depth as the number of nonland cards

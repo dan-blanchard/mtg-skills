@@ -10,6 +10,7 @@ the rest of the ``signal_specs`` package — only on ``signal_keys``,
 
 from __future__ import annotations
 
+import functools
 import re
 from dataclasses import dataclass
 
@@ -78,6 +79,14 @@ _ART_SUBTYPES = (
 _ENCH_SUBTYPES = (
     r"aura|saga|class|curse|shrine|background|cartouche|case|room|rune|shard|role"
 )
+
+
+@functools.cache
+def _wildcard_scopes(idents: frozenset[str]) -> frozenset[str]:
+    """The ``key|scope`` of every ``"key|scope|*"`` wildcard in a serve's idents
+    (one set per serve, cached: a serve is checked against every card a theme
+    page scans)."""
+    return frozenset(w[:-2] for w in idents if w.endswith("|*"))
 
 
 def _card_idents(card: dict) -> frozenset[str]:
@@ -251,8 +260,13 @@ class Serve:
             return True
         # Costliest arm (a live crosswalk pass on a cold memo) — checked last,
         # only after every record-shape dimension has missed.
-        return bool(self.signal_idents) and any(
-            self._serves_ident(i) for i in _card_idents(card)
+        if not self.signal_idents:
+            return False
+        card_idents = _card_idents(card)
+        if not self.signal_idents.isdisjoint(card_idents):
+            return True
+        return bool(_wildcard_scopes(self.signal_idents)) and any(
+            self._serves_ident(i) for i in card_idents
         )
 
     def _serves_ident(self, ident: str) -> bool:
@@ -260,10 +274,9 @@ class Serve:
         through a ``"key|scope|*"`` wildcard (every subject of that key and
         scope — a token doubler serves ANY ``token_maker``, whatever the
         token's subtype; the serve-ident pass, 2026-10-18)."""
-        if ident in self.signal_idents:
-            return True
-        key_scope = ident.rpartition("|")[0]
-        return f"{key_scope}|*" in self.signal_idents
+        return ident in self.signal_idents or ident.rpartition("|")[
+            0
+        ] in _wildcard_scopes(self.signal_idents)
 
     def matched_idents(self, card: dict) -> frozenset[str]:
         """The card's own idents this serve's ``signal_idents`` match (with

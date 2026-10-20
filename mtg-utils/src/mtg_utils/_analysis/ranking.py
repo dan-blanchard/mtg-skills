@@ -178,16 +178,21 @@ def _clause_overlaps(clause_norm: str, raw_norm: str) -> bool:
     one contains the other, or they share a strong content-word overlap (the IR
     sometimes merges two oracle sentences into one ability ``raw``, and drops the
     leading self-name, so an exact equality test is too strict)."""
-    if not clause_norm or not raw_norm:
-        return False
-    if clause_norm in raw_norm or raw_norm in clause_norm:
-        return True
-    cw = set(clause_norm.split())
-    rw = set(raw_norm.split())
+    return _overlap_share(clause_norm, raw_norm) is not None
+
+
+def _overlap_share(clause_norm: str, raw_norm: str) -> float | None:
+    """How much of a clause's words a raw shares (Jaccard) when the two describe
+    the same span (:func:`_clause_overlaps`), else ``None`` — which of several
+    clauses an ability's text lines up with best."""
+    cw, rw = set(clause_norm.split()), set(raw_norm.split())
     if not cw or not rw:
-        return False
+        return None
     overlap = len(cw & rw)
-    return overlap >= 3 and overlap >= min(len(cw), len(rw)) * 0.6
+    spans = clause_norm in raw_norm or raw_norm in clause_norm
+    if not spans and not (overlap >= 3 and overlap >= min(len(cw), len(rw)) * 0.6):
+        return None
+    return overlap / len(cw | rw)
 
 
 def _ir_payoff_raws(ir: Card) -> list[str]:
@@ -369,11 +374,19 @@ def _hit_clauses(
     texts = [_norm_raw(t) for t in emitting_unit_texts(card, idents)]
     if not texts:
         return ()
-    return tuple(
-        i
-        for i, clause in enumerate(clause_list)
-        if any(_clause_overlaps(_norm_raw(clause), t) for t in texts)
-    )
+    norm = [_norm_raw(clause) for clause in clause_list]
+    # One clause per emitting ability — its best match — so an ability whose
+    # text spans two clauses is one credit, not two (Elven Bow's token).
+    found: set[int] = set()
+    for text in texts:
+        scored = [
+            (share, -i)
+            for i, clause in enumerate(norm)
+            if (share := _overlap_share(clause, text)) is not None
+        ]
+        if scored:
+            found.add(-max(scored)[1])  # the best share; the earlier clause on a tie
+    return tuple(sorted(found))
 
 
 def _synergy_score(

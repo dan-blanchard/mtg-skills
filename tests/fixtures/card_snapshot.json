@@ -236667,6 +236667,259 @@
     "type_line": "Enchantment"
    }
   },
+  "Convulsing Licid": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": {
+        "costs": [
+         {
+          "cost": {
+           "generic": 0,
+           "shards": [
+            "Red"
+           ],
+           "type": "Cost"
+          },
+          "type": "Mana"
+         },
+         {
+          "type": "Tap"
+         }
+        ],
+        "type": "Composite"
+       },
+       "description": "{R}, {T}: ~ loses this ability and becomes an Aura enchantment with enchant creature. Attach it to target creature. You may pay {R} to end this effect.",
+       "duration": "Permanent",
+       "effect": {
+        "duration": "Permanent",
+        "end_cost": {
+         "generic": 0,
+         "shards": [
+          "Red"
+         ],
+         "type": "Cost"
+        },
+        "static_abilities": [
+         {
+          "active_zones": [],
+          "affected": {
+           "type": "SelfRef"
+          },
+          "affected_zone": null,
+          "characteristic_defining": false,
+          "condition": null,
+          "description": "lose this ability and becomes an Aura enchantment with enchant creature",
+          "effect_zone": null,
+          "mode": "Continuous",
+          "modifications": [
+           {
+            "keyword": {
+             "Enchant": {
+              "controller": null,
+              "properties": [],
+              "type": "Typed",
+              "type_filters": [
+               "Creature"
+              ]
+             }
+            },
+            "type": "AddKeyword"
+           },
+           {
+            "core_types": [
+             "Enchantment"
+            ],
+            "type": "SetCardTypes"
+           },
+           {
+            "set": "Enchantment",
+            "type": "RemoveAllSubtypes"
+           },
+           {
+            "subtype": "Aura",
+            "type": "AddSubtype"
+           }
+          ]
+         }
+        ],
+        "target": null,
+        "type": "GenericEffect"
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "selection": {
+          "at_resolution": {}
+         },
+         "target": {
+          "controller": null,
+          "properties": [],
+          "type": "Typed",
+          "type_filters": [
+           "Creature"
+          ]
+         },
+         "type": "Attach"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "sub_link": "SequentialSibling",
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Licid"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Red"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "premodern": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 2,
+      "shards": [
+       "Red"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "5745aeba-79b2-4a5d-bfc5-62868a18aca6",
+       "d5e50a1d-b9f5-4a03-a1c2-ca45ace53a52"
+      ]
+     },
+     "name": "Convulsing Licid",
+     "non_ability_text": null,
+     "oracle_text": "{R}, {T}: This creature loses this ability and becomes an Aura enchantment with enchant creature. Attach it to target creature. You may pay {R} to end this effect.\nEnchanted creature can't block.",
+     "power": {
+      "type": "Fixed",
+      "value": 2
+     },
+     "printings": [
+      "PLST",
+      "STH"
+     ],
+     "rarities": [
+      "uncommon"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2013-04-15",
+       "text": "If a spell that can target enchantments but not creatures (such as Clear) is cast targeting the Licid after it has become an enchantment, but the Licid's controller pays the cost, the Licid will no longer be an enchantment. This will result in the spell failing to resolve for having no legal targets."
+      },
+      {
+       "date": "2013-04-15",
+       "text": "Paying the cost to end the effect is a special action and can't be responded to."
+      }
+     ],
+     "scryfall_oracle_id": "893c88cb-72ba-4f54-809c-bfac4d6efb74",
+     "static_abilities": [
+      {
+       "active_zones": [],
+       "affected": {
+        "controller": null,
+        "properties": [
+         {
+          "type": "EnchantedBy"
+         }
+        ],
+        "type": "Typed",
+        "type_filters": [
+         "Creature"
+        ]
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": null,
+       "description": "Enchanted creature can't block.",
+       "effect_zone": null,
+       "mode": "CantBlock",
+       "modifications": []
+      }
+     ],
+     "toughness": {
+      "type": "Fixed",
+      "value": 2
+     },
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 3.0,
+    "color_identity": [
+     "R"
+    ],
+    "colors": [
+     "R"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}{R}",
+    "name": "Convulsing Licid",
+    "oracle_id": "893c88cb-72ba-4f54-809c-bfac4d6efb74",
+    "oracle_text": "{R}, {T}: This creature loses this ability and becomes an Aura enchantment with enchant creature. Attach it to target creature. You may pay {R} to end this effect.\nEnchanted creature can't block.",
+    "power": "2",
+    "toughness": "2",
+    "type_line": "Creature — Licid"
+   }
+  },
   "Cool Fluffy Loxodon": {
    "phase_records": [
     {
@@ -292155,6 +292408,173 @@
     "oracle_id": "9b084cd4-cc21-4f3a-9ac5-1e1160a31aa6",
     "oracle_text": "Goad all creatures you don't control. (Until your next turn, those creatures attack each combat if able and attack a player other than you if able.)",
     "type_line": "Sorcery"
+   }
+  },
+  "Dissolve": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Counter target spell. Scry 1.",
+       "duration": null,
+       "effect": {
+        "target": {
+         "type": "StackSpell"
+        },
+        "type": "Counter"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "target": {
+          "type": "Controller"
+         },
+         "type": "Scry"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "sub_link": "SequentialSibling",
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Instant"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Blue"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pauper": "legal",
+      "paupercommander": "legal",
+      "pioneer": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "Blue",
+       "Blue"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "992e8119-f933-4e54-bb04-e1cc78f7e87b",
+       "b4fb87ab-8595-459a-a5f2-087296d9b120"
+      ]
+     },
+     "name": "Dissolve",
+     "non_ability_text": null,
+     "oracle_text": "Counter target spell. Scry 1. (Look at the top card of your library. You may put that card on the bottom.)",
+     "power": null,
+     "printings": [
+      "F14",
+      "IMA",
+      "PRM",
+      "THS"
+     ],
+     "rarities": [
+      "common",
+      "uncommon"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2013-09-15",
+       "text": "Scry appears on some spells and abilities with one or more targets. If all of the spell or ability's targets are illegal when it tries to resolve, it won't resolve and none of its effects will happen. You won't scry."
+      },
+      {
+       "date": "2013-09-15",
+       "text": "When you scry, you may put all the cards you look at back on top of your library, you may put all of those cards on the bottom of your library, or you may put some of those cards on top and the rest of them on the bottom."
+      },
+      {
+       "date": "2013-09-15",
+       "text": "You choose how to order cards returned to your library after scrying no matter where you put them."
+      },
+      {
+       "date": "2013-09-15",
+       "text": "You perform the actions stated on a card in sequence. For some spells and abilities, that means you'll scry last. For others, that means you'll scry and then perform other actions."
+      }
+     ],
+     "scryfall_oracle_id": "2f0741f9-802b-4761-8094-7b1f3ea1a424",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 3.0,
+    "color_identity": [
+     "U"
+    ],
+    "colors": [
+     "U"
+    ],
+    "keywords": [
+     "Scry"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "legal",
+     "paupercommander": "legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}{U}{U}",
+    "name": "Dissolve",
+    "oracle_id": "2f0741f9-802b-4761-8094-7b1f3ea1a424",
+    "oracle_text": "Counter target spell. Scry 1. (Look at the top card of your library. You may put that card on the bottom.)",
+    "type_line": "Instant"
    }
   },
   "Distorting Lens": {
@@ -422920,6 +423340,146 @@
     "type_line": "Instant — Arcane"
    }
   },
+  "Glacial Revelation": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Reveal the top six cards of your library. You may put any number of snow permanent cards from among them into your hand. Put the rest into your graveyard.",
+       "duration": null,
+       "effect": {
+        "count": {
+         "type": "Fixed",
+         "value": 6
+        },
+        "destination": "Hand",
+        "enter_tapped": false,
+        "enters_attacking": false,
+        "filter": {
+         "controller": null,
+         "properties": [
+          {
+           "type": "HasSupertype",
+           "value": "Snow"
+          }
+         ],
+         "type": "Typed",
+         "type_filters": [
+          "Permanent"
+         ]
+        },
+        "keep_count": 4294967295,
+        "player": {
+         "type": "Controller"
+        },
+        "rest_destination": "Graveyard",
+        "reveal": true,
+        "type": "Dig",
+        "up_to": true
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Sorcery"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Green"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 2,
+      "shards": [
+       "Green"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "f615a5e9-deec-46cc-9444-de81cb0da9c0"
+      ]
+     },
+     "name": "Glacial Revelation",
+     "non_ability_text": null,
+     "oracle_text": "Reveal the top six cards of your library. You may put any number of snow permanent cards from among them into your hand. Put the rest into your graveyard.",
+     "power": null,
+     "printings": [
+      "MH1"
+     ],
+     "rarities": [
+      "uncommon"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "92359752-74aa-499e-b2db-0342d7596691",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 3.0,
+    "color_identity": [
+     "G"
+    ],
+    "colors": [
+     "G"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}{G}",
+    "name": "Glacial Revelation",
+    "oracle_id": "92359752-74aa-499e-b2db-0342d7596691",
+    "oracle_text": "Reveal the top six cards of your library. You may put any number of snow permanent cards from among them into your hand. Put the rest into your graveyard.",
+    "type_line": "Sorcery"
+   }
+  },
   "Glade Watcher": {
    "phase_records": [
     {
@@ -442468,6 +443028,175 @@
     "type_line": "Creature — Human Peasant"
    }
   },
+  "Grapeshot": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "~ deals 1 damage to any target.",
+       "duration": null,
+       "effect": {
+        "amount": {
+         "type": "Fixed",
+         "value": 1
+        },
+        "target": {
+         "type": "Any"
+        },
+        "type": "DealDamage"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Sorcery"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Red"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [
+      "Storm"
+     ],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pauper": "banned",
+      "paupercommander": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "Red"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "4ee33cb6-768e-44a0-b6f4-b8638aa84330",
+       "585bed40-9ca6-46a0-80c4-c769cd8e2b20",
+       "7bcaa5db-7d9c-4158-9de0-698c42332677",
+       "8cd49f85-7dbd-4cb6-b916-2adee29bb745",
+       "8dfe022f-cbdf-4710-af7b-9f0e213fc89c",
+       "923e1291-3999-4f81-ade4-073fb982143f",
+       "b99b45df-9602-4037-a695-09decb5f21d7",
+       "bfbb7e69-7903-4be3-b13a-97057ac0d3bd",
+       "dc58957e-dbf0-40ac-9ec4-05fea0c61880",
+       "e3e2d90a-3557-49d5-9986-cb50fd31f396"
+      ]
+     },
+     "name": "Grapeshot",
+     "non_ability_text": null,
+     "oracle_text": "Grapeshot deals 1 damage to any target.\nStorm (When you cast this spell, copy it for each spell cast before it this turn. You may choose new targets for the copies.)",
+     "power": null,
+     "printings": [
+      "DDS",
+      "DMR",
+      "MMA",
+      "MSC",
+      "PLST",
+      "SLD",
+      "STA",
+      "TSP",
+      "TSR"
+     ],
+     "rarities": [
+      "common",
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2022-12-08",
+       "text": "A copy of a spell can be countered like any other spell, but it must be countered individually. Countering a spell with storm won't affect the copies."
+      },
+      {
+       "date": "2022-12-08",
+       "text": "Spells cast from zones other than a player's hand and spells that were countered are counted by the storm ability."
+      },
+      {
+       "date": "2022-12-08",
+       "text": "The copies are put directly onto the stack. They aren't cast and won't be counted by other spells with storm cast later in the turn."
+      },
+      {
+       "date": "2022-12-08",
+       "text": "The triggered ability that creates the copies can itself be countered by anything that can counter a triggered ability. If it is countered, no copies will be put onto the stack."
+      },
+      {
+       "date": "2022-12-08",
+       "text": "You may choose new targets for any of the copies. You can make different choices for each copy."
+      }
+     ],
+     "scryfall_oracle_id": "ebd2d760-5ad8-4027-b124-171822f3edfe",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 2.0,
+    "color_identity": [
+     "R"
+    ],
+    "colors": [
+     "R"
+    ],
+    "keywords": [
+     "Storm"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "banned",
+     "paupercommander": "legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}{R}",
+    "name": "Grapeshot",
+    "oracle_id": "ebd2d760-5ad8-4027-b124-171822f3edfe",
+    "oracle_text": "Grapeshot deals 1 damage to any target.\nStorm (When you cast this spell, copy it for each spell cast before it this turn. You may choose new targets for the copies.)",
+    "type_line": "Sorcery"
+   }
+  },
   "Grasslands": {
    "phase_records": [
     {
@@ -461199,6 +461928,254 @@
     ],
     "toughness": "3",
     "type_line": "Legendary Creature — Treefolk Mutant"
+   }
+  },
+  "Harrow": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Search your library for up to two basic land cards, put them onto the battlefield, then shuffle.",
+       "duration": null,
+       "effect": {
+        "count": {
+         "max": {
+          "type": "Fixed",
+          "value": 2
+         },
+         "type": "UpTo"
+        },
+        "filter": {
+         "controller": null,
+         "properties": [
+          {
+           "type": "HasSupertype",
+           "value": "Basic"
+          }
+         ],
+         "type": "Typed",
+         "type_filters": [
+          "Land"
+         ]
+        },
+        "reveal": false,
+        "type": "SearchLibrary"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "destination": "Battlefield",
+         "enter_tapped": false,
+         "enter_transformed": false,
+         "enters_attacking": false,
+         "origin": "Library",
+         "owner_library": false,
+         "target": {
+          "type": "Any"
+         },
+         "type": "ChangeZone"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "target": {
+           "type": "Controller"
+          },
+          "type": "Shuffle"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": null,
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "additional_cost": {
+      "data": {
+       "count": 1,
+       "target": {
+        "controller": null,
+        "properties": [],
+        "type": "Typed",
+        "type_filters": [
+         "Land"
+        ]
+       },
+       "type": "Sacrifice"
+      },
+      "type": "Required"
+     },
+     "card_type": {
+      "core_types": [
+       "Instant"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Green"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pauper": "legal",
+      "paupercommander": "legal",
+      "premodern": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 2,
+      "shards": [
+       "Green"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "01330778-5dcf-463f-ad8e-7468530c5f80",
+       "2d7bcecb-9e7c-4f05-bdb5-9a0380ec2810",
+       "3c207142-4880-4935-9827-b91bc7d9d643",
+       "3e76be46-cf81-4fef-bc5b-f87666cb0413",
+       "57f5bd8a-338f-48eb-857f-25f644ff84af",
+       "5b9549ef-c4e8-4b2b-8f7d-19e64edcbe38",
+       "64f86c4f-67d8-44d1-a6aa-b94601e7cefe",
+       "699b2ef2-84e1-4c5a-8b8a-e669de05aedb",
+       "725ad1a8-18f1-4282-81a1-94cbdc89f71b",
+       "9f4575ef-7a49-4d0a-8598-e886c9e8163f",
+       "a325da33-dd35-4136-9c69-73df82c56fd1",
+       "b9f97af5-a2f7-4280-a05f-59b7748a022b",
+       "ba887a1b-0c05-49c7-964f-54f664e41f8a",
+       "d81fcdf6-2af2-4454-b73c-e98739339c1a",
+       "dac6a941-ab0c-4540-bcdb-1f6406051add",
+       "db4ea599-e9ee-4776-925e-921b8602d503",
+       "e309c1fc-3a7c-4624-8b48-9b152c2590ae",
+       "ed0f633e-7238-4d02-ad8b-06dd20453030",
+       "f1e41e4b-22bc-422d-b42d-ad86323a3394",
+       "f5b8d3ed-b241-4408-b9b6-bd22925da223",
+       "f8095ca6-2f5f-497f-8b78-7e530ac31d22"
+      ]
+     },
+     "name": "Harrow",
+     "non_ability_text": null,
+     "oracle_text": "As an additional cost to cast this spell, sacrifice a land.\nSearch your library for up to two basic land cards, put them onto the battlefield, then shuffle.",
+     "power": null,
+     "printings": [
+      "40K",
+      "C14",
+      "C18",
+      "C20",
+      "CMA",
+      "DDE",
+      "DDP",
+      "DSC",
+      "EOC",
+      "INV",
+      "J21",
+      "J25",
+      "OTC",
+      "P10",
+      "PLST",
+      "PRM",
+      "SLD",
+      "TDC",
+      "TMP",
+      "TPR",
+      "ZEN",
+      "ZNC"
+     ],
+     "rarities": [
+      "common",
+      "uncommon",
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2004-10-04",
+       "text": "The sacrifice of a land is part of the cost of casting Harrow. You can't pay this cost more than once to get a multiple effect."
+      },
+      {
+       "date": "2004-10-04",
+       "text": "The two lands do not count toward your normal one land you can play each turn."
+      }
+     ],
+     "scryfall_oracle_id": "705509e9-a034-4a5a-9c65-66f58748b8a2",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 3.0,
+    "color_identity": [
+     "G"
+    ],
+    "colors": [
+     "G"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "legal",
+     "paupercommander": "legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}{G}",
+    "name": "Harrow",
+    "oracle_id": "705509e9-a034-4a5a-9c65-66f58748b8a2",
+    "oracle_text": "As an additional cost to cast this spell, sacrifice a land.\nSearch your library for up to two basic land cards, put them onto the battlefield, then shuffle.",
+    "type_line": "Instant"
    }
   },
   "Harsh Mentor": {
@@ -553342,6 +554319,256 @@
     "power": "2",
     "toughness": "5",
     "type_line": "Creature — Human Soldier"
+   }
+  },
+  "Klement, Novice Acolyte": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "activation_restrictions": [
+        {
+         "type": "AsSorcery"
+        }
+       ],
+       "condition": null,
+       "cost": {
+        "costs": [
+         {
+          "cost": {
+           "generic": 2,
+           "shards": [],
+           "type": "Cost"
+          },
+          "type": "Mana"
+         },
+         {
+          "count": {
+           "type": "Fixed",
+           "value": 1
+          },
+          "filter": {
+           "filters": [
+            {
+             "controller": null,
+             "properties": [
+              {
+               "comparator": "GE",
+               "count": 1,
+               "type": "ColorCount"
+              }
+             ],
+             "type": "Typed",
+             "type_filters": [
+              "Card"
+             ]
+            },
+            {
+             "filters": [
+              {
+               "controller": null,
+               "properties": [],
+               "type": "Typed",
+               "type_filters": [
+                "Land"
+               ]
+              },
+              {
+               "controller": null,
+               "properties": [],
+               "type": "Typed",
+               "type_filters": [
+                {
+                 "AnyOf": [
+                  {
+                   "Subtype": "Plains"
+                  },
+                  {
+                   "Subtype": "Island"
+                  },
+                  {
+                   "Subtype": "Swamp"
+                  },
+                  {
+                   "Subtype": "Mountain"
+                  },
+                  {
+                   "Subtype": "Forest"
+                  }
+                 ]
+                }
+               ]
+              }
+             ],
+             "type": "And"
+            }
+           ],
+           "type": "Or"
+          },
+          "random": false,
+          "self_ref": false,
+          "type": "Discard"
+         }
+        ],
+        "type": "Composite"
+       },
+       "description": null,
+       "duration": null,
+       "effect": {
+        "type": "Specialize"
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "brawl_commander": true,
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Tiefling",
+       "Cleric"
+      ],
+      "supertypes": [
+       "Legendary"
+      ]
+     },
+     "color_identity": [
+      "White"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "is_commander": true,
+     "keywords": [
+      {
+       "Specialize": {
+        "generic": 2,
+        "shards": [],
+        "type": "Cost"
+       }
+      }
+     ],
+     "legalities": {
+      "brawl": "legal",
+      "historic": "legal",
+      "timeless": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "White"
+      ],
+      "type": "Cost"
+     },
+     "name": "Klement, Novice Acolyte",
+     "non_ability_text": null,
+     "oracle_text": "Specialize {2}\nWhen Klement, Novice Acolyte enters, creature cards in your hand perpetually get +1/+1.",
+     "power": {
+      "type": "Fixed",
+      "value": 2
+     },
+     "printings": [
+      "HBG"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "0432a120-be1b-496b-b8cd-36f757e09425",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 2
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "When ~ enters, creature cards in your hand perpetually get +1/+1.",
+       "destination": "Battlefield",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "description": "creature cards in your hand perpetually get +1/+1",
+         "name": "perpetual_modify_pt",
+         "type": "Unimplemented"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "ChangesZone",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 2.0,
+    "color_identity": [
+     "W"
+    ],
+    "colors": [
+     "W"
+    ],
+    "keywords": [
+     "Specialize"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "not_legal",
+     "competitivebrawl": "legal",
+     "duel": "not_legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "not_legal",
+     "modern": "not_legal",
+     "oathbreaker": "not_legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "not_legal"
+    },
+    "mana_cost": "{1}{W}",
+    "name": "Klement, Novice Acolyte",
+    "oracle_id": "0432a120-be1b-496b-b8cd-36f757e09425",
+    "oracle_text": "Specialize {2}\nWhen Klement, Novice Acolyte enters, creature cards in your hand perpetually get +1/+1.",
+    "power": "2",
+    "toughness": "2",
+    "type_line": "Legendary Creature — Tiefling Cleric"
    }
   },
   "Knight of New Alara": {
@@ -922346,6 +923573,213 @@
     "type_line": "Legendary Planeswalker — Tezzeret"
    }
   },
+  "Tezzeret's Gambit": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Draw two cards, then proliferate.",
+       "duration": null,
+       "effect": {
+        "count": {
+         "type": "Fixed",
+         "value": 2
+        },
+        "target": {
+         "type": "Controller"
+        },
+        "type": "Draw"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "type": "Proliferate"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Sorcery"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Blue"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 3,
+      "shards": [
+       "PhyrexianBlue"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "05e5dbfd-84cf-4fe1-850f-3d2965ed3120",
+       "0dac20a1-ddc6-4dda-b8f6-19f3389dfda7",
+       "15b2188f-06c8-4771-bba6-e6fc531ebc9a",
+       "1beea6e6-d201-4f6a-ab06-e5a3d04db123",
+       "29ad5bb3-927d-41d0-a000-3826ea117e52",
+       "373a2f6a-a659-4551-8fcd-acf49964f795",
+       "421391da-7435-4364-8d48-009d2c2bdad4",
+       "601a138a-a860-4c2b-9d6c-f6eb8552c5d8",
+       "6de53b7d-f2de-47aa-b5d4-9427c12484b0",
+       "a48dd983-8d82-4404-a772-7e850c4f5a00",
+       "b8f09f8e-f212-4b79-98fd-d1c6277a48c2",
+       "fff5a09e-9276-44b8-b374-4b84aebd47cc"
+      ]
+     },
+     "name": "Tezzeret's Gambit",
+     "non_ability_text": null,
+     "oracle_text": "({U/P} can be paid with either {U} or 2 life.)\nDraw two cards, then proliferate. (Choose any number of permanents and/or players, then give each another counter of each kind already there.)",
+     "power": null,
+     "printings": [
+      "C16",
+      "C19",
+      "CM2",
+      "EOC",
+      "M3C",
+      "MM2",
+      "NCC",
+      "NPH",
+      "OTC",
+      "PLST",
+      "STA"
+     ],
+     "rarities": [
+      "uncommon",
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2011-06-01",
+       "text": "A card with Phyrexian mana symbols in its mana cost is each color that appears in that mana cost, regardless of how that cost may have been paid."
+      },
+      {
+       "date": "2011-06-01",
+       "text": "As you cast a spell or activate an activated ability with one or more Phyrexian mana symbols in its cost, you choose how to pay for each Phyrexian mana symbol at the same time you would choose modes or choose a value for X."
+      },
+      {
+       "date": "2011-06-01",
+       "text": "If you're at 1 life or less, you can't pay 2 life."
+      },
+      {
+       "date": "2011-06-01",
+       "text": "Phyrexian mana is not a new color. Players can't produce Phyrexian mana."
+      },
+      {
+       "date": "2011-06-01",
+       "text": "To calculate the mana value of a card with Phyrexian mana symbols in its cost, count each Phyrexian mana symbol as 1."
+      },
+      {
+       "date": "2023-02-04",
+       "text": "An ability that triggers \"Whenever you proliferate\" triggers even if you chose no permanents or players while doing so."
+      },
+      {
+       "date": "2023-02-04",
+       "text": "If a permanent ever has both +1/+1 counters and -1/-1 counters on it at the same time, they're removed in pairs as a state-based action so that the permanent has only one of those kinds of counters on it."
+      },
+      {
+       "date": "2023-02-04",
+       "text": "If a player or permanent has more than one kind of counter on it, and you choose for it to get additional counters, it must get one of each kind of counter it already has. You can't have it get just one kind of counter it already has and not the others."
+      },
+      {
+       "date": "2023-02-04",
+       "text": "Players can respond to a spell or ability whose effect includes proliferating. Once that spell or ability starts to resolve, however, and its controller chooses which permanents and players will get new counters, it's too late for anyone to respond."
+      },
+      {
+       "date": "2023-02-04",
+       "text": "To proliferate, you can choose any permanent that has a counter, including ones controlled by opponents. You can choose any player who has a counter, including opponents. You can't choose cards in any zone other than the battlefield, even if they have counters on them."
+      },
+      {
+       "date": "2023-02-04",
+       "text": "You don't have to choose every permanent or player that has a counter, only the ones you want to add another counter to. Since \"any number\" includes zero, you don't have to choose any permanents at all, and you don't have to choose any players at all."
+      }
+     ],
+     "scryfall_oracle_id": "b33d2b77-f068-4fdc-a1a8-0353a35e3973",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 4.0,
+    "color_identity": [
+     "U"
+    ],
+    "colors": [
+     "U"
+    ],
+    "keywords": [
+     "Proliferate"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{3}{U/P}",
+    "name": "Tezzeret's Gambit",
+    "oracle_id": "b33d2b77-f068-4fdc-a1a8-0353a35e3973",
+    "oracle_text": "({U/P} can be paid with either {U} or 2 life.)\nDraw two cards, then proliferate. (Choose any number of permanents and/or players, then give each another counter of each kind already there.)",
+    "type_line": "Sorcery"
+   }
+  },
   "Tezzeret's Touch": {
    "phase_records": [
     {
@@ -935720,6 +937154,201 @@
     "power": "8",
     "toughness": "8",
     "type_line": "Legendary Creature — Bird Noble"
+   }
+  },
+  "The Lunar Whale": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "brawl_commander": true,
+     "card_type": {
+      "core_types": [
+       "Artifact"
+      ],
+      "subtypes": [
+       "Vehicle"
+      ],
+      "supertypes": [
+       "Legendary"
+      ]
+     },
+     "color_identity": [
+      "Blue"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "is_commander": true,
+     "keywords": [
+      "Flying",
+      {
+       "Crew": {
+        "once_per_turn": null,
+        "power": 1
+       }
+      }
+     ],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "standard": "legal",
+      "standardbrawl": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 3,
+      "shards": [
+       "Blue"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "ae875471-346c-4a76-b26f-b7205dad5b80"
+      ]
+     },
+     "name": "The Lunar Whale",
+     "non_ability_text": null,
+     "oracle_text": "Flying\nYou may look at the top card of your library any time.\nAs long as The Lunar Whale attacked this turn, you may play the top card of your library.\nCrew 1",
+     "power": {
+      "type": "Fixed",
+      "value": 3
+     },
+     "printings": [
+      "FIN",
+      "PFIN"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2025-06-06",
+       "text": "If the top card of your library changes while you're casting a spell, playing a land, or activating an ability, you can't look at the new top card until you finish doing so. This means that if you cast the top card of your library, you can't look at the next one until you're done paying for that spell."
+      },
+      {
+       "date": "2025-06-06",
+       "text": "The Lunar Whale lets you look at the top card of your library whenever you want (with one restriction—see below), even if you don't have priority. This action doesn't use the stack. Knowing what that card is becomes part of the information you have access to, just like you can look at the cards in your hand."
+      },
+      {
+       "date": "2025-06-06",
+       "text": "The top card of your library isn't in your hand, so you can't cycle it, discard it, or activate any of its abilities that could be activated from your hand."
+      },
+      {
+       "date": "2025-06-06",
+       "text": "You must follow all normal timing rules for spells cast and lands played using the third ability and must pay all costs for spells cast this way. To cast a spell this way, you may choose to pay any alternative costs or optional additional costs the spell may have (such as a kicker cost). You must pay any mandatory additional costs."
+      }
+     ],
+     "scryfall_oracle_id": "13b4aeac-4530-4e09-a547-548b4884bb2f",
+     "static_abilities": [
+      {
+       "active_zones": [],
+       "affected": {
+        "controller": "You",
+        "properties": [],
+        "type": "Typed",
+        "type_filters": []
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": null,
+       "description": "You may look at the top card of your library any time.",
+       "effect_zone": null,
+       "mode": "MayLookAtTopOfLibrary",
+       "modifications": []
+      },
+      {
+       "active_zones": [],
+       "affected": {
+        "type": "Any"
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": {
+        "filter": {
+         "controller": null,
+         "properties": [
+          {
+           "type": "AttackedThisTurn"
+          }
+         ],
+         "type": "Typed",
+         "type_filters": []
+        },
+        "type": "SourceMatchesFilter"
+       },
+       "description": "As long as ~ attacked this turn, you may play the top card of your library.",
+       "effect_zone": null,
+       "mode": {
+        "TopOfLibraryCastPermission": {
+         "alt_cost": null,
+         "frequency": "Unlimited",
+         "play_mode": "Play"
+        }
+       },
+       "modifications": []
+      }
+     ],
+     "toughness": {
+      "type": "Fixed",
+      "value": 5
+     },
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 4.0,
+    "color_identity": [
+     "U"
+    ],
+    "colors": [
+     "U"
+    ],
+    "keywords": [
+     "Crew",
+     "Flying"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "legal",
+     "standardbrawl": "legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{3}{U}",
+    "name": "The Lunar Whale",
+    "oracle_id": "13b4aeac-4530-4e09-a547-548b4884bb2f",
+    "oracle_text": "Flying\nYou may look at the top card of your library any time.\nAs long as The Lunar Whale attacked this turn, you may play the top card of your library.\nCrew 1",
+    "power": "3",
+    "toughness": "5",
+    "type_line": "Legendary Artifact — Vehicle"
    }
   },
   "The Masamune": {
@@ -962706,6 +964335,425 @@
     "oracle_text": "When Toph enters, earthbend X, where X is the amount of mana spent to cast her.\nLand creatures you control have double strike.",
     "power": "3",
     "toughness": "3",
+    "type_line": "Legendary Creature — Human Warrior Ally"
+   }
+  },
+  "Toph, Hardheaded Teacher": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "brawl_commander": true,
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Human",
+       "Warrior",
+       "Ally"
+      ],
+      "supertypes": [
+       "Legendary"
+      ]
+     },
+     "color_identity": [
+      "Green",
+      "Red"
+     ],
+     "color_override": [
+      "Green",
+      "Red"
+     ],
+     "defense": null,
+     "flavor_name": null,
+     "is_commander": true,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "standard": "legal",
+      "standardbrawl": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 2,
+      "shards": [
+       "Red",
+       "Green"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "3b36026b-15fb-4eeb-9cb3-266f295e4375",
+       "e3ba3395-39db-4330-9801-53def924f253"
+      ]
+     },
+     "name": "Toph, Hardheaded Teacher",
+     "non_ability_text": null,
+     "oracle_text": "When Toph enters, you may discard a card. If you do, return target instant or sorcery card from your graveyard to your hand.\nWhenever you cast a spell, earthbend 1. If that spell is a Lesson, put an additional +1/+1 counter on that land. (Target land you control becomes a 0/0 creature with haste that's still a land. Put a +1/+1 counter on it. When it dies or is exiled, return it to the battlefield tapped.)",
+     "power": {
+      "type": "Fixed",
+      "value": 3
+     },
+     "printings": [
+      "PTLA",
+      "TLA"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2025-10-02",
+       "text": "\"Earthbend N\" means \"Target land you control becomes a 0/0 land creature with haste in addition to its other types. Put N +1/+1 counters on it. When it dies or is exiled, return it to the battlefield tapped under your control.\""
+      },
+      {
+       "date": "2025-10-02",
+       "text": "Earthbend doesn't give the land you control a color. As most lands are colorless, in most cases the resulting land creature will also be colorless."
+      },
+      {
+       "date": "2025-10-02",
+       "text": "If a land was animated by earthbend and would go to any zone other than the graveyard or exile, it will not be returned to the battlefield by the delayed triggered ability created by earthbend."
+      },
+      {
+       "date": "2025-10-02",
+       "text": "If the targeted land becomes an illegal target before the spell or ability that includes earthbend resolves, earthbend does nothing. If the spell or ability didn't have other targets, it won't resolve."
+      },
+      {
+       "date": "2025-10-02",
+       "text": "The land will retain any other types, subtypes, or supertypes it previously had. It will also retain any mana abilities it had as a result of those subtypes. For example, a Forest that's turned into a creature this way can still be tapped for {G}."
+      },
+      {
+       "date": "2025-10-02",
+       "text": "You may target a land that is already a creature, perhaps because of a previous earthbend ability. The land will get the +1/+1 counters, gain haste, and have its base power and toughness set to 0/0."
+      }
+     ],
+     "scryfall_oracle_id": "8c1c0117-6fc0-43c5-a4c8-6472de6503d9",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 4
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "When ~ enters, you may discard a card. If you do, return target instant or sorcery card from your graveyard to your hand.",
+       "destination": "Battlefield",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "target": {
+          "type": "Controller"
+         },
+         "type": "Discard"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": true,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": {
+          "signal": "OptionalEffectPerformed",
+          "type": "EffectOutcome"
+         },
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "destination": "Hand",
+          "enter_tapped": false,
+          "enter_transformed": false,
+          "enters_attacking": false,
+          "origin": "Graveyard",
+          "owner_library": false,
+          "target": {
+           "filters": [
+            {
+             "controller": "You",
+             "properties": [
+              {
+               "type": "InZone",
+               "zone": "Graveyard"
+              }
+             ],
+             "type": "Typed",
+             "type_filters": [
+              "Instant"
+             ]
+            },
+            {
+             "controller": "You",
+             "properties": [
+              {
+               "type": "InZone",
+               "zone": "Graveyard"
+              }
+             ],
+             "type": "Typed",
+             "type_filters": [
+              "Sorcery"
+             ]
+            }
+           ],
+           "type": "Or"
+          },
+          "type": "ChangeZone"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": null,
+         "sub_link": "SequentialSibling",
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "mode": "ChangesZone",
+       "optional": true,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": null
+      },
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever you cast a spell, earthbend 1. If that spell is a Lesson, put an additional +1/+1 counter on that land.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": "Permanent",
+        "effect": {
+         "keywords": [
+          "Haste"
+         ],
+         "power": {
+          "type": "Fixed",
+          "value": 0
+         },
+         "target": {
+          "controller": "You",
+          "properties": [],
+          "type": "Typed",
+          "type_filters": [
+           "Land"
+          ]
+         },
+         "toughness": {
+          "type": "Fixed",
+          "value": 0
+         },
+         "type": "Animate",
+         "types": [
+          "Creature"
+         ]
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "count": {
+           "type": "Fixed",
+           "value": 1
+          },
+          "counter_type": "P1P1",
+          "target": {
+           "type": "ParentTarget"
+          },
+          "type": "PutCounter"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": {
+          "condition": null,
+          "cost": null,
+          "description": null,
+          "duration": null,
+          "effect": {
+           "condition": {
+            "filter": {
+             "type": "ParentTarget"
+            },
+            "type": "WhenDiesOrExiled"
+           },
+           "effect": {
+            "condition": null,
+            "cost": null,
+            "description": null,
+            "duration": null,
+            "effect": {
+             "destination": "Battlefield",
+             "enter_tapped": true,
+             "enter_transformed": false,
+             "enters_attacking": false,
+             "enters_under": "You",
+             "origin": null,
+             "owner_library": false,
+             "target": {
+              "type": "TriggeringSource"
+             },
+             "type": "ChangeZone"
+            },
+            "forward_result": false,
+            "kind": "Spell",
+            "optional": false,
+            "optional_targeting": false,
+            "sub_ability": null,
+            "target_prompt": null
+           },
+           "type": "CreateDelayedTrigger",
+           "uses_tracked_set": false
+          },
+          "forward_result": false,
+          "kind": "Spell",
+          "optional": false,
+          "optional_targeting": false,
+          "sub_ability": {
+           "condition": null,
+           "cost": null,
+           "description": null,
+           "duration": null,
+           "effect": {
+            "kind": "Earth",
+            "type": "RegisterBending"
+           },
+           "forward_result": false,
+           "kind": "Spell",
+           "optional": false,
+           "optional_targeting": false,
+           "sub_ability": {
+            "condition": null,
+            "cost": null,
+            "description": null,
+            "duration": null,
+            "effect": {
+             "count": {
+              "type": "Fixed",
+              "value": 1
+             },
+             "counter_type": "P1P1",
+             "target": {
+              "type": "ParentTarget"
+             },
+             "type": "PutCounter"
+            },
+            "forward_result": false,
+            "kind": "Spell",
+            "optional": false,
+            "optional_targeting": false,
+            "sub_ability": null,
+            "sub_link": "SequentialSibling",
+            "target_prompt": null
+           },
+           "target_prompt": null
+          },
+          "target_prompt": null
+         },
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "mode": "SpellCast",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": null,
+       "valid_source": null,
+       "valid_target": {
+        "type": "Controller"
+       }
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 4.0,
+    "color_identity": [
+     "G",
+     "R"
+    ],
+    "colors": [
+     "G",
+     "R"
+    ],
+    "keywords": [
+     "Earthbend"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "legal",
+     "standardbrawl": "legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}{R}{G}",
+    "name": "Toph, Hardheaded Teacher",
+    "oracle_id": "8c1c0117-6fc0-43c5-a4c8-6472de6503d9",
+    "oracle_text": "When Toph enters, you may discard a card. If you do, return target instant or sorcery card from your graveyard to your hand.\nWhenever you cast a spell, earthbend 1. If that spell is a Lesson, put an additional +1/+1 counter on that land. (Target land you control becomes a 0/0 creature with haste that's still a land. Put a +1/+1 counter on it. When it dies or is exiled, return it to the battlefield tapped.)",
+    "power": "3",
+    "toughness": "4",
     "type_line": "Legendary Creature — Human Warrior Ally"
    }
   },

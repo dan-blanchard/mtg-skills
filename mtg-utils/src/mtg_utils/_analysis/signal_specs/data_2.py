@@ -4,6 +4,8 @@ original ``signal_specs.py``), verbatim, in original order.
 
 from __future__ import annotations
 
+import re
+
 from mtg_utils._analysis._sweep_detectors import (
     COMBAT_DAMAGE_TO_CREATURE_REGEX,
     COMBAT_DAMAGE_TO_OPP_REGEX,
@@ -25,6 +27,7 @@ from ._shared import (
     _ETB_PAYOFF_EXTRA,
     _EXTRA_COMBAT_EXTRA,
     _GOWIDE_ANTHEM_EXTRA,
+    _IC,
     _IMPULSE_SWEEP_REGEX,
     _LANDFALL_ORACLE,
     _LANDS_FROM_GRAVE_EXTRA,
@@ -46,7 +49,9 @@ from ._shared import (
     _TOPDECK_SELECTION_SWEEP_REGEX,
     _TYPE_CHANGER_ORACLE,
     _VOLTRON_PROTECT_EXTRA,
+    Serve,
     SignalSpec,
+    SubAvenue,
     _spec,
     _sweep_spec_with_extras,
 )
@@ -67,6 +72,32 @@ _DISCARD_SERVE_IDENTS = frozenset(
 # share one avenue.
 _ENERGY_SERVE_IDENTS = frozenset({"energy_makers|you|", "energy_matters|you|"})
 _VENTURE_SERVE_IDENTS = frozenset({"venture_makers|you|", "venture_matters|you|"})
+
+# The self life-loss serve (lifeloss_matters / lifeloss_makers, you): the life
+# payers and losers, the "whenever you lose life" payoffs, the pay-life insurance
+# and the life-total swaps and resets. Lane gaps: "life you lost this turn" amounts
+# (Children of Korlis, Rowan), so that one regex arm stays on the serve; "whenever
+# you gain or lose life" (Moonstone Harbinger) and Channel's payments (Sylvan Library).
+_SELF_LIFELOSS_LOST_THIS_TURN = r"life you(?:'ve| have)? lost this turn"
+_SELF_LIFELOSS_SERVE_IDENTS = frozenset(
+    {
+        "lifeloss_makers|you|",
+        "lifeloss_matters|you|",
+        "life_payment_insurance|you|",
+        "life_total_set|any|",
+    }
+)
+
+# The land-sacrifice serve (land_sacrifice_matters / _makers, you): both lanes. They
+# also read a land sacrificed as a kicker / additional cost (Harrow, Scapeshift) and
+# symmetric sacrifice (Tremble, Wildfire). Lane gap: lands put into a graveyard
+# without a sacrifice (Akki Raider, Hedge Shredder).
+_LAND_SAC_SERVE_IDENTS = frozenset(
+    {"land_sacrifice_matters|you|", "land_sacrifice_makers|you|"}
+)
+
+# Flying granters: nonhuman_attackers' sub-avenue, the main serve's old regex arm.
+_FLYING_GRANT_ORACLE = r"(?:gains?|have|has) flying|creatures you control[^.]*flying"
 
 SPECS_2: dict[tuple[str, str], SignalSpec] = {
     # ── Rules mined from the zero-signal commander tail ─────────────────────────
@@ -140,8 +171,9 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
     ),
     # ADR-0027: group_mana migrated to the Card IR — its SWEEP_DETECTORS row is deleted
     # (detection moved to a non-controller-recipient discriminator on phase's ramp
-    # effect raw), so hand-register the spec the sweep loop used to build, inlining the
-    # deleted regex + the symmetric-mana extra.
+    # effect raw), so hand-register the spec the sweep loop used to build: the search
+    # fragment is the deleted regex + the symmetric-mana extra, the serve is the lane's
+    # ident.
     ("group_mana", "each"): _spec(
         *SWEEP_LABELS["group_mana"],
         {
@@ -151,29 +183,43 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
                 r"|a player (?:loses?|losing)[^.]*mana[^.]*lose"
             )
         },
-        (
-            r"each player adds \{|that player adds \{"
-            r"|the active player[^.]*adds? \{"
-            r"|a player (?:loses?|losing)[^.]*mana[^.]*lose"
-        ),
+        # The lane reads the symmetric doublers the regex missed (Mana Flare, High
+        # Tide). Lane gaps: Yurlok of Scorch Thrash's activated "each player adds",
+        # Valleymaker.
+        None,
+        serve_idents=frozenset({"group_mana|each|"}),
         extras=(_SYM_MANA_EXTRA,),
     ),
     # The discount-exploiting target set is defined by high cmc (structured) + X-spells
     # — not the generic words "mana value", which matched 453 cards (Disdainful Stroke,
-    # Abrupt Decay). Drop that branch; gate on cmc (expensive bombs) + {x} + storm.
+    # Abrupt Decay). The search drops that branch and gates on cmc (expensive bombs) +
+    # {x}; the serve is the lane's ident, with a Storm payoffs extra.
     ("cost_reduction", "you"): _spec(
         "Cost reduction",
         "expensive bombs and X-spells that exploit the discount, plus more cost "
         "reducers to stack the discount",
         {"oracle": r"\{x\}|with mana value"},
-        r"\bstorm\b",
+        # The cost reducers the avenue names (Etherium Sculptor, Dragonspeaker Shaman).
+        # Storm payoffs a discount chains into are the Storm payoffs extra, read off the
+        # keyword (CR 702.40a); the old \bstorm\b served cards named Storm.
+        None,
+        serve_idents=frozenset({"cost_reduction|you|"}),
         serve_cmc_min=7,
         # X-spells by their printed MANA COST, as xspell_matters reads them: the old
         # oracle "{x}" arm caught 32 of 567 X-cost spells (Torment of Hailfire's text
         # says "X times", never "{X}") and credited 318 cards whose {X} is an
         # activated-ability cost a spell-cost reducer never discounts.
         serve_mana_cost=r"\{X\}",
-        extras=(_COST_REDUCER_EXTRA,),
+        extras=(
+            _COST_REDUCER_EXTRA,
+            SubAvenue(
+                "Storm payoffs",
+                "storm spells that a cheap, chained turn of discounted spells "
+                "copies many times (Grapeshot, Tendrils of Agony, Mind's Desire)",
+                {"keyword": "storm"},
+                serve=Serve(keywords=frozenset({"storm"})),
+            ),
+        ),
     ),
     # Cast-from-exile MATTERS: payoffs + explicit "cast/play from exile" enablers (plot,
     # suspend, "whenever you cast a spell from exile", paradox). NOT impulse draw (its
@@ -302,19 +348,21 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
     ),
     # Play from the TOP OF YOUR LIBRARY — Future Sight / Bolas's Citadel / Oracle of Mul
     # Daya. Casts from the LIBRARY zone (not exile), so it's its own avenue, distinct
-    # from cast-from-exile and impulse. Needs a play/cast verb so look/scry/mill don't
-    # match. ADR-0027 β: detection moved to the Card IR (a STATIC cast_from_zone+from:
-    # library Effect over phase's TopOfLibraryCastPermission mode + a per-clause
-    # mirror);
-    # this SERVE pool stays oracle-defined, so the regex is pinned inline here (the
-    # sweep
-    # auto-register no longer builds it — its SWEEP_DETECTORS row is deleted).
+    # from cast-from-exile and impulse. The search needs a play/cast verb so look/scry/
+    # mill don't match. ADR-0027 β: detection moved to the Card IR (a STATIC
+    # cast_from_zone+from: library Effect over phase's TopOfLibraryCastPermission mode +
+    # a per-clause mirror); the serve is the lane's ident (the sweep auto-register no
+    # longer builds this spec — its SWEEP_DETECTORS row is deleted).
     ("play_from_top", "you"): _spec(
         "Play from the top of your library",
         "engines that let you play or cast off the top of your library (Future Sight, "
         "Bolas's Citadel) — top-of-library control and extra-land effects amplify them",
         {"oracle": r"(?:play|cast)\b[^.]*?\bfrom the top of your library"},
-        r"(?:play|cast)\b[^.]*?\bfrom the top of your library",
+        # The lane serves library-cast permissions. Cascade's reminder text is cascade's
+        # own avenue; lane gaps: temporary or conditional permissions (Gwenom, The
+        # Belligerent) and lands-only ones (Radha).
+        None,
+        serve_idents=frozenset({"play_from_top|you|"}),
     ),
     # _matters sweep (ADR-0034): the MAKER arm of the discard split. discard_makers
     # fires on a loot/rummage/connive OUTLET (a draw+discard co-occurrence — Faithless
@@ -394,13 +442,17 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
     ),
     # ADR-0027 topdeck library-owner scope (SIDECAR v28): topdeck_selection migrated to
     # the Card IR (its SWEEP_DETECTORS row deleted, so the auto-register loop no longer
-    # builds this serve). Hand-register the spec the sweep loop used to build — same
-    # label / avenue / oracle, reusing the shared TOPDECK_SELECTION_REGEX constant so
-    # serve and the kept-mirror detector never drift.
+    # builds this spec). Hand-registered with the same label / avenue: the search
+    # fragment is the shared TOPDECK_SELECTION_REGEX constant, the serve is the lane's
+    # ident.
     ("topdeck_selection", "you"): _spec(
         *SWEEP_LABELS["topdeck_selection"],
         {"oracle": _TOPDECK_SELECTION_SWEEP_REGEX},
-        _TOPDECK_SELECTION_SWEEP_REGEX,
+        # Reads scry and surveil, which the avenue names (Dissolve, Fated Retribution).
+        # Manifest dread (a look-at-two selection) is a lane gap; ripple is not
+        # selection.
+        None,
+        serve_idents=frozenset({"topdeck_selection|you|"}),
     ),
     # Drain. The serve required "opponent" adjacent to "loses", so it MISSED the
     # keystone aristocrats drains worded "target/that player loses N life" (Blood
@@ -437,14 +489,12 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
         "ways to pay or lose life on demand to fuel your payoffs, plus the life-total "
         "swaps/resets and recovery that turn a low life total into an advantage",
         {"oracle": r"you lose \d+ life|pay \d+ life|lose \d+ life"},
-        r"whenever you (?:gain or )?lose life|you lose (?:\d+|x) life"
-        r"|pay (?:\d+|x) life"
-        # Life-as-a-resource payoffs (Selenia): swap/reset your low life total (Axis of
-        # Mortality / Repay in Kind / Magus of the Mirror), recover it (Children of
-        # Korlis), or win from it (Near-Death Experience).
-        r"|exchange life totals?|life totals? becomes?|lowest life total"
-        r"|gain life equal to[^.]*lost|life you(?:'ve| have)? lost this turn"
-        r"|if you have [^.]*life[^.]*win the game",
+        # The life payers and losers, "whenever you lose life" payoffs, pay-life
+        # insurance and life-total swaps / resets (Selenia's package); see
+        # _SELF_LIFELOSS_SERVE_IDENTS. The one regex arm kept is the lane gap it
+        # bridges.
+        _SELF_LIFELOSS_LOST_THIS_TURN,
+        serve_idents=_SELF_LIFELOSS_SERVE_IDENTS,
         serve_not=r"\bas this land enters\b|enters tapped",
     ),
     # _matters sweep (ADR-0034): the MAKER side of the lifeloss split — cards that
@@ -474,11 +524,8 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
         "ways to pay or lose life on demand to fuel your payoffs, plus the life-total "
         "swaps/resets and recovery that turn a low life total into an advantage",
         {"oracle": r"you lose \d+ life|pay \d+ life|lose \d+ life"},
-        r"whenever you (?:gain or )?lose life|you lose (?:\d+|x) life"
-        r"|pay (?:\d+|x) life"
-        r"|exchange life totals?|life totals? becomes?|lowest life total"
-        r"|gain life equal to[^.]*lost|life you(?:'ve| have)? lost this turn"
-        r"|if you have [^.]*life[^.]*win the game",
+        _SELF_LIFELOSS_LOST_THIS_TURN,
+        serve_idents=_SELF_LIFELOSS_SERVE_IDENTS,
         serve_not=r"\bas this land enters\b|enters tapped",
     ),
     # Celebration (WOE): all 11 cards carry the exact phrase, so serve == open. A
@@ -530,10 +577,9 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
                 r"put into[^.]*graveyard"
             )
         },
-        r"sacrifice a land(?: card)?:"
-        r"|whenever (?:a|one or more|another) lands?(?: cards?)?[^.]*"
-        r"put into[^.]*graveyard"
-        r"|whenever you sacrifice (?:a|one or more|another) lands?",
+        # Serve on the lanes' idents; see _LAND_SAC_SERVE_IDENTS.
+        None,
+        serve_idents=_LAND_SAC_SERVE_IDENTS,
     ),
     # _matters sweep (ADR-0034): the MAKER arm — cards that PERFORM the land
     # sacrifice (repeatable "Sacrifice a land:" outlets — Zuran Orb, Sylvan
@@ -550,9 +596,9 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
                 r"|each player sacrifices [^.]*land"
             )
         },
-        r"sacrifice a land(?: card)?:"
-        r"|each player sacrifices [^.]*land"
-        r"|whenever you sacrifice (?:a|one or more|another) lands?",
+        # Serve on the lanes' idents; see _LAND_SAC_SERVE_IDENTS.
+        None,
+        serve_idents=_LAND_SAC_SERVE_IDENTS,
     ),
     # Keyword soup (Odric Lunarch Marshal, Akroma Vision): shares many evergreen
     # keywords across the team, so it wants creatures stacked with keywords. Serve any
@@ -634,42 +680,48 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
         "Cantrips",
         "more low-opportunity-cost card selection and spellslinger payoffs",
         {"oracle": r"draws? (?:a|an additional) card"},
-        r"draws? (?:a|an additional) card",
+        # A cantrip is an instant or sorcery (the type dim). Permanents that draw a card
+        # (Mulldrifter) are left to blink_flicker / self_etb_payload by design.
+        None,
+        serve_idents=frozenset({"cantrip|you|"}),
         serve_types=("Instant", "Sorcery"),
     ),
-    # Serve the damage DOUBLERS the blurb already promises — replacement effects (CR
-    # 701.10g) worded "deals double/twice that much damage" / "deals that much damage
-    # plus" / "if a source … would deal damage … instead" (Furnace of Rath, Gratuitous
-    # Violence, Torbran). The old `double the damage` literal missed all of them.
+    # The serve names the damage DOUBLERS the blurb already promises — replacement
+    # effects (CR 701.10g) worded "deals double/twice that much damage" / "deals that
+    # much damage plus" / "if a source … would deal damage … instead" (Furnace of Rath,
+    # Gratuitous Violence, Torbran) — through the damage_doubling ident.
     ("direct_damage", "you"): _spec(
         "Burn / pingers",
         "repeatable direct damage — pingers, burn, and damage doublers",
         {"preset_names": ("burn",)},
-        r"deals \d+ damage to any target|\{t\}[^.]*deals .*damage"
-        r"|deals (?:double|twice) that (?:much )?damage|deals that much damage plus"
-        r"|if a source[^.]*would deal damage[^.]*instead"
-        # Burn-redirect: convert creature damage into player damage (Repercussion) —
-        # a ping/wipe deck turns it into reach (ping/wipe + this = burn the table).
-        r"|creature is dealt damage[^.]*deals? that (?:much )?damage to"
-        # Symmetric "punisher" burn enchantments (Manabarbs, Roiling Vortex,
-        # Spellshock): recurring damage to each/that player.
-        r"|deals \d+ damage to (?:each|that|target) (?:player|opponent|creature)"
-        r"|whenever (?:a|an|each) (?:player|opponent)[^.]*deals \d+ damage"
-        # Land-enter / tap-a-land punishers (Ankh of Mishra, Zo-Zu, War's Toll).
-        r"|whenever (?:a|each) (?:player taps a )?land(?: enters| for mana)?"
-        r"[^.]*deals \d+ damage",
+        # Burn, each-creature pingers, damage reflectors (Repercussion) and doublers;
+        # gains X and divided burn (Banefire, Fireball). Damage to creatures only is
+        # removal's; one-shot or granted doublers (Isengard Unleashed) are a
+        # damage_doubling lane gap.
+        None,
+        serve_idents=frozenset(
+            {
+                "direct_damage|you|",
+                "aoe_ping|you|",
+                "damage_reflect|you|",
+                "damage_doubling|you|",
+            }
+        ),
         extras=(_DEATHTOUCH_GEAR_EXTRA,),
     ),
     # `add .* mana of any` captured fixing (Birds, City of Brass), not amplification.
-    # Serve the doublers/triplers (a "tap … for mana" trigger that adds/produces extra)
-    # plus the {x} X-spend payoffs.
+    # The serve is the doublers/triplers (a "tap … for mana" trigger that adds/produces
+    # extra), through the lane's ident, plus the {x} X-spend payoffs by printed cost.
     ("mana_amplifier", "you"): _spec(
         "Big mana",
         "mana doublers plus the X-spells and expensive bombs to spend it on",
         {"oracle": r"\{x\}|add .* mana|search your library for .*land"},
-        r"you tap [^.]*for mana[^.]*(?:add|produces?)"
-        r"|produces? (?:twice|three times|\w+ times|an additional|double)"
-        r"|doubles?[^.]*mana|\{x\}",
+        # The lane plus X-spells by printed mana cost; gains the symmetric and land-type
+        # doublers (Mana Flare, Vernal Bloom). The old {X} arm served every X ability
+        # and tax; lane gap: Groundchuck & Dirtbag.
+        None,
+        serve_idents=frozenset({"mana_amplifier|you|"}),
+        serve_mana_cost=r"\{X\}",
     ),
     # ── Sweep survivors ─────────────────────────────────────────────────────────
     # Voltron suits up one creature with Equipment (CR 301.5) and BUFF Auras (CR 303).
@@ -746,8 +798,19 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
         "fliers that connect to trigger your non-Human attack payoff (and flying "
         "Humans to cheat into play)",
         {"card_type": "Creature", "keyword": "flying"},
-        r"(?:gains?|have|has) flying|creatures you control[^.]*flying",
+        # The fliers are the avenue (the keyword dim). The flying GRANTERS are the
+        # Flying granters sub-avenue: no ident reads them (keyword_grant_target and
+        # team_evasion_grant carry no keyword subject).
+        None,
         serve_keywords=("flying",),
+        extras=(
+            SubAvenue(
+                "Flying granters",
+                "effects that give your attackers flying so they connect",
+                {"oracle": _FLYING_GRANT_ORACLE},
+                serve=Serve(oracle=re.compile(_FLYING_GRANT_ORACLE, _IC)),
+            ),
+        ),
     ),
     # A reclaim-OWNED commander (Meneldor, The Neutrinos) profits from control-EXCHANGE:
     # donate a dud you own, take their bomb, then reclaim your dud (you still own it).
@@ -771,8 +834,11 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
         "theft creatures whose steal sticks because you shield them from removal — "
         "Sower of Temptation, Roil Elemental, Empress Galina",
         {"oracle": r"gain control of [^.]*target (?:creature|permanent)"},
-        r"gain control of (?:up to one )?target "
-        r"(?:creature|permanent|nonland permanent|legendary permanent)",
+        # The theft lane's ident (veto unchanged) reads control Auras (Control Magic),
+        # group theft (Mass Manipulation) and stealing a spell (Commandeer), which a
+        # shield never protects. Regaining your own card (Coveted Falcon) is noise.
+        None,
+        serve_idents=frozenset({"gain_control|you|"}),
         serve_not=r"until end of turn",
     ),
     # A big-mana commander (Neheb, Sunastian) wants X-spell mana SINKS to dump its mana
@@ -784,8 +850,11 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
         "X-spells to pour your big mana into — Fireball, Comet Storm, Crackle with "
         "Power, Jaya's Immolating Inferno",
         {"oracle": r"deals x damage|x damage to|times x damage"},
-        r"deals x damage|x damage to|deals [^.]*times x damage"
-        r"|of up to x target|to each of up to x",
+        # Serve the X-spells by printed mana cost, as xspell_matters reads them: the
+        # sink is the {X} you pay (Torment of Hailfire, Hangarback Walker). Count-set X
+        # (The Rack) is out; activated X sinks (Crypt Rats) are a lane gap.
+        None,
+        serve_mana_cost=r"\{X\}",
     ),
     # A commander that exiles/takes opponents' library TOPS (Circu, Ragavan, Grenzo)
     # wants to SEE those tops — play-with-top-revealed shows what it will exile/steal.
@@ -977,7 +1046,12 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
         "Superfriends",
         "planeswalkers plus proliferate and loyalty payoffs to protect them",
         {"oracle": r"planeswalker|loyalty"},
-        r"planeswalkers? you control|loyalty counters?",
+        # The lane reads "if you control a <name> planeswalker" payoffs (Jace's
+        # Sentinel). Pillowfort "attacks you or planeswalkers" clauses are noise; lane
+        # gaps: empower Jace (Hexhaven Battalion), "put loyalty counters" (Inspired
+        # Tethermage).
+        None,
+        serve_idents=frozenset({"superfriends_matters|you|"}),
         serve_types=("planeswalker",),
         serve_keywords=("proliferate",),
         extras=(_PILLOWFORT_EXTRA, _LOYALTY_DOUBLER_EXTRA),  # protect the walkers
@@ -1000,7 +1074,11 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
         "Legends matter",
         "legendary creatures and the payoffs that reward a board of legends",
         {"oracle": r"\blegendary\b"},
-        r"legendary creatures? you control|another legendary|for each legendary",
+        # The lane reads the legend payoffs the regex missed (Arwen's Gift, Esquire of
+        # the King); "nonlegendary" text is out. It also reads legend hate (Hero's
+        # Demise), a lane false positive.
+        None,
+        serve_idents=frozenset({"legends_matter|you|"}),
         serve_types=("legendary",),
     ),
     # The bare `cards in your hand` matched stax/hand-size references (Ensnaring Bridge,
@@ -1042,7 +1120,12 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
         "Exile pile matters",
         "impulse/foretell exile enablers and payoffs for cards in exile",
         {"oracle": r"exile the top|in exile|from exile"},
-        r"cards? (?:you own )?in exile|for each card[^.]*exile",
+        # The lane reads the exile payoffs the regex missed (Rakshasa Vizier, Kaya,
+        # Spirits' Justice); "exiled this way" riders are noise. It also reads removal
+        # riders that count exiled creatures (Curse of the Swine), a lane false
+        # positive.
+        None,
+        serve_idents=frozenset({"exile_matters|you|"}),
     ),
     # _matters sweep (ADR-0034): split the conflated experience lane by role.
     # experience_makers = the MAKER arm (cards that GAIN experience counters —
@@ -1324,11 +1407,11 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
         "Counter doubling",
         "+1/+1 counter sources to multiply, plus other counter doublers",
         {"oracle": r"\+1/\+1 counters?|double the number of [^.]*counters?"},
-        r"(?:twice that many|double the number of) [^.]*counters?"
-        # Creatures that ENTER WITH +1/+1 counters are counter sources — including the
-        # variable "a number of" / "X" forms a digit-keyed regex misses (Master
-        # Biomancer, Hangarback Walker).
-        r"|enters with (?:a|an|one|two|three|x|\d+|a number of)[^.]*?\+1/\+1 counters?",
+        # Serve on the +1/+1 package's idents: the cards that PUT counters, proliferate,
+        # or replace "that many plus one" (Hardened Scales). Gaps: sunburst grants (Lux
+        # Artillery) are the package's documented exclusion.
+        None,
+        serve_idents=_PLUS_ONE_SERVE_IDENTS,
         extras=_COUNTERS_PACKAGE,
     ),
     # Serve is precise (the second-spell payoff). The SEARCH carried the same bare

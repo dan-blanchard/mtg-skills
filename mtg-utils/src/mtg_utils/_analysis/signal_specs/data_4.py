@@ -142,7 +142,10 @@ SPECS_4: dict[tuple[str, str], SignalSpec] = {
         "Arcane spells",
         "Arcane-subtype instants and sorceries (Kamigawa) plus splice-onto-Arcane",
         {"card_type": "Arcane"},
-        r"splice onto arcane",
+        # The lane reads splice onto Arcane, the Spirit-or-Arcane cast triggers
+        # (Petalmane Baku, Bounteous Kirin) and Arcane recursion (The Unspeakable).
+        None,
+        serve_idents=frozenset({"arcane_matters|you|"}),
         serve_types=("arcane",),
     ),
     # Enlist (Aradesh): other enlist creatures (the keyword bearers) plus the big
@@ -151,8 +154,10 @@ SPECS_4: dict[tuple[str, str], SignalSpec] = {
         "Enlist",
         "enlist creatures plus big stay-back fodder to tap for their power",
         {"oracle": r"\benlist\b"},
-        r"\benlisted? (?:a|another) creature",
+        # The lane reproduces the serve regex; the keyword dim stays.
+        None,
         serve_keywords=("enlist",),
+        serve_idents=frozenset({"has_enlist|you|"}),
         extras=(_ENLIST_FODDER_EXTRA,),
     ),
     # Power-scaling tap engine (Mona Lisa, Marwyn, Selvala, Alena): UNTAP effects re-tap
@@ -185,7 +190,10 @@ SPECS_4: dict[tuple[str, str], SignalSpec] = {
         "Exert",
         "exert creatures — their 'won't untap' cost is free when your team doesn't tap",
         {"oracle": r"\bexert\b"},
-        r"you may exert this creature",
+        # No ident arm: the lane's key fires on the vigilance enablers (Intangible
+        # Virtue, Serra's Blessing), the commander side this avenue opens from, not the
+        # exert bodies it serves; the keyword arm covers those.
+        None,
         serve_keywords=("exert",),
     ),
     # Target redirect (Rayne draws when an opponent targets your stuff): shunt the
@@ -260,7 +268,10 @@ SPECS_4: dict[tuple[str, str], SignalSpec] = {
         "Land exchange",
         "swap control of lands to steal opponents' best while you tax the rest",
         {"oracle": r"exchange control of[^.]*\bland\b"},
-        r"exchange control of[^.]*\bland\b",
+        # The lane reads land steals and exchanges the regex missed ("two target lands"
+        # — Shifting Borders; Annex, Herald of Leshrac).
+        None,
+        serve_idents=frozenset({"land_exchange|you|"}),
     ),
     # Self-life-payment insurance (Selenia, Beledros, Vilis): a commander that pays its
     # own life repeatedly wants life-loss insurance so the payments don't kill it
@@ -297,9 +308,12 @@ SPECS_4: dict[tuple[str, str], SignalSpec] = {
             "oracle": r"whenever you cast a multicolored|\bconverge\b"
             r"|multicolored (?:creature|permanent|spell)s? you"
         },
-        r"whenever you cast a multicolored"
-        r"|multicolored (?:creature|permanent|spell)s? you (?:control|cast)"
-        r"|\bconverge\b|cast (?:a|your) multicolored",
+        # The lane reads the multicolored payoffs the regex missed (Niv-Mizzet Reborn,
+        # Zenith Chronicler); converge, an ability word (CR 207.2c) the lane does not
+        # read, rides the keyword field.
+        None,
+        serve_idents=frozenset({"multicolor_matters|you|"}),
+        serve_keywords=("converge",),
     ),
     # A repeatable land-destruction commander (Numot) wants the LD support package:
     # more land destruction (main), own-land recursion to survive symmetric LD (reuse
@@ -481,12 +495,12 @@ SPECS_4: dict[tuple[str, str], SignalSpec] = {
         r"|tap target creature you don'?t control"
         r"|tap all creatures you don'?t control",
     ),
-    # ltb_matters: VETO the O-Ring exile-until-leaves removal (Banishing Light) — that
-    # already routes to exile_until_leaves, so excluding it here is lossless.
-    # ADR-0027 β: ltb_matters migrated to the Card IR (a structural `leaves`-trigger arm
-    # + a narrowed _LTB_MATTERS_MIRROR, SIDECAR v11). This serve spec was always hand-
-    # registered with its own curated SEARCH regex + serve_not O-Ring veto, independent
-    # of the deleted SWEEP detector, so it survives unchanged. CR 603.6e.
+    # ltb_matters: the O-Ring exile-until-leaves removal (Banishing Light) routes to
+    # exile_until_leaves, not here. ADR-0027 β: ltb_matters migrated to the Card IR (a
+    # structural `leaves`-trigger arm + a narrowed _LTB_MATTERS_MIRROR, SIDECAR v11).
+    # This spec is hand-registered with its own curated SEARCH regex, independent of
+    # the deleted SWEEP detector; its serve reads the lane (leaves-the-battlefield
+    # triggers, CR 603.6c).
     ("ltb_matters", "you"): _spec(
         "Leaves-the-battlefield",
         "sacrifice and blink fodder to trigger LTB",
@@ -497,10 +511,12 @@ SPECS_4: dict[tuple[str, str], SignalSpec] = {
                 r"|when [^.]* leaves the battlefield"
             )
         },
-        r"a permanent (?:you controlled )?left the battlefield"
-        r"|whenever [^.]*(?:leaves the battlefield|leave the battlefield)"
-        r"|when [^.]* leaves the battlefield",
-        serve_not=r"exile [^.]*until [^.]*leaves the battlefield",
+        # The lane's leaves trigger (CR 603.6c) drops the "when this leaves, sacrifice
+        # that creature" tethers (Animate Dead) and gains bounce and "left the
+        # battlefield this turn" payoffs (Azorius Aethermage); it already leaves out
+        # O-Ring exile.
+        None,
+        serve_idents=frozenset({"ltb_matters|you|", "ltb_matters|any|"}),
         # Flicker your own permanents to FIRE the LTB trigger (and a fresh ETB) on
         # demand — the "blink fodder" the blurb promises (Ghostly Flicker / Eerie
         # Interlude). Reuses the precise flicker classifier. Death (dies) is also an LTB
@@ -653,7 +669,11 @@ SPECS_4: dict[tuple[str, str], SignalSpec] = {
         "their base power or toughness (Bess, Zinnia, Duskana, Primo, Rapid Augmenter, "
         "Sword of the Squeak)",
         {"oracle": r"with base (?:power|toughness)"},
-        r"with base (?:power|toughness)",
+        # The regex served the base-P/T SETTERS (Turn to Frog, Figure of Destiny — layer
+        # 7b, CR 613.4b), not the payoffs that count creatures by base P/T; the lane
+        # reads only the payoffs.
+        None,
+        serve_idents=frozenset({"base_power_matters|you|"}),
     ),
     ("exalted_lone_attacker", "you"): _spec(
         "Exalted / lone attacker",
@@ -709,7 +729,11 @@ SPECS_4: dict[tuple[str, str], SignalSpec] = {
         "Sagas to chain chapter abilities, plus the lore-counter and chapter-retrigger "
         "payoffs that reward them",
         {"card_type": "Saga"},
-        r"lore counter|sagas? you control|chapter abilit|read ahead",
+        # The lane's lore-counter reads plus the Saga-reference tribe ident (the
+        # final-chapter payoffs — Tom Bombadil, Narci); Ian Chesterton's Saga replicate
+        # is a gain.
+        None,
+        serve_idents=frozenset({"saga_matters|you|", "type_matters|you|Saga"}),
         serve_types=("saga",),
     ),
     ("lessons_matter", "you"): _spec(
@@ -717,8 +741,12 @@ SPECS_4: dict[tuple[str, str], SignalSpec] = {
         "Lesson spells (your wishboard payload) plus the Learn enablers and Lesson "
         "payoffs that reward casting them",
         {"card_type": "Lesson"},
-        r"lesson spells?|cast (?:an? )?(?:artifact or )?lesson|lesson card",
+        # The lane reads the Lesson payoffs; the Learn enablers (a keyword action the
+        # lane does not read) ride the keyword field.
+        None,
+        serve_idents=frozenset({"lessons_matter|you|"}),
         serve_types=("lesson",),
+        serve_keywords=("learn",),
     ),
     # Override the auto-registered suspend_matters sweep spec (serve was `\bsuspend\b`
     # only): widen to the whole time-counter superstructure — Suspend (702.62),

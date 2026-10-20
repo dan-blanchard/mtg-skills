@@ -9,6 +9,7 @@ card: the row then pins only that the ident arm carries the lane.
 """
 
 import pytest
+from conftest import extra
 
 from mtg_utils._analysis.signal_specs import spec_for
 from mtg_utils._analysis.signals import Signal
@@ -240,6 +241,77 @@ _CONVERTED = [
         "Baron Helmut Zemo",
         "Hindervines",
     ),
+    # "destroy target tapped creature" wasn't in the regex's type list; one-shot
+    # land destruction isn't removal to the lane.
+    ("removal", "you", "removal|you|", "Royal Assassin", "Stone Rain"),
+    # An overloaded Cyclonic Rift sweeps; Denizen of the Deep bounces your own.
+    ("mass_bounce", "any", "mass_bounce|any|", "Cyclonic Rift", "Denizen of the Deep"),
+    # A creature that becomes a pacifying Aura (the Enchantment type arm misses it).
+    ("pacify_makers", "you", "pacify_makers|you|", "Convulsing Licid", None),
+    (
+        "life_total_set",
+        "any",
+        "life_total_set|any|",
+        "Loxodon Lifechanter",
+        "Heartless Hidetsugu",
+    ),
+    # Exiling a card from a graveyard isn't exile removal.
+    ("exile_removal", "you", "exile_removal|you|", "Oblivion Ring", "Deathrite Shaman"),
+    # "Search your library and/or graveyard"; basic landcycling isn't a tutor.
+    ("tutor", "you", "tutor|you|", "Finale of Devastation", "Migratory Route"),
+    # A number-word ritual; a basic land to hand isn't ramp.
+    ("ramp", "you", "ramp|you|", "Dark Ritual", "Sylvan Scrying"),
+    # A {T}-only engine; an equip cost isn't one.
+    (
+        "activated_ability",
+        "you",
+        "activated_ability|you|",
+        "Royal Assassin",
+        "Leonin Scimitar",
+    ),
+    # A ninjutsu payoff with no ninjutsu keyword of its own; protection's
+    # reminder text isn't evasion.
+    # The Equipment movers serve through the extra now, not the main serve.
+    ("has_dash", "you", "has_dash|you|", "Mardu Scout", "Battlefield Improvisation"),
+    # "Copy it" engines; a card named Storm isn't a spell copier.
+    (
+        "spell_copy_makers",
+        "you",
+        "spell_copy_makers|you|",
+        "Thousand-Year Storm",
+        "Storm of Souls",
+    ),
+    ("cant_block_grant", "you", "cant_block_grant|you|", "Bedlam", None),
+    (
+        "conditional_self_protection",
+        "you",
+        "conditional_self_protection|you|",
+        "Fleecemane Lion",
+        "Bello, Bard of the Brambles",
+    ),
+    ("aura_equip_kw_grant", "you", "aura_equip_kw_grant|you|", "Hemlock Vial", None),
+    ("counter_grants_kw", "you", "counter_grants_kw|you|", "Cathedral Acolyte", None),
+    (
+        "typed_anthem_multi",
+        "you",
+        "typed_anthem_multi|you|",
+        "Gisa, the Hellraiser",
+        None,
+    ),
+    (
+        "all_creatures_kw_grant",
+        "any",
+        "all_creatures_kw_grant|any|",
+        "Absolute Grace",
+        None,
+    ),
+    (
+        "specialize_matters",
+        "you",
+        "specialize_matters|you|",
+        "Klement, Novice Acolyte",
+        None,
+    ),
 ]
 
 
@@ -352,3 +424,36 @@ def test_tap_untap_matters_serve_reads_granted_tap_triggers():
         "Well Rested",
     ):
         assert spec.serve.matches(_card(name)), name
+
+
+def test_spell_copy_serve_keeps_storm_by_keyword():
+    # Storm copies the spell it's on (CR 702.40a); the keyword arm serves it.
+    spec = spec_for(_sig("spell_copy_makers"))
+    assert spec.serve.matches(_card("Grapeshot"))
+
+
+def test_tutor_serve_keeps_the_land_fetch_veto():
+    # The tutor lane fires on a fetch land; a land put onto the battlefield is
+    # ramp, not a tutor.
+    spec = spec_for(_sig("tutor"))
+    assert spec.serve.not_oracle is not None
+    assert not spec.serve.matches(_card("Evolving Wilds"))
+
+
+def test_activated_ability_untap_haste_and_cost_reducers_are_an_extra():
+    spec = spec_for(_sig("activated_ability"))
+    untap = extra(spec, "Untap, haste and cheaper activations")
+    assert untap.serve.matches(_card("Training Grounds"))
+    # A repeatable untap of the enchanted creature (untap_engine misses it).
+    assert untap.serve.matches(_card("Freed from the Real"))
+    assert untap.serve.matches(_card("Thousand-Year Elixir"))
+    assert not spec.serve.matches(_card("Training Grounds"))
+
+
+def test_dash_equipment_movers_are_an_extra():
+    spec = spec_for(_sig("has_dash"))
+    assert extra(spec, "Equipment movers").serve.matches(
+        _card("Battlefield Improvisation")
+    )
+    # The Equipment themselves still serve through the type arm.
+    assert spec.serve.matches(_card("Leonin Scimitar"))

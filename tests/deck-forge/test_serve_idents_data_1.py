@@ -10,6 +10,7 @@ negative cards below.
 """
 
 import pytest
+from conftest import extra
 
 from mtg_utils._analysis.signal_specs import Serve, spec_for
 from mtg_utils._analysis.signals import Signal
@@ -446,9 +447,236 @@ def test_damage_received_matters_serve_is_the_lane():
 def test_damage_redirect_soak_payoffs_ride_the_lane():
     spec = spec_for(_sig("damage_redirect"))
     assert spec is not None
-    (soak,) = [ex for ex in spec.extras if ex.label == "Profit from the soaked damage"]
+    soak = extra(spec, "Profit from the soaked damage")
     assert soak.serve is not None
     assert soak.serve.oracle is None
     assert soak.serve.matches(_card("Druid's Call"))
     assert soak.serve.matches(_card("Spiteful Shadows"))
     assert not soak.serve.matches(_card("Brash Taunter"))
+
+
+# ── Serve-ident pass 3 (2026-10-20): the partial and blocked specs ────────────
+
+
+@pytest.mark.parametrize(
+    ("key", "scope"), [("sacrifice_outlets", "you"), ("death_matters", "any")]
+)
+def test_aristocrats_serve_reads_death_value_fodder(key, scope):
+    serve = _ident_serve(
+        key,
+        scope,
+        "sacrifice_outlets|you|",
+        "death_matters|any|",
+        "self_death_payoff|you|",
+    )
+    assert serve.matches(_card("Blood Artist"))
+    # A permanent whose own death trigger pays you back is fodder; the regex
+    # wanted a value verb within 45 characters of "dies".
+    assert serve.matches(_card("Kokusho, the Evening Star"))
+    # "Sacrifice after III" is a Saga's reminder text, not an outlet.
+    assert not serve.matches(_card("Invasion of the Giants"))
+
+
+def test_free_cast_serve_drops_self_recast_reminders():
+    serve = _ident_serve(
+        "free_cast",
+        "you",
+        "free_cast|you|",
+        "cascade_matters|you|",
+    )
+    assert serve.matches(_card("Aetherworks Marvel"))  # casts a spell free
+    # Suspend's and plot's reminders cast the card itself free on a later turn
+    # (suspend CR 702.62a, plot 702.170d): a self-recast, not a bomb cast for free.
+    assert not serve.matches(_card("Restore Balance"))
+    assert not serve.matches(_card("Beastbond Outcaster"))
+
+
+@pytest.mark.parametrize("key", ["proliferate_matters", "proliferate_makers"])
+def test_proliferate_serve_reads_any_counter_sources(key):
+    serve = _ident_serve(
+        key,
+        "you",
+        "proliferate_matters|you|",
+        "plus_one_makers|you|",
+        "poison_makers|opponents|",
+    )
+    # A strife counter is a counter proliferate grows; the regex named five kinds.
+    assert serve.matches(_card("Crescendo of War"))
+    # Tribute: an opponent chooses whether the counters go on.
+    assert not serve.matches(_card("Snake of the Golden Grove"))
+
+
+def test_ability_copy_serve_drops_demonstrate():
+    serve = _ident_serve("ability_copy", "you", "ability_copy|you|")
+    assert serve.matches(_card("Strionic Resonator"))
+    # Demonstrate copies the spell (CR 702.144a), not an ability.
+    assert not serve.matches(_card("Incarnation Technique"))
+
+
+def test_self_counter_grow_serve_reads_named_self_counters():
+    serve = _ident_serve(
+        "self_counter_grow", "you", "self_counter_grow|you|", "explore_makers|you|"
+    )
+    # "Put a +1/+1 counter on Yahenni": the regex wanted "on it / this creature".
+    assert serve.matches(_card("Yahenni, Undying Partisan"))
+    assert not serve.matches(_card("Snake of the Golden Grove"))
+
+
+@pytest.mark.parametrize("key", ["any_counter_matters", "any_counter_makers"])
+def test_any_counter_serve_drops_devour(key):
+    serve = _ident_serve(
+        key,
+        "you",
+        "any_counter_matters|you|",
+        "any_counter_makers|you|",
+        "counter_doubling|you|",
+    )
+    assert serve.matches(_card("Rishkar, Peema Renegade"))  # "with a counter on it"
+    # Devour's "twice that many +1/+1 counters" (CR 702.82a) doubles nothing.
+    assert not serve.matches(_card("Mycoloth"))
+
+
+def test_variable_pt_serve_reads_one_sided_cdas():
+    serve = _ident_serve("variable_pt", "you", "variable_pt|any|")
+    assert serve.matches(_card("Nighthawk Scavenger"))  # power only
+    # Damage equal to the cards in a hand sets no power or toughness.
+    assert not serve.matches(_card("Khorvath's Fury"))
+
+
+def test_draw_matters_serve_reads_wheels():
+    serve = _ident_serve(
+        "draw_matters", "you", "draw_matters|you|", "card_draw_engine|each|"
+    )
+    assert serve.matches(_card("Wheel of Fortune"))
+    assert serve.matches(_card("Burning Inquiry"))
+    # "Draw an additional card" in a loyalty ability is not a draw payoff.
+    assert not serve.matches(_card("Lord Windgrace"))
+
+
+def test_outlaw_serve_reads_outlaw_payoffs():
+    serve = _ident_serve(
+        "outlaw_matters", "you", "outlaw_matters|you|", "token_maker|you|Pirate"
+    )
+    assert serve.matches(_card("Double Down"))  # "whenever you cast an outlaw spell"
+
+
+def test_snow_serve_reads_nonsnow_payoffs():
+    serve = _ident_serve("snow_matters", "you", "snow_matters|you|")
+    # A sorcery that digs for snow permanents: no snow supertype of its own.
+    assert serve.matches(_card("Glacial Revelation"))
+
+
+def test_targeting_serve_drops_ward_reminders():
+    serve = _ident_serve("targeting_matters", "any", "targeting_matters|any|")
+    assert serve.matches(_card("Akroan Crusader"))  # heroic
+    # Ward's reminder (CR 702.21a) is an opponent's targeting, not a payoff.
+    assert not serve.matches(_card("Adrix and Nev, Twincasters"))
+
+
+def test_self_pump_serve_drops_target_pumps():
+    serve = _ident_serve("self_pump", "you", "self_pump|you|")
+    assert serve.matches(_card("Flowstone Giant"))  # "+2/-2", the regex wanted +N/+N
+    # "Put a +1/+1 counter on target artifact creature" pumps another creature.
+    assert not serve.matches(_card("Steel Overseer"))
+
+
+def test_forced_attack_serve_reads_goad():
+    serve = _ident_serve(
+        "forced_attack", "you", "forced_attack|any|", "goad_makers|opponents|"
+    )
+    assert serve.matches(_card("Goblin Diplomats"))  # "attacks this turn if able"
+    assert serve.matches(_card("Disrupt Decorum"))
+
+
+def test_creature_etb_opponents_serve_drops_enter_tapped_stax():
+    serve = _ident_serve("creature_etb", "opponents", "creature_etb|opponents|")
+    assert serve.matches(_card("Suture Priest"))
+    # "Creatures your opponents control enter tapped" is a stax replacement.
+    assert not serve.matches(_card("Imposing Sovereign"))
+
+
+def test_noncreature_cast_punish_serve_reads_first_spell_punishers():
+    serve = _ident_serve(
+        "noncreature_cast_punish", "any", "noncreature_cast_punish|any|"
+    )
+    assert serve.matches(_card("Esper Sentinel"))
+    # A symmetric copy / reward trigger punishes nobody.
+    assert not serve.matches(_card("Niv-Mizzet, Parun"))
+
+
+def test_symmetric_damage_serve_moves_group_burn_to_an_extra():
+    serve = _ident_serve("symmetric_damage_each", "each", "symmetric_damage_each|each|")
+    assert serve.matches(_card("Price of Progress"))
+    # Burn to each opponent is the avenue's adjacency, served by its extra.
+    assert not serve.matches(_card("Sizzle"))
+    spec = spec_for(_sig("symmetric_damage_each", "each"))
+    assert spec is not None
+    burn = extra(spec, "Group burn")
+    assert burn.serve is not None
+    assert burn.serve.matches(_card("Sizzle"))
+
+
+def test_land_creatures_serve_reads_animators():
+    serve = _ident_serve("land_creatures_matter", "you", "land_creatures_matter|you|")
+    assert serve.matches(_card("Avalanche Caller"))
+    # Exiling an opponent's land creature is removal.
+    assert not serve.matches(_card("Consuming Sinkhole"))
+
+
+def test_named_synergy_serve_reads_for_each_named():
+    serve = _ident_serve("named_synergy", "you", "named_synergy|you|")
+    assert serve.matches(_card("Plague Rats"))
+
+
+def test_combat_buff_engine_serve_drops_block_self_pumps():
+    serve = _ident_serve("combat_buff_engine", "you", "combat_buff_engine|you|")
+    assert serve.matches(_card("Marchesa, the Black Rose"))
+    # Bushido (a block / becomes-blocked self pump) is no beginning-of-combat buff.
+    assert not serve.matches(_card("Fumiko the Lowblood"))
+
+
+@pytest.mark.parametrize(
+    ("key", "card"),
+    [
+        ("tribal_etb_multi", "Marwyn, the Nurturer"),
+        ("typed_enters_punish", "Impact Tremors"),
+        ("spell_keyword_grant", "Maelstrom Nexus"),
+        ("pump_makers", "Shared Animosity"),
+        ("scaling_pump", "Might of the Masses"),
+        ("vanilla_matters", "Ruxa, Patient Professor"),
+        ("topdeck_stack", "Future Sight"),
+        ("count_anthem", "Craterhoof Behemoth"),
+        ("flip_self", "Faithful Squire // Kaiso, Memory of Loyalty"),
+    ],
+)
+def test_lane_serves_what_its_regex_missed(key, card):
+    serve = _ident_serve(key, "you", f"{key}|you|")
+    assert serve.matches(_card(card))
+
+
+def test_target_player_draws_serve_reads_draw_x():
+    serve = _ident_serve("target_player_draws", "any", "target_player_draws|any|")
+    assert serve.matches(_card("Braingeyser"))  # "draws X cards"
+
+
+def test_opponent_counter_grant_serve_reads_stun_counters():
+    serve = _ident_serve(
+        "opponent_counter_grant", "opponents", "opponent_counter_grant|opponents|"
+    )
+    assert serve.matches(_card("Freeze in Place"))
+
+
+def test_topdeck_stack_serve_drops_surveil_reminders():
+    serve = _ident_serve("topdeck_stack", "you", "topdeck_stack|you|")
+    assert not serve.matches(_card("Contingency Plan"))
+
+
+def test_aoe_ping_serve_is_the_pingers_and_the_gear_an_extra():
+    serve = _ident_serve("aoe_ping", "you", "aoe_ping|you|")
+    assert serve.matches(_card("Crypt Rats"))
+    assert not serve.matches(_card("Basilisk Collar"))
+    spec = spec_for(_sig("aoe_ping"))
+    assert spec is not None
+    gear = extra(spec, "Deathtouch enablers")
+    assert gear.serve is not None
+    assert gear.serve.matches(_card("Basilisk Collar"))

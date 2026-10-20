@@ -4,6 +4,8 @@ original ``signal_specs.py``), verbatim, in original order.
 
 from __future__ import annotations
 
+import re
+
 from mtg_utils._analysis._sweep_detectors import (
     ABILITY_COPY_REGEX,
     BASE_PT_SET_REGEX,
@@ -51,7 +53,6 @@ from ._shared import (
     _COPY_EXTRA,
     _COUNT_ANTHEM_SWEEP_REGEX,
     _COUNTER_DOUBLER_EXTRA,
-    _COUNTER_DOUBLER_ORACLE,
     _COUNTER_KEYWORD_EXTRA,
     _COUNTER_RESILIENCE_EXTRA,
     _COUNTERS_PACKAGE,
@@ -74,6 +75,7 @@ from ._shared import (
     _FORCE_FEED_EXTRA,
     _GOWIDE_ANTHEM_EXTRA,
     _GOWIDE_MAKER_EXTRA,
+    _IC,
     _KEYWORD_COUNTER_EXTRA,
     _LANDFALL_ORACLE,
     _LANDS_FROM_GRAVE_EXTRA,
@@ -152,6 +154,55 @@ _CREATURES_ENTERING_IDENTS = _TOKEN_MAKER_IDENTS | {
     "reanimator|you|",
 }
 
+# The aristocrats serve (sacrifice_outlets you, death_matters any): the creature-
+# token fodder, the outlets, the death payoffs on every side, the edicts, and the
+# death-value fodder (a permanent whose own death trigger replaces it).
+_ARISTOCRATS_IDENTS = _TOKEN_MAKER_IDENTS | {
+    "sacrifice_outlets|you|",
+    "death_matters|any|",
+    "death_matters|you|",
+    "death_matters|opponents|",
+    "edict_makers|opponents|",
+    "edict_makers|each|",
+    "self_death_payoff|you|",
+}
+
+# The kind-agnostic counter serve (any_counter_matters / any_counter_makers, you).
+_ANY_COUNTER_IDENTS = frozenset(
+    {
+        "any_counter_matters|you|",
+        "any_counter_makers|you|",
+        "proliferate_makers|you|",
+        "counter_doubling|you|",
+    }
+)
+
+# The proliferate serve (proliferate_matters / proliferate_makers, you): proliferate
+# itself, the counter sources it multiplies (+1/+1, poison, oil, any kind), the
+# counter payoffs and the doublers.
+_PROLIFERATE_IDENTS = _ANY_COUNTER_IDENTS | frozenset(
+    {
+        "proliferate_matters|you|",
+        "plus_one_makers|you|",
+        "plus_one_matters|you|",
+        "poison_makers|opponents|",
+        "poison_matters|opponents|",
+        "oil_counter_makers|you|",
+        "oil_counter_matters|you|",
+    }
+)
+
+
+# Each-opponent group burn: the symmetric-damage serve's adjacency (a Pestilence
+# deck also wants Sizzle). The branch of the old serve regex.
+_GROUP_BURN_ORACLE = r"deals \d+ damage to each opponent"
+_GROUP_BURN_EXTRA = SubAvenue(
+    "Group burn",
+    "burn that hits each opponent, beside the sweepers and pingers that hit everyone",
+    {"oracle": _GROUP_BURN_ORACLE},
+    serve=Serve(oracle=re.compile(_GROUP_BURN_ORACLE, _IC)),
+)
+
 # The "is dealt damage" payoff search (card-search only; the serve is the lane).
 _SOAK_PAYOFF_SEARCH = (
     r"whenever a creature you control is dealt damage"
@@ -224,16 +275,18 @@ SPECS_1: dict[tuple[str, str], SignalSpec] = {
             _SELF_BOUNCE_EXTRA,
         ),
     ),
-    # Serve was `opponent.*creature.*enters` — which requires "opponent" BEFORE
-    # "creature", so it matched Bloodthirst ("an opponent was dealt damage … this
-    # creature enters") and MISSED the real punisher, "a creature an opponent controls
-    # enters" (creature before opponent). Align serve to the (correct) search anchor.
+    # The search anchors on "a creature an opponent controls enters" (creature before
+    # opponent, so Bloodthirst's "an opponent was dealt damage ... this creature enters"
+    # stays out); the serve is the lane's ident.
     ("creature_etb", "opponents"): _spec(
         "Creatures entering — opponents'",
         "punish creatures your opponents play",
         {"oracle": r"whenever a creature an opponent controls enters"},
-        r"creature an opponent controls enters"
-        r"|creatures? your opponents control enter",
+        # Serve rides the lane. "Creatures your opponents control enter tapped" statics
+        # (Imposing Sovereign, Kinjalli's Sunwing) are stax_taxes', not an ETB trigger;
+        # the lane gains Aboleth Spawn.
+        None,
+        serve_idents=frozenset({"creature_etb|opponents|"}),
     ),
     ("creatures_matter", "you"): _spec(
         "Go wide",
@@ -303,7 +356,11 @@ SPECS_1: dict[tuple[str, str], SignalSpec] = {
         "Creature-lands",
         "lands that are or become creatures — the backbone of a land-creatures deck",
         {"card_type": "Land", "oracle": r"becomes a [^.]*creature"},
-        r"\bland creatures?\b",
+        # The lane adds the land animators (Quirion Druid, earthbend, Nissa, Who Shakes
+        # the World); exile / destroy a land creature (Consuming Sinkhole) is no longer
+        # served.
+        None,
+        serve_idents=frozenset({"land_creatures_matter|you|"}),
         extras=(
             SubAvenue(
                 "Land-creature payoffs",
@@ -549,7 +606,11 @@ SPECS_1: dict[tuple[str, str], SignalSpec] = {
         "Any counters",
         "proliferate, counter doublers, and any-counter sources",
         {"oracle": r"proliferate|for each counter|move .* counter|\bcounter on\b"},
-        r"proliferate|for each counter on|" + _COUNTER_DOUBLER_ORACLE,
+        # Serve rides the lanes. Lane gaps: devour's entry counters (Mycoloth),
+        # "whenever you proliferate" payoffs (Scheming Aspirant, Tam), granted doublers
+        # (Evolution Vat), "for each counter on ~" scalers (Kinsbaile Borderguard).
+        None,
+        serve_idents=_ANY_COUNTER_IDENTS,
         extras=(
             _COUNTER_DOUBLER_EXTRA,
             _PROLIFERATE_EXTRA,
@@ -564,7 +625,9 @@ SPECS_1: dict[tuple[str, str], SignalSpec] = {
         "Any-counter engines",
         "proliferate, counter movers, and any-kind counter manipulation",
         {"oracle": r"proliferate|for each counter|move .* counter|\bcounter on\b"},
-        r"proliferate|for each counter on|" + _COUNTER_DOUBLER_ORACLE,
+        # Serve rides the lanes, shared with any_counter_matters.
+        None,
+        serve_idents=_ANY_COUNTER_IDENTS,
         extras=(
             _COUNTER_DOUBLER_EXTRA,
             _PROLIFERATE_EXTRA,
@@ -644,7 +707,11 @@ SPECS_1: dict[tuple[str, str], SignalSpec] = {
         "Draw triggers / wheels",
         "draw-trigger payoffs and extra-draw engines (Nekusar / Chasm Skulker space)",
         {"oracle": r"whenever you draw|draw an additional card"},
-        r"whenever you draw|draws? (?:your )?(?:second|an additional) card",
+        # The draw payoffs plus the symmetric draw engines and wheels (Howling Mine,
+        # Wheel of Fortune). Lane gaps: extra draw-step draws (Grafted Skullcap),
+        # granted "whenever you draw" (Diviner's Wand), ordinal draws (Lady Octopus).
+        None,
+        serve_idents=frozenset({"draw_matters|you|", "card_draw_engine|each|"}),
     ),
     # Spellslinger. A card FEEDS this iff casting it is "casting an instant or sorcery"
     # — fixed by its TYPE (CR 601.2), OR it has prowess (CR 702.108a, a keyword payoff),
@@ -662,25 +729,12 @@ SPECS_1: dict[tuple[str, str], SignalSpec] = {
         "Sacrifice — fodder & outlets",
         "token fodder and free sacrifice outlets",
         {"oracle": r"create [^.]*creature token|sacrifice"},
-        # Also credit the death-DRAIN payoff: a sac deck wants Blood Artist / Zulaport,
-        # which trigger on creatures dying, not on the act of sacrificing. "sacrifices?"
-        # (3rd person) also catches edicts ("each player sacrifices a creature").
-        r"create [^.]*creature token|sacrifices? (?:a|an|another)(?! land\b)"
-        r"|whenever [^.]*\bdies\b"
-        r"|whenever [^.]*(?:creatures?|permanents?|tokens?|they) die\b"
-        # Death-VALUE fodder: a permanent that replaces itself when it dies / is put
-        # into a graveyard (Ichor Wellspring, Filigree Familiar, Mycosynth Wellspring).
-        # Keyed on "dies"/"put into a graveyard" + a value verb — artifacts use "put
-        # into a graveyard" (not "dies"), "When … dies" isn't "whenever". (Audit:
-        # Sacrifice lane, 9.2x lift.)
-        r"|(?:dies|put into a graveyard)[^.]{0,45}?"
-        r"(?:draws? (?:a|an|\d+|x)|creates?|investigate|search your library"
-        r"|gains? \d+ life)"
-        # Death-trigger DOUBLER (Teysa Karlov, Drivnod) — the deaths-Panharmonicon, the
-        # aristocrats payoff multiplier. "creature dying" anchors it (ETB doublers say
-        # "entering"; the wipe-replacement "if a creature would die" lacks "causes a
-        # triggered ability").
-        r"|creature dying causes a triggered abilit",
+        # Fodder tokens, outlets, death payoffs on every side, edicts and death-value
+        # fodder (Ichor Wellspring). Saga reminders and basic-land sacrifices are noise;
+        # lane gaps: punisher edicts (Torment of Hailfire), granted dies-draws (Henzie),
+        # haunt.
+        None,
+        serve_idents=_ARISTOCRATS_IDENTS,
         extras=(
             _SELF_RECUR_EXTRA,
             _DEATH_DRAIN_EXTRA,
@@ -770,11 +824,10 @@ SPECS_1: dict[tuple[str, str], SignalSpec] = {
         "Aristocrats",
         "creatures dying as a resource — fodder plus drain payoffs",
         {"oracle": r"create [^.]*creature token|whenever .* dies"},
-        r"create [^.]*creature token|sacrifices? (?:a|an|another)(?! land\b)"
-        r"|whenever .* dies"
-        r"|whenever [^.]*(?:creatures?|permanents?|tokens?|they) die\b"
-        # Death-trigger DOUBLER (Teysa Karlov, Drivnod) — see sacrifice_outlets.
-        r"|creature dying causes a triggered abilit",
+        # Serve rides the lanes, shared with sacrifice_outlets: the same classified
+        # remainder.
+        None,
+        serve_idents=_ARISTOCRATS_IDENTS,
         extras=(
             _SELF_RECUR_EXTRA,
             _DEATH_DRAIN_EXTRA,
@@ -936,10 +989,13 @@ SPECS_1: dict[tuple[str, str], SignalSpec] = {
         "Vanilla beaters",
         "efficient creatures with no abilities plus the payoffs that reward them",
         {"card_type": "Creature"},
-        r"creatures? with no abilities",
+        # The lane serves the regex's one card plus Ruxa and Jasmine Boreal of the Seven
+        # ("no abilities" payoffs).
+        None,
+        serve_idents=frozenset({"vanilla_matters|you|"}),
         serve_vanilla=True,
     ),
-    # Banding (CR 702.21): a banding commander (Ayesha, Jarkeld) wants other banding
+    # Banding (CR 702.22a): a banding commander (Ayesha, Jarkeld) wants other banding
     # creatures to form attacking/blocking bands. Keyword[]-anchored + the oracle word.
     ("has_banding", "you"): _spec(
         "Banding",
@@ -963,11 +1019,21 @@ SPECS_1: dict[tuple[str, str], SignalSpec] = {
         },
         # ALSO serve outlaw-TOKEN makers ("create a 1/1 red Mercenary token" — those
         # tokens are outlaws) and outlaw RECURSION ("return … outlaw creature cards"),
-        # not just cards whose own type line is an outlaw subtype.
-        r"\boutlaws? you control\b|another outlaw"
-        r"|create[s]?[^.]*\b(?:mercenary|pirate|rogue|assassin|warlock)\b[^.]*\btoken"
-        r"|\boutlaw creature cards?\b"
-        r"|\b(?:mercenary|pirate|rogue|assassin|warlock) creature cards?\b",
+        # not just cards whose own type line is an outlaw subtype. The outlaw payoffs
+        # and outlaw-token makers. Tokens an opponent creates (Pursued Whale, Warren
+        # Weirding) drop out; outlaw recursion modes (Kami of Restless Shadows) are a
+        # lane gap.
+        None,
+        serve_idents=frozenset(
+            {
+                "outlaw_matters|you|",
+                "token_maker|you|Assassin",
+                "token_maker|you|Mercenary",
+                "token_maker|you|Pirate",
+                "token_maker|you|Rogue",
+                "token_maker|you|Warlock",
+            }
+        ),
         serve_types=("assassin", "mercenary", "pirate", "rogue", "warlock"),
     ),
     # Snow (Isu the Abominable): snow permanents (Snow type), snow payoffs ("number of
@@ -976,7 +1042,10 @@ SPECS_1: dict[tuple[str, str], SignalSpec] = {
         "Snow",
         "snow permanents, snow lands, and snow-count payoffs",
         {"oracle": r"\bsnow\b"},
-        r"\bsnow\b",
+        # The lane serves the non-snow payoffs (Glacial Revelation, Rimewind
+        # Cryomancer); the snow permanents themselves serve through the type arm.
+        None,
+        serve_idents=frozenset({"snow_matters|you|"}),
         serve_types=("snow",),
     ),
     ("artifacts_matter", "you"): _spec(
@@ -1123,15 +1192,16 @@ SPECS_1: dict[tuple[str, str], SignalSpec] = {
         {"oracle": r"players? can't|enters?(?: the battlefield)? tapped|can't be"},
         _STAX_SERVE_ORACLE,
     ),
-    # ADR-0027: symmetric_damage_each's SWEEP_DETECTORS row was deleted (detection
-    # moved to the Card IR — the v22 damage Effect scope=='each' arm + each-player
-    # mirror). The serve keeps a board-wide each-everyone regex via regex= (the
-    # strangler pattern) so the "sweepers and pingers that hit everyone" pool still
-    # surfaces; serve is a SEARCH (find symmetric sweepers/pingers to run alongside),
-    # so it intentionally keeps the each-opponent/each-creature reach the DETECTOR
-    # split dropped — a Pestilence deck wants Pyrohemia AND Sizzle-style group burn.
+    # ADR-0027: symmetric_damage_each's SWEEP_DETECTORS row was deleted (detection moved
+    # to the Card IR — the v22 damage Effect scope=='each' arm + each-player mirror).
+    # The search keeps a board-wide each-everyone regex via regex= (the strangler
+    # pattern), so the "sweepers and pingers that hit everyone" pool still surfaces; it
+    # is a SEARCH, so it intentionally keeps the each-opponent reach the DETECTOR split
+    # dropped — a Pestilence deck wants Pyrohemia AND Sizzle-style group burn. The serve
+    # is the lane's ident, with each-opponent burn as the Group burn extra.
     ("symmetric_damage_each", "each"): _sweep_spec_with_extras(
         "symmetric_damage_each",
+        (_GROUP_BURN_EXTRA,),
         regex=(
             r"deals \d+ damage to each (?:player|opponent and|"
             r"creature and each player)"
@@ -1140,6 +1210,9 @@ SPECS_1: dict[tuple[str, str], SignalSpec] = {
             r"|deals (?:\d+|x) damage to each (?:creature|nonartifact creature)"
             r"[^.]*and each player"
         ),
+        # Gains the variable symmetric burns (Price of Progress, Acidic Soil);
+        # each-opponent burn (Boltwave, Sizzle) is the Group burn extra.
+        serve_idents=frozenset({"symmetric_damage_each|each|"}),
     ),
     ("blink_flicker", "you"): _spec(
         "Blink / flicker",
@@ -1201,7 +1274,12 @@ SPECS_1: dict[tuple[str, str], SignalSpec] = {
         "Proliferate",
         "proliferate plus any-kind counter sources and doublers (Vorinclex)",
         {"preset_names": ("proliferate",)},
-        r"\bproliferate\b|(?:poison|loyalty|charge|oil|\+1/\+1) counter",
+        # Lane gaps: loyalty-counter placers (Oath of Gideon, Commodore Guff), empower
+        # Jace, "whenever you proliferate" payoffs (Scheming Aspirant). The +1/+1
+        # package's documented exclusions and planeswalkers naming a loyalty counter are
+        # out.
+        None,
+        serve_idents=_PROLIFERATE_IDENTS,
         extras=(_COUNTER_DOUBLER_EXTRA, _KEYWORD_COUNTER_EXTRA),
     ),
     # _matters sweep (ADR-0034): the MAKER side of the proliferate split — cards
@@ -1215,17 +1293,34 @@ SPECS_1: dict[tuple[str, str], SignalSpec] = {
         "Proliferate",
         "proliferate engines plus any-kind counter sources and doublers",
         {"preset_names": ("proliferate",)},
-        r"\bproliferate\b|(?:poison|loyalty|charge|oil|\+1/\+1) counter",
+        # Serve rides the lanes, shared with proliferate_matters.
+        None,
+        serve_idents=_PROLIFERATE_IDENTS,
         extras=(_COUNTER_DOUBLER_EXTRA, _KEYWORD_COUNTER_EXTRA),
     ),
     # Hand-promote EVERY mined +1/+1-counter lane with the shared counters package so a
     # counters commander surfaces sources (Forgotten Ancient), doublers (Hardened
     # Scales), keyword counters, and proliferate no matter which fragmented lane opened.
     # ADR-0027 β: self_counter_grow migrated to the Card IR (its SWEEP_DETECTORS row is
-    # deleted — a structural SelfRef-marker arm + a narrowed mirror), so the serve keeps
-    # the old regex via the pinned SELF_COUNTER_GROW_SWEEP_REGEX (strangler pattern).
+    # deleted — a structural SelfRef-marker arm + a narrowed mirror), so the search
+    # keeps the old regex via the pinned SELF_COUNTER_GROW_SWEEP_REGEX; the serve is
+    # the lanes' idents.
     ("self_counter_grow", "you"): _sweep_spec_with_extras(
-        "self_counter_grow", _COUNTERS_PACKAGE, regex=SELF_COUNTER_GROW_SWEEP_REGEX
+        "self_counter_grow",
+        _COUNTERS_PACKAGE,
+        regex=SELF_COUNTER_GROW_SWEEP_REGEX,
+        # Self growth plus the self-growing keyword actions (explore, earthbend,
+        # connive) and named self counters. "On it" on another creature (bolster,
+        # tribute) is noise; lane gaps: energy-paid growth (the Thriving cycle),
+        # conditional enters-with counters.
+        serve_idents=frozenset(
+            {
+                "self_counter_grow|you|",
+                "explore_makers|you|",
+                "earthbend_makers|you|",
+                "connive_makers|you|",
+            }
+        ),
     ),
     # ADR-0027 tranche2-B: counter_manipulation's SWEEP_DETECTORS row was deleted
     # (detection moved to the Card IR — counter_move/remove_counter effects + a kept
@@ -1284,13 +1379,17 @@ SPECS_1: dict[tuple[str, str], SignalSpec] = {
     ),
     # ADR-0027 tranche2-B-3: spell_keyword_grant / target_player_draws had their
     # SWEEP_DETECTORS rows deleted (detection moved to the Card IR — the whole
-    # cast_with_keyword category, and a draw effect with scope=='any'). The SERVE pool
-    # stays oracle-defined, so hand-register the spec the sweep auto-register loop used
-    # to build, reusing each deleted regex (now a shared _sweep_detectors constant).
+    # cast_with_keyword category, and a draw effect with scope=='any'), so each spec is
+    # hand-registered: the search fragment is the old regex (a shared _sweep_detectors
+    # constant), the serve is the lane's ident.
     ("spell_keyword_grant", "you"): _spec(
         *SWEEP_LABELS["spell_keyword_grant"],
         {"oracle": SPELL_KEYWORD_GRANT_REGEX},
-        SPELL_KEYWORD_GRANT_REGEX,
+        # The lane reads grants the fixed keyword list missed (flash, rebound,
+        # flashback, storm on a next spell — Cast Through Time, Dark Apostle); Wicker
+        # Picker (an Un-card) drops out.
+        None,
+        serve_idents=frozenset({"spell_keyword_grant|you|"}),
     ),
     # ADR-0027: flash_grant's SWEEP_DETECTORS row is deleted (detection moved to the
     # Card IR — a cast_with_keyword{flash} static + the byte-identical FLASH_GRANT_REGEX
@@ -1305,7 +1404,10 @@ SPECS_1: dict[tuple[str, str], SignalSpec] = {
     ("target_player_draws", "any"): _spec(
         *SWEEP_LABELS["target_player_draws"],
         {"oracle": TARGET_PLAYER_DRAWS_REGEX},
-        TARGET_PLAYER_DRAWS_REGEX,
+        # The lane serves "draws X cards" and "its controller draws" (Braingeyser, Blue
+        # Sun's Zenith) beyond the regex's "draws a card".
+        None,
+        serve_idents=frozenset({"target_player_draws|any|"}),
     ),
     # ADR-0027: group_hug_draw's SWEEP_DETECTORS row is deleted (detection moved to the
     # Card IR — a `draw` effect with scope=='each', plus a byte-identical kept word
@@ -1351,14 +1453,17 @@ SPECS_1: dict[tuple[str, str], SignalSpec] = {
     # Task #19 SPLIT — named_synergy (the named-card SYNERGY half of the old
     # named_permanent lane). Detection reads phase's typed ``Named`` reference to a
     # permanent (``lanes._named_synergy``), the clauses phase parks riding the
-    # ``named_synergy_parked_reference`` ledger row. The SERVE pool stays
-    # oracle-defined, so hand-register the spec the sweep auto-register loop used to
-    # build (scope "you"), reusing NAMED_PERMANENT_REGEX. SWEEP_LABELS keeps the
-    # human label.
+    # ``named_synergy_parked_reference`` ledger row. Hand-registered (scope "you"): the
+    # search fragment is NAMED_PERMANENT_REGEX, the serve is the lane's ident.
+    # SWEEP_LABELS keeps the human label.
     ("named_synergy", "you"): _spec(
         *SWEEP_LABELS["named_synergy"],
         {"oracle": NAMED_PERMANENT_REGEX},
-        NAMED_PERMANENT_REGEX,
+        # Gains the "for each creature named" payoffs (Plague Rats, Shield of Kaldra).
+        # Legend makers ("if you don't control a creature named X", Rufus Shinra) and
+        # Seven Dwarves are lane gaps.
+        None,
+        serve_idents=frozenset({"named_synergy|you|"}),
     ),
     # Task #19 SPLIT — copy_limit (the COPY-LIMIT half, CR 100.2a). Detection is
     # STRUCTURAL (the IR `many_copies` field, read in crosswalk_signals.py), but
@@ -1375,27 +1480,32 @@ SPECS_1: dict[tuple[str, str], SignalSpec] = {
         serve_idents=frozenset({"copy_limit|you|"}),
     ),
     # ADR-0027: topdeck_stack's SWEEP_DETECTORS row is deleted (detection moved to the
-    # Card IR — a STRUCTURAL arm over phase's `topdeck_stack` Effect + a byte-identical
-    # TOPDECK_STACK_SWEEP_REGEX kept word mirror). The SERVE pool stays oracle-defined,
-    # so hand-register the spec the sweep auto-register loop used to build (scope "you",
-    # the deleted SWEEP row's scope), reusing the EXACT deleted regex (pinned as
-    # TOPDECK_STACK_SWEEP_REGEX) so the served put-on-top pool never drifts.
-    # SWEEP_LABELS keeps the human label. CR 401.4.
+    # Card IR — a STRUCTURAL arm over phase's `topdeck_stack` Effect + a kept word
+    # mirror). Hand-registered (scope "you"): the search fragment is the pinned
+    # TOPDECK_STACK_SWEEP_REGEX, the serve is the lane's ident. SWEEP_LABELS keeps the
+    # human label. CR 401.4.
     ("topdeck_stack", "you"): _spec(
         *SWEEP_LABELS["topdeck_stack"],
         {"oracle": TOPDECK_STACK_SWEEP_REGEX},
-        TOPDECK_STACK_SWEEP_REGEX,
+        # The lane adds graveyard-to-top (Academy Ruins, Reclaim) and top-of-library
+        # play engines (Future Sight); surveil's reminder text, all the regex's extras,
+        # is noise.
+        None,
+        serve_idents=frozenset({"topdeck_stack|you|"}),
     ),
     # ADR-0027 (q2-D3): noncreature_cast_punish's SWEEP_DETECTORS row is deleted
     # (detection moved to the Card IR — a cast_spell trigger scope=='opp' over a
     # noncreature subject, plus a kept word mirror for the symmetric "a player casts"
-    # half). The SERVE pool stays oracle-defined, so hand-register the spec the sweep
-    # auto-register loop used to build, reusing the deleted regex so the serve pool
-    # never drifts. SWEEP_LABELS still carries the human label.
+    # half). Hand-registered: the search fragment is the deleted regex, the serve is the
+    # lane's ident. SWEEP_LABELS still carries the human label.
     ("noncreature_cast_punish", "any"): _spec(
         *SWEEP_LABELS["noncreature_cast_punish"],
         {"oracle": NONCREATURE_CAST_PUNISH_REGEX},
-        NONCREATURE_CAST_PUNISH_REGEX,
+        # Gains the "first noncreature spell each turn" punishers (Esper Sentinel).
+        # Casts that reward or copy (Golem's Heart, Hive Mind) are out; In the Eye of
+        # Chaos is a lane gap.
+        None,
+        serve_idents=frozenset({"noncreature_cast_punish|any|"}),
     ),
     # ADR-0027 β: global_ability_grant's SWEEP_DETECTORS row is deleted (detection moved
     # to the Card IR — the board_grant + counter_kind="grant_ability" marker read by
@@ -1458,26 +1568,39 @@ SPECS_1: dict[tuple[str, str], SignalSpec] = {
         serve_idents=frozenset({"debuff_makers|any|", "debuff_makers|you|"}),
     ),
     # ADR-0027 β: pump_makers's SWEEP_DETECTORS row is deleted (detection moved to the
-    # Card IR — a byte-identical _IR_KEPT_DETECTORS mirror; the lane is unstructurable,
-    # so no structural arm). The SERVE pool stays oracle-defined, so hand-register the
-    # spec the sweep auto-register loop used to build (scope "you", the deleted SWEEP
-    # row's scope), reusing the EXACT deleted regex (pinned as PUMP_MATTERS_REGEX, ==
-    # _PUMP_ORACLE the _PUMP_EXTRA SubAvenue reuses) so the serve pool never drifts.
-    # SWEEP_LABELS keeps the label.
+    # Card IR — a kept _IR_KEPT_DETECTORS mirror; the lane is unstructurable, so no
+    # structural arm). Hand-registered (scope "you"): the search fragment is
+    # PUMP_MATTERS_REGEX (== _PUMP_ORACLE, which the _PUMP_EXTRA SubAvenue reuses), the
+    # serve is the lane's ident. SWEEP_LABELS keeps the label.
     ("pump_makers", "you"): _spec(
         *SWEEP_LABELS["pump_makers"],
         {"oracle": PUMP_MATTERS_REGEX},
-        PUMP_MATTERS_REGEX,
+        # The lane reads every targeted pump the regex did, plus anaphoric "it gets"
+        # (Spidery Grasp), team pumps (Surge to Victory) and attack-trigger pumps
+        # (Fervent Champion).
+        None,
+        serve_idents=frozenset({"pump_makers|you|"}),
     ),
     # ADR-0027 β: free_cast's SWEEP_DETECTORS row is deleted (detection moved to the
-    # Card IR via a byte-identical _FREE_CAST_MIRROR; the IR has no 'free' flag, so no
-    # structural arm). The SERVE pool stays oracle-defined, so hand-register the
-    # spec the sweep auto-register loop used to build (scope "you"), reusing the EXACT
-    # deleted regex (pinned as FREE_CAST_REGEX). SWEEP_LABELS keeps the label.
+    # Card IR via a kept _FREE_CAST_MIRROR; the IR has no 'free' flag, so no structural
+    # arm). Hand-registered (scope "you"): the search fragment is FREE_CAST_REGEX, the
+    # serve is the lanes' idents. SWEEP_LABELS keeps the label.
     ("free_cast", "you"): _spec(
         *SWEEP_LABELS["free_cast"],
         {"oracle": FREE_CAST_REGEX},
-        FREE_CAST_REGEX,
+        # The free casts plus the cascade (granted too: Maelstrom Nexus, Yidris) and
+        # discover makers. Keyword reminders that recast the card itself (plot, rebound,
+        # suspend, cipher, ripple) are self-recasts, not the bombs this avenue casts
+        # free.
+        None,
+        serve_idents=frozenset(
+            {
+                "free_cast|you|",
+                "cascade_makers|you|",
+                "cascade_matters|you|",
+                "discover_makers|you|",
+            }
+        ),
     ),
     # ADR-0027 β: tribe_damage_trigger's SWEEP_DETECTORS row is deleted (detection moved
     # to the Card IR via a byte-identical _IR_KEPT_DETECTORS mirror). The SERVE pool
@@ -1543,13 +1666,15 @@ SPECS_1: dict[tuple[str, str], SignalSpec] = {
     ),
     # ADR-0027 tranche2-B (t2b3-B): opponent_counter_grant's SWEEP_DETECTORS row is
     # deleted (detection moved to the Card IR — a detrimental bounty/stun counter on an
-    # opponent's permanent). Hand-register the serve at the "opponents" scope it fires
-    # at, reusing the shared OPPONENT_COUNTER_GRANT_REGEX so the serve pool never drifts
-    # (the sweep auto-register loop no longer builds it).
+    # opponent's permanent). Hand-registered at the "opponents" scope it fires at: the
+    # search fragment is OPPONENT_COUNTER_GRANT_REGEX, the serve is the lane's ident.
     ("opponent_counter_grant", "opponents"): _spec(
         *SWEEP_LABELS["opponent_counter_grant"],
         {"oracle": OPPONENT_COUNTER_GRANT_REGEX},
-        OPPONENT_COUNTER_GRANT_REGEX,
+        # The lane adds stun counters on an opponent's creature (Freeze in Place) and
+        # -1/-1 counters on theirs (Archfiend of Ifnir).
+        None,
+        serve_idents=frozenset({"opponent_counter_grant|opponents|"}),
     ),
     # ADR-0027 tranche2-B: counter_replace_bonus's SWEEP_DETECTORS row was deleted
     # (detection moved to the Card IR — the counter_doubling replacement category).
@@ -1588,12 +1713,15 @@ SPECS_1: dict[tuple[str, str], SignalSpec] = {
     ),
     # Beginning-of-combat / attack-buff commanders are combat decks — surface the gear
     # and keyword-anthems that grow their attackers. ADR-0027 Cluster D: combat_buff_
-    # engine migrated to the IR (its SWEEP_DETECTORS row is deleted), so the serve keeps
-    # the pinned COMBAT_BUFF_ENGINE_SWEEP_REGEX.
+    # engine migrated to the IR (its SWEEP_DETECTORS row is deleted), so the search
+    # keeps the pinned COMBAT_BUFF_ENGINE_SWEEP_REGEX; the serve is the lane's ident.
     ("combat_buff_engine", "you"): _sweep_spec_with_extras(
         "combat_buff_engine",
         (_COMBAT_SUPPORT_EXTRA,),
         regex=COMBAT_BUFF_ENGINE_SWEEP_REGEX,
+        # Gains beginning-of-combat counters and buffs (Nessian Hornbeetle, Kimahri).
+        # Block / becomes-blocked self pumps and flanking / exalted reminders drop out.
+        serve_idents=frozenset({"combat_buff_engine|you|"}),
     ),
     # A "becomes blocked" payoff (General Marhault: +3/+3 for each creature blocking it)
     # wants Lure effects — forcing every able creature to block maxes the per-blocker
@@ -1609,7 +1737,10 @@ SPECS_1: dict[tuple[str, str], SignalSpec] = {
     ("targeting_matters", "any"): _spec(
         *SWEEP_LABELS["targeting_matters"],
         {"oracle": _TARGETING_SWEEP_REGEX},
-        _TARGETING_SWEEP_REGEX,
+        # Ward's reminder text ("becomes the target of a spell or ability an opponent
+        # controls", CR 702.21a) is out: ward is protection, not a heroic payoff.
+        None,
+        serve_idents=frozenset({"targeting_matters|any|"}),
         extras=(_TARGETED_BUFF_EXTRA,),
     ),
     # Green creature-cast commanders (Gwenna, Runadi, Eshki) ramp into fatties: surface
@@ -1647,14 +1778,15 @@ SPECS_1: dict[tuple[str, str], SignalSpec] = {
         serve_idents=frozenset({"toughness_combat|you|"}),
     ),
     # ADR-0027 β: ability_copy migrated to the Card IR (its SWEEP_DETECTORS row is
-    # deleted, so the sweep auto-register loop no longer builds its serve).
-    # Hand-register the same serve the loop used to build, reusing the pinned
-    # ABILITY_COPY_REGEX constant (no extra serve dimensions — byte-identical to the
-    # auto-built spec), so the ability-copy serve pool is unchanged. SWEEP_LABELS still
-    # carries the label.
+    # deleted, so the sweep auto-register loop no longer builds its spec). Hand-
+    # registered: the search fragment is the pinned ABILITY_COPY_REGEX, the serve is the
+    # lane's ident. SWEEP_LABELS still carries the label.
     ("ability_copy", "you"): _sweep_spec_with_extras(
         "ability_copy",
         regex=ABILITY_COPY_REGEX,
+        # Demonstrate's reminder ("you may copy it") is a spell copy (CR 702.144a), not
+        # an ability copy, so it is out.
+        serve_idents=frozenset({"ability_copy|you|"}),
     ),
     # ADR-0027: damage_reflect's SWEEP_DETECTORS row was deleted (detection moved to
     # the Card IR — the on-card damage_received+damage co-occurrence + a damage_reflect
@@ -1696,11 +1828,17 @@ SPECS_1: dict[tuple[str, str], SignalSpec] = {
         # power' (Exponential Growth)
         serve_idents=frozenset({"power_double|you|"}),
     ),
-    # Firebreathing / variable-P/T decks pump power, then fling it for damage.
-    # ADR-0027: self_pump migrated to the Card IR (its SWEEP_DETECTORS row is deleted);
-    # the serve keeps the old regex via the `regex=` arg.
+    # Firebreathing / variable-P/T decks pump power, then fling it for damage. ADR-0027:
+    # self_pump migrated to the Card IR (its SWEEP_DETECTORS row is deleted); the search
+    # keeps the old regex via the `regex=` arg, the serve is the lane's ident.
     ("self_pump", "you"): _sweep_spec_with_extras(
-        "self_pump", (_POWER_FLING_EXTRA,), regex=_SELF_PUMP_SWEEP_REGEX
+        "self_pump",
+        (_POWER_FLING_EXTRA,),
+        regex=_SELF_PUMP_SWEEP_REGEX,
+        # Gains +N/-N and sacrifice-fed self pumps (Mistwalker). Pumps of a target
+        # creature are noise; granted firebreathing (Shiv's Embrace, Kusari-Gama) is a
+        # lane gap.
+        serve_idents=frozenset({"self_pump|you|"}),
     ),
     # ADR-0027: tapper_engine migrated to the Card IR — its SWEEP_DETECTORS row is
     # deleted (detection moved to a `tap` Effect with a target subject + a "doesn't
@@ -1718,22 +1856,29 @@ SPECS_1: dict[tuple[str, str], SignalSpec] = {
     # ADR-0027: count_anthem migrated to the Card IR — its SWEEP_DETECTORS row is
     # deleted (detection moved to a team +N/+N pump scaling with a board count over a
     # generic creature Filter you control), so hand-register the spec the sweep loop
-    # used to build, reusing the deleted regex.
+    # used to build: the search fragment is the deleted regex, the serve is the lane's
+    # ident.
     ("count_anthem", "you"): _spec(
         *SWEEP_LABELS["count_anthem"],
         {"oracle": _COUNT_ANTHEM_SWEEP_REGEX},
-        _COUNT_ANTHEM_SWEEP_REGEX,
+        # Gains X-valued team pumps (Craterhoof Behemoth, Jodah). Tribe-subject count
+        # anthems (Armament Master, Joraga Warcaller) are a lane gap.
+        None,
+        serve_idents=frozenset({"count_anthem|you|"}),
     ),
     # ADR-0027 #24g: scaling_pump migrated to the Card IR — its SWEEP_DETECTORS row is
     # deleted (detection is the structural _is_scaling_count `pump` arm reading the
-    # supplement-recovered op=count operand; the kept word mirror is now DELETED too),
-    # so the auto-register loop no longer builds this spec. Hand-register the spec the
-    # sweep loop used to build, reusing the pinned regex as the search/serve candidate
-    # surface only (NOT a detection path).
+    # supplement-recovered op=count operand; the kept word mirror is DELETED too), so
+    # the auto-register loop no longer builds this spec. Hand-registered: the pinned
+    # regex is the search fragment only (NOT a detection path), the serve is the lane's
+    # ident.
     ("scaling_pump", "you"): _spec(
         *SWEEP_LABELS["scaling_pump"],
         {"oracle": SCALING_PUMP_SWEEP_REGEX},
-        SCALING_PUMP_SWEEP_REGEX,
+        # Adds the X-valued scalers (Craterhoof's "where X is"). Lane gaps: Dark Matter
+        # Manipulator, Ellivere, Vren.
+        None,
+        serve_idents=frozenset({"scaling_pump|you|"}),
     ),
     # ADR-0027 Cluster C: base_pt_set migrated to the Card IR — its SWEEP_DETECTORS row
     # is deleted (detection moved to the structural cat=="base_pt_set" arm UNION the
@@ -1752,30 +1897,40 @@ SPECS_1: dict[tuple[str, str], SignalSpec] = {
     ),
     # ADR-0027: tribal_etb_multi migrated to the Card IR — its SWEEP_DETECTORS row is
     # deleted (detection moved to an etb trigger with a creature-subtype subject), so
-    # hand-register the spec the sweep loop used to build, reusing the deleted regex as
-    # both search and serve.
+    # hand-register the spec the sweep loop used to build: the deleted regex is the
+    # search fragment, the serve is the lane's ident.
     ("tribal_etb_multi", "you"): _spec(
         *SWEEP_LABELS["tribal_etb_multi"],
         {"oracle": _TRIBAL_ETB_MULTI_SWEEP_REGEX},
-        _TRIBAL_ETB_MULTI_SWEEP_REGEX,
+        # The lane reads every typed "whenever this or another <type> enters" (Lathliss,
+        # Chasm Guide); typeless ones (Flayer of the Hatebound) are out.
+        None,
+        serve_idents=frozenset({"tribal_etb_multi|you|"}),
     ),
     # ADR-0027: typed_enters_punish migrated to the Card IR — its SWEEP_DETECTORS row
     # is deleted (detection moved to an etb trigger whose consequence burns the
-    # opponents), so hand-register the spec the sweep loop used to build, reusing the
-    # deleted regex.
+    # opponents), so hand-register the spec the sweep loop used to build: the deleted
+    # regex is the search fragment, the serve is the lane's ident.
     ("typed_enters_punish", "you"): _spec(
         *SWEEP_LABELS["typed_enters_punish"],
         {"oracle": _TYPED_ENTERS_PUNISH_SWEEP_REGEX},
-        _TYPED_ENTERS_PUNISH_SWEEP_REGEX,
+        # The lane adds Impact Tremors, landfall and artifact-enters pingers.
+        None,
+        serve_idents=frozenset({"typed_enters_punish|you|"}),
     ),
     # Force-attack / goad commander (Kratos) wants extra combats to swing again.
     # ADR-0027: forced_attack migrated to the Card IR (its SWEEP_DETECTORS row is
-    # deleted), so pass the deleted SWEEP regex explicitly — the serve pool stays
-    # oracle-defined (the IR arm + DET kept mirror drive the firing).
+    # deleted), so pass the deleted SWEEP regex explicitly as the search fragment (the
+    # IR arm + DET kept mirror drive the firing); the serve is the lanes' idents.
     ("forced_attack", "you"): _sweep_spec_with_extras(
         "forced_attack",
         (_EXTRA_COMBAT_EXTRA, _COMBAT_SUPPORT_EXTRA),
         regex=FORCED_ATTACK_SWEEP_REGEX,
+        # Forced attacks plus goad (the regex read goad's reminder); gains "attacks this
+        # turn if able" (Goblin Diplomats, Incite).
+        serve_idents=frozenset(
+            {"forced_attack|any|", "forced_attack|you|", "goad_makers|opponents|"}
+        ),
     ),
     # Donate commander (Jon Irenicus, Harmless Offering) wants drawback creatures to
     # hand to opponents for the downside.
@@ -1830,7 +1985,11 @@ SPECS_1: dict[tuple[str, str], SignalSpec] = {
         serve_idents=frozenset({"each_mode_player|each|"}),
     ),
     ("flip_self", "you"): _sweep_spec_with_extras(
-        "flip_self", regex=r"\bflip this creature\b"
+        "flip_self",
+        regex=r"\bflip this creature\b",
+        # Adds flips worded "flip it" / "flip <name>" (the ki-counter Kamigawa flips,
+        # Erayo); Chaos Orb and Falling Star are dexterity flips.
+        serve_idents=frozenset({"flip_self|you|"}),
     ),
     ("miracle_grant", "you"): _sweep_spec_with_extras(
         "miracle_grant",
@@ -1856,8 +2015,8 @@ SPECS_1: dict[tuple[str, str], SignalSpec] = {
     # creature enters" payoffs (Impact Tremors) and doublers (Panharmonicon).
     # ADR-0027 t2b4-C: self_blink's SWEEP_DETECTORS row was deleted (detection moved to
     # the Card IR — the name-aware fulltext detector + the per-clause
-    # _SELF_BLINK_SWEEP_RE mirror). The serve pool stays oracle-defined, so pass the
-    # deleted regex explicitly.
+    # _SELF_BLINK_SWEEP_RE mirror). The search fragment is the deleted regex; the serve
+    # is the lanes' idents.
     ("self_blink", "you"): _sweep_spec_with_extras(
         "self_blink",
         (_ETB_PAYOFF_EXTRA, _ETB_VALUE_EXTRA, _ETB_DOUBLER_EXTRA),
@@ -1892,10 +2051,16 @@ SPECS_1: dict[tuple[str, str], SignalSpec] = {
         # missed typed/named wipes (Bile Blight)
         serve_idents=frozenset({"mass_removal|you|"}),
     ),
-    # ADR-0027 β: variable_pt migrated to the Card IR (SWEEP row deleted); the serve
-    # keeps the deleted regex via the pinned VARIABLE_PT_SWEEP_REGEX constant.
+    # ADR-0027 β: variable_pt migrated to the Card IR (SWEEP row deleted); the search
+    # keeps the deleted regex via the pinned VARIABLE_PT_SWEEP_REGEX constant, the serve
+    # is the lane's ident.
     ("variable_pt", "you"): _sweep_spec_with_extras(
-        "variable_pt", (_POWER_FLING_EXTRA,), regex=VARIABLE_PT_SWEEP_REGEX
+        "variable_pt",
+        (_POWER_FLING_EXTRA,),
+        regex=VARIABLE_PT_SWEEP_REGEX,
+        # Gains power- or toughness-only CDAs (Anax). Lane gaps: animated or token CDAs
+        # (Chimeric Mass, Svogthos) and pay-life P/T (Minion of the Wastes).
+        serve_idents=frozenset({"variable_pt|any|"}),
     ),
     # ADR-0027 β: creature_ping migrated to the Card IR (SWEEP row deleted); the serve
     # keeps the deleted regex via the pinned CREATURE_PING_REGEX constant.
@@ -1973,7 +2138,12 @@ SPECS_1: dict[tuple[str, str], SignalSpec] = {
         "your recurring damage to each creature + deathtouch on the source = a "
         "repeatable one-sided wipe (CR 702.2b)",
         {"oracle": _DEATHTOUCH_GEAR_ORACLE},
-        _DEATHTOUCH_GEAR_ORACLE,
+        # The main serve is the repeatable each-creature pingers (Crypt Rats,
+        # Pestilence, Tibor and Lumia); the deathtouch gear (Basilisk Collar) is the
+        # shared Deathtouch enablers extra.
+        None,
+        serve_idents=frozenset({"aoe_ping|you|"}),
+        extras=(_DEATHTOUCH_GEAR_EXTRA,),
     ),
     # Same archetype as spellcast_matters (a magecraft commander triggers off the same
     # instants/sorceries as a prowess one), so it shares the one _SPELLSLINGER_SPEC — a

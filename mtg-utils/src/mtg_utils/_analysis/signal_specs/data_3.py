@@ -4,6 +4,8 @@ original ``signal_specs.py``), verbatim, in original order.
 
 from __future__ import annotations
 
+import re
+
 from mtg_utils._analysis._sweep_detectors import (
     LURE_MATTERS_REGEX,
     STATION_MATTERS_REGEX,
@@ -25,6 +27,7 @@ from ._shared import (
     _ETB_PAYOFF_EXTRA,
     _FLICKER_EXTRA,
     _HELLBENT_PUNISH_EXTRA,
+    _IC,
     _PLUS_ONE_PLACERS,
     _SELF_BOUNCE_EXTRA,
     _SELF_BOUNCE_RECAST_EXTRA,
@@ -35,6 +38,7 @@ from ._shared import (
     _VOLTRON_PROTECT_EXTRA,
     Serve,
     SignalSpec,
+    SubAvenue,
     _spec,
     _sweep_spec_with_extras,
 )
@@ -46,6 +50,40 @@ _CONNIVE_SERVE_IDENTS = frozenset({"connive_makers|you|", "connive_matters|you|"
 
 # The explore serve (explore_makers / explore_matters): both lanes.
 _EXPLORE_SERVE_IDENTS = frozenset({"explore_makers|you|", "explore_matters|you|"})
+
+# The activated-ability engine's enablers no lane names: haste grants (Thousand-
+# Year Elixir's "as though it had haste"), activated-ability cost reducers
+# (Training Grounds), and the Aura / Equipment / trick untaps of one creature
+# that ``untap_engine`` misses (Freed from the Real, Shore Up). These arms of the
+# old serve regex moved here verbatim when the main serve became the lanes'
+# idents.
+_ABILITY_HASTE_COST_ORACLE = (
+    r"activated abilities[^.]*\bcost\b"
+    r"|untap (?:enchanted|equipped) creature"
+    r"|target creature you control[\s\S]{0,120}?untap it"
+    r"|activate (?:its |their )?abilit(?:y|ies)[^.]*as though"
+    r"|as though (?:those creatures|it|they) (?:had|have) haste"
+    r"|(?:creatures? you control|equipped creature|enchanted creature"
+    r"|target creature)[^.]*(?:gains?|have|has) haste"
+)
+_ABILITY_HASTE_COST_EXTRA = SubAvenue(
+    "Untap, haste and cheaper activations",
+    "untap the tapper again, give it haste, or cut its activation cost "
+    "(Freed from the Real, Thousand-Year Elixir, Training Grounds)",
+    {"oracle": _ABILITY_HASTE_COST_ORACLE},
+    serve=Serve(oracle=re.compile(_ABILITY_HASTE_COST_ORACLE, _IC)),
+)
+
+# The dash avenue's Equipment movers (Brass Squire, Armory Automaton): the
+# "attach … Equipment" arm of the old serve regex, moved here verbatim — the
+# Equipment themselves serve through the type arm.
+_EQUIPMENT_MOVER_ORACLE = r"attach [^.]*equipment"
+_EQUIPMENT_MOVER_EXTRA = SubAvenue(
+    "Equipment movers",
+    "cards that attach your Equipment for free (Brass Squire, Armory Automaton)",
+    {"oracle": _EQUIPMENT_MOVER_ORACLE},
+    serve=Serve(oracle=re.compile(_EQUIPMENT_MOVER_ORACLE, _IC)),
+)
 
 SPECS_3: dict[tuple[str, str], SignalSpec] = {
     # ── Mechanics recovered from the "rejected" families ────────────────────────
@@ -110,7 +148,9 @@ SPECS_3: dict[tuple[str, str], SignalSpec] = {
         "specialize payoffs to swap a creature's stat/ability line "
         "(Backgrounds are a separate axis — see Partner / Background)",
         {"oracle": r"\bspecialize\b"},
-        r"\bspecialize\b",
+        # The lane reads exactly the regex's cards.
+        None,
+        serve_idents=frozenset({"specialize_matters|you|"}),
     ),
     # ADR-0027: ki_counter_matters + seek_matters had their oracle-regex
     # SWEEP_DETECTORS rows deleted (detection moved to the Card IR — phase's
@@ -141,9 +181,8 @@ SPECS_3: dict[tuple[str, str], SignalSpec] = {
     ),
     # ADR-0027: mass_bounce + destroy_legendary had their oracle-regex SWEEP_DETECTORS
     # rows deleted (detection moved to the Card IR — the bounce/destroy effect shape).
-    # The SERVE pool (the cards that ARE the thing) is still oracle-defined, so
-    # hand-register the spec the sweep auto-register loop used to build, reusing the
-    # deleted regex as the serve pattern. (SWEEP_LABELS still carries the human label.)
+    # Each is hand-registered: the search fragment is the deleted regex, the serve is
+    # the lane's idents. (SWEEP_LABELS still carries the human label.)
     ("mass_bounce", "any"): _spec(
         *SWEEP_LABELS["mass_bounce"],
         {
@@ -154,11 +193,11 @@ SPECS_3: dict[tuple[str, str], SignalSpec] = {
                 r"owners' hands"
             )
         },
-        (
-            r"return each (?:other )?(?:nonland )?permanent[^.]*to (?:its|their) "
-            r"owner's hand|return each (?:other )?[^.]*?creatures?[^.]*?to "
-            r"(?:its|their) owner's hand|return all[^.]*to (?:its|their) owners' hands"
-        ),
+        # The lane reads an overloaded Cyclonic Rift, Aetherize and Engulf the Shore;
+        # graveyard returns (Infernal Caretaker) drop out. Artifact / enchantment sweeps
+        # (Rebuild) and Soulquake are lane gaps.
+        None,
+        serve_idents=frozenset({"mass_bounce|any|", "mass_land_denial|each|bounce"}),
     ),
     ("destroy_legendary", "any"): _spec(
         *SWEEP_LABELS["destroy_legendary"],
@@ -247,10 +286,9 @@ SPECS_3: dict[tuple[str, str], SignalSpec] = {
     # ADR-0027 (t2b2-A): aura_equip_kw_grant / counter_grants_kw /
     # conditional_self_protection had their oracle-regex SWEEP_DETECTORS rows deleted
     # (detection moved to the Card IR — the grant_keyword effect shape gated on the
-    # subject Filter + the granted keyword). The SERVE pool (the cards that ARE the
-    # thing) stays oracle-defined, so hand-register the spec the sweep auto-register
-    # loop used to build, reusing each deleted regex as the serve pattern.
-    # (SWEEP_LABELS still carries each human label.)
+    # subject Filter + the granted keyword). Each is hand-registered: the search
+    # fragment is the deleted regex, the serve is the lane's ident. (SWEEP_LABELS still
+    # carries each human label.)
     ("aura_equip_kw_grant", "you"): _spec(
         *SWEEP_LABELS["aura_equip_kw_grant"],
         {
@@ -260,11 +298,9 @@ SPECS_3: dict[tuple[str, str], SignalSpec] = {
                 r"|hexproof|ward|menace|reach|indestructible)"
             )
         },
-        (
-            r"(?:auras?|equipment) you control have (?:exalted|flying|trample"
-            r"|deathtouch|lifelink|vigilance|haste|first strike|double strike"
-            r"|hexproof|ward|menace|reach|indestructible)"
-        ),
+        # The lane also reads a one-shot grant (Hemlock Vial, Silkguard).
+        None,
+        serve_idents=frozenset({"aura_equip_kw_grant|you|"}),
     ),
     ("counter_grants_kw", "you"): _spec(
         *SWEEP_LABELS["counter_grants_kw"],
@@ -274,10 +310,10 @@ SPECS_3: dict[tuple[str, str], SignalSpec] = {
                 r"(?:haste|flying|trample|menace|vigilance|lifelink)"
             )
         },
-        (
-            r"creature you control with a \+1/\+1 counter on it (?:has|have) "
-            r"(?:haste|flying|trample|menace|vigilance|lifelink)"
-        ),
+        # The lane also reads "creatures you control with counters on them" and keywords
+        # the regex list left out (Bushmaster, Cathedral Acolyte, Longshot Squad).
+        None,
+        serve_idents=frozenset({"counter_grants_kw|you|"}),
     ),
     ("conditional_self_protection", "you"): _spec(
         *SWEEP_LABELS["conditional_self_protection"],
@@ -288,11 +324,10 @@ SPECS_3: dict[tuple[str, str], SignalSpec] = {
                 r"|has (?:hexproof|indestructible) if"
             )
         },
-        (
-            r"has hexproof (?:if|while|as long as|during)"
-            r"|during your turn,[^.]*has (?:hexproof|indestructible|protection)"
-            r"|has (?:hexproof|indestructible) if"
-        ),
+        # The lane reads every "as long as" self-grant (Angelic Overseer, Fleecemane
+        # Lion); granted shapes (Bilbo's Ring, Giant's Amulet) and Bello are lane gaps.
+        None,
+        serve_idents=frozenset({"conditional_self_protection|you|"}),
     ),
     # ADR-0027: attractions_matter had its oracle-regex SWEEP_DETECTORS row deleted
     # (detection moved to an _IR_KEPT_DETECTORS word mirror). The SERVE pool stays
@@ -504,13 +539,15 @@ SPECS_3: dict[tuple[str, str], SignalSpec] = {
     ),
     # ADR-0027: cant_block_grant had its oracle-regex SWEEP_DETECTORS row deleted
     # (detection moved to the Card IR — phase's `cant_block` effect category + a
-    # modal/granted-quoted dropped-static face marker). The SERVE pool stays
-    # oracle-defined, so hand-register the spec the sweep auto-register loop used to
-    # build, reusing the deleted regex.
+    # modal/granted-quoted dropped-static face marker). Hand-registered: the search
+    # fragment is the deleted regex, the serve is the lane's ident.
     ("cant_block_grant", "you"): _spec(
         *SWEEP_LABELS["cant_block_grant"],
         {"oracle": r"target creature can't block"},
-        r"target creature can't block",
+        # The lane holds every regex card plus the mass and Aura forms (Bedlam,
+        # Demotion).
+        None,
+        serve_idents=frozenset({"cant_block_grant|you|"}),
     ),
     # ADR-0027: convoke_matters / myriad_grant / typed_anthem_multi / life_total_set
     # each had their oracle-regex SWEEP_DETECTORS row deleted (detection moved to the
@@ -729,10 +766,10 @@ SPECS_3: dict[tuple[str, str], SignalSpec] = {
                 r"[^.]*(?:gets?|have|has|gains?)"
             )
         },
-        (
-            r"each (?:other )?creature (?:you control )?that's (?:a |an )\w+"
-            r"[^.]*(?:gets?|have|has|gains?)"
-        ),
+        # The lane reads the "Skeletons and Zombies you control" form (Death Baron,
+        # Gisa) the "that's a" template missed.
+        None,
+        serve_idents=frozenset({"typed_anthem_multi|you|"}),
     ),
     ("life_total_set", "any"): _spec(
         *SWEEP_LABELS["life_total_set"],
@@ -744,18 +781,18 @@ SPECS_3: dict[tuple[str, str], SignalSpec] = {
                 r"|double target player's life total"
             )
         },
-        (
-            r"life total (?:becomes|equal to)|equal to half (?:that|your|a) "
-            r"(?:player'?s? )?life|exchange (?:your )?life total"
-            r"|exchange life totals?|set your life total to"
-            r"|double target player's life total"
-        ),
+        # The lane reads "your life total becomes" (Loxodon Lifechanter) and a doubled
+        # life total (Celestial Mantle); Heartless Hidetsugu's half-life damage drops
+        # out.
+        None,
+        serve_idents=frozenset({"life_total_set|any|"}),
     ),
     # ADR-0027: all_creatures_kw_grant + facedown_matters had their oracle-regex
     # SWEEP_DETECTORS rows deleted (detection moved to the Card IR — a structural
     # GrantKeyword effect / the manifest-cloak-morph effect categories + kept word
-    # mirror). The SERVE pool stays oracle-defined, so hand-register the spec the
-    # sweep auto-register loop used to build, reusing each deleted regex.
+    # mirror). Each is hand-registered: the search fragment is the deleted regex; the
+    # serve is the lane's ident for all_creatures_kw_grant, the regex for
+    # facedown_matters.
     ("all_creatures_kw_grant", "any"): _spec(
         *SWEEP_LABELS["all_creatures_kw_grant"],
         {
@@ -764,8 +801,10 @@ SPECS_3: dict[tuple[str, str], SignalSpec] = {
                 r"|hexproof|deathtouch|first strike|double strike|reach|lifelink)"
             )
         },
-        r"all creatures have (?:haste|flying|trample|vigilance|menace|hexproof"
-        r"|deathtouch|first strike|double strike|reach|lifelink)",
+        # The lane also reads one-shot "all creatures gain" spells and protection grants
+        # (Demoralize, Absolute Grace).
+        None,
+        serve_idents=frozenset({"all_creatures_kw_grant|any|"}),
     ),
     ("facedown_matters", "you"): _spec(
         *SWEEP_LABELS["facedown_matters"],
@@ -1019,15 +1058,32 @@ SPECS_3: dict[tuple[str, str], SignalSpec] = {
         "Spell copy",
         "impactful instants/sorceries plus copy effects to multiply your spells",
         {"oracle": r"copy (?:target|that)|instant or sorcery|\bstorm\b"},
-        r"copy target (?:instant|sorcery|spell)|\bcopy that spell\b|\bstorm\b",
+        # The lane reads "copy it" engines, replicate and casualty (Chandra, Hope's
+        # Beacon). The lane does not read storm (copies its own spell, CR 702.40a), so
+        # the keyword arm keeps the storm cards; card names (Storm's Wrath) drop out.
+        None,
+        serve_idents=frozenset({"spell_copy_makers|you|"}),
+        serve_keywords=("storm",),
     ),
     # ── Effect-axis specs ───────────────────────────────────────────────────────
     ("ramp", "you"): _spec(
         "Ramp / big mana",
         "mana rocks, dorks, and land ramp to accelerate into your payoffs",
         {"oracle": r"add \{|search your library for .*\bland\b|" + _BASIC_LAND_FETCH},
-        r"\{t\}[^.]*:\s*add|add .* mana|search your library for .*\bland\b|"
-        + _BASIC_LAND_FETCH,
+        # The ramp role's keys (ADR-0051), mana amplifiers, extra land drops, Treasure
+        # makers and big mana. Gains rituals and land puts (Gilded Lotus, Burgeoning);
+        # lands' own mana abilities, land-to-hand searches and firebending (never ramp)
+        # drop out.
+        None,
+        serve_idents=frozenset(
+            {
+                "ramp|you|",
+                "mana_amplifier|you|",
+                "extra_land_drop|you|",
+                "treasure_makers|you|",
+                "big_mana|you|",
+            }
+        ),
         # Deliver on "accelerate into your payoffs": the big bombs (Ghalta) and creature
         # cost reducers (Goreclaw). Only ~3% of commanders open this big-mana lane, so
         # crediting power-6+ fatties is on-theme, not noise.
@@ -1035,16 +1091,18 @@ SPECS_3: dict[tuple[str, str], SignalSpec] = {
         extras=(_CREATURE_COST_EXTRA,),
     ),
     # The `deals .* damage to target creature` branch missed every burn spell pointed at
-    # ANY target (Lightning Bolt, Shock — "deals N damage to any target"). Broaden the
-    # damage clause to any-target / player burn; constrain `.*` to a single clause.
+    # ANY target (Lightning Bolt, Shock — "deals N damage to any target"). The search
+    # broadens the damage clause to any-target / player burn; the serve is the lane's
+    # ident.
     ("removal", "you"): _spec(
         "Removal / interaction",
         "destroy and burn removal — note indestructible/regeneration blank it",
         {"oracle": r"destroy target|deals .* damage to target"},
-        r"destroy target (?:creature|permanent|artifact|enchantment|planeswalker|land"
-        r"|nonland)"
-        r"|deals? (?:\d+|x|that much) [^.\n]*damage to "
-        r"(?:target (?:creature|permanent|planeswalker)|any target)",
+        # The lane reads "destroy target nonblack creature" (Hand of Death), divided
+        # damage and fight-style removal; one-shot land destruction (Stone Rain) is not
+        # removal.
+        None,
+        serve_idents=frozenset({"removal|you|"}),
     ),
     # task #87: pacify_makers — an Aura that neutralizes (not removes) what
     # it enchants (Pacifism, Arrest, Faith's Fetters, Prison Term). A
@@ -1055,8 +1113,10 @@ SPECS_3: dict[tuple[str, str], SignalSpec] = {
         "Pacify auras",
         "Auras that shut down attacking/blocking without removing the threat",
         {"preset_names": ("pacify-aura",)},
-        r"enchanted (?:creature|permanent|artifact|land|planeswalker|battle)"
-        r"[^.]*can'?t attack",
+        # The lane vetoes the Vow cycle (a compensated Aura) and reads can't-block locks
+        # (Demotion).
+        None,
+        serve_idents=frozenset({"pacify_makers|you|"}),
         serve_types=("Enchantment",),
     ),
     # task #np_roles: single_target_neutralize — the Darksteel Mutation /
@@ -1080,15 +1140,17 @@ SPECS_3: dict[tuple[str, str], SignalSpec] = {
         None,
         serve_idents=frozenset({"single_target_neutralize|you|"}),
     ),
-    # VETO exile-and-return (blink): a card that exiles a creature then returns it is a
-    # flicker engine, not removal (Ephemerate, Cloudshift) — CR 603.6e.
+    # Exile removal: a card that exiles a creature then returns it is a flicker
+    # engine, not removal (Ephemerate, Cloudshift — the lane's call); the serve is
+    # the lane's ident, which leaves those out.
     ("exile_removal", "you"): _spec(
         "Exile removal",
         "exile-based removal that bypasses indestructible and stops recursion",
         {"oracle": r"exile target (?:creature|permanent|artifact|enchantment)"},
-        r"exile target (?:creature|permanent|artifact|enchantment|nonland)",
-        serve_not=r"return (?:it|them|that card|those cards|that permanent)"
-        r"[^.]*battlefield",
+        # The lane reads Oblivion Ring, Solitude and airbend; graveyard-card exile (Vile
+        # Rebirth) and your own permanents stay out, with no blink veto needed.
+        None,
+        serve_idents=frozenset({"exile_removal|you|"}),
     ),
     # ADR-0027 tranche2-B: exile_until_leaves's SWEEP_DETECTORS row was deleted
     # (detection moved to the Card IR — _is_exile_until_leaves). It used to be
@@ -1134,7 +1196,11 @@ SPECS_3: dict[tuple[str, str], SignalSpec] = {
         "Tutors",
         "tutors to assemble your key pieces and combos",
         {"oracle": r"search your library for"},
-        r"search your library for",
+        # The lane reads "library and/or graveyard" tutors (Chandra's Outburst) and
+        # skips landcycling. It fires on fetch lands too, so the land-to-battlefield
+        # veto stays.
+        None,
+        serve_idents=frozenset({"tutor|you|"}),
         serve_not=(
             r"search your librar(?:y|ies) for (?:up to )?"
             r"(?:a |an |one |two |three |four |five |x |that many )?"
@@ -1196,35 +1262,21 @@ SPECS_3: dict[tuple[str, str], SignalSpec] = {
     # Activated-ability engine: the support package for a {T}: commander — activated-
     # ability cost reducers (Training Grounds), untappers + haste-for-abilities
     # (Thousand-Year Elixir, Ioreth), and ability copiers (Rings of Brighthearth,
-    # Illusionist's Bracers — keyed on "isn't a mana ability", their shared marker).
+    # Illusionist's Bracers). The serve is the lanes' idents plus an extra for the
+    # haste, cost-reducer and one-creature untap shapes no lane names.
     ("activated_ability", "you"): _spec(
         "Activated-ability engine",
         "cost reducers, untappers, haste-for-abilities, and copiers that power your "
         "commander's activated abilities",
         {"oracle": r"activated abilit|untap (?:target|another)"},
-        r"activated abilities[^.]*\bcost\b"
-        r"|untap (?:target|all|another|each)"
-        # Untap-enablers re-tap a {T}: commander for extra activations (CR 302.6). The
-        # bare clause above misses the aura/equipment forms that untap a single creature
-        # — Freed from the Real / Pemmin's Aura "untap enchanted creature", Sting "untap
-        # equipped creature" — and the "buff your creature, untap it" tricks (Shore Up).
-        # Both are anchored to a CREATURE so land-untap ramp (Rude Awakening, "untap two
-        # lands") stays out.
-        r"|untap (?:enchanted|equipped) creature"
-        r"|target creature you control[\s\S]{0,120}?untap it"
-        r"|activate (?:its |their )?abilit(?:y|ies)[^.]*as though"
-        r"|as though (?:those creatures|it|they) (?:had|have) haste"
-        # Haste-GRANTERS lift summoning sickness (CR 302.6 / 702.10) so a {T}: commander
-        # activates the turn it enters or re-enters (blink/reanimate). Anchored to a
-        # grant clause ("<your/equipped/enchanted/target creature> ... gains/has haste")
-        # so a vanilla creature with innate haste (just "Haste") does NOT match.
-        r"|(?:creatures? you control|equipped creature|enchanted creature"
-        r"|target creature)[^.]*(?:gains?|have|has) haste"
-        r"|isn't a mana ability"
-        # The PAYOFF targets: creatures with an expensive mana-cost activated ability
-        # ("{8}:", "{3}{R}:", "{X}, {T}:") the cost-reducer/untapper exploits. Requires
-        # a mana symbol in the cost (a {T}-only dork gains nothing from a discount).
-        r"|\{(?:\d+|x)\}[^.:\n]{0,25}:",
+        # The {T}/generic-cost engines, untappers and ability copiers; the haste,
+        # cost-reducer and one-creature untap shapes are the extra. Cycling, equip and
+        # token reminder text drops out.
+        None,
+        serve_idents=frozenset(
+            {"activated_ability|you|", "untap_engine|you|", "ability_copy|you|"}
+        ),
+        extras=(_ABILITY_HASTE_COST_EXTRA,),
     ),
     # YOU must be the one gaining control: the lane (lanes.counters_voltron.
     # _gain_control) vetoes the donate shapes where an OPPONENT gains control of your
@@ -1496,19 +1548,22 @@ SPECS_3: dict[tuple[str, str], SignalSpec] = {
         r"|(?:artifact or creature|creature or artifact)[^.]*enter",
         extras=(_FLICKER_EXTRA, _DIES_RECURSION_EXTRA, _SELF_BOUNCE_EXTRA),
     ),
-    # Serve was `…|\bequipment\b|whenever[^.]*attacks`, which matched any creature
-    # that merely mentions equipment or attacks (~1104). The avenue is Equipment-for-a-
-    # dasher: gate on the Equipment TYPE (CR 301.5 — the persistent buff) and the dash /
-    # reconfigure KEYWORD (CR 702.109/702.151), plus a small oracle branch for cards
-    # that move/cheat Equipment without the subtype.
+    # The avenue is Equipment-for-a-dasher: the serve gates on the dash ident, the
+    # Equipment TYPE (CR 301.5 — the persistent buff) and the dash / reconfigure KEYWORD
+    # (CR 702.109/702.151), plus an extra for cards that move/cheat Equipment without
+    # the subtype.
     ("has_dash", "you"): _spec(
         "Dash / hit-and-run Equipment",
         "Equipment — it stays on the battlefield when Dash returns the creature to "
         "your hand at end of turn (Auras and counters don't), so it's the resilient "
         "buff for a recurring haste attacker; plus haste enablers and cheap recursion",
         {"preset_names": ("equip",)},
-        r"equip \{|attach [^.]*equipment",
+        # The dash cards themselves; Equipment serves through the type arm and the
+        # "attach … Equipment" movers are an extra.
+        None,
+        serve_idents=frozenset({"has_dash|you|"}),
         serve_types=("equipment",),
         serve_keywords=("dash", "reconfigure"),
+        extras=(_EQUIPMENT_MOVER_EXTRA,),
     ),
 }

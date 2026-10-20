@@ -44,3 +44,9 @@ def _block_card_data_download(monkeypatch):
         )
 
     monkeypatch.setattr(_phase, "ensure_card_data", _cached_only)
+
+
+def extra(spec, label):
+    """The sub-avenue of *spec* labelled *label* (a plain helper, not a fixture:
+    tests import it with ``from conftest import extra``)."""
+    return next(x for x in spec.extras if x.label == label)
