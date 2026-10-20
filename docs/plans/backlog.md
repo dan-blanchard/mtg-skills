@@ -121,8 +121,9 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   the typed-cheat rows and Sol Ring / Pacifism no longer score as payoffs.)
   (e) **The most-played card of a job recurs** (seventh pass; eighth pass:
   looting is gone — the draw read nets it zero). Left, all play-rate's picks
-  among the cards a read admits: Skullclamp is the card-draw add in 7
-  precons (11 before the deck fit, ADR-0060's amendment), Swiftfoot Boots the protection add in 6 (the "protection short" fills, which
+  among the cards a read admits: Skullclamp is the card-draw add in 16
+  precons at thirty swaps (7 at ten; 11 before the deck fit, ADR-0060's
+  amendment — at thirty swaps more draw upgrades run, and its fit passes), Swiftfoot Boots the protection add in 6 (the "protection short" fills, which
   rank by band and play-rate; protection upgrades order by the read since Dan's
   call),
   Reclamation Sage the removal add in 6, Braids, Arisen Nightmare in 4 (a
@@ -187,11 +188,11 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   role's whole match set would remove both.
   (m) **Recall** (`precon-audit/misses.py`, at the largest guide's thirty
   swaps and $440, where the tuner stops on its own): 185 of 404 cuttable guide
-  cuts, 47 of 610 in-scope guide adds. The levers by size: theme adds no search
+  cuts, 54 of 610 in-scope guide adds. The levers by size: theme adds no search
   reaches (238 — 88 of the 115 that serve the main theme don't match its
   pattern search; paging the theme's serving predicate put them on the page but
   lost precision, 30 → 26 adds matching at ten swaps, so it waits on a ranking
-  that can tell them apart); adds outranked on a page (175); cuts the
+  that can tell them apart); adds outranked on a page (171); cuts the
   popularity threshold still shields (75 — guides cut popular off-theme cards
   like Feed the Swarm); commander-lane cards the guides trim (55). Six guide
   summaries don't tag sources per row (`guide_sizes.py` skips them).

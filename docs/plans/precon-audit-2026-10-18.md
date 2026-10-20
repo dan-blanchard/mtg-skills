@@ -406,18 +406,20 @@ what a guide does; precision is read beside it.
 
 | guide cuts in the decks (424) | n | | guide adds (745) | n |
 |---|---|---|---|---|
-| cut | 185 | | added | 47 |
+| cut | 185 | | added | 54 |
 | popular: off-lane, inside `UPGRADE_RANK` | 75 | | out of scope (in deck, land, banned, off-identity) | 135 |
 | a doer of the commander's lane, outside the deep-lane half | 55 | | a theme card no search looked for | 238 |
-| a carer of a built theme | 27 | | on a searched page, outranked | 175 |
+| a carer of a built theme | 27 | | on a searched page, outranked | 171 |
 | other | 25 | | not on any page though its job was searched | 67 |
-| in a cut pool, not reached | 24 | | on a page, gated (play-rate, cost band, job) | 40 |
+| in a cut pool, not reached | 24 | | on a page, gated (play-rate, cost band, job) | 37 |
 | land / commander | 20 | | a role card no issue asked for | 43 |
 | protected (combo / closer / multiplier) | 13 | | | |
 
-Recall is 185 of the 404 cuttable guide cuts (46%) and 47 of the 610 in-scope adds
-(8%). The levers, by size: the theme adds no search reaches (238), the adds
-outranked on a page (175), the cuts the popularity threshold still shields (75),
+Recall is 185 of the 404 cuttable guide cuts (46%) and 54 of the 610 in-scope adds
+(9%; 47 before a job upgrade stopped requiring theme fit — the floor had kept
+Swords to Plowshares and Path to Exile behind Dragon Tempest in a goad deck). The
+levers, by size: the theme adds no search reaches (238), the adds outranked on a
+page (171), the cuts the popularity threshold still shields (75),
 and the commander-lane cards the guides trim (55).
 
 Of those 238, 115 serve the main theme by the tuner's own read, and 88 of them don't

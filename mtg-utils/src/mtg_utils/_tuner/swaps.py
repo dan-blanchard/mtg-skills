@@ -892,6 +892,16 @@ def propose_swaps(
                 score = r["score"]["synergy_score"]
                 price = extract_price(r["card"]) or 1e9
                 mix = blend.get(r["card"].get("name", ""))
+                if job is not None and ctx.playrate:
+                    # A job upgrade (removal, draw, ramp, a wipe, protection)
+                    # trades a card for one doing the same job, not for one
+                    # fitting the theme: the fit floor kept Swords to
+                    # Plowshares and Path to Exile — the page's most played,
+                    # both guide adds — behind Dragon Tempest in a goad deck.
+                    # Without it 54 guide adds matched across the 25 precons,
+                    # against 47 (thirty swaps, 2026-10-19).
+                    played = _quality(r["card"], playrate=True)
+                    return (-mix if mix is not None else played, -score, price)
                 if mix is not None:
                     return (score < floor, -mix, -score, price)
                 if not ctx.playrate:

@@ -2077,3 +2077,30 @@ def test_an_interaction_fill_may_be_a_counterspell():
         ),
     )
     assert [s["add"]["name"] for s in out["swaps"]] == ["Counterspell"]
+
+
+def test_a_job_upgrade_is_not_held_to_theme_fit(monkeypatch):
+    """A removal upgrade trades a card for better removal, not for a card that
+    fits the theme: Swords to Plowshares, played most, wins over Doom Blade even
+    when Doom Blade fits the deck's themes far better (the fit floor kept
+    Swords and Path behind Dragon Tempest in a goad deck)."""
+    from mtg_utils._tuner import swaps as swaps_mod
+
+    scores = {"Swords to Plowshares": 0.1, "Doom Blade": 5.0}
+
+    def fake_rank(cards, **_kw):
+        return [
+            {"card": c, "score": {"synergy_score": scores[c["name"]], "served": []}}
+            for c in cards
+        ]
+
+    monkeypatch.setattr(swaps_mod, "rank_candidates", fake_rank)
+    murder = _real_cc("Murder", "spine", roles=["interaction"], edhrec_rank=8000)
+    out = _swaps_for_issue_dicts(
+        [murder],
+        [{"kind": "upgrade", "severity": 1, "count": 1}],
+        _upgrade_ctx(
+            [murder], [_played("Doom Blade", 500), _played("Swords to Plowshares", 10)]
+        ),
+    )
+    assert [s["add"]["name"] for s in out["swaps"]] == ["Swords to Plowshares"]
