@@ -79,3 +79,51 @@ def test_card_type_or_is_backward_compatible_with_string():
     assert _matches_filters(equip, type_lower=("aura", "equipment"), **base)
     assert _matches_filters(aura, type_lower="aura", **base)
     assert not _matches_filters(aura, type_lower="equipment", **base)
+
+
+def test_artifacts_payoff_avenue_pages_creature_payoffs_by_its_serve(monkeypatch):
+    """ADR-0026 for an ident serve: the Artifacts spec splits into its payoff
+    avenue, which Find pages by the avenue's serve (the lanes' idents) — so Sai,
+    a creature payoff no Artifact card-type fetch finds, surfaces there — and a
+    Source avenue fetching the artifacts by card type (Sol Ring). Neither page
+    ANDs a pattern with a card type."""
+    from mtg_utils.card_search import pool_search_fn
+    from mtg_utils.formats import FORMATS
+    from mtg_utils.testkit import test_signals
+
+    names = (
+        "Urza, Lord High Artificer",
+        "Sai, Master Thopterist",
+        "Sol Ring",
+        "Snapcaster Mage",
+    )
+    for name in names:
+        test_signals(name)  # seed each real card's trees memo
+    irs = {test_card(n)["oracle_id"]: test_card_ir(n) for n in names}
+    monkeypatch.setattr(_ir_lookup, "_crosswalk_index", lambda: irs)
+    urza = test_card(names[0])
+    pool = [test_card(n) for n in names[1:]]
+    session = DeckSession("commander")
+    session.add(urza["name"], 1, zone="commanders")
+    state = ForgeState(
+        by_name={urza["name"]: urza},
+        search_fn=pool_search_fn(pool, FORMATS["commander"]),
+        session=session,
+        bulk_available=True,
+    )
+    avs = {a["id"]: a for a in engine.avenues(state, [urza])}
+    payoff = avs["engine:artifacts_matter:you"]
+    assert payoff["label"] == "Artifacts"
+    assert "card_type" not in payoff["search"]
+
+    def found(avenue_id):
+        state.focused_avenue_ids = {avenue_id}
+        page = engine.find_candidates(state, engine.FindParams(limit=50))
+        return {row["card"]["name"] for row in page.rows}
+
+    # The serve's ``artifacts_matter|you|*`` also counts what the lane emits for
+    # an artifact itself (Sol Ring); a card that is neither stays out.
+    payoffs = found("engine:artifacts_matter:you")
+    assert "Sai, Master Thopterist" in payoffs
+    assert "Snapcaster Mage" not in payoffs
+    assert found("engine:artifacts_matter:you:src") == {"Sol Ring"}

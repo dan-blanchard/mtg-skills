@@ -1045,8 +1045,11 @@ def test_enchantment_token_maker_is_not_an_enchantments_payoff():
     # A card that creates enchantment / Aura tokens (Scriv's "white Aura enchantment
     # token") MAKES enchantments (CR 205.3h) — the doer side, counted as the
     # Enchantments avenue's depth by its serve — never the enchantments_matter
-    # payoff the tuner reads as a card that cares about enchantments. Real oracle.
-    assert ("enchantments_matter", "you") not in _ks_real("Scriv, the Obligator")
+    # payoff the tuner reads as a card that cares about enchantments: it carries
+    # the doer subject ``token`` instead (2026-10-20), which the focus read never
+    # counts as a carer. Real oracle.
+    assert ("enchantments_matter", "you", "") not in _ksub_real("Scriv, the Obligator")
+    assert ("enchantments_matter", "you", "token") in _ksub_real("Scriv, the Obligator")
     assert ("enchantments_matter", "you") not in _ks_real("Grizzly Bears")
 
 
@@ -1918,8 +1921,11 @@ def test_token_maker_serves_token_aristocrats_drain():
 def test_role_token_makers_are_not_enchantments_payoffs():
     # Role tokens are Aura Role enchantment tokens (CR 303.7, 111.10j), so a card
     # that makes them (Gylwain) MAKES enchantments; it is not an
-    # enchantments_matter payoff. Proven over the real record.
-    assert ("enchantments_matter", "you") not in _ks_real("Gylwain, Casting Director")
+    # enchantments_matter payoff; it carries the doer subject ``token``. Proven over
+    # the real record.
+    idents = _ksub_real("Gylwain, Casting Director")
+    assert ("enchantments_matter", "you", "") not in idents
+    assert ("enchantments_matter", "you", "token") in idents
 
 
 def test_celebration_archetype_opens_and_serves():
@@ -1946,7 +1952,7 @@ def test_celebration_archetype_opens_and_serves():
     assert lane_covers(impact, "celebration_matters") is False
 
 
-def test_lands_matter_serves_creature_pump_by_basic():
+def test_lands_matter_leaves_creature_pump_by_basic_to_scaling_pump():
     # A lands-matter commander whose own P/T scales with land count (Molimo) wants
     # the creature pump that scales the SAME way — "+N/+N for each Forest you
     # control" (Blanchwood Armor, Primal Bellow). The serve already takes "for each
@@ -1962,8 +1968,11 @@ def test_lands_matter_serves_creature_pump_by_basic():
             (ex.serve or serve_from_dict(ex.search)).matches(card) for ex in sp.extras
         )
 
+    # The lands_matter serve now reads the lanes' idents (land-count payoffs, ramp,
+    # landfall, extra drops); the basic-subtype pump is the scaling_pump lane's, a
+    # classified remainder of the ident serve, so it is no longer pinned as served.
     primal_bellow = test_card("Primal Bellow")
-    assert lane_covers(primal_bellow, "lands_matter") is True
+    assert lane_covers(primal_bellow, "lands_matter") is False
     # Over-fire guard: pump that scales off your OPPONENTS' basics is not your
     # lands-matter payoff.
     crusading_knight = test_card("Crusading Knight")
@@ -2097,16 +2106,16 @@ def test_discard_matters_payoff_opens_opponent_discard():
     assert lane_covers(bottomless, "opponent_discard", "opponents") is True
 
 
-def test_symmetric_cast_punisher_is_not_opponent_cast_matters():
-    # ADR-0027 #24k — opponent_cast_matters is the genuinely OPPONENT-scoped "whenever an
-    # opponent casts" punisher/tax, read STRUCTURALLY off a cast_spell trigger
-    # scope=='opp' (real IR, mirror DELETED). A SYMMETRIC "whenever a PLAYER casts"
-    # punisher (Eidolon of the Great Revel, Ruric Thar "deals 6 damage to that player")
-    # is NOT opponent-only — CR 102.1 "a player" INCLUDES its controller, so it punishes
-    # EVERYONE (you too), a genuine NON-member of an opponent-scoped lane (CR 102.2/
-    # 102.3). The deleted regex mirror over-swept these; they must no longer fire.
-    assert "opponent_cast_matters" not in _keys_real("Eidolon of the Great Revel")
-    assert "opponent_cast_matters" not in _keys_real("Ruric Thar, the Unbowed")
+def test_symmetric_cast_punisher_is_opponent_cast_matters():
+    # ADR-0027 #24k — opponent_cast_matters is the "whenever an opponent casts"
+    # punisher/tax, read STRUCTURALLY off a cast_spell trigger scope=='opp' (real IR,
+    # mirror DELETED). Phase B (2026-10-20): the SYMMETRIC "whenever a PLAYER casts"
+    # punisher whose effect hurts the caster (Eidolon of the Great Revel, Ruric Thar
+    # "deals 6 damage to that player") fires too — "a player" includes its controller
+    # (CR 102.1), but the deck plays it to punish its opponents' spells
+    # (``crosswalk.punishes_triggering_caster``).
+    assert "opponent_cast_matters" in _keys_real("Eidolon of the Great Revel")
+    assert "opponent_cast_matters" in _keys_real("Ruric Thar, the Unbowed")
     # A GENUINELY opponent-scoped "whenever an opponent casts" punisher DOES fire
     # (phase scopes the direct trigger scope='opp' — Lavinia). CR 102.2.
     assert "opponent_cast_matters" in _keys_real("Lavinia, Azorius Renegade")

@@ -143,6 +143,27 @@ After: 272 of 376 serves read idents, **91 still serve on a regex alone**. Their
 lane gaps, ranked by the precon themes they unblock, are the backlog entry "Pass C
 holds" — the input to the lane-fix pass.
 
+
+**Pass C, lane fixes (2026-10-22).** Seven agents, one per lane module, fixed the
+lane gaps ranked in the backlog's "Pass C holds", each as a SUBJECT on an existing
+key rather than a new key: keyword grants carry the keyword
+(`keyword_grant_target|you|haste`, `team_buff|you|double strike`,
+`aura_equip_kw_grant|you|flying`); `evasion_self` its kind (unblockable, landwalk,
+menace … partial, conditional); `creature_recursion` its destination; impulse
+draw is `cast_from_exile|you|impulse`; artifact- and enchantment-token makers are
+`artifacts_matter|you|token` (a doer subject, never a carer); land fetches are
+`ramp|you|land`; `spellcast_matters` and `cost_reduction` carry the spell class. A
+bug made `self_etb_payload` miss most ETB value (its concept set used compat
+category names): 1,315 → 4,333 cards. Then 40 more serves converted, and one rule
+keeps an avenue honest: a subject on a key with no per-subject spec opens that
+key's avenue only when the avenue's serve counts it
+(`signal_specs.avenue_spec_for`) — Lightning Greaves opens the Aura / Equipment
+keyword-grant avenue because that serve reads `aura_equip_kw_grant|you|*`, an
+impulse-only card never opens "Cast from exile". Find splits an ident serve into
+its payoff and source avenues (ADR-0026) and pages the payoff side by its serve,
+the rule the tuner uses (`pages_by_serve`). **50 serves still match on a regex
+alone**; the backlog lists them.
+
 ## 3. Pass B: an avenue needs cards that care
 
 `_tuner.metrics.focus` measures an avenue's depth as the number of nonland cards

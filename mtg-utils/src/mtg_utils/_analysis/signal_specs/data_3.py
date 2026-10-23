@@ -51,27 +51,33 @@ _CONNIVE_SERVE_IDENTS = frozenset({"connive_makers|you|", "connive_matters|you|"
 # The explore serve (explore_makers / explore_matters): both lanes.
 _EXPLORE_SERVE_IDENTS = frozenset({"explore_makers|you|", "explore_matters|you|"})
 
-# The activated-ability engine's enablers no lane names: haste grants (Thousand-
-# Year Elixir's "as though it had haste"), activated-ability cost reducers
-# (Training Grounds), and the Aura / Equipment / trick untaps of one creature
-# that ``untap_engine`` misses (Freed from the Real, Shore Up). These arms of the
-# old serve regex moved here verbatim when the main serve became the lanes'
-# idents.
+# The activated-ability engine's enablers: haste grants (Thousand-Year Elixir's
+# "as though it had haste" by pattern, the grant lanes' haste by ident) and
+# activated-ability cost reducers (Training Grounds). The untaps of one creature
+# (Freed from the Real) are the main serve's ``untap_engine`` ident. Find and the
+# tuner page the extra by its serve (``pages_by_serve``), so the pattern below is
+# only the serve's arm.
 _ABILITY_HASTE_COST_ORACLE = (
     r"activated abilities[^.]*\bcost\b"
-    r"|untap (?:enchanted|equipped) creature"
-    r"|target creature you control[\s\S]{0,120}?untap it"
     r"|activate (?:its |their )?abilit(?:y|ies)[^.]*as though"
     r"|as though (?:those creatures|it|they) (?:had|have) haste"
-    r"|(?:creatures? you control|equipped creature|enchanted creature"
-    r"|target creature)[^.]*(?:gains?|have|has) haste"
 )
 _ABILITY_HASTE_COST_EXTRA = SubAvenue(
     "Untap, haste and cheaper activations",
     "untap the tapper again, give it haste, or cut its activation cost "
     "(Freed from the Real, Thousand-Year Elixir, Training Grounds)",
     {"oracle": _ABILITY_HASTE_COST_ORACLE},
-    serve=Serve(oracle=re.compile(_ABILITY_HASTE_COST_ORACLE, _IC)),
+    serve=Serve(
+        oracle=re.compile(_ABILITY_HASTE_COST_ORACLE, _IC),
+        signal_idents=frozenset(
+            {
+                "keyword_grant_target|you|haste",
+                "team_buff|you|haste",
+                "aura_equip_kw_grant|you|haste",
+                "all_creatures_kw_grant|any|haste",
+            }
+        ),
+    ),
 )
 
 # The dash avenue's Equipment movers (Brass Squire, Armory Automaton): the
@@ -83,6 +89,11 @@ _EQUIPMENT_MOVER_EXTRA = SubAvenue(
     "cards that attach your Equipment for free (Brass Squire, Armory Automaton)",
     {"oracle": _EQUIPMENT_MOVER_ORACLE},
     serve=Serve(oracle=re.compile(_EQUIPMENT_MOVER_ORACLE, _IC)),
+)
+
+# clone_makers / copy_permanent / wants_cloning share one serve: every copy lane.
+_CLONE_SERVE_IDENTS = frozenset(
+    {"clone_makers|you|", "copy_permanent|you|", "token_copy_makers|you|"}
 )
 
 SPECS_3: dict[tuple[str, str], SignalSpec] = {
@@ -97,7 +108,11 @@ SPECS_3: dict[tuple[str, str], SignalSpec] = {
         "Token copies",
         "strong creatures to copy plus token-copy and populate engines",
         {"oracle": r"token that's a copy|tokens? that are copies|\bpopulate\b"},
-        r"tokens? that(?:'s| are) (?:a )?cop(?:y|ies) of|\bpopulate\b",
+        # Serve idents: the token-copy lane. The self-copy keywords the lane excludes
+        # by design (embalm, eternalize, squad, myriad) still serve by keyword.
+        None,
+        serve_idents=frozenset({"token_copy_makers|you|"}),
+        serve_keywords=("embalm", "eternalize", "squad", "myriad"),
         # Deliver on "strong creatures to copy": a token-copy deck wants big bombs to
         # copy (Etali). power_min=6 keeps it to genuine bombs, mirroring clone_makers.
         serve_power_min=6,
@@ -124,7 +139,10 @@ SPECS_3: dict[tuple[str, str], SignalSpec] = {
         "Permanent copies",
         "generic clone effects plus strong permanents worth copying",
         {"oracle": r"becomes a copy|copy of (?:target|another|any|a|that)\b"},
-        r"becomes a copy|copy of (?:target|another|any|a|that)\b|as a copy of",
+        # Serve idents: the clone, permanent-copy and token-copy lanes. The leftover
+        # is spell-copy reminder text; Estrid's Invocation is a phase gap.
+        None,
+        serve_idents=_CLONE_SERVE_IDENTS,
     ),
     # Serve on the lanes' idents: the +1/+1 counter package
     # (plus_one_makers reads the amass / incubate actions themselves) and, for
@@ -298,9 +316,11 @@ SPECS_3: dict[tuple[str, str], SignalSpec] = {
                 r"|hexproof|ward|menace|reach|indestructible)"
             )
         },
-        # The lane also reads a one-shot grant (Hemlock Vial, Silkguard).
+        # The lane also reads a one-shot grant (Hemlock Vial, Silkguard). Every
+        # keyword an Aura or Equipment grants (the lane's subject) is the theme's:
+        # Lightning Greaves' haste and shroud.
         None,
-        serve_idents=frozenset({"aura_equip_kw_grant|you|"}),
+        serve_idents=frozenset({"aura_equip_kw_grant|you|*"}),
     ),
     ("counter_grants_kw", "you"): _spec(
         *SWEEP_LABELS["counter_grants_kw"],
@@ -802,9 +822,9 @@ SPECS_3: dict[tuple[str, str], SignalSpec] = {
             )
         },
         # The lane also reads one-shot "all creatures gain" spells and protection grants
-        # (Demoralize, Absolute Grace).
+        # (Demoralize, Absolute Grace), whatever the keyword (its subject).
         None,
-        serve_idents=frozenset({"all_creatures_kw_grant|any|"}),
+        serve_idents=frozenset({"all_creatures_kw_grant|any|*"}),
     ),
     ("facedown_matters", "you"): _spec(
         *SWEEP_LABELS["facedown_matters"],
@@ -897,10 +917,9 @@ SPECS_3: dict[tuple[str, str], SignalSpec] = {
                 r"|deals that much damage plus"
             )
         },
-        r"deals? (?:double|triple) that damage"
-        r"|deals? twice that (?:much|damage)"
-        r"|double (?:all damage|the (?:next )?damage)"
-        r"|deals that much damage plus",
+        # Serve idents: the lane's damage-replacement read (doublers and triplers).
+        None,
+        serve_idents=frozenset({"damage_doubling|you|"}),
     ),
     # ADR-0027: commander_matters / hand_disruption / opponent_exile_matters had their
     # SWEEP_DETECTORS rows deleted (detection moved to the Card IR — a structural
@@ -956,9 +975,10 @@ SPECS_3: dict[tuple[str, str], SignalSpec] = {
                 r"|if a card would be put into an opponent's graveyard"
             )
         },
-        r"exile (?:target player's|target opponent's|each opponent's"
-        r"|that player's) graveyard"
-        r"|if a card would be put into an opponent's graveyard",
+        # Serve idents: the lane's own read of exiling an opponent's graveyard or
+        # replacing a card headed there; nothing classified is left over.
+        None,
+        serve_idents=frozenset({"opponent_exile_makers|opponents|"}),
     ),
     ("opponent_exile_matters", "opponents"): _spec(
         *SWEEP_LABELS["opponent_exile_matters"],
@@ -1184,6 +1204,10 @@ SPECS_3: dict[tuple[str, str], SignalSpec] = {
         r"|hexproof|indestructible|protection|deathtouch|lifelink|double strike"
         r"|first strike|vigilance|haste|ward|reach)"
         r"|creatures you control get \+\d+/\+\d+",
+        # The lane's team grants, whatever the keyword (its subject): the grants
+        # the regex's list or wording misses (Rafiq's double strike to a lone
+        # attacker, Akroma's Will's modes).
+        serve_idents=frozenset({"team_buff|you|*"}),
         serve_not=r"creatures you control get \+\d+/\+\d+ until end of turn",
     ),
     # lf_ramp (2026-07-13): land-fetch-to-battlefield is RAMP, not tutor —
@@ -1213,7 +1237,9 @@ SPECS_3: dict[tuple[str, str], SignalSpec] = {
         "Untap engine",
         "untap effects to reuse tap abilities and generate value",
         {"oracle": _UNTAP_ORACLE},
-        _UNTAP_ORACLE,
+        # Serve idents: every untap shape the lane reads.
+        None,
+        serve_idents=frozenset({"untap_engine|you|*"}),
     ),
     # own_target_spell (iteration-4): served by the recursion engines that
     # rebate own-targeting spells (Feather-class) and copy engines (Zada).
@@ -1230,7 +1256,9 @@ SPECS_3: dict[tuple[str, str], SignalSpec] = {
         "Permanent recast engine",
         "one-shot ETB value permanents this engine re-delivers every turn",
         {"oracle": r"when(?:ever)? [^.]*enters(?: the battlefield)?, "},
-        r"when(?:ever)? [^.]*enters(?: the battlefield)?, ",
+        # Serve idents: the one-shot self-ETB payloads this engine re-delivers.
+        None,
+        serve_idents=frozenset({"self_etb_payload|you|"}),
     ),
     # self_etb_payload (iteration-3): a self-ETB value trigger — served by the
     # engines that re-deliver it (blink/flicker, recursion, bounce-to-replay);
@@ -1318,8 +1346,21 @@ SPECS_3: dict[tuple[str, str], SignalSpec] = {
         "Evasion / unblockable",
         "unblockable and evasion to keep connecting — strong for voltron",
         {"oracle": r"can't be blocked|\bunblockable\b"},
-        r"can't be blocked(?! except)|\bunblockable\b"
-        r"|\b(?:forest|island|mountain|plains|swamp)walk\b",
+        # Serve idents: unblockable and every hard-evasion shape the lane reads.
+        None,
+        serve_idents=frozenset(
+            f"evasion_self|you|{k}"
+            for k in (
+                "unblockable",
+                "landwalk",
+                "menace",
+                "fear",
+                "intimidate",
+                "skulk",
+                "horsemanship",
+                "shadow",
+            )
+        ),
         # Keyword-only evasion (horsemanship/menace/fear/intimidate/shadow/skulk) trips
         # the "can't be blocked except" lookahead, so credit it by Scryfall keyword[].
         serve_keywords=(
@@ -1341,8 +1382,15 @@ SPECS_3: dict[tuple[str, str], SignalSpec] = {
         "Ninjutsu",
         "ninja creatures plus the cheap unblockable/evasive creatures to carry them in",
         {"oracle": r"can't be blocked|\bunblockable\b|\bninjutsu\b"},
-        r"can't be blocked(?! except)|\bunblockable\b"
-        r"|\b(?:forest|island|mountain|plains|swamp)walk\b",
+        # Serve idents: unblockable and landwalk carriers plus team evasion grants.
+        None,
+        serve_idents=frozenset(
+            {
+                "evasion_self|you|unblockable",
+                "evasion_self|you|landwalk",
+                "team_evasion_grant|you|*",
+            }
+        ),
         # The NINJA creatures themselves are the payoff (swapped in via ninjutsu off an
         # unblocked attacker), not just the evasion carriers. "Commander ninjutsu" is a
         # ninjutsu variant (CR 702.49d) — Yuriko/Satoru carry only that keyword, so the
@@ -1365,7 +1413,10 @@ SPECS_3: dict[tuple[str, str], SignalSpec] = {
             "oracle": r"becomes a copy|copy of (?:target|another|any|a|that)\b"
             r"|as a copy of"
         },
-        r"becomes a copy|copy of (?:target|another|any|a|that)\b|as a copy of",
+        # Serve idents: the clone, permanent-copy and token-copy lanes. The leftover
+        # is spell-copy reminder text; Estrid's Invocation is a phase gap.
+        None,
+        serve_idents=_CLONE_SERVE_IDENTS,
         # Deliver on "strong creatures worth copying": a clone/token-copy deck wants big
         # bombs to copy (Etali, power 6). power_min=6 keeps it to genuine bombs.
         serve_power_min=6,
@@ -1397,7 +1448,10 @@ SPECS_3: dict[tuple[str, str], SignalSpec] = {
             "oracle": r"becomes a copy|copy of (?:target|another|any|a|that)\b"
             r"|as a copy of"
         },
-        r"becomes a copy|copy of (?:target|another|any|a|that)\b|as a copy of",
+        # Serve idents: the clone, permanent-copy and token-copy lanes. The leftover
+        # is spell-copy reminder text; Estrid's Invocation is a phase gap.
+        None,
+        serve_idents=_CLONE_SERVE_IDENTS,
         extras=(_COPY_EXTRA,),
     ),
     # The SUBJECT-LESS cheat (signal_keys.CHEAT_INTO_PLAY): a put that names no
@@ -1494,8 +1548,9 @@ SPECS_3: dict[tuple[str, str], SignalSpec] = {
         "Punish opponents' spells",
         "taxes and punishers that trigger when opponents cast",
         {"oracle": r"whenever an opponent casts|spells? your opponents cast"},
-        r"whenever an opponent casts|whenever a player casts"
-        r"|spells? your opponents cast",
+        # Serve idents: the lane's own read of opponent-cast triggers and taxes.
+        None,
+        serve_idents=frozenset({"opponent_cast_matters|opponents|"}),
     ),
     # Drop the bare `opponents? draws?` — it matched group-hug GIFT effects (Master of
     # the Feast) that HAND opponents cards rather than punishing the draw.
@@ -1503,17 +1558,18 @@ SPECS_3: dict[tuple[str, str], SignalSpec] = {
         "Punish opponents' draw",
         "wheels and draw-denial punishers that trigger on opponents drawing",
         {"oracle": r"whenever an opponent draws|each opponent draws|each player draws"},
-        r"whenever an opponent draws|whenever each opponent draws"
-        r"|whenever a player (?:other than you )?draws"
-        r"|whenever a player draws a card (?:except|other than)"
-        # The ENABLERS that make opponents draw extra (so the punish fires): symmetric
-        # group-draw (Temple Bell, Howling Mine, Dictate of Kruphix), forced opponent
-        # draw (Forced Fruition), and wheels (Windfall). NOT "target player draws" or
-        # your own cantrip — those needn't benefit opponents.
-        r"|each player draws|all players draw|each opponent draws"
-        r"|target (?:player|opponent) draws|that player draws"
-        r"|each player's draw step"
-        r"|discards? (?:their|his or her) hand[^.]*draws?",
+        # Serve idents: the punishers plus the enablers that make opponents draw
+        # (group draw, wheels, forced draw, Inspiration); your own cantrip (Opt) is out.
+        None,
+        serve_idents=frozenset(
+            {
+                "opponent_draw_matters|opponents|",
+                "card_draw_engine|opponents|",
+                "card_draw_engine|each|",
+                "group_hug_draw|each|",
+                "target_player_draws|any|",
+            }
+        ),
     ),
     # Drop the bare `search their library` — your OWN tutor reads "search their
     # library" too (Path to Exile). Require an opponent/player subject.
@@ -1531,8 +1587,16 @@ SPECS_3: dict[tuple[str, str], SignalSpec] = {
         "evasion, pingers, and extra combats to keep connecting and fire these "
         "damage-to-opponent triggers (any damage, not just combat)",
         {"oracle": r"can't be blocked|\bmenace\b|\bflying\b|additional combat"},
-        r"deals (?:noncombat )?damage to (?:a player|an opponent|one of your opponents"
-        r"|that player|each opponent)|can't be blocked(?! except)|\bunblockable\b",
+        # Serve idents: the damage-to-opponent payoffs plus unblockable and landwalk
+        # carriers; bare menace stays out.
+        None,
+        serve_idents=frozenset(
+            {
+                "damage_to_opp_matters|opponents|",
+                "evasion_self|you|unblockable",
+                "evasion_self|you|landwalk",
+            }
+        ),
     ),
     # `enters the battlefield` is a DEAD branch — Scryfall templated the phrase down to
     # bare "enters" years ago (CR glossary), so it matched ~1 card and the serve missed

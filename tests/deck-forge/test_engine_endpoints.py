@@ -180,10 +180,20 @@ def test_snapshot_includes_live_budgets_and_signals(monkeypatch):
 def test_snapshot_avenues_include_engine_avenue_with_search_spec(monkeypatch):
     _wire_ir(monkeypatch, {"etb-boss-oid": CMD_IR}, [CMD])
     snap = _client().get("/api/snapshot").json()
-    etb = next(a for a in snap["avenues"] if a["id"] == "engine:artifacts_matter:you")
+    avs = {a["id"]: a for a in snap["avenues"]}
+    etb = avs["engine:artifacts_matter:you"]
     assert etb["source"] == "engine"
     assert etb["label"]
-    assert "oracle" in etb["search"]  # carries what to search for
+    # ADR-0026: the payoff avenue of an ident serve carries no pattern and no card
+    # type — it pages by the serve it carries (the lanes' idents); the artifacts
+    # themselves are the Source avenue's card-type fetch.
+    assert "oracle" not in etb["search"]
+    assert "card_type" not in etb["search"]
+    assert "artifacts_matter|you|*" in etb["serve"]["signal_idents"]
+    assert "types" not in etb["serve"]
+    src = avs["engine:artifacts_matter:you:src"]
+    assert src["label"] == "Artifacts (pieces)"
+    assert list(src["search"]["card_type"]) == ["artifact"]
 
 
 def test_add_agent_avenue_appears_in_snapshot():

@@ -69,11 +69,11 @@ from mtg_utils._card_ir.crosswalk import (
     iter_static_defs,
     iter_threaded_target_statics,
     iter_typed_nodes,
+    lets_you_play_exiled,
     mass_land_denial,
     mod_keyword_name,
     modify_cost_mode,
     modify_cost_spell_filter,
-    permission_tag,
     player_filter_tag,
     settap_state,
     static_mode_tag,
@@ -1233,11 +1233,9 @@ def _opp_top_exile(tree: ConceptTree) -> list[Signal]:
         # phase v0.66.0 pin bump: the chain's "you may cast that card for as
         # long as it remains exiled" leg is now a ``GrantCastingPermission``
         # (``PlayFromExile``) instead of a bare ``CastFromZone`` — the SAME
-        # steal-and-cast contract, the impulse-grant node shape.
-        casts = unit.has_effect("cast_from_zone") or any(
-            permission_tag(c.node) == "PlayFromExile"
-            for c in unit.effect_concepts("grant_cast_permission")
-        )
+        # steal-and-cast contract, the impulse-grant node shape
+        # (:func:`crosswalk.lets_you_play_exiled` reads both).
+        casts = any(lets_you_play_exiled(c) for c in unit.effects)
         if chooses_theirs and exiles and casts:
             return [Signal("opp_top_exile", "you", "", "", tree.name, "high")]
     # Deliberate NON-extension: ``ExileFromTopUntil{player: Opponent}``

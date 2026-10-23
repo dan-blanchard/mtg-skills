@@ -289,7 +289,7 @@ _CONVERTED = [
         "Fleecemane Lion",
         "Bello, Bard of the Brambles",
     ),
-    ("aura_equip_kw_grant", "you", "aura_equip_kw_grant|you|", "Hemlock Vial", None),
+    ("aura_equip_kw_grant", "you", "aura_equip_kw_grant|you|*", "Hemlock Vial", None),
     ("counter_grants_kw", "you", "counter_grants_kw|you|", "Cathedral Acolyte", None),
     (
         "typed_anthem_multi",
@@ -301,7 +301,7 @@ _CONVERTED = [
     (
         "all_creatures_kw_grant",
         "any",
-        "all_creatures_kw_grant|any|",
+        "all_creatures_kw_grant|any|*",
         "Absolute Grace",
         None,
     ),
@@ -311,6 +311,94 @@ _CONVERTED = [
         "specialize_matters|you|",
         "Klement, Novice Acolyte",
         None,
+    ),
+    # Phase C: the copy lanes, the opponent-facing lanes and the evasion lanes. Each
+    # positive is a card the old regex missed; each dropped card is one it served.
+    (
+        "opponent_exile_makers",
+        "opponents",
+        "opponent_exile_makers|opponents|",
+        "Crypt Incursion",
+        None,
+    ),
+    ("clone_makers", "you", "clone_makers|you|", "Aggressive Biomancy", "Double Major"),
+    (
+        "copy_permanent",
+        "you",
+        "copy_permanent|you|",
+        "Aggressive Biomancy",
+        "Double Major",
+    ),
+    (
+        "wants_cloning",
+        "you",
+        "token_copy_makers|you|",
+        "Aggressive Biomancy",
+        "Double Major",
+    ),
+    (
+        "token_copy_makers",
+        "you",
+        "token_copy_makers|you|",
+        "Aggressive Biomancy",
+        None,
+    ),
+    (
+        "opponent_draw_matters",
+        "opponents",
+        "opponent_draw_matters|opponents|",
+        "Baleful Mastery",
+        "Opt",
+    ),
+    (
+        "opponent_draw_matters",
+        "opponents",
+        "target_player_draws|any|",
+        "Inspiration",
+        "Opt",
+    ),
+    (
+        "permanent_recast",
+        "you",
+        "self_etb_payload|you|",
+        "Aerial Extortionist",
+        "Aether Flash",
+    ),
+    ("untap_engine", "you", "untap_engine|you|*", "Candelabra of Tawnos", "Abduction"),
+    (
+        "damage_doubling",
+        "you",
+        "damage_doubling|you|",
+        "Furnace of Rath",
+        "Goblin Charbelcher",
+    ),
+    (
+        "opponent_cast_matters",
+        "opponents",
+        "opponent_cast_matters|opponents|",
+        "Lunar Force",
+        "Angel's Feather",
+    ),
+    (
+        "evasion_self",
+        "you",
+        "evasion_self|you|fear",
+        "Abyssal Nocturnus",
+        "Alpha Authority",
+    ),
+    (
+        "has_ninjutsu",
+        "you",
+        "team_evasion_grant|you|*",
+        "Akroma's Memorial",
+        "Alpha Authority",
+    ),
+    (
+        "damage_to_opp_matters",
+        "opponents",
+        "damage_to_opp_matters|opponents|",
+        "Gruesome Scourger",
+        "Boggart Brute",
     ),
 ]
 
@@ -443,11 +531,17 @@ def test_tutor_serve_keeps_the_land_fetch_veto():
 def test_activated_ability_untap_haste_and_cost_reducers_are_an_extra():
     spec = spec_for(_sig("activated_ability"))
     untap = extra(spec, "Untap, haste and cheaper activations")
+    # The cost reducer is the extra's oracle arm; the haste grant is its idents.
     assert untap.serve.matches(_card("Training Grounds"))
-    # A repeatable untap of the enchanted creature (untap_engine misses it).
-    assert untap.serve.matches(_card("Freed from the Real"))
     assert untap.serve.matches(_card("Thousand-Year Elixir"))
+    assert untap.serve.matches(_card("Fervor"))
     assert not spec.serve.matches(_card("Training Grounds"))
+    # The untap of the enchanted creature is the main spec's own untap_engine ident
+    # now; the extra no longer carries it. Abduction (a steal) stays out.
+    assert spec.serve.matches(_card("Freed from the Real"))
+    assert not untap.serve.matches(_card("Freed from the Real"))
+    assert not spec.serve.matches(_card("Abduction"))
+    assert not untap.serve.matches(_card("Abduction"))
 
 
 def test_dash_equipment_movers_are_an_extra():
@@ -457,3 +551,17 @@ def test_dash_equipment_movers_are_an_extra():
     )
     # The Equipment themselves still serve through the type arm.
     assert spec.serve.matches(_card("Leonin Scimitar"))
+
+
+def test_token_copy_serve_keeps_the_self_copy_keywords():
+    # The lane excludes self-copy by design; myriad (CR 702.116a) still serves by
+    # keyword.
+    spec = spec_for(_sig("token_copy_makers"))
+    assert spec.serve.matches(_card("Banshee of the Dread Choir"))
+
+
+def test_evasion_serve_keeps_sun_quan_out():
+    # Sun Quan grants horsemanship to others; he has none himself.
+    assert not spec_for(_sig("evasion_self")).serve.matches(
+        _card("Sun Quan, Lord of Wu")
+    )

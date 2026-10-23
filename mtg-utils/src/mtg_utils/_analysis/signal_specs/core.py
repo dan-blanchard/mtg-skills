@@ -40,6 +40,8 @@ from .data_3 import SPECS_3
 from .data_4 import SPECS_4
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
+
     from mtg_utils._analysis.signals import Signal
 
 SPECS: dict[tuple[str, str], SignalSpec] = {
@@ -567,11 +569,13 @@ _SOURCE_TYPE_LABELS = {
 def source_split(spec: SignalSpec) -> tuple[Serve, dict] | None:
     """ADR-0026: if a payoff spec's serve carries a membership-source TYPE, return the
     (source_serve, source_search) for a derived Source avenue — the cards that ARE the
-    thing the payoff wants. None when there's no source type or no payoff oracle (a
-    pure-membership spec is already a single source-ish lane; don't split it). The
-    caller strips the same dims from the payoff avenue (see ``payoff_serve``)."""
+    thing the payoff wants. None when there's no source type or no payoff arm — an
+    oracle pattern or the lanes' idents (a pure-membership spec is already a single
+    source-ish lane; don't split it). The caller strips the same dims from the payoff
+    avenue (see ``payoff_serve``), which then pages by its serve
+    (:func:`pages_by_serve`) when its search keeps nothing of its own."""
     srv = spec.serve
-    if srv.oracle is None:
+    if srv.oracle is None and not srv.signal_idents:
         return None
     st = srv.types & SOURCE_TYPES
     if not st:
@@ -609,12 +613,43 @@ def source_label(source_types: frozenset[str]) -> str:
 def payoff_search(search: dict, serve: Serve) -> dict:
     """The payoff avenue's pool fetch (ADR-0026): drop the type/preset fetch (that
     pulled the source pool) and fall back to the serve's oracle payoff pattern, so the
-    payoff lane surfaces payoffs (Sram, equip-cost reducers) not vanilla gear."""
+    payoff lane surfaces payoffs (Sram, equip-cost reducers) not vanilla gear. An
+    ident serve has no pattern to fall back to: its payoff avenue's search is left
+    with nothing to page by, so it pages by its serve (:func:`pages_by_serve`)."""
     drop = ("card_type", "preset_names", "presets")
     out = {k: v for k, v in search.items() if k not in drop}
     if "oracle" not in out and serve.oracle is not None:
         out["oracle"] = serve.oracle.pattern
     return out
+
+
+# The search keys that fetch a pool of their own: a search carrying one (and no
+# oracle pattern) pages by it, never by its theme's serve.
+_POOL_SEARCH_KEYS = (
+    "card_type",
+    "name",
+    "preset_names",
+    "presets",
+    "any_preset_names",
+    "partner_of",
+    "staples",
+)
+
+
+def pages_by_serve(search: Mapping[str, object]) -> bool:
+    """Whether a theme's candidate page is the cards its ``Serve`` admits rather
+    than its search's own fetch — the ONE rule Find (deck-forge) and the tuner's
+    theme pages share. A search by oracle pattern pages by the serve: the pattern
+    missed most of what the theme serves (read off the cards' idents where the
+    theme is IR-served), and a pattern beside a card type would AND the two. A
+    search left with nothing to fetch by — an ident serve's payoff avenue once
+    ADR-0026 split its source type off — pages by the serve too. A search by
+    card type or preset alone stays: a tribe's serve also admits the generic
+    tribal support that would crowd out its members. The caller passes the
+    serve only when it has one."""
+    if search.get("oracle"):
+        return True
+    return not any(search.get(k) for k in _POOL_SEARCH_KEYS)
 
 
 def spec_scope_for(key: str, scope: str) -> str | None:
@@ -639,6 +674,36 @@ def spec_for(signal: Signal) -> SignalSpec | None:
         return _subject_spec(signal)
     scope = spec_scope_for(signal.key, signal.scope)
     return None if scope is None else SPECS[(signal.key, scope)]
+
+
+def avenue_spec_for(signal: Signal) -> SignalSpec | None:
+    """The avenue a DECK signal opens: ``spec_for``'s spec, unless the signal
+    carries a subject on a key that is not a subject key and the spec's serve
+    says that subject is not the theme's.
+
+    A non-subject key's subject is a refinement of one lane (the keyword a team
+    grant hands out, the kind of evasion a body has), and every subject of the
+    key resolves to the key's one ``SPECS`` entry. When that entry's serve
+    names the key's own idents (:meth:`Serve.reads_key`), it is the authority
+    on which subjects the theme counts, and a signal opens the avenue only if
+    the serve counts its ident (:meth:`Serve.counts_ident`, ``key|scope|*``
+    wildcards included): an impulse draw (``cast_from_exile|you|impulse``)
+    does not open "Cast from exile", whose serve leaves impulse out, and a
+    "can't be blocked except by …" body (``evasion_self|you|partial``) does
+    not open the evasion avenue. A serve that does not read the key at all
+    serves something else the key's emitters want (a recursion engine's loop
+    fuel), and every subject opens it. ``spec_for`` stays the per-signal
+    lookup for every other caller."""
+    spec = spec_for(signal)
+    if (
+        spec is None
+        or not signal.subject
+        or signal.key in _SUBJECT_KEYS
+        or not spec.serve.reads_key(signal.key)
+    ):
+        return spec
+    ident = f"{signal.key}|{signal.scope}|{signal.subject}"
+    return spec if spec.serve.counts_ident(ident) else None
 
 
 def serves(card: dict, signal: Signal) -> bool:

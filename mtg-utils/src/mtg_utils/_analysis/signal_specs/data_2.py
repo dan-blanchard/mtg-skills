@@ -4,8 +4,6 @@ original ``signal_specs.py``), verbatim, in original order.
 
 from __future__ import annotations
 
-import re
-
 from mtg_utils._analysis._sweep_detectors import (
     COMBAT_DAMAGE_TO_CREATURE_REGEX,
     COMBAT_DAMAGE_TO_OPP_REGEX,
@@ -27,19 +25,15 @@ from ._shared import (
     _ETB_PAYOFF_EXTRA,
     _EXTRA_COMBAT_EXTRA,
     _GOWIDE_ANTHEM_EXTRA,
-    _IC,
     _IMPULSE_SWEEP_REGEX,
-    _LANDFALL_ORACLE,
     _LANDS_FROM_GRAVE_EXTRA,
     _LOYALTY_DOUBLER_EXTRA,
     _MANA_AMP_EXTRA,
     _ONE_PUNCH_ORACLE,
-    _OPP_LIBRARY_THEFT_ORACLE,
     _PARADOX_PAYOFF_EXTRA,
     _PILLOWFORT_EXTRA,
     _PLUS_ONE_SERVE_IDENTS,
     _PUMP_EXTRA,
-    _SELF_IMPULSE_VETO,
     _STEAL_CAST_ORACLE,
     _SYM_MANA_EXTRA,
     _THEFT_SWEEP_REGEX,
@@ -75,10 +69,9 @@ _VENTURE_SERVE_IDENTS = frozenset({"venture_makers|you|", "venture_matters|you|"
 
 # The self life-loss serve (lifeloss_matters / lifeloss_makers, you): the life
 # payers and losers, the "whenever you lose life" payoffs, the pay-life insurance
-# and the life-total swaps and resets. Lane gaps: "life you lost this turn" amounts
-# (Children of Korlis, Rowan), so that one regex arm stays on the serve; "whenever
-# you gain or lose life" (Moonstone Harbinger) and Channel's payments (Sylvan Library).
-_SELF_LIFELOSS_LOST_THIS_TURN = r"life you(?:'ve| have)? lost this turn"
+# and the life-total swaps and resets. The lane reads the "life you lost this turn"
+# amounts too (Children of Korlis). Lane gaps: "whenever you gain or lose life"
+# (Moonstone Harbinger) and Channel's payments (Sylvan Library).
 _SELF_LIFELOSS_SERVE_IDENTS = frozenset(
     {
         "lifeloss_makers|you|",
@@ -90,13 +83,28 @@ _SELF_LIFELOSS_SERVE_IDENTS = frozenset(
 
 # The land-sacrifice serve (land_sacrifice_matters / _makers, you): both lanes. They
 # also read a land sacrificed as a kicker / additional cost (Harrow, Scapeshift) and
-# symmetric sacrifice (Tremble, Wildfire). Lane gap: lands put into a graveyard
+# symmetric land wraths, which sit on the each scope (Tremble, Wildfire, Smallpox).
+# Lane gap: lands put into a graveyard
 # without a sacrifice (Akki Raider, Hedge Shredder).
 _LAND_SAC_SERVE_IDENTS = frozenset(
-    {"land_sacrifice_matters|you|", "land_sacrifice_makers|you|"}
+    {
+        "land_sacrifice_matters|you|",
+        "land_sacrifice_makers|you|",
+        "land_sacrifice_makers|each|",
+    }
 )
 
-# Flying granters: nonhuman_attackers' sub-avenue, the main serve's old regex arm.
+# Flying granters: nonhuman_attackers' sub-avenue. The search fragment keeps the
+# old regex; the serve reads the grant lanes' flying idents.
+_FLYING_GRANT_IDENTS = frozenset(
+    {
+        "keyword_grant_target|you|flying",
+        "team_buff|you|flying",
+        "aura_equip_kw_grant|you|flying",
+        "all_creatures_kw_grant|any|flying",
+        "team_evasion_grant|you|flying",
+    }
+)
 _FLYING_GRANT_ORACLE = r"(?:gains?|have|has) flying|creatures you control[^.]*flying"
 
 SPECS_2: dict[tuple[str, str], SignalSpec] = {
@@ -109,8 +117,17 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
         "Combat damage",
         "evasive attackers and extra-combat enablers to keep connecting",
         {"oracle": r"can't be blocked|\bmenace\b|\bflying\b|additional combat"},
-        r"deals combat damage to (?:a player|an opponent|one of your opponents"
-        r"|each opponent)|can't be blocked(?! except)|\bunblockable\b",
+        # Serve on the lanes' idents: the combat-damage payoffs and the unblockable /
+        # landwalk bodies that connect (menace and fear bodies stay out).
+        None,
+        serve_idents=frozenset(
+            {
+                "combat_damage_matters|opponents|",
+                "combat_damage_to_opp|opponents|",
+                "evasion_self|you|unblockable",
+                "evasion_self|you|landwalk",
+            }
+        ),
         # A combat-damage-trigger commander needs to CONNECT and survive: gear to suit
         # up (Ojutai), instant pump to push through / survive blocks (Benton), and extra
         # combats to multiply the trigger (Neheb -> Relentless Assault, Seize the Day).
@@ -203,7 +220,7 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
         # Storm payoffs a discount chains into are the Storm payoffs extra, read off the
         # keyword (CR 702.40a); the old \bstorm\b served cards named Storm.
         None,
-        serve_idents=frozenset({"cost_reduction|you|"}),
+        serve_idents=frozenset({"cost_reduction|you|*"}),
         serve_cmc_min=7,
         # X-spells by their printed MANA COST, as xspell_matters reads them: the old
         # oracle "{x}" arm caught 32 of 567 X-cost spells (Torment of Hailfire's text
@@ -232,14 +249,12 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
         "payoffs and enablers that cast or play cards from exile (plot, suspend, "
         '"whenever you cast a spell from exile")',
         {"oracle": r"from exile|\b(?:plot|suspend|foretell|rebound)\b"},
-        r"spells? you cast from exile"
-        r"|whenever you cast a spell from exile"
-        r"|you may (?:play|cast) (?:it|that card|those cards?|them|the exiled)"
-        r"[^.]*?from exile"
-        r"|" + _STEAL_CAST_ORACLE + r"|\bplot\b",
+        # Serve on the lane's ident; the keyword dims below cast from exile too.
+        None,
         # Suspend (CR 702.62a), Foretell (702.143), Rebound (702.88a), and Plot all CAST
         # the card from exile — authoritative Scryfall keywords, not regex-from-prose.
-        serve_keywords=("plot", "suspend", "foretell", "rebound"),
+        serve_keywords=("plot", "suspend", "foretell", "rebound", "warp"),
+        serve_idents=frozenset({"cast_from_exile|you|"}),
         extras=(_PARADOX_PAYOFF_EXTRA,),
     ),
     # Impulse (top-of-YOUR-library exile-and-play): hand-written so the serve also
@@ -299,12 +314,9 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
     ("theft_makers", "opponents"): _spec(
         *SWEEP_LABELS["theft_makers"],
         {"oracle": _THEFT_SWEEP_REGEX},
-        _THEFT_SWEEP_REGEX
-        + r"|"
-        + _OPP_LIBRARY_THEFT_ORACLE
-        + r"|"
-        + _STEAL_CAST_ORACLE,
-        serve_not=_SELF_IMPULSE_VETO,
+        # Serve on the theft lane's ident (steal and steal-and-cast engines).
+        None,
+        serve_idents=frozenset({"theft_makers|opponents|"}),
     ),
     # _matters sweep (ADR-0034): the WANTS side of the theft split. wants_theft fires
     # (LOW) when the commander itself rewards casting what you don't own (a don't-own
@@ -316,12 +328,9 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
     ("wants_theft", "opponents"): _spec(
         *SWEEP_LABELS["wants_theft"],
         {"oracle": _THEFT_SWEEP_REGEX},
-        _THEFT_SWEEP_REGEX
-        + r"|"
-        + _OPP_LIBRARY_THEFT_ORACLE
-        + r"|"
-        + _STEAL_CAST_ORACLE,
-        serve_not=_SELF_IMPULSE_VETO,
+        # Serve on the theft lane's ident (steal and steal-and-cast engines).
+        None,
+        serve_idents=frozenset({"theft_makers|opponents|"}),
     ),
     # ADR-0027: void_warp_matters migrated to the Card IR (its SWEEP_DETECTORS row is
     # deleted, so the sweep auto-register loop no longer builds this spec). The serve
@@ -469,17 +478,11 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
             "oracle": r"each opponent loses|target opponent loses|whenever .* dies"
             r"|(?:an? |each )?opponents? lost life this turn"
         },
-        r"opponent[^.]*loses [^.]*life|whenever an opponent loses life|\bextort\b"
-        r"|(?:target player|that player|a player) loses? [^.]*\blife\b"
-        r"|(?:an? opponent|each opponent|opponents?|a player|each player)"
-        r"(?: who)? lost life this turn"
-        # Damage to a player IS life loss (CR 120.3a), so pingers / group-slug that deal
-        # damage to opponents (Kessig Flamebreather, Mogis) are drain payoffs too —
-        # including symmetric group-slug "that player" / "each player" (Sulfuric Vortex,
-        # Roiling Vortex), a drain/aggro staple.
-        r"|deals (?:\d+|x|that much) damage to "
-        r"(?:each opponent|target opponent|each of your opponents"
-        r"|that player|each player)",
+        # Serve on the lanes' idents: life-loss doers and payoffs share one avenue.
+        None,
+        serve_idents=frozenset(
+            {"lifeloss_makers|opponents|", "lifeloss_matters|opponents|"}
+        ),
     ),
     # The bare `pay \d+ life` matched 39 painlands/fetchlands (Blood Crypt, Sacred
     # Foundry) that are mana fixing, not a life-as-resource engine. VETO lands; keep the
@@ -491,9 +494,8 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
         {"oracle": r"you lose \d+ life|pay \d+ life|lose \d+ life"},
         # The life payers and losers, "whenever you lose life" payoffs, pay-life
         # insurance and life-total swaps / resets (Selenia's package); see
-        # _SELF_LIFELOSS_SERVE_IDENTS. The one regex arm kept is the lane gap it
-        # bridges.
-        _SELF_LIFELOSS_LOST_THIS_TURN,
+        # _SELF_LIFELOSS_SERVE_IDENTS.
+        None,
         serve_idents=_SELF_LIFELOSS_SERVE_IDENTS,
         serve_not=r"\bas this land enters\b|enters tapped",
     ),
@@ -511,20 +513,18 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
             "oracle": r"each opponent loses|target opponent loses|whenever .* dies"
             r"|(?:an? |each )?opponents? lost life this turn"
         },
-        r"opponent[^.]*loses [^.]*life|whenever an opponent loses life|\bextort\b"
-        r"|(?:target player|that player|a player) loses? [^.]*\blife\b"
-        r"|(?:an? opponent|each opponent|opponents?|a player|each player)"
-        r"(?: who)? lost life this turn"
-        r"|deals (?:\d+|x|that much) damage to "
-        r"(?:each opponent|target opponent|each of your opponents"
-        r"|that player|each player)",
+        # Serve on the lanes' idents: life-loss doers and payoffs share one avenue.
+        None,
+        serve_idents=frozenset(
+            {"lifeloss_makers|opponents|", "lifeloss_matters|opponents|"}
+        ),
     ),
     ("lifeloss_makers", "you"): _spec(
         "Self life-loss (makers)",
         "ways to pay or lose life on demand to fuel your payoffs, plus the life-total "
         "swaps/resets and recovery that turn a low life total into an advantage",
         {"oracle": r"you lose \d+ life|pay \d+ life|lose \d+ life"},
-        _SELF_LIFELOSS_LOST_THIS_TURN,
+        None,
         serve_idents=_SELF_LIFELOSS_SERVE_IDENTS,
         serve_not=r"\bas this land enters\b|enters tapped",
     ),
@@ -559,9 +559,9 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
                 r"|or more tapped creatures|for each tapped creature you control"
             )
         },
-        r"number of tapped creatures you control"
-        r"|\btapped creatures you control (?:have|get|gain|are|can|with)"
-        r"|or more tapped creatures|for each tapped creature you control",
+        # Serve on the lane's ident.
+        None,
+        serve_idents=frozenset({"tapped_matters|you|"}),
     ),
     # Land sacrifice (Gitrog, Titania, Slogurk): lands hitting the graveyard is the
     # payoff, so repeatable "Sacrifice a land:" outlets (Sylvan Safekeeper, Zuran Orb)
@@ -634,17 +634,17 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
                 r"|put .*land card.*onto the battlefield"
             )
         },
-        # The "number of lands" PAYOFF (Molimo's P/T) PLUS the land ramp / fetch /
-        # recursion that grows the count — lands_matter is the same archetype as
-        # landfall, so it wants the same enablers (reuse _LANDFALL_ORACLE). Also the
-        # creature pump that scales with a basic-land subtype "you control" (Blanchwood
-        # Armor, Primal Bellow) — the mono-color go-tall payoff scales the same way as
-        # Molimo's own P/T. Anchored to "you control" so opponent-basic pumps
-        # (Crusading Knight) stay out.
-        r"the number of lands you control|for each land you control"
-        r"|(?:gets?|get) \+[\dx]+/\+[\dx]+[^.]{0,40}?(?:for each|number of) "
-        r"(?:plains|islands?|swamps?|mountains?|forests?) you control|"
-        + _LANDFALL_ORACLE,
+        # The land-count payoffs plus the land ramp, extra land drops and landfall
+        # that grow the count (same archetype as landfall); the recursion is the extra.
+        None,
+        serve_idents=frozenset(
+            {
+                "lands_matter|you|",
+                "landfall|you|",
+                "extra_land_drop|you|",
+                "ramp|you|land",
+            }
+        ),
         extras=(_LANDS_FROM_GRAVE_EXTRA,),
     ),
     # An ENGINE is recurring or bulk draw — NOT a one-shot cantrip. The serve's
@@ -669,7 +669,9 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
         "Group draw / wheel",
         "symmetric draw with punisher payoffs (Nekusar-style)",
         {"oracle": r"each player draws|whenever .* draws a card"},
-        r"each player[^.]*draws?|that player draws|whenever a player draws",
+        # Serve on the lanes' idents: symmetric draw and its punisher payoffs.
+        None,
+        serve_idents=frozenset({"card_draw_engine|each|", "group_hug_draw|each|"}),
     ),
     # task #83 (theme-preset structural views): cantrip — a bounded single-draw
     # rider (Preordain/Opt-shaped), the crosswalk_signals._cantrip lane's key. A
@@ -786,7 +788,19 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
         "amplify your huge body into a one-shot kill — grant infect or double strike "
         "(Tainted Strike, Temur Battle Rage, Grafted Exoskeleton)",
         {"oracle": _ONE_PUNCH_ORACLE},
-        _ONE_PUNCH_ORACLE,
+        # Serve on the grant lanes' idents for infect / double strike granted to
+        # another creature; a creature's own keyword is out by design.
+        None,
+        serve_idents=frozenset(
+            f"{lane}|{scope}|{kw}"
+            for kw in ("double strike", "infect")
+            for lane, scope in (
+                ("keyword_grant_target", "you"),
+                ("team_buff", "you"),
+                ("aura_equip_kw_grant", "you"),
+                ("all_creatures_kw_grant", "any"),
+            )
+        ),
     ),
     # A non-Human-attack-trigger engine (Winota) wants evasive attackers that reliably
     # connect — fliers, a useful ~25% narrowing (Dan's own line: "non-Humans" at 96% is
@@ -798,9 +812,8 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
         "fliers that connect to trigger your non-Human attack payoff (and flying "
         "Humans to cheat into play)",
         {"card_type": "Creature", "keyword": "flying"},
-        # The fliers are the avenue (the keyword dim). The flying GRANTERS are the
-        # Flying granters sub-avenue: no ident reads them (keyword_grant_target and
-        # team_evasion_grant carry no keyword subject).
+        # The fliers are the avenue (the keyword dim); the flying GRANTERS are the
+        # Flying granters sub-avenue, served on the grant lanes' flying idents.
         None,
         serve_keywords=("flying",),
         extras=(
@@ -808,7 +821,7 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
                 "Flying granters",
                 "effects that give your attackers flying so they connect",
                 {"oracle": _FLYING_GRANT_ORACLE},
-                serve=Serve(oracle=re.compile(_FLYING_GRANT_ORACLE, _IC)),
+                serve=Serve(signal_idents=_FLYING_GRANT_IDENTS),
             ),
         ),
     ),
@@ -1277,8 +1290,9 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
         "Domain",
         "basic land types and fixing to grow domain",
         {"oracle": r"\bdomain\b|basic land types?"},
-        r"\bdomain\b|number of basic land types?|basic land types? among"
-        r"|every basic land type|basic land types?[^.]*in addition to",
+        # Serve on the lane's ident: the payoffs and the land-type granters.
+        None,
+        serve_idents=frozenset({"domain_matters|you|"}),
     ),
     ("clue_matters", "you"): _spec(
         "Clues / investigate",
@@ -1355,13 +1369,17 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
         "Voting / council",
         "will-of-the-council and vote effects — multiplayer politics",
         {"oracle": r"\bvote\b|will of the council|council's dilemma"},
-        r"\bvote\b|will of the council",
+        # Serve on the lanes' idents: vote makers and vote payoffs share one avenue.
+        None,
+        serve_idents=frozenset({"voting_makers|each|", "voting_matters|each|"}),
     ),
     ("voting_matters", "each"): _spec(
         "Voting / council payoffs",
         "cards that trigger off a vote — multiplayer politics",
         {"oracle": r"\bvote\b|will of the council|council's dilemma"},
-        r"\bvote\b|will of the council",
+        # Serve on the lanes' idents: vote makers and vote payoffs share one avenue.
+        None,
+        serve_idents=frozenset({"voting_makers|each|", "voting_matters|each|"}),
     ),
     ("coven_matters", "you"): _spec(
         "Coven",

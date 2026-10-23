@@ -33,7 +33,11 @@ from mtg_utils._card_ir.crosswalk import (
     AbilityUnit,
     ConceptNode,
     ConceptTree,
+    counter_kind_any,
+    effect_actor_scope,
+    effect_filter,
     effect_owner_player_scope,
+    effect_player_reach,
     filter_controller,
     filter_controller_side,
     filter_core_types,
@@ -49,7 +53,9 @@ from mtg_utils._card_ir.crosswalk import (
     iter_mod_sites,
     iter_typed_nodes,
     recipient_tag,
+    settap_state,
     static_mode_tag,
+    steals_card_to_cast,
     tag_of,
     trigger_constraint_tag,
 )
@@ -266,10 +272,140 @@ def has_self_etb_value(tree: ConceptTree) -> bool:
 # is_clone_value_effect (clone-worthy payloads for wants_cloning) and misses
 # the removal half of the recast-loop class — Shriekmaw ['destroy'],
 # Fleshbag Marauder ['sacrifice'] (probed 2026-07-18). This set names the
-# effect CONCEPTS a self-ETB trigger converts into value on every re-entry.
+# effect CONCEPTS (``crosswalk.EFFECT_CONCEPTS`` values) a self-ETB trigger
+# converts into value on every re-entry: card flow, board presence (tokens,
+# counters, pumps, life, mana, the monarch), and interaction (removal, tap-
+# down, theft, bounce, counterspells, discard and life loss aimed at others).
+# Phase B (2026-10-20): the set once named compat categories ("damage",
+# "exile") no concept carries — a damage ETB is ``deal_damage``, an exile is a
+# ``change_zone`` — and left out tokens, counters, lifegain, blinks and
+# recursion, so ~2,900 self-ETB value permanents (Siege-Gang Commander,
+# Gravedigger, Flametongue Kavu, Man-o'-War, Thragtusk) missed the key.
 _SELF_ETB_PAYLOAD_CONCEPTS = frozenset(
-    {"destroy", "draw", "sacrifice", "damage", "discard", "mill", "tutor", "exile"}
+    {
+        # card flow
+        "draw",
+        "dig",
+        "tutor",
+        "scry",
+        "surveil",
+        "reveal_until",
+        "mill",
+        "discard",
+        "investigate",
+        "explore",
+        "connive",
+        "cast_from_zone",
+        "exile_top",
+        "conjure",
+        "seek",
+        "discover",
+        "put_library_position",
+        "copy_spell",
+        # board presence
+        "make_token",
+        "copy_token",
+        "populate",
+        "amass",
+        "incubate",
+        "facedown",
+        "place_counter",
+        "multiply_counter",
+        "proliferate",
+        "pump",
+        "gain_life",
+        "gain_energy",
+        "ramp",
+        "become_monarch",
+        "venture",
+        "ring_tempt",
+        "change_zone",
+        # interaction
+        "destroy",
+        "sacrifice",
+        "deal_damage",
+        "lose_life",
+        "bounce",
+        "tap_untap",
+        "fight",
+        "gain_control",
+        "exchange_control",
+        "goad",
+        "detain",
+        "counter_spell",
+        "phasing",
+        "skip_next_step",
+        "reveal_hand",
+    }
 )
+# The payload concepts that HURT whoever they land on. Aimed only at you they
+# are the permanent's drawback, not its payload: "sacrifice it unless …" (the
+# Karoo lands, Hecatomb, evoke's own sacrifice), "return a land you control"
+# (the bounce lands), "you lose 2 life" (Foul Imp), "discard a card" (Pale
+# Rider), "deals 3 damage to target creature you control" (Whiptail Moloch),
+# "tap all other creatures you control" (Dread Cacodemon), a -1/-1 counter on
+# your own creature (Ornery Kudu).
+_SELF_ETB_HARM_CONCEPTS = frozenset(
+    {"lose_life", "deal_damage", "discard", "sacrifice", "bounce", "destroy"}
+)
+# Recipient tags naming the controller or the trigger's own source.
+_SELF_ETB_OWN_RECIPIENTS = frozenset({"Controller", "SelfRef"})
+# A trigger's temporary grant (a ``GenericEffect`` carrying modifications):
+# "target creature gets +2/+0 and gains haste" (Inner-Flame Acolyte),
+# Craterhoof's "+X/+X and trample" (``AddDynamicPower``).
+_SELF_ETB_STATIC_TAGS = frozenset({"AddDynamicPower", "AddDynamicToughness"})
+# Keyword actions phase types with no ``EFFECT_CONCEPTS`` row (they decorate as
+# ``other``): bolster and endure put +1/+1 counters or make a Spirit, learn
+# draws or fetches a Lesson — value on every entry (Sandsteppe Scavenger,
+# Fortress Kin-Guard, Gnarled Professor).
+_SELF_ETB_ACTION_TAGS = frozenset({"Bolster", "Endure", "Learn"})
+
+
+def _self_etb_harm_lands_on_you(unit: AbilityUnit, c: ConceptNode) -> bool:
+    """Whether a harmful payload effect reaches only you or your permanents:
+    no player reach beyond you (:func:`effect_player_reach`), and a recipient
+    that is you or the source itself, an object filter you control, or an
+    unaimed life loss / discard (the controller's own)."""
+    if effect_player_reach(unit.node, c.node) is not None:
+        return False
+    rt = recipient_tag(c.node)
+    if rt in _SELF_ETB_OWN_RECIPIENTS:
+        return True
+    if filter_controller_side(effect_filter(c.node)) == "you":
+        return True
+    return rt is None and c.concept in ("lose_life", "discard") and c.scope == "you"
+
+
+def _is_self_etb_payload(unit: AbilityUnit, c: ConceptNode) -> bool:
+    """Whether one concept of a self-ETB trigger is VALUE the permanent
+    re-delivers on every entry (CR 603.6a): a :data:`_SELF_ETB_PAYLOAD_CONCEPTS`
+    effect (or a temporary pump / keyword grant), minus a drawback that lands
+    on you (:func:`_self_etb_harm_lands_on_you` — a tap counts only as a TAP,
+    a counter only as a -1/-1 counter), a gift an opponent receives ("each
+    other player may draw", the Hunted creatures' opponent tokens — an
+    opponent-mill stays value), and the undying / shuffle-back
+    self-preservation returns :func:`is_clone_value_effect` sheds too."""
+    if c.role == "static":
+        return c.concept in ("pump", "grant_keyword") or (
+            tag_of(c.node) in _SELF_ETB_STATIC_TAGS
+        )
+    if tag_of(c.node) in _SELF_ETB_ACTION_TAGS:
+        return True
+    if c.concept not in _SELF_ETB_PAYLOAD_CONCEPTS:
+        return False
+    if _is_self_return_effect(c) or _is_shuffle_back_effect(c):
+        return False
+    harmful = c.concept in _SELF_ETB_HARM_CONCEPTS or (
+        (c.concept == "tap_untap" and settap_state(c.node) == "Tap")
+        or (c.concept == "place_counter" and counter_kind_any(c.node) == "M1M1")
+    )
+    if harmful:
+        return not _self_etb_harm_lands_on_you(unit, c)
+    if c.concept in ("mill", "tap_untap"):
+        return True
+    if c.concept == "make_token" and c.scope == "opponents":
+        return False
+    return effect_actor_scope(unit, c.node) != "opponents"
 
 
 def has_self_etb_payload(tree: ConceptTree) -> bool:
@@ -278,15 +414,18 @@ def has_self_etb_payload(tree: ConceptTree) -> bool:
     so under a commander that repeatably recasts/reanimates/bounces the
     permanent, the one-shot clause is a per-turn engine. Wider than
     :func:`has_self_etb_value` (which keeps its is_clone_value_effect gate
-    for wants_cloning): any :data:`_SELF_ETB_PAYLOAD_CONCEPTS` effect
-    qualifies — Shriekmaw's destroy, Mulldrifter's draw, Fleshbag
-    Marauder's edict sacrifice."""
+    for wants_cloning): any :func:`_is_self_etb_payload` concept qualifies —
+    Shriekmaw's destroy, Mulldrifter's draw, Fleshbag Marauder's edict,
+    Siege-Gang Commander's tokens, Craterhoof's pump; a drawback-only
+    trigger (Hecatomb, the Karoo lands, Foul Imp) does not."""
     for unit in tree.units:
         if (
             unit.origin == "trigger"
             and unit.trigger_event in ETB_TRIGGER_EVENTS
             and tag_of(getattr(unit.node, "valid_card", None)) == "SelfRef"
-            and any(c.concept in _SELF_ETB_PAYLOAD_CONCEPTS for c in unit.effects)
+            and any(
+                _is_self_etb_payload(unit, c) for c in (*unit.effects, *unit.statics)
+            )
         ):
             return True
     return False
@@ -1136,7 +1275,7 @@ def _theft_hand_effect(unit: AbilityUnit) -> ConceptNode | None:
 
 def has_structural_theft_makers(tree: ConceptTree) -> bool:
     """Whether phase ALREADY carries a typed node the theft_makers Tier-1
-    read sees — the synth gap-gate (GAP-GATE-ALIGNMENT: the SAME five
+    read sees — the synth gap-gate (GAP-GATE-ALIGNMENT: the SAME six
     sub-reads the lane fires on, so the lane and the gate never disagree).
     """
     for unit in tree.units:
@@ -1146,6 +1285,7 @@ def has_structural_theft_makers(tree: ConceptTree) -> bool:
             or _theft_tutor_effect(unit) is not None
             or _theft_mass_zone_effect(unit) is not None
             or _theft_hand_effect(unit) is not None
+            or steals_card_to_cast(unit) is not None
         ):
             return True
     return False

@@ -59,7 +59,6 @@ from mtg_utils._card_ir.crosswalk.reads import (
     _node_raw,
     _present,
     _scope_from_player_node,
-    _trigger_event,
     _type_filter_words,
     effect_children,
     filter_core_types,
@@ -73,6 +72,7 @@ from mtg_utils._card_ir.crosswalk.reads import (
     static_mode_tag,
     tag_of,
     trigger_caster_scope,
+    trigger_def_event,
 )
 from mtg_utils._card_ir.mirror.runtime import (
     MISSING,
@@ -900,7 +900,7 @@ def is_dies_return_trigger(trig: object) -> bool:
     """
     if not isinstance(trig, TypedMirrorNode):
         return False
-    if _trigger_event(trig) != "dies":
+    if trigger_def_event(trig) != "dies":
         return False
     if tag_of(getattr(trig, "valid_card", None)) not in _DIES_RETURN_WATCHER_TAGS:
         return False
@@ -1723,7 +1723,7 @@ def build_concept_tree(
                 kind=getattr(execute, "kind", None)
                 if isinstance(execute, TypedMirrorNode)
                 else None,
-                trigger_event=_trigger_event(trig),
+                trigger_event=trigger_def_event(trig),
                 effects=effects,
                 costs=(),
                 statics=_nested_static_concepts(execute)

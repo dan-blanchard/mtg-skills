@@ -55,8 +55,8 @@ from mtg_utils._card_ir.crosswalk import (
     static_mode_field,
     static_mode_tag,
     tag_of,
+    token_creator_side,
     trigger_counter_filter,
-    triggering_player_side,
 )
 from mtg_utils._card_ir.mirror.runtime import (
     MirrorVariant,
@@ -1397,22 +1397,11 @@ def _gain_control(tree: ConceptTree) -> list[Signal]:
     return []
 
 
-def _owner_is_target_player(token_node: object) -> bool:
-    """Whether a ``Token`` effect's ``owner`` is a target player ("Target player
-    creates a Treasure token" — Prismari Command). Reading it as yours (you may
-    target yourself) is this lane's own decision."""
-    return tag_of(getattr(token_node, "owner", None)) == "Player"
-
-
-def _triggering_opponent_creates(unit: AbilityUnit, token_node: object) -> bool:
-    """Whether an opponent creates the token: "Whenever an opponent casts a
-    spell, that player creates a Blood token" (Bloodvial Purveyor) names the
-    triggering player as the owner of a trigger that watches only opponents.
-    CR 111.2: the player who creates a token owns and controls it."""
-    return (
-        tag_of(getattr(token_node, "owner", None)) == "TriggeringPlayer"
-        and triggering_player_side(unit) == "opponents"
-    )
+#: The token creators (:func:`crosswalk.token_creator_side`) whose token is
+#: yours to make: you, each player (you among them), or a target player —
+#: "Target player creates a Treasure token" (Prismari Command): reading it as
+#: yours (you may target yourself) is the lane's own decision.
+TOKEN_YOURS_SIDES: frozenset[str] = frozenset({"you", "each", "chosen"})
 
 
 def _resource_token_makers(tree: ConceptTree) -> list[Signal]:
@@ -1434,7 +1423,7 @@ def _resource_token_makers(tree: ConceptTree) -> list[Signal]:
       Mirror-Breaker's Goblin Shaman, Wolf's Quarry's Boars);
     * "Target player creates a Treasure token" (Prismari Command): the token's
       ``owner`` is a target player you choose, and reading it as yours (you
-      may target yourself) is the lane's own decision; phase scopes it "any";
+      may target yourself) is the lane's own decision (:data:`TOKEN_YOURS_SIDES`);
     * a ``CreateToken`` replacement that creates a kind it does not watch
       (:func:`~mtg_utils._card_ir.crosswalk.replacement_added_token_subtypes`
       against :func:`~mtg_utils._card_ir.crosswalk.replacement_token_types`):
@@ -1448,8 +1437,13 @@ def _resource_token_makers(tree: ConceptTree) -> list[Signal]:
       Peacock's Clues), read off an ``AddSubtype`` over a filter you control.
 
     A token an opponent creates is not yours to make (CR 111.2), including
-    "that player creates" on a trigger that watches only opponents
-    (:func:`_triggering_opponent_creates` — Bloodvial Purveyor).
+    "that player creates" on a trigger that watches only opponents (Bloodvial
+    Purveyor) — :func:`crosswalk.token_creator_side`. This lane reads every
+    other creator as yours, the removed object's controller ("Its controller
+    creates two Treasure tokens" — An Offer You Can't Refuse) and an enchanted
+    opponent (Overencumbered) included; the artifacts/enchantments token read
+    (``board_and_ramp._token_type_lanes``) and :func:`treasure_maker_you_keep`
+    read those as someone else's.
     """
     keys = {
         "Treasure": "treasure_makers",
@@ -1465,9 +1459,7 @@ def _resource_token_makers(tree: ConceptTree) -> list[Signal]:
                 continue
             if c.concept != "make_token":
                 continue
-            if (
-                c.scope in _YOU_EACH or _owner_is_target_player(c.node)
-            ) and not _triggering_opponent_creates(unit, c.node):
+            if token_creator_side(unit, c.node) != "opponents":
                 out.extend(key for sub, key in keys.items() if sub in c.subject)
             # phase v0.104.0 parks an intervening-if token clause ("if another
             # Human died under your control this turn, create a Food token" —
@@ -1511,11 +1503,8 @@ def _resource_token_makers(tree: ConceptTree) -> list[Signal]:
 
 # Token ``owner`` tags under which YOU end up with the token: the default (no
 # owner / ``Controller``), a copied-permanent's ``OriginalController``, and
-# ``TriggeringPlayer`` ("that player creates a Treasure" — Gonti, Night Minister,
-# Jolene, Pain Distributor: a symmetric trigger you fire too). NOT
-# ``ParentTargetController`` ("Its controller creates two Treasure tokens" — An
-# Offer You Can't Refuse) nor a ``Typed`` opponent filter (Generous Plunderer's
-# second token).
+# ``TriggeringPlayer`` (a symmetric trigger you fire too). Read by
+# ``job_quality.ramp``; the lanes read :func:`crosswalk.token_creator_side`.
 _TOKEN_OWNER_IS_YOU = frozenset(
     {"Controller", "OriginalController", "TriggeringPlayer"}
 )
@@ -1524,17 +1513,21 @@ _TOKEN_OWNER_IS_YOU = frozenset(
 def treasure_maker_you_keep(tree: ConceptTree) -> bool:
     """A Treasure ``make_token`` whose token lands under YOUR control (CR 111.2 —
     the token's owner is the player who created it). Narrower than the
-    ``treasure_makers`` key, which phase scopes "you" for a giveaway too: the
-    ``Token`` node's own ``owner`` says who creates it. The ``ramp`` preset's
-    concept arm reads this (``theme_presets._ramp_concept``) — a Treasure handed to
-    an opponent is not your mana."""
-    for c in tree.effect_concepts("make_token"):
-        if c.scope not in _YOU_EACH or "Treasure" not in c.subject:
-            continue
-        owner = getattr(c.node, "owner", None)
-        if owner is None or tag_of(owner) in _TOKEN_OWNER_IS_YOU:
-            return True
-    return False
+    ``treasure_makers`` key, which phase scopes "you" for a giveaway too: who
+    creates it (:func:`crosswalk.token_creator_side`) must be you — the default,
+    a copied permanent's original controller, "that player" on a trigger you
+    fire too (Gonti, Night Minister; Jolene, Pain Distributor) — not "its
+    controller" (An Offer You Can't Refuse) nor an opponent filter (Generous
+    Plunderer's second token). The ``ramp`` preset's concept arm reads this
+    (``theme_presets._ramp_concept``) — a Treasure handed to an opponent is not
+    your mana."""
+    return any(
+        c.scope in _YOU_EACH
+        and "Treasure" in c.subject
+        and token_creator_side(unit, c.node) == "you"
+        for unit in tree.units
+        for c in unit.effect_concepts("make_token")
+    )
 
 
 def _mill_makers(keywords: frozenset[str], name: str) -> list[Signal]:

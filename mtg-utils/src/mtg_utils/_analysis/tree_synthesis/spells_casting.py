@@ -41,6 +41,7 @@ from mtg_utils._card_ir.crosswalk import (
     iter_typed_nodes,
     mod_keyword_name,
     modify_cost_mode,
+    names_subtype_payoff,
     residue_is,
     static_mode_field,
     static_mode_tag,
@@ -509,29 +510,16 @@ def _arm_boon_creature_cast_trigger(tree: ConceptTree) -> ConceptNode | None:
     )
 
 
-# ── arcane_matters direct/bucket-B (ADR-0036/0037 Stage 5) ─────────────────────
+# ── arcane_matters bucket-B (ADR-0036/0037 Stage 5) ────────────────────────────
 # CR 205.3k (Arcane is a spell type) + 702.47a (Splice onto Arcane). A payoff
-# naming Arcane spells in a cast-trigger/target filter (Tallowisp, Sideswipe)
-# structures as a ``Typed`` filter with subtype "Arcane" — read directly,
-# zero regex. Being Arcane-TYPED is NOT itself membership (probed: 66 of 95
-# corpus Arcane-typed cards carry no arcane-caring text at all — a plain
-# Arcane spell is not a payoff). The genuine bucket-B tail is "Splice onto
-# Arcane" itself: phase drops the whole static ability (zero units for
-# Glacial Ray) — the ``S_Splice`` mirror type exists but is a dead map row
-# (0 corpus nodes, the ``IncreaseSpeed`` precedent) carried anyway for when
-# phase starts emitting it.
-def has_structural_arcane(tree: ConceptTree) -> bool:
-    """Whether phase carries a typed filter naming the Arcane spell subtype
-    (a cast-trigger / target payoff — Tallowisp, Sideswipe) or a structured
-    ``Splice`` static naming Arcane (dead row today, kept for convergence)."""
-    for n in tree.iter_typed():
-        if tag_of(n) == "Typed" and "Arcane" in filter_subtypes(n):
-            return True
-        if tag_of(n) == "Splice" and getattr(n, "subtype", None) == "Arcane":
-            return True
-    return False
-
-
+# naming Arcane is read structurally (:func:`crosswalk.names_subtype_payoff` —
+# Tallowisp's cast trigger, Eerie Procession's tutor, Ire of Kaminari's
+# graveyard count; a structured ``Splice`` naming Arcane, a dead row today).
+# Being Arcane-TYPED is NOT itself membership (probed: 66 of 95 corpus
+# Arcane-typed cards carry no arcane-caring text at all — a plain Arcane spell
+# is not a payoff). The genuine bucket-B tail is "Splice onto Arcane" itself:
+# phase keeps the ``Splice`` keyword but drops its subtype (Glacial Ray), and
+# "Splice onto instant or sorcery" (Fell Beast's Shriek) shares the keyword.
 _ARCANE_SYNTH_RX = re.compile(r"\barcane\b", re.IGNORECASE)
 
 
@@ -541,8 +529,17 @@ def _matches_arcane_idiom(oracle: str) -> bool:
 
 def _arm_arcane_matters(tree: ConceptTree) -> ConceptNode | None:
     """Synthesize an ``arcane_matters`` node for the bucket-B "Splice onto
-    Arcane" tail phase drops entirely (Glacial Ray, Torrent of Stone, …)."""
-    if has_structural_arcane(tree):
+    Arcane" tail phase drops (Glacial Ray, Torrent of Stone, …): the word
+    "Arcane" beside the ``Splice`` keyword, or on a card phase parsed nothing
+    of (no ability unit, no keyword). Without that gate the word fired on card
+    and ability names (Arcane Savant; Zethi, Arcane Blademaster; The Golden
+    Throne's "Arcane Life-support") and on "protection from Arcane" (Kitsune
+    Riftwalker — a keyword, no unit). Gap gate: the Tier-1 read,
+    :func:`crosswalk.names_subtype_payoff`."""
+    if names_subtype_payoff(tree, "Arcane"):
+        return None
+    parsed_nothing = not tree.card_keywords and tree.is_text_only
+    if "Splice" not in tree.card_keywords and not parsed_nothing:
         return None
     if not _matches_arcane_idiom(tree.oracle or ""):
         return None

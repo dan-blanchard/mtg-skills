@@ -4103,17 +4103,19 @@ def test_land_sacrifice_makers_excludes_opponent_land_edict(name):
 
 
 @pytest.mark.parametrize(
-    "name",
+    ("name", "scope"),
     [
-        "Zuran Orb",  # "Sacrifice a land:" — a you-sac cost
-        "Smallpox",  # "each player ... sacrifices a land" — symmetric, you sac too
-        "Death Cloud",  # symmetric X-land sac
+        ("Zuran Orb", "you"),  # "Sacrifice a land:" — a you-sac cost
+        # "each player ... sacrifices a land" — symmetric, you sac too: the
+        # each scope (Phase B copy_lifeloss, 2026-10-20)
+        ("Smallpox", "each"),
+        ("Death Cloud", "each"),  # symmetric X-land sac
     ],
 )
-def test_land_sacrifice_makers_self_and_symmetric_preserved(name):
+def test_land_sacrifice_makers_self_and_symmetric_preserved(name, scope):
     """A self / symmetric land sacrifice (you sac your own lands) still fires
     (CR 701.21 / 305.6)."""
-    assert ("land_sacrifice_makers", "you", "") in _idents(name)
+    assert ("land_sacrifice_makers", scope, "") in _idents(name)
 
 
 # ── ADR-0039 W7: landfall promotion (two pre-W6 accessor fixes + adjudicated
@@ -4145,7 +4147,8 @@ def test_land_sacrifice_makers_epicenter_per_clause():
     ConditionInstead REPLACEMENT body is symmetric (ScopedPlayer/All — you
     sac too) and must NOT inherit the superseded sibling's opponent
     direction across the replacement boundary."""
-    assert ("land_sacrifice_makers", "you", "") in _idents("Epicenter")
+    # The symmetric body's scope is each (Phase B copy_lifeloss, 2026-10-20).
+    assert ("land_sacrifice_makers", "each", "") in _idents("Epicenter")
 
 
 @pytest.mark.parametrize(
@@ -5199,8 +5202,10 @@ def test_cast_from_exile_structural_permission(name):
     """A ``GrantCastingPermission`` whose permission is ``PlayFromExile`` (Act on
     Impulse — impulse exile-and-play) or ``Plotted`` (Aloe Alchemist — plot) fires
     cast_from_exile STRUCTURALLY (the batch's marquee fidelity gain over the live
-    word-mirror; CR 116 / 702.170)."""
-    assert ("cast_from_exile", "you", "") in _idents(name)
+    word-mirror; CR 116 / 702.170). An impulse draw off the top of your own
+    library reads subject ``impulse`` (Phase B 2026-10-20: its own avenue)."""
+    subject = "impulse" if name == "Act on Impulse" else ""
+    assert ("cast_from_exile", "you", subject) in _idents(name)
 
 
 def test_cast_from_exile_excludes_plain_exile_removal():
@@ -5219,8 +5224,11 @@ def test_cast_from_exile_dig_and_reveal_until_evidence(name):
     "look at the top four... exile one of them face down") or an
     ``ExileFromTopUntil`` node (Territorial Bruntar's "exile cards from the
     top of your library until you exile a nonland card") preceding it in the
-    SAME unit — :func:`_cast_from_exile_unit_evidence`. CR 406.1 / 601.2."""
-    assert ("cast_from_exile", "you", "") in _idents(name)
+    SAME unit — :func:`_cast_from_exile_unit_evidence`. CR 406.1 / 601.2.
+    Territorial Bruntar digs YOUR library, so it reads subject ``impulse``;
+    Gonti digs an opponent's (theft) and stays bare (Phase B 2026-10-20)."""
+    subject = "impulse" if name == "Territorial Bruntar" else ""
+    assert ("cast_from_exile", "you", subject) in _idents(name)
 
 
 def test_cast_from_exile_cost_evidence():
@@ -6747,11 +6755,12 @@ def test_opponent_exile_makers_excludes_self_blink():
     assert "opponent_exile_makers" not in _keys("Cloudshift")
 
 
-def test_opponent_exile_makers_excludes_replacement():
-    """Leyline of the Void's GY→exile is a REPLACEMENT whose ChangeZone has no
-    Graveyard origin → the ChangeZone arm does not fire (the replacement arm is a
-    documented live_only tail)."""
-    assert "opponent_exile_makers" not in _keys("Leyline of the Void")
+def test_opponent_exile_makers_reads_replacement():
+    """Leyline of the Void's GY→exile is a REPLACEMENT on cards an opponent owns
+    (Phase B 2026-10-20: ``graveyard_exile_replacement_side``, CR 614.1a);
+    Kalitas's "would die" replacement names the controller, not the owner."""
+    assert ("opponent_exile_makers", "opponents", "") in _idents("Leyline of the Void")
+    assert "opponent_exile_makers" not in _keys("Kalitas, Traitor of Ghet")
 
 
 def test_opponent_exile_makers_excludes_any_card_exile():
@@ -8134,14 +8143,20 @@ def test_dies_recursion_excludes_hot_potato_return():
 
 
 @pytest.mark.parametrize(
-    "name", ["Alesha, Who Smiles at Death", "Reanimate", "Soul Salvage"]
+    ("name", "dest"),
+    [
+        ("Alesha, Who Smiles at Death", "battlefield"),
+        ("Reanimate", "battlefield"),
+        ("Soul Salvage", "hand"),
+    ],
 )
-def test_creature_recursion_arms(name):
+def test_creature_recursion_arms(name, dest):
     """creature_recursion fires the GY→battlefield reanimation arm (Alesha,
     Reanimate) and the GY→hand recall arm (Soul Salvage — a
     ``ChangeZone(origin: Graveyard, destination: Hand)`` over a Creature
-    filter since the v0.23.0 recall migration, task #84). CR 700.4 / 404."""
-    assert ("creature_recursion", "you", "") in _idents(name)
+    filter since the v0.23.0 recall migration, task #84), the destination as
+    its subject (Phase B 2026-10-20). CR 700.4 / 404."""
+    assert ("creature_recursion", "you", dest) in _idents(name)
 
 
 def test_creature_recursion_needs_creature_core_and_gy_zone():
@@ -8161,7 +8176,7 @@ def test_creature_recursion_attached_to_enchant_cross_ref(name):
     creature card in a graveyard"). ``_creature_recursion`` cross-
     references that keyword filter (``ConceptTree.card_enchant_core_
     types``) instead of stopping at the empty ``AttachedTo`` filter."""
-    assert ("creature_recursion", "you", "") in _idents(name)
+    assert ("creature_recursion", "you", "battlefield") in _idents(name)
 
 
 def test_creature_recursion_necromancy_structural():
@@ -8173,7 +8188,7 @@ def test_creature_recursion_necromancy_structural():
     phase v0.25.0 (#640) landed the real ``ChangeZone
     Graveyard→Battlefield`` trigger node — the same structural read Animate
     Dead / Dance of the Dead already ride now serves it."""
-    assert ("creature_recursion", "you", "") in _idents("Necromancy")
+    assert ("creature_recursion", "you", "battlefield") in _idents("Necromancy")
 
 
 @pytest.mark.parametrize(
@@ -10329,16 +10344,16 @@ def test_creature_cast_trigger_no_residue_synthesis(name):
 
 def test_opponent_cast_matters_recipient_gate():
     """Kambal's cast-player recipient (``valid_target Typed controller
-    Opponent`` — checklist #5) fires scope "opponents"; the symmetric "a
-    player casts" punisher (Eidolon of the Great Revel — CR 102.1: "a
-    player" includes you) and the self-cast watcher (Beast Whisperer) stay
-    out."""
+    Opponent`` — checklist #5) fires scope "opponents"; the self-cast
+    watcher (Beast Whisperer) stays out. (Phase B 2026-10-20: the symmetric
+    "a player casts" punisher that hurts the caster — Eidolon of the Great
+    Revel — fires too, ``punishes_triggering_caster``.)"""
     assert (
         "opponent_cast_matters",
         "opponents",
         "",
     ) in _idents("Kambal, Consul of Allocation")
-    assert "opponent_cast_matters" not in _keys("Eidolon of the Great Revel")
+    assert "opponent_cast_matters" in _keys("Eidolon of the Great Revel")
     assert "opponent_cast_matters" not in _keys("Beast Whisperer")
 
 
@@ -10816,10 +10831,14 @@ def test_aura_equip_kw_grant_subgroup_gate():
     """Rashel's "Auras you control have exalted" (Subtype Aura + controller
     You) fires; the name-scoped controller-null Equipment cycle (Shield of
     Kaldra) and the equipped-CREATURE recipient grant (Cori-Steel Cutter's
-    haste — no Aura/Equipment subtype on the affected filter) never fire."""
+    haste — no Aura/Equipment subtype on the affected filter) never fire the
+    subject-less ident. (Phase B 2026-10-20: a suit-up recipient's keyword
+    rides as a subject — Shield of Kaldra's "Equipped creature has
+    indestructible" is ``aura_equip_kw_grant|you|indestructible``;
+    ``tests/mtg-utils/test_lane_gaps_keyword_grants.py``.)"""
     assert ("aura_equip_kw_grant", "you", "") in _idents("Rashel, Fist of Torm")
-    assert "aura_equip_kw_grant" not in _keys("Shield of Kaldra")
-    assert "aura_equip_kw_grant" not in _keys("Cori-Steel Cutter")
+    assert ("aura_equip_kw_grant", "you", "") not in _idents("Shield of Kaldra")
+    assert ("aura_equip_kw_grant", "you", "") not in _idents("Cori-Steel Cutter")
 
 
 def test_base_pt_set_set_and_switch_arms():
@@ -14364,10 +14383,12 @@ def test_untap_engine_structural_and_mirror_arms():
     lands"; Snap "Untap up to two lands" — a LIVE member, polarity from the
     banked pop), and the mirror (Seedborn Muse via "untap all", NOT an
     UntapsDuringEachOtherPlayersUntapStep static read) fire; the
-    enchanted-rider (Crab Umbra — attach veto) never fires."""
+    enchanted-creature untap (Crab Umbra) fires too since Phase B
+    (2026-10-20): it untaps the one creature it enchants, the untap a {T}
+    engine re-taps with (``removal_tutors._untaps_named_creature``)."""
     for name in ("Early Harvest", "Candelabra of Tawnos", "Snap", "Seedborn Muse"):
         assert ("untap_engine", "you", "") in _idents(name), name
-    assert "untap_engine" not in _keys("Crab Umbra")
+    assert ("untap_engine", "you", "") in _idents("Crab Umbra")
 
 
 def test_theft_makers_mirror_only_and_exchange_boundary():
@@ -14811,8 +14832,8 @@ def test_evasion_self_keyword_and_mirror_arms():
     (Accursed Spirit's Intimidate) and the flat kept mirror (Aether
     Figment's "can't be blocked", no evasion keyword) fire; flying is
     DELIBERATELY soft evasion and never fires (Serra Angel)."""
-    assert ("evasion_self", "you", "") in _idents("Accursed Spirit")
-    assert ("evasion_self", "you", "") in _idents("Aether Figment")
+    assert ("evasion_self", "you", "intimidate") in _idents("Accursed Spirit")
+    assert ("evasion_self", "you", "unblockable") in _idents("Aether Figment")
     assert "evasion_self" not in _keys("Serra Angel")
 
 
@@ -17109,8 +17130,11 @@ def test_enchantment_token_maker_is_not_an_enchantments_payoff(name):
     tokens are Aura Role enchantment tokens), so these cards MAKE enchantments —
     the doer side, counted as the Enchantments avenue's depth by its serve, never
     the enchantments_matter payoff (Smoke Spirits' Aid's recovered Aura token;
-    Ellivere's and Monstrous Rage's Roles)."""
-    assert not any(k == "enchantments_matter" for k, _s, _su in _idents(name))
+    Ellivere's and Monstrous Rage's Roles): the maker carries the subject
+    ``token`` (Phase B, 2026-10-20), which the serve reads as depth."""
+    idents = _idents(name)
+    assert ("enchantments_matter", "you", "") not in idents
+    assert ("enchantments_matter", "you", "token") in idents
 
 
 def test_enchantment_creature_token_maker_keeps_only_its_cast_payoff():

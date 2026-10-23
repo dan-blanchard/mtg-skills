@@ -12,7 +12,7 @@ from mtg_utils._card_ir.crosswalk import (
     ARTIFACT_TOKEN_SUBTYPES,
     CHOSEN_PLAYER_SCOPE,
     LAND_SUBTYPE_WORDS,
-    MASS_EFFECT_TAGS,
+    TARGET_BACKREF_TAGS,
     AbilityUnit,
     ConceptNode,
     ConceptTree,
@@ -27,6 +27,7 @@ from mtg_utils._card_ir.crosswalk import (
     filter_owned_controller,
     filter_predicates,
     filter_subtypes,
+    root_target_filter,
     sacrifice_names_no_player,
     scoped_player_scope,
     tag_of,
@@ -639,53 +640,10 @@ def _is_generic_creature_filter(filt: object) -> bool:
 # (Beacon of Immortality, Blitz Hellion, Cerulean Sphinx, …) whose ONLY
 # ParentTargetOwner-tagged effect is an ``Shuffle``/``other`` concept no
 # lane reads for scope at all — genuinely no bug, nothing to fix.
-_TARGET_OWNER_BACKREF_TAGS: frozenset[str] = frozenset(
-    {
-        "ParentTarget",
-        "ParentTargetOwner",
-        "ParentTargetController",
-        "SelfRef",
-        "TriggeringSource",
-        "TriggeringPlayer",
-        "TrackedSet",
-        "TrackedSetFiltered",
-        "Any",
-        "Controller",
-        "OriginalController",
-        "Player",
-        "TargetPlayer",
-        "Opponent",
-        "Opponents",
-        "EachOpponent",
-        "ScopedPlayer",
-        "AllPlayers",
-        "Each",
-        "EachPlayer",
-    }
-)
-
-
-def _root_target_filter(unit: AbilityUnit) -> object | None:
-    """The FIRST real object-filter target in ``unit``'s effect chain — the
-    object ``ParentTarget``/``ParentTargetOwner`` resolve through — skipping
-    a mass/symmetric effect (:data:`MASS_EFFECT_TAGS`, CR 601.2c: "all"/
-    "each" names no single chosen object, so a later back-reference in the
-    SAME chain can't mean IT) and any back-reference tag
-    (:data:`_TARGET_OWNER_BACKREF_TAGS`). ``None`` when no unit effect names
-    a genuine filter (Or/And/Typed) — a self-referencing chain (Mirror-Mad
-    Phantasm's "this creature's owner shuffles IT into their library" — the
-    SAME card, never a variable target)."""
-    for c in unit.effects:
-        if tag_of(c.node) in MASS_EFFECT_TAGS:
-            continue
-        tgt = getattr(c.node, "target", None)
-        if tgt is None:
-            continue
-        tt = tag_of(tgt)
-        if tt is None or tt in _TARGET_OWNER_BACKREF_TAGS:
-            continue
-        return tgt
-    return None
+# The walk and its skip set are the crosswalk's (``root_target_filter`` /
+# ``TARGET_BACKREF_TAGS``), shared with ``crosswalk.token_creator_side``.
+_TARGET_OWNER_BACKREF_TAGS = TARGET_BACKREF_TAGS
+_root_target_filter = root_target_filter
 
 
 def _target_owner_beneficiary_scope(unit: AbilityUnit) -> str | None:

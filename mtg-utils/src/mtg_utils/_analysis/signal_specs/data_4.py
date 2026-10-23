@@ -71,15 +71,14 @@ SPECS_4: dict[tuple[str, str], SignalSpec] = {
         r" get \+\d/\+\d",
         serve_not=r"get \+\d/\+\d[^.]*until end of turn",
     ),
-    # ADR-0027: activated_draw had its oracle-regex SWEEP_DETECTORS row deleted
-    # (detection moved to the structural tap-cost + draw-effect IR arm). It had NO
-    # hand-written serve, so the sweep auto-register loop built it; now that the row is
-    # gone, hand-register the spec the loop used to build, reusing SWEEP_LABELS + the
-    # deleted regex (the SERVE pool stays oracle-defined — repeatable {T}:Draw engines).
+    # Serves the lane's repeatable activated draws (tap-cost and other costs alike);
+    # one-shot self-sacrifice draws are out by the lane. The one remainder is a
+    # planeswalker whose draw the lane does not see.
     ("activated_draw", "you"): _spec(
         *SWEEP_LABELS["activated_draw"],
         {"oracle": r"\{t\}: draw a card"},
-        r"\{t\}: draw a card",
+        None,
+        serve_idents=frozenset({"activated_draw|you|"}),
     ),
     # free_creature_payoff (Satoru): the "no mana was spent to cast" payoff wants 0-cost
     # CREATURES (Ornithopter / Memnite / Phyrexian Walker / Kobolds / Shield Sphere) —
@@ -166,8 +165,10 @@ SPECS_4: dict[tuple[str, str], SignalSpec] = {
         "Untap effects",
         "untap effects that re-tap the power-scaling ability for another activation",
         {"oracle": r"untap (?:another )?target (?:creature|permanent)|\buntap it\b"},
-        r"untap (?:another )?target (?:creature|permanent)|\buntap it\b"
-        r"|untap all [^.]*you control",
+        # Serves the untap-engine lane; a card that only untaps itself is out by the
+        # lane's decision (it re-taps nothing else).
+        None,
+        serve_idents=frozenset({"untap_engine|you|"}),
     ),
     # Recastable ETB aggressors (Oroku Saki + the TMNT Sneak legends): cheap creatures
     # whose ENTER trigger bleeds opponents (each opponent discards / loses life), so
@@ -408,9 +409,17 @@ SPECS_4: dict[tuple[str, str], SignalSpec] = {
             "oracle": r"whenever a player[^.]*(?:returns? a land|sacrifices? a land)"
             r"|that player (?:returns?|sacrifices?) a land"
         },
-        r"whenever a player[^.]*(?:returns? a land|sacrifices? a land)"
-        r"|that player (?:returns?|sacrifices?) a land"
-        r"|each player sacrifices a land",
+        # Serves the sacrifice and bounce land-denial lanes; "that player returns a
+        # land" (Mana Breach, Overburden) is the remainder no lane reads.
+        None,
+        serve_idents=frozenset(
+            {
+                "land_sacrifice_makers|each|",
+                "mass_land_denial|each|sacrifice",
+                "mass_land_denial|each|bounce",
+                "land_denial|you|",
+            }
+        ),
     ),
     # Cast-from-hand-or-lose (Phage): negate the drawback — command-zone-to-hand so it's
     # cast normally, "can't lose the game" backstops, and "ETBs don't trigger" silences
@@ -466,8 +475,17 @@ SPECS_4: dict[tuple[str, str], SignalSpec] = {
             "oracle": r"lands?[^.]*are islands|becomes? an island|flood counter"
             r"|\bislandwalk\b"
         },
-        r"(?:nonbasic |all )?lands?[^.]*are islands|becomes? an island|flood counter"
-        r"|\bislandwalk\b|number of islands",
+        # Serves islandwalk bearers and granters, lands-become-Islands effects and the
+        # Island-attack-restriction bodies. Counts of your own Islands are out by design
+        # (flood noise); Quicksilver Fountain is a phase parse gap.
+        None,
+        serve_idents=frozenset(
+            {
+                "island_makers|you|",
+                "island_makers|you|lands_become_islands",
+                "island_matters|you|",
+            }
+        ),
     ),
     # island_matters (the Zhou Yu cares-about-Islands PAYOFF side): effects that turn
     # opponents' lands into Islands so the attack restriction is met, plus island-count
@@ -477,8 +495,12 @@ SPECS_4: dict[tuple[str, str], SignalSpec] = {
         "Island matters",
         "make opponents' lands Islands so the attack restriction is met",
         {"oracle": r"lands?[^.]*are islands|becomes? an island|flood counter"},
-        r"(?:nonbasic |all )?lands?[^.]*are islands|becomes? an island|flood counter"
-        r"|number of islands",
+        # Serves lands-become-Islands effects and the Island-matters lane; counts of
+        # your own Islands are out by design, Quicksilver Fountain is a phase gap.
+        None,
+        serve_idents=frozenset(
+            {"island_makers|you|lands_become_islands", "island_matters|you|"}
+        ),
     ),
     # Tap down blockers (Tromokratis): effects that tap OPPONENTS' creatures (Sleep,
     # Blustersquall) so the defender can't field enough blockers, letting the
@@ -693,7 +715,10 @@ SPECS_4: dict[tuple[str, str], SignalSpec] = {
         "flash creatures to ambush-cast plus the flash-granters that build the deck "
         "around instant-speed play",
         {"preset_names": ("flash",)},
-        r"cast[^.]{0,60}spells?[^.]{0,30}as though they had flash",
+        # Serves the flash-granter lane beside the flash keyword; granters whose
+        # grant is conditional or typed (Arlinn, Rootwater Shaman) are the remainder.
+        None,
+        serve_idents=frozenset({"flash_makers|you|"}),
         serve_keywords=("flash",),
     ),
     # ADR-0034 _matters sweep SPLIT: the PAYOFF side — the opponent-turn cast triggers
@@ -719,7 +744,7 @@ SPECS_4: dict[tuple[str, str], SignalSpec] = {
         # 2026-10-18: the serve regex missed a pump between "control" and the grant
         # ("get +1/+0 and gain fear" — Dance of Shadows, Eldrazi Monument).
         None,
-        serve_idents=frozenset({"team_evasion_grant|you|"}),
+        serve_idents=frozenset({"team_evasion_grant|you|*"}),
     ),
     # Override the auto-registered saga_matters sweep spec: surface the FULL Saga pool
     # via a subtype search (the sweep spec only found lore-counter cards), and serve the

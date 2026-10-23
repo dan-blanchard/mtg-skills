@@ -273,7 +273,7 @@ def test_dies_recursion_serve_reads_dies_return_grants():
 
 
 def test_keyword_grant_target_serve_reads_untap_and_grant():
-    serve = _ident_serve("keyword_grant_target", "you", "keyword_grant_target|you|")
+    serve = _ident_serve("keyword_grant_target", "you", "keyword_grant_target|you|*")
     assert serve.matches(_card("Aim High"))
 
 
@@ -680,3 +680,106 @@ def test_aoe_ping_serve_is_the_pingers_and_the_gear_an_extra():
     gear = extra(spec, "Deathtouch enablers")
     assert gear.serve is not None
     assert gear.serve.matches(_card("Basilisk Collar"))
+
+
+# ── Pass C: lane fixes freed these serves from their oracle regexes ───────────
+
+
+@pytest.mark.parametrize("key", ["spellcast_matters", "magecraft_matters"])
+def test_spellslinger_serve_rides_the_lanes(key):
+    serve = _ident_serve(
+        key,
+        "you",
+        "spellcast_matters|you|instant_sorcery",
+        "spellcast_matters|you|noncreature",
+        "spellcast_matters|you|second_spell",
+        "magecraft_matters|you|",
+        "cost_reduction|you|instant_sorcery",
+        "cost_reduction|you|noncreature",
+    )
+    assert serve.matches(_card("Guttersnipe"))
+    assert serve.matches(_card("Goblin Electromancer"))
+    # A symmetric/opponent-facing cast tax is not a spellslinger payoff of yours.
+    assert not serve.matches(_card("Eidolon of the Great Revel"))
+    # The type and prowess dims stay.
+    assert "instant" in serve.types
+    assert "prowess" in serve.keywords
+
+
+def test_blocked_matters_serve_rides_the_lane():
+    serve = _ident_serve("blocked_matters", "you", "blocked_matters|you|")
+    assert serve.matches(_card("General Marhault Elsdragon"))
+    spec = spec_for(_sig("blocked_matters"))
+    (lure,) = [e for e in spec.extras if e.label == "Force blocks (Lure)"]
+    assert lure.serve.matches(_card("Lure"))
+
+
+def test_artifacts_matter_serve_rides_the_lanes():
+    serve = _ident_serve(
+        "artifacts_matter",
+        "you",
+        "artifacts_matter|you|*",
+        "treasure_makers|you|",
+        "clue_makers|you|",
+        "food_makers|you|",
+        "blood_makers|you|",
+        "incubate_makers|you|",
+    )
+    assert "artifact" in serve.types
+    assert serve.matches(_card("Thraben Inspector"))  # Clue maker
+    assert serve.matches(_card("Bake into a Pie"))  # Food maker
+    assert serve.matches(_card("Smothering Tithe"))  # Treasure maker
+    assert not serve.matches(_card("Tezzeret's Gambit"))
+
+
+def test_enchantments_matter_serve_rides_the_lane():
+    serve = _ident_serve("enchantments_matter", "you", "enchantments_matter|you|*")
+    assert "enchantment" in serve.types
+    assert serve.matches(_card("Eidolon of Blossoms"))
+    assert serve.matches(_card("Sythis, Harvest's Hand"))
+    assert not serve.matches(_card("Wolf's Quarry"))
+
+
+def test_landfall_serve_rides_the_lanes():
+    serve = _ident_serve(
+        "landfall",
+        "you",
+        "landfall|you|",
+        "extra_land_drop|you|",
+        "ramp|you|land",
+    )
+    assert serve.matches(_card("Lotus Cobra"))
+    assert serve.matches(_card("Azusa, Lost but Seeking"))
+    assert serve.matches(_card("Rampant Growth"))
+    spec = spec_for(_sig("landfall"))
+    assert any(e.serve.matches(_card("Crucible of Worlds")) for e in spec.extras)
+
+
+def test_reanimator_serve_rides_the_lanes():
+    serve = _ident_serve(
+        "reanimator",
+        "you",
+        "reanimator|you|",
+        "creature_recursion|you|battlefield",
+    )
+    assert serve.matches(_card("Zombify"))
+    assert serve.matches(_card("Unburial Rites"))
+    # A return to hand is not a reanimation.
+    assert not serve.matches(_card("Raise Dead"))
+    assert not serve.matches(_card("Regrowth"))
+    assert {"escape", "persist", "undying"} <= serve.keywords
+
+
+@pytest.mark.parametrize("key", ["creature_etb", "damage_for_each"])
+def test_creature_entering_serves_cover_battlefield_recursion(key):
+    scope = "you" if key == "creature_etb" else "any"
+    serve = _ident_serve(key, scope, "creature_recursion|you|battlefield")
+    assert serve.matches(_card("Zombify"))
+    assert serve.matches(_card("Raise the Alarm"))
+    assert not serve.matches(_card("Raise Dead"))
+
+
+def test_flash_grant_serve_rides_the_lane():
+    serve = _ident_serve("flash_grant", "you", "flash_grant|you|")
+    assert serve.matches(_card("Vedalken Orrery"))
+    assert serve.matches(_card("Leyline of Anticipation"))

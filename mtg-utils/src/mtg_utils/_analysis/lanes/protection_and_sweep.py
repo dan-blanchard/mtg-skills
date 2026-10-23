@@ -16,7 +16,6 @@ from mtg_utils._analysis.text_reads import (
 )
 from mtg_utils._analysis.tree_synthesis import (
     _ANTHEM_PUMP_MODS,
-    has_structural_arcane,
     has_structural_cant_block_grant,
     has_structural_firebending_grant,
     has_structural_legend_rule_off,
@@ -41,6 +40,9 @@ from mtg_utils._card_ir.crosswalk import (
     change_zone_dirs,
     counter_kind_any,
     counter_pred_kinds,
+    counts_opponents_land_type,
+    evasion_keyword_kind,
+    evasion_sites,
     filter_controller,
     filter_core_types,
     filter_non_types,
@@ -50,8 +52,10 @@ from mtg_utils._card_ir.crosswalk import (
     iter_cost_leaves,
     iter_mod_sites,
     iter_typed_nodes,
+    makes_lands_type,
     mod_keyword_name,
     modify_cost_mode,
+    names_subtype_payoff,
     protective_grant_recipients,
     protective_saves,
     residue_is,
@@ -98,29 +102,6 @@ _B15_KEYWORD_LANES: tuple[tuple[frozenset[str], str], ...] = (
     (frozenset({"airbend"}), "airbend_makers"),
     (frozenset({"earthbend"}), "earthbend_makers"),
     (frozenset({"waterbend"}), "waterbend_makers"),
-    (
-        frozenset(
-            {
-                "menace",
-                "fear",
-                "intimidate",
-                "skulk",
-                "horsemanship",
-                "shadow",
-                # ADR-0036 evasion_self fold (bucket-A): the landwalk family
-                # (CR 702.14) also rides Scryfall's own keyword field — a
-                # genuine structural recovery over the deleted
-                # ``_EVASION_SELF_REGEX`` mirror's landwalk-word branch.
-                "islandwalk",
-                "swampwalk",
-                "forestwalk",
-                "mountainwalk",
-                "plainswalk",
-                "landwalk",
-            }
-        ),
-        "evasion_self",
-    ),
     (frozenset({"start your engines!"}), "speed_makers"),
     (frozenset({"max speed"}), "speed_matters"),
     (frozenset({"saddle"}), "saddle_matters"),
@@ -136,7 +117,12 @@ def _keyword_field_signals_b15(keywords: frozenset[str], name: str) -> list[Sign
     corrected from the 20260619 CR CLI output), PLUS the five landwalk
     keywords + the "landwalk" umbrella row (CR 702.14 — a genuine
     ADR-0036 bucket-A structural recovery: 122 corpus cards carry a
-    landwalk keyword in their OWN Scryfall ``keywords`` field). flying is
+    landwalk keyword in their OWN Scryfall ``keywords`` field), each fired
+    with its kind as the subject (:func:`crosswalk.evasion_keyword_kind` —
+    every landwalk spelling is ``landwalk``). The field lists only the card's
+    OWN keywords (a granter such as Sun Quan carries none), and covers the
+    landwalks phase's keyword list drops (Desert Nomads' desertwalk rides the
+    field's "Landwalk"). flying is
     DELIBERATELY absent (soft evasion). speed: "start your engines!"
     initializes speed and installs the per-turn increase = MAKER (CR
     702.179a); "max speed" only functions AT speed 4 = PAYOFF (CR 702.178a
@@ -144,11 +130,16 @@ def _keyword_field_signals_b15(keywords: frozenset[str], name: str) -> list[Sign
     maker/matters split live.
     """
     low = {k.lower() for k in keywords}
-    return [
+    out = [
         Signal(key, "you", "", "", name, "high")
         for kws, key in _B15_KEYWORD_LANES
         if low & kws
     ]
+    kinds = {k for k in map(evasion_keyword_kind, keywords) if k is not None}
+    out.extend(
+        Signal("evasion_self", "you", kind, "", name, "high") for kind in sorted(kinds)
+    )
+    return out
 
 
 # ── Batch 15 lanes (ADR-0035 Stage 2 — second structural-remainder batch) ────
@@ -351,27 +342,55 @@ def _station_lanes(tree: ConceptTree, keywords: frozenset[str]) -> list[Signal]:
 
 
 def _evasion_self(tree: ConceptTree) -> list[Signal]:
-    """A card that CARRIES or GRANTS evasion (CR 509.1b evasion
-    blocking-restriction abilities + 702.14 landwalk). Tier-1: zero oracle
-    text / regex at lane time (ADR-0036 fold — ``_EVASION_SELF_REGEX`` is
-    deleted).
+    """A card that CARRIES evasion, or grants it to ONE creature (CR 509.1b:
+    an evasion ability is "a static ability an attacking creature has that
+    restricts what can block it"), one signal per kind so a serve picks the
+    kinds its plan wants. Read off phase's tree (:func:`crosswalk.reads.
+    evasion_sites`); the subject is the kind:
 
-    The six keyword rows (menace/fear/intimidate/skulk/horsemanship/shadow)
-    PLUS the five landwalk keywords (CR numbers at
-    :func:`_keyword_field_signals_b15`) ride the Scryfall keyword-field arm;
-    flying is DELIBERATELY absent (soft evasion). Do NOT key the
-    ``CantBeBlocked`` static tag structurally — phase hangs it under
-    activated GenericEffects (Giant Koi) and reading it would drift the
-    1646-row population; the ``tree_synthesis`` bucket-B arm
-    (:func:`_arm_evasion_self`) relocates the deleted mirror's can't-be-
-    blocked / unblockable / granted-keyword / granted-landwalk tail instead
-    (the hoser / keyword-tribe-reference / mode-label / evasion-denial
-    over-fires it shed are documented there). Scope "you", HIGH.
+    * ``unblockable`` — "can't be blocked", printed (Slither Blade), on an
+      equipped / enchanted creature (Whispersilk Cloak), or granted to one
+      creature for a turn (Rogue's Passage, Giant Koi's waterbend);
+    * ``landwalk`` — any landwalk (CR 702.14c: unblockable while the
+      defending player controls such a land — Trailblazer's Boots' nonbasic
+      landwalk, Bog Wraith);
+    * ``menace`` / ``fear`` / ``intimidate`` / ``skulk`` / ``horsemanship`` /
+      ``shadow`` — the evasion keywords (CR 702.111b menace "can't be blocked
+      except by two or more creatures", 702.36b, 702.13b, 702.118b, 702.31b,
+      702.28b), printed, granted, on a created token, or as a keyword counter
+      (CR 122.1b);
+    * ``partial`` — a blocking restriction that still leaves some blockers:
+      "can't be blocked except by …" / "by …" (Silhana Ledgewalker, Juggernaut);
+    * ``conditional`` — any of the above only while a condition holds: a
+      static's "as long as" / "if" (Relic Runner, Goblin Blast-Runner), an
+      intervening-if trigger, a level, a coin flip (CR 509.1b: "can't block
+      unless some condition is met"). "During your turn" is not a condition
+      on an attack (CR 506.2).
+
+    Flying is DELIBERATELY absent (soft evasion, CR 702.9b). A grant to a
+    population — "creatures you control have horsemanship" (Sun Quan), "other
+    Merfolk have islandwalk" — is ``team_evasion_grant``'s, never this key;
+    "can't be blocked by more than one creature" is no evasion. The printed
+    keyword bearers also ride the Scryfall keyword field
+    (:func:`_keyword_field_signals_b15`). The bucket-B text arm
+    (:func:`_arm_evasion_self`) fires only when phase's tree carries no
+    blocking restriction or evasion keyword at all (Dimir Keyrune's dropped
+    "can't be blocked this turn", Legions of Lim-Dûl's snow swampwalk): its
+    kind is unknown, so it fires with an empty subject. Scope "you", HIGH.
     """
     for c in tree.iter_concepts():
         if c.concept == "synth_evasion_self":
             return [Signal("evasion_self", "you", "", "", tree.name, "high")]
-    return []
+    subjects = sorted(
+        {
+            "conditional" if site.conditional else site.kind
+            for site in evasion_sites(tree)
+            if site.kind is not None and not site.team
+        }
+    )
+    return [
+        Signal("evasion_self", "you", subj, "", tree.name, "high") for subj in subjects
+    ]
 
 
 def _cant_block_grant(tree: ConceptTree) -> list[Signal]:
@@ -867,22 +886,27 @@ def _ability_strip_payoff(tree: ConceptTree) -> list[Signal]:
 
 
 def _arcane_matters(tree: ConceptTree) -> list[Signal]:
-    """arcane_matters (§3) — CR 205.3k (Arcane is a SPELL type) + 304.3/307.3
-    + 702.47a (Splice onto Arcane). Tier-1 (ADR-0036 fold): direct — a
-    typed filter naming the Arcane spell subtype (a payoff — Tallowisp,
-    Sideswipe), :func:`has_structural_arcane` in ``tree_synthesis``.
-    bucket-B: the residual "Splice onto Arcane" tail phase drops ENTIRELY
-    (Glacial Ray — zero units for the whole card), read off the
-    ``synth_arcane_matters`` node (:func:`_arm_arcane_matters`). Being
-    Arcane-TYPED is NOT itself membership (probed: 66 of 95 corpus
-    Arcane-typed cards carry no arcane-caring text at all). Scope "you",
-    HIGH.
+    """arcane_matters (§3) — CR 205.3k (Arcane is a SPELL type) + 702.47a
+    (Splice onto Arcane). Two reads:
+
+    * a filter or count naming Arcane the card rewards
+      (:func:`crosswalk.reads.names_subtype_payoff`: Tallowisp's cast
+      trigger, Eerie Procession's tutor, Ire of Kaminari's graveyard count) —
+      never one it answers or takes from an opponent (Hisoka's Defiance,
+      Psychic Spear), nor a trigger on an opponent's Arcane spell (Ishi-Ishi);
+    * Splice onto Arcane: phase keeps the card's ``Splice`` keyword but the
+      tree drops its subtype, and "Splice onto instant or sorcery" (Fell
+      Beast's Shriek) shares the name — the bucket-B text arm
+      (:func:`_arm_arcane_matters`, the word "Arcane" beside the ``Splice``
+      keyword or on a card phase parsed nothing of).
+
+    Being Arcane-TYPED is NOT itself membership (probed: 66 of 95 corpus
+    Arcane-typed cards carry no arcane-caring text at all). Scope "you", HIGH.
     """
-    if has_structural_arcane(tree):
+    if names_subtype_payoff(tree, "Arcane") or any(
+        c.concept == "synth_arcane_matters" for c in tree.iter_concepts()
+    ):
         return [Signal("arcane_matters", "you", "", "", tree.name, "high")]
-    for c in tree.iter_concepts():
-        if c.concept == "synth_arcane_matters":
-            return [Signal("arcane_matters", "you", "", "", tree.name, "high")]
     return []
 
 
@@ -1061,22 +1085,51 @@ def _island_makers(tree: ConceptTree) -> list[Signal]:
     ``IgnoreLandwalkForBlocking`` territory), a removal spell targeting
     islandwalk creatures (Merfolk Assassin), and a symmetric-protection
     reference (Island Sanctuary). The Zhou Yu attack-restriction PAYOFF is
-    the sibling ``island_matters`` lane. Scope "you", HIGH.
+    the sibling ``island_matters`` lane.
+
+    Two more reads feed the same Islandwalk / Zhou Yu plan:
+
+    * subject ``lands_become_islands`` — an effect that makes lands Islands
+      (CR 305.7; :func:`crosswalk.reads.makes_lands_type`: Harbinger of the
+      Seas, Spreading Seas, Tide Shaper, Stormtide Leviathan), so islandwalk
+      connects and "defending player controls an Island" holds;
+    * ``island_matters|you|`` — a payoff for OPPONENTS' Islands
+      (:func:`crosswalk.reads.counts_opponents_land_type`: Typhoon's damage
+      per Island each opponent controls, Tide Shaper's "+1/+1 as long as an
+      opponent controls an Island"), the same want as the Zhou Yu restriction.
+      A count of your own Islands (Spectral Deluge, Vedalken Shackles) is a
+      land-density payoff the Island makers don't feed, so it is neither.
+
+    Scope "you", HIGH.
     """
+    out: list[Signal] = []
+    if _grants_islandwalk(tree):
+        out.append(Signal("island_makers", "you", "", "", tree.name, "high"))
+    if makes_lands_type(tree, "Island"):
+        out.append(
+            Signal(
+                "island_makers", "you", "lands_become_islands", "", tree.name, "high"
+            )
+        )
+    if counts_opponents_land_type(tree, "Island"):
+        out.append(Signal("island_matters", "you", "", "", tree.name, "high"))
+    return out
+
+
+def _grants_islandwalk(tree: ConceptTree) -> bool:
     for unit in tree.units:
         for _sdef, mod in iter_mod_sites(unit.node):
             if tag_of(mod) not in ("AddKeyword", "RemoveKeyword"):
                 continue
             if _is_island_landwalk_kw(getattr(mod, "keyword", None)):
-                return [Signal("island_makers", "you", "", "", tree.name, "high")]
+                return True
         for c in unit.effect_concepts("make_token"):
             kws = getattr(c.node, "keywords", None)
             if not isinstance(kws, list):
                 continue
-            for kw in kws:
-                if _is_island_landwalk_kw(kw):
-                    return [Signal("island_makers", "you", "", "", tree.name, "high")]
-    return []
+            if any(_is_island_landwalk_kw(kw) for kw in kws):
+                return True
+    return False
 
 
 def _keyword_soup_makers(tree: ConceptTree) -> list[Signal]:
@@ -2032,7 +2085,7 @@ def _voting_matters(tree: ConceptTree) -> list[Signal]:
     """voting_matters (sweep §23) — CR 701.38 (Vote — fixes the mapping
     row's stale 701.32 cite): the ``Vote`` TRIGGER mode ("Whenever players
     finish voting" — Erestor probed verbatim), readable TODAY as
-    ``trigger_event == "vote"`` via ``_trigger_event``'s ``mode.lower()``
+    ``trigger_event == "vote"`` via ``trigger_def_event``'s ``mode.lower()``
     fall-through. Census-probed EXACTLY the live 3 (Erestor, Grudge Keeper,
     Model of Unity) — the ADR-0034 split's mirror residue retires into a
     structural read. The 25 ``Vote`` EFFECT nodes (Expropriate, Magister of

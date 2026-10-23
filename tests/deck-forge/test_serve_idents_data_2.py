@@ -226,7 +226,7 @@ _CASES = [
     (
         "cost_reduction",
         "you",
-        "cost_reduction|you|",
+        "cost_reduction|you|*",
         "Baral, Chief of Compliance",
         "Baral, Chief of Compliance",
         "Storm of Souls",
@@ -440,13 +440,13 @@ def test_cost_reduction_storm_is_a_keyword_sub_avenue():
     assert not _lane_covers(_card("Storm of Souls"), sig)
 
 
-def test_self_lifeloss_serves_idents_and_keeps_the_lost_this_turn_bridge():
-    # Self life-loss serves on the lanes' idents: the payers and losers, the
-    # pay-life insurance and the life-total swaps. lifeloss_matters does not read
-    # "the life you've lost this turn" yet, so the serve keeps that one arm of its
-    # old regex beside the idents.
+def test_self_lifeloss_serves_idents_including_life_lost_this_turn():
+    # Self life-loss serves on the lanes' idents alone: the payers and losers, the
+    # pay-life insurance and the life-total swaps. The lane reads "the life you've
+    # lost this turn" itself, so the old regex bridge is gone.
     for key in ("lifeloss_matters", "lifeloss_makers"):
         serve = spec_for(_sig(key)).serve
+        assert serve.oracle is None
         assert {"lifeloss_makers|you|", "life_payment_insurance|you|"} <= (
             serve.signal_idents
         )
@@ -469,3 +469,65 @@ def test_flying_granters_are_a_sub_avenue():
     assert not spec.serve.matches(_card("Akroma's Memorial"))
     assert _lane_covers(_card("Akroma's Memorial"), sig)
     assert not _lane_covers(_card("Grizzly Bears"), sig)
+    # The sub-avenue serves the grant lanes' flying idents, not the regex.
+    (granters,) = spec.extras
+    assert granters.serve.oracle is None
+    assert "keyword_grant_target|you|flying" in granters.serve.signal_idents
+
+
+# Phase C (2026-10-22): the specs the Phase B lane fixes freed.
+# key, scope, ident the serve must carry, served card, dropped (or None).
+_PHASE_C = [
+    ("voting_makers", "each", "voting_makers|each|", "Capital Punishment"),
+    ("voting_matters", "each", "voting_matters|each|", "Grudge Keeper"),
+    ("domain_matters", "you", "domain_matters|you|", "Prismatic Omen"),
+    ("cast_from_exile", "you", "cast_from_exile|you|", "Hostage Taker"),
+    (
+        "lifeloss_matters",
+        "opponents",
+        "lifeloss_makers|opponents|",
+        "Gray Merchant of Asphodel",
+    ),
+    (
+        "lifeloss_makers",
+        "opponents",
+        "lifeloss_matters|opponents|",
+        "Gray Merchant of Asphodel",
+    ),
+    ("land_sacrifice_makers", "you", "land_sacrifice_makers|each|", "Tremble"),
+    ("lands_matter", "you", "landfall|you|", "Rampant Growth"),
+    ("tapped_matters", "you", "tapped_matters|you|", "Throne of the God-Pharaoh"),
+    (
+        "card_draw_engine",
+        "each",
+        "group_hug_draw|each|",
+        "Nekusar, the Mindrazer",
+    ),
+    ("theft_makers", "opponents", "theft_makers|opponents|", "Hostage Taker"),
+    ("wants_theft", "opponents", "theft_makers|opponents|", "Hostage Taker"),
+    ("one_punch", "you", "keyword_grant_target|you|infect", "Tainted Strike"),
+    (
+        "combat_damage_matters",
+        "opponents",
+        "evasion_self|you|unblockable",
+        "Invisible Stalker",
+    ),
+]
+
+
+@pytest.mark.parametrize(
+    ("key", "scope", "ident", "served"),
+    _PHASE_C,
+    ids=[f"{c[0]}|{c[1]}" for c in _PHASE_C],
+)
+def test_phase_c_serve_is_idents(key, scope, ident, served):
+    spec = spec_for(_sig(key, scope))
+    assert spec.serve.oracle is None
+    assert ident in spec.serve.signal_idents
+    assert spec.serve.matches(_card(served)) is True
+    assert spec.serve.matches(_card("Grizzly Bears")) is False
+
+
+def test_cast_from_exile_keeps_keywords_and_adds_warp():
+    serve = spec_for(_sig("cast_from_exile")).serve
+    assert {"plot", "suspend", "foretell", "rebound", "warp"} <= serve.keywords

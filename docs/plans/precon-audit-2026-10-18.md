@@ -560,6 +560,20 @@ swaps, the wider page's picks costing more.
 | land / commander | 20 | | a role card no issue asked for | 38 |
 | protected (combo / closer / multiplier) | 13 | | | |
 
+### The serves read the cards' IR (2026-10-22)
+
+The theme serves that still matched on an oracle regex moved to the cards' idents
+in two passes (`docs/plans/serve-idents-and-avenue-support.md`, "Pass C"): 78
+where the lanes already read the theme, then 40 more after seven lane fixes. 312
+of 376 serves read idents; 50 are left. At each precon's own budget the tune made
+**401 swaps, 157 cuts and 41 adds matching** (417 / 166 / 47 before), about the
+same share of matches per swap. Most of the drop is Virtue and Valor: its
+enchantment payoffs (Ajani's Chosen, Archon of Sun's Grace, Ethereal Armor) now
+read as Enchantments carers, Enchantments became its deepest theme, and Voltron
+and Combat, whose Auras are mostly enchantments, fold into it — the read the
+guides themselves give the deck; the cuts it lost are weak carers the tuner now
+protects (backlog "(g)").
+
 ## What is left
 
 `docs/plans/backlog.md`, "What the polymorph tune and the 25-precon audit still

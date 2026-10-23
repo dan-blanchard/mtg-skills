@@ -130,3 +130,11 @@ SUBJECT_KEYS: Final = frozenset(
         LAND_TYPE_MATTERS,
     }
 )
+
+# Subjects that mark the DOER side of a payoff key that is not a subject key:
+# ``artifacts_matter|you|token`` / ``enchantments_matter|you|token`` is an
+# artifact- or enchantment-TOKEN maker (Thopters, Servos, Roles), which the
+# Artifacts / Enchantments serve counts (their ``|*`` wildcard) as depth but
+# which does not CARE about the theme — the "a maker, never a payoff" rule the
+# lanes keep (``_tuner.metrics.focus``'s carer read skips them).
+DOER_SUBJECTS: Final = frozenset({"token"})

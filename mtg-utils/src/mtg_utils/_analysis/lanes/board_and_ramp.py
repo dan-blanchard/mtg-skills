@@ -17,6 +17,7 @@ from mtg_utils._analysis.lanes._shared import (
     _FIXING_PRODUCED_TYPES,
     _LAND_SUBTYPE_WORDS,
     _TYPE_MATTERS_LANE,
+    TOKEN_SUBTYPE_PAYOFF_KEYS,
     _condition_leaves,
     _is_generic_creature_filter,
     _kept,
@@ -25,6 +26,7 @@ from mtg_utils._analysis.lanes._shared import (
     typed_token_payoff_signals,
     unclaimed_clauses,
 )
+from mtg_utils._analysis.lanes.counters_voltron import TOKEN_YOURS_SIDES
 from mtg_utils._analysis.lanes.mana_and_wipes import _anthem_static
 from mtg_utils._analysis.signal_base import (
     Signal,
@@ -76,10 +78,12 @@ from mtg_utils._card_ir.crosswalk import (
     iter_nested_granted_effect_concepts,
     iter_static_defs,
     iter_typed_nodes,
+    land_searches,
     ref_count_filter,
     static_mode_field,
     static_mode_tag,
     tag_of,
+    token_creator_side,
     trigger_caster_scope,
     trigger_counter_filter,
     trigger_subject_scope,
@@ -89,7 +93,7 @@ from mtg_utils._card_ir.mirror.runtime import (
     MirrorVariant,
     TypedMirrorNode,
 )
-from mtg_utils._card_ir.recovery import IMPERATIVE, SELF
+from mtg_utils._card_ir.recovery import IMPERATIVE, OTHER_PLAYER, SELF
 from mtg_utils._card_ir.text_idioms import (
     _BECOMES_TYPE_RE,
 )
@@ -1156,6 +1160,25 @@ def _iter_returnasaura_mana_defs(
 
 
 def _ramp(tree: ConceptTree) -> list[Signal]:
+    """``ramp`` — mana acceleration (:func:`_ramp_mana`, subject empty), plus the
+    subject ``land`` on a card that searches your library for a land and puts it
+    onto the battlefield (``crosswalk.land_searches``' ``to_battlefield``; a
+    landcycling search lands in hand and is not one). The subject names what the
+    effect does — it PUTS a land onto the battlefield (CR 305.4: not a land play,
+    so it is not limited to one a turn) — so the land-count avenues (landfall,
+    lands matter) can serve land-search ramp apart from mana rocks. A fetch land
+    (Evolving Wilds, Fabled Passage) carries it too: the land it sacrifices is
+    replaced by one from the library, a landfall trigger each time; it stays the
+    mana base for the ramp ROLE (``roles.is_ramp`` never counts a land) and the
+    "Ramp / big mana" serve reads the empty subject only.
+    """
+    out = _ramp_mana(tree)
+    if any(s.to_battlefield and not s.cycling for s in land_searches(tree)):
+        out = [*out, Signal("ramp", "you", "land", "", tree.name, "high")]
+    return out
+
+
+def _ramp_mana(tree: ConceptTree) -> list[Signal]:
     """Mana acceleration (Sol Ring, Command Tower — CR 106.1 / 605.1a / 305).
 
     Mirrors the deleted ``_signals_ir``'s line ~8601. A ``Mana`` effect: a NONLAND ramp
@@ -1397,6 +1420,175 @@ def _typed_matters_lanes(filt: object) -> list[str]:
     return [lane for ct, lane in _TYPE_MATTERS_LANE.items() if ct in cores]
 
 
+def _anyof_core_types(filt: object) -> bool:
+    """Whether a filter's ``AnyOf`` type list carries a bare core type beside its
+    subtypes ("permanents you control that are creatures and/or Vehicles" —
+    Collision Course's ``AnyOf['Creature', Subtype Vehicle]``), which
+    :func:`filter_core_types` does not read (it reads only top-level strings)."""
+    if tag_of(filt) in ("Or", "And"):
+        return any(_anyof_core_types(f) for f in getattr(filt, "filters", ()) or ())
+    return any(
+        isinstance(tf, MirrorVariant)
+        and tf.key == "AnyOf"
+        and isinstance(tf.inner, list)
+        and any(isinstance(e, str) for e in tf.inner)
+        for tf in getattr(filt, "type_filters", ()) or ()
+    )
+
+
+# Artifact types whose cards start outside your library (CR 717.2).
+_OWN_DECK_ARTIFACT_TYPES: frozenset[str] = frozenset({"attraction"})
+# Artifact / enchantment types with a theme of their own: an Aura or Equipment
+# count is the Voltron avenue's (voltron_*), a Vehicle count vehicles_matter's,
+# a Saga count saga_matters'. Read as artifacts / enchantments payoffs too, they
+# made Virtue and Valor's Voltron carers the Enchantments carers, and the focus
+# read merged the two avenues into one (2026-10-20).
+_OWN_THEME_SUBTYPES: frozenset[str] = frozenset(
+    {"aura", "equipment", "vehicle", "saga"}
+)
+
+
+def _subtype_lanes(filt: object, *, you_only: bool) -> list[str]:
+    """The artifacts/enchantments lane(s) a filter names through its SUBTYPES —
+    an artifact type or an enchantment type (CR 205.3g / 205.3h: an Equipment,
+    Vehicle or Powerstone is an artifact; an Aura, Saga, Role or Shrine an
+    enchantment), read through :func:`subtype_card_type`. A Treasure / Clue /
+    Food / Blood names its own payoff lane (:data:`TOKEN_SUBTYPE_PAYOFF_KEYS`),
+    never this one. An opponent's filter fires nothing; ``you_only`` also drops a
+    filter naming no controller ("each Equipment attached to it")."""
+    if filt is None:
+        return []
+    ctrl = filter_controller(filt)
+    if ctrl == "Opponent" or (you_only and ctrl != "You"):
+        return []
+    return [
+        _TYPE_MATTERS_LANE[ct]
+        for st in filter_subtypes(filt)
+        if (ct := subtype_card_type(st)) in ("Artifact", "Enchantment")
+        and st.lower() not in TOKEN_SUBTYPE_PAYOFF_KEYS
+    ]
+
+
+def _type_payoff_lanes(filt: object) -> list[str]:
+    """The lane(s) a counted / watched / gating population of YOUR permanents
+    opens: its core types (:func:`_typed_matters_lanes`), or — for a filter
+    naming no core type at all — its artifact / enchantment types (:func:`_
+    subtype_lanes`): a Shrine count, a Powerstone or Map watcher. Each counts or
+    watches artifacts / enchantments (CR 205.3g / 205.3h). A type with a theme of
+    its own (:data:`_OWN_THEME_SUBTYPES`: Aura, Equipment, Vehicle, Saga — Adelbert
+    Steiner's "for each Equipment you control") stays that theme's.
+
+    Every subtype the filter names must be such a type: a list mixing in a
+    creature type ("Assassins, Pirates, and/or Vehicles" — Edward Kenway;
+    "Mounts and Vehicles" — Road Rage; "Dwarf, Equipment, and/or Vehicle" —
+    Bearded Axe) is that tribe's or that mechanic's count, not the artifact
+    deck's. An Attraction is out: Attractions start in a supplementary deck of
+    their own, never your library (CR 717.2), and ``attractions_matter`` reads
+    them."""
+    lanes = _typed_matters_lanes(filt)
+    if lanes or filt is None or filter_core_types(filt) or _anyof_core_types(filt):
+        return lanes
+    subtypes = filter_subtypes(filt)
+    if not subtypes or any(
+        st.lower() in _OWN_DECK_ARTIFACT_TYPES
+        or st.lower() in _OWN_THEME_SUBTYPES
+        or subtype_card_type(st) not in ("Artifact", "Enchantment")
+        for st in subtypes
+    ):
+        return []
+    return _subtype_lanes(filt, you_only=True)
+
+
+_CONDITION_FILTERS_CACHE_ATTR = "_condition_population_filters_cache"
+
+
+def _condition_population_filters(tree: ConceptTree) -> tuple[object, ...]:
+    """The population filter of every condition gate on TREE: an ``IsPresent`` /
+    ``ControlsType`` check ("as long as you control an artifact") or a threshold
+    count over an ``ObjectCount`` / ``ZoneChangeCountThisTurn`` ref ("if you
+    control two or more tapped creatures"; Ichor Shade's "an artifact was put into
+    a graveyard from the battlefield this turn" shares the ``filter`` field). Every
+    condition site (:func:`iter_condition_sites`: a unit's own ``condition`` and
+    its ``activation_restrictions``), an And / Or compound descended to its leaf
+    checks (:func:`_condition_leaves` — When We Were Young's "an artifact and an
+    enchantment"), any comparator direction (a "control no artifacts" floor still
+    names the population). CR 603.4 (a trigger's intervening "if"). Cached on
+    the tree: two lanes read it."""
+    cached = tree.__dict__.get(_CONDITION_FILTERS_CACHE_ATTR)
+    if cached is not None:
+        return cached
+    out: list[object] = []
+    for unit in tree.units:
+        for site in iter_condition_sites(unit.node):
+            for cond in _condition_leaves(site):
+                tag = tag_of(cond)
+                if tag in ("IsPresent", "ControlsType"):
+                    out.append(getattr(cond, "filter", None))
+                elif tag in ("QuantityComparison", "QuantityCheck"):
+                    lhs = getattr(cond, "lhs", None)
+                    if tag_of(lhs) != "Ref":
+                        continue
+                    qty = getattr(lhs, "qty", None)
+                    if tag_of(qty) in ("ObjectCount", "ZoneChangeCountThisTurn"):
+                        out.append(getattr(qty, "filter", None))
+    result = tuple(out)
+    object.__setattr__(tree, _CONDITION_FILTERS_CACHE_ATTR, result)
+    return result
+
+
+# The predefined artifact tokens with a maker lane of their own: Treasure, Food,
+# Clue, Blood (``<kind>_makers``, CR 111.10a / 111.10b / 111.10f / 111.10g) and
+# the Incubator (``incubate_makers``, CR 111.10i).
+_OWN_MAKER_TOKEN_KINDS: frozenset[str] = frozenset(
+    {*TOKEN_SUBTYPE_PAYOFF_KEYS, "incubator"}
+)
+
+
+def _token_type_lanes(tree: ConceptTree) -> list[str]:
+    """The artifacts/enchantments lane(s) of the tokens TREE makes for you, each
+    a ``make_token`` (its own effects and the abilities it grants — the walk the
+    ``<kind>_makers`` lanes read) whose token is an artifact or an enchantment by
+    its types: Thopter, Servo, Myr and Gnome artifact creatures, the Powerstone,
+    Map, Gold, Junk, Mutagen and Lander predefined artifacts (CR 111.10), Role
+    and Shard enchantments (CR 205.3g / 205.3h: artifact and enchantment
+    types), and Glimmers — enchantment creature tokens, read by their
+    Enchantment card type (Glimmer is a creature type, CR 205.3m). Each is
+    a permanent the artifacts / enchantments deck counts, so the lane emits it
+    with subject ``token``: a DOER, the serve's depth, never the subject-less
+    payoff the tuner reads as a card caring about artifacts (31 Clue makers once
+    read as carers of Deep Clue Sea's Artifacts main). A kind with a maker lane
+    of its own (:data:`_OWN_MAKER_TOKEN_KINDS`) is read there and not here. The
+    token is yours when you or each player creates it, or a target player you
+    may choose (:data:`TOKEN_YOURS_SIDES` of :func:`crosswalk.token_creator_side`,
+    CR 111.2); never when an opponent does, nor an owner the read can't place
+    ("enchanted opponent creates a Junk token" — Overencumbered's
+    ``AttachedTo``)."""
+    out: list[str] = []
+    for unit in tree.units:
+        for c in (*unit.effects, *iter_nested_granted_effect_concepts(unit.node)):
+            if c.concept != "make_token":
+                continue
+            if token_creator_side(unit, c.node) not in TOKEN_YOURS_SIDES:
+                continue
+            words = c.subject
+            # phase v0.104.0 parks some token clauses as an Unimplemented residue
+            # the ``make_token`` token recovers (Visions of Phyrexia's
+            # intervening-if Powerstone, Circuits Act's per-die-result Robots,
+            # Profane Transfusion's X/X Horror); the seam's reading names the
+            # token's type words, as the ``<kind>_makers`` lanes read it.
+            if not words and c.recovered_by == "make_token":
+                if OTHER_PLAYER in c.reading:
+                    continue
+                words = c.reading
+            if any(t.lower() in _OWN_MAKER_TOKEN_KINDS for t in words):
+                continue
+            types = {t for t in words if t in _TYPE_MATTERS_LANE} | {
+                ct for t in words if (ct := subtype_card_type(t)) is not None
+            }
+            out.extend(lane for ct, lane in _TYPE_MATTERS_LANE.items() if ct in types)
+    return out
+
+
 # Recovered make_token raw reads (see the recovered-node fallback inside
 # _artifacts_enchantments_matter): the type word must sit in the SAME
 # create-clause as the "token" noun ([^.]* keeps it inside one sentence),
@@ -1494,33 +1686,39 @@ def _artifacts_enchantments_matter(tree: ConceptTree) -> list[Signal]:
       with NO subtype (Fabricate, Idyllic Tutor; Enlightened Tutor → both);
     * **generic-board anthem** — a static pump/grant over the whole own-board set
       (Padeem);
-    * **no token-maker arm** — a card that MAKES artifact or enchantment tokens
-      (Skrelv's Hive's Mites, a Treasure / Clue / Food maker — CR 205.3g; a Role,
-      Shard or enchantment-creature token maker — CR 205.3h) fires neither key:
-      making the permanents is the doer side, credited on ``token_maker`` /
-      ``treasure_makers`` / ``clue_makers`` / ``food_makers`` where a maker key
-      exists and counted as the avenue's depth by its serve, while these keys are
-      the payoff the tuner reads as a card that CARES about artifacts /
-      enchantments (31 Clue makers read as carers of the Deep Clue Sea precon's
-      Artifacts main);
+    * **token maker, subject ``token``** — a card that MAKES artifact or
+      enchantment tokens (Skrelv's Hive's Mites, a Thopter / Servo / Powerstone /
+      Map maker — CR 205.3g; a Role, Shard or enchantment-creature token maker —
+      CR 205.3h) is the doer side, never the subject-less payoff the tuner reads
+      as a card that CARES about artifacts / enchantments (31 Clue makers read as
+      carers of the Deep Clue Sea precon's Artifacts main): it carries the
+      subject ``token`` (:func:`_token_type_lanes`) for the serve to count as the
+      avenue's depth, and a Treasure / Clue / Food / Blood / Incubator maker
+      keeps its own ``<kind>_makers`` key alone;
     * **sac payoff** — a ``Sacrifice`` of an Artifact/Enchantment subject (Atog-style
       fodder), non-opponent, with the Permanent-symmetric-list gate (CR 702.166a).
 
     The ``Permanent``-in-list gate drops the Bargain alt-cost over-fires.
 
-    Subject: ``cast`` on a cast-trigger payoff ("Whenever you cast an enchantment
-    spell" — Enchantress's Presence, Sythis; Sram's "an Aura, Equipment, or
-    Vehicle spell", read through the subtypes' card types, CR 205.3g/h), which
-    triggers as the spell becomes cast (CR 601.2i) and so never on a permanent
-    put onto the battlefield without casting it; empty for every other arm (an
-    enters trigger — CR 603.6a, a count, a static, a sacrifice).
+    A count, condition or watched trigger over an artifact / enchantment TYPE you
+    control ("for each Equipment you control", "Vehicles you control" counted,
+    "if you control an Equipment") is the payoff too (:func:`_type_payoff_lanes`).
+
+    Subject: ``token`` on a token maker (above); ``cast`` on a cast-trigger
+    payoff ("Whenever you cast an enchantment spell" — Enchantress's Presence,
+    Sythis; Sram's "an Aura, Equipment, or Vehicle spell", read through the
+    subtypes' card types, CR 205.3g/h), which triggers as the spell becomes cast
+    (CR 601.2i) and so never on a permanent put onto the battlefield without
+    casting it; empty for every other arm (an enters trigger — CR 603.6a, a
+    count, a static, a sacrifice).
     """
     out: list[str] = []
     cast_out: list[str] = []
     for c in tree.iter_concepts():
         node = c.node
-        # count operand (scaling value over your artifacts/enchantments)
-        out.extend(_typed_matters_lanes(count_operand_filter(node)))
+        # count operand (scaling value over your artifacts/enchantments, or over
+        # one artifact / enchantment type — "for each Equipment you control")
+        out.extend(_type_payoff_lanes(count_operand_filter(node)))
         if c.role != "effect":
             continue
         if c.concept in ("tutor", "dig") or tag_of(node) == "SearchOutsideGame":
@@ -1787,12 +1985,7 @@ def _artifacts_enchantments_matter(tree: ConceptTree) -> list[Signal]:
             continue
         vc = getattr(unit.node, "valid_card", None)
         cast_out.extend(_typed_matters_lanes(vc))
-        if vc is not None and filter_controller(vc) != "Opponent":
-            cast_out.extend(
-                _TYPE_MATTERS_LANE[ct]
-                for st in filter_subtypes(vc)
-                if (ct := subtype_card_type(st)) in ("Artifact", "Enchantment")
-            )
+        cast_out.extend(_subtype_lanes(vc, you_only=False))
     # SACRIFICE-TRIGGER payoff DOER (ADR-0038 W4 giant): "whenever you
     # sacrifice a Clue/Food/artifact, <payoff>" (Graf Mole, Curious
     # Cadaver, Jenny Flint's "Clue or Food"). The same trigger-own-subject
@@ -1831,25 +2024,11 @@ def _artifacts_enchantments_matter(tree: ConceptTree) -> list[Signal]:
     # flat tag switch below can't read without the descent. CR 603.2
     # (static abilities with a continuously-checked condition) / 608.2b
     # (compound conditions read leaf-by-leaf).
-    for unit in tree.units:
-        for site in iter_condition_sites(unit.node):
-            for cond in _condition_leaves(site):
-                tag = tag_of(cond)
-                if tag in ("IsPresent", "ControlsType"):
-                    out.extend(_typed_matters_lanes(getattr(cond, "filter", None)))
-                elif tag in ("QuantityComparison", "QuantityCheck"):
-                    lhs = getattr(cond, "lhs", None)
-                    if tag_of(lhs) == "Ref":
-                        qty = getattr(lhs, "qty", None)
-                        # ObjectCount ("two or more artifacts") and
-                        # ZoneChangeCountThisTurn ("an artifact was put into
-                        # a graveyard from the battlefield this turn" —
-                        # Ichor Shade) share the SAME ``filter`` field
-                        # shape.
-                        if tag_of(qty) in ("ObjectCount", "ZoneChangeCountThisTurn"):
-                            out.extend(
-                                _typed_matters_lanes(getattr(qty, "filter", None))
-                            )
+    # The walk is :func:`_condition_population_filters`; an artifact / enchantment
+    # TYPE gate ("if you control an Equipment" — The Lonely Mountain) reads
+    # through :func:`_type_payoff_lanes`.
+    for filt in _condition_population_filters(tree):
+        out.extend(_type_payoff_lanes(filt))
     # TYPE-ETB doer (ADR-0038 W4 giant): "whenever an artifact/creature/
     # enchantment enters, <payoff>" (Era of Innovation, Confusion in the
     # Ranks — a SYMMETRIC any-player watcher, not gated to you). Reads
@@ -1867,13 +2046,17 @@ def _artifacts_enchantments_matter(tree: ConceptTree) -> list[Signal]:
     # artifacts" build-around, so it's deliberately excluded (mirrors
     # legacy, which routes these to a different death-payoff lane, not
     # artifacts_matter). CR 700.4.
+    # An artifact / enchantment TYPE watched under your control ("whenever an
+    # Equipment you control enters" — Barret, Chishiro; "an Aura or Equipment
+    # you control is put into a graveyard" — Tiana) reads through
+    # :func:`_type_payoff_lanes`.
     for unit in tree.units:
         if unit.trigger_event == "enters":
-            out.extend(_typed_matters_lanes(getattr(unit.node, "valid_card", None)))
+            out.extend(_type_payoff_lanes(getattr(unit.node, "valid_card", None)))
         elif unit.trigger_event == "dies":
             vc = getattr(unit.node, "valid_card", None)
             if filter_controller(vc) == "You":
-                out.extend(_typed_matters_lanes(vc))
+                out.extend(_type_payoff_lanes(vc))
     # ADR-0038 W4 giant — a SANCTIONED byte-identical port of legacy's
     # ``_ARTIFACTS_MATTER_MIRROR`` (the LIVE constant, imported not re-typed):
     # phase carries no clean structural shape for this oracle-idiom family —
@@ -1938,7 +2121,11 @@ def _artifacts_enchantments_matter(tree: ConceptTree) -> list[Signal]:
     # artifacts. CR 702.41a / 303.
     if "affinity for enchantments" in _kept(tree).lower():
         out.append("enchantments_matter")
-    idents = [(lane, "") for lane in out] + [(lane, "cast") for lane in cast_out]
+    idents = (
+        [(lane, "") for lane in out]
+        + [(lane, "cast") for lane in cast_out]
+        + [(lane, "token") for lane in _token_type_lanes(tree)]
+    )
     sigs: list[Signal] = [
         Signal(lane, "you", subject, "", tree.name, "high")
         for lane, subject in dict.fromkeys(idents)
@@ -3033,6 +3220,15 @@ def _type_matters_go_wide(
     return bool({k.lower() for k in keywords} & _TYPE_MATTERS_GOWIDE_KEYWORDS)
 
 
+def _is_your_tapped_creatures(filt: object) -> bool:
+    """A population of YOUR tapped creatures (a ``Tapped`` filter you control
+    naming Creature, or no core type) — CR 110.5 (tapped is a status)."""
+    if filt is None or filter_controller(filt) != "You":
+        return False
+    cores = filter_core_types(filt)
+    return "Tapped" in filter_predicates(filt) and ("Creature" in cores or not cores)
+
+
 def _attack_tapped_matters(tree: ConceptTree) -> list[Signal]:
     """attack_matters / tapped_matters — a combat-state payoff over YOUR creatures
     (CR 508 attacking / 301 tapped). Tier-1 structural reads (ADR-0036 fold — the
@@ -3047,6 +3243,12 @@ def _attack_tapped_matters(tree: ConceptTree) -> list[Signal]:
       gate is load-bearing — "destroy target attacking creature" (controller any) is
       removal, not an aggro lane. Tapped is creature-gated.
     * a static anthem over your tapped creatures (``tapped_matters``).
+    * a condition or a wrapped count over your tapped creatures (``tapped_matters``):
+      "if you control two or more tapped creatures" (Dawnstrike Vanguard, Sami,
+      Ship's Engineer — :func:`_condition_population_filters`), "up to X … where X
+      is the number of tapped creatures you control" (Harvest Season's
+      ``UpTo.max`` — :func:`_creatures_matter_wrapped_count_filter`) and a scaled
+      or ``produced`` count (:func:`_creature_count_operand_filter`).
     * the ``tree_synthesis`` bucket-B synth node — the description-only attack payoff /
       "attacking causes" / untyped Raid-count tail phase emits no typed node for
       (over-fires vetoed there: attacks-alone / exalted, defensive attacks-you,
@@ -3089,6 +3291,14 @@ def _attack_tapped_matters(tree: ConceptTree) -> list[Signal]:
                 fire("tapped_matters", c.raw)
             if "Attacking" in preds:
                 fire("attack_matters", c.raw)
+        for filt in (
+            _creatures_matter_wrapped_count_filter(c.node),
+            _creature_count_operand_filter(c.node),
+        ):
+            if _is_your_tapped_creatures(filt):
+                fire("tapped_matters", c.raw)
+    if any(_is_your_tapped_creatures(f) for f in _condition_population_filters(tree)):
+        fire("tapped_matters", "")
 
     # recall-completion b1 (ADR-0034): a static ANTHEM over your tapped creatures
     # ("other tapped creatures you control have indestructible" — Adept Watershaper,

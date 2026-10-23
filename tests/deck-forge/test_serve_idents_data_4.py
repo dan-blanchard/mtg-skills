@@ -27,12 +27,12 @@ def _card(name):
 
 def _ident_serve(key, *idents):
     """The spec's serve, asserted to be ident-only (no oracle regex arm) and to
-    carry every named ``key|you|`` ident."""
+    count every named ``key|you|`` ident (exactly or by a ``key|you|*`` wildcard)."""
     spec = spec_for(_sig(key))
     assert spec is not None
     assert spec.serve.oracle is None
     for ident in (key, *idents):
-        assert f"{ident}|you|" in spec.serve.signal_idents
+        assert spec.serve.counts_ident(f"{ident}|you|"), ident
     return spec.serve
 
 
@@ -229,3 +229,57 @@ def test_land_exchange_serves_land_steals():
     serve = _ident_serve("land_exchange")
     # "Gain control of a land you don't control" (no "exchange control of").
     assert serve.matches(_card("Herald of Leshrac"))
+
+
+# Pass C (land denial, activated draw, untap, flash, Islands) ------------------
+
+
+def _spec_serve(key, scope="you"):
+    spec = spec_for(_sig(key, scope))
+    assert spec is not None
+    assert spec.serve.oracle is None
+    return spec.serve
+
+
+def test_land_denial_serves_sacrifice_lanes_not_the_bounce_remainder():
+    serve = _spec_serve("land_denial")
+    # "Each player ... sacrifices the rest" of their lands: no "sacrifices a land".
+    assert serve.matches(_card("Cataclysm"))
+    # "That player returns a land": no lane reads it, the named remainder.
+    assert not serve.matches(_card("Mana Breach"))
+
+
+def test_activated_draw_serves_costs_other_than_bare_tap():
+    serve = _spec_serve("activated_draw")
+    # "{T}, Discard a card: Draw a card" - the regex needed "{T}: draw a card".
+    assert serve.matches(_card("Anje Falkenrath"))
+    assert serve.matches(_card("Arcanis the Omnipotent"))
+
+
+def test_power_tap_engine_serves_untap_engines_not_self_untaps():
+    serve = _spec_serve("power_tap_engine")
+    assert serve.matches(_card("Aphetto Alchemist"))
+    # "Untap it" on itself re-taps no other engine; the regex served it.
+    assert not serve.matches(_card("Blistercoil Weird"))
+
+
+def test_flash_makers_serves_the_granter_lane():
+    serve = _spec_serve("flash_makers")
+    # Flash creature cards you own, granted from the battlefield (regex missed).
+    assert serve.matches(_card("Teferi, Mage of Zhalfir"))
+    assert serve.matches(_card("Leyline of Anticipation"))
+
+
+def test_island_makers_serves_attack_restriction_bodies():
+    serve = _spec_serve("island_makers")
+    assert serve.matches(_card("Armored Galleon"))
+    assert serve.matches(_card("Stormtide Leviathan"))
+    # Counting your own Islands is no way to make the opponent's lands Islands.
+    assert not serve.matches(_card("Carpet of Flowers"))
+
+
+def test_island_matters_serves_island_effects():
+    serve = _spec_serve("island_matters")
+    assert serve.matches(_card("Armored Galleon"))
+    assert serve.matches(_card("Stormtide Leviathan"))
+    assert not serve.matches(_card("Carpet of Flowers"))

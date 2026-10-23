@@ -92,7 +92,6 @@ from mtg_utils._analysis.tree_synthesis import (
     has_self_dies_value,
     has_self_etb_value,
     has_selfloss_engine,
-    has_structural_arcane,
     has_structural_base_pt_set,
     has_structural_big_hand_makers,
     has_structural_big_hand_matters,
@@ -151,7 +150,13 @@ from mtg_utils._card_ir._substrate_purity import (
     l1_identity,
     l1_nodes,
 )
-from mtg_utils._card_ir.crosswalk import AbilityUnit, ConceptNode, ConceptTree
+from mtg_utils._card_ir.crosswalk import (
+    AbilityUnit,
+    ConceptNode,
+    ConceptTree,
+    evasion_sites,
+    names_subtype_payoff,
+)
 from mtg_utils._card_ir.mirror.generated import (
     S_static_abilities,
     S_sub_ability,
@@ -1030,12 +1035,13 @@ def test_spellcast_noop_shanid_sleepers_scourge():
     # FIX 2: "cast a legendary spell" is a supertype-restricted untyped
     # trigger that routes AWAY from I/S Spellslinger density — spellcast_matters
     # does NOT synthesize. Shanid's "Other legendary creatures you control
-    # have menace" DOES independently synthesize evasion_self (ADR-0036 fold,
-    # a genuine grant — unrelated to the spellcast claim this test makes).
+    # have menace" is a team evasion grant the Tier-1 evasion read carries
+    # (``crosswalk.evasion_sites``), so the evasion_self text arm stays quiet
+    # too — no arm fires on this card.
     tree = _fixture_tree("Shanid, Sleepers' Scourge")
     assert has_structural_spellcast(tree) is False
     assert _arm_spellcast_matters(tree) is None
-    assert [arm for arm, _ in synthesize_nodes(tree)] == ["evasion_self"]
+    assert [arm for arm, _ in synthesize_nodes(tree)] == []
 
 
 def test_spellcast_trigger_rx_color_allowed_only_before_instant_or_sorcery():
@@ -2707,23 +2713,42 @@ def test_evasion_self_bucket_a_structural(name):
 @pytest.mark.parametrize(
     "name",
     [
-        "Etrata, the Silencer",  # "Etrata can't be blocked." — CR 509.1b
-        "Surrakar Marauder",  # granted intimidate-in-text (landfall trigger)
         "Legions of Lim-Dûl",  # bare "Snow swampwalk" ability-declaration line
     ],
 )
 def test_evasion_self_bucket_b_synth(name):
-    """A genuine can't-be-blocked / granted-keyword / bare-landwalk-line tail
-    phase carries no Tier-1 read for — the synth arm fills it."""
+    """A genuine landwalk tail phase carries no Tier-1 read for (no blocking
+    restriction, no evasion keyword in the tree) — the synth arm fills it."""
     from mtg_utils._analysis.tree_synthesis import _arm_evasion_self
 
     tree = _fixture_tree(name)
     assert _evasion_kwfield_fires(name) is False  # no OWN keyword, genuine gap
+    assert not evasion_sites(tree)
     node = _arm_evasion_self(tree)
     assert node is not None
     assert node.concept == "synth_evasion_self"
     assert node.scope == "you"
     assert _evasion_lane_fires(name) is True
+
+
+@pytest.mark.parametrize(
+    ("name", "kind"),
+    [
+        ("Etrata, the Silencer", "unblockable"),  # "can't be blocked" — CR 509.1b
+        ("Surrakar Marauder", "intimidate"),  # landfall: "gains intimidate"
+    ],
+)
+def test_evasion_self_text_arm_gap_gated_on_evasion_sites(name, kind):
+    """Evasion phase's tree carries (:func:`crosswalk.evasion_sites`) is the
+    Tier-1 read: the text arm stays quiet and the lane names the kind."""
+    from mtg_utils._analysis.lanes import _evasion_self
+    from mtg_utils._analysis.tree_synthesis import _arm_evasion_self
+
+    tree = _fixture_tree(name)
+    assert evasion_sites(tree)
+    assert _arm_evasion_self(tree) is None
+    subjects = {s.subject for s in _evasion_self(apply_tree_synthesis(tree))}
+    assert subjects == {kind}
 
 
 @pytest.mark.parametrize(
@@ -3129,7 +3154,7 @@ def test_arcane_matters_structural():
     from mtg_utils._analysis.tree_synthesis import _arm_arcane_matters
 
     tree = _fixture_tree("Tallowisp")
-    assert has_structural_arcane(tree) is True
+    assert names_subtype_payoff(tree, "Arcane") is True
     assert _arm_arcane_matters(tree) is None  # already structural — no-op
     assert _arcane_lane_fires("Tallowisp") is True
 
@@ -3140,7 +3165,7 @@ def test_arcane_matters_bucket_b_synth():
     from mtg_utils._analysis.tree_synthesis import _arm_arcane_matters
 
     tree = _fixture_tree("Glacial Ray")
-    assert has_structural_arcane(tree) is False
+    assert names_subtype_payoff(tree, "Arcane") is False
     node = _arm_arcane_matters(tree)
     assert node is not None
     assert node.concept == "synth_arcane_matters"
@@ -3151,7 +3176,7 @@ def test_arcane_matters_no_fire_on_unrelated_card():
     from mtg_utils._analysis.tree_synthesis import _arm_arcane_matters
 
     tree = _fixture_tree("Chaos Wand")
-    assert has_structural_arcane(tree) is False
+    assert names_subtype_payoff(tree, "Arcane") is False
     assert _arm_arcane_matters(tree) is None
     assert _arcane_lane_fires("Chaos Wand") is False
 

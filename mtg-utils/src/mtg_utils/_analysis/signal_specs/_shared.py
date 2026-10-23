@@ -278,6 +278,21 @@ class Serve:
             0
         ] in _wildcard_scopes(self.signal_idents)
 
+    def counts_ident(self, ident: str) -> bool:
+        """Whether this serve counts a card emitting ``ident`` toward its theme
+        (:meth:`_serves_ident`, on this serve or any ``all_of`` sub-serve)."""
+        return self._serves_ident(ident) or any(
+            sub.counts_ident(ident) for sub in self.all_of
+        )
+
+    def reads_key(self, key: str) -> bool:
+        """Whether this serve names any ident of ``key`` (any scope, any
+        subject, on this serve or an ``all_of`` sub-serve): its idents are then
+        the authority on which of the key's subjects the theme counts."""
+        return any(i.partition("|")[0] == key for i in self.signal_idents) or any(
+            sub.reads_key(key) for sub in self.all_of
+        )
+
     def matched_idents(self, card: dict) -> frozenset[str]:
         """The card's own idents this serve's ``signal_idents`` match (with
         every ``all_of`` sub-serve's, :meth:`_serves_ident`): what ties a
@@ -637,7 +652,21 @@ _SPELLSLINGER_SPEC = _spec(
     "Spellslinger",
     "cheap instants/sorceries plus magecraft/prowess payoffs to chain casts",
     {"oracle": _SLINGER_SEARCH_ORACLE},
-    _SLINGER_SERVE_ORACLE,
+    None,
+    # Serve rides the lanes: spell-cast triggers (instant/sorcery, noncreature,
+    # second spell), magecraft, and the spell-type cost reducers. Remainder: "first
+    # spell during each opponent's turn" flash adjacency, first-spell-each-turn,
+    # Prismari's granted storm, and Ral's emblem (a phase gap).
+    serve_idents=frozenset(
+        {
+            "spellcast_matters|you|instant_sorcery",
+            "spellcast_matters|you|noncreature",
+            "spellcast_matters|you|second_spell",
+            "magecraft_matters|you|",
+            "cost_reduction|you|instant_sorcery",
+            "cost_reduction|you|noncreature",
+        }
+    ),
     serve_types=_SLINGER_TYPES,
     serve_keywords=_SLINGER_KEYWORDS,
     extras=(

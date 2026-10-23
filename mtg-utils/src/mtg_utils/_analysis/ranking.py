@@ -34,7 +34,7 @@ from mtg_utils._analysis.ident_provenance import emitting_unit_texts
 from mtg_utils._analysis.pair_reads import PairContext, pair_score
 from mtg_utils._analysis.rate import RateIndex, rate_for
 from mtg_utils._analysis.roles import DeckMana, role_of
-from mtg_utils._analysis.signal_specs import Serve, serve_from_dict, spec_for
+from mtg_utils._analysis.signal_specs import Serve, avenue_spec_for, serve_from_dict
 from mtg_utils._analysis.signals import clauses
 from mtg_utils._card_ir.compat_lookup import ir_for
 from mtg_utils.card_classify import (
@@ -532,7 +532,7 @@ def score_candidate(
     specs = (
         _signal_specs
         if _signal_specs is not None
-        else [spec_for(s) for s in active_signals]
+        else [avenue_spec_for(s) for s in active_signals]
     )
     hits: list[tuple[str, tuple[int, ...]]] = []
     for spec in specs:
@@ -606,7 +606,7 @@ def rank_candidates(
     set) color widening leads the sort (ADR-0019)."""
     synergy_key = "synergy_fit" if rank_by == "fit" else "synergy_score"
     avenue_preds = _avenue_predicates(avenues)
-    signal_specs = [spec_for(signal) for signal in active_signals]
+    signal_specs = [avenue_spec_for(signal) for signal in active_signals]
     scored = [
         {
             "card": c,

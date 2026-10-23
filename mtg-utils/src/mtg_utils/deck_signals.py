@@ -1,6 +1,6 @@
 """CLI: print what a deck cares about — the deck-forge signal/avenue extraction (D).
 
-A thin wrapper over ``signals.rank_deck_signals`` + ``signal_specs.spec_for`` so
+A thin wrapper over ``signals.rank_deck_signals`` + ``signal_specs.avenue_spec_for`` so
 deck-wizard's analysis reads the commander's TEXT-derived lanes deterministically
 (label + plain-English avenue + scope + confidence) instead of the agent guessing them.
 
@@ -14,7 +14,7 @@ from pathlib import Path
 
 import click
 
-from mtg_utils._analysis.signal_specs import spec_for
+from mtg_utils._analysis.signal_specs import avenue_spec_for
 from mtg_utils._analysis.signals import rank_deck_signals
 from mtg_utils.deck_cli import acquire_for_cli, bulk_data_option
 from mtg_utils.hydrated_deck import HydratedDeck
@@ -48,7 +48,7 @@ def deck_signals(hd: HydratedDeck) -> list[dict]:
     commander_names = {c["name"] for c in hd.commanders}
     rows: list[dict] = []
     for sig in rank_deck_signals(hd.deck_records(), commander_names):
-        spec = spec_for(sig)
+        spec = avenue_spec_for(sig)
         rows.append(
             {
                 "key": sig.key,

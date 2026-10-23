@@ -62,6 +62,7 @@ from mtg_utils._card_ir.crosswalk import (
     effect_filter,
     effect_reaches_permanent,
     filter_controller,
+    filter_controller_side,
     filter_core_types,
     filter_inzone_zones,
     filter_owned_controller,
@@ -88,6 +89,7 @@ from mtg_utils._card_ir.crosswalk import (
     time_counter_kind_refs,
     token_profile_keywords,
     trigger_scope,
+    untap_rider_targets,
 )
 from mtg_utils._card_ir.mirror.runtime import (
     MISSING,
@@ -220,7 +222,8 @@ def _b13_conferred_grant_lanes(tree: ConceptTree) -> list[Signal]:
       (:func:`~mtg_utils._card_ir.crosswalk.reads.granted_alt_cost_kinds`)
       → alt_cost_keyword;
     * token-PROFILE keywords — Dragon Broodmother's ``{Devour: 2}`` token,
-      Maskwood Nexus's Changeling Shapeshifter (CR 111.4);
+      Maskwood Nexus's Changeling Shapeshifter (CR 111.3: the effect that
+      creates a token defines its abilities);
     * the ``AddAllCreatureTypes`` modification — Mistform Ultimus's "every
       creature type" static (CR 205.3c) → has_changeling;
     * the ``synth_b13_raw_anchor`` node (:func:`_arm_b13_raw_anchor`) for
@@ -1588,6 +1591,32 @@ def _proliferate_matters_lane(tree: ConceptTree) -> list[Signal]:
     return out
 
 
+def _untaps_named_creature(tree: ConceptTree) -> bool:
+    """Whether the card untaps ONE creature it names itself
+    (:func:`~mtg_utils._card_ir.crosswalk.untap_rider_targets`): the
+    enchanted / equipped creature (Freed from the Real, Pemmin's Aura,
+    Instill Energy) or "untap it" after its own pump / counter on a target
+    (Bull's Strength, Shore Up, Stony Strength). Each untaps a tapped
+    creature (CR 701.26b) so its {T} ability can be paid again — a tapped
+    permanent can't be tapped to pay a {T} cost (CR 107.5) — the untap a
+    power-tap commander (Mona Lisa) or a {T}: engine re-taps with. Out: an
+    opponent's creature (Provoke-style tricks), a card that gains control of
+    what it untaps (Threaten's "untap that creature", Abduction's
+    ``ChangeController`` static), and a self-untap trigger (Thermo-Alchemist,
+    Nettle Sentinel): it re-enables only the card's own tap ability, never
+    another permanent — that card's value is its own tap ability."""
+    if any(
+        c.concept == "gain_control" or tag_of(c.node) == "ChangeController"
+        for c in tree.iter_concepts()
+    ):
+        return False
+    for unit in tree.units:
+        for target, _node in untap_rider_targets(unit):
+            if filter_controller_side(target) != "opponents":
+                return True
+    return False
+
+
 def _untap_engine(tree: ConceptTree) -> list[Signal]:
     """untap_engine (§5) — CR 701.26/701.26b: a DELIBERATE untap engine
     (Seedborn Muse, Candelabra, Turnabout). A pure Tier-1 UNION (ADR-0036/
@@ -1626,6 +1655,8 @@ def _untap_engine(tree: ConceptTree) -> list[Signal]:
         subject = structural_untap_subject(tree)
         scope = structural_untap_scope(tree)
         return [Signal("untap_engine", scope, subject, "", tree.name, "high")]
+    if _untaps_named_creature(tree):
+        return [Signal("untap_engine", "you", "", "", tree.name, "high")]
     for c in tree.iter_concepts():
         if c.concept == "synth_untap_engine":
             return [Signal("untap_engine", "you", "", "", tree.name, "high")]
@@ -1636,7 +1667,7 @@ def _theft_makers_lane(tree: ConceptTree) -> list[Signal]:
     """theft_makers (§6) — CR DD9 (heist, digital supplement) + CR 613.1b:
     the steal-and-cast/mill/play DOER, Tier-1 (ADR-0036/0037 Stage 5 fold —
     the ``THEFT_MATTERS_REGEX`` kept-oracle mirror is deleted; the LOW
-    wants-side is the unrelated wants_theft facade). Five structural arms,
+    wants-side is the unrelated wants_theft facade). Six structural arms,
     each gated to an explicit opponent player-scope (never a bare/ambiguous
     tag) so the [P5] direction trap — a self-exile impulse-draw dig (Light
     Up the Stage) reads NEAR-IDENTICALLY to an opponent steal — stays
@@ -1645,7 +1676,10 @@ def _theft_makers_lane(tree: ConceptTree) -> list[Signal]:
     Wand, Nicol Bolas, Umbris, Dream Harvest, Tasha's Hideous Laughter), a
     directed ``SearchLibrary`` (Bribery, Ancient Vendetta), a triple-zone
     ``ChangeZoneAll`` hate-piece (Cranial Extraction, Stain the Mind), or a
-    Hand-zone ``CastFromZone`` beside an opponent target (Sen Triplets). A
+    Hand-zone ``CastFromZone`` beside an opponent target (Sen Triplets), or
+    a borrow-and-cast steal — a card another player owns exiled in the same
+    unit that lets you cast it (Court of Locthwain, Gonti, Daxos, Hostage
+    Taker, Spelljack; ``crosswalk.steals_card_to_cast``). A
     ``synth_theft_makers`` node covers the genuine bucket-B tail (a compound
     sentence phase drops entirely — Axavar, Fate Thief's "discard a card,
     then heist…"; a bare "conjure…from an opponent's library" — Lae'zel,

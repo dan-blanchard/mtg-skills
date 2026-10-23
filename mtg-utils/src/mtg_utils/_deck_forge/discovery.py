@@ -30,7 +30,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from mtg_utils import theme_presets
-from mtg_utils._analysis.signal_specs import Serve, spec_for
+from mtg_utils._analysis.signal_specs import Serve, avenue_spec_for
 from mtg_utils._analysis.signals import extract_signals
 from mtg_utils._sidecar import atomic_write_json, sha_keyed_path
 from mtg_utils.formats import FORMATS
@@ -205,7 +205,7 @@ def _commander_lanes(record: dict) -> list[tuple[str, Serve, str]]:
     out: list[tuple[str, Serve, str]] = []
     seen: set[str] = set()
     for sig in _signals(record, include_membership=False):
-        spec = spec_for(sig)
+        spec = avenue_spec_for(sig)
         if spec is None or spec.label in seen:
             continue
         seen.add(spec.label)

@@ -5,13 +5,12 @@ crosswalk_signals.py)."""
 from __future__ import annotations
 
 import re
+from collections.abc import Sequence
 from typing import Literal, get_args
 
 from mtg_utils._analysis._sweep_detectors import TOPDECK_STACK_SWEEP_REGEX
 from mtg_utils._analysis.lanes._shared import (
     _GRANT_ABILITY_MOD_TAGS,
-    _OPP_TOP_OWNERS,
-    _OPP_TOP_WRAPPER_SCOPES,
     _PT_COUNTER_KINDS,
     _REMINDER_RX,
     _condition_leaves,
@@ -41,15 +40,19 @@ from mtg_utils._card_ir.crosswalk import (
     change_zone_dirs,
     count_operand_filter,
     counter_kind_any,
+    effect_actor_scope,
     effect_filter,
     effect_owner_player_scope,
+    exiled_library_side,
     filter_admits,
     filter_controller,
     filter_core_types,
     filter_inzone_zones,
+    filter_owners,
     filter_predicates,
     filter_subtypes,
     has_fixed_count,
+    hurts_triggering_player,
     is_dies_return_trigger,
     iter_condition_sites,
     iter_cost_leaves,
@@ -57,10 +60,12 @@ from mtg_utils._card_ir.crosswalk import (
     iter_nested_granted_bodies,
     iter_typed_nodes,
     keyword_resource_events,
+    lets_you_play_exiled,
     mod_keyword_name,
     modal_mode_description,
     normalised_keyword_name,
     object_facts_of,
+    optional_clause_actor,
     permission_tag,
     recipient_tag,
     requires_condition_inner,
@@ -137,33 +142,107 @@ def _impulse_top_play(tree: ConceptTree) -> list[Signal]:
     predefined-token cycle's "Exile the top card of your library. You may
     play that card this turn" ability rides a zero-unit text-only tree
     with no exile_top/cast_from_zone pair to walk structurally.
+
+    Three shapes outside one unit, all scope "you":
+
+    * a GRANTED impulse — the pair inside a granted trigger or ability body
+      (:func:`iter_nested_granted_bodies`): Capricious Sliver's Slivers have
+      "Whenever this creature deals combat damage to a player, exile the top
+      card of your library. You may play that card this turn.";
+    * the exile and the permission in two units: Uba Mask's draw replacement
+      exiles the card and its ``ExileCastPermission`` static lets each player
+      play the cards they exiled with it; Share the Spoils' triggers exile the
+      top of each player's library and a parked ability lets each player play
+      from among them (:func:`_plays_exiled_cards`);
+    * hideaway (CR 702.75a): the enters trigger exiles one of the top cards
+      face down (phase's ``HideawayConceal``) and another ability plays "the
+      exiled card" (a ``CastFromZone`` of ``ExiledBySource`` — Shelldock Isle,
+      Fight Rigging). Watcher for Tomorrow, which only returns the card to
+      your hand, stays out.
     """
+    hides_cards = False  # an own-library exile the permission is in another unit
+    exile_permission = False  # a permission to play cards exiled with the card
     for unit in tree.units:
         if unit.origin == "static":
-            continue
-        tops = [c for c in unit.effects if c.concept == "exile_top"]
-        if not tops or all(
-            tag_of(getattr(c.node, "player", None)) in _OPP_TOP_OWNERS
-            # phase v0.86.0: an opponent-library exile can also be an ExileTop
-            # whose owning wrapper carries the opponent ``player_scope`` (the
-            # Brainstealer Dragon steal family) — theirs, not your impulse.
-            or effect_owner_player_scope(unit.node, c.node) in _OPP_TOP_WRAPPER_SCOPES
-            for c in tops
-        ):
-            # No exile-the-top, or another player's library only (Gonti,
-            # Night Minister's theft — checklist #5): not YOUR impulse.
-            continue
-        for c in unit.effects:
-            if c.concept == "cast_from_zone" or (
-                c.concept == "grant_cast_permission"
-                and permission_tag(c.node) == "PlayFromExile"
+            exile_permission |= static_mode_tag(unit.node) == "ExileCastPermission"
+        else:
+            tops = _own_top_exiles(unit.node, unit.effects, unit)
+            if tops:
+                for c in unit.effects:
+                    if lets_you_play_exiled(c):
+                        scope = _impulse_scope(unit, tops)
+                        return [
+                            Signal(
+                                "impulse_top_play", scope, "", c.raw, tree.name, "high"
+                            )
+                        ]
+            hides_cards |= bool(tops) or _hides_own_card(unit)
+            exile_permission |= any(_plays_exiled_cards(c) for c in unit.effects)
+        for _kind, body in iter_nested_granted_bodies(unit.node):
+            effects = list(walk_effect_chain(body))
+            if _own_top_exiles(body, effects) and any(
+                lets_you_play_exiled(c) for c in effects
             ):
-                scope = _impulse_scope(unit, tops)
-                return [Signal("impulse_top_play", scope, "", c.raw, tree.name, "high")]
+                return [Signal("impulse_top_play", "you", "", "", tree.name, "high")]
+    if hides_cards and exile_permission:
+        return [Signal("impulse_top_play", "you", "", "", tree.name, "high")]
     for c in tree.iter_concepts():
         if c.concept == "synth_impulse_top_play":
             return [Signal("impulse_top_play", "you", "", "", tree.name, "high")]
     return []
+
+
+def _own_top_exiles(
+    root: object, effects: Sequence[ConceptNode], unit: AbilityUnit | None = None
+) -> list[ConceptNode]:
+    """The ``ExileTop`` effects among ``effects`` (owned by ``root``, of
+    ``unit`` when not a granted body), or ``[]`` when none of them exiles from
+    YOUR library (:func:`exiled_library_side` — yours, or every player's
+    including yours): another player's library only is theft, not your impulse
+    (Gonti, Night Minister's "that player's library"; Brainstealer Dragon's
+    opponent wrapper; Maralen, Fae Ascendant's "target opponent's library")."""
+    tops = [c for c in effects if c.concept == "exile_top"]
+    if all(
+        exiled_library_side(root, c.node, unit) not in ("you", "each")
+        or c.scope == "opponents"
+        for c in tops
+    ):
+        return []
+    return tops
+
+
+def _hides_own_card(unit: AbilityUnit) -> bool:
+    """Hideaway (CR 702.75a): a ``Dig`` of your library (its ``player`` is the
+    ``Controller``) into exile, with phase's ``HideawayConceal`` turning the card
+    face down. Gonti, Lord of Luxury (target opponent's library) and Thief of
+    Sanity ("that player's library" — the ``TriggeringPlayer``) hide a card the
+    same way from another library — theft, not your impulse."""
+    return any(tag_of(n) == "HideawayConceal" for n in unit.iter_typed()) and any(
+        getattr(c.node, "destination", None) == "Exile"
+        and tag_of(getattr(c.node, "player", None)) == "Controller"
+        for c in unit.effect_concepts("dig")
+    )
+
+
+#: The ``CastFromZone`` targets that name the cards the card itself exiled:
+#: hideaway's "the exiled card" (CR 702.75a) and "cards exiled with ~".
+_EXILED_BY_SOURCE_TARGETS: frozenset[str] = frozenset({"ExiledBySource"})
+
+
+def _plays_exiled_cards(c: ConceptNode) -> bool:
+    """A permission to play cards the card exiled, read apart from the exile:
+    a ``CastFromZone`` of the cards exiled with it (Shelldock Isle's "{U}, {T}:
+    You may play the exiled card"), a ``PlayFromExile`` grant, or a recovered
+    cast permission phase parked whole (Share the Spoils' "that player may play
+    a land or cast a spell from among cards exiled with ~") that names no
+    graveyard or hand."""
+    if c.concept == "grant_cast_permission":
+        return permission_tag(c.node) == "PlayFromExile"
+    if c.concept != "cast_from_zone":
+        return False
+    if c.recovered_by == "cast_from_zone":
+        return not ({"Graveyard", "Hand"} & set(c.zones))
+    return tag_of(getattr(c.node, "target", None)) in _EXILED_BY_SOURCE_TARGETS
 
 
 def _play_from_top(tree: ConceptTree) -> list[Signal]:
@@ -373,10 +452,21 @@ def _opponent_draw_matters(tree: ConceptTree) -> list[Signal]:
     "whenever an opponent draws a card, …" (Nekusar, Underworld Dreams). The
     complementary scope gate to the ported ``draw_matters`` (you/any-scope
     drawn watcher — Niv-Mizzet) — the two stay set-disjoint. Scope
-    "opponents".
+    "opponents". A watcher of every player's draw whose effect hurts the
+    drawer ("Whenever a player draws a card, that player loses 2 life unless
+    they pay {2}" — Phyrexian Tyranny; Spiteful Visions' 1 damage:
+    :func:`hurts_triggering_player`) is the same payoff: the card's controller
+    builds to make the opponents draw, not to draw into it (the lane's
+    reading — the controller pays too when they draw).
     """
     for unit in tree.units:
-        if unit.trigger_event == "drawn" and trigger_scope(unit.node) == "opponents":
+        if unit.trigger_event != "drawn":
+            continue
+        scope = trigger_scope(unit.node)
+        if scope == "opponents" or (
+            scope != "you"
+            and hurts_triggering_player(getattr(unit.node, "execute", None))
+        ):
             return [
                 Signal("opponent_draw_matters", "opponents", "", "", tree.name, "high")
             ]
@@ -1285,6 +1375,71 @@ def _recovered_creature_card_recursion(c: ConceptNode) -> bool:
     )
 
 
+#: Where a creature card recursion puts the card (phase's ``ChangeZone``
+#: destination) → the ``creature_recursion`` subject.
+_RECURSION_DESTINATIONS: dict[str, str] = {
+    "Battlefield": "battlefield",
+    "Hand": "hand",
+    "Library": "library",
+}
+
+
+def _graveyard_recursion_destination(node: object, sub: object) -> str | None:
+    """The ``creature_recursion`` subject of a ``ChangeZone`` / ``ChangeZoneAll``
+    out of a graveyard, or ``None``. The graveyard is the node's ``origin``, or,
+    where phase leaves the origin unset, the moved filter's ``InZone`` (Ashen
+    Powder's "Put target creature card from an opponent's graveyard onto the
+    battlefield under your control"). A pull from opponents' graveyards only is
+    graveyard hate unless the creature enters under your control
+    (``enters_under: You``) — then it is a reanimation of theirs for you."""
+    if not isinstance(node, TypedMirrorNode):
+        return None
+    origin, dest = change_zone_dirs(node)
+    if origin is None and "Graveyard" in filter_inzone_zones(sub):
+        origin = "Graveyard"
+    if origin != "Graveyard" or dest not in _RECURSION_DESTINATIONS:
+        return None
+    owners = filter_owners(sub)
+    if (
+        owners
+        and all(o == "Opponent" for o in owners)
+        and not (dest == "Battlefield" and getattr(node, "enters_under", None) == "You")
+    ):
+        return None
+    return _RECURSION_DESTINATIONS[dest]
+
+
+def _exiled_set_reanimation(unit: AbilityUnit) -> bool:
+    """A mass reanimation routed through exile (CR 400.7: each move makes a new
+    object, so phase tracks the exiled cards as a set): Living Death's "Each
+    player exiles all creature cards from their graveyard, … then puts all
+    cards they exiled this way onto the battlefield" is a ``ChangeZoneAll``
+    Graveyard→Exile over a Creature filter, then a ``ChangeZoneAll`` onto the
+    Battlefield whose target is that tracked set. A blink exiles from the
+    battlefield, so the graveyard origin keeps it out."""
+    exiles_creature_cards = False
+    for c in unit.effects:
+        t = tag_of(c.node)
+        if t not in ("ChangeZone", "ChangeZoneAll"):
+            continue
+        origin, dest = change_zone_dirs(c.node)
+        if origin == "Graveyard" and dest == "Exile":
+            sub = effect_filter(c.node)
+            if (
+                "Creature" in filter_core_types(sub)
+                and filter_controller(sub) != "Opponent"
+            ):
+                exiles_creature_cards = True
+        elif (
+            exiles_creature_cards
+            and dest == "Battlefield"
+            and tag_of(getattr(c.node, "target", None))
+            in ("TrackedSet", "TrackedSetFiltered")
+        ):
+            return True
+    return False
+
+
 def _creature_recursion(tree: ConceptTree) -> list[Signal]:
     """creature_recursion — loop-a-creature (CR 700.4 / 401.4 / 404). Two
     typed arms mirroring the live structural pair:
@@ -1307,6 +1462,19 @@ def _creature_recursion(tree: ConceptTree) -> list[Signal]:
     Gate #6: subject controller ≠ Opponent (an opponents'-graveyard-ONLY
     pull is graveyard hate, not your loop). A type-less "target card"
     (Regrowth) has no Creature core — no fire. Scope "you".
+
+    The subject is the DESTINATION (:data:`_RECURSION_DESTINATIONS`), one
+    signal per destination the card reaches: "battlefield" for a reanimation
+    (Zombify, Unburial Rites, Patriarch's Bidding), "hand" for a recall (Raise
+    Dead, Gravedigger), "library" for a tuck back (Aether Helix's recall
+    half). A reanimator payoff wants the first only — a creature card put onto
+    the battlefield from a graveyard is what fires it, a return to hand is
+    not — so the reanimator serve reads ``creature_recursion|you|battlefield``.
+    A recovered residue keeps its token's destination (``reanimate`` →
+    battlefield, ``graveyard_return`` → hand), and a mass reanimation that
+    exiles the creature cards first and then puts the exiled set onto the
+    battlefield (Living Death) is a reanimation too
+    (:func:`_exiled_set_reanimation`).
 
     KNOWN upstream residue (task #84 census, 1 of 228 recall carriers):
     Aether Burst — "Return up to X target creatures to their owners'
@@ -1336,7 +1504,10 @@ def _creature_recursion(tree: ConceptTree) -> list[Signal]:
     gains nothing here; corpus-swept 2026-07 for every OTHER ``AttachedTo``
     reanimation carrier (Dance of the Dead is the only sibling).
     """
+    dests: dict[str, str] = {}  # destination → the first clause's raw
     for unit in tree.units:
+        if _exiled_set_reanimation(unit):
+            dests.setdefault("battlefield", "")
         for c in unit.effects:
             # Phase v0.104.0 fails closed on a reanimation / recall it can't fully
             # parse (an intervening-if — Dawn Evangel, Grave Scrabbler; Necromancy's
@@ -1344,9 +1515,9 @@ def _creature_recursion(tree: ConceptTree) -> list[Signal]:
             # ``graveyard_return`` token recovers; no typed filter survives, so
             # the seam's reading of the clause stands in for it.
             if _recovered_creature_card_recursion(c):
-                return [
-                    Signal("creature_recursion", "you", "", c.raw, tree.name, "high")
-                ]
+                dest = "battlefield" if c.recovered_by == "reanimate" else "hand"
+                dests.setdefault(dest, c.raw)
+                continue
             t = tag_of(c.node)
             sub = effect_filter(c.node)
             if filter_controller(sub) == "Opponent":
@@ -1361,20 +1532,17 @@ def _creature_recursion(tree: ConceptTree) -> list[Signal]:
             if "Creature" not in types:
                 continue
             if t in ("ChangeZone", "ChangeZoneAll"):
-                origin, dest = change_zone_dirs(c.node)
-                if origin == "Graveyard" and dest in ("Battlefield", "Hand", "Library"):
-                    return [
-                        Signal(
-                            "creature_recursion", "you", "", c.raw, tree.name, "high"
-                        )
-                    ]
-            if t in ("Bounce", "PutAtLibraryPosition") and (
+                dest = _graveyard_recursion_destination(c.node, sub)
+                if dest is not None:
+                    dests.setdefault(dest, c.raw)
+            elif t in ("Bounce", "PutAtLibraryPosition") and (
                 "Graveyard" in filter_inzone_zones(sub)
             ):
-                return [
-                    Signal("creature_recursion", "you", "", c.raw, tree.name, "high")
-                ]
-    return []
+                dests.setdefault("hand" if t == "Bounce" else "library", c.raw)
+    return [
+        Signal("creature_recursion", "you", d, raw, tree.name, "high")
+        for d, raw in sorted(dests.items())
+    ]
 
 
 def _draw_engine_scope(unit: AbilityUnit, c: ConceptNode) -> str:
@@ -1387,18 +1555,42 @@ def _draw_engine_scope(unit: AbilityUnit, c: ConceptNode) -> str:
     cards": the target is unconstrained, so the drawer could be YOU or an
     opponent, 'any'; Deadly Cover-Up's search-and-exile chain constrains the
     root target to ``Owned: Opponent``, so the drawer is ALWAYS an opponent,
-    'opponents' — CR 108.3); else "you"."""
+    'opponents' — CR 108.3); "opponents" when the opponents are the ones
+    drawing (:func:`effect_actor_scope` — Master of the Feast's "each opponent
+    draws a card" hangs ``player_scope: Opponent`` on a ``Controller`` draw;
+    Forced Fruition's "that player draws seven cards" after an opponent casts).
+    Not in a draw replacement, where a ``Controller`` draw is yours (Notion
+    Thief's "that player skips that draw and you draw a card"), nor for an
+    ``OriginalController`` draw an opponent merely chooses (Palantír of
+    Orthanc's "target opponent may have you draw a card"); else "you"."""
     if recipient_tag(c.node) == "ScopedPlayer":
         return "each"
     if recipient_tag(c.node) in _EACH_DRAW_RECIPIENTS:
         return "each"
-    if effect_owner_player_scope(unit.node, c.node) == "All":
+    if _draw_owner_scope(unit, c) == "All":
         return "each"
     if recipient_tag(c.node) == "ParentTargetOwner":
         override = _target_owner_beneficiary_scope(unit)
         if override is not None:
             return override
+    if (
+        unit.origin != "replacement"
+        and recipient_tag(c.node) != "OriginalController"
+        and effect_actor_scope(unit, c.node) == "opponents"
+    ):
+        return "opponents"
     return "you"
+
+
+def _draw_owner_scope(unit: AbilityUnit, c: ConceptNode) -> str | None:
+    """The actor of the wrapper that owns the draw
+    (:func:`effect_owner_player_scope`) or, for the second half of an optional
+    "each player may discard their hand and draw …" (Ruin Grinder, Snort, Will
+    of the Jeskai), the optional clause's actor (:func:`optional_clause_actor`)."""
+    owner = effect_owner_player_scope(unit.node, c.node)
+    if owner is None:
+        owner = optional_clause_actor(unit.node, c.node)
+    return owner
 
 
 def _redraws_replaced_card(unit: AbilityUnit, c: ConceptNode) -> bool:
@@ -1556,8 +1748,10 @@ def etb_bulk_draw(tree: ConceptTree) -> bool:
 def _group_hug_draw(tree: ConceptTree) -> list[Signal]:
     """group_hug_draw — a draw GIVEN to everyone (CR 121.1): "each player
     draws a card" (Temple Bell — the ``player_scope: All`` wrapper on the
-    ability that owns the Draw; an explicit each-player recipient). A
-    controller-only draw (Divination) never fires. Scope "each".
+    ability that owns the Draw; an explicit each-player recipient; the draw
+    half of an optional "each player may discard their hand and draw" —
+    Snort, :func:`_draw_owner_scope`). A controller-only draw (Divination)
+    never fires. Scope "each".
 
     Stage-A recovery (ADR-0037/0038): Grothama, All-Devouring's
     leaves-the-battlefield damage-scaled draw drops its "each player" subject
@@ -1574,7 +1768,7 @@ def _group_hug_draw(tree: ConceptTree) -> list[Signal]:
     for unit in tree.units:
         for c in unit.effect_concepts("draw"):
             if recipient_tag(c.node) in _EACH_DRAW_RECIPIENTS or (
-                effect_owner_player_scope(unit.node, c.node) == "All"
+                _draw_owner_scope(unit, c) == "All"
             ):
                 return [Signal("group_hug_draw", "each", "", c.raw, tree.name, "high")]
     for unit in tree.units:
@@ -2066,23 +2260,60 @@ def _cantrip(tree: ConceptTree) -> list[Signal]:
     return []
 
 
+def _costs_its_source(cost: object) -> bool:
+    """Whether an activation cost sacrifices or exiles the permanent itself (a
+    ``Sacrifice`` cost leaf of ``SelfRef`` — Mind Stone's "{1}, {T}, Sacrifice
+    this artifact"; an ``Exile`` cost leaf of ``SelfRef`` — Lantern of the Lost's
+    "{1}, {T}, Exile this artifact"). Paying it moves the source off the
+    battlefield (CR 701.21a sacrifice; CR 406.2 exile: "put it into the exile
+    zone from whatever zone it's currently in"), so the ability can be
+    activated once: a one-shot draw, not an engine."""
+    for leaf in iter_cost_leaves(cost):
+        tag = tag_of(leaf)
+        if tag == "Sacrifice" and tag_of(getattr(leaf, "target", None)) == "SelfRef":
+            return True
+        if _exiles_self(leaf):
+            return True
+    return False
+
+
+def _is_tap_draw(ability: object, effects: Sequence[ConceptNode]) -> bool:
+    """An activated ability whose cost includes ``{T}`` and does not use up its
+    source (:func:`_costs_its_source`), with a ``Draw`` among ``effects``."""
+    cost = getattr(ability, "cost", None)
+    return (
+        any(c.concept == "draw" for c in effects)
+        and any(tag_of(leaf) == "Tap" for leaf in iter_cost_leaves(cost))
+        and not _costs_its_source(cost)
+    )
+
+
 def _activated_draw(tree: ConceptTree) -> list[Signal]:
     """activated_draw — a tap-to-draw engine (CR 121.1 / 601.2b): an
     ``Activated`` unit with ``Tap`` among its cost leaves and a ``Draw``
     effect (Sensei's Divining Top's ``{T}: Draw``). A cycling activation
     (Archfiend of Ifnir — ``Composite[Mana, Discard]``, no Tap) and a
-    tap-for-mana ability (no Draw) stay out. Scope "you".
+    tap-for-mana ability (no Draw) stay out, and so does an activation that
+    sacrifices or exiles its own source (:func:`_costs_its_source` — the
+    Cluestones, Lockets and Chromatic Sphere draw once). A granted
+    ``{T}: Draw`` (Hard Cover's and Ocular Halo's enchanted creature has it — a
+    ``GrantAbility`` definition, :func:`iter_nested_granted_bodies`) is the
+    same engine on the creature it enchants. Scope "you".
     """
     for unit in tree.units:
-        if unit.origin != "ability" or unit.kind != "Activated":
-            continue
-        if not unit.has_effect("draw"):
-            continue
-        if any(
-            tag_of(leaf) == "Tap"
-            for leaf in iter_cost_leaves(getattr(unit.node, "cost", None))
+        if (
+            unit.origin == "ability"
+            and unit.kind == "Activated"
+            and _is_tap_draw(unit.node, unit.effects)
         ):
             return [Signal("activated_draw", "you", "", "", tree.name, "high")]
+        for kind, body in iter_nested_granted_bodies(unit.node):
+            if (
+                kind == "ability"
+                and getattr(body, "kind", None) == "Activated"
+                and _is_tap_draw(body, list(walk_effect_chain(body)))
+            ):
+                return [Signal("activated_draw", "you", "", "", tree.name, "high")]
     return []
 
 

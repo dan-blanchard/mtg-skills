@@ -21,6 +21,7 @@ from mtg_utils._analysis.budgets import COMMANDER_TEMPLATE, Template
 from mtg_utils._analysis.job_quality import read_for
 from mtg_utils._analysis.ranking import rank_candidates
 from mtg_utils._analysis.roles import DeckMana, role_of
+from mtg_utils._analysis.signal_specs import pages_by_serve
 from mtg_utils._card_ir.trees import trees_for
 from mtg_utils._tuner.classify import CardClass, is_premium
 from mtg_utils._tuner.issues import (
@@ -580,12 +581,9 @@ def _run_search(
     # family: ``Calibration.playrate_meaningful``) the page is the most-played
     # matches instead; synergy still ranks within it.
     #
-    # A theme searched by an oracle pattern pages the cards its ``Serve``
-    # admits instead (read off their idents where the theme is IR-served): the
-    # pattern missed most of what the theme serves. A search that names a card
-    # type or a preset stays: a tribe's serve also admits the generic tribal
-    # support that outplays its own members, and the land creatures' serve
-    # reads cards that mention them, not the manlands their search finds.
+    # A theme searched by an oracle pattern (or by nothing of its own) pages the
+    # cards its ``Serve`` admits instead — ``signal_specs.pages_by_serve``, the
+    # rule deck-forge's Find shares. A search by card type or preset alone stays.
     spec_max = spec.get("cmc_max")
     if cmc_cap is None:
         cmc_max = spec_max
@@ -593,8 +591,7 @@ def _run_search(
         cmc_max = cmc_cap
     else:
         cmc_max = min(spec_max, cmc_cap)
-    pattern_only = spec.get("oracle") and not spec.get("card_type")
-    serve = spec.get("_serve") if pattern_only else None
+    serve = spec.get("_serve") if pages_by_serve(spec) else None
     return search_fn(
         color_identity=spec.get("color_identity") or identity,
         exact_colors=False,

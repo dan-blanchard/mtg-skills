@@ -28,11 +28,13 @@ from mtg_utils._analysis.ranking import rank_candidates
 from mtg_utils._analysis.roles import role_of
 from mtg_utils._analysis.signal_specs import (
     Serve,
+    avenue_spec_for,
+    pages_by_serve,
     payoff_search,
     payoff_serve,
+    serve_from_dict,
     source_label,
     source_split,
-    spec_for,
 )
 from mtg_utils._analysis.signals import (
     Signal,
@@ -1385,7 +1387,7 @@ def avenues(state: ForgeState, hydrated: list[dict]) -> list[dict]:
     for sig in ranked_deck_signals(state, hydrated):
         if len(seen_labels) >= _AVENUE_CAP:
             break
-        spec = spec_for(sig)
+        spec = avenue_spec_for(sig)
         if spec is None or spec.label in seen_labels:
             continue
         main_search = dict(spec.search)
@@ -1431,7 +1433,13 @@ def avenues(state: ForgeState, hydrated: list[dict]) -> list[dict]:
         )
         if split is not None:
             source_serve, source_search = split
-            src_label = source_label(source_serve.types)
+            pieces = source_label(source_serve.types)
+            src_label = pieces
+            # A theme named for its source type ("Artifacts", "Sagas") keeps its
+            # label on the payoff avenue (the label every other surface reads);
+            # its pieces are named apart, or they would never surface.
+            if pieces == spec.label:
+                src_label = f"{pieces} (pieces)"
             if src_label not in seen_labels:
                 seen_labels.add(src_label)
                 out.append(
@@ -1440,7 +1448,7 @@ def avenues(state: ForgeState, hydrated: list[dict]) -> list[dict]:
                             "id": f"{avenue_id}:src",
                             "label": src_label,
                             "description": (
-                                f"the {src_label.lower()} in your colors — the pieces "
+                                f"the {pieces.lower()} in your colors — the pieces "
                                 f"that feed your {spec.label.lower()} payoffs"
                             ),
                             "scope": sig.scope,
@@ -1498,6 +1506,20 @@ def scoring_basis(
         a for a in avenues(state, hydrated) if a["id"] in state.focused_avenue_ids
     ]
     return [], focused
+
+
+def lane_page_serve(avenue: dict) -> Serve | None:
+    """The serve a focused avenue's Find page filters by in place of its search's
+    pattern and card type, or None to page by the search. The tuner's rule
+    (``signal_specs.pages_by_serve``): a lane searched by an oracle pattern, or
+    left with nothing of its own to fetch by — an ident serve's payoff avenue,
+    once ADR-0026 split its source type off (Artifacts' payoffs: Sai beside the
+    artifact-token makers) — pages the cards its serve admits. Only an avenue
+    that carries a structured serve (``avenue_with_serve``) has one to page by."""
+    stored = avenue.get("serve")
+    if not stored or not pages_by_serve(avenue.get("search") or {}):
+        return None
+    return serve_from_dict(stored)
 
 
 def explore_filters(search: dict, *, color_identity: str, fmt: str) -> dict:
@@ -1641,10 +1663,15 @@ def find_candidates(state: ForgeState, params: FindParams) -> CandidatePage:
                 found = staple_pool(state)
             else:
                 base = explore_filters(av["search"], color_identity=ci, fmt=fmt)
+                serve = lane_page_serve(av)
+                if serve is not None:
+                    base.pop("oracle", None)
+                    base.pop("card_type", None)
                 found = search(
                     limit=_FIND_POOL,
                     paper_only=FORMATS[fmt].paper_only(state.session.medium),
                     include_unreleased=params.include_unreleased,
+                    serve=serve,
                     **refine_filters(base, params),
                 )
             for card in found:

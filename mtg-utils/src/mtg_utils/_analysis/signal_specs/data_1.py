@@ -44,7 +44,6 @@ from mtg_utils._analysis._sweep_detectors import (
 from mtg_utils._analysis.lanes.card_advantage import REANIMATED_SELF_RETURNS
 
 from ._shared import (
-    _ART_SUBTYPES,
     _BOARD_PROTECTION_EXTRA,
     _BOARD_WIPE_EXTRA,
     _CAST_FROM_GY_EXTRA,
@@ -65,7 +64,6 @@ from ._shared import (
     _DIES_RECURSION_ORACLE,
     _DRAWBACK_EXTRA,
     _EDICT_SWEEP_REGEX,
-    _ENCH_SUBTYPES,
     _ETB_DOUBLER_EXTRA,
     _ETB_PAYOFF_EXTRA,
     _ETB_VALUE_EXTRA,
@@ -87,7 +85,6 @@ from ._shared import (
     _PROLIFERATE_EXTRA,
     _REANIMATE_ORACLE,
     _REANIMATION_EXTRA,
-    _REANIMATOR_SERVE_ORACLE,
     _SAC_OUTLET_EXTRA,
     _SELF_BOUNCE_EXTRA,
     _SELF_PUMP_SWEEP_REGEX,
@@ -152,6 +149,7 @@ _TREASURE_IDENTS = frozenset({"treasure_makers|you|", "treasure_matters|you|"})
 _CREATURES_ENTERING_IDENTS = _TOKEN_MAKER_IDENTS | {
     "cheat_into_play|you|Creature",
     "reanimator|you|",
+    "creature_recursion|you|battlefield",
 }
 
 # The aristocrats serve (sacrifice_outlets you, death_matters any): the creature-
@@ -242,9 +240,7 @@ SPECS_1: dict[tuple[str, str], SignalSpec] = {
         # emitters the serve below would then reject.
         {"oracle": r"create [^.]*creature tokens?"},
         # Serve rides the lanes: the token makers plus the creatures put onto the
-        # battlefield (a creature cheat, a creature that reanimates). The regex's
-        # reanimation spells (Reanimate, Ashen Powder) are the creature_etb
-        # avenue's, not go-wide fuel.
+        # battlefield (a creature cheat, reanimation or recursion to the battlefield).
         None,
         serve_idents=_CREATURES_ENTERING_IDENTS,
     ),
@@ -258,14 +254,12 @@ SPECS_1: dict[tuple[str, str], SignalSpec] = {
             )
         },
         # Serve rides the lanes (the token makers, creature cheats, creatures that
-        # reanimate); reanimation spells, which no ident separates from a
-        # return to hand, ride the Reanimation extra.
+        # reanimate, creature recursion onto the battlefield).
         None,
         serve_idents=_CREATURES_ENTERING_IDENTS,
         # An ETB commander wants the high-value ETB creatures and the doublers, not just
         # the punisher payoffs — same extras the blink lane uses (A3).
         extras=(
-            _REANIMATION_EXTRA,
             _ETB_PAYOFF_EXTRA,
             _ETB_VALUE_EXTRA,
             _ETB_DOUBLER_EXTRA,
@@ -528,7 +522,12 @@ SPECS_1: dict[tuple[str, str], SignalSpec] = {
         "reanimation effects that return a creature from your graveyard to the "
         "battlefield — each one fires your payoff and you choose the target",
         {"oracle": _REANIMATE_ORACLE},
-        _REANIMATOR_SERVE_ORACLE,
+        None,
+        # Serve rides the lanes: reanimation and creature recursion onto the
+        # battlefield. Cast-from-graveyard stays the extra below.
+        serve_idents=frozenset(
+            {"reanimator|you|", "creature_recursion|you|battlefield"}
+        ),
         # persist/undying (CR 702.79/702.93) return the creature FROM THE GRAVEYARD on
         # death, so it re-enters from a graveyard and fires the reanimator payoff.
         # Disturb is read by its route instead: it casts the back face, a creature
@@ -891,7 +890,12 @@ SPECS_1: dict[tuple[str, str], SignalSpec] = {
         "Landfall",
         "landfall payoffs plus the extra land drops, fetch, and recursion firing them",
         {"oracle": _LANDFALL_ORACLE},
-        _LANDFALL_ORACLE,
+        None,
+        # Serve rides the lanes: landfall payoffs, extra land drops, and land ramp.
+        # Land recursion from the graveyard stays the extra.
+        serve_idents=frozenset(
+            {"landfall|you|", "extra_land_drop|you|", "ramp|you|land"}
+        ),
         extras=(_LANDS_FROM_GRAVE_EXTRA,),
     ),
     # ── Archetype floor specs (whole themes the baseline was blind to) ──────────
@@ -1052,22 +1056,19 @@ SPECS_1: dict[tuple[str, str], SignalSpec] = {
         "Artifacts",
         "artifacts and artifact-count payoffs",
         {"card_type": "Artifact"},
-        r"artifacts? you control|for each artifact|\bmetalcraft\b|\baffinity\b"
-        r"|artifact spells? you cast cost"
-        # Type-GRANTERS that turn your stuff into artifacts enable the whole deck
-        # (Mycosynth Lattice, Liquimetal Coating, March of the Machines).
-        r"|becomes? an? artifact|(?:are|is an?) artifacts?"
-        # Every artifact subtype (CR 205.3g) IS an artifact: makers ("create a Treasure
-        # / Vehicle / Equipment … token"), references ("Equipment/Vehicles you control",
-        # "for each Treasure"), and Investigate (makes a Clue) all feed artifact-count /
-        # affinity / metalcraft.
-        r"|create [^.]*\b(?:" + _ART_SUBTYPES + r")\b[^.]*token"
-        r"|\b(?:" + _ART_SUBTYPES + r")s? you control\b"
-        r"|for each (?:an? )?(?:" + _ART_SUBTYPES + r")\b"
-        r"|\binvestigate\b"
-        # Artifact dig/tutor: "reveal an artifact card … put it into your hand"
-        # (Casey Jones, Glint-Nest Crane, Ingenious Smith) finds the deck's payoffs.
-        r"|reveal an artifact card[^.]*put it into your hand",
+        None,
+        # Serve rides the lanes: artifact-count payoffs and artifact makers
+        # (tokens included), plus the Treasure / Clue / Food / Blood / incubate makers.
+        serve_idents=frozenset(
+            {
+                "artifacts_matter|you|*",
+                "treasure_makers|you|",
+                "clue_makers|you|",
+                "food_makers|you|",
+                "blood_makers|you|",
+                "incubate_makers|you|",
+            }
+        ),
         # BEING an artifact is on-theme: an artifact-count / affinity / metalcraft deck
         # counts every artifact — lands (Seat of the Synod), rocks (Mind Stone),
         # Equipment, Vehicles — even with no "artifact" in the oracle. The oracle-only
@@ -1081,17 +1082,10 @@ SPECS_1: dict[tuple[str, str], SignalSpec] = {
         "Enchantments",
         "enchantments and enchantment-count payoffs",
         {"card_type": "Enchantment"},
-        r"enchantments? you control|for each enchantment|\bconstellation\b"
-        r"|whenever you cast an enchantment"
-        # Enchantment-GRANTERS (Enchanted Evening, Nyx: "are enchantments in addition").
-        r"|(?:are|is|becomes?) (?:an? )?enchantments? in addition"
-        # Every enchantment subtype (CR 205.3h) IS an enchantment: Role/Shard/Aura
-        # token makers plus references ("Auras/Sagas you control", "for each Saga",
-        # "whenever a Class you control …") all feed constellation / enchantment-count.
-        r"|create [^.]*(?:" + _ENCH_SUBTYPES + r"|enchantment)[^.]*token"
-        r"|\b(?:" + _ENCH_SUBTYPES + r")s? you control\b"
-        r"|for each (?:an? )?(?:" + _ENCH_SUBTYPES + r")\b"
-        r"|whenever (?:a|an|another) (?:" + _ENCH_SUBTYPES + r")\b",
+        None,
+        # Serve rides the lane: enchantment-count and constellation payoffs and
+        # enchantment makers.
+        serve_idents=frozenset({"enchantments_matter|you|*"}),
         # BEING an enchantment is on-theme: constellation / enchantment-count counts
         # every enchantment (Auras, Sagas, enchantment creatures like Spirited
         # Companion), even with no "enchantment" in the oracle.
@@ -1399,7 +1393,11 @@ SPECS_1: dict[tuple[str, str], SignalSpec] = {
     ("flash_grant", "you"): _spec(
         *SWEEP_LABELS["flash_grant"],
         {"oracle": FLASH_GRANT_REGEX},
-        FLASH_GRANT_REGEX,
+        None,
+        # Serve rides the lane. Self-castability ("as though it had flash if...")
+        # stays out by design; Aluren, Final-Word Phantom and Scout's Warning are
+        # phase gaps.
+        serve_idents=frozenset({"flash_grant|you|"}),
     ),
     ("target_player_draws", "any"): _spec(
         *SWEEP_LABELS["target_player_draws"],
@@ -1531,9 +1529,10 @@ SPECS_1: dict[tuple[str, str], SignalSpec] = {
         *SWEEP_LABELS["keyword_grant_target"],
         {"oracle": KEYWORD_GRANT_TARGET_REGEX},
         # Serve rides the lane (2026-10-18): regex missed multi-target / attacking-
-        # creature grants (Aerial Guide, Aim High)
+        # creature grants (Aerial Guide, Aim High). Every granted keyword (the
+        # lane's subject) is a targeted grant.
         None,
-        serve_idents=frozenset({"keyword_grant_target|you|"}),
+        serve_idents=frozenset({"keyword_grant_target|you|*"}),
     ),
     # ADR-0027 Cluster D: protection_grant's SWEEP_DETECTORS row is deleted (detection
     # moved to the Card IR — the structural protective-keyword grant arm in
@@ -1730,7 +1729,10 @@ SPECS_1: dict[tuple[str, str], SignalSpec] = {
     # BLOCKED_MATTERS_REGEX kept mirror), so pass the pinned regex explicitly (the
     # auto-register loop no longer reaches the deleted row); the serve pool is the same.
     ("blocked_matters", "you"): _sweep_spec_with_extras(
-        "blocked_matters", (_LURE_EXTRA,), regex=BLOCKED_MATTERS_REGEX
+        "blocked_matters",
+        (_LURE_EXTRA,),
+        regex=BLOCKED_MATTERS_REGEX,
+        serve_idents=frozenset({"blocked_matters|you|"}),
     ),
     # Heroic / target-matters: the payoff fires when YOU target your own creature, so
     # surface the single-target pumps/protection that do it (Gods Willing, Brute Force).

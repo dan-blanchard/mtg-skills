@@ -181,11 +181,11 @@ def test_creatures_entering_serves(key, scope):
     assert not serve.matches(_card("Slaughter Specialist"))
 
 
-def test_creature_etb_keeps_reanimation_as_an_extra():
-    """No ident separates a reanimation spell from a return to hand
-    (creature_recursion reads both), so creature_etb serves Reanimate through
-    its Reanimation sub-avenue rather than the main serve."""
+def test_creature_etb_serves_reanimation_on_the_main_serve():
+    """creature_recursion|you|battlefield separates a reanimation spell from a
+    return to hand, so creature_etb serves Reanimate on the main serve and no
+    longer carries a Reanimation sub-avenue."""
     spec = spec_for(_sig("creature_etb"))
-    (reanimation,) = [e for e in spec.extras if e.label == "Reanimation"]
-    assert not spec.serve.matches(_card("Reanimate"))
-    assert reanimation.serve.matches(_card("Reanimate"))
+    assert not [e for e in spec.extras if e.label == "Reanimation"]
+    assert spec.serve.matches(_card("Reanimate"))
+    assert not spec.serve.matches(_card("Raise Dead"))

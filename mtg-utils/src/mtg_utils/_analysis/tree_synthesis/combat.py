@@ -25,6 +25,7 @@ from mtg_utils._card_ir.crosswalk import (
     condition_tags,
     count_operand_filter,
     effect_filter,
+    evasion_sites,
     filter_controller,
     filter_core_types,
     filter_predicates,
@@ -196,19 +197,15 @@ def _arm_attack_matters(tree: ConceptTree) -> ConceptNode | None:
     )
 
 
-# ── evasion_self bucket-B tail (ADR-0036 fold — no shared structural gate) ─────
+# ── evasion_self bucket-B tail (ADR-0036 fold) ──────────────────────────────────
 # evasion_self (CR 509.1b evasion blocking-restriction abilities / 702.14
-# landwalk): a card that CARRIES or GRANTS evasion. The six keyword rows
-# (menace/fear/intimidate/skulk/horsemanship/shadow) PLUS the five landwalk
-# keywords (islandwalk/swampwalk/forestwalk/mountainwalk/plainswalk/landwalk)
-# ride the Scryfall keyword-field arm (``_keyword_field_signals_b15`` — a
-# bucket-A structural recovery, this fold's own-keyword-field extension);
-# flying is DELIBERATELY absent (soft evasion). phase gets NO Tier-1 read for
-# the rest — the ``CantBeBlocked`` static tag hangs under activated
-# GenericEffects for some cards (Giant Koi), so reading it structurally would
-# drift the 1646-row population (the ``_evasion_self`` lane docstring's
-# warning) — so this arm is the lane's ONLY source for the text tail and has
-# no competing Tier-1 predicate to gap-gate against.
+# landwalk): a card that CARRIES or GRANTS evasion. The evasion keyword rows
+# (menace/fear/intimidate/skulk/horsemanship/shadow and every landwalk) ride
+# the Scryfall keyword-field arm (``_keyword_field_signals_b15``); flying is
+# DELIBERATELY absent (soft evasion). The Tier-1 read is
+# :func:`crosswalk.evasion_sites` (every blocking-restriction static mode and
+# evasion keyword the card carries or grants, at any depth); this arm is the
+# text tail for a card with no such site, gap-gated on it.
 #
 # Three idiom families, relocated from the deleted ``_EVASION_SELF_REGEX``:
 #
@@ -348,18 +345,18 @@ def _matches_evasion_self_idiom(oracle: str) -> bool:
 
 def _arm_evasion_self(tree: ConceptTree) -> ConceptNode | None:
     """Synthesize an ``evasion_self`` node for the bucket-B can't-be-blocked /
-    granted-keyword / granted-landwalk tail (CR 509.1b / 702.14).
+    granted-keyword / granted-landwalk tail (CR 509.1b / 702.14) phase's tree
+    carries no structure for.
 
-    phase carries NO Tier-1 structural read for this concept (the
-    ``CantBeBlocked`` static tag is deliberately unread — see the module
-    docstring above), so this arm is the lane's ONLY source for the text
-    tail; there is no competing Tier-1 predicate to gap-gate against. The
-    card's OWN Scryfall keyword field rides a separate structural arm
-    (``_keyword_field_signals_b15``) — firing here on the same card too is
-    harmless, since the lane dedupes identical ``evasion_self`` signals by
-    identity (ADR-0036/0037).
+    Gap gate: the Tier-1 read is :func:`crosswalk.evasion_sites` — every
+    blocking-restriction static mode and evasion keyword the card carries or
+    grants, which the ``evasion_self`` lane turns into one subject per kind.
+    A card with ANY such site is read there; this arm fires only on a card
+    with none whose text still grants evasion (Dimir Keyrune's dropped "can't
+    be blocked this turn", Legions of Lim-Dûl's snow swampwalk), and its kind
+    is unknown, so the lane reads it with an empty subject.
     """
-    if not _matches_evasion_self_idiom(tree.oracle or ""):
+    if evasion_sites(tree) or not _matches_evasion_self_idiom(tree.oracle or ""):
         return None
     return _synthetic_concept(
         arm_id="evasion_self",
@@ -793,7 +790,7 @@ def _arm_station_matters(tree: ConceptTree) -> ConceptNode | None:
 # Mountain, black permanent, or red permanent becomes tapped" all fall to the
 # untagged ``MirrorVariant(key="Unknown", inner=<raw trigger head clause>)``
 # wrapper phase uses when no ``S_triggers.mode`` tag matches, so
-# ``_trigger_event`` falls through to ``"other"``. ``mode.inner`` carries the
+# ``trigger_def_event`` falls through to ``"other"``. ``mode.inner`` carries the
 # EXACT unparsed trigger-head text ("Whenever fortified land becomes tapped"
 # — the effect tail is a SEPARATE typed ``execute`` node), so reading it is a
 # typed-field read of the trigger's own residue, never a whole-oracle scan —
@@ -834,7 +831,7 @@ def _arm_tap_untap_becomes(tree: ConceptTree) -> ConceptNode | None:
     on :func:`has_structural_tap_untap_matters` so a phase-classified
     ``Taps``/``Untaps``/``TapsForMana`` trigger never doubles. Emits the
     REAL "taps"/"untaps" concept (mirroring the vocabulary
-    :func:`_trigger_event`'s ``mode``->event map already uses for those
+    :func:`trigger_def_event`'s ``mode``->event map already uses for those
     tags), so the ``_tap_untap_matters`` lane reads it via one extra
     synthesized-node branch on its existing typed walk — no text re-scan."""
     if has_structural_tap_untap_matters(tree):

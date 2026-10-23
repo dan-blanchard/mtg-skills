@@ -43,11 +43,14 @@ from mtg_utils._card_ir.crosswalk import (
     detriment_directed_scope,
     double_target_kind,
     double_triggers_cause_core_types,
+    effect_damage_amplifier,
     effect_filter,
     effect_owner_player_scope,
     entered_this_turn_filters,
     filter_controller,
     filter_core_types,
+    filter_inzone_zones,
+    filter_names_creatures,
     filter_predicates,
     filter_subtypes,
     granted_next_spell_keyword,
@@ -63,6 +66,8 @@ from mtg_utils._card_ir.crosswalk import (
     iter_static_defs,
     iter_threaded_target_statics,
     iter_typed_nodes,
+    iter_unit_trigger_defs,
+    keyword_subject,
     mana_restrictions,
     mod_keyword_name,
     named_permanent_refs,
@@ -70,6 +75,7 @@ from mtg_utils._card_ir.crosswalk import (
     normalised_keyword_name,
     parked_prevention,
     player_filter_tag,
+    punishes_triggering_caster,
     recipient_tag,
     redirects_damage_from_you,
     ref_count_qty,
@@ -129,7 +135,13 @@ def _spell_keyword_grant(tree: ConceptTree) -> list[Signal]:
     * a ``GrantNextSpellAbility`` effect ("the next spell you cast this
       turn has convoke" — Wand of the Worldsoul), a ONE-SHOT ability grant
       distinct from the always-on static form, read via
-      :func:`granted_next_spell_keyword`.
+      :func:`granted_next_spell_keyword` (with Quicken's
+      ``CastAsThoughFlash`` modifier — "the next sorcery spell you cast this
+      turn can be cast as though it had flash");
+    * the same ``CastWithKeyword`` static granted for a turn by an effect
+      (a ``GrantStaticAbility`` modification of a ``GenericEffect``'s
+      static — "you may cast spells this turn as though they had flash":
+      Borne Upon a Wind, Alchemist's Refuge, Emergence Zone).
 
     Gate #2: beneficiary you — the affected filter/player must not name an
     opponent. A Flash grant additionally opens flash_grant + flash_makers
@@ -151,11 +163,12 @@ def _spell_keyword_grant(tree: ConceptTree) -> list[Signal]:
             seen.add(key)
             out.append(Signal(key, "you", "", raw, tree.name, "high"))
 
-    def grant(kw: str, raw: str) -> None:
+    def grant(kw: str, raw: str, *, enabler: bool = True) -> None:
         fire("spell_keyword_grant", raw)
         if normalised_keyword_name(kw) == "flash":
             fire("flash_grant", raw)
-            fire("flash_makers", raw)
+            if enabler:  # one next spell (Quicken) builds no instant-speed deck
+                fire("flash_makers", raw)
         elif normalised_keyword_name(kw) == "convoke":
             fire("convoke_makers", raw)
 
@@ -170,6 +183,26 @@ def _spell_keyword_grant(tree: ConceptTree) -> list[Signal]:
             ):
                 grant(kw, "")
         for sdef, mod in iter_mod_sites(unit.node):
+            if tag_of(mod) == "GrantStaticAbility":
+                # The one-shot "you may cast spells this turn as though they had
+                # flash" (Borne Upon a Wind, Alchemist's Refuge, Emergence Zone):
+                # a GenericEffect whose static grants the CastWithKeyword static
+                # for the turn — the same static the always-on arm reads, wrapped.
+                definition = getattr(mod, "definition", None)
+                kw = (
+                    cast_with_keyword_name(definition)
+                    if isinstance(definition, TypedMirrorNode)
+                    else None
+                )
+                affected = getattr(definition, "affected", None)
+                if (
+                    kw is not None
+                    and tag_of(affected) != "SelfRef"
+                    and filter_controller(affected) != "Opponent"
+                    and filter_controller(getattr(sdef, "affected", None)) != "Opponent"
+                ):
+                    grant(kw, _site_raw(sdef))
+                continue
             if tag_of(mod) != "AddKeyword":
                 continue
             kw = mod_keyword_name(mod)
@@ -187,7 +220,7 @@ def _spell_keyword_grant(tree: ConceptTree) -> list[Signal]:
                 continue
             if tag_of(getattr(n, "player", None)) == "Opponent":
                 continue  # a grant to an opponent's next spell is not your engine
-            grant(kw, "")
+            grant(kw, "", enabler=False)
     return out
 
 
@@ -461,6 +494,13 @@ _AURA_EQUIP_KW: frozenset[str] = frozenset(
         "reach",
         "indestructible",
     }
+)
+# A keyword grant that is a drawback never names a keyword-grant subject:
+# defender (CR 702.3b: "A creature with defender can't attack") and cumulative
+# upkeep (CR 702.24a: an increasing cost, else sacrifice it — Mana Chains). Nor
+# does phase's ``Unknown`` placeholder, which names no keyword (Concerted Effort).
+_DRAWBACK_GRANT_KW: frozenset[str] = frozenset(
+    {"defender", "cumulative upkeep", "unknown"}
 )
 # Suit-up predicates: the grant lands on the creature the Aura/Equipment is
 # attached to (live ``_is_aura_equip_protection_subject`` — CR 303 / 301).
@@ -808,9 +848,14 @@ def _opponent_cast_matters(tree: ConceptTree) -> list[Signal]:
     """opponent_cast_matters — the opponent-cast punisher (CR 102.2/102.3 +
     603.2): a ``SpellCast`` trigger whose cast-PLAYER recipient node names an
     opponent (Kambal — ``valid_target {Typed, controller: Opponent}``;
-    checklist #5, the recipient node, never a summary scope). The SYMMETRIC "a
-    player casts" punisher (Eidolon of the Great Revel — no recipient node) is
-    CORRECTLY excluded: "a player" includes you (CR 102.1). A self-cast
+    checklist #5, the recipient node, never a summary scope). The SYMMETRIC
+    "whenever a player casts" punisher whose effect hurts the caster
+    (:func:`punishes_triggering_caster` — Eidolon of the Great Revel,
+    Pyrostatic Pillar, Liesa, Oppression) fires too: "a player" includes you
+    (CR 102.1), but a deck plays it to punish opponents' spells, and it is
+    built to hurt its controller less (a low curve, few noncreature spells).
+    A symmetric trigger that pays you or the caster (Niv-Mizzet, Parun;
+    Glademuse) stays out. A self-cast
     watcher (Beast Whisperer — ``Controller``) never fires. The batched
     ``SpellCastOrCopy`` mode ("whenever [a player] casts or copies …", 33
     corpus — b10 follow-up e) joins the same read: its opponent-scoped
@@ -832,19 +877,13 @@ def _opponent_cast_matters(tree: ConceptTree) -> list[Signal]:
     so the marker needs its own explicit check, unlike a lane that already
     reads via ``effect_concepts``). Scope "opponents".
     """
-    for unit in tree.units:
-        if unit.origin == "trigger" and is_opponent_cast_trigger_def(unit.node):
-            return [
-                Signal("opponent_cast_matters", "opponents", "", "", tree.name, "high")
-            ]
-    for unit in tree.units:
-        for trig in iter_nested_trigger_defs(unit.node):
-            if is_opponent_cast_trigger_def(trig):
-                return [
-                    Signal(
-                        "opponent_cast_matters", "opponents", "", "", tree.name, "high"
-                    )
-                ]
+
+    if any(
+        is_opponent_cast_trigger_def(trig) or punishes_triggering_caster(trig)
+        for unit in tree.units
+        for trig in iter_unit_trigger_defs(unit)
+    ):
+        return [Signal("opponent_cast_matters", "opponents", "", "", tree.name, "high")]
     for c in tree.effect_concepts("opponent_cast"):
         if isinstance(c.node, SynthesizedNode):
             return [
@@ -1212,14 +1251,45 @@ def _keyword_grant_lanes(tree: ConceptTree) -> list[Signal]:
 
     A SelfRef affected (a card granting ITSELF a keyword) is vetoed
     throughout (the batch-9 self-grant lesson).
+
+    The granted keyword rides as the SUBJECT (:func:`keyword_subject` —
+    ``keyword_grant_target|you|haste``, ``|double strike``, ``|infect``)
+    beside each subject-less ident, which keeps its shape unchanged. The
+    subject-bearing idents also name the shapes the subject-less keys leave
+    out, each on the key whose avenue it is, so a theme that wants one
+    keyword serves on that keyword across every shape:
+
+    * ``team_buff|you|<kw>`` (the "Team keyword grants" avenue) — a grant to
+      YOUR creatures, any subset: the generic team (Fervor), a typed or
+      predicate-qualified one (Bonescythe Sliver's Slivers, Blade Historian's
+      attackers), one-shot or static, and the creature that triggers a
+      watcher of your creatures ("Whenever a creature you control attacks
+      alone, it gains double strike" — Rafiq of the Many).
+    * ``aura_equip_kw_grant|you|<kw>`` (the "Aura/Equipment keyword grant"
+      avenue, Auras and Equipment that suit up) — the suit-up recipient,
+      "Equipped / Enchanted creature has <kw>" (Fireshrieker, Lightning
+      Greaves, Phyresis), and "Whenever equipped creature attacks, it gains
+      <kw>".
+
+    A drawback grant (:data:`_DRAWBACK_GRANT_KW` — defender, cumulative
+    upkeep) never becomes a subject.
     """
     out: list[Signal] = []
     seen: set[str] = set()
+    seen_kw: set[tuple[str, str, str]] = set()
 
     def fire(key: str, scope: str, raw: str) -> None:
         if key not in seen:
             seen.add(key)
             out.append(Signal(key, scope, "", raw, tree.name, "high"))
+
+    def fire_kw(key: str, scope: str, mod: object, raw: str = "") -> None:
+        name = mod_keyword_name(mod) if isinstance(mod, TypedMirrorNode) else None
+        subject = keyword_subject(name or "")
+        ident = (key, scope, subject)
+        if subject and subject not in _DRAWBACK_GRANT_KW and ident not in seen_kw:
+            seen_kw.add(ident)
+            out.append(Signal(key, scope, subject, raw, tree.name, "high"))
 
     for unit in tree.units:
         # ``unit_keyword_grants``: the DEEP local-target leaf on any unit, plus —
@@ -1228,10 +1298,12 @@ def _keyword_grant_lanes(tree: ConceptTree) -> list[Signal]:
         # haste" idiom — Conquering Manticore, the Equipment "attach it to target
         # creature. That creature gains X" ETB idiom) and the "those creatures"
         # TrackedSet walk. ``crosswalk.protection`` reads the same walk.
-        for resolved, mod in unit_keyword_grants(unit):
+        targeted = unit_keyword_grants(unit)
+        for resolved, mod in targeted:
             if "Creature" not in filter_core_types(resolved):
                 continue  # the live creature-core gate (no tribal/permanent)
             fire("keyword_grant_target", "you", "")
+            fire_kw("keyword_grant_target", "you", mod)
             if normalised_keyword(mod) in PROTECTIVE_KEYWORDS:
                 fire("protection_grant", "you", "")
         # (phase v0.104.0's intervening-if threaten-then-haste — Might Makes
@@ -1255,10 +1327,13 @@ def _keyword_grant_lanes(tree: ConceptTree) -> list[Signal]:
             team = "Creature" in cores and ctrl == "You" and generic
             if team and kw in _TEAM_EVASION_KW:
                 fire("team_evasion_grant", "you", raw)
+                fire_kw("team_evasion_grant", "you", mod, raw)
             if "Creature" in cores and ctrl not in ("You", "Opponent") and generic:
                 fire("all_creatures_kw_grant", "any", raw)
+                fire_kw("all_creatures_kw_grant", "any", mod, raw)
             if ctrl == "You" and subs & {"aura", "equipment"} and kw in _AURA_EQUIP_KW:
                 fire("aura_equip_kw_grant", "you", raw)
+                fire_kw("aura_equip_kw_grant", "you", mod, raw)
             your_perms = "Permanent" in cores and ctrl == "You" and generic
             suit_up = set(preds) & ATTACHED_OBJECT_PREDICATES and cores & {
                 "Creature",
@@ -1266,6 +1341,46 @@ def _keyword_grant_lanes(tree: ConceptTree) -> list[Signal]:
             }
             if kw in PROTECTIVE_KEYWORDS and (team or your_perms or suit_up):
                 fire("protection_grant", "you", raw)
+        # The subject-only shapes read every grant site the card holds (the deep
+        # walk: a modal arm, an emblem, a token's own Equipment static — The
+        # Spear of Leonidas, Domri Rade's emblem, Nahiri's Stoneforged Blade).
+        for sdef, mod in iter_mod_sites(unit.node, deep=True):
+            if tag_of(mod) != "AddKeyword":
+                continue
+            affected = getattr(sdef, "affected", None)
+            raw = _site_raw(sdef)
+            atag = tag_of(affected)
+            if atag == "TriggeringSource" or (
+                atag == "ParentTarget" and all(mod is not m for _r, m in targeted)
+            ):
+                # "Whenever a creature you control attacks, it gains <kw>" — the
+                # grant lands on the creature the trigger watched (phase writes
+                # Ogre Battledriver's "it" as a ParentTarget no target resolves;
+                # an Aura's unresolved one can be the creature it fights — Mammoth
+                # Harness's "the other creature gains first strike").
+                if unit.origin != "trigger":
+                    continue
+                watched = getattr(unit.node, "valid_card", None)
+                if atag == "TriggeringSource" and (
+                    tag_of(watched) == "AttachedTo"
+                    or set(filter_predicates(watched)) & ATTACHED_OBJECT_PREDICATES
+                ):
+                    fire_kw("aura_equip_kw_grant", "you", mod, raw)
+                elif trigger_subject_scope(unit.node) == "you":
+                    fire_kw("team_buff", "you", mod, raw)
+                continue
+            cores = set(filter_core_types(affected))
+            on_board = not set(filter_inzone_zones(affected)) - {"Battlefield"}
+            if (
+                filter_names_creatures(affected)
+                and filter_controller(affected) == "You"
+                and on_board  # Sedris's graveyard cards have unearth — no team
+            ):
+                fire_kw("team_buff", "you", mod, raw)
+            if set(filter_predicates(affected)) & ATTACHED_OBJECT_PREDICATES and (
+                cores & {"Creature", "Permanent"}
+            ):
+                fire_kw("aura_equip_kw_grant", "you", mod, raw)
     if _TEAM_EVASION_GRANT_RX.search(_kept(tree)):
         fire("team_evasion_grant", "you", "")
     # ADR-0038 W3 batch 4 — the split/aftermath BACK-HALF grant residue: phase
@@ -2399,6 +2514,24 @@ def _replacement_doubler_lanes(tree: ConceptTree) -> list[Signal]:
                     fire("damage_doubling", raw)
                     if tscope in (None, "opponents", "each", "any"):
                         fire("direct_damage", raw)
+    # The same amplifier set up by an EFFECT for a turn or for one event — a
+    # spell's, an activated ability's or a Saga chapter's "if a source you
+    # control would deal damage this turn …, it deals double / triple that
+    # damage instead" (Isengard Unleashed, Goblin Goliath; Desperate Gambit's
+    # won flip). The same your-side-only veto, plus an opponent's source; it
+    # deals no damage itself, so it never co-fires ``direct_damage``.
+    for unit in tree.units:
+        for n in iter_typed_nodes(unit.node):
+            amp = effect_damage_amplifier(n)
+            if amp is None:
+                continue
+            mod, tscope, source_ctrl = amp
+            if (
+                mod in _DAMAGE_AMP_MODS
+                and tscope != "you"
+                and source_ctrl != "Opponent"
+            ):
+                fire("damage_doubling", _site_raw(unit.node))
     # A "that many plus N" bonus phase v0.104.0 parks as a residue, recovered by
     # the ``counter_bonus`` token (Prairie Dog's activated one, Zabaz's modular
     # one): the typed arm's Plus mod, read off the clause, your side only.

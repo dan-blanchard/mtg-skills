@@ -20,17 +20,25 @@ from mtg_utils._analysis.lanes._shared import (
     _whole_card_maker,
 )
 from mtg_utils._analysis.signal_base import Signal
-from mtg_utils._analysis.tree_synthesis import has_structural_dice_makers
+from mtg_utils._analysis.tree_synthesis import (
+    CAST_TRIGGER_EVENTS,
+    has_structural_dice_makers,
+    has_structural_spellcast,
+)
 from mtg_utils._card_ir.crosswalk import (
+    LIBRARY_EXILE_TAGS,
     AbilityUnit,
     ConceptNode,
     ConceptTree,
     additional_phase_kind,
     answers_its_target,
+    basic_land_type_grants,
+    cast_trigger_origin,
     change_zone_dirs,
     color_count_preds,
     condition_tags,
     control_recipient_scope,
+    corrected_scope,
     count_operand_filter,
     count_operand_qty,
     counter_kind,
@@ -40,24 +48,37 @@ from mtg_utils._card_ir.crosswalk import (
     effect_filter,
     effect_owner_player_scope,
     effects_exclusive,
+    exiled_library_side,
     filter_controller,
     filter_predicates,
+    granted_keyword_names,
+    granted_trigger_events,
+    graveyard_exile_kind,
+    graveyard_exile_replacement_side,
     has_nested_flip_coin,
+    is_own_drawback,
     iter_condition_sites,
     iter_cost_leaves,
     iter_delayed_trigger_condition_defs,
     iter_static_defs,
     iter_typed_nodes,
+    iter_unit_trigger_defs,
     ki_counter_kind_refs,
     mana_restricted_to_multicolored,
+    modify_cost_mode,
+    modify_cost_spell_filter,
     oil_counter_kind_refs,
     permission_tag,
     player_counter_kind,
     power_threshold_preds,
     recipient_tag,
     references_modified,
+    residue_is,
+    spell_filter_class,
     static_mode_tag,
     tag_of,
+    trigger_caster_scope,
+    trigger_def_event,
     trigger_scope,
 )
 from mtg_utils._card_ir.mirror.runtime import (
@@ -243,11 +264,34 @@ def _voting_makers(tree: ConceptTree) -> list[Signal]:
     Ceremonies) as ``Vote`` too; the ``AllPlayers`` gate excludes them STRUCTURALLY
     — a clean improvement over the live ``_VOTE_EFFECT_GUARD`` raw-idiom regex.
     Scope "each" (every player votes), matching the live structural maker arm.
+
+    phase v0.104.0 parks most council's dilemma, secret council and will of the
+    council votes ("starting with you, each player votes for strength or
+    numbers" — Lieutenants of the Guard, Mob Verdict, Split Decision; ability
+    words, CR 207.2c) as an ``Unimplemented`` residue headed "vote"
+    (:func:`residue_is`); that residue is the vote too. Guarded by
+    ``test_council_vote_is_still_a_residue_canary``.
+
+    A card that gives you extra votes ("While voting, you may vote an
+    additional time" — Ballot Broker, The Valeyard: phase's ``GrantsExtraVote``
+    static mode; CR 701.38d) runs no vote of its own and pays off the votes
+    others run: ``voting_matters`` each.
     """
-    for c in tree.effect_concepts("vote"):
-        if tag_of(getattr(c.node, "voter_scope", None)) == "AllPlayers":
-            return [Signal("voting_makers", "each", "", c.raw, tree.name, "high")]
-    return []
+    out: list[Signal] = []
+    for c in (c for unit in tree.units for c in unit.effects):
+        if (
+            c.concept == "vote"
+            and tag_of(getattr(c.node, "voter_scope", None)) == "AllPlayers"
+        ) or residue_is(c.node, "vote"):
+            out.append(Signal("voting_makers", "each", "", c.raw, tree.name, "high"))
+            break
+    if any(
+        static_mode_tag(sdef) == "GrantsExtraVote"
+        for unit in tree.units
+        for sdef in iter_static_defs(unit.node)
+    ):
+        out.append(Signal("voting_matters", "each", "", "", tree.name, "high"))
+    return out
 
 
 def _amass_makers(tree: ConceptTree) -> list[Signal]:
@@ -380,21 +424,56 @@ def _cast_from_exile_unit_evidence(unit: AbilityUnit) -> bool:
     own (Muse Vessel's exile-into-the-artifact ability, read by a SEPARATE
     activated ability's grant) scans its full effect list.
     """
+    return bool(_cast_from_exile_unit_sources(unit))
+
+
+#: The cast-trigger origins (:func:`cast_trigger_origin`) of a cast-from-exile
+#: payoff: "a spell from exile", and "from anywhere other than your hand".
+_FROM_EXILE_CAST_ORIGINS: frozenset[tuple[str, str]] = frozenset(
+    {("Equals", "Exile"), ("NotEquals", "Hand")}
+)
+
+
+def _exile_source(unit: AbilityUnit, node: object) -> str | None:
+    """What a cast-from-exile evidence node exiles: ``"top"`` for the top of
+    YOUR library (impulse draw — an ``ExileTop`` / ``ExileFromTopUntil`` / a
+    ``Dig`` into exile from your library or every player's, the same owner
+    read the ``impulse_top_play`` lane makes: :func:`exiled_library_side`),
+    ``"other"`` for anything else (a permanent, a graveyard card, another
+    player's library — Gonti's theft; "target opponent's library" — Court of
+    Locthwain, Outrageous Robbery), ``None`` when ``node`` is no evidence
+    (:func:`_cast_from_exile_zone_evidence`)."""
+    if tag_of(node) == "EffectCost":
+        return _exile_source(unit, getattr(node, "effect", None))
+    if not (
+        _cast_from_exile_zone_evidence(node) or tag_of(node) == "ExileFromTopUntil"
+    ):
+        return None
+    if tag_of(node) in LIBRARY_EXILE_TAGS:
+        side = exiled_library_side(unit.node, node, unit)
+        return "top" if side in ("you", "each") else "other"
+    return "other"
+
+
+def _cast_from_exile_unit_sources(unit: AbilityUnit) -> set[str]:
+    """The :func:`_exile_source` kinds of the unit's cast-from-exile evidence
+    (see :func:`_cast_from_exile_unit_evidence` for which nodes count)."""
+    out: set[str] = set()
     for c in unit.costs:
-        if _cast_from_exile_zone_evidence(c.node) or tag_of(c.node) == (
-            "ExileFromTopUntil"
-        ):
-            return True
+        kind = _exile_source(unit, c.node)
+        if kind is not None:
+            out.add(kind)
     effs = list(unit.effects)
     grant_idx = next(
         (i for i, c in enumerate(effs) if c.concept == "grant_cast_permission"),
         None,
     )
     scan = effs if grant_idx is None else effs[: grant_idx + 1]
-    return any(
-        _cast_from_exile_zone_evidence(c.node) or tag_of(c.node) == "ExileFromTopUntil"
-        for c in scan
-    )
+    for c in scan:
+        kind = _exile_source(unit, c.node)
+        if kind is not None:
+            out.add(kind)
+    return out
 
 
 def _cast_from_exile(tree: ConceptTree) -> list[Signal]:
@@ -447,9 +526,22 @@ def _cast_from_exile(tree: ConceptTree) -> list[Signal]:
     text (not a new grammar; corpus census, 2026-07: matches all 60
     commander-legal live_only cards, ZERO of the 6 named sheds above). CR
     601.3b / 702.143.
+
+    SUBJECTS (2026-10-20). Impulse draw — exile the top of YOUR library, play
+    it (Act on Impulse, Abbot of Keral Keep) — is its own avenue
+    (``impulse_top_play``), so a permission whose only exile evidence is the
+    top of your library reads subject ``impulse`` (:func:`_exile_source`);
+    every other permission (a permanent, a graveyard card, an opponent's
+    library) and every payoff reads ``""``. Also read: a cast trigger whose
+    spell must come from exile or from anywhere but your hand (Faldorn, Dread
+    Wolf Herald; Vega — :func:`cast_trigger_origin`), and a granted rebound
+    (CR 702.88a: "… you may cast this card from exile without paying its mana
+    cost" — Cast Through Time, Ojer Pakpatiq, Taigam, Ojutai Master).
     """
     grant: ConceptNode | None = None
     for unit in tree.units:
+        if "rebound" in granted_keyword_names(unit.node):
+            return [Signal("cast_from_exile", "you", "", "", tree.name, "high")]
         for c in unit.effects:
             if c.concept != "grant_cast_permission":
                 continue
@@ -459,10 +551,25 @@ def _cast_from_exile(tree: ConceptTree) -> list[Signal]:
             if tag == "Plotted":
                 return [Signal("cast_from_exile", "you", "", c.raw, tree.name, "high")]
             grant = grant or c
-    if grant is not None and any(
-        _cast_from_exile_unit_evidence(unit) for unit in tree.units
+    out: list[Signal] = []
+    if any(
+        cast_trigger_origin(trig) in _FROM_EXILE_CAST_ORIGINS
+        for unit in tree.units
+        for trig in iter_unit_trigger_defs(unit)
+        if trigger_caster_scope(trig) == "you"
     ):
-        return [Signal("cast_from_exile", "you", "", grant.raw, tree.name, "high")]
+        # "Whenever you cast a spell from exile" (Faldorn, Dread Wolf Herald)
+        # and paradox's "from anywhere other than your hand" (Vega): the payoff.
+        out.append(Signal("cast_from_exile", "you", "", "", tree.name, "high"))
+    if grant is not None:
+        sources = set().union(*(_cast_from_exile_unit_sources(u) for u in tree.units))
+        if sources:
+            subject = "impulse" if sources == {"top"} else ""
+            out.append(
+                Signal("cast_from_exile", "you", subject, grant.raw, tree.name, "high")
+            )
+    if out:
+        return out
     stripped = re.sub(r"\([^)]*\)", " ", tree.oracle or "")
     low = stripped.lower()
     if (
@@ -569,6 +676,9 @@ def _keyword_field_signals(keywords: frozenset[str], name: str) -> list[Signal]:
     # no prowess row existed in the crosswalk keyword tables.
     if "prowess" in low:
         out.append(Signal("spellcast_matters", "you", "", "", name, "high"))
+        # CR 702.108a: "Whenever you cast a noncreature spell" — the subject
+        # :func:`_spellcast_subjects` reads off a printed trigger's filter.
+        out.append(Signal("spellcast_matters", "you", "noncreature", "", name, "high"))
     # recall-completion (ADR-0034/0035 Stage-A): the OWN printed lifelink keyword
     # marks a lifegain SOURCE — a lifelink bearer gains life in combat (CR
     # 702.15b), the MAKER arm. Mirrors the deleted ``_signals_ir``'s
@@ -1781,6 +1891,32 @@ _COST_FREE_CAST_KEPT_RX = re.compile(
 )
 
 
+def _cost_reduction_subjects(tree: ConceptTree) -> list[Signal]:
+    """``cost_reduction`` you, subject the class of spell a reducer discounts
+    for you (:func:`spell_filter_class` of its ``ModifyCost`` spell filter —
+    "Noncreature spells you cast cost {1} less" (Geist of Saint Thalia) reads
+    ``noncreature``; "Instant and sorcery spells you cast cost {1} less"
+    (Goblin Electromancer) ``instant_sorcery``). A reducer for every player
+    (Helm of Awakening) or for one card only names no class. CR 601.2f."""
+    out: list[Signal] = []
+    seen: set[str] = set()
+    for unit in tree.units:
+        for sdef in iter_static_defs(unit.node):
+            if modify_cost_mode(sdef) != "Reduce":
+                continue
+            filt = modify_cost_spell_filter(sdef)
+            affected = getattr(sdef, "affected", None)
+            if filt is None or filter_controller(affected) != "You":
+                continue
+            subject = spell_filter_class(filt)
+            if subject not in seen:
+                seen.add(subject)
+                out.append(
+                    Signal("cost_reduction", "you", subject, "", tree.name, "high")
+                )
+    return out
+
+
 def _cost_reduction(tree: ConceptTree) -> list[Signal]:
     """cost_reduction — a static spell-cost REDUCER build-around (CR 601.2f / 118.7).
     Mirrors the live ``cost_reduction`` doer: a ``static_ability`` whose ``mode`` is a
@@ -1832,7 +1968,10 @@ def _cost_reduction(tree: ConceptTree) -> list[Signal]:
     """
     for c in tree.iter_concepts():
         if c.concept == "synth_cost_reduction":
-            return [Signal("cost_reduction", "you", "", "", tree.name, "high")]
+            return [
+                Signal("cost_reduction", "you", "", "", tree.name, "high"),
+                *_cost_reduction_subjects(tree),
+            ]
     kept = _kept(tree)
     if _COST_SELF_DISCOUNT_KEPT_RX.search(kept):
         return []  # a self-discount rider anywhere on the card poisons every
@@ -1944,20 +2083,74 @@ def _conjure_makers(tree: ConceptTree) -> list[Signal]:
     return []
 
 
+#: The trigger events (:func:`trigger_def_event`'s spelling) of a block payoff: the
+#: blocker side (CR 509.1g), the blocked attacker (CR 509.1h), the disjunctive
+#: modes phase keeps whole, and afflict's ``AttackerBlocked``.
+_BLOCK_TRIGGER_EVENTS: frozenset[str] = frozenset(
+    {
+        "becomes_blocked",
+        "blocks",
+        "attacksorblocks",
+        "blocksorbecomesblocked",
+        "attackerblocked",
+    }
+)
+#: The keywords that are a block trigger (CR 702.45a bushido "Whenever this
+#: creature blocks or becomes blocked", 702.25a flanking "Whenever this creature
+#: becomes blocked by a creature without flanking", 702.23a rampage and 702.130a
+#: afflict "Whenever this creature becomes blocked").
+_BLOCK_TRIGGER_KEYWORDS: frozenset[str] = frozenset(
+    {"bushido", "flanking", "rampage", "afflict"}
+)
+
+
 def _blocked_matters(tree: ConceptTree) -> list[Signal]:
     """blocked_matters — a combat-block payoff (CR 509). Mirrors the live
     ``_PAYOFF_TRIGGER_KEYS`` ``becomes_blocked`` / ``blocks`` rows: a trigger whose
     derived event is ``becomes_blocked`` (the attacker-side "whenever ~ becomes
     blocked" — CR 509.1h) or ``blocks`` (the blocker-side "whenever ~ blocks" — CR
-    509.1g). An ``attacks`` trigger is a different lane (``attack_matters``). The
-    disjunctive "attacks or blocks" membership fold (phase → event='other') stays a
-    ``live_only`` mirror. Scope "you" (the live forces it; no opponent-side ``blocks``
-    trigger exists to over-fire).
+    509.1g). An ``attacks`` trigger is a different lane (``attack_matters``).
+    Also read: the disjunctive "attacks or blocks" / "blocks or becomes blocked"
+    trigger modes (Elder Gargaroth, Brushwagg, Ferocity's enchanted creature),
+    phase's ``AttackerBlocked`` (afflict's own trigger, CR 702.130a), a granted
+    trigger with any of these events (Retaliation's "Creatures you control have
+    'Whenever this creature becomes blocked …'"), and a granted or token
+    keyword whose meaning is a block trigger (:data:`_BLOCK_TRIGGER_KEYWORDS` —
+    Agility's flanking, Cyberman Patrol's afflict; a printed one is the bulk
+    keyword array's, :func:`_keyword_field_signals_b7`). Scope "you" (the live
+    forces it; no opponent-side ``blocks`` trigger exists to over-fire).
     """
     for unit in tree.units:
-        if unit.trigger_event in ("becomes_blocked", "blocks"):
+        events = set(granted_trigger_events(unit.node))
+        if unit.trigger_event and not _only_removes_itself(
+            getattr(unit.node, "execute", None)
+        ):
+            events.add(unit.trigger_event)
+        if events & _BLOCK_TRIGGER_EVENTS or (
+            granted_keyword_names(unit.node) & _BLOCK_TRIGGER_KEYWORDS
+        ):
             return [Signal("blocked_matters", "you", "", "", tree.name, "high")]
     return []
+
+
+def _only_removes_itself(ability: object) -> bool:
+    """Whether a trigger's whole resolution takes the card itself away, now or
+    at end of combat: "When this creature attacks or blocks, sacrifice it at
+    end of combat" (Mardu Blazebringer), "… return it to its owner's hand"
+    (Windscouter), "… destroy it" (Ceremonial Guard). Such a trigger is the
+    card's drawback (:func:`is_own_drawback`), no payoff for blocking."""
+    if ability is None or tag_of(ability) is not None:
+        return False
+    eff = getattr(ability, "effect", None)
+    if tag_of(eff) == "CreateDelayedTrigger":
+        removes = _only_removes_itself(getattr(eff, "effect", None))
+    else:
+        removes = is_own_drawback(ability) or (
+            tag_of(eff) == "Destroy"
+            and tag_of(getattr(eff, "target", None)) == "SelfRef"
+        )
+    sub = getattr(ability, "sub_ability", None)
+    return removes and (sub is None or _only_removes_itself(sub))
 
 
 def _initiative(tree: ConceptTree) -> list[Signal]:
@@ -2016,24 +2209,50 @@ def _opponent_exile_makers(tree: ConceptTree) -> list[Signal]:
     player-target gate is the discriminator that isolates graveyard HATE from a
     self-graveyard-exile-for-value (an escape/fuel ``(Graveyard → Exile)`` of a
     specific CARD — controller you / a single Typed card), which it must NOT fire on.
-    Self-blink (Cloudshift — origin not Graveyard), Leyline of the Void (a
-    ``replacement``, origin not Graveyard), and an any-graveyard single-card exile
-    (Scavenging Ooze — target a Typed card, not a player) are all naturally excluded;
-    the replacement / mass-all-graveyards forms stay a documented ``live_only`` tail.
+    Self-blink (Cloudshift — origin not Graveyard) and an any-graveyard
+    single-card exile (Scavenging Ooze — target a Typed card, not a player) are
+    naturally excluded.
+
+    Also read (2026-10-20): a mass ``ChangeZoneAll`` out of a graveyard the
+    graveyard-hate read (:func:`crosswalk.graveyard_exile_kind`)
+    places on an opponent's ("Exile each opponent's graveyard" — Soul-Guide
+    Lantern, Dauntless Scrapbot, Ashiok, Dream Render; "Exile all creature
+    cards from target player's graveyard" — Crypt Incursion), and the
+    replacement that exiles what would go to an opponent's graveyard (Leyline
+    of the Void, Dauthi Voidwalker — :func:`graveyard_exile_replacement_side`,
+    CR 614.1a). Every graveyard at once (Rest in Peace) is "any", not this
+    lane's; a one-card graveyard exile stays the scoped arm above.
     Scope "opponents" (the live's fixed lane scope).
     """
-    for c in tree.effect_concepts("change_zone"):
-        if change_zone_dirs(c.node) != ("Graveyard", "Exile"):
-            continue
-        if (
-            tag_of(getattr(c.node, "target", None)) == "Player"
-            or c.scope == "opponents"
-        ):
+    for unit in tree.units:
+        if graveyard_exile_replacement_side(unit) == "opponents":
             return [
-                Signal(
-                    "opponent_exile_makers", "opponents", "", c.raw, tree.name, "high"
-                )
+                Signal("opponent_exile_makers", "opponents", "", "", tree.name, "high")
             ]
+        for c in unit.effects:
+            if c.concept != "change_zone" or change_zone_dirs(c.node)[1] != "Exile":
+                continue
+            if (
+                change_zone_dirs(c.node)[0] == "Graveyard"
+                and (
+                    tag_of(getattr(c.node, "target", None)) == "Player"
+                    or c.scope == "opponents"
+                )
+            ) or (
+                tag_of(c.node) == "ChangeZoneAll"
+                and answers_its_target(c.node)
+                and graveyard_exile_kind(c.node, corrected_scope(c)) == "opponents"
+            ):
+                return [
+                    Signal(
+                        "opponent_exile_makers",
+                        "opponents",
+                        "",
+                        c.raw,
+                        tree.name,
+                        "high",
+                    )
+                ]
     return []
 
 
@@ -2071,7 +2290,9 @@ def _keyword_field_signals_b7(keywords: frozenset[str], name: str) -> list[Signa
       "whenever you cast or copy" trigger lives in stripped reminder text, so the
       Scryfall ``Magecraft`` keyword is the only reachable anchor. A plain
       "whenever you cast an instant or sorcery" creature WITHOUT the keyword (Young
-      Pyromancer) carries none → ``spellcast_matters``, not this).
+      Pyromancer) carries none → ``spellcast_matters``, not this);
+    * ``bushido`` / ``flanking`` / ``rampage`` / ``afflict`` → ``blocked_matters``
+      you (each is a block trigger — :data:`_BLOCK_TRIGGER_KEYWORDS`).
 
     Reading the STRUCTURED keyword array (not oracle text) makes the lanes immune to
     name / ability-word collisions.
@@ -2087,7 +2308,94 @@ def _keyword_field_signals_b7(keywords: frozenset[str], name: str) -> list[Signa
         out.append(Signal("convoke_makers", "you", "", "", name, "high"))
     if low & _MAGECRAFT_KEYWORDS:
         out.append(Signal("magecraft_matters", "you", "", "", name, "high"))
+    if low & _BLOCK_TRIGGER_KEYWORDS:
+        out.append(Signal("blocked_matters", "you", "", "", name, "high"))
     return out
+
+
+def _watched_spell_class(trig: object) -> str:
+    """The subject :func:`_spellcast_subjects` reads off one you-cast trigger:
+    :func:`spell_filter_class` of the spell it watches, except that an
+    unfiltered "whenever you cast your second (third) spell each turn" — phase's
+    ``NthSpellThisTurn`` constraint with ``n`` ≥ 2, the flurry ability word's
+    trigger (CR 207.2c) — reads ``second_spell``: it pays off chaining casts in
+    one turn, where "your first spell each turn" fires on any turn's one cast."""
+    subject = spell_filter_class(getattr(trig, "valid_card", None))
+    constraint = getattr(trig, "constraint", None)
+    n = getattr(constraint, "n", None)
+    if (
+        subject == "any"
+        and tag_of(constraint) == "NthSpellThisTurn"
+        and isinstance(n, int)
+        and n >= 2
+    ):
+        return "second_spell"
+    return subject
+
+
+def _spellcast_subjects(tree: ConceptTree) -> list[Signal]:
+    """``spellcast_matters`` you, subject the class of spell a you-cast trigger
+    watches (:func:`spell_filter_class` of its ``valid_card``): "whenever you
+    cast an instant or sorcery spell" (Talrand) reads ``instant_sorcery``, "a
+    noncreature spell" ``noncreature``, "a spell" (Aetherflux Reservoir)
+    ``any``, "a white spell" ``color``, "a historic spell" ``historic``. The
+    bare ``spellcast_matters`` you (``board_and_ramp._spellcast_matters``)
+    can't tell these apart; the Spellslinger avenue wants only the first two.
+    Read only when the card already carries that bare signal — a typed you-cast
+    trigger (:func:`has_structural_spellcast`) or the bucket-B synth node — so
+    this lane never adds the key to a card (a Dragon-spell trigger stays the
+    tribal lanes'). Granted triggers count (:func:`iter_nested_trigger_defs`),
+    and so does a delayed one ("Until your next turn, whenever you cast an
+    instant or sorcery spell" — Nightmares and Daydreams' chapters). "Your
+    second spell each turn" reads ``second_spell`` (:func:`_watched_spell_class`).
+
+    A grant or token of prowess (CR 702.108a: "Whenever you cast a noncreature
+    spell") is a maker of noncreature-cast payoffs: Goblin Wizardry's Wizards,
+    Triton Wavebreaker's "it has prowess" — bare and ``noncreature``. A
+    printed prowess is the keyword array's (:func:`_keyword_field_signals`).
+    CR 601.2 / 603.2."""
+    out: list[Signal] = []
+    seen: set[str] = set()
+
+    def fire(subject: str) -> None:
+        if subject not in seen:
+            seen.add(subject)
+            out.append(
+                Signal("spellcast_matters", "you", subject, "", tree.name, "high")
+            )
+
+    if has_structural_spellcast(tree) or any(
+        c.concept == "synth_spellcast_matters" for c in tree.iter_concepts()
+    ):
+        for unit in tree.units:
+            for trig in iter_unit_trigger_defs(unit, delayed=True):
+                if (
+                    trigger_def_event(trig) in CAST_TRIGGER_EVENTS
+                    and trigger_caster_scope(trig) == "you"
+                ):
+                    fire(_watched_spell_class(trig))
+    if any("prowess" in granted_keyword_names(unit.node) for unit in tree.units):
+        fire("")
+        fire("noncreature")
+    return out
+
+
+def _domain_enablers(tree: ConceptTree) -> list[Signal]:
+    """``domain_matters`` you — a domain ENABLER: it gives your lands basic land
+    types in addition to their own (:func:`basic_land_type_grants`). "Lands you
+    control are every basic land type in addition to their other types"
+    (Prismatic Omen, Dryad of the Ilysian Grove, Leyline of the Guildpact) is
+    full domain on its own; Nylea's Presence's enchanted land and Navigator's
+    Compass's chosen type add to it. CR 305.6 / 305.7. A grant to an
+    opponent's lands or a chosen player's is no enabler of yours; a type SET
+    (Blood Moon) is not read."""
+    for unit in tree.units:
+        if any(
+            side in ("you", "attached", None)
+            for side in basic_land_type_grants(unit.node)
+        ):
+            return [Signal("domain_matters", "you", "", "", tree.name, "high")]
+    return []
 
 
 LANES = (
@@ -2116,4 +2424,6 @@ LANES = (
     _initiative,
     _end_the_turn,
     _opponent_exile_makers,
+    _spellcast_subjects,
+    _domain_enablers,
 )

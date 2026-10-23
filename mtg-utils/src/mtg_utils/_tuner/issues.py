@@ -25,7 +25,7 @@ from mtg_utils._analysis.roles import (
     is_ramp,
     protects,
 )
-from mtg_utils._analysis.signal_specs import spec_for
+from mtg_utils._analysis.signal_specs import avenue_spec_for
 from mtg_utils._card_ir.crosswalk import mana_ability_gates
 from mtg_utils._card_ir.trees import trees_for
 from mtg_utils._tuner.metrics import CALIBRATION_GAME, is_wincon_card
@@ -290,7 +290,7 @@ class Sourcing:
         the spec's serving predicate (``_serve``), which pages the theme in
         place of the search's pattern (``swaps._run_search``)."""
         for sig in self._signals:
-            spec = spec_for(sig)
+            spec = avenue_spec_for(sig)
             if spec is not None and spec.label == label:
                 return {**spec.search, "_serve": spec.serve}
         return None

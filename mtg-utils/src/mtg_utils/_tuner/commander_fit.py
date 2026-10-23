@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from collections.abc import Callable, Sequence
 
-from mtg_utils._analysis.signal_specs import spec_for
+from mtg_utils._analysis.signal_specs import avenue_spec_for
 from mtg_utils._tuner.classify import CardClass
 
 
@@ -67,7 +67,7 @@ def suggest_commanders(
     wanted = set(viable_labels)
     # Each signal's spec once, not per candidate (a subject-bearing signal's
     # spec is built on resolution).
-    specs = [spec for sig in deck_signals if (spec := spec_for(sig))]
+    specs = [spec for sig in deck_signals if (spec := avenue_spec_for(sig))]
     scored: list[dict] = []
     for cand in pool:
         name = cand.get("name", "")

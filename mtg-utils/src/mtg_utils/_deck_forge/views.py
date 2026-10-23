@@ -13,7 +13,7 @@ from __future__ import annotations
 from collections.abc import Callable, Mapping
 from typing import Any
 
-from mtg_utils._analysis.signal_specs import spec_for
+from mtg_utils._analysis.signal_specs import avenue_spec_for
 from mtg_utils._analysis.signals import Signal
 from mtg_utils._deck_forge.state import ForgeState
 from mtg_utils.card_classify import (
@@ -299,8 +299,9 @@ def deck_view(
 
 
 def signal_view(signal: Signal) -> dict:
-    """One deck signal on the wire: identity + the served spec's label / avenue."""
-    spec = spec_for(signal)
+    """One deck signal on the wire: identity + the avenue it opens (its label /
+    blurb; ``actionable`` when it opens one — ``avenue_spec_for``)."""
+    spec = avenue_spec_for(signal)
     return {
         "key": signal.key,
         "scope": signal.scope,

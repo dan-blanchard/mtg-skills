@@ -6,9 +6,12 @@ from __future__ import annotations
 
 import re
 from itertools import chain
-from typing import Literal
 
-from mtg_utils._analysis._subtypes import CREATURE_SUBTYPES
+from mtg_utils._analysis._subtypes import (
+    CREATURE_SUBTYPES,
+    LAND_SUBTYPES,
+    subtype_card_type,
+)
 from mtg_utils._analysis._sweep_detectors import COMBAT_DAMAGE_TO_OPP_DS_GRANT_REGEX
 from mtg_utils._analysis.lanes._shared import (
     _DEBUFF_SINGLE_AURA_PREDS,
@@ -42,10 +45,10 @@ from mtg_utils._card_ir.crosswalk import (
     answers_its_target,
     change_zone_dirs,
     condition_tags,
-    controller_side,
     corrected_scope,
     cost_has_paylife,
     counter_kind,
+    damage_drains_opponent,
     damage_to_player_trigger_kind,
     effect_actor_scope,
     effect_filter,
@@ -56,9 +59,9 @@ from mtg_utils._card_ir.crosswalk import (
     filter_core_types,
     filter_inzone_zones,
     filter_owned_controller,
-    filter_owners,
     filter_predicates,
     filter_subtypes,
+    graveyard_exile_kind,
     has_nested_connive,
     has_nested_fight,
     iter_cost_leaves,
@@ -68,17 +71,20 @@ from mtg_utils._card_ir.crosswalk import (
     iter_static_defs,
     iter_typed_nodes,
     keyword_resource_events,
+    life_lost_this_turn_sides,
     lifeloss_recipient_is_degraded_typed,
     lifeloss_recipient_scope,
     mod_value,
     node_lure_mode,
     pt_mod_signs,
     pump_is_negative,
+    scoped_player_scope,
     self_graveyard_fills,
     static_affected,
     static_mode_tag,
     tag_of,
     targets_the_card,
+    token_creator_side,
     trigger_scope,
     trigger_subject,
     trigger_subject_scope,
@@ -741,7 +747,7 @@ def self_mill_fill(tree: ConceptTree) -> bool:
 # YOUR graveyard") — an unrecoverable phase-parse gap this text veto
 # patches at the unit-description granularity (CR 400.7). The graveyard-hate
 # arm reads the overlay's ``graveyard_owner`` re-read of the exile's own clause
-# instead (``_graveyard_exile``).
+# instead (``graveyard_exile_kind``).
 _GY_OPP_RE = re.compile(
     r"\b(?:opponent'?s?|their|each (?:player|opponent)'?s?|that player'?s?"
     r"|target (?:player|opponent)'?s?) graveyard\b",
@@ -852,69 +858,6 @@ def _gy_count_ref_scope(node: object) -> str | None:
     return None
 
 
-#: What an exile out of a graveyard reads as (:func:`_graveyard_exile`):
-#: graveyard hate at a scope, or an exile out of your own graveyard.
-GraveyardExile = Literal["opponents", "any", "own"]
-
-
-#: An ownerless graveyard exile's ``ConceptNode.scope`` the overlay's
-#: ``graveyard_owner`` arm re-read off its clause, as what the exile reads as.
-_GY_OWNER_SCOPE: dict[str, GraveyardExile] = {
-    "you": "own",
-    "opponents": "opponents",
-    "any": "any",
-}
-
-
-def _graveyard_exile(
-    node: TypedMirrorNode, scope: str | None = None
-) -> GraveyardExile | None:
-    """What an effect that answers its target (:func:`answers_its_target`)
-    reads as when it exiles out of a graveyard, or ``None`` when it doesn't:
-
-    * ``"opponents"`` — hate on an opponent's graveyard, or a player's the
-      card picks ("exile target player's graveyard" — Bojuka Bog, Angel of
-      Finality; "exile all cards from target player's graveyard" —
-      Necromancer's Covenant);
-    * ``"any"`` — hate on a card from a graveyard, or all of them ("exile up
-      to one target card from a graveyard" — Afterthought Sentry,
-      Necrogenesis; "exile all graveyards" — Rest in Peace);
-    * ``"own"`` — no hate: your own graveyard, a card an earlier clause named
-      (the discarded card Necropotence exiles), or each player exiling from
-      their own (Living Death's mass reanimation).
-
-    Each half of a compound target names its own graveyard (Spelltwine: "…
-    from your graveyard and … from an opponent's graveyard"); a half that is
-    yours makes the exile ``"own"``. The owner is the filter's ``Owned``
-    property, else its controller (:func:`controller_side`). A filter naming no
-    owner reads ``scope``, its concept's corrected scope (:func:`corrected_scope`):
-    the overlay's ``graveyard_owner`` re-read of the owner phase dropped ("from
-    that player's graveyard" — Skullsnatcher; "from defending player's
-    graveyard" — Grime Gorger; "from a graveyard" — Savior of Ollenbock)."""
-    filt = effect_filter(node)
-    origin, _ = change_zone_dirs(node)
-    in_gy = "Graveyard" in filter_inzone_zones(filt)
-    if origin != "Graveyard" and not in_gy:
-        return None
-    if tag_of(filt) == "Player":
-        return "opponents"
-    owners = filter_owners(filt)
-    if not any(owners) and scope in _GY_OWNER_SCOPE:
-        return _GY_OWNER_SCOPE[scope]
-    sides = {controller_side(o) for o in owners}
-    if "you" in sides:
-        return "own"
-    if sides & {"opponents", "chosen"}:
-        return "opponents"
-    if (
-        not any(owners)
-        and tag_of(filt) in ("Typed", "Or", "And")
-        and (in_gy or tag_of(node) == "ChangeZoneAll")
-    ):
-        return "any"
-    return "own"
-
-
 def _gy_filter_scope(filt: object) -> str | None:
     """The graveyard-ownership scope of a target/count filter (CR 400.7),
     or ``None`` when no scope can be read off it structurally. A
@@ -975,7 +918,7 @@ def _graveyard_matters(tree: ConceptTree) -> list[Signal]:
       graveyard — Reya Dawnbringer, Gravedigger, Surgical Extraction,
       Daring Waverider's ``cast_from_zone``) EXCEPT a ``ChangeZone``/
       ``ChangeZoneAll`` whose destination is Exile. A graveyard-hate exile
-      fires 'opponents' or 'any' (:func:`_graveyard_exile` — Bojuka Bog,
+      fires 'opponents' or 'any' (:func:`graveyard_exile_kind` — Bojuka Bog,
       Afterthought Sentry), never 'you'; any other exile or blink stays
       out of this lane.
     * **graveyard-fuel activation cost** — "Exile this card from your
@@ -1069,9 +1012,9 @@ def _graveyard_matters(tree: ConceptTree) -> list[Signal]:
             if answers_its_target(enode):
                 # Graveyard HATE: an exile out of a graveyard answers the
                 # cards there; it is no payoff on cards in YOUR graveyard
-                # (:func:`_graveyard_exile`). A battlefield exile or blink, and
+                # (:func:`graveyard_exile_kind`). A battlefield exile or blink, and
                 # an exile out of your own graveyard, stay out of this arm.
-                exile = _graveyard_exile(enode, corrected_scope(c))
+                exile = graveyard_exile_kind(enode, corrected_scope(c))
                 if exile == "own":
                     own_exile.add(unit_index)
                 elif exile is not None:
@@ -1842,6 +1785,12 @@ def _lifeloss_makers(tree: ConceptTree) -> list[Signal]:
                 and id(n) not in bled_ids
             ):
                 scoped_fire(unit, n, "")
+        # Damage dealt to an opponent IS life loss (CR 120.3a): a pinger, an
+        # each-opponent burn, a "that player" hoser drains as a LoseLife does.
+        # "Any target" burn stays direct_damage / removal
+        # (:func:`damage_drains_opponent`).
+        if any(damage_drains_opponent(unit, n) for n in iter_typed_nodes(unit.node)):
+            fire("opponents", "")
     if not tree.is_type("Land"):
         for unit in tree.units:
             paylife = any(cost_has_paylife(cc.node) for cc in unit.costs) or any(
@@ -1879,15 +1828,30 @@ def _lifeloss_makers(tree: ConceptTree) -> list[Signal]:
 def _lifeloss_matters(tree: ConceptTree) -> list[Signal]:
     """lifeloss_matters — the life-loss PAYOFF (CR 119.3). A ``life_lost`` trigger
     (Exquisite Blood, Vilis): an opp-scoped watcher is the drain payoff (opponents),
-    else you. The ``spectacle`` keyword (a "cast cheaper if an opponent lost life"
-    condition stripped to reminder text — no structural ``LoseLife``) rides a keyword
-    field-lookup in :func:`extract_crosswalk_signals`.
+    else you. A "life lost this turn" operand or gate
+    (:func:`life_lost_this_turn_sides`): "if an opponent lost life this turn"
+    (Stromkirk Bloodthief, Bat Whisperer), "for each 1 life your opponents have
+    lost this turn" (Rakdos, Lord of Riots) → opponents; "the life you've lost
+    this turn" (Children of Korlis) → you. A symmetric "each player who lost life"
+    reads neither side, nor does "if you didn't lose life this turn" (Luminarch
+    Ascension). Start your engines! is an opponents payoff: speed rises "Whenever
+    one or more opponents lose life during your turn" (CR 702.179d). The
+    ``spectacle`` keyword (a "cast cheaper if an opponent
+    lost life" condition stripped to reminder text — no structural ``LoseLife``)
+    rides a keyword field-lookup in :func:`extract_crosswalk_signals`.
     """
+    scopes: list[str] = (
+        ["opponents"] if "StartYourEngines" in tree.card_keywords else []
+    )
     for unit in tree.units:
         if unit.trigger_event == "life_lost":
             sc = "opponents" if trigger_scope(unit.node) == "opponents" else "you"
-            return [Signal("lifeloss_matters", sc, "", "", tree.name, "high")]
-    return []
+            if sc not in scopes:
+                scopes.append(sc)
+        for sc in sorted(life_lost_this_turn_sides(unit.node) & {"you", "opponents"}):
+            if sc not in scopes:
+                scopes.append(sc)
+    return [Signal("lifeloss_matters", sc, "", "", tree.name, "high") for sc in scopes]
 
 
 def _edict_makers(tree: ConceptTree) -> list[Signal]:
@@ -2070,11 +2034,39 @@ def _granted_land_sac_unless_pay(tree: ConceptTree) -> bool:
     return False
 
 
+# The wrapper actors of a land sacrifice every player makes: "each player
+# sacrifices a land" (``All`` — Tremble, Smallpox, Akki Blizzard-Herder), "any
+# player may" (Worms of the Earth), "each player who controls the most lands"
+# (``ControlsCount`` — Tectonic Hellion).
+_EACH_LAND_SAC_ACTORS: frozenset[str] = frozenset(
+    {"All", "Each", "EachPlayer", ANY_PLAYER_SCOPE, "ControlsCount"}
+)
+
+
+def _land_sac_scope(unit: AbilityUnit, node: TypedMirrorNode) -> str:
+    """The scope of a (not opponent-directed) land ``Sacrifice``: ``"each"``
+    when every player sacrifices (CR 101.4: "Each player sacrifices …" — each
+    player in APNAP order chooses their own; :data:`_EACH_LAND_SAC_ACTORS`), or a
+    trigger's "that player sacrifices" on each player's turn (Mana Vortex,
+    Stoneshaker Shaman — :func:`scoped_player_scope`); else ``"you"``. A
+    symmetric land sacrifice is land denial too (``land_denial``)."""
+    actor = effect_owner_player_scope(unit.node, node)
+    if actor in _EACH_LAND_SAC_ACTORS:
+        return "each"
+    if (
+        filter_controller(effect_filter(node)) == "ScopedPlayer"
+        and scoped_player_scope(unit) == "each"
+    ):
+        return "each"
+    return "you"
+
+
 def _land_sacrifice_makers(tree: ConceptTree) -> list[Signal]:
     """land_sacrifice_makers — a SELF land-sacrifice engine (CR 701.21 / 305.6): a
     ``Sacrifice`` effect OR cost whose subject is LAND-ONLY where YOU sacrifice your
     OWN lands (Zuran Orb's "Sacrifice a land:", Scapeshift; symmetric "each player
-    sacrifices a land" — Smallpox, Death Cloud — counts, you sac too). The Land-only
+    sacrifices a land" — Smallpox, Death Cloud — counts, you sac too, scoped
+    ``each`` by :func:`_land_sac_scope`). The Land-only
     branch ``sacrifice_outlets`` deliberately EXCLUDES
     (:func:`_is_you_sac_subject` returns False on a ``("Land",)`` subject), so it is a
     clean complement; a mixed "creature or land" sac (Reprocess, Larval Scoutlander's
@@ -2139,6 +2131,7 @@ def _land_sacrifice_makers(tree: ConceptTree) -> list[Signal]:
     effect — the SAME substring-match-regardless-of-true-subject over-fire
     class.
     """
+    scopes: dict[str, str] = {}
     for unit in tree.units:
         for c in (*unit.effects, *unit.costs):
             if (
@@ -2147,34 +2140,27 @@ def _land_sacrifice_makers(tree: ConceptTree) -> list[Signal]:
                 and c.scope != "opponents"
                 and not _sac_targets_opponent(unit, c.node)
             ):
-                # "any player may sacrifice two lands" (Worms of the Earth): every
-                # player's option.
-                actor = effect_owner_player_scope(unit.node, c.node)
-                scope = "each" if actor == ANY_PLAYER_SCOPE else "you"
-                return [
-                    Signal("land_sacrifice_makers", scope, "", c.raw, tree.name, "high")
-                ]
+                # One signal per scope: Mana Vortex's own "unless you sacrifice a
+                # land" cast tax (you) beside its each-upkeep land sacrifice (each).
+                scopes.setdefault(_land_sac_scope(unit, c.node), c.raw)
         for leaf in iter_cost_leaves(getattr(unit.node, "cost", None)):
             if tag_of(leaf) == "Sacrifice" and filter_core_types(
                 getattr(leaf, "target", None)
             ) == ("Land",):
-                return [
-                    Signal("land_sacrifice_makers", "you", "", "", tree.name, "high")
-                ]
+                scopes.setdefault("you", "")
         unless_pay = getattr(unit.node, "unless_pay", None)
         if unless_pay is not None:
             for leaf in iter_cost_leaves(getattr(unless_pay, "cost", None)):
                 if tag_of(leaf) == "Sacrifice" and filter_core_types(
                     getattr(leaf, "target", None)
                 ) == ("Land",):
-                    return [
-                        Signal(
-                            "land_sacrifice_makers", "you", "", "", tree.name, "high"
-                        )
-                    ]
+                    scopes.setdefault("you", "")
     if _attack_requirement_land_sac(tree) or _granted_land_sac_unless_pay(tree):
-        return [Signal("land_sacrifice_makers", "you", "", "", tree.name, "high")]
-    return []
+        scopes.setdefault("you", "")
+    return [
+        Signal("land_sacrifice_makers", scope, "", raw, tree.name, "high")
+        for scope, raw in scopes.items()
+    ]
 
 
 def _recovered_minus_counter_on_target(unit: AbilityUnit, c: ConceptNode) -> bool:
@@ -2539,6 +2525,28 @@ def _copies_a_named_card(unit: AbilityUnit) -> bool:
     )
 
 
+# The noncreature permanent types (CR 110.4) a ``BecomeCopy`` may copy: an
+# artifact (Sculpting Steel, Copy Artifact), an enchantment (Copy Enchantment),
+# a land (Vesuva, Thespian's Stage) — ``copy_permanent``, never ``clone_makers``
+# (a creature clone).
+_NONCREATURE_PERMANENT_TYPES: frozenset[str] = frozenset(
+    {"Artifact", "Enchantment", "Land", "Planeswalker", "Battle"}
+)
+
+
+def _copied_noncreature_permanent(word: str) -> bool:
+    """Whether a copied-type word (:func:`_clone_copied_words`) names a
+    noncreature permanent: one of :data:`_NONCREATURE_PERMANENT_TYPES`, or a
+    subtype on one of their lists (Masterwork of Ingenuity's Equipment, a land
+    type)."""
+    if word in _NONCREATURE_PERMANENT_TYPES:
+        return True
+    return (
+        subtype_card_type(word) in _NONCREATURE_PERMANENT_TYPES
+        or word.lower() in LAND_SUBTYPES
+    )
+
+
 def _copy_clone(tree: ConceptTree) -> list[Signal]:
     """copy_permanent / clone_makers / token_copy_makers — the copy cluster (CR 707 /
     701.36). Three structural surfaces (Dan's clone-vs-token-copy boundary):
@@ -2552,9 +2560,17 @@ def _copy_clone(tree: ConceptTree) -> list[Signal]:
       creature becomes a copy of another target creature.'") carries no top-level
       unit effect at all, so the unit's own already-decorated ``GrantAbility``
       static concept is descended one level (``.definition.effect`` — O(1), never a
-      full tree walk) to catch it too;
-    * a ``CopyTokenOf`` / ``CopyTokenBlockingAttacker`` / ``Populate`` effect →
-      ``token_copy_makers``. The Embalm / Eternalize / … reminder self-copies carry a
+      full tree walk) to catch it too. A noncreature permanent type
+      (:func:`_copied_noncreature_permanent` — Sculpting Steel's artifact,
+      Vesuva's land, Copy Enchantment) → ``copy_permanent``;
+    * a ``CopyTokenOf`` / ``CopyTokenBlockingAttacker`` / ``Populate`` effect, a
+      granted one included (Ghired, Mirror of the Wilds; Splinter Twin) →
+      ``token_copy_makers`` unless an opponent creates the token (CR 111.2): an
+      opponent wrapper ("each opponent creates" — Life of the Party, Tempt with
+      Reflections' offer: :func:`effect_actor_scope`) or owner (Wedding Ring:
+      :func:`crosswalk.token_creator_side`). The concept's own scope reads the
+      COPIED object, so it is not read here. The Embalm / Eternalize / … reminder
+      self-copies carry a
       ``SelfRef`` target (a copy of THIS card, not a copy-others payoff — Adorned
       Pouncer) and are EXCLUDED structurally, the discriminator fully in the IR.
 
@@ -2599,15 +2615,34 @@ def _copy_clone(tree: ConceptTree) -> list[Signal]:
                 fire("clone_makers", raw)
             if any(_resolve_subject(w, CREATURE_SUBTYPES) for w in words):
                 fire("clone_makers", raw)
+            if any(_copied_noncreature_permanent(w) for w in words):
+                fire("copy_permanent", raw)
     for unit in tree.units:
-        for c in unit.effects:
+        granted = {
+            id(c.node): c for c in iter_nested_granted_effect_concepts(unit.node)
+        }
+        for c in chain(unit.effects, granted.values()):
             if c.concept not in ("copy_token", "populate"):
                 continue
-            if c.scope not in _YOU_EACH:
+            if c.concept == "populate":
+                if c.scope not in _YOU_EACH:
+                    continue
+            elif "opponents" in (
+                effect_actor_scope(unit, c.node),
+                token_creator_side(unit, c.node),
+            ):
                 continue
             tgt = getattr(c.node, "target", None)
-            if c.concept == "copy_token" and tag_of(tgt) == "SelfRef":
-                continue  # a copy of THIS card (Embalm / Eternalize / Squad / Myriad)
+            # A copy of THIS card (Embalm / Eternalize / Squad / Myriad) is no
+            # copy-others engine; a GRANTED "copy of this creature" names the
+            # creature it is granted to (Splinter Twin, Mirage Phalanx's soulbond
+            # partner, Trickster's Talisman's equipped creature).
+            if (
+                c.concept == "copy_token"
+                and tag_of(tgt) == "SelfRef"
+                and id(c.node) not in granted
+            ):
+                continue
             # phase v0.104.0 parks Ochre Jelly's / Shredder's "create a token
             # that's a copy of it" as a residue the ``clone`` token recovers, with
             # no typed target: the seam marks the same self-copy (``SELF``).

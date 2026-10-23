@@ -512,6 +512,59 @@ def test_a_scoped_payoff_cares_only_about_its_own_scope():
     assert set(rows[yours]["carer_cards"]) == self_payoffs | {"Theirs 2"}
 
 
+def test_a_token_maker_is_no_carer_of_the_artifacts_avenue():
+    """``artifacts_matter|you|token`` marks an artifact-TOKEN maker (Thopters,
+    Servos): it feeds the Artifacts avenue's depth but does not care about it, so
+    the carer read skips that doer subject even when the deck's signals carry it."""
+    label = spec_for(_sig("artifacts_matter")).label
+    classes = [_cc(f"Art {i}", "engine", [label]) for i in range(12)]
+    payoffs = {"Art 0", "Art 1", "Art 2", "Art 3", "Art 4"}
+    makers = {f"Art {i}" for i in range(5, 12)}
+    fr = focus(
+        classes,
+        deck_size=100,
+        deck_signals=[
+            _sig("artifacts_matter"),
+            _sig("artifacts_matter", subject="token"),
+        ],
+        emitters={
+            ("artifacts_matter", "you", ""): frozenset(payoffs),
+            ("artifacts_matter", "you", "token"): frozenset(makers),
+        },
+    )
+    rows = {a["label"]: a for a in fr["viable_avenues"] + fr["emerging"] + fr["fed"]}
+    assert set(rows[label]["carer_cards"]) == payoffs
+
+
+def test_a_subject_its_serve_leaves_out_opens_no_avenue():
+    """An avenue is opened only by a subject its own serve counts
+    (``avenue_spec_for``): impulse draw (``cast_from_exile|you|impulse``) cares
+    about no "Cast-from-exile" avenue, while an Equipment's haste grant
+    (Lightning Greaves: ``aura_equip_kw_grant|you|haste``) opens the
+    Aura/Equipment keyword grant avenue its serve counts it toward."""
+    exile = spec_for(_sig("cast_from_exile")).label
+    grants = spec_for(_sig("aura_equip_kw_grant")).label
+    classes = [_cc(f"Exile {i}", "engine", [exile]) for i in range(12)]
+    classes += [_cc(f"Gear {i}", "engine", [grants]) for i in range(12)]
+    impulse = {f"Exile {i}" for i in range(12)}
+    gear = {f"Gear {i}" for i in range(12)}
+    fr = focus(
+        classes,
+        deck_size=100,
+        deck_signals=[
+            _sig("cast_from_exile", subject="impulse"),
+            _sig("aura_equip_kw_grant", subject="haste"),
+        ],
+        emitters={
+            ("cast_from_exile", "you", "impulse"): frozenset(impulse),
+            ("aura_equip_kw_grant", "you", "haste"): frozenset(gear),
+        },
+    )
+    rows = {a["label"]: a for a in fr["viable_avenues"] + fr["emerging"] + fr["fed"]}
+    assert set(rows[grants]["carer_cards"]) == gear
+    assert not rows.get(exile, {}).get("carer_cards")
+
+
 def _fodder_deck():
     """Multiverse Reforged's shape: Jace holds the polymorph lane (wants_fodder)
     and the polymorphs, caring about token fodder, are every carer of "Token

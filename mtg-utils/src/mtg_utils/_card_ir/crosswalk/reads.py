@@ -19,7 +19,7 @@ from __future__ import annotations
 import re
 from collections.abc import Callable, Iterable, Iterator
 from dataclasses import fields
-from typing import TYPE_CHECKING, Any, Literal, NamedTuple, get_args
+from typing import TYPE_CHECKING, Any, Literal, NamedTuple, cast, get_args
 
 from mtg_utils._card_ir.branches import (
     BRANCH_LISTS,
@@ -1219,8 +1219,10 @@ def _node_raw(node: TypedMirrorNode) -> str:
 ENTERS_EVENTS: frozenset[str] = frozenset({"enters", "entersorattacks"})
 
 
-def _trigger_event(trig: TypedMirrorNode) -> str:
-    """Derive a normalized trigger event from a phase trigger's typed shape.
+def trigger_def_event(trig: TypedMirrorNode) -> str:
+    """Derive a normalized trigger event from a phase trigger DEFINITION's typed
+    shape — the spelling ``AbilityUnit.trigger_event`` carries for a unit's own
+    trigger, read here for any definition (a granted or a delayed one too).
 
     Reads ``mode`` (a string discriminator) plus ``destination`` / ``origin`` for
     the overloaded ``ChangesZone`` mode — never oracle text.
@@ -2038,7 +2040,7 @@ def discard_recipient_scope(node: TypedMirrorNode) -> str | None:
 
 def change_zone_dirs(node: TypedMirrorNode) -> tuple[str | None, str | None]:
     """``(origin, destination)`` of a ``ChangeZone`` EFFECT, the same fields
-    :func:`_trigger_event` reads on the trigger side.
+    :func:`trigger_def_event` reads on the trigger side.
 
     Reanimation is ``(Graveyard, Battlefield)``; a blink exile is
     ``(_, Exile)`` and its return ``(_, Battlefield)``. Exposing them on the effect
@@ -3041,7 +3043,9 @@ def mod_keyword_name(mod: TypedMirrorNode) -> str | None:
 
 
 def token_profile_keywords(node: object) -> tuple[str, ...]:
-    """The keyword NAMES a ``Token`` effect's profile carries (CR 111.4).
+    """The keyword NAMES a ``Token`` effect's profile carries (CR 111.3: the
+    spell or ability that creates a token defines its characteristics, its
+    abilities among them).
 
     A token profile's ``keywords`` list mixes bare strings (``"Flying"``)
     with parameterized variants whose KEY is the keyword name (Dragon
@@ -3112,7 +3116,8 @@ def nested_plus_one_keyword_grant(unit_node: object) -> bool:
       ``crosswalk_signals._b13_conferred_grant_lanes`` already reads for
       its Myriad copy-exception, generalized to this keyword set here);
     * a CREATED TOKEN's OWN keyword profile (:func:`token_profile_keywords`
-      — Dragon Broodmother's Dragon token's ``{Devour: 2}``, CR 111.4).
+      — Dragon Broodmother's Dragon token's ``{Devour: 2}``; CR 111.3: the
+      effect that creates a token defines its abilities).
 
     The Mutagen-token cycle (April O'Neil, Mutagen Man, Genghis Frog, ...)
     and the Young Hero Role cycle (Cut In, Embereth Veteran, ...) stay OUT
@@ -3266,11 +3271,16 @@ def granted_next_spell_keyword(node: object) -> str | None:
     ONE-SHOT ability grant, distinct from :func:`cast_with_keyword_name`'s
     always-on static form). ``modifier`` carries a ``HasKeyword`` node
     whose own ``keyword`` field is the same bare-string/variant shape
-    :func:`mod_keyword_name` reads (CR 702.51 / 601.3e).
+    :func:`mod_keyword_name` reads (CR 702.51 / 601.3e). The flash form phase
+    writes as its own modifier — "The next sorcery spell you cast this turn
+    can be cast as though it had flash" (Quicken), a ``CastAsThoughFlash``
+    modifier — reads ``"Flash"`` (CR 702.8a).
     """
     if not isinstance(node, TypedMirrorNode) or tag_of(node) != "GrantNextSpellAbility":
         return None
     modifier = getattr(node, "modifier", MISSING)
+    if tag_of(modifier) == "CastAsThoughFlash":
+        return "Flash"
     if not (isinstance(modifier, TypedMirrorNode) and tag_of(modifier) == "HasKeyword"):
         return None
     kw = getattr(modifier, "keyword", None)
@@ -3677,6 +3687,22 @@ def iter_delayed_trigger_condition_defs(node: object) -> Iterator[TypedMirrorNod
             yield trig
 
 
+def iter_unit_trigger_defs(
+    unit: AbilityUnit, *, delayed: bool = False
+) -> Iterator[TypedMirrorNode]:
+    """Every trigger DEFINITION ``unit`` carries: its own node when the unit is
+    a trigger, each trigger it grants (:func:`iter_nested_trigger_defs` — an
+    Aura's or Equipment's "Whenever … ", an emblem's), and with ``delayed``
+    each delayed trigger's watcher (:func:`iter_delayed_trigger_condition_defs`
+    — "Until your next turn, whenever you cast an instant or sorcery spell"). A
+    lane applies the same predicate to each."""
+    if unit.origin == "trigger":
+        yield unit.node
+    yield from iter_nested_trigger_defs(unit.node)
+    if delayed:
+        yield from iter_delayed_trigger_condition_defs(unit.node)
+
+
 # ADR-0038 W3 batch 2 unit 2 — the typed_spellcast lane's shared nested-mode
 # descent. A tribal cast-cost-modifier static (CR 601.2f / 702.2's
 # keyword-spell grants: Freerunning, Prowl, Cascade, "costs {N} less") can
@@ -3728,7 +3754,7 @@ def is_opponent_cast_trigger_def(trig: object) -> bool:
     """
     if not isinstance(trig, TypedMirrorNode):
         return False
-    if _trigger_event(trig) not in ("cast_spell", "spellcastorcopy"):
+    if trigger_def_event(trig) not in ("cast_spell", "spellcastorcopy"):
         return False
     vt = getattr(trig, "valid_target", None)
     return tag_of(vt) in _OPPONENT_ACTOR_TAGS or (
@@ -3749,7 +3775,7 @@ def is_creature_cast_trigger_def(trig: object) -> bool:
     """
     if not isinstance(trig, TypedMirrorNode):
         return False
-    if _trigger_event(trig) != "cast_spell":
+    if trigger_def_event(trig) != "cast_spell":
         return False
     return "Creature" in filter_core_types(getattr(trig, "valid_card", None))
 
@@ -3759,7 +3785,7 @@ def is_creature_etb_trigger_def(trig: object) -> bool:
     ``.node`` OR a nested def from :func:`iter_nested_trigger_defs` /
     :func:`iter_delayed_trigger_condition_defs` — is CR 603.6a's creature-ETB
     payoff shape: a ``ChangesZone``/``ChangesZoneAll`` mode landing on the
-    battlefield (``_trigger_event`` normalizes both to ``"enters"``) whose
+    battlefield (``trigger_def_event`` normalizes both to ``"enters"``) whose
     watched-object filter carries the Creature core type, OR the compound
     ``entersorattacks`` event (Kindred Discovery's "enters or attacks" —
     still genuinely an ETB payoff for the enters half; CR 603.2's "whenever"
@@ -3775,7 +3801,7 @@ def is_creature_etb_trigger_def(trig: object) -> bool:
     """
     if not isinstance(trig, TypedMirrorNode):
         return False
-    if _trigger_event(trig) not in ENTERS_EVENTS:
+    if trigger_def_event(trig) not in ENTERS_EVENTS:
         return False
     return "Creature" in filter_core_types(getattr(trig, "valid_card", None))
 
@@ -3796,7 +3822,7 @@ def damage_to_player_trigger_kind(trig: object) -> str | None:
     """
     if not isinstance(trig, TypedMirrorNode):
         return None
-    if _trigger_event(trig) != "deals_damage":
+    if trigger_def_event(trig) != "deals_damage":
         return None
     vt = getattr(trig, "valid_target", None)
     if vt is None or not damage_recipient_is_player(vt):
@@ -3844,7 +3870,7 @@ def is_damage_reflect_trigger_def(node: object) -> bool:
       damage to each other creature and each player" — a delayed trigger
       the spell creates, not a trigger the permanent itself carries).
 
-    Reads ``mode``/``execute`` directly — bypassing :func:`_trigger_event`'s
+    Reads ``mode``/``execute`` directly — bypassing :func:`trigger_def_event`'s
     normalization (which folds the ``Unknown``-mode case to ``"other"``) —
     so the SAME predicate applies at any nesting depth via
     :func:`_iter_typed_nodes`'s deep walk.
@@ -4399,6 +4425,8 @@ class _OwnerIndex(NamedTuple):
     #: id(node) → the actor facing the choice it sits in, when another player
     #: makes that choice (:data:`_CHOOSER_ACTORS`).
     facing: dict[int, str]
+    #: id(a ``sub_ability`` wrapper) → the clause it continues.
+    sub_parents: dict[int, TypedMirrorNode]
 
 
 # The player facing a choice another player makes — a ``ChooseOneOf``'s
@@ -4463,6 +4491,7 @@ def _owner_index(root: object) -> _OwnerIndex:
     paths: dict[int, dict[int, object]] = {}
     uncertain: set[int] = set()
     facing: dict[int, str] = {}
+    sub_parents: dict[int, TypedMirrorNode] = {}
     seen: set[int] = set()
 
     def walk(
@@ -4506,6 +4535,8 @@ def _owner_index(root: object) -> _OwnerIndex:
         others_pick = branching and uncertain_list(node, holder)
         has_else = isinstance(getattr(node, "else_ability", MISSING), TypedMirrorNode)
         for fname, i, child in effect_child_items(node):
+            if fname == "sub_ability" and isinstance(child, TypedMirrorNode):
+                sub_parents.setdefault(id(child), node)
             if fname == "effect":
                 # a d20 row's ``effect`` is the row's ability wrapper
                 keep = row or tag_of(child) in _BRANCHING_EFFECT_TAGS
@@ -4544,7 +4575,7 @@ def _owner_index(root: object) -> _OwnerIndex:
             )
 
     walk(root, None, {}, 0, row=False)
-    out = _OwnerIndex(owners, paths, uncertain, facing)
+    out = _OwnerIndex(owners, paths, uncertain, facing, sub_parents)
     if isinstance(root, TypedMirrorNode):
         object.__setattr__(root, _OWNER_INDEX_CACHE_ATTR, out)
     return out
@@ -4641,7 +4672,7 @@ def effect_actor_scope(unit: AbilityUnit, node: object) -> str | None:
       → ``"opponents"`` (:func:`triggering_player_side`).
     """
     owner = effect_owner_player_scope(unit.node, node)
-    if owner is None:
+    if owner is None and id(node) not in _owner_index(unit.node).owners:
         # A granted trigger's body (Imperious Mindbreaker's "each opponent mills
         # cards equal to its toughness") sits in a static's ``modifications``,
         # past the owner index's walk: find the wrapper whose ``.effect`` IS it.
@@ -4671,6 +4702,42 @@ def effect_actor_scope(unit: AbilityUnit, node: object) -> str | None:
     if recipient == "TriggeringPlayer" and triggering_player_side(unit) == "opponents":
         return "opponents"
     return None
+
+
+def optional_clause_actor(root: object, effect_node: object) -> str | None:
+    """The actor of an optional "each player may <X> and <Y>" clause, read for
+    its second action ``effect_node`` — the wrapper actor tag
+    (:func:`effect_owner_player_scope`'s vocabulary) — or ``None`` when
+    ``effect_node`` is not that shape.
+
+    phase v0.104.0 writes "Each player may discard their hand and draw seven
+    cards" (Ruin Grinder, Snort, Will of the Jeskai) as an ``optional`` wrapper
+    carrying ``player_scope: All`` over the ``Discard``, whose ``sub_ability``
+    holds the ``Draw`` with no ``player_scope`` and no ``sub_link`` of its own,
+    so :func:`effect_owner_player_scope` reads the draw as the controller's.
+    The mandatory wheel (Wheel of Fortune) repeats ``player_scope: All`` on the
+    sub-ability. The draw is the second half of the one choice each player
+    makes, so it takes the optional wrapper's actor. A sub-ability that names
+    its own actor or carries a ``sub_link`` (a separate sentence — Snort's
+    "Then ~ deals 5 damage") is not this shape. Guarded by a
+    ``retirement_canary`` test: once phase writes the actor on the
+    sub-ability, the owner read answers directly. Read off the owner index
+    (:func:`_owner_index`): the wrapper owning ``effect_node`` and the clause
+    that wrapper continues."""
+    index = _owner_index(root)
+    found = index.owners.get(id(effect_node))
+    if found is None:
+        return None
+    sub = found[0]
+    n = index.sub_parents.get(id(sub))
+    if (
+        n is None
+        or _present(getattr(sub, "player_scope", MISSING))
+        or _present(getattr(sub, "sub_link", MISSING))
+        or getattr(n, "optional", None) is not True
+    ):
+        return None
+    return _owner_scope_tag(getattr(n, "player_scope", None), root)
 
 
 def effect_owner_is_friend(root: object, effect_node: object) -> bool:
@@ -6608,7 +6675,7 @@ def _is_combat_damage_trigger(trig: object) -> bool:
     combat damage"): a ``DamageDone`` event phase marks ``CombatOnly``."""
     return (
         isinstance(trig, TypedMirrorNode)
-        and _trigger_event(trig) == "deals_damage"
+        and trigger_def_event(trig) == "deals_damage"
         and trigger_damage_kind(trig) == "CombatOnly"
     )
 
@@ -7151,7 +7218,7 @@ def granted_target_taps(node: object) -> tuple[TypedMirrorNode, ...]:
 
 
 def granted_trigger_events(node: object) -> frozenset[str]:
-    """The trigger events (:func:`_trigger_event`'s spelling — ``"taps"``,
+    """The trigger events (:func:`trigger_def_event`'s spelling — ``"taps"``,
     ``"untaps"``, ``"attacks"`` …) of every trigger an ability under ``node``
     grants (:func:`iter_nested_trigger_defs`): "Elves you control have
     'Whenever this creature becomes tapped …'" (Dionus, Elvish Archdruid), an
@@ -7159,7 +7226,7 @@ def granted_trigger_events(node: object) -> frozenset[str]:
     (Well Rested), a token's granted trigger (Wildfire Awakener's Elementals),
     an emblem's (Tezzeret, Betrayer of Flesh). A top-level trigger unit's own
     event is :attr:`AbilityUnit.trigger_event`."""
-    return frozenset(_trigger_event(trig) for trig in iter_nested_trigger_defs(node))
+    return frozenset(trigger_def_event(trig) for trig in iter_nested_trigger_defs(node))
 
 
 #: The continuous P/T modifications (CR 613.4c, layer 7c) by the stat each
@@ -7426,3 +7493,1202 @@ def forages(unit: AbilityUnit) -> bool:
 
 
 # ── end resource-token serve slice ───────────────────────────────────────────
+
+
+# ── Token creators, damage drains and life lost this turn ──
+
+#: The target tags a chain's root-target walk (:func:`root_target_filter`)
+#: skips: back-references to an earlier object (``ParentTarget``, a tracked
+#: set, the triggering source), the card itself, and player references — none
+#: is the chain's own single-object choice.
+TARGET_BACKREF_TAGS: frozenset[str] = frozenset(
+    {
+        "ParentTarget",
+        "ParentTargetOwner",
+        "ParentTargetController",
+        "SelfRef",
+        "TriggeringSource",
+        "TriggeringPlayer",
+        "TrackedSet",
+        "TrackedSetFiltered",
+        "Any",
+        "Controller",
+        "OriginalController",
+        "Player",
+        "TargetPlayer",
+        "Opponent",
+        "Opponents",
+        "EachOpponent",
+        "ScopedPlayer",
+        "AllPlayers",
+        "Each",
+        "EachPlayer",
+    }
+)
+
+
+def root_target_filter(unit: AbilityUnit) -> object | None:
+    """The FIRST real object-filter target in ``unit``'s effect chain — the
+    object ``ParentTarget`` / ``ParentTargetOwner`` / ``ParentTargetController``
+    resolve through — skipping a mass/symmetric effect
+    (:data:`MASS_EFFECT_TAGS`, CR 601.2c: "all"/"each" names no single chosen
+    object, so a later back-reference in the SAME chain can't mean IT) and any
+    back-reference tag (:data:`TARGET_BACKREF_TAGS`). ``None`` when no unit
+    effect names a genuine filter (Or/And/Typed) — a self-referencing chain
+    (Mirror-Mad Phantasm's "this creature's owner shuffles IT into their
+    library" — the SAME card, never a variable target)."""
+    for c in unit.effects:
+        if tag_of(c.node) in MASS_EFFECT_TAGS:
+            continue
+        tgt = getattr(c.node, "target", None)
+        if tgt is None:
+            continue
+        tt = tag_of(tgt)
+        if tt is None or tt in TARGET_BACKREF_TAGS:
+            continue
+        return tgt
+    return None
+
+
+#: Who creates a token (:func:`token_creator_side`).
+TokenCreatorSide = Literal["you", "opponents", "each", "chosen", "any"]
+#: Token ``owner`` back-references to the object the chain targets: "its
+#: controller / its owner / they create".
+_TARGET_OWNER_REFS: frozenset[str] = frozenset(
+    {"ParentTarget", "ParentTargetController", "ParentTargetOwner"}
+)
+
+
+def token_creator_side(unit: AbilityUnit, node: object) -> TokenCreatorSide | None:
+    """The side of the player who creates the token a ``Token`` /
+    ``CopyTokenOf`` effect ``node`` of ``unit`` makes — its owner and
+    controller (CR 111.2: "The player who creates a token is its owner. The
+    token enters the battlefield under that player's control."). Read off the
+    effect's ``owner``, never its ``target``, which for a copy is the COPIED
+    object, not its creator:
+
+    * ``"you"`` — the controller (phase's default when the field is absent), a
+      copied permanent's ``OriginalController``, and "that player" on a
+      trigger that doesn't watch only opponents (Gonti, Night Minister; Jolene,
+      Pain Distributor: a trigger you fire too);
+    * ``"opponents"`` — a target opponent (Wedding Ring), and "that player" on
+      a trigger that watches only opponents ("Whenever an opponent casts a
+      spell, that player creates a Blood token" — Bloodvial Purveyor,
+      :func:`triggering_player_side`);
+    * ``"chosen"`` — a target player the card picks, who may be you
+      (Prismari Command, Echocasting Symposium);
+    * "its controller / owner creates" (:data:`_TARGET_OWNER_REFS`): the side
+      of the object the chain targets (:func:`root_target_filter` — Vraska,
+      the Cutting Glare's "target permanent an opponent controls. They create
+      a Treasure token" is ``"opponents"``), and ``"any"`` for an unrestricted
+      target or none (Get Lost, An Offer You Can't Refuse, Saw in Half: the
+      removed object's controller — whoever that is);
+    * otherwise the owner filter's own scope (``"each"`` for an unrestricted
+      player filter), and ``None`` for an owner this read can't place (an
+      Aura's enchanted player — Overencumbered's ``AttachedTo``).
+
+    The wrapper's actor is not read: "each opponent creates" (Life of the
+    Party) and "target opponent may have you create" (Terrapact Intimidator)
+    hang the same opponent ``player_scope`` on it. Each lane decides what a
+    side means for it."""
+    owner = getattr(node, "owner", MISSING)
+    if not _present(owner):
+        return "you"
+    tag = tag_of(owner)
+    if tag in ("Controller", "OriginalController"):
+        return "you"
+    if tag == "TriggeringPlayer":
+        return "opponents" if triggering_player_side(unit) == "opponents" else "you"
+    if tag in ("Player", "TargetPlayer"):
+        return "chosen"
+    if tag in _TARGET_OWNER_REFS:
+        side = filter_controller_side(root_target_filter(unit))
+        return side if side in ("you", "opponents") else "any"
+    scope = _scope_from_player_node(owner)
+    if scope in ("you", "opponents", "each", "any"):
+        return cast("TokenCreatorSide", scope)
+    return None
+
+
+# A damage recipient a caster may point at a creature as readily as at a
+# player: "any target" (CR 115.4 — ``Any`` / ``Target``), or an unrestricted
+# ``Typed`` ("any other target"). Such damage is burn / removal (the
+# ``direct_damage`` lane), not a drain.
+_ANY_TARGET_RECIPIENT_TAGS: frozenset[str] = frozenset({"Any", "Target"})
+_CREATURE_RECIPIENT_WORDS: frozenset[str] = frozenset(
+    {"Creature", "Permanent", "Battle"}
+)
+
+
+def _recipient_can_be_own_board(rec: object) -> bool:
+    """Whether a damage recipient filter may be a creature / battle / permanent
+    of any side, or an unrestricted target — an ``Or`` when any alternative
+    may be (Lightning Bolt's "any target"; "target creature or player"; Blast of
+    Genius's "that permanent or player", a ``ParentTarget`` back to "any
+    target")."""
+    t = tag_of(rec)
+    if t in _ANY_TARGET_RECIPIENT_TAGS or t == "ParentTarget":
+        return True
+    if t in ("Or", "And"):
+        return any(
+            _recipient_can_be_own_board(f) for f in getattr(rec, "filters", ()) or ()
+        )
+    if t == "Typed":
+        words = _filter_type_words(rec)
+        if not words:
+            return getattr(rec, "controller", None) is None
+        return any(w in _CREATURE_RECIPIENT_WORDS for w in words)
+    return False
+
+
+def _rides_a_targeted_object_effect(unit: AbilityUnit, node: TypedMirrorNode) -> bool:
+    """Whether damage ``node`` to "that object's controller" follows an earlier
+    effect of ``unit`` aimed at a target object — a rider on a removal spell or
+    bite (Burn the Impure, Detonate, Blur of Blades), not a drain engine."""
+    for c in unit.effects:
+        if c.node is node:
+            return False
+        tgt = getattr(c.node, "target", None)
+        if tag_of(tgt) == "Typed" and any(
+            w != "Player" for w in _filter_type_words(tgt)
+        ):
+            return True
+    return False
+
+
+def damage_drains_opponent(unit: AbilityUnit, node: TypedMirrorNode) -> bool:
+    """Whether a damage effect ``node`` of ``unit`` makes an opponent lose life
+    — CR 120.3a: "Damage dealt to a player by a source without infect causes
+    that player to lose that much life." The damage must reach a player
+    (:func:`effect_reaches_player`) other than its controller alone:
+
+    * a mass form (``DamageEachPlayer`` / ``DamageAll``) whose player reach
+      (:func:`effect_player_reach`, its ``player_filter``) is the opponents, a
+      target player, or every player ("each opponent" — Guttersnipe; "each
+      player" — Sulfuric Vortex; "each opponent and each creature they
+      control" — End the Festivities); not "you" (Hail Storm's ``Controller``),
+      nor a symmetric sweeper whose player damage is a rider that hits you as
+      hard ("each creature and each player" — Pestilence, Volcanic Fallout:
+      mass removal);
+    * a single recipient that is an opponent (``Typed{Opponent}`` — "target
+      opponent", "target opponent or planeswalker"), a player ("target player
+      or planeswalker" — Lava Axe), a player the trigger or effect names ("that
+      player" — Eidolon of the Great Revel, Mogis; "that creature's controller"
+      — Repercussion, Magnetic Mine, unless it rides a removal spell or bite
+      on that object: Burn the Impure; the defending player), or a trigger's
+      scoped player
+      unless it is only you (:func:`scoped_player_scope` — Barbed Wire's "each
+      player's upkeep").
+
+    Not "any target" or another recipient that may be a creature of any side
+    (Lightning Bolt, Arc Trail — burn / removal, ``direct_damage``'s), a back-
+    reference to such a target (Burst Lightning's kicked "instead"), nor
+    damage dealt to you (a painland's "deals 1 damage to you")."""
+    if tag_of(node) not in DAMAGE_EFFECT_TAGS or not effect_reaches_player(
+        node, unit.node
+    ):
+        return False
+    if tag_of(node) in ("DamageEachPlayer", "DamageAll"):
+        reach = effect_player_reach(unit.node, node)
+        if reach == "each" and effect_reaches_permanent(node, unit.node):
+            return False
+        if reach is not None:
+            return reach != "scoped" or scoped_player_scope(unit) is not None
+        pf = player_filter_tag(node) or ""
+        return pf == "All" or pf.startswith("Opponent")
+    rec = damage_recipient(node)
+    t = tag_of(rec)
+    if t in ("Controller", "You", "SelfRef"):
+        return False
+    if t == "ScopedPlayer":
+        # "for each player, ~ deals 1 damage to that player" (Lim-Dûl's Hex): the
+        # loop's wrapper names the players even on your own upkeep.
+        actor = effect_owner_player_scope(unit.node, node)
+        if actor is not None and actor not in ("Controller", "You", "SelfRef"):
+            return True
+        return scoped_player_scope(unit) is not None
+    if t == "ParentTarget":
+        return not effect_reaches_permanent(node, unit.node)
+    if t in ("ParentTargetController", "EventTargetController"):
+        return not _rides_a_targeted_object_effect(unit, node)
+    if t in ("Typed", "Or", "And"):
+        side = filter_controller_side(rec)
+        if side == "you":
+            return False
+        return side == "opponents" or not _recipient_can_be_own_board(rec)
+    return t not in _ANY_TARGET_RECIPIENT_TAGS
+
+
+def life_lost_this_turn_sides(node: object) -> frozenset[str]:
+    """The sides whose "life lost this turn" ``node`` reads (CR 119.3): every
+    ``LifeLostThisTurn`` quantity under it, by its ``player`` — ``"you"``
+    ("the life you've lost this turn" — Children of Korlis), ``"opponents"``
+    ("if an opponent lost life this turn" — Stromkirk Bloodthief, Bat
+    Whisperer; "for each 1 life your opponents have lost this turn" — Rakdos,
+    Lord of Riots), ``"each"`` for any other player — plus an
+    ``OpponentLostLife`` player filter ("for each of your opponents who lost
+    life this turn" — Belbe) → ``"opponents"``. A deep walk: the quantity sits
+    in a trigger's intervening-if, a replacement's condition, an activation
+    restriction, an effect amount or a cost reduction's count alike."""
+    negated: set[int] = set()
+    for n in _iter_typed_nodes(node):
+        if _is_none_comparison(n):
+            negated.update(id(q) for q in _iter_typed_nodes(getattr(n, "lhs", None)))
+    out: set[str] = set()
+    for n in _iter_typed_nodes(node):
+        t = tag_of(n)
+        if t == "OpponentLostLife":
+            out.add("opponents")
+        elif t == "LifeLostThisTurn" and id(n) not in negated:
+            out.add(_scope_from_player_node(getattr(n, "player", None)) or "each")
+    return frozenset(out)
+
+
+def _is_none_comparison(n: object) -> bool:
+    """Whether ``n`` is a quantity comparison that holds only when its left
+    side is zero — "if you didn't lose life this turn" (Luminarch Ascension:
+    ``EQ 0``; also ``LE 0`` / ``LT 1``): a reward for NOT losing life."""
+    comparator = getattr(n, "comparator", MISSING)
+    rhs = getattr(n, "rhs", MISSING)
+    if not isinstance(comparator, str) or tag_of(rhs) != "Fixed":
+        return False
+    value = getattr(rhs, "value", None)
+    if not isinstance(value, int):
+        return False
+    return (comparator in ("EQ", "LE") and value <= 0) or (
+        comparator == "LT" and value <= 1
+    )
+
+
+# ── end token creators, damage drains and life lost this turn ──
+
+
+# ── Spell classes, granted keywords, land-type grants, graveyard exiles ──
+
+#: What a spell filter names, as :func:`spell_filter_class` sorts it.
+SpellClass = Literal[
+    "instant_sorcery",
+    "noncreature",
+    "permanent_type",
+    "subtype",
+    "color",
+    "historic",
+    "mana_value",
+    "other",
+    "any",
+]
+
+#: Spell-filter predicates by the class they narrow a spell to: its colours
+#: ("a white spell", "a multicolored spell"), being historic (CR 700.6), its
+#: mana value or an X in its cost.
+_SPELL_PRED_CLASSES: dict[str, SpellClass] = {
+    "HasColor": "color",
+    "ColorCount": "color",
+    "NotColor": "color",
+    "Historic": "historic",
+    "Cmc": "mana_value",
+    "HasXInManaCost": "mana_value",
+}
+
+
+def spell_filter_class(filt: object) -> SpellClass:
+    """The class of spell a cast trigger watches or a cost reducer discounts,
+    read off its spell filter (CR 601.2):
+
+    * ``"instant_sorcery"`` — the filter names instant or sorcery, alone or
+      beside another type or subtype ("an instant, sorcery, or Wizard spell" —
+      Windrider Wizard; "artifact, instant, and sorcery spells" — Urza, Lord
+      Protector);
+    * ``"noncreature"`` — it negates creature and names no other type (the
+      prowess idiom, CR 702.108a; "a noncreature or Otter spell");
+    * ``"permanent_type"`` — permanent card types only (a creature,
+      enchantment or artifact spell);
+    * ``"subtype"`` — subtypes only (a Dragon spell, a Spirit or Arcane spell);
+    * ``"color"`` / ``"historic"`` / ``"mana_value"`` — any spell narrowed by
+      its colours, by being historic, or by its mana value or X;
+    * ``"other"`` — any spell narrowed by another quality (kicked, a keyword,
+      targeting, a legendary spell, a spell you don't own);
+    * ``"any"`` — no filter, or none of the above ("whenever you cast a
+      spell")."""
+    cores = set(filter_core_types(filt)) - {"Card", "Any"}
+    if cores & {"Instant", "Sorcery"}:
+        return "instant_sorcery"
+    if "Creature" in filter_non_types(filt) and not cores:
+        return "noncreature"
+    if cores:
+        return "permanent_type"
+    if filter_subtypes(filt):
+        return "subtype"
+    preds = filter_predicates(filt)
+    for pred in preds:
+        if pred in _SPELL_PRED_CLASSES:
+            return _SPELL_PRED_CLASSES[pred]
+    return "other" if preds else "any"
+
+
+_GRANTED_KEYWORDS_CACHE_ATTR = "_xw_granted_keyword_names"
+
+
+def granted_keyword_names(node: object) -> frozenset[str]:
+    """The lower-cased keyword names every grant under ``node`` hands out: an
+    ``AddKeyword`` modification anywhere below it (a static, an Aura's or
+    Equipment's grant, a one-shot "gains rebound" — CR 613.1f) and a created
+    token's own keywords (Goblin Wizardry's prowess Wizards — CR 111.3: the
+    effect that creates a token defines its characteristics, its abilities
+    among them). The card's own printed keywords are the bulk keyword array's,
+    not read here. Memoized on ``node``: several lanes ask it of each unit."""
+    if isinstance(node, TypedMirrorNode):
+        cached = node.__dict__.get(_GRANTED_KEYWORDS_CACHE_ATTR)
+        if cached is not None:
+            return cached
+    out: set[str] = set()
+    for _sdef, mod in iter_mod_sites(node, deep=True):
+        if tag_of(mod) == "AddKeyword":
+            name = mod_keyword_name(mod)
+            if name:
+                out.add(name.lower())
+    for n in iter_typed_nodes(node):
+        out.update(kw.lower() for kw in token_profile_keywords(n))
+    result = frozenset(out)
+    if isinstance(node, TypedMirrorNode):
+        object.__setattr__(node, _GRANTED_KEYWORDS_CACHE_ATTR, result)
+    return result
+
+
+#: The modifications that give a land basic land types in addition to its own
+#: (CR 305.7: "If a land gains one or more land types in addition to its own,
+#: it keeps its land types and rules text, and it gains the new land types").
+_ADDS_BASIC_LAND_TYPES: frozenset[str] = frozenset({"AddAllBasicLandTypes"})
+
+
+def _adds_basic_land_types(mod: object) -> bool:
+    tag = tag_of(mod)
+    if tag in _ADDS_BASIC_LAND_TYPES:
+        return True
+    return tag == "AddChosenSubtype" and getattr(mod, "kind", None) == "BasicLandType"
+
+
+def basic_land_type_grants(node: object) -> tuple[str | None, ...]:
+    """The side of the lands each grant of basic land types under ``node``
+    reaches: "Lands you control are every basic land type in addition to their
+    other types" (Prismatic Omen, Dryad of the Ilysian Grove) and "target land
+    you control becomes the basic land type of your choice in addition to its
+    other types" (Navigator's Compass) read ``"you"``; an Aura's "Enchanted
+    land is every basic land type" (Nylea's Presence) reads ``"attached"``; a
+    land typing itself ("This land is the chosen type" — Thran Portal,
+    Multiversal Passage) reads ``"self"``; otherwise
+    :func:`filter_controller_side` of the affected lands (``None`` for every
+    land). A one-shot grant to its effect's target
+    (``ParentTarget``) reads that target. A type SET (Blood Moon's
+    ``SetBasicLandType``) replaces the land's types and is not a grant."""
+    parent: dict[int, object] = {}
+    for n in iter_typed_nodes(node):
+        if tag_of(n) == "GenericEffect":
+            for sdef in getattr(n, "static_abilities", None) or ():
+                parent[id(sdef)] = getattr(n, "target", None)
+    out: list[str | None] = []
+    for sdef, mod in iter_mod_sites(node, deep=True):
+        if not _adds_basic_land_types(mod):
+            continue
+        affected = getattr(sdef, "affected", None)
+        if tag_of(affected) == "ParentTarget":
+            affected = parent.get(id(sdef))
+        if tag_of(affected) == "SelfRef":
+            out.append("self")
+        elif set(filter_predicates(affected)) & ATTACHED_OBJECT_PREDICATES:
+            out.append("attached")
+        else:
+            out.append(filter_controller_side(affected))
+    return tuple(out)
+
+
+def graveyard_exile_replacement_side(
+    unit: AbilityUnit,
+) -> Literal["you", "opponents", "any"] | None:
+    """Whose graveyard a "would be put into a graveyard … exile it instead"
+    replacement empties (CR 614.1a): "If a card would be put into an
+    opponent's graveyard from anywhere, exile it instead" (Leyline of the
+    Void, Dauthi Voidwalker) reads ``"opponents"``; any card's (Rest in
+    Peace) ``"any"``; your own cards' ``"you"``. A graveyard is its owner's
+    (CR 404.1), so the side is the card filter's ``Owned`` property: a "would
+    die" replacement naming only the creature's CONTROLLER ("If a creature an
+    opponent controls would die, exile it instead" — Kalitas, Gisa) keeps a
+    creature off the battlefield-to-graveyard path, not out of a graveyard,
+    and reads ``None``, as does any other unit and the card's own "if this
+    would be put into a graveyard" replacement (a ``SelfRef`` card filter)."""
+    if unit.origin != "replacement" or replacement_event_tag(unit.node) != "Moved":
+        return None
+    if getattr(unit.node, "destination_zone", None) != "Graveyard":
+        return None
+    if not any(
+        tag_of(c.node) in ("ChangeZone", "ChangeZoneAll")
+        and getattr(c.node, "destination", None) == "Exile"
+        for c in unit.effects
+    ):
+        return None
+    filt = getattr(unit.node, "valid_card", None)
+    if not _present(filt) or filt is None:
+        return "any"
+    if tag_of(filt) not in ("Typed", "Or", "And"):
+        return None
+    parts = getattr(filt, "filters", None) if tag_of(filt) in ("Or", "And") else None
+    owners = [filter_owned_controller(p) for p in (parts or (filt,))]
+    if not any(owners):
+        return None
+    sides = {controller_side(o) for o in owners if o}
+    if "you" in sides:
+        return "you"
+    if sides & {"opponents", "chosen"}:
+        return "opponents"
+    return "any"
+
+
+#: What an exile out of a graveyard reads as (:func:`graveyard_exile_kind`):
+#: graveyard hate at a scope, or an exile out of your own graveyard.
+GraveyardExile = Literal["opponents", "any", "own"]
+
+
+#: An ownerless graveyard exile's ``ConceptNode.scope`` the overlay's
+#: ``graveyard_owner`` arm re-read off its clause, as what the exile reads as.
+_GY_OWNER_SCOPE: dict[str, GraveyardExile] = {
+    "you": "own",
+    "opponents": "opponents",
+    "any": "any",
+}
+
+
+def graveyard_exile_kind(
+    node: TypedMirrorNode, scope: str | None = None
+) -> GraveyardExile | None:
+    """What an effect that answers its target (:func:`answers_its_target`)
+    reads as when it exiles out of a graveyard, or ``None`` when it doesn't:
+
+    * ``"opponents"`` — hate on an opponent's graveyard, or a player's the
+      card picks ("exile target player's graveyard" — Bojuka Bog, Angel of
+      Finality; "exile all cards from target player's graveyard" —
+      Necromancer's Covenant);
+    * ``"any"`` — hate on a card from a graveyard, or all of them ("exile up
+      to one target card from a graveyard" — Afterthought Sentry,
+      Necrogenesis; "exile all graveyards" — Rest in Peace);
+    * ``"own"`` — no hate: your own graveyard, a card an earlier clause named
+      (the discarded card Necropotence exiles), or each player exiling from
+      their own (Living Death's mass reanimation).
+
+    Each half of a compound target names its own graveyard (Spelltwine: "…
+    from your graveyard and … from an opponent's graveyard"); a half that is
+    yours makes the exile ``"own"``. The owner is the filter's ``Owned``
+    property, else its controller (:func:`controller_side`). A filter naming no
+    owner reads ``scope``, its concept's corrected scope (:func:`corrected_scope`):
+    the overlay's ``graveyard_owner`` re-read of the owner phase dropped ("from
+    that player's graveyard" — Skullsnatcher; "from defending player's
+    graveyard" — Grime Gorger; "from a graveyard" — Savior of Ollenbock)."""
+    filt = effect_filter(node)
+    origin, _ = change_zone_dirs(node)
+    in_gy = "Graveyard" in filter_inzone_zones(filt)
+    if origin != "Graveyard" and not in_gy:
+        return None
+    if tag_of(filt) == "Player":
+        return "opponents"
+    owners = filter_owners(filt)
+    if not any(owners) and scope in _GY_OWNER_SCOPE:
+        return _GY_OWNER_SCOPE[scope]
+    sides = {controller_side(o) for o in owners}
+    if "you" in sides:
+        return "own"
+    if sides & {"opponents", "chosen"}:
+        return "opponents"
+    if (
+        not any(owners)
+        and tag_of(filt) in ("Typed", "Or", "And")
+        and (in_gy or tag_of(node) == "ChangeZoneAll")
+    ):
+        return "any"
+    return "own"
+
+
+def cast_trigger_origin(trig: object) -> tuple[str, str] | None:
+    """The zone condition a cast trigger puts on where the spell was cast from,
+    as ``(comparator, zone)``: "Whenever you cast a spell from exile" (Faldorn,
+    Dread Wolf Herald) is ``("Equals", "Exile")``; paradox's "from anywhere
+    other than your hand" (Vega, the Watcher) ``("NotEquals", "Hand")``.
+    ``None`` when the trigger names no origin. CR 601.2a."""
+    origin = getattr(trig, "spell_cast_origin", MISSING)
+    if not _present(origin) or origin is None:
+        return None
+    zone = getattr(origin, "data", None)
+    comparator = tag_of(origin)
+    if isinstance(zone, str) and comparator is not None:
+        return comparator, zone
+    return None
+
+
+# ── end spell classes, granted keywords, land-type grants, graveyard exiles ──
+
+
+# ── Keyword subjects, damage amplifiers, triggering-player punishers ──
+
+
+def keyword_subject(kw: str) -> str:
+    """phase's keyword spelling as a signal subject — lower case, one space
+    between words (``DoubleStrike`` → ``"double strike"``, ``Haste`` →
+    ``"haste"``): the granted keyword a keyword-grant ident names. ``""`` for
+    none."""
+    out: list[str] = []
+    for i, ch in enumerate(kw):
+        if ch.isupper() and i and kw[i - 1].islower():
+            out.append(" ")
+        out.append(ch.lower())
+    return "".join(out).strip()
+
+
+def effect_damage_amplifier(
+    node: object,
+) -> tuple[str, str | None, str | None] | None:
+    """``(modification, recipient scope, source controller)`` of a damage
+    replacement an EFFECT sets up for later (CR 614.1a: "Effects that use the
+    word 'instead' are replacement effects"), or ``None``. Two phase shapes:
+
+    * an ``AddTargetReplacement`` whose ``replacement`` is a ``DamageDone``
+      replacement — the one-shot "this turn" doubler a spell or ability
+      creates (Isengard Unleashed's triple, Goblin Goliath's activated
+      double, a Saga chapter's);
+    * a ``CreateDamageReplacement`` carrying a ``modification`` (Desperate
+      Gambit's won flip: "the next time that source would deal damage this
+      turn, it deals double that damage instead").
+
+    The modification is the tag (``Double`` / ``Triple`` / ``Plus`` …), the
+    recipient scope :func:`damage_filter_scope` of the recipient filter, the
+    source controller :func:`filter_controller` of the source filter. A
+    replacement with no modification (a redirect or prevention shield) is
+    ``None``.
+    """
+    t = tag_of(node)
+    if t == "AddTargetReplacement":
+        rep = getattr(node, "replacement", None)
+        if not isinstance(rep, TypedMirrorNode):
+            return None
+        if replacement_event_tag(rep) != "DamageDone":
+            return None
+        mod = replacement_damage_mod(rep)
+        if mod is None:
+            return None
+        return (
+            mod,
+            damage_filter_scope(rep, "damage_target_filter"),
+            filter_controller(getattr(rep, "damage_source_filter", None)),
+        )
+    if t == "CreateDamageReplacement":
+        mod = tag_of(getattr(node, "modification", None))
+        if mod is None or not isinstance(node, TypedMirrorNode):
+            return None
+        return (
+            mod,
+            damage_filter_scope(node, "target_filter"),
+            filter_controller(getattr(node, "source_filter", None)),
+        )
+    return None
+
+
+#: Player tags naming "that player" — a player an ability picked out of its
+#: trigger event or its wrapper's player loop, resolved against the unit.
+THAT_PLAYER_TAGS: frozenset[str] = frozenset({"TriggeringPlayer", "ScopedPlayer"})
+#: The effects that hurt the player they name — damage (CR 120.3a: damage to
+#: a player makes them lose that much life), life loss (119.3), a discard
+#: (701.9a) and a mill (701.17a).
+_HURTS_PLAYER_TAGS: frozenset[str] = frozenset(
+    {"DealDamage", "LoseLife", "Discard", "Mill"}
+)
+
+
+def hurts_triggering_player(node: object) -> bool:
+    """Whether an effect anywhere under ``node`` (a trigger's ``execute``) hurts
+    the player the trigger names, phase's ``TriggeringPlayer``: damage, life
+    loss, a discard or a mill aimed at that player
+    (:data:`_HURTS_PLAYER_TAGS` — Eidolon of the Great Revel's damage,
+    Phyrexian Tyranny's life loss), or "that player sacrifices" (a
+    ``Sacrifice`` whose filter "that player" controls, :data:`THAT_PLAYER_TAGS`
+    — Liesa, Oppression). The caller gates which trigger event it reads."""
+    for n in _iter_typed_nodes(node):
+        t = tag_of(n)
+        if t in _HURTS_PLAYER_TAGS and recipient_tag(n) == "TriggeringPlayer":
+            return True
+        if t == "Sacrifice" and (
+            filter_controller(getattr(n, "target", None)) in THAT_PLAYER_TAGS
+        ):
+            return True
+    return False
+
+
+def punishes_triggering_caster(trig: object) -> bool:
+    """Whether a trigger DEFINITION is the SYMMETRIC cast punisher: a
+    ``SpellCast`` / ``SpellCastOrCopy`` trigger with no player restriction
+    ("whenever a player casts …", no ``valid_target``) whose effect hurts the
+    player who cast — damage, life loss, a discard or a mill aimed at
+    ``TriggeringPlayer``, or "that player sacrifices" (Eidolon of the Great
+    Revel, Pyrostatic Pillar, Liesa, Oppression, Aether Barrier). A
+    symmetric trigger that pays you (Niv-Mizzet, Parun; the lifegain
+    trinkets), helps the caster (Glademuse) or costs you (Ebon Drake) is
+    not one (:func:`hurts_triggering_player`). The opponent-restricted form
+    is :func:`is_opponent_cast_trigger_def`.
+    """
+    if not isinstance(trig, TypedMirrorNode):
+        return False
+    if trigger_def_event(trig) not in ("cast_spell", "spellcastorcopy"):
+        return False
+    vt = getattr(trig, "valid_target", None)
+    if _present(vt) and tag_of(vt) is not None:
+        return False
+    return hurts_triggering_player(getattr(trig, "execute", None))
+
+
+def filter_names_creatures(filt: object) -> bool:
+    """Whether a filter names creatures: the Creature core type, or a creature
+    type alone ("Other Spiders you control" — Cosmic Spider-Man; CR 205.3m:
+    creatures and kindreds share their subtypes, the creature types)."""
+    if "Creature" in filter_core_types(filt):
+        return True
+    return any(s.lower() in CREATURE_TYPES for s in filter_subtypes(filt))
+
+
+# ── end keyword subjects, damage amplifiers, triggering-player punishers ──
+
+
+# ── Borrow-and-cast theft and untap riders ──
+# Two joins over one ability unit's effect chain. ``steals_card_to_cast``:
+# the borrow-and-cast theft — a card another player owns leaves its zone into
+# exile and the same unit lets YOU cast or play it (Court of Locthwain,
+# Brainstealer Dragon, Daxos of Meletis, Gonti, Psychic Theft, Hostage Taker,
+# Spelljack). CR 108.3: the card keeps its owner, so this is casting what you
+# don't own, never a control change (CR 110.2). ``untap_rider_targets``: the
+# untap of ONE creature the effect itself names — the enchanted / equipped
+# creature (Freed from the Real, Instill Energy) or "untap it" after the
+# effect's own pump / counter / attach on a target (Bull's Strength, Stony
+# Strength), the shapes ``_iter_untap_targets`` leaves to its TargetOnly
+# threading.
+
+#: Library-to-exile effects whose ``player`` names whose library the card
+#: leaves (:func:`exiled_library_side`): an exile from the top, a
+#: look-and-exile dig, an exile-until.
+LIBRARY_EXILE_TAGS: frozenset[str] = frozenset({"ExileTop", "Dig", "ExileFromTopUntil"})
+#: ``player`` tags naming a player the card picks out, who may be you: a target
+#: player, a back-reference to a target or its controller.
+_PICKED_PLAYER_TAGS: frozenset[str] = frozenset(
+    {"ParentTarget", "ParentTargetController", "Player", "Target"}
+)
+#: A ``GrantCastingPermission`` grantee that is not the controller: "its owner
+#: may cast it" (Release to the Wind, Elite Spellbinder) returns the card.
+_OTHER_PLAYER_GRANTEES: frozenset[str] = frozenset(
+    {"ObjectOwner", "OriginalController"}
+)
+
+
+def _that_player_is_other(unit: AbilityUnit, node: object, tag: str | None) -> bool:
+    """Whether a "that player" tag names someone other than you: a trigger
+    watching opponents (:func:`triggering_player_side` — Mind's Dilation), a
+    combat-damage-to-a-player trigger with no player restriction (a source of
+    yours damages an opponent — Daxos, Ragavan, Thief of Sanity), or a
+    ``ScopedPlayer`` bound by a wrapper's player loop
+    (:func:`effect_owner_player_scope` — Ixhel's "each opponent who …")."""
+    if tag == "TriggeringPlayer":
+        side = triggering_player_side(unit)
+        if side is not None:
+            return side == "opponents"
+        return unit.trigger_event == "deals_damage"
+    if tag == "ScopedPlayer":
+        return (
+            unit.trigger_event == "deals_damage"
+            or effect_owner_player_scope(unit.node, node) is not None
+        )
+    return False
+
+
+#: Whose library a library-to-exile effect takes from (:func:`exiled_library_side`).
+LibrarySide = Literal["you", "opponents", "each", "chosen"]
+
+
+def exiled_library_side(
+    root: object, node: object, unit: AbilityUnit | None = None
+) -> LibrarySide:
+    """Whose library a library-to-exile effect ``node`` (:data:`LIBRARY_EXILE_TAGS`)
+    owned by ``root`` takes from, read off its ``player`` and the actor of the
+    wrapper that owns it (:func:`effect_owner_player_scope`):
+
+    * ``"opponents"`` — an opponent filter or actor tag ("the top card of
+      target opponent's library" — Court of Locthwain, Gonti), "that player"
+      when ``unit`` places them on the opponents' side
+      (:func:`_that_player_is_other` — Thief of Sanity, Daxos), or a
+      controller-relative ``player`` under an opponent wrapper (Brainstealer
+      Dragon's "each opponent", phase v0.86.0);
+    * ``"each"`` — a controller-relative ``player`` under an every-player
+      wrapper (Extract Power, Share the Spoils): yours among the rest;
+    * ``"chosen"`` — a player the card picks out, who may be you: a target
+      player or a back-reference to a target (:data:`_PICKED_PLAYER_TAGS`), a
+      target-player wrapper, a player filter naming no controller, or "that
+      player" the unit doesn't place (no ``unit`` for a granted body);
+    * ``"you"`` — your own library (Valakut Exploration, Act on Impulse).
+
+    An impulse read wants ``"you"`` / ``"each"``; a theft read
+    ``"opponents"`` / ``"each"``."""
+    player = getattr(node, "player", None)
+    tag = tag_of(player)
+    if tag in THAT_PLAYER_TAGS:
+        if unit is not None and _that_player_is_other(unit, node, tag):
+            return "opponents"
+        return "chosen"
+    if tag == "Typed":
+        side = filter_controller_side(player) or "chosen"
+    else:
+        side = controller_side(tag) or (
+            "chosen" if tag in _PICKED_PLAYER_TAGS else "you"
+        )
+    if side != "you":
+        return side
+    wrapper = effect_owner_player_scope(root, node)
+    if wrapper is None:
+        return "you"
+    if wrapper in OPPONENT_WRAPPER_ACTORS or controller_side(wrapper) == "opponents":
+        return "opponents"
+    return "chosen" if controller_side(wrapper) == "chosen" else "each"
+
+
+def _picks_other_players_card(unit: AbilityUnit) -> bool:
+    """Whether a sibling of the unit picks the card a back-referenced exile
+    takes out of another player's hidden zone or off the stack: a hand reveal
+    of a target / opposing player (Psychic Theft, Covetous Urge), a choice
+    from a targeted player's or an opponent's zone, or a counterspell whose
+    countered spell is then exiled (Spelljack, Kheru Spellsnatcher)."""
+    for c in unit.effects:
+        tag = tag_of(c.node)
+        if tag == "RevealHand":
+            target = getattr(c.node, "target", None)
+            if tag_of(target) in ("Player", "TargetPlayer") or (
+                filter_controller_side(target) in ("opponents", "chosen")
+            ):
+                return True
+        if tag == "ChooseFromZone" and getattr(c.node, "zone_owner", None) in (
+            "TargetedPlayer",
+            "Opponent",
+        ):
+            return True
+        if tag in ("Counter", "CounterAll"):
+            return True
+    return False
+
+
+def _exiles_other_players_card(unit: AbilityUnit, node: TypedMirrorNode) -> bool:
+    """Whether a ``ChangeZone`` / ``ChangeZoneAll`` to exile takes a card you
+    don't own (or needn't own): out of an opponent's hand, graveyard or
+    library (Author of Shadows, Fiend of the Shadows' "that player exiles a
+    card from their hand"), a back-referenced card a sibling picked
+    (:func:`_picks_other_players_card`), or a battlefield permanent the
+    target filter doesn't restrict to yours (Hostage Taker, Abstruse
+    Appropriation, Heartless Conscription). The source itself, a card in
+    your own graveyard or hand (Savvy Trader) and the triggering spell
+    (Possibility Storm) are not."""
+    origin, dest = change_zone_dirs(node)
+    if dest != "Exile":
+        return False
+    target = getattr(node, "target", None)
+    tag = tag_of(target)
+    if tag == "ParentTarget":
+        return _picks_other_players_card(unit)
+    if tag not in ("Typed", "Or", "And"):
+        return False
+    owner = filter_controller(target)
+    if owner in THAT_PLAYER_TAGS:
+        return _that_player_is_other(unit, node, owner)
+    side = filter_controller_side(target)
+    if side == "you":
+        return False
+    if origin in ("Hand", "Graveyard", "Library") or filter_inzone_zones(target):
+        return side in ("opponents", "chosen")
+    return origin in (None, "Battlefield")
+
+
+def lets_you_play_exiled(c: ConceptNode) -> bool:
+    """Whether an effect lets the CONTROLLER play or cast a card an effect of
+    the same ability exiled: a ``PlayFromExile`` casting permission no other
+    player is granted (:data:`_OTHER_PLAYER_GRANTEES` — not Release to the
+    Wind's "its owner may cast it"), or a cast-from-zone permission ("you may
+    cast a spell from among them" — Etali, Primal Storm) that doesn't name
+    your own hand or graveyard (CR 601.2: casting a spell; the card exiled
+    keeps its owner, CR 108.3). Typed nodes only: a permission phase parked
+    as a residue doesn't say who may play the card ("that creature's
+    controller may play that card" — Curse of Hospitality)."""
+    tag = tag_of(c.node)
+    if tag == "GrantCastingPermission":
+        grantee = getattr(c.node, "grantee", MISSING)
+        return permission_tag(c.node) == "PlayFromExile" and (
+            not _present(grantee) or tag_of(grantee) not in _OTHER_PLAYER_GRANTEES
+        )
+    if tag == "CastFromZone":
+        return filter_controller_side(getattr(c.node, "target", None)) != "you"
+    return False
+
+
+def steals_card_to_cast(unit: AbilityUnit) -> ConceptNode | None:
+    """The effect of ``unit`` that takes a card another player owns into exile
+    when the same unit lets you cast or play it — the borrow-and-cast theft
+    (CR 108.3: you cast a card you don't own; no control change). The exile
+    is a dig of a library that isn't yours alone (:func:`exiled_library_side`)
+    or a zone change of a card you don't own
+    (:func:`_exiles_other_players_card`); the permission is
+    :func:`lets_you_play_exiled`. ``None`` for a self-impulse (Valakut
+    Exploration: your own library), a "its owner may cast it" exile (Release
+    to the Wind) and a cast from your own graveyard (Goblin Dark-Dwellers)."""
+    if not any(lets_you_play_exiled(c) for c in unit.effects):
+        return None
+    for c in unit.effects:
+        tag = tag_of(c.node)
+        if tag in LIBRARY_EXILE_TAGS and exiled_library_side(
+            unit.node, c.node, unit
+        ) in ("opponents", "each"):
+            return c
+        if tag in ("ChangeZone", "ChangeZoneAll") and _exiles_other_players_card(
+            unit, c.node
+        ):
+            return c
+    return None
+
+
+#: Effects on a target that an "untap it" (``ParentTarget``) rider follows:
+#: a pump, a counter, an attach, a removal from combat (Reconnaissance).
+_UNTAP_RIDER_HOSTS: frozenset[str] = frozenset(
+    {"Pump", "GenericEffect", "PutCounter", "Attach", "RemoveFromCombat"}
+)
+
+
+def untap_rider_targets(unit: AbilityUnit) -> Iterator[tuple[object, TypedMirrorNode]]:
+    """``(target filter, SetTapState node)`` for each Untap in ``unit`` whose
+    target is ONE creature the effect names itself: the enchanted or
+    equipped creature (Freed from the Real, Pemmin's Aura, Instill Energy —
+    an ``EnchantedBy`` / ``EquippedBy`` filter), or "untap it" back-referring
+    to the preceding host effect's target (:data:`_UNTAP_RIDER_HOSTS` —
+    Bull's Strength's pump, Stony Strength's counter; a ``GenericEffect``
+    host must carry a pump or keyword grant in the unit's statics). The
+    caller decides what an opponent's creature means; a self-untap
+    (``SelfRef`` — Thermo-Alchemist) is not one of these."""
+    grants = any(c.concept in ("pump", "grant_keyword") for c in unit.statics)
+    host: object | None = None
+    for c in unit.effects:
+        node = c.node
+        tag = tag_of(node)
+        target = getattr(node, "target", None)
+        if tag == "SetTapState" and settap_state(node) == "Untap":
+            if tag_of(target) == "Typed" and (
+                has_filter_property(target, "EnchantedBy")
+                or has_filter_property(target, "EquippedBy")
+            ):
+                yield target, node
+            elif tag_of(target) == "ParentTarget" and host is not None:
+                yield host, node
+            continue
+        if tag in _UNTAP_RIDER_HOSTS and tag_of(target) == "ParentTarget":
+            # A second rider on the same object ("It gains reach … Untap it."
+            # — Biosynthic Burst) keeps the host.
+            continue
+        if (
+            tag in _UNTAP_RIDER_HOSTS
+            and tag_of(target) in ("Typed", "Or", "And")
+            and (tag != "GenericEffect" or grants)
+        ):
+            host = target
+        else:
+            host = None
+
+
+# ── end borrow-and-cast theft and untap riders ──
+
+
+# ── Evasion sites, land-type changers, subtype payoffs ──
+
+#: The evasion keyword abilities (CR 509.1b: "a static ability an attacking
+#: creature has that restricts what can block it") the ``evasion_self`` lane
+#: names by kind, folded by :func:`normalised_keyword_name`: menace (CR
+#: 702.111b), fear (702.36b), intimidate (702.13b), skulk (702.118b),
+#: horsemanship (702.31b), shadow (702.28b) and landwalk in every spelling
+#: phase writes (702.14c). Flying (702.9b) is left out as soft evasion.
+EVASION_KEYWORD_KINDS: frozenset[str] = frozenset(
+    {"menace", "fear", "intimidate", "skulk", "horsemanship", "shadow", "landwalk"}
+)
+#: The blocking-restriction static modes an attacker can carry, by kind:
+#: "can't be blocked" is ``unblockable``; "can't be blocked except by …" /
+#: "by …" / "unless all creatures defending player controls block it" leave
+#: some blockers, so ``partial``. ``CantBeBlockedByMoreThan`` ("can't be
+#: blocked by more than one creature") limits how MANY block, not what can, so
+#: it maps to ``None``: seen, but no evasion.
+_EVASION_MODE_KINDS: dict[str, str | None] = {
+    "CantBeBlocked": "unblockable",
+    "CantBeBlockedExceptBy": "partial",
+    "CantBeBlockedBy": "partial",
+    "CantBeBlockedUnlessAllBlock": "partial",
+    "CantBeBlockedByMoreThan": None,
+}
+#: The ``affected`` shapes that name ONE creature: the card itself, a chosen
+#: target, the triggering object, the tokens just made (each one a body of its
+#: own). Any other filter is a population — a team, tribal or symmetric grant
+#: (``team_evasion_grant`` / ``all_creatures_kw_grant``) — unless it is the
+#: object an Equipment or Aura is attached to (:data:`ATTACHED_OBJECT_PREDICATES`).
+_ONE_CREATURE_AFFECTED: frozenset[str] = frozenset(
+    {"SelfRef", "ParentTarget", "TriggeringSource", "LastCreated", "TrackedSet"}
+)
+#: Conditions that never gate an attack: a creature only attacks during its
+#: controller's turn (CR 506.2), so "During your turn, equipped creature … can't
+#: be blocked" (Bilbo's Ring) is unconditional evasion.
+_ATTACK_TURN_CONDITIONS: frozenset[str] = frozenset({"DuringYourTurn"})
+#: Random-outcome nodes: evasion granted in one branch is chance, not a plan.
+_CHANCE_TAGS: frozenset[str] = frozenset({"FlipCoin", "FlipCoins", "RollDie"})
+
+
+class EvasionSite(NamedTuple):
+    """One evasion a card carries or grants. ``kind`` is an
+    :data:`EVASION_KEYWORD_KINDS` member, ``"unblockable"`` or ``"partial"``
+    (``None`` for a blocking restriction that is not evasion); ``team`` marks a
+    grant to a population rather than one creature; ``conditional`` marks one
+    that holds only while a condition is met (an intervening-if trigger, a
+    static's ``condition``, a level, a coin flip)."""
+
+    kind: str | None
+    team: bool
+    conditional: bool
+
+
+def _list_field(node: object, name: str) -> list[Any]:
+    """A node's list field, ``[]`` when absent or null — an absent optional field
+    loads as the truthy :data:`MISSING` sentinel, so ``getattr(…) or ()`` would
+    iterate it (``extra_keywords`` and some ``modifications`` default to it)."""
+    value = getattr(node, name, None)
+    return value if isinstance(value, list) else []
+
+
+def evasion_keyword_kind(name: str) -> str | None:
+    """The :data:`EVASION_KEYWORD_KINDS` kind a keyword spelling names — phase's
+    or Scryfall's, folded by :func:`normalised_keyword_name` — or ``None``:
+    every landwalk spelling ("Islandwalk", "Snow swampwalk", "Nonbasic
+    landwalk", "Desertwalk" — CR 702.14c: a land type, or a type or supertype
+    and "land") is ``"landwalk"``. A "… Walk" ability word (Bane's Invoker's
+    "Wind Walk") names no land and is no landwalk."""
+    kw = normalised_keyword_name(name)
+    if kw in EVASION_KEYWORD_KINDS:
+        return kw
+    land = kw.removesuffix("walk")
+    if land != kw and (
+        land.endswith("land") or any(land.endswith(t) for t in LAND_SUBTYPE_WORDS)
+    ):
+        return "landwalk"
+    return None
+
+
+def _evasion_mode_kinds(sdef: TypedMirrorNode) -> list[str | None]:
+    """The evasion kinds one static def confers: its own blocking-restriction
+    mode, an ``AddStaticMode`` of one, and every evasion keyword it adds."""
+    out: list[str | None] = []
+    mode = static_mode_tag(sdef)
+    if mode in _EVASION_MODE_KINDS:
+        out.append(_EVASION_MODE_KINDS[mode])
+    for mod in _list_field(sdef, "modifications"):
+        tag = tag_of(mod)
+        if tag == "AddStaticMode":
+            added = static_mode_tag(mod)
+            if added in _EVASION_MODE_KINDS:
+                out.append(_EVASION_MODE_KINDS[added])
+        elif tag == "AddKeyword":
+            kind = evasion_keyword_kind(mod_keyword_name(mod) or "")
+            if kind is not None:
+                out.append(kind)
+    return out
+
+
+def _is_population(affected: object) -> bool:
+    if tag_of(affected) in _ONE_CREATURE_AFFECTED:
+        return False
+    return ATTACHED_OBJECT_PREDICATES.isdisjoint(filter_predicates(affected))
+
+
+def _gating_condition(node: object) -> bool:
+    cond = getattr(node, "condition", MISSING)
+    return _present(cond) and tag_of(cond) not in _ATTACK_TURN_CONDITIONS
+
+
+def evasion_sites(tree: ConceptTree) -> tuple[EvasionSite, ...]:
+    """Every evasion the card carries or grants (CR 509.1b), read off phase's
+    tree: its printed evasion keywords (``card_keywords``), every
+    blocking-restriction or evasion-keyword static def at any depth — a
+    printed static, a one-shot or activated "can't be blocked this turn", a
+    token's own static —, the evasion keywords a created token or token copy
+    is made with, and a keyword counter put on one creature (CR 122.1b).
+
+    Each site says who gets it (one creature, or a population) and whether a
+    condition gates it: the def's own ``condition`` (Relic Runner, Rayami), a
+    trigger's intervening-if (Rapid Augmenter), or a coin flip / die roll.
+    The ``evasion_self`` lane turns these into one subject per kind."""
+    sites: list[EvasionSite] = [
+        EvasionSite(kind, team=False, conditional=False)
+        for name in tree.card_keywords
+        if (kind := evasion_keyword_kind(name)) is not None
+    ]
+    for unit in tree.units:
+        nodes = list(unit.iter_typed())
+        chance: set[int] = set()
+        for n in nodes:
+            if tag_of(n) in _CHANCE_TAGS:
+                chance.update(id(x) for x in iter_typed_nodes(n) if x is not n)
+        unit_gated = unit.origin == "trigger" and _gating_condition(unit.node)
+        for n in nodes:
+            tag = tag_of(n)
+            if tag in ("Token", "CopyTokenOf"):
+                names = (
+                    token_profile_keywords(n)
+                    if tag == "Token"
+                    else tuple(
+                        k if isinstance(k, str) else getattr(k, "key", "")
+                        for k in _list_field(n, "extra_keywords")
+                    )
+                )
+                gated = unit_gated or id(n) in chance
+                sites.extend(
+                    EvasionSite(kind, team=False, conditional=gated)
+                    for name in names
+                    if (kind := evasion_keyword_kind(name)) is not None
+                )
+                continue
+            if tag in ("PutCounter", "PutCounterAll"):
+                kind = evasion_keyword_kind(str(getattr(n, "counter_type", "")))
+                if kind is not None:
+                    gated = unit_gated or id(n) in chance
+                    sites.append(
+                        EvasionSite(
+                            kind, team=tag == "PutCounterAll", conditional=gated
+                        )
+                    )
+                continue
+            if tag == "AddStaticMode":
+                continue  # read through its owning def
+            kinds = _evasion_mode_kinds(n)
+            if not kinds:
+                continue
+            affected = getattr(n, "affected", MISSING)
+            # A conferred def with no ``affected`` applies to the object its
+            # chain already names ("target creature gets +1/+0 and can't be
+            # blocked this turn" — Distortion Strike's Pump target): one
+            # creature, unless the chain is a mass effect.
+            team = (
+                _is_population(affected)
+                if _present(affected)
+                else any(tag_of(x) in ALL_VARIANT_EFFECT_TAGS for x in nodes)
+            )
+            gated = unit_gated or _gating_condition(n) or id(n) in chance
+            sites.extend(
+                EvasionSite(kind, team=team, conditional=gated) for kind in kinds
+            )
+    return tuple(sites)
+
+
+def makes_lands_type(tree: ConceptTree, land_type: str) -> bool:
+    """Whether the card makes lands into ``land_type`` (CR 305.7: an effect that
+    sets a land's subtype, or adds one "in addition to its other types"): a
+    continuous effect over lands — a printed static, an Aura's enchanted land,
+    a one-shot on a target land — whose modification is ``SetBasicLandType``
+    or ``AddSubtype`` of that type. "Nonbasic lands are Islands" (Harbinger of
+    the Seas), "Enchanted land is an Island" (Spreading Seas), "target land
+    becomes an Island" (Tide Shaper), "All lands are Islands in addition to
+    their other types" (Stormtide Leviathan). A set of the lands you control
+    only is left out: it reshapes your mana, not the opponents' board."""
+    for unit in tree.units:
+        for n in unit.iter_typed():
+            affected = getattr(n, "affected", MISSING)
+            if not _present(affected):
+                continue
+            changes = any(
+                (
+                    tag_of(m) == "SetBasicLandType"
+                    and getattr(m, "land_type", None) == land_type
+                )
+                or (
+                    tag_of(m) == "AddSubtype"
+                    and getattr(m, "subtype", None) == land_type
+                )
+                for m in _list_field(n, "modifications")
+            )
+            if not changes:
+                continue
+            if tag_of(affected) == "ParentTarget" or (
+                "Land" in filter_core_types(affected)
+                and filter_controller(affected) != "You"
+            ):
+                return True
+    return False
+
+
+def counts_opponents_land_type(tree: ConceptTree, land_type: str) -> bool:
+    """Whether the card rewards OTHER players controlling lands of ``land_type``:
+    a count of them that is not limited to your own ("deals damage to each
+    opponent equal to the number of Islands that player controls" — Typhoon;
+    "five or more Islands on the battlefield" — Harbor Serpent) or a condition
+    that an opponent controls one ("as long as an opponent controls an Island"
+    — Tide Shaper). A count of your own lands of that type (Spectral Deluge,
+    Vedalken Shackles) is a land-density payoff, not one an opponent's land
+    of that type feeds."""
+    for n in tree.iter_typed():
+        tag = tag_of(n)
+        if tag == "ObjectCount":
+            filt = getattr(n, "filter", None)
+            if land_type in filter_subtypes(filt) and filter_controller(filt) != "You":
+                return True
+        elif tag == "IsPresent":
+            filt = getattr(n, "filter", None)
+            if (
+                land_type in filter_subtypes(filt)
+                and filter_controller_side(filt) == "opponents"
+            ):
+                return True
+    return False
+
+
+#: Effects whose object filter names what the card takes from another player:
+#: a revealed hand's pick (Psychic Spear's "You choose a Spirit or Arcane card
+#: from it"), beside the answers :func:`answers_its_target` reads.
+_TAKES_FROM_FILTER_FIELDS: dict[str, str] = {"RevealHand": "card_filter"}
+
+
+def names_subtype_payoff(tree: ConceptTree, subtype: str) -> bool:
+    """Whether the card rewards objects of spell or card ``subtype`` (CR 205.3k
+    — Arcane is a spell type): a filter naming it on a cast trigger, a tutor, a
+    recursion or cost reducer (Tallowisp, Eerie Procession, Hana Kami,
+    Long-Forgotten Gohei), or a count of such cards in your graveyard (Ire of
+    Kaminari's ``ZoneCardCount``). Left out: a filter an effect answers —
+    counters, destroys or exiles (Hisoka's Defiance, CR 701.6a) — or takes from
+    another player's hand (Psychic Spear), and a trigger watching an opponent's
+    spells (Ishi-Ishi, Akki Crackshot): each is a hoser of that subtype."""
+    for unit in tree.units:
+        if triggering_player_side(unit) == "opponents":
+            continue
+        nodes = list(unit.iter_typed())
+        hosed: set[int] = set()
+        for n in nodes:
+            if answers_its_target(n):
+                hosed.update(
+                    id(x) for x in iter_typed_nodes(getattr(n, "target", None))
+                )
+            field = _TAKES_FROM_FILTER_FIELDS.get(tag_of(n) or "")
+            if field is not None:
+                hosed.update(id(x) for x in iter_typed_nodes(getattr(n, field, None)))
+        for n in nodes:
+            if id(n) in hosed:
+                continue
+            tag = tag_of(n)
+            if tag == "Typed" and subtype in filter_subtypes(n):
+                return True
+            if tag == "ZoneCardCount" and any(
+                isinstance(ct, MirrorVariant)
+                and ct.key == "Subtype"
+                and ct.inner == subtype
+                for ct in _list_field(n, "card_types")
+            ):
+                return True
+            if tag == "Splice" and getattr(n, "subtype", None) == subtype:
+                return True
+    return False
+
+
+# ── end evasion sites, land-type changers, subtype payoffs ──

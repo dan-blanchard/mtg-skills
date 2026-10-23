@@ -2130,10 +2130,10 @@ def test_a_top_heavy_decks_upgrade_is_not_capped_at_four_mana():
 
 def test_a_pattern_searched_theme_pages_by_its_serve():
     """A theme whose spec searches by an oracle pattern pages the cards its
-    serving predicate admits instead (the pattern missed most of them); a
-    search naming a card type stays (a tribe's serve also admits generic tribal
-    support that would crowd out its members; the land creatures' serve reads
-    cards that mention them, not the manlands)."""
+    serving predicate admits instead (the pattern missed most of them), card
+    type or not, and so does a search with nothing of its own to fetch by; a
+    search by card type alone stays (a tribe's serve also admits generic tribal
+    support that would crowd out its members) — ``pages_by_serve``."""
     from mtg_utils._analysis.signal_specs import Serve
     from mtg_utils._tuner.swaps import _run_search
 
@@ -2158,4 +2158,6 @@ def test_a_pattern_searched_theme_pages_by_its_serve():
     )
     assert (calls[0]["oracle"], calls[0]["serve"]) == (None, serve)
     assert (calls[1]["card_type"], calls[1]["serve"]) == ("Sliver", None)
-    assert (calls[2]["card_type"], calls[2]["serve"]) == ("Land", None)
+    _run_search(search, {"cmc_max": 0, "_serve": serve}, **common)
+    assert (calls[2]["card_type"], calls[2]["serve"]) == (None, serve)
+    assert calls[3]["serve"] == serve

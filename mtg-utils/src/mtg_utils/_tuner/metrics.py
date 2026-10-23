@@ -17,7 +17,7 @@ from typing import TYPE_CHECKING
 from mtg_utils._analysis import signal_keys
 from mtg_utils._analysis.lanes import TOKEN_SUBTYPE_PAYOFF_KEYS
 from mtg_utils._analysis.roles import protects
-from mtg_utils._analysis.signal_specs import SPECS, spec_for, spec_scope_for
+from mtg_utils._analysis.signal_specs import SPECS, avenue_spec_for, spec_scope_for
 from mtg_utils._card_ir.crosswalk import (
     ends_the_game,
     is_evasive_body,
@@ -355,9 +355,10 @@ def focus(
     cal: Calibration = COMMANDER,
     playrate_condemns: bool | None = None,
 ) -> dict:
-    # Each deck signal's spec, resolved once (``spec_for`` builds a per-subject
-    # spec for a subject-bearing signal; four passes below read it).
-    resolved = [(sig, spec) for sig in deck_signals if (spec := spec_for(sig))]
+    # Each deck signal's avenue, resolved once (``avenue_spec_for``: a per-subject
+    # spec for a subject key's signal, and no avenue for a subject the key's own
+    # serve leaves out; four passes below read it).
+    resolved = [(sig, spec) for sig in deck_signals if (spec := avenue_spec_for(sig))]
 
     def labels_where(pred: Callable[[Signal], bool]) -> set[str]:
         return {spec.label for sig, spec in resolved if pred(sig)}
@@ -489,7 +490,11 @@ def focus(
             bucket = cares.setdefault(spec.label, set())
             avenue_scope = spec_scope_for(sig.key, sig.scope) or sig.scope
             for ckey in _cares_keys(sig.key):
-                subjects = (sig.subject, "") if sig.subject else ("",)
+                subjects = (
+                    (sig.subject, "")
+                    if sig.subject and sig.subject not in signal_keys.DOER_SUBJECTS
+                    else ("",)
+                )
                 for subject in subjects:
                     for escope, names in by_key_subject.get(
                         (ckey, subject), {}
@@ -643,7 +648,7 @@ def focus(
     # type — signal_specs._subject_spec folds them into every subject's Serve) SERVE
     # every tribal avenue that's open at all, manufacturing an emerging flag for
     # tribes nobody built toward (the "Bird tribal" phantom on a changeling-heavy
-    # deck). Built from ``deck_signals`` (label -> subject, via ``spec_for`` — the
+    # deck). Built from ``resolved`` (label -> subject, via ``avenue_spec_for`` — the
     # same per-subject dynamic label the avenue itself carries); viable avenues are
     # untouched (already past a much higher floor) and non-tribal labels never
     # appear in this map, so the gate is a no-op for them.
