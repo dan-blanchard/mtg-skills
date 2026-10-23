@@ -1497,8 +1497,8 @@ _KNW_LAND_CHOOSE_RX = re.compile(
     r"chooses? [^.\n]*\blands?\b[^.\n]*(?:then )?sacrifices? the rest",
     re.IGNORECASE,
 )
-# Core-type gate (mirrors _MASS_REMOVAL_TYPES' shape): Land deliberately
-# absent — a land reset is denial, not a board reset.
+# Core-type gate (the types of ``crosswalk.SWEPT_PERMANENT_TYPES``): Land
+# deliberately absent — a land reset is denial, not a board reset.
 KEEP_N_CHOOSE_TYPES = frozenset(
     {"Creature", "Permanent", "Planeswalker", "Artifact", "Enchantment"}
 )

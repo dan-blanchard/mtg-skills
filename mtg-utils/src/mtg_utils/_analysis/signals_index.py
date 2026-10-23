@@ -69,7 +69,7 @@ file, is treated as absent — silently rebuilt, never served stale.
 ``extract_signals`` takes ``vocab`` / ``include_membership`` /
 ``resolve_object`` knobs; a sidecar entry is only valid for the SAME
 effective config a caller runs live. Every whole-pool production call site
-(``theme_presets._signal_keys_for``, ``engine._signal_freq``) calls it at
+(``theme_presets.signal_keys_for``, ``engine._signal_freq``) calls it at
 its DEFAULTS (``vocab=CREATURE_SUBTYPES``, ``include_membership=True``,
 ``resolve_object=None`` — the latter is accepted-but-unused by the
 crosswalk path regardless, per ``extract_signals``'s own docstring,

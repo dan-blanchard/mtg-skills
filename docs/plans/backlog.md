@@ -49,7 +49,7 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   any of them now; job reads (`_analysis/job_quality/`, ADR-0060) gate which
   cards may be an upgrade and, for wipes / draw, order them blended with
   play-rate, so a looter is no draw upgrade and Animate Dead no removal; overload spells are
-  sweeps (`mana_and_wipes._overloaded`, a retirement canary). Left:
+  sweeps (`crosswalk.overload_sweep`, a retirement canary). Left:
   (a) **Inside a lane, the cut read is "a feeder nobody plays" — don't
   re-suggest a function read.** Measured 2026-10-18 on the 25 precons' main
   lanes (906 lane cards, 222 guide cuts, base rate 0.245): no function
@@ -141,19 +141,6 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   (g) The guide cuts the tuner protects are still 124 — lane carers and doers
   the guides trim, which the upgrade issue reaches only through the deep
   lane's least-played half.
-  (h) The board-wipe role reads two substrates — the compat projection's mass
-  marker (`_ir_board_wipe`, whose destroy / damage / bounce arm duplicates
-  `mass_removal`) and a roles-local typed walk for static population shrinks
-  (`_static_board_shrink`, beside `debuff_makers`' static arm) — where it
-  should come off the signal path: `mass_removal` plus a population-shrink
-  arm, retiring `_ir_board_wipe`. The role and the `board-wipe` preset the
-  tuner sources by disagree on one-sided shrinks (the role counts Elesh Norn's
-  -2/-2; the preset excludes Massacre Wurm by adjudication), and no test pins
-  their agreement as `test_the_preset_and_the_role_agree_on_every_covered_card`
-  does for ramp. `mass_removal`'s attachment veto (`_DEBUFF_SINGLE_AURA_PREDS`)
-  has no `EquippedBy`; check with /rules-lawyer whether `AttachedToRecipient` /
-  `HasAnyAttachmentOf` name one object before folding it into
-  `crosswalk.ATTACHED_OBJECT_PREDICATES`.
   (j) **Job-read leftovers** (eighth pass, ADR-0060; each module docstring lists
   its own). Removal and ramp only gate (their blend with play-rate trailed
   play-rate alone at the top of the list; protection's did too, and orders by
@@ -163,29 +150,33 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   read like Cast Out — the Aura's host and the upkeep payment carry no weight),
   and phase drops Snuff Out's and Deadly Rollick's free alternative costs and
   Winnow's condition. The wipe read's top picks include Spiteful Banditry and
-  Jaya Ballard where the guides add Blasphemous Act and Farewell. Over every
+  Jaya Ballard where the guides add Blasphemous Act and Farewell; the blend
+  weighs play-rate equally with the read, so Death Toll's wipe fill is Wail of
+  War (read 0.07) over Find // Finality (0.28) once the `board-wipe` preset
+  takes the role's one-sided shrinks (2026-10-23). Over every
   card with a removal effect (creatures with an incidental fight included) the
   removal read's agreement with play-rate is weak; it was fitted on cards whose
   main job is removal, and as a gate it only compares a cut with candidates of
   the same job. The `removal` preset takes `debuff_makers` whole, so a
   power-only "-1/-0" on the creature Animate Dead returns reads as removal (the
   role, not the read — the read scores it None).
-  (k) **Job-read plumbing the eighth-pass review deferred.** Which effects count
-  as a job should come from the lanes as unit iterators — `mass_removal_units`
-  / `mass_bounce_units` in `mana_and_wipes`, the `_removal_answers` pattern —
-  rather than `board_wipe` re-running `_mass_removal` over one-unit trees;
-  "overload makes this a sweep" is defined twice (the lanes' `_overload_sweep`
-  and `board_wipe`'s overload tags, which add Pump) and should be one crosswalk
-  read. The shared private helpers the reads import (`_overloaded`,
-  `_draw_engine_scope`, `_granted_mana_defs`, `_static_board_shrink`,
-  `_negative_pt_field`, `crosswalk.reads._unit_own_mana`, `lanes._shared._YOU_EACH`,
-  `counters_voltron._TOKEN_OWNER_IS_YOU`, `theme_presets._signal_keys_for`, and
-  `job_quality._READS` for `precon-audit/job_reads.py`) want public names.
-  `roles` could export each role's search spec (prefilter presets plus its
-  predicate) so `ROLE_SEARCH` can't restate it wrongly again. An ordering job
-  reads a 600-card play-rate page (`_JOB_READ_PAGE`); five-colour removal
-  exceeds it, and the blend's percentiles move with page depth — reading the
-  role's whole match set would remove both.
+  (k) **Job-read page depth.** An ordering job reads a 600-card play-rate
+  page (`_JOB_READ_PAGE`); five-colour removal exceeds it, and the blend's
+  percentiles move with page depth — reading the role's whole match set would
+  remove both (it moves the blend's percentiles, so it needs its own precon
+  re-measure; left out of the 2026-10-23 plumbing pass).
+  (p) **A `population_shrink` signal key.** The `board-wipe` preset reads its
+  population-shrink arm as a `concept` predicate (`lanes.population_shrink`), a
+  live per-card tree walk, where its other arms are signal keys the persisted
+  signals index serves. A served key (the one-sided / static shrink the
+  `mass_removal` key leaves out) would let the preset, and the role, read the
+  index alone.
+  (q) **`job_quality` reads raw trees.** The job reads walk `trees_for`, not
+  `signal_trees_for` (the trees with synthesis applied, which every lane
+  reads), so the board-wipe read runs the lanes' own sweep walks
+  (`mass_removal_effects` …) over trees the lanes never see: a fact synthesis
+  adds reaches the signal and the role but not the read. Move the reads onto
+  `signal_trees_for` and re-measure ADR-0060's table.
   (m) **Recall** (`precon-audit/misses.py`, at the largest guide's thirty
   swaps and each precon's own guides' budget, `budgets.json`): 165 of 404
   cuttable guide cuts, 47 of 610 in-scope guide adds (2026-10-20, after theme

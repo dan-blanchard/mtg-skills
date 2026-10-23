@@ -17,7 +17,7 @@ from mtg_utils._analysis.lanes._shared import (
     _GRANT_ABILITY_MOD_TAGS,
     _LAND_SUBTYPE_WORDS,
     _REMINDER_RX,
-    _YOU_EACH,
+    YOU_EACH,
     _kept,
     _root_target_filter,
     _site_raw,
@@ -186,7 +186,7 @@ def _discard_makers(tree: ConceptTree) -> list[Signal]:
             (
                 c
                 for c in unit.effect_concepts("discard")
-                if c.scope in _YOU_EACH
+                if c.scope in YOU_EACH
                 and effect_owner_player_scope(unit.node, c.node) not in _OTHER_ACTORS
                 and effect_facing_player(unit.node, c.node) is None
             ),
@@ -402,7 +402,7 @@ def _token_maker(tree: ConceptTree) -> list[Signal]:
             # different reason) must still fail the gate exactly like
             # before this task; only the ParentTargetOwner beneficiary
             # read is new admission territory.
-            if scope not in _YOU_EACH and not (owner_override and scope == "any"):
+            if scope not in YOU_EACH and not (owner_override and scope == "any"):
                 continue
             types = concept.subject
             if not types:

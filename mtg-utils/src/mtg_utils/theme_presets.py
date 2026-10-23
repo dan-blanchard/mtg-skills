@@ -44,7 +44,7 @@ time into DECLARATIVE VIEWS over that extractor's own output — never a
 third detector system:
 
 - ``signal_keys``: the card matches if its production signal keyset
-  (memoized per ``oracle_id`` — see :func:`_signal_keys_for`) intersects
+  (memoized per ``oracle_id`` — see :func:`signal_keys_for`) intersects
   these keys. This is the primary conversion mechanism — most presets
   map onto exactly one signal key (``landfall`` → the ``landfall`` key,
   ``sacrifice-outlet`` → ``sacrifice_outlets``, …).
@@ -72,7 +72,7 @@ third detector system:
   helper(s) it reuses, with the same docstring discipline as the lane
   itself; the per-card glue (resolving the card's per-face trees, or —
   for ``blink`` — calling ``extract_signals`` directly) lives in
-  THIS module next to :func:`_signal_keys_for`. Because
+  THIS module next to :func:`signal_keys_for`. Because
   :meth:`Preset.matches` only ORs its arms (there is no AND), a concept
   predicate that needs "is removal/edict of SOME kind AND targets THIS
   type" does the full walk itself rather than intersecting against
@@ -115,7 +115,7 @@ from mtg_utils.card_classify import get_oracle_text, is_land
 if TYPE_CHECKING:
     # Type-only: mtg_utils._card_ir.crosswalk has no _deck_forge dependency
     # (verified), so this import is safe even at runtime, but every OTHER
-    # crosswalk-adjacent import in this module is lazy (see _signal_keys_for
+    # crosswalk-adjacent import in this module is lazy (see signal_keys_for
     # / _concept_any_face's own docstrings) to dodge an import-time cycle
     # with _analysis.signals — keeping this one TYPE_CHECKING-only too
     # keeps the whole module's import discipline uniform.
@@ -193,7 +193,7 @@ class Preset:
                 return True
         if self.layouts and card.get("layout") in self.layouts:
             return True
-        if self.signal_keys and _signal_keys_for(card) & set(self.signal_keys):
+        if self.signal_keys and signal_keys_for(card) & set(self.signal_keys):
             return True
         return self.concept is not None and self.concept(card)
 
@@ -219,7 +219,7 @@ class Preset:
 _SIGNAL_KEY_INDEX: dict[str, frozenset[str]] = {}
 
 
-def _signal_keys_for(card: dict) -> frozenset[str]:
+def signal_keys_for(card: dict) -> frozenset[str]:
     """CARD's production signal-key set (memoized per ``oracle_id``).
 
     Empty for a card with no ``oracle_id`` (a synthetic fixture — the same
@@ -248,13 +248,13 @@ def _signal_keys_for(card: dict) -> frozenset[str]:
 
 def has_signal_coverage(card: dict) -> bool:
     """Can the signal path SEE this card at all? False for the cases
-    :func:`_signal_keys_for` degrades to an empty set on — no ``oracle_id`` (a
+    :func:`signal_keys_for` degrades to an empty set on — no ``oracle_id`` (a
     synthetic fixture), or no phase parse / no card-data (``signal_trees_for``
     resolves nothing) — so a caller with a text degrade (``_analysis.roles.
     is_ramp``) can tell "no signals" (a vanilla creature: covered, not ramp) from
     "no answer". A non-empty keyset is coverage by construction; only the rare
     empty one pays the tree resolve."""
-    if _signal_keys_for(card):
+    if signal_keys_for(card):
         return True
     if not card.get("oracle_id"):
         return False
@@ -282,7 +282,7 @@ def _signal_idents_for(
     card: dict, *, include_membership: bool = True
 ) -> frozenset[str]:
     """CARD's production "key|scope|subject" ident set (memoized per
-    ``oracle_id``) — :func:`_signal_keys_for`'s scope/subject-bearing
+    ``oracle_id``) — :func:`signal_keys_for`'s scope/subject-bearing
     sibling, with the same lazy-import rationale and the same empty-set
     degradation for a synthetic no-``oracle_id`` record.
     ``include_membership=False`` leaves out the membership floor (its own memo)."""
@@ -339,16 +339,16 @@ def seed_signal_key_index(bulk_path: Path | None) -> bool:
     already seeded (by identity — path + mtime + size) is a no-op. Returns
     whether a persisted index was available/buildable; ``False`` (no bulk
     path, or the file is missing) leaves ``_SIGNAL_KEY_INDEX`` untouched —
-    ``_signal_keys_for``'s existing per-card live compute is the fallback,
+    ``signal_keys_for``'s existing per-card live compute is the fallback,
     unchanged, exactly the no-sidecar/no-bulk/CI degradation this module
     always had.
 
     Only ADDS entries not already cached (``setdefault``): an oracle_id
     live-computed earlier in this same process (e.g. by a prior
-    ``_signal_keys_for`` call before the seed ran) keeps that value rather
+    ``signal_keys_for`` call before the seed ran) keeps that value rather
     than being overwritten — the two are byte-identical by construction
     (the sidecar is built at the exact default configuration
-    ``_signal_keys_for`` calls live: see ``signals_index``'s module
+    ``signal_keys_for`` calls live: see ``signals_index``'s module
     docstring), so this is a safety margin, not a correctness dependency."""
     if bulk_path is None:
         return False
@@ -384,7 +384,7 @@ def _concept_any_face(card: dict, predicate: Callable[[ConceptTree], bool]) -> b
     trees — mirrors ``extract_signals``'s own per-face union (a
     DFC's two faces are read independently, never merged into one tree).
     ``False`` for a card with no ``oracle_id`` / no phase parse, the same
-    degradation :func:`_signal_keys_for` documents for the ``signal_keys``
+    degradation :func:`signal_keys_for` documents for the ``signal_keys``
     arm. Shared plumbing for the tree-level concept predicates below —
     each names the crosswalk lane helper it actually reuses in its own
     docstring; this function only resolves the trees.
@@ -393,7 +393,7 @@ def _concept_any_face(card: dict, predicate: Callable[[ConceptTree], bool]) -> b
     synthesized — the identical tree shape every lane reads), so a concept
     predicate can never diverge from the ``signal_keys``-based lane it sits
     beside in the same preset's OR. Lazily imported for the same import-cycle
-    reason :func:`_signal_keys_for` imports ``_analysis.signals`` lazily.
+    reason :func:`signal_keys_for` imports ``_analysis.signals`` lazily.
     """
     if not card.get("oracle_id"):
         return False
@@ -501,7 +501,7 @@ def _ramp_concept(card: dict) -> bool:
     """
     if is_land(card):
         return False
-    if _signal_keys_for(card) & _RAMP_SIGNAL_KEYS:
+    if signal_keys_for(card) & _RAMP_SIGNAL_KEYS:
         return True
     from mtg_utils._analysis.lanes import (
         additional_land_play,
@@ -511,6 +511,18 @@ def _ramp_concept(card: dict) -> bool:
     return _concept_any_face(
         card, lambda tree: treasure_maker_you_keep(tree) or additional_land_play(tree)
     )
+
+
+def _population_shrink_concept(card: dict) -> bool:
+    """concept arm for the 'board-wipe' preset: a toughness shrink on a
+    population of creatures not limited to yours (CR 613.4c; a creature at 0
+    toughness dies, 704.5f), one-shot or continuous, symmetric or one-sided
+    (``lanes.population_shrink`` — Massacre Wurm, Elesh Norn, Night of Souls'
+    Betrayal). The ``mass_removal`` key reads only the symmetric one-shot;
+    ``roles.is_board_wipe`` says why the rest counts as a wipe."""
+    from mtg_utils._analysis.lanes import population_shrink
+
+    return _concept_any_face(card, population_shrink)
 
 
 #: Graveyard-recursion keywords phase v0.94.0+ drops on some cards, so the
@@ -531,7 +543,7 @@ SELF_RECURRING_KEYWORD_GAPS: tuple[str, ...] = (
 def _fodder_concept(card: dict) -> bool:
     """The ``self-recurring-fodder`` preset: a creature that comes back out of the
     graveyard by a fodder route (``lanes.card_advantage``), imported lazily for the
-    cycle :func:`_signal_keys_for` documents."""
+    cycle :func:`signal_keys_for` documents."""
     from mtg_utils._analysis.lanes.card_advantage import (
         FODDER_SELF_RETURNS,
         comes_back_from_graveyard,
@@ -554,7 +566,7 @@ def _removal_edict_concept(
     preset in this registry shares (see that function's docstring, and its
     module's "Task #83 structural-view helper" section, for the target-
     filter mechanics). Imported LAZILY inside the closure for the same
-    import-cycle reason :func:`_signal_keys_for` documents.
+    import-cycle reason :func:`signal_keys_for` documents.
     """
 
     def _match(card: dict) -> bool:
@@ -1991,7 +2003,7 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
     # Two lane gaps the original scoping deferred on are now fixed (task
     # #85, the lanes package): (1) ``debuff_makers``'s single-target Pump
     # arm now reads a dynamic ``-X/-X`` (mirroring the mass ``PumpAll``
-    # arm's existing ``_negative_pt_field`` read, CR 704.5f) — Toxic Deluge,
+    # arm's existing ``negative_pt_field`` read, CR 704.5f) — Toxic Deluge,
     # Death Wind, Flunk, Cloudkill and 83 more recover; (2) a "target
     # [combat-state/color]-qualified creature" Destroy (Smite) that lost its
     # ``Creature`` type_filter in phase's own typed target node now recovers
@@ -2104,44 +2116,27 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
     Preset(
         name="board-wipe",
         description=(
-            "Destroys or damages all creatures (board-wide removal): symmetric "
-            "sweeps, including mass tuck (Terminus, Hallowed Burial). A one-sided "
-            "shrink of only your opponents' creatures (Massacre Wurm, Cower in "
-            "Fear) is a punisher, not a wipe."
+            "Destroys, damages, exiles, bounces or shrinks a board of creatures "
+            "or permanents: symmetric sweeps, mass tuck (Terminus, Hallowed "
+            "Burial), and one-sided ones (Plague Wind, Cyclonic Rift "
+            "overloaded, Massacre Wurm's -2/-2), one-shot or continuous (Elesh "
+            "Norn, Grand Cenobite)."
         ),
         notes=(
-            "task #83 structural-view conversion: signal keys `mass_removal` "
-            "(DestroyAll / mass-exile / DamageAll / a SYMMETRIC "
-            "negative-toughness PumpAll, FIXED or dynamic-X — CR 115.10 / 701.8 / "
-            "701.21a / 406.1 — plus a ChooseAndSacrificeRest sweep, Tragic "
-            "Arrogance/Cataclysm). mass_removal "
-            "deliberately EXCLUDES an opponent-scoped one-sided shrink (Massacre "
-            "Wurm, Cower in Fear: 'creatures your opponents control get -N/-N') — "
-            "a real deck-building distinction between a SYMMETRIC sweep and a "
-            "one-sided punisher (adjudicated, not a gap; see `_mass_removal`'s "
-            "own docstring) — so Massacre Wurm moves to should_not_match here. "
-            "Recall 0.86 vs the old regex; the large majority of the 75 "
-            "preset-only cards are this same one-sided-debuff family (Doomwake "
-            "Giant, Elesh Norn, Ethereal Absolution, ...) plus graveyard-hate "
-            "mass-exile ('exile all creature cards from a graveyard' — Crypt "
-            "Incursion, Honor the Fallen — a different mechanic, not a "
-            "battlefield wipe), both correct sheds. DEFERRED narrow residual (not "
-            "fixed here — a lane change, out of scope for a view conversion): 6 "
-            "symmetric 'All creatures get -X/-X' wipes whose X is a COMPUTED "
-            "value (Cloudkill: negative of a commander's mana value; also Deluge "
-            "of Doom, Planar Despair, Kagemaro First to Suffer, Ichor Explosion, "
-            "Terisiare's Devastation) carry the toughness reduction as a "
-            "`Quantity`/`Multiply(factor=-1, ...)` node, not the `Variable('-X')` "
-            "shape `_negative_pt_field` reads (the Toxic Deluge dynamic-X fix, "
-            "ADR-0035 task #83 chunk-A) — that helper's own docstring assumed 'no "
-            "corpus mass-debuff representative' for the Quantity shape, which "
-            "this residue corrects. 6 cards of 543 (recall 0.989) — the view is "
-            "still correct to ship; these are the residual tail. Task #88 adds a "
-            "mass TUCK arm to `mass_removal` (ChangeZoneAll -> Library, the SAME "
-            "first-class mass tag, a different zone-change verb — CR 401.4) — "
-            "Terminus/Hallowed Burial ('put all creatures on the bottom of their "
-            "owners' libraries') were ZERO-signal before this and are now "
-            "board-wipe members, Terminus pinned below."
+            "A view over the signal path: the `mass_removal` key (DestroyAll, a "
+            "mass exile or tuck — Terminus, Hallowed Burial —, DamageAll, a "
+            "symmetric negative-toughness PumpAll, fixed, -X or a negated count "
+            "— Toxic Deluge, Cloudkill —, a ChooseAndSacrificeRest sweep — "
+            "Tragic Arrogance, Cataclysm — and an overloaded targeted kill, "
+            "CR 702.96a), the `mass_bounce` key (BounceAll, an overloaded "
+            "bounce), and a population-shrink concept arm: a one-shot mass "
+            "shrink of any side but yours (Massacre Wurm, Cower in Fear) or a "
+            "continuous one on a population (Elesh Norn, Grand Cenobite; Night "
+            "of Souls' Betrayal). Why a one-sided shrink is a wipe: "
+            "`roles.is_board_wipe`. Graveyard mass exile ('exile all creature "
+            "cards from a graveyard' — Crypt Incursion) is graveyard hate, not "
+            "a battlefield wipe; a your-side, combat-only or attached-creature "
+            "shrink is no wipe either."
         ),
         # ``symmetric_damage_each`` (damage to each PLAYER) left the view on
         # 2026-10-19: every card it alone added was player-only damage — Price
@@ -2152,7 +2147,12 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
         # or nonland permanent an opponent has to hand clears the board as a
         # wipe does (Evacuation, Cyclonic Rift overloaded); your own side's
         # bounce is not one (``_mass_bounce`` excludes it).
+        # The population shrink (``lanes.population_shrink``, 2026-10-23):
+        # ``roles.is_board_wipe`` is this preset, and its docstring says why a
+        # one-sided shrink counts. ``mass_removal`` itself stays the symmetric
+        # shrink the mass-death payoffs read.
         signal_keys=("mass_removal", "mass_bounce"),
+        concept=_population_shrink_concept,
         should_match=(
             "Wrath of God",
             "Farewell",
@@ -2163,13 +2163,18 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
             "Culling Ritual",
             "Terminus",  # mass tuck (ChangeZoneAll -> Library, task #88)
             "Cyclonic Rift",  # overloaded mass bounce (CR 702.96a)
+            "Massacre Wurm",  # one-sided one-shot shrink
+            "Elesh Norn, Grand Cenobite",  # one-sided static shrink (CR 613.4c)
+            "Night of Souls' Betrayal",  # symmetric static shrink
         ),
         should_not_match=(
             "Lightning Bolt",
             "Swords to Plowshares",
             "Ivory Charm",
-            "Massacre Wurm",
             "Price of Progress",
+            "Skullclamp",  # the equipped creature's +1/-1 (CR 301.5a)
+            "Dead Weight",  # the enchanted creature's -2/-2 (CR 303.4b)
+            "Nameless Inversion",  # one target's +3/-3
         ),
     ),
     # ── Type-specific removal ──

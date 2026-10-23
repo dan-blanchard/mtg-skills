@@ -1,17 +1,18 @@
 """Board wipe — how well a card sweeps the board (the ``board_wipe`` role).
 
-A sweep is an ability unit the shared lanes call one — ``_mass_removal`` /
-``_mass_bounce`` run on a one-unit view of the tree — or a one-sided mass shrink
-those lanes leave to debuff_makers (Massacre Wurm's "creatures your opponents
-control get -2/-2", read by ``_negative_pt_field``), or a static population
-shrink (Elesh Norn, ``roles._static_board_shrink``). Within a sweep unit the
-read takes its mass-tagged effects. An overload spell counts too: phase keeps
-only its targeted mode, and overload swaps every "target" for "each" (CR
-702.96a), so Cyclonic Rift and Damn read as the sweeps they are cast for, their
-base mode's effect at the overload cost (``_overloaded``, the lanes' own read).
-A sweep of only your own permanents, or of your own cards (Glimpse of Tomorrow),
-is not one; nor is "and all other permanents with the same name" trailing a
-targeted kill (Maelstrom Pulse).
+A sweep is an effect the shared lanes call one — ``mass_removal_effects`` /
+``mass_bounce_effects`` / ``mass_shrink_effects`` (``lanes.mana_and_wipes``:
+the ``mass_removal`` and ``mass_bounce`` keys' own walks, and the one-shot mass
+shrink, one-sided or not, the board-wipe role counts beside them) — or a static
+population shrink (Elesh Norn, ``static_population_shrinks``). The read takes
+those effects as the lanes hand them, vetoes included (a your-side or combat-only
+shrink, an Aura's own creature). An overload spell counts too: phase keeps only
+its targeted mode, and overload swaps every "target" for "each" (CR 702.96a), so
+Cyclonic Rift and Damn read as the sweeps they are cast for, their base mode's
+effect at the overload cost (``crosswalk.overload_sweep``, the lanes' own read).
+A sweep of only your own permanents, or of your own cards (Glimpse of
+Tomorrow), is not one; nor is "and all other permanents with the same name"
+trailing a targeted kill (Maelstrom Pulse).
 
 Fitted on the 562 commander-legal cards whose MAIN job is the sweep (an instant
 or sorcery's own spell, or the ETB, chapter or activated ability of a permanent
@@ -36,24 +37,22 @@ from typing import TYPE_CHECKING
 
 from mtg_utils._analysis.job_quality._common import (
     KILL_SIZE,
-    MASS_TAGS,
     activation_mana,
     cast_cost,
     faces,
     fixed_value,
     front_mana_cost,
-    one_unit,
     unit_kind,
     unpriced,
 )
-from mtg_utils._analysis.lanes._shared import _negative_pt_field
 from mtg_utils._analysis.lanes.mana_and_wipes import (
-    _mass_bounce,
-    _mass_removal,
-    _overloaded,
+    mass_bounce_effects,
+    mass_removal_effects,
+    mass_shrink_effects,
+    static_population_shrinks,
 )
-from mtg_utils._analysis.roles import _static_board_shrink
 from mtg_utils._card_ir.crosswalk import (
+    SWEPT_PERMANENT_TYPES,
     affected_tag,
     change_zone_dirs,
     effect_filter,
@@ -67,19 +66,20 @@ from mtg_utils._card_ir.crosswalk import (
     iter_typed_nodes,
     mana_value_of_cost,
     modify_cost_mode,
-    pt_mod_signs,
+    overload_sweep,
     static_affected,
     tag_of,
 )
 from mtg_utils._card_ir.trees import trees_for
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
     from mtg_utils._card_ir.crosswalk import AbilityUnit, ConceptNode, ConceptTree
 
-#: The single-target tags an overload cost turns into "each" (CR 702.96a).
-_OVERLOAD_TAGS = frozenset({"Destroy", "DealDamage", "Bounce", "ChangeZone", "Pump"})
-#: The permanent types a sweep is read as reaching (lands are land destruction).
-_SWEPT = frozenset({"Creature", "Artifact", "Enchantment", "Planeswalker"})
+#: The permanent types a sweep is read as reaching: the lanes' swept types
+#: (``crosswalk.SWEPT_PERMANENT_TYPES``), "permanent" read as all of them.
+_SWEPT = SWEPT_PERMANENT_TYPES - {"Permanent"}
 _SWEEP_TYPES = _SWEPT | {"Permanent", "Battle"}
 #: The card types a ``Non`` entry can take out of the sweep; any other negated
 #: word (non-Dragon) spares a class instead.
@@ -304,48 +304,28 @@ def _discount(tree: ConceptTree) -> tuple[str, int] | None:
     return None
 
 
-def _is_sweep_unit(tree: ConceptTree, u: AbilityUnit) -> bool:
-    one = one_unit(tree, u)
-    return bool(_mass_removal(one) or _mass_bounce(one)) or any(
-        tag_of(c.node) == "PumpAll"
-        and _negative_pt_field(c.node, "toughness")
-        and filter_controller(effect_filter(c.node), u) != "You"
-        for c in u.effects
-    )
-
-
-def _is_overload_unit(u: AbilityUnit) -> bool:
-    return (
-        u.kind == "Spell"
-        and not any(tag_of(c.node) in MASS_TAGS for c in u.effects)
-        and any(
-            tag_of(c.node) in _OVERLOAD_TAGS
-            and set(filter_core_types(effect_filter(c.node))) & _SWEEP_TYPES
-            for c in u.effects
-        )
-    )
-
-
 def _tree_sweeps(tree: ConceptTree, *, walker: bool) -> list[_Sweep]:
-    overload = _overloaded(tree)
-    units: list[tuple[AbilityUnit, bool]] = []
-    for u in tree.units:
-        # An overload spell's sweep is its targeted base mode over every object
-        # it could target (CR 702.96a-b); the lanes read it the same way.
-        ov = overload and _is_overload_unit(u)
-        if ov or _is_sweep_unit(tree, u):
-            units.append((u, ov))
+    # Each sweep effect, by node id, with whether it sweeps only because
+    # overload made its "target" "each" (CR 702.96a-b).
+    sweeps = {
+        id(c.node): overload_sweep(tree, u, c) is not None
+        for u, c in (
+            *mass_removal_effects(tree),
+            *mass_bounce_effects(tree),
+            *mass_shrink_effects(tree),
+        )
+    }
+    units = [u for u in tree.units if any(id(c.node) in sweeps for c in u.effects)]
     discount = _discount(tree)
     out: list[_Sweep] = []
-    for u, ov in units:
-        tags = MASS_TAGS | (_OVERLOAD_TAGS if ov else frozenset())
+    for u in units:
         delayed, gated = _gates(u)
         leaves = {tag_of(n) for n in iter_cost_leaves(getattr(u.node, "cost", None))}
         unparsed = any(tag_of(n) == "Unimplemented" for n in iter_typed_nodes(u.node))
         # Value to the caster riding the sweep: a draw, token or life that is yours
         # (not Mogg Infestation's goblins for the wiped player, not Settle's land).
         rider = any(
-            tag_of(c.node) not in tags
+            id(c.node) not in sweeps
             and c.scope == "you"
             and c.concept in ("draw", "make_token", "gain_life")
             for c in u.effects
@@ -354,11 +334,10 @@ def _tree_sweeps(tree: ConceptTree, *, walker: bool) -> list[_Sweep]:
             getattr(u.node, "sub_ability", None), "condition", None
         )
         for c in u.effects:
+            ov = sweeps.get(id(c.node))
+            if ov is None:
+                continue
             tag = tag_of(c.node)
-            if tag not in tags:
-                continue
-            if tag == "PumpAll" and not _negative_pt_field(c.node, "toughness"):
-                continue
             filt = (
                 getattr(c.node, "sacrifice_filter", None)
                 if tag == "ChooseAndSacrificeRest"
@@ -420,22 +399,18 @@ def _tree_sweeps(tree: ConceptTree, *, walker: bool) -> list[_Sweep]:
     return out
 
 
-def _static_sweep(trees: list[ConceptTree]) -> _Sweep:
-    """A static population shrink (``roles._static_board_shrink`` admitted it):
-    its largest toughness reduction, and whose creatures it shrinks."""
+def _static_sweep(shrinks: Sequence[tuple[AbilityUnit, object]]) -> _Sweep:
+    """A static population shrink (``static_population_shrinks``): its largest
+    toughness reduction, and whose creatures it shrinks."""
     mag, ctrl = 0, None
-    for tree in trees:
-        for u in tree.units:
-            for sdef in iter_static_defs(u.node):
-                if pt_mod_signs(sdef)[1] >= 0:
-                    continue
-                for mod in getattr(sdef, "modifications", None) or ():
-                    if tag_of(mod) == "AddToughness":
-                        v = getattr(mod, "value", None)
-                        size = -v if isinstance(v, int) and v < 0 else _SCALING
-                        if size > mag:
-                            mag = size
-                            ctrl = filter_controller(static_affected(sdef, u), u)
+    for u, sdef in shrinks:
+        for mod in getattr(sdef, "modifications", None) or ():
+            if tag_of(mod) == "AddToughness":
+                v = getattr(mod, "value", None)
+                size = -v if isinstance(v, int) and v < 0 else _SCALING
+                if size > mag:
+                    mag = size
+                    ctrl = filter_controller(static_affected(sdef, u), u)
     return _Sweep(
         mode="shrink",
         types=frozenset({"Creature"}),
@@ -463,8 +438,10 @@ def _sweeps(card: dict) -> list[_Sweep]:
     trees = list(trees_for(card, bulk=card))
     walker = "Planeswalker" in (card.get("type_line") or "")
     out = [s for tree in trees for s in _tree_sweeps(tree, walker=walker)]
-    if not out and trees and _static_board_shrink(card):
-        out.append(_static_sweep(trees))
+    if not out:
+        shrinks = [s for tree in trees for s in static_population_shrinks(tree)]
+        if shrinks:
+            out.append(_static_sweep(shrinks))
     return out
 
 

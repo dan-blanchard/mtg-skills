@@ -524,7 +524,7 @@ def search_cards(
         arena_only = True
 
     presets = resolve_presets(preset_names + any_preset_names)
-    # A structural-view preset (task #83) reads _signal_keys_for, which is
+    # A structural-view preset (task #83) reads signal_keys_for, which is
     # itself a per-oracle_id memo (theme_presets._SIGNAL_KEY_INDEX). Seeding it
     # from the persisted whole-pool signals-index sidecar (task #90) before the
     # scan below turns THIS full-bulk pass from "recompute every card's

@@ -111,7 +111,7 @@ _SCORE_MEMO: dict[tuple[str, str], float | None] = {}
 #: builder, and the gap is small. The read alone did worse than play-rate for
 #: every job. (Measured over the whole identity, not the tuner's 600-card page
 #: above its fit floor.)
-_READS: dict[str, JobRead] = {
+READS: dict[str, JobRead] = {
     r.job: r
     for r in (
         JobRead(
@@ -137,7 +137,7 @@ _READS: dict[str, JobRead] = {
 
 def read_for(job: str | None) -> JobRead | None:
     """``job``'s card read, or ``None`` when the job has none yet."""
-    return _READS.get(job or "")
+    return READS.get(job or "")
 
 
 def job_score(

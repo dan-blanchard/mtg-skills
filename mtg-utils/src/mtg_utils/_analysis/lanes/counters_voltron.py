@@ -10,7 +10,7 @@ from mtg_utils._analysis.lanes._shared import (
     _DYNAMIC_PT_MODS,
     _EDICT_ACTORS,
     _VOLTRON_SUBTYPES,
-    _YOU_EACH,
+    YOU_EACH,
     _condition_leaves,
     _kept,
     _site_raw,
@@ -1503,7 +1503,7 @@ def _resource_token_makers(tree: ConceptTree) -> list[Signal]:
             # reading of the clause names the token's types (``c.reading``),
             # unless another player creates it (``OTHER_PLAYER``, CR 111.2).
             if (
-                c.scope in _YOU_EACH
+                c.scope in YOU_EACH
                 and c.recovered_by == "make_token"
                 and not c.subject
                 and OTHER_PLAYER not in c.reading
@@ -1540,9 +1540,7 @@ def _resource_token_makers(tree: ConceptTree) -> list[Signal]:
 # owner / ``Controller``), a copied-permanent's ``OriginalController``, and
 # ``TriggeringPlayer`` (a symmetric trigger you fire too). Read by
 # ``job_quality.ramp``; the lanes read :func:`crosswalk.token_creator_side`.
-_TOKEN_OWNER_IS_YOU = frozenset(
-    {"Controller", "OriginalController", "TriggeringPlayer"}
-)
+TOKEN_OWNER_IS_YOU = frozenset({"Controller", "OriginalController", "TriggeringPlayer"})
 
 
 def treasure_maker_you_keep(tree: ConceptTree) -> bool:
@@ -1557,7 +1555,7 @@ def treasure_maker_you_keep(tree: ConceptTree) -> bool:
     (``theme_presets._ramp_concept``) — a Treasure handed to an opponent is not
     your mana."""
     return any(
-        c.scope in _YOU_EACH
+        c.scope in YOU_EACH
         and "Treasure" in c.subject
         and token_creator_side(unit, c.node) == "you"
         for unit in tree.units

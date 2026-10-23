@@ -14,12 +14,10 @@ from mtg_utils._analysis._subtypes import (
 )
 from mtg_utils._analysis._sweep_detectors import COMBAT_DAMAGE_TO_OPP_DS_GRANT_REGEX
 from mtg_utils._analysis.lanes._shared import (
-    _DEBUFF_SINGLE_AURA_PREDS,
     _EDICT_ACTORS,
-    _YOU_EACH,
+    YOU_EACH,
     _attack_compulsion_hit,
     _kept,
-    _negative_pt_field,
     _unknown_mode_combat_damage_to_player,
     _whole_card_maker,
     sacrifice_actor_scope,
@@ -40,7 +38,6 @@ from mtg_utils._card_ir.crosswalk import (
     AbilityUnit,
     ConceptNode,
     ConceptTree,
-    affected_tag,
     animates,
     answers_its_target,
     change_zone_dirs,
@@ -59,7 +56,6 @@ from mtg_utils._card_ir.crosswalk import (
     filter_core_types,
     filter_inzone_zones,
     filter_owned_controller,
-    filter_predicates,
     filter_subtypes,
     graveyard_exile_kind,
     has_nested_connive,
@@ -75,6 +71,8 @@ from mtg_utils._card_ir.crosswalk import (
     lifeloss_recipient_is_degraded_typed,
     lifeloss_recipient_scope,
     mod_value,
+    names_attached_object,
+    negative_pt_field,
     node_lure_mode,
     pt_mod_signs,
     pump_is_negative,
@@ -82,6 +80,7 @@ from mtg_utils._card_ir.crosswalk import (
     self_graveyard_fills,
     static_affected,
     static_mode_tag,
+    static_on_others,
     tag_of,
     targets_the_card,
     token_creator_side,
@@ -2185,7 +2184,7 @@ def _debuff_makers(tree: ConceptTree) -> list[Signal]:
 
     * a NEGATIVE ``Pump`` / ``PumpAll`` EFFECT (Bile Blight's -3/-3) — scope
       "any"; reads a FIXED shrink (either field negative, via
-      :func:`pump_is_negative`) and a dynamic one (:func:`_negative_pt_field`:
+      :func:`pump_is_negative`) and a dynamic one (:func:`negative_pt_field`:
       a ``Variable "-X"`` or a negated quantity) on either field — Death Wind /
       Flunk's single-target "-X/-X", Toxic Deluge's mass "-X/-X", Roilmage's
       Trick's one-sided "-X/-0". A creature shrinking itself ("This creature
@@ -2232,8 +2231,8 @@ def _debuff_makers(tree: ConceptTree) -> list[Signal]:
                 and not targets_the_card(c)
                 and (
                     pump_is_negative(c.node)
-                    or _negative_pt_field(c.node, "toughness")
-                    or _negative_pt_field(c.node, "power")
+                    or negative_pt_field(c.node, "toughness")
+                    or negative_pt_field(c.node, "power")
                 )
             ):
                 fire("any", c.raw)
@@ -2285,11 +2284,10 @@ def _debuff_makers(tree: ConceptTree) -> list[Signal]:
             # -1/-1 enabler; a toughness-only shrink has no such buff. A
             # creature's own "This creature gets -2/-2 as long as …" (the
             # Mirage Djinns, Death's Shadow) or "creatures you control get
-            # -0/-2" (Vibrating Sphere) is a drawback on your own side.
-            if (
-                affected_tag(sdef, unit) != "SelfRef"
-                and filter_controller(affected, unit) != "You"
-            ):
+            # -0/-2" (Vibrating Sphere) is a drawback on your own side
+            # (:func:`static_on_others`, the gate the board-wipe role's
+            # :func:`static_pt_mods_on_others` walk shares).
+            if static_on_others(sdef, unit):
                 power, toughness = pt_mod_signs(sdef)
                 if power < 0 or (toughness < 0 and power == 0):
                     fire("any", getattr(sdef, "description", None) or "")
@@ -2325,7 +2323,7 @@ def _debuff_makers(tree: ConceptTree) -> list[Signal]:
             # "all creatures") is neither.
             aff = getattr(sdef, "affected", None)
             if tag_of(aff) in ("ParentTarget", "TrackedSet") or (
-                set(filter_predicates(aff)) & _DEBUFF_SINGLE_AURA_PREDS
+                names_attached_object(aff)
             ):
                 continue
             v = mod_value(c.node)
@@ -2625,7 +2623,7 @@ def _copy_clone(tree: ConceptTree) -> list[Signal]:
             if c.concept not in ("copy_token", "populate"):
                 continue
             if c.concept == "populate":
-                if c.scope not in _YOU_EACH:
+                if c.scope not in YOU_EACH:
                     continue
             elif "opponents" in (
                 effect_actor_scope(unit, c.node),

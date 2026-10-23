@@ -96,7 +96,7 @@ from mtg_utils._analysis.job_quality._common import (
     unit_kind,
     unpriced,
 )
-from mtg_utils._analysis.lanes.card_advantage import _draw_engine_scope
+from mtg_utils._analysis.lanes.card_advantage import draw_engine_scope
 from mtg_utils._analysis.roles import role_of
 from mtg_utils._card_ir.crosswalk import (
     ENTERS_EVENTS,
@@ -124,7 +124,7 @@ from mtg_utils._card_ir.crosswalk import (
     watches_itself,
 )
 from mtg_utils._card_ir.trees import trees_for
-from mtg_utils.theme_presets import _signal_keys_for
+from mtg_utils.theme_presets import signal_keys_for
 
 if TYPE_CHECKING:
     from mtg_utils._card_ir.crosswalk import AbilityUnit, ConceptNode
@@ -262,7 +262,7 @@ def _drawer(unit: AbilityUnit, c: ConceptNode) -> str:
     reach = effect_player_reach(unit.node, c.node)
     if reach in ("opponents", "per_opponent"):
         return "opp"
-    scope = _draw_engine_scope(unit, c)
+    scope = draw_engine_scope(unit, c)
     if scope == "opponents":
         return "opp"
     return "each" if scope == "each" or reach == "each" else "you"
@@ -710,7 +710,7 @@ def _feeds(record: dict, fuel: str) -> bool:
         return "Enchantment" in face
     if fuel == "artifacts":
         return "Artifact" in face
-    makes_bodies = "token_maker" in _signal_keys_for(record)
+    makes_bodies = "token_maker" in signal_keys_for(record)
     if fuel == "creatures":
         return "Creature" in face or makes_bodies
     toughness = str(record.get("toughness") or "")

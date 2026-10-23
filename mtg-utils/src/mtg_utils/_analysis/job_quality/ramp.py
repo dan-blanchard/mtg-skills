@@ -34,9 +34,9 @@ from mtg_utils._analysis.job_quality._common import (
     one_unit,
 )
 from mtg_utils._analysis.lanes import additional_land_play
-from mtg_utils._analysis.lanes._shared import _YOU_EACH
-from mtg_utils._analysis.lanes.board_and_ramp import _granted_mana_defs
-from mtg_utils._analysis.lanes.counters_voltron import _TOKEN_OWNER_IS_YOU
+from mtg_utils._analysis.lanes._shared import YOU_EACH
+from mtg_utils._analysis.lanes.board_and_ramp import granted_mana_defs
+from mtg_utils._analysis.lanes.counters_voltron import TOKEN_OWNER_IS_YOU
 from mtg_utils._analysis.roles import is_ramp
 from mtg_utils._analysis.tree_synthesis.mana_ramp_lands import (
     has_structural_extra_land_drop,
@@ -50,7 +50,6 @@ from mtg_utils._card_ir.crosswalk import (
     tag_of,
 )
 from mtg_utils._card_ir.crosswalk.reads import (
-    _unit_own_mana,
     amount_factor,
     has_fixed_count,
     is_self_enters_trigger,
@@ -60,11 +59,12 @@ from mtg_utils._card_ir.crosswalk.reads import (
     mana_spell_type_restriction,
     trigger_phase,
     trigger_scope,
+    unit_own_mana,
     watches_itself,
 )
 from mtg_utils._card_ir.trees import trees_for
 from mtg_utils.card_classify import color_sources
-from mtg_utils.theme_presets import _signal_keys_for
+from mtg_utils.theme_presets import signal_keys_for
 
 if TYPE_CHECKING:
     from mtg_utils._card_ir.crosswalk import AbilityUnit, ConceptTree
@@ -223,7 +223,7 @@ def _unit_ramps(tree: ConceptTree, unit: AbilityUnit) -> bool:
     """Whether ``unit`` carries a ramp component of its own: a mana ability, a
     Treasure maker, a land search onto the battlefield, an extra land drop, a mana
     doubler, a granted mana ability."""
-    if next(_unit_own_mana(unit), None) is not None:
+    if next(unit_own_mana(unit), None) is not None:
         return True
     if any(c.concept == "make_token" and "Treasure" in c.subject for c in unit.effects):
         return True
@@ -235,7 +235,7 @@ def _unit_ramps(tree: ConceptTree, unit: AbilityUnit) -> bool:
         or has_structural_extra_land_drop(one)
         or mana_replacement_multiplier(unit.node) >= 2
         or unit.has_effect("extra_land_drop")
-        or _granted_mana_defs(one)
+        or granted_mana_defs(one)
     )
 
 
@@ -252,7 +252,7 @@ def _own_mana(r: _Read, tree: ConceptTree, unit: AbilityUnit, *, sc: bool) -> fl
     doesn't tap (abilities sharing {T} go to ``r.tap_best``)."""
     best = 0.0
     creature = tree.is_type("Creature")
-    for eff, ability in _unit_own_mana(unit):
+    for eff, ability in unit_own_mana(unit):
         amount, scales = _mana_amount(eff)
         restricted = _restricted(eff)
         r.restricted.append(restricted)
@@ -294,8 +294,8 @@ def _treasure(r: _Read, unit: AbilityUnit, *, sc: bool) -> None:
         if c.concept != "make_token" or "Treasure" not in c.subject:
             continue
         owner = getattr(c.node, "owner", None)
-        if c.scope not in _YOU_EACH or not (
-            owner is None or tag_of(owner) in _TOKEN_OWNER_IS_YOU
+        if c.scope not in YOU_EACH or not (
+            owner is None or tag_of(owner) in TOKEN_OWNER_IS_YOU
         ):
             r.gives = True
             continue
@@ -348,14 +348,14 @@ def _lands(r: _Read, tree: ConceptTree, unit: AbilityUnit, *, sc: bool) -> None:
 
 
 def _granted(r: _Read, tree: ConceptTree, unit: AbilityUnit, *, sc: bool) -> None:
-    """Mana abilities ``unit`` grants (``board_and_ramp._granted_mana_defs``). To
+    """Mana abilities ``unit`` grants (``board_and_ramp.granted_mana_defs``). To
     lands it adds nothing — a land taps once whichever ability it uses (Joiner
     Adept). To creatures it is new sources: several for a class (Cryptolith Rite),
     one for an Aura's or Equipment's creature, summoning sick either way (CR 302.6).
     A token's own "Sacrifice: add" (Eldrazi Spawn) is one mana per token; a granted
     trigger or loyalty ability is conditional."""
     makes_tokens = unit.has_effect("make_token")
-    for definition, affected in _granted_mana_defs(one_unit(tree, unit)):
+    for definition, affected in granted_mana_defs(one_unit(tree, unit)):
         own = tag_of(affected) in (None, "SelfRef")
         if own and not makes_tokens:
             continue  # the card's own self grant: ``_own_mana`` reads it
@@ -402,7 +402,7 @@ def _read(card: dict) -> _Read:
             _lands(r, tree, unit, sc=sc)
             _granted(r, tree, unit, sc=sc)
     r.turn += r.tap_best
-    if not r.extra_land and "extra_land_drop" in _signal_keys_for(card):
+    if not r.extra_land and "extra_land_drop" in signal_keys_for(card):
         r.extra_land = 0.25  # a land put phase leaves to the synthesis stage
     return r
 
@@ -434,7 +434,7 @@ def features(card: dict) -> dict[str, float] | None:
     r = _read(card)
     cost = _ramp_cost(card, r)
     turn = r.turn + max(r.land_bf - r.land_sac, 0) + r.extra_land + r.granted
-    keys = _signal_keys_for(card)
+    keys = signal_keys_for(card)
     if "mana_amplifier" in keys:
         turn = max(turn, 2.0)  # a doubler: at least two more a turn
     gates = [g for tree in trees_for(card, bulk=card) for g in mana_ability_gates(tree)]

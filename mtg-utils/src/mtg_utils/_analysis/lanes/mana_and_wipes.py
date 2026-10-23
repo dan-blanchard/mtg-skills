@@ -11,7 +11,6 @@ from dataclasses import fields
 from mtg_utils._analysis._subtypes import LAND_SUBTYPES, subtype_card_type
 from mtg_utils._analysis._sweep_detectors import DISCARD_OUTLET_REGEX
 from mtg_utils._analysis.lanes._shared import (
-    _DEBUFF_SINGLE_AURA_PREDS,
     _DYNAMIC_PT_MODS,
     _GRANT_ABILITY_MOD_TAGS,
     _OPP_DISCARD_ACTORS,
@@ -21,7 +20,6 @@ from mtg_utils._analysis.lanes._shared import (
     _choose_opponent_bound_discard,
     _is_generic_creature_filter,
     _kept,
-    _negative_pt_field,
     _sac_is_edict,
     _site_raw,
     _target_owner_beneficiary_scope,
@@ -34,6 +32,8 @@ from mtg_utils._analysis.signal_base import (
 )
 from mtg_utils._analysis.tree_synthesis import has_structural_extra_land_drop
 from mtg_utils._card_ir.crosswalk import (
+    CREATURE_OR_PERMANENT,
+    SWEPT_PERMANENT_TYPES,
     AbilityUnit,
     ConceptNode,
     ConceptTree,
@@ -57,6 +57,7 @@ from mtg_utils._card_ir.crosswalk import (
     filter_predicates,
     filter_subtypes,
     filter_without_keywords,
+    is_creature_population,
     is_self_discard_cost,
     iter_condition_sites,
     iter_cost_leaves,
@@ -65,13 +66,17 @@ from mtg_utils._card_ir.crosswalk import (
     iter_static_defs,
     iter_typed_nodes,
     mana_replacement_multiplier,
+    memo_on,
     named_filter_subtypes,
     names_attached_object,
+    negative_pt_field,
     normalised_keyword_name,
+    overload_sweep,
     produced_contribution,
     pt_mod_signs,
     recipient_tag,
     ref_count_qty,
+    static_pt_mods_on_others,
     tag_of,
     targets_the_card,
     team_buff_sites,
@@ -88,15 +93,6 @@ from mtg_utils._card_ir.recovery import (
     YOURS,
     is_theirs,
 )
-
-# Board-wipe subject types (CR 115.10) — mirrors the deleted ``_signals_ir``'s
-# identically-named ``_MASS_REMOVAL_TYPES``. Land is deliberately ABSENT: "destroy all
-# lands" is land
-# destruction (Armageddon), a different lane.
-_MASS_REMOVAL_TYPES: frozenset[str] = frozenset(
-    {"Creature", "Permanent", "Artifact", "Enchantment", "Planeswalker"}
-)
-
 
 # Ref-qty tags that are a BOARD-COUNT scaler by construction (CR 107.3) — a
 # counted object population or a named game count. The scaling gate admits
@@ -1000,35 +996,6 @@ def _discard_outlet(tree: ConceptTree) -> list[Signal]:
     return []
 
 
-def _overloaded(tree: ConceptTree) -> bool:
-    """The card has overload (CR 702.96a): paying it changes every "target" in
-    the spell's text to "each". phase v0.104.0 keeps overload as an alternative
-    cost (``card_alt_costs``) and types only the targeted base mode — the
-    overloaded sweep is the base mode's own effect on every object matching its
-    description, legal target or not (CR 702.96b). Retires when phase types the
-    overloaded mode (``retirement_canary``:
-    ``test_overload_sweep_is_read_from_the_base_mode``)."""
-    return any(alt.kind == "overload" for alt in tree.card_alt_costs)
-
-
-def _overload_sweep(c: ConceptNode, tag: str | None, cores: set[str]) -> bool:
-    """A targeted removal effect that overload turns into a sweep: destroy a
-    permanent (Damn), damage a creature (Mizzium Mortars), exile one from the
-    battlefield (Winds of Abandon)."""
-    if tag == "Destroy":
-        return bool(cores & _MASS_REMOVAL_TYPES)
-    if tag == "DealDamage":
-        return bool(cores & {"Creature", "Permanent"})
-    if tag == "ChangeZone":
-        origin, dest = change_zone_dirs(c.node)
-        return (
-            dest == "Exile"
-            and origin not in ("Graveyard", "Hand")
-            and bool(cores & _MASS_REMOVAL_TYPES)
-        )
-    return False
-
-
 def _mass_removal(tree: ConceptTree) -> list[Signal]:
     """mass_removal — a BOARD WIPE (CR 115.10 / 701.8 / 701.21a / 406.1). Five
     typed arms, each anchored on phase's first-class mass tag (the
@@ -1050,7 +1017,7 @@ def _mass_removal(tree: ConceptTree) -> list[Signal]:
       Pyroclasm);
     * a NEGATIVE symmetric ``PumpAll`` over creatures (Languish's "all
       creatures get -4/-4"; Toxic Deluge / Drown in Sorrow's dynamic "-X/-X"
-      — :func:`_negative_pt_field` reads BOTH the FIXED magnitude and the
+      — :func:`negative_pt_field` reads BOTH the FIXED magnitude and the
       Variable's sign-only string) — the typed substrate carries the
       negative amount, so the live ``_MASS_DEBUFF_RAW`` raw arm reads
       structurally here (a fidelity gain over the spec's live-only
@@ -1058,13 +1025,13 @@ def _mass_removal(tree: ConceptTree) -> list[Signal]:
       controller-less gate mirrors the live raw's "ALL creatures" anchor (a
       one-sided "creatures your opponents control get -1/-1" dip — Cower in
       Fear, and the STATIC opponent-scoped Massacre Wurm/Elesh Norn shape —
-      is debuff_makers, an adjudicated boundary predating this arm, not a
-      gap: CR draws no "board wipe" line, but the deck-building distinction
-      between a SYMMETRIC sweep and a one-sided punisher is real and this is
-      where it lives); the NEGATIVE-TOUGHNESS gate is the lethality tell (CR
-      704.5f — a "-2/-0" combat dip like Hydrolash never kills); and the
-      attachment-predicate veto drops the single-Aura "+1/-1" shifter
-      (Flowstone Blade's enchanted creature — one target, not a board);
+      is debuff_makers here, and the ``board-wipe`` preset's population
+      shrink, :func:`population_shrink`, which counts it as the board-wipe
+      job — the key keeps the symmetric shrink the mass-death payoffs read);
+      the NEGATIVE-TOUGHNESS gate is the lethality tell (CR 704.5f — a
+      "-2/-0" combat dip like Hydrolash never kills); and the attachment veto
+      (:func:`_mass_shrink`) drops the Aura's or Equipment's own creature
+      (Flowstone Blade's "+1/-1" — one creature, not a board);
     * ``ChooseAndSacrificeRest`` (Tragic Arrogance, Cataclysm, Cataclysmic
       Gearhulk, Slaughter the Strong, Liliana Dreadhorde General's -6, Ajani
       Nacatl Avenger, Mythos of Snapdax, Destined Confrontation) — "each
@@ -1081,7 +1048,7 @@ def _mass_removal(tree: ConceptTree) -> list[Signal]:
       to veto (the tag is inherently "each player", never a single-player
       grab).
 
-    The type gate (:data:`_MASS_REMOVAL_TYPES`) keeps "destroy all LANDS"
+    The type gate (:data:`SWEPT_PERMANENT_TYPES`) keeps "destroy all LANDS"
     (Armageddon) in land_destruction; a controller-You mass exile (Day of the
     Dragons' own-board swap) is a drawback, not removal (checklist #6). Two
     COMBAT-SCOPE vetoes keep the debuff arm off one-combat tricks phase
@@ -1091,7 +1058,8 @@ def _mass_removal(tree: ConceptTree) -> list[Signal]:
     the flanking template, whose -1/-1 hits only blocking creatures per CR
     702.25a (Knight of Valor). Scope "you".
     An overload spell's targeted destroy / damage / exile is a sweep when
-    overloaded (:func:`_overloaded`, CR 702.96a — Damn, Mizzium Mortars).
+    overloaded (``crosswalk.overload_sweep``, CR 702.96a — Damn, Mizzium
+    Mortars).
 
     A sweep whose creatures die (:func:`kills_creatures_en_masse` — not an
     exile, bounce or artifact sweep) also takes the subject ``creature``, the
@@ -1106,89 +1074,173 @@ def _mass_removal(tree: ConceptTree) -> list[Signal]:
 def _board_wipe_signals(tree: ConceptTree) -> list[Signal]:
     """The bare ``mass_removal`` signal of a board wipe (:func:`_mass_removal`'s
     arms), or none."""
-    overloaded = _overloaded(tree)
-    for unit in tree.units:
-        combat_scope = unit.trigger_event in ("becomes_blocked", "blocks")
-        for c in unit.iter_concepts():
-            if c.role != "effect":
-                continue
-            t = tag_of(c.node)
-            sub = effect_filter(c.node)
-            cores = set(filter_core_types(sub))
-            ctrl = filter_controller(sub)
-            raw = c.raw
-            hit = [Signal("mass_removal", "you", "", raw, tree.name, "high")]
-            if t == "DestroyAll" and ctrl != "You" and cores & _MASS_REMOVAL_TYPES:
-                return hit
-            if (
-                overloaded
-                and unit.kind == "Spell"
-                and ctrl != "You"
-                and _overload_sweep(c, t, cores)
-            ):
-                return hit
-            # CHOSEN-SET sweep (task #84): "starting with you, each player
-            # chooses …; Destroy each [creature/permanent] chosen this way"
-            # — phase v0.23.0 fixed the destroy target from a bare type
-            # POPULATION (which the arm above read as a wipe, accidentally
-            # right) to the honest ``TrackedSet`` back-reference holding the
-            # per-player picks. The set scales with the player count (one+
-            # pick per player, every player's board exposed), so the table
-            # result IS a multi-permanent sweep (CR 701.8 destroy; CR 101.4
-            # APNAP each-player choice loop) — corpus-exhaustive at the
-            # v0.23.0 census: DestroyAll-over-TrackedSet is exactly Call to
-            # the Void, Druid of Purification, Grenzo's Rebuttal, and The
-            # Horus Heresy's chapter III, the four members the population
-            # fix would otherwise shed.
-            if t == "DestroyAll" and tag_of(getattr(c.node, "target", None)) == (
-                "TrackedSet"
-            ):
-                return hit
-            if t == "ChangeZoneAll" and ctrl != "You":
-                origin, dest = change_zone_dirs(c.node)
-                gy = origin == "Graveyard" or ("Graveyard" in filter_inzone_zones(sub))
-                if dest == "Exile" and not gy and cores & _MASS_REMOVAL_TYPES:
-                    return hit
-                # task #88 — mass TUCK (Terminus, Hallowed Burial, Harmonic
-                # Convergence): the same graveyard/hand-origin veto as the
-                # Exile arm above (a mass graveyard-to-library shuffle-back
-                # — Repopulate — is GY recursion, not a wipe), plus the
-                # SAME card-selection-precedence veto :func:`_removal`'s
-                # own tuck arm applies (:data:`_TUCK_SELECTION_SIBLINGS`)
-                # — no corpus mass member needs it today, kept for parity
-                # so a future reveal/mill-then-mass-tuck card can't slip
-                # through unguarded.
-                non_bf = origin in ("Graveyard", "Hand") or (
-                    set(filter_inzone_zones(sub)) & {"Graveyard", "Hand"}
-                )
-                idx = next((i for i, e in enumerate(unit.effects) if e is c), None)
-                preceded = idx is not None and _tuck_preceded_by_selection(
-                    unit.effects, idx
-                )
-                if (
-                    dest == "Library"
-                    and not non_bf
-                    and not preceded
-                    and cores & _MASS_REMOVAL_TYPES
-                ):
-                    return hit
-            if t == "DamageAll" and cores & {"Creature", "Permanent"}:
-                return hit
-            if (
-                t == "PumpAll"
-                and _negative_pt_field(c.node, "toughness")
-                and "Creature" in cores
-                and ctrl is None
-                and not combat_scope
-                and "Flanking" not in filter_without_keywords(sub)
-                and not (set(filter_predicates(sub)) & _DEBUFF_SINGLE_AURA_PREDS)
-            ):
-                return hit
-            if t == "ChooseAndSacrificeRest":
-                sac = getattr(c.node, "sacrifice_filter", None)
-                if set(filter_core_types(sac)) & _MASS_REMOVAL_TYPES:
-                    return hit
-    return []
+    sweeps = mass_removal_effects(tree)
+    if not sweeps:
+        return []
+    return [Signal("mass_removal", "you", "", sweeps[0][1].raw, tree.name, "high")]
+
+
+#: ``(unit, effect)`` pairs, in tree order: the effects a sweep walk reads as a
+#: sweep, each with the ability unit that holds it.
+SweepEffects = tuple[tuple[AbilityUnit, ConceptNode], ...]
+
+
+def mass_removal_effects(tree: ConceptTree) -> SweepEffects:
+    """Every ``(unit, effect)`` a :func:`_mass_removal` arm reads as a board
+    wipe (memoized on the tree). The board-wipe job read takes its sweeps from
+    here, so "which effects count as a wipe" has one answer."""
+    return memo_on(tree, "_xw_mass_removal_effects", _walk_mass_removal)
+
+
+def _mass_shrink(unit: AbilityUnit, c: ConceptNode) -> bool:
+    """A one-shot MASS toughness shrink: a ``PumpAll`` whose toughness is
+    negative (:func:`negative_pt_field` — the lethality tell, CR 704.5f; a
+    "-2/-0" combat dip never kills) over creatures not limited to yours,
+    whether every player's (Languish, Toxic Deluge) or only the opponents'
+    (Massacre Wurm, Cower in Fear). Three vetoes keep it a board: two
+    COMBAT-SCOPE ones for one-combat tricks phase flattens to a bare board
+    sweep by dropping the "blocking it" clause (phase_parse_bug [P12];
+    ``retirement_canary``: ``test_combat_scope_shrinks_parse_as_board_sweeps``)
+    — a ``becomes_blocked`` / ``blocks`` trigger unit (Baneblade Scoundrel) and
+    a ``WithoutKeyword:Flanking`` blocker filter, the flanking template whose
+    -1/-1 hits only the creatures blocking it (CR 702.25a, Knight of Valor) —
+    and the creature an Equipment or Aura is attached to
+    (:func:`names_attached_object`, CR 301.5a / 303.4b: one creature, not a
+    board)."""
+    if tag_of(c.node) != "PumpAll" or not negative_pt_field(c.node, "toughness"):
+        return False
+    sub = effect_filter(c.node)
+    return (
+        "Creature" in filter_core_types(sub)
+        and filter_controller(sub) != "You"
+        and unit.trigger_event not in ("becomes_blocked", "blocks")
+        and "Flanking" not in filter_without_keywords(sub)
+        and not names_attached_object(sub)
+    )
+
+
+def mass_shrink_effects(tree: ConceptTree) -> SweepEffects:
+    """Every ``(unit, effect)`` holding a one-shot mass shrink
+    (:func:`_mass_shrink`), symmetric or one-sided (memoized on the tree)."""
+    return memo_on(
+        tree,
+        "_xw_mass_shrink_effects",
+        lambda t: tuple(
+            (u, c) for u in t.units for c in u.effects if _mass_shrink(u, c)
+        ),
+    )
+
+
+def static_population_shrinks(
+    tree: ConceptTree,
+) -> tuple[tuple[AbilityUnit, TypedMirrorNode], ...]:
+    """``(unit, static def)`` for each continuous toughness shrink on a
+    POPULATION of creatures (CR 613.4c, layer 7c; a creature at 0 toughness
+    dies, 704.5f) — every creature (Night of Souls' Betrayal), the others
+    (Kaervek, the Spiteful), or an opponent's (Elesh Norn, Grand Cenobite's
+    -2/-2); memoized on the tree. ``debuff_makers``' static walk
+    (:func:`static_pt_mods_on_others`: never the card itself, never your own
+    side, never an animation's new P/T) less what names one creature
+    (:func:`is_creature_population`): a spell's or ability's target (Nameless
+    Inversion's +3/-3), a triggering or just-created object, and the one an
+    Equipment or Aura is attached to (Skullclamp's +1/-1, Dead Weight's
+    -2/-2)."""
+    return memo_on(tree, "_xw_static_population_shrinks", _walk_static_shrinks)
+
+
+def _walk_static_shrinks(
+    tree: ConceptTree,
+) -> tuple[tuple[AbilityUnit, TypedMirrorNode], ...]:
+    return tuple(
+        (unit, sdef)
+        for unit in tree.units
+        for sdef, affected, (_, toughness) in static_pt_mods_on_others(unit)
+        if toughness < 0 and is_creature_population(affected)
+    )
+
+
+def population_shrink(tree: ConceptTree) -> bool:
+    """A toughness shrink on a population of creatures not limited to yours,
+    one-shot (:func:`mass_shrink_effects`) or continuous
+    (:func:`static_population_shrinks`) — the ``board-wipe`` preset's concept
+    arm, for the sweeps the ``mass_removal`` key leaves out (one-sided or
+    static; ``roles.is_board_wipe`` says why they count)."""
+    return bool(mass_shrink_effects(tree) or static_population_shrinks(tree))
+
+
+def _walk_mass_removal(tree: ConceptTree) -> SweepEffects:
+    """The walk behind :func:`mass_removal_effects`."""
+    return tuple(
+        (unit, c)
+        for unit in tree.units
+        for c in unit.iter_concepts()
+        if c.role == "effect" and _is_mass_removal(tree, unit, c)
+    )
+
+
+def _is_mass_removal(tree: ConceptTree, unit: AbilityUnit, c: ConceptNode) -> bool:
+    """Whether ``c`` is a board wipe by one of :func:`_mass_removal`'s arms."""
+    t = tag_of(c.node)
+    sub = effect_filter(c.node)
+    cores = set(filter_core_types(sub))
+    ctrl = filter_controller(sub)
+    if t == "DestroyAll" and ctrl != "You" and cores & SWEPT_PERMANENT_TYPES:
+        return True
+    if overload_sweep(tree, unit, c) in ("destroy", "damage", "exile", "shrink"):
+        return True
+    # CHOSEN-SET sweep (task #84): "starting with you, each player
+    # chooses …; Destroy each [creature/permanent] chosen this way"
+    # — phase v0.23.0 fixed the destroy target from a bare type
+    # POPULATION (which the arm above read as a wipe, accidentally
+    # right) to the honest ``TrackedSet`` back-reference holding the
+    # per-player picks. The set scales with the player count (one+
+    # pick per player, every player's board exposed), so the table
+    # result IS a multi-permanent sweep (CR 701.8 destroy; CR 101.4
+    # APNAP each-player choice loop) — corpus-exhaustive at the
+    # v0.23.0 census: DestroyAll-over-TrackedSet is exactly Call to
+    # the Void, Druid of Purification, Grenzo's Rebuttal, and The
+    # Horus Heresy's chapter III, the four members the population
+    # fix would otherwise shed.
+    if t == "DestroyAll" and tag_of(getattr(c.node, "target", None)) == ("TrackedSet"):
+        return True
+    if t == "ChangeZoneAll" and ctrl != "You":
+        origin, dest = change_zone_dirs(c.node)
+        gy = origin == "Graveyard" or ("Graveyard" in filter_inzone_zones(sub))
+        if dest == "Exile" and not gy and cores & SWEPT_PERMANENT_TYPES:
+            return True
+        # task #88 — mass TUCK (Terminus, Hallowed Burial, Harmonic
+        # Convergence): the same graveyard/hand-origin veto as the
+        # Exile arm above (a mass graveyard-to-library shuffle-back
+        # — Repopulate — is GY recursion, not a wipe), plus the
+        # SAME card-selection-precedence veto :func:`_removal`'s
+        # own tuck arm applies (:data:`_TUCK_SELECTION_SIBLINGS`)
+        # — no corpus mass member needs it today, kept for parity
+        # so a future reveal/mill-then-mass-tuck card can't slip
+        # through unguarded.
+        non_bf = origin in ("Graveyard", "Hand") or (
+            set(filter_inzone_zones(sub)) & {"Graveyard", "Hand"}
+        )
+        idx = next((i for i, e in enumerate(unit.effects) if e is c), None)
+        preceded = idx is not None and _tuck_preceded_by_selection(unit.effects, idx)
+        if (
+            dest == "Library"
+            and not non_bf
+            and not preceded
+            and cores & SWEPT_PERMANENT_TYPES
+        ):
+            return True
+    if t == "DamageAll" and cores & CREATURE_OR_PERMANENT:
+        return True
+    # A SYMMETRIC mass shrink (Languish's "all creatures get -4/-4"; Toxic
+    # Deluge's "-X/-X") — a one-sided one (Massacre Wurm, Cower in Fear) is
+    # the ``board-wipe`` preset's population-shrink arm, not this key.
+    if _mass_shrink(unit, c) and ctrl is None:
+        return True
+    if t == "ChooseAndSacrificeRest":
+        sac = getattr(c.node, "sacrifice_filter", None)
+        if set(filter_core_types(sac)) & SWEPT_PERMANENT_TYPES:
+            return True
+    return False
 
 
 def _mass_bounce(tree: ConceptTree) -> list[Signal]:
@@ -1200,21 +1252,38 @@ def _mass_bounce(tree: ConceptTree) -> list[Signal]:
     recursion (CR 404), excluded (checklist #2). KNOWN RESIDUE: Cyclonic
     Rift's Overload each-mode is a phase modal-alt-cost parse drop
     (phase_parse_bug) — the crosswalk correctly reads only the targeted base
-    mode; the lane reads the overloaded sweep off it (:func:`_overloaded`, CR
-    702.96a). Scope "any" (the sweep convention).
+    mode; the lane reads the overloaded sweep off it
+    (``crosswalk.overload_sweep``, CR 702.96a). Scope "any" (the sweep
+    convention).
     """
-    overloaded = _overloaded(tree)
+    sweeps = mass_bounce_effects(tree)
+    if not sweeps:
+        return []
+    return [Signal("mass_bounce", "any", "", sweeps[0][1].raw, tree.name, "high")]
+
+
+def mass_bounce_effects(tree: ConceptTree) -> SweepEffects:
+    """Every ``(unit, effect)`` :func:`_mass_bounce` reads as a board-wide
+    bounce (memoized on the tree) — :func:`mass_removal_effects`' bounce
+    twin."""
+    return memo_on(
+        tree, "_xw_mass_bounce_effects", lambda t: tuple(_walk_mass_bounce(t))
+    )
+
+
+def _walk_mass_bounce(
+    tree: ConceptTree,
+) -> Iterator[tuple[AbilityUnit, ConceptNode]]:
+    """The walk behind :func:`mass_bounce_effects`."""
     for unit in tree.units:
         for c in unit.effect_concepts("bounce"):
             sub = effect_filter(c.node)
-            if tag_of(c.node) != "BounceAll" and not (
-                overloaded
-                and unit.kind == "Spell"
-                and filter_controller(sub) != "You"
-                and set(filter_core_types(sub)) & {"Creature", "Permanent"}
+            if (
+                tag_of(c.node) != "BounceAll"
+                and overload_sweep(tree, unit, c) != "bounce"
             ):
                 continue
-            if not (set(filter_core_types(sub)) & {"Creature", "Permanent"}):
+            if not set(filter_core_types(sub)) & CREATURE_OR_PERMANENT:
                 continue
             # Your own creatures returned to your hand (Denizen of the Deep's
             # drawback, Part the Veil's reset) sweep nothing of an opponent's.
@@ -1229,8 +1298,7 @@ def _mass_bounce(tree: ConceptTree) -> list[Signal]:
             # bounces the chosen set, not the board.
             if effect_owner_reads_chosen_group(unit.node, c.node):
                 continue
-            return [Signal("mass_bounce", "any", "", c.raw, tree.name, "high")]
-    return []
+            yield unit, c
 
 
 # Recovered-exile subject gate (see the ``recovered_by == "exile"`` branch

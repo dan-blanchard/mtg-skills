@@ -31,14 +31,9 @@ from mtg_utils._analysis.tree_synthesis.mechanics_misc import OUTLAW_SUBTYPES
 from mtg_utils._card_ir.compat_lookup import ir_for
 from mtg_utils._card_ir.crosswalk.reads import (
     ObjectFacts,
-    affected_tag,
-    filter_controller,
-    iter_static_defs,
+    mana_ability_gates,
     mana_spell_type_restriction,
-    names_attached_object,
     produced_kind,
-    pt_mod_signs,
-    static_affected,
     tag_of,
 )
 from mtg_utils._card_ir.trees import object_facts, trees_for
@@ -298,82 +293,6 @@ def _ir_draws(ir: Card) -> bool:
     )
 
 
-# Mass-removal effect categories phase tags with the counter_kind="all" mass marker
-# (DestroyAll / DamageAll / BounceAll — Wrath, Blasphemous Act, Evacuation).
-_MASS_REMOVAL_CATS = frozenset({"destroy", "damage", "bounce"})
-
-
-def _ir_board_wipe(ir: Card) -> bool:
-    """Does the card's IR carry a creature/permanent BOARD WIPE — the structured mirror
-    of the ``board-wipe`` preset? phase parses single-vs-mass and the projection keeps
-    it as ``counter_kind="all"`` on a DestroyAll / DamageAll / BounceAll (a single
-    Destroy does not). Three gates keep it to genuine sweepers:
-      - subject is Creature / Permanent (not "destroy all LANDS" = mass land denial,
-        not "all ARTIFACTS" = Bane of Progress);
-      - controller != "you" (a "return all creatures YOU CONTROL" self-bounce, Denizen
-        of the Deep, is a drawback; symmetric "any" / one-sided "opp" are kept);
-      - no graveyard zone ("return all creature cards FROM YOUR GRAVEYARD" recursion,
-        Lychguard, is not removal).
-
-    A mass ``-X/-X`` shrink (Toxic Deluge, Drown in Sorrow) is read via the SIDECAR-v74
-    ``Effect.toughness`` companion: a mass ``pump`` whose toughness factor is negative
-    can kill, where a harmless power-only "-2/-0" (toughness factor 0) and a "+X/+X"
-    anthem (factor > 0) are excluded. Only the mass marker counts: a single-target
-    shrink spell (Nameless Inversion's +3/-3) is removal, not a wipe. A STATIC
-    mass debuff (Elesh Norn's opponents' -2/-2) is :func:`_static_board_shrink`'s,
-    which can tell an Equipment's own creature from a population."""
-    for ab in ir.all_abilities():
-        for e in ab.effects:
-            subj = e.subject
-            if (
-                subj is None
-                or subj.controller == "you"
-                or not ("Creature" in subj.card_types or "Permanent" in subj.card_types)
-                or any("graveyard" in z for z in e.zones)
-            ):
-                continue
-            if e.category in _MASS_REMOVAL_CATS and e.counter_kind == "all":
-                return True
-            tuf = e.toughness
-            if (
-                e.category == "pump"
-                and e.counter_kind == "all"
-                and tuf is not None
-                and tuf.factor < 0
-            ):
-                return True
-    return False
-
-
-# The affected tags naming one object: the card itself, or the target its
-# spell or ability chose.
-_ONE_OBJECT_TAGS = frozenset({"SelfRef", "ParentTarget"})
-
-
-def _static_board_shrink(card: dict) -> bool:
-    """A continuous toughness shrink on a population of creatures (CR 613.4c,
-    layer 7c) — every creature (Night of Souls' Betrayal), the others (Kaervek,
-    the Spiteful), or an opponent's (Elesh Norn, Grand Cenobite's -2/-2). Never
-    the creature an Equipment or Aura is attached to (Skullclamp's +1/-1, Dead
-    Weight's -2/-2: one creature, ``names_attached_object``), the card itself,
-    a spell's or ability's target (Nameless Inversion's +3/-3), or your own
-    side. The compat projection drops the attachment predicate, so
-    this reads the typed static defs."""
-    for tree in trees_for(card):
-        for unit in tree.units:
-            for sdef in iter_static_defs(unit.node):
-                affected = static_affected(sdef, unit)
-                if (
-                    affected_tag(sdef, unit) in _ONE_OBJECT_TAGS
-                    or filter_controller(affected, unit) == "You"
-                    or names_attached_object(affected)
-                ):
-                    continue
-                if pt_mod_signs(sdef)[1] < 0:
-                    return True
-    return False
-
-
 # Effect categories that ARE a real answer (so a card carrying one is not pure graveyard
 # recursion). topdeck_stack is a tuck ("put target X on top of its owner's library" —
 # Rootrunner, or graveyard hate); the rest are removal / counters / edict / pacify.
@@ -463,17 +382,16 @@ def role_of(card: dict, *, deck_mana: DeckMana | None = None) -> set[str]:
 
     ``lands`` reads the type line; ``ramp`` is :func:`is_ramp` (the ``ramp`` preset,
     with the text degrade for a card the signal path can't see, and ``deck_mana``'s
-    dead-mana veto when the deck context is given). ``card_draw`` and
-    ``board_wipe`` read the candidate's Card IR when available (the ``draw`` category;
-    the ``counter_kind="all"`` mass-removal marker), degrading to the curated presets
-    when the card has no IR. The regex preset ALSO runs for ``board_wipe``: it still
-    owns the ``-X/-X`` mass shrink the projection can't yet express (see
-    ``_ir_board_wipe``). ``interaction`` stays on its presets for the positive match
-    (the IR's ``destroy`` / ``restriction`` categories don't encode the pacify-vs-self
-    and edict boundaries), but a structural VETO drops a preset hit the IR shows is pure
-    graveyard recursion (``_ir_recursion_only`` — "return X or Y card from your
-    graveyard", which the preset's ``card`` anchor misses). A card phase has no
-    concept trees for (a set newer than the phase pin) reads its removal from
+    dead-mana veto when the deck context is given); ``board_wipe`` is
+    :func:`is_board_wipe` (the ``board-wipe`` preset). ``card_draw`` reads the
+    candidate's Card IR when available (the ``draw`` category), degrading to the
+    curated presets when the card has no IR. ``interaction`` stays on its presets
+    for the positive match (the IR's ``destroy`` / ``restriction`` categories
+    don't encode the pacify-vs-self and edict boundaries), but a structural VETO
+    drops a preset hit the IR shows is pure graveyard recursion
+    (``_ir_recursion_only`` — "return X or Y card from your graveyard", which the
+    preset's ``card`` anchor misses). A card phase has no concept trees for (a set
+    newer than the phase pin) reads its removal from
     ``card_classify.removal_reach_by_text`` instead — the degrade, and the gate,
     ``twohg_scan``'s removal reach uses — so ``set-scan`` still counts a new set's
     removal.
@@ -504,15 +422,34 @@ def role_of(card: dict, *, deck_mana: DeckMana | None = None) -> set[str]:
     )
     if draws:
         roles.add("card_draw")
-    if (
-        (ir is not None and _ir_board_wipe(ir))
-        or _static_board_shrink(card)
-        or _matches_preset(card, "board-wipe")
-    ):
+    if is_board_wipe(card):
         roles.add("board_wipe")
     if is_interaction(card, ir=ir):
         roles.add("interaction")
     return roles
+
+
+def is_board_wipe(card: dict) -> bool:
+    """THE board-wipe answer (ADR-0051, like :func:`is_ramp`): the ``board-wipe``
+    preset, a view over the signal path — the ``mass_removal`` and
+    ``mass_bounce`` keys (destroy, exile, tuck, damage, sacrifice, bounce and
+    symmetric shrink sweeps, an overloaded spell's included — CR 702.96a) plus
+    a toughness shrink on a population of creatures not limited to yours,
+    one-shot or continuous, one-sided or not (``lanes.population_shrink`` —
+    Massacre Wurm, Elesh Norn, Grand Cenobite). The tuner sources the role by
+    the same preset (:data:`ROLE_SEARCH`).
+
+    Why a one-sided shrink counts (the one statement of it; the preset, its
+    concept arm and ADR-0051 point here): the template job is clearing the
+    opponents' board. Massacre Wurm's -2/-2 to the opponents' creatures does
+    that as surely as a one-sided destroy (Plague Wind) or an overloaded bounce
+    (Cyclonic Rift), which the two keys already count, and the board-wipe job
+    read scores a one-sided sweep above a symmetric one. The ``mass_removal``
+    key itself keeps only the symmetric shrink: it is also the sweep half of a
+    mass-death turn the death payoffs read, which a one-sided shrink is not.
+
+    No text degrade: a card the signal path can't see is not a board wipe."""
+    return _matches_preset(card, "board-wipe")
 
 
 def is_interaction(card: dict, *, ir: Card | None = None) -> bool:
@@ -520,8 +457,8 @@ def is_interaction(card: dict, *, ir: Card | None = None) -> bool:
     ``_INTERACTION_PRESETS`` that is not pure graveyard recursion, or — for a card
     phase has no trees for — the text degrade's removal reach. The Tuner sources
     the role through the same presets and this same predicate
-    (``_tuner.issues.ROLE_SEARCH``), so what a Slot counts and what it is offered
-    cannot drift."""
+    (:data:`ROLE_SEARCH`), so what a Slot counts and what it is offered cannot
+    drift."""
     if ir is None:
         ir = ir_for(card)
     return bool(
@@ -552,3 +489,55 @@ def protects(card: dict) -> bool:
     ``oracle_id``, no phase parse) is not protection — the signal path never
     guesses from text."""
     return _matches_preset(card, "protects-board")
+
+
+def _conditionally_gated(card: dict) -> bool:
+    """Every ability of the card's that adds mana or makes a Treasure may be
+    activated only while a condition holds (``crosswalk.mana_ability_gates``: Mox
+    Opal wants metalcraft, Mox Jasper a Dragon, Circle of Elders formidable — CR
+    602.5). Such a rock reads as ramp but may do nothing in this deck. One ungated
+    sibling (Fanatic of Rhonas' {T}: Add {G}) makes the card reliable; a card with
+    no such ability (Cultivate, Kamahl's Druidic Vow) has nothing to gate."""
+    gates = [g for tree in trees_for(card) for g in mana_ability_gates(tree)]
+    return bool(gates) and all(gates)
+
+
+def is_reliable_ramp(card: dict, *, deck_mana: DeckMana | None = None) -> bool:
+    """Ramp the tuner will SOURCE (``ROLE_SEARCH["ramp"]``'s precision pass): a
+    genuine producer (:func:`is_ramp` — which already rejects mana an opponent
+    receives, like An Offer You Can't Refuse's Treasures, and under ``commander``
+    mana the deck can't use) whose ability isn't conditionally gated
+    (:func:`_conditionally_gated`).
+
+    Sourcing, not counting, on purpose: the activation gate stays out of
+    :func:`is_ramp`, so deck-stats, mana-audit and slot-budgets still count Mox
+    Opal in the artifact deck that runs it — there it does ramp. Only a
+    suggestion has to be vouched for, and the tuner can't vouch that a
+    candidate's condition holds in this deck, so it doesn't suggest a gated rock.
+    Which gates count as unreliable (every ``RequiresCondition``, an
+    opponent's-turn-only one included) is this module's decision, not a rule."""
+    return is_ramp(card, deck_mana=deck_mana) and not _conditionally_gated(card)
+
+
+#: Each counted role's candidate search, in the ``card_search`` spec shape the
+#: tuner pages (ADR-0051): the presets that prefilter it (``preset_names``
+#: combine with AND, ``any_preset_names`` with OR) and, where the role is
+#: narrower than their hits, a precision pass (``_filter``, called with the
+#: deck's ``deck_mana``): the role's own predicate, or for ramp the stricter
+#: :func:`is_reliable_ramp`. The tuner reads these as they stand, so what a Slot
+#: counts and what it is offered for it cannot drift. ``card_draw`` is sourced
+#: by its preset alone: every hit counts, while a draw only the IR walk sees
+#: (:func:`_ir_draws`) isn't offered.
+ROLE_SEARCH: dict[str, dict] = {
+    "ramp": {"preset_names": ("ramp",), "_filter": is_reliable_ramp},
+    "card_draw": {"preset_names": ("card-draw",)},
+    # ANY of the presets, as the role reads them (passed as ``preset_names``
+    # they combined with AND, and the search found nothing: no removal fill or
+    # upgrade was sourced from 2026-10-18 to 10-19); the predicate drops a
+    # preset hit the role doesn't count (pure graveyard recursion).
+    "interaction": {
+        "any_preset_names": _INTERACTION_PRESETS,
+        "_filter": lambda c, **_kw: is_interaction(c),
+    },
+    "board_wipe": {"preset_names": ("board-wipe",)},
+}

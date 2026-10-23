@@ -16,7 +16,7 @@ play-rate and mana value. Play-rate is the yardstick only.
 import bisect, json, math, pathlib, re, statistics, sys
 
 from mtg_utils._analysis.costs import effective_mana_value
-from mtg_utils._analysis.job_quality import _READS, job_score
+from mtg_utils._analysis.job_quality import READS, job_score
 from mtg_utils.card_pool import CardPool
 
 
@@ -98,4 +98,4 @@ def main(root, jobs):
 
 
 if __name__ == "__main__":
-    main(pathlib.Path(sys.argv[1]), sys.argv[2:] or sorted(_READS))
+    main(pathlib.Path(sys.argv[1]), sys.argv[2:] or sorted(READS))

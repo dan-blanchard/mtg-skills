@@ -2,6 +2,7 @@
 
 import pytest
 
+from mtg_utils._analysis.roles import is_reliable_ramp
 from mtg_utils._analysis.signal_specs import spec_for
 from mtg_utils._analysis.signals import Signal
 from mtg_utils._tuner.classify import CardClass
@@ -9,7 +10,6 @@ from mtg_utils._tuner.issues import (
     PROTECTION_SEARCH,
     ROLE_SEARCH,
     Sourcing,
-    _reliable_ramp,
     top_issues,
 )
 from mtg_utils._tuner.swaps import (
@@ -920,7 +920,7 @@ def test_wildcard_owned_is_free_even_at_zero_budget():
 def test_reliable_ramp_excludes_conditional_and_opponent_mana(name, reliable):
     """The tuner sources only ramp it can rely on: genuine producers that aren't gated
     on a condition, and never mana an opponent receives."""
-    assert _reliable_ramp(test_card(name)) is reliable
+    assert is_reliable_ramp(test_card(name)) is reliable
 
 
 def test_cut_candidates_null_rank_low_value_is_medium_aware():

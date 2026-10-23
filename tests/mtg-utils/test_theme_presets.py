@@ -282,7 +282,7 @@ class TestStructuralPresetsAgainstSnapshot:
         assert preset.matches(card), (
             f"structural preset {preset_name!r} should match {card_name!r} "
             f"but did not.\nsignal keys seen: "
-            f"{sorted(theme_presets._signal_keys_for(card))}"
+            f"{sorted(theme_presets.signal_keys_for(card))}"
         )
 
     @pytest.mark.parametrize(("preset_name", "card_name"), _STRUCTURAL_SHOULD_NOT_MATCH)
@@ -295,7 +295,7 @@ class TestStructuralPresetsAgainstSnapshot:
         assert not preset.matches(card), (
             f"structural preset {preset_name!r} should NOT match "
             f"{card_name!r} but did.\nsignal keys seen: "
-            f"{sorted(theme_presets._signal_keys_for(card))}"
+            f"{sorted(theme_presets.signal_keys_for(card))}"
         )
 
 
@@ -382,7 +382,7 @@ class TestPresetsAgainstRealData:
 
 class TestSeedSignalKeyIndex:
     """Sidecar-seeded ``_SIGNAL_KEY_INDEX`` membership must equal a live
-    ``_signal_keys_for`` compute (task #90) — the persisted signals-index
+    ``signal_keys_for`` compute (task #90) — the persisted signals-index
     sidecar is a CACHE of the same crosswalk extraction, never a divergent
     second system."""
 
@@ -417,7 +417,7 @@ class TestSeedSignalKeyIndex:
                 raise AssertionError("must not recompute — already seeded")
 
             monkeypatch.setattr("mtg_utils._analysis.signals.extract_signals", boom)
-            assert theme_presets._signal_keys_for(
+            assert theme_presets.signal_keys_for(
                 {"oracle_id": "oid-seed"}
             ) == frozenset({"ramp"})
         finally:

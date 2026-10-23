@@ -384,7 +384,7 @@ def _text_only_trees(
 #   structures the "Sacrifice this token: Add {C}." grant as a SIBLING
 #   ``GenericEffect``/``GrantAbility`` static node right after the Token
 #   creation (phase's own inline-grant idiom for simple sac-for-mana
-#   tokens), which ``crosswalk_signals._granted_mana_defs`` already reads
+#   tokens), which ``crosswalk_signals.granted_mana_defs`` already reads
 #   — ``ramp`` fires at baseline for all 4 probed creators. The known-
 #   tokens gap-gate still matches these two identities (the raw ``Token``
 #   node itself carries neither ``static_abilities`` nor ``keywords`` — the

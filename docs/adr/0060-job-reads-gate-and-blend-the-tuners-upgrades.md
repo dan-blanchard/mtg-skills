@@ -47,6 +47,11 @@ Measured on the 25 precons (eighth pass, `docs/plans/precon-audit/job_reads.py`)
 | card draw | 0.33 | 0.33 / 0.76 vs 0.85 | gate + blend |
 | ramp | 0.28 | 0.27 / 0.69 vs 0.89 | gate |
 
+The board-wipe row's production column was re-measured on 2026-10-23, after the read
+took its sweeps from the lanes (one-sided and static shrinks counted, a graveyard
+exile no longer read as a sweep): 803 cards, 0.49 / 0.79 vs 0.92, unchanged. Its fit
+column is the original fit's.
+
 No read beats play-rate on its own; the gate and the blend are where each earns
 its place (the top-of-list counts above).
 

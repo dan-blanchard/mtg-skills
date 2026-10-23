@@ -18,16 +18,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, NamedTuple
 
-from mtg_utils._analysis.roles import (
-    _INTERACTION_PRESETS,
-    DeckMana,
-    is_interaction,
-    is_ramp,
-    protects,
-)
+from mtg_utils._analysis.roles import ROLE_SEARCH, protects
 from mtg_utils._analysis.signal_specs import avenue_spec_for
-from mtg_utils._card_ir.crosswalk import mana_ability_gates
-from mtg_utils._card_ir.trees import trees_for
 from mtg_utils._tuner.metrics import CALIBRATION_GAME, is_wincon_card
 from mtg_utils.combo_search import ends_the_game
 
@@ -38,54 +30,13 @@ if TYPE_CHECKING:
     from mtg_utils.formats import Game
 
 
-def _conditionally_gated(card: dict) -> bool:
-    """Every ability of the card's that adds mana or makes a Treasure may be activated
-    only while a condition holds (``crosswalk.mana_ability_gates``: Mox Opal wants
-    metalcraft, Mox Jasper a Dragon, Circle of Elders formidable — CR 602.5). Such a
-    rock reads as ramp but may do nothing in this deck. One ungated sibling (Fanatic
-    of Rhonas' {T}: Add {G}) makes the card reliable; a card with no such ability
-    (Cultivate, Kamahl's Druidic Vow) has nothing to gate."""
-    gates = [g for tree in trees_for(card) for g in mana_ability_gates(tree)]
-    return bool(gates) and all(gates)
-
-
-def _reliable_ramp(card: dict, *, deck_mana: DeckMana | None = None) -> bool:
-    """Ramp the tuner will SOURCE: a genuine producer (``roles.is_ramp`` — which already
-    rejects mana an opponent receives, like An Offer You Can't Refuse's Treasures, and
-    under ``commander`` mana the deck can't use) whose ability isn't conditionally
-    gated (:func:`_conditionally_gated`).
-
-    Sourcing, not counting, on purpose: the activation gate stays here, out of
-    ``roles.is_ramp``, so deck-stats, mana-audit and slot-budgets still count
-    Mox Opal in the artifact deck that runs it — there it does ramp. Only a
-    suggestion has to be vouched for, and the tuner can't vouch that a candidate's
-    condition holds in this deck, so it doesn't suggest a gated rock. Which gates
-    count as unreliable (every ``RequiresCondition``, an opponent's-turn-only one
-    included) is this module's decision, not a rule."""
-    return is_ramp(card, deck_mana=deck_mana) and not _conditionally_gated(card)
-
-
-ROLE_SEARCH: dict[str, dict] = {
-    # Ramp is SOURCED by the same ``ramp`` preset ``roles.is_ramp`` COUNTS it by
-    # (ADR-0051), so "fills the role" and "suggested for the role" cannot drift. The
-    # "_filter" is a tuner-side precision pass (applied in the swap engine's ranked
-    # pool): it drops a conditionally-gated rock — which still counts as ramp in the
-    # deck, but the tuner won't suggest one.
-    "ramp": {"preset_names": ("ramp",), "_filter": _reliable_ramp},
-    "card_draw": {"preset_names": ("card-draw",)},
-    # Interaction is sourced by the SAME presets ``roles.is_interaction`` counts it
-    # by (ADR-0051, the ramp rule) — ANY of them, as the role reads them (passed
-    # as ``preset_names`` they combined with AND, and the search found nothing:
-    # no removal fill or upgrade was sourced from 2026-10-18 to 10-19) — with the
-    # predicate as the precision pass: a preset hit the role drops (pure
-    # graveyard recursion) is never offered.
-    "interaction": {
-        "any_preset_names": _INTERACTION_PRESETS,
-        "_filter": lambda c, **_kw: is_interaction(c),
-    },
-    "board_wipe": {"preset_names": ("board-wipe",)},
-    # The constructed / limited template rows that are plain facts (type line,
-    # mana value) are sourced by the same fact: a creature, a card at that cost.
+#: Each template row's search. A counted role is sourced by the search ``roles``
+#: exports beside the predicate it counts by (``roles.ROLE_SEARCH``, ADR-0051), so
+#: "fills the role" and "suggested for the role" cannot drift; the constructed /
+#: limited rows that are plain facts (type line, mana value) are sourced by the
+#: same fact: a creature, a card at that cost.
+ROW_SEARCH: dict[str, dict] = {
+    **ROLE_SEARCH,
     "creatures": {"card_type": "Creature"},
     "two_drops": {"cmc_min": 2, "cmc_max": 2},
     "three_drops": {"cmc_min": 3, "cmc_max": 3},
@@ -272,7 +223,7 @@ class Sourcing:
             return None
         if (self._budgets.get(role) or {}).get("advisory"):
             return None
-        return ROLE_SEARCH.get(role)
+        return ROW_SEARCH.get(role)
 
     def short_roles(self) -> list[str]:
         """Sourceable Spine roles below their floor, worst shortfall first."""

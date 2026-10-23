@@ -8,9 +8,23 @@ Real snapshot cards throughout (``mtg_utils.testkit``) — the production
 
 import pytest
 
-from mtg_utils._analysis.roles import DeckMana, _restriction_admits, is_ramp, role_of
-from mtg_utils._card_ir.crosswalk.reads import ObjectFacts
-from mtg_utils._tuner.issues import ROLE_SEARCH, _reliable_ramp
+from mtg_utils._analysis import roles
+from mtg_utils._analysis.roles import (
+    DeckMana,
+    _restriction_admits,
+    is_ramp,
+    is_reliable_ramp,
+    role_of,
+)
+from mtg_utils._card_ir.crosswalk.reads import (
+    ATTACHED_OBJECT_PREDICATES,
+    ObjectFacts,
+    filter_predicates,
+    iter_typed_nodes,
+    names_attached_object,
+)
+from mtg_utils._card_ir.trees import trees_for
+from mtg_utils._tuner.issues import ROLE_SEARCH
 from mtg_utils.card_classify import is_land
 from mtg_utils.testkit import snapshot_records, test_card, test_signals
 from mtg_utils.theme_presets import get_preset, has_signal_coverage
@@ -264,6 +278,80 @@ def test_the_preset_and_the_role_agree_on_every_covered_card():
     assert len(matched) > 40
 
 
+def test_the_board_wipe_preset_and_the_role_agree_on_every_covered_card():
+    """The board-wipe twin of the ramp agreement: the preset the tuner SEARCHES
+    by (the spec ``roles`` exports, which the tuner reads unchanged) and the role
+    the budgets row COUNTS by are the same set over the whole snapshot — the
+    one-sided shrinks included (they used to split: the role counted Elesh
+    Norn's -2/-2, the preset excluded Massacre Wurm)."""
+    assert ROLE_SEARCH["board_wipe"] is roles.ROLE_SEARCH["board_wipe"]
+    preset = get_preset(ROLE_SEARCH["board_wipe"]["preset_names"][0])
+    records = snapshot_records()
+    matched = {r["name"] for r in records if preset.matches(r)}
+    counted = {r["name"] for r in records if "board_wipe" in role_of(r)}
+    assert matched == counted
+    assert {
+        "Wrath of God",
+        "Cyclonic Rift",
+        "Massacre Wurm",
+        "Elesh Norn, Grand Cenobite",
+    } <= matched
+    assert len(matched) > 40
+
+
+@pytest.mark.parametrize("name", ["Massacre Wurm", "Bite of the Black Rose"])
+def test_a_one_sided_mass_shrink_is_a_board_wipe(name):
+    """ "Creatures your opponents control get -2/-2" clears the opponents' board
+    as a one-sided destroy (Plague Wind) does, so the board-wipe job counts it —
+    Bite of the Black Rose's from a vote branch. The ``mass_removal`` key stays
+    the symmetric shrink the mass-death payoffs read."""
+    assert "board_wipe" in role_of(_real(name))
+    assert "mass_removal" not in {s.key for s in test_signals(name)}
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Baneblade Scoundrel",  # each creature blocking it gets -1/-1
+        "Knight of Valor",  # flanking: only the creatures blocking it (CR 702.25a)
+        "The Eagles Are Coming!",  # returns the chosen creatures, not the board
+    ],
+)
+def test_a_combat_or_chosen_set_effect_is_not_a_board_wipe(name):
+    """The old compat mass marker read these as sweeps; the lanes' vetoes, which
+    the role now reads, don't."""
+    assert "board_wipe" not in role_of(_real(name))
+
+
+@pytest.mark.parametrize(
+    ("name", "predicate"),
+    [
+        ("Champion of the Flame", "AttachedToRecipient"),
+        ("Halvar, God of Battle // Sword of the Realms", "HasAnyAttachmentOf"),
+    ],
+)
+def test_attachment_state_predicates_name_no_single_object(name, predicate):
+    """Phase's ``AttachedToRecipient`` is the Auras and Equipment attached to a
+    creature (Champion of the Flame's "+2/+2 for each Aura and Equipment attached
+    to it"); ``HasAnyAttachmentOf`` is every enchanted or equipped creature
+    (Halvar's "Creatures you control that are enchanted or equipped have double
+    strike" — its ruling: a creature "is enchanted or equipped if there's an Aura
+    or an Equipment attached to it"). Neither is THE object an Equipment or Aura
+    is attached to (CR 301.5a, 303.4b), so neither joins
+    ``ATTACHED_OBJECT_PREDICATES``, the attachment veto the sweep reads share."""
+    test_signals(name)
+    carriers = [
+        n
+        for tree in trees_for(test_card(name))
+        for unit in tree.units
+        for n in iter_typed_nodes(unit.node)
+        if predicate in filter_predicates(n)
+    ]
+    assert carriers
+    assert not any(names_attached_object(n) for n in carriers)
+    assert predicate not in ATTACHED_OBJECT_PREDICATES
+
+
 def test_the_tuner_ramp_search_page_is_nonland_ramp():
     """A search page is small and cmc-ascending, so a preset that matched mana lands
     (the `ramp` key fires for every fixing land) filled it with lands and starved the
@@ -282,9 +370,12 @@ def test_the_tuner_ramp_search_page_is_nonland_ramp():
     gated = {"Mox Opal", "Mox Jasper", "Tablet of Compleation", "Boxing Ring"}
     ungated = {"Mox Amber", "Fanatic of Rhonas", "Sol Ring", "Arcane Signet"}
     assert gated | ungated <= names
-    dropped = {r["name"] for r in hits if not _reliable_ramp(r)}
+    dropped = {r["name"] for r in hits if not is_reliable_ramp(r)}
     assert gated <= dropped
     assert not ungated & dropped
+    # The tuner sources ramp by the spec ``roles`` exports, unchanged.
+    assert ROLE_SEARCH["ramp"] is roles.ROLE_SEARCH["ramp"]
+    assert ROLE_SEARCH["ramp"]["_filter"] is is_reliable_ramp
 
 
 @pytest.mark.parametrize("name", ["Skyshroud Claim", "Hunting Wilds"])
@@ -413,8 +504,8 @@ def test_without_a_commander_deck_colored_mana_is_untouched():
 
 
 def test_the_tuner_never_sources_dead_ramp():
-    assert not _reliable_ramp(_real("Arcane Signet"), deck_mana=_deck(_OMNATH))
-    assert _reliable_ramp(_real("Arcane Signet"), deck_mana=_deck(_KRENKO))
+    assert not is_reliable_ramp(_real("Arcane Signet"), deck_mana=_deck(_OMNATH))
+    assert is_reliable_ramp(_real("Arcane Signet"), deck_mana=_deck(_KRENKO))
 
 
 @pytest.mark.parametrize(

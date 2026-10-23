@@ -12,7 +12,6 @@ from mtg_utils._analysis._subtypes import LAND_SUBTYPES
 from mtg_utils._analysis.lanes._shared import (
     _PERMANENT_TYPES,
     _RETURN_TARGET_TAGS,
-    _negative_pt_field,
     _root_target_filter,
     _site_raw,
     _tuck_preceded_by_selection,
@@ -50,6 +49,7 @@ from mtg_utils._analysis.tree_synthesis import (
     structural_untap_subject,
 )
 from mtg_utils._card_ir.crosswalk import (
+    CREATURE_OR_PERMANENT,
     MASS_FILTER_EFFECT_TAGS,
     SUSPENDED_CARD,
     AbilityUnit,
@@ -87,6 +87,8 @@ from mtg_utils._card_ir.crosswalk import (
     mod_keyword_name,
     mod_value,
     named_filter_subtypes,
+    negative_pt_field,
+    overload_sweep,
     pt_mod_signs,
     recipient_tag,
     sacrifice_names_no_player,
@@ -1272,7 +1274,7 @@ def _walk_removal_answers(
       type-scoped view wants a mass tuck's answer types too — Terminus ->
       {Creature}, Harmonic Convergence -> {Enchantment});
     * ``fight`` (CR 701.14a) and a P/T-shrinking ``pump`` (CR 613.4c, read
-      via :func:`_negative_pt_field` on EITHER field — covers a FIXED
+      via :func:`negative_pt_field` on EITHER field — covers a FIXED
       shrink, a ``Variable`` dynamic ``-X/-X``, and a ``Quantity``/
       ``Multiply``-scaled dynamic shrink, the SAME three shapes
       ``debuff_makers``'s toughness-side gate now reads per task #85) both
@@ -1304,8 +1306,8 @@ def _walk_removal_answers(
             elif c.concept == "fight" or (
                 c.concept == "pump"
                 and (
-                    _negative_pt_field(c.node, "power")
-                    or _negative_pt_field(c.node, "toughness")
+                    negative_pt_field(c.node, "power")
+                    or negative_pt_field(c.node, "toughness")
                 )
             ):
                 yield c, _CREATURE
@@ -2264,7 +2266,7 @@ def _color_answer(c: ConceptNode) -> bool:
         if dest not in ("Exile", "Hand", "Library") or origin in ("Graveyard", "Hand"):
             return False
     if tag in ("Pump", "PumpAll") and not (
-        _negative_pt_field(c.node, "power") or _negative_pt_field(c.node, "toughness")
+        negative_pt_field(c.node, "power") or negative_pt_field(c.node, "toughness")
     ):
         return False
     return _hostile_color_filter(effect_filter(c.node), mass=mass)
@@ -2453,7 +2455,8 @@ def _land_destruction(tree: ConceptTree) -> list[Signal]:
 #: The removal tags that kill creatures en masse — they die (CR 700.4: put into
 #: a graveyard from the battlefield): destroy all, damage to each, -X/-X to all.
 _MASS_KILL_TAGS: frozenset[str] = frozenset({"DestroyAll", "DamageAll", "PumpAll"})
-_CREATURE_ANSWERS: frozenset[str] = frozenset({"Creature", "Permanent"})
+#: The overloaded sweeps (``crosswalk.overload_sweep``) whose creatures die.
+_OVERLOAD_KILLS: frozenset[str] = frozenset({"destroy", "damage", "shrink"})
 
 
 def _sacrifices_all(c: ConceptNode) -> bool:
@@ -2480,27 +2483,30 @@ def kills_creatures_en_masse(tree: ConceptTree) -> bool:
     (whose vetoes — a combat-only shrink, an Aura's own creature — stand), and
     emits ``mass_removal|you|creature`` from it, so the subject refines that key
     and never widens it."""
-    overloaded = any(alt.kind == "overload" for alt in tree.card_alt_costs)
     for c, types in _removal_answers(tree):
         tag = tag_of(c.node)
-        if not types & _CREATURE_ANSWERS:
+        if not types & CREATURE_OR_PERMANENT:
             continue
         # Damage to each creature dies whoever controls it (and phase stamps
         # "each creature that player controls" as ``You`` — Radiating Lightning).
         if tag != "DamageAll" and filter_controller(effect_filter(c.node)) == "You":
             continue
-        if tag == "PumpAll" and not _negative_pt_field(c.node, "toughness"):
+        if tag == "PumpAll" and not negative_pt_field(c.node, "toughness"):
             continue
-        if tag in _MASS_KILL_TAGS or (overloaded and tag in ("Destroy", "DealDamage")):
+        if tag in _MASS_KILL_TAGS:
             return True
     for c, types in _edict_answers(tree):
-        if types & _CREATURE_ANSWERS and _sacrifices_all(c):
+        if types & CREATURE_OR_PERMANENT and _sacrifices_all(c):
             return True
     for unit in tree.units:
         for c in unit.effects:
             if tag_of(c.node) == "ChooseAndSacrificeRest" and (
                 set(filter_core_types(getattr(c.node, "sacrifice_filter", None)))
-                & _CREATURE_ANSWERS
+                & CREATURE_OR_PERMANENT
+            ):
+                return True
+            if overload_sweep(tree, unit, c) in _OVERLOAD_KILLS and (
+                set(filter_core_types(effect_filter(c.node))) & CREATURE_OR_PERMANENT
             ):
                 return True
     return False
@@ -2519,7 +2525,7 @@ def _returns_graveyard_creatures_en_masse(unit: AbilityUnit) -> bool:
         origin, dest = change_zone_dirs(c.node)
         sub = effect_filter(c.node)
         from_gy = origin == "Graveyard" or "Graveyard" in filter_inzone_zones(sub)
-        creatures = bool(set(filter_core_types(sub)) & _CREATURE_ANSWERS)
+        creatures = bool(set(filter_core_types(sub)) & CREATURE_OR_PERMANENT)
         if from_gy and dest == "Exile" and creatures:
             exiled_creatures = True
         elif (

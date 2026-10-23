@@ -56,6 +56,21 @@ def test_an_overload_spell_reads_as_its_overloaded_sweep():
     assert _score("Cyclonic Rift") > _score("Evacuation")
 
 
+def test_a_one_sided_mass_shrink_reads_as_a_one_sided_sweep():
+    """Massacre Wurm's "creatures your opponents control get -2/-2" is a sweep
+    the lanes hand the read (``mass_shrink_effects``), one-sided and small."""
+    features = board_wipe.features(_real("Massacre Wurm"))
+    assert features["one_sided"] == 1.0
+    assert features["small"] == 1.0
+
+
+def test_an_overloaded_power_only_shrink_is_no_sweep():
+    """Downsize's "-4/-0", overloaded, shrinks no toughness, so it kills nothing
+    (CR 704.5f): no sweep (``crosswalk.overload_sweep`` reads only a negative
+    toughness as one). The read once took any overloaded pump."""
+    assert board_wipe.features(_real("Downsize")) is None
+
+
 @pytest.mark.parametrize("name", ["Lightning Bolt", "Swords to Plowshares"])
 def test_a_card_with_no_sweep_is_none(name):
     """Single-target removal is the removal job, not this one."""

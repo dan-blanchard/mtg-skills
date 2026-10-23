@@ -958,7 +958,7 @@ def blink_flicker_maker_present(card: dict) -> bool:
 
     Lazily imports ``mtg_utils._analysis.signals`` (not at module scope):
     importing it at THIS module's top level would risk the same import-time
-    cycle ``mtg_utils.theme_presets._signal_keys_for`` already documents and
+    cycle ``mtg_utils.theme_presets.signal_keys_for`` already documents and
     avoids the same way.
     """
     from mtg_utils._analysis.signals import extract_signals
@@ -1075,7 +1075,7 @@ def _mana_fixing(node: object) -> bool:
     return isinstance(colors, list) and len(set(colors)) >= 2
 
 
-def _granted_mana_defs(
+def granted_mana_defs(
     tree: ConceptTree,
 ) -> list[tuple[object, object]]:
     """``(ability_def, recipient_filter)`` for every GRANTED mana-producing
@@ -1166,7 +1166,7 @@ def _iter_returnasaura_mana_defs(
     GENERIC :func:`iter_typed_nodes` walk (every dataclass field) is the
     read here instead; the recipient is the ``ReturnAsAura``'s own
     ``enchant_filter`` (the SAME land/nonland accel-or-fixing gate the
-    top-level :func:`_granted_mana_defs` recipient reads applies)."""
+    top-level :func:`granted_mana_defs` recipient reads applies)."""
     out: list[tuple[object, object]] = []
     for n in tree.iter_typed():
         if tag_of(n) != "ReturnAsAura":
@@ -1236,7 +1236,7 @@ def _ramp_mana(tree: ConceptTree) -> list[Signal]:
     any-color / any-type) IS ramp → fire. Scope "you".
 
     ADR-0038 W3 batch 4 (lands-and-ramp cluster): a GRANTED mana ability
-    (:func:`_granted_mana_defs` — the dominant residual shape, ~150 corpus
+    (:func:`granted_mana_defs` — the dominant residual shape, ~150 corpus
     cards) applies the SAME land/nonland split to the RECIPIENT the grant
     names, not the granting card's own type: a nonland recipient (creatures,
     tokens, artifacts, permanents) is always acceleration, matching the
@@ -1247,7 +1247,7 @@ def _ramp_mana(tree: ConceptTree) -> list[Signal]:
 
     Four ADR-0039 W7 closers extend the granted-mana reach:
 
-    * :func:`_granted_mana_defs` now ALSO reads a granted TRIGGERED mana
+    * :func:`granted_mana_defs` now ALSO reads a granted TRIGGERED mana
       body (a ``GrantTrigger`` modification — Mark of Sakiko's "Whenever ~
       deals combat damage to a player, add that much {G}") and relaxes the
       ``is_mana_ability`` gate to an OR against the definition's own effect
@@ -1299,7 +1299,7 @@ def _ramp_mana(tree: ConceptTree) -> list[Signal]:
     for c in tree.effect_concepts("make_token"):
         if c.recovered_by == "make_token" and "Powerstone" in c.reading:
             return [Signal("ramp", "you", "", c.raw, tree.name, "high")]
-    for d, aff in (*_granted_mana_defs(tree), *_iter_returnasaura_mana_defs(tree)):
+    for d, aff in (*granted_mana_defs(tree), *_iter_returnasaura_mana_defs(tree)):
         eff = getattr(d, "effect", None)
         if tag_of(aff) in ("Typed", "Or", "And"):
             landish = "Land" in filter_core_types(aff) or (
@@ -1344,7 +1344,7 @@ def _is_big_mana_tree(tree: ConceptTree) -> bool:
     shape ``_mana_accel`` already handles), over BOTH of the ``ramp`` lane's
     magnitude-bearing effect sources: a direct ``ramp`` effect concept on the
     card's own ability (``tree.effect_concepts("ramp")``), and a GRANTED mana
-    ability (:func:`_granted_mana_defs` / :func:`_iter_returnasaura_mana_defs`
+    ability (:func:`granted_mana_defs` / :func:`_iter_returnasaura_mana_defs`
     — an Aura's "Enchanted land/creature/artifact has '{T}: Add two mana...'"
     body: Discreet Retreat, Tectonic Split, Mark of Sakiko, Bigger on the
     Inside — corpus-verified this session against the OLD IR's
@@ -1371,7 +1371,7 @@ def _is_big_mana_tree(tree: ConceptTree) -> bool:
     for c in tree.effect_concepts("ramp"):
         if _mana_accel(c.node):
             return True
-    for d, _aff in (*_granted_mana_defs(tree), *_iter_returnasaura_mana_defs(tree)):
+    for d, _aff in (*granted_mana_defs(tree), *_iter_returnasaura_mana_defs(tree)):
         if _mana_accel(getattr(d, "effect", None)):
             return True
     return False

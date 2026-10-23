@@ -19,7 +19,11 @@ from mtg_utils._card_ir.crosswalk import (
     cost_reduction_count_filters,
     counter_pred_kinds,
     defends_you,
+    effect_filter,
+    filter_predicates,
     keyword_token_creations,
+    overload_sweep,
+    tag_of,
     watches_attacks_on_you,
 )
 from mtg_utils._card_ir.trees import trees_for
@@ -270,20 +274,75 @@ def test_an_overloaded_bounce_is_a_mass_bounce():
     assert "mass_bounce|any|" in _idents("Cyclonic Rift")
 
 
+@pytest.mark.parametrize(
+    ("name", "mode"),
+    [
+        ("Damn", "destroy"),
+        ("Cyclonic Rift", "bounce"),
+        ("Mizzium Mortars", "damage"),
+        ("Downsize", None),  # "-4/-0": no toughness shrink, nothing dies
+    ],
+)
+def test_overload_sweep_names_what_overload_makes_of_the_base_mode(name, mode):
+    """The one read of "overload makes this a sweep" (CR 702.96a-b): the base
+    mode's targeted effect on every object it could target."""
+    tree = _tree(name)
+    modes = {overload_sweep(tree, u, c) for u in tree.units for c in u.effects}
+    assert modes - {None} == ({mode} if mode else set())
+
+
 @pytest.mark.retirement_canary
 @pytest.mark.parametrize(
     ("name", "mass_tag"), [("Damn", "DestroyAll"), ("Cyclonic Rift", "BounceAll")]
 )
 def test_overload_sweep_is_read_from_the_base_mode(name, mass_tag):
-    """Retirement canary for ``mana_and_wipes._overloaded``: phase v0.104.0 keeps
+    """Retirement canary for ``crosswalk.overload_sweep``: phase v0.104.0 keeps
     overload as an alternative cost and types only the targeted base mode, so
-    the lanes read the sweep off it. When phase types the overloaded mode as a
-    mass node, the base-mode arm is redundant — retire it."""
+    the lanes and the board-wipe read take the sweep off it. When phase types
+    the overloaded mode as a mass node, the base-mode read is redundant —
+    retire it."""
     tree = _tree(name)
     assert any(alt.kind == "overload" for alt in tree.card_alt_costs)
     assert not tree.has_typed(mass_tag), (
-        f"{name}: RETIRE-READY — phase types the overloaded sweep; drop the "
-        "``_overloaded`` arms in lanes/mana_and_wipes.py and the overload path "
-        "in job_quality/board_wipe.py (_OVERLOAD_TAGS, _is_overload_unit, "
-        "_overload_cost)."
+        f"{name}: RETIRE-READY — phase types the overloaded sweep; drop "
+        "``crosswalk.overload_sweep`` and its callers (the mass_removal / "
+        "mass_bounce lanes, kills_creatures_en_masse, job_quality/board_wipe.py's "
+        "_tree_sweeps and _overload_cost)."
+    )
+
+
+@pytest.mark.retirement_canary
+@pytest.mark.parametrize(
+    ("name", "preds"),
+    [
+        # "{1}{W}: Each creature without flanking blocking this creature gets
+        # -1/-1" — phase keeps "without flanking" and drops "blocking it".
+        ("Knight of Valor", ("WithoutKeyword",)),
+        # "Whenever this creature becomes blocked, each creature blocking it
+        # gets -1/-1" — phase types a bare creature sweep.
+        ("Baneblade Scoundrel", ()),
+    ],
+)
+def test_combat_scope_shrinks_parse_as_board_sweeps(name, preds):
+    """Retirement canary for the combat-scope vetoes in
+    ``lanes.mana_and_wipes._mass_shrink`` (phase_parse_bug [P12]): phase
+    v0.104.0 drops the "blocking it" clause from these one-combat shrinks
+    (CR 702.25a: flanking's -1/-1 hits only the blocking creature), leaving a
+    ``PumpAll`` over the board, so the shrink walk vetoes a ``becomes_blocked``
+    / ``blocks`` trigger unit and a ``WithoutKeyword:Flanking`` filter. Once
+    phase types the combat scope the filter changes shape — retire the
+    vetoes."""
+    filters = [
+        effect_filter(c.node)
+        for tree in trees_for(test_card(name))
+        for u in tree.units
+        for c in u.effects
+        if tag_of(c.node) == "PumpAll"
+    ]
+    assert filters
+    assert all(filter_predicates(f) == preds for f in filters), (
+        f"{name}: RETIRE-READY — phase types the combat scope of this shrink; "
+        "drop _mass_shrink's becomes_blocked / blocks and WithoutKeyword:Flanking "
+        "vetoes (lanes/mana_and_wipes.py) and check the board-wipe preset still "
+        "excludes the card."
     )

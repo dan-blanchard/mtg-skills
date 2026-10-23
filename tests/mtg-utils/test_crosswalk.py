@@ -1073,7 +1073,7 @@ def test_ramp_granted_trigger_mana_body():
     """Mark of Sakiko: "Enchanted creature has 'Whenever ~ deals combat
     damage to a player, add that much {G}...'" — a granted TRIGGERED mana
     body (``GrantTrigger``, not ``GrantAbility``), read via
-    :func:`_granted_mana_defs`'s widened modification-tag check."""
+    :func:`granted_mana_defs`'s widened modification-tag check."""
     assert ("ramp", "you", "") in _idents("Mark of Sakiko")
 
 
@@ -7427,7 +7427,7 @@ def test_mass_removal_arms_and_gates(name, should_fire):
 def test_mass_removal_dynamic_debuff_reads_variable_sign():
     """Toxic Deluge's ``-X/-X`` is a phase ``Variable`` toughness node (the
     magnitude is unknown at parse time), not a ``Fixed`` one — the mass-debuff
-    arm's :func:`_negative_pt_field` reads the Variable string's sign, not
+    arm's :func:`negative_pt_field` reads the Variable string's sign, not
     just a Fixed int (CR 704.5f: toughness 0 or less dies regardless of
     whether the shrink is a literal number or an X)."""
     from mtg_utils._card_ir.crosswalk import tag_of
@@ -7470,7 +7470,8 @@ def test_mass_removal_combat_debuff_vetoes():
     Typed[Creature] sweep. Two vetoes restore the scope: the
     WithoutKeyword:Flanking predicate (the flanking template's blocker
     filter) and the becomes_blocked/blocks trigger unit. The combat payoff
-    itself still reads (blocked_matters)."""
+    itself still reads (blocked_matters). The vetoes retire through
+    ``test_phase_gaps_dropped.test_combat_scope_shrinks_parse_as_board_sweeps``."""
     assert "mass_removal" not in _keys("Knight of Valor")
     assert "mass_removal" not in _keys("Baneblade Scoundrel")
     assert "blocked_matters" in _keys("Baneblade Scoundrel")
@@ -7495,7 +7496,7 @@ def test_mass_removal_languish_negative_amount_is_typed():
         ("Boomerang", False),  # single-target Bounce → bounce_tempo
         ("Denizen of the Deep", False),  # returns YOUR other creatures: a drawback
         # base mode targeted; the overloaded sweep is read off it (CR 702.96a,
-        # ``mana_and_wipes._overloaded``)
+        # ``crosswalk.overload_sweep``)
         ("Cyclonic Rift", True),
     ],
 )
@@ -17479,7 +17480,7 @@ def test_task85_debuff_makers_dynamic_toughness_gain():
     """Task #85 gain: ``debuff_makers``'s single-target Pump arm only read a
     FIXED negative P/T (``pump_is_negative``); a dynamic ``-X/-X`` (Variable
     or ``Quantity``/``Multiply``-scaled) never fired it, even though the
-    mass ``PumpAll`` arm already had the dynamic read (:func:`_negative_pt_field`).
+    mass ``PumpAll`` arm already had the dynamic read (:func:`negative_pt_field`).
     Cloudkill (mass, ``Quantity``/``Multiply(factor=-1, ...)`` — a v0.23.0
     "dynamic P/T pump scaling by source intensity" shape) now correctly
     fires BOTH ``mass_removal`` and ``debuff_makers`` (CR 704.5f — the

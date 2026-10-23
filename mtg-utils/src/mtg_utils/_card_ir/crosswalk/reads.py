@@ -1555,7 +1555,15 @@ ATTACHED_OBJECT_PREDICATES: frozenset[str] = frozenset({"EquippedBy", "Enchanted
 
 def names_attached_object(filt: object) -> bool:
     """Whether a filter is the object its Equipment or Aura is attached to
-    (:data:`ATTACHED_OBJECT_PREDICATES`) — one creature, never a population."""
+    (:data:`ATTACHED_OBJECT_PREDICATES`) — one creature, never a population. An
+    ``And`` is when any member is (the intersection is that one object); an
+    ``Or`` only when every member is ("enchanted creature or each creature that
+    shares a type with it" is a population)."""
+    tag = tag_of(filt)
+    if tag in ("Or", "And"):
+        parts = getattr(filt, "filters", None) or ()
+        test = all if tag == "Or" else any
+        return bool(parts) and test(names_attached_object(p) for p in parts)
     return not ATTACHED_OBJECT_PREDICATES.isdisjoint(filter_predicates(filt))
 
 
@@ -2286,6 +2294,38 @@ def pump_is_negative(node: TypedMirrorNode) -> bool:
             v = getattr(sub, "value", None)
             if isinstance(v, int) and v < 0:
                 return True
+    return False
+
+
+def negative_pt_field(node: TypedMirrorNode, field: str) -> bool:
+    """Whether a Pump-style node's P/T ``field`` (``toughness``) is NEGATIVE —
+    a shrink's lethality tell (CR 704.5f: a creature with toughness 0 or less
+    dies; a "-2/-0" power dip never kills). Reads THREE shapes phase emits for a
+    shrink: ``Fixed N`` (Languish's "-4/-4", Drown in Sorrow's "-2/-2" — the
+    literal magnitude); ``Variable "-X"`` (Toxic Deluge's "-X/-X" — the
+    magnitude is unknown at parse time, but the Variable's own string carries
+    the sign); and ``Quantity`` wrapping a ``Multiply`` whose OUTERMOST
+    ``factor`` is negative (Cloudkill / Mutilate / Olivia's Wrath's mass "-X/-X
+    where X is <count>", Death Wind / Nightmarish End / Flunk's single-target
+    kill class — a genuinely negative sign whatever the inner expression, since
+    every corpus ``inner`` resolves a non-negative count; Flunk's clamp under a
+    second ``Multiply(-1, ...)`` only floors the count at 0, it never flips the
+    outer sign). Reading only the outermost factor is deliberately shallow: no
+    corpus card double-negates via nested ``Multiply`` factors."""
+    p = getattr(node, field, None)
+    tag = tag_of(p)
+    if tag == "Fixed":
+        v = getattr(p, "value", None)
+        return isinstance(v, int) and v < 0
+    if tag == "Quantity":
+        val = getattr(p, "value", None)
+        if tag_of(val) == "Multiply":
+            factor = getattr(val, "factor", None)
+            if isinstance(factor, int) and factor < 0:
+                return True
+    if tag == "Variable":
+        v = getattr(p, "value", None)
+        return isinstance(v, str) and v.strip().startswith("-")
     return False
 
 
@@ -5861,7 +5901,7 @@ def mana_colors(tree: ConceptTree) -> frozenset[str] | Literal["any"]:
 CIRCLED_COLORS_RESIDUE = "Add one mana of either of the circled colors"
 
 
-def _unit_own_mana(
+def unit_own_mana(
     unit: AbilityUnit,
 ) -> Iterator[tuple[TypedMirrorNode, TypedMirrorNode]]:
     """``(Mana effect, the ability node carrying it)`` for one unit: the unit's own
@@ -5887,10 +5927,10 @@ def _unit_own_mana(
 
 
 def _own_mana_effects(tree: ConceptTree) -> Iterator[TypedMirrorNode]:
-    """The ``Mana`` effects the card's own abilities resolve (:func:`_unit_own_mana`
+    """The ``Mana`` effects the card's own abilities resolve (:func:`unit_own_mana`
     over every unit)."""
     for unit in tree.units:
-        for eff, _ability in _unit_own_mana(unit):
+        for eff, _ability in unit_own_mana(unit):
             yield eff
 
 
@@ -5956,13 +5996,13 @@ def mana_ability_gates(tree: ConceptTree) -> tuple[bool, ...]:
     metalcraft, Mox Jasper's Dragon, Tablet of Compleation's oil counters). A card
     whose every entry is gated (Mox Opal) ramps only when the condition holds; one
     with an ungated sibling (Fanatic of Rhonas' {T}: Add {G}) always ramps. A mana
-    ability the card grants itself is one entry (:func:`_unit_own_mana`). A fact
+    ability the card grants itself is one entry (:func:`unit_own_mana`). A fact
     about the card, no policy: the tuner's ramp SOURCING reads it
-    (``_tuner.issues._reliable_ramp``); COUNTING a deck's ramp (``roles.is_ramp``)
+    (``roles.is_reliable_ramp``); COUNTING a deck's ramp (``roles.is_ramp``)
     deliberately doesn't."""
     out: list[bool] = []
     for unit in tree.units:
-        abilities = {id(ab): ab for _eff, ab in _unit_own_mana(unit)}
+        abilities = {id(ab): ab for _eff, ab in unit_own_mana(unit)}
         if any(
             c.concept == "make_token" and "Treasure" in c.subject for c in unit.effects
         ):
@@ -6946,9 +6986,11 @@ KEYWORD_ACTION_TAGS: frozenset[str] = frozenset(
 _UNSET = object()
 
 
-def _memo_on[T](obj: object, attr: str, fn: Callable[[Any], T]) -> T:
+def memo_on[T](obj: object, attr: str, fn: Callable[[Any], T]) -> T:
     """``fn(obj)``, computed once and kept on ``obj`` under ``attr`` (set through
-    ``object.__setattr__``, so a frozen tree or node takes it too)."""
+    ``object.__setattr__``, so a frozen tree or node takes it too). A re-seeded
+    tree is a new object, so a memo never goes stale. THE per-tree cache: a
+    lane walk that several readers share keeps its result here."""
     cached = obj.__dict__.get(attr, _UNSET)
     if cached is _UNSET:
         cached = fn(obj)
@@ -6978,7 +7020,7 @@ def keyword_action_events(tree: ConceptTree) -> tuple[KeywordActionEvent, ...]:
     """Every keyword action on the card (:data:`KEYWORD_ACTION_TAGS`), one event
     per node, in walk order; granted abilities included. Memoized on the tree.
     The counter, token and connive reads are projections of it."""
-    return _memo_on(tree, "_xw_keyword_action_events", _keyword_action_events)
+    return memo_on(tree, "_xw_keyword_action_events", _keyword_action_events)
 
 
 def _keyword_action_events(tree: ConceptTree) -> tuple[KeywordActionEvent, ...]:
@@ -7104,7 +7146,7 @@ def keyword_resource_events(tree: ConceptTree) -> tuple[ResourceEvent, ...]:
     included: a deck must hold energy to pay Lathnu Hellion's or Rush of
     Inspiration's "unless you pay {E}{E}", so the card wants energy makers).
     The caller decides what a payment buys. Memoized on the tree."""
-    return _memo_on(tree, _RESOURCE_EVENTS_CACHE_ATTR, _keyword_resource_events)
+    return memo_on(tree, _RESOURCE_EVENTS_CACHE_ATTR, _keyword_resource_events)
 
 
 def _keyword_resource_events(tree: ConceptTree) -> tuple[ResourceEvent, ...]:
@@ -7494,6 +7536,91 @@ def animates(static_def: object, root: object, *, retype: bool = True) -> bool:
             objects,
         )
     return "Creature" not in filter_core_types(objects)
+
+
+def static_pt_mods_on_others(
+    unit: AbilityUnit,
+) -> Iterator[tuple[TypedMirrorNode, object, tuple[int, int]]]:
+    """``(static def, its affected filter, (power, toughness) signs)`` for each
+    continuous P/T modification (CR 613.4c, layer 7c) the unit applies to
+    creatures other than the card itself and not only yours (:func:`pt_mod_signs`
+    gives the signs). An animation is skipped: the P/T it sets is the new
+    creature's (CR 613.1d, 613.4b), never a shrink of one. The debuff walks start
+    here — ``debuff_makers``' static arm, and the board-wipe role's population
+    shrink, which further drops one object (an Equipment's or Aura's creature, a
+    spell's target)."""
+    for sdef in iter_static_defs(unit.node):
+        if not animates(sdef, unit.node, retype=False) and static_on_others(sdef, unit):
+            yield sdef, static_affected(sdef, unit), pt_mod_signs(sdef)
+
+
+def static_on_others(sdef: object, unit: AbilityUnit) -> bool:
+    """Whether a static def applies to objects other than the card itself and not
+    only yours — :func:`static_pt_mods_on_others`' gate, for a walk over the
+    unit's static defs that reads more than their P/T (``debuff_makers``)."""
+    return (
+        affected_tag(sdef, unit) != "SelfRef"
+        and filter_controller(static_affected(sdef, unit), unit) != "You"
+    )
+
+
+def _overloaded(tree: ConceptTree) -> bool:
+    """The card has overload (CR 702.96a): paying it changes every "target" in
+    the spell's text to "each". phase v0.104.0 keeps overload as an alternative
+    cost (``card_alt_costs``) and types only the targeted base mode — the
+    overloaded sweep is the base mode's own effect on every object matching its
+    description, legal target or not (CR 702.96b). Retires when phase types the
+    overloaded mode (``retirement_canary``:
+    ``test_overload_sweep_is_read_from_the_base_mode``)."""
+    return any(alt.kind == "overload" for alt in tree.card_alt_costs)
+
+
+#: The permanent types a destroy or exile sweep reads as clearing — a sweep
+#: affects every object it describes without targeting one (CR 115.10). Leaving
+#: lands out is the lanes' own decision: a land sweep is land destruction, a
+#: different job.
+SWEPT_PERMANENT_TYPES: frozenset[str] = frozenset(
+    {"Creature", "Permanent", "Artifact", "Enchantment", "Planeswalker"}
+)
+#: The core types a damage, bounce or shrink effect reaches creatures through:
+#: "creature", or "permanent", which includes them.
+CREATURE_OR_PERMANENT: frozenset[str] = frozenset({"Creature", "Permanent"})
+
+
+def overload_sweep(tree: ConceptTree, unit: AbilityUnit, c: ConceptNode) -> str | None:
+    """The sweep an overloaded spell's targeted effect becomes (CR 702.96a-b:
+    "target" reads "each", legal target or not) — ``"destroy"`` (Damn),
+    ``"exile"`` (Winds of Abandon), ``"damage"`` (Mizzium Mortars), ``"bounce"``
+    (Cyclonic Rift) or ``"shrink"`` (a negative-toughness pump, CR 704.5f) —
+    or ``None``: the card has no overload (:func:`_overloaded`), ``c`` isn't the
+    spell's own, it reaches only your permanents, or it is no removal (a
+    "+1/+0" pump, an exile from a graveyard). THE one read of "overload makes
+    this a sweep": the ``mass_removal`` / ``mass_bounce`` lanes, the mass-death
+    read and the board-wipe job read all ask it."""
+    if unit.kind != "Spell" or not _overloaded(tree):
+        return None
+    sub = effect_filter(c.node)
+    if filter_controller(sub) == "You":
+        return None
+    cores = set(filter_core_types(sub))
+    tag = tag_of(c.node)
+    if tag == "Destroy" and cores & SWEPT_PERMANENT_TYPES:
+        return "destroy"
+    if tag == "DealDamage" and cores & CREATURE_OR_PERMANENT:
+        return "damage"
+    if tag == "Bounce" and cores & CREATURE_OR_PERMANENT:
+        return "bounce"
+    if tag == "Pump" and "Creature" in cores and negative_pt_field(c.node, "toughness"):
+        return "shrink"
+    if tag == "ChangeZone":
+        origin, dest = change_zone_dirs(c.node)
+        if origin in ("Graveyard", "Hand"):
+            return None
+        if dest == "Exile" and cores & SWEPT_PERMANENT_TYPES:
+            return "exile"
+        if dest == "Hand" and cores & CREATURE_OR_PERMANENT:
+            return "bounce"
+    return None
 
 
 # ── resource-token serve slice (Treasure / Food / Clue / Blood) ──────────────
@@ -8558,10 +8685,13 @@ def _evasion_mode_kinds(sdef: TypedMirrorNode) -> list[str | None]:
     return out
 
 
-def _is_population(affected: object) -> bool:
-    if tag_of(affected) in _ONE_CREATURE_AFFECTED:
-        return False
-    return ATTACHED_OBJECT_PREDICATES.isdisjoint(filter_predicates(affected))
+def is_creature_population(affected: object) -> bool:
+    """Whether a static def's ``affected`` set (a filter node, or a corrected tag
+    string — :func:`static_affected`) is a population of creatures rather than
+    one: none of :data:`_ONE_CREATURE_AFFECTED`, and not the object an Equipment
+    or Aura is attached to (:func:`names_attached_object`)."""
+    tag = affected if isinstance(affected, str) else tag_of(affected)
+    return tag not in _ONE_CREATURE_AFFECTED and not names_attached_object(affected)
 
 
 def _gating_condition(node: object) -> bool:
@@ -8632,7 +8762,7 @@ def evasion_sites(tree: ConceptTree) -> tuple[EvasionSite, ...]:
             # blocked this turn" — Distortion Strike's Pump target): one
             # creature, unless the chain is a mass effect.
             team = (
-                _is_population(affected)
+                is_creature_population(affected)
                 if _present(affected)
                 else any(tag_of(x) in ALL_VARIANT_EFFECT_TAGS for x in nodes)
             )

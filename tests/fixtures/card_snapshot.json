@@ -136277,6 +136277,250 @@
     "type_line": "Instant"
    }
   },
+  "Bite of the Black Rose": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Will of the council — Starting with you, each player votes for sickness or psychosis. If sickness gets more votes, creatures your opponents control get -2/-2 until end of turn. If psychosis gets more votes or the vote is tied, each opponent discards two cards.",
+       "duration": null,
+       "effect": {
+        "choices": [
+         "sickness",
+         "psychosis"
+        ],
+        "per_choice_effect": [
+         {
+          "condition": null,
+          "cost": null,
+          "description": null,
+          "duration": "UntilEndOfTurn",
+          "effect": {
+           "power": {
+            "type": "Fixed",
+            "value": -2
+           },
+           "target": {
+            "controller": "Opponent",
+            "properties": [],
+            "type": "Typed",
+            "type_filters": [
+             "Creature"
+            ]
+           },
+           "toughness": {
+            "type": "Fixed",
+            "value": -2
+           },
+           "type": "PumpAll"
+          },
+          "forward_result": false,
+          "kind": "Spell",
+          "optional": false,
+          "optional_targeting": false,
+          "sub_ability": null,
+          "target_prompt": null
+         },
+         {
+          "condition": null,
+          "cost": null,
+          "description": null,
+          "duration": null,
+          "effect": {
+           "count": {
+            "type": "Fixed",
+            "value": 2
+           },
+           "target": {
+            "type": "Controller"
+           },
+           "type": "Discard"
+          },
+          "forward_result": false,
+          "kind": "Spell",
+          "optional": false,
+          "optional_targeting": false,
+          "player_scope": {
+           "type": "Opponent"
+          },
+          "sub_ability": null,
+          "target_prompt": null
+         }
+        ],
+        "starting_with": "You",
+        "subject": {
+         "type": "Named"
+        },
+        "tally_mode": {
+         "data": {
+          "tie": {
+           "data": 1,
+           "type": "Breaker"
+          }
+         },
+         "type": "TopVotes"
+        },
+        "type": "Vote",
+        "visibility": {
+         "type": "Open"
+        },
+        "voter_scope": {
+         "type": "AllPlayers"
+        }
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Sorcery"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Black"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 3,
+      "shards": [
+       "Black"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "254d1363-1204-41d2-9799-34484a3eb211"
+      ]
+     },
+     "name": "Bite of the Black Rose",
+     "non_ability_text": null,
+     "oracle_text": "Will of the council — Starting with you, each player votes for sickness or psychosis. If sickness gets more votes, creatures your opponents control get -2/-2 until end of turn. If psychosis gets more votes or the vote is tied, each opponent discards two cards.",
+     "parse_warnings": [
+      {
+       "description": "Will of the council — Starting with you, each player votes for sickness or psychosis. If sickness gets more votes, creatures your opponent",
+       "detector": "Condition_If",
+       "gap": {
+        "guard": "sickness gets more votes",
+        "kind": "unparsed_condition"
+       },
+       "items": [
+        0
+       ],
+       "line_index": 0,
+       "type": "SwallowedClause",
+       "unit_span": {
+        "end_byte": 262,
+        "first_line": 0,
+        "last_line": 0,
+        "ordinal_within_span": 0,
+        "precision": "Exact",
+        "start_byte": 0
+       }
+      }
+     ],
+     "power": null,
+     "printings": [
+      "CNS"
+     ],
+     "rarities": [
+      "uncommon"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2014-05-29",
+       "text": "Because the votes are cast in turn order, each player will know the votes of players who voted beforehand."
+      },
+      {
+       "date": "2014-05-29",
+       "text": "No player votes until the spell or ability resolves. Any responses to that spell or ability must be made without knowing the outcome of the vote."
+      },
+      {
+       "date": "2014-05-29",
+       "text": "Players can't do anything after they finish voting but before the spell or ability that included the vote finishes resolving."
+      },
+      {
+       "date": "2014-05-29",
+       "text": "The effect will be the same for all your opponents, no matter how they voted."
+      },
+      {
+       "date": "2014-05-29",
+       "text": "The phrase \"the vote is tied\" refers only to when there is more than one choice that received the most votes. For example, if a 5-player vote from among three different choices ends 3 votes to 1 vote to 1 vote, the vote isn't tied."
+      },
+      {
+       "date": "2014-05-29",
+       "text": "You must vote for one of the available options. You can't abstain."
+      }
+     ],
+     "scryfall_oracle_id": "4db04e23-e1da-4c41-9dba-5502dfff73fb",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 4.0,
+    "color_identity": [
+     "B"
+    ],
+    "colors": [
+     "B"
+    ],
+    "keywords": [
+     "Will of the council"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{3}{B}",
+    "name": "Bite of the Black Rose",
+    "oracle_id": "4db04e23-e1da-4c41-9dba-5502dfff73fb",
+    "oracle_text": "Will of the council — Starting with you, each player votes for sickness or psychosis. If sickness gets more votes, creatures your opponents control get -2/-2 until end of turn. If psychosis gets more votes or the vote is tied, each opponent discards two cards.",
+    "type_line": "Sorcery"
+   }
+  },
   "Bitter Work": {
    "phase_records": [
     {
@@ -266374,6 +266618,194 @@
     "type_line": "Artifact"
    }
   },
+  "Crown of Suspicion": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": {
+        "count": 1,
+        "target": {
+         "type": "SelfRef"
+        },
+        "type": "Sacrifice"
+       },
+       "description": "Sacrifice ~: Enchanted creature and other creatures that share a creature type with it get +2/-1 until end of turn.",
+       "duration": "UntilEndOfTurn",
+       "effect": {
+        "power": {
+         "type": "Fixed",
+         "value": 2
+        },
+        "target": {
+         "controller": null,
+         "properties": [
+          {
+           "type": "EnchantedBy"
+          }
+         ],
+         "type": "Typed",
+         "type_filters": [
+          "Creature"
+         ]
+        },
+        "toughness": {
+         "type": "Fixed",
+         "value": -1
+        },
+        "type": "PumpAll"
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Enchantment"
+      ],
+      "subtypes": [
+       "Aura"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Black"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [
+      {
+       "Enchant": {
+        "controller": null,
+        "properties": [],
+        "type": "Typed",
+        "type_filters": [
+         "Creature"
+        ]
+       }
+      }
+     ],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "pauper": "legal",
+      "paupercommander": "legal",
+      "premodern": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "Black"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "8953e11b-cc3a-4c8d-9d7e-04bf90c77027"
+      ]
+     },
+     "name": "Crown of Suspicion",
+     "non_ability_text": null,
+     "oracle_text": "Enchant creature\nEnchanted creature gets +2/-1.\nSacrifice this Aura: Enchanted creature and other creatures that share a creature type with it get +2/-1 until end of turn.",
+     "power": null,
+     "printings": [
+      "ONS"
+     ],
+     "rarities": [
+      "common"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "6586f8d1-196d-42a4-816f-629d432ece2f",
+     "static_abilities": [
+      {
+       "active_zones": [],
+       "affected": {
+        "controller": null,
+        "properties": [
+         {
+          "type": "EnchantedBy"
+         }
+        ],
+        "type": "Typed",
+        "type_filters": [
+         "Creature"
+        ]
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": null,
+       "description": "Enchanted creature gets +2/-1.",
+       "effect_zone": null,
+       "mode": "Continuous",
+       "modifications": [
+        {
+         "type": "AddPower",
+         "value": 2
+        },
+        {
+         "type": "AddToughness",
+         "value": -1
+        }
+       ]
+      }
+     ],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 2.0,
+    "color_identity": [
+     "B"
+    ],
+    "colors": [
+     "B"
+    ],
+    "keywords": [
+     "Enchant"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "legal",
+     "paupercommander": "legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}{B}",
+    "name": "Crown of Suspicion",
+    "oracle_id": "6586f8d1-196d-42a4-816f-629d432ece2f",
+    "oracle_text": "Enchant creature\nEnchanted creature gets +2/-1.\nSacrifice this Aura: Enchanted creature and other creatures that share a creature type with it get +2/-1 until end of turn.",
+    "type_line": "Enchantment — Aura"
+   }
+  },
   "Crucible of Fire": {
    "phase_records": [
     {
@@ -325562,6 +325994,170 @@
     "oracle_id": "95bbe04c-bcea-461d-9946-6c1a35dfbeb1",
     "oracle_text": "Artifact, instant, and sorcery spells your opponents cast cost {1} more to cast.\n[−1]: Until your next turn, prevent all damage that would be dealt to and dealt by target permanent an opponent controls.",
     "type_line": "Legendary Planeswalker — Dovin"
+   }
+  },
+  "Downsize": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Target creature you don't control gets -4/-0 until end of turn.",
+       "duration": "UntilEndOfTurn",
+       "effect": {
+        "power": {
+         "type": "Fixed",
+         "value": -4
+        },
+        "target": {
+         "controller": "Opponent",
+         "properties": [],
+         "type": "Typed",
+         "type_filters": [
+          "Creature"
+         ]
+        },
+        "toughness": {
+         "type": "Fixed",
+         "value": 0
+        },
+        "type": "Pump"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Instant"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Blue"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [
+      {
+       "Overload": {
+        "generic": 2,
+        "shards": [
+         "Blue"
+        ],
+        "type": "Cost"
+       }
+      }
+     ],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pauper": "legal",
+      "paupercommander": "legal",
+      "pioneer": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 0,
+      "shards": [
+       "Blue"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "6e90fd71-25f1-4142-adb2-decbb5ccbc16",
+       "e8408a52-d34a-4e03-9312-700dec75d844"
+      ]
+     },
+     "name": "Downsize",
+     "non_ability_text": null,
+     "oracle_text": "Target creature you don't control gets -4/-0 until end of turn.\nOverload {2}{U} (You may cast this spell for its overload cost. If you do, change \"target\" in its text to \"each.\")",
+     "power": null,
+     "printings": [
+      "RTR",
+      "RVR"
+     ],
+     "rarities": [
+      "common"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2024-01-12",
+       "text": "Because a spell with overload doesn't target when its overload cost is paid, it may affect permanents with hexproof or with protection from the appropriate color."
+      },
+      {
+       "date": "2024-01-12",
+       "text": "If you are instructed to cast a spell with overload \"without paying its mana cost,\" you can't choose to pay its overload cost instead."
+      },
+      {
+       "date": "2024-01-12",
+       "text": "If you don't pay the overload cost of a spell with overload, that spell will have a single target. If you pay the overload cost, the spell won't have any targets."
+      },
+      {
+       "date": "2024-01-12",
+       "text": "To determine the total cost of a spell, start with the mana cost or alternative cost you're paying (such as an overload cost), add any cost increases, then apply any cost reductions. The mana value of the spell remains unchanged, no matter what the total cost to cast it was."
+      }
+     ],
+     "scryfall_oracle_id": "46537bac-b1eb-4c02-ba43-6c6b16c7729c",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 1.0,
+    "color_identity": [
+     "U"
+    ],
+    "colors": [
+     "U"
+    ],
+    "keywords": [
+     "Overload"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "legal",
+     "paupercommander": "legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{U}",
+    "name": "Downsize",
+    "oracle_id": "46537bac-b1eb-4c02-ba43-6c6b16c7729c",
+    "oracle_text": "Target creature you don't control gets -4/-0 until end of turn.\nOverload {2}{U} (You may cast this spell for its overload cost. If you do, change \"target\" in its text to \"each.\")",
+    "type_line": "Instant"
    }
   },
   "Dr. Eggman": {
@@ -491389,6 +491985,495 @@
     "oracle_id": "36a9de4c-8073-475d-8679-e50844eef09e",
     "oracle_text": "{W}, {T}, Untap a tapped creature you control: Create a 1/1 green and white Citizen creature token.\n{W}{W}, {T}, Untap two tapped creatures you control: Draw a card.\n{W}{W}{W}{W}{W}, {T}, Untap fifteen tapped creatures you control: You win the game.",
     "type_line": "Artifact"
+   }
+  },
+  "Halvar, God of Battle // Sword of the Realms": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "brawl_commander": true,
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "God"
+      ],
+      "supertypes": [
+       "Legendary"
+      ]
+     },
+     "color_identity": [
+      "White"
+     ],
+     "color_override": null,
+     "defense": null,
+     "face_index": 0,
+     "flavor_name": null,
+     "is_commander": true,
+     "keywords": [],
+     "layout": "modal_dfc",
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 2,
+      "shards": [
+       "White",
+       "White"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "97502411-5c93-434c-b77b-ceb2c32feae7",
+       "feddb683-a8f8-4def-bd3e-6d630c42cd34"
+      ]
+     },
+     "name": "Halvar, God of Battle",
+     "non_ability_text": null,
+     "oracle_text": "Creatures you control that are enchanted or equipped have double strike.\nAt the beginning of each combat, you may attach target Aura or Equipment attached to a creature you control to target creature you control.",
+     "power": {
+      "type": "Fixed",
+      "value": 4
+     },
+     "printings": [
+      "KHM",
+      "PKHM",
+      "PRM"
+     ],
+     "rarities": [
+      "mythic"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2021-02-05",
+       "text": "A creature you control is enchanted or equipped if there's an Aura or an Equipment attached to it. You don't have to control that Aura or Equipment."
+      },
+      {
+       "date": "2021-02-05",
+       "text": "A modal double-faced card can't be transformed or be put onto the battlefield transformed. Ignore any instruction to transform a modal double-faced card or to put one onto the battlefield transformed."
+      },
+      {
+       "date": "2021-02-05",
+       "text": "If Sword of the Realms is attached to a token creature that dies, the Sword's triggered ability will trigger, but the token will cease to exist after going to the graveyard. It won't be returned to its owner's hand."
+      },
+      {
+       "date": "2021-02-05",
+       "text": "If an effect allows you to play a land or cast a spell from among a group of cards, you may play or cast a modal double-faced card with any face that fits the criteria of that effect."
+      },
+      {
+       "date": "2021-02-05",
+       "text": "If an effect allows you to play a specific modal double-faced card, you may cast it as a spell or play it as a land, as determined by which face you choose to play. If an effect allows you to cast (rather than \"play\") a specific modal double-faced card, you can't play it as a land."
+      },
+      {
+       "date": "2021-02-05",
+       "text": "If an effect instructs a player to choose a card name, the name of either face may be chosen. If that effect or a linked ability refers to a spell with the chosen name being cast and/or a land with the chosen name being played, it considers only the chosen name, not the other face's name."
+      },
+      {
+       "date": "2021-02-05",
+       "text": "If an effect puts a double-faced card onto the battlefield, it enters with its front face up. If that front face can't be put onto the battlefield, it doesn't enter the battlefield."
+      },
+      {
+       "date": "2021-02-05",
+       "text": "If either target of the triggered ability is an illegal target as the ability resolves, the ability won't do anything. If both targets are illegal, the ability won't resolve. If the Aura or Equipment is already attached to the target creature, nothing happens."
+      },
+      {
+       "date": "2021-02-05",
+       "text": "If the creature equipped by Sword of the Realms dies but leaves the graveyard before the triggered ability resolves, it won't be returned to its owner's hand. It will just stay wherever it went."
+      },
+      {
+       "date": "2021-02-05",
+       "text": "In the Commander variant, a double-faced card's color identity is determined by the mana costs and mana symbols in the rules text of both faces combined. If either face has a color indicator or basic land type, those are also considered."
+      },
+      {
+       "date": "2021-02-05",
+       "text": "Similarly, you don't have to control the Aura or Equipment that you choose as a target of Halvar's triggered ability, but it must be attached to a creature you control."
+      },
+      {
+       "date": "2021-02-05",
+       "text": "The mana value of a modal double-faced card is based on the characteristics of the face that's being considered. On the stack and battlefield, consider whichever face is up. In all other zones, consider only the front face. This is different than how the mana value of a transforming double-faced card is determined."
+      },
+      {
+       "date": "2021-02-05",
+       "text": "There is a single triangle icon in the top left corner of the front face. There is a double triangle icon in the top left corner of the back face."
+      },
+      {
+       "date": "2021-02-05",
+       "text": "To determine whether it is legal to play a modal double-faced card, consider only the characteristics of the face you're playing and ignore the other face's characteristics."
+      }
+     ],
+     "scryfall_oracle_id": "acfc3e07-757f-4ccf-a65e-bee07ce87f40",
+     "static_abilities": [
+      {
+       "active_zones": [],
+       "affected": {
+        "controller": "You",
+        "properties": [
+         {
+          "kinds": [
+           "Aura",
+           "Equipment"
+          ],
+          "type": "HasAnyAttachmentOf"
+         }
+        ],
+        "type": "Typed",
+        "type_filters": [
+         "Creature"
+        ]
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": null,
+       "description": "Creatures you control that are enchanted or equipped have double strike.",
+       "effect_zone": null,
+       "mode": "Continuous",
+       "modifications": [
+        {
+         "keyword": "DoubleStrike",
+         "type": "AddKeyword"
+        }
+       ]
+      }
+     ],
+     "toughness": {
+      "type": "Fixed",
+      "value": 4
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "At the beginning of each combat, you may attach target Aura or Equipment attached to a creature you control to target creature you control.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "attachment": {
+          "filters": [
+           {
+            "controller": null,
+            "properties": [],
+            "type": "Typed",
+            "type_filters": [
+             {
+              "Subtype": "Aura"
+             }
+            ]
+           },
+           {
+            "controller": null,
+            "properties": [],
+            "type": "Typed",
+            "type_filters": [
+             {
+              "Subtype": "Equipment"
+             }
+            ]
+           }
+          ],
+          "type": "Or"
+         },
+         "target": {
+          "controller": "You",
+          "properties": [],
+          "type": "Typed",
+          "type_filters": [
+           "Creature"
+          ]
+         },
+         "type": "Attach"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": true,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "Phase",
+       "optional": true,
+       "origin": null,
+       "phase": "BeginCombat",
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": null,
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    },
+    {
+     "abilities": [
+      {
+       "ability_tag": {
+        "type": "Equip"
+       },
+       "activation_restrictions": [
+        {
+         "type": "AsSorcery"
+        }
+       ],
+       "condition": null,
+       "cost": {
+        "cost": {
+         "generic": 1,
+         "shards": [
+          "White"
+         ],
+         "type": "Cost"
+        },
+        "type": "Mana"
+       },
+       "description": "Equip {1}{W}",
+       "duration": null,
+       "effect": {
+        "selection": {
+         "at_resolution": {}
+        },
+        "target": {
+         "controller": "You",
+         "properties": [],
+         "type": "Typed",
+         "type_filters": [
+          "Creature"
+         ]
+        },
+        "type": "Attach"
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Artifact"
+      ],
+      "subtypes": [
+       "Equipment"
+      ],
+      "supertypes": [
+       "Legendary"
+      ]
+     },
+     "color_identity": [
+      "White"
+     ],
+     "color_override": null,
+     "defense": null,
+     "face_index": 1,
+     "flavor_name": null,
+     "keywords": [],
+     "layout": "modal_dfc",
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "White"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "97502411-5c93-434c-b77b-ceb2c32feae7",
+       "feddb683-a8f8-4def-bd3e-6d630c42cd34"
+      ]
+     },
+     "name": "Sword of the Realms",
+     "non_ability_text": null,
+     "oracle_text": "Equipped creature gets +2/+0 and has vigilance.\nWhenever equipped creature dies, return it to its owner's hand.\nEquip {1}{W}",
+     "power": null,
+     "printings": [
+      "KHM",
+      "PKHM",
+      "PRM"
+     ],
+     "rarities": [
+      "mythic"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "acfc3e07-757f-4ccf-a65e-bee07ce87f40",
+     "static_abilities": [
+      {
+       "active_zones": [],
+       "affected": {
+        "controller": null,
+        "properties": [
+         {
+          "type": "EquippedBy"
+         }
+        ],
+        "type": "Typed",
+        "type_filters": [
+         "Creature"
+        ]
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": null,
+       "description": "Equipped creature gets +2/+0 and has vigilance.",
+       "effect_zone": null,
+       "mode": "Continuous",
+       "modifications": [
+        {
+         "type": "AddPower",
+         "value": 2
+        },
+        {
+         "type": "AddToughness",
+         "value": 0
+        },
+        {
+         "keyword": "Vigilance",
+         "type": "AddKeyword"
+        }
+       ]
+      }
+     ],
+     "toughness": null,
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever equipped creature dies, return it to its owner's hand.",
+       "destination": "Graveyard",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "destination": null,
+         "target": {
+          "type": "TriggeringSource"
+         },
+         "type": "Bounce"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "ChangesZone",
+       "optional": false,
+       "origin": "Battlefield",
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "type": "AttachedTo"
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "card_faces": [
+     {
+      "colors": [
+       "W"
+      ],
+      "keywords": [
+       "Equip"
+      ],
+      "mana_cost": "{2}{W}{W}",
+      "name": "Halvar, God of Battle",
+      "oracle_text": "Creatures you control that are enchanted or equipped have double strike.\nAt the beginning of each combat, you may attach target Aura or Equipment attached to a creature you control to target creature you control.",
+      "power": "4",
+      "toughness": "4",
+      "type_line": "Legendary Creature — God"
+     },
+     {
+      "colors": [
+       "W"
+      ],
+      "keywords": [
+       "Equip"
+      ],
+      "mana_cost": "{1}{W}",
+      "name": "Sword of the Realms",
+      "oracle_text": "Equipped creature gets +2/+0 and has vigilance.\nWhenever equipped creature dies, return it to its owner's hand.\nEquip {1}{W}",
+      "type_line": "Legendary Artifact — Equipment"
+     }
+    ],
+    "cmc": 4.0,
+    "color_identity": [
+     "W"
+    ],
+    "keywords": [
+     "Equip"
+    ],
+    "layout": "modal_dfc",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "name": "Halvar, God of Battle // Sword of the Realms",
+    "oracle_id": "acfc3e07-757f-4ccf-a65e-bee07ce87f40",
+    "type_line": "Legendary Creature — God // Legendary Artifact — Equipment"
    }
   },
   "Halving Season": {
@@ -687887,6 +688972,185 @@
     "name": "Mitotic Manipulation",
     "oracle_id": "69cc006d-172f-4e4c-bb75-10d772b061b1",
     "oracle_text": "Look at the top seven cards of your library. You may put one of those cards onto the battlefield if it has the same name as a permanent. Put the rest on the bottom of your library in any order.",
+    "type_line": "Sorcery"
+   }
+  },
+  "Mizzium Mortars": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "~ deals 4 damage to target creature you don't control.",
+       "duration": null,
+       "effect": {
+        "amount": {
+         "type": "Fixed",
+         "value": 4
+        },
+        "target": {
+         "controller": "Opponent",
+         "properties": [],
+         "type": "Typed",
+         "type_filters": [
+          "Creature"
+         ]
+        },
+        "type": "DealDamage"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Sorcery"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Red"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [
+      {
+       "Overload": {
+        "generic": 3,
+        "shards": [
+         "Red",
+         "Red",
+         "Red"
+        ],
+        "type": "Cost"
+       }
+      }
+     ],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "Red"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "2367b094-9482-4e3a-aa9d-dd878d1c3dea",
+       "544b2931-0af1-4743-b7c1-91e1dc9294d5",
+       "708557e2-c1b4-4e45-b568-17763b7a9924",
+       "85e72d7b-8d0f-4953-b8b1-7ddfaaa9fc06",
+       "bef58faf-4d5e-4c66-9780-28abfc4c0c69",
+       "c997501a-821e-4509-b752-fac01230342e",
+       "d4ded88d-2688-4f5e-a8b2-16216cf9c792"
+      ]
+     },
+     "name": "Mizzium Mortars",
+     "non_ability_text": null,
+     "oracle_text": "Mizzium Mortars deals 4 damage to target creature you don't control.\nOverload {3}{R}{R}{R} (You may cast this spell for its overload cost. If you do, change \"target\" in its text to \"each.\")",
+     "power": null,
+     "printings": [
+      "C15",
+      "CLB",
+      "GK1",
+      "MM3",
+      "PIO",
+      "PRM",
+      "RTR",
+      "SLD"
+     ],
+     "rarities": [
+      "rare",
+      "mythic"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2024-01-12",
+       "text": "Because a spell with overload doesn't target when its overload cost is paid, it may affect permanents with hexproof or with protection from the appropriate color."
+      },
+      {
+       "date": "2024-01-12",
+       "text": "If you are instructed to cast a spell with overload \"without paying its mana cost,\" you can't choose to pay its overload cost instead."
+      },
+      {
+       "date": "2024-01-12",
+       "text": "If you don't pay the overload cost of a spell with overload, that spell will have a single target. If you pay the overload cost, the spell won't have any targets."
+      },
+      {
+       "date": "2024-01-12",
+       "text": "Note that if the spell with overload is dealing damage, protection from that spell's color will still prevent that damage."
+      },
+      {
+       "date": "2024-01-12",
+       "text": "To determine the total cost of a spell, start with the mana cost or alternative cost you're paying (such as an overload cost), add any cost increases, then apply any cost reductions. The mana value of the spell remains unchanged, no matter what the total cost to cast it was."
+      }
+     ],
+     "scryfall_oracle_id": "48ddba1e-2ad7-463f-9307-d2379a800e51",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 2.0,
+    "color_identity": [
+     "R"
+    ],
+    "colors": [
+     "R"
+    ],
+    "keywords": [
+     "Overload"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}{R}",
+    "name": "Mizzium Mortars",
+    "oracle_id": "48ddba1e-2ad7-463f-9307-d2379a800e51",
+    "oracle_text": "Mizzium Mortars deals 4 damage to target creature you don't control.\nOverload {3}{R}{R}{R} (You may cast this spell for its overload cost. If you do, change \"target\" in its text to \"each.\")",
     "type_line": "Sorcery"
    }
   },

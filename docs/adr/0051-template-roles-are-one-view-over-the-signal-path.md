@@ -175,3 +175,31 @@ other card that serves no avenue.
 The candidate ranking lost its text fallback in the same change: a card with no IR
 (newer than the phase pin, or synthetic) scores every clause as an enabler with no
 tribal gate, the same "never guess from text" rule `extract_signals` follows.
+
+**Amendment (2026-10-23): board wipe is a view too.** The role read two more
+substrates beside the `board-wipe` preset: the compat projection's mass marker
+(whose destroy / damage / bounce arm duplicated `mass_removal`, without its vetoes)
+and a roles-local typed walk for static shrinks. The two disagreed on one-sided
+shrinks: the role counted Elesh Norn's -2/-2 and Massacre Wurm's, the preset
+excluded Massacre Wurm. `roles.is_board_wipe` is now the preset, and the preset
+gains a concept arm, `lanes.population_shrink`: a one-shot mass toughness shrink of
+any side but yours, or a continuous one on a population (CR 613.4c; 704.5f). The
+static half is `debuff_makers`' own walk (`crosswalk.static_pt_mods_on_others`) less
+what names one creature (`crosswalk.is_creature_population`). Why a one-sided shrink
+counts is stated once, in `roles.is_board_wipe`'s docstring. The `mass_removal` key
+stays symmetric for its shrinks. Phase's `AttachedToRecipient` and
+`HasAnyAttachmentOf` name a count of attachments and a population of enchanted or
+equipped creatures, not one object (CR 301.5a, 303.4b), so the attachment veto is
+`ATTACHED_OBJECT_PREDICATES` alone; an `Or` filter is one object only when every
+member is.
+`roles.ROLE_SEARCH` exports each role's search; the tuner reads it. Over the 32,046
+commander-legal cards no signal changed. The role lost 8 cards: combat-only
+shrinks (Baneblade Scoundrel, Plague Wight, Knight of Valor's flanking), one-creature
+Aura shrinks (Flowstone Blade, Flowstone Embrace, Manacles of Decay), Crown of
+Suspicion and The Eagles Are Coming!'s chosen-creature bounce. Crown of Suspicion's
+sacrifice ability is a population (the enchanted creature and every creature sharing
+a type with it get +2/-1), but phase v0.104.0 drops the shared-type half and types
+only "enchanted creature", so the card reads as one creature: a phase gap, not the
+veto. It gained Bite of the
+Black Rose's one-sided vote branch. The preset gained 51 cards the role already
+counted.

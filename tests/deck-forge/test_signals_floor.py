@@ -176,7 +176,7 @@ def test_is_big_mana_tree_granted_mana_ability():
     """Positive, GRANTED mana ability: Discreet Retreat's Aura grants
     enchanted land "{T}: Add two mana of any one color" — the magnitude
     lives on the granted ``GrantAbility`` definition's own effect
-    (:func:`_granted_mana_defs`), not a direct ``ramp`` effect concept on
+    (:func:`granted_mana_defs`), not a direct ``ramp`` effect concept on
     Discreet Retreat's own ability (``tree.effect_concepts("ramp")`` is
     empty for this card — verified this session). Originally also matched
     the legacy ``_is_big_mana_ir`` reader on the SAME card's legacy

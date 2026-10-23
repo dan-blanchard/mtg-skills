@@ -9,14 +9,12 @@ from mtg_utils._analysis.budgets import (
     template_for,
 )
 from mtg_utils._analysis.roles import (
-    _ir_board_wipe,
     _ir_draws,
-    _static_board_shrink,
     protects,
     role_of,
 )
-from mtg_utils.card_ir import Ability, Card, Effect, Face, Filter, Quantity
-from mtg_utils.testkit import test_card, test_card_ir, test_signals
+from mtg_utils.card_ir import Ability, Card, Effect, Face
+from mtg_utils.testkit import test_card, test_card_ir
 
 
 def _text_only(name):
@@ -40,7 +38,7 @@ test_card_ir("Counterspell")
 COUNTERSPELL = test_card("Counterspell")
 # task #83: board-wipe is now a structural view over the crosswalk `mass_removal`
 # signal (theme_presets.py), which needs a real `oracle_id` to resolve (see
-# `_signal_keys_for`) — a hand-typed dict with no oracle_id can no longer be
+# `signal_keys_for`) — a hand-typed dict with no oracle_id can no longer be
 # classified via the preset fallback `_matches_preset` reads in `role_of` /
 # `slot_budgets`. Seed the crosswalk trees memo (test_card_ir, CI-safe via the
 # committed snapshot) before pulling the real minimal Scryfall record.
@@ -380,210 +378,6 @@ def test_role_of_unions_card_draw_preset_for_nested_draw_for_each():
     ir = test_card_ir("Truth or Consequences")
     assert _ir_draws(ir) is True
     assert "card_draw" in role_of(test_card("Truth or Consequences"))
-
-
-def _ir_effect(**kw):
-    """One spell effect wrapped in a Card IR, for board-wipe structural probes."""
-    return Card(
-        oracle_id="x",
-        name="T",
-        faces=(
-            Face(name="T", abilities=(Ability(kind="spell", effects=(Effect(**kw),)),)),
-        ),
-    )
-
-
-def test_ir_board_wipe_reads_mass_marker_and_subject_gate():
-    # phase parses single-vs-mass; the projection keeps it (DestroyAll/DamageAll/BounceAll
-    # → counter_kind="all"; fixed mass -N/-N → cat=pump, negative amount, temporary). The
-    # board_wipe role can read that structurally instead of by oracle regex. Shapes below
-    # are the ones the real cards project to (verified against the v0.9.0 card-data).
-    creature = Filter(card_types=("Creature",))
-    permanent = Filter(card_types=("Permanent",), predicates=("NotType:Land",))
-    # Mass creature destroy (Wrath / Damnation / Crux) — board wipe.
-    assert (
-        _ir_board_wipe(
-            _ir_effect(category="destroy", counter_kind="all", subject=creature)
-        )
-        is True
-    )
-    # Mass nonland-permanent destroy (Culling Ritual) — board wipe.
-    assert (
-        _ir_board_wipe(
-            _ir_effect(category="destroy", counter_kind="all", subject=permanent)
-        )
-        is True
-    )
-    # Mass damage to each creature (Blasphemous Act) — board wipe.
-    assert (
-        _ir_board_wipe(
-            _ir_effect(
-                category="damage",
-                counter_kind="all",
-                amount=Quantity(op="fixed", factor=13),
-                subject=creature,
-            )
-        )
-        is True
-    )
-    # One-sided mass destroy of opponents' creatures — board wipe.
-    assert (
-        _ir_board_wipe(
-            _ir_effect(
-                category="destroy",
-                counter_kind="all",
-                subject=Filter(card_types=("Creature",), controller="opp"),
-            )
-        )
-        is True
-    )
-    # Single-target destroy (Murder) — NOT a wipe (no mass marker).
-    assert (
-        _ir_board_wipe(
-            _ir_effect(category="destroy", counter_kind="", subject=creature)
-        )
-        is False
-    )
-    # Mass destroy gated to LANDS (Armageddon) = mass land denial, NOT a creature sweeper.
-    assert (
-        _ir_board_wipe(
-            _ir_effect(
-                category="destroy",
-                counter_kind="all",
-                subject=Filter(card_types=("Land",)),
-            )
-        )
-        is False
-    )
-    # Mass destroy of artifacts+enchantments (Bane of Progress) — not a creature sweeper.
-    assert (
-        _ir_board_wipe(
-            _ir_effect(
-                category="destroy",
-                counter_kind="all",
-                subject=Filter(card_types=("Artifact", "Enchantment")),
-            )
-        )
-        is False
-    )
-    # Self-only mass bounce ("return each creature YOU CONTROL" — Denizen of the Deep) is
-    # a drawback, not board control.
-    assert (
-        _ir_board_wipe(
-            _ir_effect(
-                category="bounce",
-                counter_kind="all",
-                subject=Filter(card_types=("Creature",), controller="you"),
-            )
-        )
-        is False
-    )
-    # Mass graveyard recursion ("return all creature cards from your graveyard" —
-    # Lychguard) is not removal.
-    assert (
-        _ir_board_wipe(
-            _ir_effect(
-                category="bounce",
-                counter_kind="all",
-                zones=("from:graveyard", "to:hand"),
-                subject=Filter(card_types=("Creature",)),
-            )
-        )
-        is False
-    )
-    # Mass -X/-X shrink (SIDECAR v74 Effect.toughness): a mass pump whose TOUGHNESS factor
-    # is negative can kill — fixed (Drown -2/-2) and variable (Toxic Deluge -X/-X) both.
-    assert (
-        _ir_board_wipe(
-            _ir_effect(
-                category="pump",
-                counter_kind="all",
-                toughness=Quantity(op="fixed", factor=-2),
-                subject=creature,
-            )
-        )
-        is True
-    )
-    assert (
-        _ir_board_wipe(
-            _ir_effect(
-                category="pump",
-                counter_kind="all",
-                toughness=Quantity(op="variable", factor=-1),
-                subject=creature,
-            )
-        )
-        is True
-    )
-    # Without the mass marker the shrink is one creature's: removal, not a wipe
-    # (the real Nameless Inversion is pinned in test_roles).
-    assert (
-        _ir_board_wipe(
-            _ir_effect(
-                category="pump",
-                toughness=Quantity(op="fixed", factor=-3),
-                subject=creature,
-            )
-        )
-        is False
-    )
-    # Power-only -2/-0 (Marsh Gas), toughness factor 0 — harmless, NOT a wipe.
-    assert (
-        _ir_board_wipe(
-            _ir_effect(
-                category="pump",
-                amount=Quantity(op="fixed", factor=-2),
-                toughness=Quantity(op="fixed", factor=0),
-                subject=creature,
-            )
-        )
-        is False
-    )
-    # +X/+X mass anthem (toughness > 0) is a buff, and a SINGLE-target shrink is
-    # pump_target — neither is a board wipe.
-    assert (
-        _ir_board_wipe(
-            _ir_effect(
-                category="pump",
-                toughness=Quantity(op="fixed", factor=2),
-                subject=creature,
-            )
-        )
-        is False
-    )
-    assert (
-        _ir_board_wipe(
-            _ir_effect(
-                category="pump_target",
-                toughness=Quantity(op="fixed", factor=-2),
-                subject=creature,
-            )
-        )
-        is False
-    )
-
-
-def test_board_wipe_role_reads_real_ir_mass_destroy():
-    # Real projected IR (committed snapshot): Wrath of God is a structural board wipe.
-    assert _ir_board_wipe(test_card_ir("Wrath of God")) is True
-    # A mass -X/-X shrink SPELL (Toxic Deluge) — via the SIDECAR-v74 Effect.toughness.
-    # ADR-0039 step 5.5 fix: _card_ir.compat._pump_pt now threads a DYNAMIC pump
-    # magnitude's SIGN (Quantity(op="variable", factor=+-1)) the same way project.py's
-    # _pump_toughness/_signed_pt_mod always has — Toxic Deluge's "-X/-X" (scaled by
-    # life paid) keeps its negative sign even though X itself is unfixed, so the
-    # mass-shrink board-wipe read now agrees on both flags.
-    assert _ir_board_wipe(test_card_ir("Toxic Deluge")) is True
-
-
-def test_static_mass_debuff_anthem_is_board_wipe():
-    # A STATIC mass-debuff anthem (Elesh Norn's "Creatures your opponents control get
-    # -2/-2") is read off the typed static defs (``_static_board_shrink``: the compat
-    # projection drops the attachment predicate that tells Skullclamp's "Equipped
-    # creature gets +1/-1" from a population) — while its own "+2/+2" buff
-    # (controller=you, factor > 0) does not flip it.
-    test_signals("Elesh Norn, Grand Cenobite")  # seed the concept-tree memo
-    assert _static_board_shrink(test_card("Elesh Norn, Grand Cenobite")) is True
-    assert "board_wipe" in role_of(test_card("Elesh Norn, Grand Cenobite"))
 
 
 def test_ir_recursion_only_vetoes_pure_graveyard_return():

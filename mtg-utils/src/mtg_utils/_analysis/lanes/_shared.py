@@ -139,13 +139,6 @@ _GY_CAST_KEYWORDS: frozenset[str] = frozenset(
 # you. Keyword field-lookup, same survivor rationale.
 _GY_MATTERS_KEYWORDS: frozenset[str] = frozenset({"dredge", "delve", "scavenge"})
 
-# Attachment predicates that mark a SINGLE-Aura / single-target shrink (CR 303) — the
-# affected creature is the one enchanted, not a mass population. A base-P/T-shrink
-# debuff carrying one is a neutralize, not a -1/-1 enabler.
-_DEBUFF_SINGLE_AURA_PREDS: frozenset[str] = frozenset(
-    {"EnchantedBy", "AttachedToRecipient", "HasAnyAttachmentOf"}
-)
-
 # Equipment / Aura / Role subtypes that mark a voltron build-around (CR 301.5 /
 # 303.4 / 702.5). Mirrors the deleted ``_signals_regex``'s ``_EQUIP_AURA_SUBTYPES``
 # (+ Role, a Aura subtype phase carries on Virtuous Role tokens).
@@ -193,7 +186,7 @@ _TYPE_MATTERS_LANE: dict[str, str] = {
 }
 
 # Effect/owner scopes that count as "your" resource for a maker lane.
-_YOU_EACH = ("you", "each")
+YOU_EACH = ("you", "each")
 
 # Phase ``produced.type`` values that are intrinsically FIXING (a choice of ≥2
 # colors / any-color / any-type) — mirrors ``project._FIXING_PRODUCED_TYPES``. A
@@ -630,7 +623,7 @@ def _is_generic_creature_filter(filt: object) -> bool:
 # creature. Its owner gains 4 life." — lifegain_makers, also fixed here) and
 # Pharika / Funeral Pyre ("Exile target card from a graveyard. Its owner
 # creates a token." — token_maker's OWN membership gate is scope-coupled
-# [``concept.scope not in _YOU_EACH``], so correcting its scope would DROP
+# [``concept.scope not in YOU_EACH``], so correcting its scope would DROP
 # these two from the lane's membership; that membership+scope call was out
 # of scope for #91 and deferred — FIXED together in task #93: ``_token_maker``
 # now calls this SAME helper per-unit and admits a ``ParentTargetOwner``
@@ -792,49 +785,6 @@ _PT_COUNTER_KINDS: frozenset[str] = frozenset({"P1P1", "M1M1"})
 # the scaling_pump / count_anthem mod-site anchor. The ``Set*`` forms are
 # characteristic-defining */* bodies (variable_pt), NOT a pump — excluded.
 _DYNAMIC_PT_MODS: frozenset[str] = frozenset({"AddDynamicPower", "AddDynamicToughness"})
-
-
-def _negative_pt_field(node: TypedMirrorNode, field: str) -> bool:
-    """Whether a Pump-style node's P/T ``field`` (``toughness``) is NEGATIVE —
-    the mass-debuff arm's lethality tell (CR 704.5f: a creature with
-    toughness 0 or less dies; a "-2/-0" power dip never kills). Reads THREE
-    shapes phase emits for a shrink: ``Fixed N`` (Languish's "-4/-4", Drown
-    in Sorrow's "-2/-2" — the literal magnitude); ``Variable "-X"`` (Toxic
-    Deluge's "-X/-X" — the magnitude is unknown at parse time, but the
-    Variable's own string carries the sign); and ``Quantity`` wrapping a
-    ``Multiply`` whose OUTERMOST ``factor`` is negative (task #85 re-
-    measurement at v0.23.0 — the "dynamic P/T pump scaling by source
-    intensity" bump feature: Cloudkill/Mutilate/Olivia's Wrath's mass "-X/-X
-    where X is <count>" and Death Wind/Nightmarish End/Flunk's single-target
-    kill class, 69-card corpus census, project to ``Quantity(value=
-    Multiply(factor=-1, inner=Ref(...)))`` — a genuinely negative sign
-    regardless of the inner expression's own shape, since every corpus
-    ``inner`` resolves a non-negative count (a hand/graveyard/board size);
-    Flunk's "7 minus the number of cards in hand, clamped to 0" nests a
-    SECOND ``Multiply(-1, ...)`` under a ``ClampMin``/``Offset`` pair the
-    magnitude-reading ``ref_count_qty`` can't unwrap, but the sign is fully
-    decided by the OUTER factor alone — the clamp only floors the
-    non-negative inner count at 0, it never flips the outer sign). Reading
-    only the outermost factor (not recursing to check for a sign-flipping
-    inner ``Multiply`` too) is deliberately shallow: no corpus card double-
-    negates via nested ``Multiply`` factors, and a hypothetical one would be
-    a vanishingly narrow edge case not worth a general negate-count walk
-    here."""
-    p = getattr(node, field, None)
-    tag = tag_of(p)
-    if tag == "Fixed":
-        v = getattr(p, "value", None)
-        return isinstance(v, int) and v < 0
-    if tag == "Quantity":
-        val = getattr(p, "value", None)
-        if tag_of(val) == "Multiply":
-            factor = getattr(val, "factor", None)
-            if isinstance(factor, int) and factor < 0:
-                return True
-    if tag == "Variable":
-        v = getattr(p, "value", None)
-        return isinstance(v, str) and v.strip().startswith("-")
-    return False
 
 
 def _site_raw(sdef: object) -> str:

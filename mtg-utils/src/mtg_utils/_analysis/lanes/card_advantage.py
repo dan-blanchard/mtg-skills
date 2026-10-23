@@ -1553,7 +1553,7 @@ def _creature_recursion(tree: ConceptTree) -> list[Signal]:
     ]
 
 
-def _draw_engine_scope(unit: AbilityUnit, c: ConceptNode) -> str:
+def draw_engine_scope(unit: AbilityUnit, c: ConceptNode) -> str:
     """The card_draw_engine scope: "each" when the draw reaches every player
     (an each-player Phase trigger's ``ScopedPlayer`` — Howling Mine; an
     explicit each-player recipient; a ``player_scope: All`` wrapper — Temple
@@ -1721,7 +1721,7 @@ def _card_draw_engine(tree: ConceptTree) -> list[Signal]:
                 continue
             if is_draw_repl and not bulk and _redraws_replaced_card(unit, c):
                 continue
-            scope = _draw_engine_scope(unit, c)
+            scope = draw_engine_scope(unit, c)
             if scope not in seen:
                 seen.add(scope)
                 out.append(

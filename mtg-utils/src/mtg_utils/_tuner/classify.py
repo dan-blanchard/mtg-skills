@@ -152,10 +152,10 @@ _DRAW_ENGINE_KEYS = frozenset({"card_draw_engine", "draw_for_each"})
 
 
 def _commander_draws(hd: HydratedDeck, commander_names: set[str]) -> bool:
-    from mtg_utils.theme_presets import _signal_keys_for
+    from mtg_utils.theme_presets import signal_keys_for
 
     return any(
-        _signal_keys_for(rec) & _DRAW_ENGINE_KEYS
+        signal_keys_for(rec) & _DRAW_ENGINE_KEYS
         for rec in hd.records
         if rec.get("name") in commander_names
     )
