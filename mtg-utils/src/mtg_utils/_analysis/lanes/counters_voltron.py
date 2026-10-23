@@ -16,12 +16,14 @@ from mtg_utils._analysis.lanes._shared import (
     _site_raw,
     _target_owner_beneficiary_scope,
     _voltron_collective_preds,
+    typed_token_payoff_signals,
 )
 from mtg_utils._analysis.signal_base import Signal
 from mtg_utils._card_ir.crosswalk import (
     AbilityUnit,
     ConceptTree,
     aggregate_filter,
+    blight_placements,
     cost_reduction_count_filters,
     count_operand_filter,
     count_operand_qty,
@@ -31,18 +33,25 @@ from mtg_utils._card_ir.crosswalk import (
     effect_filter,
     effect_owner_player_scope,
     filter_controller,
+    filter_core_types,
     filter_predicates,
     filter_subtypes,
+    granted_keyword_names,
     iter_condition_sites,
     iter_cost_leaves,
     iter_mod_sites,
     iter_nested_granted_effect_concepts,
     iter_static_defs,
     iter_typed_nodes,
+    keyword_action_events,
     keyword_resource_events,
+    mill_reaches_opponent,
     mod_keyword_name,
     modify_cost_mode,
     modify_cost_spell_filter,
+    names_attached_object,
+    own_token_filters,
+    pt_mod_signs,
     recipient_tag,
     ref_count_filter,
     replacement_added_token_subtypes,
@@ -51,6 +60,7 @@ from mtg_utils._card_ir.crosswalk import (
     replacement_token_types,
     requires_condition_inner,
     residue_is,
+    role_tokens_attached,
     seats_opponent_library_card,
     static_mode_field,
     static_mode_tag,
@@ -62,7 +72,7 @@ from mtg_utils._card_ir.mirror.runtime import (
     MirrorVariant,
     TypedMirrorNode,
 )
-from mtg_utils._card_ir.recovery import OTHER_PLAYER
+from mtg_utils._card_ir.recovery import OTHER_PLAYER, TARGETED
 
 
 def _any_counter_makers(tree: ConceptTree) -> list[Signal]:
@@ -85,6 +95,13 @@ def _any_counter_makers(tree: ConceptTree) -> list[Signal]:
 
 
 _MINUS_COUNTER_KEPT_RX = re.compile(r"-1/-1 counter", re.IGNORECASE)
+# The keyword abilities whose damage or return puts -1/-1 counters: wither (CR
+# 702.80a: damage to a creature "causes that source's controller to put that many
+# -1/-1 counters on that creature"), infect (702.90c, the same for a creature) and
+# persist (702.79a: "return it to the battlefield ... with a -1/-1 counter on it").
+# A card that GRANTS one is a -1/-1 counter source; a printed one is the serve's
+# keyword dimension.
+_MINUS_COUNTER_KEYWORDS = frozenset({"wither", "infect", "persist"})
 
 
 def _minus_counters_matter(tree: ConceptTree) -> list[Signal]:
@@ -94,8 +111,8 @@ def _minus_counters_matter(tree: ConceptTree) -> list[Signal]:
     two-arm identity the deleted ``_signals_ir``'s ``_COUNTER_KIND_KEYS['m1m1']`` +
     ``_IR_KEPT_DETECTORS`` mirror carries — ADR-0027/ADR-0038 batch 4).
 
-    Three structural arms, each a genuine "you place/receive a -1/-1
-    counter" tell, before the text fallback:
+    The structural arms, each a genuine "a -1/-1 counter is placed" tell,
+    before the text fallback:
 
     * a ``PutCounter``/``PutCounterAll`` whose ``counter_type`` is ``M1M1``
       (Hapatra, Blight Mamba) — checked first via ``effect_concepts`` (the
@@ -113,6 +130,19 @@ def _minus_counters_matter(tree: ConceptTree) -> list[Signal]:
       is ENTIRELY parenthetical (the keyword's full explanation), so the
       kept-mirror below can't reach it (reminder-stripped) — this
       structural read is the only path to these cards. CR 122.6 / 702.79a.
+
+    * a blight (:func:`blight_placements` — CR 701.68a: to blight N is to put
+      N -1/-1 counters on a creature you control): "you may blight 2" (Sourbread
+      Auntie), "each opponent blights 1" (High Perfect Morcant), a blight cost
+      (Gristle Glutton). phase types it as its own node, never a
+      ``PutCounter``, and its reminder text is all the oracle says about the
+      counters.
+    * a granted wither / infect / persist (:data:`_MINUS_COUNTER_KEYWORDS`,
+      :func:`granted_keyword_names`): "Black creatures you control have
+      wither" (Corrosive Mentor), "gains infect until end of turn" (Tainted
+      Strike), "Each of those creatures gains persist" (Cauldron of Souls),
+      infect tokens (Carrion Call). The keyword's reminder text is the only
+      place the counters are named.
 
     The kept-mirror text fallback (the deleted regex's exact "-1/-1
     counter" substring, over the reminder-stripped face oracle) recovers
@@ -161,6 +191,11 @@ def _minus_counters_matter(tree: ConceptTree) -> list[Signal]:
                                 "high",
                             )
                         ]
+    for unit in tree.units:
+        if blight_placements(unit) or (
+            granted_keyword_names(unit.node) & _MINUS_COUNTER_KEYWORDS
+        ):
+            return [Signal("minus_counters_matter", "you", "", "", tree.name, "high")]
     if _MINUS_COUNTER_KEPT_RX.search(_kept(tree)):
         return [Signal("minus_counters_matter", "you", "", "", tree.name, "high")]
     return []
@@ -1546,6 +1581,72 @@ def _mill_makers(keywords: frozenset[str], name: str) -> list[Signal]:
     return []
 
 
+def _mill_opponents(tree: ConceptTree) -> list[Signal]:
+    """``mill_makers|opponents|`` — a mill that can put another player's cards
+    into their graveyard (CR 701.17a: the player who mills puts the cards from
+    the top of their library into their graveyard), read off the ``Mill``
+    effect (:func:`mill_reaches_opponent`): "each opponent mills" (Maddening
+    Cacophony), "target player mills" (Millstone), "each player mills" (Extract
+    from Darkness — a symmetric mill fills the opponents' graveyards too),
+    "defending player mills" (Nemesis of Reason), "its controller mills"
+    (Countermand), "that player mills" after combat damage (Sword of Body and
+    Mind), and the same in an ability the card grants ("Creatures you control
+    have '{T}: Target player mills X cards'" — Phenax, God of Deception;
+    Screeching Sliver; Jace, Vryn's Prodigy's emblem). The ``mill_makers|any|``
+    keyword lookup above can't tell this from a
+    self-mill; the opponents' graveyard avenues read this scope. A mill phase
+    parks as a residue (Sanity Grinding's "target opponent mills") keeps its
+    recovered reading: an opponent scope or a targeted player."""
+    for unit in tree.units:
+        granted = (
+            c
+            for c in iter_nested_granted_effect_concepts(unit.node)
+            if c.concept == "mill"
+        )
+        for c in (*unit.effect_concepts("mill"), *granted):
+            if c.recovered_by == "mill":
+                hit = c.scope == "opponents" or TARGETED in c.subject
+            else:
+                hit = mill_reaches_opponent(unit, c.node)
+            if hit:
+                return [
+                    Signal("mill_makers", "opponents", "", c.raw, tree.name, "high")
+                ]
+    return []
+
+
+def _token_board_payoffs(tree: ConceptTree) -> list[Signal]:
+    """tokens_matter — the token payoffs past ``board_and_ramp._tokens_matter``'s
+    anthem, token-watching trigger and token-count arms (CR 111.1):
+
+    * populate (CR 701.36a: "To populate means to choose a creature token you
+      control and create a token that's a copy of that creature token") — read
+      off phase's ``Populate`` keyword action you perform
+      (:func:`keyword_action_events`: Growing Ranks, Trostani Selesnya's
+      Voice); it does nothing without creature tokens, so it cares about every
+      token maker;
+    * every filter of your tokens a unit cares about (:func:`own_token_filters`):
+      a granted ability or rule change over them (Jaheira, Friend of the
+      Forest; Cadric, Soul Kindler), a tap-untapped-tokens cost (Baylen, the
+      Haymaker), a token's combat-damage trigger (Curiosity Crafter), a
+      per-token cost reduction (Magnus the Red).
+
+    Each filter carries the kind it names (:func:`typed_token_payoff_signals`):
+    a creature token is the bare ``tokens_matter``, an artifact token
+    ``artifacts_matter``. Scope "you"."""
+    out: list[Signal] = []
+    if any(e.tag == "Populate" and e.yours for e in keyword_action_events(tree)):
+        out.append(Signal("tokens_matter", "you", "", "", tree.name, "high"))
+    for unit in tree.units:
+        for filt in own_token_filters(unit):
+            out.extend(
+                typed_token_payoff_signals(
+                    filter_subtypes(filt), filter_core_types(filt), "", tree.name
+                )
+            )
+    return out
+
+
 def _proliferate_makers(tree: ConceptTree) -> list[Signal]:
     """proliferate_makers — a proliferate DOER (CR 701.34a). A native ``Proliferate``
     effect (Atraxa, Evolution Sage; the keyword-less proliferators the Scryfall regex
@@ -1673,6 +1774,14 @@ _UNIMPLEMENTED_ATTACH_GEAR_RX = re.compile(
 )
 
 
+# The predefined Role whose Aura shrinks what it enchants: CR 111.10j, "A Cursed
+# Role token is a colorless Aura Role enchantment token named Cursed with enchant
+# creature and 'Enchanted creature has base power and toughness 1/1.'" Every other
+# Role (Monster, Royal, Sorcerer, Virtuous, Wicked, Young Hero — CR 111.10k-r)
+# buffs the creature it is created attached to.
+_DEBUFF_ROLES = frozenset({"Cursed Role"})
+
+
 def _voltron_makers(tree: ConceptTree) -> list[Signal]:
     """voltron_makers — gear-attaching / Equipment-Aura tutor (CR 301.5 / 303.4 /
     701.23 / 701.3d). Mirrors the deleted ``_signals_regex``'s
@@ -1687,7 +1796,10 @@ def _voltron_makers(tree: ConceptTree) -> list[Signal]:
     reanimate-with-attach / becomes-attached last-resort idioms (Hakim, Eriette,
     …), both corpus-verified against the known Portal of Sanctuary / Seedling
     Charm / Animal Friend over-fire class (bounce / payoff text that superficially
-    matches "aura … attached" but performs no attach action). Self-attach
+    matches "aura … attached" but performs no attach action); (f) a Role token
+    created attached to a creature (:func:`role_tokens_attached` — CR 303.7: a
+    Role is an Aura; Monstrous Rage, Royal Treatment, Ellivere of the Wild
+    Court), the Cursed Role excepted (:data:`_DEBUFF_ROLES`). Self-attach
     (Bonesplitter's equip — ``attachment`` absent) is the payload, not a maker.
     Scope "you".
     """
@@ -1729,6 +1841,11 @@ def _voltron_makers(tree: ConceptTree) -> list[Signal]:
     for unit in tree.units:
         if _voltron_maker_unit_gear_attach(unit):
             return [Signal("voltron_makers", "you", "", "", tree.name, "high")]
+        if any(
+            getattr(tok, "name", None) not in _DEBUFF_ROLES
+            for tok in role_tokens_attached(unit)
+        ):
+            return [Signal("voltron_makers", "you", "", "", tree.name, "high")]
     for unit in tree.units:
         for n in iter_typed_nodes(unit.node):
             if tag_of(n) == "Unattach":
@@ -1761,6 +1878,46 @@ def _voltron_makers(tree: ConceptTree) -> list[Signal]:
             desc = getattr(unit.node, "description", None)
             if isinstance(desc, str) and _VOLTRON_REANIMATE_ATTACH_RX.search(desc):
                 return [Signal("voltron_makers", "you", "", desc, tree.name, "high")]
+    return []
+
+
+#: The subject of ``voltron_makers`` on an Aura or Equipment whose own static pumps
+#: the creature it is attached to (:func:`_voltron_gear_pump`).
+VOLTRON_GEAR_PUMP = "pump"
+
+
+def _voltron_gear_pump(tree: ConceptTree) -> list[Signal]:
+    """``voltron_makers|you|pump`` — an Aura or Equipment whose own static makes
+    the creature it is attached to bigger (CR 301.5a: an Equipment is attached
+    to a creature; CR 303.4: an Aura is attached to the object it enchants):
+    "Equipped creature gets +2/+0" (Bonesplitter), "Enchanted creature gets
+    +1/+1 for each Forest you control" (Blanchwood Armor, Ancestral Mask). The
+    gear a voltron or attack deck suits a creature up with, as an ident: the
+    keyword grants are ``aura_equip_kw_grant``'s, the gear's own equip is no
+    maker (``_voltron_makers``), so a pump-only Aura emitted nothing. A shrink
+    (Agoraphobia's -5/-0) or a mixed one is not a pump (:func:`pt_mod_signs`).
+    Its own subject: the bare ``voltron_makers`` stays the attach and fetch
+    doers."""
+    if not ({s.lower() for s in tree.card_subtypes} & {"aura", "equipment"}):
+        return []
+    for unit in tree.units:
+        for sdef in iter_static_defs(unit.node):
+            # The creature an Equipment equips (CR 301.5a) or the object an
+            # Aura enchants (CR 303.4) — "Equipped creature gets +2/+0".
+            if not names_attached_object(getattr(sdef, "affected", None)):
+                continue
+            signs = pt_mod_signs(sdef)
+            if max(signs) > 0 and min(signs) >= 0:
+                return [
+                    Signal(
+                        "voltron_makers",
+                        "you",
+                        VOLTRON_GEAR_PUMP,
+                        _site_raw(sdef),
+                        tree.name,
+                        "high",
+                    )
+                ]
     return []
 
 
@@ -1892,7 +2049,9 @@ def _voltron_matters(tree: ConceptTree) -> list[Signal]:
     Response, Slash of Light; a genuine "cares how much gear I have" tell, distinct
     from a bare subtype on a TARGET/effect subject, which stays excluded — that covers
     Aura hate / an Equipment's own "Equipped creature gets +X/+X" ``EquippedBy``
-    payload-pump). Scope "you".
+    payload-pump); (h) a trigger, static or count over the Auras and Equipment
+    you control (:func:`_gear_you_control_payoff` — Puresteel Paladin, Galea,
+    Jor Kadeen). Scope "you".
     """
     self_subtypes = frozenset(s.lower() for s in tree.card_subtypes)
     for unit in tree.units:
@@ -2021,7 +2180,75 @@ def _voltron_matters(tree: ConceptTree) -> list[Signal]:
             if filt is not None and (set(filter_predicates(filt)) & _ATTACHMENT_PREDS):
                 raw = _site_raw(sdef)
                 return [Signal("voltron_matters", "you", "", raw, tree.name, "high")]
+    if _gear_you_control_payoff(tree, self_subtypes):
+        return [Signal("voltron_matters", "you", "", "", tree.name, "high")]
     return []
+
+
+def _names_gear(filt: object) -> bool:
+    """Whether ``filt`` names an Aura / Equipment / Role subtype."""
+    return filt is not None and bool(
+        {s.lower() for s in filter_subtypes(filt)} & _VOLTRON_SUBTYPES
+    )
+
+
+def _gear_you_control_payoff(tree: ConceptTree, self_subtypes: frozenset[str]) -> bool:
+    """The voltron payoffs that care about the Auras and Equipment you control
+    themselves, past the cast trigger and the attachment-state reads above
+    (CR 301.5: Equipment; CR 303.4: an Aura attaches to what it enchants):
+
+    * a trigger watching an Aura or Equipment you control — "Whenever an
+      Equipment you control enters, you may draw a card" (Puresteel Paladin,
+      Chishiro, the Shattered Blade), "Whenever an Aura or Equipment you control
+      is put into a graveyard" (Tiana, Ship's Caretaker);
+    * a static over Auras or Equipment that are not an opponent's — a grant
+      ("Equipment you control have equip {0}" — Puresteel Paladin; "Auras you
+      control have exalted" — Rashel, Fist of Torm) or a cast permission ("You
+      may cast Aura and Equipment spells from the top of your library" — Galea,
+      Kindler of Hope; Danitha, New Benalia's Light's graveyard cast);
+    * a count of attached gear or equipped creatures scaling an effect — a pump
+      ("+X/+X, where X is the number of equipped creatures you control" — Jor
+      Kadeen, First Goldwarden) or a repeat ("for each Aura and Equipment
+      attached to Valduk" — Valduk, Keeper of the Flame).
+
+    A card that is itself an Aura or Equipment is left out: its statics and
+    triggers over gear are its own payload or an attach (Hammer of Nazahn's
+    "Whenever ~ or another Equipment you control enters, you may attach it" —
+    a ``voltron_makers`` doer), not a build-around."""
+    if self_subtypes & _VOLTRON_SUBTYPES:
+        return False
+    for unit in tree.units:
+        vc = getattr(unit.node, "valid_card", None)
+        if (
+            unit.origin == "trigger"
+            and _names_gear(vc)
+            and filter_controller(vc) == "You"
+        ):
+            return True
+        for sdef in iter_static_defs(unit.node):
+            aff = getattr(sdef, "affected", None)
+            if _names_gear(aff) and filter_controller(aff) != "Opponent":
+                return True
+        for n in unit.iter_typed():
+            # A repeat over gear ATTACHED to something (Valduk), never one over
+            # the gear you control (Inventory Management's "For each Aura and
+            # Equipment you control, you may attach it" is an attach doer).
+            rep = ref_count_filter(n, "repeat_for")
+            if rep is not None and (
+                "AttachedToSource" in filter_predicates(rep)
+                or _voltron_collective_preds(rep, self_subtypes)
+            ):
+                return True
+            if tag_of(n) != "Pump":
+                continue
+            for fname in ("power", "toughness"):
+                q = getattr(n, fname, None)
+                filt = ref_count_filter(q, "value") if tag_of(q) == "Quantity" else None
+                if filt is not None and (
+                    _names_gear(filt) or _voltron_collective_preds(filt, self_subtypes)
+                ):
+                    return True
+    return False
 
 
 def _voltron_count_filters(node: TypedMirrorNode) -> list[object]:
@@ -2066,4 +2293,7 @@ LANES = (
     _energy_makers,
     _voltron_makers,
     _voltron_matters,
+    _mill_opponents,
+    _token_board_payoffs,
+    _voltron_gear_pump,
 )

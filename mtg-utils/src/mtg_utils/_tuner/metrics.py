@@ -283,6 +283,8 @@ _CARES_ALIASES: dict[str, tuple[str, ...]] = {
     "token_maker": (*_TOKEN_PAYOFF_KEYS, "wants_fodder"),
     **{f"{kind}_makers": _TOKEN_PAYOFF_KEYS for kind in TOKEN_SUBTYPE_PAYOFF_KEYS},
     "activated_ability": ("untap_engine",),
+    # an extra step is cared about by the triggers it repeats
+    **{maker: (payoff,) for maker, payoff in signal_keys.STEP_TRIGGER_KEYS.items()},
 }
 
 
@@ -492,7 +494,8 @@ def focus(
             for ckey in _cares_keys(sig.key):
                 subjects = (
                     (sig.subject, "")
-                    if sig.subject and sig.subject not in signal_keys.DOER_SUBJECTS
+                    if sig.subject
+                    and (sig.key, sig.subject) not in signal_keys.DOER_SUBJECTS
                     else ("",)
                 )
                 for subject in subjects:

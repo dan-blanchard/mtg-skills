@@ -63,23 +63,6 @@ _EVERGREEN_KW = frozenset(
     }
 )
 
-# "Is-a" subtype hierarchies (CR 205.3g / 205.3h): every one of these subtypes IS an
-# artifact / enchantment, so a card that makes or cares about one is an
-# artifact-count / enchantment-count enabler. Used to widen the parent-type serves so a
-# Vehicle / Equipment maker feeds artifacts_matter and a Saga / Aura feeds
-# enchantments_matter (the generalization of the Food->artifact case).
-_ART_SUBTYPES = (
-    r"artifact|treasure|food|clue|blood|gold|map|powerstone|junk|lander"
-    r"|equipment|vehicle|attraction|bobblehead|contraption|fortification"
-    r"|incubator|spacecraft|mutagen"
-)
-# CR 205.3h's enchantment types. "Plan" is left out: the serve's unanchored
-# ``create [^.]*(?:…)[^.]*token`` arm would read it inside "Plains" /
-# "planeswalker".
-_ENCH_SUBTYPES = (
-    r"aura|saga|class|curse|shrine|background|cartouche|case|room|rune|shard|role"
-)
-
 
 @functools.cache
 def _wildcard_scopes(idents: frozenset[str]) -> frozenset[str]:
@@ -520,18 +503,6 @@ def _spec(
     )
 
 
-# Spellslinger serve, shared by spellcast_matters and magecraft_matters (the SAME
-# archetype — magecraft's reminder is "whenever you cast or copy an instant or sorcery
-# spell", CR 207.2c). A card FEEDS it by TYPE (Instant/Sorcery — what you cast is fixed
-# by the card's type, CR 601.2), by the prowess KEYWORD (CR 702.108a), or by a magecraft
-# / cast-trigger in prose. Bare "draw a card" (mislabels ~1250 permanents) and bare
-# "instant or sorcery" (mislabels counterspell-shelters like Boseiju and graveyard
-# payoffs) are neither, so they are excluded.
-_SLINGER_SERVE_ORACLE = (
-    r"\bmagecraft\b|whenever you cast (?:an instant|a sorcery|a noncreature|your)"
-    # Spell-type cost reducers (Goblin Electromancer) are core spellslinger glue.
-    r"|(?:instant|sorcery|noncreature|instant and sorcery) spells? you cast cost"
-)
 _SLINGER_TYPES = ("instant", "sorcery")
 _SLINGER_KEYWORDS = ("prowess",)
 _SLINGER_SEARCH_ORACLE = (
@@ -931,39 +902,6 @@ _SELF_SAC_CREATURE_EXTRA = SubAvenue(
     "(Spore Frog / Caustic Caterpillar / Sakura-Tribe Elder)",
     {"oracle": _SELF_SAC_CREATURE_ORACLE},
     serve=Serve(oracle=re.compile(_SELF_SAC_CREATURE_ORACLE, _IC)),
-)
-# Shared STAX-PIECES serve: a stax commander wants stax pieces regardless of whether its
-# OWN stax is opponent-targeted (Gaddock) or symmetric (Hokori), so stax_taxes and
-# symmetric_stax serve the same pool — opponent taxes + symmetric restrictions + the
-# hatebears the opponent-only serve missed: global ability-shutoff (Collector Ouphe /
-# Cursed Totem / Stony Silence), anti-cheat ETB replacement (Containment Priest /
-# Hallowed Moonlight), and ETB/death trigger-hate (Hushbringer / Torpor Orb).
-_STAX_SERVE_ORACLE = (
-    r"opponents? can't"
-    r"|(?:players?|that player|each player) can't (?:cast|activate|attack|block"
-    r"|untap|search|draw|play|gain)"
-    r"|spells?[^.]*cost \{?\d+\}? more|noncreature spells?[^.]*cost \{?\d"
-    r"|creatures your opponents control"
-    r"|(?:your opponents control|nonbasic lands?|other permanents) enters?"
-    r"(?: the battlefield)? tapped"
-    r"|can't attack you|unless [^.]*\bpays?\b|may pay \{"
-    r"|if (?:a player|an opponent|that player|they) would search[^.]*library"
-    r"|(?:doesn't|don't|does not) untap during (?:its|their|the)"
-    # Forcing opponents to skip a step/phase/turn is stax (CR 500.11). Scope to an
-    # opponent/that-player/the-player/each-player subject so "you skip your draw step"
-    # self-drawbacks stay out (Fatespinner's skip clause subject is "The player").
-    r"|(?:each opponent|that player|the player|each (?:other )?player|opponents?)"
-    r"[^.]*\bskips?\b[^.]*(?:step|phase|turn)"
-    # Land-DENIAL stax (Blood Moon archetype): "nonbasic lands are Mountains" (Magus),
-    # "taps a nonbasic land" → punish (Burning Earth), "number of nonbasic lands" (Price
-    # of Progress) — restricts opponents' mana, so a stax commander (Zhao, Thalia) wants
-    # it. (The basic-land RAMP form has no "nonbasic", so it stays out.)
-    r"|nonbasic lands? (?:are|become)\b|taps? a nonbasic land"
-    r"|number of nonbasic lands"
-    # Symmetric hatebears (the gap):
-    r"|activated abilities of [^.]*can't be activated"
-    r"|would enter[^.]*(?:exile it instead|isn't cast|wasn't cast)"
-    r"|(?:entering|enters?|dying|die)[^.]*don't cause[^.]*abilities to trigger"
 )
 # Blink wants more than flicker effects: the ETB-VALUE creatures it re-flickers (CR
 # 603.6 zone-change triggers) and the ETB-trigger DOUBLERS that multiply every enter
@@ -1437,14 +1375,6 @@ _CAST_FROM_GY_EXTRA = SubAvenue(
         self_recur=frozenset({"graveyard_to_stack"}),
     ),
 )
-# Top-level serve credits BOTH enabler families plus self-recurring fodder, so any
-# genuine reanimator piece reads as on-theme no matter which sub-avenue surfaced it.
-# Disturb's "cast this card from your graveyard transformed" is read by its route
-# (``Serve.self_recur``), which asks whether the face it casts is a creature.
-_REANIMATOR_SERVE_ORACLE = (
-    _REANIMATE_ORACLE
-    + r"|\bescape\b|cast [^.]*from (?:a|your|their) graveyard(?! transformed)"
-)
 
 
 def _sweep_spec_with_extras(
@@ -1494,9 +1424,12 @@ def _sweep_spec_with_extras(
 
 # Combat support shared by the combat lanes: gear that suits up the attacker plus the
 # keyword-anthems that buff your attackers (double strike / trample / evasion).
+#: The gear half of a combat-support search: equipment and auras that suit up
+#: the attacker.
+GEAR_SUPPORT_ORACLE = r"equipped creature|enchanted creature gets|\bequip \{"
 _COMBAT_SUPPORT_ORACLE = (
-    r"equipped creature|enchanted creature gets|\bequip \{"
-    r"|(?:attacking )?creatures you control (?:have|gain|get)[^.]*"
+    GEAR_SUPPORT_ORACLE
+    + r"|(?:attacking )?creatures you control (?:have|gain|get)[^.]*"
     r"(?:double strike|first strike|trample|menace|deathtouch|vigilance"
     r"|can't be blocked)"
 )
@@ -1589,29 +1522,6 @@ _TARGETING_SWEEP_REGEX = (
     "|whenever [^.]{0,60}?becomes? the target of|\\bheroic\\b"
     "|whenever you cast (?:an instant or sorcery spell |a spell )?that targets"
 )
-# "Exile a card, then you may cast/play it for as long as it remains exiled" — the
-# impulse / cast-from-exile / steal-and-cast engine (Gonti, Hostage Taker, Thief of
-# Sanity, Kheru Spellsnatcher, Court of Locthwain). Distinct from "play those cards
-# THIS TURN" impulse: this keeps the card castable until it's used.
-_STEAL_CAST_ORACLE = (
-    r"you may (?:cast|play|look at and play) "
-    r"(?:that (?:card|spell)|it|them|those cards?)[^.]*?"
-    r"for as long as (?:it|they) remains? exiled"
-)
-# Self-impulse veto for the theft lanes: _STEAL_CAST_ORACLE is not opponent-anchored
-# (Hostage Taker's "another target artifact or creature" never names an opponent), so
-# a self-impulse engine worded "exile the top card of YOUR library. You may play that
-# card for as long as it remains exiled" (Valakut Exploration, Rassilon) matched it.
-# Vetoing the own-library exile clause keeps every opponent-theft card (2 of 128
-# theft-arm matches in the bulk are vetoed, both self-impulse).
-_SELF_IMPULSE_VETO = r"(?:exile|reveal)s? the top (?:\w+ |\d+ )?cards? of your library"
-# Opponent-library theft: dig into a specific opponent's library (Gonti, Black Cat,
-# Thief of Sanity, Lord of the Void). Opponent-anchored so a SELF-impulse engine
-# (Valakut Exploration — "exile the top card of YOUR library") never reads as theft.
-_OPP_LIBRARY_THEFT_ORACLE = (
-    r"(?:top (?:\w+|\d+) cards?|the top card) of "
-    r"(?:target |an |each )?(?:opponent's|that player's) library"
-)
 # ADR-0027 β: the SWEEP_DETECTORS row for impulse_top_play is deleted (detection moved
 # to the Card IR — a non-static cast_from_zone Effect carrying from:library + a
 # per-clause mirror). Its SERVE pool stays oracle-defined, so the exact deleted regex is
@@ -1700,6 +1610,17 @@ _TYPED_ENTERS_PUNISH_SWEEP_REGEX = (
 # other than your hand", so it fires these payoffs too.
 _PARADOX_PAYOFF_ORACLE = (
     r"(?:cast a spell|play a land|play a card)[^.]*?from anywhere other than your hand"
+)
+_CAST_FROM_EXILE_PAYOFF_ORACLE = (
+    r"spells? you cast from exile|first spell you cast from exile"
+    r"|whenever you cast a spell from exile"
+)
+_CAST_FROM_EXILE_EXTRA = SubAvenue(
+    "Cast-from-exile payoffs",
+    "payoffs that reward casting spells from exile (Wild-Magic Sorcerer, "
+    "Passionate Archaeologist, Nalfeshnee)",
+    {"oracle": _CAST_FROM_EXILE_PAYOFF_ORACLE},
+    serve=Serve(oracle=re.compile(_CAST_FROM_EXILE_PAYOFF_ORACLE, _IC)),
 )
 _PARADOX_PAYOFF_EXTRA = SubAvenue(
     "Paradox payoffs",
@@ -1849,7 +1770,6 @@ def _chosen_type_named_idents(subjects: tuple[str, ...]) -> frozenset[str]:
     )
 
 
-_CHOSEN_TYPE_ORACLE = r"choose a (?:creature|kindred) type"
 # The redirect-instrument idiom set (task B-4), shared by the target_redirect
 # payoff spec and the spell_redirect doer spec — one home (verified-review
 # F9), so widening an alternate can never split the two specs.

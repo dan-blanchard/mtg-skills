@@ -574,6 +574,16 @@ and Combat, whose Auras are mostly enchantments, fold into it — the read the
 guides themselves give the deck; the cuts it lost are weak carers the tuner now
 protects (backlog "(g)").
 
+### The last pattern serves (2026-10-23)
+
+The lane pass behind the 50 regex holds converted all but four; 362 of 379
+serves now read idents (`docs/plans/serve-idents-and-avenue-support.md`, "Pass
+D"). Over the 25 precons at their own budgets: **410 swaps, 158 cuts and 40 adds
+matching** (401 / 157 / 41 before) — flat, as a change to how themes are read
+rather than which themes win should be. Abzan Armor now cuts Protector of the
+Wastes, a guide cut; Animated Army trades Swiftfoot Boots, a guide add, for Sword
+of Feast and Famine.
+
 ## What is left
 
 `docs/plans/backlog.md`, "What the polymorph tune and the 25-precon audit still

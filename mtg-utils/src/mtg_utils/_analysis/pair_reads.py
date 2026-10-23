@@ -267,7 +267,8 @@ PAIR_READS: dict[str, PairRead] = {
             pair_id="death_payoff_x_death_commander",
             candidate=("death_matters|*", "self_death_payoff|you|*"),
             anchor_kind="commander",
-            anchor=("death_matters|*", "sacrifice_outlets|you|*"),
+            # a creature that sacrifices only itself (``|self``) is no death engine
+            anchor=("death_matters|*", "sacrifice_outlets|you|"),
             weight=3.0,
             label="Death payoff x death-engine commander",
             rationale=(
@@ -283,7 +284,8 @@ PAIR_READS: dict[str, PairRead] = {
             pair_id="cast_payoff_x_cast_commander",
             candidate=("spellcast_matters|you|*",),
             anchor_kind="commander",
-            anchor=("spellcast_matters|*", "draw_matters|you|*"),
+            # a draw payoff; an extra draw-step draw (``|draw_step``) rewards no cast
+            anchor=("spellcast_matters|*", "draw_matters|you|"),
             weight=3.0,
             label="Cast payoff x cast-rate commander",
             rationale=(
@@ -378,6 +380,8 @@ PAIR_READS: dict[str, PairRead] = {
         # the session's BUILD-PLAN). New mechanism: candidate_all. ─────────
         PairRead(
             pair_id="self_death_value_x_death_commander",
+            # a creature that sacrifices itself (``|self``: Sakura-Tribe Elder) is one
+            # own-creature death by your choice too
             candidate=("sacrifice_outlets|you|*", "edict_makers|*"),
             anchor_kind="commander",
             anchor=("death_matters|*",),

@@ -1163,7 +1163,7 @@ LANDFALL_REGEX = (
     r"|return [^.]*\blands?\b[^.]*from your graveyard to the battlefield"
 )
 # ADR-0027 — land_destruction (the LD-support build-around axis: a card whose OWN
-# ability repeatedly destroys lands — the Armageddon/Numot stax-LD plan, CR 305.6)
+# ability repeatedly destroys lands — the Armageddon/Numot stax-LD plan, CR 701.8a)
 # migrated to the Card IR via a BYTE-IDENTICAL membership-gated kept-mirror. The
 # deleted regex producer (the `extract_signals` include_membership block) was NOT a
 # per-card detector: it was a CREATURE-COMMANDER cross-open — a creature whose own
@@ -1185,7 +1185,7 @@ LANDFALL_REGEX = (
 # key, so no SWEEP row is touched (len stays >=36). NO sidecar bump. NOT a voltron plan
 # key: the deleted cross-open fired LOW confidence and NEVER fed has_other_plan (which
 # requires confidence=='high'), so dropping it leaks no commander-damage voltron tell
-# (voltron delta 0) and NO _LAND_DESTRUCTION_PLAN_MIRROR is needed. CR 305.6 / 903.10a.
+# (voltron delta 0) and NO _LAND_DESTRUCTION_PLAN_MIRROR is needed. CR 701.8a / 903.10a.
 LAND_DESTRUCTION_REGEX = (
     r"destroy (?:up to (?:one|two|three|four|\w+) )?target lands?\b"
 )
@@ -1231,7 +1231,7 @@ CREATURE_RECURSION_REGEX = (
 # the same reminder-stripped `kept_oracle` in extract_signals_ir's _IR_KEPT_DETECTORS
 # loop, is BYTE-IDENTICAL — the four arms' `[^.]*` anchors never cross a clause boundary
 # and no card's match is split by a `;`/`\n` only (commander-legal: flat==per-clause==66,
-# 0 gain, 0 loss). Distinct from land_destruction (DESTROY a land — CR 305.6) and
+# 0 gain, 0 loss). Distinct from land_destruction (DESTROY a land — CR 701.8a) and
 # land_exchange (swap CONTROL of a land). land_sacrifice_matters was NEVER a SWEEP key, so
 # no SWEEP row is touched (len stays 36). NO sidecar bump. The deleted producer fired HIGH
 # conf scope 'you' and so counted toward has_other_plan (it is NOT in _GENERIC_KEYS /

@@ -38,6 +38,7 @@ from mtg_utils._analysis.lanes import (
     _floor_token_maker_subjects,
     _is_big_mana_tree,
 )
+from mtg_utils._analysis.membership_floor import VOLTRON_CARRIER
 from mtg_utils._analysis.signals import extract_signals
 from mtg_utils._analysis.tree_synthesis import has_structural_kill_engine
 from mtg_utils._card_ir import compat_lookup as il
@@ -129,7 +130,7 @@ def test_land_destruction_promoted_floor(monkeypatch):
     ir`` and ``crosswalk_signals.apply_membership_floor``, one source, zero
     drift) fires land_destruction for a CREATURE commander whose own oracle
     matches "destroy target land(s)" (Goblin Settler — "When this creature
-    enters, destroy target land", CR 305.6) under ``include_membership=True``
+    enters, destroy target land", CR 701.8a) under ``include_membership=True``
     on the crosswalk hybrid path, and fires on neither path with
     ``include_membership=False`` (the 99-card candidate-mode gate)."""
     built = _floor_case_for("Goblin Settler")
@@ -139,7 +140,9 @@ def test_land_destruction_promoted_floor(monkeypatch):
     on_cmd = _hybrid_idents(monkeypatch, bulk, tree, include=True)
     assert ("land_destruction", "you", "") in on_cmd
     on_99 = _hybrid_idents(monkeypatch, bulk, tree, include=False)
-    assert "land_destruction" not in {k for k, _s, _su in on_99}
+    # the lane's one-shot ``destroy`` doer subject stays; the floor's carer doesn't
+    assert ("land_destruction", "you", "") not in on_99
+    assert ("land_destruction", "you", "destroy") in on_99
 
 
 def test_big_mana_promoted_floor(monkeypatch):
@@ -385,7 +388,7 @@ def test_voltron_commander_damage_tell_silenced_by_mass_removal_plan(
     bulk = dict(bulk, power="4", toughness="5", keywords=["Vigilance"])
     idents = _hybrid_idents(monkeypatch, bulk, tree, include=True)
     assert ("mass_removal", "you", "") in idents
-    assert ("voltron_matters", "you", "") not in idents
+    assert ("voltron_matters", "you", VOLTRON_CARRIER) not in idents
 
 
 @pytest.mark.parametrize(
@@ -424,4 +427,4 @@ def test_voltron_fallback_silenced_by_v23_parse_gains(
     bulk = dict(bulk, power=power, toughness=toughness, keywords=keywords)
     idents = _hybrid_idents(monkeypatch, bulk, tree, include=True)
     assert (new_key, "you", "") in idents
-    assert ("voltron_matters", "you", "") not in idents
+    assert ("voltron_matters", "you", VOLTRON_CARRIER) not in idents

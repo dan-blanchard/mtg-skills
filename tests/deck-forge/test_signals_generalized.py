@@ -562,7 +562,9 @@ def test_numot_repeatable_land_destruction_opens_lane():
     # Numot destroys lands every time she connects — a repeatable land-destruction
     # ENGINE (the commander herself), so she wants the LD support package (land
     # recursion to survive symmetric LD, land-loss punishers). Membership + creature
-    # gated: a one-shot LD SPELL (Stone Rain) is not an LD commander, so it stays out.
+    # gated: a one-shot LD SPELL (Stone Rain) is not an LD commander, so it stays out
+    # of the carer ident (it carries only the lane's ``destroy`` doer subject,
+    # ``signal_keys.DOER_SUBJECTS``).
     # ADR-0027: land_destruction migrated to the Card IR (the membership-gated
     # _LAND_DESTRUCTION_MIRROR arm, reproducing the deleted regex cross-open byte-
     # identically), so this asserts on the HYBRID path. A bare non-None IR routes the
@@ -570,7 +572,9 @@ def test_numot_repeatable_land_destruction_opens_lane():
     assert any(
         k == "land_destruction" for k, _, _ in _ksub_real("Numot, the Devastator")
     )
-    assert not any(k == "land_destruction" for k, _, _ in _ksub_real("Stone Rain"))
+    stone_rain = set(_ksub_real("Stone Rain"))
+    assert ("land_destruction", "you", "") not in stone_rain
+    assert ("land_destruction", "you", "destroy") in stone_rain
 
 
 def test_cheat_from_top_commander_opens_lane():

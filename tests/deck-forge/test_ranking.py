@@ -557,6 +557,9 @@ def test_a_card_with_no_ir_scores_every_clause_as_an_enabler():
         "type_line": "Creature — Lizard",
         "cmc": 2.0,
         "oracle_text": clause,
+        # attack_matters serves off the lane's idents (none without an IR) and the
+        # haste keyword, so the keyword is what puts this IR-less card on the lane.
+        "keywords": ["Haste"],
         "prices": {"usd": "0.30"},
     }
     sigs = [_sig("lifeloss_matters", "opponents"), _sig("attack_matters", "you")]

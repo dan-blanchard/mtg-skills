@@ -42,6 +42,7 @@ from mtg_utils._analysis._sweep_detectors import (
     VARIABLE_PT_SWEEP_REGEX,
 )
 from mtg_utils._analysis.lanes.card_advantage import REANIMATED_SELF_RETURNS
+from mtg_utils._analysis.signal_keys import STEP_TRIGGER_KEYS
 
 from ._shared import (
     _BOARD_PROTECTION_EXTRA,
@@ -92,7 +93,6 @@ from ._shared import (
     _SELF_SAC_CREATURE_EXTRA,
     _SELF_SAC_CREATURE_ORACLE,
     _SPELLSLINGER_SPEC,
-    _STAX_SERVE_ORACLE,
     _TAPPER_ENGINE_SWEEP_REGEX,
     _TARGETED_BUFF_EXTRA,
     _TARGETING_SWEEP_REGEX,
@@ -103,6 +103,7 @@ from ._shared import (
     _TRIGGER_COPY_EXTRA,
     _TYPED_ENTERS_PUNISH_SWEEP_REGEX,
     _VOLTRON_PROTECT_EXTRA,
+    GEAR_SUPPORT_ORACLE,
     Serve,
     SignalSpec,
     SubAvenue,
@@ -139,6 +140,21 @@ def _lifegain_spec(label: str, avenue: str) -> SignalSpec:
 
 # The "your graveyard" serve (graveyard_makers / graveyard_matters, you): both lanes.
 _OWN_GRAVEYARD_IDENTS = frozenset({"graveyard_makers|you|", "graveyard_matters|you|"})
+
+# The "opponents' graveyards" serve (graveyard_makers / graveyard_matters,
+# opponents): the opponent-graveyard makers and payoffs plus the opponent mill
+# makers.
+_OPPONENT_GRAVEYARD_IDENTS = frozenset(
+    {
+        "graveyard_makers|opponents|",
+        "graveyard_matters|opponents|",
+        "mill_makers|opponents|",
+    }
+)
+
+# The stax serve (stax_taxes, opponents / symmetric_stax, each): opponent taxes and
+# symmetric locks.
+_STAX_IDENTS = frozenset({"stax_taxes|opponents|", "symmetric_stax|each|"})
 
 # The Treasure serve (treasure_makers / treasure_matters, you): both lanes.
 _TREASURE_IDENTS = frozenset({"treasure_makers|you|", "treasure_matters|you|"})
@@ -206,6 +222,27 @@ _SOAK_PAYOFF_SEARCH = (
     r"whenever a creature you control is dealt damage"
     r"|whenever enchanted creature is dealt damage"
 )
+
+
+def _extra_step_spec(label: str, key: str, step: str) -> SignalSpec:
+    """An extra-step key's spec: the makers and the triggers each added step
+    repeats (its ``STEP_TRIGGER_KEYS`` payoff key, which resolves to this spec but
+    opens no avenue — only a maker does)."""
+    noun = step if step.endswith("step") else f"{step} step"
+    hyphenated = step.replace(" ", "-")
+    return _spec(
+        label,
+        f"{hyphenated}-trigger payoffs, multiplied by every added {noun}",
+        {"oracle": rf"at the beginning of (?:your|each) {step}"},
+        None,
+        serve_idents=frozenset({f"{key}|you|", f"{STEP_TRIGGER_KEYS[key]}|you|"}),
+    )
+
+
+_EXTRA_UPKEEPS = _extra_step_spec("Extra upkeeps", "extra_upkeep", "upkeep")
+_EXTRA_END_STEPS = _extra_step_spec("Extra end steps", "extra_end_step", "end step")
+_EXTRA_DRAW_STEPS = _extra_step_spec("Extra draw steps", "extra_draw_step", "draw step")
+
 
 SPECS_1: dict[tuple[str, str], SignalSpec] = {
     # task B-1: chosen_type_matters — wildcard tribal payoffs (Door of
@@ -315,13 +352,16 @@ SPECS_1: dict[tuple[str, str], SignalSpec] = {
     # creature card from your graveyard. Wants loop fuel — SELF-SACRIFICING creatures
     # (the sac is value AND refuels the graveyard, Spore Frog), ETB-value bodies, and
     # self-recur fodder. The full self-sac pool is on-theme (like a tribe), not
-    # over-broad: the LANE is narrow (~21 recursion commanders).
+    # over-broad: the LANE is narrow. The main serve is the self-sacrifice outlets
+    # (the lane's own ident); the leftover regex hits are Slivers lending a
+    # sacrifice ability and reminder-text noise.
     ("creature_recursion", "you"): _spec(
         "Creature recursion",
         "loop fuel for a graveyard creature-recursion engine — self-sacrificing "
         "creatures, ETB-value bodies, and self-recurring fodder",
         {"oracle": _SELF_SAC_CREATURE_ORACLE},
-        _SELF_SAC_CREATURE_ORACLE,
+        None,
+        serve_idents=frozenset({"sacrifice_outlets|you|self"}),
         extras=(_SELF_SAC_CREATURE_EXTRA, _ETB_VALUE_EXTRA, _SELF_RECUR_EXTRA),
     ),
     # Power matters (CR 208): a commander whose engine keys on creature POWER — cost
@@ -334,9 +374,11 @@ SPECS_1: dict[tuple[str, str], SignalSpec] = {
         "high-power bodies to exploit your power-based payoffs (cost reduction, "
         "power thresholds) — big beaters, not utility dorks",
         {"card_type": "Creature", "cmc_min": 5},
-        # Credit the power-threshold PAYOFFS/enablers too (Garruk's Uprising, ferocious
-        # dorks: "creature with power 4 or greater"), not just the big bodies.
-        r"power \d+ or (?:greater|more)|with power \d+ or|\bferocious\b",
+        # The power-threshold payoffs and enablers ride the lane (Garruk's Uprising,
+        # ferocious dorks); what the old pattern added beyond it was crew, saddle and
+        # station costs, evasion and removal filters that merely name a power.
+        None,
+        serve_idents=frozenset({"power_matters|you|"}),
         serve_power_min=4,
         extras=(_POWER_FLING_EXTRA,),
     ),
@@ -394,33 +436,11 @@ SPECS_1: dict[tuple[str, str], SignalSpec] = {
         "Opponents' graveyards",
         "mill opponents and punish their graveyards (NOT self-mill)",
         {"oracle": r"each opponent mills|target opponent mills|opponent.*mills"},
-        r"(?:each opponent|target opponent|an opponent|that player|target player"
-        # "each player mills" is SYMMETRIC mill — it fills opponents' graveyards too
-        # (Breach the Multiverse, Dread Summons, Syr Konrad fuel).
-        r"|each player) mills"
-        r"|opponent[^.]*\bmill|mill[^.]*opponent"
-        r"|exile (?:target player'?s?|each opponent'?s?|a) graveyard"
-        r"|(?:cards?|creature cards?)[^.]*in [^.]*opponents'? graveyards?"
-        r"|each opponent'?s graveyard"
-        # Reanimation/cast that pulls from ANOTHER player's graveyard — "[creature card]
-        # in/from a/each/target/that player's (or opponent's) graveyard" (Sepulchral /
-        # Diluvian Primordial, Ink-Eyes, Breach the Multiverse). The opponent-graveyard
-        # reanimator (Tariel, Valgavoth) wants these; anchored to a player/opponent
-        # graveyard so a self-graveyard reanimator ("from your graveyard") stays out.
-        r"|(?:creature|planeswalker|permanent|those|that)[^.]*"
-        r"\b(?:in|from) (?:a|each|target|that) (?:player|opponent)(?:'?s)? graveyard"
-        # Exile-mill artifacts (Pyxis, Mesmeric Orb-style): a player-subject exiling the
-        # top of a LIBRARY is an exile-mill enabler (Circu).
-        r"|(?:each player|target player|an opponent|each opponent|that player)"
-        r"[^.]*exiles?[^.]*\blibrar"
-        # Old reveal-mill (Mind Funeral, Mind Grind, Telemin Performance, Mirko's own
-        # ability): "reveals cards from the top of THEIR library until … then puts them
-        # into their graveyard" — pre-keyword mill that never says "mills". Anchored on
-        # an opponent-owned library ("their/that player's/each opponent's") so a self-
-        # mill ("from YOUR library", Avenging Druid) stays out of the opponents lane.
-        r"|reveals? cards? from the top of "
-        r"(?:their|that player'?s?|each opponent'?s?) library until"
-        r"[\s\S]{0,140}?\bput[\s\S]{0,70}?graveyard",
+        # Serve rides the lanes: the opponent-graveyard makers and payoffs plus the
+        # opponent mill makers. The old pattern's leftovers are opponent library-
+        # exile riders (ingest, impulse theft) the lanes read as neither.
+        None,
+        serve_idents=_OPPONENT_GRAVEYARD_IDENTS,
     ),
     ("graveyard_matters", "you"): _spec(
         "Your graveyard",
@@ -500,19 +520,10 @@ SPECS_1: dict[tuple[str, str], SignalSpec] = {
         "Opponents' graveyards",
         "mill opponents and punish their graveyards (NOT self-mill)",
         {"oracle": r"each opponent mills|target opponent mills|opponent.*mills"},
-        r"(?:each opponent|target opponent|an opponent|that player|target player"
-        r"|each player) mills"
-        r"|opponent[^.]*\bmill|mill[^.]*opponent"
-        r"|exile (?:target player'?s?|each opponent'?s?|a) graveyard"
-        r"|(?:cards?|creature cards?)[^.]*in [^.]*opponents'? graveyards?"
-        r"|each opponent'?s graveyard"
-        r"|(?:creature|planeswalker|permanent|those|that)[^.]*"
-        r"\b(?:in|from) (?:a|each|target|that) (?:player|opponent)(?:'?s)? graveyard"
-        r"|(?:each player|target player|an opponent|each opponent|that player)"
-        r"[^.]*exiles?[^.]*\blibrar"
-        r"|reveals? cards? from the top of "
-        r"(?:their|that player'?s?|each opponent'?s?) library until"
-        r"[\s\S]{0,140}?\bput[\s\S]{0,70}?graveyard",
+        # Same serve as the matters lane: both ride the opponent-graveyard idents
+        # and the opponent mill makers.
+        None,
+        serve_idents=_OPPONENT_GRAVEYARD_IDENTS,
     ),
     # The PAYOFF that pairs with the FUEL above: reanimation effects + cast-from-grave
     # creatures, because Celes-style commanders reward a creature re-entering play from
@@ -707,8 +718,8 @@ SPECS_1: dict[tuple[str, str], SignalSpec] = {
         "draw-trigger payoffs and extra-draw engines (Nekusar / Chasm Skulker space)",
         {"oracle": r"whenever you draw|draw an additional card"},
         # The draw payoffs plus the symmetric draw engines and wheels (Howling Mine,
-        # Wheel of Fortune). Lane gaps: extra draw-step draws (Grafted Skullcap),
-        # granted "whenever you draw" (Diviner's Wand), ordinal draws (Lady Octopus).
+        # Wheel of Fortune), extra draw-step draws (Grafted Skullcap) and a granted
+        # "whenever you draw" (Diviner's Wand) included. Lane gap: ordinal draws.
         None,
         serve_idents=frozenset({"draw_matters|you|", "card_draw_engine|each|"}),
     ),
@@ -836,15 +847,8 @@ SPECS_1: dict[tuple[str, str], SignalSpec] = {
             _DIES_RECURSION_EXTRA,
         ),
     ),
-    # The bare word `haste` matched its reminder text and incidental mentions ("loses
-    # haste"). Gate on the Haste keyword (CR 702.10) + the team-grant phrasing; anchor
-    # the token branch to the literal "creature token".
-    # The serve once credited only haste-grant + token-makers — 40/223 (18%) of the
-    # attack-trigger payoff axis. Widen with the "whenever you attack" / "whenever a
-    # creature you control attacks" alternation (CR 508 declare-attackers triggers) so
-    # the avenue surfaces attack-trigger payoffs (Hellrider, Adeline, Shared Animosity),
-    # not just speed. Anchored on "you attack" / "you control attacks" so a defensive
-    # "whenever a creature attacks you" trigger never matches.
+    # Combat: attack-trigger payoffs (Hellrider, Adeline, Shared Animosity) and the
+    # haste / token enablers that feed them (CR 508 declare-attackers triggers).
     ("attack_matters", "you"): _spec(
         "Combat",
         "attack-trigger payoffs, haste enablers, and aggressive bodies",
@@ -852,31 +856,54 @@ SPECS_1: dict[tuple[str, str], SignalSpec] = {
             "oracle": r"haste|create .*creature token"
             r"|whenever you attack|you control attacks"
         },
-        r"(?:gains?|gain|have|has) haste|create [^.]*creature token"
-        r"|whenever you attack\b"
-        r"|whenever (?:a|an|another|one or more)[^.]*creatures? you control attacks?"
-        # Single-creature attack triggers + combat-damage riders are the aggro payoff
-        # bodies (Vicious Conquistador, Hellrider); "(?! you)" keeps defensive
-        # "attacks you" triggers out.
-        r"|whenever [^.]*\battacks\b(?! you)"
-        r"|whenever [^.]*deals combat damage to "
-        r"(?:a player|an opponent|each opponent|that player)"
-        # Combat keyword-anthems that buff your attackers (Blade Historian, Odric:
-        # "attacking creatures you control have double strike" / "gain first strike").
-        r"|(?:attacking )?creatures you control (?:have|gain|get)[^.]*"
-        r"(?:double strike|first strike|trample|menace|deathtouch|vigilance"
-        r"|indestructible|can't be blocked)"
-        # Equipment/Auras suit up the attacker (a combat deck wants the gear).
-        r"|equipped creature|enchanted creature gets|\bequip \{"
-        # Extra combats (Combat Celebrant, Moraug, Aggravated Assault): every added
-        # combat phase is another round of attack triggers — a top attack payoff. The
-        # narrow extra_combats lane already served these, but attack-trigger commanders
-        # (Winota, Johan, Umaro) open attack_matters, not extra_combats. An extra TURN
-        # (Time Warp) is the strict superset — a whole turn, combat included, so the
-        # attack replays; Narset (free-casts on attack) snowballs hardest off it.
-        r"|additional combat phase"
-        r"|takes? (?:an?|two|another|that many)?\s*extra turns?",
+        # Serves the attack triggers, token makers, combat-damage payoffs, attack
+        # buffs, extra combats and the team haste / combat-keyword grants; remainder
+        # is pacifism Auras, reminder-text haste (dash, unearth) and global haste.
+        None,
+        serve_idents=frozenset(
+            {
+                "attack_matters|you|",
+                "token_maker|you|*",
+                "combat_damage_to_opp|opponents|",
+                "combat_damage_matters|opponents|",
+                "combat_buff_engine|you|",
+                "exalted_lone_attacker|you|",
+                "extra_combats|you|",
+                "extra_turns|you|",
+                "entered_attacker|you|",
+                "entered_attacker|you|etb_pump",
+                "nonhuman_attackers|you|",
+                "keyword_grant_target|you|haste",
+                "team_buff|you|haste",
+                "team_buff|you|double strike",
+                "team_buff|you|first strike",
+                "team_buff|you|trample",
+                "team_buff|you|menace",
+                "team_buff|you|deathtouch",
+                "team_buff|you|vigilance",
+                "team_buff|you|indestructible",
+                "team_evasion_grant|you|*",
+            }
+        ),
         serve_keywords=("haste",),
+        extras=(
+            SubAvenue(
+                "Equipment and Auras that suit up the attacker",
+                "gear that makes the attacker bigger or evasive — a combat deck wants "
+                "the equipment",
+                {"oracle": GEAR_SUPPORT_ORACLE},
+                serve=Serve(
+                    types=frozenset({"equipment"}),
+                    signal_idents=frozenset(
+                        {
+                            "voltron_makers|you|pump",
+                            "aura_equip_kw_grant|you|*",
+                            "voltron_matters|you|",
+                        }
+                    ),
+                ),
+            ),
+        ),
     ),
     # The bare `onto the battlefield` branch matched every cheat-into-play and
     # reanimation effect (Sneak Attack, Reanimate). Anchor it to a LAND card, mirroring
@@ -1005,7 +1032,10 @@ SPECS_1: dict[tuple[str, str], SignalSpec] = {
         "Banding",
         "creatures with banding to form attacking and blocking bands",
         {"oracle": r"\bbanding\b"},
-        r"\bbands? with other|\bbanding\b",
+        # Serve rides the lane (bands with other, banding grants) beside the keyword;
+        # the regex-only leftovers are one-off banding grants phase reads elsewhere.
+        None,
+        serve_idents=frozenset({"has_banding|you|"}),
         serve_keywords=("banding",),
     ),
     # Outlaw tribal (Vial Smasher): the 5 outlaw creature types plus "outlaws you
@@ -1091,15 +1121,9 @@ SPECS_1: dict[tuple[str, str], SignalSpec] = {
         # Companion), even with no "enchantment" in the oracle.
         serve_types=("enchantment",),
     ),
-    # A color-hoser commander (color_hoser) wants the color-changing "Painter" toolbox
-    # so its color payoff (bounce/restrict/punish a named color) applies to EVERY
-    # permanent: making opponents' creatures blue makes Llawan's "blue creatures"
-    # clauses catch them (color is a layer-5 characteristic the hoser checks: CR 105.2).
-    # Serve is the change-a-color toolbox: Painter's Servant ("are the chosen color"),
-    # the -lace / -Wisps cycles + Distorting Lens ("becomes the color of your choice"),
-    # and the text-changers (Mind Bend / Sleight of Mind / Glamerdye / Alter Reality:
-    # "replacing all instances of one color"). Anchored on a CHANGE verb so a
-    # protection-from-color trick (Gods Willing) or mana fixer never matches.
+    # A color-hoser commander wants the color-changing "Painter" toolbox (Painter's
+    # Servant, the -lace cycle, Mind Bend) so its color payoff applies to EVERY
+    # permanent: making opponents' creatures blue lets Llawan's clauses catch them.
     ("color_hoser", "you"): _spec(
         "Color-bending",
         "color-changing 'Painter' cards that force your color payoff onto everything",
@@ -1107,52 +1131,28 @@ SPECS_1: dict[tuple[str, str], SignalSpec] = {
             "oracle": r"becomes the color of your choice|are the chosen color"
             r"|replacing all instances of one color"
         },
-        r"becomes the color of your choice"
-        r"|(?:spell or permanent|permanent or spell|target permanent|target creature) "
-        r"becomes (?:white|blue|black|red|green)\b"
-        r"|are the chosen color"
-        r"|replacing all instances of one color"
-        # Anti-color HATE is what these commanders (Major Teroh, Ascendant Evincar,
-        # Crovax, Dromar, Llawan) actually want — make/keep everything a color, then
-        # hose it. Only the 6 color_hoser commanders open the lane, so the narrow
-        # color-hate stays scoped to the decks that exploit it.
-        r"|(?:destroy|exile|return) all (?:non)?(?:white|blue|black|red|green) "
-        r"(?:creature|permanent)s?"
-        r"|protection from (?:white|blue|black|red|green)"
-        r"|(?:white|blue|black|red|green) creatures? can't (?:attack|block|be)"
-        r"|can't cast (?:white|blue|black|red|green)",
+        # Serve rides the color-hate lane (the color-hoser commanders want to make
+        # everything a color, then hose it) and the color-changers. The regex-only
+        # leftovers are printed protection from a color, which is no hate.
+        None,
+        serve_idents=frozenset({"color_hoser|you|", "color_change|you|"}),
     ),
-    # ADR-0027: tokens_matter migrated to the Card IR (the lane fires from
-    # crosswalk_signals._tokens_matter). This serve spec was
-    # always hand-registered and independent of the two deleted _HAND_FLOOR producers,
-    # so it survives unchanged — its curated SEARCH regex below differs from the
-    # detector (the detector's go-wide count-scaler + token-doubler arms are supplied
-    # here as the _GOWIDE_*/_TOKEN_DOUBLER_EXTRA avenues instead).
-    # The greedy `whenever .*token.*enters` spanned clauses and matched attack-trigger
-    # token-makers and NONtoken-ETB payoffs (Darksteel Splicer). Anchor the entering
-    # object to a token in the SAME clause.
+    # Tokens matter: the lane fires from crosswalk_signals._tokens_matter (ADR-0027);
+    # the go-wide count-scaler and token-doubler arms are the _GOWIDE_* /
+    # _TOKEN_DOUBLER_EXTRA avenues.
     ("tokens_matter", "you"): _spec(
         "Tokens matter",
         "token makers and payoffs that scale with tokens you control",
         {"oracle": r"create [^.]*token"},
-        r"\btokens? you control\b"
-        r"|whenever (?:a|one or more|another)[^.]*?\btokens?\b[^.]*?\benters\b"
-        r"|\bpopulate\b"
-        # Amass creates or grows an Army CREATURE token (CR 701.47), so an amass card is
-        # a token maker (Mouth of Sauron / Grishnákh want the amass package). Like
-        # Mobilize, its token-making lives in stripped reminder text, so credit it.
-        r"|\bamass\b",
-        # NB: GENERIC single-token makers are deliberately NOT in the serve — a single
-        # maker is generically good (every deck runs some), not archetype-UNIQUE, so
-        # serving all 2315 floods the lane. But MASS makers ("create 2+/X tokens at
-        # once" — _GOWIDE_MAKER_EXTRA) ARE the go-wide build-around and kind-agnostic
-        # here (this lane has no subject; Leonardo/Adeline count ANY creature), so they
-        # belong. They stay OFF the per-subject token_maker lane, where kind matters
-        # (Krenko wants Goblin makers, not Saprolings).
-        # EXCEPTION: Mobilize is a bounded (~28-card) Warrior-token SWARM keyword whose
-        # token-making lives in stripped reminder text — credit the keyword so a
-        # Mobilize/go-wide commander (Zurgo) covers the rest of its swarm package.
+        # Serve rides the token-payoff lane plus the amass makers (an Army token,
+        # whose making lives in stripped reminder text); populate and token-count
+        # payoffs are the lane's.
+        None,
+        # Single-token makers stay out (generically good, not archetype-unique); mass
+        # makers ride _GOWIDE_MAKER_EXTRA. Mobilize's tokens live in stripped reminder
+        # text, so the keyword is credited.
         serve_keywords=("mobilize",),
+        serve_idents=frozenset({"tokens_matter|you|*", "amass_makers|you|"}),
         extras=(
             _TOKEN_DOUBLER_EXTRA,
             _ETB_PAYOFF_EXTRA,
@@ -1175,7 +1175,11 @@ SPECS_1: dict[tuple[str, str], SignalSpec] = {
                 r"|creatures your opponents control"
             )
         },
-        _STAX_SERVE_ORACLE,
+        # Serve rides the two stax lanes (opponent taxes and symmetric locks); the
+        # old pattern also served cost-increase and tapped-entry text on ordinary
+        # cards.
+        None,
+        serve_idents=_STAX_IDENTS,
     ),
     # Symmetric-stax commander (Hokori, Winter Orb-style locks): wants the SAME stax
     # piece pool — it runs opponent-taxes + symmetric locks + hatebears alike. Shares
@@ -1184,7 +1188,8 @@ SPECS_1: dict[tuple[str, str], SignalSpec] = {
         "Symmetric stax",
         "stax pieces a symmetric-lock deck runs — taxes, locks, and hatebears",
         {"oracle": r"players? can't|enters?(?: the battlefield)? tapped|can't be"},
-        _STAX_SERVE_ORACLE,
+        None,
+        serve_idents=_STAX_IDENTS,
     ),
     # ADR-0027: symmetric_damage_each's SWEEP_DETECTORS row was deleted (detection moved
     # to the Card IR — the v22 damage Effect scope=='each' arm + each-player mirror).
@@ -1213,17 +1218,14 @@ SPECS_1: dict[tuple[str, str], SignalSpec] = {
         "exile-and-return effects, the high-ETB creatures worth re-using, and the "
         "doublers that multiply each enter trigger",
         {"preset_names": ("blink",)},
-        # Same-sentence "exile … then return … battlefield" (Restoration Angel), PLUS
-        # the two-sentence form "exile … . Return it/that/those … battlefield"
-        # (Flickerwisp, Charming Prince). The pronoun anchor + single-period limit keep
-        # an unrelated exile-removal-then-return-a-land off the lane.
-        r"exile[^.]*?return[^.]*?battlefield"
-        r"|exile[^.]{0,90}?\.\s*returns? (?:it|them|that|those)[^.]{0,50}?battlefield",
-        # Death-return is a distinct mechanic (dies_recursion), offered as its own
-        # avenue here — a blink deck re-uses ETBs via death too, but it isn't flicker.
-        # Self-bounce recast engines (Whitemane Lion, Kor Skyfisher, Jeskai Barricade)
-        # re-fire an ETB by returning your own creature and recasting — staple
-        # blink-deck value, so they belong here too.
+        # Serves the lane's enablers (Restoration Angel, Flickerwisp); bare blink
+        # bodies ride the ETB-value extra. Remainder: reanimation and Saga text, plus
+        # Teferi's Time Twist and Cosmic Intervention (a phase misparse).
+        None,
+        # Death-return (dies_recursion) and self-bounce recast engines (Whitemane
+        # Lion, Kor Skyfisher) are their own avenues below: a blink deck re-uses ETBs
+        # that way too.
+        serve_idents=frozenset({"blink_flicker|you|enabler"}),
         extras=(
             _ETB_VALUE_EXTRA,
             _ETB_DOUBLER_EXTRA,
@@ -1546,7 +1548,10 @@ SPECS_1: dict[tuple[str, str], SignalSpec] = {
     ("protection_grant", "you"): _spec(
         *SWEEP_LABELS["protection_grant"],
         {"oracle": PROTECTION_GRANT_REGEX},
-        PROTECTION_GRANT_REGEX,
+        # Serve rides the lane; the old pattern's extras were self-granted shroud and
+        # hexproof abilities and reminder-text mentions, not grants to your board.
+        None,
+        serve_idents=frozenset({"protection_grant|you|"}),
     ),
     # ADR-0027 β: debuff_makers's SWEEP_DETECTORS row is deleted (detection moved to
     # the Card IR — the negative-pump (factor<0) / non-self m1m1 structural arm + a
@@ -1659,9 +1664,11 @@ SPECS_1: dict[tuple[str, str], SignalSpec] = {
                 r"|from outside the game"
             )
         },
-        r"secretly (?:write|choose|name)"
-        r"|before the game begins[^.]*(?:write|name|choose)"
-        r"|from outside the game",
+        # Serve rides the lane: the secret-choice cards and the learn (sideboard)
+        # cards. Regex-only leftovers are hidden-agenda conspiracies and reminder
+        # text.
+        None,
+        serve_idents=frozenset({"secret_writedown|you|", "secret_writedown|you|learn"}),
     ),
     # ADR-0027 tranche2-B (t2b3-B): opponent_counter_grant's SWEEP_DETECTORS row is
     # deleted (detection moved to the Card IR — a detrimental bounty/stun counter on an
@@ -2030,6 +2037,9 @@ SPECS_1: dict[tuple[str, str], SignalSpec] = {
             r"|exile [A-Z][a-z']+\.\s*return (?:it|that card|them)[^.]*"
             r"to the battlefield"
         ),
+        # Serve rides the self-blink lane plus the blink enablers; the one regex hit
+        # it drops is Teferi's Time Twist, a phase misparse.
+        serve_idents=frozenset({"self_blink|you|", "blink_flicker|you|enabler"}),
     ),
     # A repeatable-wrath commander (Mageta) wants to rebuild after the sweep:
     # reanimation (Breath of Life) plus indestructible bombs (Zetalpa) that survive it.
@@ -2075,36 +2085,15 @@ SPECS_1: dict[tuple[str, str], SignalSpec] = {
         # (Abyssal Hunter, Burning Anger)
         serve_idents=frozenset({"creature_ping|you|"}),
     ),
-    # Extra upkeep STEPS (Obeka, The Ninth Doctor): each added upkeep step is another
-    # instance every "at the beginning of your/each upkeep" ability triggers in (CR
-    # 500.7 / 503 / 603.2), so the whole upkeep-trigger pool IS the payoff package.
-    # The narrow OPEN regex lives in the sweep detector; this hand-spec exists so the
-    # auto-register doesn't bind the serve to that 4-card open regex — it serves the
-    # broad upkeep-trigger pool instead. The lane opens for only the ~2 extra-upkeep
-    # commanders, so the broad serve never floods an unrelated deck.
-    ("extra_upkeep", "you"): _spec(
-        "Extra upkeeps",
-        "repeatable upkeep-trigger payoffs, multiplied by every added upkeep step",
-        {"oracle": r"at the beginning of (?:your|each) upkeep"},
-        r"at the beginning of (?:your|each) upkeep",
-    ),
-    # Extra end steps (Y'shtola Rhul): every "at the beginning of your/each end step"
-    # payoff (Agent of Treachery, Chimil, the Inner Sun) re-triggers in each added end
-    # step (CR 513). Same open-gated-narrow / serve-broad split as Extra upkeeps.
-    ("extra_end_step", "you"): _spec(
-        "Extra end steps",
-        "end-step-trigger payoffs, multiplied by every added end step",
-        {"oracle": r"at the beginning of (?:your|each) end step"},
-        r"at the beginning of (?:your|each) end step",
-    ),
-    # Extra draw steps (opened by a beginning-phase grant, CR 501/504): "at the
-    # beginning of your draw step" payoffs re-trigger in each added draw step.
-    ("extra_draw_step", "you"): _spec(
-        "Extra draw steps",
-        "draw-step-trigger payoffs, multiplied by every added draw step",
-        {"oracle": r"at the beginning of (?:your|each) draw step"},
-        r"at the beginning of (?:your|each) draw step",
-    ),
+    # Extra steps (CR 500.9): each added upkeep (Obeka, The Ninth Doctor), end step
+    # (Y'shtola Rhul) or draw step (a beginning-phase grant, CR 501.1) is another
+    # instance every "at the beginning of" trigger of that step fires in.
+    ("extra_upkeep", "you"): _EXTRA_UPKEEPS,
+    ("upkeep_triggers", "you"): _EXTRA_UPKEEPS,
+    ("extra_end_step", "you"): _EXTRA_END_STEPS,
+    ("end_step_triggers", "you"): _EXTRA_END_STEPS,
+    ("extra_draw_step", "you"): _EXTRA_DRAW_STEPS,
+    ("draw_step_triggers", "you"): _EXTRA_DRAW_STEPS,
     # Deathtouch gear (Basilisk Collar) makes any ping / power-as-damage lethal — credit
     # it on the noncombat-damage and power-fling lanes too, not only the Burn lane.
     # ADR-0027: noncombat_damage_payoff migrated to the Card IR (SWEEP row deleted); the

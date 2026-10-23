@@ -195,7 +195,10 @@ SPECS_3: dict[tuple[str, str], SignalSpec] = {
     ("seek_matters", "you"): _spec(
         *SWEEP_LABELS["seek_matters"],
         {"oracle": r"\bseek\b"},
-        r"\bseek\b",
+        # Serve idents: every seek the lane reads, including the opponent-side "its
+        # owner seeks" cards. Seeks phase drops (a Rat card, a Merfolk card) leave.
+        None,
+        serve_idents=frozenset({"seek_matters|you|"}),
     ),
     # ADR-0027: mass_bounce + destroy_legendary had their oracle-regex SWEEP_DETECTORS
     # rows deleted (detection moved to the Card IR — the bounce/destroy effect shape).
@@ -607,8 +610,10 @@ SPECS_3: dict[tuple[str, str], SignalSpec] = {
                 r"|target (?:player|opponent)) loses the game"
             )
         },
-        r"you win the game|(?:that player|each opponent"
-        r"|target (?:player|opponent)) loses the game",
+        # Serve idents: the lane's win/lose-the-game cards, which reach a flip- or
+        # clause-gated "you win/lose" the regex missed. Frodo is a phase gap.
+        None,
+        serve_idents=frozenset({"win_lose_game|any|"}),
     ),
     ("alt_cost_keyword", "you"): _spec(
         *SWEEP_LABELS["alt_cost_keyword"],
@@ -1241,14 +1246,18 @@ SPECS_3: dict[tuple[str, str], SignalSpec] = {
         None,
         serve_idents=frozenset({"untap_engine|you|*"}),
     ),
-    # own_target_spell (iteration-4): served by the recursion engines that
-    # rebate own-targeting spells (Feather-class) and copy engines (Zada).
+    # own_target_spell (iteration-4): served by the cards that pay off a spell
+    # targeting your own permanents — heroic and valiant bodies, and the engines
+    # that rebate or copy one (Feather-class, Zada).
     ("own_target_spell", "you"): _spec(
         "Own-target spell",
-        "spell-recursion and copy engines that rebate spells targeting your "
-        "own permanents",
+        "heroic payoffs and the recursion and copy engines that reward spells "
+        "targeting your own permanents",
         {"oracle": r"instant or sorcery spell that targets"},
-        r"instant or sorcery spell that targets",
+        # Serve idents: the targeting-matters cards (heroic, valiant, cast-a-spell-
+        # that-targets payoffs); Repartee and spell-copy engines are not in the lane.
+        None,
+        serve_idents=frozenset({"targeting_matters|any|you"}),
     ),
     # permanent_recast (iteration-3): a repeatable re-delivery engine — served
     # by the one-shot ETB/self-sac value permanents it re-delivers.
@@ -1498,8 +1507,12 @@ SPECS_3: dict[tuple[str, str], SignalSpec] = {
         "Bounce / tempo",
         "bounce effects for tempo and ETB re-use",
         {"oracle": r"return target .*to (?:its|their) owner's hand"},
-        r"return (?:up to \w+ )?target (?:creature|permanent|nonland permanent)"
-        r"[^.\n]*to (?:its|their) owner's hand",
+        # Serve idents: the lane's bounce effects (mass, X-target, delayed). Graveyard
+        # returns drop out; own-permanent rescues serve only through the self-bounce
+        # extra (ETB / upkeep recast engines).
+        None,
+        serve_idents=frozenset({"bounce_tempo|you|"}),
+        extras=(_SELF_BOUNCE_EXTRA,),
     ),
     # _matters sweep (ADR-0034): the cascade build-around is driven by an
     # intrinsic-cascader commander (The First Sliver, Apex Devastator) — a
@@ -1577,10 +1590,10 @@ SPECS_3: dict[tuple[str, str], SignalSpec] = {
         "Punish opponents' tutors / selection",
         "stax and punishers for opponents who search, scry, or surveil",
         {"oracle": r"opponent[^.]*(?:search|scry|surveil)|search(?:es)? their library"},
-        r"(?:opponent|each player|a player)[^.]*(?:scries|surveils|searches "
-        r"(?:their|a) library)"
-        r"|whenever (?:an opponent|each opponent|a player)[^.]*search"
-        r"|if an opponent would search",
+        # Serve idents: punishers that watch opponents search or shuffle (Stranglehold,
+        # Psychic Surgery); symmetric each-player tutors drop out.
+        None,
+        serve_idents=frozenset({"opponent_search_matters|opponents|"}),
     ),
     ("damage_to_opp_matters", "opponents"): _spec(
         "Damage to opponents",

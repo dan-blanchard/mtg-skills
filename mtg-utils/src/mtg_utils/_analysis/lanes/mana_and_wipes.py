@@ -27,6 +27,7 @@ from mtg_utils._analysis.lanes._shared import (
     _target_owner_beneficiary_scope,
     _tuck_preceded_by_selection,
 )
+from mtg_utils._analysis.lanes.removal_tutors import kills_creatures_en_masse
 from mtg_utils._analysis.signal_base import (
     Signal,
     _clauses,
@@ -47,9 +48,11 @@ from mtg_utils._card_ir.crosswalk import (
     effect_owner_player_scope,
     effect_owner_raw,
     effect_owner_reads_chosen_group,
+    filter_color_predicates,
     filter_controller,
     filter_core_types,
     filter_inzone_zones,
+    filter_names_creatures,
     filter_owned_controller,
     filter_predicates,
     filter_subtypes,
@@ -59,13 +62,14 @@ from mtg_utils._card_ir.crosswalk import (
     iter_cost_leaves,
     iter_mod_sites,
     iter_nested_trigger_defs,
+    iter_static_defs,
     iter_typed_nodes,
     mana_replacement_multiplier,
-    mod_value,
     named_filter_subtypes,
     names_attached_object,
     normalised_keyword_name,
     produced_contribution,
+    pt_mod_signs,
     recipient_tag,
     ref_count_qty,
     tag_of,
@@ -1088,7 +1092,20 @@ def _mass_removal(tree: ConceptTree) -> list[Signal]:
     702.25a (Knight of Valor). Scope "you".
     An overload spell's targeted destroy / damage / exile is a sweep when
     overloaded (:func:`_overloaded`, CR 702.96a — Damn, Mizzium Mortars).
+
+    A sweep whose creatures die (:func:`kills_creatures_en_masse` — not an
+    exile, bounce or artifact sweep) also takes the subject ``creature``, the
+    sweep half of a mass-death turn ``mass_death_payoff`` reads.
     """
+    hit = _board_wipe_signals(tree)
+    if hit and kills_creatures_en_masse(tree):
+        hit.append(Signal("mass_removal", "you", "creature", "", tree.name, "high"))
+    return hit
+
+
+def _board_wipe_signals(tree: ConceptTree) -> list[Signal]:
+    """The bare ``mass_removal`` signal of a board wipe (:func:`_mass_removal`'s
+    arms), or none."""
     overloaded = _overloaded(tree)
     for unit in tree.units:
         combat_scope = unit.trigger_event in ("becomes_blocked", "blocks")
@@ -1423,52 +1440,75 @@ def _resource_token_matters(tree: ConceptTree) -> list[Signal]:
 
 
 def _is_anthem_group_filter(filt: object) -> bool:
-    """A creature-GROUP anthem subject (CR 604.3 / 613.4): Creature in core
-    types AND (controller you OR ``Another`` OR subtyped) AND not an
-    opponent-board debuff target. A single-target pump (controller any, no
-    Another/subtype) fails the group test. An ``EquippedBy``/``EnchantedBy``
-    predicate names ONE permanent (CR 301.5c / 303.4d — an Equipment/Aura
-    can't be attached to more than one object), so a
-    conditional equip bonus phase v0.23.0 now parses with a SUBTYPED
-    equipped-creature filter ("As long as equipped creature is a Human, it
-    gets an additional +1/+0" — True-Faith Censer, Silver-Inlaid Dagger,
-    Heavy Mattock) fails the group test on the predicate, not the subtype
-    (task #84; the same single-permanent veto _global_ability_grant runs)."""
+    """A creature-GROUP anthem subject (CR 604.3 / 613.4): a filter naming
+    creatures (the Creature core type, or a creature type alone — Lord of
+    Atlantis's "Other Merfolk", :func:`filter_names_creatures`) AND (controller
+    you OR ``Another`` OR subtyped OR a group named by colour —
+    :func:`filter_color_predicates`: Bad Moon's "Black creatures", Gauntlet of
+    Power's "Creatures of the chosen color" — or by the creature type chosen as
+    the permanent entered — Brass Herald's "Creatures of the chosen type") AND
+    not an opponent-board debuff target.
+    A symmetric colour anthem (Bad Moon, Crusade) counts like a symmetric lord
+    (Goblin King): the deck that runs it fields that colour. A bare symmetric
+    "Creatures get +1/+1" (Coat of Arms, Common Cause) stays out. A
+    single-target pump (controller any, no Another/subtype) fails the group
+    test. An ``EquippedBy``/``EnchantedBy`` predicate names ONE permanent (CR
+    301.5c / 303.4d — an Equipment/Aura can't be attached to more than one
+    object), so a conditional equip bonus phase v0.23.0 now parses with a
+    SUBTYPED equipped-creature filter ("As long as equipped creature is a
+    Human, it gets an additional +1/+0" — True-Faith Censer, Silver-Inlaid
+    Dagger, Heavy Mattock) fails the group test on the predicate, not the
+    subtype (task #84; the same single-permanent veto _global_ability_grant
+    runs)."""
     if filt is None or filter_controller(filt) == "Opponent":
         return False
-    if "Creature" not in filter_core_types(filt):
+    if not filter_names_creatures(filt):
         return False
     if names_attached_object(filt):
         return False
+    preds = set(filter_predicates(filt))
     return (
         filter_controller(filt) == "You"
-        or "Another" in filter_predicates(filt)
+        or "Another" in preds
         or bool(filter_subtypes(filt))
+        or "IsChosenCreatureType" in preds
+        or bool(filter_color_predicates(filt))
     )
+
+
+def _anthem_defs(tree: ConceptTree) -> Iterator[TypedMirrorNode]:
+    """The continuous-effect defs an anthem can live on: a top-level static
+    ability (CR 604.2: active "as long as the permanent with the ability
+    remains on the battlefield") and an emblem's static
+    (:func:`iter_static_defs` with ``emblem`` — Elspeth, Sun's Champion's
+    ultimate; CR 114.4).
+    A static def a spell or activated / triggered ability confers
+    (``GenericEffect``) lasts only "as long as stated" (CR 611.2a, "until end
+    of turn") — a pump, not an anthem — so it is never read."""
+    for unit in tree.units:
+        if unit.origin == "static" and isinstance(unit.node, TypedMirrorNode):
+            yield unit.node
+        yield from iter_static_defs(unit.node, emblem=True)
 
 
 def _anthem_static(tree: ConceptTree) -> list[Signal]:
     """anthem_static — a STATIC +N/+N over a creature group (CR 604.3 / 613.4
-    layer 7c): Glorious Anthem, Goblin King's subtyped "Other Goblins". Reads
-    the top-level static units' plain-int P/T mods (granularity b — the
-    ``affected`` subject and the mod values together): every present value
-    must be non-negative (a -2/-2 token hoser — Virulent Plague — is a
-    debuff, checklist #4), the subject must be a creature GROUP
+    layer 7c): Glorious Anthem, Goblin King's subtyped "Other Goblins", Bad
+    Moon's colour group, an emblem's anthem (:func:`_anthem_defs`). Reads each
+    def's P/T direction (:func:`pt_mod_signs` — plain ints and the scaling
+    ``AddDynamic*`` forms alike, so "+1/+1 for each …" anthems count: Armament
+    Master, Commander's Insignia, Hold the Gates): power and toughness both
+    raised or left, at least one raised (a -2/-2 token hoser — Virulent
+    Plague — is a debuff, checklist #4); the subject must be a creature GROUP
     (:func:`_is_anthem_group_filter` — a single-target/activated pump is
     self_pump or a trick, and an opponent-board shrink is scoped out,
-    checklist #6). One-shot until-end-of-turn pumps live on spell/trigger
-    units, never on a ``static`` origin unit, so the origin gate mirrors the
-    live ``ab.kind == 'static'``. Scope "you".
+    checklist #6). Scope "you".
     """
-    for unit in tree.units:
-        if unit.origin != "static":
+    for sdef in _anthem_defs(tree):
+        power, toughness = pt_mod_signs(sdef)
+        if max(power, toughness) < 1 or min(power, toughness) < 0:
             continue
-        pumps = [c for c in unit.statics if c.concept == "pump"]
-        vals = [mod_value(c.node) for c in pumps]
-        ints = [v for v in vals if v is not None]
-        if not ints or any(v < 0 for v in ints):
-            continue
-        affected = getattr(unit.node, "affected", None)
+        affected = getattr(sdef, "affected", None)
         if _is_anthem_group_filter(affected):
             # Subject: the group's single subtype (Goblin King, Crucible of
             # Fire), else its single NON-CREATURE core type lowercased

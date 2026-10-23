@@ -400,6 +400,19 @@ _CONVERTED = [
         "Gruesome Scourger",
         "Boggart Brute",
     ),
+    # Phase E: seek reads "its owner seeks"; a return-all bounce; a flip-gated win/lose;
+    # heroic payoffs; a shuffle-watcher. Graveyard returns and each-player tutors drop.
+    ("seek_matters", "you", "seek_matters|you|", "Darkstar Banisher", None),
+    ("bounce_tempo", "you", "bounce_tempo|you|", "Aetherize", "Pulse of Murasa"),
+    ("win_lose_game", "any", "win_lose_game|any|", "Angel of Destiny", None),
+    ("own_target_spell", "you", "targeting_matters|any|you", "Heartfire Hero", None),
+    (
+        "opponent_search_matters",
+        "opponents",
+        "opponent_search_matters|opponents|",
+        "Psychic Surgery",
+        "Maralen of the Mornsong",
+    ),
 ]
 
 
@@ -564,4 +577,14 @@ def test_evasion_serve_keeps_sun_quan_out():
     # Sun Quan grants horsemanship to others; he has none himself.
     assert not spec_for(_sig("evasion_self")).serve.matches(
         _card("Sun Quan, Lord of Wu")
+    )
+
+
+def test_bounce_tempo_self_bounce_engines_are_an_extra():
+    # Whitemane Lion returns your own creature on enter; the lane reads it as no
+    # bounce, so the recast-engine extra carries it.
+    spec = spec_for(_sig("bounce_tempo"))
+    assert not spec.serve.matches(_card("Whitemane Lion"))
+    assert extra(spec, "Self-bounce recast engines").serve.matches(
+        _card("Whitemane Lion")
     )

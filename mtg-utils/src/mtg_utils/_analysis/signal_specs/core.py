@@ -676,6 +676,9 @@ def spec_for(signal: Signal) -> SignalSpec | None:
     return None if scope is None else SPECS[(signal.key, scope)]
 
 
+_STEP_TRIGGERS = frozenset(signal_keys.STEP_TRIGGER_KEYS.values())
+
+
 def avenue_spec_for(signal: Signal) -> SignalSpec | None:
     """The avenue a DECK signal opens: ``spec_for``'s spec, unless the signal
     carries a subject on a key that is not a subject key and the spec's serve
@@ -690,15 +693,20 @@ def avenue_spec_for(signal: Signal) -> SignalSpec | None:
     wildcards included): an impulse draw (``cast_from_exile|you|impulse``)
     does not open "Cast from exile", whose serve leaves impulse out, and a
     "can't be blocked except by …" body (``evasion_self|you|partial``) does
-    not open the evasion avenue. A serve that does not read the key at all
-    serves something else the key's emitters want (a recursion engine's loop
-    fuel), and every subject opens it. ``spec_for`` stays the per-signal
-    lookup for every other caller."""
+    not open the evasion avenue. A membership-floor subject
+    (``signal_keys.MEMBERSHIP_SUBJECTS``: a carrier commander) always opens it,
+    and a step trigger (``signal_keys.STEP_TRIGGER_KEYS``) never does. A serve
+    that does not read the key at all serves something else the key's emitters
+    want (a recursion engine's loop fuel), and every subject opens it.
+    ``spec_for`` stays the per-signal lookup for every other caller."""
+    if signal.key in _STEP_TRIGGERS:
+        return None
     spec = spec_for(signal)
     if (
         spec is None
         or not signal.subject
         or signal.key in _SUBJECT_KEYS
+        or (signal.key, signal.subject) in signal_keys.MEMBERSHIP_SUBJECTS
         or not spec.serve.reads_key(signal.key)
     ):
         return spec

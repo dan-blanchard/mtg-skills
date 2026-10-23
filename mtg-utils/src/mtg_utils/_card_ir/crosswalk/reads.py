@@ -122,13 +122,11 @@ def _unwrap_role_target(sub: object) -> object:
     return sub
 
 
-def _scope_from_player_node(node: object) -> str | None:
-    """Map a player-reference typed node to a Signal scope, or None if unknown.
-
-    Reads the node's discriminator tag (``Controller`` / ``Opponent`` / …) and,
-    for a ``Typed`` filter, its ``controller`` — never oracle text.
-    """
-    t = tag_of(node)
+def _scope_from_player_tag(t: object) -> str | None:
+    """Map a player-reference tag to a Signal scope, or None if unknown — the
+    node's discriminator (:func:`_scope_from_player_node`) or the bare player
+    string some fields carry (``ZoneCardCount.scope``, a search restriction's
+    ``cause`` / ``who``)."""
     if t in ("Controller", "SelfRef", "You"):
         return "you"
     if t in _OPPONENT_ACTOR_TAGS:
@@ -141,6 +139,19 @@ def _scope_from_player_node(node: object) -> str | None:
     # so a maker lane gated to you/each does not over-fire on it.
     if t in ("ParentTarget", "Player", "Any", "Target"):
         return "any"
+    return None
+
+
+def _scope_from_player_node(node: object) -> str | None:
+    """Map a player-reference typed node to a Signal scope, or None if unknown.
+
+    Reads the node's discriminator tag (``Controller`` / ``Opponent`` / …,
+    :func:`_scope_from_player_tag`) and, for a ``Typed`` filter, its
+    ``controller`` — never oracle text.
+    """
+    t = tag_of(node)
+    if (scope := _scope_from_player_tag(t)) is not None:
+        return scope
     if t == "Typed":
         ctrl = getattr(node, "controller", None)
         if ctrl == "You":
@@ -400,9 +411,13 @@ def refers_to_scoped_player(node: object) -> bool:
     does a filter controlled by them (Braids: "that player sacrifices"). CR
     805.4d keys a Two-Headed Giant step trigger's per-player firing on exactly
     this reference."""
-    return any(
+    return any(_names_scoped_player(n) for n in _iter_typed_nodes(node))
+
+
+def _names_scoped_player(n: TypedMirrorNode) -> bool:
+    """Whether one node is the ``ScopedPlayer`` or a filter they control."""
+    return (
         tag_of(n) == "ScopedPlayer" or getattr(n, "controller", None) == "ScopedPlayer"
-        for n in _iter_typed_nodes(node)
     )
 
 
@@ -3365,9 +3380,12 @@ def _is_static_def(node: object) -> bool:
 
 
 _STATIC_DEFS_CACHE_ATTR = "_xw_static_defs"
+_EMBLEM_STATIC_DEFS_CACHE_ATTR = "_xw_emblem_static_defs"
 
 
-def iter_static_defs(root: object) -> Iterator[TypedMirrorNode]:
+def iter_static_defs(
+    root: object, *, emblem: bool = False, granted: bool = False
+) -> Iterator[TypedMirrorNode]:
     """Every static-ability DEF node reachable from one unit node.
 
     Yields the unit node itself when it IS a def (a top-level continuous
@@ -3381,8 +3399,25 @@ def iter_static_defs(root: object) -> Iterator[TypedMirrorNode]:
     mode-read lanes walk defs directly via :func:`static_mode_tag`.
     Cycle-safe, same traversal as :func:`iter_mod_sites`; iterates a per-root
     memoized walk.
+
+    ``emblem`` keeps only the defs an emblem carries (Elspeth, Sun's
+    Champion's "You get an emblem with 'Creatures you control get +2/+2 and
+    have flying.'"). CR 114.4: "Abilities of emblems function in the command
+    zone", so an emblem's static lasts the rest of the game, unlike a one-shot
+    ``GenericEffect`` grant (CR 611.2a: those last "as long as stated").
+    ``granted`` adds the static defs a ``GrantAbility`` / ``GrantStaticAbility``
+    grants inside the walk (:func:`iter_nested_granted_bodies` — The Book of
+    Exalted Deeds' "It gains 'You can't lose the game …'"), which the plain
+    walk does not descend.
     """
-    yield from _static_defs(root)
+    defs = _static_defs(root, emblem=emblem)
+    yield from defs
+    if granted:
+        seen = {id(d) for d in defs}
+        for kind, body in iter_nested_granted_bodies(root):
+            if kind == "ability" and _is_static_def(body) and id(body) not in seen:
+                seen.add(id(body))
+                yield body
 
 
 def adds_creature_type(static_def: object) -> bool:
@@ -3403,33 +3438,39 @@ def adds_creature_type(static_def: object) -> bool:
     return False
 
 
-def _static_defs(root: object) -> tuple[TypedMirrorNode, ...]:
+def _static_defs(root: object, *, emblem: bool = False) -> tuple[TypedMirrorNode, ...]:
     if isinstance(root, TypedMirrorNode):
-        cached = root.__dict__.get(_STATIC_DEFS_CACHE_ATTR)
+        attr = _EMBLEM_STATIC_DEFS_CACHE_ATTR if emblem else _STATIC_DEFS_CACHE_ATTR
+        cached = root.__dict__.get(attr)
         if cached is None:
-            cached = tuple(_walk_static_defs(root))
-            object.__setattr__(root, _STATIC_DEFS_CACHE_ATTR, cached)
+            cached = tuple(_walk_static_defs(root, emblem=emblem))
+            object.__setattr__(root, attr, cached)
         return cached
-    return tuple(_walk_static_defs(root))
+    return tuple(_walk_static_defs(root, emblem=emblem))
 
 
-def _walk_static_defs(root: object) -> Iterator[TypedMirrorNode]:
+def _walk_static_defs(
+    root: object, *, emblem: bool = False
+) -> Iterator[TypedMirrorNode]:
+    """The static-def walk; with ``emblem``, only the defs under a
+    ``CreateEmblem.statics`` list."""
     seen: set[int] = set()
-    stack: list[object] = [root]
+    stack: list[tuple[object, bool]] = [(root, False)]
     while stack:
-        node = stack.pop()
+        node, in_emblem = stack.pop()
         if not isinstance(node, TypedMirrorNode) or id(node) in seen:
             continue
         seen.add(id(node))
-        if _is_static_def(node):
+        if _is_static_def(node) and (in_emblem or not emblem):
             yield node
-        stack.extend(effect_children(node))
+        stack.extend((child, in_emblem) for child in effect_children(node))
         for fname in ("static_abilities", "statics"):
             child = getattr(node, fname, MISSING)
+            under = in_emblem or (fname == "statics" and tag_of(node) == "CreateEmblem")
             if isinstance(child, TypedMirrorNode):
-                stack.append(child)
+                stack.append((child, under))
             elif _present(child) and isinstance(child, list):
-                stack.extend(child)
+                stack.extend((c, under) for c in child)
 
 
 # ``dataclasses.fields()`` rebuilds its tuple on every call; the deep walk
@@ -3916,10 +3957,18 @@ def iter_threaded_target_statics(
     *,
     affected_tag: str = "ParentTarget",
     resets_thread: Callable[[TypedMirrorNode], bool] | None = None,
+    effect_tags: frozenset[str] = frozenset(),
 ) -> Iterator[tuple[object, TypedMirrorNode]]:
     """``(resolved_target_filter, static_def)`` pairs for every
     ``affected_tag``-affected (default ``ParentTarget``) nested static in one
     ability/trigger chain, the target THREADED through the chain.
+
+    ``effect_tags`` also yields ``(resolved_target_filter, effect)`` for each
+    effect of one of those tags whose own ``target`` is ``affected_tag`` — an
+    effect's back-reference resolved by the same thread ("Target creature you
+    control gets +2/+2 until end of turn. Return it to its owner's hand at the
+    beginning of the next end step" — Dragon Mask), the thread followed into a
+    delayed trigger's effect as well. Without it the walk is unchanged.
 
     Mirrors the live v14 tracked-target walk over the typed substrate: phase
     parses "target creature gains <kw> / becomes a 1/1" as a ``GenericEffect``
@@ -3957,6 +4006,16 @@ def iter_threaded_target_statics(
                 tracked = None
             elif _present(tgt) and tag_of(tgt) in ("Typed", "Or", "And"):
                 tracked = tgt
+            if (
+                tag_of(eff) in effect_tags
+                and tracked is not None
+                and tag_of(tgt) == affected_tag
+            ):
+                yield tracked, eff
+            if effect_tags and tag_of(eff) == "CreateDelayedTrigger":
+                delayed = getattr(eff, "effect", MISSING)
+                if isinstance(delayed, TypedMirrorNode):
+                    queue.append(delayed)
             if tag_of(eff) == "GenericEffect" and tracked is not None:
                 nested = getattr(eff, "static_abilities", MISSING)
                 sts = nested if _present(nested) and isinstance(nested, list) else []
@@ -8692,3 +8751,999 @@ def names_subtype_payoff(tree: ConceptTree, subtype: str) -> bool:
 
 
 # ── end evasion sites, land-type changers, subtype payoffs ──
+
+
+# ── Trigger reads ──
+
+#: Filter tags naming an object (never a player) — the shapes a trigger's
+#: ``valid_target`` / ``valid_card`` / ``valid_source`` take for "that creature",
+#: the enchanted / equipped object among them ("When enchanted creature attacks,
+#: return it" — Contempt).
+_OBJECT_FILTER_TAGS: frozenset[str] = _TAP_OBJECT_TARGET_TAGS | {"AttachedTo"}
+
+#: What an effect's back-reference names (:func:`effect_back_reference`).
+BackReferenceKind = Literal["chosen", "event", "self", "linked", "unknown"]
+
+#: The back-reference targets :func:`effect_back_reference` resolves: "it" /
+#: "those cards", and a trigger's "it" / "that permanent".
+_BACK_REFERENCE_TARGETS: frozenset[str] = frozenset(
+    {"ParentTarget", "TrackedSet", "TriggeringSource", "EventTarget"}
+)
+
+
+def filter_names_only_stack_objects(filt: object) -> bool:
+    """Whether every object ``filt`` can name is a spell or an ability on the
+    stack (CR 112.1: "A spell is a card on the stack"): ``StackSpell`` /
+    ``StackAbility``, an ``And`` narrowing one ("target creature spell"), or an
+    ``Or`` all of whose arms do. "Target spell or creature" (Unsubstantiate)
+    names a permanent too, so it is not."""
+    tag = tag_of(filt)
+    if tag in ("StackSpell", "StackAbility"):
+        return True
+    filters = getattr(filt, "filters", None) or ()
+    if tag == "And":
+        return any(filter_names_only_stack_objects(f) for f in filters)
+    if tag == "Or":
+        return bool(filters) and all(
+            filter_names_only_stack_objects(f) for f in filters
+        )
+    return False
+
+
+def effect_back_reference(
+    unit: AbilityUnit, node: TypedMirrorNode
+) -> tuple[BackReferenceKind, object | None] | None:
+    """What an effect's back-reference target (``ParentTarget`` "it" / "that
+    creature", ``TrackedSet`` "those cards", a trigger's ``TriggeringSource`` /
+    ``EventTarget`` — "whenever a creature you control becomes blocked, … return
+    it", Cunning Evasion) names, as ``(kind, filter)``, or ``None`` when its
+    target is no back-reference:
+
+    * ``("chosen", filt)`` — a target the unit's chain chose earlier, threaded
+      by :func:`iter_threaded_target_statics` (Dragon Mask's "Target creature
+      you control … Return it", Narset's Reversal's copied spell);
+    * ``("event", filt)`` — a trigger's or replacement's event object other
+      than the card: the creature it blocks (Kaijin of the Vanishing Touch's
+      "return that creature"), the creatures it watches deal damage (Kaito,
+      Dancing Shadow's "one of them");
+    * ``("self", None)`` — the card itself: a trigger or replacement that
+      watches only the card, or a phase trigger with no event object (Cactuar's
+      "return it to its owner's hand" at your end step);
+    * ``("linked", None)`` — a ``TrackedSet`` no target of the unit fills: the
+      cards another of the card's abilities set aside (Tidehollow Sculler's
+      "return the exiled card"; CR 607.2a: "The second ability refers only to
+      cards in the exile zone that were put there as a result of an
+      instruction to exile them in the first ability");
+    * ``("unknown", None)`` — an ability whose chain chose nothing the thread
+      follows (Decoy Gambit's per-opponent choice)."""
+    target = getattr(node, "target", None)
+    tag = tag_of(target) or ""
+    if tag not in _BACK_REFERENCE_TARGETS:
+        return None
+    if tag in ("ParentTarget", "TrackedSet"):
+        for tracked, eff in iter_threaded_target_statics(
+            unit.node, affected_tag=tag, effect_tags=frozenset({tag_of(node) or ""})
+        ):
+            if eff is node:
+                return "chosen", tracked
+    if tag == "TrackedSet":
+        return "linked", None
+    if unit.origin not in ("trigger", "replacement"):
+        return "unknown", None
+    # The watched object first, then a damage trigger's source, then the object
+    # the card's own event touches ("Whenever this creature blocks a creature").
+    for field in ("valid_card", "valid_source", "valid_target"):
+        watched = getattr(unit.node, field, None)
+        if tag_of(watched) in _OBJECT_FILTER_TAGS:
+            return "event", watched
+    return "self", None
+
+
+# ── Board-keyword reads ──
+
+#: The aggregate functions a board-power threshold compares: the total power
+#: ("creatures you control have total power 10 or greater" — Mosswort Bridge)
+#: or the greatest power of the population.
+_BOARD_POWER_FUNCTIONS: frozenset[str] = frozenset({"Sum", "Max"})
+
+
+def _your_board_power(qty: object) -> bool:
+    """Whether ``qty`` is the total or greatest power of YOUR creatures on the
+    battlefield, or of the creatures a batched trigger watches (pack tactics'
+    "you attacked with creatures with total power 6 or greater this combat"
+    is a ``Sum`` over the ``TriggeringBatch`` — the attackers you declared)."""
+    if tag_of(qty) not in AGGREGATE_QTY_TAGS:
+        return False
+    if getattr(qty, "property", None) != "Power":
+        return False
+    if getattr(qty, "function", None) not in _BOARD_POWER_FUNCTIONS:
+        return False
+    source = getattr(qty, "source", MISSING)
+    if tag_of(source) == "TrackedSet":
+        return getattr(source, "set", None) == "TriggeringBatch"
+    filt = aggregate_filter(qty)
+    return (
+        filt is not None
+        and filter_controller(filt) == "You"
+        and "Graveyard" not in filter_inzone_zones(filt)
+    )
+
+
+def quantity_threshold(
+    root: object, lhs_pred: Callable[[object], bool], floor: int | None = None
+) -> bool:
+    """True when a condition under ``root`` asks that a quantity reach a fixed
+    floor: a trigger's intervening ``QuantityComparison`` or an ability's
+    ``QuantityCheck`` comparing ``GE`` / ``GT`` an ``lhs`` that passes
+    ``lhs_pred`` against a ``Fixed`` value — of at least ``floor`` when one is
+    given. A quantity compared against another variable is a scaler, not a
+    threshold."""
+    for n in _iter_typed_nodes(root):
+        if tag_of(n) not in ("QuantityComparison", "QuantityCheck"):
+            continue
+        if getattr(n, "comparator", None) not in ("GE", "GT"):
+            continue
+        rhs = getattr(n, "rhs", None)
+        if tag_of(rhs) != "Fixed":
+            continue
+        if floor is not None:
+            value = getattr(rhs, "value", None)
+            if not isinstance(value, int) or value < floor:
+                continue
+        if lhs_pred(getattr(n, "lhs", None)):
+            return True
+    return False
+
+
+def _is_your_board_power_ref(lhs: object) -> bool:
+    return tag_of(lhs) == "Ref" and _your_board_power(getattr(lhs, "qty", None))
+
+
+def board_power_threshold(root: object) -> bool:
+    """True when a condition under ``root`` asks that the total or greatest
+    power of your creatures reach a fixed floor (:func:`quantity_threshold`
+    over a :func:`_your_board_power` aggregate). Pack tactics (Gnoll Hunter,
+    Werewolf Pack Leader — an ability word, CR 207.2c), Owlbear Shepherd's
+    end-step draw and Mosswort Bridge's hideaway gate. An aggregate compared
+    against another variable (Vulpine Harvester's "mana value … less than or
+    equal to their total power") is a scaler, not a threshold, and an
+    aggregate over a graveyard (Carrion Grub) is not your board."""
+    return quantity_threshold(root, _is_your_board_power_ref)
+
+
+# ── Removal reads ──
+
+#: A filter's colour predicates (CR 105.2): ``"has"`` for one naming objects of
+#: a colour ("black creatures"), ``"not"`` for one naming objects that lack it
+#: ("nonblack creatures"), ``"chosen"`` for one naming objects of a colour chosen
+#: as the card resolves or enters ("permanents of the color of your choice" —
+#: Wash Out; "creatures of the chosen color" — Gauntlet of Power).
+ColorPredicate = Literal["has", "not", "chosen"]
+
+_COLOR_PREDICATE_TAGS: dict[str, ColorPredicate] = {
+    "HasColor": "has",
+    "NotColor": "not",
+    "IsChosenColor": "chosen",
+}
+
+
+def filter_color_predicates(filt: object) -> frozenset[ColorPredicate]:
+    """The colour predicates a filter names anywhere inside it — a ``Typed``
+    filter's own ``HasColor`` / ``NotColor`` / ``IsChosenColor`` properties and
+    those of every ``And`` / ``Or`` member ("target green or white creature" —
+    Deathmark). A filter naming no colour is empty."""
+    return frozenset(
+        _COLOR_PREDICATE_TAGS[t]
+        for n in iter_typed_nodes(filt)
+        if (t := tag_of(n)) in _COLOR_PREDICATE_TAGS
+    )
+
+
+#: The mass effects (CR 115.10's untargeted "each" / "all") that act on every
+#: object their filter matches: destroy, exile or tuck, bounce, damage and a P/T
+#: change. Unlike :data:`MASS_EFFECT_TAGS` (who a mass effect reaches, players
+#: included), every member here moves or changes the objects its filter names, so
+#: the filter alone decides what is hit.
+MASS_FILTER_EFFECT_TAGS: frozenset[str] = frozenset(
+    {"DestroyAll", "ChangeZoneAll", "BounceAll", "DamageAll", "PumpAll"}
+)
+
+
+class ColorKeyedSite(NamedTuple):
+    """One place a card keys on colour (CR 105.2: an object's colour is a
+    characteristic an effect can check): an ``"effect"`` whose object filter names
+    a colour (``node`` is its :class:`ConceptNode`) or a ``"static"`` whose
+    ``affected`` filter does (``node`` is the static def), on ``unit``. ``colors``
+    is the filter's :func:`filter_color_predicates`."""
+
+    unit: AbilityUnit
+    kind: Literal["effect", "static"]
+    node: Any
+    filter: object
+    colors: frozenset[ColorPredicate]
+
+
+def color_keyed_sites(tree: ConceptTree) -> Iterator[ColorKeyedSite]:
+    """Every effect and continuous effect of TREE's own abilities whose object
+    filter names a colour (:class:`ColorKeyedSite`) — Perish's "destroy all green
+    creatures", Light of Day's "Black creatures can't attack or block", Bad
+    Moon's "Black creatures get +1/+1". The caller decides which sites it wants
+    (a hoser's answer or restriction, a colour changer's mass payoff); an ability
+    a card grants is not walked."""
+    for unit in tree.units:
+        for c in unit.effects:
+            filt = effect_filter(c.node)
+            colors = filter_color_predicates(filt)
+            if colors:
+                yield ColorKeyedSite(unit, "effect", c, filt, colors)
+        for sdef in iter_static_defs(unit.node):
+            affected = getattr(sdef, "affected", None)
+            colors = filter_color_predicates(affected)
+            if colors:
+                yield ColorKeyedSite(unit, "static", sdef, affected, colors)
+
+
+#: The spell properties of a cast trigger that make it watch a TARGETING spell:
+#: "a spell that targets …" and "a spell that targets only …".
+_TARGETS_PROPERTY_TAGS: frozenset[str] = frozenset({"Targets", "TargetsOnly"})
+
+TargetingSide = Literal["you", "opponents", "any"]
+
+
+def _object_side(filt: object) -> TargetingSide:
+    """Whose object a filter names: the card itself or one you control is
+    ``you``, an opponent's ``opponents``, anyone's ``any``."""
+    if tag_of(filt) == "SelfRef":
+        return "you"
+    side = filter_controller_side(filt)
+    return side if side in ("you", "opponents") else "any"
+
+
+def _source_side(filt: object) -> TargetingSide:
+    """Whose spell or ability a becomes-target trigger's source filter names."""
+    sides = {
+        _object_side(n)
+        for n in iter_typed_nodes(filt)
+        if tag_of(n) == "Typed" and getattr(n, "controller", None)
+    }
+    if "opponents" in sides:
+        return "opponents"
+    return "you" if sides == {"you"} else "any"
+
+
+def targeting_trigger_side(trig: TypedMirrorNode) -> TargetingSide | None:
+    """Whose targeting a trigger rewards, or ``None`` when it doesn't watch a
+    target being chosen (CR 115.1: targets are chosen as a spell or ability is
+    put on the stack):
+
+    * ``"you"`` — your spell targets the card itself or your own permanent: a
+      cast trigger (heroic's "a spell that targets this creature", Feather's "an
+      instant or sorcery spell that targets a creature you control", Zada's
+      "targets only Zada") or a becomes-target trigger on your object whose
+      source is yours (valiant's "a spell or ability you control");
+    * ``"opponents"`` — the target is an opponent's permanent (Legolas, Master
+      Archer's second trigger, Willbreaker), or an opponent's spell or ability
+      does the targeting (Reparations, Frost Titan);
+    * ``"any"`` — either side (repartee's "targets a creature", Phantasmal
+      Bear's "a spell or ability")."""
+    mode = getattr(trig, "mode", None)
+    if mode == "BecomesTarget":
+        watched = _object_side(getattr(trig, "valid_card", None))
+        source = _source_side(getattr(trig, "valid_source", None))
+        if "opponents" in (watched, source):
+            return "opponents"
+        return "you" if watched == "you" and source == "you" else "any"
+    if mode != "SpellCast":
+        return None
+    sides = {
+        _object_side(getattr(n, "filter", None))
+        for n in iter_typed_nodes(getattr(trig, "valid_card", None))
+        if tag_of(n) in _TARGETS_PROPERTY_TAGS
+    }
+    if not sides:
+        return None
+    if trigger_scope(trig) == "opponents" or "opponents" in sides:
+        return "opponents"
+    return "you" if sides == {"you"} else "any"
+
+
+# ── Protection reads ──
+# The feeder reads behind four payoff lanes whose serves named cards no lane
+# read: the players a "can't lose the game" static protects (Platinum Angel,
+# Angel's Grace), your commander put into your hand from the command zone
+# (Command Beacon), a static that stops entering creatures from triggering
+# abilities (Torpor Orb), a spell whose number of targets is variable (Aurelia's
+# Fury, Distorting Wake), and a {0} activation that targets your own creature
+# (the en-Kor cycle, Shuko's equip {0}).
+
+#: The player sets a player-affecting static mode names, by side: phase writes
+#: "you" as ``Controller`` or a ``Typed`` filter whose controller is ``You``,
+#: "your opponents" as ``Opponent``, and "players" as ``Player``. A ``Typed``
+#: player filter with no controller and no type reads as every player
+#: (``"each"``): Cloudsteel Kirin's quoted "You can't lose the game" granted to
+#: the equipped creature is one phase leaves unscoped.
+StaticPlayerSide = Literal["you", "opponents", "chosen", "each"]
+
+
+def _player_static_side(sdef: object) -> StaticPlayerSide | None:
+    affected = getattr(sdef, "affected", None)
+    atag = tag_of(affected)
+    if atag == "Typed":
+        side = filter_controller_side(affected)
+        if side is not None:
+            return side
+        if filter_controller(affected) is None and not filter_core_types(affected):
+            return "each"
+        return None
+    if atag == "Player":
+        return "each"  # a static chooses no player: its "players" are all of them
+    scope = _scope_from_player_node(affected)
+    return scope if scope in ("you", "opponents", "each") else None
+
+
+def static_mode_player_sides(
+    tree: ConceptTree, *modes: str
+) -> frozenset[StaticPlayerSide]:
+    """The sides of the players a player-affecting static of one of ``modes``
+    applies to (:data:`StaticPlayerSide`), wherever the card carries it: a
+    permanent's own static (Platinum Angel's ``CantLoseTheGame``), one a spell
+    confers for a duration (Angel's Grace, Everybody Lives!), an emblem's
+    (Gideon of the Trials), and one granted inside another ability (The Book of
+    Exalted Deeds' "It gains 'You can't lose the game …'" — a
+    ``GrantStaticAbility`` definition, which only :func:`iter_static_defs`'s
+    ``granted`` walk descends). ``CantLoseTheGame`` for you is the can't-lose
+    read (``life_payment_insurance|you|cant_lose``)."""
+    wanted = set(modes)
+    out: set[StaticPlayerSide] = set()
+    for unit in tree.units:
+        for sdef in iter_static_defs(unit.node, granted=True):
+            if static_mode_tag(sdef) not in wanted:
+                continue
+            side = _player_static_side(sdef)
+            if side is not None:
+                out.add(side)
+    return frozenset(out)
+
+
+def puts_commander_into_hand(tree: ConceptTree) -> bool:
+    """Whether the card puts your commander into your hand from the command
+    zone (Command Beacon, Netherborn Altar, Road of Return's second mode,
+    Campfire): a ``ChangeZone`` / ``ChangeZoneAll`` to ``Hand`` whose filter
+    names a commander (``IsCommander``) and whose origin is the command zone —
+    the node's ``origin``, or an ``InZone: Command`` on the filter (Campfire's
+    "from the command zone and from your graveyard", which phase writes with a
+    graveyard origin). A commander put onto the battlefield from the command
+    zone (Derevi, Hellkite Courser) is not cast, so it is not this read."""
+    for node in tree.iter_typed():
+        if tag_of(node) not in ("ChangeZone", "ChangeZoneAll"):
+            continue
+        if getattr(node, "destination", None) != "Hand":
+            continue
+        filt = getattr(node, "target", None)
+        if "IsCommander" not in filter_predicates(filt):
+            continue
+        if getattr(node, "origin", None) == "Command" or "Command" in (
+            filter_inzone_zones(filt)
+        ):
+            return True
+    return False
+
+
+def silences_own_enter_triggers(tree: ConceptTree) -> bool:
+    """Whether a static stops creatures entering the battlefield from triggering
+    YOUR permanents' abilities: a ``SuppressTriggers`` mode over the
+    ``EntersBattlefield`` event whose source filter admits creatures (Torpor
+    Orb, Hushwing Gryff, Hushbringer; Karn, Argent Defender's "artifacts and
+    creatures") and whose trigger-source filter does not limit it to an
+    opponent's permanents (Elesh Norn, Mother of Machines silences only theirs).
+    """
+    for unit in tree.units:
+        for sdef in unit.static_defs():
+            if static_mode_tag(sdef) != "SuppressTriggers":
+                continue
+            events = static_mode_field(sdef, "events")
+            if (
+                not isinstance(events, (list, tuple))
+                or "EntersBattlefield" not in events
+            ):
+                continue
+            source = static_mode_field(sdef, "source_filter")
+            types = set(filter_core_types(source))
+            if types and not types & {"Creature", "Permanent"}:
+                continue
+            owner = static_mode_field(sdef, "trigger_source_filter")
+            if filter_controller_side(owner) == "opponents":
+                continue
+            return True
+    return False
+
+
+def _fixed_count(qty: object) -> int | None:
+    if isinstance(qty, int):
+        return qty
+    if tag_of(qty) == "Fixed":
+        value = getattr(qty, "value", None)
+        return value if isinstance(value, int) else None
+    return None
+
+
+#: Effects whose count is a choice made without targeting: "each player
+#: chooses any number of creatures …, then sacrifices the rest" (Destined
+#: Confrontation, Slaughter the Strong).
+_CHOSEN_NOT_TARGETED_EFFECTS = frozenset({"ChooseAndSacrificeRest"})
+#: An effect over the objects an earlier clause named ("exile any number of
+#: those cards" — Dimir Machinations) picks among them; it targets nothing.
+_TRACKED_SET_TAGS = frozenset({"TrackedSet", "TrackedSetFiltered"})
+
+
+def has_variable_target_count(node: object) -> bool:
+    """Whether one ability node's targets are a VARIABLE number of two or more
+    (CR 601.2c: "If the spell has a variable number of targets, the player
+    announces how many targets they will choose"): phase's ``multi_target``
+    range with no maximum ("any number of target creatures" — Descent of the
+    Dragons), a maximum or minimum that is a quantity ("X target nonland
+    permanents" — Distorting Wake), or a fixed range of two or more ("one, two,
+    or three targets" — Flames of the Firebrand; "up to two target creatures").
+    A division among targets (CR 601.2d — Aurelia's Fury) rides the same range.
+    A fixed count ("two target creatures") and "up to one" are not variable,
+    and neither is a count chosen without targeting — phase puts the same
+    range on "untap up to three lands" (Frantic Search) and "return any number
+    of Plains you control" (Plow Through Reito), marking the choice as made on
+    resolution (``target_choice_timing`` on the ability, ``selection`` on the
+    effect), and a choice among the objects an earlier clause named or a
+    choose-then-sacrifice is no target either."""
+    rng = getattr(node, "multi_target", MISSING)
+    if not isinstance(rng, TypedMirrorNode):
+        return False
+    effect = getattr(node, "effect", None)
+    if (
+        getattr(node, "target_choice_timing", None) == "Resolution"
+        or getattr(effect, "selection", None) == "at_resolution"
+        or tag_of(effect) in _CHOSEN_NOT_TARGETED_EFFECTS
+        or tag_of(getattr(effect, "target", None)) in _TRACKED_SET_TAGS
+    ):
+        return False
+    hi = getattr(rng, "max", None)
+    lo = getattr(rng, "min", None)
+    if hi is None:
+        return True
+    hi_n, lo_n = _fixed_count(hi), _fixed_count(lo)
+    if hi_n is None or (lo is not None and lo_n is None):
+        return True
+    return hi_n >= 2 and (lo_n or 0) < hi_n
+
+
+def spell_has_variable_target_count(tree: ConceptTree) -> bool:
+    """Whether an instant or sorcery's own spell ability targets a variable
+    number of objects or players (:func:`has_variable_target_count`), a later
+    sentence or a mode of it included. A permanent's triggered or activated
+    ability is not a spell, so a "cost {1} less for each target" spell
+    discount (Hinata, Dawn-Crowned) never reaches it."""
+    if not (tree.is_type("Instant") or tree.is_type("Sorcery")):
+        return False
+    return any(
+        unit.origin == "ability"
+        and getattr(unit.node, "kind", None) == "Spell"
+        and any(has_variable_target_count(n) for n in unit.iter_typed())
+        for unit in tree.units
+    )
+
+
+def _zero_mana_cost(cost: object) -> bool:
+    if tag_of(cost) == "Mana":
+        mana = getattr(cost, "cost", None)
+        # {X} counts 0 toward mana value (CR 202.3e) but is no free activation.
+        return cost_mana_value(mana) == 0 and not getattr(mana, "shards", None)
+    parts = getattr(cost, "costs", MISSING)
+    if tag_of(cost) == "Composite" and isinstance(parts, list) and parts:
+        return all(_zero_mana_cost(p) for p in parts)
+    return False
+
+
+def _targets_own_creature(effect: object) -> bool:
+    if tag_of(effect) is None or (tag_of(effect) or "").endswith("All"):
+        return False
+    chosen = tag_of(getattr(effect, "redirect_to", None)) == "ChosenTarget"
+    for field in ("target", "redirect_object_filter") if chosen else ("target",):
+        filt = getattr(effect, field, None)
+        if tag_of(filt) != "Typed" or filter_controller(filt) != "You":
+            continue
+        # A card in a graveyard or hand is no creature you control (CR 110.1).
+        if set(filter_inzone_zones(filt)) - {"Battlefield"}:
+            continue
+        if set(filter_core_types(filt)) & {"Creature", "Permanent"}:
+            return True
+    return False
+
+
+def free_own_target_activations(tree: ConceptTree) -> bool:
+    """Whether the card has (or grants) an activated ability that costs {0} and
+    targets a creature or permanent you control — a free, repeatable way to
+    target your own creature: the en-Kor cycle's "{0}: The next 1 damage … is
+    dealt to target creature you control instead", equip {0} (Shuko, Lightning
+    Greaves; CR 702.6a: "Attach to target creature you control"), and equip {0}
+    granted to your Equipment (Puresteel Paladin's metalcraft) or to a token
+    (Nahiri, the Lithomancer's Stoneforged Blade). A cost with any other part
+    (tapping, sacrificing) or an {X} is not free. Equip is an ability of
+    Equipment (CR 702.6a), so an equip ability on the card itself counts only
+    when the card is an Equipment: phase writes Auriok Steelshaper's "Equip
+    costs you pay cost {1} less" as an equip {0} of its own."""
+    equipment = "Equipment" in tree.card_subtypes
+    for unit in tree.units:
+        for node in unit.iter_typed():
+            if getattr(node, "kind", None) != "Activated":
+                continue
+            if (
+                node is unit.node
+                and not equipment
+                and tag_of(getattr(node, "ability_tag", None)) == "Equip"
+            ):
+                continue
+            if not _zero_mana_cost(getattr(node, "cost", None)):
+                continue
+            if _targets_own_creature(getattr(node, "effect", None)):
+                return True
+    return False
+
+
+# ── Stax reads ──
+
+#: The modifications that SET power / toughness to a computed value — a
+#: characteristic-defining */* (CR 604.3), in both phase spellings: Maro's
+#: ``SetDynamicPower`` pair, Titania's Song's ``SetPowerDynamic`` pair.
+DYNAMIC_PT_SET_MODS: frozenset[str] = frozenset(
+    {
+        "SetDynamicPower",
+        "SetDynamicToughness",
+        "SetPowerDynamic",
+        "SetToughnessDynamic",
+    }
+)
+#: Every dynamic P/T modification: the setting pair plus the computed bonus
+#: ("+1/+1 for each card in your hand" — Empyrial Armor).
+DYNAMIC_PT_MODS: frozenset[str] = DYNAMIC_PT_SET_MODS | {
+    "AddDynamicPower",
+    "AddDynamicToughness",
+}
+
+
+def dynamic_pt_mod_sites(
+    root: object, *, setting_only: bool = False
+) -> Iterator[tuple[TypedMirrorNode, TypedMirrorNode]]:
+    """The ``(static_def, modification)`` pairs (:func:`iter_mod_sites`) under
+    ``root`` whose modification is a dynamic P/T one (:data:`DYNAMIC_PT_MODS`,
+    or only the setting pair with ``setting_only``)."""
+    mods = DYNAMIC_PT_SET_MODS if setting_only else DYNAMIC_PT_MODS
+    for sdef, mod in iter_mod_sites(root):
+        if tag_of(mod) in mods:
+            yield sdef, mod
+
+
+def hand_count_scopes(root: object) -> tuple[str, ...]:
+    """:func:`hand_size_scopes` widened to the ``ZoneCardCount{zone: Hand}``
+    qty phase writes for "for each card in your hand" (Empyrial Armor's
+    dynamic pump, Spontaneous Generation's token count, Gerrard's Wisdom's
+    life gain), whose player is a bare ``scope`` string: ``"you"`` for your
+    own hand, ``"opponents"`` / ``"any"`` otherwise. CR 402.1 (a player's
+    hand)."""
+    out = list(hand_size_scopes(root))
+    for n in _iter_typed_nodes(root):
+        if tag_of(n) != "ZoneCardCount" or getattr(n, "zone", None) != "Hand":
+            continue
+        scope = getattr(n, "scope", None)
+        if not _present(scope):
+            out.append("you")
+        else:
+            out.append(_scope_from_player_tag(scope) or "any")
+    return tuple(out)
+
+
+def own_hand_signs(operand: object, sign: int = 1) -> frozenset[int]:
+    """The directions your own hand count moves an operand: ``1`` where a
+    bigger hand makes it bigger, ``-1`` under a negative ``Multiply`` or a
+    ``Subtract`` ("minus the number of cards in your hand" — Dark
+    Suspicions, Mr. Foxglove; a die roll's "subtract", The Deck of Many
+    Things), and both under a ``Difference`` (Damia's refill to seven, which
+    shrinks as the hand grows toward it). Empty when the operand never reads
+    your hand. CR 402.1 (a player's hand)."""
+    tag = tag_of(operand)
+    if tag == "Multiply":
+        factor = getattr(operand, "factor", None)
+        flip = -1 if isinstance(factor, int) and factor < 0 else 1
+        return own_hand_signs(getattr(operand, "inner", None), sign * flip)
+    if tag == "Subtract":
+        return own_hand_signs(getattr(operand, "value", None), -sign)
+    if tag == "Sum":
+        out: frozenset[int] = frozenset()
+        for expr in getattr(operand, "exprs", None) or ():
+            out |= own_hand_signs(expr, sign)
+        return out
+    if tag == "Difference":
+        if own_hand_signs(getattr(operand, "left", None)) or own_hand_signs(
+            getattr(operand, "right", None)
+        ):
+            return frozenset({1, -1})
+        return frozenset()
+    if tag in ("Quantity", "Add"):
+        return own_hand_signs(getattr(operand, "value", None), sign)
+    if tag == "Offset":
+        return own_hand_signs(getattr(operand, "inner", None), sign)
+    if isinstance(operand, list):
+        out = frozenset()
+        for item in operand:
+            out |= own_hand_signs(item, sign)
+        return out
+    if operand is None or "you" not in hand_count_scopes(operand):
+        return frozenset()
+    return frozenset({sign})
+
+
+#: The modifications a pure color change may carry beside its color mods: a
+#: keyword rider (the -Wisps cycle's haste). Any other modification makes the
+#: color a rider on an animation or a reanimation ("is a black Zombie in
+#: addition", "becomes a 0/4 Wall").
+_COLOR_CHANGE_RIDER_MODS: frozenset[str] = frozenset({"AddKeyword", "RemoveKeyword"})
+
+
+def _substitution_domains(mod: object) -> tuple[str, ...]:
+    """The word domains a ``SubstituteTextWord`` lets you swap (``ColorWord``,
+    ``BasicLandType``, ``CreatureType``)."""
+    data = getattr(getattr(mod, "substitution", None), "data", None)
+    if isinstance(data, MirrorVariant) and data.key == "domains":
+        inner = data.inner
+        if isinstance(inner, list):
+            return tuple(d for d in inner if isinstance(d, str))
+    return ()
+
+
+def color_change_kinds(static_def: object) -> tuple[str, ...]:
+    """How one continuous effect changes colors (CR 105.3: "Effects may change
+    an object's color"): ``"set"`` (a new color replaces the old — Purelace,
+    the -Wisps cycle, Shifting Sky), ``"add"`` ("in addition to its other
+    colors" — Painter's Servant, Indigo Faerie) and ``"text"`` (a color word
+    swapped in its rules text — Sleight of Mind, Mind Bend). Empty for a
+    characteristic-defining color (devoid, CR 604.3), a change to colorless
+    (Ancient Kavu — no new color), and a color that is a rider on another
+    change (an animation, a base P/T or subtype set —
+    :data:`_COLOR_CHANGE_RIDER_MODS`)."""
+    if getattr(static_def, "characteristic_defining", None) is True:
+        return ()
+    kinds: list[str] = []
+    for mod in getattr(static_def, "modifications", None) or ():
+        tag = tag_of(mod)
+        if tag == "SetColor":
+            if not getattr(mod, "colors", None):
+                return ()
+            kinds.append("set")
+        elif tag == "AddColor":
+            kinds.append("add")
+        elif tag == "AddChosenColor":
+            kinds.append("set" if getattr(mod, "mode", None) == "Set" else "add")
+        elif tag == "SubstituteTextWord":
+            if "ColorWord" in _substitution_domains(mod):
+                kinds.append("text")
+        elif tag not in _COLOR_CHANGE_RIDER_MODS:
+            return ()
+    return tuple(kinds)
+
+
+def creature_type_change_kinds(
+    static_def: object,
+) -> tuple[Literal["chosen", "all"], ...]:
+    """How one continuous effect changes its objects' creature types, one entry
+    per modification: ``"chosen"`` for the creature type you choose (CR 205.1a:
+    a set subtype replaces the old ones) — "Target creature becomes the creature
+    type of your choice" (Imagecrafter, Mistform Mutant, Unnatural Selection),
+    "Each creature becomes that type" (Standardize); an ``AddChosenSubtype`` with
+    no ``RemoveAllSubtypes`` keeps the old types ("in addition", CR 205.1b) and
+    counts too — and ``"all"`` for every creature type ("gains all creature
+    types" — Amoeboid Changeling; a granted changeling, CR 702.73a — Mirror
+    Entity). The caller decides whose creatures it reaches."""
+    kinds: list[Literal["chosen", "all"]] = []
+    for mod in getattr(static_def, "modifications", None) or ():
+        tag = tag_of(mod)
+        if tag == "AddChosenSubtype" and getattr(mod, "kind", None) == "CreatureType":
+            kinds.append("chosen")
+        elif tag == "AddAllCreatureTypes" or (
+            tag == "AddKeyword" and mod_keyword_name(mod) == "Changeling"
+        ):
+            kinds.append("all")
+    return tuple(kinds)
+
+
+def library_search_restriction_side(static_def: object) -> str | None:
+    """Whom a library-search restriction binds (CR 701.23a): ``"opponents"`` or
+    ``"each"``. ``CantSearchLibrary`` carries the player on ``cause``
+    (Stranglehold, Ashiok, Dream Render: opponents; Mindlock Orb: every
+    player); ``RestrictLibrarySearchToTop`` on ``who`` (Aven Mindcensor's "if
+    an opponent would search a library, that player searches the top four
+    cards of that library instead"). ``None`` for any other static."""
+    mode = static_mode_tag(static_def)
+    if mode == "CantSearchLibrary":
+        who = static_mode_field(static_def, "cause")
+    elif mode == "RestrictLibrarySearchToTop":
+        who = static_mode_field(static_def, "who")
+    else:
+        return None
+    side = _scope_from_player_tag(who)
+    return side if side in ("opponents", "each") else None
+
+
+# ── Voltron and counters reads ──
+
+#: ``Mill`` recipients naming a player other than the effect's controller: the
+#: defending player (Nemesis of Reason), the controller of an object an earlier
+#: clause chose ("Counter target spell. Its controller mills four cards" —
+#: Countermand; Grisly Spectacle), a target player (Millstone, Glimpse the
+#: Unthinkable) and a back-reference to one (Demogorgon's Clutches' "Target
+#: opponent discards two cards, mills two cards").
+_OTHER_PLAYER_MILL_RECIPIENTS: frozenset[str] = frozenset(
+    {"DefendingPlayer", "ParentTargetController", "ParentTarget", "Player"}
+)
+#: :func:`effect_player_reach` answers that take in another player's library:
+#: each opponent, each player (Extract from Darkness), a target player, a
+#: per-player loop ("At the beginning of each player's upkeep, that player
+#: mills" — Worry Beads).
+_OPPONENT_MILL_REACH: frozenset[str] = frozenset(
+    {"opponents", "per_opponent", "each", "target", "scoped"}
+)
+
+
+def mill_reaches_opponent(unit: AbilityUnit, node: TypedMirrorNode) -> bool:
+    """Whether a ``Mill`` effect ``node`` of ``unit`` can mill a library other
+    than its controller's (CR 701.17a: "For a player to mill a number of cards,
+    that player puts that many cards from the top of their library into their
+    graveyard" — the player named mills, into their own graveyard). phase
+    writes most mills Controller-relative, so the recipient alone reads "you";
+    the reach is read off the structure around it:
+
+    * the actor :func:`effect_actor_scope` names — an opponent (Maddening
+      Cacophony, Mindcrank, Bruvac) or an Aura's enchanted player (Fraying
+      Sanity, Curse of the Bloody Tome);
+    * the player reach :func:`effect_player_reach` names (each opponent, each
+      player, a target player, a per-player loop);
+    * the recipient itself (:data:`_OTHER_PLAYER_MILL_RECIPIENTS`), a
+      ``Typed`` opponent ("target opponent mills" — Helm of Obedience), or a
+      trigger's "that player" unless the trigger watches only you (combat
+      damage to a player — Sword of Body and Mind, Captain N'ghathrod).
+
+    A mill whose destination is not the graveyard is no mill (phase labels
+    Scroll Rack's library↔hand swap ``Mill``)."""
+    if tag_of(node) != "Mill" or getattr(node, "destination", None) != "Graveyard":
+        return False
+    if effect_actor_scope(unit, node) in ("opponents", ENCHANTED_PLAYER_SCOPE):
+        return True
+    if effect_player_reach(unit.node, node) in _OPPONENT_MILL_REACH:
+        return True
+    recipient = recipient_tag(node)
+    if recipient in _OTHER_PLAYER_MILL_RECIPIENTS:
+        return True
+    if recipient == "TriggeringPlayer":
+        return triggering_player_side(unit) != "you"
+    return filter_controller(getattr(node, "target", None)) == "Opponent"
+
+
+def blight_placements(unit: AbilityUnit) -> tuple[TypedMirrorNode, ...]:
+    """The blight actions of one unit (CR 701.68a: "To 'blight N' means to put
+    N -1/-1 counters on a creature you control"): phase's ``BlightEffect``
+    anywhere under the unit, a granted ability's included — "each opponent
+    blights 1" (High Perfect Morcant) too, whose counters land on that
+    player's creature — and a ``Blight`` leaf of a cost the unit's controller
+    pays (:func:`controller_paid_cost_leaves`: Gristle Glutton's "{T}, Blight
+    1:", Evershrike's Gift's graveyard ability, a spell's merged additional
+    cost). phase types neither as the ``PutCounter`` the counter lanes read."""
+    out: dict[int, TypedMirrorNode] = {
+        id(n): n for n in unit.iter_typed() if tag_of(n) == "BlightEffect"
+    }
+    for paid in controller_paid_cost_leaves(unit):
+        if tag_of(paid.leaf) == "Blight":
+            out.setdefault(id(paid.leaf), paid.leaf)
+    return tuple(out.values())
+
+
+def role_tokens_attached(unit: AbilityUnit) -> tuple[TypedMirrorNode, ...]:
+    """The Role tokens one unit makes you create attached to a creature (CR
+    303.7: "Some Aura enchantments also have the subtype 'Role'"; CR 111.10j-r
+    define the predefined Role tokens): a ``Token`` effect whose types name
+    ``Role``, with an ``attach_to``, created by you (:func:`token_creator_side`
+    — Monstrous Rage, Royal Treatment, Ellivere of the Wild Court). A Role put
+    on a creature an opponent controls (a ``Typed`` opponent ``attach_to``) is
+    left out. Which Role it is stays the caller's read: the token's ``name``."""
+    return tuple(
+        n
+        for n in unit.iter_typed()
+        if tag_of(n) == "Token"
+        and "Role" in (getattr(n, "types", None) or ())
+        and _present(getattr(n, "attach_to", None))
+        and filter_controller(getattr(n, "attach_to", None)) != "Opponent"
+        and token_creator_side(unit, n) == "you"
+    )
+
+
+def own_token_filters(unit: AbilityUnit) -> tuple[object, ...]:
+    """The filters naming tokens YOU control that one unit cares about beyond
+    an anthem's pump and a token-watching trigger (CR 111.1: a token is a
+    marker used to represent a permanent that isn't a card) — each a filter
+    carrying phase's ``Token`` predicate and controller you:
+
+    * a static's ``affected`` set, whatever it does to them — a granted
+      ability ("Tokens you control have '{T}: Add {G}.'" — Jaheira, Friend of
+      the Forest; Insidious Roots), a rule change ("The 'legend rule' doesn't
+      apply to tokens you control" — Cadric, Soul Kindler), damage prevention
+      (Emmara Tandris); a granted static's included (Inspiring Leader);
+    * a ``TapCreatures`` leaf of a cost you pay ("Tap two untapped tokens you
+      control:" — Baylen, the Haymaker; Hazel of the Rootbloom);
+    * a trigger's ``valid_source`` ("Whenever a creature token you control
+      deals combat damage to a player" — Curiosity Crafter);
+    * a cost reduction's count (:func:`cost_reduction_count_filters` —
+      "cost {1} less to cast for each creature token you control", Magnus
+      the Red).
+
+    The caller turns each into the payoff signal of the kind it names."""
+
+    def mine(filt: object) -> bool:
+        return (
+            filt is not None
+            and "Token" in filter_predicates(filt)
+            and filter_controller(filt) == "You"
+        )
+
+    out: list[object] = []
+    for sdef in iter_static_defs(unit.node):
+        aff = getattr(sdef, "affected", None)
+        if mine(aff):
+            out.append(aff)
+    for paid in controller_paid_cost_leaves(unit):
+        if tag_of(paid.leaf) == "TapCreatures":
+            filt = getattr(paid.leaf, "filter", None)
+            if mine(filt):
+                out.append(filt)
+    if unit.origin == "trigger":
+        src = getattr(unit.node, "valid_source", None)
+        if mine(src):
+            out.append(src)
+    out.extend(f for f in cost_reduction_count_filters(unit.node) if mine(f))
+    return tuple(out)
+
+
+# ── Card-advantage reads ──
+
+
+#: The steps an added step of the same name re-runs (CR 500.9; an added beginning
+#: phase holds an upkeep and a draw step, CR 501.1), whose
+#: "at the beginning of …" triggers an extra-step card multiplies: upkeep (CR
+#: 503), draw (CR 504) and end (CR 513).
+EXTRA_STEP_TRIGGER_PHASES: tuple[str, ...] = ("Upkeep", "Draw", "End")
+
+
+def own_turn_step_triggers(unit: AbilityUnit) -> frozenset[str]:
+    """The steps (:data:`EXTRA_STEP_TRIGGER_PHASES`) at whose beginning a trigger
+    the unit carries or grants (:func:`iter_unit_trigger_defs`) fires on your own
+    turn — "at the beginning of your upkeep" (Phyrexian Arena), "… of each end
+    step" (Wound Reflection), "… of your draw step" (Sylvan Library): a
+    ``Phase``-mode trigger (:func:`trigger_phase`) not limited to an opponent's
+    turn (:func:`trigger_turn_constraint`). An "each player's [step]" or
+    "enchanted player's [step]" trigger whose effect falls on the player whose
+    step it is (:func:`_aims_at_step_player` — Braids, Cabal Minion; Howling
+    Mine) is left out: it treats every player alike rather than paying you
+    off; so is one at a NAMED player's step (:data:`_NAMED_STEP_PLAYERS` — the
+    enchanted creature's controller, an enchanted or chosen player: Soul Bleed,
+    Curse of Thirst, Black Vise) and a pure drawback an added step makes worse
+    (:func:`_only_costs_you` — Ball Lightning's end-step sacrifice, Juzám
+    Djinn's ping). Keyword
+    upkeep costs (cumulative upkeep, echo) are their own trigger modes, never
+    ``Phase``; suspend's time-counter removal is one, and an added upkeep
+    speeds it up."""
+    steps: set[str] = set()
+    for trig in iter_unit_trigger_defs(unit):
+        if getattr(trig, "mode", None) != "Phase":
+            continue
+        step = trigger_phase(trig)
+        if step not in EXTRA_STEP_TRIGGER_PHASES:
+            continue
+        constraint = trigger_turn_constraint(trig)
+        if constraint == "OnlyDuringOpponentsTurn":
+            continue
+        if constraint is None and _aims_at_step_player(trig):
+            continue
+        if tag_of(getattr(trig, "valid_target", None)) in _NAMED_STEP_PLAYERS:
+            continue
+        if _only_costs_you(trig):
+            continue
+        steps.add(step)
+    return frozenset(steps)
+
+
+#: A step trigger's ``valid_target`` that names whose step it watches when that
+#: is one player the card points at, not you: the enchanted permanent's
+#: controller (Soul Bleed), the enchanted player (Curse of Thirst, Paradox Haze),
+#: the chosen player (Black Vise).
+_NAMED_STEP_PLAYERS: frozenset[str] = frozenset(
+    {"ParentTargetController", "AttachedTo", "SourceChosenPlayer"}
+)
+
+
+#: The moves by which a step trigger takes its own card away — the "at the
+#: beginning of the end step, sacrifice / return this" drawback (Ball Lightning,
+#: Viashino Sandscout, Arc Runner).
+_SELF_LEAVE_TAGS: frozenset[str] = frozenset(
+    {"Sacrifice", "Bounce", "ChangeZone", "Destroy", "Exile", "ShuffleIntoLibrary"}
+)
+
+
+def _only_costs_you(trig: TypedMirrorNode) -> bool:
+    """Whether a step trigger is a pure drawback — every effect of its chain
+    (``execute`` and its ``sub_ability`` links) only costs you
+    (:func:`_step_effect_cost`) or is bookkeeping on the card itself, so an
+    added step makes it WORSE: the card taking itself away ("sacrifice ~ unless
+    you pay" — Masticore; Ball Lightning), damage or life loss to you (Juzám
+    Djinn; Force of Nature's "pay {G}{G}{G}{G} or take 8"), sacrificing or
+    discarding your own things (Leviathan), handing the card over (Wild Dogs),
+    a -1/-1 counter on itself (Magmaroth). A symmetric "each player discards"
+    counts as a cost; an "each opponent loses" link is a drain. Any effect
+    with an upside — a draw, a token, any other counter it builds up (a
+    Thallid's spore, a Shrine's charge, Lotus Blossom's petal), a drain, mana
+    — keeps the trigger (Phyrexian Arena, Bitterblossom). A trigger that
+    works from the graveyard or exile (:func:`ability_zones`) brings the card
+    BACK (Squee, Goblin Nabob; Nether Spirit) and stays."""
+    if ability_zones(trig) & {"Graveyard", "Exile"}:
+        return False
+    kinds: list[str | None] = []
+    ability = getattr(trig, "execute", None)
+    while isinstance(ability, TypedMirrorNode):
+        kind = _step_effect_cost(getattr(ability, "effect", None))
+        if tag_of(getattr(ability, "player_scope", None)) == "Opponent":
+            kind = None  # "each opponent loses …" is a drain, not a cost
+        kinds.append(kind)
+        ability = getattr(ability, "sub_ability", None)
+    return bool(kinds) and all(kinds) and "cost" in kinds
+
+
+#: Who an effect's ``target`` names when it hits you: the controller, or no
+#: recipient at all (Phyrexian Arena's "lose 1 life" carries none).
+_YOU_TARGETS: frozenset[str | None] = frozenset({None, "Controller"})
+
+
+def _step_effect_cost(e: object) -> str | None:
+    """``"cost"`` when an effect only costs you, ``"inert"`` when it is
+    bookkeeping on the card itself (a shuffle, tapping or untapping it),
+    ``None`` when it may help you."""
+    t = tag_of(e)
+    tgt = getattr(e, "target", None)
+    ttag = tag_of(tgt)
+    if t in _SELF_LEAVE_TAGS and ttag == "SelfRef":
+        return "cost"
+    if t in ("DealDamage", "LoseLife", "PayLife") and ttag in _YOU_TARGETS:
+        return "cost"
+    if t in ("Sacrifice", "Discard") and (
+        ttag in ("SelfRef", "Controller") or filter_controller(tgt) == "You"
+    ):
+        return "cost"
+    if t == "GiveControl" and ttag in (None, "SelfRef"):
+        return "cost"
+    if t == "Shuffle" or (t == "SetTapState" and ttag == "SelfRef"):
+        return "inert"
+    if t == "PutCounter" and ttag == "SelfRef":
+        return "cost" if getattr(e, "counter_type", None) == "M1M1" else None
+    return None
+
+
+def _aims_at_step_player(trig: TypedMirrorNode) -> bool:
+    """Whether a per-player step trigger acts on the player whose step it is —
+    "that player sacrifices / draws / is dealt damage" (Braids, Cabal Minion;
+    Howling Mine; Sulfuric Vortex): a :func:`refers_to_scoped_player` reference
+    outside a counted quantity. One only inside a ``Ref`` amount counts the
+    players an effect walks (Wound Reflection's "the life they lost this turn",
+    Smuggler's Share's "each opponent who drew two or more cards") and keeps the
+    trigger."""
+    scoped = {id(n) for n in _iter_typed_nodes(trig) if _names_scoped_player(n)}
+    if not scoped:
+        return False
+    counted = {
+        id(n)
+        for ref in _iter_typed_nodes(trig)
+        if tag_of(ref) == "Ref"
+        for n in _iter_typed_nodes(ref)
+        if _names_scoped_player(n)
+    }
+    return bool(scoped - counted)

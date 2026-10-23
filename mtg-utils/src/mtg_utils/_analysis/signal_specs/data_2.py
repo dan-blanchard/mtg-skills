@@ -14,6 +14,7 @@ from mtg_utils._analysis._sweep_detectors import (
 )
 
 from ._shared import (
+    _CAST_FROM_EXILE_EXTRA,
     _COMBAT_SUPPORT_EXTRA,
     _COST_REDUCER_EXTRA,
     _COUNTERS_PACKAGE,
@@ -34,7 +35,6 @@ from ._shared import (
     _PILLOWFORT_EXTRA,
     _PLUS_ONE_SERVE_IDENTS,
     _PUMP_EXTRA,
-    _STEAL_CAST_ORACLE,
     _SYM_MANA_EXTRA,
     _THEFT_SWEEP_REGEX,
     _TOKEN_DOUBLER_EXTRA,
@@ -49,6 +49,10 @@ from ._shared import (
     _spec,
     _sweep_spec_with_extras,
 )
+
+# The voltron serve (voltron_matters / voltron_makers, you): the suit-up payoffs and
+# the gear-attachers and tutors.
+_VOLTRON_IDENTS = frozenset({"voltron_matters|you|", "voltron_makers|you|*"})
 
 # The discard serve (discard_makers / discard_matters / discard_outlet, you): the
 # outlets, the discard makers, the "whenever you discard" payoffs and the Blood
@@ -106,6 +110,9 @@ _FLYING_GRANT_IDENTS = frozenset(
     }
 )
 _FLYING_GRANT_ORACLE = r"(?:gains?|have|has) flying|creatures you control[^.]*flying"
+
+_BIG_HAND_IDENTS = frozenset({"big_hand_makers|you|", "big_hand_matters|you|"})
+
 
 SPECS_2: dict[tuple[str, str], SignalSpec] = {
     # ── Rules mined from the zero-signal commander tail ─────────────────────────
@@ -257,25 +264,22 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
         serve_idents=frozenset({"cast_from_exile|you|"}),
         extras=(_PARADOX_PAYOFF_EXTRA,),
     ),
-    # Impulse (top-of-YOUR-library exile-and-play): hand-written so the serve also
-    # credits the "exile then cast it for as long as it remains exiled" engines
-    # (Gonti, Hostage Taker, Thief of Sanity) the bare "play those cards this turn"
-    # sweep regex missed, plus the cast-from-exile PAYOFFS an impulse deck triggers by
-    # casting its exiled cards (Wild-Magic Sorcerer: "the first spell you cast from
-    # exile … has cascade"). Detector regex (commander side) is unchanged.
+    # Impulse: serves the impulse lane's idents plus the impulse-style cast-from-exile
+    # engines. Remainder: impulse draws the lanes don't read (look, exile one, play
+    # it) and theft-side exiles, which the theft lanes own.
     ("impulse_top_play", "you"): _spec(
         *SWEEP_LABELS["impulse_top_play"],
         {"oracle": _IMPULSE_SWEEP_REGEX},
-        _IMPULSE_SWEEP_REGEX
-        + r"|"
-        + _STEAL_CAST_ORACLE
-        + r"|spells? you cast from exile|first spell you cast from exile"
-        # The bare "Whenever you cast a spell from exile" trigger payoff (Passionate
-        # Archaeologist, Nalfeshnee) the impulse deck fires by casting its exiled cards.
-        + r"|whenever you cast a spell from exile",
+        None,
+        serve_idents=frozenset(
+            {"impulse_top_play|you|", "cast_from_exile|you|impulse"}
+        ),
         # Paradox payoffs (Keeper of Secrets) — casting from exile IS from-anywhere-
         # other-than-hand, so an impulse deck triggers them too.
-        extras=(_PARADOX_PAYOFF_EXTRA,),
+        extras=(
+            _PARADOX_PAYOFF_EXTRA,
+            _CAST_FROM_EXILE_EXTRA,
+        ),
     ),
     # X-spells matter (CR 107.3 / 202.1): an X-matters commander (Zaxara, Rosheen,
     # Zimone) is built from spells whose printed mana cost contains {X} and wants the
@@ -658,10 +662,10 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
         "Card-advantage engine",
         "protection, recursion, and payoffs for a repeatable draw engine",
         {"preset_names": ("card-draw",)},
-        r"at the beginning of [^.]*\bdraws? "
-        r"(?:a|an|two|three|four|five|six|seven|eight|nine|ten|x|\d+)[^.]*\bcard"
-        r"|draws? (?:two|three|four|five|six|seven|eight|nine|ten|x|\d+) cards?"
-        r"|draw cards equal to|draws? an additional card",
+        # Serve on the lane's ident: the repeatable draw engines. ETB bulk draw stays
+        # the self_etb_payload lane's; granted-trigger draws are a lane gap.
+        None,
+        serve_idents=frozenset({"card_draw_engine|you|"}),
     ),
     # Drop the self-only `draws? an additional card` (it belongs to the YOU engine); the
     # EACH avenue is symmetric/group draw only.
@@ -734,14 +738,10 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
         "Voltron / equipment & auras",
         "equipment, auras, equip-cost reducers, and tutors to suit up one creature",
         {"preset_names": ("equip",)},
-        r"equipped creature|enchanted creature gets|equip \{"
-        r"|attach [^.]*(?:equipment|aura)"
-        r"|equipment you control|for each (?:equipment|aura)"
-        r"|cast an? (?:aura|equipment)|cast aura and equipment"
-        # Aura/Equipment cost reducers (Danitha) and tutors (Open the Armory,
-        # Steelshaper's Gift) are top-synergy voltron payoffs that aren't Equipment.
-        r"|(?:aura|equipment)s?[^.]*spells? you cast cost"
-        r"|search your library for an? (?:aura|equipment)",
+        # Serve on the lanes' idents plus the Equipment / Aura type gate. Remainder:
+        # the equip-cost reducers and suit-up tutors the lanes read are the idents'.
+        None,
+        serve_idents=_VOLTRON_IDENTS,
         serve_types=("equipment", "aura"),
         serve_keywords=("reconfigure",),
         # Voltron buffs YOUR creature (CR 303.4 / 702.5). An Aura that enchants a
@@ -766,12 +766,8 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
         "attach/fetch effects plus the equipment, auras, and equip-cost reducers they "
         "load onto one creature",
         {"preset_names": ("equip",)},
-        r"equipped creature|enchanted creature gets|equip \{"
-        r"|attach [^.]*(?:equipment|aura)"
-        r"|equipment you control|for each (?:equipment|aura)"
-        r"|cast an? (?:aura|equipment)|cast aura and equipment"
-        r"|(?:aura|equipment)s?[^.]*spells? you cast cost"
-        r"|search your library for an? (?:aura|equipment)",
+        None,
+        serve_idents=_VOLTRON_IDENTS,
         serve_types=("equipment", "aura"),
         serve_keywords=("reconfigure",),
         serve_not=r"can't attack|can't block|doesn't untap during"
@@ -835,8 +831,10 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
         "exchange-control effects — donate a dud you own, take their bomb, then "
         "reclaim your dud (Puca's Mischief, Perplexing Chimera, Spawnbroker)",
         {"oracle": r"exchange control of"},
-        r"exchange control of"
-        r"|exchange (?:control of )?(?:that|those) (?:creature|permanent)",
+        # Serve on the lane's swap ident. Remainder: exchanges between two other
+        # permanents or players (Legerdemain, Juxtapose) are a lane gap.
+        None,
+        serve_idents=frozenset({"control_exchange|you|swap"}),
     ),
     # Kira shields your creatures from removal, so PERMANENT theft sticks: a contingent
     # steal (Sower, Roil — lost if the thief dies) can't be undone, and a theft engine
@@ -877,8 +875,10 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
         "reveal opponents' library tops so you exile/steal the best card — Field of "
         "Dreams, Wizened Snitches, Lantern of Insight",
         {"oracle": r"top card of their (?:library|libraries) revealed"},
-        r"plays? with the top card of their (?:libraries|library) revealed"
-        r"|look at the top card of (?:each|target|that) (?:opponent|player)",
+        # Serve on the peek ident (seeing opponents' tops). The bare exile-from-top
+        # ident is theft, which the theft lanes serve, so it stays out.
+        None,
+        serve_idents=frozenset({"opp_top_exile|you|peek"}),
     ),
     # Fblthp makes 0-cost cards free to plot off the top, fueling the artifact-combo /
     # storm engine. Serve cards whose mana cost is exactly {0} (Ornithopter, Memnite,
@@ -899,8 +899,9 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
         {"preset_names": ("crew",)},
         # Also credit vehicle SUPPORT: cheat a Vehicle into play, ramp/cost-reduction
         # for Vehicle spells (Oviya, Intrepid Stablemaster), not just core text.
-        r"\bvehicles? you control\b|\bcrew\b|create [^.]*vehicle artifact"
-        r"|\bvehicles? (?:card|spell)s?\b",
+        None,
+        serve_types=("vehicle",),
+        serve_idents=frozenset({"vehicles_matter|you|"}),
     ),
     ("low_power_matters", "you"): _spec(
         "Small creatures matter",
@@ -921,7 +922,16 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
         "scry and surveil to fire these payoffs — note surveil also fills your "
         "graveyard (see Your graveyard), while scry is pure top-of-library selection",
         {"oracle": r"\b(?:scry|surveil)\b"},
-        r"\b(?:scry|surveil)\b",
+        # Serve on the lanes' idents: scry / surveil payoffs and the scry and surveil
+        # makers. Remainder: Empower Jace (a token's surveil) is a lane gap.
+        None,
+        serve_idents=frozenset(
+            {
+                "scry_surveil_matters|you|",
+                "topdeck_selection|you|scry",
+                "topdeck_selection|you|surveil",
+            }
+        ),
     ),
     # ── Named-mechanic long tail ────────────────────────────────────────────────
     # _matters sweep (ADR-0034): monarch split. The MAKER side — cards that GRANT
@@ -1054,7 +1064,7 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
     ),
     # The central body of the archetype IS the planeswalkers (type) and the proliferate
     # payoffs (keyword) — both authoritative Scryfall fields the oracle-only serve named
-    # none of (43/303 → 303/303 served, zero added FPs per the audit).
+    # none of.
     ("superfriends_matters", "you"): _spec(
         "Superfriends",
         "planeswalkers plus proliferate and loyalty payoffs to protect them",
@@ -1094,27 +1104,27 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
         serve_idents=frozenset({"legends_matter|you|"}),
         serve_types=("legendary",),
     ),
-    # The bare `cards in your hand` matched stax/hand-size references (Ensnaring Bridge,
-    # Ivory Tower). Require a no-max-hand-size or a full-grip payoff/scaling phrase.
-    # _matters sweep (ADR-0034): the big-hand lane SPLITS by role at emission
-    # (big_hand_makers = the no-max-hand-size ENABLERS; big_hand_matters = the
-    # cards-in-hand PAYOFFS). Per ADR-0034 only MEMBERSHIP splits — the serve avenue
-    # still offers enablers + payoffs together, so BOTH specs keep the broad serve pool.
+    # The big-hand lane splits by role at emission (ADR-0034: makers = no-max-hand-
+    # size enablers, matters = cards-in-hand payoffs); both specs share one serve.
     ("big_hand_makers", "you"): _spec(
         "No maximum hand size",
         "no-max-hand-size enablers and the payoffs that reward a full grip",
         {"oracle": r"cards in your hand|no maximum hand size"},
-        r"maximum hand size"
-        r"|(?:\d+|five|six|seven|eight) or more cards in (?:your )?hand"
-        r"|for each card in your hand|equal to the number of cards in your hand",
+        # Serves the no-max-hand-size enablers and the payoffs that scale with or
+        # check your own hand; the remainder is drawbacks and taxes on a full hand,
+        # end-the-turn discards, and stax hand-size checks (Ensnaring Bridge).
+        None,
+        serve_idents=_BIG_HAND_IDENTS,
     ),
     ("big_hand_matters", "you"): _spec(
         "Big hand payoffs",
         "card draw and no-max-hand-size payoffs that reward a full grip",
         {"oracle": r"cards in your hand|no maximum hand size"},
-        r"maximum hand size"
-        r"|(?:\d+|five|six|seven|eight) or more cards in (?:your )?hand"
-        r"|for each card in your hand|equal to the number of cards in your hand",
+        # Serves the no-max-hand-size enablers and the payoffs that scale with or
+        # check your own hand; the remainder is drawbacks and taxes on a full hand,
+        # end-the-turn discards, and stax hand-size checks (Ensnaring Bridge).
+        None,
+        serve_idents=_BIG_HAND_IDENTS,
     ),
     # A party (CR 700.x) is one each of Cleric/Rogue/Warrior/Wizard — those creature
     # SUBTYPES are the members. The bare `\bparty\b` caught 3 flavor FPs; gate the
@@ -1239,11 +1249,6 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
         None,
         serve_idents=frozenset({"food_makers|you|", "food_matters|you|"}),
     ),
-    # Hand-spec overriding the mined sweep detector so the serve also credits color
-    # GRANTERS / fixers — "are the chosen color" (Painter's Servant, Shifting Sky) and
-    # "<color> in addition to its colors" (Indigo Faerie) — not just "becomes the color
-    # of your choice / all colors". Kept precise (no bare "becomes blue") to avoid
-    # mana-color false positives.
     # Type change (the TYPE analog of color_change): a creature-type hoser (Gor Muldrak
     # "protection from Salamanders") wants the type-CHANGING toolbox — turn opponents'
     # creatures into the punished type so the hoser blanks them. Genuine changers only
@@ -1253,13 +1258,21 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
         "Type change",
         "creature-type changers to force opponents into the punished type",
         {"oracle": _TYPE_CHANGER_ORACLE},
-        _TYPE_CHANGER_ORACLE,
+        # Serve on the type-changer lane's idents (any / each / you scopes). Remainder:
+        # a text-changing word swap (Artificial Evolution) is a lane gap.
+        None,
+        serve_idents=frozenset(
+            {
+                "type_changers|any|*",
+                "type_changers|each|*",
+                "type_changers|you|",
+                "type_changers|you|all",
+            }
+        ),
     ),
-    # ADR-0027 β: color_change migrated to the Card IR via a byte-identical kept-mirror
-    # (the lane fires from crosswalk_signals._color_change). This serve spec was
-    # always hand-registered with its own curated SEARCH regex (broader than the
-    # detector — it also credits color GRANTERS / fixers and color-conditional PAYOFFS),
-    # independent of the deleted SWEEP producer, so it survives unchanged.
+    # Color change: serves the color_change lane's makers and its color-conditional
+    # payoffs. Remainder: "chosen color" self-colourings (commander-only text) and
+    # a few color-word text swaps.
     ("color_change", "you"): _spec(
         "Color change",
         "effects that add or change colors — fixing plus color-matters enablers",
@@ -1267,18 +1280,8 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
             "oracle": r"becomes the color of your choice|the chosen color"
             r"|in addition to (?:its|their) (?:other )?colors?"
         },
-        r"becomes the color of your choice|becomes? (?:the color|all colors)"
-        r"|(?:are|is) the chosen color"
-        r"|(?:is|are|becomes?) [^.]*(?:white|blue|black|red|green) "
-        r"in addition to (?:its|their)"
-        # Color-conditional PAYOFFS a color-CHANGER enables (make everything one color,
-        # then "destroy/return all [color]" is a board wipe — CR 105/613, color is
-        # continuously checked). Only the 2 color-change commanders see this serve, so
-        # the narrow color-hosers stay scoped to the decks that turn them on.
-        r"|(?:return|destroy|exile) all (?:white|blue|black|red|green) "
-        r"(?:creature|permanent)s?"
-        r"|return all permanents of the (?:chosen )?colou?r"
-        r"|(?:white|blue|black|red|green) creatures? (?:can't|get [+\-])",
+        None,
+        serve_idents=frozenset({"color_change|you|", "color_change|you|payoff"}),
     ),
     # Hand-spec overriding the mined sweep detector so the serve also credits the Domain
     # ENABLERS — "lands you control are every basic land type" (Prismatic Omen, Dryad of
@@ -1389,16 +1392,13 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
         None,
         serve_idents=frozenset({"coven_matters|you|"}),
     ),
-    # ADR-0027 β: conjure_makers migrated to the Card IR (its SWEEP_DETECTORS row is
-    # deleted — detection moved to a byte-identical `\bconjure\b` kept word mirror in
-    # signals._IR_KEPT_DETECTORS). The SERVE pool stays oracle-defined (Arena/Alchemy
-    # conjure makers and payoffs), so hand-register the spec the sweep auto-register
-    # loop used to build (scope "you", the deleted SWEEP row's scope), reusing the EXACT
-    # deleted regex so the serve never drifts. SWEEP_LABELS keeps the human label.
+    # Conjure (Alchemy): serves the conjure lane's idents. Remainder: conjures the
+    # lane misses (an emblem, a Saga chapter, "conjure a card named" ETBs).
     ("conjure_makers", "you"): _spec(
         *SWEEP_LABELS["conjure_makers"],
         {"oracle": r"\bconjure\b"},
-        r"\bconjure\b",
+        None,
+        serve_idents=frozenset({"conjure_makers|you|"}),
     ),
     # Token doubling: a token doubler wants the token MAKERS it multiplies (Hornet
     # Queen), other token doublers to stack (Parallel Lives), and the go-wide / ETB

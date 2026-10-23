@@ -154,9 +154,6 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   has no `EquippedBy`; check with /rules-lawyer whether `AttachedToRecipient` /
   `HasAnyAttachmentOf` name one object before folding it into
   `crosswalk.ATTACHED_OBJECT_PREDICATES`.
-  (i) `cut_candidates` / `size_cuts` take four focus-result fields one by one
-  (`viable`, `commander_cards`, `upgrade_cards`, `lane_upgrade_cards`) — one
-  focus slice would do.
   (j) **Job-read leftovers** (eighth pass, ADR-0060; each module docstring lists
   its own). Removal and ramp only gate (their blend with play-rate trailed
   play-rate alone at the top of the list; protection's did too, and orders by
@@ -266,32 +263,59 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   the same way. Until then a bare `build-card-snapshot` run drags the drift in —
   the 2026-10-17 regen spliced only its two new cards.
 
-- **Pass C holds: the 50 serves still on a regex** (2026-10-22, after the lane
-  fixes; `docs/plans/serve-idents-and-avenue-support.md` "Pass C"; each spec's
-  comment names its remainder). anthem_static, attack_matters (8 precons — the
-  equip / aura arm wants a voltron extra), big_hand_*, blink_flicker / self_blink
-  (an enabler-vs-ETB-body split in `blink_flicker`), bounce_tempo,
-  card_draw_engine|you, cheat_from_top, color_change, color_hoser,
-  conjure_makers, control_exchange, creature_recursion (its serve is loop fuel),
-  entered_attacker, extra_upkeep / end_step / draw_step (no beginning-of-step
-  key), graveyard_*|opponents (mill has no opponent scope), has_banding,
-  impulse_top_play (needs extras), kill_engine, land_destruction (no one-shot LD
-  key), land_protection, life_payment_insurance, lose_unless_hand,
-  mass_death_payoff, minus_counters_matter, opp_top_exile,
-  opponent_search_matters, own_target_spell, per_target_payoff, permanent_etb,
-  power_matters (pack tactics), protection_grant, scry_surveil_matters,
-  secret_writedown, seek_matters (phase), self_etb_payload, stax_taxes /
-  symmetric_stax, tap_down_blockers, target_own_payoff, tokens_matter,
-  type_change, vehicles_matter, voltron_* (the membership floor's commander-
-  damage signal fires on every creature), win_lose_game. Left from the lane pass:
+- **Pass D: the serves still on a regex** (2026-10-23;
+  `docs/plans/serve-idents-and-avenue-support.md` "Pass D"; each spec's comment
+  names its remainder). Regex-only: `self_etb_payload` (a bounce-to-replay engine
+  — Whitemane Lion, Kor Skyfisher — has no ident; a your-own subject on
+  `bounce_tempo` would serve it), `permanent_etb` (its regex is every "when ~
+  enters"; the ident union leaves about a thousand cards, mostly reanimation and
+  land puts, a judgement call), `land_protection` (the shield subject alone is
+  half the regex; Tomik's static is Unimplemented), `ability_strip_payoff` (the
+  crippling-drawback text beside a power floor; no lane reads a drawback a strip
+  turns off). Regex beside idents: `xspell_matters` (an "{X} in its cost" payoff
+  has no ident; `mana_amplifier` covers the doublers), `team_buff` (the static
+  team keyword grants the lane's subjects don't all reach), `target_redirect` /
+  `spell_redirect` (redirect wordings beside the lane's ident). Lane
+  follow-ups the pass found: a `(key, subject)` role table that
+  `DOER_SUBJECTS`, `MEMBERSHIP_SUBJECTS`, the pair reads' wildcards and the presets
+  all read (today each reads its own set); an `attack_trigger_side` crosswalk read
+  beside `targeting_trigger_side` (the defensive-trigger veto lives in
+  `tree_synthesis.combat`, and `stax_and_tempo`'s own `attacks` reads skip it —
+  MacCready still reads as an attack payoff); the spell-additional-cost walk keeps
+  only allowlisted OTHER leaves (PayLife, Blight) — walk them all;
+  `mass_removal` misses one-sided "creatures your opponents control get -N/-N"
+  (Massacre Wurm, about forty); `card_draw_engine` misses granted draw triggers
+  (Avarice Amulet), aftermath halves and connive X; `opponent_draw_matters` misses
+  enchanted-player watchers (Curse of Fool's Wisdom now carries no draw key);
+  `ends_the_game` reads a missing player as you (a canary arm in `core_makers`);
+  the empower Jace token's scry / surveil (about thirty cards) is not walked; a
+  clone that adds a keyword (Auton Soldier) and Mouth // Feed's aftermath count
+  are missed; Smothering Tithe and Pyxis of Pandemonium sit in no stax /
+  opponent-graveyard lane; `big_hand_matters`' text arm still fires on "reveal
+  any number of X cards"; Dan Lewis's AddSubtype Equipment and Equipment
+  affinity. Left from the lane pass:
   the resource-maker lanes still count a token another player creates as yours
   (An Offer You Can't Refuse, Overencumbered); every artifact emits a membership
   `artifacts_matter|you|`, so Sol Ring lands on the Artifacts payoff page;
   `etb_value_x_recast_commander` (`pair_reads.py`) weights a scry-1 ETB like
   Shriekmaw now that `self_etb_payload` reads 4,333 cards; the `card-draw` preset
   is key-level, so Master of the Feast (opponents draw) stays in it. Phase gaps
-  to report upstream (Dan posts): council's dilemma / secret council votes parked
-  as residues (a canary), Brago's Representative, Overlord of the Hauntwoods'
+  to report upstream (Dan posts) — from Pass D: Frodo, Sauron's Bane's granted
+  trigger; Angel of Destiny and Nicol Bolas, Dragon-God's LoseTheGame player;
+  Teferi, Temporal Pilgrim and Devastating Mastery's chooser stamped You; The
+  Fall of Kroog and Radiating Lightning's "that player controls" stamped You;
+  Canopy Cover's opponent-only hexproof as SelfRef; Phyrexian Unlife and the
+  zero-life cards as unconditional CantLoseTheGame; seek has no player and nine
+  seeks drop; printed firebending has no trigger; double team as CopyTokenOf;
+  conjure-of-choice as DraftFromSpellbook; Ojutai Exemplars' "Return it" as
+  TriggeringSource (a canary); Fatespinner's skip (a canary); Leonin Arbiter,
+  Shadow of Doubt, Pale Moon, Cephalid Shrine, Hallowed Moonlight, Mistcaller,
+  Juxtapose, Cultural Exchange, Legerdemain, Teferi's Time Twist, Desolation,
+  Cleanse, Crusade, Artificial Evolution, Tomik; Champion of Stray Souls'
+  graveyard zone; Sinister Gnarlbark's blight; Become Brutes' Role; Gemcutter
+  Buccaneer's Equipment subtype; Krydle's mill; One Ring to Rule Them All's mill
+  reach; where-X scry / surveil (Desmond Miles). Earlier: council's dilemma /
+  secret council votes parked as residues (a canary), Brago's Representative, Overlord of the Hauntwoods'
   token, Narset Transcendent's rebound, Ral Izzet Viceroy's emblem, a block
   trigger's "it" as ParentTarget, Go Blank's graveyard owner, Estrid's
   Invocation's copy, Mortarion, fourteen damage clauses left Unimplemented

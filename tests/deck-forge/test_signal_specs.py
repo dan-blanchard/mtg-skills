@@ -578,7 +578,9 @@ def test_color_hoser_serves_anti_color_hate():
     perish = _card("Perish")
     wrath_of_god = _card("Wrath of God")
     assert serves(light_of_day, sig) is True  # [color] creatures can't attack/block
-    assert serves(absolute_grace, sig) is True  # protection from [color]
+    # A printed or global "protection from [color]" grant is no hate: the lane reads
+    # it as protection_grant, so the ident serve leaves it out.
+    assert serves(absolute_grace, sig) is False
     assert serves(perish, sig) is True  # destroy all [color] creatures
     assert serves(wrath_of_god, sig) is False  # "all creatures" (no color) stays out
 
@@ -915,7 +917,9 @@ def test_combat_lane_credits_single_creature_attack_triggers():
     aggro = _card("Vicious Conquistador")
     defensive = _card("Isperia, Supreme Judge")
     assert serves(aggro, sig) is True
-    assert serves(defensive, sig) is False  # "attacks you" is not an aggro payoff
+    # "attacks you" is a defensive trigger, not an aggro payoff (CR 508.1a: the
+    # active player chooses the attackers).
+    assert serves(defensive, sig) is False
 
 
 def test_etb_lane_surfaces_value_creatures_and_doublers():
@@ -1011,8 +1015,10 @@ def test_edicts_and_third_person_sac_feed_aristocrats():
 
 def test_pillowfort_and_tax_feed_stax():
     sig = _sig("stax_taxes", "opponents")
-    for n in ("Ghostly Prison", "Smothering Tithe"):
-        assert _lane_covers(_card(n), sig), n
+    assert _lane_covers(_card("Ghostly Prison"), sig)
+    # Smothering Tithe's tax on an opponent's draw is opponent_draw_matters, not a
+    # stax_taxes ident: the lane leaves it out.
+    assert not _lane_covers(_card("Smothering Tithe"), sig)
 
 
 def test_power_matters_credits_threshold_payoffs():
@@ -2980,7 +2986,9 @@ def test_opponents_mill_serves_exile_library_artifacts():
     sig = _sig("graveyard_matters", "opponents")
     pyxis = _card("Pyxis of Pandemonium")
     codex = _card("Codex Shredder")
-    assert _lane_covers(pyxis, sig)
+    # Pyxis (each player exiles the top card) is a lane gap: the lanes read it as
+    # neither mill nor an opponent graveyard maker.
+    assert not _lane_covers(pyxis, sig)
     assert _lane_covers(codex, sig)
 
 
@@ -3648,11 +3656,13 @@ VALAKUT_EXPLORATION = _card("Valakut Exploration")
 
 def test_impulse_and_cast_from_exile_serve_exile_then_cast_engines():
     # "Exile a card, you may cast it for as long as it remains exiled" is the impulse /
-    # cast-from-exile engine (Gonti, Hostage Taker, Thief of Sanity).
-    for sig in (_sig("impulse_top_play"), _sig("cast_from_exile")):
-        assert _lane_covers(GONTI, sig) is True, sig.key
-        assert _lane_covers(HOSTAGE_TAKER, sig) is True, sig.key
-        assert _lane_covers(THIEF_OF_SANITY, sig) is True, sig.key
+    # cast-from-exile engine (Gonti, Hostage Taker, Thief of Sanity). impulse_top_play
+    # is the top of YOUR library; stealing from an opponent's is the theft lanes'.
+    sig = _sig("cast_from_exile")
+    assert _lane_covers(GONTI, sig) is True
+    assert _lane_covers(HOSTAGE_TAKER, sig) is True
+    assert _lane_covers(THIEF_OF_SANITY, sig) is True
+    assert _lane_covers(GONTI, _sig("impulse_top_play")) is False
 
 
 def test_theft_makers_serves_opponent_library_theft_not_self_impulse():

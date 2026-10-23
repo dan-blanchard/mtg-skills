@@ -29,6 +29,7 @@ from __future__ import annotations
 import math
 import re
 from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Set as AbstractSet
 
 from mtg_utils._analysis.ident_provenance import emitting_unit_texts
 from mtg_utils._analysis.pair_reads import PairContext, pair_score
@@ -344,7 +345,7 @@ def _color_widening(card: dict, widening_base: str | None) -> int:
     return len(set(card.get("color_identity") or []) - set(widening_base))
 
 
-def _prominence(label: str, focus_sets: Mapping[str, set] | None) -> float:
+def _prominence(label: str, focus_sets: Mapping[str, AbstractSet[str]] | None) -> float:
     if not focus_sets:
         return _PROM_DEFAULT
     for tier in ("viable", "emerging", "stranded"):
@@ -392,7 +393,7 @@ def _hit_clauses(
 def _synergy_score(
     hits: Sequence[tuple[str, tuple[int, ...]]],
     clause_list: Sequence[str],
-    focus_sets: Mapping[str, set] | None,
+    focus_sets: Mapping[str, AbstractSet[str]] | None,
     deck_tribes: frozenset[str] | None,
     ir: Card | None,
 ) -> tuple[float, list[dict]]:
@@ -501,7 +502,7 @@ def score_candidate(
     active_signals: list,
     avenues: Sequence[dict] = (),
     widening_base: str | None = None,
-    focus_sets: Mapping[str, set] | None = None,
+    focus_sets: Mapping[str, AbstractSet[str]] | None = None,
     deck_tribes: frozenset[str] | None = None,
     _avenue_preds: list[_AvenuePred] | None = None,
     _signal_specs: list | None = None,
@@ -578,7 +579,7 @@ def rank_candidates(
     active_signals: list,
     avenues: Sequence[dict] = (),
     widening_base: str | None = None,
-    focus_sets: Mapping[str, set] | None = None,
+    focus_sets: Mapping[str, AbstractSet[str]] | None = None,
     deck_tribes: frozenset[str] | None = None,
     rank_by: str = "score",
     rate_index: RateIndex | None = None,

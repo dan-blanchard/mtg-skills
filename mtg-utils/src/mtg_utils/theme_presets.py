@@ -2666,6 +2666,10 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
     # mid-sentence ", sacrifice a creature:" text this view can't yet
     # reach structurally. One card of 303 (recall 0.997) — the view is
     # still correct to ship; this card is the residual tail.
+    #
+    # A creature that sacrifices only itself as a cost (Sakura-Tribe Elder, Spore
+    # Frog: ``sacrifice_outlets|you|self``) matches too: a sacrifice you make,
+    # which every sacrifice payoff sees (CR 701.21a).
     Preset(
         name="sacrifice-outlet",
         description=(

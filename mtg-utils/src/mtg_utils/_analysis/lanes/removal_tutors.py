@@ -24,13 +24,13 @@ from mtg_utils._analysis.text_reads import (
     _EVERGREEN_CK,
 )
 from mtg_utils._analysis.tree_synthesis import (
+    ETB_TRIGGER_EVENTS,
     has_own_target_spell,
     has_permanent_recast,
     has_repeatable_engine,
     has_self_dies_value,
     has_self_etb_payload,
     has_self_etb_value,
-    has_structural_color_hoser,
     has_structural_crimes_matter,
     has_structural_curse_matters,
     has_structural_outlaw,
@@ -50,6 +50,7 @@ from mtg_utils._analysis.tree_synthesis import (
     structural_untap_subject,
 )
 from mtg_utils._card_ir.crosswalk import (
+    MASS_FILTER_EFFECT_TAGS,
     SUSPENDED_CARD,
     AbilityUnit,
     ConceptNode,
@@ -57,10 +58,13 @@ from mtg_utils._card_ir.crosswalk import (
     affected_tag,
     cast_with_keyword_name,
     change_zone_dirs,
+    color_keyed_sites,
     counter_kind,
     damage_recipient,
     effect_filter,
+    effect_player_reach,
     effect_reaches_permanent,
+    filter_color_predicates,
     filter_controller,
     filter_controller_side,
     filter_core_types,
@@ -70,6 +74,7 @@ from mtg_utils._card_ir.crosswalk import (
     filter_subtypes,
     forages,
     granted_alt_cost_kinds,
+    granted_keyword_names,
     has_filter_property,
     has_nested_damage_reaching,
     iter_cost_leaves,
@@ -77,15 +82,18 @@ from mtg_utils._card_ir.crosswalk import (
     iter_nested_granted_effect_concepts,
     iter_static_defs,
     iter_typed_nodes,
+    iter_unit_trigger_defs,
     keyword_resource_events,
     mod_keyword_name,
     mod_value,
     named_filter_subtypes,
+    pt_mod_signs,
     recipient_tag,
     sacrifice_names_no_player,
     static_mode_field,
     static_mode_tag,
     tag_of,
+    targeting_trigger_side,
     time_counter_kind_refs,
     token_profile_keywords,
     trigger_scope,
@@ -1186,13 +1194,35 @@ def _damage_answer_types(c: ConceptNode, root: object) -> frozenset[str]:
     return _ANY if effect_reaches_permanent(c.node, root) else frozenset()
 
 
-def _removal_answers(
-    tree: ConceptTree, *, soft: bool = False
-) -> Iterator[tuple[ConceptNode, frozenset[str]]]:
+_RemovalAnswers = tuple[tuple[ConceptNode, frozenset[str]], ...]
+#: Where :func:`_removal_answers` caches its walk on a tree, one attribute per
+#: ``soft`` value (the :data:`_EDICT_CACHE_ATTR` precedent: a frozen tree, so its
+#: answers never change, and a re-seeded tree is a new object).
+_REMOVAL_CACHE_ATTRS: dict[bool, str] = {
+    False: "_removal_answers_cache",
+    True: "_removal_answers_soft_cache",
+}
+
+
+def _removal_answers(tree: ConceptTree, *, soft: bool = False) -> _RemovalAnswers:
     """Each REMOVAL effect in TREE with its permanent-type "answer" set (see
     :func:`_removal_answer_types`, the union every type-scoped preset reads).
     A caller that needs the effect itself (its filter's mana-value floor, its
-    recipient — ``twohg_scan``'s removal reach) walks this instead.
+    recipient — ``twohg_scan``'s removal reach) walks this instead. Cached on
+    the tree per ``soft`` value (:func:`_walk_removal_answers` is the walk).
+    """
+    attr = _REMOVAL_CACHE_ATTRS[soft]
+    cached = tree.__dict__.get(attr)
+    if cached is None:
+        cached = tuple(_walk_removal_answers(tree, soft=soft))
+        object.__setattr__(tree, attr, cached)
+    return cached
+
+
+def _walk_removal_answers(
+    tree: ConceptTree, *, soft: bool
+) -> Iterator[tuple[ConceptNode, frozenset[str]]]:
+    """The walk behind :func:`_removal_answers`.
 
     ``soft`` (opt-in; every preset keeps the default) also yields the soft
     removal :func:`_soft_answer_types` reads, and resolves a tuck whose target
@@ -1719,15 +1749,54 @@ def _permanent_recast(tree: ConceptTree) -> list[Signal]:
     return []
 
 
+#: Self-ETB payload effects phase types with no ``EFFECT_CONCEPTS`` row (they
+#: decorate as ``other``), each value on every entry: a one-shot restriction or
+#: grant on a target ("target creature can't block this turn" — Fervent Cathar;
+#: "target creature an opponent controls doesn't untap" — Fogwalker; Quicksmith
+#: Spy's granted draw), empower Jace (Way of the Mind Sculptor), a
+#: choose-and-sacrifice-the-rest sweep (Cataclysmic Gearhulk), a life total set
+#: (Magister Sphinx), a damage fog (Dawnfluke).
+_SELF_ETB_OTHER_VALUE_TAGS: frozenset[str] = frozenset(
+    {
+        "GenericEffect",
+        "EmpowerJace",
+        "ChooseAndSacrificeRest",
+        "SetLifeTotal",
+        "PreventDamage",
+    }
+)
+
+
+def _self_etb_other_value(unit: AbilityUnit) -> bool:
+    """A self-ETB trigger (CR 603.6a — "When this enters") whose payload is one of
+    :data:`_SELF_ETB_OTHER_VALUE_TAGS`, or player counters handed to another
+    player (Mirelurk Queen's rad counters, Ichor Rats's poison — not the tickets
+    you get yourself)."""
+    if not (
+        unit.origin == "trigger"
+        and unit.trigger_event in ETB_TRIGGER_EVENTS
+        and tag_of(getattr(unit.node, "valid_card", None)) == "SelfRef"
+    ):
+        return False
+    for c in unit.effects:
+        tag = tag_of(c.node)
+        if tag in _SELF_ETB_OTHER_VALUE_TAGS:
+            return True
+        if tag == "GivePlayerCounter" and effect_player_reach(unit.node, c.node):
+            return True
+    return False
+
+
 def _self_etb_payload(tree: ConceptTree) -> list[Signal]:
     """self_etb_payload — a self-ETB trigger with a VALUE payload (CR
     603.6a: enters triggers fire on every entry, so each recast/reanimate/
     bounce re-delivers the clause). The recast-loop pair row's candidate
     class (iteration-3): Shriekmaw's destroy, Mulldrifter's draw, Fleshbag
     Marauder's edict — :func:`has_self_etb_payload`, the wider sibling of
-    wants_cloning's clone-worthy gate. Scope "you", HIGH.
+    wants_cloning's clone-worthy gate — plus the payloads phase types with no
+    concept row (:func:`_self_etb_other_value`). Scope "you", HIGH.
     """
-    if has_self_etb_payload(tree):
+    if has_self_etb_payload(tree) or any(_self_etb_other_value(u) for u in tree.units):
         return [Signal("self_etb_payload", "you", "", "", tree.name, "high")]
     return []
 
@@ -2146,35 +2215,128 @@ def _opponent_search_matters(tree: ConceptTree) -> list[Signal]:
     return []
 
 
+#: The effects that answer one permanent or spell — destroy (CR 701.8a), counter,
+#: a zone move off the battlefield, damage, a shrink.
+_SINGLE_ANSWER_TAGS: frozenset[str] = frozenset(
+    {"Destroy", "Counter", "ChangeZone", "Bounce", "DealDamage", "Pump"}
+)
+#: The static restrictions that hold back permanents or spells of a colour
+#: ("Black creatures can't attack or block" — Light of Day; "Your opponents can't
+#: cast blue spells" — Llawan; Elephant Grass's attack tax).
+_COLOR_RESTRICTION_MODES: frozenset[str] = frozenset(
+    {
+        "CantAttack",
+        "CantBlock",
+        "CantAttackOrBlock",
+        "CantBeCast",
+        "CantUntap",
+        "BlockRestriction",
+    }
+)
+
+
+def _hostile_color_filter(filt: object, *, mass: bool) -> bool:
+    """A filter naming a colour that can reach another player's objects: not one
+    you control or own, and not cards in a graveyard, hand or library (Call to
+    the Netherworld's own creature card). A single answer must name the colour
+    it hits ("target black creature"); a mass answer may name the one it spares
+    too ("all nonwhite creatures" — Mass Calcify), while Terror's "nonblack"
+    lets one target be almost anything and hoses no colour. A colour chosen as
+    the card resolves (Wash Out) names none."""
+    preds = filter_color_predicates(filt) - {"chosen"}
+    if not preds or (not mass and "has" not in preds):
+        return False
+    if filter_controller(filt) == "You" or filter_owned_controller(filt) == "You":
+        return False
+    return not set(filter_inzone_zones(filt)) & {"Graveyard", "Hand", "Library"}
+
+
+def _color_answer(c: ConceptNode) -> bool:
+    """An effect answering permanents or spells of a colour (see
+    :func:`_hostile_color_filter`): destroy, counter, exile / bounce / tuck off the
+    battlefield, damage or a shrink, each single or mass."""
+    tag = tag_of(c.node)
+    mass = tag in MASS_FILTER_EFFECT_TAGS
+    if not mass and tag not in _SINGLE_ANSWER_TAGS:
+        return False
+    if tag in ("ChangeZone", "ChangeZoneAll"):
+        origin, dest = change_zone_dirs(c.node)
+        if dest not in ("Exile", "Hand", "Library") or origin in ("Graveyard", "Hand"):
+            return False
+    if tag in ("Pump", "PumpAll") and not (
+        _negative_pt_field(c.node, "power") or _negative_pt_field(c.node, "toughness")
+    ):
+        return False
+    return _hostile_color_filter(effect_filter(c.node), mass=mass)
+
+
+def _color_restriction(sdef: TypedMirrorNode) -> bool:
+    """A static holding back or shrinking the permanents or spells of a colour:
+    a restriction (:data:`_COLOR_RESTRICTION_MODES`), a negative P/T or an
+    ability strip ("Nonwhite creatures get -1/-1" — Crovax; "Enchanted red
+    creature loses all abilities" — Ray of Frost). An anthem for a colour (Bad
+    Moon) is a payoff, not a hoser."""
+    affected = getattr(sdef, "affected", None)
+    if affected is None or not _hostile_color_filter(affected, mass=True):
+        return False
+    if static_mode_tag(sdef) in _COLOR_RESTRICTION_MODES:
+        return True
+    return any(
+        tag_of(mod) == "RemoveAllAbilities" or -1 in pt_mod_signs(sd)
+        for sd, mod in iter_mod_sites(sdef)
+    )
+
+
+def _checks_target_color(unit: AbilityUnit) -> bool:
+    """An answer that checks its target's colour as it resolves ("Counter target
+    spell if it's blue" — Pyroblast; Ray of Enfeeblement's bigger shrink on a
+    white creature): a ``TargetMatchesFilter`` condition naming a colour on a unit
+    that destroys, counters, burns or shrinks."""
+    if not any(
+        tag_of(c.node) in _SINGLE_ANSWER_TAGS | MASS_FILTER_EFFECT_TAGS
+        for c in unit.effects
+    ):
+        return False
+    return any(
+        tag_of(n) == "TargetMatchesFilter"
+        and "has" in filter_color_predicates(getattr(n, "filter", None))
+        for n in iter_typed_nodes(unit.node)
+    )
+
+
+def hoses_a_color(tree: ConceptTree) -> bool:
+    """Whether the card answers, restricts or shrinks the permanents or spells of
+    a colour (CR 105.2: an object's colour is a characteristic an effect can
+    check) — :func:`_color_answer` (Red Elemental Blast, Perish, Mass Calcify,
+    Holy Light), :func:`_color_restriction` (Light of Day, Crovax, Llawan) or
+    :func:`_checks_target_color` (Pyroblast), on the card's own abilities or the
+    ones it grants (Possessed Aven's threshold "Destroy target blue
+    creature"). A colour your own permanents need (a bounce of "a white creature
+    you control" — Eiganjo Free-Riders' upkeep cost) and a card-in-graveyard
+    filter are not hosing. The card's own abilities are read off the shared
+    colour-keyed sites (:func:`color_keyed_sites`)."""
+    if any(
+        _color_answer(site.node)
+        if site.kind == "effect"
+        else _color_restriction(site.node)
+        for site in color_keyed_sites(tree)
+    ):
+        return True
+    return any(
+        _checks_target_color(unit)
+        or any(_color_answer(c) for c in iter_nested_granted_effect_concepts(unit.node))
+        for unit in tree.units
+    )
+
+
 def _color_hoser(tree: ConceptTree) -> list[Signal]:
-    """color_hoser (§19) — CR 105.2 + 613.1e-adjacent: removal/restriction/
-    bounce keyed on a SPECIFIC color. Tier-1 (ADR-0036/0037 fold — the
-    ``_COLOR_HOSER_RE`` kept-mirror is RETIRED):
-
-    * **Structural:** :func:`has_structural_color_hoser` — the live single-
-      target ``Destroy``/``Counter``/``ChangeZone→Exile`` direct-``HasColor``
-      carrier arm widened to the MASS forms (``DestroyAll``,
-      ``ChangeZoneAll``→Exile, ``BounceAll`` — a ``You``-controlled bounce
-      target excluded) and the ``And``-composite ``Counter`` target shape
-      (``[StackSpell, Typed{HasColor}]`` — Gainsay, Deathgrip), still gated
-      NOT a your-graveyard subject (Kaervek's self-recursion, [P5]
-      direction). **Logged GAP** (untouched by this fold): two-color
-      disjunctions (Deathmark, Celestial Purge) carry NO direct HasColor —
-      a candidate adjudicated widen, NOT parity (pinned by the Deathmark
-      negative).
-    * **bucket-B synth:** the ``tree_synthesis`` stage's ``synth_color_hoser``
-      node — the anthem-debuff ("nonblack creatures get -1/-1"), can't-cast/
-      can't-block restriction (Gibbering Hyenas's ``CantBlock`` static
-      carries the color qualifier ONLY in ``description`` — a genuine phase
-      gap), and choose-a-color residue.
-
-    Scope "you", HIGH.
+    """color_hoser (§19) — CR 105.2: removal, restriction or a shrink keyed on a
+    SPECIFIC colour (:func:`hoses_a_color`). Read off the card's filters alone:
+    printed protection from a colour (CR 702.16) is a shield, not hate, and a
+    colour your own permanents need is a drawback. Scope "you", HIGH.
     """
-    if has_structural_color_hoser(tree):
+    if hoses_a_color(tree):
         return [Signal("color_hoser", "you", "", "", tree.name, "high")]
-    for c in tree.iter_concepts():
-        if c.concept == "synth_color_hoser":
-            return [Signal("color_hoser", "you", "", "", tree.name, "high")]
     return []
 
 
@@ -2239,6 +2401,190 @@ def _outlaw_matters_lane(tree: ConceptTree) -> list[Signal]:
     return []
 
 
+#: How a one-shot land answer removes the land, by the zone it leaves for.
+_LAND_ANSWER_DEST: dict[str, str] = {
+    "Exile": "exile",
+    "Library": "tuck",
+    "Hand": "bounce",
+}
+
+
+def _land_answer_kind(c: ConceptNode) -> str | None:
+    """The land-destruction kind of a removal effect: ``destroy`` (CR 701.8a),
+    ``exile``, ``bounce`` (to its owner's hand) or ``tuck`` (into a library)."""
+    if c.concept == "destroy":
+        return "destroy"
+    if c.concept == "bounce":
+        return "bounce"
+    if c.concept == "put_library_position":
+        return "tuck"
+    if c.concept == "change_zone":
+        return _LAND_ANSWER_DEST.get(change_zone_dirs(c.node)[1] or "")
+    return None
+
+
+def _land_destruction(tree: ConceptTree) -> list[Signal]:
+    """land_destruction — what the card does to lands, one signal per kind: its
+    removal (:func:`_removal_answers`, the bounce read included) answers a land —
+    ``destroy`` (Stone Rain, Strip Mine, Wasteland, Armageddon), ``exile``
+    (Crumble to Dust), ``bounce`` (Aven Fogbringer), ``tuck`` (Plow Under) —
+    or another player is forced to sacrifice one (:func:`_edict_answers` —
+    ``sacrifice``: Wildfire, Epicenter, Hurloon Shaman). A land you control is
+    a cost or a drawback, not land destruction (Return of the Nightstalkers).
+    The membership floor's subject-less ident stays the repeatable-LD
+    commander's (Numot), and ``mass_land_denial`` the brackets' read (ADR-0030).
+    Scope "you", HIGH.
+    """
+    kinds: set[str] = set()
+    for c, types in _removal_answers(tree, soft=True):
+        if "Land" not in types or filter_controller(effect_filter(c.node)) == "You":
+            continue
+        kind = _land_answer_kind(c)
+        if kind is not None:
+            kinds.add(kind)
+    if any("Land" in types for _c, types in _edict_answers(tree)):
+        kinds.add("sacrifice")
+    return [
+        Signal("land_destruction", "you", kind, "", tree.name, "high")
+        for kind in sorted(kinds)
+    ]
+
+
+#: The removal tags that kill creatures en masse — they die (CR 700.4: put into
+#: a graveyard from the battlefield): destroy all, damage to each, -X/-X to all.
+_MASS_KILL_TAGS: frozenset[str] = frozenset({"DestroyAll", "DamageAll", "PumpAll"})
+_CREATURE_ANSWERS: frozenset[str] = frozenset({"Creature", "Permanent"})
+
+
+def _sacrifices_all(c: ConceptNode) -> bool:
+    """A forced sacrifice of EVERY matching permanent ("Each player sacrifices
+    all creatures they control" — Living Death, All Is Dust): the count is the
+    number of them, never a fixed number (Innocent Blood) or a share (Pox)."""
+    count = getattr(c.node, "count", None)
+    return tag_of(count) == "Ref" and tag_of(getattr(count, "qty", None)) == (
+        "ObjectCount"
+    )
+
+
+def kills_creatures_en_masse(tree: ConceptTree) -> bool:
+    """Whether the card's sweep makes creatures die (CR 700.4) — the board
+    wipe a mass-death payoff wants: a creature-answering mass destroy, damage or
+    toughness shrink not limited to yours, or damage to each creature
+    (:func:`_removal_answers` — Wrath of God, Blasphemous Act, Toxic Deluge,
+    Planar Cleansing), an overloaded
+    targeted kill (CR 702.96a — Damn), or every player sacrificing all their
+    creatures or all but chosen ones (Living Death, Cataclysm). An exile or
+    bounce sweep moves creatures without their dying (Farewell, Evacuation),
+    and an artifact or enchantment sweep kills none (Shatterstorm). The
+    ``mass_removal`` lane asks this only of a card it already reads as a sweep
+    (whose vetoes — a combat-only shrink, an Aura's own creature — stand), and
+    emits ``mass_removal|you|creature`` from it, so the subject refines that key
+    and never widens it."""
+    overloaded = any(alt.kind == "overload" for alt in tree.card_alt_costs)
+    for c, types in _removal_answers(tree):
+        tag = tag_of(c.node)
+        if not types & _CREATURE_ANSWERS:
+            continue
+        # Damage to each creature dies whoever controls it (and phase stamps
+        # "each creature that player controls" as ``You`` — Radiating Lightning).
+        if tag != "DamageAll" and filter_controller(effect_filter(c.node)) == "You":
+            continue
+        if tag == "PumpAll" and not _negative_pt_field(c.node, "toughness"):
+            continue
+        if tag in _MASS_KILL_TAGS or (overloaded and tag in ("Destroy", "DealDamage")):
+            return True
+    for c, types in _edict_answers(tree):
+        if types & _CREATURE_ANSWERS and _sacrifices_all(c):
+            return True
+    for unit in tree.units:
+        for c in unit.effects:
+            if tag_of(c.node) == "ChooseAndSacrificeRest" and (
+                set(filter_core_types(getattr(c.node, "sacrifice_filter", None)))
+                & _CREATURE_ANSWERS
+            ):
+                return True
+    return False
+
+
+def _returns_graveyard_creatures_en_masse(unit: AbilityUnit) -> bool:
+    """A return of EVERY matching creature card from a graveyard to the
+    battlefield (CR 700.4's reverse — the board refill after a wipe): a
+    ``ChangeZoneAll`` graveyard → battlefield of creature cards not limited to an
+    opponent's (Storm of Souls, Raise the Past, Patriarch's Bidding), or of the
+    set an earlier clause exiled from graveyards (Living Death, Living End)."""
+    exiled_creatures = False
+    for c in unit.effects:
+        if tag_of(c.node) != "ChangeZoneAll":
+            continue
+        origin, dest = change_zone_dirs(c.node)
+        sub = effect_filter(c.node)
+        from_gy = origin == "Graveyard" or "Graveyard" in filter_inzone_zones(sub)
+        creatures = bool(set(filter_core_types(sub)) & _CREATURE_ANSWERS)
+        if from_gy and dest == "Exile" and creatures:
+            exiled_creatures = True
+        elif (
+            dest == "Battlefield"
+            and filter_controller(sub) != "Opponent"
+            and (
+                (from_gy and creatures)
+                or (exiled_creatures and not filter_core_types(sub))
+            )
+        ):
+            return True
+    return False
+
+
+def _mass_death_support(tree: ConceptTree) -> list[Signal]:
+    """The board-refill half of a mass-death turn: a whole-graveyard creature
+    return (:func:`_returns_graveyard_creatures_en_masse`) is
+    ``creature_recursion|you|mass``. The sweep half, ``mass_removal|you|
+    creature`` (:func:`kills_creatures_en_masse`), is the ``mass_removal``
+    lane's own subject; the serve of ``mass_death_payoff`` reads both. Scope
+    "you", HIGH.
+    """
+    if any(_returns_graveyard_creatures_en_masse(u) for u in tree.units):
+        return [Signal("creature_recursion", "you", "mass", "", tree.name, "high")]
+    return []
+
+
+#: The banding keywords a grant hands out (CR 702.22a banding, 702.22b "bands
+#: with other" — phase names it ``BandsWithOther``).
+_BANDING_NAMES: frozenset[str] = frozenset({"banding", "bandswithother"})
+
+
+def _granted_banding(tree: ConceptTree) -> list[Signal]:
+    """has_banding — a card that hands out banding or "bands with other" (CR
+    702.22b), to itself or others (:func:`granted_keyword_names`): Battering
+    Ram's combat banding, Dire Wolves's conditional banding, Baton of Morale,
+    Cooperation, the Legends lands' "bands with other legendary creatures",
+    Errand of Duty's banding Knight. The printed keyword is the field row's.
+    Scope "you", HIGH."""
+    for unit in tree.units:
+        if granted_keyword_names(unit.node) & _BANDING_NAMES:
+            return [Signal("has_banding", "you", "", "", tree.name, "high")]
+    return []
+
+
+def _targeting_side(tree: ConceptTree) -> list[Signal]:
+    """targeting_matters, by side (:func:`targeting_trigger_side`): ``you`` for a
+    trigger rewarding your own spell or ability that targets the card or your
+    permanent (heroic, Feather, Zada, Colleen Wing, valiant), ``opponents`` for
+    one on an opponent's object or an opponent's targeting (Legolas, Master
+    Archer's second trigger, Willbreaker, Frost Titan, Reparations). A trigger
+    on either side's targeting (repartee, Phantasmal Bear) takes none. Scope
+    "any", HIGH."""
+    sides: set[str] = set()
+    for unit in tree.units:
+        for trig in iter_unit_trigger_defs(unit):
+            side = targeting_trigger_side(trig)
+            if side in ("you", "opponents"):
+                sides.add(side)
+    return [
+        Signal("targeting_matters", "any", side, "", tree.name, "high")
+        for side in sorted(sides)
+    ]
+
+
 LANES = (
     _b13_conferred_grant_lanes,
     _boast_matters,
@@ -2272,6 +2618,10 @@ LANES = (
     _opponent_exile_matters_lane,
     _opponent_search_matters,
     _color_hoser,
+    _land_destruction,
+    _mass_death_support,
+    _granted_banding,
+    _targeting_side,
     _coven_matters_lane,
     _crimes_matter,
     _outlaw_matters_lane,

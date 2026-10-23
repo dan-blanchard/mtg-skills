@@ -38,6 +38,7 @@ from mtg_utils._card_ir.crosswalk import (
     amount_factor,
     amount_is_scaling,
     change_zone_dirs,
+    controller_paid_cost_leaves,
     count_operand_filter,
     counter_kind_any,
     effect_actor_scope,
@@ -66,6 +67,7 @@ from mtg_utils._card_ir.crosswalk import (
     normalised_keyword_name,
     object_facts_of,
     optional_clause_actor,
+    own_turn_step_triggers,
     permission_tag,
     recipient_tag,
     requires_condition_inner,
@@ -77,10 +79,12 @@ from mtg_utils._card_ir.crosswalk import (
     trigger_scope,
     trigger_subject,
     trigger_subject_scope,
+    unit_is_self_tutor,
     unit_zones,
     walk_effect_chain,
     watches_itself,
 )
+from mtg_utils._card_ir.crosswalk.reads import EXTRA_STEP_TRIGGER_PHASES
 from mtg_utils._card_ir.mirror.runtime import (
     TypedMirrorNode,
 )
@@ -242,7 +246,11 @@ def _plays_exiled_cards(c: ConceptNode) -> bool:
         return False
     if c.recovered_by == "cast_from_zone":
         return not ({"Graveyard", "Hand"} & set(c.zones))
-    return tag_of(getattr(c.node, "target", None)) in _EXILED_BY_SOURCE_TARGETS
+    tgt = getattr(c.node, "target", None)
+    # "a card exiled with ~" can arrive as ``And[InZone Exile, ExiledBySource]``
+    # (Raphael, Most Attitude).
+    parts = getattr(tgt, "filters", None) if tag_of(tgt) == "And" else [tgt]
+    return any(tag_of(p) in _EXILED_BY_SOURCE_TARGETS for p in parts or ())
 
 
 def _play_from_top(tree: ConceptTree) -> list[Signal]:
@@ -2588,6 +2596,44 @@ def _topdeck_selection(tree: ConceptTree) -> list[Signal]:
     return []
 
 
+#: The keyword actions that are top-of-library selection by name (CR 701.22a
+#: scry, 701.25a surveil) — each a ``topdeck_selection`` subject.
+_SELECTION_ACTIONS: dict[str, str] = {"Scry": "scry", "Surveil": "surveil"}
+
+
+def _selection_actions(tree: ConceptTree) -> set[str]:
+    """The named selection actions the card performs (:data:`_SELECTION_ACTIONS`),
+    granted ones included (Oracle's Insight's enchant-granted scry): a ``Scry`` /
+    ``Surveil`` node, a scry phase parks as a residue (Taeko, the Patient
+    Avalanche), or the known-token scry marker (the Sorcerer Role)."""
+    found: set[str] = set()
+    for unit in tree.units:
+        for n in iter_typed_nodes(unit.node):
+            if (action := _SELECTION_ACTIONS.get(tag_of(n) or "")) is not None:
+                found.add(action)
+        if any(c.recovered_by == "scry" for c in unit.effects):
+            found.add("scry")
+    if any(c.concept == "synth_topdeck_selection" for c in tree.iter_concepts()):
+        found.add("scry")
+    return found
+
+
+def _topdeck_selection_actions(tree: ConceptTree) -> list[Signal]:
+    """One ``topdeck_selection`` subject per named selection action a
+    :func:`_topdeck_selection` card performs — ``scry`` / ``surveil``
+    (:func:`_selection_actions`) — beside the bare ident, so a scry / surveil
+    payoff's serve (``scry_surveil_matters``) reads the cards that scry or
+    surveil apart from look-at-the-top selection (Ponder, Sensei's Divining
+    Top's dig)."""
+    actions = _selection_actions(tree)
+    if not actions or not _topdeck_selection(tree):
+        return []
+    return [
+        Signal("topdeck_selection", "you", action, "", tree.name, "high")
+        for action in sorted(actions)
+    ]
+
+
 _TOPDECK_STACK_SWEEP_RE = re.compile(TOPDECK_STACK_SWEEP_REGEX, re.IGNORECASE)
 
 
@@ -2653,7 +2699,20 @@ def _topdeck_stack(tree: ConceptTree) -> list[Signal]:
     Fertile Thicket, Planar Atlas, Gutless Plunderer — all corpus-verified
     to carry NO topdeck_stack Effect in ``old_ir_for``; that idiom is
     topdeck_selection's territory, not topdeck_stack's). Scope "you".
+
+    a tutor to the top — "search your library for a card,
+    then shuffle and put that card on top" (Vampiric Tutor, Worldly Tutor) —
+    names its card ``Any``; it stacks when the unit searches your own library
+    (:func:`~mtg_utils._card_ir.crosswalk.unit_is_self_tutor`). Each
+    structural stack also emits the
+    stacked card's origin as a subject (:func:`_stacked_card_origin` —
+    ``graveyard`` / ``hand`` / ``library`` / ``exile`` / ``battlefield``)
+    beside the bare ident, so a serve can read real stacking apart from the
+    play-from-the-top cross-open (Future Sight, Bolas's Citadel), which
+    ``signals.py`` emits with no subject: a cheat-from-top commander (Hans
+    Eriksson) wants a bomb stacked from the graveyard, hand or library.
     """
+    origins: set[str] = set()
     for unit in tree.units:
         if unit.origin == "replacement":
             continue
@@ -2681,19 +2740,38 @@ def _topdeck_stack(tree: ConceptTree) -> list[Signal]:
                 continue
             tgt = getattr(node, "target", None)
             ttag = tag_of(tgt)
-            if ttag == "SelfRef" or filter_controller(tgt) == "You":
-                return [Signal("topdeck_stack", "you", "", "", tree.name, "high")]
             if (
-                ttag
-                in (
-                    "ParentTarget",
-                    "TrackedSet",
-                    "ExiledBySource",
-                    "Or",
+                ttag == "SelfRef"
+                or filter_controller(tgt) == "You"
+                or (
+                    ttag
+                    in (
+                        "ParentTarget",
+                        "TrackedSet",
+                        "ExiledBySource",
+                        "Or",
+                    )
+                    and self_anchor()
                 )
-                and self_anchor()
+                or (ttag == "Any" and unit_is_self_tutor(unit) is True)
             ):
-                return [Signal("topdeck_stack", "you", "", "", tree.name, "high")]
+                origins.add(_stacked_card_origin(unit, tgt))
+        # A "put a card from your hand on top of your library" COST (Leashling,
+        # Penance, Hidden Retreat) is an ``EffectCost`` leaf around the put.
+        for leaf, _how in controller_paid_cost_leaves(unit):
+            put = getattr(leaf, "effect", None)
+            put_tgt = getattr(put, "target", None)
+            if (
+                tag_of(put) == "PutAtLibraryPosition"
+                and tag_of(getattr(put, "position", None)) == "Top"
+                and filter_controller(put_tgt) == "You"
+            ):
+                origins.add(_stacked_card_origin(unit, put_tgt))
+    if origins:
+        return [
+            Signal("topdeck_stack", "you", subject, "", tree.name, "high")
+            for subject in ("", *sorted(origins - {""}))
+        ]
 
     # Legacy kept-mirror, reused verbatim (CARD-level, not unit/node-gated —
     # mirrors the deleted ``_signals_ir``'s own ``TOPDECK_STACK_SWEEP_REGEX`` producer
@@ -2705,8 +2783,59 @@ def _topdeck_stack(tree: ConceptTree) -> list[Signal]:
     # (Munda, Ambush Leader's Rally).
     stripped = re.sub(r"\([^)]*\)", " ", tree.oracle or "")
     if _TOPDECK_STACK_SWEEP_RE.search(stripped):
-        return [Signal("topdeck_stack", "you", "", "", tree.name, "high")]
+        out = [Signal("topdeck_stack", "you", "", "", tree.name, "high")]
+        # The modal reveal-then-place dig puts the rest of what it looked at back
+        # on top (Diabolic Vision, Munda): those cards come from the library.
+        if any(
+            tag_of(c.node) == "Dig"
+            and getattr(c.node, "rest_destination", None) == "Library"
+            for unit in tree.units
+            for c in unit.effects
+        ):
+            out.append(Signal("topdeck_stack", "you", "library", "", tree.name, "high"))
+        return out
     return []
+
+
+#: Effects that look through your library: a card they leave for a later "put
+#: it on top" comes from the library.
+_LIBRARY_LOOK_TAGS: frozenset[str] = frozenset(
+    {"SearchLibrary", "Dig", "RevealTop", "RevealUntil"}
+)
+
+
+def _stacked_card_origin(unit: AbilityUnit, tgt: object) -> str:
+    """Where the card a top-of-library put takes comes from — the
+    ``topdeck_stack`` subject: ``graveyard`` (Reclaim, Academy Ruins, Mystic
+    Sanctuary), ``hand`` (Brainstorm, Leashling's cost), ``library`` (a tutor to
+    the top — Vampiric Tutor — or a dig that puts its pick back on top — Cream of
+    the Crop), ``exile`` (Scroll Rack, Triumph of Saint Katherine) or
+    ``battlefield`` (Sensei's Divining Top putting itself back, Civic
+    Guildmage's tuck). The card's own zone for a self-put (:func:`_bounce_origin`
+    — Loathsome Troll from the graveyard), the filter's ``InZone`` for a typed
+    one, a controlled permanent when the filter names no zone; a back-reference
+    takes the zone of what the unit looked at or moved first. ``""`` when
+    nothing says (Mirror of Fate's chosen cards)."""
+    ttag = tag_of(tgt)
+    if ttag == "SelfRef":
+        return _bounce_origin(unit, unit_zones(unit), spell=False).lower()
+    zones = set(filter_inzone_zones(tgt))
+    if len(zones) == 1:
+        return next(iter(zones)).lower()
+    if ttag == "Typed" and not zones:
+        return "battlefield"
+    if ttag == "ExiledBySource":
+        return "exile"
+    tags = {tag_of(n) for n in iter_typed_nodes(unit.node)}
+    if "Mill" in tags:
+        return "graveyard"
+    if "ExileTop" in tags:
+        return "exile"
+    if ttag == "Any" or tags & _LIBRARY_LOOK_TAGS:
+        return "library"
+    if unit.trigger_event == "dies":
+        return "graveyard"
+    return ""
 
 
 def _buffs_with_counters(c: ConceptNode) -> bool:
@@ -3305,7 +3434,8 @@ def _dice_matters(tree: ConceptTree) -> list[Signal]:
 
 def _extra_upkeep_end(tree: ConceptTree) -> list[Signal]:
     """extra_upkeep / extra_end_step / extra_draw_step — extra non-combat
-    phases (CR 500.8): an ``AdditionalPhase`` whose ``phase`` is Upkeep
+    steps (CR 500.9; an added beginning phase, CR 500.8 / 501.1): an
+    ``AdditionalPhase`` whose ``phase`` is Upkeep
     (Paradox Haze, Obeka), Draw, or End (Y'shtola Rhul). Paradox Haze's
     recipient is ``TriggeringPlayer`` under an Enchant-Player trigger — the
     lane fires scope "you" regardless, mirroring the live scope (an extra
@@ -3327,6 +3457,14 @@ def _extra_upkeep_end(tree: ConceptTree) -> list[Signal]:
     "upkeep"/"end" rows. Re-measured (ADR-0039 W8): both == 3 == the
     deleted regex producer's live set (Cyclonus/Sphinx/Shadow of the
     Second Sun), 0 lost, 0 over-fire.
+
+    the PAYOFF side — a trigger that fires at the
+    beginning of your upkeep / draw step / end step
+    (:func:`own_turn_step_triggers`: Phyrexian Arena, Sylvan Library, Chimil)
+    runs again in every added step of that name, so it emits that step's
+    payoff key (:data:`_STEP_TRIGGER_KEYS`: ``upkeep_triggers``,
+    ``draw_step_triggers``, ``end_step_triggers``), scope "you". The
+    ``extra_*`` keys stay the extra-step MAKERS.
     """
     out: list[Signal] = []
     seen: set[str] = set()
@@ -3343,7 +3481,23 @@ def _extra_upkeep_end(tree: ConceptTree) -> list[Signal]:
             if key not in seen:
                 seen.add(key)
                 out.append(Signal(key, "you", "", c.raw, tree.name, "high"))
+    steps = {step for unit in tree.units for step in own_turn_step_triggers(unit)}
+    out += [
+        Signal(_STEP_TRIGGER_KEYS[step], "you", "", "", tree.name, "high")
+        for step in sorted(steps)
+    ]
     return out
+
+
+#: The payoff key of a "beginning of [step]" trigger (:func:`own_turn_step_triggers`),
+#: per step an extra-step card repeats.
+_STEP_TRIGGER_KEYS: dict[str, str] = dict(
+    zip(
+        EXTRA_STEP_TRIGGER_PHASES,
+        ("upkeep_triggers", "draw_step_triggers", "end_step_triggers"),
+        strict=True,
+    )
+)
 
 
 def _facedown_has_marker(node: object) -> bool:
@@ -3509,6 +3663,7 @@ LANES = (
     _activated_draw,
     _cantrip,
     _topdeck_selection,
+    _topdeck_selection_actions,
     _topdeck_stack,
     _combat_buff_engine,
     _land_sacrifice_matters,

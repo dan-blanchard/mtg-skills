@@ -40,6 +40,7 @@ from mtg_utils._card_ir.crosswalk import (
     ConceptNode,
     ConceptTree,
     change_zone_dirs,
+    color_change_kinds,
     color_count_preds,
     count_operand_filter,
     effect_filter,
@@ -690,10 +691,26 @@ def _matches_color_change_idiom(oracle: str) -> bool:
     return bool(_COLOR_CHANGE_SYNTH_RX.search(_REMINDER.sub(" ", oracle or "")))
 
 
+def has_structural_color_change(tree: ConceptTree) -> bool:
+    """Whether a continuous effect of the card changes colors
+    (:func:`~mtg_utils._card_ir.crosswalk.color_change_kinds` — Purelace's set,
+    Painter's Servant's add, Sleight of Mind's color-word swap), on any static
+    def a unit reaches (a spell's one-shot ``GenericEffect`` included) — the
+    ``synth_color_change`` gap gate and the lane's structural arm."""
+    return any(
+        color_change_kinds(sdef)
+        for unit in tree.units
+        for sdef in iter_static_defs(unit.node)
+    )
+
+
 def _arm_color_change(tree: ConceptTree) -> ConceptNode | None:
     """Synthesize a ``color_change`` node (the deleted ``_COLOR_CHANGE_RX``
-    relocated verbatim)."""
+    relocated verbatim), gap-gated against :func:`has_structural_color_change`
+    """
     if not _matches_color_change_idiom(tree.oracle or ""):
+        return None
+    if has_structural_color_change(tree):
         return None
     return _synthetic_concept(
         arm_id="color_change",

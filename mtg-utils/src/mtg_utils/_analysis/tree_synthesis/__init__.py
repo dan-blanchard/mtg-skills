@@ -84,7 +84,6 @@ from mtg_utils._analysis.tree_synthesis.combat import (
 )
 from mtg_utils._analysis.tree_synthesis.control_stax import (
     _arm_cant_block_grant,
-    _arm_color_hoser,
     _arm_dont_own,
     _arm_legend_rule_off,
     _arm_opponent_counter_grant,
@@ -97,7 +96,6 @@ from mtg_utils._analysis.tree_synthesis.control_stax import (
     _arm_void_warp_makers,
     _stax_structural_walk,
     has_structural_cant_block_grant,
-    has_structural_color_hoser,
     has_structural_legend_rule_off,
     has_structural_opponent_counter_grant,
     has_structural_stax_taxes,
@@ -285,7 +283,6 @@ __all__ = [
     "_arm_celebration_matters",
     "_arm_coin_flip_payoff",
     "_arm_color_change",
-    "_arm_color_hoser",
     "_arm_connive_makers",
     "_arm_convoke_matters",
     "_arm_counter_distribute",
@@ -389,7 +386,6 @@ __all__ = [
     "has_structural_big_hand_matters",
     "has_structural_cant_block_grant",
     "has_structural_coin_flip",
-    "has_structural_color_hoser",
     "has_structural_connive_makers",
     "has_structural_counter_distribute",
     "has_structural_creature_cast_trigger",

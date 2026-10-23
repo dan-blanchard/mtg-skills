@@ -158,6 +158,10 @@ ALLOWLIST: dict[str, TokenRule] = {
     # effect_concepts("fight") read covers the recovered node with no
     # special-case.
     "fight": TokenRule(concept="fight", category="fight"),
+    # The conjure ACTION idiom (Alchemy; the digital supplement's DD2.1: a
+    # conjured card is a real card, "not a token and not a copy"): the native
+    # Conjure tag's own concept, which conjure_makers reads — never make_token.
+    "conjure": TokenRule(concept="conjure", category="conjure"),
     # reveal/exile-until-a-condition dig idiom (CR 701.13/701.20a): "reveal
     # cards from the top of your library until you reveal ..." (Mass
     # Polymorph, Synthetic Destiny) / "Reveal cards from the top of your

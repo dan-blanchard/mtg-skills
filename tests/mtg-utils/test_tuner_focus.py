@@ -536,6 +536,46 @@ def test_a_token_maker_is_no_carer_of_the_artifacts_avenue():
     assert set(rows[label]["carer_cards"]) == payoffs
 
 
+def test_a_doer_subject_is_one_keys_not_every_keys():
+    """``DOER_SUBJECTS`` is ``(key, subject)`` pairs: ``land_destruction|you|destroy``
+    is a one-shot doer, but the same subject on ``mass_land_denial`` (Armageddon)
+    cares about the avenue it opens."""
+    label = spec_for(_sig("mass_land_denial", "each")).label
+    classes = [_cc(f"MLD {i}", "engine", [label]) for i in range(12)]
+    wipes = {"MLD 0", "MLD 1", "MLD 2", "MLD 3", "MLD 4"}
+    fr = focus(
+        classes,
+        deck_size=100,
+        deck_signals=[_sig("mass_land_denial", "each", "destroy")],
+        emitters={("mass_land_denial", "each", "destroy"): frozenset(wipes)},
+    )
+    rows = {a["label"]: a for a in fr["viable_avenues"] + fr["emerging"] + fr["fed"]}
+    assert set(rows[label]["carer_cards"]) == wipes
+
+
+def test_an_extra_step_avenue_is_cared_about_by_the_triggers_it_repeats():
+    """An extra-upkeep maker opens "Extra upkeeps"; the cards that care are the
+    upkeep triggers each added upkeep repeats (``upkeep_triggers``), not the
+    makers."""
+    from mtg_utils._tuner.metrics import _cares_keys
+
+    assert _cares_keys("extra_upkeep") == ("upkeep_triggers",)
+    label = spec_for(_sig("extra_upkeep")).label
+    classes = [_cc(f"Step {i}", "engine", [label]) for i in range(12)]
+    triggers = {"Step 1", "Step 2", "Step 3", "Step 4", "Step 5"}
+    fr = focus(
+        classes,
+        deck_size=100,
+        deck_signals=[_sig("extra_upkeep"), _sig("upkeep_triggers")],
+        emitters={
+            ("extra_upkeep", "you", ""): frozenset({"Step 0"}),
+            ("upkeep_triggers", "you", ""): frozenset(triggers),
+        },
+    )
+    rows = {a["label"]: a for a in fr["viable_avenues"] + fr["emerging"] + fr["fed"]}
+    assert set(rows[label]["carer_cards"]) == triggers
+
+
 def test_a_subject_its_serve_leaves_out_opens_no_avenue():
     """An avenue is opened only by a subject its own serve counts
     (``avenue_spec_for``): impulse draw (``cast_from_exile|you|impulse``) cares

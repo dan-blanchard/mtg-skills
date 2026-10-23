@@ -34,6 +34,7 @@ from mtg_utils._card_ir.crosswalk import (
     ConceptNode,
     ConceptTree,
     counter_kind_any,
+    dynamic_pt_mod_sites,
     effect_actor_scope,
     effect_filter,
     effect_owner_player_scope,
@@ -42,6 +43,7 @@ from mtg_utils._card_ir.crosswalk import (
     filter_controller_side,
     filter_core_types,
     filter_inzone_zones,
+    hand_count_scopes,
     hand_size_scopes,
     has_nested_connive,
     has_nested_extra_turn,
@@ -50,8 +52,8 @@ from mtg_utils._card_ir.crosswalk import (
     has_nested_roll_die,
     iter_condition_sites,
     iter_cost_leaves,
-    iter_mod_sites,
     iter_typed_nodes,
+    quantity_threshold,
     recipient_tag,
     settap_state,
     static_mode_tag,
@@ -276,7 +278,7 @@ def has_self_etb_value(tree: ConceptTree) -> bool:
 # converts into value on every re-entry: card flow, board presence (tokens,
 # counters, pumps, life, mana, the monarch), and interaction (removal, tap-
 # down, theft, bounce, counterspells, discard and life loss aimed at others).
-# Phase B (2026-10-20): the set once named compat categories ("damage",
+# Phase B: the set once named compat categories ("damage",
 # "exile") no concept carries — a damage ETB is ``deal_damage``, an exile is a
 # ``change_zone`` — and left out tokens, counters, lifegain, blinks and
 # recursion, so ~2,900 self-ETB value permanents (Siege-Gang Commander,
@@ -1664,8 +1666,9 @@ def _arm_kill_engine(tree: ConceptTree) -> ConceptNode | None:
 # cards NOW read structurally: the lane-local ``_DYNAMIC_PT_MODS`` name in
 # crosswalk_signals was shadowed by a LATER batch-14 redefinition — see
 # ``_WB_PT_SET_MODS``'s identical shadowing note — so these cards rode the
-# mirror exclusively pre-fold; this fold's ``_BIG_HAND_DYNAMIC_PT_MODS``
-# pins the correct Set* spellings, recovering the structural read).
+# mirror exclusively pre-fold; this fold's setting-pair read —
+# ``crosswalk.DYNAMIC_PT_SET_MODS`` — pins the correct Set* spellings,
+# recovering the structural read).
 def has_structural_big_hand_makers(tree: ConceptTree) -> bool:
     """Whether a static's mode is ``NoMaximumHandSize``/``MaximumHandSize``,
     or a ``no_max_handsize`` effect concept exists."""
@@ -1679,42 +1682,28 @@ def has_structural_big_hand_makers(tree: ConceptTree) -> bool:
     return False
 
 
-# Dynamic P/T modification tags (both phase spellings — Maro's
-# ``SetDynamicPower`` pair and Titania's Song's ``SetPowerDynamic`` pair):
-# the big_hand_matters CDA site. ONE pinned source the live lane
-# (crosswalk_signals) reuses byte-identically for its own inline walk.
-_BIG_HAND_DYNAMIC_PT_MODS: frozenset[str] = frozenset(
-    {
-        "SetDynamicPower",
-        "SetDynamicToughness",
-        "SetPowerDynamic",
-        "SetToughnessDynamic",
-    }
-)
+def _your_hand_size(operand: object) -> bool:
+    return "you" in hand_size_scopes(operand)
 
 
 def has_structural_big_hand_matters(tree: ConceptTree) -> bool:
-    """Whether a YOUR-hand-size ``QuantityComparison`` condition (GE/GT,
-    threshold >= 4) or a hand-size-scoped dynamic-P/T modification exists."""
+    """Whether a YOUR-hand-size threshold condition (GE/GT, threshold >= 4 —
+    :func:`quantity_threshold`: a trigger's intervening ``QuantityComparison``
+    such as Akki Underling's, an ability's ``QuantityCheck`` such as Scroll of
+    Origins' "if you have seven or more cards in hand") or a hand-size-scoped
+    dynamic-P/T setting modification (Maro's ``SetDynamicPower`` pair —
+    :func:`dynamic_pt_mod_sites`) exists."""
     for unit in tree.units:
-        for site in iter_condition_sites(unit.node):
-            for q in iter_typed_nodes(site):
-                if tag_of(q) != "QuantityComparison":
-                    continue
-                lhs = getattr(q, "lhs", None)
-                if "you" not in hand_size_scopes(lhs):
-                    continue
-                if getattr(q, "comparator", None) not in ("GE", "GT"):
-                    continue
-                rhs = getattr(q, "rhs", None)
-                val = getattr(rhs, "value", None) if tag_of(rhs) == "Fixed" else None
-                if isinstance(val, int) and val >= 4:
-                    return True
-        for _sdef, mod in iter_mod_sites(unit.node):
-            if tag_of(mod) in _BIG_HAND_DYNAMIC_PT_MODS and "you" in hand_size_scopes(
-                mod
-            ):
-                return True
+        if any(
+            quantity_threshold(site, _your_hand_size, floor=4)
+            for site in iter_condition_sites(unit.node)
+        ):
+            return True
+        if any(
+            _your_hand_size(mod)
+            for _sdef, mod in dynamic_pt_mod_sites(unit.node, setting_only=True)
+        ):
+            return True
     return False
 
 
@@ -1756,10 +1745,22 @@ def _arm_big_hand_makers(tree: ConceptTree) -> ConceptNode | None:
 def _arm_big_hand_matters(tree: ConceptTree) -> ConceptNode | None:
     """Synthesize a ``big_hand_matters`` node for the full-grip-reference
     residual (the deleted ``_BIG_HAND_MATTERS_MIRROR`` relocated, gap-gated
-    against :func:`has_structural_big_hand_matters`)."""
+    against :func:`has_structural_big_hand_matters`).
+
+    The residual is for a hand count phase dropped (Commence the Endgame's
+    amass X, Descendant of Soramaro's "look at the top X"). Where the tree
+    carries one (:func:`hand_count_scopes`), the structural reads already
+    decide whether it rewards a full grip, so the text arm stands down: the
+    big_hand lane's threshold and scaling reads take the payoffs, and a count
+    that caps or punishes your hand stays out — Ensnaring Bridge's "power
+    greater than the number of cards in your hand can't attack" (a filter
+    bound), Castle Locthwain's life loss, Dark Suspicions' "minus the number
+    of cards in your hand", Ebony Owl Netsuke's opponent's hand."""
+    if not _matches_big_hand_matters_idiom(tree.oracle or ""):
+        return None
     if has_structural_big_hand_matters(tree):
         return None
-    if not _matches_big_hand_matters_idiom(tree.oracle or ""):
+    if any(hand_count_scopes(unit.node) for unit in tree.units):
         return None
     return _synthetic_concept(
         arm_id="big_hand_matters",

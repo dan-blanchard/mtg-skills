@@ -164,6 +164,25 @@ its payoff and source avenues (ADR-0026) and pages the payoff side by its serve,
 the rule the tuner uses (`pages_by_serve`). **50 serves still match on a regex
 alone**; the backlog lists them.
 
+
+**Pass D (2026-10-23): the last pattern serves.** Eight agents, one per lane
+module, closed the lane gaps behind the 50 holds, again as subjects on existing
+keys. Where a subject only FEEDS a payoff it is a doer subject
+(`signal_keys.DOER_SUBJECTS`, a set of `(key, subject)` pairs the tuner's carer
+read skips): a one-shot land-destruction spell (`land_destruction|you|destroy`),
+a variable-target spell, a blink enabler, a creature that sacrifices itself. A
+floor subject (`signal_keys.MEMBERSHIP_SUBJECTS`: the commander-damage
+`voltron_matters|you|carrier`) opens its avenue without being served. A payoff
+whose maker key reads the other way gets its own key: the step-trigger payoffs
+are `upkeep_triggers` / `end_step_triggers` / `draw_step_triggers`, cared about
+through `_CARES_ALIASES` and opening no avenue of their own. Then the specs
+converted, and **362 of 379 serves read idents**: four still match on a regex
+alone (`self_etb_payload`, `permanent_etb`, `land_protection`, and
+`ability_strip_payoff`'s drawback text beside its power floor), four keep a regex
+beside their idents (`xspell_matters`, `team_buff`, `target_redirect`,
+`spell_redirect`), and thirteen serve on types or keywords alone; the backlog
+lists why.
+
 ## 3. Pass B: an avenue needs cards that care
 
 `_tuner.metrics.focus` measures an avenue's depth as the number of nonland cards

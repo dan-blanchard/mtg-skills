@@ -20,7 +20,7 @@ Semantics:
 
 Cost note: attribution runs N_units extractions per card, memoized per
 oracle_id. Its consumers read it at scoring time — pair-MATCHED candidates,
-and since 2026-10-20 every candidate a theme serves through its idents
+and every candidate a theme serves through its idents
 (``ranking._hit_clauses``), pages of a few hundred cards — so there is no
 sidecar yet; if a whole-pool consumer appears, persist alongside the
 signals index with the same content-hash invalidation discipline.

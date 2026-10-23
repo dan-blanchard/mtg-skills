@@ -340,7 +340,7 @@ _DIG_UNTIL = comb.value(
 # fire on "drawback"); plural/3rd-person forms included for triggered phrasings.
 _SIMPLE_VERB = comb.alt(
     comb.value("draw", comb.keyword({"draw", "draws"})),
-    comb.value("make_token", comb.keyword({"conjure", "conjures"})),
+    comb.value("conjure", comb.keyword({"conjure", "conjures"})),
     comb.value("choose", comb.keyword({"choose", "chooses"})),
     comb.value("sacrifice", comb.keyword({"sacrifice", "sacrifices"})),
     comb.value("mill", comb.keyword({"mill", "mills"})),

@@ -283,3 +283,75 @@ def test_island_matters_serves_island_effects():
     assert serve.matches(_card("Armored Galleon"))
     assert serve.matches(_card("Stormtide Leviathan"))
     assert not serve.matches(_card("Carpet of Flowers"))
+
+
+def _served(key, name, *, scope="you"):
+    spec = spec_for(_sig(key, scope))
+    assert spec is not None
+    assert spec.serve.oracle is None
+    return spec.serve.matches(_card(name))
+
+
+def test_anthem_static_serves_subtype_anthems_not_cost_reducers():
+    assert _served("anthem_static", "Allied Teamwork")
+    # The regex read "creatures you control ... {X} less" across a cost clause.
+    assert not _served("anthem_static", "Agatha of the Vile Cauldron")
+
+
+def test_life_payment_insurance_serves_cant_lose_only():
+    assert _served("life_payment_insurance", "Lich's Tomb")
+    # "Your life total can't change" never lets you reach 0 life: not insurance.
+    assert not _served("life_payment_insurance", "Platinum Emperion")
+
+
+def test_per_target_payoff_serves_variable_target_counts():
+    assert _served("per_target_payoff", "Abandon the Post")
+    # A fixed-count mass ability on a permanent: out by design.
+    assert not _served("per_target_payoff", "Arc Mage")
+
+
+def test_target_own_payoff_serves_free_targeting():
+    assert _served("target_own_payoff", "Reconnaissance")
+
+
+def test_lose_unless_hand_serves_the_zero_life_negators():
+    assert _served("lose_unless_hand", "Lich")
+    # "You can't win" is no backstop against losing from the lose-trigger.
+    assert not _served("lose_unless_hand", "Abyssal Persecutor")
+
+
+def test_cheat_from_top_serves_put_on_top_not_surveil_reminders():
+    assert _served("cheat_from_top", "Boggart Harbinger")
+    assert not _served("cheat_from_top", "Curate")
+
+
+def test_minus_counters_serves_placers_and_keyword_bearers():
+    assert _served("minus_counters_matter", "Trigon of Infestation")
+    # Infect bearers come in by keyword, not by the reminder text.
+    assert _served("minus_counters_matter", "Blight Mamba")
+    assert not _served("minus_counters_matter", "Everlasting Torment")
+
+
+def test_land_destruction_serves_every_kind_not_symmetric_tap_taxes():
+    assert _served("land_destruction", "Acid Rain")
+    assert not _served("land_destruction", "Desolation")
+
+
+def test_mass_death_payoff_serves_creature_wipes_not_mass_exile_text():
+    assert _served("mass_death_payoff", "Akroma's Vengeance")
+    assert not _served("mass_death_payoff", "Beyond the Quiet")
+
+
+def test_tap_down_blockers_serves_the_lane_not_untap_cards():
+    assert _served("tap_down_blockers", "Chrome Prowler")
+    assert not _served("tap_down_blockers", "Provoke")
+
+
+def test_kill_engine_serves_death_payoffs_not_draw_on_death():
+    assert _served("kill_engine", "Dingus Staff")
+    assert not _served("kill_engine", "Dark Prophecy")
+
+
+def test_entered_attacker_serves_team_haste_not_self_pumps():
+    assert _served("entered_attacker", "Brudiclad, Telchor Engineer")
+    assert not _served("entered_attacker", "Griffin Protector")

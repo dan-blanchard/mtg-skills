@@ -23,6 +23,7 @@ from mtg_utils._analysis._sweep_detectors import (
     SWEEP_DETECTORS,
 )
 from mtg_utils._analysis.signal_base import _GENERIC_KEYS, Signal, _clauses
+from mtg_utils._analysis.signal_keys import VOLTRON_CARRIER
 from mtg_utils._analysis.text_reads import (
     _EVERGREEN_KW_WORDS,
     _VOLTRON_EQUIP_RE,
@@ -1262,7 +1263,6 @@ _VOLTRON_KEYWORDS = frozenset(
 
 _VOLTRON_COMPAT_KEYS = frozenset({"partner_background", "conditional_self_protection"})
 
-
 _VOLTRON_HAS_OTHER_PLAN_COMPAT: frozenset[str] = frozenset(
     {
         "regenerate_makers",
@@ -1277,6 +1277,9 @@ _VOLTRON_HAS_OTHER_PLAN_COMPAT: frozenset[str] = frozenset(
         # fallback. (The old combined arm emitted voltron_matters HIGH here, which
         # equally never silenced its own lane — keeping this compat preserves that.)
         "voltron_makers",
+        # A step trigger (Phyrexian Arena's upkeep draw) is a payoff an extra step
+        # would repeat, not an engine the commander runs.
+        *signal_keys.STEP_TRIGGER_KEYS.values(),
     }
 )
 
@@ -1693,7 +1696,7 @@ def _apply_membership_floor(
     # extra), NOT the broad `destroy`/Land structural arm (removed above — it floods
     # +143 one-shot spells / utility lands HIGH). scope 'you', LOW confidence (the
     # deleted producer's scope/conf — it never fed has_other_plan, so no voltron
-    # mirror is needed). CR 305.6.
+    # mirror is needed). CR 701.8a.
     if "creature" in type_line and _LAND_DESTRUCTION_MIRROR.search(kept_oracle):
         add("land_destruction", "you", "", "repeatable land destruction", "low")
     # ADR-0027 — big_mana (a COMMANDER that makes a LOT of mana wants X-spell
@@ -1748,7 +1751,7 @@ def _apply_membership_floor(
     # isn't read as the deck's plan. scope 'you', LOW confidence (the deleted
     # producer's identity — it fired LOW and never fed has_other_plan, so NO voltron
     # mirror is needed, matching the land_destruction / cheat_from_top precedent).
-    # CR 305.6.
+    # CR 701.8a.
     if "creature" in type_line and (
         is_kill_engine or _REPEATABLE_KILL_MIRROR.search(kept_oracle)
     ):
@@ -1900,6 +1903,15 @@ def _apply_membership_floor(
     # the old regex's 3007. The unconditional tells (payoff, self-growth,
     # evasion/resilience, self-protection) fire regardless; only the bare
     # commander-damage fallback is gated on `not has_other_plan`.
+    #
+    # Every voltron tell here carries the ``carrier`` subject
+    # (:data:`VOLTRON_CARRIER`): it reads what the COMMANDER is — a body worth
+    # suiting up — never a card that pays off Equipment and Auras. The lanes'
+    # payoff (``counters_voltron._voltron_matters``) is the bare
+    # ``voltron_matters|you|``, so a serve can read the payoff side without
+    # admitting every creature with power 2 or more (Grizzly Bears), and a
+    # carrier commander's carers are still the 99's bare payoffs
+    # (``_tuner.metrics``: a subject cares about itself and the bare key).
     power = card_pt_int(card)
     kws = {k.lower() for k in (card.get("keywords") or [])}
     # (4) self-protection (Power/Evasion/Protection triad; removal is the
@@ -1907,7 +1919,7 @@ def _apply_membership_floor(
     # ideal Equipment/Aura carrier (Cho-Manno, Gideon Blackblade). Not creature-
     # gated, matching the deleted regex producer. CR 614.9 / 615 / 903.10a.
     if _detect_self_damage_prevention(kept_oracle, name):
-        add("voltron_matters", "you", "", kept_oracle[:160], "low")
+        add("voltron_matters", "you", VOLTRON_CARRIER, kept_oracle[:160], "low")
     if "creature" in type_line:
         # (4) hexproof/indestructible/shroud beater — a removal-resistant body
         # you safely suit up (Sigarda, Uril, Geist of Saint Traft). The single
@@ -1917,7 +1929,7 @@ def _apply_membership_floor(
             add(
                 "voltron_matters",
                 "you",
-                "",
+                VOLTRON_CARRIER,
                 "hexproof/indestructible beater",
                 "low",
             )
@@ -1938,7 +1950,13 @@ def _apply_membership_floor(
             or _voltron_self_recurs(kept_oracle, name)
             or _voltron_double_strike_beater(card, kept_oracle)
         ):
-            add("voltron_matters", "you", "", "likely voltron commander", "low")
+            add(
+                "voltron_matters",
+                "you",
+                VOLTRON_CARRIER,
+                "likely voltron commander",
+                "low",
+            )
     # has_other_plan (ADR-0027 re-baseline): a high-confidence signal in THIS
     # function's IR `out` for a NON-COMBAT RESOURCE/BOARD ENGINE (card-draw / ramp /
     # tokens / aristocrats / graveyard / tribal-lord / removal-control …) IS another
@@ -1975,7 +1993,7 @@ def _apply_membership_floor(
         add(
             "voltron_matters",
             "you",
-            "",
+            VOLTRON_CARRIER,
             "commander damage (CR 903.10a)",
             "low",
         )

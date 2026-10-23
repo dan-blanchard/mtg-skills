@@ -55,6 +55,7 @@ from mtg_utils._analysis.tree_synthesis import (
     structural_land_fetch_split,
     structural_token_maker_type_subjects,
 )
+from mtg_utils._analysis.tree_synthesis.combat import ATTACK_TRIGGER_KEYWORDS
 from mtg_utils._card_ir.crosswalk import (
     AbilityUnit,
     ConceptNode,
@@ -72,6 +73,7 @@ from mtg_utils._card_ir.crosswalk import (
     filter_inzone_zones,
     filter_predicates,
     filter_subtypes,
+    granted_keyword_names,
     in_uncertain_branch,
     iter_condition_sites,
     iter_cost_leaves,
@@ -197,6 +199,31 @@ _CAST_ADD_SAC_LAND_ONLY_WORDS: frozenset[str] = frozenset(
 def _cast_add_sac_clause_is_land_only(clause: str) -> bool:
     words = re.findall(r"[a-zA-Z]+", clause.lower())
     return bool(words) and all(w in _CAST_ADD_SAC_LAND_ONLY_WORDS for w in words)
+
+
+def _sacrifice_self_cost(tree: ConceptTree) -> list[Signal]:
+    """``sacrifice_outlets|you|self`` for a creature that sacrifices ITSELF as
+    an activation cost (Spore Frog, Sakura-Tribe Elder,
+    Mogg Fanatic: "Sacrifice this creature: …", a ``SelfRef`` Sacrifice leaf).
+    Such a body is no outlet for the rest of the board, so the bare ident
+    (:func:`_sacrifice_outlets`) stays the real outlets; the subject is the
+    loop fuel a recursion engine (``creature_recursion``) and an aristocrats
+    deck want (CR 602.1a: a cost is paid by the activator; CR 701.21a)."""
+    if "Creature" in tree.card_types and any(
+        unit.origin == "ability"
+        and any(
+            tag_of(leaf) == "Sacrifice"
+            and tag_of(getattr(leaf, "target", None)) == "SelfRef"
+            # The unit's own cost only: ``controller_paid_cost_leaves`` also
+            # walks the abilities a made token carries (Spawnsire of Ulamog's
+            # Spawn: "Sacrifice this creature: Add {C}"), whose "this
+            # creature" is the token.
+            for leaf in iter_cost_leaves(getattr(unit.node, "cost", None))
+        )
+        for unit in tree.units
+    ):
+        return [Signal("sacrifice_outlets", "you", "self", "", tree.name, "high")]
+    return []
 
 
 def _sacrifice_outlets(tree: ConceptTree) -> list[Signal]:
@@ -779,7 +806,10 @@ def _blink_flicker(tree: ConceptTree) -> list[Signal]:
     return (Chrome Mox — exile only) and a battlefield put of a DIFFERENT object
     (Path to Exile — the searched land's target is ``Any``, not ``ParentTarget``).
     Scope "you", confidence HIGH — this lane is the MAKER half only (see
-    :func:`blink_flicker_is_maker`).
+    :func:`blink_flicker_is_maker`), with subject ``enabler``: the floor's
+    ETB-value bodies below keep the bare ``blink_flicker|you|`` ident, so a serve
+    can read the enablers (``blink_flicker|you|enabler``) apart from the bodies
+    worth blinking.
 
     A SECOND, unrelated producer shares this key: :func:`apply_membership_floor`
     (called once per card by ``signals.extract_signals`` when its
@@ -875,9 +905,26 @@ def _blink_flicker(tree: ConceptTree) -> list[Signal]:
                 # …but never unearth's Graveyard→Battlefield self-return whose "exile
                 # it" is the delayed cleanup (Anathemancer, Hell's Thunder — CR
                 # 702.84a): graveyard recursion, not a blink.
-                self_exile and tgt == "SelfRef" and origin != "Graveyard"
+                self_exile
+                and origin != "Graveyard"
+                # A self-exile's "Return it" can come back as a cast trigger's
+                # ``TriggeringSource`` (Ojutai Exemplars, Djinn of the Fountain:
+                # phase binds "it" to the spell cast, a misparse a
+                # ``retirement_canary`` test pins); the object is still the one
+                # this ability exiled. Only a ``SpellCast`` trigger: its source
+                # is a spell, which no exile-and-return puts onto the
+                # battlefield.
+                and (
+                    tgt == "SelfRef"
+                    or (
+                        tgt == "TriggeringSource"
+                        and getattr(unit.node, "mode", None) == "SpellCast"
+                    )
+                )
             ):
-                return [Signal("blink_flicker", "you", "", "", tree.name, "high")]
+                return [
+                    Signal("blink_flicker", "you", "enabler", "", tree.name, "high")
+                ]
     return []
 
 
@@ -1442,7 +1489,7 @@ _OWN_DECK_ARTIFACT_TYPES: frozenset[str] = frozenset({"attraction"})
 # count is the Voltron avenue's (voltron_*), a Vehicle count vehicles_matter's,
 # a Saga count saga_matters'. Read as artifacts / enchantments payoffs too, they
 # made Virtue and Valor's Voltron carers the Enchantments carers, and the focus
-# read merged the two avenues into one (2026-10-20).
+# read merged the two avenues into one.
 _OWN_THEME_SUBTYPES: frozenset[str] = frozenset(
     {"aura", "equipment", "vehicle", "saga"}
 )
@@ -3278,6 +3325,13 @@ def _attack_tapped_matters(tree: ConceptTree) -> list[Signal]:
     # that DIDN'T attack this turn" filter family is deliberately not read.
     if attack_raid_condition(tree):
         fire("attack_matters", "")
+    # A GRANTED attack-trigger keyword (Legion Loyalty's "creatures you control have
+    # myriad", Sozin's Comet's firebending, Fire Nation Attacks' tokens "with
+    # firebending 1"): its trigger lives only in the keyword's meaning and the
+    # reminder text, so phase carries the keyword name, never a typed attack
+    # trigger (:data:`ATTACK_TRIGGER_KEYWORDS`, each CR subrule there).
+    if any(granted_keyword_names(u.node) & ATTACK_TRIGGER_KEYWORDS for u in tree.units):
+        fire("attack_matters", "")
 
     for c in tree.iter_concepts():
         if c.role != "effect":
@@ -3364,6 +3418,7 @@ def _spellcast_matters(tree: ConceptTree) -> list[Signal]:
 
 LANES = (
     _sacrifice_outlets,
+    _sacrifice_self_cost,
     _lifegain_matters,
     _blink_flicker,
     _tokens_matter,

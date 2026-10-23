@@ -25,6 +25,7 @@ from mtg_utils._analysis.tree_synthesis import (
     has_structural_dice_makers,
     has_structural_spellcast,
 )
+from mtg_utils._analysis.tree_synthesis.combat import ATTACK_TRIGGER_KEYWORDS
 from mtg_utils._card_ir.crosswalk import (
     LIBRARY_EXILE_TAGS,
     AbilityUnit,
@@ -33,6 +34,7 @@ from mtg_utils._card_ir.crosswalk import (
     additional_phase_kind,
     answers_its_target,
     basic_land_type_grants,
+    board_power_threshold,
     cast_trigger_origin,
     change_zone_dirs,
     color_count_preds,
@@ -527,7 +529,7 @@ def _cast_from_exile(tree: ConceptTree) -> list[Signal]:
     commander-legal live_only cards, ZERO of the 6 named sheds above). CR
     601.3b / 702.143.
 
-    SUBJECTS (2026-10-20). Impulse draw — exile the top of YOUR library, play
+    SUBJECTS. Impulse draw — exile the top of YOUR library, play
     it (Act on Impulse, Abbot of Keral Keep) — is its own avenue
     (``impulse_top_play``), so a permission whose only exile evidence is the
     top of your library reads subject ``impulse`` (:func:`_exile_source`);
@@ -1210,6 +1212,25 @@ def _predicate_build_around(tree: ConceptTree) -> list[Signal]:
         if c.concept == "synth_power_matters":
             fire("power_matters", "")
             break
+    # a threshold on the TOTAL or greatest power of your
+    # creatures (pack tactics' attackers — Gnoll Hunter; Owlbear Shepherd;
+    # Mosswort Bridge's hideaway gate), read off the typed QuantityComparison /
+    # QuantityCheck condition (:func:`board_power_threshold`). And a fixed power
+    # floor on YOUR creatures at a site the reads above never visit — a mana
+    # ability's count (Leafkin Avenger: "Add {G} for each creature with power 4
+    # or greater you control"), a ModifyCost count (Temur Battlecrier), a
+    # combat-damage trigger's source (Tifa, Martial Artist). Your controller is
+    # the gate, as in handle(): an unscoped "target creature with power 4 or
+    # greater" is removal or a grant, not a build-around. CR 208.1.
+    if any(board_power_threshold(unit.node) for unit in tree.units) or any(
+        filter_controller(n) == "You"
+        and any(
+            stat == "Power" and cmp_ in ("GE", "GT")
+            for stat, cmp_, _v in power_threshold_preds(n)
+        )
+        for n in tree.iter_typed()
+    ):
+        fire("power_matters", "")
     # recall-completion b2 (ADR-0034): the TRIGGER-subject ColorCount build-around.
     # handle() above reads effect / count-operand / static-affected filters but never
     # a trigger's watched subject, so "whenever you cast a multicolored spell" (Cloven
@@ -1234,6 +1255,21 @@ def _predicate_build_around(tree: ConceptTree) -> list[Signal]:
                     fire("colorless_matters", "")
             elif you and ((cmp_ == "GE" and cnt >= 2) or (cmp_ == "EQ" and cnt >= 2)):
                 fire("multicolor_matters", "")
+        # The same you-cast scope for a power floor on the watched spell: "whenever
+        # you cast a creature spell with power 5 or greater" (Gwenna, Eyes of Gaea;
+        # Monstrous Vortex) is a big-creature payoff. Cast triggers only: an attack
+        # trigger's ``Controller`` target is the player attacked ("whenever a
+        # creature with power 4 or greater attacks you" — MacCready, Lamplight
+        # Mayor, a pillowfort punisher). CR 208.1.
+        if (
+            you
+            and unit.trigger_event in CAST_TRIGGER_EVENTS
+            and any(
+                stat == "Power" and cmp_ in ("GE", "GT")
+                for stat, cmp_, _v in power_threshold_preds(vc)
+            )
+        ):
+            fire("power_matters", "")
     return out
 
 
@@ -2080,6 +2116,17 @@ def _conjure_makers(tree: ConceptTree) -> list[Signal]:
     """
     for c in tree.effect_concepts("conjure"):
         return [Signal("conjure_makers", "you", "", c.raw, tree.name, "high")]
+    # phase types "conjure a random card from <this card>'s
+    # spellbook" as ``DraftFromSpellbook`` with ``random`` set (Tome of the
+    # Infinite, Goblin Influx Array). An unset ``random`` is either a draft (three
+    # random cards offered, one kept) or a conjure "of your choice", which the node
+    # does not tell apart, so it is left to the bulk keyword array
+    # (:func:`_keyword_field_signals_b7`). Conjure is digital-only: no CR rule; the
+    # rules file's DD supplement defines it (DD2.1).
+    for unit in tree.units:
+        for n in iter_typed_nodes(unit.node):
+            if tag_of(n) == "DraftFromSpellbook" and getattr(n, "random", None) is True:
+                return [Signal("conjure_makers", "you", "", "", tree.name, "high")]
     return []
 
 
@@ -2213,7 +2260,7 @@ def _opponent_exile_makers(tree: ConceptTree) -> list[Signal]:
     single-card exile (Scavenging Ooze — target a Typed card, not a player) are
     naturally excluded.
 
-    Also read (2026-10-20): a mass ``ChangeZoneAll`` out of a graveyard the
+    Also read: a mass ``ChangeZoneAll`` out of a graveyard the
     graveyard-hate read (:func:`crosswalk.graveyard_exile_kind`)
     places on an opponent's ("Exile each opponent's graveyard" — Soul-Guide
     Lantern, Dauntless Scrapbot, Ashiok, Dream Render; "Exile all creature
@@ -2270,6 +2317,11 @@ _BOAST_KEYWORDS: frozenset[str] = frozenset({"boast"})
 _EXHAUST_KEYWORDS: frozenset[str] = frozenset({"exhaust"})
 _CONVOKE_KEYWORDS: frozenset[str] = frozenset({"convoke"})
 _MAGECRAFT_KEYWORDS: frozenset[str] = frozenset({"magecraft"})
+#: Scryfall lists the conjure keyword action on every card that conjures, the
+#: double team bodies included (DD10.1: "when the creature attacks, its controller
+#: conjures a duplicate of it"), and never on an ability NAMED "Conjure …"
+#: (Silvanus's Invoker). Phase parks most conjure clauses as ``Unimplemented``.
+_CONJURE_KEYWORDS: frozenset[str] = frozenset({"conjure"})
 
 
 def _keyword_field_signals_b7(keywords: frozenset[str], name: str) -> list[Signal]:
@@ -2286,6 +2338,10 @@ def _keyword_field_signals_b7(keywords: frozenset[str], name: str) -> list[Signa
       keyword) is a SEPARATE typed read, ``_spell_keyword_grant``'s convoke arm
       (ADR-0037/0038 W1 batch-3) — both roles feed the SAME key, matching legacy's
       own conflated detection);
+    * an attack-trigger keyword (:data:`ATTACK_TRIGGER_KEYWORDS` — firebending,
+      CR 702.189a, is the one phase drops) → ``attack_matters`` you;
+    * ``conjure`` → ``conjure_makers`` you (the keyword action, DD2.1 of the rules
+      file's digital supplement — the CR has no conjure rule);
     * ``magecraft`` → ``magecraft_matters`` you (CR 207.2c — an ability WORD; the
       "whenever you cast or copy" trigger lives in stripped reminder text, so the
       Scryfall ``Magecraft`` keyword is the only reachable anchor. A plain
@@ -2302,6 +2358,10 @@ def _keyword_field_signals_b7(keywords: frozenset[str], name: str) -> list[Signa
     if low & _BOAST_KEYWORDS:
         out.append(Signal("boast_makers", "you", "", "", name, "high"))
         out.append(Signal("attack_matters", "you", "", "", name, "high"))
+    elif low & ATTACK_TRIGGER_KEYWORDS:
+        out.append(Signal("attack_matters", "you", "", "", name, "high"))
+    if low & _CONJURE_KEYWORDS:
+        out.append(Signal("conjure_makers", "you", "", "", name, "high"))
     if low & _EXHAUST_KEYWORDS:
         out.append(Signal("exhaust_makers", "you", "", "", name, "high"))
     if low & _CONVOKE_KEYWORDS:

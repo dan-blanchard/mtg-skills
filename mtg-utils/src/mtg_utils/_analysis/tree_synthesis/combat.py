@@ -52,6 +52,12 @@ from mtg_utils._card_ir.mirror.runtime import MirrorVariant
 # DRAWBACKS ("when this attacks or blocks, sacrifice it") and afflict ("becomes
 # blocked") that are not attack payoffs — the genuine "whenever ~ attacks or blocks"
 # rewards are recovered by the bucket-B synth's whenever-gate instead.
+#
+# exert and enlist are attack triggers too. A card's "you may
+# exert this creature as it attacks. When you do, …" is chosen as the creature is
+# declared an attacker (the Amonkhet rulings), and enlist (CR 702.154a) is "As this
+# creature attacks, you may tap … When you do, this creature gets +X/+0"; phase
+# types both as triggers (``Exerted`` / ``Enlisted``).
 ATTACK_TRIGGER_EVENTS: frozenset[str] = frozenset(
     {
         "attacks",
@@ -59,6 +65,33 @@ ATTACK_TRIGGER_EVENTS: frozenset[str] = frozenset(
         "attackerunblocked",
         "youattackunblocked",
         "attackersdeclared",
+        "exerted",
+        "enlisted",
+    }
+)
+# The keywords whose meaning is an attack trigger (each CR subrule: "Whenever this
+# creature attacks …"): battle cry 702.91a, myriad 702.116a, exalted 702.83a
+# ("Whenever a creature you control attacks alone"), frenzy 702.68a, provoke
+# 702.39a, annihilator 702.86a, melee 702.121a, mentor 702.134a, training 702.149a,
+# dethrone 702.105a, mobilize 702.181a, firebending 702.189a. A card that HAS one
+# carries phase's typed trigger (except firebending, which phase drops); a card that
+# GRANTS one (Legion Loyalty's myriad, Sozin's Comet's firebending, a token made
+# with it) carries only the keyword name, so the lanes read the name. The block
+# triggers (bushido, flanking, rampage, afflict) are ``blocked_matters``'.
+ATTACK_TRIGGER_KEYWORDS: frozenset[str] = frozenset(
+    {
+        "battle cry",
+        "myriad",
+        "exalted",
+        "frenzy",
+        "provoke",
+        "annihilator",
+        "melee",
+        "mentor",
+        "training",
+        "dethrone",
+        "mobilize",
+        "firebending",
     }
 )
 # Positive Raid CONDITION tags ("if you attacked this turn" — CR 508.1a/508.4). The
@@ -75,10 +108,29 @@ RAID_CONDITION_TAGS: frozenset[str] = frozenset(
 )
 
 
+def _watches_attacks_on_you(unit: object) -> bool:
+    """An attack trigger on the DEFENDING side: an ``attacks`` trigger whose
+    attacked object is you (Isperia, Supreme Judge's "Whenever a creature
+    attacks you or a planeswalker you control" — ``valid_target`` Controller),
+    or one watching an opponent's creatures (Coveted Jewel). The active player
+    chooses the attackers (CR 508.1a), so neither rewards attacking. An exert
+    trigger's ``valid_target`` Controller is the exerting player (Trueheart
+    Twins), and "when you attack with three or more creatures" types the
+    attackers as your creatures (Legion's Landing): both stay offensive."""
+    node = getattr(unit, "node", None)
+    if getattr(unit, "trigger_event", None) == "attacks" and (
+        tag_of(getattr(node, "valid_target", None)) == "Controller"
+    ):
+        return True
+    return filter_controller(getattr(node, "valid_card", None)) == "Opponent"
+
+
 def has_attack_trigger(tree: ConceptTree) -> bool:
     """A phase-typed offensive attack-declaration trigger (CR 508.1a)."""
     return any(
-        unit.origin == "trigger" and unit.trigger_event in ATTACK_TRIGGER_EVENTS
+        unit.origin == "trigger"
+        and unit.trigger_event in ATTACK_TRIGGER_EVENTS
+        and not _watches_attacks_on_you(unit)
         for unit in tree.units
     )
 

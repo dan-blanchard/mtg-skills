@@ -28,7 +28,6 @@ from mtg_utils._analysis.tree_synthesis import (
     _arm_cant_block_grant,
     _arm_coin_flip_payoff,
     _arm_color_change,
-    _arm_color_hoser,
     _arm_connive_makers,
     _arm_convoke_matters,
     _arm_creature_cast_trigger,
@@ -97,7 +96,6 @@ from mtg_utils._analysis.tree_synthesis import (
     has_structural_big_hand_matters,
     has_structural_cant_block_grant,
     has_structural_coin_flip,
-    has_structural_color_hoser,
     has_structural_connive_makers,
     has_structural_counter_distribute,
     has_structural_creature_cast_trigger,
@@ -164,20 +162,12 @@ from mtg_utils._card_ir.mirror.generated import (
     T_affected__Typed,
     T_condition__TargetMatchesFilter,
     T_count__Fixed,
-    T_effect__BounceAll,
-    T_effect__Counter,
-    T_effect__DestroyAll,
     T_effect__GenericEffect,
     T_effect__PutCounter,
     T_effect__Unimplemented,
-    T_filters__StackSpell,
-    T_filters__Typed,
     T_modifications__AddKeyword,
     T_modifications__AddPower,
     T_modifications__AddToughness,
-    T_properties__HasColor,
-    T_properties__Owned,
-    T_target__And,
     T_target__ParentTarget,
     T_target__Typed,
 )
@@ -3817,13 +3807,15 @@ def test_animate_artifact_arm_stays_retired():
 
 
 def test_color_change_bucket_b_synth():
-    """Alchor's Tomb's color-changing effect — no competing Tier-1
-    predicate (the raw ``animate`` anchor over-fires ~94%, batch-12)."""
+    """Alchor's Tomb's color change is typed (an ``AddChosenColor``), so the
+    structural read (Phase D, 2026-10-23) gap-gates the synth tail off it."""
+    from mtg_utils._analysis.tree_synthesis.types_tribal import (
+        has_structural_color_change,
+    )
+
     tree = _fixture_tree("Alchor's Tomb")
-    node = _arm_color_change(tree)
-    assert node is not None
-    assert node.concept == "synth_color_change"
-    assert node.scope == "you"
+    assert has_structural_color_change(tree)
+    assert _arm_color_change(tree) is None
 
 
 def test_color_change_no_fire_on_becomes_colorless():
@@ -4452,138 +4444,6 @@ def test_opponent_exile_matters_lane_reads_synth_node_end_to_end():
     assert any(s.key == "opponent_exile_matters" for s in sigs)
 
 
-# ── batch T5-niche-a: color_hoser (bucket-A widen + bucket-B tail) ──────────
-
-
-def _single_effect_tree(effect_node):
-    unit = AbilityUnit(
-        origin="ability",
-        index=0,
-        node=effect_node,
-        kind="Spell",
-        trigger_event=None,
-        effects=(
-            ConceptNode(
-                concept="other",
-                node=effect_node,
-                role="effect",
-                scope="you",
-                subject=(),
-                raw="",
-            ),
-        ),
-        costs=(),
-        statics=(),
-    )
-    return ConceptTree(name="X", oracle_id="x", oracle="X", units=(unit,))
-
-
-def test_color_hoser_bucket_a_mass_destroy_direct_carrier():
-    """Anarchy-shaped "Destroy all white permanents." — the mass DestroyAll
-    form carries the SAME direct top-level Typed/HasColor target the live
-    single-target arm reads."""
-    effect = T_effect__DestroyAll(
-        cant_regenerate=False,
-        target=T_target__Typed(
-            controller=None,
-            properties=[T_properties__HasColor(color="White")],
-            type_filters=["Permanent"],
-        ),
-    )
-    assert has_structural_color_hoser(_single_effect_tree(effect)) is True
-
-
-def test_color_hoser_bucket_a_counter_and_composite():
-    """Gainsay-shaped "Counter target blue spell." — phase types the Counter
-    target as an And-composite (StackSpell + Typed/HasColor), not a bare
-    Typed filter; the direct-carrier read descends one level into it."""
-    effect = T_effect__Counter(
-        target=T_target__And(
-            filters=[
-                T_filters__StackSpell(),
-                T_filters__Typed(
-                    controller=None,
-                    properties=[T_properties__HasColor(color="Blue")],
-                    type_filters=[],
-                ),
-            ]
-        ),
-    )
-    assert has_structural_color_hoser(_single_effect_tree(effect)) is True
-
-
-def test_color_hoser_bounceall_self_owned_not_structural():
-    """Word of Undoing's "all white Auras you own" — the ownership rides an
-    Owned{controller: You} PROPERTY (not the plain controller field); a
-    self-service bounce-combo, NOT color hosing (the over-fire this gate
-    excludes)."""
-    effect = T_effect__BounceAll(
-        target=T_target__Typed(
-            controller=None,
-            properties=[
-                T_properties__HasColor(color="White"),
-                T_properties__Owned(controller="You"),
-            ],
-            type_filters=["Aura"],
-        ),
-    )
-    assert has_structural_color_hoser(_single_effect_tree(effect)) is False
-
-
-def test_color_hoser_bounceall_opponent_owned_is_structural():
-    """Llawan-shaped "return all blue creatures your opponents control" — an
-    opponent-owned BounceAll is genuine hosing."""
-    effect = T_effect__BounceAll(
-        target=T_target__Typed(
-            controller="Opponent",
-            properties=[T_properties__HasColor(color="Blue")],
-            type_filters=["Creature"],
-        ),
-    )
-    assert has_structural_color_hoser(_single_effect_tree(effect)) is True
-
-
-def test_color_hoser_logged_gap_two_color_disjunction_stays_off():
-    """Deathmark's "Destroy target green or white creature." — a two-color
-    disjunction carries NO direct HasColor; the logged GAP this fold does
-    NOT close (pinned negative, unchanged by the widen)."""
-    tree = _fixture_tree("Deathmark")
-    assert has_structural_color_hoser(tree) is False
-    assert _arm_color_hoser(tree) is None
-
-
-def test_color_hoser_synth_registered():
-    assert "color_hoser" in SYNTHESIS_ARM_IDS
-
-
-def test_color_hoser_lane_reads_synth_node_end_to_end():
-    from mtg_utils._analysis.lanes import _color_hoser
-
-    synth = ConceptNode(
-        concept="synth_color_hoser",
-        node=SynthesizedNode(arm_id="color_hoser", description="x"),
-        role="effect",
-        scope="you",
-        subject=(),
-        raw="",
-    )
-    unit = AbilityUnit(
-        origin="synth",
-        index=0,
-        node=SynthesizedNode(arm_id="_unit", description="u"),
-        kind=None,
-        trigger_event=None,
-        effects=(synth,),
-        costs=(),
-        statics=(),
-    )
-    tree = ConceptTree(
-        name="X", oracle_id="x", oracle="Do something unrelated.", units=(unit,)
-    )
-    sigs = _color_hoser(tree)
-    assert any(s.key == "color_hoser" for s in sigs)
-
-
 # ── batch T5-niche-a: void_warp_makers (full relocation, no gate) ──────────
 
 
@@ -5040,11 +4900,20 @@ def test_big_hand_matters_structural_maro_dynamic_pt():
     assert _arm_big_hand_matters(tree) is None
 
 
-def test_big_hand_matters_bucket_b_synth_castle_locthwain():
+def test_big_hand_matters_synth_stands_down_on_a_parsed_hand_count():
     """Castle Locthwain: "Draw a card, then you lose life equal to the
-    number of cards in your hand." — a full-grip TEXT reference outside any
-    QuantityComparison/dynamic-P/T node shape, a genuine gap."""
+    number of cards in your hand." Phase parses the count (a ``HandSize``
+    life-loss amount), so the structural reads own it — and a life loss that
+    grows with your hand punishes a full grip rather than paying it off."""
     tree = _real_tree("Castle Locthwain")
+    assert has_structural_big_hand_matters(tree) is False
+    assert _arm_big_hand_matters(tree) is None
+
+
+def test_big_hand_matters_bucket_b_synth_commence_the_endgame():
+    """Commence the Endgame: "amass Zombies X, where X is the number of cards
+    in your hand." Phase drops the count, a genuine gap the text arm fills."""
+    tree = _real_tree("Commence the Endgame")
     assert has_structural_big_hand_matters(tree) is False
     node = _arm_big_hand_matters(tree)
     assert node is not None

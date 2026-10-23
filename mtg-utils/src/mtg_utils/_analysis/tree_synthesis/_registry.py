@@ -36,7 +36,6 @@ from mtg_utils._analysis.tree_synthesis.combat import (
 )
 from mtg_utils._analysis.tree_synthesis.control_stax import (
     _arm_cant_block_grant,
-    _arm_color_hoser,
     _arm_damage_prevention,
     _arm_dont_own,
     _arm_legend_rule_off,
@@ -404,7 +403,6 @@ _ARMS: tuple[tuple[str, _Arm], ...] = (
     ("suspect_matters", _arm_suspect_matters),
     ("pump_makers", _arm_pump_makers),
     ("opponent_exile_matters", _arm_opponent_exile_matters),
-    ("color_hoser", _arm_color_hoser),
     ("type_change", _arm_type_change),
     ("b13_raw_anchor", _arm_b13_raw_anchor),
     ("b13_node_anchor", _arm_b13_node_anchor),

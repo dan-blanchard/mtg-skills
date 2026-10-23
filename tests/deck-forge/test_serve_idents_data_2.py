@@ -45,6 +45,22 @@ def _lane_covers(card, sig):
 # the regex exactly.
 _CASES = [
     (
+        "big_hand_makers",
+        "you",
+        "big_hand_makers|you|",
+        "Spellbook",
+        "Cecily, Haunted Mage",
+        "Ensnaring Bridge",
+    ),
+    (
+        "big_hand_matters",
+        "you",
+        "big_hand_matters|you|",
+        "Spellbook",
+        "Cecily, Haunted Mage",
+        "Ensnaring Bridge",
+    ),
+    (
         "combat_damage_to_creature",
         "any",
         "combat_damage_to_creature|any|",
@@ -312,6 +328,94 @@ _CASES = [
         "Mana Flare",
         None,
     ),
+    (
+        "conjure_makers",
+        "you",
+        "conjure_makers|you|",
+        "Thendar, the Overminer",
+        None,
+        "Silvanus's Invoker",
+    ),
+    (
+        "type_change",
+        "you",
+        "type_changers|you|",
+        "Xenograft",
+        "Kudo, King Among Bears",
+        None,
+    ),
+    (
+        "impulse_top_play",
+        "you",
+        "impulse_top_play|you|",
+        "Narset, Enlightened Master",
+        None,
+        None,
+    ),
+    (
+        "card_draw_engine",
+        "you",
+        "card_draw_engine|you|",
+        "Rhystic Study",
+        "Aesi, Tyrant of Gyre Strait",
+        "Cloudblazer",
+    ),
+    (
+        "scry_surveil_matters",
+        "you",
+        "scry_surveil_matters|you|",
+        "Darkblade Agent",
+        None,
+        None,
+    ),
+    (
+        "voltron_matters",
+        "you",
+        "voltron_matters|you|",
+        "Danitha, Benalia's Hope",
+        "Noble Hierarch",
+        None,
+    ),
+    (
+        "voltron_makers",
+        "you",
+        "voltron_makers|you|*",
+        "Danitha, Benalia's Hope",
+        "Noble Hierarch",
+        None,
+    ),
+    (
+        "color_change",
+        "you",
+        "color_change|you|",
+        "Alter Reality",
+        None,
+        "Alloy Golem",
+    ),
+    (
+        "vehicles_matter",
+        "you",
+        "vehicles_matter|you|",
+        "Daring Mechanic",
+        None,
+        "Bound in Gold",
+    ),
+    (
+        "opp_top_exile",
+        "you",
+        "opp_top_exile|you|peek",
+        "Field of Dreams",
+        "Orcish Spy",
+        None,
+    ),
+    (
+        "control_exchange",
+        "you",
+        "control_exchange|you|swap",
+        "Puca's Mischief",
+        None,
+        None,
+    ),
 ]
 
 
@@ -531,3 +635,30 @@ def test_phase_c_serve_is_idents(key, scope, ident, served):
 def test_cast_from_exile_keeps_keywords_and_adds_warp():
     serve = spec_for(_sig("cast_from_exile")).serve
     assert {"plot", "suspend", "foretell", "rebound", "warp"} <= serve.keywords
+
+
+def test_impulse_cast_from_exile_payoffs_are_a_sub_avenue():
+    # The cast-from-exile trigger payoffs left the main serve (idents) for a
+    # sub-avenue that carries the old fragment verbatim.
+    sig = _sig("impulse_top_play")
+    spec = spec_for(sig)
+    wild_magic = _card("Wild-Magic Sorcerer")
+    assert not spec.serve.matches(wild_magic)
+    assert _lane_covers(wild_magic, sig)
+    assert any(
+        ex.avenue.startswith("payoffs that reward casting") for ex in spec.extras
+    )
+    assert not _lane_covers(_card("Grizzly Bears"), sig)
+
+
+def test_vehicles_matter_keeps_the_vehicle_type():
+    spec = spec_for(_sig("vehicles_matter"))
+    assert spec.serve.matches(_card("Adventurer's Airship"))
+
+
+def test_opp_top_exile_leaves_out_the_theft_ident():
+    # The bare ident is exile-from-the-top theft (Ashiok mills, Gonti steals); the
+    # lane is about SEEING tops, so only the peek ident serves.
+    serve = spec_for(_sig("opp_top_exile")).serve
+    assert serve.signal_idents == frozenset({"opp_top_exile|you|peek"})
+    assert not serve.matches(_card("Ashiok, Nightmare Weaver"))

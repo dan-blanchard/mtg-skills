@@ -1047,6 +1047,11 @@ def _cost_concepts(ability: TypedMirrorNode) -> tuple[ConceptNode, ...]:
     return (cn,) if cn is not None else ()
 
 
+# The cost primitives with no effect concept that a spell's additional cost
+# keeps (:func:`_spell_additional_cost_concepts`).
+_ADDITIONAL_COST_PRIMITIVE_TAGS = _PAYLIFE_COST_TAGS | frozenset({"Blight"})
+
+
 def _spell_additional_cost_concepts(root: TypedMirrorNode) -> tuple[ConceptNode, ...]:
     """Role=cost concepts from the card's ``additional_cost`` (CR 601.2b) — a
     spell-level "as an additional cost to cast this spell, sacrifice/discard/pay
@@ -1072,7 +1077,10 @@ def _spell_additional_cost_concepts(root: TypedMirrorNode) -> tuple[ConceptNode,
     ``concept ==`` name (sacrifice / grant-cast-exile-evidence scans), so an
     admitted OTHER-concept PayLife node is inert everywhere except a raw
     node walk like :func:`cost_has_paylife`, exactly what
-    ``lifeloss_makers``'s cost arm needs.
+    ``lifeloss_makers``'s cost arm needs. A ``Blight`` leaf (Soul Immolation's
+    "As an additional cost to cast this spell, blight X") is the same kind of
+    cost primitive (CR 701.68a), kept for ``minus_counters_matter``'s blight read
+    (``crosswalk.reads.blight_placements``).
     """
     ac = getattr(root, "additional_cost", MISSING)
     if not isinstance(ac, TypedMirrorNode):
@@ -1084,7 +1092,7 @@ def _spell_additional_cost_concepts(root: TypedMirrorNode) -> tuple[ConceptNode,
         cn = _decorate_effect(n, "cost")
         if cn is None:
             continue
-        if cn.concept != OTHER or tag_of(n) in _PAYLIFE_COST_TAGS:
+        if cn.concept != OTHER or tag_of(n) in _ADDITIONAL_COST_PRIMITIVE_TAGS:
             out.append(cn)
     return tuple(out)
 

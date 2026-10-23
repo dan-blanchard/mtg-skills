@@ -584,7 +584,7 @@ def features(card: dict) -> dict[str, float] | None:
     # cost grows by one payment every turn and it is sacrificed when you stop
     # paying (CR 702.24a), so Mystic Remora draws for a few turns, then goes.
     # It keeps its draw rate while it runs (``flow``) but none of a lasting
-    # engine's credit. Dan's call (2026-10-20), not a fitted weight: play-rate
+    # engine's credit. Dan's call, not a fitted weight: play-rate
     # scores Remora with the lasting engines, and the read had it above Rhystic
     # Study.
     lasting = float(not _ends_itself(card))

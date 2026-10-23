@@ -147,7 +147,14 @@ def test_own_target_spell_keeps_targeted_own_permanents(name):
         ("Feast on the Fallen", "plus_one_makers|you|", True),
         # A replacement's "instead … you lose the game" is no win/lose plan.
         ("Enduring Angel // Angelic Enforcer", "win_lose_game|any|", False),
-        ("Pact of Negation", "win_lose_game|any|", True),
+        # (A Pact's own unpaid-upkeep loss is a drawback too — Phase D,
+        # test_lane_gaps_anthems_core; the recovered "they lose the game"
+        # aimed at another player is the clause that earns the key.)
+        (
+            "Hidetsugu Consumes All // Vessel of the All-Consuming",
+            "win_lose_game|any|",
+            True,
+        ),
         # A replacement's "exile it instead" is no ETB value to copy.
         ("Gut, Fanatical Priestess", "wants_cloning|you|", False),
         ("Uldaros Theorix", "wants_cloning|you|", True),

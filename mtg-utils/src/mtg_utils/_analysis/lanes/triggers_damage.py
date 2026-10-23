@@ -75,6 +75,7 @@ from mtg_utils._card_ir.crosswalk import (
     normalised_keyword_name,
     parked_prevention,
     player_filter_tag,
+    protective_grant_recipients,
     punishes_triggering_caster,
     recipient_tag,
     redirects_damage_from_you,
@@ -1301,7 +1302,15 @@ def _keyword_grant_lanes(tree: ConceptTree) -> list[Signal]:
         targeted = unit_keyword_grants(unit)
         for resolved, mod in targeted:
             if "Creature" not in filter_core_types(resolved):
-                continue  # the live creature-core gate (no tribal/permanent)
+                # The live creature-core gate (no tribal/permanent) holds for
+                # the subject-less key; a creature type alone still names a
+                # creature (CR 205.3m — "Target Vampire gains haste", Olivia's
+                # Bloodsworn), so the keyword rides as the subject.
+                if filter_names_creatures(resolved) and (
+                    filter_controller(resolved) != "Opponent"
+                ):
+                    fire_kw("keyword_grant_target", "you", mod)
+                continue
             fire("keyword_grant_target", "you", "")
             fire_kw("keyword_grant_target", "you", mod)
             if normalised_keyword(mod) in PROTECTIVE_KEYWORDS:
@@ -1416,6 +1425,18 @@ def _keyword_grant_lanes(tree: ConceptTree) -> list[Signal]:
         for c in tree.iter_concepts():
             if c.concept == "synth_protection_grant_suit_up":
                 fire("protection_grant", "you", "")
+    # Every other protective grant, read by the board-protection walk
+    # (``protective_grant_recipients``): a target permanent you control
+    # (Tamiyo's Safekeeping, Razor Barrier — CR 702.11b), a typed team (Brave
+    # the Elements' white creatures, Jirina's Humans), a ``ChooseOneOf`` branch
+    # the threaded walk above doesn't follow (Giver of Runes), and you — "You
+    # have hexproof" (Leyline of Sanctity, CR 702.11c), Teferi's Protection,
+    # Veil of Summer's hexproof from blue and from black. A card granting only
+    # itself (Slippery Bogle's printed hexproof) stays out.
+    if "protection_grant" not in seen and (
+        next(protective_grant_recipients(tree), None) is not None
+    ):
+        fire("protection_grant", "you", "")
     return out
 
 

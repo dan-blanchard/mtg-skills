@@ -9,11 +9,11 @@ from __future__ import annotations
 
 import dataclasses
 import re
+from collections.abc import Iterator
 
 from mtg_utils._analysis._sweep_detectors import VOID_WARP_MAKERS_REGEX
 from mtg_utils._analysis.signal_base import clauses
 from mtg_utils._analysis.text_reads import (
-    _COLOR_HOSER_RE,
     _OPP_COUNTER_BENEFICIAL,
     _STAX_TAXES_RESIDUE_RE,
     _SYMMETRIC_STAX_RESIDUE_RE,
@@ -26,23 +26,31 @@ from mtg_utils._analysis.tree_synthesis._shared import (
 from mtg_utils._card_ir.crosswalk import (
     ATTACHED_OBJECT_PREDICATES,
     DEFENDED_YOU,
+    AbilityUnit,
     ConceptNode,
     ConceptTree,
     change_zone_dirs,
     counter_kind,
     counter_kind_any,
     defends_you,
+    detriment_directed_scope,
+    effect_owner_duration,
+    effect_player_reach,
     filter_controller,
     filter_core_types,
-    filter_inzone_zones,
     filter_predicates,
+    has_filter_property,
     has_structural_legend_rule_off,
+    hurts_triggering_player,
     iter_condition_sites,
     iter_static_defs,
     iter_typed_nodes,
+    library_search_restriction_side,
     modify_cost_mode,
+    names_attached_object,
     replacement_event_tag,
     replacement_shield_kind,
+    scoped_player_scope,
     settap_state,
     static_mode_field,
     static_mode_tag,
@@ -136,7 +144,198 @@ def _stax_site_raw(sdef: object) -> str:
     return desc if isinstance(desc, str) else ""
 
 
+# ── the rule-setting hosers the census missed ──
+#: Skip effects (CR 614.10: "An effect that causes a player to skip an event,
+#: step, phase, or turn is a replacement effect").
+_SKIP_TAGS: frozenset[str] = frozenset({"SkipNextStep", "SkipNextTurn"})
+#: The effects that hurt a player by an amount (damage or life loss).
+_PLAYER_HURT_TAGS: frozenset[str] = frozenset(
+    {"DealDamage", "DamageEachPlayer", "LoseLife"}
+)
+#: The trigger events a "that player" recipient is the attacked / damaged
+#: player for (CR 506.2: the defending player is an opponent).
+_COMBAT_RECIPIENT_EVENTS: frozenset[str] = frozenset({"attacks", "deals_damage"})
+
+
+def _is_nonbasic_land_filter(filt: object) -> bool:
+    """A filter over nonbasic lands ("Nonbasic lands are Mountains")."""
+    return "Land" in filter_core_types(filt) and has_filter_property(
+        filt, "NotSupertype", "Basic"
+    )
+
+
+def _counts_nonbasic_lands(node: object) -> bool:
+    """Whether an effect's ``amount`` counts nonbasic lands (Price of
+    Progress, Primal Order, Anathemancer)."""
+    return any(
+        tag_of(n) == "ObjectCount"
+        and _is_nonbasic_land_filter(getattr(n, "filter", None))
+        for n in iter_typed_nodes(getattr(node, "amount", None))
+    )
+
+
+def _player_recipient_side(unit: AbilityUnit, node: TypedMirrorNode) -> str | None:
+    """Whom a detrimental player effect lands on: ``"opponents"``, ``"each"``,
+    ``"you"`` or ``None`` (an object, not a player). The players the effect
+    reaches (:func:`effect_player_reach` — the wrapper's ``player_scope`` names
+    the "each opponent" loop of Brine Elemental; a per-player loop's "that
+    player" resolves through :func:`scoped_player_scope`), else its recipient
+    read by :func:`detriment_directed_scope`, which takes a targeted player of
+    a detriment as the opponent."""
+    target = getattr(node, "target", None)
+    if tag_of(target) == "Typed" and filter_core_types(target):
+        return None  # a creature or permanent, never a player
+    reach = effect_player_reach(unit.node, node)
+    if reach in ("opponents", "per_opponent"):
+        return "opponents"
+    if reach == "each":
+        return "each"
+    if reach == "scoped":
+        return scoped_player_scope(unit)
+    if tag_of(target) == "TriggeringPlayer" and (
+        unit.trigger_event not in _COMBAT_RECIPIENT_EVENTS
+    ):
+        return None
+    return detriment_directed_scope(node)
+
+
+def _is_cast_counter_tax(trig: object) -> bool:
+    """A ``SpellCast`` trigger that counters the cast spell unless its caster
+    pays (Nether Void, Chancellor of the Annex, In the Eye of Chaos) — a tax
+    on casting (CR 701.6a: a countered spell doesn't resolve). The card's own
+    cast trigger (Hope-Ender Coatl, Mana Vortex) and a counter you pay to avoid
+    (Blood Funnel) are not."""
+    if getattr(trig, "mode", None) != "SpellCast":
+        return False
+    if tag_of(getattr(trig, "valid_card", None)) == "SelfRef":
+        return False
+    unless = getattr(trig, "unless_pay", None)
+    if tag_of(getattr(unless, "payer", None)) != "TriggeringPlayer":
+        return False
+    execute = getattr(trig, "execute", None)
+    return tag_of(getattr(execute, "effect", None)) == "Counter"
+
+
+def _fatespinner_parked_skip(unit: object) -> bool:
+    """A phase v0.104.0 gap: Fatespinner's "that player chooses draw step,
+    main phase, or combat phase. The player skips each instance of the chosen
+    step or phase this turn" parses as a labeled ``Choose`` whose skip
+    sub-ability is ``Unimplemented`` (``unbound_subject``), on an upkeep
+    trigger limited to an opponent's turn. Guarded by a ``retirement_canary``
+    (tests/mtg-utils/test_lane_gaps_stax.py) that fails once phase types the
+    skip."""
+    node = getattr(unit, "node", None)
+    if tag_of(getattr(node, "constraint", None)) != "OnlyDuringOpponentsTurn":
+        return False
+    execute = getattr(node, "execute", None)
+    effect = getattr(execute, "effect", None)
+    if tag_of(effect) != "Choose":
+        return False
+    sub = getattr(getattr(execute, "sub_ability", None), "effect", None)
+    return tag_of(sub) == "Unimplemented" and getattr(sub, "name", None) == (
+        "unbound_subject"
+    )
+
+
+def _stax_hoser_sites(unit: AbilityUnit) -> Iterator[tuple[str, str]]:
+    """The rule-setting hosers of one unit, as ``("stax" | "sym", raw)``:
+
+    * a nonbasic-land type setter ("Nonbasic lands are Mountains" — Blood
+      Moon, Magus of the Moon; CR 305.7: the land loses its old land types and
+      abilities); an Aura's single land (Spreading Seas) is not;
+    * a cast counter-tax (:func:`_is_cast_counter_tax`);
+    * a nonbasic punisher: a "taps a nonbasic land for mana" trigger that hurts
+      that player (Burning Earth), or damage / life loss counting a player's
+      nonbasic lands (Price of Progress, Primal Order, Anathemancer);
+    * a skip forced on an opponent (CR 614.10 — Brine Elemental, Blinding
+      Angel, Stonehorn Dignitary, Ral Zarek's coin-flip turns), never a skip
+      of your own (Chronatog) or a same-turn combat fog (Moment of Silence);
+    * "if a creature would enter and it wasn't cast, exile it instead"
+      (Containment Priest, CR 614.1a) and "if a player would begin an extra
+      turn, that player skips that turn instead" (Ugin's Nexus).
+
+    The side is the affected player: an opponent -> ``stax``; every player ->
+    ``sym``."""
+    node = getattr(unit, "node", None)
+    origin = getattr(unit, "origin", None)
+    if origin == "replacement":
+        vc = getattr(node, "valid_card", None)
+        execute = getattr(getattr(node, "execute", None), "effect", None)
+        if (
+            getattr(node, "destination_zone", None) == "Battlefield"
+            and tag_of(vc) == "Typed"
+            and has_filter_property(vc, "WasPlayed")
+            and isinstance(execute, TypedMirrorNode)
+            and tag_of(execute) == "ChangeZone"
+            and change_zone_dirs(execute)[1] == "Exile"
+        ):
+            ctrl = filter_controller(vc)
+            yield ("stax" if ctrl in _OPPONENT_CTRL else "sym"), _stax_site_raw(node)
+        if getattr(node, "event", None) == "BeginTurn" and (
+            tag_of(getattr(node, "condition", None)) == "OnlyExtraTurn"
+        ):
+            yield "sym", _stax_site_raw(node)
+        return
+    for sdef in iter_static_defs(node):
+        affected = getattr(sdef, "affected", None)
+        if names_attached_object(affected) or not _is_nonbasic_land_filter(affected):
+            continue
+        if any(
+            tag_of(m) == "SetBasicLandType"
+            for m in getattr(sdef, "modifications", None) or ()
+        ):
+            ctrl = filter_controller(affected)
+            if ctrl in _OPPONENT_CTRL:
+                yield "stax", _stax_site_raw(sdef)
+            elif ctrl is None:
+                yield "sym", _stax_site_raw(sdef)
+    if origin == "trigger":
+        if _is_cast_counter_tax(node):
+            vt = getattr(node, "valid_target", None)
+            if filter_controller(vt) in _OPPONENT_CTRL:
+                yield "stax", _stax_site_raw(node)
+            elif tag_of(vt) is None:
+                yield "sym", _stax_site_raw(node)
+                yield "stax", _stax_site_raw(node)
+        if (
+            getattr(node, "mode", None) == "TapsForMana"
+            and _is_nonbasic_land_filter(getattr(node, "valid_card", None))
+            and hurts_triggering_player(getattr(node, "execute", None))
+        ):
+            ctrl = filter_controller(getattr(node, "valid_card", None))
+            yield ("stax" if ctrl in _OPPONENT_CTRL else "sym"), _stax_site_raw(node)
+        if _fatespinner_parked_skip(unit):
+            yield "stax", _stax_site_raw(node)
+    for n in iter_typed_nodes(node):
+        tag = tag_of(n)
+        if tag in _PLAYER_HURT_TAGS and _counts_nonbasic_lands(n):
+            side = _player_recipient_side(unit, n)
+        elif tag in _SKIP_TAGS:
+            if effect_owner_duration(node, n) == "UntilEndOfTurn":
+                continue  # a same-turn fog, not a lock
+            side = _player_recipient_side(unit, n)
+        else:
+            continue
+        if side == "opponents":
+            yield "stax", ""
+        elif side == "each":
+            yield "sym", ""
+
+
+_STAX_WALK_CACHE_ATTR = "_xw_stax_structural_walk"
+
+
 def _stax_structural_walk(tree: ConceptTree) -> tuple[bool, bool, str, str]:
+    """:func:`_walk_stax_structure`, cached on the tree: the ``_stax_lanes``
+    lane and both synth gap gates read it."""
+    cached = tree.__dict__.get(_STAX_WALK_CACHE_ATTR)
+    if cached is None:
+        cached = _walk_stax_structure(tree)
+        object.__setattr__(tree, _STAX_WALK_CACHE_ATTR, cached)
+    return cached
+
+
+def _walk_stax_structure(tree: ConceptTree) -> tuple[bool, bool, str, str]:
     """The ENTIRE stax_taxes / symmetric_stax Tier-1 structural census.
 
     Returns ``(stax_fired, sym_fired, stax_raw, sym_raw)``. Scope from each
@@ -208,6 +407,11 @@ def _stax_structural_walk(tree: ConceptTree) -> tuple[bool, bool, str, str]:
     # a live symmetric member). A ParentTarget affected is a single-target
     # combat trick / pacify (Sleep's rider, Basandra's {R} force) -- skipped.
     for unit in tree.units:
+        for side, raw in _stax_hoser_sites(unit):
+            if side == "stax":
+                stax(raw)
+            else:
+                sym(raw)
         for c in unit.effects:
             if tag_of(c.node) != "AddRestriction":
                 continue
@@ -292,11 +496,13 @@ def _stax_structural_walk(tree: ConceptTree) -> tuple[bool, bool, str, str]:
                 else:
                     sym(raw)
                     stax(raw)
-            elif mt == "CantSearchLibrary":
-                cause = static_mode_field(node, "cause")
-                if cause == "Opponents":
+            elif (side := library_search_restriction_side(node)) is not None:
+                # CantSearchLibrary's ``cause`` / RestrictLibrarySearchToTop's
+                # ``who`` (Aven Mindcensor): opponents -> stax, every player ->
+                # symmetric (Mindlock Orb).
+                if side == "opponents":
                     stax(raw)
-                elif cause == "AllPlayers":
+                else:
                     sym(raw)
             elif mt == "MaxAttackersEachCombat":
                 if static_mode_field(node, "defender") == "Controller":
@@ -786,59 +992,6 @@ def _arm_opponent_exile_matters(tree: ConceptTree) -> ConceptNode | None:
     )
 
 
-# ── batch T5-niche-a: color_hoser (bucket-A widen + bucket-B tail) ─────────
-# CR 105.2 / 613.1e: removal/restriction/bounce keyed on a NAMED color. The
-# live lane already carries a single-target (Destroy/Counter/ChangeZone-
-# Exile) structural arm; three bucket-A widenings (each a genuine phase-typed
-# shape the live arm's narrower tag set missed, probed over the commander-
-# legal corpus):
-#
-# (a) the MASS forms — ``DestroyAll`` (Anarchy), ``ChangeZoneAll`` to Exile
-#     (Martyr's Cry), ``BounceAll`` (Hibernation, Llawan) — carry the SAME
-#     direct top-level ``Typed``/``HasColor`` target the singular forms do;
-#     ``BounceAll`` additionally excludes a ``You``-controlled target (no
-#     self-bounce-synergy false read; none observed in the corpus, kept as a
-#     defensive gate).
-# (b) ``Counter`` effects phase frequently types as an ``And`` composite —
-#     ``[StackSpell, Typed{HasColor}]`` (Gainsay, Deathgrip, Lifeforce) —
-#     rather than a bare ``Typed`` target; the direct-carrier read now also
-#     descends one level into an ``And``'s member filters.
-#
-# The residual tail (the "non<color> creatures get -X/-X" anthem-debuff,
-# "can't cast/block <color>" restrictions — Gibbering Hyenas's ``CantBlock``
-# static carries the qualifier ONLY in ``description``, a genuine phase gap —
-# choose-a-color forms, and colorless-subject counterspells) has no
-# structural home; relocated verbatim as the bucket-B tail via the deleted
-# ``_COLOR_HOSER_RE`` kept-mirror, gap-gated against the widened structural
-# read. Measured over the commander-legal corpus: structural 22 -> 30, 37
-# residual cards still need the synth (mirror parity preserved, 0 drops).
-def _has_direct_has_color(target: object) -> bool:
-    if tag_of(target) == "Typed":
-        return any(
-            tag_of(p) == "HasColor" for p in getattr(target, "properties", ()) or ()
-        )
-    if tag_of(target) == "And":
-        return any(
-            _has_direct_has_color(f) for f in getattr(target, "filters", ()) or ()
-        )
-    return False
-
-
-def _is_self_owned_bounce_target(target: object) -> bool:
-    """Whether a ``BounceAll`` target names YOUR OWN permanents — either a
-    top-level ``controller: You`` or an ``Owned{controller: You}`` PROPERTY
-    (Word of Undoing's "all white Auras you own" — the ownership rides a
-    property, not the plain ``controller`` field). Either shape is a
-    self-service bounce-combo, not color hosing."""
-    if filter_controller(target) == "You":
-        return True
-    if tag_of(target) == "Typed":
-        for p in getattr(target, "properties", ()) or ():
-            if tag_of(p) == "Owned" and getattr(p, "controller", None) == "You":
-                return True
-    return False
-
-
 # ── arm: opponent_counter_grant text-fallback (ADR-0036/0037 Stage 5,
 # T9-finalize) ────────────────────────────────────────────────────────────────
 # CR 122.1/122.1d: a DETRIMENTAL counter placed on an OPPONENT's permanent —
@@ -1009,56 +1162,6 @@ def _arm_cant_block_grant(tree: ConceptTree) -> ConceptNode | None:
                     "residue (CR 509.1b)",
                 )
     return None
-
-
-def has_structural_color_hoser(tree: ConceptTree) -> bool:
-    """A Destroy/Counter/mass-Destroy/mass-Exile/mass-Bounce effect whose
-    target (or, for Counter, an ``And``-composite member) directly names a
-    color via ``HasColor`` — the live single-target arm widened to the mass
-    forms and the ``And``-wrapped Counter-target shape."""
-    for unit in tree.units:
-        for c in unit.effects:
-            t = tag_of(c.node)
-            target = getattr(c.node, "target", None)
-            hosing = (
-                t in ("Destroy", "Counter", "DestroyAll")
-                or (t == "ChangeZone" and change_zone_dirs(c.node)[1] == "Exile")
-                or (
-                    t == "ChangeZoneAll"
-                    and getattr(c.node, "destination", None) == "Exile"
-                )
-                or (t == "BounceAll" and not _is_self_owned_bounce_target(target))
-            )
-            if not hosing or not _has_direct_has_color(target):
-                continue
-            if "Graveyard" in filter_inzone_zones(target) and (
-                filter_controller(target) != "Opponent"
-            ):
-                continue  # your-graveyard self-recursion, not hosing
-            return True
-    return False
-
-
-def _matches_color_hoser_idiom(oracle: str) -> bool:
-    return bool(_COLOR_HOSER_RE.search(_REMINDER.sub(" ", oracle or "")))
-
-
-def _arm_color_hoser(tree: ConceptTree) -> ConceptNode | None:
-    """Synthesize a ``color_hoser`` node for the anthem-debuff / can't-cast /
-    can't-block / choose-a-color residue (the deleted ``_COLOR_HOSER_RE``
-    kept-mirror relocated, gap-gated against
-    :func:`has_structural_color_hoser`)."""
-    if has_structural_color_hoser(tree):
-        return None
-    if not _matches_color_hoser_idiom(tree.oracle or ""):
-        return None
-    return _synthetic_concept(
-        arm_id="color_hoser",
-        concept="synth_color_hoser",
-        scope="you",
-        subject=(),
-        desc="bucket-B color-hate debuff/restriction residue (CR 105.2)",
-    )
 
 
 # ── batch T5-niche-a: void_warp_makers (full relocation, no gate) ──────────

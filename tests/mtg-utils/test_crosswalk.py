@@ -977,7 +977,7 @@ def test_lifegain_matters_high_life_total_payoff(name, should_fire):
     ],
 )
 def test_blink_flicker_sibling_return(name, should_fire):
-    assert (("blink_flicker", "you", "") in _idents(name)) is should_fire
+    assert (("blink_flicker", "you", "enabler") in _idents(name)) is should_fire
 
 
 def test_blink_flicker_maker_signal_is_always_high_confidence():
@@ -13118,7 +13118,9 @@ def test_control_exchange_owned_return_shape_only():
     assert ("control_exchange", "you", "") in _idents("Meneldor, Swift Savior")
     assert "control_exchange" not in _keys("Oblivion Sower")
     assert "control_exchange" not in _keys("Cloudshift")
-    assert "control_exchange" not in _keys("Gilded Drake")
+    # The swap carries its own subject (``control_exchange|you|swap``, Phase D);
+    # the bare reclaim ident stays off it.
+    assert ("control_exchange", "you", "") not in _idents("Gilded Drake")
 
 
 def test_control_exchange_excludes_owned_and_controlled_blink():
@@ -13556,13 +13558,14 @@ def test_tap_down_defending_player_and_gated_target_player():
     filter fires unconditionally (Master of Diversion, Sidar Jabari — CR
     506.2 makes it opponent-directed) and a TargetPlayer-controlled filter
     fires ONLY under an attack/damage-trigger unit (Hammers of Moradin);
-    the one-shot/activated TargetPlayer sweeps (Sleep, Dawnglare Invoker)
-    are the genuine supplement tail and never fire."""
+    the one-shot/activated TargetPlayer MASS taps (Sleep, Dawnglare Invoker)
+    fire too since Phase D (2026-10-23): a scope-``All`` tap of a target
+    player's board is opponent-directed (detriment-directed targeting)."""
     assert ("tap_down", "opponents", "") in _idents("Master of Diversion")
     assert ("tap_down", "opponents", "") in _idents("Sidar Jabari")
     assert ("tap_down", "opponents", "") in _idents("Hammers of Moradin")
-    assert "tap_down" not in _keys("Sleep")
-    assert "tap_down" not in _keys("Dawnglare Invoker")
+    assert ("tap_down", "opponents", "") in _idents("Sleep")
+    assert ("tap_down", "opponents", "") in _idents("Dawnglare Invoker")
 
 
 def test_tap_down_target_opponent_and_skip_next_step():
@@ -13718,12 +13721,12 @@ def test_companion_keyword_bearer_vs_doctors_companion():
     assert "partner_background" in ks
 
 
-def test_has_banding_bearer_vs_granter_reverse_trap():
-    """CR 702.22: the Banding keyword bearer fires (Timber Wolves); the
-    keyword-LESS banding GRANTER (Baton of Morale — AddKeyword{Banding})
-    must NOT fire the membership lane (the batch-13 reverse trap)."""
+def test_has_banding_bearer_and_granter():
+    """CR 702.22: the Banding keyword bearer fires (Timber Wolves), and so does
+    the keyword-LESS banding GRANTER (Baton of Morale — AddKeyword{Banding}):
+    a banding commander wants both (Phase D, 2026-10-23, ``_granted_banding``)."""
     assert ("has_banding", "you", "") in _idents("Timber Wolves")
-    assert "has_banding" not in _keys("Baton of Morale")
+    assert ("has_banding", "you", "") in _idents("Baton of Morale")
 
 
 def test_has_dash_sole_keyword_producer():
@@ -14630,12 +14633,13 @@ def test_opponent_search_matters_trigger_modes():
 def test_color_hoser_mirror_and_direct_structural_carrier():
     """CR 105.2: the modal counter/destroy hoser (Blue Elemental Blast —
     direct HasColor carrier + mirror) and the non{color} debuff mirror arm
-    (Ascendant Evincar) fire; the two-color disjunction (Deathmark — an
-    Or-of-colors, NO direct HasColor) is the LOGGED live gap and pins
-    parity; no color word, no fire (Swords to Plowshares)."""
+    (Ascendant Evincar) fire, and so does the two-color disjunction
+    (Deathmark — an Or-of-colors, read through its members since Phase D,
+    ``removal_tutors.hoses_a_color``); no color word, no fire (Swords to
+    Plowshares)."""
     assert ("color_hoser", "you", "") in _idents("Blue Elemental Blast")
     assert ("color_hoser", "you", "") in _idents("Ascendant Evincar")
-    assert "color_hoser" not in _keys("Deathmark")
+    assert ("color_hoser", "you", "") in _idents("Deathmark")
     assert "color_hoser" not in _keys("Swords to Plowshares")
 
 
@@ -17450,7 +17454,7 @@ def test_v23_bump_graveyard_exile_blink_sheds():
     (Flickerwisp) is untouched."""
     assert "blink_flicker" not in _keys("Winter, Cynical Opportunist")
     assert "blink_flicker" not in _keys("Boneyard Parley")
-    assert ("blink_flicker", "you", "") in _idents("Flickerwisp")
+    assert ("blink_flicker", "you", "enabler") in _idents("Flickerwisp")
 
 
 def test_v23_bump_equipped_conditional_anthem_sheds():
@@ -17867,8 +17871,9 @@ def test_type_changers_ashes_of_the_fallen_graveyard_only():
         # non-creature-type payloads (Forest = a LAND type; BasicLandType)
         "Ashaya, Soul of the Wild",
         "Realmwright",
-        # one-shot single-target mode, no static def
-        "Trickery Charm",
+        # (Trickery Charm's single-target "creature type of your choice" mode
+        # is ``type_changers|any|`` since Phase D — test_lane_gaps_anthems_core;
+        # the tribal serves read scopes you / each only.)
     ],
 )
 def test_type_changers_excludes(name):

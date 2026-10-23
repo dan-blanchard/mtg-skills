@@ -241,6 +241,9 @@ SERVED_SIGNAL_KEYS: frozenset[str] = frozenset(
         "dice_matters",
         "extra_upkeep",
         "extra_end_step",
+        "upkeep_triggers",
+        "draw_step_triggers",
+        "end_step_triggers",
         "facedown_matters",
         "spell_keyword_grant",
         "flash_grant",
@@ -572,7 +575,7 @@ SERVED_SIGNAL_KEYS: frozenset[str] = frozenset(
         # cw_only on a fresh corpus re-measure — the floor extraction (ADR-
         # 0035 Stage-3a, "one source, zero drift") that landed after the
         # batch-8 verdict already closed the 2-extra byte-mismatch it flagged
-        # (Goblin Grenadiers / Orcish Settlers no longer diverge). CR 305.6.
+        # (Goblin Grenadiers / Orcish Settlers no longer diverge). CR 701.8a.
         "land_destruction",
         # big_mana: also entirely `_apply_membership_floor`-served — 542/542 both, 0/0
         # live_only/cw_only at promotion time (the deleted `extract_signals_ir` and

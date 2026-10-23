@@ -131,10 +131,64 @@ SUBJECT_KEYS: Final = frozenset(
     }
 )
 
-# Subjects that mark the DOER side of a payoff key that is not a subject key:
-# ``artifacts_matter|you|token`` / ``enchantments_matter|you|token`` is an
-# artifact- or enchantment-TOKEN maker (Thopters, Servos, Roles), which the
-# Artifacts / Enchantments serve counts (their ``|*`` wildcard) as depth but
-# which does not CARE about the theme — the "a maker, never a payoff" rule the
-# lanes keep (``_tuner.metrics.focus``'s carer read skips them).
-DOER_SUBJECTS: Final = frozenset({"token"})
+# The subject of the floor's voltron tells: the commander is a body to suit up and
+# win with by commander damage (CR 903.10a) — what it IS, not a payoff of Equipment
+# and Auras.
+VOLTRON_CARRIER: Final = "carrier"
+
+# The ``(key, subject)`` idents the membership floor writes on a payoff key: the
+# deck WANTS the theme without being a theme card itself. Each opens its avenue
+# (``signal_specs.core.avenue_spec_for``) though the theme's serve never pages it.
+MEMBERSHIP_SUBJECTS: Final = frozenset(
+    {
+        # a creature commander that carries gear
+        ("voltron_matters", VOLTRON_CARRIER),
+    }
+)
+
+# Each extra-step maker key's payoff key: the "at the beginning of [step]"
+# triggers an added step repeats (``card_advantage._extra_upkeep_end``). A trigger
+# opens no avenue of its own (``signal_specs.core.avenue_spec_for``): hundreds of
+# commanders carry one (Atraxa's end-step proliferate), and the steps are a theme
+# only for a deck that adds them. Under that deck the triggers are the extra-step
+# avenue's carers (``_tuner.metrics._CARES_ALIASES``).
+STEP_TRIGGER_KEYS: Final = {
+    "extra_upkeep": "upkeep_triggers",
+    "extra_draw_step": "draw_step_triggers",
+    "extra_end_step": "end_step_triggers",
+}
+
+# The ``(key, subject)`` idents that mark the DOER side of a payoff key that is
+# not a subject key: each feeds the payoff, and the theme's serve counts it as
+# depth, without caring about the theme (``_tuner.metrics.focus``'s carer read
+# skips them).
+DOER_SUBJECTS: Final = frozenset(
+    {
+        # an artifact-token maker (Thopters, Servos)
+        ("artifacts_matter", "token"),
+        # an enchantment-token maker (Roles, Shards)
+        ("enchantments_matter", "token"),
+        # a variable-target spell
+        ("per_target_payoff", "variable"),
+        # a can't-lose card
+        ("life_payment_insurance", "cant_lose"),
+        # a commander-to-hand effect
+        ("lose_unless_hand", "command_to_hand"),
+        # an enters-trigger silencer
+        ("lose_unless_hand", "etb_silencer"),
+        # a free activation that targets your own permanent
+        ("target_own_payoff", "free_target"),
+        # an extra draw at the beginning of your draw step
+        ("draw_matters", "draw_step"),
+        # a blink enabler
+        ("blink_flicker", "enabler"),
+        # one-shot land destruction; the floor's repeatable LD is the carer
+        ("land_destruction", "destroy"),
+        ("land_destruction", "exile"),
+        ("land_destruction", "bounce"),
+        ("land_destruction", "tuck"),
+        ("land_destruction", "sacrifice"),
+        # a creature that sacrifices itself (Sakura-Tribe Elder): loop fuel
+        ("sacrifice_outlets", "self"),
+    }
+)

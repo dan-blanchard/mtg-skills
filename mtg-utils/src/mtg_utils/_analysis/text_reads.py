@@ -136,20 +136,6 @@ def _graveyard_matters_clauses(text: str, name: str) -> set[tuple[str, str]]:
     return out
 
 
-_COLOR = r"(?:white|blue|black|red|green)"
-
-
-_COLOR_HOSER_RE = re.compile(
-    rf"(?:destroy|exile|return|counter) (?:target |all )?(?:\w+ )?{_COLOR} "
-    rf"(?:creature|permanent|spell)"
-    rf"|can'?t (?:cast|be cast|block|attack)[^.]{{0,30}}{_COLOR}"
-    rf"|non{_COLOR} creatures? [^.]*get -"
-    rf"|{_COLOR} creatures? (?:your |that your )?opponents control"
-    rf"|choose a color, then (?:return|destroy|exile)",
-    re.IGNORECASE,
-)
-
-
 _TYPE_HOSER_RE = re.compile(r"protection from (\w+)")
 
 

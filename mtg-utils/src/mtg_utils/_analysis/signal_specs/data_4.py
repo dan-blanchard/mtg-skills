@@ -64,11 +64,14 @@ SPECS_4: dict[tuple[str, str], SignalSpec] = {
                 r" get \+\d/\+\d"
             )
         },
-        r"(?:other [a-z]+ creatures|creatures you control"
-        r"|[a-z]+ creatures you control|nonblack creatures|other creatures"
-        r"|(?:white|blue|black|red|green) creatures"
-        r"|creatures you control of the chosen colou?r)"
-        r" get \+\d/\+\d",
+        # Serves the lane's static anthems (all-creature, subtype and chosen-type);
+        # the remainder is one-turn pumps and cost reducers the old pattern read.
+        None,
+        serve_idents=frozenset(
+            {
+                "anthem_static|you|*",
+            }
+        ),
         serve_not=r"get \+\d/\+\d[^.]*until end of turn",
     ),
     # Serves the lane's repeatable activated draws (tap-cost and other costs alike);
@@ -106,7 +109,15 @@ SPECS_4: dict[tuple[str, str], SignalSpec] = {
         "board wipes that force a mass-death turn, plus mass-reanimation to refill the "
         "board after",
         {"oracle": _MASS_DEATH_PAYOFF_ORACLE},
-        _MASS_DEATH_PAYOFF_ORACLE,
+        # Serves mass removal of creatures and mass creature recursion; the remainder is
+        # mass exile and mass return of non-creature cards.
+        None,
+        serve_idents=frozenset(
+            {
+                "mass_removal|you|creature",
+                "creature_recursion|you|mass",
+            }
+        ),
     ),
     # Per-target payoff (Hinata): the discount scales with target count, so serve spells
     # whose target count is VARIABLE — "any number of targets" (Aurelia's Fury) and
@@ -117,7 +128,14 @@ SPECS_4: dict[tuple[str, str], SignalSpec] = {
         "variable / X-target spells whose per-target discount compounds (any number of "
         "targets, X target permanents)",
         {"oracle": _MULTI_TARGET_ORACLE},
-        _MULTI_TARGET_ORACLE,
+        # Serves spells with a variable target count; fixed counts and permanents'
+        # abilities are out by design.
+        None,
+        serve_idents=frozenset(
+            {
+                "per_target_payoff|you|variable",
+            }
+        ),
     ),
     # Ability-strip targets (Abigale): big creatures with a crippling drawback she
     # strips then buffs. ANDs the drawback clause with power >= 5 (Serve.all_of), so a
@@ -284,8 +302,14 @@ SPECS_4: dict[tuple[str, str], SignalSpec] = {
             "oracle": r"don'?t lose the game for having|can'?t lose the game"
             r"|your life total can'?t change"
         },
-        r"don'?t lose the game for having|can'?t lose the game"
-        r"|your life total can'?t change|you don'?t lose the game",
+        # Serves the can't-lose-the-game lane; the remainder is the life-total-can't-
+        # change cards and Abyssal Persecutor, which the lane does not read.
+        None,
+        serve_idents=frozenset(
+            {
+                "life_payment_insurance|you|cant_lose",
+            }
+        ),
     ),
     # Target-your-own payoff (Monk Gyatso): free ways to target your own creatures so a
     # "when targeted" payoff fires on demand (en-Kor cycle, {0}-equip like Shuko).
@@ -296,8 +320,13 @@ SPECS_4: dict[tuple[str, str], SignalSpec] = {
             "oracle": r"\{0\}:[^.]*target (?:a |another )?creature you control"
             r"|equip \{0\}"
         },
-        r"\{0\}:[^.]*target (?:a |another )?(?:creature|permanent) you control"
-        r"|equip \{0\}",
+        # Serves the free-to-target lane, which also reaches {0} untap/equip grants.
+        None,
+        serve_idents=frozenset(
+            {
+                "target_own_payoff|you|free_target",
+            }
+        ),
     ),
     # Multicolor matters (Niv-Mizzet Reborn + the gold-cards commanders): the multicolor
     # PAYOFFS — "whenever you cast a multicolored spell", converge, "multicolored
@@ -324,9 +353,14 @@ SPECS_4: dict[tuple[str, str], SignalSpec] = {
         "Land destruction",
         "blow up lands repeatedly — the Armageddon/Numot stax-LD plan",
         {"oracle": r"destroy (?:up to (?:one|two|three) )?target lands?"},
-        r"destroy (?:up to (?:one|two|three) )?target lands?"
-        r"|destroy all lands|destroy target nonbasic land"
-        r"|each (?:player|opponent)[^.]*sacrifices? a land",
+        # Serves every land-destruction kind (destroy, sacrifice, exile, bounce); the
+        # remainder is two symmetric sacrifice-on-tap and damage cards.
+        None,
+        serve_idents=frozenset(
+            {
+                "land_destruction|you|*",
+            }
+        ),
         extras=(
             SubAvenue(
                 "Punish land loss",
@@ -383,9 +417,17 @@ SPECS_4: dict[tuple[str, str], SignalSpec] = {
         "put a bomb on top of your library to be cheated in — graveyard-to-top "
         "recursion and put-on-top effects",
         {"oracle": _GY_TO_TOP_ORACLE},
-        _GY_TO_TOP_ORACLE
-        + r"|put (?:a|two|three|\w+) cards? from your hand on top of your library"
-        + r"|on top of your library in any order",
+        # Serves put-on-top from graveyard, hand, library and exile; the remainder is
+        # surveil, whose reminder text the old pattern read.
+        None,
+        serve_idents=frozenset(
+            {
+                "topdeck_stack|you|graveyard",
+                "topdeck_stack|you|hand",
+                "topdeck_stack|you|library",
+                "topdeck_stack|you|exile",
+            }
+        ),
     ),
     # A repeatable creature-KILLER (Diaochan {T}-destroy, Visara, Kalitas) is an
     # aristocrats-style death engine with no sac outlet of its own: every kill it makes
@@ -397,7 +439,14 @@ SPECS_4: dict[tuple[str, str], SignalSpec] = {
         "your repeatable creature kills fire on-death drain/damage every turn — "
         "Blood Artist, Zulaport Cutthroat, Vicious Shadows",
         {"oracle": _KILL_DRAIN_ORACLE},
-        _KILL_DRAIN_ORACLE,
+        # Serves the lane's death payoffs; the remainder is draw-on-your-creature-dies
+        # and combat-damage death triggers the lane does not count.
+        None,
+        serve_idents=frozenset(
+            {
+                "kill_engine|you|payoff",
+            }
+        ),
     ),
     # Phasing-lands (Taniwha): your lands phase back each turn, so symmetric land-denial
     # stax (Mana Breach / Overburden — every player bounces/sacs a land) hits opponents
@@ -432,10 +481,16 @@ SPECS_4: dict[tuple[str, str], SignalSpec] = {
             "oracle": r"can'?t lose the game|into your hand from the command zone"
             r"|creatures entering[^.]*don'?t (?:cause|trigger)"
         },
-        r"can'?t lose the game|into your hand from the command zone"
-        r"|from the command zone[^.]*your hand"
-        r"|creatures entering[^.]*don'?t (?:cause|trigger)"
-        r"|abilities (?:don'?t|do not) trigger",
+        # Serves can't-lose backstops, command-zone-to-hand and ETB silencers; the
+        # remainder is Abyssal Persecutor (a phase gap on the unscoped can't-lose).
+        None,
+        serve_idents=frozenset(
+            {
+                "life_payment_insurance|you|cant_lose",
+                "lose_unless_hand|you|command_to_hand",
+                "lose_unless_hand|you|etb_silencer",
+            }
+        ),
     ),
     # Land protection (Noyan Dar, Kamahl, the Tophs): a land-animation commander's
     # creature-lands die to creature removal / wraths / land destruction, so it wants
@@ -461,8 +516,15 @@ SPECS_4: dict[tuple[str, str], SignalSpec] = {
             "oracle": r"creature you control enters[^.]*(?:gets? \+|gains? haste|and "
             r"haste)|creatures you control (?:get|have|gain)[^.]*haste"
         },
-        r"(?:another |a )?creature you control enters[^.]*(?:gets? \+|gains? haste|and "
-        r"haste)|creatures you control (?:get|have|gain)[^.]*haste",
+        # Serves enter-trigger pump and team haste grants; the remainder is self-pumps
+        # on a creature entering, which are not freshly-entered attackers.
+        None,
+        serve_idents=frozenset(
+            {
+                "entered_attacker|you|etb_pump",
+                "team_buff|you|haste",
+            }
+        ),
     ),
     # ADR-0034 _matters sweep — island lane split by role.
     # island_makers (the islandwalk DOER side — islandwalk bearers / granters /
@@ -512,10 +574,15 @@ SPECS_4: dict[tuple[str, str], SignalSpec] = {
             "oracle": r"tap all creatures (?:target|that|defending) player"
             r"[^.]*control|tap target creature you don'?t control"
         },
-        r"tap all creatures (?:target|that|defending) player[^.]*control"
-        r"|tap all creatures target opponent[^.]*control"
-        r"|tap target creature you don'?t control"
-        r"|tap all creatures you don'?t control",
+        # Serves the tap-down lane (tap, detain, freeze) and its blocker-specific mass
+        # taps; the remainder is untap-an-opponent cards the old pattern misread.
+        None,
+        serve_idents=frozenset(
+            {
+                "tap_down|opponents|",
+                "tap_down_blockers|you|",
+            }
+        ),
     ),
     # ltb_matters: the O-Ring exile-until-leaves removal (Banishing Light) routes to
     # exile_until_leaves, not here. ADR-0027 β: ltb_matters migrated to the Card IR (a
@@ -640,7 +707,14 @@ SPECS_4: dict[tuple[str, str], SignalSpec] = {
         "Wither/Infect bearers and -1/-1 placers plus the payoffs that reward a board "
         "shrinking under -1/-1 counters (Hapatra, Necroskitter, Nest of Scarabs)",
         {"oracle": r"-1/-1 counter"},
-        r"-1/-1 counter",
+        # Serves -1/-1 placers and payoffs; wither and infect bearers come in by
+        # keyword, and the old pattern's reminder-text hits are gone.
+        None,
+        serve_idents=frozenset(
+            {
+                "minus_counters_matter|you|",
+            }
+        ),
         serve_keywords=("wither", "infect"),
     ),
     ("cycling_matters", "you"): _spec(

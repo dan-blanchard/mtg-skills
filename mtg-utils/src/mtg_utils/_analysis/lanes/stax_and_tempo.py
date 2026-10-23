@@ -34,18 +34,25 @@ from mtg_utils._analysis.tree_synthesis import (
     has_structural_type_change,
     has_structural_vehicles_matter,
 )
+from mtg_utils._analysis.tree_synthesis.types_tribal import (
+    has_structural_color_change,
+)
 from mtg_utils._card_ir.crosswalk import (
     ANAPHORIC,
+    MASS_FILTER_EFFECT_TAGS,
     AbilityUnit,
     ConceptTree,
     affected_tag,
     change_zone_dirs,
+    color_keyed_sites,
     controller_side,
     counter_kind,
     counter_kind_any,
     counter_pred_kinds,
+    damage_drains_opponent,
     detriment_directed_scope,
     double_target_kind,
+    dynamic_pt_mod_sites,
     effect_filter,
     effect_owner_duration,
     effect_owner_player_scope,
@@ -62,6 +69,7 @@ from mtg_utils._card_ir.crosswalk import (
     filter_subtypes,
     granted_target_taps,
     granted_trigger_events,
+    hand_count_scopes,
     has_filter_property,
     iter_mod_sites,
     iter_nested_spellcast_static_modes,
@@ -70,12 +78,18 @@ from mtg_utils._card_ir.crosswalk import (
     iter_threaded_target_statics,
     iter_typed_nodes,
     lets_you_play_exiled,
+    library_search_restriction_side,
+    mana_spell_type_restriction,
     mass_land_denial,
     mod_keyword_name,
     modify_cost_mode,
     modify_cost_spell_filter,
+    names_attached_object,
+    names_subtype_payoff,
+    own_hand_signs,
     player_filter_tag,
     settap_state,
+    static_mode_field,
     static_mode_tag,
     tag_of,
     taps_target_object,
@@ -416,6 +430,18 @@ def _tap_lanes(tree: ConceptTree) -> list[Signal]:
                 # watcher.
                 if (
                     controller_side(ctrl) == "opponents"
+                    or (
+                        # a MASS tap of "all creatures
+                        # target player controls" (Sleep, Dawnglare Invoker,
+                        # Suppression Ray) — scope ``All`` over a ``TargetPlayer``
+                        # board. :func:`detriment_directed_scope` reads the
+                        # targeted player of a detriment as the opponent,
+                        # whatever CR 115 lets the caster pick; a single "tap
+                        # target creature target player controls" stays on the
+                        # trigger gates below.
+                        ctrl == "TargetPlayer"
+                        and tag_of(getattr(c.node, "scope", None)) == "All"
+                    )
                     or (
                         # phase v0.104.0 binds "that player" off a deals-damage
                         # trigger as TriggeringPlayer (Mana Skimmer, Somnophore).
@@ -1522,11 +1548,50 @@ def _color_change(tree: ConceptTree) -> list[Signal]:
     devoid CDAs / eternalize token colors / animate riders, per the batch-12
     adjudication). "Becomes colorless" (Ancient Kavu) is a deliberate
     non-match. Scope "you".
+
+    the structural changer read
+    (:func:`~mtg_utils._analysis.tree_synthesis.types_tribal.has_structural_color_change`
+    — a set, added or text-swapped color: Purelace, the -Wisps cycle, Shifting
+    Sky, Painter's Servant, Sleight of Mind) fires the bare ident first, the
+    synth tail is gap-gated against it; and ``color_change|you|payoff`` reads
+    the color-keyed mass effects a changer turns on everything
+    (:func:`_color_keyed_mass`).
     """
-    for c in tree.iter_concepts():
-        if c.concept == "synth_color_change":
-            return [Signal("color_change", "you", "", "", tree.name, "high")]
-    return []
+    out: list[Signal] = []
+    if has_structural_color_change(tree) or any(
+        c.concept == "synth_color_change" for c in tree.iter_concepts()
+    ):
+        out.append(Signal("color_change", "you", "", "", tree.name, "high"))
+    if _color_keyed_mass(tree):
+        out.append(Signal("color_change", "you", "payoff", "", tree.name, "high"))
+    return out
+
+
+def _color_keyed_mass(tree: ConceptTree) -> bool:
+    """Whether the card does something to every object of a color (CR 105.3:
+    "Effects may change an object's color", so a changer decides what it
+    reaches): a mass
+    destroy / exile / bounce / pump over a colored filter (Perish, Hibernation,
+    Llawan's bounce, Festergloom) or a continuous effect over one (Crusade-style
+    "white creatures get +1/+1", Light of Day's "Black creatures can't attack
+    or block", Llawan's "can't cast blue creature spells"). Make everything
+    that color with a changer and each one reaches the whole board. A card's
+    own color (SelfRef), the one object an Aura or Equipment is on, and a
+    graveyard or library recursion are not mass. Read off the shared
+    colour-keyed sites (:func:`color_keyed_sites` — a "has", "not" or "chosen"
+    colour, Wash Out's "of the color of your choice" included)."""
+    for site in color_keyed_sites(tree):
+        if site.kind == "effect":
+            if tag_of(site.node.node) in MASS_FILTER_EFFECT_TAGS and (
+                change_zone_dirs(site.node.node)[0] not in ("Graveyard", "Library")
+            ):
+                return True
+        elif tag_of(site.filter) not in (
+            "SelfRef",
+            "ParentTarget",
+        ) and not names_attached_object(site.filter):
+            return True
+    return False
 
 
 def _type_change(tree: ConceptTree) -> list[Signal]:
@@ -1595,6 +1660,22 @@ def _stax_lanes(tree: ConceptTree) -> list[Signal]:
         elif c.concept == "synth_symmetric_stax" and "symmetric_stax" not in seen:
             seen.add("symmetric_stax")
             out.append(Signal("symmetric_stax", "each", "", "", tree.name, "high"))
+    # a library-search restriction on opponents
+    # (Aven Mindcensor's "if an opponent would search a library, that player
+    # searches the top four cards … instead", Stranglehold's "Your opponents
+    # can't search libraries") punishes their tutors — opponent_search_matters
+    # too (CR 701.23a).
+    for unit in tree.units:
+        if any(
+            library_search_restriction_side(sdef) == "opponents"
+            for sdef in iter_static_defs(unit.node)
+        ):
+            out.append(
+                Signal(
+                    "opponent_search_matters", "opponents", "", "", tree.name, "high"
+                )
+            )
+            break
     return out
 
 
@@ -1800,7 +1881,7 @@ def _big_hand_lanes(tree: ConceptTree) -> list[Signal]:
     # 0 — Bloodhall Priest) is the OPPOSITE payoff, so the condition arm
     # requires a GE/GT comparison against a full-grip bar (>= 4 — the live
     # mirror's "five or more" family, Akki's GE 7).
-    if has_structural_big_hand_matters(tree):
+    if has_structural_big_hand_matters(tree) or _scales_with_own_hand(tree):
         fire("big_hand_matters", "")
     for c in tree.iter_concepts():
         if c.concept == "synth_big_hand_makers":
@@ -1808,6 +1889,145 @@ def _big_hand_lanes(tree: ConceptTree) -> list[Signal]:
         elif c.concept == "synth_big_hand_matters":
             fire("big_hand_matters", "")
     return out
+
+
+#: The effects whose own-hand count is a cost, a reset or a refill, not a
+#: payoff: "discard your hand", "shuffle your hand into your library". A
+#: refill to a fixed size ("draw cards equal to the difference", Damia) reads
+#: as a ``Difference`` operand and is vetoed by :func:`own_hand_signs`.
+_HAND_COUNT_NON_PAYOFF_TAGS: frozenset[str] = frozenset(
+    {
+        "Discard",
+        "ChangeZone",
+        "ChangeZoneAll",
+        "Mill",
+        "Shuffle",
+        "PutAtLibraryPosition",
+    }
+)
+#: The operand fields of an effect that scale what it does: an amount or
+#: count, a pump's P/T, a token's entering counters (Manifestation Sage), a
+#: die roll's modifier (Diviner's Portent's "add the number of cards in your
+#: hand") and the mana an ability makes (Inner Fire's "Add {R} for each card
+#: in your hand").
+_SCALING_FIELDS: tuple[str, ...] = (
+    "amount",
+    "count",
+    "power",
+    "toughness",
+    "enter_with_counters",
+    "modifier",
+    "produced",
+)
+
+
+def _scales_with_own_hand(tree: ConceptTree) -> bool:
+    """a payoff that scales with the cards in your
+    hand (CR 402.1) through an effect operand or a dynamic P/T modification —
+    "for each card in your hand" (Empyrial Armor, Spontaneous Generation,
+    Gerrard's Wisdom), read by :func:`hand_count_scopes`, which also sees
+    the ``ZoneCardCount{zone: Hand}`` qty the HandSize read misses. A
+    discard or shuffle of your hand counts it without rewarding it.
+
+    A P/T change that grows with your hand pays off whichever way it points
+    unless it lands on the card itself: "-X/-X, where X is the number of
+    cards in your hand" on another creature is removal that grows with your
+    grip (Nightmarish End, Kagemaro's Clutch), while Dread Slag's own
+    "-4/-4 for each card in your hand" rewards an empty one. Every other
+    operand pays off only where your hand count adds to it
+    (:func:`own_hand_signs`). A unit that never counts your hand
+    (:func:`hand_count_scopes`) is skipped before the operand walk."""
+    for unit in tree.units:
+        if "you" not in hand_count_scopes(unit.node):
+            continue
+        for c in unit.effects:
+            tag = tag_of(c.node)
+            if tag in _HAND_COUNT_NON_PAYOFF_TAGS:
+                continue
+            if explicit_recipient_scope(c.node) == "you" and tag in (
+                "LoseLife",
+                "DealDamage",
+            ):
+                continue  # Demonic Lore's "you lose 2 life for each card"
+            target = tag_of(getattr(c.node, "target", None))
+            on_other = tag == "Pump" and target not in (None, "SelfRef")
+            for field in _SCALING_FIELDS:
+                if _own_hand_reward(
+                    getattr(c.node, field, None),
+                    either_sign=on_other and field in ("power", "toughness"),
+                ):
+                    return True
+        for sdef, mod in dynamic_pt_mod_sites(unit.node):
+            if _own_hand_reward(
+                getattr(mod, "value", None),
+                either_sign=tag_of(getattr(sdef, "affected", None)) != "SelfRef",
+            ):
+                return True
+    return False
+
+
+def _own_hand_reward(operand: object, *, either_sign: bool = False) -> bool:
+    """Whether an operand grows with your own hand: a hand count scoped to you
+    (:func:`hand_count_scopes`) that only ever adds to it, or, with
+    ``either_sign``, one that moves it in a single direction (a shrink on
+    another creature)."""
+    signs = own_hand_signs(operand)
+    if either_sign:
+        return len(signs) == 1
+    return signs == frozenset({1})
+
+
+def _vehicles_support(tree: ConceptTree) -> bool:
+    """Vehicle support on a card that is not itself
+    a Vehicle (CR 301.7: "Most Vehicles have a crew ability which allows them
+    to become artifact creatures"): a filter naming Vehicles on a cast trigger,
+    a tutor, a cheat into play or a recursion (Sram, Oviya, Kitsune Ace, Mech
+    Hangar, Depala — :func:`names_subtype_payoff`, which leaves out a filter an
+    effect answers), or mana spendable only on Vehicle spells (Intrepid
+    Stablemaster — :func:`mana_spell_type_restriction`, CR 106.6)."""
+    if "Vehicle" in tree.card_subtypes:
+        return False
+    # The node scan first: it finds no Vehicle filter on nearly every card,
+    # which spares the payoff walk.
+    if _names_vehicles_apart(tree) and names_subtype_payoff(tree, "Vehicle"):
+        return True
+    return any(
+        "Vehicle" in mana_spell_type_restriction(c.node).split()
+        for unit in tree.units
+        for c in unit.effects
+        if tag_of(c.node) == "Mana"
+    )
+
+
+def _names_vehicles_apart(tree: ConceptTree) -> bool:
+    """Whether some filter names Vehicles as more than the generic "creature or
+    Vehicle" object (a Vehicle is a creature only while crewed, CR 301.7, so
+    "target creature or Vehicle" is how a removal or a pump reaches any
+    attacker — Bounce Off, Stall Out, Spectacular Pileup): a filter of Vehicles
+    alone, or one limited to Vehicles you control (Fang Guardian, Collision
+    Course's count)."""
+    for unit in tree.units:
+        nodes = tuple(iter_typed_nodes(unit.node))
+        vehicles = [
+            n
+            for n in nodes
+            if tag_of(n) == "Typed"
+            and "Vehicle" in filter_subtypes(n)
+            # an opponent's Vehicle is a target, not support
+            and filter_controller(n) not in ("Opponent", "TargetOpponent")
+        ]
+        if not vehicles:
+            continue
+        generic: set[int] = set()
+        for n in nodes:
+            if tag_of(n) != "Or":
+                continue
+            members = getattr(n, "filters", None) or ()
+            if any("Creature" in filter_core_types(m) for m in members):
+                generic.update(id(m) for m in members)
+        if any(id(n) not in generic or filter_controller(n) == "You" for n in vehicles):
+            return True
+    return False
 
 
 def _vehicles_matter(tree: ConceptTree) -> list[Signal]:
@@ -1830,11 +2050,210 @@ def _vehicles_matter(tree: ConceptTree) -> list[Signal]:
     (GAP-GATE-ALIGNMENT — ADR-0036/0037 Stage 5 #58 hardening; this used
     to re-derive the same three-arm walk inline, a drift risk).
     """
-    if has_structural_vehicles_matter(tree):
+    if has_structural_vehicles_matter(tree) or _vehicles_support(tree):
         return [Signal("vehicles_matter", "you", "", "", tree.name, "high")]
     for c in tree.iter_concepts():
         if c.concept == "synth_vehicles_matter":
             return [Signal("vehicles_matter", "you", "", "", tree.name, "high")]
+    return []
+
+
+# ── subjects the held serve specs read ─────────────
+# Each lane below adds one arm to a base lane's key, mostly as a subject a
+# serve spec reads (signal_specs.avenue_spec_for), never a new key. LANES runs
+# each right after its base lane.
+
+
+def _scry_surveil_this_turn(tree: ConceptTree) -> list[Signal]:
+    """``scry_surveil_matters|you|`` for a payoff for having scried or surveilled
+    this turn (CR 701.22a / 701.25a): a ``PlayerActionsThisTurn{action: Scry |
+    Surveil}`` count of your own actions (Surveillance Phantasm's "as long as
+    you've scried or surveilled this turn", Darkblade Agent, Proctor of
+    Potential). The doers themselves are ``topdeck_selection|you|scry`` /
+    ``|surveil``."""
+    if any(
+        tag_of(n) == "PlayerActionsThisTurn"
+        and getattr(n, "action", None) in ("Scry", "Surveil")
+        and tag_of(getattr(n, "player", None)) in (None, "Controller")
+        for unit in tree.units
+        for n in iter_typed_nodes(unit.node)
+    ):
+        return [Signal("scry_surveil_matters", "you", "", "", tree.name, "high")]
+    return []
+
+
+def _etb_pump_unit(unit: AbilityUnit) -> bool:
+    """A "whenever another creature you control enters" trigger that pumps or
+    hastes the creature that entered (Primal Forcemage, Ogre Battledriver) or
+    your whole team (Goldnight Commander, Valor in Akros) — a freshly-entered
+    creature attacks bigger the turn it arrives (CR 302.6 is what haste lifts).
+    A self-pump (Herd Gnarr) is not."""
+    if unit.origin != "trigger" or unit.trigger_event != "enters":
+        return False
+    watched = getattr(unit.node, "valid_card", None)
+    if tag_of(watched) == "SelfRef" or filter_controller(watched) != "You":
+        return False
+    if "Creature" not in filter_core_types(watched):
+        return False
+    for n in iter_typed_nodes(getattr(unit.node, "execute", None)):
+        tag = tag_of(n)
+        target = getattr(n, "target", None)
+        if tag in ("Pump", "GenericEffect") and tag_of(target) == "TriggeringSource":
+            return True
+        if (
+            tag == "PumpAll"
+            and filter_controller(target) == "You"
+            and "Creature" in filter_core_types(target)
+        ):
+            return True
+    return False
+
+
+def _entered_attacker_etb_pump(tree: ConceptTree) -> list[Signal]:
+    """``entered_attacker|you|etb_pump`` (:func:`_etb_pump_unit`), the
+    enter-trigger pump a newly-entered-attacker commander (Samut) wants beside
+    team haste (``team_buff|you|haste``)."""
+    if any(_etb_pump_unit(unit) for unit in tree.units):
+        return [Signal("entered_attacker", "you", "etb_pump", "", tree.name, "high")]
+    return []
+
+
+#: The ``Dig`` players that name another player's library (a target player,
+#: an opponent, the player a per-player loop or trigger names).
+_PEEK_PLAYER_TAGS: frozenset[str] = frozenset(
+    {"Player", "TargetPlayer", "ScopedPlayer", "TriggeringPlayer"}
+)
+
+
+def _opp_top_peek(tree: ConceptTree) -> list[Signal]:
+    """``opp_top_exile|you|peek``, the top-reveal support an exile-their-top
+    engine wants: the card shows you another player's library top (CR 401.2:
+    "Players can't look at or change the order of cards in a library" — these
+    say otherwise): "look at the top card of target player's library" (a
+    ``Dig`` whose ``player`` is a targeted, opponent or per-player library —
+    Eye Spy, Jace, the Mind Sculptor's +2, Precognition, Case the Joint), or
+    "players play with the top card of their libraries revealed"
+    (``RevealTopOfLibrary{all_players}`` — Field of Dreams, Lantern of
+    Insight, Wizened Snitches)."""
+    peek = [Signal("opp_top_exile", "you", "peek", "", tree.name, "high")]
+    for unit in tree.units:
+        for sdef in iter_static_defs(unit.node):
+            if (
+                static_mode_tag(sdef) == "RevealTopOfLibrary"
+                and static_mode_field(sdef, "all_players") is True
+            ):
+                return peek
+        for c in unit.effects:
+            if tag_of(c.node) != "Dig":
+                continue
+            player = getattr(c.node, "player", None)
+            ptag = tag_of(player)
+            if ptag in _PEEK_PLAYER_TAGS or (
+                ptag == "Typed" and filter_controller(player) == "Opponent"
+            ):
+                return peek
+    return []
+
+
+def _death_drain_unit(unit: AbilityUnit) -> bool:
+    """A "whenever a creature dies" trigger (any creature but the card itself —
+    CR 700.4: dies means put into a graveyard from the battlefield) that drains,
+    burns a player, gains you life or makes a Treasure, Blood or Clue (Blood
+    Artist, Zulaport Cutthroat, Vicious Shadows, Revel in Riches): what a
+    repeatable creature-killer fires each time it kills."""
+    if unit.origin != "trigger" or unit.trigger_event != "dies":
+        return False
+    watched = getattr(unit.node, "valid_card", None)
+    if tag_of(watched) == "SelfRef":
+        return False
+    if not (
+        "Creature" in filter_core_types(watched)
+        or filter_subtypes(watched)  # "another Zombie" (Vengeful Dead)
+        or tag_of(watched) == "AttachedTo"  # "equipped creature" (Lead Pipe)
+    ):
+        return False  # a land or an artifact dying (Dingus Egg, Scrapheap)
+    for c in unit.effects:
+        tag = tag_of(c.node)
+        if tag == "GainLife":
+            return True
+        if tag == "LoseLife":
+            # "each opponent loses 1 life" rides the wrapper (Vengeful Dead).
+            side = detriment_directed_scope(c.node) or controller_side(
+                effect_owner_player_scope(unit.node, c.node)
+            )
+            if side in ("opponents", "each"):
+                return True
+        # Damage that drains an opponent (:func:`damage_drains_opponent`), or a
+        # ping at any target, which that read leaves to removal: a death ping
+        # is the aristocrats payoff whichever way it points (Judith, the
+        # Scourge Diva; Sanguinary Priest).
+        if damage_drains_opponent(unit, c.node) or (
+            tag == "DealDamage" and tag_of(getattr(c.node, "target", None)) == "Any"
+        ):
+            return True
+        if tag == "Token" and getattr(c.node, "name", None) in _DEATH_VALUE_TOKENS:
+            return True  # Pitiless Plunderer's Treasure, Moonstone Eulogist's Blood
+    return False
+
+
+#: The value tokens a death trigger may make instead of draining.
+_DEATH_VALUE_TOKENS: frozenset[str] = frozenset({"Treasure", "Blood", "Clue"})
+
+
+def _kill_engine_payoff(tree: ConceptTree) -> list[Signal]:
+    """``kill_engine|you|payoff`` (:func:`_death_drain_unit`) — the death
+    payoffs a kill engine fires."""
+    if any(_death_drain_unit(u) for u in tree.units):
+        return [Signal("kill_engine", "you", "payoff", "", tree.name, "high")]
+    return []
+
+
+def _control_exchange_swap(tree: ConceptTree) -> list[Signal]:
+    """``control_exchange|you|swap`` — an ``ExchangeControl`` (CR 701.12b: "each
+    of those players simultaneously gains control of the permanent that was
+    controlled by the other player"): Gilded Drake, Puca's Mischief,
+    Switcheroo — donate a dud you own, take their bomb, then reclaim the dud
+    with :func:`_control_exchange`'s cards."""
+    for c in tree.effect_concepts("exchange_control"):
+        return [Signal("control_exchange", "you", "swap", c.raw, tree.name, "high")]
+    return []
+
+
+#: The keywords that keep a land from being destroyed or targeted.
+_LAND_SHIELD_KEYWORDS: frozenset[str] = frozenset(
+    {"Indestructible", "Hexproof", "Shroud"}
+)
+
+
+def _land_protection_shield(tree: ConceptTree) -> list[Signal]:
+    """``land_protection|you|shield`` — a grant of indestructible, hexproof or
+    shroud to lands (Terra Eternal's "All lands have indestructible", Marwyn's
+    "Lands you control have hexproof", Elspeth, Knight-Errant's emblem): what
+    keeps a land-animation deck's creature-lands alive. A grant to an
+    opponent's lands is not."""
+    for unit in tree.units:
+        for sdef, mod in iter_mod_sites(unit.node):
+            if tag_of(mod) != "AddKeyword":
+                continue
+            if mod_keyword_name(mod) not in _LAND_SHIELD_KEYWORDS:
+                continue
+            affected = getattr(sdef, "affected", None)
+            if tag_of(affected) == "SelfRef" or "Land" not in filter_core_types(
+                affected
+            ):
+                continue
+            if filter_controller(affected) == "Opponent":
+                continue
+            return [
+                Signal(
+                    "land_protection",
+                    "you",
+                    "shield",
+                    _site_raw(sdef),
+                    tree.name,
+                    "high",
+                )
+            ]
     return []
 
 
@@ -1851,19 +2270,25 @@ LANES = (
     _legends_historic_matters,
     _self_blink_lane,
     _scry_surveil_matters,
+    _scry_surveil_this_turn,
     _cycling_matters,
     _exert_matters,
     _entered_attacker,
+    _entered_attacker_etb_pump,
     _saga_matters,
     _life_total_set,
     _unspent_mana,
     _opp_top_exile,
+    _opp_top_peek,
     _kill_engine,
+    _kill_engine_payoff,
     _control_exchange,
+    _control_exchange_swap,
     _land_exchange,
     _land_denial,
     _mass_land_denial,
     _land_protection,
+    _land_protection_shield,
     _evasion_denial,
     _color_change,
     _type_change,

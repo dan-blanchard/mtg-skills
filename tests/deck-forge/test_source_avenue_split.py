@@ -2,7 +2,7 @@
 Source avenue (the pieces, fetched by card_type) — the static-membership analogue of
 the tribal bodies/payoffs/enablers split."""
 
-from mtg_utils._analysis.signal_specs import Serve, source_split
+from mtg_utils._analysis.signal_specs import Serve, pages_by_serve, source_split
 from mtg_utils._card_ir import compat_lookup as _ir_lookup
 from mtg_utils._deck_forge import engine
 from mtg_utils._deck_forge.state import DeckSession, ForgeState
@@ -35,10 +35,11 @@ def test_voltron_fans_into_payoff_and_source_avenues(monkeypatch):
     _seed_trees("Sram, Senior Edificer")
     monkeypatch.setattr(_ir_lookup, "_crosswalk_index", lambda: {_SRAM_OID: _SRAM_IR})
     avs = _by_label(engine.avenues(_state(), [SRAM]))
-    # The payoff avenue (the _matters lane) stays, now oracle-only — no type fetch.
+    # The payoff avenue (the _matters lane) stays, now an ident serve: no type fetch
+    # and no oracle pattern, so it pages by its serve.
     payoff = avs["Voltron / equipment & auras"]
     assert "card_type" not in payoff["search"]
-    assert "oracle" in payoff["search"]
+    assert pages_by_serve(payoff["search"])
     # A distinct Source avenue surfaces the pieces, fetched by an OR of card types.
     source = avs["Auras & Equipment"]
     assert source["search"]["card_type"] == ("aura", "equipment")

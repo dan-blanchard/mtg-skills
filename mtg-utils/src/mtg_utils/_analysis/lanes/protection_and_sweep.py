@@ -48,6 +48,7 @@ from mtg_utils._card_ir.crosswalk import (
     filter_non_types,
     filter_predicates,
     filter_subtypes,
+    free_own_target_activations,
     has_filter_property,
     iter_cost_leaves,
     iter_mod_sites,
@@ -58,8 +59,12 @@ from mtg_utils._card_ir.crosswalk import (
     names_subtype_payoff,
     protective_grant_recipients,
     protective_saves,
+    puts_commander_into_hand,
     residue_is,
+    silences_own_enter_triggers,
+    spell_has_variable_target_count,
     static_mode_field,
+    static_mode_player_sides,
     tag_of,
     trigger_constraint_tag,
 )
@@ -635,13 +640,30 @@ def _life_payment_insurance(tree: ConceptTree) -> list[Signal]:
 
     A one-shot cast cost (Toxic Deluge) and effect-side life loss (Sign in
     Blood) never fire either arm. Scope "you", HIGH.
+
+    The INSURANCE those payers want is the subject ``cant_lose``: a "can't
+    lose the game" static that covers you
+    (:func:`~mtg_utils._card_ir.crosswalk.static_mode_player_sides` over
+    ``CantLoseTheGame`` — Platinum Angel, Phyrexian Unlife, Lich's Mastery,
+    Angel's Grace, Gideon of the Trials' emblem, The Book of Exalted Deeds'
+    grant; "players can't lose the game", Everybody Lives!, covers you too).
+    Having 0 or less life loses the game only as a state-based action (CR
+    104.3b / 119.6), which such a static stops. "Your life total can't
+    change" (Platinum Emperion, Teferi's Protection) is no insurance: a
+    player who can't lose life can't pay life at all (CR 119.8), so it shuts
+    the payments off. "Your opponents can't lose" (Abyssal Persecutor) is
+    theirs.
     """
-    if has_structural_life_payment_insurance(tree):
-        return [Signal("life_payment_insurance", "you", "", "", tree.name, "high")]
-    for c in tree.iter_concepts():
-        if c.concept == "synth_life_payment_insurance":
-            return [Signal("life_payment_insurance", "you", "", "", tree.name, "high")]
-    return []
+    out: list[Signal] = []
+    if has_structural_life_payment_insurance(tree) or any(
+        c.concept == "synth_life_payment_insurance" for c in tree.iter_concepts()
+    ):
+        out.append(Signal("life_payment_insurance", "you", "", "", tree.name, "high"))
+    if static_mode_player_sides(tree, "CantLoseTheGame") & {"you", "each"}:
+        out.append(
+            Signal("life_payment_insurance", "you", "cant_lose", "", tree.name, "high")
+        )
+    return out
 
 
 def _speed_doer(tree: ConceptTree) -> list[Signal]:
@@ -1416,10 +1438,20 @@ def _per_target_payoff(tree: ConceptTree) -> list[Signal]:
     node ``description`` string carries it, and a node-scoped description
     regex is the Tier-2 waypoint ADR-0036 rejects). Scope "you", HIGH.
     """
+    out: list[Signal] = []
     for c in tree.iter_concepts():
         if c.concept == "synth_per_target_payoff":
-            return [Signal("per_target_payoff", "you", "", "", tree.name, "high")]
-    return []
+            out.append(Signal("per_target_payoff", "you", "", "", tree.name, "high"))
+            break
+    # The spells that payoff discounts most: an instant or sorcery whose number
+    # of targets is variable (CR 601.2c) — "any number of targets", "X target
+    # permanents", damage divided among targets (CR 601.2d), "up to three" —
+    # :func:`~mtg_utils._card_ir.crosswalk.spell_has_variable_target_count`.
+    if spell_has_variable_target_count(tree):
+        out.append(
+            Signal("per_target_payoff", "you", "variable", "", tree.name, "high")
+        )
+    return out
 
 
 def _power_tap_engine(tree: ConceptTree) -> list[Signal]:
@@ -1642,11 +1674,22 @@ _SWEEP_SYNTH_KEYS: tuple[tuple[str, str], ...] = (
 #     the older "totem armor" printings) shields the permanent the Aura
 #     enchants — :func:`_board_protection`'s keyword-field arm, since phase's
 #     ``TotemArmor`` keyword is not on the concept tree.
-_SWEEP_KEYWORD_LANES: tuple[tuple[frozenset[str], str], ...] = (
-    (frozenset({"power-up"}), "powerup_matters"),
-    (frozenset({"sneak"}), "recast_etb"),
-    (frozenset({"casualty", "bargain", "exploit", "devour"}), "sacrifice_outlets"),
-    (frozenset({"umbra armor", "totem armor"}), "board_protection"),
+#   * cipher → combat_damage_matters, scope "opponents" (CR 702.99a: the
+#     encoded creature has "Whenever this creature deals combat damage to a
+#     player, you may copy the encoded card and you may cast the copy" — a
+#     combat-damage-to-a-player payoff, Hidden Strings, Stolen Identity).
+#     The keyword array is the only source: phase gives the cipher spells no
+#     node for the encoded trigger.
+_SWEEP_KEYWORD_LANES: tuple[tuple[frozenset[str], str, str], ...] = (
+    (frozenset({"power-up"}), "powerup_matters", "you"),
+    (frozenset({"sneak"}), "recast_etb", "you"),
+    (
+        frozenset({"casualty", "bargain", "exploit", "devour"}),
+        "sacrifice_outlets",
+        "you",
+    ),
+    (frozenset({"umbra armor", "totem armor"}), "board_protection", "you"),
+    (frozenset({"cipher"}), "combat_damage_matters", "opponents"),
 )
 
 
@@ -1660,8 +1703,8 @@ def _keyword_field_signals_sweep(keywords: frozenset[str], name: str) -> list[Si
     """
     low = {k.lower() for k in keywords}
     return [
-        Signal(key, "you", "", "", name, "high")
-        for kws, key in _SWEEP_KEYWORD_LANES
+        Signal(key, scope, "", "", name, "high")
+        for kws, key, scope in _SWEEP_KEYWORD_LANES
         if low & kws
     ]
 
@@ -1694,6 +1737,13 @@ def _sweep_kept_mirrors(tree: ConceptTree) -> list[Signal]:
         "OpenAttractions", "RollToVisitAttractions"
     ):
         out.append(Signal("attractions_matter", "you", "", "", tree.name, "high"))
+    # secret_writedown's learn subject: phase types learn (CR 701.48a: "you may
+    # reveal a Lesson card you own from outside the game and put it into your
+    # hand") as its own ``Learn`` effect node. The synth row reads the
+    # reminder-stripped oracle, and "outside the game" is only in learn's
+    # reminder text, so Eyetwitch and Pop Quiz never reached it.
+    if tree.has_typed("Learn"):
+        out.append(Signal("secret_writedown", "you", "learn", "", tree.name, "high"))
     return out
 
 
@@ -1771,15 +1821,33 @@ def _lose_unless_hand(tree: ConceptTree) -> list[Signal]:
     The end-step delayed self-lose (Final Fortune) and the opponent-lose
     payoffs are excluded by the etb event. Scope "you", HIGH.
     """
+    out: list[Signal] = []
     for unit in tree.units:
         if unit.trigger_event != "enters":
             continue
         if tag_of(getattr(unit.node, "valid_card", None)) != "SelfRef":
             continue
-        for c in unit.effect_concepts("lose_game"):
-            if tag_of(getattr(c.node, "target", None)) == "Controller":
-                return [Signal("lose_unless_hand", "you", "", "", tree.name, "high")]
-    return []
+        if any(
+            tag_of(getattr(c.node, "target", None)) == "Controller"
+            for c in unit.effect_concepts("lose_game")
+        ):
+            out.append(Signal("lose_unless_hand", "you", "", "", tree.name, "high"))
+            break
+    # The cards that negate the drawback: putting your commander into your hand
+    # from the command zone (CR 903.8 casts it from the command zone, which
+    # isn't from your hand — Phage's ruling — so Command Beacon lets it be cast
+    # from hand), and a static that stops entering creatures from triggering
+    # abilities (Torpor Orb, Hushwing Gryff). The can't-lose statics this
+    # avenue also wants are ``life_payment_insurance|you|cant_lose``.
+    if puts_commander_into_hand(tree):
+        out.append(
+            Signal("lose_unless_hand", "you", "command_to_hand", "", tree.name, "high")
+        )
+    if silences_own_enter_triggers(tree):
+        out.append(
+            Signal("lose_unless_hand", "you", "etb_silencer", "", tree.name, "high")
+        )
+    return out
 
 
 def _miracle_grant(tree: ConceptTree) -> list[Signal]:
@@ -2001,6 +2069,15 @@ def _becomes_target_lanes(tree: ConceptTree) -> list[Signal]:
             if c.concept == "synth_targeting_matters":
                 add("targeting_matters", "any")
                 break
+    # The free targeting a target-your-own payoff wants: a {0} activation that
+    # targets your own creature (the en-Kor cycle; equip {0} — CR 702.6a:
+    # "Attach this permanent to target creature you control" — on Shuko,
+    # Lightning Greaves, or granted by Puresteel Paladin), read by
+    # :func:`~mtg_utils._card_ir.crosswalk.free_own_target_activations`.
+    if free_own_target_activations(tree):
+        out.append(
+            Signal("target_own_payoff", "you", "free_target", "", tree.name, "high")
+        )
     return out
 
 

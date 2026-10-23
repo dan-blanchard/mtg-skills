@@ -13,6 +13,7 @@ from mtg_utils._tuner.issues import (
     top_issues,
 )
 from mtg_utils._tuner.swaps import (
+    CutFocus,
     SwapContext,
     _blended_percentiles,
     _cut_why,
@@ -157,9 +158,7 @@ def test_over_band_ramp_cut_keeps_basic_land_fetch_over_colorless_rock():
     kodama = _real_cc("Kodama's Reach", "spine", roles=("ramp",), edhrec_rank=900)
     mind_stone = _real_cc("Mind Stone", "spine", roles=("ramp",), edhrec_rank=400)
     budgets = {"ramp": _band(2, 0, 1), "lands": _band(36, 36, 38)}
-    cuts = cut_candidates(
-        [kodama, mind_stone], budgets=budgets, focus_verdict="FOCUSED", stranded=set()
-    )
+    cuts = cut_candidates([kodama, mind_stone], budgets=budgets, focus=CutFocus())
     over_ramp = [c.name for reason, c in cuts if reason == "over:ramp"]
     assert over_ramp[:1] == ["Mind Stone"]  # the colorless rock, not Kodama's Reach
 
@@ -355,10 +354,7 @@ def test_a_premium_card_is_never_a_band_trim():
     cuts = cut_candidates(
         classes,
         budgets=budgets,
-        focus_verdict="FOCUSED",
-        stranded=set(),
-        viable={"Dinosaurs"},
-        commander_cards={"Dork A", "Dork B"},
+        focus=CutFocus(viable={"Dinosaurs"}, commander_cards={"Dork A", "Dork B"}),
     )
     assert [c.name for r, c in cuts if r == "over:ramp"] == ["Dork B", "Dork A"]
     # Where play-rate means nothing (a 60-card or limited deck) the rank is no
@@ -367,21 +363,15 @@ def test_a_premium_card_is_never_a_band_trim():
     cuts = cut_candidates(
         classes,
         budgets=budgets,
-        focus_verdict="FOCUSED",
-        stranded=set(),
+        focus=CutFocus(viable={"Dinosaurs"}, commander_cards={"Dork A", "Dork B"}),
         playrate=False,
-        viable={"Dinosaurs"},
-        commander_cards={"Dork A", "Dork B"},
     )
     assert [c.name for r, c in cuts if r == "over:ramp"] == ["Dork B", "Dork A"]
     cuts = cut_candidates(
         classes,
         budgets=budgets,
-        focus_verdict="FOCUSED",
-        stranded=set(),
+        focus=CutFocus(viable={"Dinosaurs"}, commander_cards={"Dork A", "Dork B"}),
         playrate_meaningful=False,
-        viable={"Dinosaurs"},
-        commander_cards={"Dork A", "Dork B"},
     )
     assert next(c.name for r, c in cuts if r == "over:ramp") == "Sol Ring"
 
@@ -938,7 +928,7 @@ def test_cut_candidates_null_rank_low_value_is_medium_aware():
     # (EDHREC has no Arena population), so it can't push an engine card into
     # the low_value cut queue; on paper it stays fringe-evidence and does.
     classes = [_cc("Alchemy Only", "engine", served=["Tokens"], edhrec_rank=None)]
-    kw = {"budgets": {}, "focus_verdict": "FOCUSED", "stranded": set()}
+    kw = {"budgets": {}, "focus": CutFocus()}
     paper = cut_candidates(classes, medium="paper", **kw)
     digital = cut_candidates(classes, medium="digital", **kw)
     assert ("low_value", "Alchemy Only") in [(r, c.name) for r, c in paper]
@@ -1252,7 +1242,7 @@ def test_cut_candidates_granter_quality_gates_low_value():
         gc("Premium Granter", "premium"),
         gc("Weak Granter", "weak", rank=500),
     ]
-    kw = {"budgets": {}, "focus_verdict": "FOCUSED", "stranded": set()}
+    kw = {"budgets": {}, "focus": CutFocus()}
     got = [(r, c.name) for r, c in cut_candidates(classes, **kw)]
     assert ("low_value", "Weak Granter") in got
     assert all(name != "Premium Granter" for _, name in got)
@@ -1667,10 +1657,7 @@ def test_low_value_pass_skips_the_commanders_lane():
     cuts = cut_candidates(
         classes,
         budgets={},
-        focus_verdict="FOCUSED",
-        stranded=set(),
-        viable={held},
-        commander_cards=["Identity Echo"],
+        focus=CutFocus(viable={held}, commander_cards=["Identity Echo"]),
     )
     assert [(reason, c.name) for reason, c in cuts] == [("low_value", "Fringe Beater")]
 
@@ -1697,11 +1684,11 @@ def test_a_deep_lane_is_the_last_cut_tier_in_the_focus_reads_order():
     cuts = cut_candidates(
         lane,
         budgets={},
-        focus_verdict="FOCUSED",
-        stranded=set(),
-        viable={"Vampires"},
-        commander_cards={c.name for c in lane},
-        lane_upgrade_cards=order,
+        focus=CutFocus(
+            viable={"Vampires"},
+            commander_cards={c.name for c in lane},
+            lane_upgrade_cards=order,
+        ),
         protected={"Vamp 11"},
     )
     assert [(r, c.name) for r, c in cuts] == [
@@ -1717,9 +1704,7 @@ def test_a_band_that_is_the_commanders_lane_is_no_cut_pool():
         for i in range(3)
     ]
     budgets = {"ramp": {**_band(3, 0, 1), "lane_row": True}}
-    cuts = cut_candidates(
-        classes, budgets=budgets, focus_verdict="FOCUSED", stranded=set()
-    )
+    cuts = cut_candidates(classes, budgets=budgets, focus=CutFocus())
     assert cuts == []
 
 

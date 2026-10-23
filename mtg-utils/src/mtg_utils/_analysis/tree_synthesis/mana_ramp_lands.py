@@ -22,14 +22,18 @@ from mtg_utils._card_ir.crosswalk import (
     ConceptNode,
     ConceptTree,
     change_zone_dirs,
+    effect_back_reference,
     effect_filter,
     effect_owner_is_friend,
     filter_controller,
     filter_core_types,
     filter_inzone_zones,
+    filter_names_only_stack_objects,
+    filter_owned_controller,
     filter_subtypes,
     has_filter_property,
     iter_cost_leaves,
+    iter_nested_granted_effect_concepts,
     iter_nested_trigger_defs,
     iter_search_landings,
     iter_typed_nodes,
@@ -1060,18 +1064,71 @@ def _arm_bounce_tempo(tree: ConceptTree) -> ConceptNode | None:
                 continue
             if gy_return and len(bounces) == 1:
                 continue  # the unit IS the graveyard recall
-            if "Graveyard" in filter_inzone_zones(sub):
+            if (ref := effect_back_reference(unit, c.node)) is not None:
+                # "Return it" names what the back-reference resolves to: the
+                # card itself (Cactuar's end-step return, Saprazzan Raider) or
+                # the cards another of its abilities exiled (Tidehollow
+                # Sculler's linked "exiled card", CR 607.2a) are no tempo; a
+                # chosen target or an event object is gated like a target
+                # (Dragon Mask's "target creature you control … return it" and
+                # Cunning Evasion's "whenever a creature you control becomes
+                # blocked, … return it" are your own, Kaijin of the Vanishing
+                # Touch's blocked creature is not).
+                kind, named = ref
+                if kind in ("self", "linked"):
+                    continue
+                if named is not None:
+                    sub = named
+            if _bounce_answers_nothing(sub):
                 continue
-            if filter_controller(sub) == "You":
+            return _bounce_tempo_node()
+        # A bounce the card grants (Banishing Knack's "{T}: Return target
+        # nonland permanent to its owner's hand"; Arm with Aether's damage
+        # trigger) is the card's tempo too: a typed target, gated the same
+        # way. A granted back-reference names the creature it is granted to.
+        for c in iter_nested_granted_effect_concepts(unit.node):
+            granted_target = tag_of(getattr(c.node, "target", None))
+            if c.concept != "bounce" or granted_target not in ("Typed", "Or", "And"):
                 continue
-            return _synthetic_concept(
-                arm_id="bounce_tempo",
-                concept="synth_bounce_tempo",
-                scope="you",
-                subject=(),
-                desc="bucket-B battlefield->hand tempo bounce (CR 402.1)",
-            )
+            if not _bounce_answers_nothing(effect_filter(c.node)):
+                return _bounce_tempo_node()
     return None
+
+
+def _bounce_answers_nothing(sub: object) -> bool:
+    """Whether a bounce's object is no tempo answer: a card off the
+    battlefield (a graveyard recall, CR 404.1; a card in a hand or exile), a
+    spell on the stack (Reprieve's "Return target spell to its owner's hand"
+    — CR 112.1: a spell is a card on the stack, not a permanent; Remand's
+    counterspell space), or your own permanent (Aviary Mechanic). A
+    back-reference resolved to a player ("target opponent") or to a bare card
+    names the card the chain took from that player's hand (Planeswalker's
+    Mischief's "return it to its owner's hand", Struggle for Sanity), never a
+    permanent."""
+    zones = filter_inzone_zones(sub)
+    if zones and "Battlefield" not in zones:
+        return True
+    if tag_of(sub) == "Typed":
+        names_player = not getattr(sub, "type_filters", None) and not getattr(
+            sub, "properties", None
+        )
+        if names_player or set(filter_core_types(sub)) == {"Card"}:
+            return True
+    return (
+        filter_names_only_stack_objects(sub)
+        or filter_controller(sub) == "You"
+        or filter_owned_controller(sub) == "You"  # "you own" (Saving Grasp)
+    )
+
+
+def _bounce_tempo_node() -> ConceptNode:
+    return _synthetic_concept(
+        arm_id="bounce_tempo",
+        concept="synth_bounce_tempo",
+        scope="you",
+        subject=(),
+        desc="bucket-B battlefield->hand tempo bounce (CR 402.1)",
+    )
 
 
 # ── ramp: the "Add {mana-expression}" clause-grammar tail (ADR-0039 W7 →

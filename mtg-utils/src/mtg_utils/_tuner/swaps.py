@@ -224,21 +224,47 @@ def over_row_members(
     ]
 
 
+@dataclass(frozen=True)
+class CutFocus:
+    """The slice of the focus read the cut ranking needs.
+
+    ``verdict`` is the focus verdict (``SPREAD-THIN`` trims differently);
+    ``stranded`` / ``viable`` the avenue labels the deck cannot / can build;
+    ``commander_cards`` the cards that do what the commander's lane does;
+    ``upgrade_cards`` the off-lane cards few decks play; ``lane_upgrade_cards``
+    the deep lane's least-played half, in the focus read's order (order matters).
+    """
+
+    verdict: str = "FOCUSED"
+    stranded: frozenset[str] = frozenset()
+    viable: frozenset[str] = frozenset()
+    commander_cards: frozenset[str] = frozenset()
+    upgrade_cards: frozenset[str] = frozenset()
+    lane_upgrade_cards: tuple[str, ...] = ()
+
+    @classmethod
+    def from_focus(cls, focus_result: dict) -> CutFocus:
+        """Slice a ``focus`` result dict."""
+        return cls(
+            verdict=focus_result["verdict"],
+            stranded=frozenset(focus_result["stranded_avenues"]),
+            viable=frozenset(a["label"] for a in focus_result["viable_avenues"]),
+            commander_cards=frozenset(focus_result.get("commander_lane_cards") or ()),
+            upgrade_cards=frozenset(focus_result.get("upgrade_cards") or ()),
+            lane_upgrade_cards=tuple(focus_result.get("lane_upgrade_cards") or ()),
+        )
+
+
 def cut_candidates(
     classes: Sequence[CardClass],
     *,
     budgets: dict,
-    focus_verdict: str,
-    stranded: set[str],
+    focus: CutFocus,
     protected: Collection[str] = (),
     medium: str = "paper",
     template: Template = COMMANDER_TEMPLATE,
     playrate: bool = True,
     playrate_meaningful: bool = True,
-    viable: Collection[str] = (),
-    commander_cards: Collection[str] = (),
-    upgrade_cards: Collection[str] = (),
-    lane_upgrade_cards: Sequence[str] = (),
 ) -> list[tuple[str, CardClass]]:
     """Ordered (reason, card) cut candidates, most-cuttable first. Hard floors apply.
 
@@ -254,17 +280,18 @@ def cut_candidates(
     row's members are read through the ``template``'s own membership, and an
     ``advisory`` row is never a cut pool.
 
-    ``viable`` / ``commander_cards`` are the focus read's built avenues and the
-    cards that do what the commander's lane does (``commander_lane_cards``): such
-    a card is never a low-value cut (play-rate says nothing about a polymorph
+    ``focus.viable`` / ``focus.commander_cards`` are the focus read's built
+    avenues and the cards that do what the commander's lane does
+    (``commander_lane_cards``): such a card is never a low-value cut
+    (play-rate says nothing about a polymorph
     piece under a polymorph commander) and trims last from an over-band row; a
     card feeding no viable avenue trims first. A payoff the lane merely serves
     (a bomb the commander flips into) is ordered like any other card.
 
     The last two tiers are the upgrade slots the focus read names: the
-    off-lane cards few decks play (``upgrade_cards``, least played first), drawn
-    only by the upgrade issue for a better-played card doing the same job; then
-    the deep lane's least-played half (``lane_upgrade_cards``, in the focus
+    off-lane cards few decks play (``focus.upgrade_cards``, least played first),
+    drawn only by the upgrade issue for a better-played card doing the same job; then
+    the deep lane's least-played half (``focus.lane_upgrade_cards``, in the focus
     read's order) — a tribal precon's forty-three Vampires are all carers, so
     with every other tier empty the deck proposed nothing while short on ramp,
     draw and wipes (Blood Rites, 2026-10-18). A lane slot is never dead weight:
@@ -274,14 +301,12 @@ def cut_candidates(
     """
     out: list[tuple[str, CardClass]] = []
     seen: set[str] = set()
-    viable_set = set(viable)
-    lane_cards = set(commander_cards)
 
     def premium(card: CardClass) -> bool:
         return playrate_meaningful and is_premium(card.edhrec_rank)
 
     def viable_served(card: CardClass) -> int:
-        return len(viable_set.intersection(card.served))
+        return len(focus.viable.intersection(card.served))
 
     def push(reason: str, card: CardClass) -> None:
         if card.name not in seen and card.name not in protected:
@@ -304,7 +329,7 @@ def cut_candidates(
             c
             for c in classes
             if c.low_value(medium=medium, playrate=playrate)
-            and c.name not in lane_cards
+            and c.name not in focus.commander_cards
         ),
         key=lambda c: c.least_played_key,
     ):
@@ -338,7 +363,7 @@ def cut_candidates(
         members.sort(
             key=lambda c: (
                 _is_fixing(c),
-                c.name in lane_cards,
+                c.name in focus.commander_cards,
                 c.least_played_key,
                 viable_served(c),
                 -c.cmc,
@@ -358,14 +383,14 @@ def cut_candidates(
             excess -= copies
 
     # 3. Stranded Engine singletons — only when refocusing a spread-thin deck.
-    if focus_verdict == "SPREAD-THIN":
+    if focus.verdict == "SPREAD-THIN":
         for c in sorted(
             (
                 c
                 for c in classes
                 if c.bucket == "engine"
                 and len(c.served) <= 1
-                and set(c.served) & stranded
+                and set(c.served) & focus.stranded
             ),
             key=lambda c: c.cmc,
             reverse=True,
@@ -375,9 +400,8 @@ def cut_candidates(
     # 4. The upgrade slots (``focus``'s ``upgrade_cards``): off every lane the
     # deck holds and played little — least played first. Only the upgrade
     # issue draws on them, and only for a better-played card doing the same job.
-    upgrade_set = set(upgrade_cards)
     for c in sorted(
-        (c for c in classes if c.name in upgrade_set),
+        (c for c in classes if c.name in focus.upgrade_cards),
         key=lambda c: c.least_played_key,
     ):
         push("upgrade", c)
@@ -385,7 +409,7 @@ def cut_candidates(
     # 5. The deep lane's upgrade slots (``focus``'s ``lane_upgrade_cards``:
     # its least-played half, plain feeders before carers) — the slot a Spine
     # fill, a closer, a game-ending piece or an upgrade may take.
-    lane_order = {name: i for i, name in enumerate(lane_upgrade_cards)}
+    lane_order = {name: i for i, name in enumerate(focus.lane_upgrade_cards)}
     for c in sorted(
         (c for c in classes if c.name in lane_order), key=lambda c: lane_order[c.name]
     ):
@@ -399,18 +423,13 @@ def size_cuts(
     *,
     overflow: int,
     budgets: dict,
-    focus_verdict: str,
-    stranded: set[str],
+    focus: CutFocus,
     message: str,
     protected: Collection[str] = (),
     medium: str = "paper",
     eligible: Collection[str] | None = None,
     playrate_condemns: bool = True,
     playrate_meaningful: bool = True,
-    viable: Collection[str] = (),
-    commander_cards: Collection[str] = (),
-    upgrade_cards: Collection[str] = (),
-    lane_upgrade_cards: Sequence[str] = (),
 ) -> list[dict]:
     """Legality-driven cuts for an OVER-sized deck: up to ``overflow`` proposals.
 
@@ -431,16 +450,11 @@ def size_cuts(
     for reason, card in cut_candidates(
         classes,
         budgets=budgets,
-        focus_verdict=focus_verdict,
-        stranded=stranded,
+        focus=focus,
         protected=protected,
         medium=medium,
         playrate=playrate_condemns,
         playrate_meaningful=playrate_meaningful,
-        viable=viable,
-        commander_cards=commander_cards,
-        upgrade_cards=upgrade_cards,
-        lane_upgrade_cards=lane_upgrade_cards,
     ):
         if len(out) >= overflow:
             break
@@ -718,15 +732,15 @@ def propose_swaps(
         return ctx.under_ceiling(card, in_deck.get(name, 0) + used_adds[name])
 
     sourcing = Sourcing(ctx.focus_result, ctx.deck_signals, ctx.budgets)
-    stranded = set(ctx.focus_result["stranded_avenues"])
+    cut_focus = CutFocus.from_focus(ctx.focus_result)
     # The deck's own avenue prominence, so the candidate ranker scores DEPTH in
     # the deck's real themes (a death payoff) over BREADTH across incidental lanes
     # (a token equipment that grazes ten). Without this the count rewards splashy
     # box-tickers — the bug that surfaced Elven Bow / Hired Claw over real payoffs.
     focus_sets = {
-        "viable": {a["label"] for a in ctx.focus_result["viable_avenues"]},
+        "viable": cut_focus.viable,
         "emerging": {a["label"] for a in ctx.focus_result.get("emerging", [])},
-        "stranded": stranded,
+        "stranded": cut_focus.stranded,
     }
     # The creature subtypes the deck actually fields, so the ranker can discount a
     # payoff gated on a tribe the deck lacks (Hired Claw's "attack with Lizards" in
@@ -740,17 +754,12 @@ def propose_swaps(
     cuts = cut_candidates(
         classes,
         budgets=ctx.budgets,
-        focus_verdict=ctx.focus_result["verdict"],
-        stranded=stranded,
+        focus=cut_focus,
         protected=ctx.protected,
         medium=ctx.medium,
         template=ctx.template,
         playrate=ctx.playrate_condemns,
         playrate_meaningful=ctx.playrate,
-        viable=focus_sets["viable"],
-        commander_cards=ctx.focus_result.get("commander_lane_cards") or (),
-        upgrade_cards=ctx.focus_result.get("upgrade_cards") or (),
-        lane_upgrade_cards=ctx.focus_result.get("lane_upgrade_cards") or (),
     )
     # Route cuts into the pools a Remedy names: an over-band trim cuts from THAT over
     # role (``over:<role>``); everything else is the generic pool (filler, low-value,

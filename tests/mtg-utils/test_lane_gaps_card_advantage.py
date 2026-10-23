@@ -36,8 +36,9 @@ def _subjects(name: str, key: str, scope: str = "you") -> set[str]:
         ("Unburial Rites", {"battlefield"}),
         ("Reanimate", {"battlefield"}),
         ("Animate Dead", {"battlefield"}),
-        # A mass reanimation routed through exile (the exiled set comes back).
-        ("Living Death", {"battlefield"}),
+        # A mass reanimation routed through exile (the exiled set comes back);
+        # ``mass`` is removal_tutors' whole-graveyard return subject.
+        ("Living Death", {"battlefield", "mass"}),
         # An opponent's creature card put onto the battlefield under your control.
         ("Ashen Powder", {"battlefield"}),
         # Recall to hand, and a tuck back on top of the library.

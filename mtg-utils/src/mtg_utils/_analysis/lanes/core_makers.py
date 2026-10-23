@@ -43,18 +43,22 @@ from mtg_utils._card_ir.crosswalk import (
     _OPPONENT_ACTOR_TAGS,
     ATTACHED_OBJECT_PREDICATES,
     CHOSEN_PLAYER_SCOPE,
+    AbilityUnit,
     ConceptTree,
     answers_its_target,
     change_zone_dirs,
     controller_paid_cost_leaves,
     counter_kind,
+    creature_type_change_kinds,
     effect_actor_scope,
     effect_facing_player,
     effect_owner_player_scope,
     effect_owner_rebinds_kind,
     effect_reaches_player,
+    ends_the_game,
     entered_this_turn_filters,
     filter_controller,
+    filter_controller_side,
     filter_core_types,
     filter_inanyzone_zones,
     filter_inzone_zones,
@@ -63,6 +67,7 @@ from mtg_utils._card_ir.crosswalk import (
     filter_subtypes,
     has_nested_damage_reaching_player,
     has_nested_extra_turn,
+    hurts_triggering_player,
     is_self_discard_cost,
     iter_mod_sites,
     iter_nested_token_effects,
@@ -70,18 +75,22 @@ from mtg_utils._card_ir.crosswalk import (
     iter_static_defs,
     iter_threaded_target_statics,
     iter_typed_nodes,
+    iter_unit_trigger_defs,
     keyword_action_events,
     keyword_counter_placements,
     keyword_token_creations,
     mod_keyword_name,
     mod_value,
     nested_plus_one_keyword_grant,
+    own_turn_step_triggers,
     recipient_tag,
     redirects_stack_object,
     ref_count_filter,
     static_mode_tag,
     steals_stack_spell,
     tag_of,
+    trigger_def_event,
+    trigger_phase,
     trigger_scope,
     trigger_subject,
     trigger_subject_scope,
@@ -94,17 +103,36 @@ from mtg_utils._card_ir.recovery import OTHER_PLAYER
 
 
 def _win_lose_game(tree: ConceptTree) -> list[Signal]:
-    """Terminal alt-win / alt-loss (CR 104.2). Whole-card; scope "any" (HIGH).
+    """Terminal alt-win / alt-loss (CR 104.2b: "An effect may state that a
+    player wins the game"; CR 104.3e: "An effect may state that a player loses
+    the game"). Whole-card; scope "any" (HIGH), subject "".
 
-    Mirrors the deleted ``_signals_ir``'s line ~7330: any ``win_game`` / ``lose_game``
-    effect →
-    one ``win_lose_game`` firing scoped "any" (the behavior-neutral merge of
-    self-wins and opponent-losses the deleted SWEEP row used).
+    The card must end the game in your favour: you win or another player
+    loses (:func:`ends_the_game`, which also reads a loss granted to a
+    creature, an Equipment's wielder or an emblem — Vorpal Sword, Vraska,
+    Golgari Queen). A loss aimed at you is a drawback, never a win
+    condition: the Pacts' unpaid upkeep, Final Fortune / Last Chance's
+    extra-turn end step, Lich's Mastery leaving the battlefield. Two more
+    shapes:
+
+    * a lose / win concept the clause grammar recovered onto an untyped
+      node (Hidetsugu Consumes All's "they lose the game");
+    * a ``LoseTheGame`` whose player phase drops ("each player Angel of
+      Destiny attacked this turn loses the game"; Nicol Bolas, Dragon-God's
+      "each opponent who doesn't control …") — never a self-loss in the
+      pool (each self-loss carries ``Controller``), guarded by a
+      ``retirement_canary`` that fails once phase fills the player in.
     """
-    for concept in ("win_game", "lose_game"):
-        hits = tree.effect_concepts(concept)
-        if hits:
-            return [Signal("win_lose_game", "any", "", hits[0].raw, tree.name, "high")]
+    if ends_the_game(tree):
+        return [Signal("win_lose_game", "any", "", "", tree.name, "high")]
+    for c in tree.iter_concepts():
+        if c.concept not in ("win_game", "lose_game"):
+            continue
+        tag = tag_of(c.node)
+        if tag not in ("WinTheGame", "LoseTheGame") or (
+            tag == "LoseTheGame" and getattr(c.node, "target", MISSING) is MISSING
+        ):
+            return [Signal("win_lose_game", "any", "", c.raw, tree.name, "high")]
     return []
 
 
@@ -412,21 +440,73 @@ def _token_maker(tree: ConceptTree) -> list[Signal]:
     return out
 
 
-def _draw_matters(tree: ConceptTree) -> list[Signal]:
-    """ "Whenever you draw a card" payoff (The Locust God, Chasm Skulker).
+def _is_your_draw_step_draw(unit: AbilityUnit, trig: TypedMirrorNode) -> bool:
+    """Whether a trigger definition of ``unit`` draws you extra cards at the
+    beginning of YOUR draw step (Grafted Skullcap / Sylvan Library's "At the
+    beginning of your draw step, draw an additional card"): a ``Phase``
+    trigger at ``Draw`` that fires on your own turn
+    (:func:`~mtg_utils._card_ir.crosswalk.own_turn_step_triggers`) whose
+    ability has you draw — read
+    off the unit's effect concepts for its own trigger (so a clause the
+    grammar recovered counts: Lord Skitter's Blessing's "if you control an
+    enchanted creature, … you draw an additional card"), off the typed
+    ``Draw`` for a granted one (Sarkhan, the Dragonspeaker's emblem). CR
+    504.1: the draw step's turn-based draw is the active player's, so these
+    add to it. "Each player's draw step" (Howling Mine) is the symmetric
+    ``card_draw_engine`` read."""
+    if trigger_phase(trig) != "Draw" or "Draw" not in own_turn_step_triggers(unit):
+        return False
+    if trig is unit.node:
+        return any(c.concept == "draw" and c.scope == "you" for c in unit.effects)
+    return any(
+        tag_of(n) == "Draw" and recipient_tag(n) in ("Controller", None)
+        for n in iter_typed_nodes(getattr(trig, "execute", None))
+    )
 
-    A trigger-event lane. Mirrors the deleted ``_signals_ir``'s line ~10653: a ``Drawn``
-    trigger
-    whose watched scope is not the opponent → ``draw_matters`` you (HIGH). The
-    opponent-draw punisher (Bowmasters, Nekusar) is a SEPARATE lane and does not
-    fire here.
+
+def _draw_matters(tree: ConceptTree) -> list[Signal]:
+    """ "Whenever you draw a card" payoff (The Locust God, Chasm Skulker) and
+    your own draw-step extra draws.
+
+    * ``draw_matters|you|`` — a ``Drawn`` trigger, the card's own or one it
+      grants (Diviner's Wand's equipped creature) or puts on an emblem
+      (Teferi, Hero of Dominaria's): :func:`iter_unit_trigger_defs`. Its
+      watched scope is not the opponent (the opponent-draw punisher —
+      Bowmasters, Nekusar — is ``opponent_draw_matters``), not the enchanted
+      player (Curse of Fool's Wisdom, Psychic Possession — an Aura on another
+      player), and a symmetric watcher that hurts the drawer (Phyrexian
+      Tyranny, Spiteful Visions — :func:`hurts_triggering_player`) is a
+      punisher, not a payoff.
+    * ``draw_matters|you|draw_step`` — an extra draw at the beginning of your
+      draw step (:func:`_is_your_draw_step_draw`): an engine of the extra
+      draws the payoffs count, the doer side of the theme.
     """
+    out: list[Signal] = []
+    payoff = draw_step = False
     for unit in tree.units:
-        if unit.trigger_event != "drawn":
-            continue
-        if trigger_scope(unit.node) != "opponents":
-            return [Signal("draw_matters", "you", "", "", tree.name, "high")]
-    return []
+        # A trigger granted to an opponent or an opponent's object is theirs:
+        # its "you" is that player (Ob Nixilis Reignited's "Target opponent
+        # gets an emblem with 'Whenever a player draws a card, you lose 2
+        # life'").
+        theirs = filter_controller_side(_root_target_filter(unit)) == "opponents"
+        for trig in iter_unit_trigger_defs(unit):
+            if trig is not unit.node and theirs:
+                continue
+            if not payoff and trigger_def_event(trig) == "drawn":
+                scope = trigger_scope(trig)
+                if (
+                    scope != "opponents"
+                    and tag_of(getattr(trig, "valid_target", None)) != "AttachedTo"
+                    and not (scope != "you" and hurts_triggering_player(trig))
+                ):
+                    payoff = True
+                    out.append(Signal("draw_matters", "you", "", "", tree.name, "high"))
+            if not draw_step and _is_your_draw_step_draw(unit, trig):
+                draw_step = True
+                out.append(
+                    Signal("draw_matters", "you", "draw_step", "", tree.name, "high")
+                )
+    return out
 
 
 def _is_creature_animator(unit: object, scopes: tuple[str, ...] = ("you",)) -> bool:
@@ -1380,6 +1460,35 @@ def _type_changer_zone(affected: object, preds: set[str]) -> str | None:
     return None
 
 
+def _single_target_type_changes(
+    unit: AbilityUnit, node: object
+) -> list[tuple[str, str, str, str]]:
+    """The ``_type_changer_static_reads`` rows of one static def that makes a
+    single TARGET creature the creature type of your choice or every type
+    (Imagecrafter / Unnatural Selection's "Target creature becomes that type
+    until end of turn", Trickery Charm, Amoeboid Changeling's "gains all
+    creature types"): CR 613.1d, a layer-4 type-changing effect; CR 205.1a,
+    the chosen type replaces the creature's others. Only a target either
+    player's creature can be (controller unset), scoped "any" — the tool that
+    forces another player's creature into a type a hoser punishes — which
+    ADR-0040's tribal serves (scopes you / each) never read: a single target
+    grows no tribe. A fixed subtype on one target is a polymorph (Turn to
+    Frog), a reanimation rider or a land animation, never a changer of
+    choice, so it is left out (:func:`creature_type_change_kinds`)."""
+    target = _root_target_filter(unit)
+    if (
+        target is None
+        or "Creature" not in filter_core_types(target)
+        or filter_controller(target) is not None
+        or filter_inzone_zones(target)
+    ):
+        return []
+    return [
+        ("any", "all" if kind == "all" else "", _site_raw(node), "battlefield")
+        for kind in creature_type_change_kinds(node)
+    ]
+
+
 def _type_changer_static_reads(
     tree: ConceptTree,
 ) -> list[tuple[str, str, str, str]]:
@@ -1397,7 +1506,8 @@ def _type_changer_static_reads(
     ``RemoveAllAbilities``/``SetPower``/``SetToughness``, a one-shot
     polymorph on a player-chosen board, not a Granter serving yours).
     Controller You → scope "you"; a bare "each/other creatures" static
-    (Kudo) → "each" (it grows YOUR side too)."""
+    (Kudo) → "each" (it grows YOUR side too). A def over a single TARGET
+    creature reads :func:`_single_target_type_changes` (scope "any")."""
     out: list[tuple[str, str, str, str]] = []
     for unit in tree.units:
         for node in iter_static_defs(unit.node):
@@ -1408,6 +1518,9 @@ def _type_changer_static_reads(
                 continue
             affected = getattr(node, "affected", None)
             if affected is None:
+                continue
+            if tag_of(affected) == "ParentTarget":
+                out.extend(_single_target_type_changes(unit, node))
                 continue
             preds = set(filter_predicates(affected))
             if preds & ATTACHED_OBJECT_PREDICATES:
@@ -1468,6 +1581,11 @@ def _type_changers(tree: ConceptTree) -> list[Signal]:
     """type_changers (+_all_zones / +_graveyard) — mass creature-type changers
     (CR 613.1d layer 4), the ADR-0040 extraction prerequisite: Leyline of
     Transformation was the Sliver benchmark's falsely-filler build-around.
+
+    Scopes: "you" / "each" for a mass changer, "any" for a single target
+    creature made the type of your choice or every type (Imagecrafter,
+    Amoeboid Changeling — :func:`_single_target_type_changes`, which the
+    tribal serves never read).
 
     Subjects: "" = the chosen type (``AddChosenSubtype`` kind=CreatureType,
     Xenograft), "all" = every creature type (``AddAllCreatureTypes``,

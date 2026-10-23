@@ -12,7 +12,7 @@ negative cards below.
 import pytest
 from conftest import extra
 
-from mtg_utils._analysis.signal_specs import Serve, spec_for
+from mtg_utils._analysis.signal_specs import Serve, avenue_spec_for, spec_for
 from mtg_utils._analysis.signals import Signal
 from mtg_utils.testkit import test_card, test_card_ir
 
@@ -783,3 +783,184 @@ def test_flash_grant_serve_rides_the_lane():
     serve = _ident_serve("flash_grant", "you", "flash_grant|you|")
     assert serve.matches(_card("Vedalken Orrery"))
     assert serve.matches(_card("Leyline of Anticipation"))
+
+
+# ── Pass E: Phase D lane fixes freed these serves from their oracle regexes ───
+
+
+def test_blink_serve_rides_the_enabler_ident():
+    serve = _ident_serve("blink_flicker", "you", "blink_flicker|you|enabler")
+    # A delayed return at the next end step was invisible to the regex.
+    assert serve.matches(_card("Astral Slide"))
+    assert serve.matches(_card("Restoration Angel"))
+    # Earthbend's reminder text returns a land; it isn't a flicker.
+    assert not serve.matches(_card("Badgermole"))
+
+
+def test_self_blink_serve_adds_the_blink_enablers():
+    serve = _ident_serve(
+        "self_blink", "you", "self_blink|you|", "blink_flicker|you|enabler"
+    )
+    assert serve.matches(_card("Aetherling"))
+    assert serve.matches(_card("Astral Slide"))
+    assert not serve.matches(_card("Badgermole"))
+
+
+def test_power_matters_serve_drops_costs_that_merely_name_a_power():
+    serve = _ident_serve("power_matters", "you", "power_matters|you|")
+    assert serve.power_min == 4
+    # "the greatest power among creatures you control" is the lane's payoff.
+    assert serve.matches(_card("Essence Harvest"))
+    # Casualty names a power to sacrifice; it rewards nothing about big creatures.
+    assert not serve.matches(_card("A Little Chat"))
+
+
+def test_protection_grant_serve_drops_self_shroud():
+    serve = _ident_serve("protection_grant", "you", "protection_grant|you|")
+    assert serve.matches(_card("Adept Watershaper"))
+    # A creature granting itself shroud is no grant to your board.
+    assert not serve.matches(_card("Advanced Hoverguard"))
+
+
+def test_secret_writedown_serve_rides_the_lane():
+    serve = _ident_serve(
+        "secret_writedown",
+        "you",
+        "secret_writedown|you|",
+        "secret_writedown|you|learn",
+    )
+    assert serve.matches(_card("Eyetwitch"))
+    assert serve.matches(_card("A Killer Among Us"))
+
+
+@pytest.mark.parametrize("key", ["graveyard_makers", "graveyard_matters"])
+def test_opponent_graveyard_serves_ride_the_lanes_and_opponent_mill(key):
+    serve = _ident_serve(
+        key,
+        "opponents",
+        "graveyard_makers|opponents|",
+        "graveyard_matters|opponents|",
+        "mill_makers|opponents|",
+    )
+    assert serve.matches(_card("Codex Shredder"))
+    assert serve.matches(_card("Bojuka Bog"))
+    # Ingest and impulse-theft text exile an opponent's library, not a graveyard.
+    assert not serve.matches(_card("Nightveil Specter"))
+
+
+def test_tokens_matter_serve_rides_the_lane_and_amass():
+    serve = _ident_serve(
+        "tokens_matter", "you", "tokens_matter|you|*", "amass_makers|you|"
+    )
+    assert "mobilize" in serve.keywords
+    assert serve.matches(_card("Anointed Procession"))
+    assert serve.matches(_card("Commence the Endgame"))
+    # A token copy of a graveyard card is a maker, not a payoff for tokens.
+    assert not serve.matches(_card("Abyssal Harvester"))
+
+
+def test_color_hoser_serve_drops_printed_protection():
+    serve = _ident_serve("color_hoser", "you", "color_hoser|you|", "color_change|you|")
+    assert serve.matches(_card("Blue Elemental Blast"))
+    assert serve.matches(_card("Light of Day"))
+    assert not serve.matches(_card("Abbey Gargoyles"))
+
+
+def test_has_banding_serve_keeps_the_keyword_and_the_lane():
+    serve = _ident_serve("has_banding", "you", "has_banding|you|")
+    assert "banding" in serve.keywords
+    assert serve.matches(_card("Timber Wolves"))
+    # A one-shot banding grant is no banding creature.
+    assert not serve.matches(_card("Nature's Blessing"))
+
+
+@pytest.mark.parametrize(
+    ("key", "scope"), [("stax_taxes", "opponents"), ("symmetric_stax", "each")]
+)
+def test_stax_serves_ride_the_two_stax_lanes(key, scope):
+    serve = _ident_serve(key, scope, "stax_taxes|opponents|", "symmetric_stax|each|")
+    for name in ("Magus of the Moon", "Burning Earth", "Fatespinner"):
+        assert serve.matches(_card(name)), name
+    # A ramp spell and a life-for-cards engine are not stax.
+    assert not serve.matches(_card("Rampant Growth"))
+    assert not serve.matches(_card("Necropotence"))
+
+
+def test_creature_recursion_serve_is_the_self_sacrifice_outlets():
+    serve = _ident_serve("creature_recursion", "you", "sacrifice_outlets|you|self")
+    assert serve.matches(_card("Spore Frog"))
+    assert serve.matches(_card("Sakura-Tribe Elder"))
+    assert not serve.matches(_card("Aboroth"))
+
+
+@pytest.mark.parametrize(
+    ("key", "payoff_key", "maker", "payoff", "drawback"),
+    [
+        (
+            "extra_upkeep",
+            "upkeep_triggers",
+            "Sphinx of the Second Sun",
+            "Asylum Visitor",
+            "Juzám Djinn",
+        ),
+        (
+            "extra_end_step",
+            "end_step_triggers",
+            "Y'shtola Rhul",
+            "Abiding Grace",
+            "Blitz Hellion",
+        ),
+        (
+            "extra_draw_step",
+            "draw_step_triggers",
+            "Sphinx of the Second Sun",
+            "Omen Machine",
+            "Mana Vault",
+        ),
+    ],
+)
+def test_extra_step_serve_is_the_makers_and_the_payoffs(
+    key, payoff_key, maker, payoff, drawback
+):
+    serve = _ident_serve(key, "you", f"{key}|you|", f"{payoff_key}|you|")
+    assert serve.matches(_card(maker))
+    assert serve.matches(_card(payoff))
+    # A step trigger that only costs you is no payoff: an added step repeats it.
+    assert not serve.matches(_card(drawback))
+    spec = spec_for(_sig(key))
+    # The payoff key resolves to the same spec but opens no avenue of its own:
+    # hundreds of commanders carry a step trigger.
+    assert spec_for(_sig(payoff_key)) == spec
+    assert avenue_spec_for(_sig(payoff_key)) is None
+    assert avenue_spec_for(_sig(key)) == spec
+
+
+def test_attack_matters_serve_rides_the_combat_lanes():
+    serve = _ident_serve(
+        "attack_matters",
+        "you",
+        "attack_matters|you|",
+        "token_maker|you|*",
+        "combat_damage_matters|opponents|",
+        "extra_turns|you|",
+        "team_buff|you|haste",
+        "team_evasion_grant|you|*",
+    )
+    assert "haste" in serve.keywords
+    assert serve.matches(_card("Hellrider"))
+    # Cipher is a combat-damage payoff, served by that lane.
+    assert serve.matches(_card("Hidden Strings"))
+    assert serve.matches(_card("Time Warp"))
+    # Dash's reminder text grants haste; the card is no haste enabler.
+    assert not serve.matches(_card("Alesha's Vanguard"))
+    # A shrinking Aura is removal, not gear for the attacker.
+    assert not serve.matches(_card("Aether Meltdown"))
+
+
+def test_attack_matters_equipment_extra_suits_up_the_attacker():
+    spec = spec_for(_sig("attack_matters"))
+    assert spec is not None
+    gear = extra(spec, "Equipment and Auras that suit up the attacker")
+    assert gear.serve is not None
+    assert gear.serve.matches(_card("Bonesplitter"))
+    assert not gear.serve.matches(_card("Aether Meltdown"))
