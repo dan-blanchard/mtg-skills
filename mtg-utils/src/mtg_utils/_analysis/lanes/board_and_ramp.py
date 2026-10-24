@@ -64,6 +64,7 @@ from mtg_utils._card_ir.crosswalk import (
     adds_creature_type,
     aggregate_filter,
     change_zone_dirs,
+    controller_paid_cost_leaves,
     count_distinct_operand_filter,
     count_operand_filter,
     effect_filter,
@@ -1715,12 +1716,17 @@ def _non_animation_clauses(tree: ConceptTree) -> list[str]:
     "+1/+1 for each artifact you control"). A clause and a description are
     matched by :func:`unclaimed_clauses`.
 
-    The mirrors keep reading oracle clauses, not the units' descriptions plus
-    the residue text: no unit carries a keyword line (Affinity for artifacts,
-    Improvise), an ability word (Metalcraft), a Saga chapter's text (its unit
-    reads "Chapter 3"), a modal bullet's header or a spell's additional cost,
-    so 66 cards whose only read is such a line (Frogmite, Galvanic Blast, Age
-    of Ultron, Disruption Protocol) lost the key when measured (2026-10-23)."""
+    The mirrors keep reading oracle clauses, not every description in the
+    unclaimed units (nested ones included — Galvanic Blast's metalcraft rider)
+    plus the root's mode text: measured 2026-10-24 with the affinity, improvise
+    and tap-cost payoffs read off the tree, that shape still drops 10 real
+    payoffs whose only read is text phase leaves off every node — a Saga
+    chapter's (Age of Ultron, Origin of Iron Man, Yotia Declares War, Fugitive
+    of the Judoon: the unit reads "Chapter 3"), a trigger's bullets (Venser,
+    Corpse Puppet), a modal header's condition (Soul Transfer), an alternative
+    cost (Zahid), "Enchant artifact you control" (Hardlight Containment), a
+    delayed trigger (Rite of Harmony), and a condition phase drops (Platinum
+    Angel Avatar)."""
     claimed: list[object] = []
     for unit in tree.units:
         animating = [d for d in iter_static_defs(unit.node) if adds_creature_type(d)]
@@ -1971,6 +1977,33 @@ def _artifacts_enchantments_matter(tree: ConceptTree) -> list[Signal]:
                 out.append("artifacts_matter")
             if "Enchantment" in cores:
                 out.append("enchantments_matter")
+    # TAP-COST PAYOFF — a cost you pay by tapping untapped artifacts or
+    # enchantments you control: an activation cost ("Tap an untapped artifact you
+    # control:"), a spell's additional cost (Disruption Protocol's "tap an
+    # untapped artifact you control or pay {1}", CR 601.2b). Only the unit's
+    # controller pays it (``controller_paid_cost_leaves``), from their own board.
+    # An alternative of types ("artifacts and/or creatures" — Citanul Stalwart,
+    # Warlord's Elite) is paid as well without one, so it counts only when every
+    # alternative names the type.
+    for unit in tree.units:
+        for paid in controller_paid_cost_leaves(unit):
+            if tag_of(paid.leaf) != "TapCreatures":
+                continue
+            filt = getattr(paid.leaf, "filter", None)
+            if filter_controller(filt) not in (None, "You"):
+                continue
+            arms = (
+                getattr(filt, "filters", None) or ()
+                if tag_of(filt) == "Or"
+                else (filt,)
+            )
+            if arms and all(
+                _names_artifact_kind(filter_core_types(a) + filter_subtypes(a))
+                for a in arms
+            ):
+                out.append("artifacts_matter")
+            if arms and all("Enchantment" in filter_core_types(a) for a in arms):
+                out.append("enchantments_matter")
     # generic-board static anthem/grant (Padeem) — read the static's affected filter.
     # A static that ALSO makes its objects creatures (Bello, Bard of the Brambles'
     # "is a 4/4 Elemental creature in addition to its other types"; March of the
@@ -2115,12 +2148,13 @@ def _artifacts_enchantments_matter(tree: ConceptTree) -> list[Signal]:
     # ADR-0038 W4 giant — a SANCTIONED byte-identical port of legacy's
     # ``_ARTIFACTS_MATTER_MIRROR`` (the LIVE constant, imported not re-typed):
     # phase carries no clean structural shape for this oracle-idiom family —
-    # Affinity/Improvise/Metalcraft keyword payoffs (CR 702.41/702.126/207.2c),
-    # artifact tutors and graveyard recursion, "abilities of artifacts",
-    # "becomes an artifact" — so the legacy per-clause reminder-stripped-
-    # oracle scan is the last-resort mechanism. Corpus-verified in the legacy
-    # path (regex_only==22, ALL affinity-for-non-artifact over-fire, 0
-    # genuine recall lost by the narrowed `affinity for artifacts` branch).
+    # Metalcraft ability-word payoffs (CR 207.2c; affinity and improvise are read
+    # off the keywords below too), artifact tutors and graveyard recursion,
+    # "abilities of artifacts", "becomes an artifact" — so the legacy
+    # per-clause reminder-stripped-oracle scan is the last-resort mechanism.
+    # Corpus-verified in the legacy path (regex_only==22, ALL
+    # affinity-for-non-artifact over-fire, 0 genuine recall lost by the
+    # narrowed `affinity for artifacts` branch).
     # Run PER-CLAUSE over ``_kept(tree)`` to match the legacy clause loop.
     payoff_clauses = _non_animation_clauses(tree)
     if any(_ARTIFACTS_MATTER_MIRROR.search(cl) for cl in payoff_clauses):
@@ -2145,37 +2179,23 @@ def _artifacts_enchantments_matter(tree: ConceptTree) -> list[Signal]:
     # of Fate's Design; Creeping Peeper's mana) — CR 601.2i.
     if any(_ENCHANTMENTS_CAST_MIRROR.search(cl) for cl in payoff_clauses):
         cast_out.append("enchantments_matter")
-    # AFFINITY-FOR-EQUIPMENT doer (ADR-0038 W4 giant): Equipment IS an
-    # Artifact subtype (CR 301.5), so "Affinity for Equipment" (Nahiri,
-    # Forged in Fury; Goldwardens' Gambit; Oxidda Finisher; Rebel Salvo) is
-    # a genuine artifact-count cost reducer — phase's own raw keyword node
-    # tags it with the implied ``Artifact`` core type alongside the
-    # ``Equipment`` subtype (mirrors legacy's ``_affinity_improvise_
-    # markers``), but that raw ``root.keywords`` array isn't in the typed
-    # substrate's unit walk. The narrowed mirror above deliberately keeps
-    # `affinity for artifacts` (not bare ``\baffinity\b``) to drop the 22
-    # affinity-for-non-artifact over-fires (Icebreaker Kraken's snow
-    # affinity, Argivian Phalanx's creature affinity) — this is the ONE
-    # additional affinity spelling that IS an artifact tell, checked
-    # separately so the mirror stays byte-identical to the live constant.
-    # CR 702.41a / 301.5.
-    if "affinity for equipment" in _kept(tree).lower():
+    # KEYWORD payoffs, read off the card's printed keywords rather than its text:
+    # "Affinity for [text]" (CR 702.41a: "costs {1} less to cast for each [text]
+    # you control") over an artifact kind — artifacts, Equipment (CR 301.5),
+    # artifact creatures — or enchantments (Brine Giant), and Improvise (CR
+    # 702.126a: "you may tap an untapped artifact you control rather than pay
+    # that mana"). Each wants that population on your board. Affinity for a
+    # Treasure / Clue / Food kind is that token's own payoff
+    # (:func:`is_unserved_artifact_kind`).
+    for kw, words in tree.card_keyword_types:
+        if kw != "Affinity":
+            continue
+        if _names_artifact_kind(words):
+            out.append("artifacts_matter")
+        if "Enchantment" in words:
+            out.append("enchantments_matter")
+    if "Improvise" in tree.card_keywords:
         out.append("artifacts_matter")
-    # AFFINITY-FOR-ENCHANTMENTS doer (ADR-0038 W4 giant): "Affinity for
-    # enchantments" (Brine Giant) is a bare KEYWORD LINE, not a
-    # ``you control`` phrase — the reminder text carrying "for each
-    # enchantment you control" is stripped by ``_kept`` (parenthetical), so
-    # ``_ENCHANTMENTS_MATTER_MIRROR``'s ``\benchantments? you control\b``
-    # branch never sees it, unlike the sibling ``_ARTIFACTS_MATTER_MIRROR``
-    # which bakes an explicit ``affinity for artifacts`` alternation in
-    # (ARTIFACTS_MATTER_REGEX) — ENCHANTMENTS_MATTER_REGEX carries no such
-    # branch. legacy fires this structurally (its own projector turns the
-    # bare ``Affinity`` keyword into a synthetic count-operand effect), but
-    # phase's raw keyword node isn't in the typed substrate's unit walk —
-    # same gap the AFFINITY-FOR-EQUIPMENT arm above papers over for
-    # artifacts. CR 702.41a / 303.
-    if "affinity for enchantments" in _kept(tree).lower():
-        out.append("enchantments_matter")
     idents = (
         [(lane, "") for lane in out]
         + [(lane, "cast") for lane in cast_out]

@@ -62,6 +62,51 @@ def test_a_self_animation_keeps_the_payoff_it_grants():
     )
 
 
+def _tree_only_payoffs(name: str) -> set[str]:
+    """The type-payoff keys the lane reads off the card's tree alone: its oracle
+    blanked, so the text mirrors read nothing."""
+    from dataclasses import replace
+
+    from mtg_utils._analysis.lanes import _artifacts_enchantments_matter
+    from mtg_utils._analysis.signal_trees import signal_trees_for
+
+    test_signals(name)  # seeds the snapshot's trees (CI-safe)
+    return {
+        s.key
+        for tree in signal_trees_for(test_card(name))
+        for s in _artifacts_enchantments_matter(replace(tree, oracle=""))
+        if s.subject == ""
+    }
+
+
+@pytest.mark.parametrize(
+    ("name", "key"),
+    [
+        ("Thoughtcast", "artifacts_matter"),  # affinity for artifacts (702.41a)
+        ("Nahiri, Forged in Fury", "artifacts_matter"),  # affinity for Equipment
+        ("Brine Giant", "enchantments_matter"),  # affinity for enchantments
+        ("Metallic Rebuke", "artifacts_matter"),  # improvise (CR 702.126a)
+        # "As an additional cost to cast this spell, tap an untapped artifact you
+        # control or pay {1}" (CR 601.2b)
+        ("Disruption Protocol", "artifacts_matter"),
+    ],
+)
+def test_keyword_and_tap_cost_payoffs_read_off_the_tree(name, key):
+    assert key in _tree_only_payoffs(name)
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Banquet Guests",  # affinity for Food: Food's own payoff
+        "Citanul Stalwart",  # "Tap an untapped artifact or creature you control"
+        "Warlord's Elite",  # "tap two untapped artifacts, creatures, and/or lands"
+    ],
+)
+def test_no_artifact_payoff_where_another_type_pays(name):
+    assert "artifacts_matter" not in _tree_only_payoffs(name)
+
+
 def test_resource_token_maker_keeps_its_own_lane():
     # A Treasure maker is treasure_makers' (CR 111.10a), never the token subject.
     idents = _idents("Smothering Tithe")

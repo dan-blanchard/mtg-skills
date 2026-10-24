@@ -231585,6 +231585,200 @@
     "type_line": "Creature — Human Druid"
    }
   },
+  "Citanul Stalwart": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": {
+        "costs": [
+         {
+          "type": "Tap"
+         },
+         {
+          "filter": {
+           "filters": [
+            {
+             "controller": "You",
+             "properties": [],
+             "type": "Typed",
+             "type_filters": [
+              "Artifact"
+             ]
+            },
+            {
+             "controller": "You",
+             "properties": [],
+             "type": "Typed",
+             "type_filters": [
+              "Creature"
+             ]
+            }
+           ],
+           "type": "Or"
+          },
+          "requirement": {
+           "count": 1,
+           "requirement": "count"
+          },
+          "type": "TapCreatures"
+         }
+        ],
+        "type": "Composite"
+       },
+       "description": "{T}, Tap an untapped artifact or creature you control: Add one mana of any color.",
+       "duration": null,
+       "effect": {
+        "produced": {
+         "color_options": [
+          "White",
+          "Blue",
+          "Black",
+          "Red",
+          "Green"
+         ],
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "type": "AnyOneColor"
+        },
+        "type": "Mana"
+       },
+       "forward_result": false,
+       "is_mana_ability": true,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Elf",
+       "Druid",
+       "Soldier"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Green"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pauper": "legal",
+      "paupercommander": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 0,
+      "shards": [
+       "Green"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "a842a945-21d9-432c-b970-6da65b16f309"
+      ]
+     },
+     "name": "Citanul Stalwart",
+     "non_ability_text": null,
+     "oracle_text": "{T}, Tap an untapped artifact or creature you control: Add one mana of any color.",
+     "power": {
+      "type": "Fixed",
+      "value": 1
+     },
+     "printings": [
+      "BRO"
+     ],
+     "rarities": [
+      "common"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2022-10-14",
+       "text": "You can tap any untapped artifact or creature you control, including a creature you haven't controlled continuously since the beginning of your most recent turn, to pay the cost of Citanul Stalwart's activated ability. However, you must have controlled Citanul Stalwart continuously since the beginning of your most recent turn."
+      }
+     ],
+     "scryfall_oracle_id": "ce291948-125d-493d-8770-8b3aac515f9b",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 1
+     },
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 1.0,
+    "color_identity": [
+     "G"
+    ],
+    "colors": [
+     "G"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "legal",
+     "paupercommander": "legal",
+     "penny": "not_legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{G}",
+    "name": "Citanul Stalwart",
+    "oracle_id": "ce291948-125d-493d-8770-8b3aac515f9b",
+    "oracle_text": "{T}, Tap an untapped artifact or creature you control: Add one mana of any color.",
+    "power": "1",
+    "produced_mana": [
+     "B",
+     "G",
+     "R",
+     "U",
+     "W"
+    ],
+    "toughness": "1",
+    "type_line": "Creature — Elf Druid Soldier"
+   }
+  },
   "City of Solitude": {
    "phase_records": [
     {
@@ -316813,6 +317007,157 @@
     "oracle_id": "9b084cd4-cc21-4f3a-9ac5-1e1160a31aa6",
     "oracle_text": "Goad all creatures you don't control. (Until your next turn, those creatures attack each combat if able and attack a player other than you if able.)",
     "type_line": "Sorcery"
+   }
+  },
+  "Disruption Protocol": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Counter target spell.",
+       "duration": null,
+       "effect": {
+        "target": {
+         "type": "StackSpell"
+        },
+        "type": "Counter"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "additional_cost": {
+      "data": [
+       {
+        "filter": {
+         "controller": "You",
+         "properties": [],
+         "type": "Typed",
+         "type_filters": [
+          "Artifact"
+         ]
+        },
+        "requirement": {
+         "count": 1,
+         "requirement": "count"
+        },
+        "type": "TapCreatures"
+       },
+       {
+        "cost": {
+         "generic": 1,
+         "shards": [],
+         "type": "Cost"
+        },
+        "type": "Mana"
+       }
+      ],
+      "type": "Choice"
+     },
+     "card_type": {
+      "core_types": [
+       "Instant"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Blue"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pauper": "legal",
+      "paupercommander": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 0,
+      "shards": [
+       "Blue",
+       "Blue"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "053ab598-06a4-43ae-b9fd-c291bd05642c"
+      ]
+     },
+     "name": "Disruption Protocol",
+     "non_ability_text": null,
+     "oracle_text": "As an additional cost to cast this spell, tap an untapped artifact you control or pay {1}.\nCounter target spell.",
+     "power": null,
+     "printings": [
+      "NEO"
+     ],
+     "rarities": [
+      "common"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "4ca3306b-06f7-4a09-b904-f5540d11ddf1",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 2.0,
+    "color_identity": [
+     "U"
+    ],
+    "colors": [
+     "U"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "legal",
+     "paupercommander": "legal",
+     "penny": "not_legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{U}{U}",
+    "name": "Disruption Protocol",
+    "oracle_id": "4ca3306b-06f7-4a09-b904-f5540d11ddf1",
+    "oracle_text": "As an additional cost to cast this spell, tap an untapped artifact you control or pay {1}.\nCounter target spell.",
+    "type_line": "Instant"
    }
   },
   "Dissolve": {
@@ -678575,6 +678920,177 @@
     "type_line": "Artifact Creature — Shapeshifter"
    }
   },
+  "Metallic Rebuke": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Counter target spell unless its controller pays {3}.",
+       "duration": null,
+       "effect": {
+        "target": {
+         "type": "StackSpell"
+        },
+        "type": "Counter"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null,
+       "unless_pay": {
+        "cost": {
+         "cost": {
+          "generic": 3,
+          "shards": [],
+          "type": "Cost"
+         },
+         "type": "Mana"
+        },
+        "payer": {
+         "type": "ParentTargetController"
+        }
+       }
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Instant"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Blue"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [
+      "Improvise"
+     ],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pauper": "legal",
+      "paupercommander": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 2,
+      "shards": [
+       "Blue"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "34785944-7b51-48a9-855c-3e656cd78251",
+       "9e570f79-9710-4c2f-838e-a2ac33fd7000",
+       "ba14bbe1-c9e9-4d59-9767-7c7b966d095a",
+       "f712ac26-dca4-459b-84c1-010597007f60"
+      ]
+     },
+     "name": "Metallic Rebuke",
+     "non_ability_text": null,
+     "oracle_text": "Improvise (Your artifacts can help cast this spell. Each artifact you tap after you're done activating mana abilities pays for {1}.)\nCounter target spell unless its controller pays {3}.",
+     "power": null,
+     "printings": [
+      "2XM",
+      "AER",
+      "KLR",
+      "PLST"
+     ],
+     "rarities": [
+      "common"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2020-08-07",
+       "text": "Equipment attached to a creature doesn't become tapped when that creature becomes tapped, and tapping that Equipment doesn't cause the creature to become tapped."
+      },
+      {
+       "date": "2020-08-07",
+       "text": "If an artifact you control has a mana ability with {T} in the cost, activating that ability while casting a spell with improvise will result in the artifact being tapped when you pay the spell's costs. You won't be able to tap it again for improvise. Similarly, if you sacrifice an artifact to activate a mana ability while casting a spell with improvise, that artifact won't be on the battlefield when you pay the spell's costs, so you won't be able to tap it for improvise."
+      },
+      {
+       "date": "2020-08-07",
+       "text": "Improvise can't pay for {U} in Metallic Rebuke's total cost."
+      },
+      {
+       "date": "2020-08-07",
+       "text": "Improvise doesn't change a spell's mana cost or mana value."
+      },
+      {
+       "date": "2020-08-07",
+       "text": "Tapping an artifact won't cause its abilities to stop applying unless those abilities say so."
+      },
+      {
+       "date": "2020-08-07",
+       "text": "When calculating a spell's total cost, include any alternative costs, additional costs, or anything else that increases or reduces the cost to cast the spell. Improvise applies after the total cost is calculated."
+      }
+     ],
+     "scryfall_oracle_id": "c4920e95-a6fc-4373-a0d6-244f51851364",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 3.0,
+    "color_identity": [
+     "U"
+    ],
+    "colors": [
+     "U"
+    ],
+    "keywords": [
+     "Improvise"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "legal",
+     "paupercommander": "legal",
+     "penny": "not_legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}{U}",
+    "name": "Metallic Rebuke",
+    "oracle_id": "c4920e95-a6fc-4373-a0d6-244f51851364",
+    "oracle_text": "Improvise (Your artifacts can help cast this spell. Each artifact you tap after you're done activating mana abilities pays for {1}.)\nCounter target spell unless its controller pays {3}.",
+    "type_line": "Instant"
+   }
+  },
   "Metallurgic Summonings": {
    "phase_records": [
     {
@@ -714809,6 +715325,287 @@
     "power": "2",
     "toughness": "4",
     "type_line": "Legendary Creature — Elf Scout"
+   }
+  },
+  "Nahiri, Forged in Fury": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "brawl_commander": true,
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Kor",
+       "Artificer"
+      ],
+      "supertypes": [
+       "Legendary"
+      ]
+     },
+     "color_identity": [
+      "Red",
+      "White"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "is_commander": true,
+     "keywords": [
+      {
+       "Affinity": {
+        "controller": null,
+        "properties": [],
+        "type_filters": [
+         "Artifact",
+         {
+          "Subtype": "Equipment"
+         }
+        ]
+       }
+      }
+     ],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 4,
+      "shards": [
+       "Red",
+       "White"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "4891486a-9c35-4666-83b0-9fcb1da5d126",
+       "669271c6-27d3-40d3-8054-4555d38269f3",
+       "90eb0859-d24e-4703-8930-1cd4ac1fb3b6",
+       "96f2d1fe-e337-4a98-b861-094250068432",
+       "bc3c9437-a7e3-4098-992c-ffc929ee0e6e"
+      ]
+     },
+     "name": "Nahiri, Forged in Fury",
+     "non_ability_text": null,
+     "oracle_text": "Affinity for Equipment (This spell costs {1} less to cast for each Equipment you control.)\nWhenever an equipped creature you control attacks, exile the top card of your library. You may play that card this turn. You may cast Equipment spells this way without paying their mana costs.",
+     "power": {
+      "type": "Fixed",
+      "value": 5
+     },
+     "printings": [
+      "MAT"
+     ],
+     "rarities": [
+      "mythic"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2023-05-12",
+       "text": "An \"equipped creature you control\" is any creature you control with one or more Equipment attached to it."
+      },
+      {
+       "date": "2023-05-12",
+       "text": "If you cast an Equipment spell this way, you may choose to pay its mana cost if you want to."
+      },
+      {
+       "date": "2023-05-12",
+       "text": "If you don't play the card, it will remain exiled."
+      },
+      {
+       "date": "2023-05-12",
+       "text": "Nahiri's last ability will trigger once for each equipped creature you control that attacks, no matter how many Equipment are attached to any of them."
+      },
+      {
+       "date": "2023-05-12",
+       "text": "One reason you might want to pay its mana cost is if there's an {X} in its mana cost. If you cast such a spell without paying its mana cost, you must choose 0 as the value of X. (If you pay its mana cost, you may choose the value of X as normal.)"
+      },
+      {
+       "date": "2023-05-12",
+       "text": "Playing the exiled card follows the normal rules for playing that card. Unless you're casting an Equipment spell this way, you must pay the spell's costs, and you must follow all applicable timing rules. For example, if the card is a creature card, you can cast that card by paying its mana cost only during your main phase while the stack is empty."
+      },
+      {
+       "date": "2023-05-12",
+       "text": "Unless an effect allows you to play additional lands that turn, you can play a land card exiled with Nahiri only if you haven't played a land yet that turn."
+      },
+      {
+       "date": "2023-05-12",
+       "text": "You may play the card exiled with Nahiri's ability even if Nahiri or the equipped creature leaves the battlefield or you lose control of them."
+      }
+     ],
+     "scryfall_oracle_id": "87966759-206a-4a2d-bf78-86f727c29972",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 4
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever an equipped creature you control attacks, exile the top card of your library. You may play that card this turn. You may cast Equipment spells this way without paying their mana costs.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "player": {
+          "type": "Controller"
+         },
+         "position": {
+          "type": "Top"
+         },
+         "type": "ExileTop"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "permission": {
+           "duration": "UntilEndOfTurn",
+           "granted_to": 0,
+           "type": "PlayFromExile"
+          },
+          "target": {
+           "id": 0,
+           "type": "TrackedSet"
+          },
+          "type": "GrantCastingPermission"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": {
+          "condition": null,
+          "cost": null,
+          "description": null,
+          "duration": null,
+          "effect": {
+           "mode": "Cast",
+           "target": {
+            "controller": null,
+            "properties": [],
+            "type": "Typed",
+            "type_filters": [
+             {
+              "Subtype": "Equipment"
+             }
+            ]
+           },
+           "type": "CastFromZone",
+           "without_paying_mana_cost": true
+          },
+          "forward_result": false,
+          "kind": "Spell",
+          "optional": true,
+          "optional_targeting": false,
+          "sub_ability": null,
+          "sub_link": "SequentialSibling",
+          "target_choice_timing": "Resolution",
+          "target_prompt": null
+         },
+         "sub_link": "SequentialSibling",
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "mode": "Attacks",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "controller": "You",
+        "properties": [
+         {
+          "type": "EquippedBy"
+         }
+        ],
+        "type": "Typed",
+        "type_filters": [
+         "Creature"
+        ]
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 6.0,
+    "color_identity": [
+     "R",
+     "W"
+    ],
+    "colors": [
+     "R",
+     "W"
+    ],
+    "keywords": [
+     "Affinity"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{4}{R}{W}",
+    "name": "Nahiri, Forged in Fury",
+    "oracle_id": "87966759-206a-4a2d-bf78-86f727c29972",
+    "oracle_text": "Affinity for Equipment (This spell costs {1} less to cast for each Equipment you control.)\nWhenever an equipped creature you control attacks, exile the top card of your library. You may play that card this turn. You may cast Equipment spells this way without paying their mana costs.",
+    "power": "5",
+    "toughness": "4",
+    "type_line": "Legendary Creature — Kor Artificer"
    }
   },
   "Nahiri, Heir of the Ancients": {
@@ -1027713,6 +1028510,166 @@
     "type_line": "Creature — Bird Beast"
    }
   },
+  "Thoughtcast": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Draw two cards.",
+       "duration": null,
+       "effect": {
+        "count": {
+         "type": "Fixed",
+         "value": 2
+        },
+        "target": {
+         "type": "Controller"
+        },
+        "type": "Draw"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Sorcery"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Blue"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [
+      {
+       "Affinity": {
+        "controller": null,
+        "properties": [],
+        "type_filters": [
+         "Artifact"
+        ]
+       }
+      }
+     ],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pauper": "legal",
+      "paupercommander": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 4,
+      "shards": [
+       "Blue"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "0baa33b1-c37c-4d62-a7c9-c08e5ac9724a",
+       "0f9a3f71-d03c-4f32-bd9d-95a1d91c2ff5",
+       "2e394f7d-e246-42e6-924b-470e4bba62e1",
+       "3109aefc-7ca5-4329-ba70-75a4e8466a46",
+       "466a0be8-31b9-4ea0-9a96-b09a76f4ec69",
+       "895485a4-06b6-449d-8cf1-db08e52790e4",
+       "96e109f7-9be2-4ae0-a1e2-cfd296db84f1",
+       "a0d98f40-39bd-4f3a-9867-d273c1a299e7",
+       "b0c5d2c7-4219-4916-8afa-3369c8700553",
+       "e0aa9869-a05e-4a8b-8aa9-0224863a5fc5",
+       "efb965a7-877a-4302-b507-25b0a9e32d9b",
+       "f58d60b0-db5f-443e-8215-636f795d3c49",
+       "fc22d52e-0abf-4d35-b2f0-98642518b9e0"
+      ]
+     },
+     "name": "Thoughtcast",
+     "non_ability_text": null,
+     "oracle_text": "Affinity for artifacts (This spell costs {1} less to cast for each artifact you control.)\nDraw two cards.",
+     "power": null,
+     "printings": [
+      "BRC",
+      "DDF",
+      "FDC",
+      "J25",
+      "MM2",
+      "MOC",
+      "MRD",
+      "NEC",
+      "PLST",
+      "SPG",
+      "WC04"
+     ],
+     "rarities": [
+      "common",
+      "mythic"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "cce9bbff-82dc-4b2f-addd-d6715588de20",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 5.0,
+    "color_identity": [
+     "U"
+    ],
+    "colors": [
+     "U"
+    ],
+    "keywords": [
+     "Affinity"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "legal",
+     "paupercommander": "legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{4}{U}",
+    "name": "Thoughtcast",
+    "oracle_id": "cce9bbff-82dc-4b2f-addd-d6715588de20",
+    "oracle_text": "Affinity for artifacts (This spell costs {1} less to cast for each artifact you control.)\nDraw two cards.",
+    "type_line": "Sorcery"
+   }
+  },
   "Thoughtcutter Agent": {
    "phase_records": [
     {
@@ -1106494,6 +1107451,159 @@
     "oracle_id": "26f39abe-ea0b-400d-b11c-03ee4cf50915",
     "oracle_text": "Search your library for a permanent card with mana value X or less, put it onto the battlefield, then shuffle.",
     "type_line": "Sorcery"
+   }
+  },
+  "Warlord's Elite": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "additional_cost": {
+      "data": {
+       "filter": {
+        "filters": [
+         {
+          "controller": "You",
+          "properties": [],
+          "type": "Typed",
+          "type_filters": [
+           "Artifact"
+          ]
+         },
+         {
+          "controller": "You",
+          "properties": [],
+          "type": "Typed",
+          "type_filters": [
+           "Creature"
+          ]
+         },
+         {
+          "controller": "You",
+          "properties": [],
+          "type": "Typed",
+          "type_filters": [
+           "Land"
+          ]
+         }
+        ],
+        "type": "Or"
+       },
+       "requirement": {
+        "count": 2,
+        "requirement": "count"
+       },
+       "type": "TapCreatures"
+      },
+      "type": "Required"
+     },
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Human",
+       "Soldier"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "White"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pauper": "legal",
+      "paupercommander": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 2,
+      "shards": [
+       "White"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "1873cc9e-30b6-498e-b008-9d11a8bbf9b9"
+      ]
+     },
+     "name": "Warlord's Elite",
+     "non_ability_text": null,
+     "oracle_text": "As an additional cost to cast this spell, tap two untapped artifacts, creatures, and/or lands you control.",
+     "power": {
+      "type": "Fixed",
+      "value": 4
+     },
+     "printings": [
+      "BRO"
+     ],
+     "rarities": [
+      "common"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "ee2c8714-6e85-4eb5-9bd6-057b6abfb136",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 4
+     },
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 3.0,
+    "color_identity": [
+     "W"
+    ],
+    "colors": [
+     "W"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "legal",
+     "paupercommander": "legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}{W}",
+    "name": "Warlord's Elite",
+    "oracle_id": "ee2c8714-6e85-4eb5-9bd6-057b6abfb136",
+    "oracle_text": "As an additional cost to cast this spell, tap two untapped artifacts, creatures, and/or lands you control.",
+    "power": "4",
+    "toughness": "4",
+    "type_line": "Creature — Human Soldier"
    }
   },
   "Warmonger Hellkite": {

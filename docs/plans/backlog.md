@@ -86,16 +86,26 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   holding a one-shot animation of something other than the card itself (Rise
   and Shine, Alloy Animist, Skilled Animator and eight more lost
   `artifacts_matter|you|`; a self-animation keeps its ability's text — Iron
-  Man Armor's granted count). Running the mirrors over each non-claimed
-  unit's description plus the residue text instead is not sound yet: no unit
-  carries a keyword line (Affinity for artifacts, Improvise), an ability word
-  (Metalcraft), a Saga chapter's text (its unit reads "Chapter 3"), a modal
-  bullet's header or a spell's additional cost, and 66 cards whose only read is such a line (Frogmite,
-  Galvanic Blast, Age of Ultron, Disruption Protocol) lost the key when
-  measured. That shape needs those lines read off the tree first (the
-  keyword's own types — `ConceptTree.card_keyword_types` — the chapter and
-  mode units). (The pair rows read candidates without membership idents
-  since the fourth pass, so a card with both a cast and an enters payoff —
+  Man Armor's granted count). Running the mirrors over every description in
+  each non-claimed unit (nested ones too: Galvanic Blast's metalcraft rider)
+  plus the root's mode text instead is still not sound. Affinity for an
+  artifact kind or enchantments and improvise (`card_keyword_types` /
+  `card_keywords`) and a tap-artifacts cost (`controller_paid_cost_leaves`,
+  which now reaches a spell's additional `TapCreatures`) read off the tree
+  since 2026-10-24, so 27 of the cards it lost keep the key, but 10 real
+  payoffs still lose it, their only read being text no node carries: Saga chapters (Age of Ultron III's "artifact creatures you control
+  gain deathtouch", Origin of Iron Man, Yotia Declares War, Fugitive of the
+  Judoon — phase writes "Chapter N" and no chapter text; each needs its own
+  typed read), a trigger's bullets (Venser, Corpse Puppet —
+  `execute.modal.mode_descriptions`, which the shape would have to read), a
+  modal header's condition (Soul Transfer — a root `modal.constraints`
+  `ConditionalMaxChoices` no tree field carries), an alternative cost (Zahid —
+  `casting_options` keeps only PayLife and has no Spell carrier on a creature),
+  "Enchant artifact you control" (Hardlight Containment — `card_keyword_types`
+  drops the keyword's controller), a delayed trigger (Rite of Harmony's
+  "creature or enchantment you control enters this turn"), and Platinum Angel
+  Avatar's condition, which phase drops. (The pair rows read candidates
+  without membership idents since the fourth pass, so a card with both a cast and an enters payoff —
   Tuvasa the Sunlit, Sai — fires the typed-cheat rows and Sol Ring / Pacifism
   no longer score as payoffs.)
   (g) **The guide cuts the tuner protects** (2026-10-24, the experiment table in

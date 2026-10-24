@@ -1056,8 +1056,11 @@ def _cost_concepts(ability: TypedMirrorNode) -> tuple[ConceptNode, ...]:
 
 
 # The cost primitives with no effect concept that a spell's additional cost
-# keeps (:func:`_spell_additional_cost_concepts`).
-_ADDITIONAL_COST_PRIMITIVE_TAGS = _PAYLIFE_COST_TAGS | frozenset({"Blight"})
+# keeps (:func:`_spell_additional_cost_concepts`): paying life, blighting, and
+# tapping untapped permanents you control.
+_ADDITIONAL_COST_PRIMITIVE_TAGS = _PAYLIFE_COST_TAGS | frozenset(
+    {"Blight", "TapCreatures"}
+)
 
 
 def _spell_additional_cost_concepts(root: TypedMirrorNode) -> tuple[ConceptNode, ...]:
@@ -1088,7 +1091,9 @@ def _spell_additional_cost_concepts(root: TypedMirrorNode) -> tuple[ConceptNode,
     ``lifeloss_makers``'s cost arm needs. A ``Blight`` leaf (Soul Immolation's
     "As an additional cost to cast this spell, blight X") is the same kind of
     cost primitive (CR 701.68a), kept for ``minus_counters_matter``'s blight read
-    (``crosswalk.reads.blight_placements``).
+    (``crosswalk.reads.blight_placements``), and so is a ``TapCreatures`` leaf
+    (Disruption Protocol's "tap an untapped artifact you control or pay {1}"),
+    for the readers of ``crosswalk.reads.controller_paid_cost_leaves``.
     """
     ac = getattr(root, "additional_cost", MISSING)
     if not isinstance(ac, TypedMirrorNode):
