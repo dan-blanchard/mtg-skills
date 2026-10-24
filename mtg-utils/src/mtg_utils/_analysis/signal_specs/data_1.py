@@ -1554,17 +1554,17 @@ SPECS_1: dict[tuple[str, str], SignalSpec] = {
     # ADR-0027: damage_reflect's SWEEP_DETECTORS row was deleted (detection moved to
     # the Card IR — the on-card damage_received+damage co-occurrence + a damage_reflect
     # marker for the quoted reflection grant). _sweep_spec_with_extras read that
-    # now-gone row, so re-home to a literal spec, keeping the high-toughness/defender
-    # serve dimensions.
+    # now-gone row, so re-home to a literal spec.
     ("damage_reflect", "you"): _spec(
-        *SWEEP_LABELS["damage_reflect"],
+        "Damage reflection",
+        "more damage reflectors (Boros Reckoner, Arcbond) to turn each hit around",
         # Serve rides the lane (2026-10-18): regex missed enrage + Aura/global
-        # reflectors (Repercussion, Arcbond)
+        # reflectors (Repercussion, Arcbond). The toughness >= 4, toughness >
+        # power and defender arms went 2026-10-24 (the serve-arm guard): the
+        # damage a reflector deals is the damage dealt to IT, so another big body
+        # reflects nothing (Roaming Throne, Wall of Omens paged as feeders).
         None,
         serve_idents=frozenset({"damage_reflect|you|"}),
-        serve_toughness_min=4,
-        serve_toughness_over_power=True,
-        serve_keywords=("defender",),
     ),
     # Power doublers (Rhonas, Mr. Orfeo) want high BASE power to double; power-as-damage
     # pingers/fighters (Itzquinth) want high power for more damage. Both lanes credit

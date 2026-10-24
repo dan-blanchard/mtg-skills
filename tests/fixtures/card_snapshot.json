@@ -300766,6 +300766,227 @@
     "type_line": "Sorcery"
    }
   },
+  "Deftblade Elite": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": {
+        "cost": {
+         "generic": 1,
+         "shards": [
+          "White"
+         ],
+         "type": "Cost"
+        },
+        "type": "Mana"
+       },
+       "description": "{1}{W}: Prevent all combat damage that would be dealt to and dealt by ~ this turn.",
+       "duration": "UntilEndOfTurn",
+       "effect": {
+        "amount": "All",
+        "recipient_scope": {
+         "type": "Single"
+        },
+        "scope": "CombatDamage",
+        "target": {
+         "type": "Any"
+        },
+        "type": "PreventDamage"
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Human",
+       "Soldier"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "White"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [
+      "Provoke"
+     ],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "pauper": "legal",
+      "paupercommander": "legal",
+      "premodern": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 0,
+      "shards": [
+       "White"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "5720acf9-48da-41d1-97a8-c022c8a69755",
+       "76ffbae4-7aad-493c-86a0-c6e6425da8fd",
+       "d576b8f2-9b5b-47c0-8f9f-faa209d59595"
+      ]
+     },
+     "name": "Deftblade Elite",
+     "non_ability_text": null,
+     "oracle_text": "Provoke (Whenever this creature attacks, you may have target creature defending player controls untap and block it if able.)\n{1}{W}: Prevent all combat damage that would be dealt to and dealt by this creature this turn.",
+     "power": {
+      "type": "Fixed",
+      "value": 1
+     },
+     "printings": [
+      "LGN",
+      "PLST",
+      "VMA"
+     ],
+     "rarities": [
+      "common"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "9a3e3a8f-7c19-4b52-a1b4-08eb09f6127a",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 1
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "CR 702.39a: Provoke — whenever this creature attacks, you may have target creature defending player controls untap and block it this turn if able.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": "Provoke — untap target creature defending player controls; it blocks this combat if able",
+        "duration": null,
+        "effect": {
+         "scope": {
+          "type": "Single"
+         },
+         "state": {
+          "type": "Untap"
+         },
+         "target": {
+          "controller": "DefendingPlayer",
+          "properties": [],
+          "type": "Typed",
+          "type_filters": [
+           "Creature"
+          ]
+         },
+         "type": "SetTapState"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": true,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": null,
+         "cost": null,
+         "description": "CR 702.39a + CR 509.1c: that creature blocks this creature this combat if able",
+         "duration": null,
+         "effect": {
+          "attacker": {
+           "type": "Source"
+          },
+          "duration": "UntilEndOfCombat",
+          "target": {
+           "type": "ParentTarget"
+          },
+          "type": "ForceBlock"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": null,
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "mode": "Attacks",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [],
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 1.0,
+    "color_identity": [
+     "W"
+    ],
+    "colors": [
+     "W"
+    ],
+    "keywords": [
+     "Provoke"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "legal",
+     "paupercommander": "legal",
+     "penny": "legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{W}",
+    "name": "Deftblade Elite",
+    "oracle_id": "9a3e3a8f-7c19-4b52-a1b4-08eb09f6127a",
+    "oracle_text": "Provoke (Whenever this creature attacks, you may have target creature defending player controls untap and block it if able.)\n{1}{W}: Prevent all combat damage that would be dealt to and dealt by this creature this turn.",
+    "power": "1",
+    "toughness": "1",
+    "type_line": "Creature — Human Soldier"
+   }
+  },
   "Degavolver": {
    "phase_records": [
     {

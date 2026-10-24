@@ -213,10 +213,14 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   more); their comment blocks carry the lanes' migration history, so fold
   that into the lanes before deleting them.
   Serves were written to credit a deck's own cards, not to page candidates:
-  each OR arm (types,
-  keywords, cmc and stat floors) can admit a card on its own, as the
-  toughness >= 4 arm admitted Roaming Throne — a guard would pin each arm's
-  should / should-not real cards, the ``theme_presets`` way. And an IR hit's
+  each OR arm (types, keywords, cmc and stat floors) admits a card on its own.
+  ``tests/deck-forge/test_serve_arm_guards.py`` (2026-10-24) pins, for each of
+  the 95 structured arms on a page serve, a real card the arm is meant for and
+  a near miss the serve rejects; a new arm needs a row. It dropped
+  damage_reflect's toughness >= 4, toughness > power and defender arms (a big
+  body reflects nothing — Roaming Throne, Wall of Omens; the serve 7,180 →
+  31 legal cards). Left, no Serve dimension to say it: colorless_matters' Eldrazi
+  type arm admits the colored Eldrazi (Eldrazi Displacer). And an IR hit's
   role is read by lining the emitting unit's text up with an oracle clause,
   then that clause with a compat ability (``ranking._hit_clauses``): reading
   the payoff test off the unit itself would drop both text alignments, and
