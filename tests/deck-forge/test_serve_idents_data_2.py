@@ -10,7 +10,7 @@ wrongly served no longer does (where such cards exist).
 
 import pytest
 
-from mtg_utils._analysis.signal_specs import serve_from_dict, spec_for
+from mtg_utils._analysis.signal_specs import spec_for
 from mtg_utils._analysis.signals import Signal
 from mtg_utils.testkit import test_card, test_card_ir
 
@@ -35,9 +35,7 @@ def _lane_covers(card, sig):
         return False
     if spec.serve.matches(card):
         return True
-    return any(
-        (ex.serve or serve_from_dict(ex.search)).matches(card) for ex in spec.extras
-    )
+    return any(ex.serve.matches(card) for ex in spec.extras)
 
 
 # key, scope, ident, served (both arms), gained (regex missed), dropped (regex
@@ -438,14 +436,14 @@ def test_serve_is_the_lanes_idents(key, scope, ident, served, gained, dropped):
 
 
 def test_combat_damage_to_opp_serves_idents_and_cipher():
-    # The sweep spec drops its serve regex for the lanes' idents; the regex stays
-    # on the search side. The regex missed the "one of your opponents" payoffs
+    # The sweep spec drops its serve regex for the lanes' idents, which its page
+    # derives from too. The regex missed the "one of your opponents" payoffs
     # (Edric). Cipher grants the same combat-damage-to-a-player trigger
     # (CR 702.99a), which the regex reached only through reminder text: the
     # keyword dimension keeps Last Thoughts on the serve.
     spec = spec_for(_sig("combat_damage_to_opp", "opponents"))
     assert spec.serve.oracle is None
-    assert spec.search["oracle"]
+    assert spec.search == {}  # the theme pages by its serve
     assert "combat_damage_to_opp|opponents|" in spec.serve.signal_idents
     assert "cipher" in spec.serve.keywords
     assert spec.serve.matches(_card("Ninja of the Deep Hours")) is True
@@ -458,7 +456,7 @@ def test_combat_damage_to_opp_serves_idents_and_cipher():
 def test_discard_serve_reads_costs_connive_and_blood(key):
     spec = spec_for(_sig(key))
     assert spec.serve.oracle is None
-    assert spec.search["oracle"]
+    assert spec.search == {}  # the theme pages by its serve
     serve = spec.serve
     # Outlets, a discard cost you pay (CR 701.9a), random included (CR 701.9b:
     # a payoff fires whichever card goes), and the payoffs.

@@ -199,20 +199,30 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   trigger's self-return firing `bounce_tempo` (none; the other trigger
   back-references on cards that fire return an event object — a blocked
   creature, a damage source, a land tapped for mana).
-  (o) **Theme matching off the IR, what's left** (2026-10-24). Find
-  (``engine.lane_page``), the tuner (``swaps._run_search``) and
-  ``search_filters`` page a theme through one function,
-  ``signal_specs.theme_page``, and every spec ADR-0026 doesn't split pages
-  alike in both (``test_every_theme_pages_alike_in_find_and_tune``; Find's
-  avenue now carries an oracle-only or mana-cost serve it pages by, and a
-  serve that admits nothing — One-sided keep-N's — pages by its search instead
-  of an empty page). Two shapes still differ by design: a split spec (Find
-  pages its payoffs by serve and its pieces by type; the tuner pages it whole
-  by type) and a type- or preset-searched theme's support page (the tuner's
-  ``serve_page_search``, held to ``_SUPPORT_SHARE``; Find's lane pages only the
-  members). Left: the specs still carry their 346 pattern searches (and 186 of
-  the 220 sub-avenues'), now a fallback only, rather than owning a page derived
-  from the serve with ``search`` kept as a tribe's or preset's override.
+  (o) **Theme matching off the IR, what's left** (2026-10-24). A theme's
+  candidate page derives from its serve (``signal_specs.theme_page``: Find's
+  ``engine.lane_page``, the tuner's ``swaps._run_search``, ``search_filters``);
+  ``SignalSpec.search`` / ``SubAvenue.search`` is only the page's override — a
+  tribe's or source type's card type, a preset, a mana-value band — and most
+  specs carry none. The 532 pattern searches (346 specs', 186 sub-avenues')
+  and 33 ``regex=`` searches on ident-served sweep specs are retired, with the
+  32 regex constants that fed only them; the five serve-less sub-avenues
+  (Creature-lands' three, Flip fixing, Punish land loss) carry their pattern
+  verbatim as their serve, same pages. ``test_a_theme_pages_by_its_serve_not_a_pattern``
+  pins it. One pattern search is left: One-sided keep-N's, whose serve admits
+  nothing (its pattern as a serve would count the deck's own keep-N wraths as
+  the lane's depth). What the retired patterns reached that the serves (the
+  pages since ``theme_page``) don't, over the commander pool, is mostly
+  reminder-text and stray-word noise (Keyword soup's 7289, Damage to
+  opponents' 5574), but two are real gaps: Creature-lands' serve misses the
+  manlands themselves (Mutavault, Mishra's Factory, Inkmoth Nexus — 46; the
+  lane's ident is its animators' and payoffs'), and Crimes' serve misses the
+  crimes (Swords to Plowshares, Path to Exile, Beast Within — the lane's ident
+  is the payoffs'). Eleven ``_sweep_detectors`` regexes the retired searches
+  used are referenced nowhere now (``ABILITY_COPY_REGEX``,
+  ``TOUGHNESS_COMBAT_REGEX``, ``SELF_COUNTER_GROW_SWEEP_REGEX`` and eight
+  more); their comment blocks carry the lanes' migration history, so fold
+  that into the lanes before deleting them.
   Serves were written to credit a deck's own cards, not to page candidates:
   each OR arm (types,
   keywords, cmc and stat floors) can admit a card on its own, as the

@@ -307,10 +307,8 @@ def test_jyoti_yields_multiple_precise_avenues_not_just_go_wide(monkeypatch):
         for label in labels
     ), labels
     assert not all(label == "Go-wide anthems" for label in labels), labels
-    # At least one avenue is precisely typed (card_type or a structured oracle
-    # regex), proving precision is owned by the engine rather than hand-rolled.
-    assert any(
-        a["search"].get("card_type") or a["search"].get("oracle") for a in avenues
-    ), avenues
+    # At least one avenue is precisely typed (a card type or a serve it pages
+    # by), proving precision is owned by the engine rather than hand-rolled.
+    assert any(a["search"].get("card_type") or a.get("serve") for a in avenues), avenues
     # Engine avenues remain explorable with a stable id.
     assert all(a["id"] for a in avenues)

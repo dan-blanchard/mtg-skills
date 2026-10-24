@@ -132,16 +132,15 @@ def test_artifacts_payoff_avenue_pages_creature_payoffs_by_its_serve(monkeypatch
 
 def test_find_and_tune_page_a_theme_the_same_way():
     """Find (``engine.lane_page``) and the tuner (``swaps._run_search``) page a
-    theme through the one ``signal_specs.theme_page``: an oracle-searched theme,
-    one searched by a pattern beside a card type, and one with nothing of its own
-    to fetch by page the serve with no pattern or card type; a card-type search
-    keeps its own fetch, and so does a theme whose serve admits nothing."""
+    theme through the one ``signal_specs.theme_page``: a theme with no search of
+    its own, or only a mana-value band, pages its serve; a card-type search
+    overrides it with its own fetch; a pattern with no serve to page by (an
+    agent's avenue, a serve that admits nothing) pages by the pattern."""
     from mtg_utils._tuner.swaps import _run_search
 
     serve = Serve(keywords=frozenset({"defender"}))
     cases = (
-        ({"oracle": "toughness"}, serve, True),
-        ({"card_type": "Land", "oracle": "becomes"}, serve, True),
+        ({}, serve, True),
         ({"cmc_max": 2}, serve, True),
         ({"card_type": "Sliver"}, serve, False),
         ({"oracle": "toughness"}, None, False),

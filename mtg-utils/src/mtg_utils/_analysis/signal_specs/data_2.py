@@ -5,12 +5,7 @@ original ``signal_specs.py``), verbatim, in original order.
 from __future__ import annotations
 
 from mtg_utils._analysis._sweep_detectors import (
-    COMBAT_DAMAGE_TO_CREATURE_REGEX,
-    COMBAT_DAMAGE_TO_OPP_REGEX,
     SWEEP_LABELS,
-    UNSPENT_MANA_REGEX,
-    VOID_WARP_MAKERS_REGEX,
-    VOID_WARP_MATTERS_REGEX,
 )
 
 from ._shared import (
@@ -20,28 +15,20 @@ from ._shared import (
     _COUNTERS_PACKAGE,
     _DAMAGE_AMPLIFIER_EXTRA,
     _DEATHTOUCH_GEAR_EXTRA,
-    _DIG_UNTIL_SWEEP_REGEX,
-    _DISCARD_OUTLET_SWEEP_REGEX,
-    _DRAW_FOR_EACH_SWEEP_REGEX,
     _ETB_PAYOFF_EXTRA,
     _EXTRA_COMBAT_EXTRA,
     _GOWIDE_ANTHEM_EXTRA,
-    _IMPULSE_SWEEP_REGEX,
     _LANDS_FROM_GRAVE_EXTRA,
     _LOYALTY_DOUBLER_EXTRA,
     _MANA_AMP_EXTRA,
-    _ONE_PUNCH_ORACLE,
     _PARADOX_PAYOFF_EXTRA,
     _PILLOWFORT_EXTRA,
     _PLUS_ONE_SERVE_IDENTS,
     _PUMP_EXTRA,
     _SYM_MANA_EXTRA,
-    _THEFT_SWEEP_REGEX,
     _TOKEN_DOUBLER_EXTRA,
     _TOKEN_MAKER_EXTRA,
     _TOKEN_MAKER_IDENTS,
-    _TOPDECK_SELECTION_SWEEP_REGEX,
-    _TYPE_CHANGER_ORACLE,
     _VOLTRON_PROTECT_EXTRA,
     Serve,
     SignalSpec,
@@ -98,8 +85,8 @@ _LAND_SAC_SERVE_IDENTS = frozenset(
     }
 )
 
-# Flying granters: nonhuman_attackers' sub-avenue. The search fragment keeps the
-# old regex; the serve reads the grant lanes' flying idents.
+# Flying granters: nonhuman_attackers' sub-avenue. The serve reads the grant lanes'
+# flying idents.
 _FLYING_GRANT_IDENTS = frozenset(
     {
         "keyword_grant_target|you|flying",
@@ -109,7 +96,6 @@ _FLYING_GRANT_IDENTS = frozenset(
         "team_evasion_grant|you|flying",
     }
 )
-_FLYING_GRANT_ORACLE = r"(?:gains?|have|has) flying|creatures you control[^.]*flying"
 
 _BIG_HAND_IDENTS = frozenset({"big_hand_makers|you|", "big_hand_matters|you|"})
 
@@ -123,7 +109,6 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
     ("combat_damage_matters", "opponents"): _spec(
         "Combat damage",
         "evasive attackers and extra-combat enablers to keep connecting",
-        {"oracle": r"can't be blocked|\bmenace\b|\bflying\b|additional combat"},
         # Serve on the lanes' idents: the combat-damage payoffs and the unblockable /
         # landwalk bodies that connect (menace and fear bodies stay out).
         None,
@@ -141,9 +126,7 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
         extras=(_COMBAT_SUPPORT_EXTRA, _PUMP_EXTRA, _EXTRA_COMBAT_EXTRA),
     ),
     # ADR-0027 β: combat_damage_to_opp migrated to the Card IR; its
-    # SWEEP_DETECTORS row is deleted, so the serve hand-spec passes the pinned
-    # COMBAT_DAMAGE_TO_OPP_REGEX (the EXACT deleted regex) so serve / mirror
-    # never drift.
+    # SWEEP_DETECTORS row is deleted, so the serve is hand-registered.
     ("combat_damage_to_opp", "opponents"): _sweep_spec_with_extras(
         "combat_damage_to_opp",
         (
@@ -152,7 +135,6 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
             _DAMAGE_AMPLIFIER_EXTRA,
             _EXTRA_COMBAT_EXTRA,
         ),
-        regex=COMBAT_DAMAGE_TO_OPP_REGEX,
         # Serve on the lanes' idents, not the regex (2026-10-18): the regex read
         # only the literal phrase, so it missed the "combat damage to one of your
         # opponents" payoffs (Edric, Spymaster of Trest; Gonti, Night Minister) and
@@ -164,13 +146,11 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
         serve_keywords=("cipher",),
     ),
     # ADR-0027 β: combat_damage_to_creature migrated to the Card IR; its
-    # SWEEP_DETECTORS row is deleted (the auto-loop used to register a plain spec —
-    # search == serve == its regex, no extras). Hand-register the byte-identical
-    # plain spec reusing the pinned regex so the avenue resolves exactly as before
+    # SWEEP_DETECTORS row is deleted (the auto-loop used to register a plain spec,
+    # no extras). Hand-register the plain spec so the avenue still resolves
     # (connect-with-creatures payoffs — Ohran Viper, the basilisks, Toxin Sliver).
     ("combat_damage_to_creature", "any"): _spec(
         *SWEEP_LABELS["combat_damage_to_creature"],
-        {"oracle": COMBAT_DAMAGE_TO_CREATURE_REGEX},
         # Serve on the lane's ident, not the regex (2026-10-18): the two agree on
         # every printed trigger; the regex's only extras were the same trigger
         # granted in quotes (Kaldra Compleat), a granted-ability lane gap.
@@ -183,30 +163,19 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
     # amplification (untap-all-lands + doublers) to bank more. The sweep's bare "unspent
     # mana" serve credited none; promote it to a hand-spec with the amp extra.
     # ADR-0027 β: unspent_mana migrated to the Card IR via a kept-mirror — its
-    # SWEEP_DETECTORS row is deleted, so pass the EXACT deleted regex via ``regex=``
-    # (pinned as UNSPENT_MANA_REGEX) so the serve search/serve pool never drifts.
+    # SWEEP_DETECTORS row is deleted, so hand-register the spec.
     ("unspent_mana", "you"): _sweep_spec_with_extras(
         "unspent_mana",
         (_MANA_AMP_EXTRA,),
-        regex=UNSPENT_MANA_REGEX,
-        # Serve on the lane's ident (2026-10-18): it reproduces the regex exactly,
-        # so the regex stays on the search side only.
+        # Serve on the lane's ident (2026-10-18): it reproduces the regex exactly.
         serve_idents=frozenset({"unspent_mana|you|"}),
     ),
     # ADR-0027: group_mana migrated to the Card IR — its SWEEP_DETECTORS row is deleted
     # (detection moved to a non-controller-recipient discriminator on phase's ramp
-    # effect raw), so hand-register the spec the sweep loop used to build: the search
-    # fragment is the deleted regex + the symmetric-mana extra, the serve is the lane's
-    # ident.
+    # effect raw), so hand-register the spec the sweep loop used to build; the serve is
+    # the lane's ident, with the symmetric-mana extra.
     ("group_mana", "each"): _spec(
         *SWEEP_LABELS["group_mana"],
-        {
-            "oracle": (
-                r"each player adds \{|that player adds \{"
-                r"|the active player[^.]*adds? \{"
-                r"|a player (?:loses?|losing)[^.]*mana[^.]*lose"
-            )
-        },
         # The lane reads the symmetric doublers the regex missed (Mana Flare, High
         # Tide). Lane gaps: Yurlok of Scorch Thrash's activated "each player adds",
         # Valleymaker.
@@ -216,13 +185,12 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
     ),
     # The discount-exploiting target set is defined by high cmc (structured) + X-spells
     # — not the generic words "mana value", which matched 453 cards (Disdainful Stroke,
-    # Abrupt Decay). The search drops that branch and gates on cmc (expensive bombs) +
-    # {x}; the serve is the lane's ident, with a Storm payoffs extra.
+    # Abrupt Decay). The serve drops that branch: the lane's ident plus cmc (expensive
+    # bombs) and an {X} mana cost, with a Storm payoffs extra.
     ("cost_reduction", "you"): _spec(
         "Cost reduction",
         "expensive bombs and X-spells that exploit the discount, plus more cost "
         "reducers to stack the discount",
-        {"oracle": r"\{x\}|with mana value"},
         # The cost reducers the avenue names (Etherium Sculptor, Dragonspeaker Shaman).
         # Storm payoffs a discount chains into are the Storm payoffs extra, read off the
         # keyword (CR 702.40a); the old \bstorm\b served cards named Storm.
@@ -240,8 +208,8 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
                 "Storm payoffs",
                 "storm spells that a cheap, chained turn of discounted spells "
                 "copies many times (Grapeshot, Tendrils of Agony, Mind's Desire)",
-                {"keyword": "storm"},
                 serve=Serve(keywords=frozenset({"storm"})),
+                search={"keyword": "storm"},
             ),
         ),
     ),
@@ -255,7 +223,6 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
         "Cast-from-exile",
         "payoffs and enablers that cast or play cards from exile (plot, suspend, "
         '"whenever you cast a spell from exile")',
-        {"oracle": r"from exile|\b(?:plot|suspend|foretell|rebound)\b"},
         # Serve on the lane's ident; the keyword dims below cast from exile too.
         None,
         # Suspend (CR 702.62a), Foretell (702.143), Rebound (702.88a), and Plot all CAST
@@ -269,7 +236,6 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
     # it) and theft-side exiles, which the theft lanes own.
     ("impulse_top_play", "you"): _spec(
         *SWEEP_LABELS["impulse_top_play"],
-        {"oracle": _IMPULSE_SWEEP_REGEX},
         None,
         serve_idents=frozenset(
             {"impulse_top_play|you|", "cast_from_exile|you|impulse"}
@@ -291,10 +257,6 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
         "X spells",
         "X-spells (cards with {X} in their cost) plus the X-doublers and "
         "copy-the-X-spell payoffs an X-matters deck is built around",
-        {
-            "oracle": r"\{X\} in (?:its|their) (?:mana )?cost"
-            r"|cost (?:that )?contains \{X\}"
-        },
         r"\{x\} in (?:its|their) (?:mana )?cost"
         r"|cost (?:that )?contains? \{x\}"
         r"|spells? you cast with \{x\}",
@@ -317,7 +279,6 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
     # out. Detector regex unchanged.
     ("theft_makers", "opponents"): _spec(
         *SWEEP_LABELS["theft_makers"],
-        {"oracle": _THEFT_SWEEP_REGEX},
         # Serve on the theft lane's ident (steal and steal-and-cast engines).
         None,
         serve_idents=frozenset({"theft_makers|opponents|"}),
@@ -327,22 +288,18 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
     # payoff — Don Andres, Vaan, Gonti Canny) or steals battlefield permanents
     # (gain_control). The avenue it OPENS is the theft ENABLERS that feed that payoff —
     # the same steal-and-cast pool as theft_makers (Gonti, Hostage Taker, the impulse-
-    # from-opponent engines). Same opponent-anchored serve regex; the maker/payoff split
+    # from-opponent engines). Same opponent-anchored serve; the maker/payoff split
     # is in MEMBERSHIP, the avenue legitimately offers the doers to a wants commander.
     ("wants_theft", "opponents"): _spec(
         *SWEEP_LABELS["wants_theft"],
-        {"oracle": _THEFT_SWEEP_REGEX},
         # Serve on the theft lane's ident (steal and steal-and-cast engines).
         None,
         serve_idents=frozenset({"theft_makers|opponents|"}),
     ),
     # ADR-0027: void_warp_matters migrated to the Card IR (its SWEEP_DETECTORS row is
-    # deleted, so the sweep auto-register loop no longer builds this spec). The serve
-    # pool stays oracle-defined, so it reuses the shared VOID_WARP_MATTERS_REGEX
-    # constant (the EXACT deleted detector regex) — serve / kept mirror never drift.
+    # deleted, so the sweep auto-register loop no longer builds this spec).
     ("void_warp_matters", "you"): _spec(
         *SWEEP_LABELS["void_warp_matters"],
-        {"oracle": VOID_WARP_MATTERS_REGEX},
         # Serve on the lanes' idents (2026-10-18): the regex missed warp cards whose
         # warp cost line it didn't phrase-match (Astelli Reclaimer, Quantum Riddler).
         None,
@@ -350,27 +307,23 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
     ),
     # _matters sweep (ADR-0034) — the MAKER arm of the void_warp split: cards that
     # PERFORM/GRANT the Warp alt-cast (the keyword bearer/granter, the em-dash warp-cost
-    # form, the graveyard self-cast). Same oracle-defined serve pool, reusing the shared
-    # VOID_WARP_MAKERS_REGEX constant so serve / kept mirror never drift.
+    # form, the graveyard self-cast).
     ("void_warp_makers", "you"): _spec(
         *SWEEP_LABELS["void_warp_makers"],
-        {"oracle": VOID_WARP_MAKERS_REGEX},
         # Serve on the lane's ident (2026-10-18): it reproduces the regex exactly.
         None,
         serve_idents=frozenset({"void_warp_makers|you|"}),
     ),
     # Play from the TOP OF YOUR LIBRARY — Future Sight / Bolas's Citadel / Oracle of Mul
     # Daya. Casts from the LIBRARY zone (not exile), so it's its own avenue, distinct
-    # from cast-from-exile and impulse. The search needs a play/cast verb so look/scry/
-    # mill don't match. ADR-0027 β: detection moved to the Card IR (a STATIC
-    # cast_from_zone+from: library Effect over phase's TopOfLibraryCastPermission mode +
-    # a per-clause mirror); the serve is the lane's ident (the sweep auto-register no
-    # longer builds this spec — its SWEEP_DETECTORS row is deleted).
+    # from cast-from-exile and impulse. ADR-0027 β: detection moved to the Card IR (a
+    # STATIC cast_from_zone+from: library Effect over phase's TopOfLibraryCastPermission
+    # mode + a per-clause mirror); the serve is the lane's ident (the sweep
+    # auto-register no longer builds this spec — its SWEEP_DETECTORS row is deleted).
     ("play_from_top", "you"): _spec(
         "Play from the top of your library",
         "engines that let you play or cast off the top of your library (Future Sight, "
         "Bolas's Citadel) — top-of-library control and extra-land effects amplify them",
-        {"oracle": r"(?:play|cast)\b[^.]*?\bfrom the top of your library"},
         # The lane serves library-cast permissions. Cascade's reminder text is cascade's
         # own avenue; lane gaps: temporary or conditional permissions (Gwenom, The
         # Belligerent) and lands-only ones (Radha).
@@ -395,14 +348,12 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
     ("discard_makers", "you"): _spec(
         "Loot / discard outlets",
         "loot/connive/rummage outlets plus the discard payoffs they power",
-        {"oracle": r"discard (?:a|an|two|your hand)[^:.]*?:|draw [^.]*?then discard"},
         None,
         serve_idents=_DISCARD_SERVE_IDENTS,
     ),
     ("discard_matters", "you"): _spec(
         "Discard",
         "discard payoffs and the self-discard outlets that feed them",
-        {"oracle": r"discard (?:a|an|two|your hand)[^:.]*?:|draw [^.]*?then discard"},
         None,
         serve_idents=_DISCARD_SERVE_IDENTS,
     ),
@@ -413,18 +364,15 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
     # Serve idents: the same discard idents.
     ("discard_outlet", "you"): _spec(
         *SWEEP_LABELS["discard_outlet"],
-        {"oracle": _DISCARD_OUTLET_SWEEP_REGEX},
         None,
         serve_idents=_DISCARD_SERVE_IDENTS,
     ),
     # ADR-0027 dig library-owner scope (SIDECAR v27): dig_until migrated to the Card IR
     # (its SWEEP_DETECTORS row deleted, so the auto-register loop no longer builds this
-    # serve). Hand-register the spec the sweep loop used to build — same label / avenue
-    # / oracle, reusing the shared DIG_UNTIL_REGEX constant so serve and the kept-mirror
-    # detector never drift.
+    # serve). Hand-register the spec the sweep loop used to build — same label /
+    # avenue.
     ("dig_until", "you"): _spec(
         *SWEEP_LABELS["dig_until"],
-        {"oracle": _DIG_UNTIL_SWEEP_REGEX},
         # Serve on the dig-until, cascade and discover idents (2026-10-18): the regex
         # reached cascade only through its reminder text, so it missed the bare-keyword
         # cascaders (Sweet-Gum Recluse) and the discover cards printed without it
@@ -441,12 +389,10 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
     ),
     # ADR-0027 per-clause draw raw (SIDECAR v32): draw_for_each migrated to the Card IR
     # (its SWEEP_DETECTORS row deleted, so the auto-register loop no longer builds this
-    # serve). Hand-register the spec the sweep loop used to build — same label / avenue
-    # / oracle, reusing the shared DRAW_FOR_EACH_REGEX constant so serve and the
-    # kept-mirror detector never drift.
+    # serve). Hand-register the spec the sweep loop used to build — same label /
+    # avenue.
     ("draw_for_each", "you"): _spec(
         *SWEEP_LABELS["draw_for_each"],
-        {"oracle": _DRAW_FOR_EACH_SWEEP_REGEX},
         # Serve on the lane's ident (2026-10-18): the regex missed the "draw X cards,
         # where X is" form (Champion of Dusk, Be'lakor) and credited an opponent's
         # draw (Deadly Cover-Up).
@@ -455,12 +401,10 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
     ),
     # ADR-0027 topdeck library-owner scope (SIDECAR v28): topdeck_selection migrated to
     # the Card IR (its SWEEP_DETECTORS row deleted, so the auto-register loop no longer
-    # builds this spec). Hand-registered with the same label / avenue: the search
-    # fragment is the shared TOPDECK_SELECTION_REGEX constant, the serve is the lane's
-    # ident.
+    # builds this spec). Hand-registered with the same label / avenue; the serve is the
+    # lane's ident.
     ("topdeck_selection", "you"): _spec(
         *SWEEP_LABELS["topdeck_selection"],
-        {"oracle": _TOPDECK_SELECTION_SWEEP_REGEX},
         # Reads scry and surveil, which the avenue names (Dissolve, Fated Retribution).
         # Manifest dread (a look-at-two selection) is a lane gap; ripple is not
         # selection.
@@ -471,17 +415,13 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
     # keystone aristocrats drains worded "target/that player loses N life" (Blood
     # Artist, Falkenrath Noble). Add the player-loses branch; "each player" is excluded
     # to keep symmetric self-damage out of the opponents-drain avenue.
-    # Serve/search widened with the past-tense "lost life this turn" THRESHOLD wording
+    # Serve widened with the past-tense "lost life this turn" THRESHOLD wording
     # (Spectacle / Rakdos payoffs — Stromkirk Bloodthief, Rakdos Lord of Riots) the
     # continuous "loses life" branches missed. Opponent-anchored so a self "you lost
     # life this turn" payoff (Ludevic) never matches.
     ("lifeloss_matters", "opponents"): _spec(
         "Drain",
         "repeatable life-drain and aristocrats payoffs",
-        {
-            "oracle": r"each opponent loses|target opponent loses|whenever .* dies"
-            r"|(?:an? |each )?opponents? lost life this turn"
-        },
         # Serve on the lanes' idents: life-loss doers and payoffs share one avenue.
         None,
         serve_idents=frozenset(
@@ -495,7 +435,6 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
         "Self life-loss",
         "ways to pay or lose life on demand to fuel your payoffs, plus the life-total "
         "swaps/resets and recovery that turn a low life total into an advantage",
-        {"oracle": r"you lose \d+ life|pay \d+ life|lose \d+ life"},
         # The life payers and losers, "whenever you lose life" payoffs, pay-life
         # insurance and life-total swaps / resets (Selenia's package); see
         # _SELF_LIFELOSS_SERVE_IDENTS.
@@ -513,10 +452,6 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
     ("lifeloss_makers", "opponents"): _spec(
         "Drain (makers)",
         "repeatable life-drain doers plus the aristocrats payoffs they enable",
-        {
-            "oracle": r"each opponent loses|target opponent loses|whenever .* dies"
-            r"|(?:an? |each )?opponents? lost life this turn"
-        },
         # Serve on the lanes' idents: life-loss doers and payoffs share one avenue.
         None,
         serve_idents=frozenset(
@@ -527,7 +462,6 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
         "Self life-loss (makers)",
         "ways to pay or lose life on demand to fuel your payoffs, plus the life-total "
         "swaps/resets and recovery that turn a low life total into an advantage",
-        {"oracle": r"you lose \d+ life|pay \d+ life|lose \d+ life"},
         None,
         serve_idents=_SELF_LIFELOSS_SERVE_IDENTS,
         serve_not=r"\bas this land enters\b|enters tapped",
@@ -539,12 +473,6 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
     ("celebration_matters", "you"): _spec(
         "Celebration",
         "ways to deploy two or more nonland permanents a turn, plus the payoffs",
-        {
-            "oracle": (
-                r"two or more nonland permanents entered the battlefield "
-                r"under your control this turn"
-            )
-        },
         # Serve on the lane's ident (2026-10-18): it reproduces the regex exactly.
         None,
         serve_idents=frozenset({"celebration_matters|you|"}),
@@ -556,13 +484,6 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
     ("tapped_matters", "you"): _spec(
         "Tapped creatures matter",
         "payoffs that scale with tapped creatures, plus grants that make tapping safe",
-        {
-            "oracle": (
-                r"number of tapped creatures you control"
-                r"|\btapped creatures you control (?:have|get|gain|are|can|with)"
-                r"|or more tapped creatures|for each tapped creature you control"
-            )
-        },
         # Serve on the lane's ident.
         None,
         serve_idents=frozenset({"tapped_matters|you|"}),
@@ -574,13 +495,6 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
     ("land_sacrifice_matters", "you"): _spec(
         "Land sacrifice",
         "repeatable sac-a-land outlets and the payoffs for lands hitting the graveyard",
-        {
-            "oracle": (
-                r"sacrifice a land(?: card)?:"
-                r"|whenever (?:a|one or more|another) lands?(?: cards?)?[^.]*"
-                r"put into[^.]*graveyard"
-            )
-        },
         # Serve on the lanes' idents; see _LAND_SAC_SERVE_IDENTS.
         None,
         serve_idents=_LAND_SAC_SERVE_IDENTS,
@@ -594,12 +508,6 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
         "Land sacrifice (makers)",
         "sac-a-land outlets and symmetric land wraths to fuel your land-to-grave"
         " payoffs",
-        {
-            "oracle": (
-                r"sacrifice a land(?: card)?:"
-                r"|each player sacrifices [^.]*land"
-            )
-        },
         # Serve on the lanes' idents; see _LAND_SAC_SERVE_IDENTS.
         None,
         serve_idents=_LAND_SAC_SERVE_IDENTS,
@@ -613,7 +521,6 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
     ("keyword_soup_makers", "you"): _spec(
         "Keyword soup",
         "creatures stacked with evergreen keywords to share across your team",
-        {"oracle": r"\b(?:flying|first strike|double strike|trample|vigilance)\b"},
         None,
         serve_keyword_count_min=3,
     ),
@@ -624,20 +531,12 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
     ("keyword_soup", "you"): _spec(
         "Keyword soup",
         "creatures stacked with evergreen keywords to share or absorb",
-        {"oracle": r"\b(?:flying|first strike|double strike|trample|vigilance)\b"},
         None,
         serve_keyword_count_min=3,
     ),
     ("lands_matter", "you"): _spec(
         "Lands matter",
         "ramp, extra land drops, and recursion to maximize your land count",
-        {
-            "oracle": (
-                r"search your library for .*land"
-                r"|play an additional land"
-                r"|put .*land card.*onto the battlefield"
-            )
-        },
         # The land-count payoffs plus the land ramp, extra land drops and landfall
         # that grow the count (same archetype as landfall); the recursion is the extra.
         None,
@@ -656,23 +555,21 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
     # one-shot cantrips (Remand, Cryptic Command) as engines — contradicting the
     # extractor's own _CARD_DRAW_RE. Mirror that: a recurring "at the beginning of …
     # draw" OR a bulk 2+ / additional draw. (The lane also reads a repeating
-    # trigger's single draw — Rhystic Study, Kindred Discovery — which this
-    # pattern search and serve regex don't name.)
+    # trigger's single draw — Rhystic Study, Kindred Discovery.)
     ("card_draw_engine", "you"): _spec(
         "Card-advantage engine",
         "protection, recursion, and payoffs for a repeatable draw engine",
-        {"preset_names": ("card-draw",)},
         # Serve on the lane's ident: the repeatable draw engines. ETB bulk draw stays
         # the self_etb_payload lane's; granted-trigger draws are a lane gap.
         None,
         serve_idents=frozenset({"card_draw_engine|you|"}),
+        search={"preset_names": ("card-draw",)},
     ),
     # Drop the self-only `draws? an additional card` (it belongs to the YOU engine); the
     # EACH avenue is symmetric/group draw only.
     ("card_draw_engine", "each"): _spec(
         "Group draw / wheel",
         "symmetric draw with punisher payoffs (Nekusar-style)",
-        {"oracle": r"each player draws|whenever .* draws a card"},
         # Serve on the lanes' idents: symmetric draw and its punisher payoffs.
         None,
         serve_idents=frozenset({"card_draw_engine|each|", "group_hug_draw|each|"}),
@@ -685,7 +582,6 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
     ("cantrip", "you"): _spec(
         "Cantrips",
         "more low-opportunity-cost card selection and spellslinger payoffs",
-        {"oracle": r"draws? (?:a|an additional) card"},
         # A cantrip is an instant or sorcery (the type dim). Permanents that draw a card
         # (Mulldrifter) are left to blink_flicker / self_etb_payload by design.
         None,
@@ -699,7 +595,6 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
     ("direct_damage", "you"): _spec(
         "Burn / pingers",
         "repeatable direct damage — pingers, burn, and damage doublers",
-        {"preset_names": ("burn",)},
         # Burn, each-creature pingers, damage reflectors (Repercussion) and doublers;
         # gains X and divided burn (Banefire, Fireball). Damage to creatures only is
         # removal's; one-shot or granted doublers (Isengard Unleashed) are a
@@ -714,6 +609,7 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
             }
         ),
         extras=(_DEATHTOUCH_GEAR_EXTRA,),
+        search={"preset_names": ("burn",)},
     ),
     # `add .* mana of any` captured fixing (Birds, City of Brass), not amplification.
     # The serve is the doublers/triplers (a "tap … for mana" trigger that adds/produces
@@ -721,7 +617,6 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
     ("mana_amplifier", "you"): _spec(
         "Big mana",
         "mana doublers plus the X-spells and expensive bombs to spend it on",
-        {"oracle": r"\{x\}|add .* mana|search your library for .*land"},
         # The lane plus X-spells by printed mana cost; gains the symmetric and land-type
         # doublers (Mana Flare, Vernal Bloom). The old {X} arm served every X ability
         # and tax; lane gap: Groundchuck & Dirtbag.
@@ -737,7 +632,6 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
     ("voltron_matters", "you"): _spec(
         "Voltron / equipment & auras",
         "equipment, auras, equip-cost reducers, and tutors to suit up one creature",
-        {"preset_names": ("equip",)},
         # Serve on the lanes' idents plus the Equipment / Aura type gate. Remainder:
         # the equip-cost reducers and suit-up tutors the lanes read are the idents'.
         None,
@@ -754,6 +648,7 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
         r"|enchant (?:player|land|forest|island|swamp|mountain|plains)",
         # Extra combats let the suited-up threat swing again — a top voltron payoff.
         extras=(_VOLTRON_PROTECT_EXTRA, _EXTRA_COMBAT_EXTRA),
+        search={"preset_names": ("equip",)},
     ),
     # _matters sweep (ADR-0034): the MAKER side of the voltron split — cards that
     # PERFORM the gear-attaching/fetching (attach-OTHER, Equipment/Aura tutors,
@@ -765,7 +660,6 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
         "Voltron gear-attachers & tutors",
         "attach/fetch effects plus the equipment, auras, and equip-cost reducers they "
         "load onto one creature",
-        {"preset_names": ("equip",)},
         None,
         serve_idents=_VOLTRON_IDENTS,
         serve_types=("equipment", "aura"),
@@ -774,6 +668,7 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
         r"|enchant creature you don't control|defending player controls"
         r"|enchant (?:player|land|forest|island|swamp|mountain|plains)",
         extras=(_VOLTRON_PROTECT_EXTRA, _EXTRA_COMBAT_EXTRA),
+        search={"preset_names": ("equip",)},
     ),
     # An extreme power-for-cost beater (Lord of Tresserhorn 10/4, Yargle 18/6) wins by
     # connecting ONCE for lethal — serve the damage amplifiers that convert raw power
@@ -783,7 +678,6 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
         "One-punch finishers",
         "amplify your huge body into a one-shot kill — grant infect or double strike "
         "(Tainted Strike, Temur Battle Rage, Grafted Exoskeleton)",
-        {"oracle": _ONE_PUNCH_ORACLE},
         # Serve on the grant lanes' idents for infect / double strike granted to
         # another creature; a creature's own keyword is out by design.
         None,
@@ -807,7 +701,6 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
         "Evasive attackers",
         "fliers that connect to trigger your non-Human attack payoff (and flying "
         "Humans to cheat into play)",
-        {"card_type": "Creature", "keyword": "flying"},
         # The fliers are the avenue (the keyword dim); the flying GRANTERS are the
         # Flying granters sub-avenue, served on the grant lanes' flying idents.
         None,
@@ -816,10 +709,10 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
             SubAvenue(
                 "Flying granters",
                 "effects that give your attackers flying so they connect",
-                {"oracle": _FLYING_GRANT_ORACLE},
                 serve=Serve(signal_idents=_FLYING_GRANT_IDENTS),
             ),
         ),
+        search={"card_type": "Creature", "keyword": "flying"},
     ),
     # A reclaim-OWNED commander (Meneldor, The Neutrinos) profits from control-EXCHANGE:
     # donate a dud you own, take their bomb, then reclaim your dud (you still own it).
@@ -830,7 +723,6 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
         "Control swaps",
         "exchange-control effects — donate a dud you own, take their bomb, then "
         "reclaim your dud (Puca's Mischief, Perplexing Chimera, Spawnbroker)",
-        {"oracle": r"exchange control of"},
         # Serve on the lane's swap ident. Remainder: exchanges between two other
         # permanents or players (Legerdemain, Juxtapose) are a lane gap.
         None,
@@ -844,7 +736,6 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
         "Protected theft",
         "theft creatures whose steal sticks because you shield them from removal — "
         "Sower of Temptation, Roil Elemental, Empress Galina",
-        {"oracle": r"gain control of [^.]*target (?:creature|permanent)"},
         # The theft lane's ident (veto unchanged) reads control Auras (Control Magic),
         # group theft (Mass Manipulation) and stealing a spell (Commandeer), which a
         # shield never protects. Regaining your own card (Coveted Falcon) is noise.
@@ -860,7 +751,6 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
         "X-spell sinks",
         "X-spells to pour your big mana into — Fireball, Comet Storm, Crackle with "
         "Power, Jaya's Immolating Inferno",
-        {"oracle": r"deals x damage|x damage to|times x damage"},
         # Serve the X-spells by printed mana cost, as xspell_matters reads them: the
         # sink is the {X} you pay (Torment of Hailfire, Hangarback Walker). Count-set X
         # (The Rack) is out; activated X sinks (Crypt Rats) are a lane gap.
@@ -874,7 +764,6 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
         "See opponents' tops",
         "reveal opponents' library tops so you exile/steal the best card — Field of "
         "Dreams, Wizened Snitches, Lantern of Insight",
-        {"oracle": r"top card of their (?:library|libraries) revealed"},
         # Serve on the peek ident (seeing opponents' tops). The bare exile-from-top
         # ident is theft, which the theft lanes serve, so it stays out.
         None,
@@ -889,28 +778,24 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
         "Free plots (0-cost)",
         "0-cost cards — free to plot off the top, the artifact-combo / storm fuel "
         "(Ornithopter, Memnite, Welding Jar)",
-        {"card_type": "Artifact", "cmc_max": 0},
         None,
         serve_mana_cost=r"^\{0\}$",
+        search={"card_type": "Artifact", "cmc_max": 0},
     ),
     ("vehicles_matter", "you"): _spec(
         "Vehicles",
         "Vehicle bodies plus crew payoffs, lords, support, and creatures to crew them",
-        {"preset_names": ("crew",)},
         # Also credit vehicle SUPPORT: cheat a Vehicle into play, ramp/cost-reduction
         # for Vehicle spells (Oviya, Intrepid Stablemaster), not just core text.
         None,
         serve_types=("vehicle",),
         serve_idents=frozenset({"vehicles_matter|you|"}),
+        search={"preset_names": ("crew",)},
     ),
     ("low_power_matters", "you"): _spec(
         "Small creatures matter",
         "payoffs and anthems that reward your low-power creatures attacking and going "
         "wide (Raid Bombardment, Reconnaissance Mission)",
-        {
-            "oracle": r"creatures? you control with power \d+ or (?:less|fewer)"
-            r"|creature spells?[^.]*with power \d+ or (?:less|fewer)"
-        },
         # Serve on the lane's ident: it reads Assemble the Players' cast-from-the-top
         # permission and the low-power reanimators (Reveillark, Smile at Death). NO
         # power_max serve (it would flood the lane with vanilla small bodies).
@@ -921,7 +806,6 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
         "Scry / surveil matters",
         "scry and surveil to fire these payoffs — note surveil also fills your "
         "graveyard (see Your graveyard), while scry is pure top-of-library selection",
-        {"oracle": r"\b(?:scry|surveil)\b"},
         # Serve on the lanes' idents: scry / surveil payoffs and the scry and surveil
         # makers. Remainder: Empower Jace (a token's surveil) is a lane gap.
         None,
@@ -937,11 +821,10 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
     # _matters sweep (ADR-0034): monarch split. The MAKER side — cards that GRANT
     # the monarch ("you become the monarch", CR 725). The avenue it opens is the
     # full monarch package (the grant + the evasion/combat-damage payoffs that
-    # defend it), so the search stays broad; only the lane KEY encodes the doer role.
+    # defend it), so the serve stays broad; only the lane KEY encodes the doer role.
     ("monarch_makers", "you"): _spec(
         "Monarch (become)",
         "become the monarch — plus the evasion and combat triggers that defend it",
-        {"oracle": r"\bthe monarch\b|becomes? the monarch"},
         # Serve on the lanes' idents (2026-10-18): the regex's one extra was Regal
         # Sliver's quoted, granted monarch trigger (a granted-ability gap).
         None,
@@ -951,7 +834,6 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
     ("monarch_matters", "you"): _spec(
         "Monarch",
         "defend the monarch — evasion and combat-damage triggers",
-        {"oracle": r"\bthe monarch\b|becomes? the monarch"},
         # Serve on the lanes' idents (2026-10-18): the regex's one extra was Regal
         # Sliver's quoted, granted monarch trigger (a granted-ability gap).
         None,
@@ -960,12 +842,11 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
     ),
     # _matters sweep (ADR-0034): the MAKER side of the initiative split — cards that
     # TAKE the initiative (CR 720). The avenue it opens is the full initiative package
-    # (takers + the "have the initiative" payoffs + Undercity venture), so the search
+    # (takers + the "have the initiative" payoffs + Undercity venture), so the serve
     # stays broad; only the lane KEY encodes the doer role.
     ("initiative_makers", "you"): _spec(
         "Initiative (take)",
         "take the initiative; venture through the Undercity",
-        {"oracle": r"\bthe initiative\b|undercity"},
         # Serve on the lanes' idents (2026-10-18): they reproduce the regex exactly.
         None,
         serve_idents=frozenset({"initiative_makers|you|", "initiative_matters|you|"}),
@@ -973,7 +854,6 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
     ("initiative_matters", "you"): _spec(
         "Initiative",
         "hold the initiative payoffs; venture through the Undercity",
-        {"oracle": r"\bthe initiative\b|undercity"},
         # Serve on the lanes' idents (2026-10-18): they reproduce the regex exactly.
         None,
         serve_idents=frozenset({"initiative_makers|you|", "initiative_matters|you|"}),
@@ -981,7 +861,6 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
     ("ring_matters", "you"): _spec(
         "The Ring",
         "Ring-bearer payoffs — cards rewarded by the Ring tempting you",
-        {"oracle": r"whenever the ring tempts you|ring-bearer"},
         # Serve on the lanes' idents (2026-10-18): the regex served the payoffs but not
         # the tempters that fuel them (Claim the Precious, Boromir), and credited Lord
         # of the Nazgûl for naming Ring-bearers in a protection clause.
@@ -995,7 +874,6 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
     ("ring_tempters", "you"): _spec(
         "Tempt the Ring",
         "ways to tempt yourself with the Ring (advance the Ring-bearer)",
-        {"oracle": r"the ring tempts you"},
         # Serve on the lanes' idents (2026-10-18): the regex missed the Ring-bearer
         # payoffs a tempter feeds (Sauron, the Necromancer).
         None,
@@ -1012,14 +890,12 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
     ("venture_makers", "you"): _spec(
         "Venture (enablers)",
         "venture enablers — cards that venture into the dungeon",
-        {"oracle": r"venture into the dungeon|\bdungeon\b"},
         None,
         serve_idents=_VENTURE_SERVE_IDENTS,
     ),
     ("venture_matters", "you"): _spec(
         "Venture / dungeons",
         "dungeon-completion payoffs and dungeon-trigger doublers",
-        {"oracle": r"venture into the dungeon|\bdungeon\b"},
         None,
         serve_idents=_VENTURE_SERVE_IDENTS,
     ),
@@ -1033,7 +909,6 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
     ("energy_makers", "you"): _spec(
         "Energy",
         "energy makers and energy sinks",
-        {"oracle": r"\{e\}|energy counter"},
         None,
         serve_idents=_ENERGY_SERVE_IDENTS,
     ),
@@ -1043,7 +918,6 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
     ("energy_matters", "you"): _spec(
         "Energy",
         "energy makers and energy sinks",
-        {"oracle": r"\{e\}|energy counter"},
         None,
         serve_idents=_ENERGY_SERVE_IDENTS,
     ),
@@ -1054,7 +928,6 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
     ("devotion_matters", "you"): _spec(
         "Devotion",
         "heavy colored pips to grow devotion and devotion payoffs",
-        {"oracle": r"devotion to"},
         # Serve on the lane's ident (2026-10-18): the regex missed the chroma counts
         # of colored pips (Primalcrux, Heartlash Cinder); its one extra, Altar of the
         # Pantheon's devotion boost, is a lane gap the lane should close.
@@ -1068,7 +941,6 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
     ("superfriends_matters", "you"): _spec(
         "Superfriends",
         "planeswalkers plus proliferate and loyalty payoffs to protect them",
-        {"oracle": r"planeswalker|loyalty"},
         # The lane reads "if you control a <name> planeswalker" payoffs (Jace's
         # Sentinel). Pillowfort "attacks you or planeswalkers" clauses are noise; lane
         # gaps: empower Jace (Hexhaven Battalion), "put loyalty counters" (Inspired
@@ -1087,7 +959,6 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
     ("historic_matters", "you"): _spec(
         "Historic",
         "artifacts, legendaries, and Sagas — the historic permanents that trigger it",
-        {"oracle": r"\bhistoric\b|\blegendary\b|\bsaga\b"},
         # Serve on the lane's ident (2026-10-18): it reproduces the regex exactly.
         None,
         serve_idents=frozenset({"historic_matters|you|"}),
@@ -1096,7 +967,6 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
     ("legends_matter", "you"): _spec(
         "Legends matter",
         "legendary creatures and the payoffs that reward a board of legends",
-        {"oracle": r"\blegendary\b"},
         # The lane reads the legend payoffs the regex missed (Arwen's Gift, Esquire of
         # the King); "nonlegendary" text is out. It also reads legend hate (Hero's
         # Demise), a lane false positive.
@@ -1109,7 +979,6 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
     ("big_hand_makers", "you"): _spec(
         "No maximum hand size",
         "no-max-hand-size enablers and the payoffs that reward a full grip",
-        {"oracle": r"cards in your hand|no maximum hand size"},
         # Serves the no-max-hand-size enablers and the payoffs that scale with or
         # check your own hand; the remainder is drawbacks and taxes on a full hand,
         # end-the-turn discards, and stax hand-size checks (Ensnaring Bridge).
@@ -1119,7 +988,6 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
     ("big_hand_matters", "you"): _spec(
         "Big hand payoffs",
         "card draw and no-max-hand-size payoffs that reward a full grip",
-        {"oracle": r"cards in your hand|no maximum hand size"},
         # Serves the no-max-hand-size enablers and the payoffs that scale with or
         # check your own hand; the remainder is drawbacks and taxes on a full hand,
         # end-the-turn discards, and stax hand-size checks (Ensnaring Bridge).
@@ -1132,7 +1000,6 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
     ("party_matters", "you"): _spec(
         "Party",
         "Clerics, Rogues, Warriors, and Wizards to assemble a full party",
-        {"oracle": r"your party|assemble.*party|\bcleric|\brogue|\bwarrior|\bwizard"},
         # Serve on the lane's ident (2026-10-18): the regex's one extra was Champions
         # from Beyond, whose "Light Party" / "Full Party" ability words aren't a party.
         None,
@@ -1142,7 +1009,6 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
     ("exile_matters", "you"): _spec(
         "Exile pile matters",
         "impulse/foretell exile enablers and payoffs for cards in exile",
-        {"oracle": r"exile the top|in exile|from exile"},
         # The lane reads the exile payoffs the regex missed (Rakshasa Vizier, Kaya,
         # Spirits' Justice); "exiled this way" riders are noise. It also reads removal
         # riders that count exiled creatures (Curse of the Swine), a lane false
@@ -1153,12 +1019,11 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
     # _matters sweep (ADR-0034): split the conflated experience lane by role.
     # experience_makers = the MAKER arm (cards that GAIN experience counters —
     # Ezuri, Mizzix, Kalemne); experience_matters = the PAYOFF arm (cards that
-    # SCALE off your experience count — Atreus draw-X, Azula pump-X). Both reuse
-    # the same {"oracle": "experience counter"} search pool.
+    # SCALE off your experience count — Atreus draw-X, Azula pump-X). Both share
+    # one serve (the two lanes' idents).
     ("experience_makers", "you"): _spec(
         "Experience counters",
         "ways to gain experience counters",
-        {"oracle": r"experience counter"},
         # Serve on the lanes' idents (2026-10-18): they reproduce the regex exactly.
         None,
         serve_idents=frozenset({"experience_makers|you|", "experience_matters|you|"}),
@@ -1166,7 +1031,6 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
     ("experience_matters", "you"): _spec(
         "Experience payoffs",
         "payoffs that scale with experience counters",
-        {"oracle": r"experience counter"},
         # Serve on the lanes' idents (2026-10-18): they reproduce the regex exactly.
         None,
         serve_idents=frozenset({"experience_makers|you|", "experience_matters|you|"}),
@@ -1174,13 +1038,12 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
     # _matters sweep (ADR-0034): poison split by role. poison_makers = the MAKER arm
     # (infect/toxic threats + poison-counter givers that DEAL the poison);
     # poison_matters = the PAYOFF arm (cards that REWARD a high poison count —
-    # Corrupted, proliferate-to-finish). Both reuse the same search pool: the serve
-    # avenue legitimately composes infect/toxic threats AND the poison payoffs
+    # Corrupted, proliferate-to-finish). Both share one serve: the avenue
+    # legitimately composes infect/toxic threats AND the poison payoffs
     # together (ADR-0034: only membership splits by role, the avenue offers both).
     ("poison_makers", "opponents"): _spec(
         "Poison / infect",
         "infect and toxic threats to stack poison counters on opponents",
-        {"oracle": r"\binfect\b|\btoxic\b|poison counter|proliferate"},
         # Serve on the lanes' idents (2026-10-18): they reproduce the regex exactly.
         None,
         serve_idents=frozenset(
@@ -1190,7 +1053,6 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
     ("poison_matters", "opponents"): _spec(
         "Poison payoffs",
         "payoffs that reward a high poison count plus proliferate to finish",
-        {"oracle": r"\binfect\b|\btoxic\b|poison counter|proliferate"},
         # Serve on the lanes' idents (2026-10-18): they reproduce the regex exactly.
         None,
         serve_idents=frozenset(
@@ -1203,7 +1065,6 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
     ("modified_matters", "you"): _spec(
         "Modified",
         "counters, Auras, and Equipment to keep creatures modified",
-        {"oracle": r"\bmodified\b|\+1/\+1 counter|aura or equipment"},
         # Serve on the lanes' idents: the modified payoffs plus the
         # +1/+1 counter package (makers, payoffs, doublers, proliferate — every
         # counter is a modification). The losses are the +1/+1 package's own
@@ -1217,7 +1078,6 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
     ("has_mutate", "you"): _spec(
         "Mutate",
         "mutate creatures and mutate-trigger payoffs",
-        {"oracle": r"\bmutate\b"},
         # Serve on the lane's ident (2026-10-18): it reproduces the regex exactly.
         None,
         serve_idents=frozenset({"has_mutate|you|"}),
@@ -1238,14 +1098,12 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
     ("food_makers", "you"): _spec(
         "Food tokens",
         "Food makers plus sacrifice outlets and lifegain payoffs",
-        {"oracle": r"\bfood token|foods? you control|sacrifice a food"},
         None,
         serve_idents=frozenset({"food_makers|you|", "food_matters|you|"}),
     ),
     ("food_matters", "you"): _spec(
         "Food token payoffs",
         "cards that sacrifice or reference Food tokens, plus lifegain payoffs",
-        {"oracle": r"\bfood token|foods? you control|sacrifice a food"},
         None,
         serve_idents=frozenset({"food_makers|you|", "food_matters|you|"}),
     ),
@@ -1257,7 +1115,6 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
     ("type_change", "you"): _spec(
         "Type change",
         "creature-type changers to force opponents into the punished type",
-        {"oracle": _TYPE_CHANGER_ORACLE},
         # Serve on the type-changer lane's idents (any / each / you scopes). Remainder:
         # a text-changing word swap (Artificial Evolution) is a lane gap.
         None,
@@ -1276,10 +1133,6 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
     ("color_change", "you"): _spec(
         "Color change",
         "effects that add or change colors — fixing plus color-matters enablers",
-        {
-            "oracle": r"becomes the color of your choice|the chosen color"
-            r"|in addition to (?:its|their) (?:other )?colors?"
-        },
         None,
         serve_idents=frozenset({"color_change|you|", "color_change|you|payoff"}),
     ),
@@ -1292,7 +1145,6 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
     ("domain_matters", "you"): _spec(
         "Domain",
         "basic land types and fixing to grow domain",
-        {"oracle": r"\bdomain\b|basic land types?"},
         # Serve on the lane's ident: the payoffs and the land-type granters.
         None,
         serve_idents=frozenset({"domain_matters|you|"}),
@@ -1300,7 +1152,6 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
     ("clue_matters", "you"): _spec(
         "Clues / investigate",
         "investigate enablers and artifact/draw payoffs for Clues",
-        {"oracle": r"\bclue\b|investigate"},
         # Serve on the lanes' idents (2026-10-18): the regex missed a Clue payoff that
         # names Clues only in the plural (Tangletrove Kelp).
         None,
@@ -1314,7 +1165,6 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
     ("clue_makers", "you"): _spec(
         "Clue makers / investigate",
         "Clue makers plus artifact/draw payoffs for Clues",
-        {"oracle": r"\bclue\b|investigate"},
         # Serve on the lanes' idents (2026-10-18): the regex missed a Clue payoff that
         # names Clues only in the plural (Tangletrove Kelp).
         None,
@@ -1328,7 +1178,6 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
     ("blood_makers", "you"): _spec(
         "Blood tokens",
         "Blood makers plus rummage and sacrifice payoffs",
-        {"oracle": r"blood token"},
         # Serve on the lanes' idents (2026-10-18): they reproduce the regex exactly.
         None,
         serve_idents=frozenset({"blood_makers|you|", "blood_matters|you|"}),
@@ -1336,7 +1185,6 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
     ("blood_matters", "you"): _spec(
         "Blood token payoffs",
         "cards that sacrifice or reference Blood tokens",
-        {"oracle": r"blood token"},
         # Serve on the lanes' idents (2026-10-18): they reproduce the regex exactly.
         None,
         serve_idents=frozenset({"blood_makers|you|", "blood_matters|you|"}),
@@ -1350,7 +1198,6 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
     ("daynight_makers", "you"): _spec(
         "Day / Night enablers",
         "cards that flip day/night — the transition makers",
-        {"oracle": r"\bdaybound\b|\bnightbound\b|\bday\b|\bnight\b"},
         # Serve on the lanes' idents (2026-10-18): they reproduce the regex exactly.
         None,
         serve_idents=frozenset({"daynight_makers|you|", "daynight_matters|you|"}),
@@ -1358,7 +1205,6 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
     ("daynight_matters", "you"): _spec(
         "Day / Night",
         "daybound/nightbound creatures and day-night transition payoffs",
-        {"oracle": r"\bdaybound\b|\bnightbound\b|\bday\b|\bnight\b"},
         # Serve on the lanes' idents (2026-10-18): they reproduce the regex exactly.
         None,
         serve_idents=frozenset({"daynight_makers|you|", "daynight_matters|you|"}),
@@ -1371,7 +1217,6 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
     ("voting_makers", "each"): _spec(
         "Voting / council",
         "will-of-the-council and vote effects — multiplayer politics",
-        {"oracle": r"\bvote\b|will of the council|council's dilemma"},
         # Serve on the lanes' idents: vote makers and vote payoffs share one avenue.
         None,
         serve_idents=frozenset({"voting_makers|each|", "voting_matters|each|"}),
@@ -1379,7 +1224,6 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
     ("voting_matters", "each"): _spec(
         "Voting / council payoffs",
         "cards that trigger off a vote — multiplayer politics",
-        {"oracle": r"\bvote\b|will of the council|council's dilemma"},
         # Serve on the lanes' idents: vote makers and vote payoffs share one avenue.
         None,
         serve_idents=frozenset({"voting_makers|each|", "voting_matters|each|"}),
@@ -1387,7 +1231,6 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
     ("coven_matters", "you"): _spec(
         "Coven",
         "creatures with different powers to turn on coven",
-        {"oracle": r"\bcoven\b|different powers"},
         # Serve on the lane's ident (2026-10-18): it reproduces the regex exactly.
         None,
         serve_idents=frozenset({"coven_matters|you|"}),
@@ -1396,7 +1239,6 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
     # lane misses (an emblem, a Saga chapter, "conjure a card named" ETBs).
     ("conjure_makers", "you"): _spec(
         *SWEEP_LABELS["conjure_makers"],
-        {"oracle": r"\bconjure\b"},
         None,
         serve_idents=frozenset({"conjure_makers|you|"}),
     ),
@@ -1406,7 +1248,6 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
     ("token_doubling", "you"): _spec(
         "Token doubling",
         "token makers to multiply, plus other token doublers and go-wide payoffs",
-        {"oracle": r"create [^.]*creature token|twice that many[^.]*tokens?"},
         # Serve rides the lanes: the creature-token makers (amass, endure and
         # populate included) and the other token doublers.
         None,
@@ -1424,7 +1265,6 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
     ("counter_doubling", "you"): _spec(
         "Counter doubling",
         "+1/+1 counter sources to multiply, plus other counter doublers",
-        {"oracle": r"\+1/\+1 counters?|double the number of [^.]*counters?"},
         # Serve on the +1/+1 package's idents: the cards that PUT counters, proliferate,
         # or replace "that many plus one" (Hardened Scales). Gaps: sunburst grants (Lux
         # Artillery) are the package's documented exclusion.
@@ -1432,18 +1272,11 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
         serve_idents=_PLUS_ONE_SERVE_IDENTS,
         extras=_COUNTERS_PACKAGE,
     ),
-    # Serve is precise (the second-spell payoff). The SEARCH carried the same bare
-    # "draw a card" FP; narrow it to the payoffs (second/third spell, multi-spell,
-    # storm) so the avenue stops crediting every value permanent that draws.
+    # Serve is precise (the second-spell payoff), so the avenue stops crediting every
+    # value permanent that draws.
     ("second_spell_matters", "you"): _spec(
         "Second-spell / storm-lite",
         "second-spell, multi-spell, and storm payoffs that reward chaining casts",
-        {
-            "oracle": (
-                r"(?:second|third) spell you cast|cast your (?:second|third) spell"
-                r"|cast two or more spells|\bstorm\b"
-            )
-        },
         # Serve on the lane's ident (2026-10-18): the regex missed the "cast two or
         # more spells this turn" and "a player casts their second spell" payoffs
         # (Ledger Shredder, Vengevine, Brightspear Zealot).

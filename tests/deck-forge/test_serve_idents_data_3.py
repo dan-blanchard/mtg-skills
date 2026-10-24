@@ -435,7 +435,7 @@ def test_serve_is_the_lane_not_a_regex(key, scope, ident, serves, dropped):
 def test_connive_serve_is_the_doers_and_the_payoffs(key):
     spec = spec_for(_sig(key))
     assert spec.serve.oracle is None
-    assert spec.search["oracle"]
+    assert spec.search == {}  # the theme pages by its serve
     serve = spec.serve
     assert serve.matches(_card("Raffine's Informant"))
     assert serve.matches(_card("Security Bypass"))  # a granted connive

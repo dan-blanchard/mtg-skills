@@ -13,10 +13,12 @@ from mtg_utils._analysis import signal_specs
 from mtg_utils._analysis.signal_specs import (
     _CHOSEN_TYPE_IDENTS,
     Serve,
+    page_serve,
     search_filters,
     serve_from_dict,
     serves,
     spec_for,
+    theme_page,
 )
 from mtg_utils._analysis.signals import Signal
 from mtg_utils.testkit import test_card, test_card_ir, test_signals
@@ -72,9 +74,7 @@ def _lane_covers(card, sig):
         return False
     if spec.serve.matches(card):
         return True
-    return any(
-        (ex.serve or serve_from_dict(ex.search)).matches(card) for ex in spec.extras
-    )
+    return any(ex.serve.matches(card) for ex in spec.extras)
 
 
 def test_stax_serves_nonbasic_land_hate():
@@ -781,11 +781,11 @@ def test_search_filters_inject_color_identity_and_format():
     )
     assert filters["color_identity"] == "GW"
     assert filters["format"] == "commander"
-    # An oracle-searched theme pages by its serve (``theme_page``): the serve
-    # replaces the pattern, the page Find and the tuner show.
+    # A theme pages by its serve (``theme_page``): the page Find and the tuner
+    # show.
     spec = spec_for(_sig("creature_etb", "you"))
     assert spec is not None
-    assert spec.search.get("oracle")
+    assert spec.search == {}
     assert filters["serve"] is spec.serve
     assert "oracle" not in filters
 
@@ -988,7 +988,7 @@ def test_become_a_type_cards_match_the_type_lane():
         assert _lane_covers(card, goblin) is True, n  # surfaced via the enabler lane
         assert body_arms.matches(card) is False, n  # not a tribe member (B1)
         assert main.matches(card) is True, n  # credited structurally (ADR-0040)
-        payoff_serve = goblin_payoff.serve or serve_from_dict(goblin_payoff.search)
+        payoff_serve = goblin_payoff.serve
         assert payoff_serve.matches(card) is False, n  # and NOT a payoff
 
 
@@ -1231,10 +1231,14 @@ def test_land_creatures_serve_is_precise():
 
 
 def _avenue_dicts(spec):
-    """Engine avenue dicts (main + extras), as build_app emits them."""
-    out = [{"label": spec.label, "search": dict(spec.search)}]
-    out += [{"label": sa.label, "search": dict(sa.search)} for sa in spec.extras]
-    return out
+    """Engine avenue dicts (main + extras), as build_app emits them: each with
+    the serve it pages and credits by (``engine.avenue_with_serve``)."""
+    from mtg_utils._deck_forge.engine import avenue_with_serve
+
+    return [
+        avenue_with_serve({"label": a.label, "search": dict(a.search)}, a.serve)
+        for a in (spec, *spec.extras)
+    ]
 
 
 def _sig_sub(key, subject, scope="you"):
@@ -1260,12 +1264,12 @@ def test_token_maker_subject_spec_and_generic_fallback():
     sub = spec_for(_sig_sub("token_maker", "Construct"))
     assert sub is not None
     assert "Construct" in sub.label  # "Construct tokens"
-    # searches for cards that CREATE Construct tokens (oracle), not the type line.
-    assert "oracle" in sub.search
-    assert "card_type" not in sub.search
+    # pages the cards that CREATE Construct tokens (its serve), not the type line.
+    assert sub.search == {}
+    assert sub.serve.search("Create a 0/0 colorless Construct artifact creature token")
     generic = spec_for(_sig_sub("token_maker", ""))  # no subject → static spec
     assert generic is not None
-    assert "oracle" in generic.search
+    assert page_serve(generic.search, generic.serve) is generic.serve
 
 
 def test_every_producible_key_resolves_to_a_spec():
@@ -1279,7 +1283,32 @@ def test_every_producible_key_resolves_to_a_spec():
         spec = spec_for(_sig(key, "any"))
         assert spec is not None, key
         assert spec.label, key
-        assert spec.search, key
+        # Every theme has a page: its serve's, or its search's own fetch.
+        assert theme_page(spec.search, spec.serve) != ({}, None), key
+
+
+def test_a_theme_pages_by_its_serve_not_a_pattern():
+    """A theme's page derives from its serve (``signal_specs.theme_page``), its
+    search only an override (a tribe's card type, a preset). No spec or
+    sub-avenue carries an oracle pattern beside a serve that pages — the
+    pattern would decide nothing. The one pattern left is One-sided keep-N's,
+    whose serve admits nothing, so it has no serve to page by."""
+    from mtg_utils._analysis import signal_keys
+    from mtg_utils._analysis.signal_specs import SPECS
+
+    specs = list(SPECS.values()) + [
+        spec_for(_sig_sub(key, subject))
+        for key in sorted(signal_keys.SUBJECT_KEYS)
+        for subject in ("Goblin", "Flying", "", "Artifact", "Desert")
+    ]
+    patterned = set()
+    for spec in filter(None, specs):
+        for avenue in (spec, *spec.extras):
+            assert avenue.serve is not None, avenue.label
+            if "oracle" in avenue.search:
+                assert page_serve(avenue.search, avenue.serve) is None, avenue.label
+                patterned.add(avenue.label)
+    assert patterned == {"One-sided keep-N"}
 
 
 def test_search_filters_for_subject_signal_inject_identity():
@@ -1301,7 +1330,10 @@ def test_land_creature_avenue_searches_exclude_false_positives():
     def served(card):
         return set(score_candidate(card, active_signals=[], avenues=avenues)["served"])
 
-    assert served(MANLAND)  # a real creature-land is surfaced by some avenue
+    assert served(LAND_CREATURE_PAYOFF)  # a land-creature payoff is surfaced
+    # A manland itself (Mishra's Factory) is not: the lane's ident is its
+    # animators' and payoffs', not the manlands' (backlog).
+    assert not served(MANLAND)
     assert not served(PLANT_MAKER)  # Avenger's Plant tokens — surfaced by none
     assert not served(CLONE)  # Silent Hallcreeper clone — surfaced by none
     # A transform DFC (Saga front // Land back) is NOT a creature-land: "Land"
@@ -1555,10 +1587,10 @@ class TestCoinFlipSpec:
         assert fix is not None, "expected a 'Flip fixing' sub-avenue"
         # Krark's Thumb is the canonical fixer — the sub-avenue's search must surface it.
         krark = "If you would flip a coin, instead flip two coins and ignore one."
-        assert re.search(fix.search["oracle"], krark, re.IGNORECASE)
+        assert re.search(fix.serve.oracle.pattern, krark, re.IGNORECASE)
         # but a plain flip payoff is NOT a fixer (stays in the main avenue only).
         plain = "Flip a coin. If you win the flip, draw a card."
-        assert not re.search(fix.search["oracle"], plain, re.IGNORECASE)
+        assert not re.search(fix.serve.oracle.pattern, plain, re.IGNORECASE)
         # the main avenue still recognizes generic flip payoffs — through the
         # coin_flip lane's ident since the 2026-10-18 serve-ident pass.
         assert spec.serve.matches(_card("Chance Encounter"))
@@ -1577,14 +1609,14 @@ class TestCoinFlipSpec:
             "those coins come up heads and you win those flips."
         )
         # Edgar is a genuine fixer — the sub-avenue search must catch it.
-        assert re.search(fix.search["oracle"], edgar, re.IGNORECASE)
+        assert re.search(fix.serve.oracle.pattern, edgar, re.IGNORECASE)
         # …and it serves the parent coin-flip avenue (it IS a coin-flip card,
         # phrased "flip one or more coins"/"come up heads", not "flip a coin"),
         # read off the coin_flip lane's ident (2026-10-18).
         assert spec.serve.matches(_card("Edgar, King of Figaro"))
         # but a plain flip-resolution payoff stays out of the fixer sub-avenue.
         plain = "Flip a coin. If you win the flip, draw a card."
-        assert not re.search(fix.search["oracle"], plain, re.IGNORECASE)
+        assert not re.search(fix.serve.oracle.pattern, plain, re.IGNORECASE)
 
     def test_flip_fixing_excludes_conditional_payoffs(self):
         """The e21b7d6 broadening (bare 'come up heads' / 'you win … flip') wrongly
@@ -1596,7 +1628,7 @@ class TestCoinFlipSpec:
 
         spec = spec_for(_sig("coin_flip", "you"))
         fix = {e.label: e for e in spec.extras}["Flip fixing"]
-        rx = re.compile(fix.search["oracle"], re.IGNORECASE)
+        rx = re.compile(fix.serve.oracle.pattern, re.IGNORECASE)
 
         # The two REAL fixers — must match (a grant / a re-flip).
         edgar = (
@@ -1778,9 +1810,8 @@ class TestSubjectSpecs:
         assert spec.serve.search("Create a 1/1 green Dryad creature token.")
         # …a plain Dryad creature (no token creation) does NOT.
         assert not spec.serve.search("Dryad — this creature has reach.")
-        # the search targets token creation, not the type line.
-        assert "oracle" in spec.search
-        assert "card_type" not in spec.search
+        # the page is its serve's (token creation), not the type line.
+        assert spec.search == {}
 
     def test_token_maker_payoffs_are_a_distinct_sub_avenue(self):
         spec = spec_for(_subj_sig("token_maker", "Dryad"))
@@ -1799,7 +1830,7 @@ class TestSubjectSpecs:
         assert spec.search == {"card_type": "Elemental"}  # the creatures
         payoff = spec.extras[0]
         assert payoff.label == "Elemental payoffs"
-        assert "you control" in payoff.search["oracle"]  # the lords/anthems
+        assert "you control" in payoff.serve.oracle.pattern  # the lords/anthems
 
 
 class TestStructuredServeFixes:
@@ -2138,21 +2169,27 @@ class TestStructuredServeFixes4:
         assert serves(festering_goblin, sig) is False
 
     def test_crimes_avenue_excludes_counterspells(self):
-        """crimes SEARCH `target.*spell` credited every counterspell. Drop it."""
+        """crimes SEARCH `target.*spell` credited every counterspell. The avenue
+        pages and credits by its serve, the crimes lane's ident: the payoffs."""
         from mtg_utils._analysis.ranking import score_candidate
+        from mtg_utils._deck_forge.engine import avenue_with_serve
 
         spec = spec_for(_sig("crimes_matter", "you"))
-        avenue = {"label": spec.label, "search": dict(spec.search)}
-        counterspell = _card("Counterspell")
-        murder = _card("Murder")
-        served_cs = set(
-            score_candidate(counterspell, active_signals=[], avenues=[avenue])["served"]
+        avenue = avenue_with_serve(
+            {"label": spec.label, "search": dict(spec.search)}, spec.serve
         )
-        served_m = set(
-            score_candidate(murder, active_signals=[], avenues=[avenue])["served"]
-        )
-        assert spec.label not in served_cs  # counterspell is not a crime enabler
-        assert spec.label in served_m  # targeted removal is
+
+        def served(name):
+            card = _card(name)
+            return set(
+                score_candidate(card, active_signals=[], avenues=[avenue])["served"]
+            )
+
+        assert spec.label not in served("Counterspell")  # not a crime enabler
+        assert spec.label in served("Vadmir, New Blood")  # a crime payoff
+        # Targeted removal, the crime itself, is not served: the lane's ident is
+        # the payoffs' (backlog).
+        assert spec.label not in served("Murder")
 
 
 class TestMediumServeFixes:
@@ -2565,7 +2602,7 @@ def test_cheat_into_play_subject_specs_share_one_label():
     }
     assert labels == {"Cheat into play"}
     spec = spec_for(_sig_sub("cheat_into_play", "Artifact"))
-    assert spec.search == {"oracle": "onto the battlefield"}
+    assert spec.search == {}  # it pages by its serve
     assert spec.serve.signal_idents == frozenset(
         {"cheat_into_play|you|Artifact", "cheat_into_play|you|"}
     )
@@ -3173,12 +3210,12 @@ def test_tribal_enabler_vs_payoff_and_restricted_list():
 
     def payoff_serves(card, sig):
         ex = spec_for(sig).extras[0]  # the "{s} payoffs" sub-avenue
-        return (ex.serve or serve_from_dict(ex.search)).matches(card)
+        return ex.serve.matches(card)
 
     def enabler_serves(card, sig):
         ex = spec_for(sig).extras[1]  # the "{s} enablers" sub-avenue
         assert ex.label.endswith("enablers")
-        return (ex.serve or serve_from_dict(ex.search)).matches(card)
+        return ex.serve.matches(card)
 
     xenograft = _card("Xenograft")
     dawn = _card("Dawn-Blessed Pennant")
@@ -4273,14 +4310,15 @@ def test_chosen_idents_stay_out_of_count_damage_body_lanes():
 
 
 def test_damage_for_each_search_finds_fuel_not_more_burn():
-    # F6: search must find cards that FEED the signal (token fuel), not more
-    # board-count burn emitters the serve then rejects.
+    # F6: the page must find cards that FEED the signal (token fuel), not more
+    # board-count burn emitters the serve then rejects: it is the serve's page,
+    # the go-wide fuel the creature-ETB lane pages.
     spec = spec_for(
         Signal(key="damage_for_each", scope="any", subject="", text="", source="c")
     )
-    oracle = spec.search.get("oracle", "")
-    assert "token" in oracle, spec.search
-    assert "number of" not in oracle, spec.search
+    assert theme_page(spec.search, spec.serve) == ({}, spec.serve)
+    etb = spec_for(_sig("creature_etb", "you"))
+    assert spec.serve.signal_idents == etb.serve.signal_idents
 
 
 def test_keep_n_wrath_serve_is_the_rebuild_package_not_the_wipe():

@@ -123,10 +123,10 @@ def avenue_with_serve(avenue: dict, serve: Serve | None) -> dict:
     ranking credits candidates by the SAME precise predicate the spec serves on —
     when it carries a structured dimension (types/keywords) the bare ``search``
     fragment can't express (e.g. Spellslinger's Instant/Sorcery type gate), or
-    when the theme pages by it (``signal_specs.page_serve``): an oracle-only
-    serve beside a different search pattern (Permanents entering) is the page
-    the tuner shows, so Find pages and credits by it too. Any other oracle-only
-    serve is left to the legacy search-AND classification."""
+    when the theme pages by it (``signal_specs.page_serve``): the page the tuner
+    shows, so Find pages and credits by it too. An oracle-only serve under a
+    search that overrides its page (a preset: Blink / flicker) is left to the
+    legacy search-AND classification."""
     if serve is not None and (
         serve.is_structured()
         or page_serve(avenue.get("search") or {}, serve) is not None
@@ -1421,7 +1421,7 @@ def avenues(state: ForgeState, hydrated: list[dict]) -> list[dict]:
         main_serve = spec.serve
         if split is not None:
             source_serve, source_search = split
-            main_search = payoff_search(main_search, spec.serve)
+            main_search = payoff_search(main_search)
             main_serve = payoff_serve(spec)
         out.append(
             avenue_with_serve(
@@ -1516,12 +1516,12 @@ def scoring_basis(
 
 def lane_page(avenue: dict) -> tuple[dict, Serve | None]:
     """A focused avenue's Find page: its search, and the serve that filters the
-    page in place of the search's pattern and card type, or None — the theme's
-    page (``signal_specs.theme_page``), the same one the tuner pages a theme by.
-    Only an avenue that carries a serve (``avenue_with_serve``) has one to page
-    by: an oracle-searched lane, or an ident serve's payoff avenue left with
-    nothing of its own to fetch by once ADR-0026 split its source type off
-    (Artifacts' payoffs: Sai beside the artifact-token makers)."""
+    page, or None — the theme's page (``signal_specs.theme_page``), the same one
+    the tuner pages a theme by. Only an avenue that carries a serve
+    (``avenue_with_serve``) has one to page by: every engine avenue whose search
+    doesn't override its serve's page, an ident serve's payoff avenue among
+    them once ADR-0026 split its source type off (Artifacts' payoffs: Sai
+    beside the artifact-token makers)."""
     stored = avenue.get("serve")
     return theme_page(
         avenue.get("search") or {}, serve_from_dict(stored) if stored else None

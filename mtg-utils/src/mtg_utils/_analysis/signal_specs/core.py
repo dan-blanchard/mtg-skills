@@ -109,7 +109,6 @@ def _payoff_extra(subj: str, esc: str) -> SubAvenue:
         f"{subj} payoffs",
         f"lords and anthems that reward a board of {subj}s, plus type-agnostic tribal "
         "payoffs (Coat of Arms, Door of Destinies) that work for any chosen tribe",
-        {"oracle": positive},
         serve=Serve(
             oracle=re.compile(positive, _IC),
             # task B-1: the structural successor to the choose-a-type text
@@ -161,7 +160,6 @@ def _enabler_extra(subj: str) -> SubAvenue:
         f"{subj} enablers",
         f"cards that make your other creatures {subj}s (type-changers like Xenograft), "
         f"growing the tribe so your {subj} lords and payoffs reach more of the board",
-        {"oracle": _ENABLER_GRANT},
         serve=Serve(
             oracle=re.compile(_ENABLER_GRANT, _IC),
             signal_idents=_type_changer_idents((subj,)),
@@ -219,7 +217,6 @@ def _cheat_subject_spec(subj: str) -> SignalSpec:
             f"ways to put {plural} onto the battlefield from hand or library, "
             f"plus the {plural} worth cheating in"
         ),
-        search={"oracle": "onto the battlefield"},
         serve=replace(
             payoff,
             signal_idents=frozenset(
@@ -345,7 +342,6 @@ def _subject_spec(signal: Signal) -> SignalSpec:
         return SignalSpec(
             label=f"{subj} matters",
             avenue=f"creatures with {subj} plus anthems and payoffs that reward them",
-            search={"oracle": rf"\b{esc.lower()}\b"},
             serve=Serve(oracle=re.compile(rf"\b{esc}\b", _IC)),
         )
     # meld: the subject is THIS commander's own name. Its single meld partner names it
@@ -359,7 +355,6 @@ def _subject_spec(signal: Signal) -> SignalSpec:
                 f"the specific card that melds with {subj} (plus tutors/recursion to "
                 "assemble the pair)"
             ),
-            search={"oracle": partner_re},
             serve=Serve(oracle=re.compile(partner_re, _IC)),
         )
     # type_changers (task #96, ADR-0040): a mass creature-type changer's own
@@ -377,7 +372,6 @@ def _subject_spec(signal: Signal) -> SignalSpec:
                 "cards that mass-change creature types (Xenograft, Maskwood "
                 "Nexus) so tribal payoffs reach more of the board"
             ),
-            search={"oracle": _ENABLER_GRANT},
             serve=Serve(
                 oracle=re.compile(_ENABLER_GRANT, _IC),
                 signal_idents=_type_changer_idents(
@@ -398,7 +392,6 @@ def _subject_spec(signal: Signal) -> SignalSpec:
         return SignalSpec(
             label=f"{subj} tokens",
             avenue=f"cards that create {subj} tokens to go wide",
-            search={"oracle": token_re},
             serve=Serve(oracle=re.compile(token_re, _IC)),
             extras=(
                 _payoff_extra(subj, esc),
@@ -442,8 +435,8 @@ def _subject_spec(signal: Signal) -> SignalSpec:
             SubAvenue(
                 f"{m.capitalize()}s",
                 f"{m.capitalize()} bodies in the {subj} group",
-                {"card_type": m},
                 serve=Serve(types=frozenset({m})),
+                search={"card_type": m},
             )
             for m in members
             if m != subj.lower()
@@ -512,7 +505,7 @@ for _d in SWEEP_DETECTORS:
     else:
         _label = _humanize(_d["key"])
         _avenue = f"support and payoffs for the {_label.lower()} axis"
-    SPECS[_ident] = _spec(_label, _avenue, {"oracle": _d["regex"]}, _d["regex"])
+    SPECS[_ident] = _spec(_label, _avenue, _d["regex"])
 
 
 # ── ADR-0026: payoff/source avenue split ──────────────────────────────────────
@@ -573,7 +566,7 @@ def source_split(spec: SignalSpec) -> tuple[Serve, dict] | None:
     oracle pattern or the lanes' idents (a pure-membership spec is already a single
     source-ish lane; don't split it). The caller strips the same dims from the payoff
     avenue (see ``payoff_serve``), which then pages by its serve
-    (:func:`pages_by_serve`) when its search keeps nothing of its own."""
+    (:func:`payoff_search`)."""
     srv = spec.serve
     if srv.oracle is None and not srv.signal_idents:
         return None
@@ -610,21 +603,18 @@ def source_label(source_types: frozenset[str]) -> str:
     return " & ".join(_pluralize(t) for t in sorted(source_types))
 
 
-def payoff_search(search: dict, serve: Serve) -> dict:
-    """The payoff avenue's pool fetch (ADR-0026): drop the type/preset fetch (that
-    pulled the source pool) and fall back to the serve's oracle payoff pattern, so the
-    payoff lane surfaces payoffs (Sram, equip-cost reducers) not vanilla gear. An
-    ident serve has no pattern to fall back to: its payoff avenue's search is left
-    with nothing to page by, so it pages by its serve (:func:`pages_by_serve`)."""
+def payoff_search(search: dict) -> dict:
+    """The payoff avenue's search (ADR-0026): the theme's, without the type/preset
+    fetch that pulled the source pool, so the payoff avenue pages by its serve
+    (:func:`payoff_serve`, :func:`theme_page`) and surfaces payoffs (Sram,
+    equip-cost reducers, Sai beside the artifact-token makers), not vanilla
+    gear."""
     drop = ("card_type", "preset_names", "presets")
-    out = {k: v for k, v in search.items() if k not in drop}
-    if "oracle" not in out and serve.oracle is not None:
-        out["oracle"] = serve.oracle.pattern
-    return out
+    return {k: v for k, v in search.items() if k not in drop}
 
 
-# The search keys that fetch a pool of their own: a search carrying one (and no
-# oracle pattern) pages by it, never by its theme's serve.
+# The search keys that fetch a pool of their own: a search carrying one pages by
+# it, never by its theme's serve (the spec's page override, ``SignalSpec.search``).
 _POOL_SEARCH_KEYS = (
     "card_type",
     "name",
@@ -639,28 +629,20 @@ _POOL_SEARCH_KEYS = (
 def pages_by_serve(search: Mapping[str, object]) -> bool:
     """Whether a theme's candidate page is the cards its ``Serve`` admits rather
     than its search's own fetch — the ONE rule Find (deck-forge) and the tuner's
-    theme pages share. A search by oracle pattern pages by the serve: the pattern
-    missed most of what the theme serves (read off the cards' idents where the
-    theme is IR-served), and a pattern beside a card type would AND the two. A
-    search left with nothing to fetch by — an ident serve's payoff avenue once
-    ADR-0026 split its source type off — pages by the serve too. A search by
-    card type or preset alone stays: a tribe's serve also admits the generic
-    tribal support that would crowd out its members. The caller passes the
-    serve only when it has one."""
-    if search.get("oracle"):
-        return True
+    theme pages share. A theme pages by its serve unless its search overrides it
+    with a fetch of its own (``SignalSpec.search``): a tribe's or a source type's
+    card type, a preset — a tribe's serve also admits the generic tribal support
+    that would crowd out its members. An ident serve's payoff avenue, once
+    ADR-0026 split its source type off, pages by its serve too. The caller
+    passes the serve only when it has one."""
     return not any(search.get(k) for k in _POOL_SEARCH_KEYS)
-
-
-#: The search keys a serve page drops: the serve filters in their place.
-_SERVE_PAGE_DROPS = ("oracle", "card_type")
 
 
 def page_serve(search: Mapping[str, object], serve: Serve | None) -> Serve | None:
     """The serve a theme's page filters by (:func:`theme_page`), or None: a theme
     that pages by its serve (:func:`pages_by_serve`) and carries one. A serve that
     admits nothing on any dimension (One-sided keep-N's) is none, or its page
-    would be empty."""
+    would be empty: that theme pages by its search's pattern."""
     if serve is None or serve.admits_nothing() or not pages_by_serve(search):
         return None
     return serve
@@ -673,13 +655,11 @@ def theme_page(
     serve that filters the page (:func:`page_serve`), or None. The ONE function
     deck-forge's Find (``engine.find_candidates``), the tuner's theme pages
     (``swaps._run_search``) and :func:`search_filters` page a theme through. A
-    theme with a page serve drops its pattern and card type for it; its other
-    keys (a mana-value band, a preset) still hold. Anything else pages by its own
-    search."""
-    filtering = page_serve(search, serve)
-    if filtering is None:
-        return dict(search), None
-    return {k: v for k, v in search.items() if k not in _SERVE_PAGE_DROPS}, filtering
+    theme's page derives from its serve; what its search holds beside (a
+    mana-value band) narrows it. A search that overrides the serve
+    (:func:`pages_by_serve`) pages by its own fetch, and so does a search with no
+    serve to page by: an agent's avenue, One-sided keep-N's pattern."""
+    return dict(search), page_serve(search, serve)
 
 
 def serve_page_search(search: Mapping[str, object]) -> dict:

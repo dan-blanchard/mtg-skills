@@ -12,19 +12,14 @@ from __future__ import annotations
 
 import functools
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from mtg_utils._analysis._sweep_detectors import (
     DIES_RECURSION_REGEX,
-    DIG_UNTIL_REGEX,
-    DISCARD_OUTLET_REGEX,
-    DRAW_FOR_EACH_REGEX,
     KEYWORD_COUNTER_REGEX,
     PUMP_MATTERS_REGEX,
     SWEEP_DETECTORS,
     SWEEP_LABELS,
-    THEFT_MATTERS_REGEX,
-    TOPDECK_SELECTION_REGEX,
 )
 from mtg_utils._analysis.lanes.card_advantage import (
     FODDER_SELF_RETURNS,
@@ -439,34 +434,47 @@ class SubAvenue:
     """An additional, separately-searchable angle on the same signal. A theme like
     land-creatures has genuinely distinct buckets — be the land-creatures (manlands),
     reward them (payoffs), turn lands into creatures (animators) — each needing its
-    own precise search, so one signal fans out into several explorable avenues.
+    own precise classifier, so one signal fans out into several explorable avenues.
 
-    ``serve`` is the precise classifier for the sub-avenue; when None, ranking falls
-    back to the sub-avenue's ``search`` (oracle + card_type), which is correct for the
-    many sub-avenues whose effect genuinely only lives in oracle prose."""
+    ``serve`` is the sub-avenue's precise classifier, and its candidate page
+    (``signal_specs.theme_page``); ``search`` is the page's override, as on
+    :class:`SignalSpec`."""
 
     label: str
     avenue: str
-    search: dict
-    serve: Serve | None = None
+    serve: Serve
+    search: dict = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
 class SignalSpec:
+    """A theme: its label, its avenue blurb, the ``serve`` that says which cards
+    feed it (CR-grounded: type / keyword / stat / the lanes' idents / oracle),
+    and its sub-avenues.
+
+    The theme's candidate page derives from its serve
+    (``signal_specs.theme_page``): the cards the serve admits. ``search`` is the
+    page's override, a ``card_search`` kwargs fragment — a tribe's or a source
+    type's ``card_type``, a preset, a name — that pages by its own fetch (the
+    tribe's members, not the generic tribal support its serve also admits); a
+    mana-value band beside nothing else narrows the serve's page. Empty for
+    most themes. Its one oracle pattern is One-sided keep-N's, whose serve
+    admits nothing (``Serve.admits_nothing``), so it has no serve to page by."""
+
     label: str
     avenue: str
-    search: dict  # card_search kwargs fragment (oracle / preset_names / card_type)
-    serve: Serve  # the precise classifier (type / keyword / oracle), CR-grounded
-    extras: tuple[SubAvenue, ...] = ()  # additional precise sub-avenues (optional)
+    serve: Serve
+    extras: tuple[SubAvenue, ...] = ()
+    search: dict = field(default_factory=dict)
 
 
 def _spec(
     label: str,
     avenue: str,
-    search: dict,
     serve: str | None,
     extras: tuple[SubAvenue, ...] = (),
     *,
+    search: dict | None = None,
     serve_types: tuple[str, ...] = (),
     serve_keywords: tuple[str, ...] = (),
     serve_cmc_min: float | None = None,
@@ -486,7 +494,7 @@ def _spec(
     return SignalSpec(
         label=label,
         avenue=avenue,
-        search=search,
+        search=search or {},
         serve=Serve(
             oracle=re.compile(serve, _IC) if serve else None,
             types=frozenset(t.lower() for t in serve_types),
@@ -511,11 +519,6 @@ def _spec(
 
 _SLINGER_TYPES = ("instant", "sorcery")
 _SLINGER_KEYWORDS = ("prowess",)
-_SLINGER_SEARCH_ORACLE = (
-    r"\bmagecraft\b|\bprowess\b"
-    r"|whenever you cast (?:an instant|a sorcery|a noncreature|your)"
-    r"|instant and sorcery spells you cast"
-)
 # Spellslinger and magecraft are ONE archetype (CR 207.2c: magecraft = "whenever you
 # cast or copy an instant or sorcery spell" — the same cast trigger as prowess/spell-
 # cast). Defined once and bound to BOTH the spellcast_matters and magecraft_matters
@@ -539,8 +542,8 @@ _PILLOWFORT_EXTRA = SubAvenue(
     "Pillowfort",
     "taxes and limits that make attacking you costly (Ghostly Prison, Propaganda, "
     "Sphere of Safety, Crawlspace)",
-    {"preset_names": ("pillowfort",)},
     serve=Serve(signal_idents=_PILLOWFORT_IDENTS),
+    search={"preset_names": ("pillowfort",)},
 )
 # ADR-0036/0037 Stage 5 #62: a GENERIC (any-permanent) counter doubler ALSO doubles
 # LOYALTY counters — a real hook, CR 306.6 (loyalty counters are counters, CR 122.1)
@@ -574,7 +577,6 @@ _LOYALTY_DOUBLER_ORACLE = (
 _LOYALTY_DOUBLER_EXTRA = SubAvenue(
     "Loyalty doubling",
     "generic (any-permanent) counter doublers, which also double loyalty counters",
-    {"oracle": _LOYALTY_DOUBLER_ORACLE},
     serve=Serve(
         oracle=re.compile(_LOYALTY_DOUBLER_ORACLE, _IC),
         not_oracle=re.compile(r"\+1/\+1", _IC),
@@ -592,7 +594,6 @@ _DAMAGE_SOAK_ORACLE = (
 _DAMAGE_SOAK_EXTRA = SubAvenue(
     "Soak blockers",
     "creatures that block any number of attackers or soak all damage onto one body",
-    {"oracle": _DAMAGE_SOAK_ORACLE},
     serve=Serve(oracle=re.compile(_DAMAGE_SOAK_ORACLE, _IC)),
 )
 # Cheap unblockable creatures (Vnwxt speed deck): CHEAP "can't be blocked" bodies
@@ -604,10 +605,10 @@ _CHEAP_UNBLOCKABLE_RE = re.compile(
 _CHEAP_EVASION_EXTRA = SubAvenue(
     "Cheap unblockable",
     "cheap unblockable creatures that connect every turn to advance speed",
-    {"oracle": r"can'?t be blocked", "cmc_max": 2},
     serve=Serve(
         all_of=(Serve(oracle=_CHEAP_UNBLOCKABLE_RE), Serve(cmc_max=2)),
     ),
+    search={"cmc_max": 2},
 )
 # Force-the-attack: effects that make ALL / your opponents' creatures attack each combat
 # (Goblin Diplomats, War's Toll, Warmonger Hellkite, Disrupt Decorum) — they feed a
@@ -622,13 +623,11 @@ _FORCE_ATTACK_EXTRA = SubAvenue(
     "Force the attack",
     "effects that make all (or your opponents') creatures attack, feeding goad / "
     "rewards-for-being-attacked payoffs (Goblin Diplomats, War's Toll, goad)",
-    {"oracle": _FORCE_ATTACK_ORACLE},
     serve=Serve(oracle=re.compile(_FORCE_ATTACK_ORACLE, _IC)),
 )
 _SPELLSLINGER_SPEC = _spec(
     "Spellslinger",
     "cheap instants/sorceries plus magecraft/prowess payoffs to chain casts",
-    {"oracle": _SLINGER_SEARCH_ORACLE},
     None,
     # Serve rides the lanes: spell-cast triggers (instant/sorcery, noncreature,
     # second spell), magecraft, and the spell-type cost reducers. Remainder: "first
@@ -650,14 +649,14 @@ _SPELLSLINGER_SPEC = _spec(
         SubAvenue(
             "Cheap instants (fuel)",
             "cheap instants to chain casts and trigger your payoffs",
-            {"card_type": "Instant", "cmc_max": 3},
             serve=Serve(types=frozenset({"instant"})),
+            search={"card_type": "Instant", "cmc_max": 3},
         ),
         SubAvenue(
             "Cheap sorceries (fuel)",
             "cheap sorceries to chain casts and trigger your payoffs",
-            {"card_type": "Sorcery", "cmc_max": 3},
             serve=Serve(types=frozenset({"sorcery"})),
+            search={"card_type": "Sorcery", "cmc_max": 3},
         ),
     ),
 )
@@ -679,30 +678,7 @@ _ETB_PAYOFF_EXTRA = SubAvenue(
     "Creature-ETB payoffs",
     "permanents that punish each creature entering — damage, drain, or power-based "
     "(Impact Tremors / Purphoros)",
-    {"oracle": _ETB_PAYOFF_ORACLE},
     serve=Serve(oracle=re.compile(_ETB_PAYOFF_ORACLE, _IC)),
-)
-# Mass-death payoff serve (Tobias / Nevinyrral / Gadrak / Mahadi): board wipes — the
-# maximal "creatures die this turn" engine — plus MASS-reanimation to refill the wiped
-# board. Wipes: "destroy/exile all creatures", a damage-to-each-creature sweep
-# (Blasphemous Act), or a mass -X/-X. Reanimation: "return ... all ... cards ...
-# graveyard ... to the battlefield" (Storm of Souls / Faith's Reward) — the "all"
-# anchor excludes single-target reanimation (Raise Dead / Reanimate), the reanimator
-# lane, not a board refill.
-_MASS_DEATH_PAYOFF_ORACLE = (
-    r"destroy all creatures|exile all creatures"
-    r"|deals \d+ damage to each creature|(?:all|each) creatures? gets? -\d"
-    r"|returns? (?:to the battlefield )?all [^.]*cards?[^.]*"
-    r"(?:from|in)[^.]*graveyard"
-)
-# Per-target payoff serve (Hinata): spells whose target COUNT is variable, so the
-# per-target discount compounds — "any number of targets", "divided among ... targets",
-# and "X target" spells. Single fixed-target spells (Doom Blade) give only one discount
-# and are excluded.
-_MULTI_TARGET_ORACLE = (
-    r"any number of targets?"
-    r"|divided[^.]*among[^.]*(?:any number|targets?)"
-    r"|\bx target"
 )
 # Crippling-drawback oracle (Abigale ability-strip targets): self-negative clauses that
 # make a big creature cheap/unplayable — the inefficiency a "loses all abilities" strip
@@ -713,16 +689,6 @@ _CRIPPLING_DRAWBACK_ORACLE = (
     r"(?:you )?(?:sacrifice|discard|lose \d|mill)"
     r"|gets? -\d/-\d for each|when this creature enters, sacrifice"
 )
-# Type-changer oracle (Gor Muldrak type_change): genuine creature-type CHANGERS — turn a
-# creature INTO a chosen type — not the tribal anthems that merely "choose a creature
-# type" then buff your own board.
-_TYPE_CHANGER_ORACLE = (
-    r"(?:target|each|all|that) creatures?[^.]{0,25}"
-    r"becomes? (?:a creature type|that (?:creature )?type|the creature type)"
-    r"|becomes a creature type of your choice"
-    r"|replac\w+[^.]*one creature type with another"
-    r"|creatures? (?:you control )?(?:are|become) the (?:chosen|creature) type"
-)
 # Enlist fodder (Aradesh): a big creature that stays back (a crippling drawback keeps it
 # from attacking) is ideal to TAP for enlist — its full power is added with no downside.
 # Reuses the crippling-drawback oracle ANDed with a power floor (Serve.all_of).
@@ -730,7 +696,6 @@ _ENLIST_FODDER_EXTRA = SubAvenue(
     "Enlist fodder",
     "big stay-back creatures to tap for their power (their drawback stops them "
     "attacking anyway)",
-    {"oracle": _CRIPPLING_DRAWBACK_ORACLE},
     serve=Serve(
         all_of=(
             Serve(oracle=re.compile(_CRIPPLING_DRAWBACK_ORACLE, _IC)),
@@ -751,7 +716,6 @@ _TOKEN_DOUBLER_EXTRA = SubAvenue(
     "Token doublers",
     "replacement effects that double your token output (Doubling Season / Parallel "
     "Lives / Mondrak)",
-    {"oracle": _TOKEN_DOUBLER_ORACLE},
     serve=Serve(oracle=re.compile(_TOKEN_DOUBLER_ORACLE, _IC)),
 )
 # Symmetric go-wide anthems: "creatures you control get +1/+1" (Glorious Anthem) and
@@ -765,7 +729,6 @@ _GOWIDE_ANTHEM_EXTRA = SubAvenue(
     "Go-wide anthems",
     "team anthems that pump every creature/token you control (Glorious Anthem, Dictate "
     "of Heliod, Intangible Virtue)",
-    {"oracle": _GOWIDE_ANTHEM_ORACLE},
     serve=Serve(oracle=re.compile(_GOWIDE_ANTHEM_ORACLE, _IC)),
 )
 # Token-aristocrats drain: payoffs that fire on TOKEN creation / a token leaving and
@@ -782,7 +745,6 @@ _TOKEN_ARISTOCRAT_EXTRA = SubAvenue(
     "Token-aristocrats drain",
     "payoffs that bleed the table whenever you make or lose a token (Mirkwood Bats, "
     "Nadier's Nightblade)",
-    {"oracle": _TOKEN_ARISTOCRAT_ORACLE},
     serve=Serve(oracle=re.compile(_TOKEN_ARISTOCRAT_ORACLE, _IC)),
 )
 # MASS token makers — "create TWO/X creature tokens at once" (Battle Screech, Grand
@@ -799,7 +761,6 @@ _GOWIDE_MAKER_EXTRA = SubAvenue(
     "Mass token makers",
     "cards that create two or more creature tokens at once to flood the board "
     "(Battle Screech, Secure the Wastes, Grand Crescendo)",
-    {"oracle": _GOWIDE_MAKER_ORACLE},
     serve=Serve(oracle=re.compile(_GOWIDE_MAKER_ORACLE, _IC)),
 )
 # Protect the wide board: "creatures you control gain indestructible / hexproof /
@@ -813,7 +774,6 @@ _TEAM_PROTECT_EXTRA = SubAvenue(
     "Protect the wide board",
     "team-wide indestructible / protection to survive a wrath (Heroic Intervention, "
     "Rootborn Defenses, Flawless Maneuver)",
-    {"oracle": _TEAM_PROTECT_ORACLE},
     serve=Serve(oracle=re.compile(_TEAM_PROTECT_ORACLE, _IC)),
 )
 # Raw creature-token MAKERS — fuel for a token-COPY commander (Esix turns each token
@@ -825,7 +785,6 @@ _TOKEN_MAKER_EXTRA = SubAvenue(
     "Token makers",
     "creature-token makers whose tokens become copies (Hornet Queen / Avenger of "
     "Zendikar / Deep Forest Hermit)",
-    {"oracle": _TOKEN_MAKER_ORACLE},
     serve=Serve(oracle=re.compile(_TOKEN_MAKER_ORACLE, _IC)),
 )
 # Flicker enablers (CR 603.6e) for a repeated-ETB commander — re-use your own ETBs.
@@ -841,8 +800,8 @@ _FLICKER_EXTRA = SubAvenue(
     "Blink / flicker",
     "exile-and-return your own ETB creatures to re-use their enter triggers "
     "(Ephemerate / Cloudshift / Conjurer's Closet)",
-    {"preset_names": ("blink",)},
     serve=Serve(oracle=re.compile(_FLICKER_ORACLE, _IC)),
+    search={"preset_names": ("blink",)},
 )
 # Dies-recursion is a DISTINCT mechanic from flicker (CR: blink exiles to the exile
 # zone, 400.1; dies puts to the graveyard, 700.4 — different zones, 603.6c). Both
@@ -857,7 +816,6 @@ _DIES_RECURSION_EXTRA = SubAvenue(
     "Dies-recursion",
     "creatures that come back when they die — re-fire enter triggers via death "
     "(Feign Death / Supernatural Stamina / undying / persist)",
-    {"oracle": _DIES_RECURSION_ORACLE},
     serve=Serve(oracle=re.compile(_DIES_RECURSION_ORACLE, _IC)),
 )
 # Activated sacrifice OUTLETS (Viscera Seer / Ashnod's Altar / Carrion Feeder): a cost
@@ -870,7 +828,6 @@ _SAC_OUTLET_EXTRA = SubAvenue(
     "Sacrifice outlets",
     "free/cheap activated sac outlets to kill your commander on demand and re-fire "
     "its death trigger (Viscera Seer / Ashnod's Altar / Carrion Feeder)",
-    {"oracle": _SAC_OUTLET_ORACLE},
     serve=Serve(oracle=re.compile(_SAC_OUTLET_ORACLE, _IC)),
 )
 # Self-bounce ETB creatures (Whitemane Lion / Kor Skyfisher / Stonecloaker): "when this
@@ -891,7 +848,6 @@ _SELF_BOUNCE_EXTRA = SubAvenue(
     "Self-bounce recast engines",
     "creatures that return your own permanent on enter — recast to re-fire enter and "
     "cast triggers (Whitemane Lion / Kor Skyfisher / Stonecloaker)",
-    {"oracle": _SELF_BOUNCE_ORACLE},
     serve=Serve(oracle=re.compile(_SELF_BOUNCE_ORACLE, _IC)),
 )
 # Self-SACRIFICING creatures (Spore Frog / Caustic Caterpillar / Selfless Spirit): the
@@ -906,7 +862,6 @@ _SELF_SAC_CREATURE_EXTRA = SubAvenue(
     "Self-sacrificing creatures",
     "creatures that sacrifice themselves for value — recur and re-sac them every turn "
     "(Spore Frog / Caustic Caterpillar / Sakura-Tribe Elder)",
-    {"oracle": _SELF_SAC_CREATURE_ORACLE},
     serve=Serve(oracle=re.compile(_SELF_SAC_CREATURE_ORACLE, _IC)),
 )
 # Blink wants more than flicker effects: the ETB-VALUE creatures it re-flickers (CR
@@ -925,7 +880,6 @@ _ETB_VALUE_EXTRA = SubAvenue(
     "ETB-value creatures",
     "creatures with strong enter triggers worth flickering "
     "(Mulldrifter / Eternal Witness / Reflector Mage)",
-    {"card_type": "Creature", "oracle": _ETB_VALUE_ORACLE},
     serve=Serve(oracle=re.compile(_ETB_VALUE_ORACLE, _IC)),
 )
 _ETB_DOUBLER_ORACLE = (
@@ -934,7 +888,6 @@ _ETB_DOUBLER_ORACLE = (
 _ETB_DOUBLER_EXTRA = SubAvenue(
     "ETB-trigger doublers",
     "permanents that double every enter trigger (Panharmonicon / Yarok)",
-    {"oracle": _ETB_DOUBLER_ORACLE},
     serve=Serve(oracle=re.compile(_ETB_DOUBLER_ORACLE, _IC)),
 )
 # Trigger COPIERS (Strionic Resonator / Lithoform Engine): copy a triggered ability
@@ -944,7 +897,6 @@ _TRIGGER_COPY_ORACLE = r"copy target [^.]*triggered ability you control"
 _TRIGGER_COPY_EXTRA = SubAvenue(
     "Trigger copiers",
     "copy a triggered ability you control (Strionic Resonator / Lithoform Engine)",
-    {"oracle": _TRIGGER_COPY_ORACLE},
     serve=Serve(oracle=re.compile(_TRIGGER_COPY_ORACLE, _IC)),
 )
 # Self-recurring fodder: aristocrats wants creatures that bring THEMSELVES back from the
@@ -955,8 +907,8 @@ _SELF_RECUR_EXTRA = SubAvenue(
     "Self-recurring fodder",
     "creatures that bring themselves back from the graveyard — free, repeatable sac "
     "fodder (Bloodghast / Gravecrawler / Reassembling Skeleton)",
-    {"preset_names": ("self-recurring-fodder",)},
     serve=Serve(self_recur=FODDER_SELF_RETURNS),
+    search={"preset_names": ("self-recurring-fodder",)},
 )
 # Aristocrats DRAIN payoff (CR 700.4 "dies"): the heart of the archetype — a permanent
 # that punishes creatures dying with a drain, life swing, or token (Blood Artist /
@@ -974,59 +926,15 @@ _DEATH_DRAIN_EXTRA = SubAvenue(
     "Death payoffs / drain",
     "payoffs that punish creatures dying — drain, life swings, and tokens "
     "(Blood Artist / Zulaport Cutthroat / Pitiless Plunderer)",
-    {"oracle": _DEATH_DRAIN_ORACLE},
     serve=Serve(oracle=re.compile(_DEATH_DRAIN_ORACLE, _IC)),
-)
-# On-death payoffs for a commander that repeatedly KILLS creatures (no sac outlet of
-# its own): the drain set above PLUS the "deal damage to a player" variant (Vicious
-# Shadows) the loses-life/gain-life drain regex misses. Narrow on-death-payoff serve,
-# NOT the full aristocrats kit (no fodder / sac outlets a control commander won't want).
-_KILL_DRAIN_ORACLE = (
-    r"whenever [^.]*\bcreatures?\b[^.]*dies[^.]*"
-    r"(?:each opponent loses|target player loses|loses? \d+ life|you (?:may )?gain"
-    r"|create (?:a|one|two|x) [^.]*(?:treasure|blood|clue)"
-    r"|deals? [^.]*damage to (?:target |each )?(?:player|opponent))"
-)
-# One-punch finishers for an extreme power-for-cost beater (Lord, Yargle): convert raw
-# power into a kill by GRANTING infect (power -> poison) or double strike (2x damage).
-# Granters only — "<target/equipped/enchanted/your> creature gains/has infect|double
-# strike"; a vanilla double-striker (Boros Swiftblade) is not an amplifier for the
-# commander, so the bare keyword line stays out.
-_ONE_PUNCH_ORACLE = (
-    r"(?:target creature|target attacking creature|equipped creature"
-    r"|enchanted creature|creatures? you control|it) "
-    r"(?:gains?|gets [^.]*and (?:gains?|has)|have|has) (?:infect|double strike)"
 )
 # Board wipes are an aristocrats payoff: a mass-death event fires every dies-trigger and
 # drain at once (Wrath of God + Blood Artist). A death/sacrifice commander wants them.
 _BOARD_WIPE_EXTRA = SubAvenue(
     "Board wipes (mass death)",
     "sweepers that turn a board into a mass-death trigger for your aristocrats payoffs",
-    {"preset_names": ("board-wipe",)},
     serve=Serve(oracle=re.compile(r"destroy all|exile all (?:creatures|other)", _IC)),
-)
-# Landfall (CR 207.2c ability word; canonical "Landfall — whenever a land you control
-# enters"): the payoffs PLUS the engines that fire them — extra land drops (Azusa /
-# Dryad), land fetch, and graveyard land recursion (Crucible / Ramunap). One regex
-# shared by the avenue's search and its serve.
-_LANDFALL_ORACLE = (
-    r"\blandfall\b"
-    r"|search your library for [^.]*\bland\b"
-    # Basic-type ramp names the type, not the word "land": Skyshroud Claim ("Forest
-    # cards"), Farseek ("a Plains, Island, Swamp, or Mountain"), Nature's Lore. It must
-    # PUT them onto the battlefield (ramp), not just fetch to hand.
-    r"|search your library for [^.]*\b(?:forest|island|plains|mountain|swamp)\b"
-    r"[^.]*onto the battlefield"
-    r"|play (?:an|one|two|three|\d+) additional lands?"
-    r"|play lands? from your graveyard"
-    r"|put [^.]*\bland card[^.]*onto the battlefield"
-)
-# Graveyard-to-top recursion (Volrath's Stronghold, Haunted Crossroads, Hua Tuo): the
-# top-stacking enabler a cheat-from-top / play-from-top deck wants -- it puts a chosen
-# card on TOP of the library (not onto the battlefield, which is plain reanimation).
-_GY_TO_TOP_ORACLE = (
-    r"(?:put|return) (?:target |a )?(?:\w+ )?cards? from (?:your|a) graveyard "
-    r"on top of (?:your|their)(?: owner.s)? library"
+    search={"preset_names": ("board-wipe",)},
 )
 _LANDS_FROM_GRAVE_ORACLE = (
     r"play lands? from your graveyard"
@@ -1038,7 +946,6 @@ _LANDS_FROM_GRAVE_EXTRA = SubAvenue(
     "Lands from your graveyard",
     "recursion that replays sacrificed/milled lands for repeat landfall "
     "(Crucible of Worlds / Ramunap Excavator / Splendid Reclamation)",
-    {"oracle": _LANDS_FROM_GRAVE_ORACLE},
     serve=Serve(oracle=re.compile(_LANDS_FROM_GRAVE_ORACLE, _IC)),
 )
 # Deathtouch-granting gear (CR 702.2b): with a repeatable pinger, deathtouch + 1 damage
@@ -1047,7 +954,6 @@ _DEATHTOUCH_GEAR_ORACLE = r"(?:equipped|enchanted) creature[^.]*\bdeathtouch\b"
 _DEATHTOUCH_GEAR_EXTRA = SubAvenue(
     "Deathtouch enablers",
     "Equipment/Auras that grant deathtouch so each ping kills (Basilisk Collar)",
-    {"oracle": _DEATHTOUCH_GEAR_ORACLE},
     serve=Serve(oracle=re.compile(_DEATHTOUCH_GEAR_ORACLE, _IC)),
 )
 # Player/opponent-directed noncombat burn — the genuine payoff space for a damage
@@ -1062,17 +968,16 @@ _NONCOMBAT_BURN_ORACLE = (
 _NONCOMBAT_BURN_EXTRA = SubAvenue(
     "Player-directed burn",
     "noncombat damage aimed at players/opponents — doubled by your damage doubler",
-    {"oracle": _NONCOMBAT_BURN_ORACLE},
     serve=Serve(oracle=re.compile(_NONCOMBAT_BURN_ORACLE, _IC)),
 )
 # Proliferate (CR 701.27) for any counter commander — adds another of EVERY counter.
 _PROLIFERATE_EXTRA = SubAvenue(
     "Proliferate",
     "proliferate sources that add another counter of every kind you already have",
-    {"preset_names": ("proliferate",)},
     serve=Serve(
         keywords=frozenset({"proliferate"}), oracle=re.compile(r"\bproliferate\b", _IC)
     ),
+    search={"preset_names": ("proliferate",)},
 )
 # Counter DOUBLERS / amplifiers (CR 122.3 + 614 replacement): the universal payoff for
 # ANY counters commander — Doubling Season, Hardened Scales, Corpsejack, Branching
@@ -1120,7 +1025,6 @@ _COUNTER_DOUBLER_EXTRA = SubAvenue(
     "Counter doublers",
     "replacement effects that multiply every counter you place "
     "(Doubling Season / Hardened Scales / Corpsejack Menace / Vorinclex)",
-    {"oracle": _COUNTER_DOUBLER_ORACLE},
     serve=Serve(oracle=re.compile(_COUNTER_DOUBLER_ORACLE, _IC)),
 )
 # +1/+1 counter PLACEMENT support: spells/abilities that drop +1/+1 counters on your
@@ -1129,7 +1033,6 @@ _COUNTER_PLACE_ORACLE = r"put (?:a|one|two|three|x|\d+|that many)[^.]*\+1/\+1 co
 _COUNTER_PLACE_EXTRA = SubAvenue(
     "Counter placement",
     "ways to drop more +1/+1 counters on your creatures (Hardened Scales fuel)",
-    {"oracle": _COUNTER_PLACE_ORACLE},
     serve=Serve(oracle=re.compile(_COUNTER_PLACE_ORACLE, _IC)),
 )
 # Keyword counters (flying/trample/deathtouch/lifelink/indestructible/…) are counters
@@ -1142,7 +1045,6 @@ _KEYWORD_COUNTER_EXTRA = SubAvenue(
     "Keyword counters",
     "cards that place keyword counters (flying / trample / deathtouch / lifelink / …) "
     "— counter synergy and proliferate fuel",
-    {"oracle": _KEYWORD_COUNTER_ORACLE},
     serve=Serve(oracle=re.compile(_KEYWORD_COUNTER_ORACLE, _IC)),
 )
 # The shared +1/+1-counter package every counter-adjacent lane wants: SOURCES that
@@ -1154,7 +1056,7 @@ _KEYWORD_COUNTER_EXTRA = SubAvenue(
 # +1/+1-counter KEYWORD creatures: the counter mechanic is in reminder text (stripped),
 # so the oracle-based serves miss them — but a counters deck wants every Undying / Graft
 # / Riot / Bloodthirst / Fabricate body (CR 702.x keyword abilities). Credit by the
-# keyword itself (the keyword word also prints in the oracle, so search can find it).
+# keyword itself.
 _COUNTER_KEYWORDS = frozenset(
     {
         "undying",
@@ -1185,7 +1087,6 @@ _COUNTER_KEYWORD_EXTRA = SubAvenue(
     "Counter-keyword creatures",
     "creatures whose +1/+1-counter mechanic is a keyword (Undying / Graft / Riot / "
     "Bloodthirst / Fabricate) — staples a counters deck wants",
-    {"oracle": r"\b(?:" + "|".join(sorted(_COUNTER_KEYWORDS)) + r")\b"},
     serve=Serve(keywords=_COUNTER_KEYWORDS),
 )
 # Counter RESILIENCE: save or relocate YOUR counters when a creature leaves, so a wrath
@@ -1200,7 +1101,6 @@ _COUNTER_RESILIENCE_ORACLE = (
 _COUNTER_RESILIENCE_EXTRA = SubAvenue(
     "Counter resilience",
     "save or relocate your counters when a creature leaves (The Ozolith)",
-    {"oracle": _COUNTER_RESILIENCE_ORACLE},
     serve=Serve(oracle=re.compile(_COUNTER_RESILIENCE_ORACLE, _IC)),
 )
 _COUNTERS_PACKAGE = (
@@ -1220,7 +1120,6 @@ _DISCARD_PUNISH_EXTRA = SubAvenue(
     "Discard punishers",
     "payoffs that trigger when an opponent discards (Megrim / Liliana's Caress / "
     "Waste Not)",
-    {"oracle": _DISCARD_PUNISH_ORACLE},
     serve=Serve(oracle=re.compile(_DISCARD_PUNISH_ORACLE, _IC)),
 )
 # Empty-hand (hellbent) OPPONENT punishers: the 8-Rack package a hand-attack deck wants
@@ -1238,7 +1137,6 @@ _HELLBENT_PUNISH_EXTRA = SubAvenue(
     "Empty-hand punishers",
     "8-Rack payoffs that punish an opponent's empty hand (The Rack, Wheel of Torture, "
     "Shrieking Affliction)",
-    {"oracle": _HELLBENT_PUNISH_ORACLE},
     serve=Serve(oracle=re.compile(_HELLBENT_PUNISH_ORACLE, _IC)),
 )
 
@@ -1257,7 +1155,6 @@ _REANIMATION_EXTRA = SubAvenue(
     "Reanimation",
     "return creatures from your graveyard to the battlefield to rebuild after a wipe "
     "(Breath of Life / Resurrection)",
-    {"oracle": _REANIMATE_ORACLE},
     serve=Serve(oracle=re.compile(_REANIMATE_ORACLE, _IC)),
 )
 # Board protection: GRANT the whole team indestructible (Selfless Spirit, Heroic
@@ -1271,7 +1168,6 @@ _BOARD_PROTECTION_EXTRA = SubAvenue(
     "Board protection",
     "give your whole board indestructible so you can wrath one-sided "
     "(Selfless Spirit / Heroic Intervention / Flawless Maneuver)",
-    {"oracle": _BOARD_PROTECTION_ORACLE},
     serve=Serve(oracle=re.compile(_BOARD_PROTECTION_ORACLE, _IC)),
 )
 # Self-copy effects for a legend-rule-off / copy commander (Brothers Yamazaki): make
@@ -1284,7 +1180,6 @@ _COPY_EXTRA = SubAvenue(
     "Copy effects",
     "make token copies of your creatures (Helm of the Host / Blade of Selves / "
     "Mirror Box / Spark Double)",
-    {"oracle": _COPY_ORACLE},
     serve=Serve(oracle=re.compile(_COPY_ORACLE, _IC)),
 )
 # High-value clone TARGETS: a creature with a strong self-DEATH trigger is worth
@@ -1303,7 +1198,6 @@ _CLONE_DIES_VALUE_EXTRA = SubAvenue(
     "High-value death triggers to copy",
     "high-mana-value creatures with a strong death trigger — clone them so the copy "
     "re-fires it on death (Kokusho, Keiga, Junji, The Scarab God)",
-    {"oracle": _DIES_VALUE_ORACLE, "card_type": "Creature"},
     serve=Serve(
         all_of=(
             Serve(oracle=re.compile(_DIES_VALUE_ORACLE, _IC)),
@@ -1323,7 +1217,6 @@ _SELF_BOUNCE_RECAST_EXTRA = SubAvenue(
     "Self-bounce (recast your clones)",
     "return your own creatures to hand to recast the clone and copy again "
     "(Cavern Harpy, Whitemane Lion)",
-    {"oracle": _SELF_BOUNCE_RECAST_ORACLE},
     serve=Serve(oracle=re.compile(_SELF_BOUNCE_RECAST_ORACLE, _IC)),
 )
 # Drawback creatures whose downside PUNISHES their controller — the donate target
@@ -1339,7 +1232,6 @@ _DRAWBACK_EXTRA = SubAvenue(
     "Drawback creatures to donate",
     "creatures whose downside hurts their controller — give them to an opponent "
     "(Abyssal Persecutor / Flesh Reaver / Demonic Taskmaster)",
-    {"oracle": _DRAWBACK_ORACLE, "card_type": "Creature"},
     serve=Serve(oracle=re.compile(_DRAWBACK_ORACLE, _IC)),
 )
 # Force-feed: give opponents creatures that benefit YOU (the Hunted cycle, Forbidden
@@ -1349,7 +1241,6 @@ _FORCE_FEED_ORACLE = r"target opponent creates [^.]*creature"
 _FORCE_FEED_EXTRA = SubAvenue(
     "Force-feed creatures",
     "give opponents creatures that work for you (Forbidden Orchard, the Hunted cycle)",
-    {"oracle": _FORCE_FEED_ORACLE},
     serve=Serve(oracle=re.compile(_FORCE_FEED_ORACLE, _IC)),
 )
 # Untap effects to reuse tap abilities / retrigger a tap-untap commander — covers the
@@ -1362,7 +1253,6 @@ _UNTAP_EXTRA = SubAvenue(
     "Untap effects",
     "untap your permanents to reuse their tap abilities or retrigger (Freed from the "
     "Real / Pemmin's Aura / Kiora's Follower)",
-    {"oracle": _UNTAP_ORACLE},
     serve=Serve(oracle=re.compile(_UNTAP_ORACLE, _IC)),
 )
 # (2) Cast-from-graveyard CREATURES recast themselves from the yard, re-firing the
@@ -1373,13 +1263,13 @@ _CAST_FROM_GY_EXTRA = SubAvenue(
     "Cast from your graveyard",
     "creatures with escape or disturb that recast themselves from your graveyard, "
     "re-firing the payoff each time (Woe Strider / Kroxa)",
-    {"preset_names": ("graveyard-cast",), "card_type": "Creature"},
     # Disturb by its route: the face it casts must be a creature (never Brine
     # Comber's Aura).
     serve=Serve(
         keywords=frozenset({"escape"}),
         self_recur=frozenset({"graveyard_to_stack"}),
     ),
+    search={"preset_names": ("graveyard-cast",), "card_type": "Creature"},
 )
 
 
@@ -1394,31 +1284,32 @@ def _sweep_spec_with_extras(
     regex: str | None = None,
     serve_idents: frozenset[str] = frozenset(),
 ) -> SignalSpec:
-    """Promote a mined sweep detector to a hand-spec that keeps its regex (as both
-    search and serve) but fans out extra sub-avenues — used where a sweep-derived lane
-    needs to surface payoffs its bare regex can't (e.g. every counter lane wants the
-    counter doublers). ``serve_power_min`` / ``serve_toughness_min`` additionally credit
-    big bodies (power doublers / toughness-as-power lanes want the stat-line they
-    exploit); ``serve_keywords`` adds a keyword dimension. Reuses SWEEP_DETECTORS so the
-    regex never drifts from the mine — UNLESS ``regex`` is given, for an ADR-0027-
-    migrated key whose SWEEP_DETECTORS row is deleted (the serve keeps the old regex).
+    """Promote a mined sweep detector to a hand-spec that serves by its regex but
+    fans out extra sub-avenues — used where a sweep-derived lane needs to surface
+    payoffs its bare regex can't (e.g. every counter lane wants the counter
+    doublers). ``serve_power_min`` / ``serve_toughness_min`` additionally credit big
+    bodies (power doublers / toughness-as-power lanes want the stat-line they
+    exploit); ``serve_keywords`` adds a keyword dimension. Reuses SWEEP_DETECTORS so
+    the regex never drifts from the mine — UNLESS ``regex`` is given, for an
+    ADR-0027-migrated key whose SWEEP_DETECTORS row is deleted (the serve keeps the
+    old regex).
 
     ``serve_idents`` (the serve-ident pass, docs/plans/serve-idents-and-avenue-
-    support.md): the serve's enabler arm becomes the lanes' own structural idents
-    and the regex stays on the SEARCH side only (what card-search runs); the
-    structured dims above are unaffected.
+    support.md): the serve's enabler arm is the lanes' own structural idents in
+    place of the regex, and the theme pages by them too; the structured dims above
+    are unaffected.
     """
-    d_regex = (
-        regex
-        if regex is not None
-        else next(x for x in SWEEP_DETECTORS if x["key"] == key)["regex"]
-    )
+    if serve_idents:
+        d_regex = None
+    elif regex is not None:
+        d_regex = regex
+    else:
+        d_regex = next(x for x in SWEEP_DETECTORS if x["key"] == key)["regex"]
     label, avenue = SWEEP_LABELS[key]
     return _spec(
         label,
         avenue,
-        {"oracle": d_regex},
-        None if serve_idents else d_regex,
+        d_regex,
         extras=extras,
         serve_power_min=serve_power_min,
         serve_toughness_min=serve_toughness_min,
@@ -1430,7 +1321,7 @@ def _sweep_spec_with_extras(
 
 # Combat support shared by the combat lanes: gear that suits up the attacker plus the
 # keyword-anthems that buff your attackers (double strike / trample / evasion).
-#: The gear half of a combat-support search: equipment and auras that suit up
+#: The gear half of the combat-support serve: equipment and auras that suit up
 #: the attacker.
 GEAR_SUPPORT_ORACLE = r"equipped creature|enchanted creature gets|\bequip \{"
 _COMBAT_SUPPORT_ORACLE = (
@@ -1442,7 +1333,6 @@ _COMBAT_SUPPORT_ORACLE = (
 _COMBAT_SUPPORT_EXTRA = SubAvenue(
     "Combat support (gear & keyword anthems)",
     "equipment/auras and keyword-anthems that suit up and buff your attackers",
-    {"oracle": _COMBAT_SUPPORT_ORACLE},
     serve=Serve(oracle=re.compile(_COMBAT_SUPPORT_ORACLE, _IC)),
 )
 # Extra combats (Aggravated Assault, Relentless Assault, Seize the Day, Moraug): each
@@ -1455,7 +1345,6 @@ _EXTRA_COMBAT_ORACLE = r"additional combat phase|extra combat phase"
 _EXTRA_COMBAT_EXTRA = SubAvenue(
     "Extra combats",
     "additional-combat-phase enablers — another round of attack/combat-damage triggers",
-    {"oracle": _EXTRA_COMBAT_ORACLE},
     serve=Serve(oracle=re.compile(_EXTRA_COMBAT_ORACLE, _IC)),
 )
 # Symmetric group mana: a group-mana commander (Shizuko group-ramp, Yurlok mana-burn)
@@ -1474,7 +1363,6 @@ _SYM_MANA_EXTRA = SubAvenue(
     "Symmetric mana (group ramp & mana-punishers)",
     "shared mana-doublers and mana-punishers that exploit the symmetry "
     "(Mana Flare, Heartbeat of Spring, Manabarbs, Collective Voyage)",
-    {"oracle": _SYM_MANA_ORACLE},
     serve=Serve(oracle=re.compile(_SYM_MANA_ORACLE, _IC)),
 )
 # Mana AMPLIFICATION for an unspent-mana commander (Omnath Locus of Mana, Kruphix): it
@@ -1492,7 +1380,6 @@ _MANA_AMP_EXTRA = SubAvenue(
     "Mana amplification (untap-lands & doublers)",
     "untap-all-lands and mana-doublers that grow the mana you keep "
     "(Bear Umbra, Wilderness Reclamation, Mana Reflection)",
-    {"oracle": _MANA_AMP_ORACLE},
     serve=Serve(oracle=re.compile(_MANA_AMP_ORACLE, _IC)),
 )
 # Instant-speed pump (Giant Growth / Berserk) to push through extra combat damage and
@@ -1500,116 +1387,6 @@ _MANA_AMP_EXTRA = SubAvenue(
 # pump_makers migrated to the Card IR (its SWEEP_DETECTORS row is deleted), so the
 # constant comes from PUMP_MATTERS_REGEX, not the (now-absent) sweep row.
 _PUMP_ORACLE = PUMP_MATTERS_REGEX
-# ADR-0027 β: edict_makers migrated to the Card IR — its SWEEP_DETECTORS row is
-# deleted (detection moved to the structural arm + a kept _IR_KEPT_DETECTORS mirror).
-# The SERVE pool stays oracle-defined, so the deleted regex is inlined here (byte-
-# identical to the old sweep row, so the served fodder/payoff pool never drifts).
-_EDICT_SWEEP_REGEX = (
-    "each opponent sacrifices|whenever an opponent sacrifices"
-    "|target opponent sacrifices|each player sacrifices"
-    "|(?:each player|that player|each opponent|target player"
-    "|target opponent) sacrifices? (?:a|an|two|\\d+|half)"
-    "|that player sacrifices|controller sacrifices"
-)
-# Basic-land-TYPE fetches (Skyshroud Claim, Nature's Lore, Farseek) search for
-# "Forest/Plains/… cards" — no "land" in the text, so the bare "search … land" missed
-# them. These ARE land ramp.
-_BASIC_LAND_FETCH = (
-    r"search your library for [^.]*\b(?:forest|plains|island|swamp|mountain)s?\b"
-)
-# ADR-0027 t2b5-C → SIDECAR v40: targeting_matters DETECTION reads structure (phase's
-# `BecomesTarget` mode → event=='becomes_target') plus a residue mirror for the
-# granted/quoted/player-targeted forms (see _IR_KEPT_DETECTORS). The SERVE pool (which
-# candidate cards FIT the lane — heroic enablers, becomes-target payoffs, cast-that-
-# targets spells) stays oracle-defined, so the becomes-target + heroic + cast phrasing
-# is inlined here (this is the serve regex, not the detection path). CR 702.83 / 115.6.
-_TARGETING_SWEEP_REGEX = (
-    "becomes the target of a spell or ability"
-    "|whenever [^.]{0,60}?becomes? the target of|\\bheroic\\b"
-    "|whenever you cast (?:an instant or sorcery spell |a spell )?that targets"
-)
-# ADR-0027 β: the SWEEP_DETECTORS row for impulse_top_play is deleted (detection moved
-# to the Card IR — a non-static cast_from_zone Effect carrying from:library + a
-# per-clause mirror). Its SERVE pool stays oracle-defined, so the exact deleted regex is
-# pinned here verbatim and the hand-registered spec below reuses it (the sweep auto-
-# register loop no longer builds it; byte-identical to the signals.py mirror regex).
-_IMPULSE_SWEEP_REGEX = (
-    r"exile the top [^.]*card[^.]*(?:you may play|may play (?:it|that card|them))"
-    r"|until (?:your next end step|end of turn|the end of your next turn)"
-    r"[^.]*you may play"
-    r"|exile the top [^.]*card[^.]*your library[^.]*\.?\s*you may (?:play|cast)"
-    r"|you may play (?:that|the exiled|those|that card) cards?"
-    r"|you may (?:cast|play) (?:the|those|that) (?:exiled )?cards? this turn"
-    r"|top [^.]*card[^.]*of your library\.?[^.]*you may (?:cast|play) "
-    r"(?:it|them|that card)[^.]*this turn"
-    r"|you may play (?:that card|those cards?|them) (?:this turn|until)"
-    r"|cast (?:up to two |a )?spells? from among"
-    r"|top card of your library is[^.]*you may[^.]*(?:cast|play)"
-    r"|play (?:lands? )?(?:and |or )?cast [^.]*from among cards you exiled"
-    r"|you may look at (?:it )?and (?:play|cast)"
-)
-# ADR-0027: theft_matters migrated to the Card IR (its SWEEP_DETECTORS row deleted).
-# The serve pool stays oracle-defined, so it reuses the shared THEFT_MATTERS_REGEX
-# constant (the EXACT deleted detector regex) — serve and the kept-mirror detector
-# never drift.
-_THEFT_SWEEP_REGEX = THEFT_MATTERS_REGEX
-# ADR-0027 discard-discarder scope (SIDECAR v26): discard_outlet migrated to the Card IR
-# (its SWEEP_DETECTORS row deleted). The serve pool stays oracle-defined, so it reuses
-# the shared DISCARD_OUTLET_REGEX constant (the EXACT deleted detector regex) — serve
-# and the kept-mirror detector never drift.
-_DISCARD_OUTLET_SWEEP_REGEX = DISCARD_OUTLET_REGEX
-# ADR-0027 dig library-owner scope (SIDECAR v27): dig_until migrated to the Card IR (its
-# SWEEP_DETECTORS row deleted, so the auto-register loop no longer builds the serve).
-# The serve pool stays oracle-defined, so it reuses the shared DIG_UNTIL_REGEX constant
-# (the EXACT deleted detector regex) — serve and the kept-mirror detector never drift.
-_DIG_UNTIL_SWEEP_REGEX = DIG_UNTIL_REGEX
-# ADR-0027 topdeck library-owner scope (SIDECAR v28): topdeck_selection migrated to the
-# Card IR (its SWEEP_DETECTORS row deleted, so the auto-register loop no longer builds
-# the serve). The serve pool stays oracle-defined, so it reuses the shared
-# TOPDECK_SELECTION_REGEX constant (the EXACT deleted detector regex) — serve and the
-# kept-mirror detector never drift.
-_TOPDECK_SELECTION_SWEEP_REGEX = TOPDECK_SELECTION_REGEX
-# ADR-0027 per-clause draw raw (SIDECAR v32): draw_for_each migrated to the Card IR
-# (its SWEEP_DETECTORS row deleted, so the auto-register loop no longer builds the
-# serve). The serve pool stays oracle-defined, so it reuses the shared
-# DRAW_FOR_EACH_REGEX constant (the EXACT deleted detector regex) — serve and the
-# kept-mirror detector never drift.
-_DRAW_FOR_EACH_SWEEP_REGEX = DRAW_FOR_EACH_REGEX
-# ADR-0027 (tranche2-C): the SWEEP_DETECTORS rows for self_pump / tapper_engine /
-# count_anthem are deleted (detection moved to the Card IR). Their SERVE pools stay
-# oracle-defined, so the regexes are pinned here verbatim and the specs below reuse
-# them (self_pump via _sweep_spec_with_extras(regex=…); tapper_engine / count_anthem
-# hand-registered, since the sweep auto-register loop no longer builds them).
-_SELF_PUMP_SWEEP_REGEX = (
-    r"\{[^}]*\}(?:, \{t\})?: [^.]* gets \+[0-9x]/\+[0-9x] until end of turn"
-    r"|\{[wubrgc]\}: [^.:]*gets \+\d+/\+\d+ until end of turn"
-    r"|\{[^}]*\}(?:, \{t\})?: put a \+1/\+1 counter on (?:it|this creature|[A-Z][a-z]+)"
-)
-_TAPPER_ENGINE_SWEEP_REGEX = (
-    r":\s*tap (?:target|up to (?:one|two|\d+) target|all|each|two target|x target)"
-    r"|(?:at the beginning of|whenever)[^.:]*,[^.]*\btap "
-    r"(?:up to (?:one|two|\d+) target|target)"
-    r"|\btap up to (?:one|two|\d+) target (?:creature|permanent)\b"
-    r"|when [^.]* enters, tap (?:up to )?(?:one|two|\d+|target)"
-    r"|(?:doesn't|don't|does not) untap during (?:its|their|the)"
-)
-_COUNT_ANTHEM_SWEEP_REGEX = (
-    r"(?:creatures you control get|each creature you control gets) "
-    r"[+]\d+/[+]\d+ for each"
-)
-# ADR-0027: the SWEEP_DETECTORS rows for tribal_etb_multi / typed_enters_punish are
-# deleted (detection moved to the Card IR — an etb trigger with a creature-subtype
-# subject / an etb trigger whose consequence burns the opponents). Their SERVE pools
-# stay oracle-defined, so the regexes are pinned here verbatim and hand-registered
-# below (the sweep auto-register loop no longer builds them).
-_TRIBAL_ETB_MULTI_SWEEP_REGEX = (
-    r"whenever [^.]*or another [A-Z][a-z]+(?:, [A-Z][a-z]+)*,? "
-    r"(?:or [A-Z][a-z]+ )?enters"
-)
-_TYPED_ENTERS_PUNISH_SWEEP_REGEX = (
-    r"whenever another (?:outlaw|ally|\w+) you control enters, "
-    r"[^.]*deals \d+ damage to (?:target opponent|each opponent|any target)"
-)
 # Paradox (CR 207.2c): "cast a spell / play a card from anywhere other than your hand"
 # payoffs (Vega, Iraxxa, Keeper of Secrets). Shared by cast_from_exile AND
 # impulse_top_play: an impulse deck casts its exiled cards, which IS "from anywhere
@@ -1625,14 +1402,12 @@ _CAST_FROM_EXILE_EXTRA = SubAvenue(
     "Cast-from-exile payoffs",
     "payoffs that reward casting spells from exile (Wild-Magic Sorcerer, "
     "Passionate Archaeologist, Nalfeshnee)",
-    {"oracle": _CAST_FROM_EXILE_PAYOFF_ORACLE},
     serve=Serve(oracle=re.compile(_CAST_FROM_EXILE_PAYOFF_ORACLE, _IC)),
 )
 _PARADOX_PAYOFF_EXTRA = SubAvenue(
     "Paradox payoffs",
     "zone-agnostic payoffs that reward casting/playing from anywhere other "
     "than your hand",
-    {"oracle": r"from anywhere other than your hand"},
     serve=Serve(oracle=re.compile(_PARADOX_PAYOFF_ORACLE, _IC)),
 )
 # Heroic / targeting enablers: cheap spells that TARGET one of your creatures to fire
@@ -1645,13 +1420,11 @@ _TARGETED_BUFF_EXTRA = SubAvenue(
     "Single-target pump / protection",
     "cheap spells that target one of your creatures to trigger heroic (Gods Willing / "
     "Brute Force / Defiant Strike)",
-    {"oracle": _TARGETED_BUFF_ORACLE},
     serve=Serve(oracle=re.compile(_TARGETED_BUFF_ORACLE, _IC)),
 )
 _PUMP_EXTRA = SubAvenue(
     "Combat tricks / pump",
     "instant-speed pump to push extra combat damage through and survive blocks",
-    {"oracle": _PUMP_ORACLE},
     serve=Serve(oracle=re.compile(_PUMP_ORACLE, _IC)),
 )
 # Damage / life-loss AMPLIFIERS — a commander that deals combat damage to opponents
@@ -1679,7 +1452,6 @@ _DAMAGE_AMPLIFIER_EXTRA = SubAvenue(
     "Damage / life-loss amplifiers",
     "doublers that magnify the damage and life loss you push through (Gratuitous "
     "Violence, Furnace of Rath, Wound Reflection, Fiendish Duo)",
-    {"oracle": _DAMAGE_AMPLIFIER_ORACLE},
     serve=Serve(oracle=re.compile(_DAMAGE_AMPLIFIER_ORACLE, _IC)),
 )
 # Stacking cost reducers: a commander whose own text makes spells cost less (Stenn,
@@ -1694,7 +1466,6 @@ _COST_REDUCER_EXTRA = SubAvenue(
     "Stack more cost reducers",
     "category cost reducers that compound your discount to go off (Cloud Key, Etherium "
     "Sculptor, Helm of Awakening, Baral)",
-    {"oracle": _COST_REDUCER_ORACLE},
     serve=Serve(oracle=re.compile(_COST_REDUCER_ORACLE, _IC)),
 )
 # Protecting the single suited-up threat IS the voltron support package (Mother of
@@ -1713,7 +1484,6 @@ _VOLTRON_PROTECT_EXTRA = SubAvenue(
     "Protect the suited-up threat",
     "hexproof / protection / indestructible granters that keep your one big threat "
     "alive through removal (Mother of Runes / Bastion Protector / Avacyn)",
-    {"oracle": _VOLTRON_PROTECT_ORACLE},
     serve=Serve(oracle=re.compile(_VOLTRON_PROTECT_ORACLE, _IC)),
 )
 # Creature cost reducers (Goreclaw, Cloud Key for creatures) for a creature-cast /
@@ -1725,7 +1495,6 @@ _CREATURE_COST_EXTRA = SubAvenue(
     "Creature cost reducers",
     "cards that make your creature spells cheaper so you deploy threats faster "
     "(Goreclaw)",
-    {"oracle": _CREATURE_COST_ORACLE},
     serve=Serve(oracle=re.compile(_CREATURE_COST_ORACLE, _IC)),
 )
 # Power-as-damage payoffs: convert a big/pumped creature's power into damage (Fling,
@@ -1737,7 +1506,6 @@ _POWER_FLING_EXTRA = SubAvenue(
     "Power-as-damage payoffs",
     "fling effects that turn your big creature's power into damage (Fling / Chandra's "
     "Ignition / Soul's Fire)",
-    {"oracle": _POWER_FLING_ORACLE},
     serve=Serve(oracle=re.compile(_POWER_FLING_ORACLE, _IC)),
 )
 # Force-block effects for a "becomes blocked" payoff commander (General Marhault
@@ -1749,7 +1517,6 @@ _LURE_EXTRA = SubAvenue(
     "Force blocks (Lure)",
     "effects that force opponents' creatures to block your attacker, maxing a "
     '"becomes blocked" payoff (Lure / Nemesis Mask / Roar of Challenge)',
-    {"oracle": _LURE_ORACLE},
     serve=Serve(oracle=re.compile(_LURE_ORACLE, _IC), keywords=frozenset({"provoke"})),
 )
 

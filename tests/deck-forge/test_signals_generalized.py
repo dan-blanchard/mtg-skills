@@ -1126,7 +1126,7 @@ def test_extra_combat_served_by_combat_signals():
     # A combat-damage / voltron commander wants EXTRA COMBATS: each added combat phase is
     # another round of attack + combat-damage triggers (Neheb -> Relentless Assault, Seize
     # the Day). attack_matters already served these; combat_damage / voltron did not.
-    from mtg_utils._analysis.signal_specs import serve_from_dict, spec_for
+    from mtg_utils._analysis.signal_specs import spec_for
     from mtg_utils._analysis.signals import Signal
 
     relentless = test_card("Relentless Assault")
@@ -1140,9 +1140,7 @@ def test_extra_combat_served_by_combat_signals():
         sp = spec_for(Signal(key=key, scope=scope, subject="", text="", source=""))
 
         def covers(c, sp=sp):
-            return sp.serve.matches(c) or any(
-                (ex.serve or serve_from_dict(ex.search)).matches(c) for ex in sp.extras
-            )
+            return sp.serve.matches(c) or any(ex.serve.matches(c) for ex in sp.extras)
 
         assert covers(relentless), key
         assert not covers(bolt), key
@@ -1153,7 +1151,7 @@ def test_group_mana_serves_symmetric_mana():
     # mana-makers/punishers — Mana Flare, Heartbeat of Spring, Manabarbs ("whenever a
     # player taps a land for mana"), Collective Voyage ("join forces"). The sweep serve
     # only credited "each player adds {".
-    from mtg_utils._analysis.signal_specs import serve_from_dict, spec_for
+    from mtg_utils._analysis.signal_specs import spec_for
     from mtg_utils._analysis.signals import Signal
 
     mana_flare = test_card("Mana Flare")
@@ -1162,9 +1160,7 @@ def test_group_mana_serves_symmetric_mana():
     )
 
     def cov(c):
-        return sp.serve.matches(c) or any(
-            (ex.serve or serve_from_dict(ex.search)).matches(c) for ex in sp.extras
-        )
+        return sp.serve.matches(c) or any(ex.serve.matches(c) for ex in sp.extras)
 
     assert cov(mana_flare)
     # Over-fire guard: a one-sided mana dork is not symmetric group mana.
@@ -1201,7 +1197,7 @@ def test_amass_cards_served_by_tokens_matter():
     # token maker the tokens_matter serve must credit — Mouth of Sauron / Grishnákh want
     # their amass package. The serve keyed on "token enters" / "populate" and missed the
     # amass keyword (its token-making lives in stripped reminder text, like Mobilize).
-    from mtg_utils._analysis.signal_specs import serve_from_dict, spec_for
+    from mtg_utils._analysis.signal_specs import spec_for
     from mtg_utils._analysis.signals import Signal
 
     crebain = test_card("Dunland Crebain")
@@ -1210,9 +1206,7 @@ def test_amass_cards_served_by_tokens_matter():
     )
 
     def cov(c):
-        return sp.serve.matches(c) or any(
-            (ex.serve or serve_from_dict(ex.search)).matches(c) for ex in sp.extras
-        )
+        return sp.serve.matches(c) or any(ex.serve.matches(c) for ex in sp.extras)
 
     assert cov(crebain)
     # Over-fire guard: a vanilla creature is not a token maker.
@@ -1581,15 +1575,13 @@ def test_creature_recursion_opens_and_self_sac_creatures_serve_it():
     # activation (repeatable value) AND fuels the graveyard for re-recursion, no
     # separate outlet needed (Spore Frog). The extractor firing is pinned by
     # test_signal_keys_real_cards (creature_recursion); here the SERVE is checked.
-    from mtg_utils._analysis.signal_specs import serve_from_dict, spec_for
+    from mtg_utils._analysis.signal_specs import spec_for
 
     def lane_covers(card, key):
         sp = spec_for(Signal(key=key, scope="you", subject="", text="", source=""))
         if sp.serve.matches(card):
             return True
-        return any(
-            (ex.serve or serve_from_dict(ex.search)).matches(card) for ex in sp.extras
-        )
+        return any(ex.serve.matches(card) for ex in sp.extras)
 
     spore_frog = test_card("Spore Frog")
     assert lane_covers(spore_frog, "creature_recursion") is True
@@ -1727,7 +1719,7 @@ def test_sea_monster_tribal_group_covers_all_four_types():
     # identity — no card rewards any member alone (Quest for Ula's Temple / Whelming
     # Wave / Slinn Voda always name all four). So an Octopus commander's tribe spec
     # must cover the whole group + the group-naming payoffs.
-    from mtg_utils._analysis.signal_specs import serve_from_dict, spec_for
+    from mtg_utils._analysis.signal_specs import spec_for
 
     octo_sig = Signal(
         key="type_matters", scope="you", subject="Octopus", text="", source=""
@@ -1737,9 +1729,7 @@ def test_sea_monster_tribal_group_covers_all_four_types():
     def covers(card):
         if sp.serve.matches(card):
             return True
-        return any(
-            (ex.serve or serve_from_dict(ex.search)).matches(card) for ex in sp.extras
-        )
+        return any(ex.serve.matches(card) for ex in sp.extras)
 
     # other group members by type-line (no oracle tribal text)
     tromokratis = test_card("Tromokratis")
@@ -1754,10 +1744,7 @@ def test_sea_monster_tribal_group_covers_all_four_types():
         Signal(key="type_matters", scope="you", subject="Goblin", text="", source="")
     )
     assert gob.serve.matches(tromokratis) is False
-    assert not any(
-        (ex.serve or serve_from_dict(ex.search)).matches(tromokratis)
-        for ex in gob.extras
-    )
+    assert not any(ex.serve.matches(tromokratis) for ex in gob.extras)
 
 
 def test_kazuul_defending_player_opens_goad_and_force_attack_serves():
@@ -1766,15 +1753,13 @@ def test_kazuul_defending_player_opens_goad_and_force_attack_serves():
     # by test_crosswalk's goad_makers battery; here the lane's force-attack
     # sub-avenue must cover the force-ALL-attack cards (which carry no "goad"
     # keyword). Real oracle.
-    from mtg_utils._analysis.signal_specs import serve_from_dict, spec_for
+    from mtg_utils._analysis.signal_specs import spec_for
 
     def lane_covers(card, key, scope):
         sp = spec_for(Signal(key=key, scope=scope, subject="", text="", source=""))
         if sp.serve.matches(card):
             return True
-        return any(
-            (ex.serve or serve_from_dict(ex.search)).matches(card) for ex in sp.extras
-        )
+        return any(ex.serve.matches(card) for ex in sp.extras)
 
     diplomats = test_card("Goblin Diplomats")
     warstoll = test_card("War's Toll")
@@ -1794,15 +1779,13 @@ def test_low_power_matters_opens_and_serves():
     # by test_crosswalk).
     assert ("low_power_matters", "you") in _ks_real("Subira, Tulzidi Caravanner")
 
-    from mtg_utils._analysis.signal_specs import serve_from_dict, spec_for
+    from mtg_utils._analysis.signal_specs import spec_for
 
     def lane_covers(card, key):
         sp = spec_for(Signal(key=key, scope="you", subject="", text="", source=""))
         if sp.serve.matches(card):
             return True
-        return any(
-            (ex.serve or serve_from_dict(ex.search)).matches(card) for ex in sp.extras
-        )
+        return any(ex.serve.matches(card) for ex in sp.extras)
 
     raid = test_card("Raid Bombardment")
     assert lane_covers(raid, "low_power_matters") is True
@@ -1822,7 +1805,7 @@ def test_gowide_package_creature_scoped_and_count_scaler_opens_it():
     # CREATURE-scoped: a Treasure/Clue maker (non-creature tokens) does NOT widen
     # the board and stays out. The extractor firing is pinned by
     # test_signal_keys_real_cards (tokens_matter) + test_crosswalk.
-    from mtg_utils._analysis.signal_specs import serve_from_dict, spec_for
+    from mtg_utils._analysis.signal_specs import spec_for
 
     def lane_covers(card):
         sp = spec_for(
@@ -1830,9 +1813,7 @@ def test_gowide_package_creature_scoped_and_count_scaler_opens_it():
         )
         if sp.serve.matches(card):
             return True
-        return any(
-            (ex.serve or serve_from_dict(ex.search)).matches(card) for ex in sp.extras
-        )
+        return any(ex.serve.matches(card) for ex in sp.extras)
 
     battle_screech = test_card("Battle Screech")
     rootborn = test_card("Rootborn Defenses")
@@ -1848,16 +1829,14 @@ def test_tokens_matter_serves_mobilize_swarm():
     # A Mobilize commander (Zurgo) opens tokens_matter, but the other Mobilize cards make
     # their Warrior tokens in stripped reminder text, so the serve missed them. Credit the
     # mobilize keyword (a bounded Warrior-swarm archetype) — Zurgo covers its package.
-    from mtg_utils._analysis.signal_specs import serve_from_dict, spec_for
+    from mtg_utils._analysis.signal_specs import spec_for
     from mtg_utils._analysis.signals import Signal
 
     def lane_covers(card, key, scope):
         sp = spec_for(Signal(key=key, scope=scope, subject="", text="", source=""))
         if sp.serve.matches(card):
             return True
-        return any(
-            (ex.serve or serve_from_dict(ex.search)).matches(card) for ex in sp.extras
-        )
+        return any(ex.serve.matches(card) for ex in sp.extras)
 
     packbeasts = test_card("Dalkovan Packbeasts")
     assert lane_covers(packbeasts, "tokens_matter", "you") is True
@@ -1873,15 +1852,13 @@ def test_cost_reduction_serves_stacking_reducers():
     # "<your/type> spells cost {N} less" (Cloud Key, Etherium Sculptor), excluding
     # the self-only "this spell costs {X} less" (Ghalta). The extractor firing is
     # pinned by test_signal_keys_real_cards (cost_reduction). Real oracle.
-    from mtg_utils._analysis.signal_specs import serve_from_dict, spec_for
+    from mtg_utils._analysis.signal_specs import spec_for
 
     def lane_covers(card, key, scope):
         sp = spec_for(Signal(key=key, scope=scope, subject="", text="", source=""))
         if sp.serve.matches(card):
             return True
-        return any(
-            (ex.serve or serve_from_dict(ex.search)).matches(card) for ex in sp.extras
-        )
+        return any(ex.serve.matches(card) for ex in sp.extras)
 
     etherium = test_card("Etherium Sculptor")
     assert lane_covers(etherium, "cost_reduction", "you") is True
@@ -1900,7 +1877,7 @@ def test_token_maker_serves_token_aristocrats_drain():
     # creature dies" Blood Artist (served by the death lanes) does NOT match this
     # sub-avenue. The extractor firing is pinned by test_signal_keys_real_cards
     # (token_maker); the spec here carries the captured tribal subject.
-    from mtg_utils._analysis.signal_specs import serve_from_dict, spec_for
+    from mtg_utils._analysis.signal_specs import spec_for
 
     tm_sig = Signal(
         key="token_maker", scope="you", subject="Thrull", text="", source=""
@@ -1910,9 +1887,7 @@ def test_token_maker_serves_token_aristocrats_drain():
     def covers(card):
         if sp.serve.matches(card):
             return True
-        return any(
-            (ex.serve or serve_from_dict(ex.search)).matches(card) for ex in sp.extras
-        )
+        return any(ex.serve.matches(card) for ex in sp.extras)
 
     mirkwood = test_card("Mirkwood Bats")
     assert covers(mirkwood) is True
@@ -1938,15 +1913,13 @@ def test_celebration_archetype_opens_and_serves():
     # extractor firing (Ash, Party Crasher) is pinned by test_crosswalk's
     # celebration mirror test; here the lane serve must credit the other
     # Celebration payoffs and exclude generic go-wide payoffs.
-    from mtg_utils._analysis.signal_specs import serve_from_dict, spec_for
+    from mtg_utils._analysis.signal_specs import spec_for
 
     def lane_covers(card, key):
         sp = spec_for(Signal(key=key, scope="you", subject="", text="", source=""))
         if sp.serve.matches(card):
             return True
-        return any(
-            (ex.serve or serve_from_dict(ex.search)).matches(card) for ex in sp.extras
-        )
+        return any(ex.serve.matches(card) for ex in sp.extras)
 
     grand_ball_guest = test_card("Grand Ball Guest")
     assert lane_covers(grand_ball_guest, "celebration_matters") is True
@@ -1962,15 +1935,13 @@ def test_lands_matter_leaves_creature_pump_by_basic_to_scaling_pump():
     # control" (Blanchwood Armor, Primal Bellow). The serve already takes "for each
     # LAND you control"; the per-basic-subtype form was the gap. The extractor
     # firing is pinned by test_signal_keys_real_cards (lands_matter).
-    from mtg_utils._analysis.signal_specs import serve_from_dict, spec_for
+    from mtg_utils._analysis.signal_specs import spec_for
 
     def lane_covers(card, key):
         sp = spec_for(Signal(key=key, scope="you", subject="", text="", source=""))
         if sp.serve.matches(card):
             return True
-        return any(
-            (ex.serve or serve_from_dict(ex.search)).matches(card) for ex in sp.extras
-        )
+        return any(ex.serve.matches(card) for ex in sp.extras)
 
     # The lands_matter serve now reads the lanes' idents (land-count payoffs, ramp,
     # landfall, extra drops); the basic-subtype pump is the scaling_pump lane's, a
@@ -1989,15 +1960,13 @@ def test_tapped_creatures_matter_opens_and_serves():
     # serve pool stays oracle-defined (the hand spec). Distinct from
     # tap_untap_matters (becomes-tapped triggers) and convoke (taps UNtapped
     # creatures as a cost).
-    from mtg_utils._analysis.signal_specs import serve_from_dict, spec_for
+    from mtg_utils._analysis.signal_specs import spec_for
 
     def lane_covers(card, key):
         sp = spec_for(Signal(key=key, scope="you", subject="", text="", source=""))
         if sp.serve.matches(card):
             return True
-        return any(
-            (ex.serve or serve_from_dict(ex.search)).matches(card) for ex in sp.extras
-        )
+        return any(ex.serve.matches(card) for ex in sp.extras)
 
     throne = test_card("Throne of the God-Pharaoh")
     assert lane_covers(throne, "tapped_matters") is True
@@ -2013,15 +1982,13 @@ def test_tapped_threshold_and_count_open_and_serve():
     # control" COUNT form are tapped-matters engines. The threshold-gate structural
     # read is pinned by test_crosswalk (Sami); here the serve must learn the
     # threshold + count so Sami covers its cluster. Real oracle.
-    from mtg_utils._analysis.signal_specs import serve_from_dict, spec_for
+    from mtg_utils._analysis.signal_specs import spec_for
 
     def lane_covers(card, key):
         sp = spec_for(Signal(key=key, scope="you", subject="", text="", source=""))
         if sp.serve.matches(card):
             return True
-        return any(
-            (ex.serve or serve_from_dict(ex.search)).matches(card) for ex in sp.extras
-        )
+        return any(ex.serve.matches(card) for ex in sp.extras)
 
     dawnstrike = test_card("Dawnstrike Vanguard")
     assert lane_covers(dawnstrike, "tapped_matters") is True
@@ -2094,15 +2061,13 @@ def test_discard_matters_payoff_opens_opponent_discard():
     # stays out. (The extractor side was re-adjudicated: test_crosswalk pins that
     # Tinybones, Trinket Thief's "an opponent discarded" END-STEP payoff does NOT
     # fire opponent_discard on the crosswalk path.)
-    from mtg_utils._analysis.signal_specs import serve_from_dict, spec_for
+    from mtg_utils._analysis.signal_specs import spec_for
 
     def lane_covers(card, key, scope):
         sp = spec_for(Signal(key=key, scope=scope, subject="", text="", source=""))
         if sp.serve.matches(card):
             return True
-        return any(
-            (ex.serve or serve_from_dict(ex.search)).matches(card) for ex in sp.extras
-        )
+        return any(ex.serve.matches(card) for ex in sp.extras)
 
     megrim = test_card("Megrim")
     bottomless = test_card("Bottomless Pit")
@@ -2185,16 +2150,14 @@ def test_opponent_reveal_mill_served_by_graveyard_opponents():
     # puts them into their graveyard" — Mind Funeral, Mind Grind) never uses the word
     # "mills", so the opponents'-graveyard serve (keyed on "mills") missed it though a
     # mill commander (Mirko Vosk, who mills the same way) opens the lane. Real cards.
-    from mtg_utils._analysis.signal_specs import serve_from_dict, spec_for
+    from mtg_utils._analysis.signal_specs import spec_for
     from mtg_utils._analysis.signals import Signal
 
     def lane_covers(card, key, scope):
         sp = spec_for(Signal(key=key, scope=scope, subject="", text="", source=""))
         if sp.serve.matches(card):
             return True
-        return any(
-            (ex.serve or serve_from_dict(ex.search)).matches(card) for ex in sp.extras
-        )
+        return any(ex.serve.matches(card) for ex in sp.extras)
 
     mind_funeral = test_card("Mind Funeral")
     assert lane_covers(mind_funeral, "graveyard_matters", "opponents") is True
@@ -2219,16 +2182,14 @@ def test_land_sacrifice_matters_opens_and_serves():
         s.key for s in test_signals("The Gitrog Monster")
     }
 
-    from mtg_utils._analysis.signal_specs import serve_from_dict, spec_for
+    from mtg_utils._analysis.signal_specs import spec_for
     from mtg_utils._analysis.signals import Signal
 
     def lane_covers(card, key):
         sp = spec_for(Signal(key=key, scope="you", subject="", text="", source=""))
         if sp.serve.matches(card):
             return True
-        return any(
-            (ex.serve or serve_from_dict(ex.search)).matches(card) for ex in sp.extras
-        )
+        return any(ex.serve.matches(card) for ex in sp.extras)
 
     zuran_orb = test_card("Zuran Orb")
     assert lane_covers(zuran_orb, "land_sacrifice_matters") is True
@@ -2261,16 +2222,14 @@ def test_gain_control_serve_catches_that_them_those():
     # the serve's pronoun list missed "gain control of that/them/those" — Treasure
     # Nabber ("that artifact"), Insurrection ("them") classify as gain_control yet
     # weren't served. Real cards, full oracle.
-    from mtg_utils._analysis.signal_specs import serve_from_dict, spec_for
+    from mtg_utils._analysis.signal_specs import spec_for
     from mtg_utils._analysis.signals import Signal
 
     def lane_covers(card, key):
         sp = spec_for(Signal(key=key, scope="you", subject="", text="", source=""))
         if sp.serve.matches(card):
             return True
-        return any(
-            (ex.serve or serve_from_dict(ex.search)).matches(card) for ex in sp.extras
-        )
+        return any(ex.serve.matches(card) for ex in sp.extras)
 
     treasure_nabber = test_card("Treasure Nabber")
     assert lane_covers(treasure_nabber, "gain_control") is True
@@ -2287,16 +2246,14 @@ def test_debuff_serves_opponent_mass_shrink():
     # creatures to a tiny base P/T (Mass Diminish, Flatline, Polymorphist's Jest).
     # Those classify as base_pt_set, not the -N/-N debuff form, so the serve missed
     # them. Real cards, full oracle.
-    from mtg_utils._analysis.signal_specs import serve_from_dict, spec_for
+    from mtg_utils._analysis.signal_specs import spec_for
     from mtg_utils._analysis.signals import Signal
 
     def lane_covers(card, key, scope):
         sp = spec_for(Signal(key=key, scope=scope, subject="", text="", source=""))
         if sp.serve.matches(card):
             return True
-        return any(
-            (ex.serve or serve_from_dict(ex.search)).matches(card) for ex in sp.extras
-        )
+        return any(ex.serve.matches(card) for ex in sp.extras)
 
     mass_diminish = test_card("Mass Diminish")
     assert lane_covers(mass_diminish, "debuff_makers", "any") is True
@@ -2413,15 +2370,13 @@ def test_keyword_soup_commander_opens_and_serves_multi_keyword_creatures():
     # >=3 evergreen keywords. Real snapshot card.
     assert "keyword_soup_makers" in _keys_real("Odric, Lunarch Marshal")
 
-    from mtg_utils._analysis.signal_specs import serve_from_dict, spec_for
+    from mtg_utils._analysis.signal_specs import spec_for
 
     def lane_covers(card, key):
         sp = spec_for(Signal(key=key, scope="you", subject="", text="", source=""))
         if sp.serve.matches(card):
             return True
-        return any(
-            (ex.serve or serve_from_dict(ex.search)).matches(card) for ex in sp.extras
-        )
+        return any(ex.serve.matches(card) for ex in sp.extras)
 
     aerial = test_card("Aerial Responder")
     assert lane_covers(aerial, "keyword_soup_makers") is True
@@ -2435,16 +2390,14 @@ def test_combat_damage_serves_double_strike_granters():
     # strike doubles the combat damage (and the combat-damage triggers) pushed through,
     # the same amplifier role as Gratuitous Violence. Duelist's Heritage grants it each
     # combat. Real cards, full oracle.
-    from mtg_utils._analysis.signal_specs import serve_from_dict, spec_for
+    from mtg_utils._analysis.signal_specs import spec_for
     from mtg_utils._analysis.signals import Signal
 
     def lane_covers(card, key, scope):
         sp = spec_for(Signal(key=key, scope=scope, subject="", text="", source=""))
         if sp.serve.matches(card):
             return True
-        return any(
-            (ex.serve or serve_from_dict(ex.search)).matches(card) for ex in sp.extras
-        )
+        return any(ex.serve.matches(card) for ex in sp.extras)
 
     duelist = test_card("Duelist's Heritage")
     assert lane_covers(duelist, "combat_damage_to_opp", "opponents") is True
