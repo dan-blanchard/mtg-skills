@@ -598,6 +598,77 @@ add becomes Vanquisher's Banner at $2.94, and the four upgrades after it, two of
 them guide cuts, no longer fit $132). Twenty guide adds the 600-card page never
 held now sit on a page, outranked or gated.
 
+### Where a job read leads (2026-10-24)
+
+Dan's calls after the job reads moved to the signal trees: try each read as the order
+of its upgrades and as "better than the cut", a job upgrade one mana-value band
+higher, and theme fit as the tie-break between a staple and an on-theme card that do
+a job about equally well; ship each only where the guide-matching adds rise and the
+guide-matching cuts fall by two at most. One `misses.py` run per change, each alone
+against the baseline, then the kept ones together (ADR-0060's 2026-10-24 amendment).
+Columns: swaps / guide cuts / guide adds, then the guide adds matched per job (wipes,
+removal, protection, draw, ramp, theme).
+
+| change | swaps / cuts / adds | wipe / int / prot / draw / ramp / theme | |
+|---|---|---|---|
+| HEAD (64327f31) | 417 / 162 / 39 | 1 / 7 / 0 / 5 / 3 / 23 | |
+| read fixes (below) | 407 / 158 / 39 | 1 / 7 / 0 / 5 / 3 / 23 | shipped; the baseline below |
+| the read orders wipe upgrades | 412 / 159 / 40 | 1 / 7 / 0 / 5 / 3 / 24 | passed alone; 47 vs 50 with the rest |
+| … card draw | 422 / 164 / 43 | 1 / 8 / 0 / 4 / 4 / 26 | draw matches fall; 39 with theme ties |
+| … removal (on HEAD) | 413 / 163 / 35 | 1 / 2 / 0 / 4 / 3 / 25 | rejected |
+| … ramp (on HEAD) | 397 / 161 / 35 | 1 / 7 / 0 / 3 / 4 / 20 | rejected |
+| … protection | 407 / 158 / 39 | unchanged | rejected |
+| better than the cut by the read: removal | 407 / 159 / 38 | 1 / 6 / 0 / 5 / 3 / 23 | rejected |
+| … ramp | 406 / 158 / 38 | 1 / 7 / 0 / 5 / 3 / 22 | rejected |
+| … card draw | 407 / 157 / 39 | 1 / 7 / 0 / 5 / 3 / 23 | rejected |
+| … wipes | 404 / 158 / 39 | 1 / 7 / 0 / 5 / 3 / 23 | rejected |
+| … protection | 408 / 158 / 39 | 1 / 7 / 0 / 5 / 3 / 23 | rejected |
+| a job upgrade one band higher | 417 / 161 / 43 | 2 / 7 / 0 / 5 / 3 / 26 | kept |
+| every upgrade one band higher | 414 / 161 / 41 | 2 / 7 / 0 / 4 / 3 / 25 | theme part rejected |
+| theme fit breaks a near tie: card draw | 435 / 167 / 42 | 1 / 8 / 0 / 5 / 4 / 24 | kept |
+| … ramp | 409 / 159 / 41 | 1 / 7 / 0 / 5 / 5 / 23 | kept |
+| … removal | 405 / 157 / 38 | 1 / 5 / 0 / 5 / 3 / 24 | rejected |
+| … wipes | 412 / 159 / 39 | 0 / 7 / 0 / 5 / 3 / 24 | rejected |
+| … protection | 407 / 158 / 39 | unchanged | rejected |
+| the read leads card draw, with theme ties | 430 / 167 / 39 | 1 / 8 / 0 / 3 / 4 / 23 | rejected |
+| the wipe read orders the wipe fill | 413 / 160 / 40 | 1 / 7 / 0 / 5 / 3 / 24 | kept |
+| protection fills skip the avenue guard | 407 / 158 / 40 | 1 / 7 / 1 / 5 / 3 / 23 | kept |
+| the protection read orders its fill (and no guard) | 401 / 158 / 38 | 1 / 7 / 0 / 4 / 3 / 23 | rejected |
+| every shape wants protection, target 5 / 3 | 412 / 159 / 38 · 415 / 160 / 39 | | rejected |
+| kept, with the wipe read leading its upgrades | 423 / 166 / 47 | 1 / 7 / 1 / 5 / 7 / 26 | |
+| **kept** | **434 / 168 / 50** | **2 / 8 / 1 / 5 / 7 / 27** | shipped |
+
+Against HEAD the tune makes 17 more swaps, 6 more guide-matching cuts and 11 more
+guide-matching adds. The guide adds it gains: Swiftfoot Boots (Animated Army, the
+protection fill without the avenue guard), Blasphemous Act (Blame Game, one band
+above its cut), Kindred Discovery (Sliver Swarm) and Spellstutter Sprite (Fae
+Dominion, which gives up Kindred Discovery), Fertile Ground (Enduring Enchantments),
+Liquimetal Torque (Tinker Time), All That Glitters (Virtue and Valor), Insidious
+Roots (Death Toll), Animate Dead (Graveyard Overdrive: no longer interaction, it is
+a reanimation add), Professional Face-Breaker (Mardu Surge), Bothersome Quasit,
+Inevitable Betrayal and Jhoira of the Ghitu; Endless Punishment loses Razorkin
+Needlehead. Garruk's Uprising is the draw add in 7 precons (10).
+Death Toll's wipe fill is Find // Finality, not Wail of War.
+
+The read fixes: removal weighs an exile that lasts until the card leaves when the card
+leaves by itself — an Aura goes when its host does (CR 704.5m: Sheltered by Ghosts,
+0.86 to 0.56), Static Prison sacrifices itself (0.36) — hand-set weights; a free
+alternative cost costs nothing (Deadly Rollick 0.37 to 0.64, Snuff Out 0.15 to 0.35:
+phase parses both into `casting_options`, which only the protection read had read);
+and the `removal` preset takes the debuffs that lower toughness, not all of
+`debuff_makers`, so Animate Dead and Jace, Architect of Thought (a −1/−0) are no
+interaction. That cost Planeswalker Party four guide cuts: with Jace out of the
+interaction row its dead-weight fills could take Elspeth, Storm Slayer, which spent
+the budget its later upgrades had used.
+
+The 18 protection guide adds "no search" reached are not a preset gap — the
+`protects-board` preset reads all 18. Their decks are aggro or midrange without a
+voltron plan, which ADR-0024 asks for no protection, and none of their upgrade cuts
+reads as protection.
+
+Measured with Commander Spellbook's answers cached per request: a run on 2026-10-24
+met the API's rate limit and tuned without combos, which moved every deck's swaps.
+
 ## What is left
 
 `docs/plans/backlog.md`, "What the polymorph tune and the 25-precon audit still

@@ -369,6 +369,7 @@ from mtg_utils._analysis.lanes.graveyard_lifeloss import (
     _venture,
     graveyard_return_direction,
     self_mill_fill,
+    toughness_debuff,
 )
 from mtg_utils._analysis.lanes.graveyard_lifeloss import (
     LANES as _GRAVEYARD_LIFELOSS_LANES,
@@ -1426,6 +1427,7 @@ __all__ = [
     "self_mill_fill",
     "self_return_routes",
     "static_population_shrinks",
+    "toughness_debuff",
     "treasure_maker_you_keep",
 ]
 

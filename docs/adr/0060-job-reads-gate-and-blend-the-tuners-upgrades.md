@@ -118,3 +118,56 @@ Skullclamp, and the dearer draw add leaves Spellstutter Sprite, another, over
 budget; Sultai Arisen's draw add becomes Vanquisher's Banner ($2.94, not Morbid
 Opportunist's $0.22), and its last four upgrades, two of them guide cuts, no longer
 fit its $132.
+
+**Amendment (2026-10-24): where a read leads.** Dan's calls: try each read as the
+order of its upgrades (the score first, play-rate breaking ties) and as "better than
+the cut", allow a job upgrade one mana-value band more, and let theme fit break a near
+tie between a staple and an on-theme card. Each was measured alone against the 25
+precons at their own budgets, then the kept ones together; one ships only where the
+guide-matching adds rise and the guide-matching cuts fall by two at most (baseline
+407 swaps / 158 cuts / 39 adds, after the read fixes below; 417 / 162 / 39 before them):
+
+| change, alone | swaps / cuts / adds | |
+|---|---|---|
+| the read orders the upgrades: wipes / draw / removal / ramp / protection | 412/159/40 · 422/164/43 · 413/163/35 · 397/161/35 · unchanged | rejected (see below) |
+| "scores better than the cut" in play-rate's place: removal / ramp / draw / wipes / protection | 407/159/38 · 406/158/38 · 407/157/39 · 404/158/39 · 408/158/39 | rejected |
+| a job upgrade one band higher / every upgrade | 417/161/43 · 414/161/41 | job upgrades |
+| theme fit breaks a near tie: draw / ramp / removal / wipes / protection | 435/167/42 · 409/159/41 · 405/157/38 · 412/159/39 · unchanged | draw, ramp |
+| the wipe read orders the wipe fill | 413/160/40 | kept |
+| protection fills skip the avenue guard | 407/158/40 | kept |
+| all kept | **434 / 168 / 50** | shipped |
+
+- **The order stays as it was** for every job. The wipe read leading matched one
+  more add alone but no wipe add (Final Showdown, Spiteful Banditry and Winds of
+  Abandon over Blasphemous Act and Toxic Deluge: the read rates them highest), and
+  with the kept changes it took the total from 50 to 47. Card draw's read leading
+  matched more adds overall but fewer draw adds (River Kelpie and Ghostly Pilferer,
+  its top engines, over Kindred Discovery and Deadly Dispute); with theme fit as well
+  it matched 39.
+- **"Better than the cut" stays play-rate's.** No read found more guide adds there.
+- **A job upgrade may cost one band more** (`swaps.over_band`): Blame Game trades
+  Winds of Rath (five mana) for Blasphemous Act. A theme upgrade keeps its band.
+- **Theme fit breaks a near tie** for card draw and ramp (`JobRead.theme_ties`): in
+  the upgrade's order, an off-theme card gives its place to the first later card that
+  serves a viable avenue and scores within 0.1 of it on the read. Upgrades are still
+  not held to theme fit. Garruk's Uprising is the draw add in 7 precons (10 before).
+- **The wipe read orders the board-wipe fill** (`JobRead.fill_orders`), ahead of the
+  mana-value band: Death Toll's fill is Find // Finality (read 0.28), not Wail of War
+  (0.07).
+- **A protection fill skips the ADR-0040 avenue guard** (`swaps._GUARD_EXEMPT_JOBS`):
+  protection guards the deck's threats whatever avenue they serve. Animated Army's fill
+  is Swiftfoot Boots again, not the $36 Sword of Feast and Famine.
+- **Rejected: protection for every deck.** ADR-0024 asks for protection only in a combo
+  or control deck or a voltron plan, which is why 18 guide protection adds had no
+  search (the `protects-board` preset reads all 18). A target of 5 or 3 for every shape
+  matched 38 and 39.
+
+The read fixes in the same pass: removal reads an exile that lasts until the card
+leaves as weaker when the card leaves by itself (an Aura, CR 704.5m; a card that
+sacrifices itself, Static Prison) — hand-set weights −0.3 and −0.5; a free alternative
+cost phase carries in `casting_options` costs nothing (Deadly Rollick, Snuff Out —
+phase parses both; the crosswalk never read them); and the `removal` preset takes only
+the debuffs that lower toughness (`lanes.toughness_debuff`), so Animate Dead's −1/−0
+and Jace, Architect of Thought's are no interaction. Alone they cost Planeswalker Party
+four guide cuts: Jace no longer counts as interaction, so its dead-weight fills could
+take Elspeth, Storm Slayer, which spent the budget its upgrades had used.

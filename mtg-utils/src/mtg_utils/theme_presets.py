@@ -578,6 +578,17 @@ def _population_shrink_concept(card: dict) -> bool:
     return _concept_any_face(card, population_shrink)
 
 
+def _toughness_debuff_concept(card: dict) -> bool:
+    """concept arm for the 'removal' preset: a debuff that lowers a creature's
+    toughness (``lanes.toughness_debuff`` — a creature at 0 toughness dies, CR
+    704.5f: Disfigure, Dead Weight, a -1/-1 counter). The ``debuff_makers`` key
+    also holds power-only shrinks ("-1/-0" on the creature Animate Dead returns),
+    which remove nothing."""
+    from mtg_utils._analysis.lanes import toughness_debuff
+
+    return _concept_any_face(card, toughness_debuff)
+
+
 #: Graveyard-recursion keywords phase v0.94.0+ drops on some cards, so the
 #: ``self_recurring`` key can't see them (Dawn's aftermath half, Garza's Assassin's
 #: recover, Salvation Colossus's unearth, Oscorp Industries' mayhem). Each brings the
@@ -2105,8 +2116,11 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
             "counter_control",
             "bounce_tempo",
             "fight_makers",
-            "debuff_makers",
         ),
+        # The toughness half of ``debuff_makers`` (2026-10-23): a power-only
+        # shrink — the creature Animate Dead returns gets -1/-0 — removes
+        # nothing, so the whole key made Animate Dead an interaction card.
+        concept=_toughness_debuff_concept,
         should_match=(
             "Murder",  # bare `removal` key
             "Swords to Plowshares",  # exile_removal
@@ -2116,8 +2130,8 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
             "Lightning Bolt",  # removal — "any target" burn (CR 115.4)
             "Boomerang",  # bounce_tempo
             "Prey Upon",  # fight_makers
-            "Disfigure",  # debuff_makers
-            "Toxic Deluge",  # debuff_makers + mass_removal (dynamic -X/-X)
+            "Disfigure",  # a toughness debuff (concept arm)
+            "Toxic Deluge",  # mass_removal + a toughness debuff (dynamic -X/-X)
             "Condemn",  # removal — single-target tuck (task #88)
             "Chaos Warp",  # removal — single-target tuck, any permanent
         ),
@@ -2126,6 +2140,7 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
             "Command Tower",
             "Lupine Prototype",
             "Pacifism",  # pacify aura -> enchantments_matter, not removal
+            "Animate Dead",  # a -1/-0 on the creature it returns kills nothing
             # player-only damage (CR 120.3a: that player loses life) — the
             # `direct_damage` burn lane, never a removal-family key
             "Guttersnipe",

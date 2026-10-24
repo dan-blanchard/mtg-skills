@@ -203803,6 +203803,264 @@
     "type_line": "Instant"
    }
   },
+  "Cast Out": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "ability_tag": {
+        "type": "Cycling"
+       },
+       "activation_zone": "Hand",
+       "condition": null,
+       "consumes_source": true,
+       "cost": {
+        "costs": [
+         {
+          "cost": {
+           "generic": 0,
+           "shards": [
+            "White"
+           ],
+           "type": "Cost"
+          },
+          "type": "Mana"
+         },
+         {
+          "count": {
+           "type": "Fixed",
+           "value": 1
+          },
+          "filter": null,
+          "random": false,
+          "self_ref": true,
+          "type": "Discard"
+         }
+        ],
+        "type": "Composite"
+       },
+       "description": null,
+       "duration": null,
+       "effect": {
+        "count": {
+         "type": "Fixed",
+         "value": 1
+        },
+        "target": {
+         "type": "Controller"
+        },
+        "type": "Draw"
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Enchantment"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "White"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [
+      "Flash",
+      {
+       "Cycling": {
+        "data": {
+         "generic": 0,
+         "shards": [
+          "White"
+         ],
+         "type": "Cost"
+        },
+        "type": "Mana"
+       }
+      }
+     ],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 3,
+      "shards": [
+       "White"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "0d403ab1-56d1-44a6-a414-6cc7a114c62d",
+       "1bf09533-3849-4756-8ccf-143196cc17d9",
+       "21e3e8c5-2c6c-4c54-866d-91a795b558e5",
+       "4b491874-4be1-496a-bf04-abe1f5af4482",
+       "6d7ea506-262b-415f-86f2-d70ddfd15a8d",
+       "76ff0dd0-489e-4773-93f6-b77fc3b8ef2e",
+       "ec265d99-808f-4024-91b2-6575b46fd6f8"
+      ]
+     },
+     "name": "Cast Out",
+     "non_ability_text": null,
+     "oracle_text": "Flash\nWhen this enchantment enters, exile target nonland permanent an opponent controls until this enchantment leaves the battlefield.\nCycling {W} ({W}, Discard this card: Draw a card.)",
+     "power": null,
+     "printings": [
+      "AKH",
+      "AKR",
+      "C20",
+      "CMM",
+      "DRC",
+      "DSC",
+      "PLST"
+     ],
+     "rarities": [
+      "uncommon"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2017-04-18",
+       "text": "Auras attached to the exiled permanent will be put into their owners' graveyards. Any Equipment will become unattached and remain on the battlefield. Any counters on the exiled permanent will cease to exist."
+      },
+      {
+       "date": "2017-04-18",
+       "text": "If Cast Out leaves the battlefield before its triggered ability resolves, the target permanent won't be exiled."
+      },
+      {
+       "date": "2017-04-18",
+       "text": "If a token is exiled this way, it will cease to exist and won't return to the battlefield."
+      },
+      {
+       "date": "2017-04-18",
+       "text": "In a multiplayer game, if Cast Out's owner leaves the game, the exiled card will return to the battlefield. Because the one-shot effect that returns the card isn't an ability that goes on the stack, it won't cease to exist along with the leaving player's spells and abilities on the stack."
+      },
+      {
+       "date": "2017-04-18",
+       "text": "The exiled card returns to the battlefield immediately after Cast Out leaves the battlefield. Nothing happens between the two events, including state-based actions."
+      }
+     ],
+     "scryfall_oracle_id": "f90b00f6-36e0-4988-9409-57297483a952",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "When ~ enters, exile target nonland permanent an opponent controls until ~ leaves the battlefield.",
+       "destination": "Battlefield",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": "UntilHostLeavesPlay",
+        "effect": {
+         "destination": "Exile",
+         "enter_tapped": false,
+         "enter_transformed": false,
+         "enters_attacking": false,
+         "origin": null,
+         "owner_library": false,
+         "target": {
+          "controller": "Opponent",
+          "properties": [],
+          "type": "Typed",
+          "type_filters": [
+           "Permanent",
+           {
+            "Non": "Land"
+           }
+          ]
+         },
+         "type": "ChangeZone"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "ChangesZone",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 4.0,
+    "color_identity": [
+     "W"
+    ],
+    "colors": [
+     "W"
+    ],
+    "keywords": [
+     "Cycling",
+     "Flash"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{3}{W}",
+    "name": "Cast Out",
+    "oracle_id": "f90b00f6-36e0-4988-9409-57297483a952",
+    "oracle_text": "Flash\nWhen this enchantment enters, exile target nonland permanent an opponent controls until this enchantment leaves the battlefield.\nCycling {W} ({W}, Discard this card: Draw a card.)",
+    "type_line": "Enchantment"
+   }
+  },
   "Cast Through Time": {
    "phase_records": [
     {
@@ -894812,6 +895070,249 @@
     "type_line": "Land"
    }
   },
+  "Sheltered by Ghosts": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Enchantment"
+      ],
+      "subtypes": [
+       "Aura"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "White"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [
+      {
+       "Enchant": {
+        "controller": "You",
+        "properties": [],
+        "type": "Typed",
+        "type_filters": [
+         "Creature"
+        ]
+       }
+      }
+     ],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "standard": "legal",
+      "standardbrawl": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "White"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "389f3f7b-be40-4a2d-b5cc-28471a577981",
+       "8e8a5cfe-1b3f-4414-b9a4-078bdb4072a7",
+       "d1b4e58d-3b91-4019-99d2-392757024df6",
+       "da7c29a0-5512-4188-acbc-af5f9194f264"
+      ]
+     },
+     "name": "Sheltered by Ghosts",
+     "non_ability_text": null,
+     "oracle_text": "Enchant creature you control\nWhen this Aura enters, exile target nonland permanent an opponent controls until this Aura leaves the battlefield.\nEnchanted creature gets +1/+0 and has lifelink and ward {2}.",
+     "power": null,
+     "printings": [
+      "DSK",
+      "PJSC",
+      "PLST",
+      "SLD",
+      "SOC"
+     ],
+     "rarities": [
+      "uncommon",
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2024-09-20",
+       "text": "Auras attached to the exiled permanent will be put into their owners' graveyards. Any Equipment will become unattached and remain on the battlefield. Any counters on the exiled permanent will cease to exist. When the card returns to the battlefield, it will be a new object with no connection to the card that was exiled."
+      },
+      {
+       "date": "2024-09-20",
+       "text": "If Sheltered by Ghosts leaves the battlefield before its triggered ability resolves, the target permanent won't be exiled at all."
+      },
+      {
+       "date": "2024-09-20",
+       "text": "If a token is exiled this way, it will cease to exist and won't return to the battlefield."
+      }
+     ],
+     "scryfall_oracle_id": "d13fc657-c6fc-4394-bc70-691050550226",
+     "static_abilities": [
+      {
+       "active_zones": [],
+       "affected": {
+        "controller": null,
+        "properties": [
+         {
+          "type": "EnchantedBy"
+         }
+        ],
+        "type": "Typed",
+        "type_filters": [
+         "Creature"
+        ]
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": null,
+       "description": "Enchanted creature gets +1/+0 and has lifelink and ward {2}.",
+       "effect_zone": null,
+       "mode": "Continuous",
+       "modifications": [
+        {
+         "type": "AddPower",
+         "value": 1
+        },
+        {
+         "type": "AddToughness",
+         "value": 0
+        },
+        {
+         "keyword": "Lifelink",
+         "type": "AddKeyword"
+        },
+        {
+         "keyword": {
+          "Ward": {
+           "data": {
+            "generic": 2,
+            "shards": [],
+            "type": "Cost"
+           },
+           "type": "Mana"
+          }
+         },
+         "type": "AddKeyword"
+        }
+       ]
+      }
+     ],
+     "toughness": null,
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "When ~ enters, exile target nonland permanent an opponent controls until ~ leaves the battlefield.",
+       "destination": "Battlefield",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": "UntilHostLeavesPlay",
+        "effect": {
+         "destination": "Exile",
+         "enter_tapped": false,
+         "enter_transformed": false,
+         "enters_attacking": false,
+         "origin": null,
+         "owner_library": false,
+         "target": {
+          "controller": "Opponent",
+          "properties": [],
+          "type": "Typed",
+          "type_filters": [
+           "Permanent",
+           {
+            "Non": "Land"
+           }
+          ]
+         },
+         "type": "ChangeZone"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "ChangesZone",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 2.0,
+    "color_identity": [
+     "W"
+    ],
+    "colors": [
+     "W"
+    ],
+    "keywords": [
+     "Enchant"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "legal",
+     "standardbrawl": "legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}{W}",
+    "name": "Sheltered by Ghosts",
+    "oracle_id": "d13fc657-c6fc-4394-bc70-691050550226",
+    "oracle_text": "Enchant creature you control\nWhen this Aura enters, exile target nonland permanent an opponent controls until this Aura leaves the battlefield.\nEnchanted creature gets +1/+0 and has lifelink and ward {2}.",
+    "type_line": "Enchantment — Aura"
+   }
+  },
   "Sheltering Ancient": {
    "phase_records": [
     {
@@ -948044,6 +948545,284 @@
     "oracle_id": "0004ebd0-dfd6-4276-b4a6-de0003e94237",
     "oracle_text": "As long as this artifact is untapped, players can't untap more than two permanents during their untap steps.",
     "type_line": "Artifact"
+   }
+  },
+  "Static Prison": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Enchantment"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "White"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 0,
+      "shards": [
+       "White"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "dd16222e-349c-4a2b-a7c8-8eb35a8ab332"
+      ]
+     },
+     "name": "Static Prison",
+     "non_ability_text": null,
+     "oracle_text": "When this enchantment enters, exile target nonland permanent an opponent controls until this enchantment leaves the battlefield. You get {E}{E} (two energy counters).\nAt the beginning of your first main phase, sacrifice this enchantment unless you pay {E}.",
+     "power": null,
+     "printings": [
+      "MH3"
+     ],
+     "rarities": [
+      "uncommon"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2024-06-07",
+       "text": "Auras attached to the exiled permanent will be put into their owners' graveyards. Any Equipment will become unattached and remain on the battlefield. Any counters on the exiled permanent will cease to exist. When the card returns to the battlefield, it will be a new object with no connection to the card that was exiled."
+      },
+      {
+       "date": "2024-06-07",
+       "text": "Energy counters are a kind of counter that a player may have. They're not associated with any specific permanents."
+      },
+      {
+       "date": "2024-06-07",
+       "text": "Energy counters aren't mana. They don't go away as steps, phases, and turns end, and effects that add mana \"of any type\" can't give you energy counters."
+      },
+      {
+       "date": "2024-06-07",
+       "text": "If Static Prison leaves the battlefield before its first triggered ability resolves, the target permanent won't be exiled."
+      },
+      {
+       "date": "2024-06-07",
+       "text": "If a spell or ability with one or more targets states that you \"may pay\" some amount of {E}, and each permanent that it targets has become an illegal target, the spell or ability won't resolve. You can't pay any {E} even if you want to."
+      },
+      {
+       "date": "2024-06-07",
+       "text": "If a token is exiled this way, it will cease to exist and won't return to the battlefield."
+      },
+      {
+       "date": "2024-06-07",
+       "text": "If an effect says you get one or more {E}, you get that many energy counters. To pay one or more {E}, you lose that many energy counters. You can't pay more energy counters than you have. Any effects that interact with counters a player gets, has, or loses can interact with energy counters."
+      },
+      {
+       "date": "2024-06-07",
+       "text": "Keep track of how many energy counters each player has. Potential ways to track this include writing theme down on paper or using dice, but any method that is clear and mutually agreeable is fine. (At higher levels of tournament play, dice may not be allowed for tracking counters that players have.)"
+      },
+      {
+       "date": "2024-06-07",
+       "text": "Some spells and abilities that give you {E} may require targets. If each target chosen is an illegal target as that spell or ability tries to resolve, it won't resolve. You won't get any {E}."
+      },
+      {
+       "date": "2024-06-07",
+       "text": "Some triggered abilities state that you \"may pay\" a certain amount of {E}. You can't pay that amount multiple times to multiply the effect. You simply choose whether or not to pay that amount of {E} as the ability resolves."
+      },
+      {
+       "date": "2024-06-07",
+       "text": "Some triggered abilities that state that you \"may pay\" a certain amount of {E} describe an effect that happens \"If you do.\" In that case, no player may take actions to try to stop the ability's effect after you make your choice. If the payment is followed by the phrase \"When you do,\" then you'll choose any targets for that reflexive triggered ability and put it on the stack before players can take actions."
+      },
+      {
+       "date": "2024-06-07",
+       "text": "{E} is the energy symbol. It represents one energy counter."
+      }
+     ],
+     "scryfall_oracle_id": "b1bc8e58-ea4f-46a9-b833-d780cf6758b3",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "When ~ enters, exile target nonland permanent an opponent controls until ~ leaves the battlefield. You get {E}{E} .",
+       "destination": "Battlefield",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": "UntilHostLeavesPlay",
+        "effect": {
+         "destination": "Exile",
+         "enter_tapped": false,
+         "enter_transformed": false,
+         "enters_attacking": false,
+         "origin": null,
+         "owner_library": false,
+         "target": {
+          "controller": "Opponent",
+          "properties": [],
+          "type": "Typed",
+          "type_filters": [
+           "Permanent",
+           {
+            "Non": "Land"
+           }
+          ]
+         },
+         "type": "ChangeZone"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "amount": {
+           "type": "Fixed",
+           "value": 2
+          },
+          "type": "GainEnergy"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": null,
+         "sub_link": "SequentialSibling",
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "mode": "ChangesZone",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": null
+      },
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": {
+        "type": "OnlyDuringYourTurn"
+       },
+       "damage_kind": "Any",
+       "description": "At the beginning of your first main phase, sacrifice ~ unless you pay {E}.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "target": {
+          "type": "SelfRef"
+         },
+         "type": "Sacrifice"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "Phase",
+       "optional": false,
+       "origin": null,
+       "phase": "PreCombatMain",
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "unless_pay": {
+        "cost": {
+         "amount": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "type": "PayEnergy"
+        },
+        "payer": {
+         "type": "Controller"
+        }
+       },
+       "valid_card": null,
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 1.0,
+    "color_identity": [
+     "W"
+    ],
+    "colors": [
+     "W"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{W}",
+    "name": "Static Prison",
+    "oracle_id": "b1bc8e58-ea4f-46a9-b833-d780cf6758b3",
+    "oracle_text": "When this enchantment enters, exile target nonland permanent an opponent controls until this enchantment leaves the battlefield. You get {E}{E} (two energy counters).\nAt the beginning of your first main phase, sacrifice this enchantment unless you pay {E}.",
+    "type_line": "Enchantment"
    }
   },
   "Steam Augury": {

@@ -5,10 +5,12 @@ the constants two or more reads agree on."""
 from __future__ import annotations
 
 import dataclasses
+import json
 from typing import TYPE_CHECKING
 
 from mtg_utils._analysis.costs import effective_mana_value
 from mtg_utils._card_ir.crosswalk import ENTERS_EVENTS, iter_cost_leaves, tag_of
+from mtg_utils._card_ir.trees import phase_records_for
 
 if TYPE_CHECKING:
     from mtg_utils._card_ir.crosswalk import AbilityUnit, ConceptTree
@@ -100,6 +102,25 @@ def front_mana_cost(card: dict) -> str:
 def unpriced(card: dict) -> bool:
     """No mana cost, and its front face is not a land (CR 202.1b)."""
     return not front_mana_cost(card).strip() and "Land" not in faces(card)[0]
+
+
+def free_cast(card: dict) -> bool:
+    """Whether phase's ``casting_options`` let the card be cast for no mana:
+    ``CastWithoutManaCost`` (Deflecting Swat, Flawless Maneuver, Deadly Rollick
+    — "If you control a commander, you may cast this spell without paying its
+    mana cost") or an ``AlternativeCost`` with no mana in it (Misdirection's
+    pitch, Snuff Out's 4 life). ``casting_options`` is a phase record field the
+    concept tree does not carry, so this reads the raw phase face records
+    (structured data, not oracle text)."""
+    for face in phase_records_for(card.get("oracle_id") or ""):
+        for opt in face.get("casting_options") or ():
+            if opt.get("kind") == "CastWithoutManaCost":
+                return True
+            if opt.get("kind") == "AlternativeCost" and "Mana" not in json.dumps(
+                opt.get("cost")
+            ):
+                return True
+    return False
 
 
 def cast_cost(card: dict) -> float:

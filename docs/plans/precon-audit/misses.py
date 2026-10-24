@@ -91,7 +91,7 @@ def run_deck(args):
         ok = upgrades(candidate, cut, job, deck_mana=deck_mana, deck=deck)
         if not ok:
             key = norm(candidate.get("name") or "")
-            if S._mv_band(candidate) > S._mv_band(cut.record):
+            if S.over_band(candidate, cut.record, job):
                 why = "costs a higher mana-value band than the cut"
             elif job is not None and upgrade_job(role_of(candidate, deck_mana=deck_mana), candidate) != job:
                 why = "does a different job than the cut"

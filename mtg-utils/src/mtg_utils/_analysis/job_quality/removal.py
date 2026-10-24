@@ -4,9 +4,9 @@
 Fitted on the 2,598 noncreature, non-planeswalker cards whose main job is
 single-target removal: cross-validated Spearman 0.40 against play-rate; the
 precon guides' removal adds sit at the 79th percentile of their color identity's
-removal by this read (95th by play-rate — the rest is card age, reprints and
-the alternative costs phase does not parse: Snuff Out, Deadly Rollick). Too weak
-to order candidates; it GATES them (``JobRead.orders``).
+removal by this read (95th by play-rate — the rest is card age and reprints).
+A free alternative cost (Snuff Out, Deadly Rollick) costs nothing. Too weak to
+order candidates; it GATES them (``JobRead.orders``).
 """
 
 from __future__ import annotations
@@ -21,6 +21,7 @@ from mtg_utils._analysis.job_quality._common import (
     cast_cost,
     faces,
     fixed_value,
+    free_cast,
     land_back,
     unit_kind,
     unpriced,
@@ -30,16 +31,20 @@ from mtg_utils._analysis.signal_trees import signal_trees_for
 from mtg_utils._card_ir.crosswalk import (
     change_zone_dirs,
     effect_filter,
+    effect_owner_duration,
     effect_player_reach,
     filter_controller,
     filter_mana_value_floor,
     filter_predicates,
+    is_self_sacrifice,
     iter_cost_leaves,
     tag_of,
 )
 
 if TYPE_CHECKING:
-    from mtg_utils._card_ir.crosswalk import AbilityUnit, ConceptNode
+    from collections.abc import Sequence
+
+    from mtg_utils._card_ir.crosswalk import AbilityUnit, ConceptNode, ConceptTree
 
 #: The permanent types an answer can be read as reaching (CR 110.4a).
 _PERMANENT_TYPES = frozenset(
@@ -62,6 +67,7 @@ class _Answer:
     act_mana: int | None  # an activated ability's mana cost
     edict_each: bool  # a forced sacrifice on each opponent (not one target player)
     opp_only: bool  # the filter is an opponent's permanents
+    until_leaves: bool  # an exile that lasts until the card leaves (CR 610.3)
 
 
 def _breadth(types: frozenset[str]) -> int:
@@ -157,6 +163,8 @@ def _answers(card: dict) -> list[_Answer]:
                 act_mana=activation_mana(unit),
                 edict_each=reach in ("opponents", "per_opponent", "each"),
                 opp_only=filter_controller(filt) == "Opponent",
+                until_leaves=unit is not None
+                and effect_owner_duration(unit.node, c.node) == "UntilHostLeavesPlay",
             )
         )
     return out
@@ -178,13 +186,41 @@ WEIGHTS: dict[str, float] = {
     "land_back": 0.40,  # a modal double-faced card whose back is a land
     "activated_sac": -0.37,  # repeatable only at a sacrifice or a life payment
     "opp_only": 0.04,
+    # Hand-set (ADR-0060's 2026-10-20 amendment), not fitted: an exile that lasts
+    # until the card leaves ends when the card goes on its own. An Aura is put
+    # into its owner's graveyard once the creature it enchants leaves (CR
+    # 704.5m), so Sheltered by Ghosts' exile is as safe as your creature; a
+    # card that sacrifices itself on a trigger (Static Prison's each-turn energy
+    # payment) gives its exile back within a few turns. Play-rate scored both
+    # like Cast Out (0.86, top of the read).
+    "aura_host": -0.3,
+    "self_sacrifice": -0.5,
 }
 
 
+def _aura(trees: Sequence[ConceptTree]) -> bool:
+    """The card is an Aura: it leaves when its host does (CR 704.5m)."""
+    return any("Aura" in tree.card_subtypes for tree in trees)
+
+
+def _sacrifices_itself(trees: Sequence[ConceptTree]) -> bool:
+    """A trigger of the card's own sacrifices it (Static Prison)."""
+    return any(
+        unit.origin == "trigger"
+        and is_self_sacrifice(getattr(unit.node, "execute", None))
+        for tree in trees
+        for unit in tree.units
+    )
+
+
 def _removal_cost(card: dict, answers: list[_Answer]) -> float:
-    """The mana the removal costs: the card's cast cost (``_common.cast_cost``),
-    or one activation's mana when the answer is only an activated ability's (a
+    """The mana the removal costs: none for a card its alternative cost lets you
+    cast for no mana (``_common.free_cast`` — Deadly Rollick under a commander,
+    Snuff Out's 4 life), else the card's cast cost (``_common.cast_cost``), or
+    one activation's mana when the answer is only an activated ability's (a
     card with no mana cost keeps its fixed cost)."""
+    if free_cast(card):
+        return 0.0
     cost = cast_cost(card)
     if unpriced(card):
         return cost
@@ -217,6 +253,7 @@ def features(card: dict) -> dict[str, float] | None:
     unconditional = not best.conditional
     small = best.mode in ("damage", "shrink") and (best.amount or 0) < KILL_SIZE
     kinds = {a.kind for a in answers}
+    trees = signal_trees_for(card, bulk=card) if best.until_leaves else ()
     return {
         "breadth": float(min(best.breadth, 4)),
         "unconditional": float(unconditional),
@@ -233,4 +270,6 @@ def features(card: dict) -> dict[str, float] | None:
             "activated_sac" in kinds and not kinds & {"spell", "etb", "activated"}
         ),
         "opp_only": float(best.opp_only),
+        "aura_host": float(_aura(trees)),
+        "self_sacrifice": float(_sacrifices_itself(trees)),
     }

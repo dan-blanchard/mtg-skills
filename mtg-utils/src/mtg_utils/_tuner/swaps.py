@@ -20,7 +20,7 @@ from dataclasses import dataclass
 from typing import Protocol
 
 from mtg_utils._analysis.budgets import COMMANDER_TEMPLATE, Template
-from mtg_utils._analysis.job_quality import read_for
+from mtg_utils._analysis.job_quality import JobRead, read_for
 from mtg_utils._analysis.ranking import rank_candidates
 from mtg_utils._analysis.roles import DeckMana, role_of
 from mtg_utils._analysis.signal_specs import pages_by_serve
@@ -89,11 +89,50 @@ _JOB_READ_PAGE = sys.maxsize
 #: The search page an add is ranked from otherwise.
 _PAGE = 150
 
+#: How close two cards' job-read scores (log10 play-rate units) must be for theme
+#: fit to decide between them (``JobRead.theme_ties``): about a quarter of the
+#: spread between a niche draw engine and a staple one (Garruk's Uprising 0.63,
+#: Guardian Project 0.58, Esper Sentinel 0.98). Dan's call (2026-10-23): when a
+#: staple and an on-theme card do a job about equally well, the on-theme card
+#: wins. Measured on the 25 precons (2026-10-24): for card draw, guide-matching
+#: adds 39 to 42, Garruk's Uprising out of 3 decks; for ramp, 39 to 41; for
+#: removal 38, wipes 39 (one wipe match lost), protection unchanged — so those
+#: three keep their order.
+_THEME_TIE = 0.1
+#: The head of an upgrade's order the theme tie reorders: the avenue read runs
+#: on these cards only, and a pick rarely reaches past them.
+_THEME_TIE_WINDOW = 300
+
+#: Spine-fill jobs exempt from the ADR-0040 avenue guard (``find_add``'s
+#: ``role_fix``): protection guards the deck's threats whatever avenue they are
+#: on, so a protection card serving an avenue is no better a fill. Under the guard
+#: Animated Army's "protection short" fill was the $36 Sword of Feast and Famine
+#: (it serves Combat) over Swiftfoot Boots, the guides' add and the most-played
+#: protection card (2026-10-23).
+_GUARD_EXEMPT_JOBS = frozenset({"protection"})
+
 
 #: What an X in a mana cost is worth for banding: an X spell is cast for value at
 #: X ≥ 3 (Martial Coup wants five, Comet Storm three) — a printed mana value of 2
 #: would otherwise band Martial Coup with Swords to Plowshares. The lane's own call.
 _X_COST_VALUE = 3.0
+
+
+#: How many mana-value bands above its cut a JOB upgrade may cost: one. A
+#: four- or five-mana wipe may be upgraded to a top-band one (Blame Game trades
+#: Winds of Rath for Blasphemous Act, a guide add), a cheap one only to the
+#: middle band. Measured on the 25 precons (2026-10-24): one band higher
+#: for job upgrades took the guide-matching adds from 39 to 43 and cuts from 158 to
+#: 161; for theme upgrades as well, 41 and 161, so a theme upgrade keeps its band.
+_JOB_BAND_ROOM = 1
+
+
+def over_band(candidate: Mapping, cut: Mapping, job: str | None) -> bool:
+    """Whether ``candidate`` costs more than an upgrade of ``cut`` for ``job``
+    may: a higher mana-value band (:func:`_mv_band`) than the cut's, by more than
+    ``_JOB_BAND_ROOM`` for a job upgrade."""
+    room = _JOB_BAND_ROOM if job is not None else 0
+    return _mv_band(candidate) > _mv_band(cut) + room
 
 
 def _mv_band(card: Mapping) -> int:
@@ -161,8 +200,9 @@ def _upgrades(
     deck: Sequence[dict] | None = None,
 ) -> bool:
     """Whether ``candidate`` is an upgrade of ``cut``: it costs no higher
-    mana-value band (a two-mana removal spell is not upgraded to a six-mana one,
-    nor a one-drop to a seven-drop on the main theme), for a job
+    mana-value band, or for a job one band higher at most (:func:`over_band` — a
+    two-mana removal spell is not upgraded to a six-mana one, nor a one-drop to
+    a seven-drop on the main theme), for a job
     (``upgrade_job``) it does that same job — card draw is not upgraded to a
     counterspell that draws — and, where the job has a card read
     (``job_quality.read_for``), does it by that read (a looter is no card-draw
@@ -170,9 +210,10 @@ def _upgrades(
     the deck to fuel at least ``_DECK_FIT_FLOOR`` of the job (Skullclamp in a deck
     with few bodies to lose is no draw engine); and more decks play it than the
     cut. The read decides membership, not "better": against the precon guides'
-    cuts it found the weaker card less often than play-rate did, for every job
-    (ADR-0060)."""
-    if _mv_band(candidate) > _mv_band(cut.record):
+    cuts it found the weaker card less often than play-rate did, for every job,
+    and "scores better than the cut" in play-rate's place matched no more guide
+    adds for any job (ADR-0060)."""
+    if over_band(candidate, cut.record, job):
         return False
     if job is not None and (
         upgrade_job(role_of(candidate, deck_mana=deck_mana), candidate) != job
@@ -930,9 +971,25 @@ def propose_swaps(
             # most-played card in it is the fill. A 60-card or limited deck keeps
             # the exact mana value: its ``_quality`` is neutral, so price breaks the
             # tie and nothing else would.
+            #
+            # A job whose read orders its fill (``JobRead.fill_orders``: board
+            # wipes) ranks by the read first, then the band: the read already
+            # weighs the cost, and the band let Wail of War (read 0.07) fill
+            # Death Toll's wipe slot over Find // Finality (0.28).
+            fill_read = read_for(job) if ctx.playrate else None
+            if fill_read is not None and not fill_read.fill_orders:
+                fill_read = None
+
+            def fill_lead(c: dict) -> tuple:
+                if fill_read is None:
+                    return ()
+                sc = fill_read.score(c, deck_records)
+                return (sc is None, -(sc or 0.0))
+
             ranked = sorted(
                 pool,
                 key=lambda c: (
+                    fill_lead(c),
                     _mv_band(c) if ctx.playrate else c.get("cmc", 0.0),
                     _quality(c, playrate=ctx.playrate),
                     extract_price(c) or 1e9,
@@ -982,7 +1039,7 @@ def propose_swaps(
                 )
             )
         }
-        return sorted(
+        out = sorted(
             pool,
             key=lambda c: (
                 lead(c),
@@ -991,6 +1048,38 @@ def propose_swaps(
                 synergy.get(id(c), (0.0, 0))[1],
             ),
         )
+        if read is not None and read.theme_ties:
+            out = _theme_ties(out, read)
+        return out
+
+    def _theme_ties(ranked: list[dict], read: JobRead) -> list[dict]:
+        """``ranked`` with an on-theme card taking the place of an off-theme one
+        that does the job about as well: walking the order, where the next card
+        serves none of the deck's viable avenues, the first later card that does,
+        scoring within ``_THEME_TIE`` of it on the job read, goes first. Theme
+        fit breaks a near tie above play-rate; it never holds an upgrade to the
+        theme. Only the first ``_THEME_TIE_WINDOW`` cards are reordered."""
+        head = ranked[:_THEME_TIE_WINDOW]
+        on = _viable_served_names(head)
+        scores = {c.get("name", ""): read.score(c, deck_records) for c in head}
+        rest = list(head)
+        out: list[dict] = []
+        while rest:
+            pick = rest[0]
+            top = scores.get(pick.get("name", ""))
+            if top is not None and pick.get("name", "") not in on:
+                for later in rest[1:]:
+                    sc = scores.get(later.get("name", ""))
+                    if (
+                        later.get("name", "") in on
+                        and sc is not None
+                        and abs(sc - top) <= _THEME_TIE
+                    ):
+                        pick = later
+                        break
+            out.append(pick)
+            rest.remove(pick)
+        return out + ranked[_THEME_TIE_WINDOW:]
 
     def _viable_served_names(cards: Sequence[dict]) -> set[str]:
         """Names among ``cards`` that serve ≥1 of the deck's VIABLE avenues —
@@ -1059,7 +1148,12 @@ def propose_swaps(
             capped=upgrade_of is None,
         )
         rejected_hits.clear()
-        guard = role_fix and ctx.focus_result["verdict"] == "FOCUSED"
+        # Protection is exempt (``_GUARD_EXEMPT_JOBS``).
+        guard = (
+            role_fix
+            and ctx.focus_result["verdict"] == "FOCUSED"
+            and job not in _GUARD_EXEMPT_JOBS
+        )
         fallback: tuple[dict, float] | None = None
         eligible: list[tuple[dict, float]] = []
         for card in ranked:

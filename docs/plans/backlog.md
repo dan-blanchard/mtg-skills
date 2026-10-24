@@ -119,47 +119,28 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   rows read candidates without membership idents since the fourth pass, so a
   card with both a cast and an enters payoff — Tuvasa the Sunlit, Sai — fires
   the typed-cheat rows and Sol Ring / Pacifism no longer score as payoffs.)
-  (e) **The most-played card of a job recurs** (seventh pass; eighth pass:
-  looting is gone — the draw read nets it zero). Left, all play-rate's picks
-  among the cards a read admits: the card-draw adds at each precon's own budget
-  are Garruk's Uprising in 12 precons, Esper Sentinel in 8, Skullclamp in 6 and
-  Rhystic Study in 4 (2026-10-20, since the card-draw page holds the repeating
-  draw engines and Mystic Remora's cumulative upkeep reads as no lasting engine;
-  the guides skip Rhystic Study and Esper Sentinel on price, $68 and $55 against
-  a typical $50 budget, not on how they draw). Swiftfoot Boots the protection add in 6 (the "protection short" fills, which
-  rank by band and play-rate; protection upgrades order by the read since Dan's
-  call),
-  Reclamation Sage the removal add in 6, Braids, Arisen Nightmare in 4 (a
-  symmetric sacrifice engine), Patchwork Banner the ramp add in 3, with Ashnod's
-  Altar, Fellwar Stone, Thought Vessel and Cultivate still in. A "main theme"
-  upgrade can land on a generic card the main avenue's page holds (Swiftfoot
-  Boots in Mardu Surge). Nine precons get no guide-matching add at all. Removal
-  upgrades read off-plan in places: Planeswalker Party trades Gideon Jura and
-  Nahiri for Abrade and Lightning Bolt (its planeswalkers are not superfriends
-  carers by the focus read), Veloci-Ramp-Tor trades Savage Stomp, which its
-  Dinosaurs make cheaper, for Loran.
   (g) The guide cuts the tuner protects are still 124 — lane carers and doers
   the guides trim, which the upgrade issue reaches only through the deep
   lane's least-played half.
-  (j) **Job-read leftovers** (eighth pass, ADR-0060; each module docstring lists
-  its own). Removal and ramp only gate (their blend with play-rate trailed
-  play-rate alone at the top of the list; protection's did too, and orders by
-  Dan's call), and no read decides "better
-  than the cut" yet (the cut side measured below play-rate for every job). Removal overrates an enters-the-
-  battlefield exile on a cheap permanent (Sheltered by Ghosts and Static Prison
-  read like Cast Out — the Aura's host and the upkeep payment carry no weight),
-  and phase drops Snuff Out's and Deadly Rollick's free alternative costs and
-  Winnow's condition. The wipe read's top picks include Spiteful Banditry and
-  Jaya Ballard where the guides add Blasphemous Act and Farewell; the blend
-  weighs play-rate equally with the read, so Death Toll's wipe fill is Wail of
-  War (read 0.07) over Find // Finality (0.28) once the `board-wipe` preset
-  takes the role's one-sided shrinks (2026-10-23). Over every
-  card with a removal effect (creatures with an incidental fight included) the
-  removal read's agreement with play-rate is weak; it was fitted on cards whose
-  main job is removal, and as a gate it only compares a cut with candidates of
-  the same job. The `removal` preset takes `debuff_makers` whole, so a
-  power-only "-1/-0" on the creature Animate Dead returns reads as removal (the
-  role, not the read — the read scores it None).
+  (j) **Job-read leftovers** (ADR-0060 and its 2026-10-24 amendment; each module
+  docstring lists its own). The ninth pass measured every read as the order and as
+  "better than the cut" and kept neither, so the order is still the blend (wipes,
+  draw, protection) or play-rate (removal, ramp), with theme fit breaking a near tie
+  for draw and ramp. What is left. The wipe read rates Final Showdown (0.93),
+  Spiteful Banditry and The Meathook Massacre (0.91) above Blasphemous Act and Toxic
+  Deluge (0.69), and Wrath of God and Damnation at 0.32 below Vanquish the Horde
+  (0.71); Jaya Ballard no longer scores. The removal read's agreement with play-rate
+  over every card with a removal effect is weak (it was fitted on cards whose main
+  job is removal), and phase drops Winnow's "if another permanent with the same
+  name" condition, so Winnow reads as unconditional (0.75) — harmless while removal
+  only gates. Theme fit as a tie lost for removal (38 adds), wipes (39) and
+  protection (no change). Play-rate's picks still recur where nothing else decides:
+  the removal adds are Beast Within in 10 precons, Path to Exile, Swords to
+  Plowshares and Chaos Warp in 7, the ramp adds Fellwar Stone in 9; Garruk's
+  Uprising is the draw add in 7 (10 before the theme tie, backlog "(e)" until
+  2026-10-24). Protection goes unsearched in 18 guide adds' decks because ADR-0024
+  asks for protection only from a combo or control deck or a voltron plan;
+  protection for every shape (a target of 5 or 3) matched fewer adds.
   (p) **A `population_shrink` signal key.** The `board-wipe` preset reads its
   population-shrink arm as a `concept` predicate (`lanes.population_shrink`), a
   live per-card tree walk, where its other arms are signal keys the persisted

@@ -4196,6 +4196,26 @@ def test_debuff_makers_anchors(name, ident):
     assert ident in _idents(name)
 
 
+@pytest.mark.parametrize(
+    ("name", "lowers_toughness"),
+    [
+        ("Bile Blight", True),  # -3/-3 until end of turn
+        ("Dead Weight", True),  # a static -2/-2 Aura
+        ("Black Sun's Zenith", True),  # -1/-1 counters
+        ("Animate Dead", False),  # -1/-0 on the creature it returns
+        ("Chant of the Skifsang", False),  # -13/-0
+    ],
+)
+def test_toughness_debuff_is_the_debuff_that_can_kill(name, lowers_toughness):
+    """Every card here fires ``debuff_makers``; only a shrink that lowers
+    toughness can kill (a creature at 0 toughness dies, CR 704.5f), which is
+    what the ``removal`` preset reads (``toughness_debuff``)."""
+    from mtg_utils._analysis.lanes import toughness_debuff
+
+    assert "debuff_makers" in _keys(name)
+    assert toughness_debuff(_tree(name)) is lowers_toughness
+
+
 @pytest.mark.parametrize("name", ["Darksteel Mutation", "Glorious Anthem"])
 def test_debuff_makers_excludes_single_aura_and_buff(name):
     """A single-Aura shrink (Darksteel Mutation — affected carries ``EnchantedBy``) is

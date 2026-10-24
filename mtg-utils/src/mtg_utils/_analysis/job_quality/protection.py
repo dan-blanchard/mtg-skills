@@ -33,7 +33,6 @@ upgrade guides do, and both stay in the top 7%.
 from __future__ import annotations
 
 import dataclasses
-import json
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
@@ -41,6 +40,7 @@ from mtg_utils._analysis.job_quality._common import (
     activation_mana,
     cast_cost,
     faces,
+    free_cast,
     land_back,
     mana_in,
     one_unit,
@@ -64,7 +64,6 @@ from mtg_utils._card_ir.crosswalk import (
     tag_of,
     unit_keyword_grants,
 )
-from mtg_utils._card_ir.trees import phase_records_for
 
 if TYPE_CHECKING:
     from mtg_utils._card_ir.crosswalk import AbilityUnit, ConceptTree
@@ -422,24 +421,6 @@ def _units(card: dict) -> list[_Unit]:
     return out
 
 
-def _free_cast(card: dict) -> bool:
-    """Whether phase's ``casting_options`` let the card be cast for no mana:
-    ``CastWithoutManaCost`` (Deflecting Swat, Flawless Maneuver — "If you control
-    a commander, you may cast this spell without paying its mana cost") or a pitch
-    ``AlternativeCost`` with no mana in it (Misdirection). ``casting_options`` is
-    a phase record field the concept tree does not carry, so this reads the raw
-    phase face records (structured data, not oracle text)."""
-    for face in phase_records_for(card.get("oracle_id") or ""):
-        for opt in face.get("casting_options") or ():
-            if opt.get("kind") == "CastWithoutManaCost":
-                return True
-            if opt.get("kind") == "AlternativeCost" and "Mana" not in json.dumps(
-                opt.get("cost")
-            ):
-                return True
-    return False
-
-
 #: Protection's weights, log10 play-rate per unit (ridge fit, 2026-10-19,
 #: standardised weight / feature sd, rounded).
 WEIGHTS: dict[str, float] = {
@@ -497,7 +478,7 @@ def features(card: dict) -> dict[str, float] | None:
         # not Gallifrey Falls // No More's combined 9).
         halves = [u.face_cmc for u in units if u.face_cmc is not None]
         cost = float(min(halves)) if halves else cost
-    free = _free_cast(card)
+    free = free_cast(card)
     if free:
         cost = 0.0
     equips = [u.equip_cost for u in units if u.equip_cost is not None]

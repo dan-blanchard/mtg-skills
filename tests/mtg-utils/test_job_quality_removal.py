@@ -93,6 +93,14 @@ def test_read_for_names_which_reads_order_candidates():
     assert read_for(None) is None
 
 
+def test_read_for_names_where_theme_fit_and_the_read_order_the_tuner():
+    """Theme fit breaks a near tie on the read for card draw and ramp; the wipe
+    read orders the wipe fill (measured on the 25 precons, 2026-10-24)."""
+    jobs = ("interaction", "protection", "board_wipe", "ramp", "card_draw")
+    assert {j for j in jobs if read_for(j).theme_ties} == {"card_draw", "ramp"}
+    assert {j for j in jobs if read_for(j).fill_orders} == {"board_wipe"}
+
+
 def test_a_double_faced_card_is_priced_by_its_front_face():
     """A modal double-faced card carries its mana cost per face, not on the
     record: Fell the Profane costs {2}{B}{B}, not the no-mana-cost constant."""
@@ -109,3 +117,28 @@ def test_a_fight_the_synthesis_stage_adds_reads_as_removal():
     Tolsimir's Wolves fight a creature you don't control (a fight is each
     creature dealing damage equal to its power to the other, CR 701.14a)."""
     assert _score("Tolsimir, Friend to Wolves") is not None
+
+
+def test_an_exile_on_a_card_that_leaves_by_itself_reads_below_cast_out():
+    """An exile that lasts until the card leaves (CR 610.3) ends when the card
+    goes on its own: an Aura is put into the graveyard once its host leaves (CR
+    704.5m — Sheltered by Ghosts), and Static Prison sacrifices itself each turn
+    unless you pay energy. Both read below Cast Out, which leaves only when an
+    opponent removes it, and the one that sacrifices itself lowest."""
+    sheltered = removal.features(_real("Sheltered by Ghosts"))
+    prison = removal.features(_real("Static Prison"))
+    assert sheltered["aura_host"] == 1.0
+    assert sheltered["self_sacrifice"] == 0.0
+    assert prison["self_sacrifice"] == 1.0
+    assert prison["aura_host"] == 0.0
+    cast_out = removal.features(_real("Cast Out"))
+    assert cast_out["aura_host"] == cast_out["self_sacrifice"] == 0.0
+    assert _score("Static Prison") < _score("Sheltered by Ghosts") < _score("Cast Out")
+
+
+@pytest.mark.parametrize("name", ["Deadly Rollick", "Snuff Out"])
+def test_a_free_alternative_cost_reads_as_cheap(name):
+    """Phase carries a free alternative cost in ``casting_options``: Deadly
+    Rollick is cast without paying its mana cost while you control a commander,
+    Snuff Out for 4 life while you control a Swamp. Neither costs four mana."""
+    assert removal.features(_real(name))["cheap"] == 1.0

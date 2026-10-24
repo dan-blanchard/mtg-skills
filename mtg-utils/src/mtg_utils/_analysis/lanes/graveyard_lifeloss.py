@@ -2180,7 +2180,28 @@ def _recovered_minus_counter_on_target(unit: AbilityUnit, c: ConceptNode) -> boo
 
 
 def _debuff_makers(tree: ConceptTree) -> list[Signal]:
-    """debuff_makers — a -X/-X / -1/-1 enabler (CR 613.4c / 704.5f). Four anchors:
+    """debuff_makers — a -X/-X / -1/-1 enabler (CR 613.4c / 704.5f), one signal
+    per scope over :func:`_debuff_sites`."""
+    out: list[Signal] = []
+    seen: set[str] = set()
+    for scope, raw, _toughness in _debuff_sites(tree):
+        if scope not in seen:
+            seen.add(scope)
+            out.append(Signal("debuff_makers", scope, "", raw, tree.name, "high"))
+    return out
+
+
+def toughness_debuff(tree: ConceptTree) -> bool:
+    """A :func:`_debuff_sites` shrink that lowers a creature's toughness — the
+    removal half of the debuff lane (a creature at 0 toughness dies, CR
+    704.5f). A power-only shrink ("-1/-0" — the creature Animate Dead returns,
+    Chant of the Skifsang's -13/-0) kills nothing, so it is no removal: the
+    ``removal`` preset reads this, not the whole ``debuff_makers`` key."""
+    return any(toughness for _scope, _raw, toughness in _debuff_sites(tree))
+
+
+def _debuff_sites(tree: ConceptTree) -> list[tuple[str, str, bool]]:
+    """Each debuff in ``tree`` as ``(scope, raw, lowers_toughness)``. Four anchors:
 
     * a NEGATIVE ``Pump`` / ``PumpAll`` EFFECT (Bile Blight's -3/-3) — scope
       "any"; reads a FIXED shrink (either field negative, via
@@ -2205,13 +2226,10 @@ def _debuff_makers(tree: ConceptTree) -> list[Signal]:
     removal, not a -1/-1 payoff; an animation that sets the new creature's P/T
     (Living Lands) shrinks nothing.
     """
-    out: list[Signal] = []
-    seen: set[str] = set()
+    out: list[tuple[str, str, bool]] = []
 
-    def fire(scope: str, raw: str) -> None:
-        if scope not in seen:
-            seen.add(scope)
-            out.append(Signal("debuff_makers", scope, "", raw, tree.name, "high"))
+    def fire(scope: str, raw: str, *, toughness: bool = True) -> None:
+        out.append((scope, raw, toughness))
 
     # A creature shrinking itself ("This creature gets +1/-1 until end of turn"
     # — the Flowstone shifters) pays a cost to grow; it shrinks nobody else's
@@ -2235,7 +2253,7 @@ def _debuff_makers(tree: ConceptTree) -> list[Signal]:
                     or negative_pt_field(c.node, "power")
                 )
             ):
-                fire("any", c.raw)
+                fire("any", c.raw, toughness=negative_pt_field(c.node, "toughness"))
             if (
                 c.concept == "place_counter"
                 and counter_kind(c.node).upper() == "M1M1"
@@ -2290,7 +2308,11 @@ def _debuff_makers(tree: ConceptTree) -> list[Signal]:
             if static_on_others(sdef, unit):
                 power, toughness = pt_mod_signs(sdef)
                 if power < 0 or (toughness < 0 and power == 0):
-                    fire("any", getattr(sdef, "description", None) or "")
+                    fire(
+                        "any",
+                        getattr(sdef, "description", None) or "",
+                        toughness=toughness < 0,
+                    )
             # A one-shot base-P/T set ≤ 2 on a player's whole board (CR
             # 613.4b, layer 7b): "Creatures your opponents control have base
             # power and toughness 0/1 until end of turn" (Flatline), "creatures

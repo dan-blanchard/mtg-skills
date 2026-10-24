@@ -59,6 +59,13 @@ class JobRead:
     #: card it reads as removal: a counterspell's upgrade, and an interaction
     #: fill, are play-rate's.
     whole_job: bool = True
+    #: Whether theme fit breaks a near tie on this read in an upgrade's order
+    #: (``swaps._theme_ties``): an on-theme card scoring about as well goes
+    #: before an off-theme staple. Card draw and ramp, by measurement.
+    theme_ties: bool = False
+    #: Whether this read orders the job's Spine fill ("board wipes short")
+    #: ahead of the fill's mana-value band. Board wipes, by measurement.
+    fill_orders: bool = False
 
     def deck_fit(self, card: dict, deck: Sequence[dict] | None) -> float:
         """The share of ``card``'s job ``deck`` (its cards' records) can fuel;
@@ -113,6 +120,16 @@ _SCORE_MEMO: dict[tuple[str, str], float | None] = {}
 #: builder, and the gap is small. The read alone did worse than play-rate for
 #: every job. (Measured over the whole identity the read scores; the tuner
 #: ranks the job's whole match set in that identity.)
+#:
+#: Re-measured on the tuner itself (2026-10-24, the 25 precons at their own
+#: budgets, guide-matching adds and cuts against 39 / 158): the read alone
+#: ordering an upgrade, play-rate breaking ties, matched 40 / 159 for wipes
+#: (no wipe add gained; 47 against 50 beside the changes kept), 43 / 164 for
+#: card draw (one draw add fewer: River Kelpie and Ghostly Pilferer, the read's
+#: top engines, over Kindred Discovery and Deadly Dispute), 35 for removal and
+#: ramp, and no change for protection — so each keeps the order above. Theme
+#: fit breaking a near tie (``theme_ties``) took card draw to 42 and ramp to 41;
+#: the wipe read ordering the wipe fill (``fill_orders``), to 40.
 READS: dict[str, JobRead] = {
     r.job: r
     for r in (
@@ -124,14 +141,21 @@ READS: dict[str, JobRead] = {
             whole_job=False,
         ),
         JobRead("protection", protection.features, protection.WEIGHTS, orders=True),
-        JobRead("board_wipe", board_wipe.features, board_wipe.WEIGHTS, orders=True),
-        JobRead("ramp", ramp.features, ramp.WEIGHTS, orders=False),
+        JobRead(
+            "board_wipe",
+            board_wipe.features,
+            board_wipe.WEIGHTS,
+            orders=True,
+            fill_orders=True,
+        ),
+        JobRead("ramp", ramp.features, ramp.WEIGHTS, orders=False, theme_ties=True),
         JobRead(
             "card_draw",
             card_draw.features,
             card_draw.WEIGHTS,
             orders=True,
             fit=card_draw.deck_fit,
+            theme_ties=True,
         ),
     )
 }

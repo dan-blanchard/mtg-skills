@@ -1947,14 +1947,125 @@ def test_cards_that_tie_share_a_blend_whatever_order_they_come_in():
     assert _blended_percentiles(cards[::-1], "interaction") == mix
 
 
-def test_an_upgrade_costs_no_more_mana_value_band():
-    """A two-mana sweep is not upgraded to a four-mana one, however played —
-    nor a cheap card on the main theme (no job) to a costlier band."""
+def test_a_job_upgrade_costs_at_most_one_mana_value_band_more():
+    """A two-mana sweep may be upgraded to a four-mana one (the next band), never
+    to a top-band one however played (Blasphemous Act, mana value 9); a cheap
+    card on the main theme (no job) keeps its band (2026-10-24: one band of room
+    matched more guide adds for job upgrades, fewer for theme upgrades)."""
     pyroclasm = _real_cc("Pyroclasm", "spine", roles=["board_wipe"], edhrec_rank=9000)
     assert _upgrades(_played("Toxic Deluge", 30), pyroclasm, "board_wipe")
-    assert not _upgrades(_played("Wrath of God", 50), pyroclasm, "board_wipe")
+    assert _upgrades(_played("Wrath of God", 50), pyroclasm, "board_wipe")
+    assert not _upgrades(_played("Blasphemous Act", 20), pyroclasm, "board_wipe")
     assert not _upgrades(_played("Wrath of God", 50), pyroclasm, None)
     assert _upgrades(_played("Toxic Deluge", 30), pyroclasm, None)
+
+
+def _serving(monkeypatch, on_theme):
+    """``rank_candidates`` faked so the cards named in ``on_theme`` serve the
+    deck's one viable avenue ("Artifacts") and no card has synergy."""
+    from mtg_utils._tuner import swaps as swaps_mod
+
+    def fake_rank(cards, **_kw):
+        return [
+            {
+                "card": c,
+                "score": {
+                    "synergy_score": 0.0,
+                    "served": ["Artifacts"] if c["name"] in on_theme else [],
+                },
+            }
+            for c in cards
+        ]
+
+    monkeypatch.setattr(swaps_mod, "rank_candidates", fake_rank)
+
+
+_ARTIFACTS = {"viable_avenues": [{"label": "Artifacts", "depth": 20, "cards": []}]}
+
+
+def test_theme_fit_breaks_a_near_tie_on_the_job_read(monkeypatch):
+    """Ramp's read breaks a near tie by theme fit (``JobRead.theme_ties``, Dan's
+    call): Talisman of Dominance, which serves the deck's avenue, reads as well
+    as Arcane Signet (0.7 each) and goes before it, though twenty times fewer
+    decks play it. Commander's Sphere also serves the avenue but reads far
+    worse (0.27), so the staple keeps the slot."""
+    manalith = _real_cc("Manalith", "spine", roles=["ramp"], edhrec_rank=9000)
+
+    def upgrade(pool, on_theme):
+        _serving(monkeypatch, on_theme)
+        return [
+            s["add"]["name"]
+            for s in _swaps_for_issue_dicts(
+                [manalith],
+                [{"kind": "upgrade", "severity": 1, "count": 1}],
+                _upgrade_ctx([manalith], pool, focus_extra=_ARTIFACTS),
+            )["swaps"]
+        ]
+
+    signet = _played("Arcane Signet", 20)
+    talisman = _played("Talisman of Dominance", 400)
+    sphere = _played("Commander's Sphere", 400)
+    assert upgrade([signet, talisman], {"Talisman of Dominance"}) == [
+        "Talisman of Dominance"
+    ]
+    assert upgrade([signet, sphere], {"Commander's Sphere"}) == ["Arcane Signet"]
+    assert upgrade([signet, talisman], set()) == ["Arcane Signet"]
+
+
+def _spine_fill(issue, budgets, pool, *, focus_extra=None):
+    filler = _cc("Filler Card", "filler", cmc=3.0)
+    return [
+        s["add"]["name"]
+        for s in _swaps_for_issue_dicts(
+            [filler],
+            [issue],
+            SwapContext(
+                budgets=budgets,
+                focus_result={**_focus(), **(focus_extra or {})},
+                deck_signals=[],
+                search_fn=lambda **_: pool,
+                identity="",
+                fmt="commander",
+                paper_only=True,
+                owned={},
+                budget=50.0,
+                max_swaps=1,
+                top_heavy=False,
+            ),
+        )["swaps"]
+    ]
+
+
+def test_the_wipe_read_orders_a_board_wipe_fill():
+    """A board-wipe shortfall fills with the card the wipe read rates best
+    (``JobRead.fill_orders``), not the cheapest band's most played: the band
+    made Wail of War (read 0.07) Death Toll's wipe over Find // Finality (0.28).
+    Blasphemous Act (0.69) beats Wrath of God (0.32) and Pyroclasm (-0.11)."""
+    pool = [
+        _played("Pyroclasm", 5),
+        _played("Wrath of God", 10),
+        _played("Blasphemous Act", 500),
+    ]
+    issue = {"kind": "role_short", "role": "board_wipe", "severity": 5}
+    assert _spine_fill(issue, {"board_wipe": _band(1, 3, 4)}, pool) == [
+        "Blasphemous Act"
+    ]
+
+
+def test_a_protection_fill_skips_the_avenue_guard(monkeypatch):
+    """Protection guards the deck's threats whatever avenue they are on, so its
+    fill takes the most-played card of the cheapest band even at FOCUSED, where
+    the ADR-0040 guard picks an on-avenue card first: Animated Army's protection
+    fill was the $36 Sword of Feast and Famine (it serves Combat) over Swiftfoot
+    Boots. A card-draw fill still keeps the guard."""
+    _serving(monkeypatch, {"Lightning Greaves"})
+    pool = [_played("Swiftfoot Boots", 12), _played("Lightning Greaves", 50)]
+    issue = {
+        "kind": "protection_short",
+        "severity": 3,
+        "message": "0 protection — this Shape usually wants ~5",
+    }
+    assert _spine_fill(issue, {}, pool, focus_extra=_ARTIFACTS) == ["Swiftfoot Boots"]
 
 
 def test_only_the_upgrade_issue_draws_an_upgrade_slot():
