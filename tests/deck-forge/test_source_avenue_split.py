@@ -128,3 +128,62 @@ def test_artifacts_payoff_avenue_pages_creature_payoffs_by_its_serve(monkeypatch
     assert "Sai, Master Thopterist" in payoffs
     assert "Snapcaster Mage" not in payoffs
     assert found("engine:artifacts_matter:you:src") == {"Sol Ring"}
+
+
+def test_find_and_tune_page_a_theme_the_same_way():
+    """Find (``engine.lane_page``) and the tuner (``swaps._run_search``) page a
+    theme through the one ``signal_specs.theme_page``: an oracle-searched theme,
+    one searched by a pattern beside a card type, and one with nothing of its own
+    to fetch by page the serve with no pattern or card type; a card-type search
+    keeps its own fetch, and so does a theme whose serve admits nothing."""
+    from mtg_utils._tuner.swaps import _run_search
+
+    serve = Serve(keywords=frozenset({"defender"}))
+    cases = (
+        ({"oracle": "toughness"}, serve, True),
+        ({"card_type": "Land", "oracle": "becomes"}, serve, True),
+        ({"cmc_max": 2}, serve, True),
+        ({"card_type": "Sliver"}, serve, False),
+        ({"oracle": "toughness"}, None, False),
+        ({"oracle": "toughness"}, Serve(), False),
+    )
+    for search, srv, by_serve in cases:
+        calls: list[dict] = []
+        _run_search(
+            lambda **kw: calls.append(kw) or [],  # noqa: B023 — called at once
+            {**search, "_serve": srv},
+            identity="WG",
+            fmt="commander",
+            paper_only=True,
+            cmc_cap=None,
+            limit=10,
+        )
+        avenue = engine.avenue_with_serve({"search": search}, srv)
+        page, find_serve = engine.lane_page(avenue)
+        tune = calls[0]
+        assert (tune["serve"] is not None) is by_serve, search
+        assert (find_serve is not None) is by_serve, search
+        assert (tune["oracle"], tune["card_type"]) == (
+            page.get("oracle"),
+            page.get("card_type"),
+        ), search
+
+
+def test_every_theme_pages_alike_in_find_and_tune():
+    """Over every spec ADR-0026 does not split (a split spec's Find avenues are
+    its payoffs and its pieces; the tuner pages it whole), the Find avenue the
+    engine builds pages exactly the tuner's page: an oracle-only serve the theme
+    pages by (Permanents entering) and a mana-cost serve (X-spell sinks) ride on
+    the avenue too, not only a structured one."""
+    from mtg_utils._analysis.signal_specs import SPECS, theme_page
+
+    for key, spec in SPECS.items():
+        if source_split(spec) is not None:
+            continue
+        tune_page, tune_serve = theme_page(spec.search, spec.serve)
+        avenue = engine.avenue_with_serve({"search": dict(spec.search)}, spec.serve)
+        find_page, find_serve = engine.lane_page(avenue)
+        assert find_page == tune_page, key
+        assert (find_serve and find_serve.as_dict()) == (
+            tune_serve and tune_serve.as_dict()
+        ), key

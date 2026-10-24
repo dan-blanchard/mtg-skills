@@ -347,6 +347,7 @@ class Serve:
             or self.cmc_max is not None
             or self.min_devotion is not None
             or self.produces_mana
+            or self.mana_cost is not None
             or self.power_min is not None
             or self.toughness_min is not None
             or self.toughness_over_power

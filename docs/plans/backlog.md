@@ -190,14 +190,22 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   trigger's self-return firing `bounce_tempo` (none; the other trigger
   back-references on cards that fire return an event object — a blocked
   creature, a damage source, a land tapped for mana).
-  (o) **Theme matching off the IR, what's left** (2026-10-20). The tuner's theme
-  page is the theme's ``Serve`` where its spec searched by an oracle pattern
-  (``swaps._run_search``), but deck-forge's Find (``engine.py``) and
-  ``core.search_filters`` still page by the pattern, so Find and Tune disagree
-  on a theme's cards; the general shape is a spec that owns its candidate page
-  (derived from its serve, ``search`` kept only as a tribe's or a preset's
-  override), which would retire the 343 pattern searches. Serves were written
-  to credit a deck's own cards, not to page candidates: each OR arm (types,
+  (o) **Theme matching off the IR, what's left** (2026-10-24). Find
+  (``engine.lane_page``), the tuner (``swaps._run_search``) and
+  ``search_filters`` page a theme through one function,
+  ``signal_specs.theme_page``, and every spec ADR-0026 doesn't split pages
+  alike in both (``test_every_theme_pages_alike_in_find_and_tune``; Find's
+  avenue now carries an oracle-only or mana-cost serve it pages by, and a
+  serve that admits nothing — One-sided keep-N's — pages by its search instead
+  of an empty page). Two shapes still differ by design: a split spec (Find
+  pages its payoffs by serve and its pieces by type; the tuner pages it whole
+  by type) and a type- or preset-searched theme's support page (the tuner's
+  ``serve_page_search``, held to ``_SUPPORT_SHARE``; Find's lane pages only the
+  members). Left: the specs still carry their 346 pattern searches (and 186 of
+  the 220 sub-avenues'), now a fallback only, rather than owning a page derived
+  from the serve with ``search`` kept as a tribe's or preset's override.
+  Serves were written to credit a deck's own cards, not to page candidates:
+  each OR arm (types,
   keywords, cmc and stat floors) can admit a card on its own, as the
   toughness >= 4 arm admitted Roaming Throne — a guard would pin each arm's
   should / should-not real cards, the ``theme_presets`` way. And an IR hit's
@@ -206,9 +214,10 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   the payoff test off the unit itself would drop both text alignments, and
   would give a role to the hits no single ability emits (a keyword's lifelink,
   Crucible of Worlds' whole-card ident, a modal spell's text-less mode), which
-  still score structural. 150 of the pattern-searched themes have a serve that
-  is itself an oracle pattern (creature recursion, landfall, sacrifice outlets):
-  their page is still a pattern until those serves move to idents. The
+  still score structural. Seven serves a theme pages by still carry an oracle
+  arm (``xspell_matters``, ``team_buff``, ``self_etb_payload``,
+  ``permanent_etb``, ``target_redirect``, ``spell_redirect``,
+  ``land_protection`` — Pass D's list): their page is partly a pattern. The
   replacement doublers (Anointed Procession, Parallel Lives, Hardened Scales)
   read as enablers under the clause payoff test.
   (l) **Tune speed, what's left.** The persisted signals index serves the

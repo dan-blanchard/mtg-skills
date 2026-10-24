@@ -652,6 +652,27 @@ def pages_by_serve(search: Mapping[str, object]) -> bool:
     return not any(search.get(k) for k in _POOL_SEARCH_KEYS)
 
 
+#: The search keys a serve page drops: the serve filters in their place.
+_SERVE_PAGE_DROPS = ("oracle", "card_type")
+_EMPTY_SERVE = Serve()
+
+
+def theme_page(
+    search: Mapping[str, object], serve: Serve | None
+) -> tuple[dict, Serve | None]:
+    """A theme's candidate page: the ``card_search`` keys it pages by, and the
+    serve that filters the page, or None. The ONE function deck-forge's Find
+    (``engine.find_candidates``), the tuner's theme pages (``swaps._run_search``)
+    and :func:`search_filters` page a theme through. A theme that pages by its
+    serve (:func:`pages_by_serve`) and carries one drops its pattern and card
+    type for it; its other keys (a mana-value band, a preset) still hold.
+    Anything else pages by its own search — a serve that admits nothing on any
+    dimension (One-sided keep-N's) included, or its page would be empty."""
+    if serve is None or serve == _EMPTY_SERVE or not pages_by_serve(search):
+        return dict(search), None
+    return {k: v for k, v in search.items() if k not in _SERVE_PAGE_DROPS}, serve
+
+
 def serve_page_search(search: Mapping[str, object]) -> dict:
     """``search`` without the keys that fetch a pool of their own, so it pages by
     its theme's serve (:func:`pages_by_serve`): a type- or preset-searched
@@ -733,9 +754,15 @@ def serves(card: dict, signal: Signal) -> bool:
 
 
 def search_filters(signal: Signal, *, color_identity: str, fmt: str) -> dict:
-    """Build ``card_search`` kwargs to find cards that feed ``signal`` in-identity."""
+    """``card_search.search_cards`` kwargs for the cards that feed ``signal``
+    in-identity: its theme's page (:func:`theme_page`), with ``serve`` set when
+    the theme pages by its serve — the page Find and the tuner show."""
     spec = spec_for(signal)
-    base = dict(spec.search) if spec else {}
+    base: dict = {}
+    if spec is not None:
+        base, serve = theme_page(spec.search, spec.serve)
+        if serve is not None:
+            base["serve"] = serve
     base["color_identity"] = color_identity
     base["format"] = fmt
     return base

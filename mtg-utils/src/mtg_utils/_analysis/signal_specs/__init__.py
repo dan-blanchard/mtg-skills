@@ -200,6 +200,7 @@ from .core import (
     source_split,
     spec_for,
     spec_scope_for,
+    theme_page,
 )
 
 __all__ = [
@@ -386,4 +387,5 @@ __all__ = [
     "source_split",
     "spec_for",
     "spec_scope_for",
+    "theme_page",
 ]

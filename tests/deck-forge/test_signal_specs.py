@@ -781,8 +781,13 @@ def test_search_filters_inject_color_identity_and_format():
     )
     assert filters["color_identity"] == "GW"
     assert filters["format"] == "commander"
-    # carries the spec's discriminating filter (oracle and/or presets)
-    assert "oracle" in filters or "preset_names" in filters
+    # An oracle-searched theme pages by its serve (``theme_page``): the serve
+    # replaces the pattern, the page Find and the tuner show.
+    spec = spec_for(_sig("creature_etb", "you"))
+    assert spec is not None
+    assert spec.search.get("oracle")
+    assert filters["serve"] is spec.serve
+    assert "oracle" not in filters
 
 
 def test_unknown_signal_has_no_spec_and_serves_false():
@@ -828,7 +833,7 @@ def test_reanimator_spec_searches_with_a_discriminator():
     filters = search_filters(
         _sig("reanimator", "you"), color_identity="BRW", fmt="commander"
     )
-    assert "oracle" in filters or "preset_names" in filters
+    assert filters["serve"] is spec.serve
 
 
 # --- aristocrats death-drain payoff (Blood Artist / Zulaport) -------------------
