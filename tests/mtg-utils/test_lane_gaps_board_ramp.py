@@ -87,7 +87,7 @@ def _tree_only_payoffs(name: str) -> set[str]:
         ("Brine Giant", "enchantments_matter"),  # affinity for enchantments
         ("Metallic Rebuke", "artifacts_matter"),  # improvise (CR 702.126a)
         # "As an additional cost to cast this spell, tap an untapped artifact you
-        # control or pay {1}" (CR 601.2b)
+        # control or pay {1}" (an additional cost, CR 118.8)
         ("Disruption Protocol", "artifacts_matter"),
     ],
 )

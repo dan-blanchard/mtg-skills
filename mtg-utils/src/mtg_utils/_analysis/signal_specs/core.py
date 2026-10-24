@@ -654,23 +654,32 @@ def pages_by_serve(search: Mapping[str, object]) -> bool:
 
 #: The search keys a serve page drops: the serve filters in their place.
 _SERVE_PAGE_DROPS = ("oracle", "card_type")
-_EMPTY_SERVE = Serve()
+
+
+def page_serve(search: Mapping[str, object], serve: Serve | None) -> Serve | None:
+    """The serve a theme's page filters by (:func:`theme_page`), or None: a theme
+    that pages by its serve (:func:`pages_by_serve`) and carries one. A serve that
+    admits nothing on any dimension (One-sided keep-N's) is none, or its page
+    would be empty."""
+    if serve is None or serve.admits_nothing() or not pages_by_serve(search):
+        return None
+    return serve
 
 
 def theme_page(
     search: Mapping[str, object], serve: Serve | None
 ) -> tuple[dict, Serve | None]:
     """A theme's candidate page: the ``card_search`` keys it pages by, and the
-    serve that filters the page, or None. The ONE function deck-forge's Find
-    (``engine.find_candidates``), the tuner's theme pages (``swaps._run_search``)
-    and :func:`search_filters` page a theme through. A theme that pages by its
-    serve (:func:`pages_by_serve`) and carries one drops its pattern and card
-    type for it; its other keys (a mana-value band, a preset) still hold.
-    Anything else pages by its own search — a serve that admits nothing on any
-    dimension (One-sided keep-N's) included, or its page would be empty."""
-    if serve is None or serve == _EMPTY_SERVE or not pages_by_serve(search):
+    serve that filters the page (:func:`page_serve`), or None. The ONE function
+    deck-forge's Find (``engine.find_candidates``), the tuner's theme pages
+    (``swaps._run_search``) and :func:`search_filters` page a theme through. A
+    theme with a page serve drops its pattern and card type for it; its other
+    keys (a mana-value band, a preset) still hold. Anything else pages by its own
+    search."""
+    filtering = page_serve(search, serve)
+    if filtering is None:
         return dict(search), None
-    return {k: v for k, v in search.items() if k not in _SERVE_PAGE_DROPS}, serve
+    return {k: v for k, v in search.items() if k not in _SERVE_PAGE_DROPS}, filtering
 
 
 def serve_page_search(search: Mapping[str, object]) -> dict:

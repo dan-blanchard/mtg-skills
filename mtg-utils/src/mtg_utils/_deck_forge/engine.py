@@ -29,6 +29,7 @@ from mtg_utils._analysis.roles import role_of
 from mtg_utils._analysis.signal_specs import (
     Serve,
     avenue_spec_for,
+    page_serve,
     payoff_search,
     payoff_serve,
     serve_from_dict,
@@ -122,13 +123,13 @@ def avenue_with_serve(avenue: dict, serve: Serve | None) -> dict:
     ranking credits candidates by the SAME precise predicate the spec serves on —
     when it carries a structured dimension (types/keywords) the bare ``search``
     fragment can't express (e.g. Spellslinger's Instant/Sorcery type gate), or
-    when the theme pages by it (``signal_specs.theme_page``): an oracle-only
+    when the theme pages by it (``signal_specs.page_serve``): an oracle-only
     serve beside a different search pattern (Permanents entering) is the page
     the tuner shows, so Find pages and credits by it too. Any other oracle-only
     serve is left to the legacy search-AND classification."""
     if serve is not None and (
         serve.is_structured()
-        or theme_page(avenue.get("search") or {}, serve)[1] is not None
+        or page_serve(avenue.get("search") or {}, serve) is not None
     ):
         avenue["serve"] = serve.as_dict()
     return avenue

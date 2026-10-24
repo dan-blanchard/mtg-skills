@@ -296,7 +296,7 @@ class TestLoadSignalsIndex:
         old = {
             "version": signals_index.SIGNALS_SIDECAR_VERSION,
             "content_hash": signals_index._content_hash(),
-            "bulk_identity": signals_index._bulk_identity(bulk),
+            "bulk_identity": signals_index.bulk_identity(bulk),
             "index": {"oid-1": ("stale|you|",)},
         }
         sidecar.write_bytes(pickle.dumps(old))

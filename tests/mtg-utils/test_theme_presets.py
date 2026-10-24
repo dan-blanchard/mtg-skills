@@ -481,7 +481,7 @@ class TestSeedSignalKeyIndex:
             payload = {
                 "version": signals_index.SIGNALS_SIDECAR_VERSION,
                 "content_hash": signals_index._content_hash(),
-                "bulk_identity": signals_index._bulk_identity(bulk),
+                "bulk_identity": signals_index.bulk_identity(bulk),
                 "index": {"oid-served": ()},
                 # A stored answer the live arm can't give (no keys, no trees),
                 # so a True here can only come from the index.

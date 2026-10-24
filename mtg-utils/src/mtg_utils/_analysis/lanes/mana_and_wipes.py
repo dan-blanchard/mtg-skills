@@ -1168,17 +1168,11 @@ def _walk_static_shrinks(
     )
 
 
-def population_shrink(tree: ConceptTree) -> bool:
-    """A toughness shrink on a population of creatures not limited to yours,
-    one-shot (:func:`mass_shrink_effects`) or continuous
-    (:func:`static_population_shrinks`) — the ``population_shrink`` key."""
-    return bool(mass_shrink_effects(tree) or static_population_shrinks(tree))
-
-
 def _population_shrink(tree: ConceptTree) -> list[Signal]:
     """population_shrink — a toughness shrink on a population of creatures not
-    limited to yours (:func:`population_shrink`; a creature at 0 toughness dies,
-    CR 704.5f), one-shot or continuous (CR 613.4c), symmetric or one-sided:
+    limited to yours (a creature at 0 toughness dies, CR 704.5f), one-shot
+    (:func:`mass_shrink_effects`) or continuous (:func:`static_population_shrinks`,
+    CR 613.4c), symmetric or one-sided:
     Languish, Massacre Wurm, Cower in Fear, Elesh Norn, Grand Cenobite, Night of
     Souls' Betrayal. The ``board-wipe`` preset's third key, beside
     ``mass_removal`` and ``mass_bounce``, so the preset and the board-wipe role

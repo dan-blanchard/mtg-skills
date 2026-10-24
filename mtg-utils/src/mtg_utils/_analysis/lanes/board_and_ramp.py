@@ -82,6 +82,7 @@ from mtg_utils._card_ir.crosswalk import (
     iter_static_defs,
     iter_typed_nodes,
     land_searches,
+    or_arms,
     ref_count_filter,
     static_mode_field,
     static_mode_tag,
@@ -122,7 +123,7 @@ def _sac_subject_present(tgt: object) -> bool:
     if tag_of(tgt) == "Or":
         # phase v0.104.0 keeps West Wind Avatar's "a token or a land" as an
         # ``Or``; a present subject on any branch is an outlet.
-        return any(_sac_subject_present(b) for b in getattr(tgt, "filters", ()) or ())
+        return any(_sac_subject_present(b) for b in or_arms(tgt))
     core = filter_core_types(tgt)
     sub = filter_subtypes(tgt)
     if not core and not sub:
@@ -1148,9 +1149,11 @@ def _neutralizes_one_object(static_def: object) -> bool:
     Aura or Equipment is attached to (:func:`names_attached_object` — Imprisoned
     in the Moon, Minimus Containment, Song of the Dryads) or a spell's or
     ability's target (Vraska, Betrayal's Sting's -2, Kitesail Larcenist,
-    Ultima's blighted land). It answers that permanent: a type change moves no
-    control (CR 110.2, 613.1d), so the Treasure or the mana ability it is left
-    with is its controller's to activate (CR 602.2), never your ramp."""
+    Ultima's blighted land). It answers that permanent, which keeps its
+    controller (CR 110.2: by default the player it entered under; a change of
+    control is a layer-2 effect, 613.1b, and this one changes types), so the
+    Treasure or the mana ability it is left with is its controller's to activate
+    (CR 602.2), never your ramp."""
     affected = getattr(static_def, "affected", None)
     return (
         names_attached_object(affected) or tag_of(affected) == "ParentTarget"
@@ -1656,6 +1659,17 @@ def _names_artifact_kind(types: tuple[str, ...]) -> bool:
     return any(is_unserved_artifact_kind(t) for t in types)
 
 
+def _kind_word_lanes(words: tuple[str, ...]) -> list[str]:
+    """The artifacts/enchantments lane(s) a payoff's type words name: an artifact
+    kind (:func:`_names_artifact_kind`), Enchantment, or both."""
+    out = []
+    if _names_artifact_kind(words):
+        out.append("artifacts_matter")
+    if "Enchantment" in words:
+        out.append("enchantments_matter")
+    return out
+
+
 def _generic_board_lanes(filt: object) -> list[str]:
     """artifacts/enchantments lane(s) for a GENERIC own-board anthem subject — a
     static buff/grant over your whole artifact/enchantment board (Padeem; Fountain
@@ -1833,11 +1847,7 @@ def _artifacts_enchantments_matter(tree: ConceptTree) -> list[Signal]:
         # a "target artifact" with no controller restriction), not the
         # token's recipient, which is always you (the caster).
         if c.concept == "copy_token":
-            types = c.subject
-            if _names_artifact_kind(types):
-                out.append("artifacts_matter")
-            if "Enchantment" in types:
-                out.append("enchantments_matter")
+            out.extend(_kind_word_lanes(c.subject))
         # TYPE-RECURSION doer (ADR-0038 W4 giant): a graveyard recursion
         # (reanimate / GY→hand bounce / GY→library) whose target is
         # FILTERED to the card type — single ("return target artifact
@@ -1973,14 +1983,11 @@ def _artifacts_enchantments_matter(tree: ConceptTree) -> list[Signal]:
             cores = filter_core_types(filt)
             if "Permanent" in cores:
                 continue
-            if _names_artifact_kind(cores + filter_subtypes(filt)):
-                out.append("artifacts_matter")
-            if "Enchantment" in cores:
-                out.append("enchantments_matter")
+            out.extend(_kind_word_lanes(cores + filter_subtypes(filt)))
     # TAP-COST PAYOFF — a cost you pay by tapping untapped artifacts or
     # enchantments you control: an activation cost ("Tap an untapped artifact you
     # control:"), a spell's additional cost (Disruption Protocol's "tap an
-    # untapped artifact you control or pay {1}", CR 601.2b). Only the unit's
+    # untapped artifact you control or pay {1}", CR 118.8). Only the unit's
     # controller pays it (``controller_paid_cost_leaves``), from their own board.
     # An alternative of types ("artifacts and/or creatures" — Citanul Stalwart,
     # Warlord's Elite) is paid as well without one, so it counts only when every
@@ -1992,18 +1999,14 @@ def _artifacts_enchantments_matter(tree: ConceptTree) -> list[Signal]:
             filt = getattr(paid.leaf, "filter", None)
             if filter_controller(filt) not in (None, "You"):
                 continue
-            arms = (
-                getattr(filt, "filters", None) or ()
-                if tag_of(filt) == "Or"
-                else (filt,)
-            )
-            if arms and all(
-                _names_artifact_kind(filter_core_types(a) + filter_subtypes(a))
-                for a in arms
-            ):
-                out.append("artifacts_matter")
-            if arms and all("Enchantment" in filter_core_types(a) for a in arms):
-                out.append("enchantments_matter")
+            per_arm = [
+                _kind_word_lanes(filter_core_types(a) + filter_subtypes(a))
+                for a in or_arms(filt)
+            ]
+            if per_arm:
+                out.extend(
+                    lane for lane in per_arm[0] if all(lane in arm for arm in per_arm)
+                )
     # generic-board static anthem/grant (Padeem) — read the static's affected filter.
     # A static that ALSO makes its objects creatures (Bello, Bard of the Brambles'
     # "is a 4/4 Elemental creature in addition to its other types"; March of the
@@ -2089,11 +2092,7 @@ def _artifacts_enchantments_matter(tree: ConceptTree) -> list[Signal]:
         vc = getattr(unit.node, "valid_card", None)
         if vc is None or filter_controller(vc) == "Opponent":
             continue
-        words = filter_core_types(vc) + filter_subtypes(vc)
-        if _names_artifact_kind(words):
-            out.append("artifacts_matter")
-        if "Enchantment" in words:
-            out.append("enchantments_matter")
+        out.extend(_kind_word_lanes(filter_core_types(vc) + filter_subtypes(vc)))
     # CONDITION type-gate DOER (ADR-0038 W4 giant): a static/triggered
     # ability's "as long as you control an artifact/enchantment, …" gate
     # (``IsPresent`` / ``ControlsType``) or a threshold count ("… two or
@@ -2188,12 +2187,8 @@ def _artifacts_enchantments_matter(tree: ConceptTree) -> list[Signal]:
     # Treasure / Clue / Food kind is that token's own payoff
     # (:func:`is_unserved_artifact_kind`).
     for kw, words in tree.card_keyword_types:
-        if kw != "Affinity":
-            continue
-        if _names_artifact_kind(words):
-            out.append("artifacts_matter")
-        if "Enchantment" in words:
-            out.append("enchantments_matter")
+        if kw == "Affinity":
+            out.extend(_kind_word_lanes(words))
     if "Improvise" in tree.card_keywords:
         out.append("artifacts_matter")
     idents = (

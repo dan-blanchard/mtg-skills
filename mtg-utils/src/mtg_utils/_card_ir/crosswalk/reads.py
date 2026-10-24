@@ -1665,6 +1665,15 @@ def filter_mana_value_floor(filt: object) -> int | None:
     return None
 
 
+def or_arms(filt: object) -> tuple[object, ...]:
+    """An ``Or`` filter's member filters (none for an empty one); any other
+    filter, ``None`` included, as its one arm. One level: a nested ``Or`` is
+    one arm."""
+    if tag_of(filt) == "Or":
+        return tuple(getattr(filt, "filters", None) or ())
+    return (filt,)
+
+
 def filter_core_types(filt: object) -> tuple[str, ...]:
     """The CORE card-type words of a typed filter (bare strings — ``Creature`` /
     ``Artifact`` / ``Permanent``), EXCLUDING subtype / ``Non`` / ``AnyOf`` wrappers.
@@ -6139,7 +6148,6 @@ def _names_land_class(
     admits "all permanents", which take the lands with them (Apocalypse, Static
     Orb); a sacrifice turns it off, since each player picks which permanents
     (Smokestack). See :func:`_land_class_arm`."""
-    arms = (getattr(filt, "filters", None) or ()) if tag_of(filt) == "Or" else (filt,)
     return any(
         _land_class_arm(
             f,
@@ -6147,7 +6155,7 @@ def _names_land_class(
             own_ok=own_ok,
             permanents=permanents,
         )
-        for f in arms
+        for f in or_arms(filt)
     )
 
 

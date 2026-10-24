@@ -2,6 +2,7 @@
 
 import os
 import socket
+import sys
 
 import pytest
 
@@ -73,6 +74,25 @@ def _known_tokens_cached_only(request, monkeypatch):
     monkeypatch.setattr(
         _phase, "ensure_known_tokens", lambda: cached if cached.exists() else None
     )
+
+
+@pytest.fixture(autouse=True)
+def _no_provenance_sidecar():
+    """No test leaves the ident-provenance sidecar attached for the tests after it:
+    ``deck-tune --bulk-data`` attaches it process-wide
+    (``ident_provenance.attach_provenance_sidecar``), and an attachment would serve
+    the next test a stale attribution and write the run's into the fixture bulk's
+    sidecar at exit. Each test starts and ends detached, so the exit write has
+    nothing to write."""
+
+    def detach() -> None:
+        module = sys.modules.get("mtg_utils._analysis.ident_provenance")
+        if module is not None:
+            module._detach()
+
+    detach()
+    yield
+    detach()
 
 
 # The cache dir the run started with (CI points it at an empty dir; locally it is

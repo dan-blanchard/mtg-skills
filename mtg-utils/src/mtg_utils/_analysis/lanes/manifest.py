@@ -1535,7 +1535,8 @@ SERVED_SIGNAL_KEYS: frozenset[str] = frozenset(
 # :func:`_iter_returnasaura_mana_defs` reaches a ``ReturnAsAura``
 # grant (Harold and Bob); a Treasure-conversion static arm (retired
 # 2026-10-24: phase now types the quoted Treasure ability, and a bare
-# "becomes a Treasure" grants none, CR 111.10a); a granted
+# "becomes a Treasure" grants none: CR 111.10a defines the ability only
+# for a Treasure token); a granted
 # LAND-recipient Sacrifice-cost mana ability is acceleration
 # regardless of produced shape (Rain of Filth). Two ledgered bridges
 # close the residual "Add mana" clause-grammar tail (bridge_ledger.BRIDGES:

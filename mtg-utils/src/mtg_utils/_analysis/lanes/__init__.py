@@ -496,7 +496,6 @@ from mtg_utils._analysis.lanes.mana_and_wipes import (
     mass_bounce_effects,
     mass_removal_effects,
     mass_shrink_effects,
-    population_shrink,
     static_population_shrinks,
 )
 from mtg_utils._analysis.lanes.mana_and_wipes import (
@@ -1416,7 +1415,6 @@ __all__ = [
     "mass_bounce_effects",
     "mass_removal_effects",
     "mass_shrink_effects",
-    "population_shrink",
     "recurs_itself",
     "removal_edict_answers",
     "removal_edict_targets_type",

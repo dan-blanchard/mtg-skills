@@ -39,6 +39,7 @@ import hashlib
 import pickle
 import threading
 from pathlib import Path
+from typing import NamedTuple
 
 from mtg_utils._analysis.lanes import extract_crosswalk_signals
 from mtg_utils._analysis.signal_trees import as_signal_tree
@@ -60,18 +61,26 @@ PROVENANCE_SIDECAR_VERSION = 1
 _PROVENANCE_SUFFIX = ".provenance.pkl"
 
 
-class _Attached:
-    """The attached sidecar (:func:`attach_provenance_sidecar`): its path and
-    key, the attributions it served, and those this process computed since."""
-
-    path: Path | None = None
-    key: tuple[str, tuple[str, int, int]] | None = None
-    persisted: dict[str, Attribution] = {}  # noqa: RUF012 — module-level state
-    fresh: dict[str, Attribution] = {}  # noqa: RUF012
-    lock = threading.Lock()
+#: A sidecar's key: (content hash, bulk identity) — :func:`_provenance_key`.
+ProvenanceKey = tuple[str, tuple[str, int, int]]
 
 
-def _provenance_key(bulk_path: Path) -> tuple[str, tuple[str, int, int]]:
+class _Sidecar(NamedTuple):
+    path: Path
+    key: ProvenanceKey
+
+
+#: The attached sidecar (:func:`attach_provenance_sidecar`), at most one; empty
+#: while attribution is live-only.
+_ATTACHED: list[_Sidecar] = []
+#: The attributions the attached sidecar served, and those this process
+#: computed since (written back by :func:`flush_provenance_sidecar`).
+_PERSISTED: dict[str, Attribution] = {}
+_FRESH: dict[str, Attribution] = {}
+_ATTACH_LOCK = threading.Lock()
+
+
+def _provenance_key(bulk_path: Path) -> ProvenanceKey:
     """(content hash, bulk identity): the signals index's content hash — the
     lanes and tree synthesis an attribution runs — folded with this file's
     bytes and the payload version; and the bulk file's identity."""
@@ -81,8 +90,7 @@ def _provenance_key(bulk_path: Path) -> tuple[str, tuple[str, int, int]]:
     with contextlib.suppress(OSError):
         hasher.update(Path(__file__).read_bytes())
     hasher.update(f"|provenance_version:{PROVENANCE_SIDECAR_VERSION}".encode())
-    st = bulk_path.stat()
-    return hasher.hexdigest(), (str(bulk_path), st.st_mtime_ns, st.st_size)
+    return hasher.hexdigest(), signals_index.bulk_identity(bulk_path)
 
 
 def _read_provenance(path: Path, key: object) -> dict[str, Attribution]:
@@ -97,27 +105,39 @@ def _read_provenance(path: Path, key: object) -> dict[str, Attribution]:
     return entries if isinstance(entries, dict) else {}
 
 
+def _detach() -> None:
+    """Forget the attached sidecar and what it served, writing nothing back."""
+    _ATTACHED.clear()
+    _PERSISTED.clear()
+    _FRESH.clear()
+
+
 def attach_provenance_sidecar(bulk_path: Path | None) -> bool:
     """Serve :func:`unit_idents_for` from ``<bulk_path>.provenance.pkl`` and
     write back, at process exit, every attribution this process computes —
     merged under the sidecar's lock with what other processes wrote meanwhile.
     An entry holds only for the same lanes, phase pin and bulk (its key), so an
     edit to any of them starts the cache over. A served entry is the value a
-    live attribution computes (a deterministic per-card read). Idempotent;
-    ``False`` (no bulk) leaves attribution live-only."""
+    live attribution computes (a deterministic per-card read). Idempotent for
+    one bulk; attaching another bulk writes back what the first one's process
+    computed, then re-keys to the new one. ``False`` (no bulk) leaves
+    attribution live-only."""
     if bulk_path is None:
         return False
     path = Path(bulk_path)
     if not path.is_file():
         return False
-    with _Attached.lock:
-        if _Attached.path is not None:
+    from mtg_utils._analysis.signals_index import bulk_identity
+
+    with _ATTACH_LOCK:
+        if _ATTACHED and _ATTACHED[0].key[1] == bulk_identity(path):
             return True
+        flush_provenance_sidecar()
+        _detach()
         key = _provenance_key(path)
         sidecar = path.with_name(path.name + _PROVENANCE_SUFFIX)
-        _Attached.persisted.update(_read_provenance(sidecar, key))
-        _Attached.path, _Attached.key = sidecar, key
-        atexit.register(flush_provenance_sidecar)
+        _PERSISTED.update(_read_provenance(sidecar, key))
+        _ATTACHED.append(_Sidecar(sidecar, key))
     return True
 
 
@@ -125,30 +145,28 @@ def flush_provenance_sidecar() -> None:
     """Write this process's fresh attributions into the attached sidecar,
     merged with what is on disk now (another process may have added its own).
     Best effort: a failure leaves them for the next process to recompute."""
-    from mtg_utils._sidecar import exclusive_lock
+    from mtg_utils._sidecar import atomic_write_bytes, exclusive_lock
 
-    sidecar, key = _Attached.path, _Attached.key
-    fresh = dict(_Attached.fresh)
-    if sidecar is None or not fresh:
+    fresh = dict(_FRESH)
+    if not _ATTACHED or not fresh:
         return
+    sidecar, key = _ATTACHED[0]
     with exclusive_lock(sidecar.with_name(sidecar.name + ".lock")):
         entries = _read_provenance(sidecar, key)
         entries.update(fresh)
-        tmp = sidecar.with_name(sidecar.name + ".tmp")
+        payload = {"key": key, "entries": entries}
         try:
-            with tmp.open("wb") as fh:
-                pickle.dump(
-                    {"key": key, "entries": entries},
-                    fh,
-                    protocol=pickle.HIGHEST_PROTOCOL,
-                )
-            tmp.replace(sidecar)
+            atomic_write_bytes(
+                sidecar, pickle.dumps(payload, protocol=pickle.HIGHEST_PROTOCOL)
+            )
         except OSError:
-            with contextlib.suppress(OSError):
-                tmp.unlink()
             return
     for oid in fresh:
-        _Attached.fresh.pop(oid, None)
+        _FRESH.pop(oid, None)
+
+
+# A no-op while nothing is attached.
+atexit.register(flush_provenance_sidecar)
 
 
 def emitting_unit_texts(card: dict, idents: frozenset[str]) -> list[str]:
@@ -182,7 +200,7 @@ def unit_idents_for(card: dict) -> Attribution:
     cached = _UNIT_IDENTS_MEMO.get(oid) if oid else None
     if cached is not None and cached[0] is source:
         return cached[1]
-    persisted = _Attached.persisted.get(oid) if oid else None
+    persisted = _PERSISTED.get(oid) if oid else None
     if persisted is not None:
         _UNIT_IDENTS_MEMO[oid] = (source, persisted)
         return persisted
@@ -208,8 +226,8 @@ def unit_idents_for(card: dict) -> Attribution:
             out[(ti, ui)] = frozenset(emitted & full)
     if oid:
         _UNIT_IDENTS_MEMO[oid] = (source, out)
-        if _Attached.path is not None:
-            _Attached.fresh[oid] = out
+        if _ATTACHED:
+            _FRESH[oid] = out
     return out
 
 

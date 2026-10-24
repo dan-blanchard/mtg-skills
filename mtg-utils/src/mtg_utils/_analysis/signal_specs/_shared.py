@@ -337,6 +337,11 @@ class Serve:
             out["all_of"] = [sub.as_dict() for sub in self.all_of]
         return out
 
+    def admits_nothing(self) -> bool:
+        """True for a serve with no dimension set (``Serve()``, One-sided keep-N's):
+        no card feeds it, so no page filters by it."""
+        return self == Serve()
+
     def is_structured(self) -> bool:
         """True if it carries a dimension the bare ``search`` fragment can't express,
         so the engine should thread it into avenues for precise classification."""

@@ -159,7 +159,8 @@ class Preset:
       would otherwise pay a second extraction for an arm that runs its own
       (blink's). It must agree with ``concept`` on every card.
 
-    All six may be set; they combine with OR. ``should_match`` and
+    All six arms may be set (``concept_signals`` is ``concept`` read another
+    way, not a seventh); they combine with OR. ``should_match`` and
     ``should_not_match`` are card-name fixtures the test suite proves
     against the committed real-card snapshot (``mtg_utils.testkit`` — a
     real Scryfall record, and for a structural arm real crosswalk trees;
@@ -362,13 +363,17 @@ def concept_arms_holding(
     them. ``signals``, CARD's production signals when the caller holds them,
     answers an arm that reads them (``Preset.concept_signals``) without a
     second extraction."""
-
-    def holds(p: Preset) -> bool:
+    held = []
+    for name, p in PRESETS.items():
+        if p.concept is None:
+            continue
         if signals is not None and p.concept_signals is not None:
-            return p.concept_signals(signals)
-        return p.concept is not None and p.concept(card)
-
-    return tuple(sorted(name for name, p in PRESETS.items() if p.concept and holds(p)))
+            hit = p.concept_signals(signals)
+        else:
+            hit = p.concept(card)
+        if hit:
+            held.append(name)
+    return tuple(sorted(held))
 
 
 def _concept_holds(preset: Preset, card: dict) -> bool:
@@ -529,7 +534,7 @@ def _blink_maker_concept(card: dict) -> bool:
     return blink_flicker_maker_present(card)
 
 
-def _blink_maker_in(signals: Sequence[Signal]) -> bool:
+def _blink_maker_from_signals(signals: Sequence[Signal]) -> bool:
     """:func:`_blink_maker_concept` read off the card's production signals: the
     membership floor only adds a LOW, subject-less ``blink_flicker`` beside the
     lane's HIGH ``enabler`` and never touches the lane's, so the maker half
@@ -3977,7 +3982,7 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
         ),
         signal_keys=("self_blink",),
         concept=_blink_maker_concept,
-        concept_signals=_blink_maker_in,
+        concept_signals=_blink_maker_from_signals,
         should_match=("Soulherder", "Ephemerate", "Conjurer's Closet"),
         should_not_match=("Lightning Bolt", "Angel of Sanctions"),
     ),

@@ -88,12 +88,10 @@ def test_keys_are_tree_and_unit_ordinals():
 
 
 def _detach(monkeypatch) -> None:
+    """A fresh process: nothing attached, nothing memoized."""
     from mtg_utils._analysis import ident_provenance
 
-    monkeypatch.setattr(ident_provenance._Attached, "path", None)
-    monkeypatch.setattr(ident_provenance._Attached, "key", None)
-    monkeypatch.setattr(ident_provenance._Attached, "persisted", {})
-    monkeypatch.setattr(ident_provenance._Attached, "fresh", {})
+    ident_provenance._detach()
     monkeypatch.setattr(ident_provenance, "_UNIT_IDENTS_MEMO", {})
 
 
@@ -101,7 +99,7 @@ def test_the_provenance_sidecar_serves_what_a_process_wrote_back(monkeypatch, tm
     """A process attached to a bulk's sidecar writes back what it attributed; the
     next process serves it without re-running a lane, and the value is the one a
     live attribution computes. A changed bulk (its identity is the key) serves
-    nothing."""
+    nothing: re-attaching to it re-keys."""
     from mtg_utils._analysis import ident_provenance
 
     bulk = tmp_path / "AllPrintings.json"
@@ -123,7 +121,6 @@ def test_the_provenance_sidecar_serves_what_a_process_wrote_back(monkeypatch, tm
     monkeypatch.setattr(ident_provenance, "extract_crosswalk_signals", no_lane_run)
     assert unit_idents_for(test_card("Myr Galvanizer")) == live
 
-    _detach(monkeypatch)
     bulk.write_text("[ ]")  # another bulk: another key
-    ident_provenance.attach_provenance_sidecar(bulk)
-    assert ident_provenance._Attached.persisted == {}
+    assert ident_provenance.attach_provenance_sidecar(bulk)
+    assert ident_provenance._PERSISTED == {}

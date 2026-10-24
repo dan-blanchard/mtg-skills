@@ -359,7 +359,9 @@ def _content_hash() -> str:
 content_hash = _content_hash
 
 
-def _bulk_identity(bulk_path: Path) -> tuple[str, int, int]:
+def bulk_identity(bulk_path: Path) -> tuple[str, int, int]:
+    """A bulk file's identity — path, mtime, size: what a sidecar built from it is
+    keyed by, so a re-downloaded bulk invalidates it."""
     st = bulk_path.stat()
     return (str(bulk_path), st.st_mtime_ns, st.st_size)
 
@@ -380,7 +382,7 @@ def _read_sidecar(
         return None
     if payload.get("content_hash") != content_hash:
         return None
-    if payload.get("bulk_identity") != _bulk_identity(bulk_path):
+    if payload.get("bulk_identity") != bulk_identity(bulk_path):
         return None
     index = payload.get("index")
     concepts = payload.get("concepts")
@@ -396,7 +398,7 @@ def _write_sidecar(
     payload = {
         "version": SIGNALS_SIDECAR_VERSION,
         "content_hash": content_hash,
-        "bulk_identity": _bulk_identity(bulk_path),
+        "bulk_identity": bulk_identity(bulk_path),
         "index": built.index,
         "concepts": built.concepts,
     }

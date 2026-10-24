@@ -36,6 +36,7 @@ from mtg_utils._card_ir.crosswalk import (
     iter_nested_trigger_defs,
     iter_static_defs,
     iter_threaded_target_statics,
+    or_arms,
     static_affected,
     tag_of,
 )
@@ -93,11 +94,8 @@ def _animated_filters(unit: AbilityUnit) -> Iterator[object]:
 def _filter_arms(filt: object) -> Iterator[object]:
     """An ``Or`` filter's arms one by one (Bello's "non-Equipment artifact and
     non-Aura enchantment" is two), any other filter whole."""
-    if tag_of(filt) == "Or":
-        for arm in getattr(filt, "filters", None) or ():
-            yield from _filter_arms(arm)
-    else:
-        yield filt
+    for arm in or_arms(filt):
+        yield from _filter_arms(arm) if tag_of(arm) == "Or" else (arm,)
 
 
 def _animate_subjects(filt: object) -> set[tuple[str, int | None]]:

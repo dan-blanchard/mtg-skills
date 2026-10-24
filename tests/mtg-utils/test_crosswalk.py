@@ -1105,8 +1105,9 @@ def test_ramp_returnasaura_granted_mana():
 def test_a_treasure_conversion_of_an_answered_permanent_is_not_ramp(name):
     """ "… becomes a Treasure artifact with '{T}, Sacrifice this artifact: Add
     one mana of any color' and loses all other abilities" answers the enchanted
-    or targeted permanent: a type change moves no control (CR 110.2, 613.1d),
-    so its controller, usually an opponent, sacrifices it for mana (CR 602.2).
+    or targeted permanent, which keeps its controller (CR 110.2; a change of
+    control is a layer-2 effect, 613.1b, and this one changes types), so that
+    player, usually an opponent, sacrifices it for mana (CR 602.2).
     No ramp of yours (``board_and_ramp._neutralizes_one_object``)."""
     assert ("ramp", "you", "") not in _idents(name)
 
