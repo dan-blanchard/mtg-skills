@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import re
 from collections.abc import Callable, Sequence
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Protocol
@@ -154,6 +155,49 @@ def _matches_filters(
     partner_of: Sequence[Sequence[str]] | None = None,
     serve: ThemeServe | None = None,
 ) -> bool:
+    unreleased = unreleased_ok or frozenset()
+    return _passes_gate(
+        card,
+        allowed_colors=allowed_colors,
+        exact_colors=exact_colors,
+        fmt=fmt,
+        arena_only=arena_only,
+        paper_only=paper_only,
+        unreleased=unreleased,
+        set_lower=set_lower,
+    ) and _matches_query(
+        card,
+        oracle_re=oracle_re,
+        type_lower=type_lower,
+        name_substr=name_substr,
+        cmc_min=cmc_min,
+        cmc_max=cmc_max,
+        price_min=price_min,
+        price_max=price_max,
+        fmt=fmt,
+        unreleased=unreleased,
+        is_commander_filter=is_commander_filter,
+        presets=presets,
+        any_presets=any_presets,
+        partner_of=partner_of,
+        serve=serve,
+    )
+
+
+def _passes_gate(
+    card: dict,
+    *,
+    allowed_colors: set[str] | None,
+    exact_colors: bool,
+    fmt: Format,
+    arena_only: bool,
+    paper_only: bool,
+    unreleased: frozenset[str],
+    set_lower: str | None,
+) -> bool:
+    """The filters every page of one search context shares: game card, set,
+    legality, game (paper / Arena) and color identity. :func:`filter_records`
+    memoizes the records that pass (:func:`_gated`)."""
     # Skip tokens and non-game cards
     if card.get("layout") in SKIP_LAYOUTS:
         return False
@@ -164,7 +208,6 @@ def _matches_filters(
     # A pre-release card is legal nowhere yet, so the format gate would reject it on
     # data that is provisional rather than final. ``unreleased_ok`` is the opt-in
     # escape hatch (--include-unreleased) that admits exactly those, and nothing else.
-    unreleased = unreleased_ok or frozenset()
     status = fmt.legality(card, unreleased=unreleased)
     if status not in LEGAL_STATUSES and status != "unreleased":
         return False
@@ -188,7 +231,28 @@ def _matches_filters(
                 return False
         elif not color_identity_subset(card.get("color_identity", []), colors):
             return False
+    return True
 
+
+def _matches_query(
+    card: dict,
+    *,
+    oracle_re: re.Pattern | None,
+    type_lower: str | tuple[str, ...] | None,
+    name_substr: str | None,
+    cmc_min: float | None,
+    cmc_max: float | None,
+    price_min: float | None,
+    price_max: float | None,
+    fmt: Format,
+    unreleased: frozenset[str],
+    is_commander_filter: bool,
+    presets: tuple[Preset, ...],
+    any_presets: tuple[Preset, ...],
+    partner_of: Sequence[Sequence[str]] | None,
+    serve: ThemeServe | None,
+) -> bool:
+    """A page's own filters, past the context's gate (:func:`_passes_gate`)."""
     if oracle_re is not None and not oracle_re.search(_get_oracle_text(card)):
         return False
 
@@ -352,6 +416,58 @@ def resolve_presets(preset_names: tuple[str, ...]) -> tuple[Preset, ...]:
     return tuple(resolved)
 
 
+@dataclass(frozen=True)
+class _GateKey:
+    """One search context's gate (:func:`_passes_gate`): what every page of a
+    tune, or of a Find session, shares."""
+
+    fmt: str
+    colors: frozenset[str] | None
+    exact_colors: bool
+    arena_only: bool
+    paper_only: bool
+    unreleased: frozenset[str]
+    set_lower: str | None
+
+
+# The records a search context's gate passes, per records list (held by
+# reference, so its id can't be reused while the entry lives). A tune pages ~17
+# themes and roles over one pool in one identity, and each page used to re-run
+# the gate — layout, legality, game, color identity — over the whole pool (~100k
+# printings). The gate is a pure predicate of the card, so a page over the
+# memoized slice keeps the same cards in the same order. Bounded: the oldest
+# entry goes first.
+_GATE_CACHE: dict[tuple[int, int, _GateKey], tuple[Sequence[dict], list[dict]]] = {}
+_GATE_CACHE_MAX = 16
+
+
+def _gated(records: Sequence[dict], gate: _GateKey, *, fmt: Format) -> list[dict]:
+    """The records that pass ``gate``, memoized per records list."""
+    key = (id(records), len(records), gate)
+    hit = _GATE_CACHE.get(key)
+    if hit is not None and hit[0] is records:
+        return hit[1]
+    colors = set(gate.colors) if gate.colors is not None else None
+    passed = [
+        card
+        for card in records
+        if _passes_gate(
+            card,
+            allowed_colors=colors,
+            exact_colors=gate.exact_colors,
+            fmt=fmt,
+            arena_only=gate.arena_only,
+            paper_only=gate.paper_only,
+            unreleased=gate.unreleased,
+            set_lower=gate.set_lower,
+        )
+    ]
+    if len(_GATE_CACHE) >= _GATE_CACHE_MAX:
+        del _GATE_CACHE[next(iter(_GATE_CACHE))]
+    _GATE_CACHE[key] = (records, passed)
+    return passed
+
+
 def filter_records(
     records: Sequence[dict],
     *,
@@ -404,12 +520,21 @@ def filter_records(
     presets = resolve_presets(preset_names) if preset_names else ()
     any_presets = resolve_presets(any_preset_names) if any_preset_names else ()
 
+    unreleased = unreleased_ok or frozenset()
+    gate = _GateKey(
+        fmt=fmt.name,
+        colors=frozenset(allowed_colors) if allowed_colors is not None else None,
+        exact_colors=exact_colors,
+        arena_only=arena_only,
+        paper_only=paper_only,
+        unreleased=unreleased,
+        set_lower=set_code.lower() if set_code else None,
+    )
     matched = [
         card
-        for card in records
-        if _matches_filters(
+        for card in _gated(records, gate, fmt=fmt)
+        if _matches_query(
             card,
-            allowed_colors=allowed_colors,
             oracle_re=oracle_re,
             type_lower=type_lower,
             name_substr=name_lower,
@@ -417,15 +542,11 @@ def filter_records(
             cmc_max=cmc_max,
             price_min=price_min,
             price_max=price_max,
-            exact_colors=exact_colors,
             fmt=fmt,
-            arena_only=arena_only,
-            paper_only=paper_only,
-            unreleased_ok=unreleased_ok,
+            unreleased=unreleased,
             is_commander_filter=is_commander_filter,
             presets=presets,
             any_presets=any_presets,
-            set_lower=set_code.lower() if set_code else None,
             partner_of=partner_of,
             serve=serve,
         )
