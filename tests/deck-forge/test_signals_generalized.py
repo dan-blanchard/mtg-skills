@@ -13,6 +13,8 @@ Synthetic scenarios already proven by
 ``tests/mtg-utils/test_crosswalk.py`` were dropped as duplicates.
 """
 
+import pytest
+
 from mtg_utils._analysis.signals import (
     Signal,
     _tinybones_scope,
@@ -793,6 +795,33 @@ def test_xspell_matters_detects_x_cost_payoffs_not_hoser():
     # ban is a restriction effect (no payoff trigger predicate), and the kept hook
     # mirror's veto keeps the avenue closed even on the effect raw.
     assert "xspell_matters" not in _keys_real("Gaddock Teeg")
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        # "When you next cast a spell with {X} in its mana cost this turn": a
+        # delayed cast watcher (CR 603.7a)
+        "Brass Infiniscope",
+        "Magus Lucea Kane",
+        # "Spend this mana only to cast … spells with {X} in their mana costs"
+        "Troyan, Gutsy Explorer",
+        "Helga, Skittish Seer",
+        # the phase drops the ledger bridges: a parked "contains {X}" clause and a
+        # dropped "card with {X} in its mana cost" filter
+        "Unbound Flourishing",
+        "Paradox Surveyor",
+        "Scalar Scholar",
+    ],
+)
+def test_xspell_matters_reads_delayed_watchers_spend_criteria_and_bridges(name):
+    assert "xspell_matters" in _keys_real(name)
+
+
+def test_an_x_spell_counter_is_no_xspell_payoff():
+    # "Counter target spell with {X} in its mana cost unless its controller pays
+    # {3}" — an X hoser.
+    assert "xspell_matters" not in _keys_real("Frontline Medic")
 
 
 def test_self_heroic_commander_opens_voltron():

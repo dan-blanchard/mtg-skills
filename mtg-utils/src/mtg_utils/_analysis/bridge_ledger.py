@@ -4639,6 +4639,90 @@ def _no_forage_cost_gap(tree: ConceptTree) -> bool:
     )
 
 
+# ── spell_redirect: a redirect of a spell's target parked as a residue ──────
+# "change that spell's target to another creature" (Meddle, Quicksilver Dragon),
+# "Choose new targets for target spell or ability" (Emissary of Grudges): CR
+# 115.7, the same redirect ``lanes.core_makers._spell_redirect`` reads off a
+# ``ChangeTargets`` node, parked whole.
+_SPELL_REDIRECT_RX = re.compile(
+    r"change (?:that|the) spell'?s target|choose new targets for target spell",
+    re.IGNORECASE,
+)
+
+
+def _redirect_parked(tree: ConceptTree) -> bool:
+    return _says(_SPELL_REDIRECT_RX, tree.residues())
+
+
+# ── xspell_matters: an {X}-spell payoff whose {X} qualifier phase loses ─────
+# The payoff ``lanes.triggers_damage._xspell_matters`` reads is a cast watcher
+# or a card filter carrying ``HasXInManaCost`` (CR 107.3). Unbound
+# Flourishing's copy trigger keeps a bare instant-or-sorcery watcher and parks
+# the X clause as a residue ("if that spell's mana cost … contains {X}");
+# Paradox Surveyor's dig and Scalar Scholar's perpetual grant drop the {X} card
+# filter with no trace.
+_X_SPELL_RX = re.compile(
+    r"with \{X\} in (?:its|their) (?:mana )?costs?|(?:mana )?cost[^.]{0,40}"
+    r"contains \{X\}",
+    re.IGNORECASE,
+)
+_X_CARD_RX = re.compile(
+    r"\bcards? (?:you own )?with \{X\} in (?:its|their) mana costs?", re.IGNORECASE
+)
+
+
+def _x_qualifier_parked(tree: ConceptTree) -> bool:
+    return _says(_X_SPELL_RX, tree.residues())
+
+
+def _no_x_cost_filter(tree: ConceptTree) -> bool:
+    """No node names a card with {X} in its mana cost."""
+    return all(tag_of(n) != "HasXInManaCost" for n in tree.iter_typed())
+
+
+# ── team_buff: a team keyword grant phase loses ─────────────────────────────
+# "creatures you control gain <evergreen keyword>" (CR 702), the grant
+# ``lanes.triggers_damage`` reads off an AddKeyword over your creatures: folded
+# into the card's own SelfRef pump (Moku's "gets +2/+1 and creatures you control
+# gain haste", Wargling's trample — the Moku misparse the creatures_matter row
+# bridges), dropped beside a PumpAll (Tromp the Domains), or on an aftermath half
+# phase has no record for (Appeal // Authority's "Creatures you control gain
+# vigilance").
+_TEAM_GAIN_KEYWORD_RX = re.compile(
+    r"\bcreatures you control gain (?:flying|first strike|double strike"
+    r"|deathtouch|haste|hexproof|indestructible|lifelink|menace|reach|trample"
+    r"|vigilance)\b",
+    re.IGNORECASE,
+)
+
+
+def _team_grant_on_self(tree: ConceptTree) -> bool:
+    """A static def scoped to the card itself whose own text grants your team a
+    keyword (the misparse :func:`_moku_haste_grant_gap` reads, any keyword)."""
+    return any(
+        tag_of(getattr(sdef, "affected", None)) == "SelfRef"
+        and _TEAM_GAIN_KEYWORD_RX.search(getattr(sdef, "description", "") or "")
+        for unit in tree.iter_units()
+        for sdef in unit.static_defs()
+    )
+
+
+def _team_grant_parked(tree: ConceptTree) -> bool:
+    """A residue or hollow static def carries the team grant."""
+    return _says(_TEAM_GAIN_KEYWORD_RX, [*tree.residues(), *tree.hollow_statics()])
+
+
+def _no_keyword_grant(tree: ConceptTree) -> bool:
+    """No node grants a keyword, and no parked text carries the team grant."""
+    return not _team_grant_parked(tree) and all(
+        tag_of(n) != "AddKeyword" for n in tree.iter_typed()
+    )
+
+
+def _text_only_face(tree: ConceptTree) -> bool:
+    return tree.is_text_only
+
+
 BRIDGES.update(
     {
         b.bridge_id: b
@@ -4821,6 +4905,141 @@ BRIDGES.update(
                 pins=("Elspeth Resplendent", "Undercover Operative"),
                 gap=_no_shield_counter_node,
                 match=_oracle_match(_DROPPED_SHIELD_RX),
+            ),
+            Bridge(
+                bridge_id="spell_redirect_parse_failure",
+                key="spell_redirect",
+                kind="upstream_parse_failure",
+                todo=(
+                    "upstream phase-rs report candidate (Dan posts): a redirect of "
+                    "a spell's target parks as an Unimplemented residue — Meddle's "
+                    "and Quicksilver Dragon's 'change that spell's target to "
+                    "another creature' (unrecognized_clause_head), Emissary of "
+                    "Grudges' 'Choose new targets for target spell or ability' "
+                    "(effect_structure). Retires per card as phase types the "
+                    "ChangeTargets"
+                ),
+                census=(
+                    "3 hits / the legal corpus's redirect residues (Emissary of "
+                    "Grudges, Meddle, Quicksilver Dragon), MTGJSON 2026-10-17 @ "
+                    "phase v0.104.0, 2026-10-24"
+                ),
+                pins=("Emissary of Grudges", "Meddle", "Quicksilver Dragon"),
+                gap=_redirect_parked,
+                match=_oracle_match(_SPELL_REDIRECT_RX),
+            ),
+            Bridge(
+                bridge_id="xspell_qualifier_parse_failure",
+                key="xspell_matters",
+                kind="upstream_parse_failure",
+                todo=(
+                    "upstream phase-rs report candidate (Dan posts): an {X}-spell "
+                    "cast trigger keeps a bare spell watcher (no HasXInManaCost) "
+                    "and parks the X clause — Unbound Flourishing's 'if that "
+                    "spell's mana cost … contains {X}' (unparsed_condition; its "
+                    "permanent-spell trigger parks only 'double the value of X'). "
+                    "Retires as phase types the watcher's predicate"
+                ),
+                census=(
+                    "1 hit / 32,046 commander-legal (Unbound Flourishing), MTGJSON "
+                    "2026-10-17 @ phase v0.104.0"
+                ),
+                pins=("Unbound Flourishing",),
+                gap=_x_qualifier_parked,
+                match=_oracle_match(_X_SPELL_RX),
+            ),
+            Bridge(
+                bridge_id="xspell_card_filter_dropped",
+                key="xspell_matters",
+                kind="dropped_clause",
+                todo=(
+                    "upstream phase-rs report candidate (Dan posts): 'a card with "
+                    "{X} in its mana cost' dropped from a card filter with no node "
+                    "— Paradox Surveyor's dig keeps only 'a land card', Scalar "
+                    "Scholar's perpetual grant reads every card you own. Retires "
+                    "on the bump that carries HasXInManaCost there"
+                ),
+                census=(
+                    "2 hits / 32,046 commander-legal (Paradox Surveyor, Scalar "
+                    "Scholar), MTGJSON 2026-10-17 @ phase v0.104.0"
+                ),
+                pins=("Paradox Surveyor", "Scalar Scholar"),
+                gap=_no_x_cost_filter,
+                match=_oracle_match(_X_CARD_RX),
+            ),
+            Bridge(
+                bridge_id="team_keyword_grant_misscoped_selfref",
+                key="team_buff",
+                kind="upstream_parse_failure",
+                todo=(
+                    "the moku_haste_grant_misscoped_selfref report (Dan posts), "
+                    "any keyword: 'gets +N/+N and creatures you control gain "
+                    "<keyword>' folds into one SelfRef def (Moku, Meandering "
+                    "Drummer's haste, Wargling's trample). Retires on the bump "
+                    "that splits the team grant into its own def"
+                ),
+                census=(
+                    "2 hits / 32,046 commander-legal (Moku, Meandering Drummer, "
+                    "Wargling; Optimus Prime, Inspiring Leader too, legal "
+                    "nowhere), MTGJSON 2026-10-17 @ phase v0.104.0"
+                ),
+                pins=("Moku, Meandering Drummer", "Wargling"),
+                gap=_team_grant_on_self,
+                match=_oracle_match(_TEAM_GAIN_KEYWORD_RX),
+            ),
+            Bridge(
+                bridge_id="team_keyword_grant_dropped",
+                key="team_buff",
+                kind="dropped_clause",
+                todo=(
+                    "upstream phase-rs report candidate (Dan posts): Tromp the "
+                    "Domains' 'creatures you control gain trample' leaves no node "
+                    "beside its PumpAll. Retires on the bump that types the grant"
+                ),
+                census=(
+                    "1 hit / 32,046 commander-legal (Tromp the Domains; "
+                    "Praetorhoof Behemoth too, legal nowhere), MTGJSON 2026-10-17 "
+                    "@ phase v0.104.0"
+                ),
+                pins=("Tromp the Domains",),
+                gap=_no_keyword_grant,
+                match=_oracle_match(_TEAM_GAIN_KEYWORD_RX),
+            ),
+            Bridge(
+                bridge_id="team_keyword_grant_parse_failure",
+                key="team_buff",
+                kind="upstream_parse_failure",
+                todo=(
+                    "upstream phase-rs report candidate (Dan posts): Tori "
+                    "D'Avenant's 'Other red attacking creatures you control gain "
+                    "trample until end of turn' parks as parked text. Retires on "
+                    "the bump that types the grant"
+                ),
+                census=(
+                    "1 hit / 32,046 commander-legal (Tori D'Avenant, Fury Rider), "
+                    "MTGJSON 2026-10-17 @ phase v0.104.0"
+                ),
+                pins=("Tori D'Avenant, Fury Rider",),
+                gap=_team_grant_parked,
+                match=_oracle_match(_TEAM_GAIN_KEYWORD_RX),
+            ),
+            Bridge(
+                bridge_id="team_keyword_grant_aftermath_face",
+                key="team_buff",
+                kind="missing_face",
+                todo=(
+                    "the W2c gap (ADR-0038): phase has no record for an aftermath "
+                    "half (Appeal // Authority's Authority, 'Creatures you "
+                    "control gain vigilance until end of turn'). Retires when the "
+                    "face gets a unit"
+                ),
+                census=(
+                    "1 hit / 32,046 commander-legal (Appeal // Authority), MTGJSON "
+                    "2026-10-17 @ phase v0.104.0"
+                ),
+                pins=("Appeal // Authority",),
+                gap=_text_only_face,
+                match=_oracle_match(_TEAM_GAIN_KEYWORD_RX),
             ),
         )
     }

@@ -2230,9 +2230,9 @@ def _land_protection_shield(tree: ConceptTree) -> list[Signal]:
     shroud to lands (Terra Eternal's "All lands have indestructible", Marwyn's
     "Lands you control have hexproof", Elspeth, Knight-Errant's emblem): what
     keeps a land-animation deck's creature-lands alive. A grant to an
-    opponent's lands is not."""
+    opponent's lands is not. The deep walk reaches an emblem's static."""
     for unit in tree.units:
-        for sdef, mod in iter_mod_sites(unit.node):
+        for sdef, mod in iter_mod_sites(unit.node, deep=True):
             if tag_of(mod) != "AddKeyword":
                 continue
             if mod_keyword_name(mod) not in _LAND_SHIELD_KEYWORDS:

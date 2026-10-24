@@ -476,6 +476,31 @@ def mana_spell_type_restriction(node: TypedMirrorNode) -> str:
     return ""
 
 
+def mana_spend_criteria(node: TypedMirrorNode) -> tuple[str, ...]:
+    """The bare criteria of a ``Mana`` effect's ``SpellMatchingCostCriteria``
+    restriction (CR 106.6): the spells its mana may be spent on, any one
+    sufficing — ``"HasXInCost"`` for Troyan, Gutsy Explorer's "spells with mana
+    value 5 or greater or spells with {X} in their mana costs" (the mana-value
+    criterion is a struct, not a string, and is left out)."""
+    rs = getattr(node, "restrictions", MISSING)
+    if not (_present(rs) and isinstance(rs, (list, tuple))):
+        return ()
+    out: list[str] = []
+    for r in rs:
+        if not (isinstance(r, MirrorVariant) and r.key == "SpellMatchingCostCriteria"):
+            continue
+        # A bare list (Troyan) or a struct beside a ``spell_type`` (Helga,
+        # Skittish Seer's "creature spells with …").
+        crit = r.inner
+        if isinstance(crit, MirrorVariant):
+            crit = crit.inner
+        elif isinstance(crit, TypedMirrorNode):
+            crit = getattr(crit, "criteria", None)
+        if isinstance(crit, (list, tuple)):
+            out.extend(c for c in crit if isinstance(c, str))
+    return tuple(out)
+
+
 def cost_mana_value(cost: object) -> int | None:
     """Mana value (CR 202.3) of a phase ``Cost`` node: its ``generic`` plus one per
     shard, an ``X`` shard counting 0 (CR 202.3e). ``None`` for anything else."""
@@ -3780,15 +3805,20 @@ def iter_nested_trigger_defs(node: object) -> Iterator[TypedMirrorNode]:
 # control with power 2 or less deals combat damage to a player, draw a
 # card" — the delayed ability's WATCHER trigger def, not co-located with
 # its top-level activated-ability unit.
-def iter_delayed_trigger_condition_defs(node: object) -> Iterator[TypedMirrorNode]:
+def iter_delayed_trigger_condition_defs(
+    node: object, *, next_event: bool = False
+) -> Iterator[TypedMirrorNode]:
     """Every trigger DEFINITION node reachable under ``node`` via a
     ``CreateDelayedTrigger`` effect's ``condition {WheneverEvent: trigger}``
-    watcher field."""
+    watcher field — with ``next_event`` the one-shot ``WhenNextEvent`` watcher
+    too ("When you next cast a spell with {X} in its mana cost this turn" —
+    Brass Infiniscope)."""
+    tags = ("WheneverEvent", "WhenNextEvent") if next_event else ("WheneverEvent",)
     for n in _iter_typed_nodes(node):
         if tag_of(n) != "CreateDelayedTrigger":
             continue
         cond = getattr(n, "condition", MISSING)
-        if not (isinstance(cond, TypedMirrorNode) and tag_of(cond) == "WheneverEvent"):
+        if not (isinstance(cond, TypedMirrorNode) and tag_of(cond) in tags):
             continue
         trig = getattr(cond, "trigger", MISSING)
         if isinstance(trig, TypedMirrorNode):

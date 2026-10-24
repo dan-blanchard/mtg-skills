@@ -250,15 +250,17 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
     # Zimone) is built from spells whose printed mana cost contains {X} and wants the
     # X-doublers / copy-the-X-spell payoffs (Unbound Flourishing). The serve credits
     # {X}-cost cards via the structured mana_cost dimension (the X-spells themselves)
-    # PLUS oracle X-payoffs. A broad but genuinely on-theme pool — an X deck wants the
-    # universe of X-spells, so breadth here is coverage, not noise.
+    # PLUS the X-payoffs (xspell_matters). A broad but genuinely on-theme pool — an X
+    # deck wants the universe of X-spells, so breadth here is coverage, not noise.
     ("xspell_matters", "you"): _spec(
         "X spells",
         "X-spells (cards with {X} in their cost) plus the X-doublers and "
         "copy-the-X-spell payoffs an X-matters deck is built around",
-        r"\{x\} in (?:its|their) (?:mana )?cost"
-        r"|cost (?:that )?contains? \{x\}"
-        r"|spells? you cast with \{x\}",
+        # The X payoffs are the lane's own ident (a cast watcher or a card filter
+        # on {X} costs, mana spent only on them; the phase drops bridged): the
+        # old "{X} in its cost" pattern also took the X hosers (Gaddock Teeg,
+        # Frontline Medic, Titans' Nest).
+        None,
         serve_mana_cost=r"\{X\}",
         # task B-6: the X-DOUBLERS the avenue text always promised, delivered
         # structurally — a mana amplifier (Mana Reflection, Nyxbloom Ancient,
@@ -269,7 +271,7 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
         # generators serve the X lane, never the sinks lane. Symmetric
         # doublers (Mana Flare) ride too — on-theme for an X deck, which
         # spends the shared mana better.
-        serve_idents=frozenset({"mana_amplifier|you|"}),
+        serve_idents=frozenset({"xspell_matters|you|", "mana_amplifier|you|"}),
     ),
     # Theft (steal an OPPONENT's cards and cast them): serve credits the opponent-
     # library dig (Gonti, Black Cat, Thief of Sanity) and the steal-and-cast engines

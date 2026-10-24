@@ -222,10 +222,11 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   the payoff test off the unit itself would drop both text alignments, and
   would give a role to the hits no single ability emits (a keyword's lifelink,
   Crucible of Worlds' whole-card ident, a modal spell's text-less mode), which
-  still score structural. Seven serves a theme pages by still carry an oracle
-  arm (``xspell_matters``, ``team_buff``, ``self_etb_payload``,
-  ``permanent_etb``, ``target_redirect``, ``spell_redirect``,
-  ``land_protection`` — Pass D's list): their page is partly a pattern. Since
+  still score structural. Three serves a theme pages by still carry an oracle
+  arm (``self_etb_payload``, ``permanent_etb``, ``land_protection`` — the Pass
+  D entry says why each held); their page is partly a pattern.
+  ``xspell_matters``, ``team_buff``, ``target_redirect`` and ``spell_redirect``
+  read idents only since 2026-10-24. Since
   2026-10-24 an IR hit takes its role from its emitting unit where the unit
   decides one (``ranking._unit_role``: a replacement emitting the lane's ident is
   a payoff — Anointed Procession, Parallel Lives, Hardened Scales; a
@@ -269,17 +270,31 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
 
 - **Pass D: the serves still on a regex** (2026-10-23;
   `docs/plans/serve-idents-and-avenue-support.md` "Pass D"; each spec's comment
-  names its remainder). Regex-only: `self_etb_payload` (a bounce-to-replay engine
-  — Whitemane Lion, Kor Skyfisher — has no ident; a your-own subject on
-  `bounce_tempo` would serve it), `permanent_etb` (its regex is every "when ~
-  enters"; the ident union leaves about a thousand cards, mostly reanimation and
-  land puts, a judgement call), `land_protection` (the shield subject alone is
-  half the regex; Tomik's static is Unimplemented), `ability_strip_payoff` (the
-  crippling-drawback text beside a power floor; no lane reads a drawback a strip
-  turns off). Regex beside idents: `xspell_matters` (an "{X} in its cost" payoff
-  has no ident; `mana_amplifier` covers the doublers), `team_buff` (the static
-  team keyword grants the lane's subjects don't all reach), `target_redirect` /
-  `spell_redirect` (redirect wordings beside the lane's ident). Lane
+  names its remainder). Regex-only, measured again 2026-10-24 over the legal
+  corpus: `self_etb_payload` (the blink-enabler and reanimation idents —
+  `blink_flicker|you|enabler`, `creature_recursion|you|battlefield` / `mass` —
+  page 713 cards to the regex's 747, but a bounce-to-replay engine (Whitemane
+  Lion, Kor Skyfisher) carries only the 2,034-card `blink_flicker|you|`, and a
+  your-own subject on `bounce_tempo` would leak into the key-level `bounce`
+  preset, which excludes self-bounce; artifact reanimation, Argivian
+  Restoration, has no ident either), `permanent_etb` (the regex pages 8,596
+  cards, every "when ~ enters" and token maker; the ident union — token makers,
+  self-ETB payloads, blink enablers, reanimation, land puts — pages 7,174 and
+  drops 1,953, the resource-token makers and cheats each a key of its own: the
+  serve's breadth is the open call, not a lane), `land_protection` (the shield
+  subject pages 9 cards to the regex's 19 — the regex's other ten are the
+  animators themselves and land recursion, Sacred Ground and Soul of Windgrace,
+  which no key carries apart from `landfall|you|`; Tomik's static is
+  Unimplemented. The shield read reaches an emblem since 2026-10-24),
+  `ability_strip_payoff` (the crippling-drawback text beside a power floor; no
+  lane reads a drawback a strip turns off). `xspell_matters`, `team_buff`,
+  `target_redirect` and `spell_redirect` dropped their regex 2026-10-24: the X
+  lane reads a delayed cast watcher and mana spend criteria
+  (`crosswalk.mana_spend_criteria`), the team serve reads `anthem_static|you|`
+  beside the team grants (its one-shot-pump veto went: it vetoed team keyword
+  grants beside a pump, Family Reunion), and seven ledger rows bridge the phase
+  drops (`spell_redirect_parse_failure`, `xspell_*`, `team_keyword_grant_*`).
+  Lane
   follow-ups the pass found: a `(key, subject)` role table that
   `DOER_SUBJECTS`, `MEMBERSHIP_SUBJECTS`, the pair reads' wildcards and the presets
   all read (today each reads its own set); an `attack_trigger_side` crosswalk read

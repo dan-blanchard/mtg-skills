@@ -44,6 +44,7 @@ from mtg_utils.testkit import test_card, test_phase_records, test_signals
 _MISSING_FACE_PINS = {
     "Insult // Injury": "Injury",
     "Driven // Despair": "Despair",
+    "Appeal // Authority": "Authority",
     "Tomb of Annihilation": "Tomb of Annihilation",
 }
 
@@ -248,6 +249,9 @@ _MISPARSE_ROWS = {
     ),
     "moku_haste_grant_misscoped_selfref": (
         "the haste grant to OTHER creatures parsed as a SelfRef static def"
+    ),
+    "team_keyword_grant_misscoped_selfref": (
+        "a team keyword grant parsed into the card's own SelfRef pump def"
     ),
     "global_ruin_tracked_set_sacrifice": (
         "the sacrifice of the unchosen lands parsed as Sacrifice{TrackedSet, 1}"

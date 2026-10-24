@@ -20,7 +20,6 @@ from ._shared import (
     _IC,
     _LANDS_FROM_GRAVE_EXTRA,
     _PILLOWFORT_IDENTS,
-    _REDIRECT_SERVE_ORACLE,
     Serve,
     SignalSpec,
     SubAvenue,
@@ -200,10 +199,11 @@ SPECS_4: dict[tuple[str, str], SignalSpec] = {
         "Target redirection",
         "redirect an opponent's spell onto a cheap permanent (still triggers, stays "
         "safe)",
-        # task B-4: the choose-new-targets-for-target template (Deflecting
-        # Swat, Wild Ricochet) was a verified serve gap; Fork's "for the
-        # copy" cannot match the \btarget\b-anchored form (CR 707.10c).
-        _REDIRECT_SERVE_ORACLE,
+        # The redirect instruments the spell_redirect lane reads (a ChangeTargets
+        # of a stack object, CR 115.7; a spell thief), the residues phase parks
+        # bridged (``spell_redirect_parse_failure``). Fork's retarget of its copy
+        # is spell_copy_makers' (CR 707.10c).
+        None,
         serve_idents=frozenset({"spell_redirect|you|"}),
     ),
     # task B-4: the DOER side (split from the payoff key above per the
@@ -213,7 +213,8 @@ SPECS_4: dict[tuple[str, str], SignalSpec] = {
         "Spell redirection",
         "redirect effects that turn opponents' targeted spells into blowouts "
         "or protection (Wild Ricochet, Bolt Bend)",
-        _REDIRECT_SERVE_ORACLE,
+        # The lane's own ident, as target_redirect above.
+        None,
         serve_idents=frozenset({"spell_redirect|you|"}),
     ),
     # Free-spell storm (Thrasta): cost drops per spell cast this turn, so it wants FREE

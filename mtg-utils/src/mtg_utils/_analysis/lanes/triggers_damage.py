@@ -69,6 +69,7 @@ from mtg_utils._card_ir.crosswalk import (
     iter_unit_trigger_defs,
     keyword_subject,
     mana_restrictions,
+    mana_spend_criteria,
     mod_keyword_name,
     named_permanent_refs,
     normalised_keyword,
@@ -91,9 +92,11 @@ from mtg_utils._card_ir.crosswalk import (
     static_mode_tag,
     static_reveal_who,
     tag_of,
+    trigger_caster_scope,
     trigger_constraint_n,
     trigger_constraint_tag,
     trigger_damage_kind,
+    trigger_def_event,
     trigger_subject_scope,
     unit_keyword_grants,
     watches_itself,
@@ -1103,14 +1106,29 @@ def _xspell_matters(tree: ConceptTree) -> list[Signal]:
     this mana only on costs that contain {X}"). A spell that merely HAS {X}
     in its own cost (Hydroid Krasis — a SelfRef cast watcher, no predicate)
     never fires. Scope "you".
+
+    The same watcher as a delayed trigger ("When you next cast a spell with {X}
+    in its mana cost this turn" — Brass Infiniscope, Magus Lucea Kane), and mana
+    whose spend criteria name {X} costs ("Spend this mana only to cast spells
+    with mana value 5 or greater or spells with {X} in their mana costs" —
+    Troyan, Gutsy Explorer) fire too. A watcher another player's spell trips
+    (Frontline Medic's counter) or a lock (Gaddock Teeg) is no X payoff.
     """
     for unit in tree.units:
-        if unit.origin == "trigger" and unit.trigger_event == "cast_spell":
-            vc = getattr(unit.node, "valid_card", None)
+        watchers = [unit.node] if unit.origin == "trigger" else []
+        watchers += iter_delayed_trigger_condition_defs(unit.node, next_event=True)
+        for trig in watchers:
+            if trigger_def_event(trig) != "cast_spell":
+                continue
+            if trigger_caster_scope(trig) == "opponents":
+                continue
+            vc = getattr(trig, "valid_card", None)
             if "HasXInManaCost" in filter_predicates(vc):
                 return [Signal("xspell_matters", "you", "", "", tree.name, "high")]
         for c in unit.effect_concepts("ramp"):
-            if "XCostOnly" in mana_restrictions(c.node):
+            if "XCostOnly" in mana_restrictions(
+                c.node
+            ) or "HasXInCost" in mana_spend_criteria(c.node):
                 return [Signal("xspell_matters", "you", "", c.raw, tree.name, "high")]
     return []
 

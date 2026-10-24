@@ -940,21 +940,20 @@ SPECS_3: dict[tuple[str, str], SignalSpec] = {
         None,
         serve_idents=frozenset({"counter_control|you|"}),
     ),
-    # The bare `… (gain|have)` tail matched any "creatures you control gain/have X". Tie
-    # it to the actual keyword-grant list or a static (+N/+N, not "until end of turn")
-    # anthem, so a one-shot pump or a non-keyword clause doesn't read as a team grant.
+    # Team keyword grants and static anthems, read off the cards' idents: a one-shot
+    # pump or a non-keyword clause doesn't read as a team grant.
     ("team_buff", "you"): _spec(
         "Team keyword grants",
         "keyword grants and anthems for your board",
-        r"creatures? you control (?:gain|gains|have|has) (?:flying|trample|menace"
-        r"|hexproof|indestructible|protection|deathtouch|lifelink|double strike"
-        r"|first strike|vigilance|haste|ward|reach)"
-        r"|creatures you control get \+\d+/\+\d+",
-        # The lane's team grants, whatever the keyword (its subject): the grants
-        # the regex's list or wording misses (Rafiq's double strike to a lone
-        # attacker, Akroma's Will's modes).
-        serve_idents=frozenset({"team_buff|you|*"}),
-        serve_not=r"creatures you control get \+\d+/\+\d+ until end of turn",
+        # The lane's team keyword grants, whatever the keyword (its subject;
+        # Rafiq's double strike to a lone attacker, Akroma's Will's modes, the
+        # grants phase misparses bridged), and the static anthems
+        # (anthem_static). A one-target grant ("target creature you control
+        # gains lifelink" — Alabaster Mage), a tribe's lord and a one-shot pump
+        # are no team buff; a one-shot team keyword grant beside a pump (Family
+        # Reunion, Overwhelming Encounter) is.
+        None,
+        serve_idents=frozenset({"team_buff|you|*", "anthem_static|you|"}),
     ),
     # lf_ramp (2026-07-13): land-fetch-to-battlefield is RAMP, not tutor —
     # the serve side must not surface Rampant Growth / Cultivate / Nature's

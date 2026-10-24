@@ -12,6 +12,7 @@ import pytest
 from mtg_utils._analysis import signal_specs
 from mtg_utils._analysis.signal_specs import (
     _CHOSEN_TYPE_IDENTS,
+    SPECS,
     Serve,
     page_serve,
     search_filters,
@@ -177,6 +178,43 @@ def test_target_redirect_serves_spell_redirect():
     assert serves(misdirection, sig) is True
     lightning_bolt = _card("Lightning Bolt")
     assert serves(lightning_bolt, sig) is False
+    # Meddle's "change that spell's target to another creature" parks as a phase
+    # residue; the ledger bridge carries the ident the serve reads.
+    assert serves(_card("Meddle"), sig) is True
+    assert serves(_card("Meddle"), _sig("spell_redirect", "you")) is True
+
+
+def test_ident_serves_drop_their_oracle_arm():
+    # xspell_matters, team_buff, target_redirect and spell_redirect page by the
+    # lanes' idents alone (backlog (o), 2026-10-24).
+    for key in ("xspell_matters", "team_buff", "target_redirect", "spell_redirect"):
+        serve = SPECS[(key, "you")].serve
+        assert serve.oracle is None, key
+        assert serve.not_oracle is None, key
+
+
+@pytest.mark.parametrize(
+    ("name", "served"),
+    [
+        ("Glorious Anthem", True),  # a static anthem (anthem_static)
+        # a one-shot team hexproof beside a one-shot pump
+        ("Family Reunion", True),
+        # "creatures you control gain haste" folded into Moku's own pump def by
+        # phase; bridged
+        ("Moku, Meandering Drummer", True),
+        # "Target creature you control gains lifelink": one creature, no team
+        ("Alabaster Mage", False),
+    ],
+)
+def test_team_buff_serves_team_grants_and_anthems(name, served):
+    assert serves(_card(name), _sig("team_buff", "you")) is served
+
+
+def test_xspell_serve_drops_the_x_hosers():
+    sig = _sig("xspell_matters", "you")
+    assert serves(_card("Gaddock Teeg"), sig) is False  # X spells can't be cast
+    assert serves(_card("Frontline Medic"), sig) is False  # counters an X spell
+    assert serves(_card("Brass Infiniscope"), sig) is True  # X-spell payoff
 
 
 def test_free_spell_storm_serves_zero_cost_nonland_spells():

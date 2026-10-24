@@ -1541,15 +1541,3 @@ def _chosen_type_named_idents(subjects: tuple[str, ...]) -> frozenset[str]:
         for scope in ("you", "each")
         for subject in subjects
     )
-
-
-# The redirect-instrument idiom set (task B-4), shared by the target_redirect
-# payoff spec and the spell_redirect doer spec — one home (verified-review
-# F9), so widening an alternate can never split the two specs.
-_REDIRECT_SERVE_ORACLE = (
-    r"change (?:a|the) target of target spell or ability"
-    r"|change (?:the|a) target of target spell"
-    r"|change (?:that|the) spell'?s target to"
-    r"|new target.{0,30}this (?:creature|permanent)"
-    r"|choose new targets for target\b"
-)
