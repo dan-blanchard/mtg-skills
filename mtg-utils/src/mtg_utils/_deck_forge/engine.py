@@ -1605,8 +1605,9 @@ def has_user_filters(params: FindParams) -> bool:
 
 def refine_filters(base: dict, params: FindParams) -> dict:
     """Merge the user's narrowing filters onto a focused avenue's card_search kwargs.
-    The avenue owns the oracle (its lane definition), so user ``oracle`` is deliberately
-    not merged — name/type/color/cmc/price AND on top to refine the lane's pool."""
+    The avenue owns its page (its serve, or a type / preset override), so a user
+    ``oracle`` is deliberately not merged — name/type/color/cmc/price AND on top to
+    refine the lane's pool."""
     out = dict(base)
     if params.name:
         out["name"] = params.name

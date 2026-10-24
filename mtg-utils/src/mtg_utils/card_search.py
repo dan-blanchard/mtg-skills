@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import re
+import threading
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -338,25 +339,21 @@ def _playable_pool(
     )
     pool = _POOL_CACHE.get(key)
     if pool is None:
-        # Reuse _matches_filters with the per-query filters disabled so the
-        # format-invariant predicate stays in ONE place — this runs exactly the
-        # layout / set_type / legality / games checks.
+        # The format-invariant part of the gate (no color identity, no set): the
+        # layout / set_type / legality / games checks, in ONE place.
+        unreleased = unreleased_ok or frozenset()
         pool = [
             c
             for c in cards
-            if _matches_filters(
+            if _passes_gate(
                 c,
                 allowed_colors=None,
-                oracle_re=None,
-                type_lower=None,
-                cmc_min=None,
-                cmc_max=None,
-                price_min=None,
-                price_max=None,
+                exact_colors=False,
                 fmt=fmt,
                 arena_only=arena_only,
                 paper_only=paper_only,
-                unreleased_ok=unreleased_ok,
+                unreleased=unreleased,
+                set_lower=None,
             )
         ]
         _POOL_CACHE[key] = pool
@@ -435,10 +432,13 @@ class _GateKey:
 # themes and roles over one pool in one identity, and each page used to re-run
 # the gate — layout, legality, game, color identity — over the whole pool (~100k
 # printings). The gate is a pure predicate of the card, so a page over the
-# memoized slice keeps the same cards in the same order. Bounded: the oldest
-# entry goes first.
+# memoized slice keeps the same cards in the same order. A records list must not
+# be mutated while it is searched (no caller does: the bulk path pages the cached
+# playable pool, a pool-bounded build a fresh list per request). Bounded, the
+# oldest entry first, and locked: the hub's Find and Tune run in a thread pool.
 _GATE_CACHE: dict[tuple[int, int, _GateKey], tuple[Sequence[dict], list[dict]]] = {}
 _GATE_CACHE_MAX = 16
+_GATE_LOCK = threading.Lock()
 
 
 def _gated(records: Sequence[dict], gate: _GateKey, *, fmt: Format) -> list[dict]:
@@ -462,9 +462,10 @@ def _gated(records: Sequence[dict], gate: _GateKey, *, fmt: Format) -> list[dict
             set_lower=gate.set_lower,
         )
     ]
-    if len(_GATE_CACHE) >= _GATE_CACHE_MAX:
-        del _GATE_CACHE[next(iter(_GATE_CACHE))]
-    _GATE_CACHE[key] = (records, passed)
+    with _GATE_LOCK:
+        while len(_GATE_CACHE) >= _GATE_CACHE_MAX:
+            del _GATE_CACHE[next(iter(_GATE_CACHE))]
+        _GATE_CACHE[key] = (records, passed)
     return passed
 
 

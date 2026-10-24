@@ -1307,3 +1307,29 @@ def test_a_serve_keeps_the_cards_a_theme_admits():
         cards, fmt=FORMATS["commander"], serve=Serve(keywords=frozenset({"defender"}))
     )
     assert [c["name"] for c in kept] == ["Wall of Omens"]
+
+
+def test_filter_records_memoizes_the_gate_per_records_list():
+    """``filter_records`` keeps the records a search context's gate passes, per
+    records list: a second page over the same list reads the memo, a different
+    identity is a different entry, and the memo stays bounded."""
+    import mtg_utils.card_search as cs
+
+    cs._GATE_CACHE.clear()
+    cards = [
+        _make_card(name="Red One", color_identity=["R"]),
+        _make_card(name="Blue One", color_identity=["U"]),
+    ]
+    fmt = FORMATS["commander"]
+    red = filter_records(cards, fmt=fmt, color_identity="R")
+    assert [c["name"] for c in red] == ["Red One"]
+    assert len(cs._GATE_CACHE) == 1
+    assert filter_records(cards, fmt=fmt, color_identity="R") == red
+    assert len(cs._GATE_CACHE) == 1  # the same gate read the memo
+    blue = filter_records(cards, fmt=fmt, color_identity="U")
+    assert [c["name"] for c in blue] == ["Blue One"]
+    assert len(cs._GATE_CACHE) == 2
+    for _ in range(cs._GATE_CACHE_MAX + 3):
+        filter_records(list(cards), fmt=fmt, color_identity="R")
+    assert len(cs._GATE_CACHE) <= cs._GATE_CACHE_MAX
+    cs._GATE_CACHE.clear()

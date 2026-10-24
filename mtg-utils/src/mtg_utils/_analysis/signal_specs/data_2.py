@@ -209,7 +209,6 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
                 "storm spells that a cheap, chained turn of discounted spells "
                 "copies many times (Grapeshot, Tendrils of Agony, Mind's Desire)",
                 serve=Serve(keywords=frozenset({"storm"})),
-                search={"keyword": "storm"},
             ),
         ),
     ),
@@ -712,7 +711,6 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
                 serve=Serve(signal_idents=_FLYING_GRANT_IDENTS),
             ),
         ),
-        search={"card_type": "Creature", "keyword": "flying"},
     ),
     # A reclaim-OWNED commander (Meneldor, The Neutrinos) profits from control-EXCHANGE:
     # donate a dud you own, take their bomb, then reclaim your dud (you still own it).

@@ -250,11 +250,12 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   147 → 107 s (payload byte-identical), a warm Blood Rites tune 15.6 → 12.5 s
   (profiled: attribution 9.1 → 0 s). A tune's first sight of a candidate still
   pays its attribution (about 9 ms a card). `card_search.filter_records`
-  memoizes each search context's gate (layout, legality, game, color identity:
-  `_gated`, per records list), so a tune's 17 pages scan the in-identity slice,
+  memoizes each search context's gate (`_gated`, per records list; on the bulk
+  path the playable pool already holds layout, legality and game, so the saving is
+  the color-identity and set cut), so a tune's 17 pages scan the in-identity slice,
   not the ~100k-printing pool: 5.3 → 1.9 s of a profiled Blood Rites tune
-  (18.5 → 14.9 s), warm tunes 13.7–17.1 → 11.2–12.3 s, swaps byte-identical
-  on five precons. A per-serve slice memo measured no gain (two serve pages a
+  (18.5 → 14.9 s), warm tunes 13.7–17.1 → 11.2–12.3 s, swaps and guide matches
+  unchanged on all 25 precons. A per-serve slice memo measured no gain (two serve pages a
   tune). Left, by size: `signals_index.signal_source_files` walks the 214
   modules' ASTs twice a process (2.6 s) to key the sidecar, and the pages' own
   filters (presets, serves) over the slice (1.6 s).
