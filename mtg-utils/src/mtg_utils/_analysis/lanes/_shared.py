@@ -35,6 +35,7 @@ from mtg_utils._card_ir.crosswalk import (
     trigger_subject_scope,
     walk_effect_chain,
 )
+from mtg_utils._card_ir.crosswalk.reads import chooses
 from mtg_utils._card_ir.mirror.runtime import (
     MISSING,
     MirrorVariant,
@@ -746,7 +747,7 @@ def _choose_opponent_bound_discard(unit: AbilityUnit) -> object | None:
     """
     root = getattr(unit, "node", None)
     eff = getattr(root, "effect", None)
-    if tag_of(eff) != "Choose" or getattr(eff, "choice_type", None) != "Opponent":
+    if not chooses(eff, "Opponent"):
         return None
     sub = getattr(root, "sub_ability", None)
     return getattr(sub, "effect", None) if sub is not None else None

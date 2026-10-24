@@ -95,6 +95,7 @@ from mtg_utils._card_ir.crosswalk import (
     trigger_subject,
     trigger_subject_scope,
 )
+from mtg_utils._card_ir.crosswalk.reads import Choice, choice_of, strips_abilities
 from mtg_utils._card_ir.mirror.runtime import (
     MISSING,
     TypedMirrorNode,
@@ -1374,8 +1375,9 @@ def _single_target_neutralize(tree: ConceptTree) -> list[Signal]:
       answer-shaped subset on its own).
 
     Structural arm: an ``EnchantedBy``/``EquippedBy``-affected static site
-    that sets the object's card types without Creature (Song of the Dryads,
-    Imprisoned in the Moon — :func:`_neutralizing_mod`) or whose ``SetPower``
+    that sets the object's card types without Creature and strips its
+    abilities (Song of the Dryads, Imprisoned in the Moon —
+    :func:`_neutralizing_mod`) or whose ``SetPower``
     value is <= 1 (the neutralize tell — power decides
     whether the threat still attacks; Lignify's 0/4 and Deep Freeze's 0/4
     keep firing on power, while Kenrith's Transformation's 3/3 Elk and Eye
@@ -1401,7 +1403,7 @@ def _single_target_neutralize(tree: ConceptTree) -> list[Signal]:
             ):
                 continue
             for m in getattr(node, "modifications", None) or ():
-                if _neutralizing_mod(m):
+                if _neutralizing_mod(m, node):
                     return [
                         Signal(
                             "single_target_neutralize",
@@ -1415,17 +1417,24 @@ def _single_target_neutralize(tree: ConceptTree) -> list[Signal]:
     return []
 
 
-def _neutralizing_mod(m: object) -> bool:
-    """A modification on the attached object that neutralizes it: a base power
-    set to 1 or less, or a card-type set without Creature — the new type
-    replaces the old (CR 205.1a, layer 4: CR 613.1d), so Song of the Dryads'
-    and Imprisoned in the Moon's land is no creature at all."""
+def _neutralizing_mod(m: object, static_def: object) -> bool:
+    """A modification of ``static_def`` on the attached object that neutralizes
+    it: a base power set to 1 or less, or a card-type set without Creature — the
+    new type replaces the old (CR 205.1a, layer 4: CR 613.1d), so Song of the
+    Dryads' and Imprisoned in the Moon's land is no creature at all — when the
+    static also strips the object's abilities (:func:`strips_abilities`). A
+    retype that keeps them is a dual-use Aura, as often on your own creature as
+    an answer: One with the Stars' enchantment and Swift Reconfiguration's
+    Vehicle (crewed back into a creature) keep every ability, per their
+    rulings."""
     if not isinstance(m, TypedMirrorNode):
         return False
     tag = tag_of(m)
     if tag == "SetCardTypes":
         retyped = getattr(m, "core_types", None) or ()
-        return bool(retyped) and "Creature" not in retyped
+        return (
+            bool(retyped) and "Creature" not in retyped and strips_abilities(static_def)
+        )
     if tag == "SetPower":
         v = mod_value(m)
         return v is not None and v <= 1
@@ -1696,30 +1705,20 @@ def _chosen_type_serve_statics(tree: ConceptTree) -> list[tuple[str, str]]:
 _NON_CREATURE_TYPE_CHOICES = frozenset({"CardType", "LandType"})
 
 
-def _choices(tree: ConceptTree) -> list[tuple[str, tuple[str, ...]]]:
-    """Every ``Choose`` effect on the tree as (what it chooses, the listed
-    options): ``("CreatureType", ())`` for an open choice (Door of Destinies),
+def _choices(tree: ConceptTree) -> list[Choice]:
+    """Every ``Choose`` effect on the tree (:func:`choice_of`):
+    ``("CreatureType", ())`` for an open choice (Door of Destinies),
     ``("CreatureType", ("Elemental", …))`` for a listed one (Dawn-Blessed
-    Pennant), ``("CardType", ("Artifact", …))`` for Cloud Key. Phase carries an
-    open choice as a bare tag and a listed one as a keyed variant."""
-    out: list[tuple[str, tuple[str, ...]]] = []
-    for unit in tree.units:
-        for eff in getattr(unit, "effects", None) or ():
-            choice = getattr(getattr(eff, "node", None), "choice_type", None)
-            if choice is None:
-                continue
-            if isinstance(choice, str):
-                out.append((choice, ()))
-                continue
-            listed = getattr(getattr(choice, "inner", None), "inner", None)
-            options = tuple(str(t) for t in listed) if isinstance(listed, list) else ()
-            out.append((str(getattr(choice, "key", "")), options))
-    return out
+    Pennant), ``("CardType", ("Artifact", …))`` for Cloud Key."""
+    return [
+        choice
+        for unit in tree.units
+        for eff in getattr(unit, "effects", None) or ()
+        if (choice := choice_of(getattr(eff, "node", None))) is not None
+    ]
 
 
-def _chosen_type_options(
-    choices: list[tuple[str, tuple[str, ...]]],
-) -> tuple[str, ...] | None:
+def _chosen_type_options(choices: list[Choice]) -> tuple[str, ...] | None:
     """The creature types a RESTRICTED chooser may pick (Dawn-Blessed Pennant:
     "choose Elemental, Elf, …, or Treefolk"); ``None`` for an open choice
     ("choose a creature type": Door of Destinies) or when no creature-type

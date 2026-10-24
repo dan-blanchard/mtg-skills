@@ -12,7 +12,9 @@ from __future__ import annotations
 
 import pytest
 
-from mtg_utils.testkit import test_phase_records, test_signals
+from mtg_utils._card_ir.crosswalk.reads import Choice, choice_of
+from mtg_utils._card_ir.trees import trees_for
+from mtg_utils.testkit import test_card, test_phase_records, test_signals
 
 
 def _idents(name: str) -> set[tuple[str, str, str]]:
@@ -176,3 +178,34 @@ def test_draw_matters_reads_your_draw_step_extra_draws(name):
 )
 def test_draw_matters_skips_punishers_and_other_players_draws(name):
     assert not _of(name, "draw_matters")
+
+
+# ── choice_of: the one read of a Choose effect ───────────────────────────────
+
+
+def _choices(name: str) -> set[Choice]:
+    test_signals(name)  # seeds the trees from the snapshot's phase records
+    return {
+        choice
+        for tree in trees_for(test_card(name))
+        for node in tree.iter_typed()
+        if (choice := choice_of(node)) is not None
+    }
+
+
+@pytest.mark.parametrize(
+    ("name", "kind"),
+    [
+        ("Door of Destinies", "CreatureType"),  # an open choice
+        ("Fervent Mastery", "Opponent"),  # "an opponent discards …"
+        ("Garth One-Eye", "CardName"),  # a copy of the card with the chosen name
+    ],
+)
+def test_choice_of_reads_what_a_choose_effect_chooses(name, kind):
+    assert Choice(kind) in _choices(name)
+
+
+def test_choice_of_lists_a_restricted_choices_options():
+    (pennant,) = _choices("Dawn-Blessed Pennant")
+    assert pennant.kind == "CreatureType"
+    assert {"Elemental", "Elf", "Treefolk"} <= set(pennant.options)

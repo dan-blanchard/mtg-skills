@@ -90,6 +90,7 @@ from mtg_utils._card_ir.crosswalk import (
     trigger_counter_filter,
     trigger_subject_scope,
 )
+from mtg_utils._card_ir.crosswalk.reads import names_attached_object, strips_abilities
 from mtg_utils._card_ir.mirror.runtime import (
     MISSING,
     MirrorVariant,
@@ -1097,6 +1098,12 @@ def granted_mana_defs(
     naming who else receives it (Citanul Hierophants' "Creatures you
     control", Joiner Adept's "Lands you control").
 
+    A grant that rides a neutralize (:func:`_neutralizes_attached` —
+    Imprisoned in the Moon's "colorless land with '{T}: Add {C}' and loses all
+    other card types and abilities") is no mana of yours: the Aura answers the
+    permanent it enchants, usually an opponent's, and only that permanent's
+    controller can activate its abilities (CR 602.2).
+
     ADR-0039 W7: the ``is_mana_ability`` flag alone under-serves — it is
     ``MISSING`` (not True) for a granted ability that structurally produces
     mana but fails CR 605.1a's own "doesn't require a target" clause (Bigger
@@ -1112,6 +1119,8 @@ def granted_mana_defs(
     for unit in tree.units:
         for sdef in iter_static_defs(unit.node):
             aff = getattr(sdef, "affected", None)
+            if _neutralizes_attached(sdef):
+                continue
             for m in getattr(sdef, "modifications", None) or []:
                 tag = tag_of(m)
                 if tag == "GrantAbility":
@@ -1142,9 +1151,22 @@ def granted_mana_defs(
 # AddSubtype(Treasure) static hits share the identical quoted text), so
 # reading the AddSubtype(Treasure) modification itself as ramp evidence is
 # a safe, bounded nested-descent read, not a whole-card regex guess.
+def _neutralizes_attached(static_def: object) -> bool:
+    """Whether a static strips the abilities of the object its Aura or
+    Equipment is attached to (:func:`strips_abilities` over
+    :func:`names_attached_object` — Imprisoned in the Moon, Minimus
+    Containment, Song of the Dryads): an answer to that permanent, whose new
+    mana ability its controller taps (CR 602.2), never your ramp."""
+    return names_attached_object(
+        getattr(static_def, "affected", None)
+    ) and strips_abilities(static_def)
+
+
 def _has_animate_treasure_grant(tree: ConceptTree) -> bool:
     for unit in tree.units:
         for sdef in iter_static_defs(unit.node):
+            if _neutralizes_attached(sdef):
+                continue  # Minimus Containment's Treasure is the enchanted one
             for m in getattr(sdef, "modifications", None) or []:
                 if tag_of(m) == "AddSubtype" and getattr(m, "subtype", None) == (
                     "Treasure"

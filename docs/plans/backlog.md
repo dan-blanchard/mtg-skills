@@ -93,21 +93,6 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   Artifacts serve still counts its tokens as depth. An enchantment-token
   maker (a Role maker) still emits `enchantments_matter`, the same
   doer-under-payoff shape the artifact side just lost.
-  (c) **Gaps behind the interaction role** (the phase ones: report upstream,
-  Dan posts). With `direct_damage` out of the `removal` preset and the
-  `removal` lane firing on burn that can reach a permanent (+810 cards; the
-  role lost 592 player-only punishers and gained 26 real removals), what the
-  role now misses: mass planeswalker damage — "each opponent and each
-  planeswalker they control" (Cavalier of Flame, Kumano Faces Kakkazan,
-  Omnath, Locus of Creation) — a `mass_removal` lane gap; sweeps nested in a
-  coin flip, a granted ability or a dies trigger (Winter Sky, Noxious Field,
-  Volatile Rig), the same lane; real removal whose creature half phase drops
-  — Mob Verdict, Chandra's Flame Wave, Path of Mettle ("each creature"),
-  Cragganwick Cremator ("player or planeswalker"), Unstable Footing (its
-  target), Ian the Reckless ("you and any target" recovered only as a
-  residue); Flames of the Blood Hand, Insult // Injury, Kaboom!, Tetsuo parse
-  no damage at all (their `direct_damage` is a ledgered bridge). One false
-  positive: Monsoon's "tap all Islands" filter reads as a permanent target.
   (d) **Text-mirror leftovers behind the payoff lanes.** The three `_matters`
   text mirrors (artifacts / enchantments / the cast arm) run over oracle
   clauses minus a string match against an animating static's description
@@ -180,19 +165,17 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   upgrade slots before too: Daybreak Coronet, Angelic Destiny, Ancestral Mask and
   Snake Umbra, none of them a guide cut. Its Equipment picks also run past the
   guides' Boots and Greaves to Sword of the Animist and Bone Saw.
-  (n) **Lane follow-ups from the 2026-10-19 lane fixes.** A `choice_type` read
-  is written five times (`_shared.py`, `counters_voltron.py`,
-  `triggers_damage.py`, `graveyard_lifeloss.py`, `core_makers._choices`) and
-  wants one crosswalk read. A card with both a creature-type and a card-type
-  Choose still fires `chosen_type_matters` (phase doesn't link a marker to its
-  Choose). The bounce arm's graveyard-recall gate reads dies triggers only;
-  a discard or leaves-the-battlefield trigger returning the card itself is the
-  same recall. With `bounce_tempo` no longer firing on self-returns, check
-  whether `roles._ir_recursion_only` (a consumer-side veto on the compat IR)
-  still catches anything. The type-set neutralize arm also admits dual-use
-  Auras (Swift Reconfiguration, often cast on your own creature; One with the
-  Stars), and Imprisoned in the Moon and Minimus Containment still read as
-  `ramp` (the enchanted permanent, usually an opponent's, taps for mana).
+  (n) **Lane follow-ups, what's left** (2026-10-23). A TARGETED Treasure
+  conversion still reads `ramp` (Vraska, Betrayal's Sting's −2, Kitesail
+  Larcenist): `board_and_ramp._has_animate_treasure_grant` takes any
+  `AddSubtype: Treasure` static, and the neutralize gate
+  (`_neutralizes_attached`) covers only an Aura's or Equipment's own object.
+  Checked and empty on the 2026-10-23 corpus, so don't re-suggest without a
+  card: a card with both a creature-type and a card-type Choose firing
+  `chosen_type_matters` (none), and a discard or leaves-the-battlefield
+  trigger's self-return firing `bounce_tempo` (none; the other trigger
+  back-references on cards that fire return an event object — a blocked
+  creature, a damage source, a land tapped for mana).
   (o) **Theme matching off the IR, what's left** (2026-10-20). The tuner's theme
   page is the theme's ``Serve`` where its spec searched by an oracle pattern
   (``swaps._run_search``), but deck-forge's Find (``engine.py``) and

@@ -62,6 +62,7 @@ from mtg_utils._card_ir.crosswalk import (
     iter_condition_sites,
     iter_cost_leaves,
     iter_mod_sites,
+    iter_nested_granted_effect_concepts,
     iter_nested_trigger_defs,
     iter_static_defs,
     iter_typed_nodes,
@@ -1014,7 +1015,12 @@ def _mass_removal(tree: ConceptTree) -> list[Signal]:
       player's graveyard into that player's library" — is GY recursion,
       not a wipe, corpus-verified);
     * ``DamageAll`` over a Creature/Permanent subject (Blasphemous Act,
-      Pyroclasm);
+      Pyroclasm) or over planeswalkers (:data:`_DAMAGE_SWEPT_TYPES`) —
+      "each opponent and each planeswalker they control" (Kumano Faces
+      Kakkazan, Cavalier of Flame, Omnath, Locus of Creation): damage removes
+      that many loyalty counters (CR 120.3c), and a planeswalker with none is
+      put into its owner's graveyard (CR 704.5i), so it is a planeswalker
+      sweep as surely as a "destroy all planeswalkers";
     * a NEGATIVE symmetric ``PumpAll`` over creatures (Languish's "all
       creatures get -4/-4"; Toxic Deluge / Drown in Sorrow's dynamic "-X/-X"
       — :func:`negative_pt_field` reads BOTH the FIXED magnitude and the
@@ -1059,7 +1065,10 @@ def _mass_removal(tree: ConceptTree) -> list[Signal]:
     702.25a (Knight of Valor). Scope "you".
     An overload spell's targeted destroy / damage / exile is a sweep when
     overloaded (``crosswalk.overload_sweep``, CR 702.96a — Damn, Mizzium
-    Mortars).
+    Mortars). A sweep the card GRANTS reads the same as its own (Noxious
+    Field's enchanted land "has '{T}: This land deals 1 damage to each creature
+    and each player'" — :func:`iter_nested_granted_effect_concepts`, which also
+    reaches a created token's ability).
 
     A sweep whose creatures die (:func:`kills_creatures_en_masse` — not an
     exile, bounce or artifact sweep) also takes the subject ``creature``, the
@@ -1169,13 +1178,24 @@ def population_shrink(tree: ConceptTree) -> bool:
 
 
 def _walk_mass_removal(tree: ConceptTree) -> SweepEffects:
-    """The walk behind :func:`mass_removal_effects`."""
+    """The walk behind :func:`mass_removal_effects`: each unit's own effects,
+    then the effects of the abilities it grants."""
     return tuple(
         (unit, c)
         for unit in tree.units
-        for c in unit.iter_concepts()
-        if c.role == "effect" and _is_mass_removal(tree, unit, c)
+        for c in (
+            *(c for c in unit.iter_concepts() if c.role == "effect"),
+            *iter_nested_granted_effect_concepts(unit.node),
+        )
+        if _is_mass_removal(tree, unit, c)
     )
+
+
+#: What a ``DamageAll`` sweeps: creatures (or permanents, which include them) and
+#: planeswalkers. Not a battle: "each opponent and each battle they protect"
+#: (Joyful Stormsculptor) hits the battles you may attack (CR 310.9b — your own
+#: Siege among them, CR 310.12a), and damage to one helps you defeat it.
+_DAMAGE_SWEPT_TYPES: frozenset[str] = CREATURE_OR_PERMANENT | {"Planeswalker"}
 
 
 def _is_mass_removal(tree: ConceptTree, unit: AbilityUnit, c: ConceptNode) -> bool:
@@ -1229,7 +1249,7 @@ def _is_mass_removal(tree: ConceptTree, unit: AbilityUnit, c: ConceptNode) -> bo
             and cores & SWEPT_PERMANENT_TYPES
         ):
             return True
-    if t == "DamageAll" and cores & CREATURE_OR_PERMANENT:
+    if t == "DamageAll" and cores & _DAMAGE_SWEPT_TYPES:
         return True
     # A SYMMETRIC mass shrink (Languish's "all creatures get -4/-4"; Toxic
     # Deluge's "-X/-X") — a one-sided one (Massacre Wurm, Cower in Fear) is

@@ -964,7 +964,7 @@ def _removal(tree: ConceptTree) -> list[Signal]:
             # A toughness set to 0 or lowered on the target can kill outright
             # (CR 704.5f): Multiply by Zero's 0/0 and Nameless Inversion's
             # +3/-3 are removal, Turn to Frog's 1/1 only the 2HG scan's soft read.
-            if _toughness_kill(c):
+            if _toughness_kill(c, unit):
                 return [Signal("removal", "you", "", c.raw, tree.name, "high")]
     for unit in tree.units:
         for c in unit.effect_concepts("deal_damage"):
@@ -1114,14 +1114,19 @@ def _perm_answer_types(filt: object) -> frozenset[str]:
     return frozenset()
 
 
-def _toughness_kill(c: ConceptNode) -> bool:
+def _toughness_kill(c: ConceptNode, unit: AbilityUnit) -> bool:
     """A one-shot continuous effect that can put a creature the caster doesn't
     control to 0 toughness (CR 704.5f: it goes to its owner's graveyard, and
     regeneration can't replace that): a base-toughness SET to 0 or less
     (Multiply by Zero's 0/0), or toughness LOWERED on the spell's or ability's
     target (Nameless Inversion's "+3/-3" — the target's own shrink, not a
-    creature lowering itself: Argivian Avenger's "-1/-1" is SelfRef)."""
+    creature lowering itself: Argivian Avenger's "-1/-1" is SelfRef). An "it"
+    resolves to the ability's chosen target (:func:`_root_target_filter`), so
+    Does Machines' "target artifact you control … becomes a 0/0 Robot
+    creature" animates your own artifact, never a kill."""
     filt = effect_filter(c.node)
+    if tag_of(filt) == "ParentTarget":
+        filt = _root_target_filter(unit) or filt
     if filter_controller(filt) == "You" or recipient_tag(c.node) == "SelfRef":
         return False
     if tag_of(c.node) != "GenericEffect":
@@ -1311,7 +1316,7 @@ def _walk_removal_answers(
                 )
             ):
                 yield c, _CREATURE
-            elif _toughness_kill(c):
+            elif _toughness_kill(c, unit):
                 # A toughness set to 0 or lowered on the target can kill outright
                 # (CR 704.5f) — Multiply by Zero's 0/0, Nameless Inversion's
                 # +3/-3 — so it is removal in its own right, where a 1/1 set

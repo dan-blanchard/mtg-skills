@@ -99,6 +99,7 @@ from mtg_utils._card_ir.crosswalk import (
     watches_itself,
     zone_change_count_reads,
 )
+from mtg_utils._card_ir.crosswalk.reads import chooses
 from mtg_utils._card_ir.mirror.runtime import (
     MirrorVariant,
     TypedMirrorNode,
@@ -421,10 +422,7 @@ def _reveal_names_other_player(node: TypedMirrorNode, unit_node: object = None) 
             isinstance(raw_ctrl, MirrorVariant) and raw_ctrl.key == "ChosenPlayer"
         )
         if unit_node is not None and is_chosen_player:
-            return any(
-                tag_of(n) == "Choose" and getattr(n, "choice_type", None) == "Opponent"
-                for n in iter_typed_nodes(unit_node)
-            )
+            return any(chooses(n, "Opponent") for n in iter_typed_nodes(unit_node))
     # phase v0.104.0 writes the revealer under an each-player / each-opponent
     # wrapper as ``Controller`` (Noxious Vapors, Valki) where v0.94.0 wrote
     # ``Any``: the wrapper's iterated player reveals. (Not the tap or draw

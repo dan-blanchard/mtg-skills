@@ -517,3 +517,57 @@ def test_a_neutralize_aura_is_interaction(name):
     508.1c / 509.1b) or makes it a 0/1 or a land (CR 613.4b / 205.1a) answers
     it like removal: the ``pacify-aura`` preset reads both lanes."""
     assert "interaction" in role_of(_real(name))
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Tidecaller Mentor",  # threshold ETB: return target nonland permanent
+        "Council of Echoes",  # descend ETB: return target nonland permanent
+        "Foul Renewal",  # a recall beside "target creature gets -X/-X"
+        "Wail of War",  # a recall mode beside a one-sided -1/-1
+        "Find // Finality",  # Finality's "all creatures get -4/-4"
+    ],
+)
+def test_a_graveyard_recall_beside_a_real_answer_is_interaction(name):
+    """The lanes read the recall as recursion and the answer as an answer, so
+    no consumer-side veto drops the card (a condition naming the graveyard —
+    threshold, descend — is no recall at all)."""
+    assert "interaction" in role_of(_real(name))
+
+
+def test_a_pure_graveyard_recall_is_not_interaction():
+    """Pharika's Mender returns a creature or enchantment CARD from your
+    graveyard: recursion, not an answer."""
+    assert "interaction" not in role_of(_real("Pharika's Mender"))
+
+
+@pytest.mark.parametrize(
+    "name",
+    ["Monsoon", "One with the Stars", "Swift Reconfiguration"],
+)
+def test_no_answer_is_not_interaction(name):
+    """Monsoon's damage goes to the player whose Islands it taps; One with the
+    Stars and Swift Reconfiguration leave the permanent its abilities."""
+    assert "interaction" not in role_of(_real(name))
+
+
+@pytest.mark.parametrize("name", ["Imprisoned in the Moon", "Minimus Containment"])
+def test_a_neutralize_aura_is_not_ramp(name):
+    roles_ = role_of(_real(name))
+    assert "interaction" in roles_
+    assert "ramp" not in roles_
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Kumano Faces Kakkazan // Etching of Kumano",
+        "Cavalier of Flame",
+        "Omnath, Locus of Creation",
+        "Noxious Field",
+    ],
+)
+def test_a_planeswalker_or_granted_sweep_is_a_board_wipe(name):
+    roles_ = role_of(_real(name))
+    assert {"board_wipe", "interaction"} <= roles_

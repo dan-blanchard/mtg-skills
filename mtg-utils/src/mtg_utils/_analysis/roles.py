@@ -293,63 +293,6 @@ def _ir_draws(ir: Card) -> bool:
     )
 
 
-# Effect categories that ARE a real answer (so a card carrying one is not pure graveyard
-# recursion). topdeck_stack is a tuck ("put target X on top of its owner's library" —
-# Rootrunner, or graveyard hate); the rest are removal / counters / edict / pacify.
-_IR_REAL_ANSWER_CATS = frozenset(
-    {
-        "destroy",
-        "damage",
-        "counter_spell",
-        "exile",
-        "restriction",
-        "sacrifice",
-        "topdeck_stack",
-    }
-)
-
-
-def _ir_recursion_only(ir: Card) -> bool:
-    """True iff the card's ONLY interaction-shaped effect is GRAVEYARD RECURSION — a
-    bounce that returns a card from a graveyard, with no real answer alongside it.
-
-    Such a card (Pharika's Mender, Pulse of Murasa, Neva — "return target creature OR
-    enchantment card from your graveyard to your hand") is value/recursion, NOT removal;
-    the ``removal`` / ``bounce`` presets misfire on the "X or Y card from graveyard"
-    form their ``(?!\\s+card\\b)`` anchor can't exclude (the "card" doesn't immediately
-    follow the first noun). The structural read vetoes those.
-
-    A battlefield bounce (``in:battlefield`` target, or a bounce with no graveyard
-    zone), a targeted ``-X/-X`` shrink (``pump_target`` with negative toughness), a
-    tuck, or any destroy/damage/counter/exile/edict/pacify effect means the card has a
-    REAL answer → NOT recursion-only (returns False). The veto only fires when a
-    graveyard bounce is the SOLE interaction-shaped effect, so a card with no graveyard
-    bounce can never be vetoed (``saw_gy_bounce`` stays False). Requires the SIDECAR-v76
-    per-effect graveyard zones (before v76 a sibling's "from graveyard" bled onto
-    battlefield bounces, which would have made answers like Aether Helix look
-    recursion-only)."""
-    saw_gy_bounce = False
-    for ab in ir.all_abilities():
-        for e in ab.effects:
-            cat = e.category
-            if cat == "bounce":
-                if "in:battlefield" in e.zones:
-                    return False  # targets a battlefield permanent — a real bounce
-                if any("graveyard" in z for z in e.zones):
-                    saw_gy_bounce = True
-                else:
-                    return False  # a non-graveyard bounce is a real tempo answer
-            elif cat in _IR_REAL_ANSWER_CATS:
-                return False
-            elif (
-                cat == "pump_target"
-                and e.toughness is not None
-                and e.toughness.factor < 0
-            ):
-                return False  # a targeted -X/-X shrink is removal
-    return saw_gy_bounce
-
-
 def is_ramp(card: dict, *, deck_mana: DeckMana | None = None) -> bool:
     """Does this NONLAND card accelerate your mana — the template's ``ramp`` role?
 
@@ -385,12 +328,8 @@ def role_of(card: dict, *, deck_mana: DeckMana | None = None) -> set[str]:
     dead-mana veto when the deck context is given); ``board_wipe`` is
     :func:`is_board_wipe` (the ``board-wipe`` preset). ``card_draw`` reads the
     candidate's Card IR when available (the ``draw`` category), degrading to the
-    curated presets when the card has no IR. ``interaction`` stays on its presets
-    for the positive match (the IR's ``destroy`` / ``restriction`` categories
-    don't encode the pacify-vs-self and edict boundaries), but a structural VETO
-    drops a preset hit the IR shows is pure graveyard recursion
-    (``_ir_recursion_only`` — "return X or Y card from your graveyard", which the
-    preset's ``card`` anchor misses). A card phase has no concept trees for (a set
+    curated presets when the card has no IR. ``interaction`` is
+    :func:`is_interaction` (its presets). A card phase has no concept trees for (a set
     newer than the phase pin) reads its removal from
     ``card_classify.removal_reach_by_text`` instead — the degrade, and the gate,
     ``twohg_scan``'s removal reach uses — so ``set-scan`` still counts a new set's
@@ -424,7 +363,7 @@ def role_of(card: dict, *, deck_mana: DeckMana | None = None) -> set[str]:
         roles.add("card_draw")
     if is_board_wipe(card):
         roles.add("board_wipe")
-    if is_interaction(card, ir=ir):
+    if is_interaction(card):
         roles.add("interaction")
     return roles
 
@@ -452,20 +391,16 @@ def is_board_wipe(card: dict) -> bool:
     return _matches_preset(card, "board-wipe")
 
 
-def is_interaction(card: dict, *, ir: Card | None = None) -> bool:
+def is_interaction(card: dict) -> bool:
     """THE interaction answer (ADR-0051, like :func:`is_ramp`): a hit on one of
-    ``_INTERACTION_PRESETS`` that is not pure graveyard recursion, or — for a card
-    phase has no trees for — the text degrade's removal reach. The Tuner sources
-    the role through the same presets and this same predicate
-    (:data:`ROLE_SEARCH`), so what a Slot counts and what it is offered cannot
-    drift."""
-    if ir is None:
-        ir = ir_for(card)
+    ``_INTERACTION_PRESETS``, or — for a card phase has no trees for — the text
+    degrade's removal reach. The Tuner sources the role through the same presets
+    and this same predicate (:data:`ROLE_SEARCH`), so what a Slot counts and what
+    it is offered cannot drift. A graveyard recall is no hit: the lanes behind
+    the presets read it as recursion (``bounce_tempo``'s recall gates, CR 402.1
+    vs 404.1), so no consumer-side veto is needed."""
     return bool(
-        (
-            _matches_any(card, _INTERACTION_PRESETS)
-            and not (ir is not None and _ir_recursion_only(ir))
-        )
+        _matches_any(card, _INTERACTION_PRESETS)
         or (not trees_for(card, bulk=card) and removal_reach_by_text(card).removes)
     )
 
@@ -533,8 +468,8 @@ ROLE_SEARCH: dict[str, dict] = {
     "card_draw": {"preset_names": ("card-draw",)},
     # ANY of the presets, as the role reads them (passed as ``preset_names``
     # they combined with AND, and the search found nothing: no removal fill or
-    # upgrade was sourced from 2026-10-18 to 10-19); the predicate drops a
-    # preset hit the role doesn't count (pure graveyard recursion).
+    # upgrade was sourced from 2026-10-18 to 10-19); the predicate is the
+    # role's own answer, so what the search offers and the Slot counts agree.
     "interaction": {
         "any_preset_names": _INTERACTION_PRESETS,
         "_filter": lambda c, **_kw: is_interaction(c),

@@ -281,8 +281,8 @@ def _gy_recursion_converged(tree: ConceptTree, card: Card) -> bool:
     that discriminator is vacuous and the arm also fires on an ACTIVATED-ability
     self-recursion ("Sacrifice X: Return this card from your graveyard" —
     Unshakable Tail's Clue, Whiteout's snow land). For those, the old IR carries
-    the ability's sacrifice COST as a sibling ``sacrifice`` Effect (a real answer)
-    that vetoes ``_ir_recursion_only``; ``compat._ability`` drops costs, so the
+    the ability's sacrifice COST as a sibling ``sacrifice`` Effect (a real answer,
+    so not recursion only); ``compat._ability`` drops costs, so the
     bare stamp mis-flips the card to recursion-only — a per-card budgets
     regression. We read the dropped COST from the MIRROR: skip when the recursion
     ability's sacrifice cost is a promoted (non-creature) type, matching the old

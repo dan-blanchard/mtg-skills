@@ -90,6 +90,7 @@ from mtg_utils._card_ir.crosswalk import (
     trigger_turn_constraint,
     trigger_zone_changes,
 )
+from mtg_utils._card_ir.crosswalk.reads import chooses
 from mtg_utils._card_ir.mirror.runtime import (
     MISSING,
     MirrorVariant,
@@ -2539,10 +2540,7 @@ def _copies_a_named_card(unit: AbilityUnit) -> bool:
     ``Choose{choice_type: CardName}`` beside the recovered ``clone`` clause —
     Garth One-Eye's "create a copy of the card with the chosen name"): a new card
     from a list, not a copy of an object in play, so no token-copy maker."""
-    return any(
-        tag_of(n) == "Choose" and getattr(n, "choice_type", None) == "CardName"
-        for n in unit.iter_typed()
-    )
+    return any(chooses(n, "CardName") for n in unit.iter_typed())
 
 
 # The noncreature permanent types (CR 110.4) a ``BecomeCopy`` may copy: an

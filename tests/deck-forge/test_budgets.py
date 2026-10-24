@@ -380,65 +380,6 @@ def test_role_of_unions_card_draw_preset_for_nested_draw_for_each():
     assert "card_draw" in role_of(test_card("Truth or Consequences"))
 
 
-def test_ir_recursion_only_vetoes_pure_graveyard_return():
-    # F10 structural veto: a card whose ONLY interaction-shaped effect is a graveyard
-    # bounce (Pharika's Mender: "return target creature OR enchantment card from your
-    # graveyard") is recursion, not interaction — the bounce/removal presets misfire on
-    # the "X or Y card" form their (?!\s+card\b) anchor can't exclude. A battlefield
-    # bounce, a -X/-X shrink, a tuck, or any destroy/edict means a real answer → not
-    # vetoed. Needs SIDECAR v76 per-effect graveyard zones (no sibling bleed).
-    from mtg_utils._analysis.roles import _ir_recursion_only
-
-    def _gy(*zones):
-        return Card(
-            oracle_id="x",
-            name="T",
-            faces=(
-                Face(
-                    name="T",
-                    abilities=(
-                        Ability(
-                            kind="spell",
-                            effects=(Effect(category="bounce", zones=zones),),
-                        ),
-                    ),
-                ),
-            ),
-        )
-
-    # Pure graveyard recursion → vetoed.
-    assert _ir_recursion_only(_gy("in:graveyard")) is True
-    # A battlefield bounce is a real tempo answer → not recursion-only.
-    assert _ir_recursion_only(_gy()) is False
-    assert _ir_recursion_only(_gy("in:battlefield", "in:graveyard")) is False
-    # A graveyard bounce alongside a real answer (edict) → not recursion-only.
-    assert (
-        _ir_recursion_only(
-            Card(
-                oracle_id="x",
-                name="T",
-                faces=(
-                    Face(
-                        name="T",
-                        abilities=(
-                            Ability(
-                                kind="spell",
-                                effects=(
-                                    Effect(category="bounce", zones=("in:graveyard",)),
-                                    Effect(category="sacrifice", scope="opp"),
-                                ),
-                            ),
-                        ),
-                    ),
-                ),
-            )
-        )
-        is False
-    )
-    # No graveyard bounce at all can never be vetoed (real removal — mass destroy).
-    assert _ir_recursion_only(test_card_ir("Wrath of God")) is False
-
-
 # ── per-family templates ──────────────────────────────────────────────────────
 
 

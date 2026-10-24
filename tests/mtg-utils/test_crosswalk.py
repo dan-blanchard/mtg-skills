@@ -1094,13 +1094,13 @@ def test_ramp_returnasaura_granted_mana():
     assert ("ramp", "you", "") in _idents("Harold and Bob, First Numens")
 
 
-def test_ramp_animate_treasure_grant():
+def test_ramp_animate_treasure_grant_skips_a_neutralized_host():
     """Minimus Containment: "Enchanted permanent is a Treasure artifact
     with '{T}, Sacrifice ~: Add one mana of any color,' and it loses all
-    other abilities" — the quoted sac-for-mana ability never structures
-    into a node; every printed Treasure carries the identical ability by
-    design convention (CR 111.4/205.3g)."""
-    assert ("ramp", "you", "") in _idents("Minimus Containment")
+    other abilities" — the Treasure is the permanent the Aura answers, whose
+    controller sacrifices it for mana (CR 602.2), so no ramp of yours
+    (``board_and_ramp._neutralizes_attached``)."""
+    assert ("ramp", "you", "") not in _idents("Minimus Containment")
 
 
 def test_ramp_granted_sacrifice_cost_is_acceleration():

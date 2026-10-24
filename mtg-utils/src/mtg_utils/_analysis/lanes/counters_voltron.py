@@ -68,6 +68,7 @@ from mtg_utils._card_ir.crosswalk import (
     token_creator_side,
     trigger_counter_filter,
 )
+from mtg_utils._card_ir.crosswalk.reads import chooses
 from mtg_utils._card_ir.mirror.runtime import (
     MirrorVariant,
     TypedMirrorNode,
@@ -1323,7 +1324,7 @@ def _chooses_opponent(node: object) -> bool:
     Left/Right, Scrambleverse's random Player) is instead caught by the player_scope
     arm; only the literal Opponent choice is read here.
     """
-    return getattr(node, "choice_type", None) == "Opponent"
+    return chooses(node, "Opponent")
 
 
 def _gives_control_to_other(node: TypedMirrorNode, unit: AbilityUnit) -> bool:

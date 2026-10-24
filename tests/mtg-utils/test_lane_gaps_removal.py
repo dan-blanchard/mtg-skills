@@ -199,3 +199,85 @@ def test_an_untyped_etb_payload_is_value_to_re_deliver(name):
 def test_an_etb_drawback_is_not_a_payload(name):
     """Eater of Days skips your turns; Hecatomb sacrifices your creatures."""
     assert "self_etb_payload|you|" not in _idents(name)
+
+
+# ── (7) the interaction role's lane gaps (2026-10-23) ────────────────────────
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Kumano Faces Kakkazan // Etching of Kumano",  # 1 to each planeswalker
+        "Cavalier of Flame",  # X to each opponent and each planeswalker
+        "Omnath, Locus of Creation",  # 4 to each opponent and each planeswalker
+        "Flame Blitz",  # 5 damage to each planeswalker
+    ],
+)
+def test_damage_to_each_planeswalker_is_a_sweep(name):
+    """Damage removes loyalty (CR 120.3c) and a planeswalker with none dies
+    (CR 704.5i): a planeswalker sweep, never a creature-killing one."""
+    idents = _idents(name)
+    assert "mass_removal|you|" in idents
+    assert "mass_removal|you|creature" not in idents
+
+
+def test_damage_to_each_battle_they_protect_is_no_sweep():
+    """Joyful Stormsculptor damages the battles you may attack (CR 310.9b)."""
+    assert "mass_removal|you|" not in _idents("Joyful Stormsculptor")
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Noxious Field",  # an Aura grants its land "{T}: 1 damage to each creature"
+        "Gloomdrifter",  # threshold grants an ETB "nonblack creatures get -2/-2"
+        "Terminal Velocity",  # grants "when this leaves, damage to each creature"
+    ],
+)
+def test_a_granted_sweep_is_the_cards_sweep(name):
+    assert "mass_removal|you|" in _idents(name)
+
+
+def test_damage_bound_back_to_lands_reaches_no_permanent():
+    """Monsoon taps "all untapped Islands that player controls" and deals X to
+    the player; phase binds the damage back to the Islands, and a land can't be
+    dealt damage (CR 120.1)."""
+    assert "removal|you|" not in _idents("Monsoon")
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Does Machines",  # "target artifact you control … becomes a 0/0 Robot"
+        "Awakening of Vitu-Ghazi",  # your land becomes a 0/0 with counters
+        "Nissa, Who Shakes the World",  # target land you control, a 0/0
+    ],
+)
+def test_animating_your_own_permanent_as_a_0_0_is_no_kill(name):
+    """The "it" of the 0/0 set is the ability's own target, one you control."""
+    assert "removal|you|" not in _idents(name)
+
+
+@pytest.mark.parametrize(
+    "name", ["Imprisoned in the Moon", "Minimus Containment", "Honest Work"]
+)
+def test_a_neutralize_auras_mana_ability_is_no_ramp(name):
+    """The enchanted permanent's controller taps it (CR 602.2), and the Aura
+    strips that permanent's abilities: an answer, not your mana."""
+    assert "ramp|you|" not in _idents(name)
+
+
+@pytest.mark.parametrize("name", ["One with the Stars", "Swift Reconfiguration"])
+def test_a_retype_that_keeps_abilities_is_no_neutralize(name):
+    """Both keep every ability of the enchanted permanent (their rulings) and
+    are cast on your own creature as readily as on an opponent's."""
+    assert "single_target_neutralize|you|" not in _idents(name)
+
+
+@pytest.mark.parametrize(
+    "name", ["Imprisoned in the Moon", "Song of the Dryads", "Minimus Containment"]
+)
+def test_a_retype_that_strips_abilities_is_a_neutralize(name):
+    """It "loses all abilities", or its land type is set to a basic land type,
+    which takes them (CR 305.7)."""
+    assert "single_target_neutralize|you|" in _idents(name)

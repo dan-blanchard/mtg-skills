@@ -26,6 +26,7 @@ from mtg_utils._card_ir.branches import (
     natural_top_only,
     uncertain_list,
 )
+from mtg_utils._card_ir.card_subtypes import BATTLE_TYPES, PLANESWALKER_TYPES
 from mtg_utils._card_ir.creature_types import CREATURE_TYPES
 from mtg_utils._card_ir.mirror.runtime import (
     MISSING,
@@ -1032,7 +1033,7 @@ def _damage_target_reaches(
         words = _filter_type_words(tgt)
         if words:
             # creature/permanent typed → removal; "Player" → a player
-            return ("Player" in words) if player else any(w != "Player" for w in words)
+            return ("Player" in words) if player else any(map(_damageable_word, words))
         # no type restriction: a player either way; a permanent only unrestricted
         return player or getattr(tgt, "controller", None) is None
     if tt in ("Any", "Target"):
@@ -1061,6 +1062,23 @@ def _damage_target_reaches(
         return False
     sc = _scope_from_player_node(tgt)  # a direct player node
     return sc in ("opponents", "each", "any")
+
+
+#: The subtypes of the permanent types damage can be dealt to (CR 120.1; CR
+#: 205.3m creature, 205.3j planeswalker and 205.3q battle types), lowercased.
+_DAMAGEABLE_SUBTYPES: frozenset[str] = (
+    CREATURE_TYPES | PLANESWALKER_TYPES | BATTLE_TYPES
+)
+
+
+def _damageable_word(word: str) -> bool:
+    """Whether a filter type word names a permanent damage can be dealt to (CR
+    120.1: "battles, creatures, planeswalkers, and players") — one of those
+    types, phase's generic ``Permanent``, or one of their subtypes ("target
+    Goblin"). A land, artifact or enchantment word alone names none: Monsoon's
+    "tap all untapped Islands that player controls" chain, whose "deals X damage
+    to the player" phase binds back to the Islands, deals no damage to a land."""
+    return word in DAMAGE_PERMANENT_TYPES or word.lower() in _DAMAGEABLE_SUBTYPES
 
 
 # Player-reference target tags that name a specific chosen / triggering player —
@@ -9877,3 +9895,55 @@ def _aims_at_step_player(trig: TypedMirrorNode) -> bool:
         if _names_scoped_player(n)
     }
     return bool(scoped - counted)
+
+
+# ── Choices and ability-stripping statics ──
+
+
+class Choice(NamedTuple):
+    """What a ``Choose`` effect chooses (CR 608.2d / 614.12 — a choice made as
+    the effect resolves or as a permanent enters): its ``kind`` (``"Opponent"``,
+    ``"CreatureType"``, ``"CardType"``, ``"LandType"``, ``"CardName"`` …) and,
+    for a restricted choice, the printed ``options`` (Dawn-Blessed Pennant's
+    eight creature types); an open choice has none."""
+
+    kind: str
+    options: tuple[str, ...] = ()
+
+
+def choice_of(node: object) -> Choice | None:
+    """The :class:`Choice` a ``Choose`` effect node makes, or ``None`` for any
+    other node. Phase carries an open choice as a bare tag ("choose a creature
+    type": Door of Destinies) and a listed one as a keyed variant whose payload
+    lists the options."""
+    if tag_of(node) != "Choose":
+        return None
+    choice = getattr(node, "choice_type", None)
+    if isinstance(choice, str):
+        return Choice(choice)
+    if not isinstance(choice, MirrorVariant):
+        return None
+    listed = getattr(choice.inner, "inner", None)
+    options = tuple(str(t) for t in listed) if isinstance(listed, list) else ()
+    return Choice(str(choice.key), options)
+
+
+def chooses(node: object, kind: str) -> bool:
+    """Whether ``node`` is a ``Choose`` effect of ``kind`` (an opponent: Fervent
+    Mastery, Fateful Handoff; a card name: Garth One-Eye)."""
+    choice = choice_of(node)
+    return choice is not None and choice.kind == kind
+
+
+def strips_abilities(static_def: object) -> bool:
+    """Whether a static removes the abilities its affected object has from its
+    rules text (CR 613.1f, layer 6): an explicit "loses all abilities"
+    (Imprisoned in the Moon, Minimus Containment) or a land type set to a basic
+    land type, which takes them with it (CR 305.7 — Song of the Dryads'
+    "colorless Forest land"). A retype that leaves them (One with the Stars,
+    Swift Reconfiguration — each keeps all its abilities, per its rulings) does
+    not."""
+    return any(
+        tag_of(m) in ("RemoveAllAbilities", "SetBasicLandType")
+        for m in getattr(static_def, "modifications", None) or ()
+    )
