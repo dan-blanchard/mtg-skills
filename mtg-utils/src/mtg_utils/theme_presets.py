@@ -104,7 +104,7 @@ from __future__ import annotations
 
 import re
 import threading
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from pathlib import Path
 from types import MappingProxyType
@@ -195,7 +195,7 @@ class Preset:
             return True
         if self.signal_keys and signal_keys_for(card) & set(self.signal_keys):
             return True
-        return self.concept is not None and self.concept(card)
+        return self.concept is not None and _concept_holds(self, card)
 
 
 # ─── Structural-view seam (task #83, ADR-0035/0039; sidecar-seeded task #90) ──
@@ -306,15 +306,67 @@ def _signal_idents_for(
 
 
 def forget_signal_keys(oid: str) -> None:
-    """Drop ``oid``'s memoized keys and idents, so the next read recomputes them.
+    """Drop ``oid``'s memoized keys and idents, and its seeded concept-arm answers
+    (:data:`_CONCEPT_INDEX`), so the next read recomputes them.
 
     For a caller that replaces the card's concept trees after they may have been
-    read (the testkit seeding real trees in a process with no phase cache): the
-    two memos above key on ``oracle_id`` alone, so without this a keyset computed
+    read (the testkit seeding real trees in a process with no phase cache): these
+    memos key on ``oracle_id`` alone, so without this a keyset computed
     before the seed (empty, when no trees were available yet) outlives it."""
     _SIGNAL_KEY_INDEX.pop(oid, None)
     _SIGNAL_IDENT_INDEX.pop(oid, None)
     _SIGNAL_IDENT_INDEX_NO_MEMBERSHIP.pop(oid, None)
+    _CONCEPT_INDEX.pop(oid, None)
+
+
+def remember_signal_idents(oid: str, idents: Iterable[str]) -> None:
+    """Memoize ``oid``'s production idents (and the keys they carry) without
+    overwriting a value already held — the one write both bulk paths share:
+    :func:`seed_signal_key_index` from the persisted sidecar, and the sidecar's
+    own build (``signals_index.build_signals_sidecar``), which primes the memo with
+    the idents it just extracted so the concept arms it evaluates next (the ramp
+    arm reads :func:`signal_keys_for`) don't run a second extraction per card."""
+    frozen = frozenset(idents)
+    _SIGNAL_KEY_INDEX.setdefault(
+        oid, frozenset(ident.split("|", 1)[0] for ident in frozen)
+    )
+    _SIGNAL_IDENT_INDEX.setdefault(oid, frozen)
+
+
+# oracle_id -> the names of the registry presets whose ``concept`` arm holds for
+# the card — the persisted answer to every concept arm at once, seeded by
+# :func:`seed_signal_key_index` from the same sidecar as the keys above. A concept
+# arm walks the card's signal trees, so the first preset search over the pool
+# that reaches one (ramp, card-draw, board-wipe) used to build trees for every
+# card in it — most of a tune's time (backlog (l), 2026-10-23: 86 of a precon
+# tune's 119 s). An oracle_id with no entry (no seed this process, a card outside
+# the bulk, or one :func:`forget_signal_keys` dropped) takes the live predicate.
+_CONCEPT_INDEX: dict[str, frozenset[str]] = {}
+
+
+def concept_arms_holding(card: dict) -> tuple[str, ...]:
+    """The names of every registry preset whose ``concept`` arm holds for CARD,
+    computed live and sorted — the per-card value the signals sidecar persists
+    (``signals_index.build_signals_sidecar``) and :func:`_concept_holds` serves.
+    Every preset with a concept arm is in it, so a served card answers any of
+    them."""
+    return tuple(
+        sorted(name for name, p in PRESETS.items() if p.concept and p.concept(card))
+    )
+
+
+def _concept_holds(preset: Preset, card: dict) -> bool:
+    """PRESET's concept arm on CARD: the persisted answer when the card's
+    oracle_id was seeded (:data:`_CONCEPT_INDEX`), else the live predicate. Only
+    a registry preset reads the index — a ``Preset`` built elsewhere with a
+    registry name never borrows that preset's stored answer."""
+    oid = card.get("oracle_id")
+    if oid and PRESETS.get(preset.name) is preset:
+        held = _CONCEPT_INDEX.get(oid)
+        if held is not None:
+            return preset.name in held
+    concept = preset.concept
+    return concept is not None and concept(card)
 
 
 # Bulk-file identities (path, mtime_ns, size) already merged into
@@ -328,12 +380,14 @@ _SEED_LOCK = threading.Lock()
 
 
 def seed_signal_key_index(bulk_path: Path | None) -> bool:
-    """Seed ``_SIGNAL_KEY_INDEX`` from the persisted whole-pool signals-index
+    """Seed ``_SIGNAL_KEY_INDEX`` (and its ident and concept-arm siblings,
+    :data:`_CONCEPT_INDEX`) from the persisted whole-pool signals-index
     sidecar for *bulk_path* (task #90's ``_analysis.signals_index``),
     building that sidecar on first touch (a one-time ~2-4 min pass logged to
     stderr) so a whole-pool preset scan (``card_search``'s ``--preset``
-    filter, ``engine``'s commander-discovery novelty sweep) stops paying a
-    live ``extract_signals`` call per card every process.
+    filter, ``engine``'s commander-discovery novelty sweep, the tuner's ramp /
+    card-draw / board-wipe pages) stops paying a live ``extract_signals`` call
+    and a concept-arm tree walk per card every process.
 
     Idempotent and cheap to call repeatedly within one process: a bulk path
     already seeded (by identity — path + mtime + size) is a no-op. Returns
@@ -362,19 +416,18 @@ def seed_signal_key_index(bulk_path: Path | None) -> bool:
     if identity in _SEEDED_BULK_IDENTITIES:
         return True
 
-    from mtg_utils._analysis.signals_index import load_signals_index
+    from mtg_utils._analysis.signals_index import load_signals_sidecar
 
     with _SEED_LOCK:
         if identity in _SEEDED_BULK_IDENTITIES:  # seeded while we waited
             return True
-        index = load_signals_index(path)
-        if index is None:
+        sidecar = load_signals_sidecar(path)
+        if sidecar is None:
             return False
-        for oid, idents in index.items():
-            _SIGNAL_KEY_INDEX.setdefault(
-                oid, frozenset(ident.split("|", 1)[0] for ident in idents)
-            )
-            _SIGNAL_IDENT_INDEX.setdefault(oid, frozenset(idents))
+        for oid, idents in sidecar.index.items():
+            remember_signal_idents(oid, idents)
+        for oid, names in sidecar.concepts.items():
+            _CONCEPT_INDEX.setdefault(oid, frozenset(names))
         _SEEDED_BULK_IDENTITIES.add(identity)
     return True
 

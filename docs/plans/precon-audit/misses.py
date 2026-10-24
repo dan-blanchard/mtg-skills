@@ -104,6 +104,10 @@ def run_deck(args):
 
     S._run_search, S.cut_candidates, S._upgrades = rec_search, rec_cuts, rec_upgrades
     pool = CardPool.load(None)
+    # A guide may name a card by its back face (Agadeem, the Undercrypt); key it
+    # by the card's own name, as the deck and the pages are.
+    g_cuts, g_adds = ({norm((pool.by_name.get(g) or {}).get("name") or g): g for g in rows.values()}
+                      for rows in (g_cuts, g_adds))
     hd = acquire_for_cli(d / "deck.json", None)
     res = tune(hd, search_fn=functools.partial(card_search.search_cards, default_bulk_path()),
                params=TuneParams(budget=budget_for(root, name), max_swaps=MAX_SWAPS),

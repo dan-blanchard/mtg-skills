@@ -33,6 +33,10 @@ this before it was extracted, so the staleness/version/atomic-write rules
 here are exactly what those two already did — this only removes the
 duplication, it doesn't change either one's on-disk format or invalidation
 behavior.
+
+``exclusive_lock`` serializes an expensive rebuild across processes: the caller
+re-reads the sidecar inside it, so of several processes that found it stale,
+one builds and the rest wait and then read what it wrote.
 """
 
 from __future__ import annotations
@@ -47,7 +51,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import Callable, Generator
 
 
 def _hash_part(hasher: hashlib._Hash, part: object) -> None:
@@ -144,6 +148,46 @@ def atomic_write_bytes(path: Path, data: bytes) -> None:
     except BaseException:
         tmp_path.unlink(missing_ok=True)
         raise
+
+
+@contextlib.contextmanager
+def exclusive_lock(
+    lock_path: Path, *, on_wait: Callable[[], None] | None = None
+) -> Generator[None]:
+    """Hold an exclusive cross-process lock on *lock_path* (``flock``) for the
+    ``with`` block — the guard around a sidecar rebuild, so concurrent first runs
+    don't each pay it. The pattern: read the sidecar; when it's stale, take this
+    lock and read it AGAIN (another process may have finished building it while
+    this one waited) before building.
+
+    ``on_wait`` is called once when the lock is already held, before blocking —
+    the caller's chance to say why it's paused. The lock dies with its holder (the
+    kernel drops a ``flock`` when the process exits), so a crashed builder never
+    strands the waiters. Two threads of one process exclude each other too: each
+    entry opens its own file description. Where there's no ``flock`` (Windows) or
+    the lock file can't be opened, the block runs unlocked — a duplicate rebuild,
+    the behavior this replaces, never a failure."""
+    try:
+        import fcntl
+    except ImportError:  # pragma: no cover — Windows
+        yield
+        return
+    try:
+        handle = lock_path.open("a")
+    except OSError:
+        yield
+        return
+    with handle:
+        try:
+            fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            if on_wait is not None:
+                on_wait()
+            fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
+        try:
+            yield
+        finally:
+            fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
 
 
 def write_pickle_sidecar[T](

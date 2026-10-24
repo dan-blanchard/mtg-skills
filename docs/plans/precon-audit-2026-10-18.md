@@ -605,3 +605,12 @@ uv run deck-tune deck.json --max-swaps 30 --budget <budgets.json[Name]> --output
 # compare: decks/<Name>/tune.json beside precon-audit/<Name>.md
 python3 -I docs/plans/precon-audit/compare.py
 ```
+
+The tunes (and `misses.py`'s six workers) can start in parallel with no warm-up
+step. An edit to a lane or a preset stales the signals index beside the bulk; the
+first tune rebuilds it (about 2 min) under a lock, and the tunes started
+meanwhile wait for that build and then read it, so the rebuild happens once rather
+than once per worker (backlog (l), 2026-10-23). To take the wait before the
+workers start instead, run `uv run build-signals-index` first. With a warm index a
+precon tune takes 11–17 s (20–60 s before): its ramp, card-draw and board-wipe
+pages no longer build trees for every card in the pool.

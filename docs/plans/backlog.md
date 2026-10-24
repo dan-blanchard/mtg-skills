@@ -229,12 +229,13 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   their page is still a pattern until those serves move to idents. The
   replacement doublers (Anointed Procession, Parallel Lives, Hardened Scales)
   read as enablers under the clause payoff test.
-  (l) **Tune speed.** The first ramp or card-draw preset search in a process
-  builds card trees across the pool (15-46 s, about 70% of a precon tune's
-  time): those presets read concepts the persisted signals index doesn't seed.
-  A source edit to a lane rebuilds the signals index on the next run with no
-  lock, so parallel first runs each rebuild it (the precon runner should warm
-  it once, serially).
+  (l) **Tune speed, what's left.** The persisted signals index serves the
+  presets' concept arms and its rebuild is locked across processes (2026-10-23:
+  a precon tune 30 → 14 s median). Of the 34 s a profiled tune has left, about
+  18 s is the ranking's per-unit ident attribution
+  (`ident_provenance.unit_idents_for`); the index build pays a second,
+  membership-free extraction per card for the blink arm (about 40 s of its
+  ~2 min).
 
 - **Competitive Brawl's "banned as a commander" reads as `restricted`.** The
   2026-10-12 B&R update introduced the category (mtg.wiki "Competitive Brawl"

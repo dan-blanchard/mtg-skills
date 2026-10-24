@@ -525,15 +525,18 @@ def search_cards(
 
     presets = resolve_presets(preset_names + any_preset_names)
     # A structural-view preset (task #83) reads signal_keys_for, which is
-    # itself a per-oracle_id memo (theme_presets._SIGNAL_KEY_INDEX). Seeding it
-    # from the persisted whole-pool signals-index sidecar (task #90) before the
-    # scan below turns THIS full-bulk pass from "recompute every card's
-    # crosswalk signals live" into "one dict lookup per card" — building that
-    # sidecar on first touch (~2-4 min, logged) if it isn't already on disk.
-    # A no-op for keyword/pattern-only presets (empty signal_keys) and for a
+    # itself a per-oracle_id memo (theme_presets._SIGNAL_KEY_INDEX), and a
+    # concept arm, served per oracle_id the same way (_CONCEPT_INDEX). Seeding
+    # both from the persisted whole-pool signals-index sidecar (task #90) before
+    # the scan below turns THIS full-bulk pass from "recompute every card's
+    # crosswalk signals and trees live" into "one dict lookup per card" —
+    # building that sidecar on first touch (~2 min, logged) if it isn't
+    # already on disk. A no-op for keyword/pattern-only presets and for a
     # no-bulk/no-sidecar-buildable deployment (theme_presets falls back to its
     # existing live compute either way).
-    if serve is not None or any(p.signal_keys for p in presets):
+    if serve is not None or any(
+        p.signal_keys or p.concept is not None for p in presets
+    ):
         from mtg_utils.theme_presets import seed_signal_key_index
 
         seed_signal_key_index(bulk_path)

@@ -10,13 +10,39 @@ with no real bulk / phase cache / network.
 from __future__ import annotations
 
 import pickle
+import threading
+import time
 
+import pytest
+
+from mtg_utils import theme_presets
 from mtg_utils._analysis import signals_index
 from mtg_utils._analysis.signals import Signal
+from mtg_utils._sidecar import exclusive_lock
 
 
 def _sig(key, scope="you", subject=""):
     return Signal(key, scope, subject, "", "Fake Card", "high")
+
+
+@pytest.fixture(autouse=True)
+def _restore_preset_memos():
+    """A sidecar build memoizes each card's idents in ``theme_presets`` and a seed
+    fills its concept index: put the process-wide memos back after each test, so
+    a fake extractor's answers for the synthetic oids here never leak out."""
+    memos = (
+        theme_presets._SIGNAL_KEY_INDEX,
+        theme_presets._SIGNAL_IDENT_INDEX,
+        theme_presets._CONCEPT_INDEX,
+    )
+    saved = [dict(m) for m in memos]
+    seeded = set(theme_presets._SEEDED_BULK_IDENTITIES)
+    yield
+    for memo, before in zip(memos, saved, strict=True):
+        memo.clear()
+        memo.update(before)
+    theme_presets._SEEDED_BULK_IDENTITIES.clear()
+    theme_presets._SEEDED_BULK_IDENTITIES.update(seeded)
 
 
 class TestBuildSignalsIndex:
@@ -202,8 +228,10 @@ class TestLoadSignalsIndex:
         bulk.write_text("{}", encoding="utf-8")
         calls = []
 
-        def fake_extract(rec, *_args, **_kwargs):
-            calls.append(rec["oracle_id"])
+        def fake_extract(rec, *_args, **kwargs):
+            # The index's own pass, not the blink arm's no-membership read.
+            if kwargs.get("include_membership", True):
+                calls.append(rec["oracle_id"])
             return []
 
         monkeypatch.setattr("mtg_utils._analysis.signals.extract_signals", fake_extract)
@@ -221,8 +249,10 @@ class TestLoadSignalsIndex:
         bulk.write_text("{}", encoding="utf-8")
         calls = []
 
-        def fake_extract(rec, *_args, **_kwargs):
-            calls.append(rec["oracle_id"])
+        def fake_extract(rec, *_args, **kwargs):
+            # The index's own pass, not the blink arm's no-membership read.
+            if kwargs.get("include_membership", True):
+                calls.append(rec["oracle_id"])
             return []
 
         monkeypatch.setattr("mtg_utils._analysis.signals.extract_signals", fake_extract)
@@ -251,6 +281,27 @@ class TestLoadSignalsIndex:
         assert "content_hash" in payload
         assert payload["bulk_identity"][0] == str(bulk)
         assert payload["index"] == {"oid-1": ("ramp|you|",)}
+        # The concept arms, per oracle_id: the fake "ramp" key is the ramp arm's
+        # whole answer for a nonland.
+        assert payload["concepts"] == {"oid-1": ("ramp",)}
+
+    def test_a_payload_without_concepts_is_rebuilt(self, tmp_path, monkeypatch):
+        bulk = tmp_path / "AllPrintings.json"
+        bulk.write_text("{}", encoding="utf-8")
+        monkeypatch.setattr(
+            "mtg_utils._analysis.signals.extract_signals",
+            lambda _rec, *_args, **_kwargs: [_sig("ramp")],
+        )
+        sidecar = bulk.with_name(bulk.name + ".signals.pkl")
+        old = {
+            "version": signals_index.SIGNALS_SIDECAR_VERSION,
+            "content_hash": signals_index._content_hash(),
+            "bulk_identity": signals_index._bulk_identity(bulk),
+            "index": {"oid-1": ("stale|you|",)},
+        }
+        sidecar.write_bytes(pickle.dumps(old))
+        index = signals_index.load_signals_index(bulk, records=[{"oracle_id": "oid-1"}])
+        assert index == {"oid-1": ("ramp|you|",)}
 
     def test_loads_records_lazily_when_not_supplied(self, tmp_path, monkeypatch):
         # A non-"AllPrintings.json" name loads as a plain legacy Scryfall bulk
@@ -265,24 +316,88 @@ class TestLoadSignalsIndex:
         assert index == {"oid-1": ("ramp|you|",)}
 
 
+class TestRebuildLock:
+    """A stale index is rebuilt by ONE caller at a time; a caller that waited
+    reads the sidecar the builder wrote instead of building again."""
+
+    def test_concurrent_loads_build_once(self, tmp_path, monkeypatch):
+        bulk = tmp_path / "AllPrintings.json"
+        bulk.write_text("{}", encoding="utf-8")
+        calls: list[str] = []
+
+        def slow_extract(rec, *_args, **kwargs):
+            if kwargs.get("include_membership", True):  # the index's own pass
+                calls.append(rec["oracle_id"])
+                time.sleep(0.2)
+            return [_sig("ramp")]
+
+        monkeypatch.setattr("mtg_utils._analysis.signals.extract_signals", slow_extract)
+        records = [{"oracle_id": "oid-1", "name": "Card"}]
+        results: list[object] = []
+        threads = [
+            threading.Thread(
+                target=lambda: results.append(
+                    signals_index.load_signals_index(bulk, records=records)
+                )
+            )
+            for _ in range(3)
+        ]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+        assert calls == ["oid-1"]
+        assert results == [{"oid-1": ("ramp|you|",)}] * 3
+
+    def test_a_waiter_is_told_why_it_paused(self, tmp_path):
+        lock = tmp_path / "x.lock"
+        waited = threading.Event()
+        entered = threading.Event()
+
+        def second() -> None:
+            with exclusive_lock(lock, on_wait=waited.set):
+                entered.set()
+
+        with exclusive_lock(lock):
+            t = threading.Thread(target=second)
+            t.start()
+            assert waited.wait(5)
+            assert not entered.is_set()  # still blocked while the lock is held
+        t.join(5)
+        assert entered.is_set()
+
+
+@pytest.fixture(scope="module")
+def snapshot_sidecar(tmp_path_factory):
+    """Every snapshot card's record (its real trees seeded first), and a sidecar
+    built over them beside a stand-in bulk file — built once for the class
+    below."""
+    from mtg_utils import testkit
+
+    names = sorted(testkit._snapshot()["cards"])
+    assert names, "the committed card snapshot must not be empty"
+    records = []
+    for name in names:
+        testkit.test_signals(name)  # seeds the crosswalk trees memo
+        records.append(testkit.test_card(name))
+    bulk = tmp_path_factory.mktemp("snapshot-sidecar") / "AllPrintings.json"
+    bulk.write_text("{}", encoding="utf-8")
+    assert signals_index.load_signals_index(bulk, records=records) is not None
+    return names, records, bulk
+
+
 class TestByteEquivalenceAgainstRealSnapshot:
     """The correctness bar (task #90): the sidecar is a pure cache — every
     stored entry must equal a fresh live ``extract_signals`` run on
-    the SAME real card, over the committed snapshot fixture (no bulk/phase/
-    network needed in CI)."""
+    the SAME real card, and every stored concept arm the live predicate, over
+    the committed snapshot fixture (no bulk/phase/network needed in CI)."""
 
-    def test_matches_live_extraction_for_every_snapshot_card(self):
+    def test_matches_live_extraction_for_every_snapshot_card(self, snapshot_sidecar):
         from mtg_utils import testkit
 
-        names = sorted(testkit._snapshot()["cards"])
-        assert names, "the committed card snapshot must not be empty"
-
-        records = []
-        for name in names:
-            testkit.test_signals(name)  # seeds the crosswalk trees memo
-            records.append(testkit.test_card(name))
-
-        index = signals_index.build_signals_index(records)
+        names, records, bulk = snapshot_sidecar
+        index = signals_index.load_signals_index(bulk, records=records)
+        assert index is not None
 
         seen_oids: set[str] = set()
         checked = 0
@@ -297,6 +412,29 @@ class TestByteEquivalenceAgainstRealSnapshot:
             assert set(index.get(oid, ())) == live, name
             checked += 1
         assert checked > 0
+
+    def test_served_concept_arms_match_the_live_predicates(self, snapshot_sidecar):
+        """Every registry concept arm, served from the sidecar and seeded the way
+        production seeds it, answers exactly what the live predicate does — on
+        every snapshot card."""
+        names, records, bulk = snapshot_sidecar
+        assert theme_presets.seed_signal_key_index(bulk) is True
+
+        concept_presets = [p for p in theme_presets.PRESETS.values() if p.concept]
+        assert concept_presets
+        held: dict[str, int] = {}
+        for name, rec in zip(names, records, strict=True):
+            oid = rec.get("oracle_id")
+            if not oid:
+                continue
+            assert oid in theme_presets._CONCEPT_INDEX, name
+            for preset in concept_presets:
+                live = bool(preset.concept and preset.concept(rec))
+                served = theme_presets._concept_holds(preset, rec)
+                assert served == live, (preset.name, name)
+                held[preset.name] = held.get(preset.name, 0) + live
+        # Not vacuous: every arm holds for some snapshot card (its should_match).
+        assert all(held.get(p.name) for p in concept_presets), held
 
 
 def test_build_reports_progress_every_batch_and_at_the_end(monkeypatch):

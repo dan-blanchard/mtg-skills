@@ -18,6 +18,7 @@ Three layers of coverage:
 from __future__ import annotations
 
 import os
+import pickle
 import re
 from dataclasses import FrozenInstanceError
 from pathlib import Path
@@ -388,6 +389,7 @@ class TestSeedSignalKeyIndex:
 
     def _reset(self):
         theme_presets._SIGNAL_KEY_INDEX.clear()
+        theme_presets._CONCEPT_INDEX.clear()
         theme_presets._SEEDED_BULK_IDENTITIES.clear()
 
     def test_seeded_value_matches_a_synthetic_extractor(self, tmp_path, monkeypatch):
@@ -420,6 +422,45 @@ class TestSeedSignalKeyIndex:
             assert theme_presets.signal_keys_for(
                 {"oracle_id": "oid-seed"}
             ) == frozenset({"ramp"})
+        finally:
+            self._reset()
+
+    def test_a_seeded_concept_arm_is_served_not_recomputed(self, tmp_path):
+        """The ramp preset is its concept arm alone: once the sidecar's concept
+        answer is seeded, a match reads it; a card the seed doesn't cover, or one
+        ``forget_signal_keys`` dropped, takes the live predicate."""
+        from mtg_utils._analysis import signals_index
+
+        self._reset()
+        try:
+            bulk = tmp_path / "AllPrintings.json"
+            bulk.write_text("{}", encoding="utf-8")
+            sidecar = bulk.with_name(bulk.name + ".signals.pkl")
+            payload = {
+                "version": signals_index.SIGNALS_SIDECAR_VERSION,
+                "content_hash": signals_index._content_hash(),
+                "bulk_identity": signals_index._bulk_identity(bulk),
+                "index": {"oid-served": ()},
+                # A stored answer the live arm can't give (no keys, no trees),
+                # so a True here can only come from the index.
+                "concepts": {"oid-served": ("ramp",)},
+            }
+            sidecar.write_bytes(pickle.dumps(payload))
+            assert theme_presets.seed_signal_key_index(bulk) is True
+
+            ramp = theme_presets.get_preset("ramp")
+            card = {"oracle_id": "oid-served", "type_line": "Artifact"}
+            assert ramp.matches(card) is True
+            # A Preset outside the registry never borrows the registry's answer.
+            look_alike = Preset(name="ramp", description="", concept=lambda _c: False)
+            assert look_alike.matches(card) is False
+            # An uncovered card: the live arm, which finds nothing here.
+            assert (
+                ramp.matches({"oracle_id": "oid-other", "type_line": "Artifact"})
+                is False
+            )
+            theme_presets.forget_signal_keys("oid-served")
+            assert ramp.matches(card) is False
         finally:
             self._reset()
 

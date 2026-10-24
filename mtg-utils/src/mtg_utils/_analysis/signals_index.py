@@ -10,6 +10,15 @@ audit). This module persists ``oracle_id -> sorted tuple of "key|scope|
 subject" idents`` ONE TIME per (bulk, signal-source-code) pair so every
 later load is a pickle deserialize, not a crosswalk re-run.
 
+Beside the idents it persists ``oracle_id -> the names of the theme presets
+whose concept arm holds`` (``theme_presets.concept_arms_holding``): a concept
+arm walks the card's signal trees, which the idents can't answer, so before
+this the tuner's first ramp / card-draw / board-wipe page built trees for the
+whole pool in every process — 86 of a precon tune's 119 s (backlog (l),
+2026-10-23). The build already holds every card's trees for its extraction, so
+the arms cost it little — except blink's, which runs a second, membership-free
+extraction per card (about 40 s of the ~2 min build).
+
 Sidecar lives at ``<bulk_path>.signals.pkl`` — same physical-placement
 convention as ``_mtgjson.rulings_index`` (``<AllPrintings.json>.rulings.pkl``),
 which is the freshest precedent this module mirrors: its own atomic
@@ -25,9 +34,9 @@ PAIR — ``load_pickle_sidecar`` / ``write_pickle_sidecar``, the helper
 migrated onto — and deliberately stays hand-rolled instead of adopting it.
 That pair's on-disk shape is fixed at ``{"version": <int>, value_key:
 value}`` (one flat value under one key) with a single mtime-vs-source
-staleness gate; this sidecar's actual payload is FOUR independent
+staleness gate; this sidecar's actual payload is FIVE independent
 top-level keys (``version``, ``content_hash``, ``bulk_identity``,
-``index``) checked by three separate equality gates, staled by a
+``index``, ``concepts``) checked by three separate equality gates, staled by a
 whole-source-tree content hash rather than one file's mtime — the exact
 thing the "Invalidation" section above explains mtime alone can't safely
 give this cache (the ``creature_recursion`` lesson). Nesting the extra
@@ -48,7 +57,8 @@ kept serving stale output past a lane fix). Instead every load computes a
 content hash over:
 
   * every ``.py`` file transitively reachable from
-    ``mtg_utils._analysis.signals`` by following ``mtg_utils``-internal
+    ``mtg_utils._analysis.signals`` and ``mtg_utils.theme_presets`` (the
+    concept arms' home) by following ``mtg_utils``-internal
     imports — module-level AND lazy (inside a function body) — via
     :func:`signal_source_files`. This is a live AST walk, not a
     hand-maintained list: adding a new lane helper, threading a new
@@ -63,6 +73,12 @@ content hash over:
 A payload whose stored hash doesn't match a freshly-computed one, or whose
 bulk-file identity (path + mtime_ns + size) doesn't match the current bulk
 file, is treated as absent — silently rebuilt, never served stale.
+
+The rebuild holds an exclusive lock (``_sidecar.exclusive_lock`` on
+``<bulk_path>.signals.pkl.lock``) and re-reads the sidecar once it has it: of
+several processes that find the index stale at once (a precon rerun's parallel
+workers right after a lane edit), one builds and the others wait for it and
+read what it wrote, instead of each paying the ~2 min pass.
 
 # Configuration (the trap)
 
@@ -92,23 +108,44 @@ import pickle
 import sys
 from collections.abc import Callable, Iterable, Sized
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, NamedTuple
+
+from mtg_utils._sidecar import exclusive_lock
 
 if TYPE_CHECKING:
     from mtg_utils._analysis.signals import Signal
 
-SIGNALS_SIDECAR_VERSION = 1
+# 2: the ``concepts`` payload key (the theme presets' concept arms).
+SIGNALS_SIDECAR_VERSION = 2
 _SIGNALS_SIDECAR_SUFFIX = ".signals.pkl"
 
 # oracle_id -> sorted tuple of "key|scope|subject" idents (empty tuple for a
 # card with zero signals — a real, cacheable answer, not "unknown").
 SignalsIndex = dict[str, tuple[str, ...]]
+# oracle_id -> sorted names of the theme presets whose concept arm holds (empty
+# tuple when none does — again a real answer).
+ConceptIndex = dict[str, tuple[str, ...]]
 
-_ROOT_MODULE = "mtg_utils._analysis.signals"
+
+class SignalsSidecar(NamedTuple):
+    """The persisted payload's two per-card answers."""
+
+    index: SignalsIndex
+    concepts: ConceptIndex
+
+
+# The import-closure roots: the extractor, and the theme presets whose concept
+# arms the sidecar also stores (the extractor's closure reaches theme_presets
+# today, but only through lazy imports nothing promises to keep).
+_ROOT_MODULES = ("mtg_utils._analysis.signals", "mtg_utils.theme_presets")
 
 
 def _sidecar_path(bulk_path: Path) -> Path:
     return bulk_path.with_name(bulk_path.name + _SIGNALS_SIDECAR_SUFFIX)
+
+
+def _lock_path(bulk_path: Path) -> Path:
+    return bulk_path.with_name(bulk_path.name + _SIGNALS_SIDECAR_SUFFIX + ".lock")
 
 
 def _ident(sig: Signal) -> str:
@@ -153,7 +190,24 @@ def _stderr_progress(done: int, total: int) -> None:
 def build_signals_index(
     records: Iterable[dict], *, progress: ProgressHook | None = None
 ) -> SignalsIndex:
-    """oracle_id -> sorted idents, over EVERY record carrying an ``oracle_id``.
+    """oracle_id -> sorted idents, over EVERY record carrying an ``oracle_id`` —
+    :func:`build_signals_sidecar`'s idents alone, without the concept arms.
+
+    Public + importable so a corpus-verification harness can build the exact
+    same idents this module persists, over any record list it likes."""
+    return build_signals_sidecar(records, progress=progress, concepts=False).index
+
+
+def build_signals_sidecar(
+    records: Iterable[dict],
+    *,
+    progress: ProgressHook | None = None,
+    concepts: bool = True,
+) -> SignalsSidecar:
+    """Both per-card answers the sidecar persists, in one pass over EVERY record
+    carrying an ``oracle_id``: its sorted idents and (when ``concepts``) the
+    theme presets whose concept arm holds (``theme_presets.concept_arms_holding``,
+    the same live predicates a preset match runs).
 
     ``progress`` (optional) is told ``(done, total)`` once at the start (done 0),
     every ``PROGRESS_EVERY`` records, and once at the end — the meter a caller
@@ -166,12 +220,16 @@ def build_signals_index(
     ``extract_signals`` at its DEFAULTS (see the module docstring's
     "Configuration" section) — the ONE config every wired consumer relies on.
 
-    Public + importable so a corpus-verification harness can build the exact
-    same artifact this module persists, over any record list it likes."""
+    Each card's idents are memoized in ``theme_presets``
+    (``remember_signal_idents``) before its concept arms run, so the arm that
+    reads the card's signal keys (ramp) doesn't extract them a second time — the
+    same values a seed from this sidecar writes there."""
     from mtg_utils._analysis.signals import extract_signals
+    from mtg_utils.theme_presets import concept_arms_holding, remember_signal_idents
 
     total = len(records) if isinstance(records, Sized) else 0
     index: SignalsIndex = {}
+    concept_index: ConceptIndex = {}
     done = 0
     if progress is not None:
         progress(0, total)  # the start: a reporter's clock begins here, not 1000 in
@@ -184,9 +242,12 @@ def build_signals_index(
             continue
         sigs = extract_signals(rec)
         index[oid] = tuple(sorted(_ident(s) for s in sigs))
+        if concepts:
+            remember_signal_idents(oid, index[oid])
+            concept_index[oid] = concept_arms_holding(rec)
     if progress is not None:
         progress(done, total or done)
-    return index
+    return SignalsSidecar(index, concept_index)
 
 
 # ── Version gate: an AST-audited import closure, not a hand-kept list ───────
@@ -242,19 +303,20 @@ def _imported_mtg_modules(path: Path) -> set[str]:
 
 def signal_source_files() -> tuple[Path, ...]:
     """Every ``.py`` file transitively reachable from ``_analysis.signals``
-    by following ``mtg_utils``-internal imports (module-level + lazy) — the
+    and ``theme_presets`` (:data:`_ROOT_MODULES`) by following
+    ``mtg_utils``-internal imports (module-level + lazy) — the
     exact file set whose content can change ``extract_signals``'s
-    output. Recomputed via a fresh AST walk every call (never a cached/
-    hand-written list), so a newly-added lane module or corrections pass is
-    picked up automatically the next time this runs — the "audit the actual
-    import graph" the sidecar's invalidation depends on. Deliberately
+    output or a concept arm's. Recomputed via a fresh AST walk every call
+    (never a cached/hand-written list), so a newly-added lane module or
+    corrections pass is picked up automatically the next time this runs — the
+    "audit the actual import graph" the sidecar's invalidation depends on. Deliberately
     conservative: a module reachable here but NOT actually read by
     ``extract_signals`` at runtime still counts — over-invalidating
     on an unrelated edit costs one wasted rebuild; under-invalidating serves
     stale signals silently, which is the one failure mode this sidecar must
     never have."""
     seen: set[str] = set()
-    queue: list[str] = [_ROOT_MODULE]
+    queue: list[str] = list(_ROOT_MODULES)
     files: set[Path] = set()
     while queue:
         name = queue.pop()
@@ -303,7 +365,7 @@ def _bulk_identity(bulk_path: Path) -> tuple[str, int, int]:
 
 def _read_sidecar(
     sidecar: Path, bulk_path: Path, content_hash: str
-) -> SignalsIndex | None:
+) -> SignalsSidecar | None:
     if not sidecar.exists():
         return None
     try:
@@ -320,20 +382,22 @@ def _read_sidecar(
     if payload.get("bulk_identity") != _bulk_identity(bulk_path):
         return None
     index = payload.get("index")
-    if not isinstance(index, dict):
+    concepts = payload.get("concepts")
+    if not isinstance(index, dict) or not isinstance(concepts, dict):
         return None
-    return index
+    return SignalsSidecar(index, concepts)
 
 
 def _write_sidecar(
-    sidecar: Path, index: SignalsIndex, content_hash: str, bulk_path: Path
+    sidecar: Path, built: SignalsSidecar, content_hash: str, bulk_path: Path
 ) -> None:
     """Best-effort atomic write; a failure just means the next call rebuilds."""
     payload = {
         "version": SIGNALS_SIDECAR_VERSION,
         "content_hash": content_hash,
         "bulk_identity": _bulk_identity(bulk_path),
-        "index": index,
+        "index": built.index,
+        "concepts": built.concepts,
     }
     tmp = sidecar.with_name(sidecar.name + ".tmp")
     try:
@@ -352,7 +416,21 @@ def load_signals_index(
     *,
     progress: ProgressHook | None = None,
 ) -> SignalsIndex | None:
-    """Return the oracle_id -> signal-ident index for *bulk_path*.
+    """Return the oracle_id -> signal-ident index for *bulk_path*: the
+    ``index`` half of :func:`load_signals_sidecar`, which says how it's served
+    and built."""
+    sidecar = load_signals_sidecar(bulk_path, records, progress=progress)
+    return None if sidecar is None else sidecar.index
+
+
+def load_signals_sidecar(
+    bulk_path: Path | None,
+    records: list[dict] | None = None,
+    *,
+    progress: ProgressHook | None = None,
+) -> SignalsSidecar | None:
+    """Return the persisted per-card answers for *bulk_path* — the
+    oracle_id -> signal-ident index and the oracle_id -> concept-arm index.
 
     ``None`` means "nothing to serve" — no bulk path, or the file isn't
     present — the caller's existing no-sidecar behavior (per-card live
@@ -360,14 +438,16 @@ def load_signals_index(
     to force a consumer onto the sidecar.
 
     Builds the sidecar on first touch (a one-time whole-pool
-    ``extract_signals`` pass — ~2-4 min over the full bulk — logged to
+    ``extract_signals`` + concept-arm pass — ~2 min over the full bulk — logged to
     stderr so a caller mid-request isn't left wondering why it's slow, with
     ``progress`` — or the hook :func:`set_progress_hook` installed, or the stderr
     default — told how far along it is) and persists it; every subsequent call
     for the same bulk + source code is a pickle deserialize. Pass *records* when
     the caller already holds the loaded bulk list (``bulk_loader.load_bulk_cards``
     is itself cached, so omitting it just adds one cheap cache hit, never a
-    re-parse)."""
+    re-parse). The build runs under the cross-process lock the module docstring
+    describes: a caller that finds another process building waits, then reads
+    that process's sidecar."""
     if bulk_path is None:
         return None
     bulk_path = Path(bulk_path)
@@ -380,18 +460,31 @@ def load_signals_index(
     if cached is not None:
         return cached
 
-    if records is None:
-        from mtg_utils.bulk_loader import load_bulk_cards
+    def _say_waiting() -> None:
+        print(
+            "mtg-utils: another process is building the signals index; waiting "
+            "for it...",
+            file=sys.stderr,
+        )
 
-        records = load_bulk_cards(bulk_path)
+    with exclusive_lock(_lock_path(bulk_path), on_wait=_say_waiting):
+        # Built by whoever held the lock while this process waited.
+        cached = _read_sidecar(sidecar, bulk_path, content_hash)
+        if cached is not None:
+            return cached
 
-    print(
-        f"mtg-utils: building signals index over {len(records)} cards "
-        f"(one-time ~2-4 min pass; cached at {sidecar})...",
-        file=sys.stderr,
-    )
-    index = build_signals_index(
-        records, progress=progress or _progress_hook or _stderr_progress
-    )
-    _write_sidecar(sidecar, index, content_hash, bulk_path)
-    return index
+        if records is None:
+            from mtg_utils.bulk_loader import load_bulk_cards
+
+            records = load_bulk_cards(bulk_path)
+
+        print(
+            f"mtg-utils: building signals index over {len(records)} cards "
+            f"(one-time ~2 min pass; cached at {sidecar})...",
+            file=sys.stderr,
+        )
+        built = build_signals_sidecar(
+            records, progress=progress or _progress_hook or _stderr_progress
+        )
+        _write_sidecar(sidecar, built, content_hash, bulk_path)
+    return built
