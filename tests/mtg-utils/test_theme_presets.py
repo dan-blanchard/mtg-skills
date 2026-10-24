@@ -269,6 +269,48 @@ _STRUCTURAL_SHOULD_NOT_MATCH = [
 ]
 
 
+_CONCEPT_SIGNALS_CASES = [
+    (name, card)
+    for name, preset in PRESETS.items()
+    if preset.concept_signals is not None
+    # The fixtures, plus the "worth blinking" bodies the floor's LOW
+    # blink_flicker lands on, and a flicker body that is a maker.
+    for card in (
+        *preset.should_match,
+        *preset.should_not_match,
+        "Mulldrifter",
+        "Restoration Angel",
+    )
+]
+
+
+@pytest.mark.parametrize(("preset_name", "card_name"), _CONCEPT_SIGNALS_CASES)
+def test_concept_signals_agrees_with_the_live_concept(preset_name: str, card_name: str):
+    """A concept arm read off the card's production signals (the sidecar build's
+    one extraction) answers what the live arm does — blink's live arm runs a
+    second, membership-free extraction of its own."""
+    from mtg_utils import testkit
+
+    sigs = testkit.test_signals(card_name)
+    preset = PRESETS[preset_name]
+    card = testkit.test_card(card_name)
+    assert preset.concept is not None
+    assert preset.concept_signals is not None
+    assert preset.concept_signals(sigs) is preset.concept(card)
+    assert theme_presets.concept_arms_holding(
+        card, signals=sigs
+    ) == theme_presets.concept_arms_holding(card)
+
+
+def test_blink_concept_signals_reads_makers_only():
+    from mtg_utils import testkit
+
+    blink = PRESETS["blink"]
+    assert blink.concept_signals is not None
+    assert blink.concept_signals(testkit.test_signals("Ephemerate"))
+    assert not blink.concept_signals(testkit.test_signals("Mulldrifter"))
+
+
 class TestStructuralPresetsAgainstSnapshot:
     """should_match/should_not_match for signal_keys/concept presets, proven
     against the committed real-card snapshot (mtg_utils.testkit)."""

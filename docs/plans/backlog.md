@@ -220,13 +220,16 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   ``land_protection`` — Pass D's list): their page is partly a pattern. The
   replacement doublers (Anointed Procession, Parallel Lives, Hardened Scales)
   read as enablers under the clause payoff test.
-  (l) **Tune speed, what's left.** The persisted signals index serves the
-  presets' concept arms and its rebuild is locked across processes (2026-10-23:
-  a precon tune 30 → 14 s median). Of the 34 s a profiled tune has left, about
-  18 s is the ranking's per-unit ident attribution
-  (`ident_provenance.unit_idents_for`); the index build pays a second,
-  membership-free extraction per card for the blink arm (about 40 s of its
-  ~2 min).
+  (l) **Tune speed, what's left** (2026-10-24). The ranking's per-unit ident
+  attribution persists in a write-back sidecar beside the signals index
+  (`<bulk>.provenance.pkl`, `ident_provenance.attach_provenance_sidecar`; the
+  deck-tune CLI and the hub attach it), and the index build reads blink's
+  concept arm off its one extraction (`Preset.concept_signals`): the build
+  147 → 107 s (payload byte-identical), a warm Blood Rites tune 15.6 → 12.5 s
+  (profiled: attribution 9.1 → 0 s). A tune's first sight of a candidate still
+  pays its attribution (about 9 ms a card). Of what a warm profiled tune has
+  left, the largest is `card_search.filter_records`: about 6 s over 17 pages,
+  each a full-pool scan of `_matches_filters`.
 
 - **Competitive Brawl's "banned as a commander" reads as `restricted`.** The
   2026-10-12 B&R update introduced the category (mtg.wiki "Competitive Brawl"

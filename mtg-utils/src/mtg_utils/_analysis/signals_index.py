@@ -16,8 +16,9 @@ arm walks the card's signal trees, which the idents can't answer, so before
 this the tuner's first ramp / card-draw / board-wipe page built trees for the
 whole pool in every process — 86 of a precon tune's 119 s (backlog (l),
 2026-10-23). The build already holds every card's trees for its extraction, so
-the arms cost it little — except blink's, which runs a second, membership-free
-extraction per card (about 40 s of the ~2 min build).
+the arms cost it little: blink's, whose live arm runs a second, membership-free
+extraction per card (about 40 s of the ~2 min build), reads the maker half off
+the extraction the build already holds (``Preset.concept_signals``).
 
 Sidecar lives at ``<bulk_path>.signals.pkl`` — same physical-placement
 convention as ``_mtgjson.rulings_index`` (``<AllPrintings.json>.rulings.pkl``),
@@ -244,7 +245,7 @@ def build_signals_sidecar(
         index[oid] = tuple(sorted(_ident(s) for s in sigs))
         if concepts:
             remember_signal_idents(oid, index[oid])
-            concept_index[oid] = concept_arms_holding(rec)
+            concept_index[oid] = concept_arms_holding(rec, signals=sigs)
     if progress is not None:
         progress(done, total or done)
     return SignalsSidecar(index, concept_index)

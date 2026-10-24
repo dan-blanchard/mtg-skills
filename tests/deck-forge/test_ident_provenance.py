@@ -85,3 +85,45 @@ def test_keys_are_tree_and_unit_ordinals():
         ti, ui = key
         assert isinstance(ti, int)
         assert isinstance(ui, int)
+
+
+def _detach(monkeypatch) -> None:
+    from mtg_utils._analysis import ident_provenance
+
+    monkeypatch.setattr(ident_provenance._Attached, "path", None)
+    monkeypatch.setattr(ident_provenance._Attached, "key", None)
+    monkeypatch.setattr(ident_provenance._Attached, "persisted", {})
+    monkeypatch.setattr(ident_provenance._Attached, "fresh", {})
+    monkeypatch.setattr(ident_provenance, "_UNIT_IDENTS_MEMO", {})
+
+
+def test_the_provenance_sidecar_serves_what_a_process_wrote_back(monkeypatch, tmp_path):
+    """A process attached to a bulk's sidecar writes back what it attributed; the
+    next process serves it without re-running a lane, and the value is the one a
+    live attribution computes. A changed bulk (its identity is the key) serves
+    nothing."""
+    from mtg_utils._analysis import ident_provenance
+
+    bulk = tmp_path / "AllPrintings.json"
+    bulk.write_text("[]")
+    live = _attribution("Myr Galvanizer")
+
+    _detach(monkeypatch)
+    assert ident_provenance.attach_provenance_sidecar(bulk)
+    assert unit_idents_for(test_card("Myr Galvanizer")) == live
+    ident_provenance.flush_provenance_sidecar()
+    assert (tmp_path / "AllPrintings.json.provenance.pkl").is_file()
+
+    _detach(monkeypatch)
+    ident_provenance.attach_provenance_sidecar(bulk)
+
+    def no_lane_run(*_a, **_k):
+        raise AssertionError("served from the sidecar, never recomputed")
+
+    monkeypatch.setattr(ident_provenance, "extract_crosswalk_signals", no_lane_run)
+    assert unit_idents_for(test_card("Myr Galvanizer")) == live
+
+    _detach(monkeypatch)
+    bulk.write_text("[ ]")  # another bulk: another key
+    ident_provenance.attach_provenance_sidecar(bulk)
+    assert ident_provenance._Attached.persisted == {}

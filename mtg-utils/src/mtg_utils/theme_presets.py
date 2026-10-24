@@ -119,6 +119,9 @@ if TYPE_CHECKING:
     # / _concept_any_face's own docstrings) to dodge an import-time cycle
     # with _analysis.signals — keeping this one TYPE_CHECKING-only too
     # keeps the whole module's import discipline uniform.
+    from collections.abc import Sequence
+
+    from mtg_utils._analysis.signals import Signal
     from mtg_utils._card_ir.crosswalk import ConceptTree
 
 # Matches a count in digit form, word form (one..twelve), or X. IGNORECASE
@@ -149,8 +152,12 @@ class Preset:
       module docstring's "Structural views" section) intersects these
       keys. Empty for every not-yet-converted preset.
     - ``concept``: an optional ``(card) -> bool`` predicate for a fact
-      neither the regex arms nor the signal system carry. ``None`` for
-      every preset today.
+      neither the regex arms nor the signal system carry.
+    - ``concept_signals``: the same ``concept`` answer read off the card's
+      production signals (``extract_signals`` at its defaults), for a
+      caller that already holds them — the signals sidecar's build, which
+      would otherwise pay a second extraction for an arm that runs its own
+      (blink's). It must agree with ``concept`` on every card.
 
     All six may be set; they combine with OR. ``should_match`` and
     ``should_not_match`` are card-name fixtures the test suite proves
@@ -171,6 +178,7 @@ class Preset:
     layouts: tuple[str, ...] = ()
     signal_keys: tuple[str, ...] = ()
     concept: Callable[[dict], bool] | None = None
+    concept_signals: Callable[[Sequence[Signal]], bool] | None = None
     should_match: tuple[str, ...] = ()
     should_not_match: tuple[str, ...] = ()
     #: Provenance for maintainers — the structural-view conversion notes (which
@@ -344,15 +352,23 @@ def remember_signal_idents(oid: str, idents: Iterable[str]) -> None:
 _CONCEPT_INDEX: dict[str, frozenset[str]] = {}
 
 
-def concept_arms_holding(card: dict) -> tuple[str, ...]:
+def concept_arms_holding(
+    card: dict, *, signals: Sequence[Signal] | None = None
+) -> tuple[str, ...]:
     """The names of every registry preset whose ``concept`` arm holds for CARD,
     computed live and sorted — the per-card value the signals sidecar persists
     (``signals_index.build_signals_sidecar``) and :func:`_concept_holds` serves.
     Every preset with a concept arm is in it, so a served card answers any of
-    them."""
-    return tuple(
-        sorted(name for name, p in PRESETS.items() if p.concept and p.concept(card))
-    )
+    them. ``signals``, CARD's production signals when the caller holds them,
+    answers an arm that reads them (``Preset.concept_signals``) without a
+    second extraction."""
+
+    def holds(p: Preset) -> bool:
+        if signals is not None and p.concept_signals is not None:
+            return p.concept_signals(signals)
+        return p.concept is not None and p.concept(card)
+
+    return tuple(sorted(name for name, p in PRESETS.items() if p.concept and holds(p)))
 
 
 def _concept_holds(preset: Preset, card: dict) -> bool:
@@ -511,6 +527,16 @@ def _blink_maker_concept(card: dict) -> bool:
     from mtg_utils._analysis.lanes import blink_flicker_maker_present
 
     return blink_flicker_maker_present(card)
+
+
+def _blink_maker_in(signals: Sequence[Signal]) -> bool:
+    """:func:`_blink_maker_concept` read off the card's production signals: the
+    membership floor only adds a LOW, subject-less ``blink_flicker`` beside the
+    lane's HIGH ``enabler`` and never touches the lane's, so the maker half
+    reads the same with the floor as without it."""
+    from mtg_utils._analysis.lanes import blink_flicker_is_maker
+
+    return any(blink_flicker_is_maker(s) for s in signals)
 
 
 def _plus_one_counters_self_grow_concept(card: dict) -> bool:
@@ -3963,6 +3989,7 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
         ),
         signal_keys=("self_blink",),
         concept=_blink_maker_concept,
+        concept_signals=_blink_maker_in,
         should_match=("Soulherder", "Ephemerate", "Conjurer's Closet"),
         should_not_match=("Lightning Bolt", "Angel of Sanctions"),
     ),

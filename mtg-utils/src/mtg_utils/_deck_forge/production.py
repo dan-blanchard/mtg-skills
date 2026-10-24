@@ -44,7 +44,7 @@ def warm_at_launch(
     that needs the index meanwhile waits on the same build
     (``theme_presets._SEED_LOCK``). No bulk: nothing to warm. Returns the thread
     (None without bulk) so a caller can join it."""
-    from mtg_utils._analysis import signals_index
+    from mtg_utils._analysis import ident_provenance, signals_index
     from mtg_utils._deck_forge import discovery, engine
 
     state.report_busy = reporter
@@ -61,6 +61,7 @@ def warm_at_launch(
         # head start, nothing more — say so and carry on to the next step.
         try:
             theme_presets.seed_signal_key_index(state.bulk_path)
+            ident_provenance.attach_provenance_sidecar(state.bulk_path)
         except Exception as exc:  # noqa: BLE001
             print(f"deck-forge: signals-index warm failed: {exc}", file=sys.stderr)
         try:
