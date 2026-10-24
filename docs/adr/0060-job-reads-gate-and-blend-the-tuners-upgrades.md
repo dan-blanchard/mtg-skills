@@ -44,7 +44,7 @@ Measured on the 25 precons (eighth pass, `docs/plans/precon-audit/job_reads.py`)
 | job | fit on main-job cards: CV Spearman | production read over every card it scores: Spearman / guide adds, median percentile (read vs play-rate) | use |
 |---|---|---|---|
 | protection | 0.56 | 0.56 / 0.92 vs 0.97 | gate + blend (Dan's call) |
-| board wipe | 0.50 | 0.49 / 0.79 vs 0.92 | gate + blend |
+| board wipe | 0.50 | 0.50 / 0.84 vs 0.92 (2026-10-24; 0.49 / 0.79 before) | gate + blend |
 | removal | 0.40 | 0.16 / 0.49 vs 0.94 | gate |
 | card draw | 0.33 | 0.33 / 0.76 vs 0.85 | gate + blend |
 | ramp | 0.28 | 0.27 / 0.69 vs 0.89 | gate |
@@ -171,3 +171,38 @@ the debuffs that lower toughness (`lanes.toughness_debuff`), so Animate Dead's â
 and Jace, Architect of Thought's are no interaction. Alone they cost Planeswalker Party
 four guide cuts: Jace no longer counts as interaction, so its dead-weight fills could
 take Elspeth, Storm Slayer, which spent the budget its upgrades had used.
+
+**Amendment (2026-10-24, later): the wipe read's calibration.** The read rated
+Final Showdown (0.93), Spiteful Banditry and The Meathook Massacre (0.91) above
+Blasphemous Act and Toxic Deluge (0.69), and Wrath of God and Damnation (0.32) below
+Vanquish the Horde (0.71). Not the "can't be regenerated" clause: Wrath read clean.
+Two costs were misread, and the reference line was recalibrated. A spree mode costs
+its own additional cost (CR 702.172a; phase's `modal.mode_costs`, now
+`ConceptTree.card_modal_mode_costs`), so Final Showdown's sweep costs six. An enters
+trigger reads the X paid to cast its permanent (CR 107.3m), so Meathook and Banditry
+cost their X. The "cheap clean sweep" line sat at three mana; it now sits at four,
+and "cheap" (âˆ’0.09) marks only an unclean sweep, the small kind. That is a
+recalibration, not a misread fix: from first principles a clean sweep of every
+creature at four mana (Wrath of God, Damnation, Supreme Verdict) is the reference
+board wipe. The fitted weights stay. Three misreads the new line exposed are fixed
+too. An exile the same ability returns to the battlefield is a flicker, read off the
+shared tree's blink return (`ConceptNode.returns_to`): Golden Argosy (whose
+"creatures that crewed it" phase reads as every creature, pinned by a retirement
+canary), Planar Guide and Sudden Disappearance. A face reached by transforming is no
+wipe on demand: the read's own decision, since the rules say only that such a back
+face's mana value is its front's (CR 712.8e); Jin-Gitaxias's Great Synthesis. And a
+sweep an event fires (Sarkhan's Unsealing's power-7 cast trigger) is never clean.
+Now: Blasphemous Act and Toxic Deluge 0.78, Wrath of God and Damnation 0.76, Final
+Showdown, Spiteful Banditry and Meathook 0.48. Left: Vanquish the Horde reads 0.80,
+above them all, because its {1}-per-creature discount is taken at a full board. The
+board-wipe row (`job_reads.py`): 800 cards, Spearman 0.501 (0.487), guide adds at
+the 84th percentile (79th), 8 of 19 in the top decile (8); the cut side unchanged (9
+of the bottom two). On the 25 precons the recalibration was measured together with
+the five misread fixes, never alone: 439 / 170 / 56 against 444 / 169 / 56, adds flat
+and one guide cut more. The wipe upgrades are now Toxic Deluge, Wrath of God and Damn
+where they were Meathook, Martial Coup and Blasphemous Act. The misread fixes ship on
+correctness and the recalibration on first principles, with that joint delta
+recorded.
+The read leading the wipe upgrades again (play-rate breaking ties) matched 55 adds,
+Blame Game losing Blasphemous Act (Vanquish the Horde reads above it) and
+Aurelia: still rejected.

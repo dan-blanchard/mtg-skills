@@ -757,6 +757,80 @@ What each policy does:
   13), trading four of its own Auras that were upgrade slots before: Daybreak
   Coronet, Angelic Destiny, Ancestral Mask and Snake Umbra, none a guide cut.
 
+### The remaining tuner levers (2026-10-24)
+
+The backlog's last tuner items: the wipe read's calibration ((j)), the guide cuts the
+tuner protects ((g)), the adds a page held but outranked ((m)) and the subs no search
+reaches ((r)). The bar: a change ships if guide-matching adds rise and guide-matching
+cuts fall by two at most, or for a cut-side change if cuts rise and adds fall by two
+at most; a read-correctness fix ships on correctness with its delta recorded. One
+`misses.py` run per row, Spellbook cached. The wipe rows and the two popular-cut rows
+are each measured alone against the wipe fixes; M1, M2 and R1 on top of the kept
+popular tier (474 / 180 / 57). Columns as in "Theme reach".
+
+| change | swaps / cuts / adds | theme swaps | wipe / int / prot / draw / ramp / theme | tune s · GB | |
+|---|---|---|---|---|---|
+| HEAD (9e0026ed) | 444 / 169 / 56 | 220 | 2 / 8 / 4 / 8 / 7 / 27 | 7.2 · 1.62 | |
+| wipe read: spree and enters-X costs, the reference wipe at four | 436 / 169 / 55 | 215 | 2 / 8 / 4 / 8 / 7 / 26 | 6.4 · 1.71 | exposed three misreads |
+| … and no flicker, transform back or event-fired clean sweep | 439 / 170 / 56 | 217 | 2 / 8 / 4 / 8 / 7 / 27 | 7.6 · 1.63 | shipped (read fixes + recalibration) |
+| the wipe read leads its upgrades | 438 / 170 / 55 | 216 | 1 / 8 / 4 / 8 / 7 / 27 | 7.5 · 1.63 | rejected |
+| popular off-avenue cards as upgrade slots, beside the fringe ones | 478 / 177 / 51 | 204 | 3 / 7 / 4 / 8 / 6 / 23 | 7.8 · 1.63 | rejected |
+| … as the last upgrade tier | 474 / 180 / 57 | 217 | 2 / 8 / 4 / 9 / 7 / 27 | 8.3 · 1.70 | kept |
+| theme adds: a card on two viable avenues first | 455 / 169 / 46 | 207 | 2 / 6 / 4 / 7 / 5 / 22 | 8.2 · 1.63 | rejected |
+| theme adds: synergy and play-rate percentiles blended | 498 / 182 / 53 | 229 | 3 / 5 / 3 / 11 / 4 / 27 | 7.6 · 1.69 | rejected |
+| a sub with a main's carers (6) takes one add that also serves a main | 470 / 178 / 57 | 214 | 2 / 8 / 4 / 9 / 6 / 28 | 8.7 · 1.71 | rejected |
+| **shipped** | **474 / 180 / 57** | **217** | **2 / 8 / 4 / 9 / 7 / 27** | **8.1 · 1.63** | |
+
+Against HEAD: 30 more swaps, 11 more guide-matching cuts, one more guide-matching add.
+
+- **The wipe read** (ADR-0060's second 2026-10-24 amendment). Wrath of God and
+  Damnation read 0.32 because the cheap-clean line sat at three mana, not because of
+  "can't be regenerated"; Final Showdown, Spiteful Banditry and Meathook read high
+  because their spree mode and their X went uncounted (two cost misreads). Moving the
+  line to four mana is a recalibration, not a misread fix: from first principles Wrath
+  of God at four is the reference board wipe. The four-mana line let three misreads
+  into the wipe fills (Golden Argosy's crew flicker, Jin-Gitaxias's transformed Great
+  Synthesis, Sarkhan's Unsealing's cast trigger), which the second row fixes. The
+  recalibration was only ever measured together with the misread fixes: 439 / 170 / 56
+  against HEAD's 444 / 169 / 56, adds flat and one guide cut more. Now Blasphemous Act
+  and Toxic Deluge 0.78, Wrath of God and Damnation 0.76, Final Showdown, Banditry and
+  Meathook 0.48; the open leftover is Vanquish the Horde at 0.80, above them all (its
+  per-creature discount taken at a full board). The wipe upgrades become Toxic Deluge,
+  Wrath of God and Damn. Leading the upgrades, the read still loses Blame Game's
+  Blasphemous Act to Vanquish the Horde. In review the flicker veto moved onto the
+  shared tree's blink return (`ConceptNode.returns_to`), which also drops Planar Guide,
+  Sudden Disappearance and Thieves' Auction from the read; the precon totals stayed
+  474 / 180 / 57.
+- **Popular cards on no viable avenue** (`focus.popular_upgrade_cards`): off every
+  lane, ranked inside `UPGRADE_RANK` but not premium, serving none of the deck's
+  viable avenues. Of those cards the precon guides cut 0.28 (27 of 96,
+  `precon-audit/cut_splits.py`), against 0.24
+  for the decks overall and 0.48 for the fringe upgrade tier. Taken beside the fringe
+  ones they spent the budget the deep lane's theme upgrades had (Sliver Swarm lost
+  Kindred Discovery, Muscle Sliver and Sliver Legion); as the last tier, after the
+  lane's half, every earlier swap stands and the tail adds Decimate, Harmonize,
+  Bedevil, Decree of Pain, Burnished Hart, Whirlwind of Thought, Tear Asunder,
+  Chandra's Ignition and Lifecrafter's Bestiary as guide cuts, and Guardian Project
+  as a guide add. Feed the Swarm stays: it is premium (rank 93).
+- **Lane doers the guides trim** (55): 54 are carers, and outside the deep lane's half
+  their guide-cut rate is 0.08 to 0.20 in every carer split by role and play-rate
+  holding more than four cards (`cut_splits.py`), below the decks' 0.24 — no read
+  to try ((a) holds). Sliver Swarm's 11 are Granters,
+  judged by their grant (ADR-0040 §4).
+- **Outranked adds** (229 at the shipped tune, split against the swaps each tune
+  made): theme 76, ramp 45, removal 40, draw 29, protection 27, wipes 12. Against the
+  picks of their kind: every pick was more played for 28 theme, 27 ramp, 31 removal,
+  18 draw, 13 protection and 9 wipe adds; over what was left of the budget for 22
+  theme, 8 ramp and 6 removal; a less-played pick won (band, budget order) for 21
+  theme and 7 ramp and 7 draw; 5 theme adds sat below the fit floor. 21 of the 76
+  theme adds serve two viable avenues, but ranking those first took the adds to 46,
+  and a blend of synergy and play-rate to 53.
+- **A sub's one add.** Only Living Energy's Arcum Dagsson, Clever Impersonator and
+  Scrap Welder and Deep Clue Sea's Displaced Dinosaurs still serve only a sub; the
+  sub's picks there never served a main, so neither deck moved, and elsewhere the
+  sub's add reordered upgrades (Squirreled Away's Bitterblossom for Thornvault
+  Forager) and cost two guide cuts.
+
 ## What is left
 
 `docs/plans/backlog.md`, "What the polymorph tune and the 25-precon audit still

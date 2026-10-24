@@ -12,7 +12,14 @@ Cyclonic Rift and Damn read as the sweeps they are cast for, their base mode's
 effect at the overload cost (``crosswalk.overload_sweep``, the lanes' own read).
 A sweep of only your own permanents, or of your own cards (Glimpse of
 Tomorrow), is not one; nor is "and all other permanents with the same name"
-trailing a targeted kill (Maelstrom Pulse).
+trailing a targeted kill (Maelstrom Pulse); nor an exile the same ability
+returns to the battlefield (Planar Guide, Sudden Disappearance, Golden Argosy:
+the shared tree's blink return); nor one on a transform back face (Jin-Gitaxias's
+Great Synthesis). A spree mode costs its own additional cost (Final Showdown), and an
+enters trigger the X paid to cast its permanent (The Meathook Massacre). A clean
+sweep is one the card is cast or activated for, never one an event fires
+(Sarkhan's Unsealing), and one at four mana or less (Wrath of God) is the
+reference wipe.
 
 Fitted on the 562 commander-legal cards whose MAIN job is the sweep (an instant
 or sorcery's own spell, or the ETB, chapter or activated ability of a permanent
@@ -145,6 +152,15 @@ _BOARD_CREATURES = 6
 _BOARD_X = 4
 #: Undaunted's discount at a four-player table: {1} per opponent (CR 702.125a).
 _UNDAUNTED = 3
+#: What the reference wipe costs: a clean sweep of every creature at four mana
+#: (Wrath of God, Damnation, Supreme Verdict) is the board wipe a Commander deck
+#: is built around, and one at three (Toxic Deluge, Blasphemous Act on a full
+#: board) only better. The read's own call (2026-10-24): at three, Wrath of God
+#: and Damnation scored 0.32, below a six-mana Final Showdown.
+_REFERENCE_COST = 4
+#: The cost at or under which a sweep that lets creatures through is the cheap,
+#: small kind (Pyroclasm, Anger of the Gods).
+_CHEAP = 3
 
 
 @dataclass(frozen=True)
@@ -170,6 +186,7 @@ class _Sweep:
     rider: bool  # a draw, token or life for the caster in the same unit
     discount: tuple[str, int] | None  # ("board" | "fixed", generic) self reduction
     face_cmc: int | None  # the face's own printed mana value
+    mode_cost: int  # a spree / tiered mode's own additional cost (CR 702.172a)
 
 
 def _scale(qty: object) -> int:
@@ -337,6 +354,12 @@ def _tree_sweeps(tree: ConceptTree, *, walker: bool) -> list[_Sweep]:
             ov = sweeps.get(id(c.node))
             if ov is None:
                 continue
+            # An exile the unit returns to the battlefield is a flicker, never a
+            # wipe: the shared tree's blink return (``ConceptNode.returns_to``)
+            # marks it (Golden Argosy, whose "each creature that crewed it"
+            # phase reads as every creature).
+            if c.returns_to == "battlefield":
+                continue
             tag = tag_of(c.node)
             filt = (
                 getattr(c.node, "sacrifice_filter", None)
@@ -394,9 +417,20 @@ def _tree_sweeps(tree: ConceptTree, *, walker: bool) -> list[_Sweep]:
                     rider=rider,
                     discount=discount,
                     face_cmc=tree.cmc if tree.has_printed_cost else None,
+                    mode_cost=_mode_cost(tree, u),
                 )
             )
     return out
+
+
+def _mode_cost(tree: ConceptTree, u: AbilityUnit) -> int:
+    """The additional cost a spree or tiered spell asks for the mode ``u`` is
+    (CR 702.172a / 702.183a): Final Showdown's "Destroy all creatures" is
+    {3}{W}{W} on top of its {W}. 0 for any other unit."""
+    costs = tree.card_modal_mode_costs
+    if u.origin == "ability" and 0 <= u.index < len(costs):
+        return costs[u.index]
+    return 0
 
 
 def _static_sweep(shrinks: Sequence[tuple[AbilityUnit, object]]) -> _Sweep:
@@ -431,13 +465,27 @@ def _static_sweep(shrinks: Sequence[tuple[AbilityUnit, object]]) -> _Sweep:
         rider=False,
         discount=None,
         face_cmc=None,
+        mode_cost=0,
     )
 
 
 def _sweeps(card: dict) -> list[_Sweep]:
     trees = list(signal_trees_for(card, bulk=card))
     walker = "Planeswalker" in (card.get("type_line") or "")
-    out = [s for tree in trees for s in _tree_sweeps(tree, walker=walker)]
+    # A face after the first with no printed mana cost is a transforming card's
+    # back face (only its mana value is the front's, CR 712.8e): the read's own
+    # decision is that a face reached by transforming is no wipe on demand
+    # (Jin-Gitaxias's Great Synthesis behind seven cards in hand, Avacyn, the
+    # Purifier, Elesh Norn's Argent Etchings). Dropping every costless
+    # later face is intended; a modal or split face prints its own cost and
+    # stays. A back face cast transformed for an alternative cost (CR 712.11a;
+    # disturb, 702.146a) is dropped too; no such face sweeps.
+    out = [
+        s
+        for i, tree in enumerate(trees)
+        if i == 0 or tree.has_printed_cost
+        for s in _tree_sweeps(tree, walker=walker)
+    ]
     if not out:
         shrinks = [s for tree in trees for s in static_population_shrinks(tree)]
         if shrinks:
@@ -464,8 +512,11 @@ def _overload_cost(card: dict) -> int | None:
 def _cost(card: dict, best: _Sweep, *, x: bool) -> float:
     """The mana the sweep costs as cast: the card's cast cost
     (``_common.cast_cost``; a card with no mana cost keeps that fixed cost); a
-    split half's own cost; the overload cost; the card's own discount; X at its
-    floor or ``_BOARD_X``; plus an activation's mana on a noncreature permanent."""
+    split half's own cost; the overload cost; a spree or tiered mode's own cost;
+    the card's own discount; X at its floor or ``_BOARD_X`` — for a spell, and
+    for a permanent's enters trigger, whose X is the one paid to cast it (CR
+    107.3m: The Meathook Massacre, Spiteful Banditry); plus an activation's mana
+    on a noncreature permanent."""
     cost = cast_cost(card)
     if unpriced(card):
         return cost
@@ -476,12 +527,13 @@ def _cost(card: dict, best: _Sweep, *, x: bool) -> float:
         cost -= _UNDAUNTED
     if best.overload:
         cost = float(_overload_cost(card) or cost)
+    cost += best.mode_cost
     if best.discount is not None:
         kind, generic = best.discount
         cost = max(
             1.0, cost - (generic * _BOARD_CREATURES if kind == "board" else generic)
         )
-    if x and best.kind == "spell":
+    if x and best.kind in ("spell", "etb"):
         cost += best.x_floor or _BOARD_X
     if (
         best.kind == "activated"
@@ -513,8 +565,11 @@ def features(card: dict) -> dict[str, float] | None:
     cost = _cost(card, best, x=x)
     lethal = _lethal(best)
     creatures = "Creature" in best.types
+    # A sweep on demand: one the card is cast or activated for, not one an
+    # event elsewhere fires (Sarkhan's Unsealing's power-7 cast trigger).
     clean = (
-        lethal
+        best.kind in _PRIMARY
+        and lethal
         and creatures
         and not best.preds & (_NARROW | _SIZED | _SPARES)
         and not best.spares
@@ -534,9 +589,9 @@ def features(card: dict) -> dict[str, float] | None:
         "narrow": float(bool(best.preds & _NARROW)),
         "flexible": float(best.modal or best.overload or x or best.x_bound),
         "cost": min(max(cost, 1.0), 9.0),
-        "cheap": float(cost <= 3),
+        "cheap": float(not clean and cost <= _CHEAP),
         "clean": float(clean),
-        "cheap_clean": float(clean and cost <= 3),
+        "cheap_clean": float(clean and cost <= _REFERENCE_COST),
         "repeat": float(
             any(
                 (s.kind == "activated" and not s.self_sac)
@@ -549,7 +604,12 @@ def features(card: dict) -> dict[str, float] | None:
 
 
 #: Board wipe's weights, log10 play-rate per unit (ridge fit, 2026-10-19,
-#: standardised weight / feature sd, rounded).
+#: standardised weight / feature sd, rounded). ``cheap`` and ``cheap_clean``
+#: keep their fitted weights over features redrawn 2026-10-24 around the
+#: reference wipe (``_REFERENCE_COST``). With the cost and sweep fixes of the
+#: same day (``job_reads.py``): Spearman against play-rate 0.501 over 800 cards
+#: (0.487 over 807), the guides' wipe adds at the 84th percentile of their
+#: identity's wipes (79th), 8 of 19 in its top decile (8).
 WEIGHTS: dict[str, float] = {
     "creatures": 0.21,  # sweeps creatures
     "breadth": -0.02,  # per permanent type swept
@@ -561,9 +621,9 @@ WEIGHTS: dict[str, float] = {
     "narrow": -0.17,  # hits only a combat / colour / keyword slice
     "flexible": 0.20,  # modal, overload, X, or a bound the caster sets
     "cost": -0.02,  # per mana as cast
-    "cheap": -0.09,  # costs 3 or less (most cheap sweeps are small)
+    "cheap": -0.09,  # an unclean sweep at 3 or less (most are small)
     "clean": 0.14,  # every creature dies, nothing lets one through
-    "cheap_clean": 0.44,  # a clean sweep at 3 or less (Toxic Deluge)
+    "cheap_clean": 0.44,  # a clean sweep at 4 or less (Wrath of God, Toxic Deluge)
     "repeat": -0.12,  # sweeps again (Pestilence)
     "rider": 0.06,  # a draw, token or life for the caster
 }

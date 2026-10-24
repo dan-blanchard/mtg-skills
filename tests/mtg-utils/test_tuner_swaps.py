@@ -1698,6 +1698,39 @@ def test_a_deep_lane_is_the_last_cut_tier_in_the_focus_reads_order():
     assert _cut_why("lane_upgrade").startswith("a lane feeder few decks play")
 
 
+def test_popular_off_theme_cards_are_the_last_upgrade_tier():
+    """A popular card serving none of the deck's themes (the focus read's
+    ``popular_upgrade_cards``) is an upgrade slot taken after every other: after
+    the off-lane fringe and the deep lane's half, in the focus read's order."""
+    lane = [
+        _cc(f"Vamp {i}", "engine", served=("Vampires",), edhrec_rank=9000 + i)
+        for i in range(2)
+    ]
+    fringe = _cc("Fringe Kill", "spine", roles=["interaction"], edhrec_rank=4000)
+    popular = [
+        _cc("Popular Kill", "spine", roles=["interaction"], edhrec_rank=900),
+        _cc("Popular Draw", "spine", roles=["card_draw"], edhrec_rank=400),
+    ]
+    cuts = cut_candidates(
+        [*popular, fringe, *lane],
+        budgets={},
+        focus=CutFocus(
+            viable={"Vampires"},
+            commander_cards={c.name for c in lane},
+            upgrade_cards={"Fringe Kill"},
+            lane_upgrade_cards=("Vamp 1",),
+            popular_upgrade_cards=("Popular Kill", "Popular Draw"),
+        ),
+    )
+    assert [(r, c.name) for r, c in cuts] == [
+        ("upgrade", "Fringe Kill"),
+        ("lane_upgrade", "Vamp 1"),
+        ("popular_upgrade", "Popular Kill"),
+        ("popular_upgrade", "Popular Draw"),
+    ]
+    assert "none of the deck's themes" in _cut_why("popular_upgrade")
+
+
 def test_a_band_that_is_the_commanders_lane_is_no_cut_pool():
     classes = [
         _cc(f"Rock {i}", "spine", roles=["ramp"], cmc=2.0, edhrec_rank=5000)

@@ -98,23 +98,38 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   since the fourth pass, so a card with both a cast and an enters payoff —
   Tuvasa the Sunlit, Sai — fires the typed-cheat rows and Sol Ring / Pacifism
   no longer score as payoffs.)
-  (g) The guide cuts the tuner protects are still 124 — lane carers and doers
-  the guides trim, which the upgrade issue reaches only through the deep
-  lane's least-played half.
+  (g) **The guide cuts the tuner protects** (2026-10-24, the experiment table in
+  `docs/plans/precon-audit-2026-10-18.md`, "The remaining tuner levers"). Shipped:
+  popular cards (inside `UPGRADE_RANK`, not premium) off every lane and on none of
+  the deck's viable avenues are the last upgrade tier (`focus.popular_upgrade_cards`,
+  after the deep lane's half; the guides cut 0.28 of them, 27 of 96; beside the
+  fringe tier they spent the lane's theme budget, 51 adds). Left, with no read that
+  separates them: 62 popular cuts (Feed the Swarm is premium, rank 93; the rest
+  serve a viable avenue) and 55 commander-lane doers, 54 of them carers, whose
+  guide-cut rate outside the lane's half is 0.08-0.20 in every carer split by role
+  and play-rate holding more than four cards, below the decks' 0.24 — (a) holds,
+  don't re-suggest a split of them without a new read; Sliver Swarm's 11 are
+  Granters (ADR-0040 §4). Script: `docs/plans/precon-audit/cut_splits.py` (both
+  splits; same ROOT as `misses.py`).
   (j) **Job-read leftovers** (ADR-0060 and its 2026-10-24 amendment; each module
   docstring lists its own). The ninth pass measured every read as the order and as
   "better than the cut" and kept neither, so the order is still the blend (wipes,
   draw, protection) or play-rate (removal, ramp), with theme fit breaking a near tie
-  for draw and ramp. What is left. The wipe read rates Final Showdown (0.93),
-  Spiteful Banditry and The Meathook Massacre (0.91) above Blasphemous Act and Toxic
-  Deluge (0.69), and Wrath of God and Damnation at 0.32 below Vanquish the Horde
-  (0.71); Jaya Ballard no longer scores. The removal read's agreement with play-rate
-  over every card with a removal effect is weak (it was fitted on cards whose main
-  job is removal), and phase drops Winnow's "if another permanent with the same
-  name" condition, so Winnow reads as unconditional (0.75) — harmless while removal
-  only gates. Theme fit as a tie lost for removal (38 adds), wipes (39) and
-  protection (no change). Play-rate's picks still recur where nothing else decides:
-  the removal adds are Beast Within in 10 precons, Path to Exile, Swords to
+  for draw and ramp. What is left. The wipe read's cost misreads were fixed
+  2026-10-24 (ADR-0060's second amendment that day: a spree mode's cost, an enters
+  trigger's X, no flicker / transform-back / event-fired clean sweep) and its
+  reference line recalibrated to a four-mana clean sweep, but it is not calibrated:
+  Vanquish the Horde (0.80) still reads above Wrath of God (0.76) and Blasphemous
+  Act / Toxic Deluge (0.78), its per-creature discount taken at a full board, which
+  is why the read leading the wipe upgrades still loses in Blame Game (55 adds
+  against 56, Blasphemous Act lost to Vanquish); don't re-suggest leading with it
+  until that is read. Jaya Ballard no longer scores. The removal read's agreement
+  with play-rate over every card with a removal effect is weak (it was fitted on
+  cards whose main job is removal), and phase drops Winnow's "if another permanent
+  with the same name" condition, so Winnow reads as unconditional (0.75) — harmless
+  while removal only gates. Theme fit as a tie lost for removal (38 adds), wipes
+  (39) and protection (no change). Play-rate's picks still recur where nothing else
+  decides: the removal adds are Beast Within in 10 precons, Path to Exile, Swords to
   Plowshares and Chaos Warp in 7, the ramp adds Fellwar Stone in 9; Garruk's
   Uprising is the draw add in 7 (10 before the theme tie, backlog "(e)" until
   2026-10-24). Protection goes unsearched in 18 guide adds' decks because ADR-0024
@@ -128,13 +143,16 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   index alone.
   (m) **Recall** (`precon-audit/misses.py`, at the largest guide's thirty
   swaps and each precon's own guides' budget, `budgets.json`, Spellbook cached):
-  171 of 408 cuttable guide cuts, 56 of 610 in-scope guide adds (2026-10-24,
-  after (r); 168 / 50 at a913f172, 165 / 47 on 2026-10-20). The levers by size:
-  adds a page held but outranked (242), theme adds no search reaches (169, (r)),
-  cuts the popularity threshold still shields (79: guides cut popular
-  off-theme cards like Feed the Swarm), commander-lane cards the guides trim
-  (54), and cuts a budget-bound tune never reaches (36). Six guide summaries
-  don't tag sources per row (`guide_sizes.py` skips them).
+  180 of 408 cuttable guide cuts, 57 of 610 in-scope guide adds (2026-10-24,
+  after (g) and (j); 169 / 56 at 9e0026ed, 168 / 50 at a913f172). The levers by
+  size: adds a page held but outranked (229), theme adds no search reaches (169,
+  (r)), cuts the popularity threshold still shields (62), commander-lane cards the
+  guides trim (55), and cuts a budget-bound tune never reaches (43). The outranked
+  adds by kind: theme 76, ramp 45, removal 40, draw 29, protection 27, wipes 12;
+  most lost to a more-played pick (126), then to what was left of the budget (47).
+  Measured negative, so don't re-suggest without a new read: theme adds serving two
+  viable avenues first (46 adds), and theme adds by a synergy / play-rate blend (53).
+  Six guide summaries don't tag sources per row (`guide_sizes.py` skips them).
   (r) **Theme reach, what's left** (2026-10-24; the experiment table is in
   `docs/plans/precon-audit-2026-10-18.md`, "Theme reach"). Shipped: a type- or
   preset-searched theme takes up to one add in five from its serve's broader
@@ -148,10 +166,12 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   one in three or more (generic tribal support takes the members' budget);
   slots shared over every viable avenue (35) or by carers (45), because the
   generic subs' pages hold staples (Murder for Fae Dominion's Spellslinger).
-  Left: the guide adds that serve only a sub (Living Energy's Artifacts, Deep
-  Clue Sea's Artifacts and Sacrifice) or only a lane that isn't viable (Blood
-  Rites' sacrifice package) still have no search. A sub's page would need its
-  own read of which of its cards suit this deck before it gets slots. At
+  Left: the guide adds that serve only a lane that isn't viable (Blood Rites'
+  sacrifice package) still have no search; only four serve only a sub (Living
+  Energy's Arcum Dagsson, Clever Impersonator, Scrap Welder; Deep Clue Sea's
+  Displaced Dinosaurs). Measured negative 2026-10-24: a sub with a main's carers
+  (6) taking one add that also serves a main (57 adds, 2 guide cuts fewer; neither
+  deck moved). At
   a913f172 the 150-card play-rate page (`swaps._PAGE`) hid 71 main-avenue guide
   adds; "the most played that fits" never reaches them, and payoffs first
   didn't either. With Voltron's own page, Virtue and Valor's upgrade drain runs

@@ -2,8 +2,9 @@
 
 Cuts: filler → low-value → over-band Spine excess → stranded Engine singletons →
 the upgrade slots (off-lane cards few decks play, then a deep lane's least-played
-half), gated by hard floors (never the commander, a Spine role at/below floor,
-lands, or a dual-purpose card). Adds: issue-driven calls to the injected
+half, then popular cards on none of the deck's viable avenues), gated by hard
+floors (never the commander, a Spine role at/below floor, lands, or a
+dual-purpose card). Adds: issue-driven calls to the injected
 ``search_fn`` (Spine/protection fills by play-rate within a mana-value band,
 avenue-deepening and upgrades by fit then play-rate), budget-bounded (owned =
 free, no-listing never free). No new search code — the tuner is a new *caller* of the
@@ -31,6 +32,7 @@ from mtg_utils._tuner.issues import (
     CUT_GENERIC,
     CUT_LANE,
     CUT_UPGRADE,
+    CUT_UPGRADE_POPULAR,
     Issue,
     Sourcing,
     cut_over,
@@ -302,6 +304,7 @@ class CutFocus:
     commander_cards: frozenset[str] = frozenset()
     upgrade_cards: frozenset[str] = frozenset()
     lane_upgrade_cards: tuple[str, ...] = ()
+    popular_upgrade_cards: tuple[str, ...] = ()
 
     @classmethod
     def from_focus(cls, focus_result: dict) -> CutFocus:
@@ -313,6 +316,9 @@ class CutFocus:
             commander_cards=frozenset(focus_result.get("commander_lane_cards") or ()),
             upgrade_cards=frozenset(focus_result.get("upgrade_cards") or ()),
             lane_upgrade_cards=tuple(focus_result.get("lane_upgrade_cards") or ()),
+            popular_upgrade_cards=tuple(
+                focus_result.get("popular_upgrade_cards") or ()
+            ),
         )
 
 
@@ -358,7 +364,9 @@ def cut_candidates(
     draw and wipes (Blood Rites, 2026-10-18). A lane slot is never dead weight:
     only a Spine fill, a closer, a game-ending piece or an upgrade may take it
     (``Remedy.lane_ok``; the first pass traded Dinosaurs for Human-tribal and
-    Landfall "commit more" adds).
+    Landfall "commit more" adds). Last, the popular cards serving none of the
+    deck's viable avenues (``focus.popular_upgrade_cards``), drawn by the
+    upgrade issue only once both pools above are dry.
     """
     out: list[tuple[str, CardClass]] = []
     seen: set[str] = set()
@@ -475,6 +483,16 @@ def cut_candidates(
         (c for c in classes if c.name in lane_order), key=lambda c: lane_order[c.name]
     ):
         push("lane_upgrade", c)
+
+    # 6. The last upgrade slots (``focus``'s ``popular_upgrade_cards``): cards
+    # many decks play that serve none of the deck's viable avenues, least
+    # played first — drawn only by the upgrade issue once the slots above are
+    # spent.
+    popular = {name: i for i, name in enumerate(focus.popular_upgrade_cards)}
+    for c in sorted(
+        (c for c in classes if c.name in popular), key=lambda c: popular[c.name]
+    ):
+        push("popular_upgrade", c)
 
     return out
 
@@ -838,6 +856,8 @@ def propose_swaps(
             pool = CUT_LANE  # only a ``lane_ok`` remedy, once its own pool is dry
         elif reason == "upgrade":
             pool = CUT_UPGRADE  # only the upgrade issue, for a card doing its job
+        elif reason == "popular_upgrade":
+            pool = CUT_UPGRADE_POPULAR  # the upgrade issue, once the rest are spent
         else:
             pool = CUT_GENERIC
         pools.setdefault(pool, []).append((reason, card))
@@ -1373,6 +1393,8 @@ def propose_swaps(
                 cut_entry = take_cut(remedy.cut_from)
                 if cut_entry is None and remedy.lane_ok:
                     cut_entry = take_cut(CUT_LANE)
+                if cut_entry is None and remedy.cut_from == CUT_UPGRADE:
+                    cut_entry = take_cut(CUT_UPGRADE_POPULAR)
                 if cut_entry is None:
                     break
                 reason, cut = cut_entry
@@ -1578,4 +1600,6 @@ def _cut_why(reason: str, card: CardClass | None = None) -> str:
         return "a lane feeder few decks play — an upgrade's slot"
     if reason == "upgrade":
         return "off the deck's lanes and few decks play it — a staple does its job"
+    if reason == "popular_upgrade":
+        return "serves none of the deck's themes — a better-played card does its job"
     return reason

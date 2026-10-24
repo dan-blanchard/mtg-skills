@@ -1380,6 +1380,9 @@ def test_the_upgrade_slots_are_off_lane_little_played_and_the_deep_lanes_half():
     fr = run(classes)
     assert fr["upgrade_cards"] == ["Clunky Removal"]
     assert fr["lane_upgrade_cards"] == [f"Polymorph {i}" for i in range(13, 6, -1)]
+    # The last upgrade slots: off every lane, inside UPGRADE_RANK but not
+    # premium, serving none of the deck's viable avenues (2026-10-24).
+    assert fr["popular_upgrade_cards"] == ["Played Removal"]
     # A doer that also fills a template role is a lane slot too (its upgrade
     # keeps the role): the least played of fifteen doers, it leads the half.
     drawer = replace(

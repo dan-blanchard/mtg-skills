@@ -60,6 +60,7 @@ from mtg_utils._card_ir.crosswalk.reads import (
     _present,
     _scope_from_player_node,
     _type_filter_words,
+    cost_mana_value,
     effect_children,
     filter_core_types,
     iter_nested_granted_bodies,
@@ -560,6 +561,13 @@ class ConceptTree:
     # non-modal card (the overwhelming majority) — cheap, additive, mirrors
     # the b16 field-addition precedent (``power``/``has_printed_cost``).
     card_modal_mode_descriptions: tuple[str, ...] = ()
+    # The mana value of each mode's own additional cost on a spree or tiered
+    # spell (CR 702.172a / 702.183a: "as an additional cost to cast this spell,
+    # pay the costs associated with those modes"), from the card-root
+    # ``modal.mode_costs``, paired with ``root.abilities`` by index as the
+    # descriptions are (Final Showdown's "Destroy all creatures" costs {3}{W}{W}
+    # beyond its {W}). Empty when the modes carry no cost of their own.
+    card_modal_mode_costs: tuple[int, ...] = ()
     # task #87 (deepening-start-minimal, the b16 precedent): the core TYPE
     # words of the card's OWN printed ``Enchant`` keyword filter (CR 303.4a
     # — "Enchant creature", "Enchant creature card in a graveyard") — Animate
@@ -1583,6 +1591,11 @@ def build_concept_tree(
             card_modal_mode_descriptions = tuple(
                 d for d in cm_descs if isinstance(d, str)
             )
+    card_modal_mode_costs: tuple[int, ...] = ()
+    if isinstance(card_modal, TypedMirrorNode):
+        cm_costs = getattr(card_modal, "mode_costs", None)
+        if isinstance(cm_costs, list):
+            card_modal_mode_costs = tuple(cost_mana_value(c) or 0 for c in cm_costs)
     units: list[AbilityUnit] = []
 
     # A spell-level ``additional_cost`` (CR 601.2b) rides the ROOT, not any
@@ -1793,6 +1806,7 @@ def build_concept_tree(
         card_partner_kinds=tuple(card_partner_kinds),
         can_be_commander=can_be_commander,
         card_modal_mode_descriptions=card_modal_mode_descriptions,
+        card_modal_mode_costs=card_modal_mode_costs,
         card_enchant_core_types=card_enchant_core_types,
         card_curve_costs=tuple(card_curve_costs),
         card_alt_costs=tuple(card_alt_costs),

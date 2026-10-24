@@ -63,6 +63,9 @@ CUT_LANE = "lane"
 # The upgrade slots (``focus``'s ``upgrade_cards``): drawn only by the upgrade
 # issue, each for a better-played card doing the same job.
 CUT_UPGRADE = "upgrade"
+# The last upgrade slots (``focus``'s ``popular_upgrade_cards``): drawn by the
+# upgrade issue only once ``CUT_UPGRADE`` and ``CUT_LANE`` are dry.
+CUT_UPGRADE_POPULAR = "upgrade_popular"
 
 # The order a Spine card's job is read in when it holds several roles: the
 # scarcer job first (a sweeper that also draws is upgraded as a sweeper).
@@ -525,8 +528,9 @@ def top_issues(
     # The upgrade slots rank last: every other issue spends the swap budget
     # first, and the rest goes to trading off-lane cards few decks play for the
     # staples that do their jobs — the bulk of an upgrade guide's list.
-    upgrades = len(focus_r.get("upgrade_cards") or ()) + len(
-        focus_r.get("lane_upgrade_cards") or ()
+    upgrades = sum(
+        len(focus_r.get(key) or ())
+        for key in ("upgrade_cards", "lane_upgrade_cards", "popular_upgrade_cards")
     )
     if upgrades:
         issues.append(

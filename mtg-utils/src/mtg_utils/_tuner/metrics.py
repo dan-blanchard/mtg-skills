@@ -771,6 +771,18 @@ def focus(
     # low-value), or on a lane (a doer of the commander's, a carer of a built
     # theme).
     elsewhere = fed_only_names | set(low_value_cards) | lane_doers | built_carers
+
+    def off_lane_slot(c: CardClass) -> bool:
+        """A Spine or Engine card off every lane that the upgrade tiers may trade:
+        no earlier tier's cut, no meta-read deck's (its share is its read), no
+        Granter (judged by its grant, never by play-rate — ADR-0040 §4)."""
+        return (
+            c.bucket in ("spine", "engine")
+            and c.meta_share is None
+            and c.grant_grade is None
+            and c.name not in elsewhere
+        )
+
     # The upgrade slots: a card off every lane the deck holds — no doer of the
     # commander's lanes, no carer of a built theme — that few decks play
     # (``classify.UPGRADE_RANK``). The guides' commonest move (2026-10-19):
@@ -782,12 +794,31 @@ def focus(
         sorted(
             c.name
             for c in nonland
-            if c.bucket in ("spine", "engine")
-            and c.meta_share is None
-            and c.grant_grade is None
-            and c.name not in elsewhere
-            and is_upgrade_target(c.edhrec_rank, medium=medium)
+            if off_lane_slot(c) and is_upgrade_target(c.edhrec_rank, medium=medium)
         )
+        if condemns
+        else []
+    )
+    # The last upgrade slots: a card off every lane that many decks play
+    # (inside ``UPGRADE_RANK``, never premium) yet serves none of the deck's
+    # viable avenues — popular for its job, not for this deck (Harmonize and
+    # Decimate under Animated Army's Animation). Taken only once the other
+    # upgrade slots and the deep lane's are spent, each for a card more decks
+    # play doing its job. Measured on the 25 precons (2026-10-24): 35 more swaps,
+    # 10 of them guide cuts, one guide add more; taken before the deep lane's
+    # slots instead, they spent the budget its theme upgrades had (five guide
+    # adds fewer).
+    viable_set = set(viable)
+    popular_upgrade_cards = (
+        [
+            c.name
+            for c in sorted(nonland, key=lambda c: c.least_played_key)
+            if off_lane_slot(c)
+            and c.edhrec_rank is not None
+            and not is_upgrade_target(c.edhrec_rank, medium=medium)
+            and not is_premium(c.edhrec_rank)
+            and not viable_set.intersection(themes(c))
+        ]
         if condemns
         else []
     )
@@ -904,6 +935,9 @@ def focus(
         "upgrade_cards": upgrade_cards,
         # The deep lane's least-played half, in cut order (feeders first).
         "lane_upgrade_cards": lane_upgrade_cards,
+        # Popular cards serving no viable avenue, least played first: the
+        # upgrade slots taken last.
+        "popular_upgrade_cards": popular_upgrade_cards,
         "stranded_avenues": stranded,
         "_depth": depth,
     }
