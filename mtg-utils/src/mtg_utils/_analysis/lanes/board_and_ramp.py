@@ -1098,11 +1098,13 @@ def granted_mana_defs(
     naming who else receives it (Citanul Hierophants' "Creatures you
     control", Joiner Adept's "Lands you control").
 
-    A grant that rides a neutralize (:func:`_neutralizes_attached` —
+    A grant that rides a neutralize (:func:`_neutralizes_one_object` —
     Imprisoned in the Moon's "colorless land with '{T}: Add {C}' and loses all
-    other card types and abilities") is no mana of yours: the Aura answers the
-    permanent it enchants, usually an opponent's, and only that permanent's
-    controller can activate its abilities (CR 602.2).
+    other card types and abilities", Vraska, Betrayal's Sting's "Target creature
+    becomes a Treasure artifact with '{T}, Sacrifice this artifact: Add one mana
+    of any color' and loses all other card types and abilities") is no mana of
+    yours: it answers the permanent it names, usually an opponent's, and only
+    that permanent's controller can activate its abilities (CR 602.2).
 
     ADR-0039 W7: the ``is_mana_ability`` flag alone under-serves — it is
     ``MISSING`` (not True) for a granted ability that structurally produces
@@ -1119,7 +1121,7 @@ def granted_mana_defs(
     for unit in tree.units:
         for sdef in iter_static_defs(unit.node):
             aff = getattr(sdef, "affected", None)
-            if _neutralizes_attached(sdef):
+            if _neutralizes_one_object(sdef):
                 continue
             for m in getattr(sdef, "modifications", None) or []:
                 tag = tag_of(m)
@@ -1140,39 +1142,18 @@ def granted_mana_defs(
     return out
 
 
-# Treasure-conversion ramp accessor (ADR-0039 W7): "Target creature becomes
-# a Treasure artifact with '{T}, Sacrifice ~: Add one mana of any color,'
-# and loses all other abilities" (Vraska's ultimates, Kitesail Larcenist)
-# structures the TYPE change (SetCardTypes[Artifact] + AddSubtype[Treasure])
-# but drops the quoted sac-for-mana ability entirely — no GrantAbility/
-# GrantTrigger node survives, only the raw description string. Every
-# printed "Treasure" permanent carries the SAME sac-for-mana ability by
-# design convention (CR 111.4/205.3g); corpus-verified narrow (4/4 corpus
-# AddSubtype(Treasure) static hits share the identical quoted text), so
-# reading the AddSubtype(Treasure) modification itself as ramp evidence is
-# a safe, bounded nested-descent read, not a whole-card regex guess.
-def _neutralizes_attached(static_def: object) -> bool:
-    """Whether a static strips the abilities of the object its Aura or
-    Equipment is attached to (:func:`strips_abilities` over
-    :func:`names_attached_object` — Imprisoned in the Moon, Minimus
-    Containment, Song of the Dryads): an answer to that permanent, whose new
-    mana ability its controller taps (CR 602.2), never your ramp."""
-    return names_attached_object(
-        getattr(static_def, "affected", None)
+def _neutralizes_one_object(static_def: object) -> bool:
+    """Whether a static strips the abilities of one object it names: the one its
+    Aura or Equipment is attached to (:func:`names_attached_object` — Imprisoned
+    in the Moon, Minimus Containment, Song of the Dryads) or a spell's or
+    ability's target (Vraska, Betrayal's Sting's -2, Kitesail Larcenist,
+    Ultima's blighted land). It answers that permanent: a type change moves no
+    control (CR 110.2, 613.1d), so the Treasure or the mana ability it is left
+    with is its controller's to activate (CR 602.2), never your ramp."""
+    affected = getattr(static_def, "affected", None)
+    return (
+        names_attached_object(affected) or tag_of(affected) == "ParentTarget"
     ) and strips_abilities(static_def)
-
-
-def _has_animate_treasure_grant(tree: ConceptTree) -> bool:
-    for unit in tree.units:
-        for sdef in iter_static_defs(unit.node):
-            if _neutralizes_attached(sdef):
-                continue  # Minimus Containment's Treasure is the enchanted one
-            for m in getattr(sdef, "modifications", None) or []:
-                if tag_of(m) == "AddSubtype" and getattr(m, "subtype", None) == (
-                    "Treasure"
-                ):
-                    return True
-    return False
 
 
 def _iter_returnasaura_mana_defs(
@@ -1267,7 +1248,7 @@ def _ramp_mana(tree: ConceptTree) -> list[Signal]:
     Nexos, Toxicrene) needs the same accel/fixing gate the card's-own-land
     branch above applies.
 
-    Four ADR-0039 W7 closers extend the granted-mana reach:
+    Three ADR-0039 W7 closers extend the granted-mana reach:
 
     * :func:`granted_mana_defs` now ALSO reads a granted TRIGGERED mana
       body (a ``GrantTrigger`` modification — Mark of Sakiko's "Whenever ~
@@ -1280,11 +1261,6 @@ def _ramp_mana(tree: ConceptTree) -> list[Signal]:
       Numens's "It's an Aura enchantment with enchant Forest ... 'Enchanted
       Forest has "{T}: Add three mana of any one color..."'") — a tree
       position :func:`iter_static_defs`'s narrow field walk never reaches.
-    * :func:`_has_animate_treasure_grant` reads a static that turns a
-      permanent into a Treasure artifact (Vraska's ultimates, Kitesail
-      Larcenist, Minimus Containment) whose quoted sac-for-mana ability text
-      never structures into a node at all (CR 111.4/205.3g — every printed
-      Treasure carries the identical ability by design convention).
     * a LAND-recipient grant whose OWN cost is a ``Sacrifice`` (not the
       land's existing ``{T}``) is ACCELERATION regardless of the produced
       shape (Rain of Filth's "lands you control gain 'Sacrifice ~: Add
@@ -1332,8 +1308,6 @@ def _ramp_mana(tree: ConceptTree) -> list[Signal]:
         sac_bonus = landish and tag_of(getattr(d, "cost", None)) == "Sacrifice"
         if not landish or sac_bonus or _mana_accel(eff) or _mana_fixing(eff):
             return [Signal("ramp", "you", "", "", tree.name, "high")]
-    if _has_animate_treasure_grant(tree):
-        return [Signal("ramp", "you", "", "", tree.name, "high")]
     # lf_ramp (2026-07-13 convention change): a NONLAND card's confirmed
     # self search that fetches a LAND to the BATTLEFIELD is ramp (the template's
     # ramp convention — ``roles.is_ramp`` reads THIS key; CR 701.23/701.23a) — the
@@ -1372,9 +1346,7 @@ def _is_big_mana_tree(tree: ConceptTree) -> bool:
     Inside — corpus-verified this session against the OLD IR's
     ``ir.all_abilities()`` walk). A factor==1 producer (Llanowar Elves'
     ``{G}``) is exactly ONE mana and is NOT big mana. Excludes the ``ramp``
-    lane's remaining two arms (:func:`_has_animate_treasure_grant`, the
-    per-card ledgered bridges) — neither carries a magnitude at all (a
-    Treasure sac is always exactly one mana of any color). CR 106.4.
+    lane's per-card ledgered bridges, which carry no magnitude. CR 106.4.
 
     GENUINE recall gains over ``_is_big_mana_ir`` (full commander-legal
     corpus re-measure, ADR-0039 task #80 step 3, adjudicated — not silent

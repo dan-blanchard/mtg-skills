@@ -1094,13 +1094,21 @@ def test_ramp_returnasaura_granted_mana():
     assert ("ramp", "you", "") in _idents("Harold and Bob, First Numens")
 
 
-def test_ramp_animate_treasure_grant_skips_a_neutralized_host():
-    """Minimus Containment: "Enchanted permanent is a Treasure artifact
-    with '{T}, Sacrifice ~: Add one mana of any color,' and it loses all
-    other abilities" — the Treasure is the permanent the Aura answers, whose
-    controller sacrifices it for mana (CR 602.2), so no ramp of yours
-    (``board_and_ramp._neutralizes_attached``)."""
-    assert ("ramp", "you", "") not in _idents("Minimus Containment")
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Minimus Containment",  # "Enchanted permanent is a Treasure artifact …"
+        "Vraska, Betrayal's Sting",  # -2: "Target creature becomes a Treasure …"
+        "Kitesail Larcenist",  # each player's chosen target becomes a Treasure
+    ],
+)
+def test_a_treasure_conversion_of_an_answered_permanent_is_not_ramp(name):
+    """ "… becomes a Treasure artifact with '{T}, Sacrifice this artifact: Add
+    one mana of any color' and loses all other abilities" answers the enchanted
+    or targeted permanent: a type change moves no control (CR 110.2, 613.1d),
+    so its controller, usually an opponent, sacrifices it for mana (CR 602.2).
+    No ramp of yours (``board_and_ramp._neutralizes_one_object``)."""
+    assert ("ramp", "you", "") not in _idents(name)
 
 
 def test_ramp_granted_sacrifice_cost_is_acceleration():

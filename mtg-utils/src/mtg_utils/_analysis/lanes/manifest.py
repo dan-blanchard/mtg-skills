@@ -1533,12 +1533,12 @@ SERVED_SIGNAL_KEYS: frozenset[str] = frozenset(
 # reads a ``GrantTrigger`` body too and relaxes the
 # ``is_mana_ability`` gate (Mark of Sakiko, Bigger on the Inside);
 # :func:`_iter_returnasaura_mana_defs` reaches a ``ReturnAsAura``
-# grant (Harold and Bob); :func:`_has_animate_treasure_grant` reads
-# a Treasure-conversion static (Minimus Containment, CR
-# 111.4/205.3g); a granted LAND-recipient Sacrifice-cost mana
-# ability is acceleration regardless of produced shape (Rain of
-# Filth). Two ledgered bridges close the residual "Add mana"
-# clause-grammar tail (bridge_ledger.BRIDGES:
+# grant (Harold and Bob); a Treasure-conversion static arm (retired
+# 2026-10-24: phase now types the quoted Treasure ability, and a bare
+# "becomes a Treasure" grants none, CR 111.10a); a granted
+# LAND-recipient Sacrifice-cost mana ability is acceleration
+# regardless of produced shape (Rain of Filth). Two ledgered bridges
+# close the residual "Add mana" clause-grammar tail (bridge_ledger.BRIDGES:
 # ramp_grant_unimplemented_body — Katilda/Old-Growth Troll/Tazri's
 # granted-ability-body Unimplemented; ramp_dropped_add_mana_clause
 # — a 24-card name-keyed enumeration, each CR-verified this session

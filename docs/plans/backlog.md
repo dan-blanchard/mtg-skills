@@ -173,13 +173,10 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   upgrade slots before too: Daybreak Coronet, Angelic Destiny, Ancestral Mask and
   Snake Umbra, none of them a guide cut. Its Equipment picks also run past the
   guides' Boots and Greaves to Sword of the Animist and Bone Saw.
-  (n) **Lane follow-ups, what's left** (2026-10-23). A TARGETED Treasure
-  conversion still reads `ramp` (Vraska, Betrayal's Sting's −2, Kitesail
-  Larcenist): `board_and_ramp._has_animate_treasure_grant` takes any
-  `AddSubtype: Treasure` static, and the neutralize gate
-  (`_neutralizes_attached`) covers only an Aura's or Equipment's own object.
-  Checked and empty on the 2026-10-23 corpus, so don't re-suggest without a
-  card: a card with both a creature-type and a card-type Choose firing
+  (n) **Lane follow-up verdicts — don't re-suggest without a card** (2026-10-24:
+  a targeted Treasure conversion is no `ramp` — Vraska, Betrayal's Sting's −2,
+  Kitesail Larcenist answer the target, whose controller keeps it, CR 110.2 /
+  602.2). Checked and empty on the 2026-10-23 corpus: a card with both a creature-type and a card-type Choose firing
   `chosen_type_matters` (none), and a discard or leaves-the-battlefield
   trigger's self-return firing `bounce_tempo` (none; the other trigger
   back-references on cards that fire return an event object — a blocked
