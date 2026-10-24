@@ -13,6 +13,7 @@ existing search + ranking (ADR-0023).
 
 from __future__ import annotations
 
+import math
 import sys
 from bisect import bisect_left
 from collections import Counter
@@ -120,6 +121,19 @@ _THEME_TIE = 0.1
 #: on these cards only, and a pick rarely reaches past them.
 _THEME_TIE_WINDOW = 300
 
+#: How close a later candidate's play-rate (log10 EDHREC rank, the job reads'
+#: unit) must be to the first pick's for the cheaper of them to be the add
+#: (``find_add``, :func:`_near_tie`): within a factor of two in rank. A near
+#: tie spent at the lower price leaves budget for the issues after it — 47
+#: guide adds a page held were lost to what was left of the budget, and Timey
+#: Wimey stopped at 12 swaps on expensive payoffs. Measured on the 25 precons
+#: (2026-10-24, against 479 swaps / 179 guide-matching cuts / 56 guide-matching
+#: adds): 0.1 took 512 / 186 / 56, 0.2 538 / 192 / 59, 0.3 546 / 195 / 60, and
+#: 0.5 569 / 199 / 61 — wider keeps gaining, but a threefold rank gap is no tie.
+_CHEAPER_TIE = 0.3
+#: How many candidates past the first pick the near tie looks at.
+_CHEAPER_WINDOW = 10
+
 #: Spine-fill jobs exempt from the ADR-0040 avenue guard (``find_add``'s
 #: ``role_fix``): protection guards the deck's threats whatever avenue they are
 #: on, so a protection card serving an avenue is no better a fill. Under the guard
@@ -190,6 +204,19 @@ def _blended_percentiles(
         / n
         for c, s in scored
     }
+
+
+def _near_tie(a: dict, b: dict, read: JobRead | None, deck: Sequence[dict]) -> bool:
+    """Whether ``b`` does about as well as ``a``: their play-rates within
+    ``_CHEAPER_TIE`` (log10 EDHREC rank) and, for a job whose read orders its
+    candidates (``read``), their read scores within ``_THEME_TIE``."""
+    gap = math.log10(edhrec_popularity(a)) - math.log10(edhrec_popularity(b))
+    if abs(gap) > _CHEAPER_TIE:
+        return False
+    if read is None:
+        return True
+    sa, sb = read.score(a, deck), read.score(b, deck)
+    return sa is not None and sb is not None and abs(sa - sb) <= _THEME_TIE
 
 
 def _does_the_job(
@@ -1210,6 +1237,10 @@ def propose_swaps(
         ``upgrade_of`` is the card an upgrade replaces and ``job`` the
         job it keeps: a candidate must be an upgrade (:func:`_upgrades`), and
         the roles the cut frees are no overshoot.
+
+        Where play-rate means something, the first eligible candidate is weighed
+        against the next ``_CHEAPER_WINDOW``: the cheapest near tie
+        (:func:`_near_tie`) is the add, so the budget reaches more issues.
         """
         ranked = _ranked_pool(
             spec,
@@ -1232,7 +1263,20 @@ def propose_swaps(
         fallback: tuple[dict, float] | None = None
         eligible: list[tuple[dict, float]] = []
         avenue = spec.get("_avenue")
+        # Where play-rate orders the page, the first pick is weighed against
+        # the next few: a near tie (:func:`_near_tie`) that costs less is the
+        # add, so the budget reaches more issues.
+        tie_read = read_for(job)
+        if tie_read is not None and not tie_read.orders:
+            tie_read = None
+        first: tuple[dict, float] | None = None
+        best: tuple[dict, float] | None = None
+        looked = 0
         for card in ranked:
+            if first is not None:
+                looked += 1
+                if looked > _CHEAPER_WINDOW:
+                    break
             if not addable(card):  # every allowed copy taken — the next best
                 continue
             if avenue is not None and not support_room(avenue, card):
@@ -1255,9 +1299,21 @@ def propose_swaps(
                 fallback = fallback or (card, cost)  # keep the best overshooting option
                 continue
             if not guard:
-                return card, cost, False
+                if not ctx.playrate or (first is None and cost <= 0):
+                    return card, cost, False
+                if first is None:
+                    first = best = (card, cost)
+                elif (
+                    best is not None
+                    and cost < best[1]
+                    and _near_tie(first[0], card, tie_read, deck_records)
+                ):
+                    best = (card, cost)
+                continue
             eligible.append((card, cost))
 
+        if best is not None:
+            return (*best, False)
         if not guard or not eligible:
             return (*fallback, False) if fallback else None
         on_avenue = _viable_served_names([c for c, _ in eligible])

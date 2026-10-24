@@ -206,3 +206,24 @@ recorded.
 The read leading the wipe upgrades again (play-rate breaking ties) matched 55 adds,
 Blame Game losing Blasphemous Act (Vanquish the Horde reads above it) and
 Aurelia: still rejected.
+
+**Amendment (2026-10-24, last): the board a discount is read at.** A "{1} less for
+each creature on the battlefield" discount was taken at six creatures and could eat
+the colored mana, so Vanquish the Horde ({6}{W}{W}) read two mana as cast, Blasphemous
+Act ({8}{R}) three, and Vanquish led every reference wipe. A generic reduction never
+touches the colored part of the cost (CR 118.7a; Blasphemous Act's ruling: never below
+{R}), and the board is the one a Commander deck casts its wipe into: every creature,
+yours and the opponents' (the cards' own text), two a seat at the four-seat table
+Undaunted is read at — eight, the read's own call. Now Blasphemous Act 0.82 ({R}),
+Vanquish the Horde 0.80 ({W}{W}), Toxic Deluge 0.78, Wrath of God and Damnation 0.76:
+on a board of eight or more Act costs less than Vanquish, which still costs less than
+Wrath. The board-wipe row is unchanged (800 cards, Spearman 0.501, guide adds at the
+84th percentile, 9 of the bottom two). On the 25 precons: 482 / 180 / 57 against
+474 / 180 / 57, Quick Draw taking Blasphemous Act over Cyclonic Rift and eight more
+swaps with the mana it saved. The read leading the wipe upgrades (play-rate breaking
+ties) then matched 58 / 179 alone (Jhoira of the Ghitu in Timey Wimey on the budget it
+moved; no wipe add) and nothing beside the changes kept (547 / 195 / 60 against
+546 / 195 / 60), one of its picks a wipe phase misreads (Harsh Mercy, whose
+chosen-type spare phase drops): not kept. Removal reads Winnow's "if another permanent
+with the same name is on the battlefield", which phase drops whole, as the condition
+it is (`removal._CONDITION_DROPPED`, retired by a retirement canary).

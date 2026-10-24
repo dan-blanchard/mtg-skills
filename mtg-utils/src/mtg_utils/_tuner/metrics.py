@@ -16,6 +16,7 @@ from typing import TYPE_CHECKING
 
 from mtg_utils._analysis import signal_keys
 from mtg_utils._analysis.lanes import TOKEN_SUBTYPE_PAYOFF_KEYS
+from mtg_utils._analysis.lanes.counters_voltron import VOLTRON_GEAR_PUMP
 from mtg_utils._analysis.roles import protects
 from mtg_utils._analysis.signal_specs import SPECS, avenue_spec_for, spec_scope_for
 from mtg_utils._card_ir.crosswalk import (
@@ -326,6 +327,16 @@ def _scopes_apart(ckey: str, emitter_scope: str, avenue_scope: str) -> bool:
 # The keys of the avenue that suits up one creature with Equipment and Auras
 # (the payoff side and the attach / tutor side; both serve the same package).
 _SUIT_UP_KEYS = frozenset({"voltron_matters", "voltron_makers"})
+#: The idents a commander's held lane counts as its doers beside its own: a
+#: commander that attaches gear (``voltron_makers``: Ellivere's Roles, an
+#: equip-for-free or gear-fetch) suits creatures up with the Auras and Equipment
+#: that pump the creature they are attached to (``voltron_makers|you|pump``,
+#: CR 301.5a / 303.4) — the lane's own material, not upgrade slots off every
+#: lane. Under Virtue and Valor the slots traded Daybreak Coronet, Angelic
+#: Destiny, Ancestral Mask and Snake Umbra (none a guide cut) for Equipment.
+_LANE_DOER_IDENTS: Mapping[tuple[str, str, str], tuple[tuple[str, str, str], ...]] = {
+    ("voltron_makers", "you", ""): (("voltron_makers", "you", VOLTRON_GEAR_PUMP),),
+}
 
 # The carer-set overlap at which two avenues are one theme read twice. A Jaccard
 # share, not containment: a two-carer sub whose carers also care about a 20-carer
@@ -486,7 +497,8 @@ def focus(
     lane_doers: set[str] = set()
     for ident, lbl in held_idents.items():
         if lbl in held_kept and emitters is not None:
-            lane_doers.update(emitters.get(ident, ()))
+            for doer in (ident, *_LANE_DOER_IDENTS.get(ident, ())):
+                lane_doers.update(emitters.get(doer, ()))
     lane_doers -= land_names
 
     # The cards that CARE about each avenue (its "carers"): those emitting its

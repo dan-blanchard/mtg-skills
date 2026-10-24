@@ -52,6 +52,14 @@ _PERMANENT_TYPES = frozenset(
 )
 #: A variable amount (X, a count) reads as a kill.
 _SCALING = 99
+#: Removal whose condition phase drops whole, leaving no condition node and no
+#: filter predicate (v0.104.0): Winnow destroys its target only "if another
+#: permanent with the same name is on the battlefield", so it reads as the
+#: conditional answer it is. Gated on the drop — a unit that carries a condition
+#: reads it itself — and retired by ``test_winnow_condition_dropped_canary`` once
+#: phase types the clause. The only commander-legal card of its shape (census
+#: 2026-10-24: "with the same name" over every card the read scores).
+_CONDITION_DROPPED = frozenset({"Winnow"})
 
 
 @dataclass(frozen=True)
@@ -157,7 +165,8 @@ def _answers(card: dict) -> list[_Answer]:
                 or (
                     unit is not None
                     and getattr(unit.node, "condition", None) is not None
-                ),
+                )
+                or card.get("name") in _CONDITION_DROPPED,
                 amount=_amount(c),
                 kind=_unit_kind(unit),
                 act_mana=activation_mana(unit),

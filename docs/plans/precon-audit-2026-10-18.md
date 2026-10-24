@@ -831,6 +831,71 @@ Against HEAD: 30 more swaps, 11 more guide-matching cuts, one more guide-matchin
   sub's add reordered upgrades (Squirreled Away's Bitterblossom for Thornvault
   Forager) and cost two guide cuts.
 
+### The last tuner levers (2026-10-24, later)
+
+The backlog's last four tuner items: the board a wipe's discount is read at ((j)),
+the replacement doublers' role ((o)), the budget ((m)) and Virtue and Valor's Aura
+drain ((r)). The bar as in "The remaining tuner levers". One `misses.py` run per
+row, Spellbook cached; each row on top of the row it names (the wipe and Winnow
+fixes move no guide card, so every later row is in effect measured alone against
+HEAD's guide matches). Columns as in "Theme reach".
+
+| change | swaps / cuts / adds | theme swaps | wipe / int / prot / draw / ramp / theme | tune s · GB | |
+|---|---|---|---|---|---|
+| HEAD (f601a983) | 474 / 180 / 57 | 217 | 2 / 8 / 4 / 9 / 7 / 27 | 8.4 · 1.54 | |
+| J1 wipe discount at a board of eight, generic mana only (on HEAD) | 482 / 180 / 57 | 223 | 2 / 8 / 4 / 9 / 7 / 27 | 8.1 · 1.60 | shipped (read fix) |
+| J2 the wipe read leads its upgrades (on J1) | 486 / 179 / 58 | 226 | 2 / 8 / 4 / 9 / 7 / 28 | 7.9 · 1.71 | cleared alone; nothing in the combination, not kept |
+| O1 an IR hit's role read off its emitting unit (on J1 + Winnow) | 481 / 180 / 56 | 222 | 2 / 8 / 4 / 9 / 7 / 26 | 7.7 · 1.63 | shipped (read fix, one add fewer) |
+| R1 pump gear is a voltron commander's lane doer (on O1) | 479 / 179 / 56 | 221 | 2 / 8 / 3 / 10 / 7 / 26 | 7.9 · 1.49 | shipped (read fix, one cut fewer) |
+| M near tie to the cheaper, 0.1 log10 rank (on R1) | 512 / 186 / 56 | 235 | 2 / 6 / 3 / 8 / 7 / 30 | 7.6 · 1.63 | clears (cuts up, adds flat) |
+| … 0.2 | 538 / 192 / 59 | 243 | 3 / 6 / 3 / 11 / 6 / 30 | 6.5 · 1.63 | clears |
+| … 0.3 (a factor of two in rank) | 546 / 195 / 60 | 248 | 3 / 6 / 3 / 11 / 5 / 32 | 7.6 · 1.57 | kept |
+| … 0.5 | 569 / 199 / 61 | 256 | 3 / 5 / 4 / 11 / 6 / 32 | 6.6 · 1.65 | clears; a threefold rank gap is no tie |
+| kept combination + J2 | 547 / 195 / 60 | 248 | 3 / 6 / 3 / 11 / 6 / 31 | 6.9 · 1.63 | J2 adds nothing |
+| **shipped** | **546 / 195 / 60** | **248** | **3 / 6 / 3 / 11 / 5 / 32** | **7.7 · 1.65** | |
+
+Against HEAD: 72 more swaps, 15 more guide-matching cuts, 3 more guide-matching adds.
+
+- **The wipe discount** (ADR-0060's last 2026-10-24 amendment). A "{1} less for each
+  creature on the battlefield" discount counts every creature, yours and the
+  opponents'; it was read at six and could eat the colored mana. A generic reduction
+  never touches the colored part (CR 118.7a; Blasphemous Act's ruling: never below
+  {R}), and the board is now eight, two a seat at the four-seat table Undaunted is
+  read at. Blasphemous Act 0.82 ({R}), Vanquish the Horde 0.80 ({W}{W}), Toxic Deluge
+  0.78, Wrath of God and Damnation 0.76. Only Quick Draw moved: Blasphemous Act over
+  Cyclonic Rift, and eight more swaps on the mana saved. Leading the wipe upgrades
+  with the read then cleared the bar alone (Jhoira of the Ghitu in Timey Wimey, on the
+  budget it moved — no wipe add) and added nothing beside M; one of its picks is a
+  wipe phase misreads (Harsh Mercy, whose chosen-type spare phase drops), so it is
+  not kept. Winnow's dropped same-name condition is read (`removal._CONDITION_DROPPED`,
+  a retirement canary); removal only gates, so it can move no swap.
+- **The doublers' role.** A theme hit read off a card's idents takes its role from the
+  unit that emits the ident (`ranking._unit_role`): a replacement that emits the
+  lane's ident modifies the event the lane is built on (CR 614.1a), so Parallel Lives,
+  Anointed Procession, Doubling Season and Hardened Scales are payoffs (Parallel Lives
+  scores 3.35 under Squirreled Away's tokens, where it scored 1.35); an ident the
+  lanes mark as a doer subject (`signal_keys.DOER_SUBJECTS`) is an enabler; anything
+  else keeps the clause test. The doublers already passed the fit floor, and
+  play-rate orders the fitting cards, so no doubler guide add was gained; Virtue and
+  Valor took Hardened Scales and lost Sram, Senior Edificer (one guide add fewer).
+  Shipped as a read fix.
+- **Virtue and Valor's Aura drain.** Ellivere holds `voltron_makers|you|` (she attaches
+  Roles); the Auras that pump their creature emit `voltron_makers|you|pump`, a subject
+  of its own, so no lane counted them and they sat in the off-lane upgrade slots. As
+  the commander's lane doers (`metrics._LANE_DOER_IDENTS`) they leave the off-lane
+  tier, but the deep lane's least-played half still holds them: the tune trades
+  Daybreak Coronet, Angelic Destiny, Ancestral Mask and Snake Umbra as lane slots (for
+  Whispersilk Cloak, Hardened Scales, Sram and Heroic Intervention at the shipped
+  tune; 20 swaps). Shipped as a read fix (adds flat, one guide cut fewer).
+- **The budget.** Where play-rate orders a page, the first eligible add is weighed
+  against the next ten, and a near tie that costs less is the add: play-rates within
+  0.3 log10 rank (a factor of two) and, for a job whose read orders, read scores within
+  0.1 (`swaps._near_tie`). Every width cleared the bar and wider kept gaining, which
+  says the budget binds; 0.3 is the widest that is still a tie. Timey Wimey ran 21 to
+  27 swaps (Jhoira of the Ghitu, The Millennium Calendar and Wheel of Fate added);
+  Blame Game traded Aurelia, the Law Above and Bothersome Quasit for Firemane
+  Commando.
+
 ## What is left
 
 `docs/plans/backlog.md`, "What the polymorph tune and the 25-precon audit still

@@ -31,10 +31,11 @@ import re
 from collections.abc import Callable, Mapping, Sequence
 from collections.abc import Set as AbstractSet
 
-from mtg_utils._analysis.ident_provenance import emitting_unit_texts
+from mtg_utils._analysis.ident_provenance import emitting_units
 from mtg_utils._analysis.pair_reads import PairContext, pair_score
 from mtg_utils._analysis.rate import RateIndex, rate_for
 from mtg_utils._analysis.roles import DeckMana, role_of
+from mtg_utils._analysis.signal_keys import DOER_SUBJECTS
 from mtg_utils._analysis.signal_specs import Serve, avenue_spec_for, serve_from_dict
 from mtg_utils._analysis.signals import clauses
 from mtg_utils._card_ir.compat_lookup import ir_for
@@ -354,44 +355,71 @@ def _prominence(label: str, focus_sets: Mapping[str, AbstractSet[str]] | None) -
     return _PROM_DEFAULT
 
 
+def _unit_role(origin: str, emitted: frozenset[str]) -> str | None:
+    """The role an emitting unit gives its clause, read off the unit itself, or
+    ``None`` to leave it to the clause test (:func:`_clause_role`). An ident the
+    lanes mark as the doer side of a payoff key (``signal_keys.DOER_SUBJECTS``:
+    an artifact-token maker, a blink enabler) is an enabler. A replacement that
+    emits the lane's ident modifies the event the lane is built on (CR 614.1a:
+    "instead"): Anointed Procession and Parallel Lives double every token the
+    deck makes, Hardened Scales every +1/+1 counter it places — a payoff for that
+    lane, which no single trigger or activation shows to the clause test. The
+    read's own call (2026-10-24)."""
+    pairs = {tuple(i.split("|")[0::2]) for i in emitted}
+    if pairs and pairs <= DOER_SUBJECTS:
+        return "enabler"
+    if origin == "replacement":
+        return "payoff"
+    return None
+
+
 def _hit_clauses(
     card: dict,
     pattern: re.Pattern[str] | None,
     serve: Serve | None,
     clause_list: Sequence[str],
-) -> tuple[int, ...]:
+) -> tuple[tuple[int, ...], dict[int, str]]:
     """The oracle clauses a served lane's hit belongs to: those its pattern
     matches, else — a hit read off the card's IR, with no pattern to find its
     clause by — those that line up with the abilities emitting the idents the
-    serve matched (``ident_provenance``). Empty when neither finds one: the hit
-    scores structural."""
+    serve matched (``ident_provenance``), each with the role its emitting unit
+    gives it where the unit decides one (:func:`_unit_role`). Empty when neither
+    finds one: the hit scores structural."""
     if pattern is not None:
         found = tuple(i for i, cl in enumerate(clause_list) if pattern.search(cl))
         if found:
-            return found
+            return found, {}
     idents = serve.matched_idents(card) if serve is not None else frozenset()
     if not idents:
-        return ()
-    texts = [_norm_raw(t) for t in emitting_unit_texts(card, idents)]
-    if not texts:
-        return ()
+        return (), {}
+    units = [
+        (_norm_raw(text), _unit_role(unit.origin, emitted))
+        for unit, emitted in emitting_units(card, idents)
+        if isinstance(text := getattr(unit.node, "description", None), str) and text
+    ]
+    if not units:
+        return (), {}
     norm = [_norm_raw(clause) for clause in clause_list]
     # One clause per emitting ability — its best match — so an ability whose
     # text spans two clauses is one credit, not two (Elven Bow's token).
     found: set[int] = set()
-    for text in texts:
+    roles: dict[int, str] = {}
+    for text, role in units:
         scored = [
             (share, -i)
             for i, clause in enumerate(norm)
             if (share := _overlap_share(clause, text)) is not None
         ]
         if scored:
-            found.add(-max(scored)[1])  # the best share; the earlier clause on a tie
-    return tuple(sorted(found))
+            i = -max(scored)[1]  # the best share; the earlier clause on a tie
+            found.add(i)
+            if role is not None:
+                roles[i] = _stronger(roles.get(i, role), role)
+    return tuple(sorted(found)), roles
 
 
 def _synergy_score(
-    hits: Sequence[tuple[str, tuple[int, ...]]],
+    hits: Sequence[tuple[str, tuple[int, ...], Mapping[int, str]]],
     clause_list: Sequence[str],
     focus_sets: Mapping[str, AbstractSet[str]] | None,
     deck_tribes: frozenset[str] | None,
@@ -409,8 +437,9 @@ def _synergy_score(
 
     Cluster ROLE and the tribal-gate discount read the candidate's Card IR
     (``ir``) — a clause is a payoff iff it aligns to a payoff ability, the gate iff
-    a trigger narrows to a creature subtype (ADR-0027). With no IR every clause is
-    an enabler and no gate applies."""
+    a trigger narrows to a creature subtype (ADR-0027), unless the unit emitting
+    an IR hit decides the role itself (:func:`_unit_role`). With no IR every
+    clause is an enabler and no gate applies."""
     payoff_raws = _ir_payoff_raws(ir) if ir is not None else []
     gate_subtypes = _ir_gate_subtypes(ir) if ir is not None else []
     # Each hit carries the clause(s) it belongs to (:func:`_hit_clauses`); a
@@ -418,7 +447,10 @@ def _synergy_score(
     # ident) goes to a structural bucket.
     clause_labels: dict[int, set[str]] = {}
     struct_labels: set[str] = set()
-    for label, matched in hits:
+    unit_roles: dict[int, str] = {}
+    for label, matched, roles in hits:
+        for i, role in roles.items():
+            unit_roles[i] = _stronger(unit_roles.get(i, role), role)
         if matched:
             for i in matched:
                 clause_labels.setdefault(i, set()).add(label)
@@ -431,7 +463,7 @@ def _synergy_score(
     merged: dict[frozenset[str], tuple[str, set[str], list[int]]] = {}
     for i, labels in clause_labels.items():
         key = frozenset(labels)
-        role = _clause_role(clause_list[i], ir, payoff_raws)
+        role = unit_roles.get(i) or _clause_role(clause_list[i], ir, payoff_raws)
         prev = merged.get(key)
         merged[key] = (
             (_stronger(prev[0], role), prev[1] | labels, [*prev[2], i])
@@ -535,18 +567,21 @@ def score_candidate(
         if _signal_specs is not None
         else [avenue_spec_for(s) for s in active_signals]
     )
-    hits: list[tuple[str, tuple[int, ...]]] = []
+    hits: list[tuple[str, tuple[int, ...], Mapping[int, str]]] = []
     for spec in specs:
         if spec is not None and spec.serve.matches(card):
-            clause_ids = _hit_clauses(card, spec.serve.oracle, spec.serve, clause_list)
-            hits.append((spec.label, clause_ids))
+            hits.append(
+                (
+                    spec.label,
+                    *_hit_clauses(card, spec.serve.oracle, spec.serve, clause_list),
+                )
+            )
     preds = _avenue_preds if _avenue_preds is not None else _avenue_predicates(avenues)
     for label, predicate, oracle_re, serve in preds:
         if predicate(card):
-            clause_ids = _hit_clauses(card, oracle_re, serve, clause_list)
-            hits.append((label, clause_ids))
+            hits.append((label, *_hit_clauses(card, oracle_re, serve, clause_list)))
 
-    served = list(dict.fromkeys(label for label, _ in hits))
+    served = list(dict.fromkeys(label for label, _ids, _roles in hits))
     synergy_score, clusters = _synergy_score(
         hits, clause_list, focus_sets, deck_tribes, ir
     )

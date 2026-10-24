@@ -2412,3 +2412,27 @@ def test_the_theme_is_shared_by_depth_over_two_mains():
         fillers=3,
     )
     assert adds == ["Deep 0", "Deep 1", "Shallow 0"]
+
+
+def test_a_near_tie_goes_to_the_cheaper_card():
+    """Removal's upgrade of Murder takes the most-played card doing its job,
+    unless a card within a factor of two of its play-rate (``_CHEAPER_TIE``)
+    costs less: the budget it leaves reaches the issues after it. Path to Exile
+    at rank 14 and $1 goes before Swords to Plowshares at rank 10 and $5; at
+    rank 40 it is no near tie and Swords keeps the slot."""
+    murder = _real_cc("Murder", "spine", roles=["interaction"], edhrec_rank=8000)
+
+    def upgrade(path_rank):
+        pool = [
+            {**_played("Swords to Plowshares", 10), "prices": {"usd": "5.00"}},
+            _played("Path to Exile", path_rank),
+        ]
+        out = _swaps_for_issue_dicts(
+            [murder],
+            [{"kind": "upgrade", "severity": 1, "count": 1}],
+            _upgrade_ctx([murder], pool),
+        )
+        return [s["add"]["name"] for s in out["swaps"]]
+
+    assert upgrade(14) == ["Path to Exile"]
+    assert upgrade(40) == ["Swords to Plowshares"]

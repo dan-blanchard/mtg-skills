@@ -127,17 +127,19 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   draw, protection) or play-rate (removal, ramp), with theme fit breaking a near tie
   for draw and ramp. What is left. The wipe read's cost misreads were fixed
   2026-10-24 (ADR-0060's second amendment that day: a spree mode's cost, an enters
-  trigger's X, no flicker / transform-back / event-fired clean sweep) and its
-  reference line recalibrated to a four-mana clean sweep, but it is not calibrated:
-  Vanquish the Horde (0.80) still reads above Wrath of God (0.76) and Blasphemous
-  Act / Toxic Deluge (0.78), its per-creature discount taken at a full board, which
-  is why the read leading the wipe upgrades still loses in Blame Game (55 adds
-  against 56, Blasphemous Act lost to Vanquish); don't re-suggest leading with it
-  until that is read. Jaya Ballard no longer scores. The removal read's agreement
+  trigger's X, no flicker / transform-back / event-fired clean sweep), its
+  reference line recalibrated to a four-mana clean sweep, and its per-creature
+  discount read at a board of eight, generic mana only (ADR-0060's last amendment:
+  Blasphemous Act 0.82, Vanquish the Horde 0.80, Toxic Deluge 0.78, Wrath of God and
+  Damnation 0.76). The read leading the wipe upgrades then cleared the bar alone
+  (58 / 179, a budget-moved Jhoira) and added nothing beside the shipped budget
+  rule; one of its picks is Harsh Mercy, whose chosen-type spare phase drops, so
+  don't re-suggest leading with it until the read's "left unread" list shrinks.
+  Jaya Ballard no longer scores. The removal read's agreement
   with play-rate over every card with a removal effect is weak (it was fitted on
-  cards whose main job is removal), and phase drops Winnow's "if another permanent
-  with the same name" condition, so Winnow reads as unconditional (0.75) — harmless
-  while removal only gates. Theme fit as a tie lost for removal (38 adds), wipes
+  cards whose main job is removal); Winnow's "if another permanent with the same
+  name" condition, which phase drops, is read by name (`removal._CONDITION_DROPPED`,
+  retired by its canary). Theme fit as a tie lost for removal (38 adds), wipes
   (39) and protection (no change). Play-rate's picks still recur where nothing else
   decides: the removal adds are Beast Within in 10 precons, Path to Exile, Swords to
   Plowshares and Chaos Warp in 7, the ramp adds Fellwar Stone in 9; Garruk's
@@ -147,15 +149,18 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   protection for every shape (a target of 5 or 3) matched fewer adds.
   (m) **Recall** (`precon-audit/misses.py`, at the largest guide's thirty
   swaps and each precon's own guides' budget, `budgets.json`, Spellbook cached):
-  180 of 408 cuttable guide cuts, 57 of 610 in-scope guide adds (2026-10-24,
-  after (g) and (j); 169 / 56 at 9e0026ed, 168 / 50 at a913f172). The levers by
-  size: adds a page held but outranked (229), theme adds no search reaches (169,
-  (r)), cuts the popularity threshold still shields (62), commander-lane cards the
-  guides trim (55), and cuts a budget-bound tune never reaches (43). The outranked
-  adds by kind: theme 76, ramp 45, removal 40, draw 29, protection 27, wipes 12;
-  most lost to a more-played pick (126), then to what was left of the budget (47).
-  Measured negative, so don't re-suggest without a new read: theme adds serving two
-  viable avenues first (46 adds), and theme adds by a synergy / play-rate blend (53).
+  195 of 408 cuttable guide cuts, 60 of 610 in-scope guide adds (2026-10-24, after
+  the near-tie budget rule; 180 / 57 before it, 169 / 56 at 9e0026ed). Shipped: where
+  play-rate orders a page, a near tie that costs less is the add (`swaps._near_tie`:
+  play-rates within a factor of two, read scores within 0.1 for an ordering job;
+  every width from 0.1 to 0.5 log10 rank cleared the bar and wider kept gaining —
+  the budget binds; the table is the audit's "The last tuner levers"). The levers
+  by size at the shipped tune: adds a page held but outranked (244), theme adds no
+  search reaches (169, (r)), cuts the popularity threshold still shields (62),
+  commander-lane cards the guides trim (57), and cuts a budget-bound tune never
+  reaches (27, from 43). Measured negative, so don't re-suggest without a new
+  read: theme adds serving two viable avenues first (46 adds), and theme adds by
+  a synergy / play-rate blend (53).
   Six guide summaries don't tag sources per row (`guide_sizes.py` skips them).
   (r) **Theme reach, what's left** (2026-10-24; the experiment table is in
   `docs/plans/precon-audit-2026-10-18.md`, "Theme reach"). Shipped: a type- or
@@ -178,11 +183,14 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   deck moved). At
   a913f172 the 150-card play-rate page (`swaps._PAGE`) hid 71 main-avenue guide
   adds; "the most played that fits" never reaches them, and payoffs first
-  didn't either. With Voltron's own page, Virtue and Valor's upgrade drain runs
-  further (19 swaps, from 13). It now trades four of its own Auras, which were
-  upgrade slots before too: Daybreak Coronet, Angelic Destiny, Ancestral Mask and
-  Snake Umbra, none of them a guide cut. Its Equipment picks also run past the
-  guides' Boots and Greaves to Sword of the Animist and Bone Saw.
+  didn't either. Virtue and Valor's Auras that pump their creature
+  (`voltron_makers|you|pump`) count as Ellivere's lane doers since 2026-10-24
+  (`metrics._LANE_DOER_IDENTS`), so they left the off-lane upgrade slots; the deep
+  lane's least-played half still trades Daybreak Coronet, Angelic Destiny, Ancestral
+  Mask and Snake Umbra (none a guide cut; now for Whispersilk Cloak, Hardened Scales,
+  Sram and Heroic Intervention, 20 swaps). Left: no read separates an Aura deck's
+  gear from Equipment (Ellivere's lane is enchanted creatures; Equipment makes none),
+  and Ancestral Mask's count of enchantments emits no carer ident.
   (n) **Lane follow-up verdicts — don't re-suggest without a card** (2026-10-24:
   a targeted Treasure conversion is no `ramp` — Vraska, Betrayal's Sting's −2,
   Kitesail Larcenist answer the target, whose controller keeps it, CR 110.2 /
@@ -218,9 +226,12 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   still score structural. Seven serves a theme pages by still carry an oracle
   arm (``xspell_matters``, ``team_buff``, ``self_etb_payload``,
   ``permanent_etb``, ``target_redirect``, ``spell_redirect``,
-  ``land_protection`` — Pass D's list): their page is partly a pattern. The
-  replacement doublers (Anointed Procession, Parallel Lives, Hardened Scales)
-  read as enablers under the clause payoff test.
+  ``land_protection`` — Pass D's list): their page is partly a pattern. Since
+  2026-10-24 an IR hit takes its role from its emitting unit where the unit
+  decides one (``ranking._unit_role``: a replacement emitting the lane's ident is
+  a payoff — Anointed Procession, Parallel Lives, Hardened Scales; a
+  ``DOER_SUBJECTS`` ident an enabler), else from the clause test; one guide add
+  fewer (Virtue and Valor's Sram for Hardened Scales), shipped as a read fix.
   (l) **Tune speed, what's left** (2026-10-24). The ranking's per-unit ident
   attribution persists in a write-back sidecar beside the signals index
   (`<bulk>.provenance.pkl`, `ident_provenance.attach_provenance_sidecar`; the

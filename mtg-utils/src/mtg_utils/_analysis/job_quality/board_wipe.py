@@ -78,6 +78,7 @@ from mtg_utils._card_ir.crosswalk import (
     static_affected,
     tag_of,
 )
+from mtg_utils._card_ir.trees import phase_records_for
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -145,9 +146,14 @@ _SPARES = frozenset(
 _SIZED = frozenset({"Cmc", "PtComparison"})
 #: A bound the caster sets (Pernicious Deed's X, Expel the Interlopers' number).
 _CHOSEN_QTY = frozenset({"Variable", "CostXPaid", "ChosenNumber"})
-#: The creatures on a Commander table that wants a wipe — what a "{1} less for
-#: each creature on the battlefield" discount is worth (Blasphemous Act).
-_BOARD_CREATURES = 6
+#: The creatures on the battlefield when a Commander deck casts its wipe — what
+#: a "{1} less for each creature on the battlefield" discount is worth
+#: (Blasphemous Act, Vanquish the Horde). The count is every creature, yours and
+#: the opponents' (the cards' own text), at the table ``_UNDAUNTED`` reads: two a
+#: seat over four seats, a board worth wiping. The read's own call (2026-10-24);
+#: at six, Vanquish's {6}{W}{W} read two mana and Blasphemous Act's {8}{R} three,
+#: though on any board of eight or more Act costs {R} and Vanquish {W}{W}.
+_BOARD_CREATURES = 8
 #: The X that clears a Commander board when nothing on the card says more.
 _BOARD_X = 4
 #: Undaunted's discount at a four-player table: {1} per opponent (CR 702.125a).
@@ -184,7 +190,7 @@ class _Sweep:
     overload: bool
     modal: bool  # a modal spell, or more than one sweep unit
     rider: bool  # a draw, token or life for the caster in the same unit
-    discount: tuple[str, int] | None  # ("board" | "fixed", generic) self reduction
+    discount: tuple[str, int, int] | None  # (board|fixed, generic, cap) reduction
     face_cmc: int | None  # the face's own printed mana value
     mode_cost: int  # a spree / tiered mode's own additional cost (CR 702.172a)
 
@@ -298,10 +304,12 @@ def _x_floor(u: AbilityUnit) -> int | None:
     return None
 
 
-def _discount(tree: ConceptTree) -> tuple[str, int] | None:
-    """The card's own cost reduction (CR 601.2f): ``("board", n)`` for "{n} less
-    for each creature on the battlefield", ``("fixed", n)`` for a flat or
-    conditional one (Hour of Revelation, Avenge)."""
+def _discount(tree: ConceptTree) -> tuple[str, int, int] | None:
+    """The card's own cost reduction (CR 601.2f): ``("board", n, cap)`` for "{n}
+    less for each creature on the battlefield", ``("fixed", n, cap)`` for a flat
+    or conditional one (Hour of Revelation, Avenge). ``cap`` is the face's
+    generic mana: a generic reduction never touches the colored part of the cost
+    (CR 118.7a), so Vanquish the Horde never costs less than {W}{W}."""
     for u in tree.units:
         if u.origin != "static":
             continue
@@ -317,8 +325,19 @@ def _discount(tree: ConceptTree) -> tuple[str, int] | None:
             return (
                 "board" if board else "fixed",
                 generic if isinstance(generic, int) else 0,
+                _face_generic(tree),
             )
     return None
+
+
+def _face_generic(tree: ConceptTree) -> int:
+    """The generic mana in ``tree``'s face's printed cost, off phase's own face
+    record (its ``mana_cost.generic``)."""
+    for face in phase_records_for(tree.oracle_id):
+        if face.get("name") == tree.name:
+            generic = (face.get("mana_cost") or {}).get("generic")
+            return generic if isinstance(generic, int) else 0
+    return 0
 
 
 def _tree_sweeps(tree: ConceptTree, *, walker: bool) -> list[_Sweep]:
@@ -529,10 +548,9 @@ def _cost(card: dict, best: _Sweep, *, x: bool) -> float:
         cost = float(_overload_cost(card) or cost)
     cost += best.mode_cost
     if best.discount is not None:
-        kind, generic = best.discount
-        cost = max(
-            1.0, cost - (generic * _BOARD_CREATURES if kind == "board" else generic)
-        )
+        kind, generic, cap = best.discount
+        cut = generic * _BOARD_CREATURES if kind == "board" else generic
+        cost = max(1.0, cost - min(cut, cap))
     if x and best.kind in ("spell", "etb"):
         cost += best.x_floor or _BOARD_X
     if (

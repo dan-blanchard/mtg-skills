@@ -1411,3 +1411,33 @@ def test_tied_lanes_resolve_by_label_not_by_set_order():
             commander_idents=held,
         )
         assert fr["viable_avenues"][0]["label"] == max(art, energy)
+
+
+def test_the_gear_a_voltron_commander_attaches_is_its_lanes_own():
+    """A commander that attaches gear (``voltron_makers``: Ellivere's Roles)
+    suits creatures up with the Auras and Equipment that pump the creature they
+    are attached to (``voltron_makers|you|pump``): they are the lane's doers, not
+    upgrade slots off every lane (Virtue and Valor traded Daybreak Coronet and
+    Angelic Destiny for Equipment as off-lane slots)."""
+    makers = spec_for(_sig("voltron_makers")).label
+    gear = [
+        replace(_cc(f"Aura {i}", "engine", [makers]), edhrec_rank=9000)
+        for i in range(12)
+    ]
+    off = replace(
+        _cc("Clunky Removal", "spine", [], roles=["removal"]), edhrec_rank=9000
+    )
+    classes = [_cc("Gear Cmdr", "commander", [makers]), *gear, off]
+    fr = focus(
+        classes,
+        deck_size=100,
+        deck_signals=[_sig("voltron_makers")],
+        commander_idents=frozenset({("voltron_makers", "you", "")}),
+        emitters={
+            ("voltron_makers", "you", ""): frozenset({"Gear Cmdr"}),
+            ("voltron_makers", "you", "pump"): frozenset(c.name for c in gear),
+        },
+        medium="paper",
+    )
+    assert {c.name for c in gear} <= set(fr["commander_lane_cards"])
+    assert fr["upgrade_cards"] == ["Clunky Removal"]

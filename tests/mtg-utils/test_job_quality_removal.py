@@ -4,7 +4,7 @@ removal, off its own trees — real cards (ADR-0056)."""
 import pytest
 
 from mtg_utils._analysis.job_quality import job_score, read_for, removal
-from mtg_utils.testkit import test_card, test_signals
+from mtg_utils.testkit import test_card, test_phase_records, test_signals
 
 
 def _real(name: str) -> dict:
@@ -142,3 +142,24 @@ def test_a_free_alternative_cost_reads_as_cheap(name):
     Rollick is cast without paying its mana cost while you control a commander,
     Snuff Out for 4 life while you control a Swamp. Neither costs four mana."""
     assert removal.features(_real(name))["cheap"] == 1.0
+
+
+def test_winnow_reads_as_conditional_removal():
+    """Winnow destroys its target only "if another permanent with the same name
+    is on the battlefield": a conditional answer, not the unconditional
+    two-mana instant phase's parse alone would read."""
+    features = removal.features(_real("Winnow"))
+    assert features["unconditional"] == 0.0
+    assert features["cheap_instant_unconditional"] == 0.0
+
+
+@pytest.mark.retirement_canary
+def test_winnow_condition_dropped_canary():
+    """Phase (v0.104.0) drops Winnow's same-name condition whole: its Destroy
+    carries no condition and no filter predicate, so ``removal._CONDITION_DROPPED``
+    names it. RETIRE-READY when this fails: delete Winnow's row there."""
+    (face,) = test_phase_records("Winnow")
+    (spell,) = face["abilities"]
+    assert spell["effect"]["type"] == "Destroy"
+    assert spell["condition"] is None
+    assert spell["effect"]["target"]["properties"] == []

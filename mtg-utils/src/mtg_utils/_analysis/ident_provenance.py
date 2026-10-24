@@ -39,11 +39,14 @@ import hashlib
 import pickle
 import threading
 from pathlib import Path
-from typing import NamedTuple
+from typing import TYPE_CHECKING, NamedTuple
 
 from mtg_utils._analysis.lanes import extract_crosswalk_signals
 from mtg_utils._analysis.signal_trees import as_signal_tree
 from mtg_utils._card_ir.trees import trees_for
+
+if TYPE_CHECKING:
+    from mtg_utils._card_ir.crosswalk import AbilityUnit
 
 #: ``(tree_idx, unit_idx) -> idents`` for one card.
 Attribution = dict[tuple[int, int], frozenset[str]]
@@ -169,21 +172,20 @@ def flush_provenance_sidecar() -> None:
 atexit.register(flush_provenance_sidecar)
 
 
-def emitting_unit_texts(card: dict, idents: frozenset[str]) -> list[str]:
-    """The descriptions (phase's per-ability oracle text) of the card's units
-    that emit any of ``idents`` — which ability makes the card serve a theme
-    read off its idents. Empty for an unattributed ident (see the module
-    docstring) or a card with no trees."""
+def emitting_units(
+    card: dict, idents: frozenset[str]
+) -> list[tuple[AbilityUnit, frozenset[str]]]:
+    """The card's units that emit any of ``idents``, each with the ones it emits
+    — which ability makes the card serve a theme read off its idents. Empty for
+    an unattributed ident (see the module docstring) or a card with no trees."""
     if not idents:
         return []
     trees = trees_for(card)
-    out: list[str] = []
-    for (ti, ui), emitted in unit_idents_for(card).items():
-        if emitted & idents:
-            text = getattr(trees[ti].units[ui].node, "description", None)
-            if isinstance(text, str) and text:
-                out.append(text)
-    return out
+    return [
+        (trees[ti].units[ui], emitted & idents)
+        for (ti, ui), emitted in unit_idents_for(card).items()
+        if emitted & idents
+    ]
 
 
 def unit_idents_for(card: dict) -> Attribution:

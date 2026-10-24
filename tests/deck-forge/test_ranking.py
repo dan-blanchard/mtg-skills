@@ -859,3 +859,41 @@ def test_an_ir_served_hit_takes_its_abilitys_role(name, role):
         focus_sets={"viable": {"Your graveyard"}},
     )["clusters"]
     assert [c["role"] for c in clusters if "Your graveyard" in c["lanes"]] == [role]
+
+
+# ── A role read off the emitting unit ─────────────────────────────────────────
+@pytest.mark.parametrize(
+    ("name", "signals"),
+    [
+        ("Parallel Lives", [_sig("tokens_matter", "you")]),
+        ("Anointed Procession", [_sig("tokens_matter", "you")]),
+        ("Hardened Scales", [_sig("counter_doubling", "you")]),
+    ],
+)
+def test_a_replacement_doubling_the_lanes_event_is_a_payoff(name, signals):
+    """A replacement that emits the lane's ident modifies the event the lane is
+    built on (CR 614.1a): Parallel Lives and Anointed Procession double every
+    token a tokens deck makes, Hardened Scales every +1/+1 counter it places.
+    No trigger or activation shows that to the clause test, which read them as
+    enablers; the emitting unit decides the role."""
+    clusters = score_candidate(test_card(name), active_signals=signals)["clusters"]
+    assert clusters
+    assert {c["role"] for c in clusters} == {"payoff"}, clusters
+
+
+def test_a_doer_subject_ident_is_an_enabler():
+    """An ident the lanes mark as the doer side of a payoff key
+    (``signal_keys.DOER_SUBJECTS``) gives its clause the enabler role, whatever
+    unit emits it."""
+    assert (
+        ranking._unit_role("replacement", frozenset({"artifacts_matter|you|token"}))
+        == "enabler"
+    )
+    assert (
+        ranking._unit_role("trigger", frozenset({"artifacts_matter|you|token"}))
+        == "enabler"
+    )
+    assert ranking._unit_role("replacement", frozenset({"tokens_matter|you|"})) == (
+        "payoff"
+    )
+    assert ranking._unit_role("trigger", frozenset({"tokens_matter|you|"})) is None

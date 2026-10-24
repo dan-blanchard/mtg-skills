@@ -153,13 +153,13 @@ def test_golden_argosy_crew_exile_reads_as_every_creature():
     )
 
 
-def test_the_wipe_calibration_order_as_it_stands():
-    """The reference wipes in the read's order as of 2026-10-24. Toxic Deluge and
-    Blasphemous Act (three mana as cast on a full board) sit just above Wrath of
-    God and Damnation (four), which read alike. The open leftover: Vanquish the
-    Horde reads above them all, because its {1}-per-creature discount is taken
-    at a full board (two mana as cast), so a read leading the wipe upgrades still
-    picks it over Blasphemous Act (Blame Game)."""
+def test_the_wipe_calibration_order():
+    """The reference wipes in the read's order. A {1}-per-creature discount is
+    read at a board of eight creatures (two a seat at a four-player table) and
+    never touches the colored mana (CR 118.7a), so Blasphemous Act ({8}{R}) is
+    cast for {R} and Vanquish the Horde ({6}{W}{W}) for {W}{W}: Act reads above
+    Vanquish, Vanquish above Toxic Deluge, Deluge above Wrath of God and
+    Damnation (four), which read alike."""
     scores = {
         name: _score(name)
         for name in (
@@ -170,8 +170,12 @@ def test_the_wipe_calibration_order_as_it_stands():
             "Damnation",
         )
     }
+    assert board_wipe.features(_real("Blasphemous Act"))["cost"] == 1.0
+    assert board_wipe.features(_real("Vanquish the Horde"))["cost"] == 2.0
     assert scores["Damnation"] == scores["Wrath of God"]
-    assert scores["Toxic Deluge"] == scores["Blasphemous Act"]
-    assert scores["Blasphemous Act"] > scores["Wrath of God"]
-    # The open leftover: this should not hold once the read is calibrated.
-    assert scores["Vanquish the Horde"] > scores["Blasphemous Act"]
+    assert (
+        scores["Blasphemous Act"]
+        > scores["Vanquish the Horde"]
+        > scores["Toxic Deluge"]
+        > scores["Wrath of God"]
+    )
