@@ -224,8 +224,10 @@ def test_damage_sweepers_stay_interaction_and_board_wipe(name):
 def test_a_static_shrink_on_a_population_is_a_board_wipe(name):
     """A continuous toughness shrink on a population of creatures (layer 7c, CR
     613.4c) puts every creature it brings to 0 toughness into its owner's
-    graveyard (CR 704.5f)."""
+    graveyard (CR 704.5f). The ``population_shrink`` key carries it, so the
+    board-wipe preset reads the signals index alone."""
     assert "board_wipe" in role_of(_real(name))
+    assert "population_shrink" in {s.key for s in test_signals(name)}
 
 
 @pytest.mark.parametrize(
@@ -241,6 +243,7 @@ def test_a_shrink_on_one_creature_is_not_a_board_wipe(name):
     one creature, not a board: Skullclamp was the tuner's board-wipe upgrade
     pick (2026-10-19)."""
     assert "board_wipe" not in role_of(_real(name))
+    assert "population_shrink" not in {s.key for s in test_signals(name)}
 
 
 def test_a_targeted_toughness_shrink_is_removal():
@@ -304,9 +307,12 @@ def test_a_one_sided_mass_shrink_is_a_board_wipe(name):
     """ "Creatures your opponents control get -2/-2" clears the opponents' board
     as a one-sided destroy (Plague Wind) does, so the board-wipe job counts it —
     Bite of the Black Rose's from a vote branch. The ``mass_removal`` key stays
-    the symmetric shrink the mass-death payoffs read."""
+    the symmetric shrink the mass-death payoffs read; ``population_shrink``
+    carries the one-sided one."""
     assert "board_wipe" in role_of(_real(name))
-    assert "mass_removal" not in {s.key for s in test_signals(name)}
+    keys = {s.key for s in test_signals(name)}
+    assert "mass_removal" not in keys
+    assert "population_shrink" in keys
 
 
 @pytest.mark.parametrize(

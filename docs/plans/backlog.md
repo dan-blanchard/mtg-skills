@@ -135,12 +135,6 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   2026-10-24). Protection goes unsearched in 18 guide adds' decks because ADR-0024
   asks for protection only from a combo or control deck or a voltron plan;
   protection for every shape (a target of 5 or 3) matched fewer adds.
-  (p) **A `population_shrink` signal key.** The `board-wipe` preset reads its
-  population-shrink arm as a `concept` predicate (`lanes.population_shrink`), a
-  live per-card tree walk, where its other arms are signal keys the persisted
-  signals index serves. A served key (the one-sided / static shrink the
-  `mass_removal` key leaves out) would let the preset, and the role, read the
-  index alone.
   (m) **Recall** (`precon-audit/misses.py`, at the largest guide's thirty
   swaps and each precon's own guides' budget, `budgets.json`, Spellbook cached):
   180 of 408 cuttable guide cuts, 57 of 610 in-scope guide adds (2026-10-24,

@@ -374,15 +374,15 @@ def is_board_wipe(card: dict) -> bool:
     ``mass_bounce`` keys (destroy, exile, tuck, damage, sacrifice, bounce and
     symmetric shrink sweeps, an overloaded spell's included — CR 702.96a) plus
     a toughness shrink on a population of creatures not limited to yours,
-    one-shot or continuous, one-sided or not (``lanes.population_shrink`` —
+    one-shot or continuous, one-sided or not (the ``population_shrink`` key —
     Massacre Wurm, Elesh Norn, Grand Cenobite). The tuner sources the role by
     the same preset (:data:`ROLE_SEARCH`).
 
     Why a one-sided shrink counts (the one statement of it; the preset, its
-    concept arm and ADR-0051 point here): the template job is clearing the
+    key and ADR-0051 point here): the template job is clearing the
     opponents' board. Massacre Wurm's -2/-2 to the opponents' creatures does
     that as surely as a one-sided destroy (Plague Wind) or an overloaded bounce
-    (Cyclonic Rift), which the two keys already count, and the board-wipe job
+    (Cyclonic Rift), which the other two keys count, and the board-wipe job
     read scores a one-sided sweep above a symmetric one. The ``mass_removal``
     key itself keeps only the symmetric shrink: it is also the sweep half of a
     mass-death turn the death payoffs read, which a one-sided shrink is not.

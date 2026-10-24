@@ -202,4 +202,6 @@ a type with it get +2/-1), but phase v0.104.0 drops the shared-type half and typ
 only "enchanted creature", so the card reads as one creature: a phase gap, not the
 veto. It gained Bite of the
 Black Rose's one-sided vote branch. The preset gained 51 cards the role already
-counted.
+counted. On 2026-10-24 the concept arm became the `population_shrink` signal key
+(the same read), so the preset and the role read the persisted signals index alone;
+the match set did not change.

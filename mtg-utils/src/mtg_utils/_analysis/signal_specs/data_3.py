@@ -220,6 +220,15 @@ SPECS_3: dict[tuple[str, str], SignalSpec] = {
         None,
         serve_idents=frozenset({"mass_bounce|any|", "mass_land_denial|each|bounce"}),
     ),
+    # The population shrink (2026-10-24): the board-wipe preset's third key, beside
+    # mass_removal and mass_bounce. Its avenue pages the preset (no oracle search).
+    ("population_shrink", "any"): _spec(
+        "Shrink sweeps",
+        "toughness shrinks over a board of creatures, one-sided or continuous",
+        {"preset_names": ("board-wipe",)},
+        None,
+        serve_idents=frozenset({"population_shrink|any|"}),
+    ),
     ("destroy_legendary", "any"): _spec(
         *SWEEP_LABELS["destroy_legendary"],
         {"oracle": r"destroy (?:up to one )?target legendary (?:permanent|creature)"},

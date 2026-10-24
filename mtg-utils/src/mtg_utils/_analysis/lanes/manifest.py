@@ -203,6 +203,11 @@ SERVED_SIGNAL_KEYS: frozenset[str] = frozenset(
         "discard_outlet",
         "mass_removal",
         "mass_bounce",
+        # population_shrink (2026-10-24): a toughness shrink on a population of
+        # creatures not limited to yours, one-shot or static, one-sided or not
+        # (Massacre Wurm, Elesh Norn, Grand Cenobite) -- the board-wipe preset's
+        # third key, so the preset reads the signals index alone.
+        "population_shrink",
         "exile_removal",
         "lands_matter",
         "treasure_matters",

@@ -1031,9 +1031,9 @@ def _mass_removal(tree: ConceptTree) -> list[Signal]:
       controller-less gate mirrors the live raw's "ALL creatures" anchor (a
       one-sided "creatures your opponents control get -1/-1" dip — Cower in
       Fear, and the STATIC opponent-scoped Massacre Wurm/Elesh Norn shape —
-      is debuff_makers here, and the ``board-wipe`` preset's population
-      shrink, :func:`population_shrink`, which counts it as the board-wipe
-      job — the key keeps the symmetric shrink the mass-death payoffs read);
+      is debuff_makers here, and the ``population_shrink`` key
+      (:func:`_population_shrink`), which counts it as the board-wipe
+      job — this key keeps the symmetric shrink the mass-death payoffs read);
       the NEGATIVE-TOUGHNESS gate is the lethality tell (CR 704.5f — a
       "-2/-0" combat dip like Hydrolash never kills); and the attachment veto
       (:func:`_mass_shrink`) drops the Aura's or Equipment's own creature
@@ -1171,10 +1171,29 @@ def _walk_static_shrinks(
 def population_shrink(tree: ConceptTree) -> bool:
     """A toughness shrink on a population of creatures not limited to yours,
     one-shot (:func:`mass_shrink_effects`) or continuous
-    (:func:`static_population_shrinks`) — the ``board-wipe`` preset's concept
-    arm, for the sweeps the ``mass_removal`` key leaves out (one-sided or
-    static; ``roles.is_board_wipe`` says why they count)."""
+    (:func:`static_population_shrinks`) — the ``population_shrink`` key."""
     return bool(mass_shrink_effects(tree) or static_population_shrinks(tree))
+
+
+def _population_shrink(tree: ConceptTree) -> list[Signal]:
+    """population_shrink — a toughness shrink on a population of creatures not
+    limited to yours (:func:`population_shrink`; a creature at 0 toughness dies,
+    CR 704.5f), one-shot or continuous (CR 613.4c), symmetric or one-sided:
+    Languish, Massacre Wurm, Cower in Fear, Elesh Norn, Grand Cenobite, Night of
+    Souls' Betrayal. The ``board-wipe`` preset's third key, beside
+    ``mass_removal`` and ``mass_bounce``, so the preset and the board-wipe role
+    read the persisted signals index alone. ``mass_removal`` keeps only the
+    symmetric one-shot shrink, the sweep half of a mass-death turn;
+    ``roles.is_board_wipe`` says why a one-sided or static shrink is a wipe.
+    Scope "any" (the sweep convention)."""
+    shrinks = mass_shrink_effects(tree)
+    if shrinks:
+        raw = shrinks[0][1].raw
+    elif static_population_shrinks(tree):
+        raw = ""
+    else:
+        return []
+    return [Signal("population_shrink", "any", "", raw, tree.name, "high")]
 
 
 def _walk_mass_removal(tree: ConceptTree) -> SweepEffects:
@@ -1253,7 +1272,7 @@ def _is_mass_removal(tree: ConceptTree, unit: AbilityUnit, c: ConceptNode) -> bo
         return True
     # A SYMMETRIC mass shrink (Languish's "all creatures get -4/-4"; Toxic
     # Deluge's "-X/-X") — a one-sided one (Massacre Wurm, Cower in Fear) is
-    # the ``board-wipe`` preset's population-shrink arm, not this key.
+    # the ``population_shrink`` key's, not this one.
     if _mass_shrink(unit, c) and ctrl is None:
         return True
     if t == "ChooseAndSacrificeRest":
@@ -3006,6 +3025,7 @@ LANES = (
     _discard_outlet,
     _mass_removal,
     _mass_bounce,
+    _population_shrink,
     _exile_removal,
     _lands_matter,
     _resource_token_matters,

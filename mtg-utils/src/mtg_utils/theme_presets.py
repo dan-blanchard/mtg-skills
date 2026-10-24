@@ -345,7 +345,7 @@ def remember_signal_idents(oid: str, idents: Iterable[str]) -> None:
 # the card — the persisted answer to every concept arm at once, seeded by
 # :func:`seed_signal_key_index` from the same sidecar as the keys above. A concept
 # arm walks the card's signal trees, so the first preset search over the pool
-# that reaches one (ramp, card-draw, board-wipe) used to build trees for every
+# that reaches one (ramp, card-draw) used to build trees for every
 # card in it — most of a tune's time (backlog (l), 2026-10-23: 86 of a precon
 # tune's 119 s). An oracle_id with no entry (no seed this process, a card outside
 # the bulk, or one :func:`forget_signal_keys` dropped) takes the live predicate.
@@ -590,18 +590,6 @@ def _ramp_concept(card: dict) -> bool:
     return _concept_any_face(
         card, lambda tree: treasure_maker_you_keep(tree) or additional_land_play(tree)
     )
-
-
-def _population_shrink_concept(card: dict) -> bool:
-    """concept arm for the 'board-wipe' preset: a toughness shrink on a
-    population of creatures not limited to yours (CR 613.4c; a creature at 0
-    toughness dies, 704.5f), one-shot or continuous, symmetric or one-sided
-    (``lanes.population_shrink`` — Massacre Wurm, Elesh Norn, Night of Souls'
-    Betrayal). The ``mass_removal`` key reads only the symmetric one-shot;
-    ``roles.is_board_wipe`` says why the rest counts as a wipe."""
-    from mtg_utils._analysis.lanes import population_shrink
-
-    return _concept_any_face(card, population_shrink)
 
 
 def _toughness_debuff_concept(card: dict) -> bool:
@@ -2223,7 +2211,7 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
             "— Toxic Deluge, Cloudkill —, a ChooseAndSacrificeRest sweep — "
             "Tragic Arrogance, Cataclysm — and an overloaded targeted kill, "
             "CR 702.96a), the `mass_bounce` key (BounceAll, an overloaded "
-            "bounce), and a population-shrink concept arm: a one-shot mass "
+            "bounce), and the `population_shrink` key: a one-shot mass "
             "shrink of any side but yours (Massacre Wurm, Cower in Fear) or a "
             "continuous one on a population (Elesh Norn, Grand Cenobite; Night "
             "of Souls' Betrayal). Why a one-sided shrink is a wipe: "
@@ -2241,12 +2229,12 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
         # or nonland permanent an opponent has to hand clears the board as a
         # wipe does (Evacuation, Cyclonic Rift overloaded); your own side's
         # bounce is not one (``_mass_bounce`` excludes it).
-        # The population shrink (``lanes.population_shrink``, 2026-10-23):
-        # ``roles.is_board_wipe`` is this preset, and its docstring says why a
-        # one-sided shrink counts. ``mass_removal`` itself stays the symmetric
-        # shrink the mass-death payoffs read.
-        signal_keys=("mass_removal", "mass_bounce"),
-        concept=_population_shrink_concept,
+        # The population shrink (the ``population_shrink`` key, a concept arm
+        # from 2026-10-23 until it became a key on 2026-10-24, so the preset reads
+        # the signals index alone): ``roles.is_board_wipe`` is this preset, and its
+        # docstring says why a one-sided shrink counts. ``mass_removal`` itself
+        # stays the symmetric shrink the mass-death payoffs read.
+        signal_keys=("mass_removal", "mass_bounce", "population_shrink"),
         should_match=(
             "Wrath of God",
             "Farewell",

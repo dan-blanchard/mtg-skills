@@ -311,6 +311,8 @@ _REAL_CASES: dict[str, str] = {
     "plus_one_matters": "Mycoloth",
     "poison_makers": "Phyresis",
     "poison_matters": "Serpent Generator",
+    # A one-sided one-shot shrink; mass_removal reads only the symmetric one.
+    "population_shrink": "Massacre Wurm",
     "power_double": "Unleash Fury",
     "power_matters": "Colossal Majesty",
     "power_tap_engine": "Marwyn, the Nurturer",

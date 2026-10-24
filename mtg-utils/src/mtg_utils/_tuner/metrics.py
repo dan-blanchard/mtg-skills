@@ -54,6 +54,8 @@ _SPINE_AVENUE_KEYS = frozenset(
         # Board wipes are the counted ``board_wipe`` Spine row; five of them read
         # as an emerging "Board wipes" theme to commit to or cut (2026-10-18).
         "mass_removal",
+        # The row's one-sided and static shrinks (Massacre Wurm, Elesh Norn).
+        "population_shrink",
     }
 )
 
