@@ -15,13 +15,17 @@ commander's lane, outside the deep-lane half); carer (cares about a built theme)
 fed or filler but no issue drew it; popular (off-lane, ranked inside UPGRADE_RANK);
 other.
 
+Commander Spellbook answers are cached per request under ROOT/spellbook-cache: a
+rerun reads the same combos, and a deck whose request is neither cached nor
+answerable (a 429) stops the run rather than tuning without combos.
+
 ADD reasons: added (a hit); out of scope (in the deck, a land, out of identity or
 format); no search for it (no candidate page this run held a card of its kind —
 its template job, protection, or the main theme); page held it — over budget /
 failed the job gate / higher mana-value band / outranked; not on any page (a page
 of its kind was searched, but its spec or page depth missed the card).
 """
-import collections, fcntl, functools, json, multiprocessing, pathlib, re, sys, tempfile
+import collections, fcntl, functools, json, multiprocessing, pathlib, re, sys, tempfile, time
 
 #: The largest upgrade guide's swaps (guide_sizes.py, 2026-10-19), so the recipe
 #: never caps recall below what a guide does; the budget is the precon's own
@@ -53,6 +57,47 @@ def parse_table(md, header):
                 if name.strip():
                     rows[norm(name.strip())] = name.strip()
     return rows
+
+
+def cache_spellbook(cache, combo_search):
+    """Serve Commander Spellbook from ``cache`` (one file per request body), so every
+    run reads the same combos. A miss asks the API (backing off on a 429) and stores
+    the answer; when it still fails, the returned list holds the error and the deck's
+    run must stop: combo_search swallows the failure as "no combos", and a tune
+    without combos protects nothing and shifts every precon's swaps."""
+    import hashlib
+    import requests
+    cache.mkdir(exist_ok=True)
+    down = []
+
+    class Resp:
+        def __init__(self, data): self._data = data
+        def raise_for_status(self): pass
+        def json(self): return self._data
+
+    class Session:
+        headers = {}
+        def post(self, url, json=None, timeout=None):
+            import json as _json
+            f = cache / f"{hashlib.sha256(_json.dumps(json, sort_keys=True).encode()).hexdigest()}.json"
+            if f.exists():
+                return Resp(_json.loads(f.read_text()))
+            err = None
+            for i in range(6):
+                try:
+                    r = requests.Session().post(url, json=json, timeout=timeout)
+                    r.raise_for_status()
+                    data = r.json()
+                    f.write_text(_json.dumps(data))
+                    return Resp(data)
+                except Exception as e:  # noqa: BLE001 — a 429 / timeout: back off, retry
+                    err = e
+                    time.sleep(5 * (i + 1))
+            down.append(repr(err))
+            raise RuntimeError(down[-1])
+
+    combo_search.requests = type("CachedRequests", (), {"Session": Session})
+    return down
 
 
 def run_deck(args):
@@ -103,15 +148,21 @@ def run_deck(args):
         return ok
 
     S._run_search, S.cut_candidates, S._upgrades = rec_search, rec_cuts, rec_upgrades
+    spellbook_down = cache_spellbook(root / "spellbook-cache", combo_search)
     pool = CardPool.load(None)
     # A guide may name a card by its back face (Agadeem, the Undercrypt); key it
     # by the card's own name, as the deck and the pages are.
     g_cuts, g_adds = ({norm((pool.by_name.get(g) or {}).get("name") or g): g for g in rows.values()}
                       for rows in (g_cuts, g_adds))
     hd = acquire_for_cli(d / "deck.json", None)
+    started = time.perf_counter()
     res = tune(hd, search_fn=functools.partial(card_search.search_cards, default_bulk_path()),
                params=TuneParams(budget=budget_for(root, name), max_swaps=MAX_SWAPS),
                combos_fn=lambda deck: combo_search.combo_search(HydratedDeck.from_parsed(deck, by_name=hd.by_name)))
+    seconds = round(time.perf_counter() - started, 1)
+    if spellbook_down:
+        # A comboless tune shifts every swap: stop rather than record one.
+        raise RuntimeError(f"{name}: Commander Spellbook unavailable and uncached: {spellbook_down[0]}")
     sc = res["scorecard"]; f = sc["focus"]
     cut_made = {norm(s["cut"]["name"]) for s in res["swaps"] if s.get("cut")}
     add_made = {norm(s["add"]["name"]) for s in res["swaps"]}
@@ -126,7 +177,8 @@ def run_deck(args):
     lane = {norm(n) for n in f.get("commander_lane_cards") or []}
     carers = {norm(n) for a in f["viable_avenues"] for n in a.get("carer_cards") or []}
     weak = {norm(n) for n in (f.get("filler_cards") or []) + (f.get("low_value_cards") or []) + (f.get("fed_only_cards") or [])}
-    out = {"cuts": [], "adds": []}
+    out = {"cuts": [], "adds": [], "seconds": seconds, "swaps": [(s_["issue"], (s_.get("cut") or {}).get("name"), s_["add"]["name"], s_["reason"])
+                                             for s_ in res["swaps"]]}
     for key, gname in g_cuts.items():
         if key not in in_deck:
             continue

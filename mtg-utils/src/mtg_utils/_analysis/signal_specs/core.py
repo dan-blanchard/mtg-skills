@@ -652,6 +652,15 @@ def pages_by_serve(search: Mapping[str, object]) -> bool:
     return not any(search.get(k) for k in _POOL_SEARCH_KEYS)
 
 
+def serve_page_search(search: Mapping[str, object]) -> dict:
+    """``search`` without the keys that fetch a pool of their own, so it pages by
+    its theme's serve (:func:`pages_by_serve`): a type- or preset-searched
+    theme's broader page — the support its serve admits beyond the type (a
+    tribe's Herald's Horn and Urza's Incubator, Goad's attack payoffs). The
+    search's other keys (a mana-value band) still hold."""
+    return {k: v for k, v in search.items() if k not in _POOL_SEARCH_KEYS}
+
+
 def spec_scope_for(key: str, scope: str) -> str | None:
     """The scope of the ``SPECS`` entry a subject-less ``(key, scope)`` signal
     resolves to: exact (key, scope) → (key, any) → the key's first entry; None

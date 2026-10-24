@@ -181,6 +181,7 @@ def test_role_over_deepens_the_commanders_lane_before_an_emerging_theme():
     assert held.remedy_for("role_over", role="ramp").spec == {
         **spec_for(cheat).search,
         "_serve": spec_for(cheat).serve,
+        "_avenue": main,
     }
     unheld = Sourcing(
         _focus(viable=[{"label": main}], emerging=[{"label": emerging, "depth": 6}]),
@@ -190,7 +191,51 @@ def test_role_over_deepens_the_commanders_lane_before_an_emerging_theme():
     assert unheld.remedy_for("role_over", role="ramp").spec == {
         **spec_for(prolif).search,
         "_serve": spec_for(prolif).serve,
+        "_avenue": emerging,
     }
+
+
+def test_the_theme_is_shared_over_the_main_avenues_only():
+    # Squirreled Away reads two mains (Squirrels, Sacrifice) and a sub (Go
+    # wide): the theme's adds are shared by depth over the two mains, and a
+    # sub keeps none.
+    from mtg_utils._analysis.signal_specs import spec_for
+    from mtg_utils._analysis.signals import Signal
+
+    def sig(key):
+        return Signal(key=key, scope="you", subject="", text="", source="x")
+
+    sigs = [sig("cheat_into_play"), sig("proliferate_makers"), sig("token_maker")]
+    first, second, sub = (spec_for(s).label for s in sigs)
+    src = Sourcing(
+        _focus(
+            viable=[
+                {"label": first, "tier": "main", "depth": 19},
+                {"label": sub, "tier": "sub", "depth": 27},
+                {"label": second, "tier": "main", "depth": 33},
+            ]
+        ),
+        sigs,
+        {},
+    )
+    assert [(label, depth) for label, depth, _spec in src.theme_avenues()] == [
+        (first, 19),
+        (second, 33),
+    ]
+    assert src.theme() == {**src.main_avenue(), "_share": True}
+    assert src.main_avenue()["_avenue"] == first
+    # Every remedy that deepens "the theme" asks for the shared theme.
+    assert src.remedy_for("dead_weight").spec["_share"]
+    assert src.remedy_for("spread_thin").spec["_share"]
+    # A role-over trim still deepens one named avenue.
+    assert "_share" not in src.remedy_for("role_over", role="ramp").spec
+
+
+def test_with_no_viable_avenue_there_is_no_theme_to_share():
+    src = Sourcing(_focus(), [], {})
+    assert src.theme_avenues() == []
+    assert src.theme() == {}
+    assert src.remedy_for("spread_thin") is None
 
 
 def test_issues_are_ranked_by_severity():

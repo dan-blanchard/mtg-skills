@@ -669,6 +669,94 @@ reads as protection.
 Measured with Commander Spellbook's answers cached per request: a run on 2026-10-24
 met the API's rate limit and tuned without combos, which moved every deck's swaps.
 
+### Theme reach (2026-10-24)
+
+At a913f172, 203 in-scope guide adds were theme cards no search reached. A
+fact-finding pass sorted them. 94 serve the deck's main avenue: 71 sit below the
+theme page's 150-card play-rate cutoff, and 22 because the main avenue searches by
+card type and the card isn't that type (Urza's Incubator under Dinosaurs, Gruul War
+Chant under Animation's artifacts). 35 serve only another viable avenue, which no
+remedy pages. 73 serve only a lane that isn't viable. And Virtue and Valor's
+Voltron, 27 of whose 31 members are Auras, folded into Enchantments, so no theme
+page held its guides' Equipment.
+
+Dan's calls: four policies, each measured alone against HEAD, the kept ones
+measured together, and each shipped only if guide-matching adds rise while
+guide-matching cuts fall by two at most. The four:
+
+1. Theme adds ordered payoffs-first (an IR hit's payoff role for the page's
+   avenue, then play-rate) over the serve's whole match set.
+2. A type-searched theme (a tribe, Artifacts, Goad's preset) keeps its type search
+   for its members, plus a capped share of support from its serve's broader page.
+3. Each viable avenue gets its own add search, the theme's slots shared by depth.
+4. The suit-up avenue survives the fold under a creature commander.
+
+One `misses.py` run per row, Spellbook cached (`ROOT/spellbook-cache`, now in
+`misses.py`). The columns are swaps / guide cuts / guide adds, then the swaps
+whose add is a theme add, then the guide adds matched per job (wipe / removal /
+protection / draw / ramp / theme). Tune time is each deck's median under six
+workers, and memory is the largest worker's peak RSS.
+
+| change | swaps / cuts / adds | theme swaps | wipe / int / prot / draw / ramp / theme | tune s · GB | |
+|---|---|---|---|---|---|
+| HEAD (a913f172) | 434 / 168 / 50 | 212 | 2 / 8 / 1 / 5 / 7 / 27 | 7.0 · 1.67 | |
+| the serve's whole match set as the theme page | 433 / 168 / 50 | 212 | unchanged | 13.7 · 1.63 | rejected: no gain, twice the time |
+| payoffs first, over the whole match set | 414 / 162 / 47 | 205 | 2 / 8 / 1 / 5 / 4 / 27 | 13.3 · 1.63 | rejected |
+| payoffs first, over the 150-card page | 426 / 164 / 44 | 203 | 2 / 7 / 1 / 6 / 5 / 23 | 6.6 · 1.68 | rejected |
+| type search + support, one in three | 437 / 170 / 48 | 215 | 2 / 7 / 1 / 4 / 7 / 27 | 7.5 · 1.62 | rejected |
+| … one in five | 435 / 170 / 48 | 213 | 2 / 7 / 1 / 4 / 7 / 27 | 7.6 · 1.62 | rejected |
+| … one in two | 441 / 171 / 47 | 219 | 2 / 7 / 1 / 5 / 7 / 25 | 7.1 · 1.62 | rejected |
+| … the fit floor read off the members only, one in five | 436 / 170 / 51 | 215 | 2 / 8 / 1 / 6 / 7 / 27 | 7.5 · 1.62 | kept |
+| … members' floor, one in three | 442 / 171 / 49 | 220 | 2 / 7 / 1 / 5 / 7 / 27 | 7.6 · 1.62 | rejected |
+| every viable avenue, slots shared by depth | 420 / 159 / 35 | 209 | 2 / 5 / 1 / 3 / 4 / 20 | 7.0 · 1.63 | rejected |
+| … shared by carers | 445 / 169 / 45 | 221 | 2 / 6 / 1 / 4 / 7 / 25 | 7.3 · 1.60 | rejected |
+| … the main avenues only, by depth | 440 / 169 / 51 | 218 | 2 / 8 / 1 / 5 / 7 / 28 | 6.8 · 1.68 | kept |
+| the suit-up avenue survives the fold | 431 / 167 / 51 | 209 | 2 / 8 / 1 / 6 / 7 / 27 | 7.1 · 1.67 | kept |
+| … with every viable avenue shared by depth | 424 / 160 / 38 | 210 | 2 / 5 / 3 / 4 / 4 / 20 | 7.0 · 1.66 | |
+| … with the mains shared by depth | 443 / 170 / 53 | 218 | 2 / 8 / 3 / 6 / 7 / 27 | 6.9 · 1.63 | |
+| **kept** | **447 / 171 / 56** | **221** | **2 / 8 / 4 / 8 / 7 / 27** | **7.3 · 1.63** | shipped |
+
+Against HEAD the tune makes 13 more swaps, with 3 more guide-matching cuts and 6
+more guide-matching adds. The adds: Swiftfoot Boots, Lightning Greaves, Skullclamp,
+Sram, Senior Edificer and Clever Concealment (Virtue and Valor, which loses All
+That Glitters), Scute Swarm (Squirreled Away) and Aurelia, the Law Above (Blame Game).
+The cuts: Paradise Druid, Nested Shambler and Vedalken Humiliator. Theme guide adds
+no search reaches fell from 203 to 169; those 34 now sit on a page and are
+outranked (242, from 204).
+
+What each policy does:
+
+- **Payoffs first lost again**, now that IR hits carry roles. It won guide adds
+  where the payoff is the guide's pick (Enduring Enchantments' Calix and Weaver of
+  Harmony, Planeswalker Party's Oath of Chandra, Graveyard Overdrive's Ripples of
+  Undeath). But the payoffs cost more, so Timey Wimey's budget ran out after 12
+  swaps where it made 22. The deeper page on its own moved one swap and doubled
+  the tune time.
+- **Type search plus support.** A type-searched theme pages its own members, and
+  its serve's broader page adds the support that isn't of the type
+  (`signal_specs.serve_page_search`). At most one add in five is support, never the
+  first (`swaps._SUPPORT_SHARE`). The fit floor is read off the members only: with
+  support in the floor, Herald's Horn scored high enough to push Fae Dominion's own
+  Faeries below it, and that cost Likeness Looter and Spellstutter Sprite. At one
+  in three or one in two, Herald's Horn and Roaming Throne take Fae Dominion's and
+  Sliver Swarm's budget from their members.
+- **Second themes.** Shared over every viable avenue by depth, the theme's adds
+  went to generic subs whose pages hold staples. Fae Dominion's Spellslinger page
+  gave Murder. Timey Wimey's Combat and Doctor pages gave Sol Talisman and Idol of
+  Oblivion and spent its budget. Shared by carers it lost too. Shared over the
+  main avenues only, by depth (`Sourcing.theme_avenues`), it reaches Squirreled
+  Away's Sacrifice and Virtue and Valor's Voltron and passes. Every other precon
+  reads one main, so its swaps don't change.
+- **The suit-up fold.** Under a creature commander the voltron avenue doesn't fold
+  into another theme. Equipment attaches only to a creature (CR 301.5), and its
+  page holds Equipment, an artifact type (CR 205.3g) an Enchantments page never
+  reaches. Alone it adds Skullclamp: an Equipment serves the now-viable avenue,
+  so the card-draw fill's avenue guard (ADR-0040) prefers it. With the mains
+  shared, Voltron's page adds Swiftfoot Boots and Lightning Greaves as theme
+  upgrades. Virtue and Valor's upgrade drain also runs further (19 swaps, from
+  13), trading four of its own Auras that were upgrade slots before: Daybreak
+  Coronet, Angelic Destiny, Ancestral Mask and Snake Umbra, none a guide cut.
+
 ## What is left
 
 `docs/plans/backlog.md`, "What the polymorph tune and the 25-precon audit still

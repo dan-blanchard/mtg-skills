@@ -23,7 +23,7 @@ from mtg_utils._analysis.budgets import COMMANDER_TEMPLATE, Template
 from mtg_utils._analysis.job_quality import JobRead, read_for
 from mtg_utils._analysis.ranking import rank_candidates
 from mtg_utils._analysis.roles import DeckMana, role_of
-from mtg_utils._analysis.signal_specs import pages_by_serve
+from mtg_utils._analysis.signal_specs import pages_by_serve, serve_page_search
 from mtg_utils._card_ir.trees import trees_for
 from mtg_utils._tuner.classify import CardClass, is_premium
 from mtg_utils._tuner.issues import (
@@ -88,6 +88,17 @@ _SPINE_JOBS = {"protection_short": "protection"}
 _JOB_READ_PAGE = sys.maxsize
 #: The search page an add is ranked from otherwise.
 _PAGE = 150
+#: The most of a type- or preset-searched theme's adds that may come from its
+#: serve's broader page — support that is not of the type (a tribe's Urza's
+#: Incubator, Goad's attack payoffs): one in five, never the first. The search
+#: by type keeps the tribe's own members (``signal_specs.pages_by_serve``);
+#: uncapped, the generic tribal support outplays them. Measured on the 25
+#: precons (2026-10-24, alone against a913f172's 434 swaps / 168 guide-matching
+#: cuts / 50 guide-matching adds): one in five 436 / 170 / 51 (Aurelia, the Law
+#: Above under Goad); one in three 442 / 171 / 49 and one in two 441 / 171 / 47,
+#: Herald's Horn and Roaming Throne taking Fae Dominion's and Sliver Swarm's
+#: budget from their own members.
+_SUPPORT_SHARE = 0.2
 
 #: How close two cards' job-read scores (log10 play-rate units) must be for theme
 #: fit to decide between them (``JobRead.theme_ties``): about a quarter of the
@@ -879,6 +890,36 @@ def propose_swaps(
     _pool_memo: dict[tuple, list[dict]] = {}
     _search_memo: dict[tuple, tuple[int, list[dict]]] = {}
 
+    # Per theme avenue (a spec's ``_avenue``): the adds taken from it, the
+    # support cards its broader page offered (``_SUPPORT_SHARE``) and how many
+    # of those were taken.
+    support_names: dict[str, set[str]] = {}
+    theme_taken: Counter[str] = Counter()
+    support_taken: Counter[str] = Counter()
+
+    def _search(spec: dict, limit: int, *, capped: bool) -> list[dict]:
+        """The spec's search, its first ``limit`` cards. One search per spec at
+        the deepest page asked so far: the search sorts before it pages, so a
+        shorter page is the deeper one's head."""
+        skey = (tuple(sorted(spec.items())), capped)
+        deep = _search_memo.get(skey)
+        if deep is None or deep[0] < limit:
+            deep = (
+                limit,
+                _run_search(
+                    ctx.search_fn,
+                    spec,
+                    identity=ctx.identity,
+                    fmt=ctx.fmt,
+                    paper_only=ctx.paper_only,
+                    cmc_cap=cmc_cap if capped else None,
+                    limit=limit,
+                    playrate=ctx.playrate,
+                ),
+            )
+            _search_memo[skey] = deep
+        return deep[1][:limit]
+
     def _ranked_pool(
         spec: dict,
         *,
@@ -899,26 +940,29 @@ def propose_swaps(
         cached = _pool_memo.get(key)
         if cached is not None:
             return cached
-        # One search per spec at the deepest page asked so far: the search
-        # sorts before it pages, so a shorter page is the deeper one's head.
-        skey = (tuple(sorted(spec.items())), capped)
-        deep = _search_memo.get(skey)
-        if deep is None or deep[0] < limit:
-            deep = (
-                limit,
-                _run_search(
-                    ctx.search_fn,
-                    spec,
-                    identity=ctx.identity,
-                    fmt=ctx.fmt,
-                    paper_only=ctx.paper_only,
-                    cmc_cap=cmc_cap if capped else None,
-                    limit=limit,
-                    playrate=ctx.playrate,
-                ),
-            )
-            _search_memo[skey] = deep
-        found = deep[1][:limit]
+        found = _search(spec, limit, capped=capped)
+        # A theme searched by card type or preset (a tribe, Artifacts, Goad)
+        # pages its own members; its serve's broader page adds the support
+        # that is not of the type (Urza's Incubator under Dinosaurs), which
+        # ``find_add`` holds to ``_SUPPORT_SHARE`` of the theme's adds.
+        avenue = spec.get("_avenue")
+        support: set[str] = set()
+        if (
+            synergy_first
+            and job is None
+            and avenue is not None
+            and spec.get("_serve") is not None
+            and not pages_by_serve(spec)
+        ):
+            members = {c.get("name") for c in _search(spec, sys.maxsize, capped=capped)}
+            extra = [
+                c
+                for c in _search(serve_page_search(spec), limit, capped=capped)
+                if c.get("name") not in members
+            ]
+            support = {c.get("name", "") for c in extra}
+            support_names.setdefault(avenue, set()).update(support)
+            found = [*found, *extra]
         # A card the deck already runs stays in the pool while it may hold another
         # copy (used_adds is applied at pick time, so the memoized order holds).
         pool = [
@@ -948,8 +992,15 @@ def propose_swaps(
                 deck_tribes=deck_tribes,
                 deck_mana=ctx.deck_mana,
             )
+            # The floor is the theme's own members' (a support card scoring
+            # higher must not push a member below it): support only joins.
             floor = _FIT_FLOOR * max(
-                (r["score"]["synergy_score"] for r in scored), default=0.0
+                (
+                    r["score"]["synergy_score"]
+                    for r in scored
+                    if r["card"].get("name") not in support
+                ),
+                default=0.0,
             )
 
             def fit_key(r: dict) -> tuple:
@@ -1156,8 +1207,11 @@ def propose_swaps(
         )
         fallback: tuple[dict, float] | None = None
         eligible: list[tuple[dict, float]] = []
+        avenue = spec.get("_avenue")
         for card in ranked:
             if not addable(card):  # every allowed copy taken — the next best
+                continue
+            if avenue is not None and not support_room(avenue, card):
                 continue
             if not game_changers.allows(card):
                 continue  # ADR-0030: never propose an add past the bracket's ceiling
@@ -1189,6 +1243,51 @@ def propose_swaps(
         card, cost = eligible[0]  # nothing on-avenue — labeled last resort
         return card, cost, True
 
+    def support_room(avenue: str, card: dict) -> bool:
+        """Whether ``card`` may be ``avenue``'s next add: a member always, a
+        support card while the support taken stays within ``_SUPPORT_SHARE``
+        of the avenue's adds, this one counted."""
+        if card.get("name") not in support_names.get(avenue, ()):
+            return True
+        return support_taken[avenue] + 1 <= _SUPPORT_SHARE * (theme_taken[avenue] + 1)
+
+    def find_theme_add(
+        spec: dict,
+        *,
+        synergy_first: bool,
+        nonland_only: bool = False,
+        limit: int = _PAGE,
+        role_fix: bool = False,
+        upgrade_of: CardClass | None = None,
+        job: str | None = None,
+    ) -> tuple[tuple[dict, float, bool] | None, str | None]:
+        """``find_add``, and the theme avenue the add serves (``None`` off a
+        theme). The deck's theme (a spec marked ``_share``, ``Sourcing.theme``)
+        is shared by depth over its main avenues (``Sourcing.theme_avenues``):
+        each pick asks the avenue with the most depth per add it already took,
+        then the next, so a second main gets its own adds."""
+        avenues = sourcing.theme_avenues() if spec.get("_share") else []
+        if not avenues:
+            avenues = [(spec.get("_avenue"), 1, spec)]
+        order = sorted(
+            range(len(avenues)),
+            key=lambda i: (-avenues[i][1] / (theme_taken[avenues[i][0] or ""] + 1), i),
+        )
+        for i in order:
+            label, _depth, aspec = avenues[i]
+            picked = find_add(
+                aspec,
+                synergy_first=synergy_first,
+                nonland_only=nonland_only,
+                limit=limit,
+                role_fix=role_fix,
+                upgrade_of=upgrade_of,
+                job=job,
+            )
+            if picked is not None:
+                return picked, label
+        return None, None
+
     def commit(
         kind: str,
         message: str,
@@ -1198,6 +1297,7 @@ def propose_swaps(
         cost: float,
         *,
         off_avenue: bool = False,
+        avenue: str | None = None,
     ) -> None:
         # Charge only now that the swap is finalized (find_add probed read-only, so an
         # unpaired add never consumed budget — USD dollars or a wildcard, by mode).
@@ -1209,6 +1309,9 @@ def propose_swaps(
             used_cuts[cut.name] += 1
         add_name = add_card.get("name", "")
         used_adds[add_name] += 1
+        if avenue is not None:
+            theme_taken[avenue] += 1
+            support_taken[avenue] += add_name in support_names.get(avenue, ())
         copy_no = in_deck.get(add_name, 0) + used_adds[add_name]
         if off_avenue:
             # ADR-0040 companion: the find_add role_fix guard found no in-budget
@@ -1277,7 +1380,7 @@ def propose_swaps(
                 if source is None:
                     continue
                 job_read = read_for(source.job)
-                picked = find_add(
+                picked, avenue = find_theme_add(
                     source.spec,
                     synergy_first=True,
                     nonland_only=True,
@@ -1303,11 +1406,12 @@ def propose_swaps(
                     cut,
                     add_card,
                     cost,
+                    avenue=avenue,
                 )
             continue
         swaps_for_issue = 0
         while len(swaps) < ctx.max_swaps:
-            picked = find_add(
+            picked, avenue = find_theme_add(
                 remedy.spec,
                 synergy_first=not remedy.spine,
                 nonland_only=True,
@@ -1343,6 +1447,7 @@ def propose_swaps(
                 add_card,
                 cost,
                 off_avenue=off_avenue,
+                avenue=avenue,
             )
             swaps_for_issue += 1
             # One issue → one swap, except the dead-weight DRAIN: a deck can carry

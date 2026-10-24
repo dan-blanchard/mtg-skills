@@ -243,8 +243,33 @@ class Sourcing:
         for sig in self._signals:
             spec = avenue_spec_for(sig)
             if spec is not None and spec.label == label:
-                return {**spec.search, "_serve": spec.serve}
+                return {**spec.search, "_serve": spec.serve, "_avenue": label}
         return None
+
+    def theme_avenues(self) -> list[tuple[str, int, dict]]:
+        """The avenues the deck's theme adds are shared over (``Sourcing.theme``):
+        every MAIN avenue with a search — its label, depth and spec — in the
+        focus read's rank order. A sub keeps none: shared over every viable
+        avenue by depth, the generic subs' pages (Combat, Spellslinger,
+        Artifacts) took the adds (2026-10-24, the 25 precons: 35 guide-matching
+        adds against 50); over the mains, a deck reading two (Squirreled
+        Away's Squirrels and Sacrifice, Virtue and Valor's Enchantments and
+        Voltron) adds for both."""
+        out = []
+        for a in self._focus["viable_avenues"]:
+            if a.get("tier") != "main":
+                continue
+            spec = self.avenue(a["label"])
+            if spec is not None:
+                out.append((a["label"], a["depth"], spec))
+        return out
+
+    def theme(self) -> dict:
+        """The deck's theme add search: the main avenue's, marked (``_share``)
+        so the swap engine shares the theme's adds over the main avenues
+        (:meth:`theme_avenues`); ``{}`` with no viable avenue."""
+        main = self.main_avenue()
+        return {**main, "_share": True} if main else {}
 
     def main_avenue(self) -> dict:
         """The deck's main-theme serve spec, or an empty (identity-only) spec."""
@@ -265,7 +290,7 @@ class Sourcing:
             spec = self.role_spec(job)
         if spec is not None:
             return UpgradeSource(spec, job)
-        main = self.main_avenue()
+        main = self.theme()
         return UpgradeSource(main, None) if main else None
 
     # ── Dead weight ─────────────────────────────────────────────────────────────
@@ -280,7 +305,7 @@ class Sourcing:
         """Where a dead-weight slot goes: deepen the main theme if there is one, else
         fill the worst-short sourceable role. None when neither exists (nothing better
         to add than the filler being replaced, so don't churn)."""
-        main = self.main_avenue()
+        main = self.theme()
         if main:
             return main
         short = self.short_roles()
@@ -334,8 +359,8 @@ class Sourcing:
             return Remedy(spec, cut_from=CUT_FILLER, drain=True)
         if kind == "spread_thin":
             viable = self._focus["viable_avenues"]
-            spec = self.avenue(viable[0]["label"]) if viable else None
-            return Remedy(spec) if spec is not None else None
+            spec = self.theme() if viable else None
+            return Remedy(spec) if spec else None
         if kind == "under_supported_theme":
             # "Commit" to the emerging theme: add more cards that feed it.
             spec = self.avenue(label or "")

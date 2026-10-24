@@ -148,23 +148,38 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   `mass_removal` key leaves out) would let the preset, and the role, read the
   index alone.
   (m) **Recall** (`precon-audit/misses.py`, at the largest guide's thirty
-  swaps and each precon's own guides' budget, `budgets.json`): 165 of 404
-  cuttable guide cuts, 47 of 610 in-scope guide adds (2026-10-20, after theme
-  pages moved to the serve and IR hits got roles). The levers by size: theme adds no search
-  reaches (229; measured at 238 before an upgrade stopped being capped at four
-  mana in a top-heavy deck — 203 match no spec the tuner searched, 22 sit past a
-  page's depth, 12 were the cap's; of the 203, 83 serve
-  the main avenue, 44 another viable one, 72 only a non-viable lane such as
-  Blood Rites' sacrifice package; 215 since a pattern-searched theme pages by
-  its serve). The serve page for a card-type (tribal) search loses — generic
-  tribal support outplays a tribe's own members — so tribes keep their type
-  search. "Payoff before enabler" lost (29 guide adds in the top ten against 45)
-  but was measured before IR-served hits had roles, so it is untested for those
-  themes. Then adds outranked on a page (167); cuts a budget-bound tune never
-  reaches (44); cuts the popularity threshold still shields (75 — guides cut
-  popular off-theme cards like Feed the Swarm); commander-lane cards the
-  guides trim (55). Six guide summaries don't tag sources per row
-  (`guide_sizes.py` skips them).
+  swaps and each precon's own guides' budget, `budgets.json`, Spellbook cached):
+  171 of 408 cuttable guide cuts, 56 of 610 in-scope guide adds (2026-10-24,
+  after (r); 168 / 50 at a913f172, 165 / 47 on 2026-10-20). The levers by size:
+  adds a page held but outranked (242), theme adds no search reaches (169, (r)),
+  cuts the popularity threshold still shields (79: guides cut popular
+  off-theme cards like Feed the Swarm), commander-lane cards the guides trim
+  (54), and cuts a budget-bound tune never reaches (36). Six guide summaries
+  don't tag sources per row (`guide_sizes.py` skips them).
+  (r) **Theme reach, what's left** (2026-10-24; the experiment table is in
+  `docs/plans/precon-audit-2026-10-18.md`, "Theme reach"). Shipped: a type- or
+  preset-searched theme takes up to one add in five from its serve's broader
+  page, never the first, with the fit floor read off its own members; the theme's
+  adds are shared by depth over the main avenues; and under a creature commander
+  the suit-up avenue never folds into another theme. 169 theme guide adds still
+  have no search. Measured negative, so don't re-suggest without a new read:
+  payoffs first (47 guide adds over the serve's whole match set, 44 over the
+  150-card page, against 50: the payoffs cost more and spend small budgets); the
+  whole match set as the theme page (no gain, twice the tune time); support at
+  one in three or more (generic tribal support takes the members' budget);
+  slots shared over every viable avenue (35) or by carers (45), because the
+  generic subs' pages hold staples (Murder for Fae Dominion's Spellslinger).
+  Left: the guide adds that serve only a sub (Living Energy's Artifacts, Deep
+  Clue Sea's Artifacts and Sacrifice) or only a lane that isn't viable (Blood
+  Rites' sacrifice package) still have no search. A sub's page would need its
+  own read of which of its cards suit this deck before it gets slots. At
+  a913f172 the 150-card play-rate page (`swaps._PAGE`) hid 71 main-avenue guide
+  adds; "the most played that fits" never reaches them, and payoffs first
+  didn't either. With Voltron's own page, Virtue and Valor's upgrade drain runs
+  further (19 swaps, from 13). It now trades four of its own Auras, which were
+  upgrade slots before too: Daybreak Coronet, Angelic Destiny, Ancestral Mask and
+  Snake Umbra, none of them a guide cut. Its Equipment picks also run past the
+  guides' Boots and Greaves to Sword of the Animist and Bone Saw.
   (n) **Lane follow-ups from the 2026-10-19 lane fixes.** A `choice_type` read
   is written five times (`_shared.py`, `counters_voltron.py`,
   `triggers_damage.py`, `graveyard_lifeloss.py`, `core_makers._choices`) and

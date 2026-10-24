@@ -321,6 +321,10 @@ def _scopes_apart(ckey: str, emitter_scope: str, avenue_scope: str) -> bool:
     )
 
 
+# The keys of the avenue that suits up one creature with Equipment and Auras
+# (the payoff side and the attach / tutor side; both serve the same package).
+_SUIT_UP_KEYS = frozenset({"voltron_matters", "voltron_makers"})
+
 # The carer-set overlap at which two avenues are one theme read twice. A Jaccard
 # share, not containment: a two-carer sub whose carers also care about a 20-carer
 # main is a narrower direction of its own, not the main read again.
@@ -426,12 +430,30 @@ def focus(
     member_sets = {lbl: frozenset(names) for lbl, names in members.items()}
     land_names = {c.name for c in classes if c.bucket == "land"}
 
+    # Under a creature commander the suit-up avenue never folds into another
+    # theme: its page holds Equipment, an artifact type that attaches only to a
+    # creature (CR 205.3g, 301.5), which an overlapping theme's page — the
+    # Enchantments its Auras share — never reaches. Virtue and Valor's Voltron
+    # (31 deep, 27 of them Auras) folded into Enchantments, so no theme page
+    # held an Equipment; kept, and given its own theme adds as a second main
+    # (``issues.Sourcing.theme_avenues``), its tune adds the guides' Swiftfoot
+    # Boots, Lightning Greaves and Skullclamp (25 precons, 2026-10-24). It
+    # still folds into its own sibling (the attach / tutor read of the package).
+    suit_up = (
+        labels_where(lambda sig: sig.key in _SUIT_UP_KEYS)
+        if any(is_creature(c.record) for c in classes if c.bucket == "commander")
+        else set()
+    )
+
     def folds(lbl: str, kept: Sequence[str], same: Callable[[str, str], bool]) -> bool:
         """``lbl`` is a kept avenue read again (``same``): against any kept
         avenue for an ordinary one, only the commander's other lanes for a lane
-        the commander holds."""
+        the commander holds, and only another suit-up read for the suit-up
+        avenue under a creature commander (``suit_up``)."""
         if lbl in commander_held:
             kept = [k for k in kept if k in commander_held]
+        if lbl in suit_up:
+            kept = [k for k in kept if k in suit_up]
         return any(same(lbl, k) for k in kept)
 
     def same_members(lbl: str, k: str) -> bool:

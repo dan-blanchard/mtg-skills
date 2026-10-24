@@ -2295,3 +2295,87 @@ def test_a_pattern_searched_theme_pages_by_its_serve():
     _run_search(search, {"cmc_max": 0, "_serve": serve}, **common)
     assert (calls[2]["card_type"], calls[2]["serve"]) == (None, serve)
     assert calls[3]["serve"] == serve
+
+
+def _plain(name, rank):
+    """A theme candidate with no text: every one scores level, so play-rate
+    alone orders the page."""
+    return {
+        "name": name,
+        "type_line": "Creature — Construct",
+        "oracle_text": "",
+        "cmc": 3.0,
+        "prices": {"usd": "1.00"},
+        "color_identity": [],
+        "edhrec_rank": rank,
+    }
+
+
+def _dead_weight_ctx(viable, signals, search, fillers):
+    classes = [_cc(f"Junk {i}", "filler", cmc=3.0) for i in range(fillers)]
+    issue = {"kind": "dead_weight", "severity": 7, "count": fillers, "message": "x"}
+    ctx = SwapContext(
+        budgets={},
+        focus_result=_focus(viable=viable),
+        deck_signals=signals,
+        search_fn=search,
+        identity="",
+        fmt="commander",
+        paper_only=True,
+        owned={},
+        budget=100.0,
+        max_swaps=fillers,
+        top_heavy=False,
+    )
+    return [
+        s["add"]["name"] for s in _swaps_for_issue_dicts(classes, [issue], ctx)["swaps"]
+    ]
+
+
+def _type_sig(key):
+    return Signal(
+        key=key, scope="you", subject="", text="", source="X", confidence="high"
+    )
+
+
+def test_a_type_searched_theme_takes_one_support_card_in_five_never_the_first():
+    # The Artifacts theme searches by card type: its own members page first,
+    # and its serve's broader page adds support that is not of the type, more
+    # played than every member, held to one add in five.
+    sig = _type_sig("artifacts_matter")
+    label = spec_for(sig).label
+    members = [_plain(f"Member {i}", 100 + i) for i in range(4)]
+    support = [_plain(f"Support {i}", 10 + i) for i in range(3)]
+
+    def search(**kw):
+        # The type search pages the members; the serve's page is wider.
+        return members if kw.get("card_type") else [*support, *members]
+
+    adds = _dead_weight_ctx(
+        [{"label": label, "tier": "main", "depth": 20}], [sig], search, fillers=5
+    )
+    assert adds == [*(m["name"] for m in members), "Support 0"]
+
+
+def test_the_theme_is_shared_by_depth_over_two_mains():
+    # Two mains, 30 and 15 deep: the deeper takes the first two adds, then the
+    # shallower its first (depth per add taken, the earlier avenue on a tie).
+    deep, shallow = _type_sig("artifacts_matter"), _type_sig("enchantments_matter")
+    pages = {
+        "Artifact": [_plain(f"Deep {i}", 100 + i) for i in range(3)],
+        "Enchantment": [_plain(f"Shallow {i}", 200 + i) for i in range(3)],
+    }
+
+    def search(**kw):
+        return pages.get(kw.get("card_type") or "", [])
+
+    adds = _dead_weight_ctx(
+        [
+            {"label": spec_for(deep).label, "tier": "main", "depth": 30},
+            {"label": spec_for(shallow).label, "tier": "main", "depth": 15},
+        ],
+        [deep, shallow],
+        search,
+        fillers=3,
+    )
+    assert adds == ["Deep 0", "Deep 1", "Shallow 0"]

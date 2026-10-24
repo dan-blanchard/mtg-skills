@@ -7,6 +7,7 @@ from mtg_utils._analysis.signal_specs import spec_for
 from mtg_utils._analysis.signals import Signal
 from mtg_utils._tuner.classify import CardClass
 from mtg_utils._tuner.metrics import focus
+from mtg_utils.testkit import test_card
 
 
 def _cc(name, bucket, served, roles=()):
@@ -695,6 +696,50 @@ def test_a_held_lane_never_folds_into_an_avenue_it_does_not_hold():
     assert fr["commander_avenues"] == []  # held, but under the sub floor
     assert tokens in [a["label"] for a in fr["viable_avenues"]]
     assert fodder in [a["label"] for a in fr["emerging"]]
+
+
+def _suit_up_deck(commander: str):
+    """Virtue and Valor's shape in miniature: 27 Auras serve both Enchantments
+    and Voltron, four creatures serve Voltron alone and ten enchantments
+    Enchantments alone, so 27 of Voltron's 31 members (87 %) are Enchantments'."""
+    ench = spec_for(_sig("enchantments_matter")).label
+    voltron = spec_for(_sig("voltron_matters")).label
+    lead = replace(_cc(commander, "commander", []), record=test_card(commander))
+    classes = [lead]
+    classes += [_cc(f"Aura {i}", "engine", [ench, voltron]) for i in range(27)]
+    classes += [_cc(f"Bear {i}", "engine", [voltron]) for i in range(4)]
+    classes += [_cc(f"Glyph {i}", "engine", [ench]) for i in range(10)]
+    signals = [_sig("enchantments_matter"), _sig("voltron_matters")]
+    return classes, signals, ench, voltron
+
+
+def test_the_suit_up_avenue_never_folds_under_a_creature_commander():
+    # Its page holds Equipment, which only a creature can wear (CR 301.5) and
+    # an Enchantments page never reaches: under Ellivere it stays a theme.
+    classes, signals, ench, voltron = _suit_up_deck("Ellivere of the Wild Court")
+    fr = focus(classes, deck_size=100, deck_signals=signals)
+    assert [a["label"] for a in fr["viable_avenues"]] == [ench, voltron]
+
+
+def test_the_suit_up_avenue_folds_under_a_noncreature_commander():
+    classes, signals, ench, _voltron = _suit_up_deck("Estrid, the Masked")
+    fr = focus(classes, deck_size=100, deck_signals=signals)
+    assert [a["label"] for a in fr["viable_avenues"]] == [ench]
+
+
+def test_the_suit_up_avenue_still_folds_into_its_own_sibling():
+    # The attach / tutor read serves the same package: one theme, read twice.
+    classes, signals, ench, voltron = _suit_up_deck("Ellivere of the Wild Court")
+    makers = spec_for(_sig("voltron_makers")).label
+    classes = [
+        replace(c, served=(*c.served, makers)) if voltron in c.served else c
+        for c in classes
+    ]
+    fr = focus(classes, deck_size=100, deck_signals=[*signals, _sig("voltron_makers")])
+    labels = [a["label"] for a in fr["viable_avenues"]]
+    assert labels[0] == ench
+    assert len(labels) == 2
+    assert labels[1] in (voltron, makers)
 
 
 def test_two_avenues_sharing_one_carer_stay_apart():
