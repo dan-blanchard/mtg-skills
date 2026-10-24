@@ -21,7 +21,7 @@ its template job, protection, or the main theme); page held it — over budget /
 failed the job gate / higher mana-value band / outranked; not on any page (a page
 of its kind was searched, but its spec or page depth missed the card).
 """
-import collections, functools, json, multiprocessing, pathlib, re, sys
+import collections, fcntl, functools, json, multiprocessing, pathlib, re, sys, tempfile
 
 #: The largest upgrade guide's swaps (guide_sizes.py, 2026-10-19), so the recipe
 #: never caps recall below what a guide does; the budget is the precon's own
@@ -170,9 +170,22 @@ def run_deck(args):
     return name, out
 
 
+#: Workers per run. A tune holds about 2 GB at its peak (the pool, its trees and the
+#: job's whole match set), so six fit beside a desktop on a 36 GB machine.
+WORKERS = 6
+
+
 def main(root, names):
     names = names or sorted(p.name for p in (root / "decks").iterdir())
-    with multiprocessing.Pool(6) as mp:
+    # One run at a time per machine: fifteen runs queued at once, each with its
+    # workers, took 69 GB on a 36 GB machine (2026-10-23) and crashed it.
+    lock = open(pathlib.Path(tempfile.gettempdir()) / "precon-misses.lock", "w")
+    try:
+        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except BlockingIOError:
+        print("misses.py: another run holds the machine; waiting for it...", file=sys.stderr)
+        fcntl.flock(lock, fcntl.LOCK_EX)
+    with multiprocessing.Pool(WORKERS) as mp:
         results = dict(mp.map(run_deck, [(root, n) for n in names]))
     json.dump(results, open(root / "misses.json", "w"), indent=1)
     for side in ("cuts", "adds"):
