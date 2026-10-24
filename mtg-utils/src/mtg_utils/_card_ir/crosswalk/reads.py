@@ -6481,10 +6481,9 @@ def is_evasive_body(tree: ConceptTree) -> bool:
 
 # ── Team buffs ──────────────────────────────────────────────────────────────
 
-# Evergreen team-anthem keywords (CR 702) — mirrors the deleted ``_signals_ir``'s
-# identically-named ``_TEAM_BUFF_GRANT_KW`` (phase's spaceless spelling normalized via
-# lower+strip).
-_TEAM_BUFF_GRANT_KW: frozenset[str] = frozenset(
+# Evergreen team-anthem keywords (CR 702), in phase's spaceless lowercase spelling
+# (a keyword name normalized via lower + strip spaces: "doublestrike").
+TEAM_BUFF_GRANT_KW: frozenset[str] = frozenset(
     {
         "flying",
         "trample",
@@ -6507,15 +6506,27 @@ _TEAM_BUFF_GRANT_KW: frozenset[str] = frozenset(
 _TEAM_BUFF_OK_PREDS: frozenset[str] = frozenset({"NonToken", "Another", "Other"})
 
 
-def _is_team_buff_filter(filt: object) -> bool:
+def _names_every_creature(filt: object) -> bool:
+    """Whether a filter holds creatures as a whole: a ``Typed`` whose only core
+    type is Creature, or an ``Or`` with such an arm ("creatures and
+    planeswalkers you control" — Sorin, Vengeful Bloodlord). A second core type
+    in the same ``Typed`` narrows it ("artifact creatures" — Tempered Steel,
+    Thopter Engineer)."""
+    if tag_of(filt) == "Or":
+        return any(_names_every_creature(f) for f in getattr(filt, "filters", ()) or ())
+    return tag_of(filt) == "Typed" and filter_core_types(filt) == ("Creature",)
+
+
+def is_team_buff_filter(filt: object) -> bool:
     """The team_buff anthem subject (CR 604.3): GENERIC creatures YOU control
-    — no subtypes (tribal is type_matters), predicates at most
-    NonToken/Another/Other (Always Watching stays in; an Attacking/color/
-    equipped narrowing fails). Mirrors the deleted ``_signals_ir``'s
-    ``_is_team_buff_grant``."""
+    — every creature, not a card-type subset (:func:`_names_every_creature`),
+    no subtypes (tribal is type_matters), predicates at most
+    NonToken/Another/Other (Always Watching stays in; an Attacking / colour /
+    chosen-type / keyword / equipped narrowing fails). The one whole-team test,
+    for a keyword grant and a static anthem alike."""
     return (
         filter_controller(filt) == "You"
-        and "Creature" in filter_core_types(filt)
+        and _names_every_creature(filt)
         and not filter_subtypes(filt)
         and set(filter_predicates(filt)) <= _TEAM_BUFF_OK_PREDS
     )
@@ -6534,9 +6545,9 @@ def team_buff_sites(
             kw = getattr(mod, "keyword", None)
             if not isinstance(kw, str):
                 continue
-            if kw.lower().replace(" ", "") not in _TEAM_BUFF_GRANT_KW:
+            if kw.lower().replace(" ", "") not in TEAM_BUFF_GRANT_KW:
                 continue
-            if _is_team_buff_filter(getattr(sdef, "affected", None)):
+            if is_team_buff_filter(getattr(sdef, "affected", None)):
                 yield unit, sdef
 
 

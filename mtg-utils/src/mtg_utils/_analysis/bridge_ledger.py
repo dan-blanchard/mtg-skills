@@ -61,6 +61,7 @@ from mtg_utils._analysis._sweep_detectors import NAMED_PERMANENT_REGEX
 from mtg_utils._analysis.signal_base import Signal
 from mtg_utils._card_ir.crosswalk import (
     DAMAGE_EFFECT_TAGS,
+    TEAM_BUFF_GRANT_KW,
     _filter_type_words,
     aggregate_filter,
     counter_kind,
@@ -172,6 +173,24 @@ def _says(rx: re.Pattern[str], texts: Iterable[str]) -> bool:
     match share: the gap asks it of the residue carrying the row's own clause,
     the match of the text that residue preserves."""
     return any(rx.search(t) for t in texts)
+
+
+def _selfref_def_says(tree: ConceptTree, rx: re.Pattern[str]) -> bool:
+    """Whether a static def scoped to the card itself (``SelfRef``) carries a
+    keyword grant (``AddKeyword``) and says ``rx`` in its own description: phase
+    folding a team grant into the card's own pump def (Moku, Meandering
+    Drummer's "gets +2/+1 and creatures you control gain haste"), the grant text
+    surviving on the mis-scoped def. A grant inside a quoted trigger the card
+    gives itself is a ``GrantTrigger``, scoped right (Teroh's Vanguard)."""
+    return any(
+        tag_of(getattr(sdef, "affected", None)) == "SelfRef"
+        and any(
+            tag_of(m) == "AddKeyword" for m in getattr(sdef, "modifications", ()) or ()
+        )
+        and rx.search(getattr(sdef, "description", "") or "")
+        for unit in tree.iter_units()
+        for sdef in unit.static_defs()
+    )
 
 
 def _degavolver_gap(tree: ConceptTree) -> bool:
@@ -1433,13 +1452,7 @@ _MOKU_HASTE_GRANT_RX = re.compile(
 
 
 def _moku_haste_grant_gap(tree: ConceptTree) -> bool:
-    for unit in tree.iter_units():
-        for sdef in unit.static_defs():
-            if tag_of(getattr(sdef, "affected", None)) != "SelfRef":
-                continue
-            if _MOKU_HASTE_GRANT_RX.search(getattr(sdef, "description", "") or ""):
-                return True
-    return False
+    return _selfref_def_says(tree, _MOKU_HASTE_GRANT_RX)
 
 
 def _moku_haste_grant_match(tree: ConceptTree) -> bool:
@@ -4687,24 +4700,25 @@ def _no_x_cost_filter(tree: ConceptTree) -> bool:
 # gain haste", Wargling's trample — the Moku misparse the creatures_matter row
 # bridges), dropped beside a PumpAll (Tromp the Domains), or on an aftermath half
 # phase has no record for (Appeal // Authority's "Creatures you control gain
-# vigilance").
+# vigilance"). The lane's own team test (``crosswalk.is_team_buff_filter``)
+# admits only the whole team, so nothing may stand between the clause's start
+# (a sentence, a comma, an "and") and "creatures": "Other red attacking creatures
+# you control gain trample" (Tori D'Avenant) is a subset grant the lane would
+# reject once phase typed it. The keywords are the lane's, in oracle spelling.
+_TEAM_GAIN_KEYWORDS = "|".join(
+    sorted(kw.replace("strike", " strike") for kw in TEAM_BUFF_GRANT_KW)
+)
 _TEAM_GAIN_KEYWORD_RX = re.compile(
-    r"\bcreatures you control gain (?:flying|first strike|double strike"
-    r"|deathtouch|haste|hexproof|indestructible|lifelink|menace|reach|trample"
-    r"|vigilance)\b",
-    re.IGNORECASE,
+    r"(?:^|[.,;:\u2014]\s*|\band\s+)creatures you control gain "
+    rf"(?:{_TEAM_GAIN_KEYWORDS})\b",
+    re.IGNORECASE | re.MULTILINE,
 )
 
 
 def _team_grant_on_self(tree: ConceptTree) -> bool:
-    """A static def scoped to the card itself whose own text grants your team a
-    keyword (the misparse :func:`_moku_haste_grant_gap` reads, any keyword)."""
-    return any(
-        tag_of(getattr(sdef, "affected", None)) == "SelfRef"
-        and _TEAM_GAIN_KEYWORD_RX.search(getattr(sdef, "description", "") or "")
-        for unit in tree.iter_units()
-        for sdef in unit.static_defs()
-    )
+    """A SelfRef static def whose own text grants your team a keyword (the
+    misparse :func:`_moku_haste_grant_gap` reads, any keyword)."""
+    return _selfref_def_says(tree, _TEAM_GAIN_KEYWORD_RX)
 
 
 def _team_grant_parked(tree: ConceptTree) -> bool:
@@ -4713,9 +4727,12 @@ def _team_grant_parked(tree: ConceptTree) -> bool:
 
 
 def _no_keyword_grant(tree: ConceptTree) -> bool:
-    """No node grants a keyword, and no parked text carries the team grant."""
-    return not _team_grant_parked(tree) and all(
-        tag_of(n) != "AddKeyword" for n in tree.iter_typed()
+    """A face phase parsed (a face it has no record for is the aftermath row's)
+    where no node grants a keyword and no parked text carries the team grant."""
+    return (
+        not tree.is_text_only
+        and not _team_grant_parked(tree)
+        and all(tag_of(n) != "AddKeyword" for n in tree.iter_typed())
     )
 
 
@@ -5006,24 +5023,6 @@ BRIDGES.update(
                 match=_oracle_match(_TEAM_GAIN_KEYWORD_RX),
             ),
             Bridge(
-                bridge_id="team_keyword_grant_parse_failure",
-                key="team_buff",
-                kind="upstream_parse_failure",
-                todo=(
-                    "upstream phase-rs report candidate (Dan posts): Tori "
-                    "D'Avenant's 'Other red attacking creatures you control gain "
-                    "trample until end of turn' parks as parked text. Retires on "
-                    "the bump that types the grant"
-                ),
-                census=(
-                    "1 hit / 32,046 commander-legal (Tori D'Avenant, Fury Rider), "
-                    "MTGJSON 2026-10-17 @ phase v0.104.0"
-                ),
-                pins=("Tori D'Avenant, Fury Rider",),
-                gap=_team_grant_parked,
-                match=_oracle_match(_TEAM_GAIN_KEYWORD_RX),
-            ),
-            Bridge(
                 bridge_id="team_keyword_grant_aftermath_face",
                 key="team_buff",
                 kind="missing_face",
@@ -5034,8 +5033,8 @@ BRIDGES.update(
                     "face gets a unit"
                 ),
                 census=(
-                    "1 hit / 32,046 commander-legal (Appeal // Authority), MTGJSON "
-                    "2026-10-17 @ phase v0.104.0"
+                    "2 hits / 32,046 commander-legal (Appeal // Authority, "
+                    "Driven // Despair), MTGJSON 2026-10-17 @ phase v0.104.0"
                 ),
                 pins=("Appeal // Authority",),
                 gap=_text_only_face,

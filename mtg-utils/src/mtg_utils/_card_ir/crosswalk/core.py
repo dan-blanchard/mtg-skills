@@ -541,7 +541,7 @@ class ConceptTree:
     # partner—[text] group phase collapses to Generic (corrected at build, see
     # ``PARTNER_GROUPS_PHASE_COLLAPSES``). A card may print two (Amy Pond: Doctor's
     # companion AND partner with Rory Williams — CR 702.124g). Root-level like
-    # ``card_enchant_core_types``: no ability unit carries it.
+    # ``card_enchant_filter``: no ability unit carries it.
     card_partner_kinds: tuple[tuple[str, str], ...] = ()
     # Phase's ``root.is_commander``: whether the card can be your commander in the
     # Commander variant -- a legendary creature, Vehicle or Spacecraft (CR 903.3),
@@ -568,34 +568,30 @@ class ConceptTree:
     # descriptions are (Final Showdown's "Destroy all creatures" costs {3}{W}{W}
     # beyond its {W}). Empty when the modes carry no cost of their own.
     card_modal_mode_costs: tuple[int, ...] = ()
-    # task #87 (deepening-start-minimal, the b16 precedent): the core TYPE
-    # words of the card's OWN printed ``Enchant`` keyword filter (CR 303.4a
-    # — "Enchant creature", "Enchant creature card in a graveyard") — Animate
-    # Dead / Dance of the Dead's "enchant creature card in a graveyard".
-    # Read off ``root.keywords``'s ``Enchant`` variant (a root-level array,
-    # never surfaced on any :class:`AbilityUnit`), so a reanimation trigger's
-    # ``ChangeZone(target=AttachedTo())`` — CR 303.4f: the Aura carries no
-    # target filter of its own once attached, the type constraint lives
-    # SOLELY on this printed keyword — can cross-reference the type this
-    # ``AttachedTo`` binder implicitly restricts to (:func:`_creature_
-    # recursion`'s own cross-ref). Empty for every non-Aura card and for an
-    # Aura with a non-Enchant-typed keyword predicate this narrow read
-    # doesn't resolve.
-    card_enchant_core_types: tuple[str, ...] = ()
     # The printed ``Enchant`` keyword's whole filter (CR 303.4a), controller
     # included: "Enchant artifact you control" (Hardlight Containment) names
-    # your own artifact, which the type words above drop. None for a card with
-    # no Enchant keyword.
+    # your own artifact. Read off ``root.keywords``'s ``Enchant`` variant (a
+    # root-level array, never surfaced on any :class:`AbilityUnit`); None for a
+    # card with no Enchant keyword. :attr:`card_enchant_core_types` is its type
+    # words.
+    # Held as the raw filter node, unlike the plain-valued ``card_*`` fields:
+    # its readers run the same filter reads they run over a unit's nodes
+    # (``filter_controller``, the every-arm type walk), and a projection would
+    # be a second filter shape to keep in step. Trees are built per process
+    # from phase's records and never persisted, so the node holds no stale
+    # shape.
     card_enchant_filter: object | None = None
     # The condition of each card-root ``modal.constraints`` entry that raises
     # how many modes you may choose (``ConditionalMaxChoices``, CR 700.2): Soul
     # Transfer's "If you control an artifact and an enchantment as you cast
     # this spell, you may choose both instead". Root-level like the mode
-    # descriptions; no ability unit carries it.
+    # descriptions; no ability unit carries it. Raw condition nodes, for the
+    # reason ``card_enchant_filter`` is: the condition-population walk reads
+    # them as it reads a unit's conditions.
     card_modal_conditions: tuple[object, ...] = ()
     # The mana values of the card's own unconditional alternative casting costs
     # (``reads.CURVE_COST_KEYWORDS`` — warp, evoke, dash, blitz, prototype,
-    # impending), read off ``root.keywords`` like ``card_enchant_core_types``: the
+    # impending), read off ``root.keywords`` like ``card_enchant_filter``: the
     # cost a deck can plan its curve on when it's below the printed mana value.
     card_curve_costs: tuple[int, ...] = ()
     # Every other way the card's printed keywords let you pay for it
@@ -618,6 +614,21 @@ class ConceptTree:
     # spell costs {1} less to cast for each [text] you control"). ``card_keywords``
     # keeps only the name.
     card_keyword_types: tuple[tuple[str, tuple[str, ...]], ...] = ()
+
+    @property
+    def card_enchant_core_types(self) -> tuple[str, ...]:
+        """The core TYPE words of the card's printed ``Enchant`` keyword filter
+        (CR 303.4a — "Enchant creature", "Enchant creature card in a
+        graveyard": Animate Dead / Dance of the Dead), so a reanimation
+        trigger's ``ChangeZone(target=AttachedTo())`` — CR 303.4f: the Aura
+        carries no target filter of its own once attached, the type constraint
+        lives SOLELY on this printed keyword — can cross-reference the type
+        this ``AttachedTo`` binder implicitly restricts to
+        (:func:`_creature_recursion`'s own cross-ref). Empty for every non-Aura
+        card and for an Enchant filter this narrow read doesn't resolve."""
+        if self.card_enchant_filter is None:
+            return ()
+        return filter_core_types(self.card_enchant_filter)
 
     def is_type(self, core: str) -> bool:
         """Whether the card itself has core type ``core`` (Creature / Land / …).
@@ -1545,17 +1556,14 @@ def build_concept_tree(
             if isinstance(dcl_data, int):
                 deck_copy_cap = dcl_data
                 many_copies = dcl_data >= 2
-    # task #87: the card's own printed ``Enchant`` keyword filter's core
-    # type words (see ``ConceptTree.card_enchant_core_types``'s own
-    # docstring) — a root-level array, never surfaced by any per-ability
-    # unit walk.
-    card_enchant_core_types: tuple[str, ...] = ()
+    # The card's own printed ``Enchant`` keyword filter (see
+    # ``ConceptTree.card_enchant_filter``) — a root-level array, never
+    # surfaced by any per-ability unit walk.
     card_enchant_filter: object | None = None
     kws_root = getattr(root, "keywords", None)
     if isinstance(kws_root, list):
         for kw in kws_root:
             if isinstance(kw, MirrorVariant) and kw.key == "Enchant":
-                card_enchant_core_types = filter_core_types(kw.inner)
                 card_enchant_filter = kw.inner
                 break
     card_partner_kinds: list[tuple[str, str]] = []
@@ -1843,7 +1851,6 @@ def build_concept_tree(
         can_be_commander=can_be_commander,
         card_modal_mode_descriptions=card_modal_mode_descriptions,
         card_modal_mode_costs=card_modal_mode_costs,
-        card_enchant_core_types=card_enchant_core_types,
         card_enchant_filter=card_enchant_filter,
         card_modal_conditions=tuple(card_modal_conditions),
         card_curve_costs=tuple(card_curve_costs),

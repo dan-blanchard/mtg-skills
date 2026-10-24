@@ -196,7 +196,8 @@ def test_ident_serves_drop_their_oracle_arm():
 @pytest.mark.parametrize(
     ("name", "served"),
     [
-        ("Glorious Anthem", True),  # a static anthem (anthem_static)
+        ("Glorious Anthem", True),  # a static anthem over the whole team
+        ("Always Watching", True),  # "nontoken creatures you control": the team
         # a one-shot team hexproof beside a one-shot pump
         ("Family Reunion", True),
         # "creatures you control gain haste" folded into Moku's own pump def by
@@ -204,10 +205,26 @@ def test_ident_serves_drop_their_oracle_arm():
         ("Moku, Meandering Drummer", True),
         # "Target creature you control gains lifelink": one creature, no team
         ("Alabaster Mage", False),
+        # anthems over a subset: a chosen type, a colour, a keyword, a card type
+        ("Vanquisher's Banner", False),
+        ("Honor of the Pure", False),
+        ("Favorable Winds", False),
+        ("Tempered Steel", False),
+        ("Bad Moon", False),  # everyone's black creatures, not your team
     ],
 )
 def test_team_buff_serves_team_grants_and_anthems(name, served):
     assert serves(_card(name), _sig("team_buff", "you")) is served
+
+
+@pytest.mark.parametrize(
+    "name",
+    ["Vanquisher's Banner", "Honor of the Pure", "Favorable Winds", "Bad Moon"],
+)
+def test_subset_anthems_keep_their_anthem_serves(name):
+    # Out of team_buff, a subset anthem still pages as an anthem and go-wide.
+    assert serves(_card(name), _sig("anthem_static", "you")) is True
+    assert serves(_card(name), _sig("creatures_matter", "you")) is True
 
 
 def test_xspell_serve_drops_the_x_hosers():

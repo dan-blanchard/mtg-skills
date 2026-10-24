@@ -111,7 +111,7 @@ ARM_PINS: dict[tuple[str, str], tuple[str, str]] = {
     ("discover_makers|you", "keywords"): ("Chimil, the Inner Sun", "Lightning Bolt"),
     ("evasion_self|you", "keywords"): ("Academy Raider", "Grizzly Bears"),
     ("exalted_lone_attacker|you", "keywords"): ("Ardent Plea", "Grizzly Bears"),
-    # trample carries excess damage over (CR 702.19)
+    # trample assigns damage beyond its blockers' lethal to the player (CR 702.19b)
     ("excess_damage|you", "keywords"): ("Colossal Dreadmaw", "Hill Giant"),
     ("exert_matters|you", "keywords"): ("Ahn-Crop Crasher", "Grizzly Bears"),
     ("fight_makers|you", "power_min"): ("Serra Angel", "Hill Giant"),

@@ -947,13 +947,16 @@ SPECS_3: dict[tuple[str, str], SignalSpec] = {
         "keyword grants and anthems for your board",
         # The lane's team keyword grants, whatever the keyword (its subject;
         # Rafiq's double strike to a lone attacker, Akroma's Will's modes, the
-        # grants phase misparses bridged), and the static anthems
-        # (anthem_static). A one-target grant ("target creature you control
-        # gains lifelink" — Alabaster Mage), a tribe's lord and a one-shot pump
-        # are no team buff; a one-shot team keyword grant beside a pump (Family
-        # Reunion, Overwhelming Encounter) is.
+        # grants phase misparses bridged), and its static anthems over the whole
+        # team (Glorious Anthem). A one-target grant ("target creature you
+        # control gains lifelink" — Alabaster Mage), a tribe's lord, an anthem
+        # over a subset (Vanquisher's Banner, Honor of the Pure, Favorable
+        # Winds) or everyone's (Bad Moon) and a one-shot pump are no team buff;
+        # a one-shot team keyword grant beside a pump (Family Reunion,
+        # Overwhelming Encounter) is. anthem_static and creatures_matter keep
+        # the subset anthems.
         None,
-        serve_idents=frozenset({"team_buff|you|*", "anthem_static|you|"}),
+        serve_idents=frozenset({"team_buff|you|*"}),
     ),
     # lf_ramp (2026-07-13): land-fetch-to-battlefield is RAMP, not tutor —
     # the serve side must not surface Rampant Growth / Cultivate / Nature's

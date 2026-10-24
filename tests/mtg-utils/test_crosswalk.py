@@ -7836,12 +7836,19 @@ def test_self_pump_activated_self_anchor(name, should_fire):
         ("Craterhoof Behemoth", True),  # one-shot team "gain trample"
         ("Goblin King", False),  # tribal (subtyped) grant → type_matters
         ("Grizzly Bears", False),  # no grant at all
+        # "creatures and planeswalkers you control": the whole team and more
+        ("Sorin, Vengeful Bloodlord", True),
+        ("Thopter Engineer", False),  # artifact creatures: a card-type subset
+        ("Glorious Anthem", True),  # a static anthem over the whole team
+        ("Tempered Steel", False),  # an artifact-creature anthem
+        ("Honor of the Pure", False),  # a colour anthem
+        ("Bad Moon", False),  # everyone's black creatures
     ],
 )
 def test_team_buff_generic_team_gate(name, should_fire):
-    """team_buff fires an evergreen keyword granted to your GENERIC creature
-    board (CR 604.3 / 702); a tribal narrowing fails the gate (checklist
-    #6)."""
+    """team_buff fires an evergreen keyword granted to, or a static anthem over,
+    your GENERIC creature board (CR 604.3 / 702); a tribal, card-type or colour
+    narrowing fails the gate (checklist #6)."""
     assert (("team_buff", "you", "") in _idents(name)) is should_fire
 
 

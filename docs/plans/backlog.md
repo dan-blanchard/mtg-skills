@@ -79,24 +79,11 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   Intervention, Kaya's Ghostform, Fey Steed and six more), so Spark Double
   (an extra loyalty counter) and Lae'zel (no typed planeswalker filter) keep
   it.
-  (d) **The text mirrors read node text** (2026-10-24). The three `_matters`
-  text mirrors (artifacts / enchantments / the cast arm) run over the text phase
-  carries on the card's nodes (`board_and_ramp._non_animation_texts`: every
-  description in each unit, nested ones and a trigger's modal bullets included,
-  plus the root's mode text, minus what an animation claims), no longer over
-  oracle clauses. The ten payoffs only the oracle carried read off the tree:
-  a grant site anywhere in a unit and a target only your artifact can be (Age
-  of Ultron III, Venser, Corpse Puppet), a put from your hand (Origin of Iron
-  Man), a tap or an exile of your own artifacts as an effect (Yotia Declares
-  War, Fugitive of the Judoon), an alternative cost's tap (Zahid — the alt-cost
-  read keeps `TapCreatures`), the Enchant keyword's controller (Hardlight
-  Containment, `ConceptTree.card_enchant_filter`), a modal header's condition
-  (Soul Transfer, `card_modal_conditions`) and a delayed enters watcher (Rite of
-  Harmony); a choice of types counts only when every alternative names the type
-  (`_every_arm_lanes`). Corpus: Soul Transfer gains `enchantments_matter`;
-  Platinum Angel Avatar (a Vanguard card, legal nowhere) loses
-  `artifacts_matter`, its condition being one phase drops. Left: the mirrors
-  are still regexes, now over node text.
+  (d) **The text mirrors are still regexes.** The three `_matters` text mirrors
+  (artifacts / enchantments / the cast arm) match patterns over the text phase
+  carries on the card's nodes (`board_and_ramp._non_animation_texts`), not over
+  oracle clauses, but a pattern is still the read; each payoff they catch wants
+  a typed read off the tree.
   (g) **The guide cuts the tuner protects** (2026-10-24, the experiment table in
   `docs/plans/precon-audit-2026-10-18.md`, "The remaining tuner levers"). Shipped:
   popular cards (inside `UPGRADE_RANK`, not premium) off every lane and on none of
@@ -216,26 +203,18 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   each OR arm (types, keywords, cmc and stat floors) admits a card on its own.
   ``tests/deck-forge/test_serve_arm_guards.py`` (2026-10-24) pins, for each of
   the 95 structured arms on a page serve, a real card the arm is meant for and
-  a near miss the serve rejects; a new arm needs a row. It dropped
-  damage_reflect's toughness >= 4, toughness > power and defender arms (a big
-  body reflects nothing — Roaming Throne, Wall of Omens; the serve 7,180 →
-  31 legal cards). Left, no Serve dimension to say it: colorless_matters' Eldrazi
-  type arm admits the colored Eldrazi (Eldrazi Displacer). And an IR hit's
-  role is read by lining the emitting unit's text up with an oracle clause,
-  then that clause with a compat ability (``ranking._hit_clauses``): reading
-  the payoff test off the unit itself would drop both text alignments, and
-  would give a role to the hits no single ability emits (a keyword's lifelink,
-  Crucible of Worlds' whole-card ident, a modal spell's text-less mode), which
-  still score structural. Three serves a theme pages by still carry an oracle
-  arm (``self_etb_payload``, ``permanent_etb``, ``land_protection`` — the Pass
-  D entry says why each held); their page is partly a pattern.
-  ``xspell_matters``, ``team_buff``, ``target_redirect`` and ``spell_redirect``
-  read idents only since 2026-10-24. Since
-  2026-10-24 an IR hit takes its role from its emitting unit where the unit
-  decides one (``ranking._unit_role``: a replacement emitting the lane's ident is
-  a payoff — Anointed Procession, Parallel Lives, Hardened Scales; a
-  ``DOER_SUBJECTS`` ident an enabler), else from the clause test; one guide add
-  fewer (Virtue and Valor's Sram for Hardened Scales), shipped as a read fix.
+  a near miss the serve rejects; a new arm needs a row. Left, no Serve
+  dimension to say it: colorless_matters' Eldrazi type arm admits the colored
+  Eldrazi (Eldrazi Displacer). An IR hit whose emitting unit decides no role
+  (``ranking._unit_role``) is read by lining the unit's text up with an oracle
+  clause, then that clause with a compat ability (``ranking._hit_clauses``):
+  reading the payoff test off the unit itself would drop both text alignments,
+  and would give a role to the hits no single ability emits (a keyword's
+  lifelink, Crucible of Worlds' whole-card ident, a modal spell's text-less
+  mode), which still score structural. Three serves a theme pages by still
+  carry an oracle arm (``self_etb_payload``, ``permanent_etb``,
+  ``land_protection`` — the Pass D entry says why each held); their page is
+  partly a pattern.
   (l) **Tune speed, what's left** (2026-10-24). The ranking's per-unit ident
   attribution persists in a write-back sidecar beside the signals index
   (`<bulk>.provenance.pkl`, `ident_provenance.attach_provenance_sidecar`; the
@@ -274,8 +253,8 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
 
 - **Pass D: the serves still on a regex** (2026-10-23;
   `docs/plans/serve-idents-and-avenue-support.md` "Pass D"; each spec's comment
-  names its remainder). Regex-only, measured again 2026-10-24 over the legal
-  corpus: `self_etb_payload` (the blink-enabler and reanimation idents —
+  names its remainder). Regex-only, measured over the legal corpus:
+  `self_etb_payload` (the blink-enabler and reanimation idents —
   `blink_flicker|you|enabler`, `creature_recursion|you|battlefield` / `mass` —
   page 713 cards to the regex's 747, but a bounce-to-replay engine (Whitemane
   Lion, Kor Skyfisher) carries only the 2,034-card `blink_flicker|you|`, and a
@@ -289,17 +268,9 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   subject pages 9 cards to the regex's 19 — the regex's other ten are the
   animators themselves and land recursion, Sacred Ground and Soul of Windgrace,
   which no key carries apart from `landfall|you|`; Tomik's static is
-  Unimplemented. The shield read reaches an emblem since 2026-10-24),
-  `ability_strip_payoff` (the crippling-drawback text beside a power floor; no
-  lane reads a drawback a strip turns off). `xspell_matters`, `team_buff`,
-  `target_redirect` and `spell_redirect` dropped their regex 2026-10-24: the X
-  lane reads a delayed cast watcher and mana spend criteria
-  (`crosswalk.mana_spend_criteria`), the team serve reads `anthem_static|you|`
-  beside the team grants (its one-shot-pump veto went: it vetoed team keyword
-  grants beside a pump, Family Reunion), and seven ledger rows bridge the phase
-  drops (`spell_redirect_parse_failure`, `xspell_*`, `team_keyword_grant_*`).
-  Lane
-  follow-ups the pass found: a `(key, subject)` role table that
+  Unimplemented), `ability_strip_payoff` (the crippling-drawback text beside a
+  power floor; no lane reads a drawback a strip turns off). Lane follow-ups the
+  pass found: a `(key, subject)` role table that
   `DOER_SUBJECTS`, `MEMBERSHIP_SUBJECTS`, the pair reads' wildcards and the presets
   all read (today each reads its own set); an `attack_trigger_side` crosswalk read
   beside `targeting_trigger_side` (the defensive-trigger veto lives in

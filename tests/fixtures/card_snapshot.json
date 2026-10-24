@@ -525661,6 +525661,145 @@
     "type_line": "Enchantment — Aura"
    }
   },
+  "Honor of the Pure": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Enchantment"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "White"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "White"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "35a40f09-d16a-43c7-b4fd-244f45883a47",
+       "3831cb3b-0983-403b-9e0a-4720222817c4",
+       "650a6831-c352-4ca7-9f8f-43ea99a1cf33",
+       "cf643b03-d388-451b-933a-28f3c4087877"
+      ]
+     },
+     "name": "Honor of the Pure",
+     "non_ability_text": null,
+     "oracle_text": "White creatures you control get +1/+1.",
+     "power": null,
+     "printings": [
+      "M10",
+      "M11",
+      "M12",
+      "MD1",
+      "PM10",
+      "PRM",
+      "PS11"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "eb4188bb-62df-4309-bde1-f66318fe2f05",
+     "static_abilities": [
+      {
+       "active_zones": [],
+       "affected": {
+        "controller": "You",
+        "properties": [
+         {
+          "color": "White",
+          "type": "HasColor"
+         }
+        ],
+        "type": "Typed",
+        "type_filters": [
+         "Creature"
+        ]
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": null,
+       "description": "White creatures you control get +1/+1.",
+       "effect_zone": null,
+       "mode": "Continuous",
+       "modifications": [
+        {
+         "type": "AddPower",
+         "value": 1
+        },
+        {
+         "type": "AddToughness",
+         "value": 1
+        }
+       ]
+      }
+     ],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 2.0,
+    "color_identity": [
+     "W"
+    ],
+    "colors": [
+     "W"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}{W}",
+    "name": "Honor of the Pure",
+    "oracle_id": "eb4188bb-62df-4309-bde1-f66318fe2f05",
+    "oracle_text": "White creatures you control get +1/+1.",
+    "type_line": "Enchantment"
+   }
+  },
   "Honored Dreyleader": {
    "phase_records": [
     {
@@ -1032408,6 +1032547,237 @@
     "oracle_id": "53467cf4-5db2-4b9c-af2b-03b044c558cd",
     "oracle_text": "Target creature's owner shuffles it into their library, then faces a villainous choice — They lose 5 life, or they shuffle another creature they own into their library.",
     "type_line": "Instant"
+   }
+  },
+  "Thopter Engineer": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Human",
+       "Artificer"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Red"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 2,
+      "shards": [
+       "Red"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "related_token_ids": [
+       "4f3b283f-c8fa-5534-9da4-486533d50e82",
+       "53316f3a-2854-52da-826e-8e37dcb53d12",
+       "6cfb85ca-b3aa-5234-8697-65f7f891dadf",
+       "8e4e19dc-8e25-5437-9ef1-ed70f864c2d2",
+       "bb5d293a-75af-53c0-9279-f560c2a9ffce",
+       "dfdf8ee7-220c-53dd-b7b7-74c65fb75df6",
+       "fe95f3a9-0dde-54d9-a973-37bc22c05522"
+      ],
+      "source_printing_ids": [
+       "03ba03d0-c2fd-44fa-809e-3873e1c3e968",
+       "2933e3df-0cba-4e4b-87f9-70e56093da91",
+       "3ba40fc1-a92c-4676-90fa-66d0f7c0f9cf",
+       "4de8c868-116b-421c-a6fd-985e9b502cb5",
+       "77b83dbe-77de-4446-96a5-6b4c4b6e8a27",
+       "a5e6c48a-29d0-40ae-aac6-df7319873f50",
+       "b89aa7ba-4b35-42e5-bdcd-e7b3360fd01f"
+      ]
+     },
+     "name": "Thopter Engineer",
+     "non_ability_text": null,
+     "oracle_text": "When this creature enters, create a 1/1 colorless Thopter artifact creature token with flying.\nArtifact creatures you control have haste. (They can attack and {T} as soon as they come under your control.)",
+     "power": {
+      "type": "Fixed",
+      "value": 1
+     },
+     "printings": [
+      "2XM",
+      "BLC",
+      "C18",
+      "C21",
+      "ORI",
+      "PIO",
+      "PLST"
+     ],
+     "rarities": [
+      "uncommon"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "4ac53b34-20d2-4a53-bade-4f998fb6ae67",
+     "static_abilities": [
+      {
+       "active_zones": [],
+       "affected": {
+        "controller": "You",
+        "properties": [],
+        "type": "Typed",
+        "type_filters": [
+         "Creature",
+         "Artifact"
+        ]
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": null,
+       "description": "Artifact creatures you control have haste.",
+       "effect_zone": null,
+       "mode": "Continuous",
+       "modifications": [
+        {
+         "keyword": "Haste",
+         "type": "AddKeyword"
+        }
+       ]
+      }
+     ],
+     "toughness": {
+      "type": "Fixed",
+      "value": 3
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "When ~ enters, create a 1/1 colorless Thopter artifact creature token with flying.",
+       "destination": "Battlefield",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "colors": [],
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "enters_attacking": false,
+         "keywords": [
+          "Flying"
+         ],
+         "name": "Thopter",
+         "owner": {
+          "type": "Controller"
+         },
+         "power": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "tapped": false,
+         "toughness": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "type": "Token",
+         "types": [
+          "Artifact",
+          "Creature",
+          "Thopter"
+         ]
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "ChangesZone",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "all_parts": [
+     {
+      "component": "token",
+      "id": "75602e25-a0ab-430e-b610-5e12c1cab3d8",
+      "name": "Thopter",
+      "oracle_id": "7c0b6b53-4ddb-4bb5-8a26-0041b2006d3f",
+      "type_line": "Token Artifact Creature — Thopter"
+     }
+    ],
+    "arena_available": true,
+    "cmc": 3.0,
+    "color_identity": [
+     "R"
+    ],
+    "colors": [
+     "R"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}{R}",
+    "name": "Thopter Engineer",
+    "oracle_id": "4ac53b34-20d2-4a53-bade-4f998fb6ae67",
+    "oracle_text": "When this creature enters, create a 1/1 colorless Thopter artifact creature token with flying.\nArtifact creatures you control have haste. (They can attack and {T} as soon as they come under your control.)",
+    "power": "1",
+    "toughness": "3",
+    "type_line": "Creature — Human Artificer"
    }
   },
   "Thornwood Falls": {

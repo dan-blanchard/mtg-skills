@@ -59,6 +59,7 @@ from mtg_utils._card_ir.crosswalk import (
     filter_without_keywords,
     is_creature_population,
     is_self_discard_cost,
+    is_team_buff_filter,
     iter_condition_sites,
     iter_cost_leaves,
     iter_mod_sites,
@@ -1592,6 +1593,16 @@ def _anthem_defs(tree: ConceptTree) -> Iterator[TypedMirrorNode]:
         yield from iter_static_defs(unit.node, emblem=True)
 
 
+def _raising_anthem_defs(tree: ConceptTree) -> Iterator[TypedMirrorNode]:
+    """The anthem defs (:func:`_anthem_defs`) that raise P/T: power and
+    toughness both raised or left, at least one raised (:func:`pt_mod_signs` —
+    plain ints and the scaling ``AddDynamic*`` forms alike)."""
+    for sdef in _anthem_defs(tree):
+        power, toughness = pt_mod_signs(sdef)
+        if max(power, toughness) >= 1 and min(power, toughness) >= 0:
+            yield sdef
+
+
 def _anthem_static(tree: ConceptTree) -> list[Signal]:
     """anthem_static — a STATIC +N/+N over a creature group (CR 604.3 / 613.4
     layer 7c): Glorious Anthem, Goblin King's subtyped "Other Goblins", Bad
@@ -1605,10 +1616,7 @@ def _anthem_static(tree: ConceptTree) -> list[Signal]:
     self_pump or a trick, and an opponent-board shrink is scoped out,
     checklist #6). Scope "you".
     """
-    for sdef in _anthem_defs(tree):
-        power, toughness = pt_mod_signs(sdef)
-        if max(power, toughness) < 1 or min(power, toughness) < 0:
-            continue
+    for sdef in _raising_anthem_defs(tree):
         affected = getattr(sdef, "affected", None)
         if _is_anthem_group_filter(affected):
             # Subject: the group's single subtype (Goblin King, Crucible of
@@ -1799,10 +1807,17 @@ def _team_buff(tree: ConceptTree) -> list[Signal]:
     effect target, never a generic your-team ``affected``) stays out (checklist
     #6). The variant-
     parameterized keywords (Protection-from-X, Ward-{N}) are non-string nodes
-    — a documented residue. Scope "you".
+    — a documented residue. A static anthem over the same whole team
+    (:func:`~mtg_utils._card_ir.crosswalk.reads.is_team_buff_filter` — Glorious
+    Anthem, Always Watching) is one too; an anthem over a subset (a chosen type,
+    a colour, a keyword — Vanquisher's Banner, Honor of the Pure, Favorable
+    Winds) or a symmetric one (Bad Moon) is only ``anthem_static``. Scope "you".
     """
     for _unit, sdef in team_buff_sites(tree):
         return [Signal("team_buff", "you", "", _site_raw(sdef), tree.name, "high")]
+    for sdef in _raising_anthem_defs(tree):
+        if is_team_buff_filter(getattr(sdef, "affected", None)):
+            return [Signal("team_buff", "you", "", _site_raw(sdef), tree.name, "high")]
     return []
 
 

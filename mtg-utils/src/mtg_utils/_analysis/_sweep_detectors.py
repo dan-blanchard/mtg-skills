@@ -1280,7 +1280,6 @@ SWEEP_LABELS: dict[str, tuple[str, str]] = {
         "fogs and prevention to blank attacks and burn",
     ),
     "damage_redirect": ("Damage redirection", "redirect effects to protect and punish"),
-    "damage_reflect": ("Damage reflection", "high-toughness bodies to reflect damage"),
     "damage_to_you_punish": (
         "Punish damage to you",
         "take damage and punish the source",
