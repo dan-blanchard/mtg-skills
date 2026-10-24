@@ -2595,6 +2595,11 @@ def test_superfriends_bucket_b_synth():
         "Promise of Loyalty",  # defends_you: an attack deterrent
         "Gideon's Sacrifice",  # defends_you: a redirection (CR 614.9)
         "Soul Snare",  # watches_attacks_on_you: Attacking{defender: You}
+        # ... and on a card naming planeswalkers only as half of "creature or
+        # planeswalker", never their loyalty (it protects or recurs your board):
+        "Angelic Intervention",  # protection to a creature or planeswalker
+        "Kaya's Ghostform",  # Enchant creature or planeswalker you control
+        "Fey Steed",  # a creature or planeswalker you control becomes the target
     ],
 )
 def test_superfriends_shed_overfires(name):
@@ -2604,6 +2609,26 @@ def test_superfriends_shed_overfires(name):
     assert has_structural_superfriends(tree) is False
     assert _arm_superfriends_matters(tree) is None
     assert _superfriends_fires(name) is False
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        # "a creature or planeswalker you control" beside a loyalty counter: the
+        # copy of a planeswalker enters with an extra one.
+        "Spark Double",
+        # phase types no planeswalker filter for the counter replacement, so the
+        # creature-or-planeswalker read has nothing to stand down on.
+        "Lae'zel, Vlaakith's Champion",
+    ],
+)
+def test_superfriends_synth_keeps_the_loyalty_pair(name):
+    from mtg_utils._analysis.tree_synthesis import _arm_superfriends_matters
+
+    tree = _fixture_tree(name)
+    assert has_structural_superfriends(tree) is False
+    assert _arm_superfriends_matters(tree) is not None
+    assert _superfriends_fires(name) is True
 
 
 def test_superfriends_synth_registered():

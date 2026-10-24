@@ -48,6 +48,7 @@ from mtg_utils._card_ir.crosswalk import (
     library_search_restriction_side,
     modify_cost_mode,
     names_attached_object,
+    planeswalkers_only_beside_creatures,
     replacement_event_tag,
     replacement_shield_kind,
     scoped_player_scope,
@@ -822,8 +823,9 @@ def has_structural_superfriends(tree: ConceptTree) -> bool:
 # loyalty abilities of planeswalkers you control" permission ability with no
 # ``GrantExtraLoyaltyActivations`` typed node — Oath of Teferi, Teferi,
 # Temporal Archmage's emblem; a replacement/tax effect scoped to "planeswalkers
-# you control" with no typed carrier — Pyromancer's Gauntlet, Kasmina,
-# Enigmatic Mentor, Lae'zel). Read PER-CLAUSE (reminder-stripped) so a match is
+# you control" with no typed carrier — Pyromancer's Gauntlet, Lae'zel;
+# Kasmina, Enigmatic Mentor's protective tax stands down, see
+# ``_arm_superfriends_matters``). Read PER-CLAUSE (reminder-stripped) so a match is
 # confined to ONE clause — the cross-clause false-positive class the deleted
 # whole-card ``_SUPERFRIENDS_RX.search`` mirror carried.
 #
@@ -936,10 +938,21 @@ def _arm_superfriends_matters(tree: ConceptTree) -> ConceptNode | None:
     (:func:`watches_attacks_on_you` — Soul Snare's "creature that's attacking
     you or a planeswalker you control", Isperia's attack trigger). Such a card
     names your planeswalkers beside you as what an attack or damage can reach
-    (CR 506.2), not as a group it rewards."""
+    (CR 506.2), not as a group it rewards.
+
+    It stands down too on a card that names planeswalkers only as half of
+    "creature or planeswalker" and never their loyalty
+    (:func:`planeswalkers_only_beside_creatures` — Angelic Intervention's
+    protection, Kaya's Ghostform's return, Fey Steed's targeting trigger,
+    Kasmina, Enigmatic Mentor's tax): it protects or recurs your board, with
+    your planeswalkers on it. Spark Double (its copy of a planeswalker enters
+    with an extra loyalty counter) and Lae'zel, Vlaakith's Champion (phase types
+    no planeswalker filter) keep the arm."""
     if has_structural_superfriends(tree):
         return None
     if defends_you(tree) or watches_attacks_on_you(tree):
+        return None
+    if planeswalkers_only_beside_creatures(tree):
         return None
     if not _matches_superfriends_idiom(tree.oracle or ""):
         return None

@@ -34,6 +34,34 @@ def test_token_maker_is_a_token_subject_never_the_payoff(name, key):
     assert (key, "you", "") not in idents
 
 
+# ── an animation's own words are not the artifacts payoff ───────────────────
+
+
+@pytest.mark.parametrize("name", ["Rise and Shine", "Alloy Animist"])
+def test_a_one_shot_animation_of_your_artifact_is_not_artifacts_matter(name):
+    # "Target noncreature artifact you control becomes a 0/0 artifact creature":
+    # the animated set (CR 613.1d), read by animate_makers, not a payoff.
+    idents = _idents(name)
+    assert ("animate_makers", "you", "Artifact") in idents
+    assert ("artifacts_matter", "you", "") not in idents
+
+
+def test_a_self_animation_keeps_the_payoff_it_grants():
+    # Iron Man Armor animates itself; the "+1/+1 for each artifact you control"
+    # it grants in the same ability is a count over your artifacts. Read off
+    # the lane itself: the card is an artifact, so the membership floor alone
+    # would put the key on its signals.
+    from mtg_utils._analysis.lanes import _artifacts_enchantments_matter
+    from mtg_utils._analysis.signal_trees import signal_trees_for
+
+    test_signals("Iron Man Armor")  # seeds the snapshot's trees (CI-safe)
+    (tree,) = signal_trees_for(test_card("Iron Man Armor"))
+    assert any(
+        (s.key, s.subject) == ("artifacts_matter", "")
+        for s in _artifacts_enchantments_matter(tree)
+    )
+
+
 def test_resource_token_maker_keeps_its_own_lane():
     # A Treasure maker is treasure_makers' (CR 111.10a), never the token subject.
     idents = _idents("Smothering Tithe")

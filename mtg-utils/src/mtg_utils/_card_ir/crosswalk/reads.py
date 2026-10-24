@@ -9947,3 +9947,63 @@ def strips_abilities(static_def: object) -> bool:
         tag_of(m) in ("RemoveAllAbilities", "SetBasicLandType")
         for m in getattr(static_def, "modifications", None) or ()
     )
+
+
+# ── Planeswalkers named beside creatures ──
+
+
+def _creature_or_planeswalker_pair(node: object) -> tuple[int, ...]:
+    """The ids of the planeswalker arm of ``node`` when it is the bare pair
+    "creature or planeswalker" — an ``Or`` of exactly a ``Typed`` Creature and a
+    ``Typed`` Planeswalker under one controller and no qualifier past "another"
+    ("target creature or planeswalker you control", "another creature or
+    planeswalker you control enters", "creatures and/or planeswalkers you
+    control"); ``()`` otherwise. A qualified pair ("legendary creatures and
+    planeswalkers" — Mox Amber) or a wider list ("artifact, creature, land, or
+    planeswalker" — Soul Diviner) is not the pair."""
+    if tag_of(node) != "Or":
+        return ()
+    arms = getattr(node, "filters", None) or ()
+    if len(arms) != 2 or any(tag_of(a) != "Typed" for a in arms):
+        return ()
+    words = [list(getattr(a, "type_filters", None) or ()) for a in arms]
+    if not all(len(w) == 1 and isinstance(w[0], str) for w in words):
+        return ()  # a subtype or a second type word qualifies the arm
+    if sorted(w[0] for w in words) != ["Creature", "Planeswalker"]:
+        return ()
+    if len({filter_controller(a) for a in arms}) != 1:
+        return ()
+    for a in arms:
+        if any(tag_of(p) != "Another" for p in getattr(a, "properties", None) or ()):
+            return ()
+    return tuple(id(a) for a in arms if "Planeswalker" in filter_core_types(a))
+
+
+def planeswalkers_only_beside_creatures(tree: ConceptTree) -> bool:
+    """Whether the card names planeswalkers only as half of "creature or
+    planeswalker" and never their loyalty: every typed filter naming Planeswalker
+    is an arm of the bare pair (:func:`_creature_or_planeswalker_pair`) or the
+    card's ``Enchant`` restriction is that pair, and no node counts, adds or
+    removes loyalty counters. Such a card protects, recurs or watches your board
+    with planeswalkers on it — Angelic Intervention's protection, Kaya's
+    Ghostform's return, Fey Steed's targeting trigger, The Western Cloud's
+    prevention — rather than rewarding planeswalkers as a group. One that also
+    touches loyalty keeps the planeswalker half (Spark Double's copy enters with
+    an extra loyalty counter); one phase types no planeswalker filter for
+    (Lae'zel, Vlaakith's Champion's counter replacement) is not this read's to
+    decide."""
+    planeswalker_arms: set[int] = set()
+    paired: set[int] = set()
+    for n in tree.iter_typed():
+        if counter_kind_any(n) == "LOYALTY":
+            return False
+        if tag_of(n) == "Typed" and "Planeswalker" in filter_core_types(n):
+            planeswalker_arms.add(id(n))
+        paired.update(_creature_or_planeswalker_pair(n))
+    enchants_pair = sorted(tree.card_enchant_core_types) == [
+        "Creature",
+        "Planeswalker",
+    ]
+    if not (paired or enchants_pair):
+        return False
+    return planeswalker_arms <= paired

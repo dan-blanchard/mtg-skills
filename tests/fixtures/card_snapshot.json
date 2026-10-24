@@ -43277,6 +43277,193 @@
     "type_line": "Enchantment"
    }
   },
+  "Alloy Animist": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": {
+        "cost": {
+         "generic": 2,
+         "shards": [
+          "Green"
+         ],
+         "type": "Cost"
+        },
+        "type": "Mana"
+       },
+       "description": "{2}{G}: Until end of turn, target noncreature artifact you control becomes a 4/4 artifact creature.",
+       "duration": "UntilEndOfTurn",
+       "effect": {
+        "duration": "UntilEndOfTurn",
+        "static_abilities": [
+         {
+          "active_zones": [],
+          "affected": {
+           "type": "ParentTarget"
+          },
+          "affected_zone": null,
+          "characteristic_defining": false,
+          "condition": null,
+          "description": "become a 4/4 artifact creature",
+          "effect_zone": null,
+          "mode": "Continuous",
+          "modifications": [
+           {
+            "type": "SetPower",
+            "value": 4
+           },
+           {
+            "type": "SetToughness",
+            "value": 4
+           },
+           {
+            "core_type": "Artifact",
+            "type": "AddType"
+           },
+           {
+            "core_type": "Creature",
+            "type": "AddType"
+           }
+          ]
+         }
+        ],
+        "target": {
+         "controller": "You",
+         "properties": [],
+         "type": "Typed",
+         "type_filters": [
+          "Artifact",
+          {
+           "Non": "Creature"
+          }
+         ]
+        },
+        "type": "GenericEffect"
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Human",
+       "Druid"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Green"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 0,
+      "shards": [
+       "Green"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "71a49b18-a339-401c-ab77-fcd04772cf69"
+      ]
+     },
+     "name": "Alloy Animist",
+     "non_ability_text": null,
+     "oracle_text": "{2}{G}: Until end of turn, target noncreature artifact you control becomes a 4/4 artifact creature.",
+     "power": {
+      "type": "Fixed",
+      "value": 1
+     },
+     "printings": [
+      "BRO"
+     ],
+     "rarities": [
+      "uncommon"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2022-10-14",
+       "text": "As Alloy Animist's ability resolves, the target permanent keeps any other types and subtypes it had before it became an artifact creature."
+      }
+     ],
+     "scryfall_oracle_id": "4acacdd2-a736-43a2-ad67-891b9bd124f8",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 1
+     },
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 1.0,
+    "color_identity": [
+     "G"
+    ],
+    "colors": [
+     "G"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{G}",
+    "name": "Alloy Animist",
+    "oracle_id": "4acacdd2-a736-43a2-ad67-891b9bd124f8",
+    "oracle_text": "{2}{G}: Until end of turn, target noncreature artifact you control becomes a 4/4 artifact creature.",
+    "power": "1",
+    "toughness": "1",
+    "type_line": "Creature — Human Druid"
+   }
+  },
   "Alloy Golem": {
    "phase_records": [
     {
@@ -58057,6 +58244,296 @@
     "oracle_id": "8ba36878-0816-44c7-b543-8ebfc28c2ecd",
     "oracle_text": "Enchant creature\nEnchanted creature gets +4/+4, has flying and first strike, and is an Angel in addition to its other types.\nWhen enchanted creature dies, return this card to its owner's hand.",
     "type_line": "Enchantment — Aura"
+   }
+  },
+  "Angelic Intervention": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "declares_chosen_group": 0,
+       "description": "Target creature or planeswalker you control gains protection from colorless or from the color of your choice until end of turn. If it's a creature, put a +1/+1 counter on it.",
+       "duration": "UntilEndOfTurn",
+       "effect": {
+        "target": {
+         "filters": [
+          {
+           "controller": "You",
+           "properties": [],
+           "type": "Typed",
+           "type_filters": [
+            "Creature"
+           ]
+          },
+          {
+           "controller": "You",
+           "properties": [],
+           "type": "Typed",
+           "type_filters": [
+            "Planeswalker"
+           ]
+          }
+         ],
+         "type": "Or"
+        },
+        "type": "TargetOnly"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "branches": [
+          {
+           "condition": null,
+           "cost": null,
+           "description": "gain Protection(Quality(\"colorless\"))",
+           "duration": "UntilEndOfTurn",
+           "effect": {
+            "duration": "UntilEndOfTurn",
+            "static_abilities": [
+             {
+              "active_zones": [],
+              "affected": {
+               "type": "ParentTarget"
+              },
+              "affected_zone": null,
+              "characteristic_defining": false,
+              "condition": null,
+              "description": "gain Protection(Quality(\"colorless\"))",
+              "effect_zone": null,
+              "mode": "Continuous",
+              "modifications": [
+               {
+                "keyword": {
+                 "Protection": {
+                  "Quality": "colorless"
+                 }
+                },
+                "type": "AddKeyword"
+               }
+              ]
+             }
+            ],
+            "target": null,
+            "type": "GenericEffect"
+           },
+           "forward_result": false,
+           "kind": "Spell",
+           "optional": false,
+           "optional_targeting": false,
+           "sub_ability": null,
+           "target_prompt": null
+          },
+          {
+           "condition": null,
+           "cost": null,
+           "description": "gain Protection(ChosenColor)",
+           "duration": "UntilEndOfTurn",
+           "effect": {
+            "choice_type": "Color",
+            "persist": true,
+            "type": "Choose"
+           },
+           "forward_result": false,
+           "kind": "Spell",
+           "optional": false,
+           "optional_targeting": false,
+           "sub_ability": {
+            "condition": null,
+            "cost": null,
+            "description": null,
+            "duration": null,
+            "effect": {
+             "duration": "UntilEndOfTurn",
+             "static_abilities": [
+              {
+               "active_zones": [],
+               "affected": {
+                "type": "ParentTarget"
+               },
+               "affected_zone": null,
+               "characteristic_defining": false,
+               "condition": null,
+               "description": "gain Protection(ChosenColor)",
+               "effect_zone": null,
+               "mode": "Continuous",
+               "modifications": [
+                {
+                 "keyword": {
+                  "Protection": "ChosenColor"
+                 },
+                 "type": "AddKeyword"
+                }
+               ]
+              }
+             ],
+             "target": null,
+             "type": "GenericEffect"
+            },
+            "forward_result": false,
+            "kind": "Spell",
+            "optional": false,
+            "optional_targeting": false,
+            "sub_ability": null,
+            "target_prompt": null
+           },
+           "target_prompt": null
+          }
+         ],
+         "chooser": {
+          "type": "Controller"
+         },
+         "type": "ChooseOneOf"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": {
+          "filter": {
+           "controller": null,
+           "properties": [],
+           "type": "Typed",
+           "type_filters": [
+            "Creature"
+           ]
+          },
+          "type": "TargetMatchesFilter",
+          "use_lki": true
+         },
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "count": {
+           "type": "Fixed",
+           "value": 1
+          },
+          "counter_type": "P1P1",
+          "target": {
+           "type": "ParentTarget"
+          },
+          "type": "PutCounter"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": null,
+         "sub_link": "SequentialSibling",
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Instant"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "White"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pauper": "legal",
+      "paupercommander": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "White"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "09fb5876-5b47-4a05-be57-7ad3890c8953"
+      ]
+     },
+     "name": "Angelic Intervention",
+     "non_ability_text": null,
+     "oracle_text": "Target creature or planeswalker you control gains protection from colorless or from the color of your choice until end of turn. If it's a creature, put a +1/+1 counter on it. (It can't be blocked, targeted, dealt damage, enchanted, or equipped by anything with that quality.)",
+     "power": null,
+     "printings": [
+      "MOM"
+     ],
+     "rarities": [
+      "common"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "3d036f68-5f3a-4182-88f0-cdd685817dd0",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 2.0,
+    "color_identity": [
+     "W"
+    ],
+    "colors": [
+     "W"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "legal",
+     "paupercommander": "legal",
+     "penny": "not_legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}{W}",
+    "name": "Angelic Intervention",
+    "oracle_id": "3d036f68-5f3a-4182-88f0-cdd685817dd0",
+    "oracle_text": "Target creature or planeswalker you control gains protection from colorless or from the color of your choice until end of turn. If it's a creature, put a +1/+1 counter on it. (It can't be blocked, targeted, dealt damage, enchanted, or equipped by anything with that quality.)",
+    "type_line": "Instant"
    }
   },
   "Angelic Skirmisher": {
@@ -404527,6 +405004,270 @@
     "type_line": "Creature — Spirit"
    }
   },
+  "Fey Steed": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Elk"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "White"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 2,
+      "shards": [
+       "White",
+       "White"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "bde3cd31-ccb8-4242-b893-0cbd12f6ae86",
+       "ce2bfc76-04b4-46ed-b495-33221256afbb"
+      ]
+     },
+     "name": "Fey Steed",
+     "non_ability_text": null,
+     "oracle_text": "Whenever this creature attacks, another target attacking creature you control gains indestructible until end of turn.\nWhenever a creature or planeswalker you control becomes the target of a spell or ability an opponent controls, you may draw a card.",
+     "power": {
+      "type": "Fixed",
+      "value": 4
+     },
+     "printings": [
+      "AFC"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "18cced8b-9836-4e11-bb4e-69a971a33a50",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 4
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever ~ attacks, another target attacking creature you control gains indestructible until end of turn.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": "UntilEndOfTurn",
+        "effect": {
+         "duration": "UntilEndOfTurn",
+         "static_abilities": [
+          {
+           "active_zones": [],
+           "affected": {
+            "type": "ParentTarget"
+           },
+           "affected_zone": null,
+           "characteristic_defining": false,
+           "condition": null,
+           "description": "gain indestructible",
+           "effect_zone": null,
+           "mode": "Continuous",
+           "modifications": [
+            {
+             "keyword": "Indestructible",
+             "type": "AddKeyword"
+            }
+           ]
+          }
+         ],
+         "target": {
+          "controller": "You",
+          "properties": [
+           {
+            "type": "Attacking"
+           },
+           {
+            "type": "Another"
+           }
+          ],
+          "type": "Typed",
+          "type_filters": [
+           "Creature"
+          ]
+         },
+         "type": "GenericEffect"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "Attacks",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": null
+      },
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever a creature or planeswalker you control becomes the target of a spell or ability an opponent controls, you may draw a card.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "target": {
+          "type": "Controller"
+         },
+         "type": "Draw"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": true,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "BecomesTarget",
+       "optional": true,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "filters": [
+         {
+          "controller": "You",
+          "properties": [],
+          "type": "Typed",
+          "type_filters": [
+           "Creature"
+          ]
+         },
+         {
+          "controller": "You",
+          "properties": [],
+          "type": "Typed",
+          "type_filters": [
+           "Planeswalker"
+          ]
+         }
+        ],
+        "type": "Or"
+       },
+       "valid_source": {
+        "filters": [
+         {
+          "filters": [
+           {
+            "type": "StackSpell"
+           },
+           {
+            "controller": "Opponent",
+            "properties": [],
+            "type": "Typed",
+            "type_filters": []
+           }
+          ],
+          "type": "And"
+         },
+         {
+          "controller": "Opponent",
+          "type": "StackAbility"
+         }
+        ],
+        "type": "Or"
+       },
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 4.0,
+    "color_identity": [
+     "W"
+    ],
+    "colors": [
+     "W"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}{W}{W}",
+    "name": "Fey Steed",
+    "oracle_id": "18cced8b-9836-4e11-bb4e-69a971a33a50",
+    "oracle_text": "Whenever this creature attacks, another target attacking creature you control gains indestructible until end of turn.\nWhenever a creature or planeswalker you control becomes the target of a spell or ability an opponent controls, you may draw a card.",
+    "power": "4",
+    "toughness": "4",
+    "type_line": "Creature — Elk"
+   }
+  },
   "Feywild Visitor": {
    "phase_records": [
     {
@@ -611452,6 +612193,189 @@
     "power": "3",
     "toughness": "6",
     "type_line": "Legendary Creature — Gith Horror Warrior"
+   }
+  },
+  "Lae'zel, Vlaakith's Champion": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "brawl_commander": true,
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Gith",
+       "Warrior"
+      ],
+      "supertypes": [
+       "Legendary"
+      ]
+     },
+     "color_identity": [
+      "White"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "is_commander": true,
+     "keywords": [
+      {
+       "Partner": {
+        "type": "ChooseABackground"
+       }
+      }
+     ],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 2,
+      "shards": [
+       "White"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "1a93f587-ab72-42da-88c4-31af1c9cdf1b",
+       "44927f22-0017-4c19-bd0a-41f09c0ce19f",
+       "4833ef6c-3ff8-4a3c-826b-58e4a27480a3",
+       "4a2c0f27-879f-4dc7-9847-aefcaf246f78"
+      ]
+     },
+     "name": "Lae'zel, Vlaakith's Champion",
+     "non_ability_text": null,
+     "oracle_text": "If you would put one or more counters on a creature or planeswalker you control or on yourself, put that many plus one of each of those kinds of counters on that permanent or player instead.\nChoose a Background (You can have a Background as a second commander.)",
+     "power": {
+      "type": "Fixed",
+      "value": 3
+     },
+     "printings": [
+      "CLB",
+      "PCLB",
+      "PLST"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [
+      {
+       "condition": null,
+       "counter_replacement_subject": "Actor",
+       "description": "If you would put one or more counters on a creature or planeswalker you control or on yourself, put that many plus one of each of those kinds of counters on that permanent or player instead.",
+       "event": "AddCounter",
+       "execute": null,
+       "mode": {
+        "type": "Mandatory"
+       },
+       "quantity_modification": {
+        "type": "Plus",
+        "value": 1
+       },
+       "valid_card": null,
+       "valid_player": "You"
+      }
+     ],
+     "rulings": [
+      {
+       "date": "2022-06-10",
+       "text": " If something refers to your commander while you have two commanders, it refers to one of them of your choice. If you are instructed to perform an action on your commander (e.g. put it from the command zone into your hand due to Command Beacon), you choose one of your commanders at the time the effect happens."
+      },
+      {
+       "date": "2022-06-10",
+       "text": "An effect that checks whether you control your commander is satisfied if you control one or both of your two commanders."
+      },
+      {
+       "date": "2022-06-10",
+       "text": "Both commanders start in the command zone, and the remaining 98 cards (or 58 cards in a Commander Draft game) of your deck are shuffled to become your library."
+      },
+      {
+       "date": "2022-06-10",
+       "text": "Choose a Background is a variant of the partner ability. You may have two commanders if one of them is a legendary creature with the choose a background ability and the other is a legendary Background enchantment. Backgrounds and cards with choose a Background do not interact with cards which have any other partner ability."
+      },
+      {
+       "date": "2022-06-10",
+       "text": "If a card refers to a commander creature you own, a Background won't usually be counted or included for that effect. If another spell or ability causes your Background to become a creature, however, it will be included. Any effect that refers to your commander or a commander you own or control without specifying creature will apply to a Background that is your commander, as appropriate."
+      },
+      {
+       "date": "2022-06-10",
+       "text": "If you control a Background that grants an ability to commander creatures you own, and you own more than one commander creature, each of them will have that ability."
+      },
+      {
+       "date": "2022-06-10",
+       "text": "If your Commander deck has two commanders, you can include only cards whose own color identities are also found in your commanders' combined color identities."
+      },
+      {
+       "date": "2022-06-10",
+       "text": "If your commander loses the choose a Background ability or stops being a Background during the game, as appropriate, it is still your commander."
+      },
+      {
+       "date": "2022-06-10",
+       "text": "Once the game begins, your two commanders are tracked separately. If you cast one, you won't have to pay an additional {2} the first time you cast the other. A player loses the game after having been dealt 21 combat damage from any one of them, not from both of them combined (although your Background won't usually be a creature anyway)."
+      },
+      {
+       "date": "2022-06-10",
+       "text": "You can choose two commanders that are the same color or colors."
+      }
+     ],
+     "scryfall_oracle_id": "c066f921-e349-45d1-8ec3-0955d10bbf19",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 3
+     },
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 3.0,
+    "color_identity": [
+     "W"
+    ],
+    "colors": [
+     "W"
+    ],
+    "keywords": [
+     "Choose a background"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}{W}",
+    "name": "Lae'zel, Vlaakith's Champion",
+    "oracle_id": "c066f921-e349-45d1-8ec3-0955d10bbf19",
+    "oracle_text": "If you would put one or more counters on a creature or planeswalker you control or on yourself, put that many plus one of each of those kinds of counters on that permanent or player instead.\nChoose a Background (You can have a Background as a second commander.)",
+    "power": "3",
+    "toughness": "3",
+    "type_line": "Legendary Creature — Gith Warrior"
    }
   },
   "Laelia, the Blade Reforged": {

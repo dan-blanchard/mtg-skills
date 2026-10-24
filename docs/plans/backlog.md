@@ -65,45 +65,39 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   cuts share, and the same holds for the flip-quality read the polymorph tune
   wanted. Script: `docs/plans/precon-audit/lane_quality.py` (rerun recipe in
   `docs/plans/precon-audit-2026-10-18.md`).
-  (b) **Lane leftovers.** (Bello's floor is carried since the fourth pass:
-  `animate_makers|you|Artifact>=4`, `Serve.types_cmc_min`; the `animate_artifact`
-  regex lane is retired for `animate_makers` — 24 cards lost the old key with
-  no replacement, by design: 19 Vehicles and 2 artifacts that animate only
-  themselves, 2 copy effects (Saheeli, Sublime Artificer; True Polymorph).)
-  (Alacrian Armory, Hidden Guerrillas and Animate Artifact are bridged by field
-  corrections since 2026-10-19 — see the phase-gap list below.)
-  (`clue_matters` on bare investigate doers and the enchantment-token makers'
-  `enchantments_matter` are fixed in the fourth pass: a `<x>_matters` is a
-  payoff shape — a count, a grant, a watched subject, a sacrifice you pay —
-  never a maker; `clue_matters` 165 → 31, `food_matters` 53 → 69. Three Clue
-  cards now carry no Clue key at all, maker-lane gaps in `counters_voltron.py`:
-  Officious Interrogation (phase parks "investigate X times" in an
-  Unimplemented where-X residue), Curious Inquiry (an Aura granting an
-  investigate trigger — `_resource_token_makers` does not walk granted
-  bodies), In Too Deep.) The superfriends synth arm still fires on protective "creature
-  or planeswalker you control" cards (Angelic Intervention, Kaya's Ghostform,
-  Fey Steed); a general veto would drop Spark Double and Lae'zel. (The eight
-  protective cards phase types no deterrent for are bridged since 2026-10-19 —
-  the phase-gap list below.) The
-  Animation subject types are spelled twice (`signal_specs/core._ANIMATED_TYPES`
-  and the lane's `_ANIMATE_SUBJECT_TYPES`): the spec layer and the lane layer
-  do not import each other. A
-  Clue/Treasure-maker commander (Sophina, Goldspan Dragon) no longer opens an
-  Artifacts avenue from its own text — it opens its typed lane, and the
-  Artifacts serve still counts its tokens as depth. An enchantment-token
-  maker (a Role maker) still emits `enchantments_matter`, the same
-  doer-under-payoff shape the artifact side just lost.
+  (b) **Lane verdicts — don't re-suggest** (the leftovers closed 2026-10-23).
+  The `animate_artifact` regex lane retired for `animate_makers` drops 24
+  cards with no replacement by design: 19 Vehicles, 2 artifacts that animate
+  only themselves, 2 copy effects (Saheeli, Sublime Artificer; True
+  Polymorph). A token maker is a doer — `artifacts_matter|you|token` /
+  `enchantments_matter|you|token` (Roles, Glimmers), never the bare payoff;
+  an artifact or enchantment card keeps the LOW membership-floor key. In Too
+  Deep is no `clue_makers`: the Clue it makes is the enchanted permanent's
+  controller's. The superfriends synth arm stands down on a card naming
+  planeswalkers only as half of a bare "creature or planeswalker" and never
+  their loyalty (`crosswalk.planeswalkers_only_beside_creatures` — Angelic
+  Intervention, Kaya's Ghostform, Fey Steed and six more), so Spark Double
+  (an extra loyalty counter) and Lae'zel (no typed planeswalker filter) keep
+  it.
   (d) **Text-mirror leftovers behind the payoff lanes.** The three `_matters`
-  text mirrors (artifacts / enchantments / the cast arm) run over oracle
-  clauses minus a string match against an animating static's description
-  (`board_and_ramp._non_animation_clauses`) because nothing aligns a clause
-  with the unit phase typed it as; the deeper shape is to run the mirrors over
-  each non-claimed unit's description plus the residue text. Rise and Shine
-  still fires `artifacts_matter|you|` through another arm ("put four +1/+1
-  counters on each artifact that became a creature this way"). (The pair
-  rows read candidates without membership idents since the fourth pass, so a
-  card with both a cast and an enters payoff — Tuvasa the Sunlit, Sai — fires
-  the typed-cheat rows and Sol Ring / Pacifism no longer score as payoffs.)
+  text mirrors (artifacts / enchantments / the cast arm) still run over oracle
+  clauses minus what `board_and_ramp._non_animation_clauses` claims: an
+  animating static's description, and since 2026-10-23 the whole ability
+  holding a one-shot animation of something other than the card itself (Rise
+  and Shine, Alloy Animist, Skilled Animator and eight more lost
+  `artifacts_matter|you|`; a self-animation keeps its ability's text — Iron
+  Man Armor's granted count). Running the mirrors over each non-claimed
+  unit's description plus the residue text instead is not sound yet: no unit
+  carries a keyword line (Affinity for artifacts, Improvise), an ability word
+  (Metalcraft), a Saga chapter's text (its unit reads "Chapter 3"), a modal
+  bullet's header or a spell's additional cost, and 66 cards whose only read is such a line (Frogmite,
+  Galvanic Blast, Age of Ultron, Disruption Protocol) lost the key when
+  measured. That shape needs those lines read off the tree first (the
+  keyword's own types — `ConceptTree.card_keyword_types` — the chapter and
+  mode units). (The pair rows read candidates without membership idents
+  since the fourth pass, so a card with both a cast and an enters payoff —
+  Tuvasa the Sunlit, Sai — fires the typed-cheat rows and Sol Ring / Pacifism
+  no longer score as payoffs.)
   (g) The guide cuts the tuner protects are still 124 — lane carers and doers
   the guides trim, which the upgrade issue reaches only through the deep
   lane's least-played half.

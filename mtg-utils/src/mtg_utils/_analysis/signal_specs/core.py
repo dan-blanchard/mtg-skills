@@ -233,9 +233,9 @@ def _cheat_subject_spec(subj: str) -> SignalSpec:
 
 
 # The animation lane's per-type feeders (``_animate_subject_spec``): the animated
-# card types (``lanes.animate_land_types``), all of them for an animation that
-# names only "a permanent" (subject "").
-_ANIMATED_TYPES = ("artifact", "enchantment", "planeswalker", "battle")
+# card types (``signal_keys.ANIMATE_SUBJECT_TYPES``, the tuple the lane emits),
+# all of them for an animation that names only "a permanent" (subject "").
+_ANIMATED_TYPES = tuple(t.lower() for t in signal_keys.ANIMATE_SUBJECT_TYPES)
 # The highest mana-value floor an animation subject's doer idents spell out: a
 # spec serves every animator of its type, whatever floor it carries (Bello's
 # ``Artifact>=4`` is a doer on a floor-3 animator's avenue). Sixteen is the

@@ -42,12 +42,11 @@ from mtg_utils._card_ir.crosswalk import (
 
 # ── animate_makers ────────────────────────────────────────────────────────────
 
-# The card types an animation can name as its SUBJECT, in emit order: the
-# noncreature permanent types other than Land. A land made a creature is the
-# land-creatures lane (``land_creatures_matter`` / ``land_protection``), never
-# this one; a filter that already names Creature ("target creature becomes an
-# artifact creature") animates nothing.
-_ANIMATE_SUBJECT_TYPES = ("Artifact", "Enchantment", "Planeswalker", "Battle")
+# The card types an animation can name as its SUBJECT are
+# ``signal_keys.ANIMATE_SUBJECT_TYPES`` (the spec layer reads the same tuple). A
+# land made a creature is the land-creatures lane (``land_creatures_matter`` /
+# ``land_protection``), never this one; a filter that already names Creature
+# ("target creature becomes an artifact creature") animates nothing.
 
 
 def _animated_filters(unit: AbilityUnit) -> Iterator[object]:
@@ -120,7 +119,7 @@ def _animate_subjects(filt: object) -> set[tuple[str, int | None]]:
         if sub_types & {"Creature", None} and not cores:
             continue  # a creature or land subtype ("Forests") — not this lane
         named = cores | {t for t in sub_types if t}
-        typed = [t for t in _ANIMATE_SUBJECT_TYPES if t in named]
+        typed = [t for t in signal_keys.ANIMATE_SUBJECT_TYPES if t in named]
         floor = filter_mana_value_floor(arm)
         if typed:
             out.update((t, floor) for t in typed)
@@ -150,7 +149,7 @@ def _animate_makers(tree: ConceptTree) -> list[Signal]:
             if subjects - found and not raw:
                 raw = getattr(unit.node, "description", "") or ""
             found |= subjects
-    order = (*_ANIMATE_SUBJECT_TYPES, "")
+    order = (*signal_keys.ANIMATE_SUBJECT_TYPES, "")
     return [
         Signal(
             signal_keys.ANIMATE_MAKERS,

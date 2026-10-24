@@ -85,6 +85,13 @@ def test_granted_investigate_is_a_clue_maker():
     assert "clue_makers" in _keys("Curious Inquiry")
 
 
+def test_making_the_enchanted_permanent_a_clue_is_not_a_clue_maker():
+    # In Too Deep makes the enchanted permanent a Clue for whoever controls it —
+    # an answer to an opponent's creature or planeswalker, not a Clue of yours
+    # (the maker lane reads a kind conferred on permanents you control).
+    assert "clue_makers" not in _keys("In Too Deep")
+
+
 def test_token_replacement_watching_its_own_kind_is_a_payoff():
     # Xorn adds a Treasure only when you'd create Treasures: it multiplies the
     # deck's Treasure makers, it isn't one.

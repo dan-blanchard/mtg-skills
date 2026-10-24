@@ -1731,17 +1731,31 @@ def _non_animation_clauses(tree: ConceptTree) -> list[str]:
     """The card's kept clauses minus the text of each static that makes its
     objects creatures (CR 613.1d — Bello's "each non-Equipment artifact and
     non-Aura enchantment you control … is a 4/4 Elemental creature", whose "you
-    control" the text mirrors would otherwise read as a payoff). A clause and a
-    static's description are matched by :func:`unclaimed_clauses`."""
-    return unclaimed_clauses(
-        tree,
-        (
-            d
-            for unit in tree.units
-            for d in iter_static_defs(unit.node)
-            if adds_creature_type(d)
-        ),
-    )
+    control" the text mirrors would otherwise read as a payoff), and minus the
+    whole ability holding a one-shot animation of something other than the card
+    itself: phase writes that static's description as its own fragment ("become
+    a 0/0 artifact creature"), so the clause naming the animated set ("Target
+    noncreature artifact you control becomes …" — Rise and Shine, Alloy
+    Animist, Skilled Animator) is claimed through the ability's description
+    instead. A self-animation keeps its ability's text: the artifacts it names
+    there are a cost or a payoff, not the animated set (Bladewheel Chariot's
+    "Tap two other untapped artifacts you control", Iron Man Armor's granted
+    "+1/+1 for each artifact you control"). A clause and a description are
+    matched by :func:`unclaimed_clauses`.
+
+    The mirrors keep reading oracle clauses, not the units' descriptions plus
+    the residue text: no unit carries a keyword line (Affinity for artifacts,
+    Improvise), an ability word (Metalcraft), a Saga chapter's text (its unit
+    reads "Chapter 3"), a modal bullet's header or a spell's additional cost,
+    so 66 cards whose only read is such a line (Frogmite, Galvanic Blast, Age
+    of Ultron, Disruption Protocol) lost the key when measured (2026-10-23)."""
+    claimed: list[object] = []
+    for unit in tree.units:
+        animating = [d for d in iter_static_defs(unit.node) if adds_creature_type(d)]
+        claimed.extend(animating)
+        if any(tag_of(getattr(d, "affected", None)) != "SelfRef" for d in animating):
+            claimed.append(unit.node)
+    return unclaimed_clauses(tree, claimed)
 
 
 def _artifacts_enchantments_matter(tree: ConceptTree) -> list[Signal]:

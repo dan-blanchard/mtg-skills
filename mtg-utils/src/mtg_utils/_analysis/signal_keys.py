@@ -64,6 +64,11 @@ CHEAT_INTO_PLAY: Final = "cheat_into_play"
 # type).
 ANIMATE_MAKERS: Final = "animate_makers"
 _FLOOR_SEP: Final = ">="
+#: The card types an animation can name as its subject, in emit order: the
+#: noncreature permanent types other than Land (a land made a creature is the
+#: land-creatures lane's). The lane emits them; the spec layer's untyped
+#: subject ("a permanent") feeds on all of them.
+ANIMATE_SUBJECT_TYPES: Final = ("Artifact", "Enchantment", "Planeswalker", "Battle")
 
 
 def animate_subject(card_type: str, floor: int | None = None) -> str:
