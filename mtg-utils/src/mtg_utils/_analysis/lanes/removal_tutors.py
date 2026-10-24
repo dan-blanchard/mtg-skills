@@ -5,7 +5,7 @@ crosswalk_signals.py)."""
 from __future__ import annotations
 
 import re
-from collections.abc import Iterator
+from collections.abc import Iterator, Sequence
 
 from mtg_utils._analysis import signal_keys
 from mtg_utils._analysis._subtypes import LAND_SUBTYPES
@@ -1459,6 +1459,7 @@ def removal_edict_answers(
     family: str = "removal",
     *,
     soft: bool = False,
+    trees: Sequence[ConceptTree] | None = None,
 ) -> list[tuple[ConceptNode, frozenset[str]]]:
     """CARD's removal (FAMILY="removal" -> :func:`_removal_answers`, with its
     ``soft`` opt-in) or forced-sacrifice (FAMILY="edict" ->
@@ -1470,10 +1471,14 @@ def removal_edict_answers(
     reads "each opponent … sacrifices" off the oracle — Papalymo Totolymo,
     Variable Solutions), answers with those sacrifices. The served ident is read
     lazily, only for such a card.
-    """
-    from mtg_utils._card_ir.trees import trees_for
 
-    trees = trees_for(card, bulk=card)
+    ``trees`` are the card's trees to walk: its corrected trees by default; a
+    signal-path reader (the job reads) passes its signal trees.
+    """
+    if trees is None:
+        from mtg_utils._card_ir.trees import trees_for
+
+        trees = trees_for(card, bulk=card)
     if family == "removal":
         return [a for tree in trees for a in _removal_answers(tree, soft=soft)]
     split = [_tree_edict_answers(tree) for tree in trees]

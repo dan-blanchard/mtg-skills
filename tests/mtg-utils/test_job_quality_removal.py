@@ -101,3 +101,11 @@ def test_a_double_faced_card_is_priced_by_its_front_face():
     card = _real("Fell the Profane // Fell Mire")
     assert front_mana_cost(card) == "{2}{B}{B}"
     assert not unpriced(card)
+
+
+def test_a_fight_the_synthesis_stage_adds_reads_as_removal():
+    """The read walks the signal trees (``signal_trees_for``), so a clause phase
+    leaves to the tree-synthesis stage reaches it as it reaches the lanes:
+    Tolsimir's Wolves fight a creature you don't control (a fight is each
+    creature dealing damage equal to its power to the other, CR 701.14a)."""
+    assert _score("Tolsimir, Friend to Wolves") is not None

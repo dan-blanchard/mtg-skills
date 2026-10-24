@@ -26,6 +26,7 @@ from mtg_utils._analysis.job_quality._common import (
     unpriced,
 )
 from mtg_utils._analysis.lanes.removal_tutors import removal_edict_answers
+from mtg_utils._analysis.signal_trees import signal_trees_for
 from mtg_utils._card_ir.crosswalk import (
     change_zone_dirs,
     effect_filter,
@@ -36,7 +37,6 @@ from mtg_utils._card_ir.crosswalk import (
     iter_cost_leaves,
     tag_of,
 )
-from mtg_utils._card_ir.trees import trees_for
 
 if TYPE_CHECKING:
     from mtg_utils._card_ir.crosswalk import AbilityUnit, ConceptNode
@@ -122,16 +122,15 @@ def _answers(card: dict) -> list[_Answer]:
     out: list[_Answer] = []
     # The public seam ``twohg_scan`` reads too: it keeps the edicts phase parses
     # with no player named (Papalymo Totolymo), served by the ledger's ident.
-    unit_of = {
-        id(c): u
-        for tree in trees_for(card, bulk=card)
-        for u in tree.units
-        for c in u.effects
-    }
+    trees = signal_trees_for(card, bulk=card)
+    unit_of = {id(c): u for tree in trees for u in tree.units for c in u.effects}
     found = [
-        (c, t, False) for c, t in removal_edict_answers(card, "removal", soft=True)
+        (c, t, False)
+        for c, t in removal_edict_answers(card, "removal", soft=True, trees=trees)
     ]
-    found += [(c, t, True) for c, t in removal_edict_answers(card, "edict")]
+    found += [
+        (c, t, True) for c, t in removal_edict_answers(card, "edict", trees=trees)
+    ]
     for c, types, edict in found:
         if (tag_of(c.node) or "") in MASS_TAGS:
             continue

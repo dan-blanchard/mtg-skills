@@ -98,6 +98,7 @@ from mtg_utils._analysis.job_quality._common import (
 )
 from mtg_utils._analysis.lanes.card_advantage import draw_engine_scope
 from mtg_utils._analysis.roles import role_of
+from mtg_utils._analysis.signal_trees import signal_trees_for
 from mtg_utils._card_ir.crosswalk import (
     ENTERS_EVENTS,
     amount_factor,
@@ -123,7 +124,6 @@ from mtg_utils._card_ir.crosswalk import (
     triggering_player_side,
     watches_itself,
 )
-from mtg_utils._card_ir.trees import trees_for
 from mtg_utils.theme_presets import signal_keys_for
 
 if TYPE_CHECKING:
@@ -425,7 +425,7 @@ def _rate(unit: AbilityUnit, src: _Source) -> float:
 def _sources(card: dict) -> list[_Source]:
     out: list[_Source] = []
     aura = "Aura" in (card.get("type_line") or "")
-    for tree in trees_for(card, bulk=card):
+    for tree in signal_trees_for(card, bulk=card):
         for unit in tree.units:
             draws = [c for c in unit.effects if c.concept == "draw"]
             if not draws and not unit.has_effect("connive"):
@@ -547,7 +547,8 @@ def _ends_itself(card: dict) -> bool:
     """Whether the card carries cumulative upkeep (CR 702.24a): a permanent
     whose upkeep cost climbs every turn until you stop paying and sacrifice it."""
     return any(
-        "CumulativeUpkeep" in tree.card_keywords for tree in trees_for(card, bulk=card)
+        "CumulativeUpkeep" in tree.card_keywords
+        for tree in signal_trees_for(card, bulk=card)
     )
 
 
@@ -694,7 +695,7 @@ def draw_fuel(card: dict) -> str | None:
     ]
     best = max(engines, key=lambda s: _advantage(s) * s.rate, default=None)
     fuel = _source_fuel(best) if best is not None else None
-    if oid and trees_for(card, bulk=card):
+    if oid and signal_trees_for(card, bulk=card):
         _FUEL_MEMO[oid] = fuel
     return fuel
 

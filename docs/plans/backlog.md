@@ -160,23 +160,12 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   the same job. The `removal` preset takes `debuff_makers` whole, so a
   power-only "-1/-0" on the creature Animate Dead returns reads as removal (the
   role, not the read — the read scores it None).
-  (k) **Job-read page depth.** An ordering job reads a 600-card play-rate
-  page (`_JOB_READ_PAGE`); five-colour removal exceeds it, and the blend's
-  percentiles move with page depth — reading the role's whole match set would
-  remove both (it moves the blend's percentiles, so it needs its own precon
-  re-measure; left out of the 2026-10-23 plumbing pass).
   (p) **A `population_shrink` signal key.** The `board-wipe` preset reads its
   population-shrink arm as a `concept` predicate (`lanes.population_shrink`), a
   live per-card tree walk, where its other arms are signal keys the persisted
   signals index serves. A served key (the one-sided / static shrink the
   `mass_removal` key leaves out) would let the preset, and the role, read the
   index alone.
-  (q) **`job_quality` reads raw trees.** The job reads walk `trees_for`, not
-  `signal_trees_for` (the trees with synthesis applied, which every lane
-  reads), so the board-wipe read runs the lanes' own sweep walks
-  (`mass_removal_effects` …) over trees the lanes never see: a fact synthesis
-  adds reaches the signal and the role but not the read. Move the reads onto
-  `signal_trees_for` and re-measure ADR-0060's table.
   (m) **Recall** (`precon-audit/misses.py`, at the largest guide's thirty
   swaps and each precon's own guides' budget, `budgets.json`): 165 of 404
   cuttable guide cuts, 47 of 610 in-scope guide adds (2026-10-20, after theme

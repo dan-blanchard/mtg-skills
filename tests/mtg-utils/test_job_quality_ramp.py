@@ -58,3 +58,22 @@ def test_a_non_ramp_card_and_a_land_are_not_read():
     never ramp (``roles.is_ramp``)."""
     assert job_score(_real("Lightning Bolt"), "ramp") is None
     assert job_score(_real("Command Tower"), "ramp") is None
+
+
+def test_a_land_put_the_synthesis_stage_adds_reads_as_conditional():
+    """The read walks the signal trees, so Bonny Pall's "put a land card from your
+    hand or graveyard onto the battlefield" (a clause phase leaves to the
+    synthesis stage) reaches it: an extra land, at the conditional rate, since a
+    synthesized clause carries no kind or trigger to say how often it repeats."""
+    feats = ramp.features(_real("Bonny Pall, Clearcutter"))
+    assert feats is not None
+    assert feats["extra_land"] == 1.0
+    assert feats["per_turn"] == 0.25
+
+
+def test_the_synthesis_unit_is_no_ability_of_the_card():
+    """Deathrite Shaman's two non-mana abilities are its other abilities; the
+    synthesis unit its signal trees carry is not a third."""
+    feats = ramp.features(_real("Deathrite Shaman"))
+    assert feats is not None
+    assert feats["other_units"] == 2.0

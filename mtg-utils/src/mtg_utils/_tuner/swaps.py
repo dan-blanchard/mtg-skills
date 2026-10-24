@@ -12,6 +12,8 @@ existing search + ranking (ADR-0023).
 
 from __future__ import annotations
 
+import sys
+from bisect import bisect_left
 from collections import Counter
 from collections.abc import Callable, Collection, Mapping, Sequence
 from dataclasses import dataclass
@@ -78,10 +80,12 @@ _DECK_FIT_FLOOR = 0.5
 #: The job a Spine issue fills when it is not its row's role.
 _SPINE_JOBS = {"protection_short": "protection"}
 
-#: How deep an upgrade's search reads when the job has a card read
-#: (``job_quality``): the search pages by play-rate, so a short page would let
-#: popularity pick the candidates the read then orders.
-_JOB_READ_PAGE = 600
+#: An upgrade's search reads the role's whole match set when the job has a card
+#: read (``job_quality``), not a play-rate page: a page let popularity pick the
+#: candidates the read then gates and orders, five-colour removal outran the
+#: 600-card page this replaced, and the blend's percentiles moved with the
+#: page's depth. Deeper than any match set; the search slices its sorted matches.
+_JOB_READ_PAGE = sys.maxsize
 #: The search page an add is ranked from otherwise.
 _PAGE = 150
 
@@ -110,8 +114,10 @@ def _blended_percentiles(
 ) -> dict[str, float]:
     """For the cards ``job``'s read scores: the read's percentile among them plus
     their play-rate percentile — the order an ordering job's candidates take
-    (``JobRead.orders``). Given ``deck`` (its cards' records), the read is the
-    one in that deck (``JobRead.score``'s deck fit)."""
+    (``JobRead.orders``). A percentile is the share of the cards strictly below,
+    so cards that tie share one, whatever order ``cards`` came in. Given
+    ``deck`` (its cards' records), the read is the one in that deck
+    (``JobRead.score``'s deck fit)."""
     read = read_for(job)
     if read is None:
         return {}
@@ -119,12 +125,15 @@ def _blended_percentiles(
     if not scored:
         return {}
     n = len(scored)
-    by_read = sorted(scored, key=lambda cs: cs[1])
-    by_play = sorted(scored, key=lambda cs: -(cs[0].get("edhrec_rank") or 10**9))
-    out = {c.get("name", ""): i / n for i, (c, _s) in enumerate(by_read)}
-    for i, (c, _s) in enumerate(by_play):
-        out[c.get("name", "")] += i / n
-    return out
+    reads = sorted(s for _c, s in scored)
+    plays = sorted(-edhrec_popularity(c) for c, _s in scored)
+    return {
+        c.get("name", ""): (
+            bisect_left(reads, s) + bisect_left(plays, -edhrec_popularity(c))
+        )
+        / n
+        for c, s in scored
+    }
 
 
 def _does_the_job(
@@ -881,7 +890,9 @@ def propose_swaps(
         spec_filter = spec.get("_filter")
         if spec_filter is not None:  # tuner-side precision pass (e.g. reliable-ramp)
             pool = [c for c in pool if spec_filter(c, deck_mana=ctx.deck_mana)]
-        if synergy_first:
+        if synergy_first and job is not None and ctx.playrate:
+            ranked = _job_order(pool, job)
+        elif synergy_first:
             # A candidate must FIT — a synergy score at least ``_FIT_FLOOR`` of
             # the page's best (deck-relative depth, so a box-ticker grazing many
             # incidental lanes doesn't count as fit by breadth alone) — and among
@@ -900,34 +911,9 @@ def propose_swaps(
                 (r["score"]["synergy_score"] for r in scored), default=0.0
             )
 
-            # A job whose card read orders (``JobRead.orders``):
-            # among the cards that fit, the best blend of how well each does
-            # the job (its read's percentile on the page) and how many decks
-            # play it (its play-rate percentile) — the read alone put the
-            # guides' adds lower at the top of the list than play-rate does.
-            read = read_for(job)
-            blend = (
-                _blended_percentiles([r["card"] for r in scored], job, deck_records)
-                if read is not None and read.orders and ctx.playrate
-                else {}
-            )
-
             def fit_key(r: dict) -> tuple:
                 score = r["score"]["synergy_score"]
                 price = extract_price(r["card"]) or 1e9
-                mix = blend.get(r["card"].get("name", ""))
-                if job is not None and ctx.playrate:
-                    # A job upgrade (removal, draw, ramp, a wipe, protection)
-                    # trades a card for one doing the same job, not for one
-                    # fitting the theme: the fit floor kept Swords to
-                    # Plowshares and Path to Exile — the page's most played,
-                    # both guide adds — behind Dragon Tempest in a goad deck.
-                    # Without it 54 guide adds matched across the 25 precons,
-                    # against 47 (thirty swaps, 2026-10-19).
-                    played = _quality(r["card"], playrate=True)
-                    return (-mix if mix is not None else played, -score, price)
-                if mix is not None:
-                    return (score < floor, -mix, -score, price)
                 if not ctx.playrate:
                     return (-score, price)
                 played = _quality(r["card"], playrate=True)
@@ -954,6 +940,57 @@ def propose_swaps(
             )
         _pool_memo[key] = ranked
         return ranked
+
+    def _job_order(pool: list[dict], job: str) -> list[dict]:
+        """An upgrade's candidates in order. A job upgrade (removal, draw, ramp, a
+        wipe, protection) trades a card for one doing the same job, not for one
+        fitting the theme, so no fit floor: the most played first, or for a job
+        whose card read orders (``JobRead.orders``) the best blend of how well
+        each does the job (its read's percentile in the match set) and how many
+        decks play it (its play-rate percentile) — the read alone put the guides'
+        adds lower at the top of the list than play-rate does. The fit floor
+        kept Swords to Plowshares and Path to Exile — the most played, both guide
+        adds — behind Dragon Tempest in a goad deck; without it 54 guide adds
+        matched across the 25 precons, against 47 (thirty swaps, 2026-10-19).
+
+        Synergy, then price, then the synergy ranking's own order
+        (``rank_candidates``) breaks a tie. Synergy is scored only for the cards
+        a tie leaves level: the match set runs to thousands of cards for a
+        five-colour job, and synergy decides nothing else here."""
+        read = read_for(job)
+        blend = (
+            _blended_percentiles(pool, job, deck_records)
+            if read is not None and read.orders
+            else {}
+        )
+
+        def lead(card: dict) -> float:
+            mix = blend.get(card.get("name", ""))
+            return -mix if mix is not None else _quality(card, playrate=True)
+
+        leads = Counter(lead(c) for c in pool)
+        tied = [c for c in pool if leads[lead(c)] > 1]
+        synergy = {
+            id(r["card"]): (-r["score"]["synergy_score"], i)
+            for i, r in enumerate(
+                rank_candidates(
+                    tied,
+                    active_signals=ctx.deck_signals,
+                    focus_sets=focus_sets,
+                    deck_tribes=deck_tribes,
+                    deck_mana=ctx.deck_mana,
+                )
+            )
+        }
+        return sorted(
+            pool,
+            key=lambda c: (
+                lead(c),
+                synergy.get(id(c), (0.0, 0))[0],
+                extract_price(c) or 1e9,
+                synergy.get(id(c), (0.0, 0))[1],
+            ),
+        )
 
     def _viable_served_names(cards: Sequence[dict]) -> set[str]:
         """Names among ``cards`` that serve ≥1 of the deck's VIABLE avenues —
@@ -1152,9 +1189,9 @@ def propose_swaps(
                     nonland_only=True,
                     upgrade_of=cut,
                     job=source.job,
-                    # A job with a card read is searched deeper than the
-                    # most-played page, so the read's gate (and, for an
-                    # ordering job, its blend) reaches past popularity.
+                    # A job with a card read reads its whole match set, so
+                    # the read's gate (and, for an ordering job, its blend)
+                    # reaches past popularity.
                     limit=_JOB_READ_PAGE if job_read else _PAGE,
                 )
                 if picked is None:

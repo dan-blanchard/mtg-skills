@@ -7,7 +7,9 @@ so the tuner can land on the upgrade guides' cards from first principles.
 Play-rate is the yardstick each read is measured against, never an input, and a
 read replaces it only where it predicts the guides' picks as well.
 
-One module per job, each a small set of features off phase's concept trees and a
+One module per job, each a small set of features off the card's signal trees
+(``signal_trees_for`` — the trees the lanes read, so a clause the tree-synthesis
+stage adds reaches the read as it reaches the signal and the role) and a
 hand-rounded weight per feature in units of log10 play-rate (fitted by ridge
 regression on the commander-legal pool, 2026-10-19, kept only where a feature
 reads the card correctly). A card the read can't see — none of that job's shape —
@@ -37,7 +39,7 @@ from mtg_utils._analysis.job_quality import (
     ramp,
     removal,
 )
-from mtg_utils._card_ir.trees import trees_for
+from mtg_utils._analysis.signal_trees import signal_trees_for
 
 
 @dataclass(frozen=True)
@@ -89,13 +91,13 @@ class JobRead:
             if feats is None
             else round(sum(self.weights[k] * v for k, v in feats.items()), 3)
         )
-        if oid and (feats is not None or trees_for(card, bulk=card)):
+        if oid and (feats is not None or signal_trees_for(card, bulk=card)):
             _SCORE_MEMO[key] = score  # never a None read before phase data is there
         return score
 
 
 #: (job, oracle_id) -> score: a read walks every unit of every face, and an
-#: upgrade pass asks it for each candidate of a several-hundred-card page.
+#: upgrade pass asks it for each card of a job's match set (thousands).
 _SCORE_MEMO: dict[tuple[str, str], float | None] = {}
 
 
@@ -109,8 +111,8 @@ _SCORE_MEMO: dict[tuple[str, str], float | None] = {}
 #: Dan's call (2026-10-19) despite trailing: its picks (Flawless Maneuver,
 #: Deflecting Swat, Teferi's Protection over Swiftfoot Boots) read right to a deck
 #: builder, and the gap is small. The read alone did worse than play-rate for
-#: every job. (Measured over the whole identity, not the tuner's 600-card page
-#: above its fit floor.)
+#: every job. (Measured over the whole identity the read scores; the tuner
+#: ranks the job's whole match set in that identity.)
 READS: dict[str, JobRead] = {
     r.job: r
     for r in (

@@ -2,7 +2,8 @@
 tree-synthesis stage (ADR-0047 — the second product of the one tree owner).
 
 ``mtg_utils._card_ir.trees.trees_for`` is the corrected tree every structural reader
-gets. The lanes and the theme presets read one stage further: ADR-0037/0038
+gets. The lanes, the theme presets and the job reads (``job_quality``, which
+run the lanes' own walks) read one stage further: ADR-0037/0038
 tree synthesis appends the reference arms' synthetic concept-nodes (one synthetic
 unit per tree, never touching a phase node). That stage is applied HERE, once per
 oracle_id, and nowhere else — a lane or a preset never re-applies a stage, and a

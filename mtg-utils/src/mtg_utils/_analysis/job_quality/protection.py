@@ -46,6 +46,7 @@ from mtg_utils._analysis.job_quality._common import (
     one_unit,
     unit_kind,
 )
+from mtg_utils._analysis.signal_trees import signal_trees_for
 from mtg_utils._card_ir.crosswalk import (
     attack_deterrent,
     filter_controller,
@@ -63,7 +64,7 @@ from mtg_utils._card_ir.crosswalk import (
     tag_of,
     unit_keyword_grants,
 )
-from mtg_utils._card_ir.trees import phase_records_for, trees_for
+from mtg_utils._card_ir.trees import phase_records_for
 
 if TYPE_CHECKING:
     from mtg_utils._card_ir.crosswalk import AbilityUnit, ConceptTree
@@ -402,7 +403,7 @@ def _read_unit(tree: ConceptTree, u: AbilityUnit) -> _Unit | None:
 def _units(card: dict) -> list[_Unit]:
     """Every protective ability of ``card`` (front face only for a transforming
     card), each carrying the card's cheapest equip cost."""
-    trees = list(trees_for(card, bulk=card))
+    trees = list(signal_trees_for(card, bulk=card))
     if card.get("layout") in _BACK_HIDDEN and len(trees) > 1:
         front = (card.get("name") or "").split(" // ")[0]
         trees = [t for t in trees if t.name == front] or trees[:1]

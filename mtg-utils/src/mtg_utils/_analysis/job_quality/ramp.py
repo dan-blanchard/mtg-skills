@@ -38,6 +38,7 @@ from mtg_utils._analysis.lanes._shared import YOU_EACH
 from mtg_utils._analysis.lanes.board_and_ramp import granted_mana_defs
 from mtg_utils._analysis.lanes.counters_voltron import TOKEN_OWNER_IS_YOU
 from mtg_utils._analysis.roles import is_ramp
+from mtg_utils._analysis.signal_trees import signal_trees_for
 from mtg_utils._analysis.tree_synthesis.mana_ramp_lands import (
     has_structural_extra_land_drop,
 )
@@ -62,7 +63,6 @@ from mtg_utils._card_ir.crosswalk.reads import (
     unit_own_mana,
     watches_itself,
 )
-from mtg_utils._card_ir.trees import trees_for
 from mtg_utils.card_classify import color_sources
 from mtg_utils.theme_presets import signal_keys_for
 
@@ -210,6 +210,10 @@ def _unit_class(
         k = "now"  # a spell resolves once
     elif unit.origin == "trigger":
         k = _trigger_class(unit)
+    elif unit.origin == "synth":
+        # A synthesized clause carries no kind, cost or trigger of its own, so
+        # how often it repeats is unknown: read as conditional.
+        k = "cond"
     else:
         k = "turn"
     if k == "turn" and (
@@ -240,7 +244,9 @@ def _unit_ramps(tree: ConceptTree, unit: AbilityUnit) -> bool:
 
 
 def _effectful(unit: AbilityUnit) -> bool:
-    if unit.origin == "keyword":
+    # The synthesis unit is no ability of the card's: it holds the clauses phase
+    # left unparsed inside the card's own abilities (``signal_trees``).
+    if unit.origin in ("keyword", "synth"):
         return False
     if unit.origin == "replacement":
         return not all(tag_of(c.node) in _TRIVIAL_REPLACEMENTS for c in unit.effects)
@@ -386,7 +392,7 @@ def _granted(r: _Read, tree: ConceptTree, unit: AbilityUnit, *, sc: bool) -> Non
 
 def _read(card: dict) -> _Read:
     r = _Read()
-    for tree in trees_for(card, bulk=card):
+    for tree in signal_trees_for(card, bulk=card):
         sc = tree.is_type("Instant") or tree.is_type("Sorcery")
         for unit in tree.units:
             if _effectful(unit) and not _unit_ramps(tree, unit):
@@ -402,8 +408,6 @@ def _read(card: dict) -> _Read:
             _lands(r, tree, unit, sc=sc)
             _granted(r, tree, unit, sc=sc)
     r.turn += r.tap_best
-    if not r.extra_land and "extra_land_drop" in signal_keys_for(card):
-        r.extra_land = 0.25  # a land put phase leaves to the synthesis stage
     return r
 
 
@@ -437,7 +441,11 @@ def features(card: dict) -> dict[str, float] | None:
     keys = signal_keys_for(card)
     if "mana_amplifier" in keys:
         turn = max(turn, 2.0)  # a doubler: at least two more a turn
-    gates = [g for tree in trees_for(card, bulk=card) for g in mana_ability_gates(tree)]
+    gates = [
+        g
+        for tree in signal_trees_for(card, bulk=card)
+        for g in mana_ability_gates(tree)
+    ]
     # Halved: only when a condition holds (Mox Opal, CR 602.5: a prohibited
     # activation can't begin), only on some spells (CR 106.6), or shared with
     # every player (Magus of the Vineyard, a Treasure each opponent gets too).

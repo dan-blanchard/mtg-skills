@@ -32,10 +32,12 @@ is measured against, never an input to it.
   for protection (top thirty 24 vs 29), removal and ramp. Removal and ramp gate
   only; protection orders by Dan's call — its picks (Flawless Maneuver, Deflecting
   Swat over Swiftfoot Boots) read right to a deck builder and the gap is small. These
-  counts rank the whole color identity, not the tuner's 600-card page above its
-  fit floor — an approximation of the shipped order.
-- **The upgrade page reads deeper** (`_JOB_READ_PAGE`, 600 cards) when the job has a
-  read, so the gate and blend reach past the 150 most-played matches.
+  counts rank the whole color identity the read scores; the tuner ranks the job's
+  match set in that identity.
+- **The upgrade search reads the job's whole match set** (`_JOB_READ_PAGE`) when the
+  job has a read, so the gate and blend reach past the most-played matches and the
+  blend's percentiles don't move with a page's depth (a 600-card page until
+  2026-10-23).
 
 Measured on the 25 precons (eighth pass, `docs/plans/precon-audit/job_reads.py`):
 
@@ -50,7 +52,9 @@ Measured on the 25 precons (eighth pass, `docs/plans/precon-audit/job_reads.py`)
 The board-wipe row's production column was re-measured on 2026-10-23, after the read
 took its sweeps from the lanes (one-sided and static shrinks counted, a graveyard
 exile no longer read as a sweep): 803 cards, 0.49 / 0.79 vs 0.92, unchanged. Its fit
-column is the original fit's.
+column is the original fit's. Every production row was re-measured again the same
+day, after the reads moved onto the signal trees (the amendment below): unchanged at
+two decimals; removal scores 6,595 cards (6,592 before) and 125 guide adds (124).
 
 No read beats play-rate on its own; the gate and the blend are where each earns
 its place (the top-of-list counts above).
@@ -93,3 +97,24 @@ cumulative upkeep (CR 702.24a: its upkeep cost climbs every turn until it is
 sacrificed) gets none of a lasting engine's credit in the card-draw read
 (`card_draw._ends_itself`), only its draw rate. Mystic Remora read above Rhystic
 Study; it now reads below Phyrexian Arena.
+
+**Amendment (2026-10-23): signal trees and the whole match set.** The reads walk
+the card's signal trees (`signal_trees_for`), the trees the lanes read, not the
+corrected trees: the board-wipe read runs the lanes' own sweep walks, and a clause
+the tree-synthesis stage adds (ADR-0047) now reaches the read as it reaches the
+signal and the role. Over the commander-legal pool three cards change: the fights
+synthesis adds make Tolsimir, Friend to Wolves, Prepare // Fight and Mythos of
+Illuna removal. The synthesis unit is no ability of the card's (ramp's count of a
+card's other abilities skips it), and a synthesized clause carries no kind or
+trigger, so ramp reads its extra land at the conditional rate, the rate its
+signal-key fallback gave, which the walk now replaces. The upgrade search reads the
+job's whole match set (6,056 removal cards for a five-colour deck; the most-played
+600 before). A blend percentile is now the share of cards strictly below, so tied
+cards share one; before, a tie took the synergy ranking's order. Synergy is scored
+only for the candidates a tie leaves level, so the deeper search costs about 2-3 s
+on a five-colour tune. On the 25 precons: 417 swaps, 159 cuts and 39 adds matching
+a guide (420 / 161 / 40). Fae Dominion takes Kindred Discovery, a guide add, over
+Skullclamp, and the dearer draw add leaves Spellstutter Sprite, another, over
+budget; Sultai Arisen's draw add becomes Vanquisher's Banner ($2.94, not Morbid
+Opportunist's $0.22), and its last four upgrades, two of them guide cuts, no longer
+fit its $132.

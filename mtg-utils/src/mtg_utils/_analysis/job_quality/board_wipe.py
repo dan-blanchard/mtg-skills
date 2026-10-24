@@ -51,6 +51,7 @@ from mtg_utils._analysis.lanes.mana_and_wipes import (
     mass_shrink_effects,
     static_population_shrinks,
 )
+from mtg_utils._analysis.signal_trees import signal_trees_for
 from mtg_utils._card_ir.crosswalk import (
     SWEPT_PERMANENT_TYPES,
     affected_tag,
@@ -70,7 +71,6 @@ from mtg_utils._card_ir.crosswalk import (
     static_affected,
     tag_of,
 )
-from mtg_utils._card_ir.trees import trees_for
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -435,7 +435,7 @@ def _static_sweep(shrinks: Sequence[tuple[AbilityUnit, object]]) -> _Sweep:
 
 
 def _sweeps(card: dict) -> list[_Sweep]:
-    trees = list(trees_for(card, bulk=card))
+    trees = list(signal_trees_for(card, bulk=card))
     walker = "Planeswalker" in (card.get("type_line") or "")
     out = [s for tree in trees for s in _tree_sweeps(tree, walker=walker)]
     if not out:
@@ -454,7 +454,7 @@ def _lethal(s: _Sweep) -> bool:
 def _overload_cost(card: dict) -> int | None:
     """The overload cost's mana value, X as 0 (CR 202.3e) — the cost the sweep is
     cast for."""
-    for tree in trees_for(card, bulk=card):
+    for tree in signal_trees_for(card, bulk=card):
         for alt in tree.card_alt_costs:
             if alt.kind == "overload":
                 return mana_value_of_cost(alt.cost)

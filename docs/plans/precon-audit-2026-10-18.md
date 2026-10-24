@@ -584,6 +584,20 @@ rather than which themes win should be. Abzan Armor now cuts Protector of the
 Wastes, a guide cut; Animated Army trades Swiftfoot Boots, a guide add, for Sword
 of Feast and Famine.
 
+### The job reads on signal trees, over the whole match set (2026-10-23)
+
+The job reads walk the signal trees the lanes read, and an upgrade with a read
+searches the job's whole match set rather than its 600 most-played matches
+(ADR-0060's 2026-10-23 amendment). Over the 25 precons at their own budgets:
+**417 swaps, 159 cuts and 39 adds matching** (420 / 161 / 40 before). The signal
+trees alone move no swap (three fights become removal reads). The whole match set
+and the tie-sharing blend change swaps in nine precons; the guide-matched changes
+are Fae Dominion's (Kindred Discovery in, Skullclamp and Spellstutter Sprite out:
+the dearer draw add leaves Spellstutter over budget) and Sultai Arisen's (its draw
+add becomes Vanquisher's Banner at $2.94, and the four upgrades after it, two of
+them guide cuts, no longer fit $132). Twenty guide adds the 600-card page never
+held now sit on a page, outranked or gated.
+
 ## What is left
 
 `docs/plans/backlog.md`, "What the polymorph tune and the 25-precon audit still

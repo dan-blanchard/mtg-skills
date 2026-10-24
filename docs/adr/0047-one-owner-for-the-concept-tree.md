@@ -28,8 +28,8 @@ tuner modules import deck-forge internals.
 - **Two named products.** `trees_for` returns **corrected trees** — what every structural
   reader gets, the six former raw readers included. `_analysis.signal_trees.
   signal_trees_for` layers the signals-only tree-synthesis stage on top, memoized per
-  oracle_id and validated against the owner's tuple by identity, and is what the lanes
-  and the theme-preset concept predicates read. `as_signal_tree(tree)` is the same two
+  oracle_id and validated against the owner's tuple by identity, and is what the lanes,
+  the theme-preset concept predicates and the job reads (ADR-0060) read. `as_signal_tree(tree)` is the same two
   stages for a caller holding a tree it built itself (tests over `build_concept_tree`;
   ident provenance's single-unit views). No lane, preset or reader re-applies a stage.
 - **`tree_synthesis` lives in `_analysis`, beside the lanes (ADR-0050 moved both out of `_deck_forge`).** It reads lane vocabulary (`text_reads`,

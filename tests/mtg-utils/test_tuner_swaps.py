@@ -1909,6 +1909,44 @@ def test_an_ordering_read_blends_with_play_rate():
     assert _blended_percentiles(cards, None) == {}
 
 
+def test_an_upgrade_reads_its_jobs_whole_match_set():
+    """A job with a card read searches the role's whole match set, not a
+    play-rate page: an upgrade that sits past the 600 more-played matches doing
+    no job of the cut's is still found."""
+    murder = _real_cc("Murder", "spine", roles=["interaction"], edhrec_rank=8000)
+    fillers = [
+        {
+            "name": f"Filler Beast {i}",
+            "type_line": "Creature",
+            "cmc": 2.0,
+            "edhrec_rank": i + 1,
+            "prices": {"usd": "1.00"},
+        }
+        for i in range(700)
+    ]
+    out = _swaps_for_issue_dicts(
+        [murder],
+        [{"kind": "upgrade", "severity": 1, "count": 1}],
+        _upgrade_ctx([murder], [*fillers, _played("Swords to Plowshares", 701)]),
+    )
+    assert [s["add"]["name"] for s in out["swaps"]] == ["Swords to Plowshares"]
+
+
+def test_cards_that_tie_share_a_blend_whatever_order_they_come_in():
+    """A percentile is the share of the cards strictly below, so two cards the
+    read scores alike and as many decks play (Swords to Plowshares and Path to
+    Exile) blend alike, and the input order — the search's, or the synergy
+    ranking's — moves no card's blend."""
+    cards = [
+        _played("Murder", 900),
+        _played("Swords to Plowshares", 40),
+        _played("Path to Exile", 40),
+    ]
+    mix = _blended_percentiles(cards, "interaction")
+    assert mix["Swords to Plowshares"] == mix["Path to Exile"] > mix["Murder"]
+    assert _blended_percentiles(cards[::-1], "interaction") == mix
+
+
 def test_an_upgrade_costs_no_more_mana_value_band():
     """A two-mana sweep is not upgraded to a four-mana one, however played —
     nor a cheap card on the main theme (no job) to a costlier band."""
