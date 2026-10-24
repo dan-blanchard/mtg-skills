@@ -63,20 +63,25 @@ def test_a_self_animation_keeps_the_payoff_it_grants():
 
 
 def _tree_only_payoffs(name: str) -> set[str]:
-    """The type-payoff keys the lane reads off the card's tree alone: its oracle
-    blanked, so the text mirrors read nothing."""
+    """The type-payoff keys the lane reads off the card's tree alone: the text
+    mirrors read nothing (no node text, no oracle)."""
     from dataclasses import replace
+    from unittest import mock
 
-    from mtg_utils._analysis.lanes import _artifacts_enchantments_matter
+    from mtg_utils._analysis.lanes import (
+        _artifacts_enchantments_matter,
+        board_and_ramp,
+    )
     from mtg_utils._analysis.signal_trees import signal_trees_for
 
     test_signals(name)  # seeds the snapshot's trees (CI-safe)
-    return {
-        s.key
-        for tree in signal_trees_for(test_card(name))
-        for s in _artifacts_enchantments_matter(replace(tree, oracle=""))
-        if s.subject == ""
-    }
+    with mock.patch.object(board_and_ramp, "_non_animation_texts", return_value=[]):
+        return {
+            s.key
+            for tree in signal_trees_for(test_card(name))
+            for s in _artifacts_enchantments_matter(replace(tree, oracle=""))
+            if s.subject == ""
+        }
 
 
 @pytest.mark.parametrize(
@@ -89,6 +94,28 @@ def _tree_only_payoffs(name: str) -> set[str]:
         # "As an additional cost to cast this spell, tap an untapped artifact you
         # control or pay {1}" (an additional cost, CR 118.8)
         ("Disruption Protocol", "artifacts_matter"),
+        # "You may pay {3}{U} and tap an untapped artifact you control rather
+        # than pay this spell's mana cost" (an alternative cost, CR 118.9)
+        ("Zahid, Djinn of the Lamp", "artifacts_matter"),
+        # Saga chapters, whose unit text phase writes as "Chapter N": a one-shot
+        # grant over your artifact creatures, a put of an artifact card from
+        # your hand, a tap of your artifacts, an exile of your artifact as the
+        # price of a search
+        ("Age of Ultron", "artifacts_matter"),
+        ("Origin of Iron Man", "artifacts_matter"),
+        ("Yotia Declares War", "artifacts_matter"),
+        ("Fugitive of the Judoon", "artifacts_matter"),
+        # a trigger's mode: "Target artifact creature you control gains flying
+        # and lifelink until end of turn"
+        ("Venser, Corpse Puppet", "artifacts_matter"),
+        # "If you control an artifact and an enchantment as you cast this
+        # spell, you may choose both instead" (the modal header, CR 700.2)
+        ("Soul Transfer", "artifacts_matter"),
+        ("Soul Transfer", "enchantments_matter"),
+        ("Hardlight Containment", "artifacts_matter"),  # Enchant artifact you control
+        # "Whenever a creature or enchantment you control enters this turn"
+        # (a delayed trigger, CR 603.7a)
+        ("Rite of Harmony", "enchantments_matter"),
     ],
 )
 def test_keyword_and_tap_cost_payoffs_read_off_the_tree(name, key):
@@ -101,10 +128,34 @@ def test_keyword_and_tap_cost_payoffs_read_off_the_tree(name, key):
         "Banquet Guests",  # affinity for Food: Food's own payoff
         "Citanul Stalwart",  # "Tap an untapped artifact or creature you control"
         "Warlord's Elite",  # "tap two untapped artifacts, creatures, and/or lands"
+        # "Exile two target artifacts, creatures, and/or lands you control"
+        "Ghostly Flicker",
+        "Show and Tell",  # each player puts a card from their own hand
+        # "Target artifact or creature you control gains protection …"
+        "Apostle's Blessing",
+        # "target creature card in your graveyard that's an artifact … gains
+        # escape": a graveyard card, no board of artifacts
+        "Desdemona, Freedom's Edge",
     ],
 )
 def test_no_artifact_payoff_where_another_type_pays(name):
     assert "artifacts_matter" not in _tree_only_payoffs(name)
+
+
+def test_the_text_mirrors_read_node_text_not_oracle():
+    # Galvanic Blast's metalcraft rider is nested text phase carries on a node:
+    # the mirrors read it with the oracle blanked.
+    from dataclasses import replace
+
+    from mtg_utils._analysis.lanes import _artifacts_enchantments_matter
+    from mtg_utils._analysis.signal_trees import signal_trees_for
+
+    test_signals("Galvanic Blast")  # seeds the snapshot's trees (CI-safe)
+    assert any(
+        s.key == "artifacts_matter"
+        for tree in signal_trees_for(test_card("Galvanic Blast"))
+        for s in _artifacts_enchantments_matter(replace(tree, oracle=""))
+    )
 
 
 def test_resource_token_maker_keeps_its_own_lane():

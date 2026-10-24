@@ -5,7 +5,7 @@ go-wide, spellcast) (split from crosswalk_signals.py)."""
 from __future__ import annotations
 
 import re
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from dataclasses import replace
 
 from mtg_utils._analysis._subtypes import (
@@ -24,7 +24,6 @@ from mtg_utils._analysis.lanes._shared import (
     _sac_is_edict,
     is_unserved_artifact_kind,
     typed_token_payoff_signals,
-    unclaimed_clauses,
 )
 from mtg_utils._analysis.lanes.counters_voltron import TOKEN_YOURS_SIDES
 from mtg_utils._analysis.lanes.mana_and_wipes import _anthem_static
@@ -78,8 +77,12 @@ from mtg_utils._card_ir.crosswalk import (
     in_uncertain_branch,
     iter_condition_sites,
     iter_cost_leaves,
+    iter_deep_target_grants,
+    iter_delayed_trigger_condition_defs,
+    iter_mod_sites,
     iter_nested_granted_effect_concepts,
     iter_static_defs,
+    iter_threaded_target_statics,
     iter_typed_nodes,
     land_searches,
     or_arms,
@@ -90,6 +93,7 @@ from mtg_utils._card_ir.crosswalk import (
     token_creator_side,
     trigger_caster_scope,
     trigger_counter_filter,
+    trigger_def_event,
     trigger_subject_scope,
 )
 from mtg_utils._card_ir.crosswalk.reads import names_attached_object, strips_abilities
@@ -1563,19 +1567,25 @@ def _condition_population_filters(tree: ConceptTree) -> tuple[object, ...]:
     if cached is not None:
         return cached
     out: list[object] = []
-    for unit in tree.units:
-        for site in iter_condition_sites(unit.node):
-            for cond in _condition_leaves(site):
-                tag = tag_of(cond)
-                if tag in ("IsPresent", "ControlsType"):
-                    out.append(getattr(cond, "filter", None))
-                elif tag in ("QuantityComparison", "QuantityCheck"):
-                    lhs = getattr(cond, "lhs", None)
-                    if tag_of(lhs) != "Ref":
-                        continue
-                    qty = getattr(lhs, "qty", None)
-                    if tag_of(qty) in ("ObjectCount", "ZoneChangeCountThisTurn"):
-                        out.append(getattr(qty, "filter", None))
+    # A modal spell's "you may choose both instead" gate rides the card root
+    # (``ConceptTree.card_modal_conditions`` — Soul Transfer's "If you control
+    # an artifact and an enchantment as you cast this spell").
+    sites = [
+        *(site for unit in tree.units for site in iter_condition_sites(unit.node)),
+        *tree.card_modal_conditions,
+    ]
+    for site in sites:
+        for cond in _condition_leaves(site):
+            tag = tag_of(cond)
+            if tag in ("IsPresent", "ControlsType"):
+                out.append(getattr(cond, "filter", None))
+            elif tag in ("QuantityComparison", "QuantityCheck"):
+                lhs = getattr(cond, "lhs", None)
+                if tag_of(lhs) != "Ref":
+                    continue
+                qty = getattr(lhs, "qty", None)
+                if tag_of(qty) in ("ObjectCount", "ZoneChangeCountThisTurn"):
+                    out.append(getattr(qty, "filter", None))
     result = tuple(out)
     object.__setattr__(tree, _CONDITION_FILTERS_CACHE_ATTR, result)
     return result
@@ -1714,40 +1724,72 @@ def _type_recursion_lanes(filt: object) -> list[str]:
     return []
 
 
-def _non_animation_clauses(tree: ConceptTree) -> list[str]:
-    """The card's kept clauses minus the text of each static that makes its
+def _every_arm_lanes(
+    filt: object, lanes_of: Callable[[object], list[str]] = _typed_matters_lanes
+) -> list[str]:
+    """The lanes ``lanes_of`` reads off EVERY alternative an ``Or`` filter
+    lists (:func:`or_arms`; a plain filter is its one arm). A choice of types
+    ("target artifact or creature you control" — Shields Up!; "artifacts,
+    creatures, and/or lands" — Ghostly Flicker) is served without the type, so
+    only a type every alternative names is the card's care."""
+    per_arm = [lanes_of(a) for a in or_arms(filt)]
+    if not per_arm:
+        return []
+    return [lane for lane in per_arm[0] if all(lane in arm for arm in per_arm)]
+
+
+# The modifications a grant-site payoff arm reads: a pump, a set P/T and a
+# keyword grant (``crosswalk.core._MOD_CONCEPTS``' pump / set_pt /
+# grant_keyword), never an animation's ``AddType``.
+_MOD_PAYOFF_TAGS: frozenset[str] = frozenset(
+    {"AddPower", "AddToughness", "SetPower", "SetToughness", "AddKeyword"}
+)
+
+
+def _non_animation_texts(tree: ConceptTree) -> list[str]:
+    """The text phase carries on the card's nodes, for the ``_matters`` text
+    mirrors: every description in each ability unit (nested ones included —
+    Galvanic Blast's metalcraft rider, a trigger's modal bullets) plus the
+    root's mode text, minus what an animation claims. A static that makes its
     objects creatures (CR 613.1d — Bello's "each non-Equipment artifact and
     non-Aura enchantment you control … is a 4/4 Elemental creature", whose "you
-    control" the text mirrors would otherwise read as a payoff), and minus the
-    whole ability holding a one-shot animation of something other than the card
-    itself: phase writes that static's description as its own fragment ("become
-    a 0/0 artifact creature"), so the clause naming the animated set ("Target
-    noncreature artifact you control becomes …" — Rise and Shine, Alloy
-    Animist, Skilled Animator) is claimed through the ability's description
-    instead. A self-animation keeps its ability's text: the artifacts it names
-    there are a cost or a payoff, not the animated set (Bladewheel Chariot's
-    "Tap two other untapped artifacts you control", Iron Man Armor's granted
-    "+1/+1 for each artifact you control"). A clause and a description are
-    matched by :func:`unclaimed_clauses`.
+    control" the mirrors would otherwise read as a payoff) drops its own
+    description; an ability holding a one-shot animation of something other
+    than the card itself drops whole, since the animated set is named by the
+    effect's target, not the animating fragment ("Target noncreature artifact
+    you control becomes …" — Rise and Shine, Alloy Animist, Skilled Animator).
+    A self-animation keeps its ability's text: the artifacts it names there are
+    a cost or a payoff, not the animated set (Bladewheel Chariot's "Tap two
+    other untapped artifacts you control", Iron Man Armor's granted "+1/+1 for
+    each artifact you control").
 
-    The mirrors keep reading oracle clauses, not every description in the
-    unclaimed units (nested ones included — Galvanic Blast's metalcraft rider)
-    plus the root's mode text: measured 2026-10-24 with the affinity, improvise
-    and tap-cost payoffs read off the tree, that shape still drops 10 real
-    payoffs whose only read is text phase leaves off every node — a Saga
-    chapter's (Age of Ultron, Origin of Iron Man, Yotia Declares War, Fugitive
-    of the Judoon: the unit reads "Chapter 3"), a trigger's bullets (Venser,
-    Corpse Puppet), a modal header's condition (Soul Transfer), an alternative
-    cost (Zahid), "Enchant artifact you control" (Hardlight Containment), a
-    delayed trigger (Rite of Harmony), and a condition phase drops (Platinum
-    Angel Avatar)."""
-    claimed: list[object] = []
+    Text no node carries is read off the tree by the lane's typed arms instead
+    (2026-10-24): a Saga chapter's (phase's unit reads "Chapter 3") grant, cheat,
+    tap or exile, a modal header's condition (``card_modal_conditions``), an
+    alternative cost's tap (``casting_options``), the Enchant keyword's
+    controller (``card_enchant_filter``) and a delayed trigger's watcher.
+
+    A text-only tree (``ConceptTree.is_text_only``: a face phase has no record
+    for, ADR-0038 W2c) has no node text, so its oracle clauses are read."""
+    if tree.is_text_only:
+        return _clauses(_kept(tree))
+    out: list[str] = []
     for unit in tree.units:
         animating = [d for d in iter_static_defs(unit.node) if adds_creature_type(d)]
-        claimed.extend(animating)
         if any(tag_of(getattr(d, "affected", None)) != "SelfRef" for d in animating):
-            claimed.append(unit.node)
-    return unclaimed_clauses(tree, claimed)
+            continue
+        skip = {id(d) for d in animating}
+        for node in iter_typed_nodes(unit.node):
+            if id(node) in skip:
+                continue
+            desc = getattr(node, "description", None)
+            if isinstance(desc, str) and desc:
+                out.append(desc)
+            modes = getattr(node, "mode_descriptions", None)
+            if isinstance(modes, list):
+                out.extend(d for d in modes if isinstance(d, str))
+    out.extend(tree.card_modal_mode_descriptions)
+    return out
 
 
 def _artifacts_enchantments_matter(tree: ConceptTree) -> list[Signal]:
@@ -1900,6 +1942,24 @@ def _artifacts_enchantments_matter(tree: ConceptTree) -> list[Signal]:
             )
             if gy_recursion or bf_library_bounce:
                 out.extend(_type_recursion_lanes(effect_filter(node)))
+            # Putting an artifact / enchantment card from your own hand onto
+            # the battlefield (Origin of Iron Man's chapter III) is the same
+            # type-restricted cheat as a dig's put, from a different hidden
+            # zone; the tutors' no-subtype gate holds. A put any player makes
+            # (Show and Tell) or an opponent makes (Tempting Wurm) is no
+            # care of yours.
+            if origin == "Hand" and dest == "Battlefield":
+                sub = effect_filter(node)
+                if filter_controller(sub) == "You" and not filter_subtypes(sub):
+                    out.extend(_every_arm_lanes(sub))
+            # Exiling a permanent you control as the price of an effect ("You
+            # may exile a Human you control and an artifact you control. If you
+            # do, …" — Fugitive of the Judoon's chapter III) spends your own
+            # artifact the way the sacrifice arms below do.
+            if dest == "Exile" and origin in (None, "Battlefield"):
+                sub = effect_filter(node)
+                if filter_controller(sub) == "You":
+                    out.extend(_every_arm_lanes(sub))
         # The library-TOP/BOTTOM sibling of the same recursion shape
         # ("put target artifact card from a graveyard on the bottom/top of
         # its owner's library" — Keeper of the Cadence, Dukhara Scavenger)
@@ -1999,35 +2059,67 @@ def _artifacts_enchantments_matter(tree: ConceptTree) -> list[Signal]:
             filt = getattr(paid.leaf, "filter", None)
             if filter_controller(filt) not in (None, "You"):
                 continue
-            per_arm = [
-                _kind_word_lanes(filter_core_types(a) + filter_subtypes(a))
-                for a in or_arms(filt)
-            ]
-            if per_arm:
-                out.extend(
-                    lane for lane in per_arm[0] if all(lane in arm for arm in per_arm)
+            out.extend(
+                _every_arm_lanes(
+                    filt,
+                    lambda a: _kind_word_lanes(
+                        filter_core_types(a) + filter_subtypes(a)
+                    ),
                 )
+            )
+        # The same tap as an effect the card has you make ("Tap any number of
+        # untapped artifacts you control. When you do, …" — Yotia Declares
+        # War's chapter II): a tap of permanents you control, by name.
+        for c in unit.effects:
+            node = c.node
+            state = getattr(node, "state", None)
+            if tag_of(node) != "SetTapState" or tag_of(state) != "Tap":
+                continue
+            filt = effect_filter(node)
+            if filter_controller(filt) == "You":
+                out.extend(_every_arm_lanes(filt))
     # generic-board static anthem/grant (Padeem) — read the static's affected filter.
     # A static that ALSO makes its objects creatures (Bello, Bard of the Brambles'
     # "is a 4/4 Elemental creature in addition to its other types"; March of the
     # Machines) is animation — a layer-4 type change, CR 613.1d — and belongs to
     # ``animate_makers`` (``lanes.animate_land_types``), never this payoff.
+    # Every grant site the unit holds, not only a top-level static: a one-shot
+    # grant a spell, trigger or Saga chapter makes (Age of Ultron's chapter III,
+    # "Artifact creatures you control gain deathtouch until end of turn"), and a
+    # grant to a target only your artifact can be (Venser, Corpse Puppet's
+    # "Target artifact creature you control gains flying and lifelink").
     for unit in tree.units:
         if any(adds_creature_type(d) for d in iter_static_defs(unit.node)):
             continue
-        for c in unit.statics:
-            if c.concept in ("pump", "grant_keyword", "set_pt"):
-                aff = getattr(unit.node, "affected", None)
-                out.extend(_generic_board_lanes(aff))
-                # One-level Or/And descent (CR 604.3: "some static abilities
-                # apply to more than one type of object" — the Silkguard
-                # precedent, :func:`_or_wrapped_generic_creature_filter`):
-                # re-apply the SAME per-branch gate, so a subtype-scoped or
-                # opponent branch still fails for the reason it would
-                # un-wrapped.
-                if tag_of(aff) in ("Or", "And"):
-                    for br in getattr(aff, "filters", None) or ():
-                        out.extend(_generic_board_lanes(br))
+        # A target is one chosen object: every alternative it may be must be
+        # your artifact (not Shields Up!'s "artifact or creature"), on the
+        # battlefield (not Desdemona's graveyard card).
+        # The flat thread reads "It gains …" back to its target; the deep walk
+        # a trigger's mode or a Saga chapter's local target.
+        targets = [
+            resolved
+            for resolved, sdef in iter_threaded_target_statics(unit.node)
+            if any(tag_of(m) in _MOD_PAYOFF_TAGS for _s, m in iter_mod_sites(sdef))
+        ] + [tgt for tgt, _mod in iter_deep_target_grants(unit.node)]
+        for tgt in targets:
+            if not set(filter_inzone_zones(tgt)) - {"Battlefield"}:
+                out.extend(_every_arm_lanes(tgt, _generic_board_lanes))
+        subjects = [
+            getattr(sdef, "affected", None)
+            for sdef, mod in iter_mod_sites(unit.node)
+            if tag_of(mod) in _MOD_PAYOFF_TAGS
+        ]
+        for aff in subjects:
+            out.extend(_generic_board_lanes(aff))
+            # One-level Or/And descent (CR 604.3: "some static abilities
+            # apply to more than one type of object" — the Silkguard
+            # precedent, :func:`_or_wrapped_generic_creature_filter`):
+            # re-apply the SAME per-branch gate, so a subtype-scoped or
+            # opponent branch still fails for the reason it would
+            # un-wrapped.
+            if tag_of(aff) in ("Or", "And"):
+                for br in getattr(aff, "filters", None) or ():
+                    out.extend(_generic_board_lanes(br))
     # BECOMES-TYPE doer (ADR-0038 W4 giant) — a SANCTIONED byte-identical
     # port of legacy's ``_BECOMES_TYPE_RE`` (the LIVE constant, imported
     # not re-typed): a "becomes a/an artifact" type-grant (Relic's Roar's
@@ -2144,6 +2236,12 @@ def _artifacts_enchantments_matter(tree: ConceptTree) -> list[Signal]:
             vc = getattr(unit.node, "valid_card", None)
             if filter_controller(vc) == "You":
                 out.extend(_type_payoff_lanes(vc))
+        # A delayed trigger's watcher is the same enters watcher for the rest of
+        # the turn (Rite of Harmony's "Whenever a creature or enchantment you
+        # control enters this turn, draw a card"), CR 603.7a.
+        for trig in iter_delayed_trigger_condition_defs(unit.node):
+            if trigger_def_event(trig) == "enters":
+                out.extend(_type_payoff_lanes(getattr(trig, "valid_card", None)))
     # ADR-0038 W4 giant — a SANCTIONED byte-identical port of legacy's
     # ``_ARTIFACTS_MATTER_MIRROR`` (the LIVE constant, imported not re-typed):
     # phase carries no clean structural shape for this oracle-idiom family —
@@ -2155,7 +2253,7 @@ def _artifacts_enchantments_matter(tree: ConceptTree) -> list[Signal]:
     # affinity-for-non-artifact over-fire, 0 genuine recall lost by the
     # narrowed `affinity for artifacts` branch).
     # Run PER-CLAUSE over ``_kept(tree)`` to match the legacy clause loop.
-    payoff_clauses = _non_animation_clauses(tree)
+    payoff_clauses = _non_animation_texts(tree)
     if any(_ARTIFACTS_MATTER_MIRROR.search(cl) for cl in payoff_clauses):
         out.append("artifacts_matter")
     # ADR-0038 W4 giant — a SANCTIONED byte-identical port of legacy's
@@ -2191,6 +2289,13 @@ def _artifacts_enchantments_matter(tree: ConceptTree) -> list[Signal]:
             out.extend(_kind_word_lanes(words))
     if "Improvise" in tree.card_keywords:
         out.append("artifacts_matter")
+    # An Aura that can enchant only your own artifact or enchantment ("Enchant
+    # artifact you control" — Hardlight Containment; CR 303.4a) needs one on
+    # your board to be cast at all. Every alternative the keyword lists must
+    # name the type, as the tap-cost arm reads ("artifact or creature you
+    # control" goes on a creature as well).
+    if filter_controller(tree.card_enchant_filter) == "You":
+        out.extend(_every_arm_lanes(tree.card_enchant_filter))
     idents = (
         [(lane, "") for lane in out]
         + [(lane, "cast") for lane in cast_out]

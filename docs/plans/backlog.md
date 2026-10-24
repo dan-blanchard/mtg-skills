@@ -79,35 +79,24 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   Intervention, Kaya's Ghostform, Fey Steed and six more), so Spark Double
   (an extra loyalty counter) and Lae'zel (no typed planeswalker filter) keep
   it.
-  (d) **Text-mirror leftovers behind the payoff lanes.** The three `_matters`
-  text mirrors (artifacts / enchantments / the cast arm) still run over oracle
-  clauses minus what `board_and_ramp._non_animation_clauses` claims: an
-  animating static's description, and since 2026-10-23 the whole ability
-  holding a one-shot animation of something other than the card itself (Rise
-  and Shine, Alloy Animist, Skilled Animator and eight more lost
-  `artifacts_matter|you|`; a self-animation keeps its ability's text — Iron
-  Man Armor's granted count). Running the mirrors over every description in
-  each non-claimed unit (nested ones too: Galvanic Blast's metalcraft rider)
-  plus the root's mode text instead is still not sound. Affinity for an
-  artifact kind or enchantments and improvise (`card_keyword_types` /
-  `card_keywords`) and a tap-artifacts cost (`controller_paid_cost_leaves`,
-  which now reaches a spell's additional `TapCreatures`) read off the tree
-  since 2026-10-24, so 27 of the cards it lost keep the key, but 10 real
-  payoffs still lose it, their only read being text no node carries: Saga chapters (Age of Ultron III's "artifact creatures you control
-  gain deathtouch", Origin of Iron Man, Yotia Declares War, Fugitive of the
-  Judoon — phase writes "Chapter N" and no chapter text; each needs its own
-  typed read), a trigger's bullets (Venser, Corpse Puppet —
-  `execute.modal.mode_descriptions`, which the shape would have to read), a
-  modal header's condition (Soul Transfer — a root `modal.constraints`
-  `ConditionalMaxChoices` no tree field carries), an alternative cost (Zahid —
-  `casting_options` keeps only PayLife and has no Spell carrier on a creature),
-  "Enchant artifact you control" (Hardlight Containment — `card_keyword_types`
-  drops the keyword's controller), a delayed trigger (Rite of Harmony's
-  "creature or enchantment you control enters this turn"), and Platinum Angel
-  Avatar's condition, which phase drops. (The pair rows read candidates
-  without membership idents since the fourth pass, so a card with both a cast and an enters payoff —
-  Tuvasa the Sunlit, Sai — fires the typed-cheat rows and Sol Ring / Pacifism
-  no longer score as payoffs.)
+  (d) **The text mirrors read node text** (2026-10-24). The three `_matters`
+  text mirrors (artifacts / enchantments / the cast arm) run over the text phase
+  carries on the card's nodes (`board_and_ramp._non_animation_texts`: every
+  description in each unit, nested ones and a trigger's modal bullets included,
+  plus the root's mode text, minus what an animation claims), no longer over
+  oracle clauses. The ten payoffs only the oracle carried read off the tree:
+  a grant site anywhere in a unit and a target only your artifact can be (Age
+  of Ultron III, Venser, Corpse Puppet), a put from your hand (Origin of Iron
+  Man), a tap or an exile of your own artifacts as an effect (Yotia Declares
+  War, Fugitive of the Judoon), an alternative cost's tap (Zahid — the alt-cost
+  read keeps `TapCreatures`), the Enchant keyword's controller (Hardlight
+  Containment, `ConceptTree.card_enchant_filter`), a modal header's condition
+  (Soul Transfer, `card_modal_conditions`) and a delayed enters watcher (Rite of
+  Harmony); a choice of types counts only when every alternative names the type
+  (`_every_arm_lanes`). Corpus: Soul Transfer gains `enchantments_matter`;
+  Platinum Angel Avatar (a Vanguard card, legal nowhere) loses
+  `artifacts_matter`, its condition being one phase drops. Left: the mirrors
+  are still regexes, now over node text.
   (g) **The guide cuts the tuner protects** (2026-10-24, the experiment table in
   `docs/plans/precon-audit-2026-10-18.md`, "The remaining tuner levers"). Shipped:
   popular cards (inside `UPGRADE_RANK`, not premium) off every lane and on none of
@@ -329,7 +318,9 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   Cleanse, Crusade, Artificial Evolution, Tomik; Champion of Stray Souls'
   graveyard zone; Sinister Gnarlbark's blight; Become Brutes' Role; Gemcutter
   Buccaneer's Equipment subtype; Krydle's mill; One Ring to Rule Them All's mill
-  reach; where-X scry / surveil (Desmond Miles). Earlier: council's dilemma /
+  reach; where-X scry / surveil (Desmond Miles); Platinum Angel Avatar's "If you
+  control an artifact, a creature, an enchantment, and a land" condition (a
+  Vanguard card, so no bridge). Earlier: council's dilemma /
   secret council votes parked as residues (a canary), Brago's Representative, Overlord of the Hauntwoods'
   token, Narset Transcendent's rebound, Ral Izzet Viceroy's emblem, a block
   trigger's "it" as ParentTarget, Go Blank's graveyard owner, Estrid's

@@ -582,6 +582,17 @@ class ConceptTree:
     # Aura with a non-Enchant-typed keyword predicate this narrow read
     # doesn't resolve.
     card_enchant_core_types: tuple[str, ...] = ()
+    # The printed ``Enchant`` keyword's whole filter (CR 303.4a), controller
+    # included: "Enchant artifact you control" (Hardlight Containment) names
+    # your own artifact, which the type words above drop. None for a card with
+    # no Enchant keyword.
+    card_enchant_filter: object | None = None
+    # The condition of each card-root ``modal.constraints`` entry that raises
+    # how many modes you may choose (``ConditionalMaxChoices``, CR 700.2): Soul
+    # Transfer's "If you control an artifact and an enchantment as you cast
+    # this spell, you may choose both instead". Root-level like the mode
+    # descriptions; no ability unit carries it.
+    card_modal_conditions: tuple[object, ...] = ()
     # The mana values of the card's own unconditional alternative casting costs
     # (``reads.CURVE_COST_KEYWORDS`` — warp, evoke, dash, blitz, prototype,
     # impending), read off ``root.keywords`` like ``card_enchant_core_types``: the
@@ -1110,6 +1121,10 @@ def _spell_additional_cost_concepts(root: TypedMirrorNode) -> tuple[ConceptNode,
     return tuple(out)
 
 
+# The alternative-cost leaves :func:`_spell_alt_cost_paylife_concepts` reads.
+_ALT_COST_PRIMITIVE_TAGS = _PAYLIFE_COST_TAGS | frozenset({"TapCreatures"})
+
+
 def _spell_alt_cost_paylife_concepts(root: TypedMirrorNode) -> tuple[ConceptNode, ...]:
     """Role=cost ``PayLife`` concepts from the card's ALTERNATIVE casting
     cost(s) (CR 118.9) — Force of Will's "You may pay 1 life and exile a
@@ -1120,12 +1135,14 @@ def _spell_alt_cost_paylife_concepts(root: TypedMirrorNode) -> tuple[ConceptNode
     field from ``additional_cost`` (CR 601.2b is paid ON TOP of the mana
     cost; an alternative cost REPLACES it) that NO existing crosswalk
     reader touches at all, so a PayLife leaf inside it has zero path back
-    into ``unit.costs``. Narrow by construction: only a ``PayLife`` leaf is
-    read (the one primitive ``lifeloss_makers``'s CR 119.4 cost arm needs);
-    a general alt-cost concept surface (Composite's OTHER siblings —
-    Force of Will's Exile leaf) is left for a future consumer to widen,
-    same discipline as :func:`_spell_additional_cost_concepts`'s own
-    PayLife carve-out.
+    into ``unit.costs``. Narrow by construction: only the leaves
+    :data:`_ALT_COST_PRIMITIVE_TAGS` names are read — a ``PayLife`` (the
+    primitive ``lifeloss_makers``'s CR 119.4 cost arm needs) and a
+    ``TapCreatures`` (Zahid, Djinn of the Lamp's "tap an untapped artifact you
+    control", the artifacts payoff's tap-cost arm); a general alt-cost concept
+    surface (Composite's OTHER siblings — Force of Will's Exile leaf) is left
+    for a future consumer to widen, same discipline as
+    :func:`_spell_additional_cost_concepts`'s own carve-out.
     """
     opts = getattr(root, "casting_options", MISSING)
     if not _present(opts) or not isinstance(opts, list):
@@ -1140,7 +1157,7 @@ def _spell_alt_cost_paylife_concepts(root: TypedMirrorNode) -> tuple[ConceptNode
         if not isinstance(cost, TypedMirrorNode):
             continue
         for n in iter_typed_nodes(cost):
-            if tag_of(n) in _PAYLIFE_COST_TAGS:
+            if tag_of(n) in _ALT_COST_PRIMITIVE_TAGS:
                 cn = _decorate_effect(n, "cost")
                 if cn is not None:
                     out.append(cn)
@@ -1533,11 +1550,13 @@ def build_concept_tree(
     # docstring) — a root-level array, never surfaced by any per-ability
     # unit walk.
     card_enchant_core_types: tuple[str, ...] = ()
+    card_enchant_filter: object | None = None
     kws_root = getattr(root, "keywords", None)
     if isinstance(kws_root, list):
         for kw in kws_root:
             if isinstance(kw, MirrorVariant) and kw.key == "Enchant":
                 card_enchant_core_types = filter_core_types(kw.inner)
+                card_enchant_filter = kw.inner
                 break
     card_partner_kinds: list[tuple[str, str]] = []
     for kw in kws_root if isinstance(kws_root, list) else ():
@@ -1601,6 +1620,18 @@ def build_concept_tree(
         cm_costs = getattr(card_modal, "mode_costs", None)
         if isinstance(cm_costs, list):
             card_modal_mode_costs = tuple(cost_mana_value(c) or 0 for c in cm_costs)
+    card_modal_conditions: list[object] = []
+    constraints = getattr(card_modal, "constraints", None)
+    if isinstance(constraints, list):
+        for con in constraints:
+            if tag_of(con) != "ConditionalMaxChoices":
+                continue
+            cond = getattr(con, "condition", None)
+            # A ``Static`` wrapper holds the checked condition one level down.
+            if tag_of(cond) == "Static":
+                cond = getattr(cond, "condition", None)
+            if cond is not None:
+                card_modal_conditions.append(cond)
     units: list[AbilityUnit] = []
 
     # A spell-level ``additional_cost`` (CR 601.2b) rides the ROOT, not any
@@ -1813,6 +1844,8 @@ def build_concept_tree(
         card_modal_mode_descriptions=card_modal_mode_descriptions,
         card_modal_mode_costs=card_modal_mode_costs,
         card_enchant_core_types=card_enchant_core_types,
+        card_enchant_filter=card_enchant_filter,
+        card_modal_conditions=tuple(card_modal_conditions),
         card_curve_costs=tuple(card_curve_costs),
         card_alt_costs=tuple(card_alt_costs),
         card_keywords=tuple(card_keywords),
