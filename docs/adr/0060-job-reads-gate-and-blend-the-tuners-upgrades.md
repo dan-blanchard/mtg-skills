@@ -44,7 +44,7 @@ Measured on the 25 precons (eighth pass, `docs/plans/precon-audit/job_reads.py`)
 | job | fit on main-job cards: CV Spearman | production read over every card it scores: Spearman / guide adds, median percentile (read vs play-rate) | use |
 |---|---|---|---|
 | protection | 0.56 | 0.56 / 0.92 vs 0.97 | gate + blend (Dan's call) |
-| board wipe | 0.50 | 0.50 / 0.84 vs 0.92 (2026-10-24; 0.49 / 0.79 before) | gate + blend |
+| board wipe | 0.50 | 0.51 / 0.84 vs 0.92 (2026-10-24, last; 0.50 / 0.84, 0.49 / 0.79 before) | gate + blend |
 | removal | 0.40 | 0.16 / 0.49 vs 0.94 | gate |
 | card draw | 0.33 | 0.33 / 0.76 vs 0.85 | gate + blend |
 | ramp | 0.28 | 0.27 / 0.69 vs 0.89 | gate |
@@ -227,3 +227,24 @@ moved; no wipe add) and nothing beside the changes kept (547 / 195 / 60 against
 chosen-type spare phase drops): not kept. Removal reads Winnow's "if another permanent
 with the same name is on the battlefield", which phase drops whole, as the condition
 it is (`removal._CONDITION_DROPPED`, retired by a retirement canary).
+
+**Amendment (2026-10-24, the leftovers): the wipe read's unread list, and what
+still doesn't lead.** The misreads the read listed as left unread are read now (each
+from the trees, or by name with a retirement canary where phase drops the clause
+whole): an X paid in cards is an X (CR 107.3a; Sickening Dreams 0.80 to 0.48); a
+pitch cost is its cards, a mana each (CR 118.9; Force of Despair); a rider keeping
+your lands tapped costs the sweep again (CR 502.3; Bontu's Last Reckoning 0.78 to
+0.28); a shrink the unit repeats whenever a creature dies this turn chains (CR
+603.7a; Massacre Girl 0.15 to 0.39); a choice the sweep's filter never reads limits
+it (Harsh Mercy 0.78 to 0.34, Sudden Demise, Void); Extinction, Swarmyard Massacre
+and Do or Die by name (`board_wipe._CLAUSE_DROPPED`); and a draw "each player who
+controls" something gets is no rider for the caster (Shatter the Sky, Depopulate).
+The board-wipe row: 800 cards, Spearman 0.510 (0.501), guide adds at the 84th
+percentile, 9 of 19 in the top decile (8), 9 of the bottom two; on the 25 precons
+546 / 195 / 60, unchanged. The read leading the wipe upgrades was measured twice
+more (547 / 195 / 60, flat): its picks move only in precons whose guides add no wipe,
+and the guide wipe adds it misses are deck-fit picks (a sweep sparing the deck's
+tribe or its one big creature), which no card read reaches. So the order stays the
+blend. Also measured and rejected (the audit report, "The tuner-policy leftovers"):
+removal reordered by the deck's count of instant any-permanent answers (59 and 56
+adds) and the ramp read ordering its upgrades blended with play-rate (56).

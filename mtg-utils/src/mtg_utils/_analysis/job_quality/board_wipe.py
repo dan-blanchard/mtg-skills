@@ -31,14 +31,32 @@ value's 7). Strong enough to ORDER candidates. The score is given to every card
 with a sweep of its own — a creature or planeswalker with one too — though only
 the job cards were fitted.
 
-Left unread: X paid in cards rather than mana (Sickening Dreams), a drawback
-rider (Bontu's Last Reckoning), Massacre Girl's chain, and what phase drops —
-"for each" scaling (Swarmyard Massacre), a chosen-type or pile spare (Harsh
-Mercy, Do or Die), a pitch cost (Force of Despair).
+Read since 2026-10-24's last pass: an X paid in cards is an X (Sickening
+Dreams, CR 107.3a); a pitch cost is the cards it pitches (Force of Despair, CR
+118.9); a rider keeping your lands tapped is the next turn's mana (Bontu's Last
+Reckoning, CR 502.3); a shrink that repeats whenever a creature dies this turn
+chains (Massacre Girl, CR 603.7a); a choice the sweep's filter never reads limits
+it (Harsh Mercy, Sudden Demise, Void); a draw "each player who controls" a
+creature gets is no rider for the caster (Shatter the Sky, Depopulate); and the
+clauses phase drops whole are read by name (``_CLAUSE_DROPPED``: Extinction,
+Swarmyard Massacre, Do or Die), each retired by its canary.
+
+Left unread (none a guide add; two are picks of the 25-precon tune, Deluge of
+Doom and Boompile, 2026-10-24): a creature's own activation is read at the
+creature's cost alone (Jaya Ballard, Task Mage; Infected Vermin); a count of
+life gained (Essence Pulse) or of anything of yours (Deluge of Doom's card types
+in your graveyard) reads as scaling; a coin flip phase drops reads as a clean
+sweep (Boompile); a conditional discount is always taken
+(Avenge); tokens the wiped players get back (The Phasing of Zhalfir, March of
+Souls) cost nothing; an exile of each permanent sharing a name (Eye of
+Singularity); a blocked-by slice phase drops (Glyph of Reincarnation); and a
+pitch or a discarded X counts a card as one mana, so Sunscour's two white
+cards read as a two-mana Wrath (no card-disadvantage feature).
 """
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
@@ -64,6 +82,7 @@ from mtg_utils._card_ir.crosswalk import (
     affected_tag,
     change_zone_dirs,
     effect_filter,
+    effect_owner_player_scope,
     filter_controller,
     filter_core_types,
     filter_non_types,
@@ -76,6 +95,7 @@ from mtg_utils._card_ir.crosswalk import (
     modify_cost_mode,
     overload_sweep,
     static_affected,
+    static_mode_tag,
     tag_of,
 )
 from mtg_utils._card_ir.trees import phase_records_for
@@ -101,6 +121,9 @@ _NARROW_COUNT = 2
 #: The units a card is cast or activated for: a trigger from elsewhere (cycling,
 #: a delayed cast trigger) is a second read.
 _PRIMARY = frozenset({"spell", "etb", "chapter", "activated", "loyalty", "static"})
+#: A slice of the board a choice the filter never reads limits the sweep to
+#: (Sudden Demise's chosen colour, Void's number, Extinction's type): narrow.
+_CHOSEN_SLICE = "ChosenSlice"
 #: Filter predicates that hit only a combat / state / colour / keyword slice.
 _NARROW = frozenset(
     {
@@ -127,6 +150,7 @@ _NARROW = frozenset(
         "ControlledContinuouslySinceTurnBegan",
         "ManaValueParity",
         "DistinctFrom",
+        _CHOSEN_SLICE,
     }
 )
 #: Filter predicates that leave standing a class the caster can arrange to be
@@ -167,6 +191,25 @@ _REFERENCE_COST = 4
 #: The cost at or under which a sweep that lets creatures through is the cheap,
 #: small kind (Pyroclasm, Anger of the Gods).
 _CHEAP = 3
+#: What a card paid from hand (a pitch, a discarded X) costs, in mana: one, the
+#: price of the cheapest cantrip (Opt's {U}). The read's own call, a floor: the
+#: read has no card-disadvantage feature.
+_CARD_MANA = 1.0
+#: Sweeps whose limiting clause phase (v0.104.0) drops whole — no ``Choose``
+#: node, no filter predicate, nothing structural left to read — by what the
+#: clause does. Extinction destroys only "the creature type of your choice"
+#: (narrow); Swarmyard Massacre's "-1/-1 for each" spares Insects, Rats, Spiders
+#: and Squirrels (its count is yours, which the read takes at two either way);
+#: Do or Die destroys one of two piles of a target player's creatures (CR
+#: 700.3: one-sided, the other pile spared). Each is retired by its
+#: ``test_*_dropped_canary`` once phase types the clause. Census 2026-10-24: the
+#: commander-legal sweeps whose text limits them and whose tree carries no
+#: limit.
+_CLAUSE_DROPPED: dict[str, str] = {
+    "Extinction": "narrow",
+    "Swarmyard Massacre": "spares",
+    "Do or Die": "pile",
+}
 
 
 @dataclass(frozen=True)
@@ -193,6 +236,8 @@ class _Sweep:
     discount: tuple[str, int, int] | None  # (board|fixed, generic, cap) reduction
     face_cmc: int | None  # the face's own printed mana value
     mode_cost: int  # a spree / tiered mode's own additional cost (CR 702.172a)
+    x_cards: bool = False  # an X paid in cards (a discard of X, CR 107.3a)
+    drawback: bool = False  # keeps your lands tapped (CR 502.3)
 
 
 def _scale(qty: object) -> int:
@@ -340,6 +385,72 @@ def _face_generic(tree: ConceptTree) -> int:
     return 0
 
 
+def _x_in_cards(u: AbilityUnit) -> bool:
+    """The unit's own cost discards X cards (Sickening Dreams' additional cost,
+    which the crosswalk merges onto its spell unit): an X the caster announces
+    (CR 107.3a), paid in cards rather than mana."""
+    return any(
+        cn.concept == "discard"
+        and tag_of(getattr(getattr(cn.node, "count", None), "qty", None))
+        in ("Variable", "CostXPaid")
+        for cn in u.costs or ()
+    )
+
+
+def _keeps_lands_tapped(u: AbilityUnit) -> bool:
+    """The unit also stops your lands untapping (Bontu's Last Reckoning's "Lands
+    you control don't untap during your next untap step"): a drawback, since the
+    untap step is when you untap them (CR 502.3)."""
+    return any(
+        static_mode_tag(d) == "CantUntap"
+        and "Land" in filter_core_types(static_affected(d, u))
+        and filter_controller(static_affected(d, u), u) == "You"
+        for d in iter_static_defs(u.node)
+    )
+
+
+def _death_chain(u: AbilityUnit) -> bool:
+    """The unit creates a delayed trigger that shrinks the board again whenever
+    a creature dies this turn (Massacre Girl, CR 603.7a): each death triggers it
+    once more (its ruling: more than one dying at once triggers it that many
+    times), so a first death chains through the board."""
+    for n in iter_typed_nodes(u.node):
+        if tag_of(n) != "CreateDelayedTrigger":
+            continue
+        trig = getattr(getattr(n, "condition", None), "trigger", None)
+        if (
+            getattr(trig, "origin", None) == "Battlefield"
+            and getattr(trig, "destination", None) == "Graveyard"
+            and "Creature" in filter_core_types(getattr(trig, "valid_card", None))
+            and any(
+                tag_of(m) == "PumpAll"
+                for m in iter_typed_nodes(getattr(n, "effect", None))
+            )
+        ):
+            return True
+    return False
+
+
+def _dropped_choice(u: AbilityUnit, filt: object) -> str | None:
+    """How a choice the unit makes limits a sweep whose filter never reads it
+    (no ``IsChosen…`` predicate, no chosen-number bound): phase keeps Harsh
+    Mercy's "each player chooses a creature type" and Sudden Demise's "choose a
+    colour" as a ``Choose`` node but drops the clause the choice limits. When
+    each player chooses, each keeps their pick (``"spares"``); otherwise the
+    sweep reaches only the chosen slice (``"narrow"``). ``None`` when the unit
+    chooses nothing or the filter reads the choice (Kindred Dominance's
+    ``Not IsChosenCreatureType``, Expel the Interlopers' chosen number)."""
+    if not any(tag_of(n) == "Choose" for n in iter_typed_nodes(u.node)):
+        return None
+    reads_choice = any(
+        "Chosen" in (tag_of(n) or "") for n in iter_typed_nodes(filt)
+    ) or any("Chosen" in p for p in filter_predicates(filt))
+    if reads_choice:
+        return None
+    scope = tag_of(getattr(u.node, "player_scope", None))
+    return "spares" if scope == "All" else "narrow"
+
+
 def _tree_sweeps(tree: ConceptTree, *, walker: bool) -> list[_Sweep]:
     # Each sweep effect, by node id, with whether it sweeps only because
     # overload made its "target" "each" (CR 702.96a-b).
@@ -353,17 +464,24 @@ def _tree_sweeps(tree: ConceptTree, *, walker: bool) -> list[_Sweep]:
     }
     units = [u for u in tree.units if any(id(c.node) in sweeps for c in u.effects)]
     discount = _discount(tree)
+    dropped = _CLAUSE_DROPPED.get(tree.name)
     out: list[_Sweep] = []
     for u in units:
         delayed, gated = _gates(u)
+        chain = _death_chain(u)
+        x_cards = _x_in_cards(u)
+        drawback = _keeps_lands_tapped(u)
         leaves = {tag_of(n) for n in iter_cost_leaves(getattr(u.node, "cost", None))}
         unparsed = any(tag_of(n) == "Unimplemented" for n in iter_typed_nodes(u.node))
         # Value to the caster riding the sweep: a draw, token or life that is yours
-        # (not Mogg Infestation's goblins for the wiped player, not Settle's land).
+        # (not Mogg Infestation's goblins for the wiped player, not Settle's land),
+        # done by you, not by "each player who controls" something (Shatter the
+        # Sky's and Depopulate's draws, whose owner wrapper names the players).
         rider = any(
             id(c.node) not in sweeps
             and c.scope == "you"
             and c.concept in ("draw", "make_token", "gain_life")
+            and effect_owner_player_scope(u.node, c.node) is None
             for c in u.effects
         )
         cond = getattr(u.node, "condition", None) or getattr(
@@ -399,9 +517,16 @@ def _tree_sweeps(tree: ConceptTree, *, walker: bool) -> list[_Sweep]:
             x_bound = _x_bounded(filt)
             if x_bound:
                 preds -= _SIZED
+            choice = _dropped_choice(u, filt) or dropped
+            if choice == "narrow":
+                preds.add(_CHOSEN_SLICE)
+            if choice == "pile":
+                ctrl = "TargetPlayer"
             non = set(filter_non_types(filt))
             types = (cores | (_SWEPT if "Permanent" in cores else set())) & _SWEPT
             mag = _magnitude(c)
+            if chain and tag == "PumpAll" and id(c.node) not in delayed:
+                mag = _SCALING
             # An activation that taps or sacrifices nothing repeats for mana:
             # Pestilence's 1 damage is as much as you pay for.
             if (
@@ -421,7 +546,8 @@ def _tree_sweeps(tree: ConceptTree, *, walker: bool) -> list[_Sweep]:
                     or "Another" in filter_predicates(filt)
                     or any(tag_of(n) == "Not" for n in iter_typed_nodes(filt))
                     # each player keeps what was chosen and sacrifices the rest
-                    or tag == "ChooseAndSacrificeRest",
+                    or tag == "ChooseAndSacrificeRest"
+                    or choice in ("spares", "pile"),
                     mag=mag,
                     kind=_unit_kind(u, walker=walker),
                     gated=id(c.node) in gated or tag_of(cond) is not None or unparsed,
@@ -437,6 +563,8 @@ def _tree_sweeps(tree: ConceptTree, *, walker: bool) -> list[_Sweep]:
                     discount=discount,
                     face_cmc=tree.cmc if tree.has_printed_cost else None,
                     mode_cost=_mode_cost(tree, u),
+                    x_cards=x_cards,
+                    drawback=drawback,
                 )
             )
     return out
@@ -528,14 +656,47 @@ def _overload_cost(card: dict) -> int | None:
     return None
 
 
+def _pitch_cards(card: dict) -> int | None:
+    """The fewest cards an alternative cost with no mana in it asks (CR 118.9):
+    Force of Despair's black card exiled from hand, Sunscour's two white cards,
+    Pulverize's two Mountains sacrificed; a life payment asks none. ``None``
+    when the card has no such cost. ``casting_options`` is a phase record field
+    the concept tree does not carry (as ``_common.free_cast`` reads it)."""
+    counts = []
+    for face in phase_records_for(card.get("oracle_id") or ""):
+        for opt in face.get("casting_options") or ():
+            if opt.get("kind") != "AlternativeCost" or "Mana" in json.dumps(
+                opt.get("cost")
+            ):
+                continue
+            n = 0
+            for leaf in _cost_leaves(opt.get("cost")):
+                if leaf.get("type") in ("Exile", "Discard", "Sacrifice"):
+                    count = leaf.get("count", 1)
+                    n += count if isinstance(count, int) else 1
+            counts.append(n)
+    return min(counts) if counts else None
+
+
+def _cost_leaves(cost: object) -> list[dict]:
+    """A raw phase cost's leaves: a ``Composite``'s parts, else itself."""
+    if not isinstance(cost, dict):
+        return []
+    if cost.get("type") == "Composite":
+        return [leaf for part in cost.get("costs") or () for leaf in _cost_leaves(part)]
+    return [cost]
+
+
 def _cost(card: dict, best: _Sweep, *, x: bool) -> float:
     """The mana the sweep costs as cast: the card's cast cost
     (``_common.cast_cost``; a card with no mana cost keeps that fixed cost); a
     split half's own cost; the overload cost; a spree or tiered mode's own cost;
-    the card's own discount; X at its floor or ``_BOARD_X`` — for a spell, and
-    for a permanent's enters trigger, whose X is the one paid to cast it (CR
-    107.3m: The Meathook Massacre, Spiteful Banditry); plus an activation's mana
-    on a noncreature permanent."""
+    the card's own discount; a pitch cost's cards (:func:`_pitch_cards`, each
+    ``_CARD_MANA``) when fewer; twice the cost when it keeps your lands tapped;
+    X at its floor or ``_BOARD_X`` (a card each for an X paid in cards) — for a
+    spell, and for a permanent's enters trigger, whose X is the one paid to cast
+    it (CR 107.3m: The Meathook Massacre, Spiteful Banditry); plus an
+    activation's mana on a noncreature permanent."""
     cost = cast_cost(card)
     if unpriced(card):
         return cost
@@ -551,8 +712,16 @@ def _cost(card: dict, best: _Sweep, *, x: bool) -> float:
         kind, generic, cap = best.discount
         cut = generic * _BOARD_CREATURES if kind == "board" else generic
         cost = max(1.0, cost - min(cut, cap))
+    pitch = _pitch_cards(card)
+    if pitch is not None:
+        cost = min(cost, pitch * _CARD_MANA)
     if x and best.kind in ("spell", "etb"):
-        cost += best.x_floor or _BOARD_X
+        cost += (best.x_floor or _BOARD_X) * (_CARD_MANA if best.x_cards else 1)
+    if best.drawback:
+        # Your lands stay tapped through your next untap step, even ones that
+        # weren't tapped (its ruling): the next turn's mana, read as the
+        # sweep's own cost again — the read's own call.
+        cost *= 2
     if (
         best.kind == "activated"
         and best.act_mana is not None
@@ -579,7 +748,7 @@ def features(card: dict) -> dict[str, float] | None:
             not s.preds,
         ),
     )
-    x = "{X}" in front_mana_cost(card)
+    x = "{X}" in front_mana_cost(card) or best.x_cards
     cost = _cost(card, best, x=x)
     lethal = _lethal(best)
     creatures = "Creature" in best.types
@@ -627,7 +796,8 @@ def features(card: dict) -> dict[str, float] | None:
 #: reference wipe (``_REFERENCE_COST``). With the cost and sweep fixes of the
 #: same day (``job_reads.py``): Spearman against play-rate 0.501 over 800 cards
 #: (0.487 over 807), the guides' wipe adds at the 84th percentile of their
-#: identity's wipes (79th), 8 of 19 in its top decile (8).
+#: identity's wipes (79th), 8 of 19 in its top decile (8); with the misread
+#: fixes of the module docstring, 0.510, the 84th percentile, 9 of 19.
 WEIGHTS: dict[str, float] = {
     "creatures": 0.21,  # sweeps creatures
     "breadth": -0.02,  # per permanent type swept

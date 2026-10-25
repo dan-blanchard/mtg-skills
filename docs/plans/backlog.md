@@ -97,37 +97,34 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   don't re-suggest a split of them without a new read; Sliver Swarm's 11 are
   Granters (ADR-0040 §4). Script: `docs/plans/precon-audit/cut_splits.py` (both
   splits; same ROOT as `misses.py`).
-  (j) **Job-read leftovers** (ADR-0060 and its 2026-10-24 amendment; each module
-  docstring lists its own). The ninth pass measured every read as the order and as
-  "better than the cut" and kept neither, so the order is still the blend (wipes,
-  draw, protection) or play-rate (removal, ramp), with theme fit breaking a near tie
-  for draw and ramp. What is left. The wipe read's cost misreads were fixed
-  2026-10-24 (ADR-0060's second amendment that day: a spree mode's cost, an enters
-  trigger's X, no flicker / transform-back / event-fired clean sweep), its
-  reference line recalibrated to a four-mana clean sweep, and its per-creature
-  discount read at a board of eight, generic mana only (ADR-0060's last amendment:
-  Blasphemous Act 0.82, Vanquish the Horde 0.80, Toxic Deluge 0.78, Wrath of God and
-  Damnation 0.76). The read leading the wipe upgrades then cleared the bar alone
-  (58 / 179, a budget-moved Jhoira) and added nothing beside the shipped budget
-  rule; one of its picks is Harsh Mercy, whose chosen-type spare phase drops, so
-  don't re-suggest leading with it until the read's "left unread" list shrinks.
-  Jaya Ballard no longer scores. The removal read's agreement
-  with play-rate over every card with a removal effect is weak (it was fitted on
-  cards whose main job is removal); Winnow's "if another permanent with the same
-  name" condition, which phase drops, is read by name (`removal._CONDITION_DROPPED`,
-  retired by its canary). Theme fit as a tie lost for removal (38 adds), wipes
-  (39) and protection (no change). Play-rate's picks still recur where nothing else
-  decides: the removal adds are Beast Within in 10 precons, Path to Exile, Swords to
-  Plowshares and Chaos Warp in 7, the ramp adds Fellwar Stone in 9; Garruk's
-  Uprising is the draw add in 7 (10 before the theme tie, backlog "(e)" until
-  2026-10-24). Protection goes unsearched in 18 guide adds' decks because ADR-0024
-  asks for protection only from a combo or control deck or a voltron plan;
-  protection for every shape (a target of 5 or 3) matched fewer adds.
+  (j) **Job-read verdicts — don't re-suggest without a new read** (ADR-0060 and
+  its 2026-10-24 amendments; the experiment table is the audit's "The tuner-policy
+  leftovers"). The order is the blend (wipes, draw, protection) or play-rate
+  (removal, ramp), theme fit breaking a near tie for draw and ramp. The wipe read's
+  listed misreads are read (an X paid in cards, a pitch, a lands-stay-tapped rider,
+  Massacre Girl's chain, a dropped chosen-type / colour / pile / "for each" clause, a
+  draw each player may get); the read leading the wipe upgrades was then flat twice
+  (547 / 195 / 60): it moves picks only in precons whose guides add no wipe, and the
+  guide wipe adds it misses are deck-fit (Raise the Palisade and Faerie Slumber Party
+  under faeries, Expel the Interlopers and Tragic Arrogance under Ellivere, Chain
+  Reaction and Winds of Abandon in Blame Game). A new read would be a deck-fit wipe
+  read (the share of the deck's own board a sweep leaves). Rejected for removal: the
+  deck's count of instant any-permanent answers deciding flexible vs targeted (59 and
+  56 adds; Beast Within's recurrence moved to Abrade). Rejected for ramp: the read
+  blended into the order (56; Mana Vault took Fellwar Stone's 10). The removal read's
+  weak agreement with play-rate over every card with a removal effect stands (it was
+  fitted on main-job removal and only gates). Theme fit as a tie lost for removal,
+  wipes and protection. Protection goes unsearched in 18 guide adds' decks because
+  ADR-0024 asks for it only from a combo or control deck or a voltron plan; a target
+  of 5 or 3 for every shape matched fewer adds. Still open, small: the wipe misreads
+  in `board_wipe`'s docstring (a count of yours read as scaling, Boompile's dropped
+  coin flip, a creature's own activation cost, a conditional discount, tokens for the
+  wiped players); none is a guide add, two are tune picks (Deluge of Doom, Boompile).
   (m) **Recall** (`precon-audit/misses.py`, at the largest guide's thirty
   swaps and each precon's own guides' budget, `budgets.json`, Spellbook cached):
   195 of 408 cuttable guide cuts, 60 of 610 in-scope guide adds (2026-10-24, after
-  the near-tie budget rule; 180 / 57 before it, 169 / 56 at 9e0026ed). Shipped: where
-  play-rate orders a page, a near tie that costs less is the add (`swaps._near_tie`:
+  the near-tie budget rule, and unchanged after the wipe read's last misread fixes;
+  180 / 57 before it, 169 / 56 at 9e0026ed). Shipped: where play-rate orders a page, a near tie that costs less is the add (`swaps._near_tie`:
   play-rates within a factor of two, read scores within 0.1 for an ordering job;
   every width from 0.1 to 0.5 log10 rank cleared the bar and wider kept gaining —
   the budget binds; the table is the audit's "The last tuner levers"). The levers
@@ -152,9 +149,15 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   slots shared over every viable avenue (35) or by carers (45), because the
   generic subs' pages hold staples (Murder for Fae Dominion's Spellslinger).
   Left: the guide adds that serve only a lane that isn't viable (Blood Rites'
-  sacrifice package) still have no search; only four serve only a sub (Living
-  Energy's Arcum Dagsson, Clever Impersonator, Scrap Welder; Deep Clue Sea's
-  Displaced Dinosaurs). Measured negative 2026-10-24: a sub with a main's carers
+  sacrifice package) still have no search. Measured negative 2026-10-24 (the
+  audit's "The tuner-policy leftovers"): one swap off the serve page, cut from the
+  upgrade pool, for each lane below the viable floor that the commander holds and
+  cares about (58 adds; 60 held to the emerging floor, flat) — Blood Rites' package
+  is not such a lane (Clavileño holds Vampire, Demon and Combat by the signal read),
+  and the shallow lanes' pages are noise. A new read would be the commander's lane
+  read itself (Clavileño's granted dies trigger as a death payoff). Only four serve
+  only a sub (Living Energy's Arcum Dagsson, Clever Impersonator, Scrap Welder; Deep
+  Clue Sea's Displaced Dinosaurs). Measured negative 2026-10-24: a sub with a main's carers
   (6) taking one add that also serves a main (57 adds, 2 guide cuts fewer; neither
   deck moved). At
   a913f172 the 150-card play-rate page (`swaps._PAGE`) hid 71 main-avenue guide

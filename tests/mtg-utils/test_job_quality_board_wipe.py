@@ -11,7 +11,7 @@ from mtg_utils._card_ir.crosswalk import (
     filter_core_types,
     filter_predicates,
 )
-from mtg_utils.testkit import test_card, test_signals
+from mtg_utils.testkit import test_card, test_phase_records, test_signals
 
 
 def _real(name: str) -> dict:
@@ -179,3 +179,100 @@ def test_the_wipe_calibration_order():
         > scores["Toxic Deluge"]
         > scores["Wrath of God"]
     )
+
+
+def test_an_x_paid_in_cards_is_an_x():
+    """Sickening Dreams discards X cards as its additional cost (CR 107.3a: the
+    caster announces X): X damage at a card each, not a two-mana clean sweep."""
+    features = board_wipe.features(_real("Sickening Dreams"))
+    assert features["flexible"] == 1.0
+    assert features["cheap_clean"] == 0.0
+    assert features["cost"] > 4
+
+
+def test_a_pitch_cost_is_the_cards_it_pitches():
+    """Force of Despair may be cast by exiling a black card from hand instead of
+    its mana cost (CR 118.9): a card's worth, not three mana."""
+    assert board_wipe.features(_real("Force of Despair"))["cost"] == 1.0
+
+
+def test_keeping_your_lands_tapped_costs_the_next_turn():
+    """Bontu's Last Reckoning keeps every land you control tapped through your
+    next untap step (CR 502.3, its ruling): no three-mana reference wipe."""
+    features = board_wipe.features(_real("Bontu's Last Reckoning"))
+    assert features["cheap_clean"] == 0.0
+    assert _score("Bontu's Last Reckoning") < _score("Damnation")
+
+
+def test_a_death_triggered_shrink_chains():
+    """Massacre Girl's delayed trigger gives each other creature -1/-1 again
+    whenever a creature dies this turn (CR 603.7a; its ruling: once per death),
+    so the chain kills, not a -1/-1 sweep."""
+    features = board_wipe.features(_real("Massacre Girl"))
+    assert features["lethal"] == 1.0
+    assert features["small"] == 0.0
+
+
+def test_a_draw_each_player_may_get_is_no_rider():
+    """Shatter the Sky's draw goes to each player who controls a power-4
+    creature, not to the caster: no rider, unlike Kaya's Wrath's life."""
+    assert board_wipe.features(_real("Shatter the Sky"))["rider"] == 0.0
+    assert board_wipe.features(_real("Kaya's Wrath"))["rider"] == 1.0
+    assert _score("Shatter the Sky") == _score("Wrath of God")
+
+
+def test_a_choice_the_filter_never_reads_limits_the_sweep():
+    """Phase keeps Harsh Mercy's "each player chooses a creature type" and Sudden
+    Demise's "choose a color" as a Choose node but drops the clause the choice
+    limits: each player keeps their type (a spare), Sudden Demise reaches one
+    colour (narrow). Kindred Dominance's filter reads its choice."""
+    mercy = board_wipe.features(_real("Harsh Mercy"))
+    assert mercy["spares"] == 1.0
+    assert mercy["clean"] == 0.0
+    assert board_wipe.features(_real("Sudden Demise"))["narrow"] == 1.0
+    assert board_wipe.features(_real("Kindred Dominance"))["spares"] == 1.0
+
+
+@pytest.mark.retirement_canary
+def test_harsh_mercy_chosen_type_dropped_canary():
+    """Phase (v0.104.0) drops Harsh Mercy's "that aren't of a type chosen this
+    way": its DestroyAll's filter carries no predicate. RETIRE-READY when this
+    fails: ``board_wipe._dropped_choice`` then reads nothing for it (the filter
+    reads the choice) and pins nothing; keep it for the next drop or delete it."""
+    (face,) = test_phase_records("Harsh Mercy")
+    (spell,) = face["abilities"]
+    assert spell["effect"]["type"] == "Choose"
+    assert spell["sub_ability"]["effect"]["target"]["properties"] == []
+
+
+@pytest.mark.parametrize(
+    ("name", "feature"),
+    [
+        ("Extinction", "narrow"),
+        ("Swarmyard Massacre", "spares"),
+        ("Do or Die", "one_sided"),
+    ],
+)
+def test_a_dropped_limiting_clause_is_read_by_name(name, feature):
+    """``board_wipe._CLAUSE_DROPPED``: Extinction reaches one creature type,
+    Swarmyard Massacre spares four, Do or Die destroys one pile of a target
+    player's creatures (CR 700.3)."""
+    assert board_wipe.features(_real(name))[feature] == 1.0
+
+
+@pytest.mark.retirement_canary
+@pytest.mark.parametrize("name", ["Extinction", "Swarmyard Massacre", "Do or Die"])
+def test_clause_dropped_canary(name):
+    """Phase (v0.104.0) leaves these sweeps' limiting clause out: the sweep's
+    filter is a bare ``Creature`` with no predicate, and nothing chooses.
+    RETIRE-READY when this fails: delete the card's ``_CLAUSE_DROPPED`` row."""
+    (face,) = test_phase_records(name)
+    (ability,) = face["abilities"]
+    node = ability
+    while node["effect"]["type"] not in ("DestroyAll", "PumpAll"):
+        node = node["sub_ability"]
+    target = node["effect"]["target"]
+    assert target["type_filters"] == ["Creature"]
+    assert target["properties"] == []
+    assert target["controller"] is None
+    assert "Choose" not in str(face)

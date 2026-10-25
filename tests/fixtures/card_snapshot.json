@@ -164029,6 +164029,202 @@
     "type_line": "Legendary Creature — Giant Scout"
    }
   },
+  "Bontu's Last Reckoning": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Destroy all creatures. Lands you control don't untap during your next untap step.",
+       "duration": null,
+       "effect": {
+        "cant_regenerate": false,
+        "target": {
+         "controller": null,
+         "properties": [],
+         "type": "Typed",
+         "type_filters": [
+          "Creature"
+         ]
+        },
+        "type": "DestroyAll"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": {
+         "UntilNextStepOf": {
+          "player": {
+           "type": "Controller"
+          },
+          "step": "Untap"
+         }
+        },
+        "effect": {
+         "duration": {
+          "UntilNextStepOf": {
+           "player": {
+            "type": "Controller"
+           },
+           "step": "Untap"
+          }
+         },
+         "static_abilities": [
+          {
+           "active_zones": [],
+           "affected": {
+            "controller": "You",
+            "properties": [],
+            "type": "Typed",
+            "type_filters": [
+             "Land"
+            ]
+           },
+           "affected_zone": null,
+           "characteristic_defining": false,
+           "condition": null,
+           "description": "don't untap during your next untap step",
+           "effect_zone": null,
+           "mode": "CantUntap",
+           "modifications": [
+            {
+             "mode": "CantUntap",
+             "type": "AddStaticMode"
+            }
+           ]
+          }
+         ],
+         "target": null,
+         "type": "GenericEffect"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "sub_link": "SequentialSibling",
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Sorcery"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Black"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "Black",
+       "Black"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "1b4d0102-c0d6-4d50-941a-dd1c3575a3a8",
+       "aeb03249-62d3-4bfe-9575-69ba8ca56f61"
+      ]
+     },
+     "name": "Bontu's Last Reckoning",
+     "non_ability_text": null,
+     "oracle_text": "Destroy all creatures. Lands you control don't untap during your next untap step.",
+     "power": null,
+     "printings": [
+      "AKR",
+      "HOU",
+      "PHOU"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2017-07-14",
+       "text": "If more than one spell says that lands you control don’t untap during your next untap step, the effects will all wear off during that untap step. You’ll untap lands you control during your untap step after that one."
+      },
+      {
+       "date": "2017-07-14",
+       "text": "No lands that you control will untap during your next untap step, even lands that aren’t tapped as this spell resolves. This includes lands that enter the battlefield after this spell resolves."
+      }
+     ],
+     "scryfall_oracle_id": "c010d833-1873-4132-b4ff-8d78b3d7c2d7",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 3.0,
+    "color_identity": [
+     "B"
+    ],
+    "colors": [
+     "B"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}{B}{B}",
+    "name": "Bontu's Last Reckoning",
+    "oracle_id": "c010d833-1873-4132-b4ff-8d78b3d7c2d7",
+    "oracle_text": "Destroy all creatures. Lands you control don't untap during your next untap step.",
+    "type_line": "Sorcery"
+   }
+  },
   "Booby Trap": {
    "phase_records": [
     {
@@ -322379,6 +322575,145 @@
     "type_line": "Creature — Djinn"
    }
   },
+  "Do or Die": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Separate all creatures target player controls into two piles. Destroy all creatures in the pile of that player's choice. They can't be regenerated.",
+       "duration": null,
+       "effect": {
+        "description": "Separate all creatures target player controls into two piles",
+        "name": "unrecognized_clause_head",
+        "type": "Unimplemented"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "cant_regenerate": true,
+         "target": {
+          "controller": null,
+          "properties": [],
+          "type": "Typed",
+          "type_filters": [
+           "Creature"
+          ]
+         },
+         "type": "DestroyAll"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "sub_link": "SequentialSibling",
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Sorcery"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Black"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "premodern": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "Black"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "05f63cd9-e82b-4cf8-b8ce-f0aa0157692b"
+      ]
+     },
+     "name": "Do or Die",
+     "non_ability_text": null,
+     "oracle_text": "Separate all creatures target player controls into two piles. Destroy all creatures in the pile of that player's choice. They can't be regenerated.",
+     "power": null,
+     "printings": [
+      "INV"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "f25af42d-f1bf-4bd3-aded-ecadafdbf6e6",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 2.0,
+    "color_identity": [
+     "B"
+    ],
+    "colors": [
+     "B"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}{B}",
+    "name": "Do or Die",
+    "oracle_id": "f25af42d-f1bf-4bd3-aded-ecadafdbf6e6",
+    "oracle_text": "Separate all creatures target player controls into two piles. Destroy all creatures in the pile of that player's choice. They can't be regenerated.",
+    "type_line": "Sorcery"
+   }
+  },
   "Dockside Extortionist": {
    "phase_records": [
     {
@@ -387507,6 +387842,130 @@
     "type_line": "Sorcery"
    }
   },
+  "Extinction": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Destroy all creatures of the creature type of your choice.",
+       "duration": null,
+       "effect": {
+        "cant_regenerate": false,
+        "target": {
+         "controller": null,
+         "properties": [],
+         "type": "Typed",
+         "type_filters": [
+          "Creature"
+         ]
+        },
+        "type": "DestroyAll"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Sorcery"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Black"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "premodern": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 4,
+      "shards": [
+       "Black"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "6188149a-58ed-4ded-bae9-bc942fe5162a",
+       "a233a244-7f84-4525-b0ce-e10db0a95385"
+      ]
+     },
+     "name": "Extinction",
+     "non_ability_text": null,
+     "oracle_text": "Destroy all creatures of the creature type of your choice.",
+     "power": null,
+     "printings": [
+      "PLST",
+      "TMP"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "f3f01fe8-0a2c-4afa-94d2-268d27c0d252",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 5.0,
+    "color_identity": [
+     "B"
+    ],
+    "colors": [
+     "B"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{4}{B}",
+    "name": "Extinction",
+    "oracle_id": "f3f01fe8-0a2c-4afa-94d2-268d27c0d252",
+    "oracle_text": "Destroy all creatures of the creature type of your choice.",
+    "type_line": "Sorcery"
+   }
+  },
   "Extract from Darkness": {
    "phase_records": [
     {
@@ -423260,6 +423719,175 @@
     "name": "Forbid",
     "oracle_id": "6e26a525-2584-490d-b106-621c1a30e1fd",
     "oracle_text": "Buyback—Discard two cards. (You may discard two cards in addition to any other costs as you cast this spell. If you do, put this card into your hand as it resolves.)\nCounter target spell.",
+    "type_line": "Instant"
+   }
+  },
+  "Force of Despair": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Destroy all creatures that entered this turn.",
+       "duration": null,
+       "effect": {
+        "cant_regenerate": false,
+        "target": {
+         "controller": null,
+         "properties": [
+          {
+           "type": "EnteredThisTurn"
+          }
+         ],
+         "type": "Typed",
+         "type_filters": [
+          "Creature"
+         ]
+        },
+        "type": "DestroyAll"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Instant"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "casting_options": [
+      {
+       "condition": {
+        "condition": {
+         "type": "IsYourTurn"
+        },
+        "type": "Not"
+       },
+       "cost": {
+        "count": 1,
+        "filter": {
+         "controller": "You",
+         "properties": [
+          {
+           "color": "Black",
+           "type": "HasColor"
+          },
+          {
+           "type": "InZone",
+           "zone": "Hand"
+          }
+         ],
+         "type": "Typed",
+         "type_filters": [
+          "Card"
+         ]
+        },
+        "type": "Exile",
+        "zone": "Hand"
+       },
+       "kind": "AlternativeCost"
+      }
+     ],
+     "color_identity": [
+      "Black"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "Black",
+       "Black"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "8f497b0d-4448-4201-bd55-c147da1a216d",
+       "cbb2277d-ce6a-4c28-b868-c3d48beae7da"
+      ]
+     },
+     "name": "Force of Despair",
+     "non_ability_text": null,
+     "oracle_text": "If it's not your turn, you may exile a black card from your hand rather than pay this spell's mana cost.\nDestroy all creatures that entered this turn.",
+     "power": null,
+     "printings": [
+      "MH1",
+      "SLD",
+      "SLP"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2019-06-14",
+       "text": "Force of Despair destroys all permanents that entered the battlefield this turn and are currently creatures. It doesn’t matter whether they were creatures as they entered the battlefield."
+      }
+     ],
+     "scryfall_oracle_id": "0f2d038e-6dab-4352-9ba7-ed9e063bb304",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 3.0,
+    "color_identity": [
+     "B"
+    ],
+    "colors": [
+     "B"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}{B}{B}",
+    "name": "Force of Despair",
+    "oracle_id": "0f2d038e-6dab-4352-9ba7-ed9e063bb304",
+    "oracle_text": "If it's not your turn, you may exile a black card from your hand rather than pay this spell's mana cost.\nDestroy all creatures that entered this turn.",
     "type_line": "Instant"
    }
   },
@@ -504148,6 +504776,150 @@
     "power": "2",
     "toughness": "2",
     "type_line": "Creature — Human Cleric"
+   }
+  },
+  "Harsh Mercy": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Each player chooses a creature type. Destroy all creatures that aren't of a type chosen this way. They can't be regenerated.",
+       "duration": null,
+       "effect": {
+        "choice_type": "CreatureType",
+        "persist": true,
+        "type": "Choose"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "player_scope": {
+        "type": "All"
+       },
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "cant_regenerate": true,
+         "target": {
+          "controller": null,
+          "properties": [],
+          "type": "Typed",
+          "type_filters": [
+           "Creature"
+          ]
+         },
+         "type": "DestroyAll"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "sub_link": "SequentialSibling",
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Sorcery"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "White"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "premodern": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 2,
+      "shards": [
+       "White"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "b1448ffd-42af-475c-8883-1933508a8a6a",
+       "b6473b4d-1f59-4216-ace9-f3e5306266fb"
+      ]
+     },
+     "name": "Harsh Mercy",
+     "non_ability_text": null,
+     "oracle_text": "Each player chooses a creature type. Destroy all creatures that aren't of a type chosen this way. They can't be regenerated.",
+     "power": null,
+     "printings": [
+      "CMM",
+      "ONS"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "dcd65c9b-4aaa-42af-869f-de179ae57c9f",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 3.0,
+    "color_identity": [
+     "W"
+    ],
+    "colors": [
+     "W"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}{W}",
+    "name": "Harsh Mercy",
+    "oracle_id": "dcd65c9b-4aaa-42af-869f-de179ae57c9f",
+    "oracle_text": "Each player chooses a creature type. Destroy all creatures that aren't of a type chosen this way. They can't be regenerated.",
+    "type_line": "Sorcery"
    }
   },
   "Harvest Gwyllion": {
@@ -590904,6 +591676,180 @@
     "type_line": "Enchantment — Aura"
    }
   },
+  "Kaya's Wrath": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Destroy all creatures. You gain life equal to the number of creatures you controlled that were destroyed this way.",
+       "duration": null,
+       "effect": {
+        "cant_regenerate": false,
+        "target": {
+         "controller": null,
+         "properties": [],
+         "type": "Typed",
+         "type_filters": [
+          "Creature"
+         ]
+        },
+        "type": "DestroyAll"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "amount": {
+          "qty": {
+           "caused_by": "Destroyed",
+           "filter": {
+            "controller": "You",
+            "properties": [],
+            "type": "Typed",
+            "type_filters": [
+             "Creature"
+            ]
+           },
+           "type": "FilteredTrackedSetSize"
+          },
+          "type": "Ref"
+         },
+         "type": "GainLife"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "sub_link": "SequentialSibling",
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Sorcery"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Black",
+      "White"
+     ],
+     "color_override": [
+      "Black",
+      "White"
+     ],
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 0,
+      "shards": [
+       "White",
+       "White",
+       "Black",
+       "Black"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "20adee32-2144-44ad-a70c-ebfbda0900ec",
+       "5ed140c1-752b-4539-88f2-1fa354049b17"
+      ]
+     },
+     "name": "Kaya's Wrath",
+     "non_ability_text": null,
+     "oracle_text": "Destroy all creatures. You gain life equal to the number of creatures you controlled that were destroyed this way.",
+     "power": null,
+     "printings": [
+      "DMC",
+      "PRNA",
+      "RNA"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2019-01-25",
+       "text": "If a creature you control has indestructible, it isn't destroyed this way and you won't gain life for it. If a creature you control is destroyed but put into a zone other than a graveyard, you will gain life for it."
+      }
+     ],
+     "scryfall_oracle_id": "bc8de6c7-c69d-4add-8f25-825d945874f9",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 4.0,
+    "color_identity": [
+     "B",
+     "W"
+    ],
+    "colors": [
+     "B",
+     "W"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{W}{W}{B}{B}",
+    "name": "Kaya's Wrath",
+    "oracle_id": "bc8de6c7-c69d-4add-8f25-825d945874f9",
+    "oracle_text": "Destroy all creatures. You gain life equal to the number of creatures you controlled that were destroyed this way.",
+    "type_line": "Sorcery"
+   }
+  },
   "Kaya, Spirits' Justice": {
    "phase_records": [
     {
@@ -599233,6 +600179,189 @@
     "oracle_id": "005ee549-1bf5-478f-bc3f-3e791bd7eecf",
     "oracle_text": "As this enchantment enters, choose a creature type.\nWhenever a creature you control of the chosen type enters or attacks, draw a card.",
     "type_line": "Enchantment"
+   }
+  },
+  "Kindred Dominance": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Choose a creature type. Destroy all creatures that aren't of the chosen type.",
+       "duration": null,
+       "effect": {
+        "choice_type": "CreatureType",
+        "persist": true,
+        "type": "Choose"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "cant_regenerate": false,
+         "target": {
+          "filters": [
+           {
+            "controller": null,
+            "properties": [],
+            "type": "Typed",
+            "type_filters": [
+             "Creature"
+            ]
+           },
+           {
+            "filter": {
+             "controller": null,
+             "properties": [
+              {
+               "type": "IsChosenCreatureType"
+              }
+             ],
+             "type": "Typed",
+             "type_filters": []
+            },
+            "type": "Not"
+           }
+          ],
+          "type": "And"
+         },
+         "type": "DestroyAll"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "sub_link": "SequentialSibling",
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Sorcery"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Black"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 5,
+      "shards": [
+       "Black",
+       "Black"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "22c47433-a0fa-4a1d-9070-25af120c02dd",
+       "538492b5-b61e-4165-b432-37cba84a169d",
+       "9794115a-5509-4d9a-b119-d2b61942e87b",
+       "a495624a-2877-4e04-89da-9ef52569b7c6",
+       "ada27732-0491-4c99-980d-2f3c3230f220",
+       "af613b69-b9f6-4221-a21b-c8e4b0f010f1",
+       "b9851cef-baa9-481c-9f22-0355b1c6500e",
+       "f6cd7c08-f5d4-4bdc-a254-809d900b0fc3"
+      ]
+     },
+     "name": "Kindred Dominance",
+     "non_ability_text": null,
+     "oracle_text": "Choose a creature type. Destroy all creatures that aren't of the chosen type.",
+     "power": null,
+     "printings": [
+      "C17",
+      "CMM",
+      "MSC",
+      "PLST",
+      "PZ2",
+      "WOC"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2017-08-25",
+       "text": "Once Kindred Dominance begins to resolve, no players may take other actions until it's done. Notably, players can't try to save their creatures after you've chosen a creature type."
+      },
+      {
+       "date": "2017-08-25",
+       "text": "You can't choose multiple creature types, such as \"Cat Warrior.\" A Cat Warrior is both a Cat and a Warrior. It's affected by anything that affects either type and unaffected by things that affect non-Cat or non-Warrior creatures."
+      },
+      {
+       "date": "2017-08-25",
+       "text": "You must choose an existing creature type, such as Vampire or Cat. Card types such as \"artifact\" can't be chosen."
+      }
+     ],
+     "scryfall_oracle_id": "ccaa44f2-96be-44e2-884f-c31baa3908d5",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 7.0,
+    "color_identity": [
+     "B"
+    ],
+    "colors": [
+     "B"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{5}{B}{B}",
+    "name": "Kindred Dominance",
+    "oracle_id": "ccaa44f2-96be-44e2-884f-c31baa3908d5",
+    "oracle_text": "Choose a creature type. Destroy all creatures that aren't of the chosen type.",
+    "type_line": "Sorcery"
    }
   },
   "Kindred Judgment": {
@@ -671276,6 +672405,302 @@
     "oracle_id": "b133129d-1ffb-4b78-9f5b-852d163cc9b7",
     "oracle_text": "Exile all creatures you control, then reveal cards from the top of your library until you reveal that many creature cards. Put all creature cards revealed this way onto the battlefield, then shuffle the rest of the revealed cards into your library.",
     "type_line": "Sorcery"
+   }
+  },
+  "Massacre Girl": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "brawl_commander": true,
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Human",
+       "Assassin"
+      ],
+      "supertypes": [
+       "Legendary"
+      ]
+     },
+     "color_identity": [
+      "Black"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "is_commander": true,
+     "keywords": [
+      "Menace"
+     ],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 3,
+      "shards": [
+       "Black",
+       "Black"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "17919445-5b72-4014-9a05-8df4f8d5e80e",
+       "1a70b4a3-dc57-4338-9a15-a407c94ebee5",
+       "59957c45-4672-4650-80b1-70e4a60b429e",
+       "64cb40e2-437c-42be-949a-f3d203f3229b",
+       "7cdd99ba-b96c-4808-89fc-ba675c546779",
+       "aca50272-f6e3-4e8f-b789-31968c554624",
+       "be8ec9e1-2c8e-496d-9111-4d453b75b578",
+       "ebca1926-6809-4924-a80c-f322266ac38e",
+       "fab14e57-8e49-49fd-ad3f-ac669318bb14"
+      ]
+     },
+     "name": "Massacre Girl",
+     "non_ability_text": null,
+     "oracle_text": "Menace\nWhen Massacre Girl enters, each other creature gets -1/-1 until end of turn. Whenever a creature dies this turn, each creature other than Massacre Girl gets -1/-1 until end of turn.",
+     "power": {
+      "type": "Fixed",
+      "value": 4
+     },
+     "printings": [
+      "DSC",
+      "MAR",
+      "OTC",
+      "PWAR",
+      "RVR",
+      "SLD",
+      "WAR"
+     ],
+     "rarities": [
+      "rare",
+      "mythic"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2019-05-03",
+       "text": "A creature with 0 toughness doesn't die immediately. Rather, the creature dies the next time a player would receive priority. This means that any creatures whose toughness becomes 0 as Massacre Girl's enters-the-battlefield ability resolves will remain on the battlefield until just after the delayed triggered ability has been created."
+      },
+      {
+       "date": "2019-05-03",
+       "text": "Creatures that die while Massacre Girl's triggered ability is still on the stack won't cause its delayed triggered ability to trigger since that delayed triggered ability hasn't been created yet."
+      },
+      {
+       "date": "2019-05-03",
+       "text": "If more than one creature dies at once, Massacre Girl's delayed triggered ability triggers that many times."
+      },
+      {
+       "date": "2019-05-03",
+       "text": "Massacre Girl's enters-the-battlefield triggered ability and its delayed triggered ability each affect only creatures on the battlefield at the time that those abilities resolve. Creatures that enter the battlefield or become creatures later in the turn won't get -1/-1 unless the delayed triggered ability triggers and resolves again later."
+      },
+      {
+       "date": "2019-05-03",
+       "text": "Once Massacre Girl's enters-the-battlefield ability has triggered, it doesn't matter whether Massacre Girl remains on the battlefield. The delayed triggered ability will be created as the enters-the-battlefield ability resolves. "
+      }
+     ],
+     "scryfall_oracle_id": "63e6cb7d-cc27-4200-85fc-ff6472318c1a",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 4
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "When ~ enters, each other creature gets -1/-1 until end of turn. Whenever a creature dies this turn, each creature other than ~ gets -1/-1 until end of turn.",
+       "destination": "Battlefield",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": "UntilEndOfTurn",
+        "effect": {
+         "power": {
+          "type": "Fixed",
+          "value": -1
+         },
+         "target": {
+          "controller": null,
+          "properties": [
+           {
+            "type": "Another"
+           }
+          ],
+          "type": "Typed",
+          "type_filters": [
+           "Creature"
+          ]
+         },
+         "toughness": {
+          "type": "Fixed",
+          "value": -1
+         },
+         "type": "PumpAll"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": "UntilEndOfTurn",
+         "effect": {
+          "condition": {
+           "trigger": {
+            "batched": false,
+            "condition": null,
+            "constraint": null,
+            "damage_kind": "Any",
+            "description": null,
+            "destination": "Graveyard",
+            "execute": null,
+            "mode": "ChangesZone",
+            "optional": false,
+            "origin": "Battlefield",
+            "phase": null,
+            "secondary": false,
+            "trigger_zones": [
+             "Battlefield"
+            ],
+            "valid_card": {
+             "controller": null,
+             "properties": [],
+             "type": "Typed",
+             "type_filters": [
+              "Creature"
+             ]
+            },
+            "valid_source": null,
+            "valid_target": null
+           },
+           "type": "WheneverEvent"
+          },
+          "effect": {
+           "condition": null,
+           "cost": null,
+           "description": null,
+           "duration": null,
+           "effect": {
+            "power": {
+             "type": "Fixed",
+             "value": -1
+            },
+            "target": {
+             "controller": null,
+             "properties": [
+              {
+               "type": "Another"
+              }
+             ],
+             "type": "Typed",
+             "type_filters": [
+              "Creature"
+             ]
+            },
+            "toughness": {
+             "type": "Fixed",
+             "value": -1
+            },
+            "type": "PumpAll"
+           },
+           "forward_result": false,
+           "kind": "Spell",
+           "optional": false,
+           "optional_targeting": false,
+           "sub_ability": null,
+           "target_prompt": null
+          },
+          "type": "CreateDelayedTrigger",
+          "uses_tracked_set": false
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": null,
+         "sub_link": "SequentialSibling",
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "mode": "ChangesZone",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 5.0,
+    "color_identity": [
+     "B"
+    ],
+    "colors": [
+     "B"
+    ],
+    "keywords": [
+     "Menace"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{3}{B}{B}",
+    "name": "Massacre Girl",
+    "oracle_id": "63e6cb7d-cc27-4200-85fc-ff6472318c1a",
+    "oracle_text": "Menace\nWhen Massacre Girl enters, each other creature gets -1/-1 until end of turn. Whenever a creature dies this turn, each creature other than Massacre Girl gets -1/-1 until end of turn.",
+    "power": "4",
+    "toughness": "4",
+    "type_line": "Legendary Creature — Human Assassin"
    }
   },
   "Massacre Wurm": {
@@ -904924,6 +906349,200 @@
     "type_line": "Instant"
    }
   },
+  "Shatter the Sky": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Each player who controls a creature with power 4 or greater draws a card. Then destroy all creatures.",
+       "duration": null,
+       "effect": {
+        "count": {
+         "type": "Fixed",
+         "value": 1
+        },
+        "target": {
+         "type": "Controller"
+        },
+        "type": "Draw"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "player_scope": {
+        "comparator": "GE",
+        "count": {
+         "type": "Fixed",
+         "value": 1
+        },
+        "filter": {
+         "controller": null,
+         "properties": [
+          {
+           "comparator": "GE",
+           "scope": "Current",
+           "stat": "Power",
+           "type": "PtComparison",
+           "value": {
+            "type": "Fixed",
+            "value": 4
+           }
+          }
+         ],
+         "type": "Typed",
+         "type_filters": [
+          "Creature"
+         ]
+        },
+        "relation": {
+         "type": "All"
+        },
+        "type": "ControlsCount"
+       },
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "cant_regenerate": false,
+         "target": {
+          "controller": null,
+          "properties": [],
+          "type": "Typed",
+          "type_filters": [
+           "Creature"
+          ]
+         },
+         "type": "DestroyAll"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "sub_link": "SequentialSibling",
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Sorcery"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "White"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 2,
+      "shards": [
+       "White",
+       "White"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "349ca9f3-f8d4-4fd3-b6dd-1a1d56ffd97c",
+       "b706977b-db8e-4810-882d-ed3745404489",
+       "e79f7e98-2f80-444b-8ca2-d529472ba798"
+      ]
+     },
+     "name": "Shatter the Sky",
+     "non_ability_text": null,
+     "oracle_text": "Each player who controls a creature with power 4 or greater draws a card. Then destroy all creatures.",
+     "power": null,
+     "printings": [
+      "ECC",
+      "PRM",
+      "PTHB",
+      "THB"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2020-01-24",
+       "text": "No player may take any actions between the time each qualifying player draws a card and the time all creatures are destroyed."
+      },
+      {
+       "date": "2020-01-24",
+       "text": "Shatter the Sky destroys all creatures, even if no player draws a card."
+      }
+     ],
+     "scryfall_oracle_id": "2ffc7509-c7ce-44c4-a8cf-90ed161b5d10",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 4.0,
+    "color_identity": [
+     "W"
+    ],
+    "colors": [
+     "W"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}{W}{W}",
+    "name": "Shatter the Sky",
+    "oracle_id": "2ffc7509-c7ce-44c4-a8cf-90ed161b5d10",
+    "oracle_text": "Each player who controls a creature with power 4 or greater draws a card. Then destroy all creatures.",
+    "type_line": "Sorcery"
+   }
+  },
   "Shatterskull Charger": {
    "phase_records": [
     {
@@ -913225,6 +914844,156 @@
     "oracle_id": "c6e92e21-d3e7-4982-b9f3-af56d4014c07",
     "oracle_text": "Equipped creature has \"{T}, Unattach Shuriken: Shuriken deals 2 damage to target creature. That creature's controller gains control of Shuriken unless it was unattached from a Ninja.\"\nEquip {2} ({2}: Attach to target creature you control. Equip only as a sorcery.)",
     "type_line": "Artifact — Equipment"
+   }
+  },
+  "Sickening Dreams": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "~ deals X damage to each creature and each player.",
+       "duration": null,
+       "effect": {
+        "amount": {
+         "qty": {
+          "name": "X",
+          "type": "Variable"
+         },
+         "type": "Ref"
+        },
+        "player_filter": {
+         "type": "All"
+        },
+        "target": {
+         "controller": null,
+         "properties": [],
+         "type": "Typed",
+         "type_filters": [
+          "Creature"
+         ]
+        },
+        "type": "DamageAll"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "additional_cost": {
+      "data": {
+       "count": {
+        "qty": {
+         "name": "X",
+         "type": "Variable"
+        },
+        "type": "Ref"
+       },
+       "filter": null,
+       "random": false,
+       "self_ref": false,
+       "type": "Discard"
+      },
+      "type": "Required"
+     },
+     "card_type": {
+      "core_types": [
+       "Sorcery"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Black"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "premodern": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "Black"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "4640655d-0f39-4cb7-8e44-5ff2ea0c4e36",
+       "9396ac77-9f53-46bd-b126-02441a0f5594"
+      ]
+     },
+     "name": "Sickening Dreams",
+     "non_ability_text": null,
+     "oracle_text": "As an additional cost to cast this spell, discard X cards.\nSickening Dreams deals X damage to each creature and each player.",
+     "power": null,
+     "printings": [
+      "PD3",
+      "TOR",
+      "WC03"
+     ],
+     "rarities": [
+      "uncommon"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "728d2e30-2f36-4054-81db-29b01e376a82",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 2.0,
+    "color_identity": [
+     "B"
+    ],
+    "colors": [
+     "B"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}{B}",
+    "name": "Sickening Dreams",
+    "oracle_id": "728d2e30-2f36-4054-81db-29b01e376a82",
+    "oracle_text": "As an additional cost to cast this spell, discard X cards.\nSickening Dreams deals X damage to each creature and each player.",
+    "type_line": "Sorcery"
    }
   },
   "Sickle Dancer": {
@@ -971831,6 +973600,164 @@
     "type_line": "Creature — Angel"
    }
   },
+  "Sudden Demise": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Choose a color. ~ deals X damage to each creature of the chosen color.",
+       "duration": null,
+       "effect": {
+        "choice_type": "Color",
+        "persist": false,
+        "type": "Choose"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "amount": {
+          "qty": {
+           "name": "X",
+           "type": "Variable"
+          },
+          "type": "Ref"
+         },
+         "target": {
+          "controller": null,
+          "properties": [],
+          "type": "Typed",
+          "type_filters": [
+           "Creature"
+          ]
+         },
+         "type": "DamageAll"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "sub_link": "SequentialSibling",
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Sorcery"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Red"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 0,
+      "shards": [
+       "X",
+       "Red"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "642ae139-aed2-4200-ade7-3054a1c72edd",
+       "9336cb8a-13d4-4d97-9111-1326a9028df8"
+      ]
+     },
+     "name": "Sudden Demise",
+     "non_ability_text": null,
+     "oracle_text": "Choose a color. Sudden Demise deals X damage to each creature of the chosen color.",
+     "power": null,
+     "printings": [
+      "C13",
+      "E01",
+      "PLST"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2013-10-17",
+       "text": "Sudden Demise will deal damage to a multicolored creature if one of its colors is the chosen color."
+      },
+      {
+       "date": "2013-10-17",
+       "text": "You choose the value for X as you cast Sudden Demise. You don’t choose the color until it resolves."
+      }
+     ],
+     "scryfall_oracle_id": "b34b5b3f-7f17-4292-814e-634408a5d7a5",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 1.0,
+    "color_identity": [
+     "R"
+    ],
+    "colors": [
+     "R"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{X}{R}",
+    "name": "Sudden Demise",
+    "oracle_id": "b34b5b3f-7f17-4292-814e-634408a5d7a5",
+    "oracle_text": "Choose a color. Sudden Demise deals X damage to each creature of the chosen color.",
+    "type_line": "Sorcery"
+   }
+  },
   "Sulfuric Vortex": {
    "phase_records": [
     {
@@ -977909,6 +979836,214 @@
      "B"
     ],
     "type_line": "Basic Land — Swamp"
+   }
+  },
+  "Swarmyard Massacre": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Create two 1/1 green Squirrel creature tokens. Then each creature that isn't an Insect, Rat, Spider, or Squirrel gets -1/-1 until end of turn for each creature you control that's an Insect, Rat, Spider, or Squirrel.",
+       "duration": null,
+       "effect": {
+        "colors": [
+         "Green"
+        ],
+        "count": {
+         "type": "Fixed",
+         "value": 2
+        },
+        "enters_attacking": false,
+        "keywords": [],
+        "name": "Squirrel",
+        "owner": {
+         "type": "Controller"
+        },
+        "power": {
+         "type": "Fixed",
+         "value": 1
+        },
+        "tapped": false,
+        "toughness": {
+         "type": "Fixed",
+         "value": 1
+        },
+        "type": "Token",
+        "types": [
+         "Creature",
+         "Squirrel"
+        ]
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": "UntilEndOfTurn",
+        "effect": {
+         "power": {
+          "type": "Fixed",
+          "value": -1
+         },
+         "target": {
+          "controller": null,
+          "properties": [],
+          "type": "Typed",
+          "type_filters": [
+           "Creature"
+          ]
+         },
+         "toughness": {
+          "type": "Fixed",
+          "value": -1
+         },
+         "type": "PumpAll"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "sub_link": "SequentialSibling",
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Sorcery"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Black"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 3,
+      "shards": [
+       "Black",
+       "Black"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "related_token_ids": [
+       "da457623-e6de-51b0-a22f-e279640934a9"
+      ],
+      "source_printing_ids": [
+       "0ce5e24a-84e3-4ecb-924d-1a92b0da914a",
+       "8486f472-afad-4fdd-a57a-d20d8871b543"
+      ]
+     },
+     "name": "Swarmyard Massacre",
+     "non_ability_text": null,
+     "oracle_text": "Create two 1/1 green Squirrel creature tokens. Then each creature that isn't an Insect, Rat, Spider, or Squirrel gets -1/-1 until end of turn for each creature you control that's an Insect, Rat, Spider, or Squirrel.",
+     "parse_warnings": [
+      {
+       "description": "Create two 1/1 green Squirrel creature tokens. Then each creature that isn't an Insect, Rat, Spider, or Squirrel gets -1/-1 until end of tur",
+       "detector": "DynamicQty",
+       "items": [
+        0
+       ],
+       "line_index": 0,
+       "type": "SwallowedClause",
+       "unit_span": {
+        "end_byte": 215,
+        "first_line": 0,
+        "last_line": 0,
+        "ordinal_within_span": 0,
+        "precision": "Exact",
+        "start_byte": 0
+       }
+      }
+     ],
+     "power": null,
+     "printings": [
+      "BLC"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2024-07-26",
+       "text": "If you control a creature that has more than one of the listed types (for example, Daggerfang Duo, which is a Rat Squirrel), it's only counted once for Swarmyard Massacre."
+      }
+     ],
+     "scryfall_oracle_id": "50e7ae38-2a66-4e32-bfb3-fefbae0caa61",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "all_parts": [
+     {
+      "component": "token",
+      "id": "aa846cf5-c618-4304-bb92-5df936ebca9b",
+      "name": "Squirrel",
+      "oracle_id": "67f21c0c-2083-4eda-9dc3-cc8aee42289f",
+      "type_line": "Token Creature — Squirrel"
+     }
+    ],
+    "arena_available": false,
+    "cmc": 5.0,
+    "color_identity": [
+     "B"
+    ],
+    "colors": [
+     "B"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{3}{B}{B}",
+    "name": "Swarmyard Massacre",
+    "oracle_id": "50e7ae38-2a66-4e32-bfb3-fefbae0caa61",
+    "oracle_text": "Create two 1/1 green Squirrel creature tokens. Then each creature that isn't an Insect, Rat, Spider, or Squirrel gets -1/-1 until end of turn for each creature you control that's an Insect, Rat, Spider, or Squirrel.",
+    "type_line": "Sorcery"
    }
   },
   "Swashbuckler's Whip": {

@@ -896,6 +896,86 @@ Against HEAD: 72 more swaps, 15 more guide-matching cuts, 3 more guide-matching 
   Blame Game traded Aurelia, the Law Above and Bothersome Quasit for Firemane
   Commando.
 
+### The tuner-policy leftovers (2026-10-24, last)
+
+Backlog (j)'s wipe and job leftovers and (r)'s non-viable lanes. The bar as in "The
+remaining tuner levers": a policy change, measured alone against the baseline, ships
+only if guide-matching adds rise and guide-matching cuts fall by two at most (or cuts
+rise with adds flat); a read fix ships on its correctness, with its delta recorded.
+One `misses.py` run per row, Spellbook cached; every experiment row on W2 (whose
+guide matches equal HEAD's). Tune seconds are the median per precon.
+
+| change | swaps / cuts / adds | theme swaps | tune s | |
+|---|---|---|---|---|
+| HEAD (e3d1c6d5) | 546 / 195 / 60 | 248 | 6.1 | |
+| W1 the wipe read's listed misreads (on HEAD) | 546 / 195 / 60 | 248 | 6.1 | no swap moved |
+| J2 the wipe read leads its upgrades (on W1) | 547 / 195 / 60 | 248 | 5.7 | flat, rejected |
+| W2 W1 + a draw "each player who controls" gets is no rider | 546 / 195 / 60 | 248 | 5.8 | **shipped** (read fixes) |
+| J2 again (on W2) | 547 / 195 / 60 | 248 | 5.8 | flat, rejected |
+| removal deck fit A: a deck with two or more instant any-permanent answers takes a targeted one first | 546 / 196 / 59 | 249 | 6.5 | rejected |
+| removal deck fit B: A, and a deck with fewer takes a flexible one first | 544 / 196 / 56 | 249 | 6.5 | rejected |
+| the ramp read orders its upgrades, blended with play-rate | 532 / 195 / 56 | 243 | 6.6 | rejected |
+| a commander-paid lane below the viable floor gets one swap off its serve page, cut from the upgrade pool | 550 / 196 / 58 | 243 | 6.0 | rejected |
+| … only a lane at least the emerging floor deep | 548 / 195 / 60 | 244 | 5.9 | flat, rejected |
+
+- **The wipe read's misreads (W1, W2).** An X paid in cards is an X (Sickening and
+  Devastating Dreams, CR 107.3a: 0.80 to 0.48); a pitch cost is the cards it pitches,
+  each a mana (Force of Despair, CR 118.9); "lands you control don't untap during your
+  next untap step" costs the sweep again (Bontu's Last Reckoning, CR 502.3: 0.78 to
+  0.28); Massacre Girl's delayed "whenever a creature dies this turn" shrink chains
+  (CR 603.7a, its ruling: 0.15 to 0.39); a `Choose` the sweep's filter never reads
+  limits it, a spare when each player chooses (Harsh Mercy 0.78 to 0.34), else a
+  narrow slice (Sudden Demise, Void); and the clauses phase drops whole are read by
+  name with canaries (Extinction narrow, Swarmyard Massacre a spare, Do or Die a
+  one-sided pile, CR 700.3). W2 adds the rider fix the J2 picks exposed: Shatter the
+  Sky's and Depopulate's draw goes to each player who controls a big or multicolored
+  creature, not to the caster (0.82 to 0.76, Wrath of God's). ADR-0060's board-wipe
+  row: Spearman 0.501 to 0.510, guide adds still at the 84th percentile, 9 of 19 in
+  the top decile (8), the cut side unchanged (9 of the bottom two). On the tunes only
+  VelociRampTor (Wrath of God over Shatter the Sky) and Multiverse Reforged (two wipe
+  adds swap cuts) move.
+- **The wipe read leading (J2), a measured verdict.** Flat twice. Its picks change in
+  six precons (Blood Rites, Enduring Enchantments, Grand Larceny, Living Energy, Timey
+  Wimey, VelociRampTor), and no guide for those six adds a wipe, so no wipe order can
+  gain there; Timey Wimey's one add moved (Lotus Bloom for Jhoira's Timebug) on the
+  budget. Of the 19 guide wipe adds, the tuner makes 3 (Blasphemous Act, Cyclonic
+  Rift, Vanquish the Horde); the reachable rest are deck-fit picks: Raise the Palisade
+  and Faerie Slumber Party in Fae Dominion (a sweep that spares the deck's tribe),
+  Expel the Interlopers and Tragic Arrogance in Virtue and Valor (sweeps that leave
+  one big creature), Chain Reaction and Winds of Abandon in Blame Game. What would
+  change it is a deck-fit wipe read (the share of the deck's own board a sweep
+  leaves), not a better card read. Misreads remain (the module docstring): none is a
+  guide add, and two are shipped picks in decks with no in-scope guide wipe add to
+  displace (Deluge of Doom in Sultai Arisen, whose X counts card types in your
+  graveyard; Boompile in Tinker Time, whose coin flip phase drops), so no fix of
+  them can move a guide match either.
+- **Removal's deck fit.** Beast Within, Chaos Warp and Generous Gift read alike (0.61)
+  and Beast Within is the most played, so play-rate's pick recurs (14 upgrades, many of
+  them for an any-permanent answer the deck already ran: Casualties of War, Cast Out,
+  Putrefy, Terminate). A deck already holding two instant any-permanent answers taking
+  a targeted one moved the recurrence to Abrade (12) and lost Blood Rites' Generous
+  Gift; also taking a flexible one first where the deck has fewer lost Blame Game's
+  and VelociRampTor's Swords to Plowshares and Path to Exile. The guides add both kinds
+  whatever the deck's flexible count.
+- **Ramp.** Fellwar Stone is the ramp add in 10 upgrades: the most played two-mana rock
+  not already in the deck, reading as Arcane Signet does (0.70). It reads as fixing
+  though its colours are an opponent's lands' (phase's `OpponentLandColors`), but the
+  fixing weight is 0.03, so the correction moves nothing (not made). The ramp read
+  blended into the order took Fellwar Stone to none and gained Desert Bloom's
+  Exploration, but Mana Vault took 9 upgrades, Enduring Enchantments lost Fertile
+  Ground, and Virtue and Valor (two), Sliver Swarm and Deep Clue Sea lost adds
+  elsewhere in their tunes.
+- **Lanes below the floor ((r)).** Blood Rites' sacrifice package is not the
+  commander's lane by the signal read: Clavileño holds Vampire, Demon and Combat only,
+  so no commander-paid rule reaches it. Ten precons hold a lane below the viable floor
+  whose carers include the commander; an emerging lane already raises an issue, but its
+  remedy cuts only from the generic pool, which the dead-weight drain empties first
+  (one such swap in 25 precons). Paying one swap per such lane from the upgrade pool
+  gained Squirreled Away's Doubling Season, but the shallow lanes' pages are noise
+  (Platinum Angel for "Life-loss insurance", Coveted Jewel for "Targeted draw") and
+  cost Virtue and Valor two adds; held to the emerging floor it was flat (Timey
+  Wimey's Herald's Horn took Jhoira's Timebug's budget).
+
 ## What is left
 
 `docs/plans/backlog.md`, "What the polymorph tune and the 25-precon audit still
