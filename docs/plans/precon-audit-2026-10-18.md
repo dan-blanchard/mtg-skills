@@ -976,6 +976,44 @@ guide matches equal HEAD's). Tune seconds are the median per precon.
   cost Virtue and Valor two adds; held to the emerging floor it was flat (Timey
   Wimey's Herald's Horn took Jhoira's Timebug's budget).
 
+### The commander's lane read (2026-10-25)
+
+Backlog (r)'s new read: Clavileño grants "When this creature dies, draw a card and
+create a … Vampire Demon" to the attacking Vampire it targets, so it is a death payoff
+for every Vampire it hits (CR 113.1a, 113.7, 603.3a, 700.4). The bar as in "The
+tuner-policy leftovers". One `misses.py` run per row, Spellbook cached; tune seconds
+are the median per precon.
+
+| change | swaps / cuts / adds | theme swaps | tune s | |
+|---|---|---|---|---|
+| HEAD (c3210f12) | 543 / 195 / 60 | 248 | 5.3 | |
+| a granted dies payoff reads as `death_matters\|you` | 543 / 195 / 60 | 248 | 6.1 | **shipped** (read fix) |
+| … and a held lane as deep as a main never folds into a held tribe | 544 / 196 / 62 | 249 | 6.0 | **shipped** |
+
+- **The read.** `crosswalk.iter_granted_triggers` pairs each granted trigger with
+  its grantee, threading "It gains" / "those creatures gain" to the chosen target.
+  Over the legal pool eight cards gain `death_matters|you` and none lose an ident:
+  Clavileño, Showstopper, Rabid Attack, Galuf's Final Act, Fall of Gil-galad and Time
+  Lord Regeneration (granted to a target or your team), Infernal Scarring (the
+  enchanted creature) and Doom Weaver (a soulbond pair). Left out: a grant to an
+  opponent's creature (Mathas, Putrid Hexhag: the trigger's controller is the
+  creature's, CR 603.3a), to every creature (Endless Whispers), to the card itself
+  or a token's own ability (the Pest makers), and a grant that returns the dying
+  creature (Feign Death, Kaya the Inexorable). Alone it moved no swap: Aristocrats
+  is now held, 28 deep, but 26 of its members are Vampires, so it folded into
+  Vampire tribal.
+- **The tribe fold.** A tribe's page is a type search, so a lane folded into it
+  loses the page that holds its cards beyond the tribe. Of the 25 precons only Blood
+  Rites holds a lane as deep as a main (20) that folded into a held tribe; Blood
+  Rites' Combat (19) and VelociRampTor's Toughness as power (17) are shallower and
+  still fold. Aristocrats is Blood Rites' second main, and its tune adds Skullclamp
+  (the card-draw fill) and Victimize, both guide adds, and cuts Exquisite Blood,
+  one guide's cut. That cut is a bug the deeper drain exposed: the tune's near-miss
+  swaps add five cards that complete Exquisite Blood (backlog (s)). Pyre of Heroes
+  and Lich-Knights' Conquest still have no search; Altar of Dementia, Diabolic
+  Intent, Razaketh and Dictate of Erebos are on the Aristocrats page, outranked.
+  Theme guide adds no search reaches: 164, from 169.
+
 ## What is left
 
 `docs/plans/backlog.md`, "What the polymorph tune and the 25-precon audit still

@@ -458,13 +458,28 @@ def focus(
         else set()
     )
 
+    # A lane the commander holds that is deep enough to be a main theme never
+    # folds into a tribe the commander also holds: the tribe's page is a type
+    # search, its members the tribe's own cards, so the lane's cards beyond the
+    # tribe — the ones its own page holds — are reached by no page. Blood Rites'
+    # Aristocrats (28 deep, all but two of them Vampires, once Clavileño's
+    # granted dies trigger reads as a death payoff) folded into Vampire tribal,
+    # and no search held the guide's sacrifice package (Altar of Dementia, Pyre
+    # of Heroes, Victimize).
+    tribes = labels_where(
+        lambda sig: sig.key == signal_keys.TYPE_MATTERS and bool(sig.subject)
+    )
+
     def folds(lbl: str, kept: Sequence[str], same: Callable[[str, str], bool]) -> bool:
         """``lbl`` is a kept avenue read again (``same``): against any kept
         avenue for an ordinary one, only the commander's other lanes for a lane
-        the commander holds, and only another suit-up read for the suit-up
-        avenue under a creature commander (``suit_up``)."""
+        the commander holds (never a tribe, for one as deep as a main —
+        ``tribes``), and only another suit-up read for the suit-up avenue under
+        a creature commander (``suit_up``)."""
         if lbl in commander_held:
             kept = [k for k in kept if k in commander_held]
+            if lbl not in tribes and depth.get(lbl, 0) >= main_floor:
+                kept = [k for k in kept if k not in tribes]
         if lbl in suit_up:
             kept = [k for k in kept if k in suit_up]
         return any(same(lbl, k) for k in kept)

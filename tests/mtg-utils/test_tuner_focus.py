@@ -698,6 +698,41 @@ def test_a_held_lane_never_folds_into_an_avenue_it_does_not_hold():
     assert fodder in [a["label"] for a in fr["emerging"]]
 
 
+def _tribe_and_lane_deck(lane_depth: int):
+    """Blood Rites' shape in miniature: the commander holds Vampire tribal and
+    Aristocrats, and all but two of the Aristocrats members are Vampires."""
+    tribe = spec_for(_sig("type_matters", subject="Vampire")).label
+    lane = spec_for(_sig("death_matters")).label
+    classes = [_cc("Clavileño", "commander", [tribe, lane])]
+    classes += [
+        _cc(f"Vampire {i}", "engine", [tribe, lane] if i < lane_depth - 2 else [tribe])
+        for i in range(40)
+    ]
+    classes += [_cc(f"Altar {i}", "engine", [lane]) for i in range(2)]
+    fr = focus(
+        classes,
+        deck_size=100,
+        deck_signals=[_sig("type_matters", subject="Vampire"), _sig("death_matters")],
+        commander_idents=frozenset(
+            {("type_matters", "you", "Vampire"), ("death_matters", "you", "")}
+        ),
+    )
+    return fr, tribe, lane
+
+
+def test_a_held_lane_as_deep_as_a_main_never_folds_into_a_held_tribe():
+    # The tribe's page is a type search: the lane's own page is the one that
+    # holds its cards beyond the tribe.
+    fr, tribe, lane = _tribe_and_lane_deck(26)
+    assert fr["commander_avenues"] == [tribe, lane]
+    assert fr["mains"] == [tribe, lane]
+
+
+def test_a_shallower_held_lane_still_folds_into_a_held_tribe():
+    fr, tribe, _lane = _tribe_and_lane_deck(15)
+    assert fr["commander_avenues"] == [tribe]
+
+
 def _suit_up_deck(commander: str):
     """Virtue and Valor's shape in miniature: 27 Auras serve both Enchantments
     and Voltron, four creatures serve Voltron alone and ten enchantments

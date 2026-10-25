@@ -142,16 +142,16 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   preset-searched theme takes up to one add in five from its serve's broader
   page, never the first, with the fit floor read off its own members; the theme's
   adds are shared by depth over the main avenues; and under a creature commander
-  the suit-up avenue never folds into another theme. 169 theme guide adds still
-  have no search. Measured negative, so don't re-suggest without a new read:
+  the suit-up avenue never folds into another theme. 164 theme guide adds still
+  have no search (2026-10-25). Measured negative, so don't re-suggest without a new read:
   payoffs first (47 guide adds over the serve's whole match set, 44 over the
   150-card page, against 50: the payoffs cost more and spend small budgets); the
   whole match set as the theme page (no gain, twice the tune time); support at
   one in three or more (generic tribal support takes the members' budget);
   slots shared over every viable avenue (35) or by carers (45), because the
   generic subs' pages hold staples (Murder for Fae Dominion's Spellslinger).
-  Left: the guide adds that serve only a lane that isn't viable (Blood Rites'
-  sacrifice package) still have no search. Measured negative 2026-10-24 (the
+  Left: the guide adds that serve only a lane that isn't viable still have no
+  search. Measured negative 2026-10-24 (the
   audit's "The tuner-policy leftovers"): one swap off the serve page, cut from the
   upgrade pool, for each lane below the viable floor that the commander holds and
   cares about (58 adds; 60 held to the emerging floor, flat), and the shallow
@@ -161,7 +161,13 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   eight legal cards gain it, Clavileño, Showstopper and Infernal Scarring among
   them, none lose). Alone it moved no swap (543 / 195 / 60): Clavileño then holds
   Aristocrats (28 deep), but 26 of its members are Vampires, so it folds into
-  Vampire tribal and no page holds the package. Only four serve
+  Vampire tribal and no page holds the package. Shipped with it: a held lane as
+  deep as a main never folds into a held tribe, whose page is a type search
+  (`metrics.focus`; only Blood Rites moves). Aristocrats is its second main, and
+  its tune adds the guide's Skullclamp and Victimize (544 / 196 / 62). Still
+  unreached there: Pyre of Heroes and Lich-Knights' Conquest have no search;
+  Altar of Dementia, Diabolic Intent, Razaketh and Dictate of Erebos are on the
+  Aristocrats page, outranked. Only four serve
   only a sub (Living Energy's Arcum Dagsson, Clever Impersonator, Scrap Welder; Deep
   Clue Sea's Displaced Dinosaurs). Measured negative 2026-10-24: a sub with a main's carers
   (6) taking one add that also serves a main (57 adds, 2 guide cuts fewer; neither
@@ -176,6 +182,15 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   Sram and Heroic Intervention, 20 swaps). Left: no read separates an Aura deck's
   gear from Equipment (Ellivere's lane is enchanted creatures; Equipment makes none),
   and Ancestral Mask's count of enchantments emits no carer ident.
+  (s) **A near-miss's own piece can be cut** (2026-10-25). Blood Rites' tune adds
+  Sanguine Bond, Vito, Marauding Blight-Priest, Enduring Tenacity and Aetherflux
+  Reservoir as near-miss swaps that each complete Exquisite Blood, then cuts
+  Exquisite Blood as a popular upgrade slot off every lane, for Victimize. Combo
+  protection (`tune.combo_pieces`) reads only the combos the deck holds before the
+  tune, so a near-miss's piece already in the deck stays cuttable. One guide cuts
+  Exquisite Blood ("only good if running the combo"), so the cut scores as a guide
+  match, but this tune runs the combo. The fix: once a near-miss swap is taken,
+  protect the pieces it completes.
   (n) **Lane follow-up verdicts — don't re-suggest without a card** (2026-10-24:
   a targeted Treasure conversion is no `ramp` — Vraska, Betrayal's Sting's −2,
   Kitesail Larcenist answer the target, whose controller keeps it, CR 110.2 /
