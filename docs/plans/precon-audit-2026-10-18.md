@@ -989,6 +989,7 @@ are the median per precon.
 | HEAD (c3210f12) | 543 / 195 / 60 | 248 | 5.3 | |
 | a granted dies payoff reads as `death_matters\|you` | 543 / 195 / 60 | 248 | 6.1 | **shipped** (read fix) |
 | … and a held lane as deep as a main never folds into a held tribe | 544 / 196 / 62 | 249 | 6.0 | **shipped** |
+| … and no cut goes to a piece a near-miss add completes | 542 / 195 / 61 | 248 | 5.9 | **shipped** (correctness) |
 
 - **The read.** `crosswalk.iter_granted_triggers` pairs each granted trigger with
   its grantee, threading "It gains" / "those creatures gain" to the chosen target.
@@ -1008,11 +1009,21 @@ are the median per precon.
   Rites' Combat (19) and VelociRampTor's Toughness as power (17) are shallower and
   still fold. Aristocrats is Blood Rites' second main, and its tune adds Skullclamp
   (the card-draw fill) and Victimize, both guide adds, and cuts Exquisite Blood,
-  one guide's cut. That cut is a bug the deeper drain exposed: the tune's near-miss
-  swaps add five cards that complete Exquisite Blood (backlog (s)). Pyre of Heroes
+  one guide's cut. That cut was a bug the deeper drain exposed: the tune's
+  near-miss swaps add five cards that complete Exquisite Blood. Pyre of Heroes
   and Lich-Knights' Conquest still have no search; Altar of Dementia, Diabolic
   Intent, Razaketh and Dictate of Erebos are on the Aristocrats page, outranked.
   Theme guide adds no search reaches: 164, from 169.
+- **The near-miss pieces.** Combo protection covered only the combos a deck holds
+  before the tune. A near-miss issue now names the deck cards its add completes
+  (`Issue.relies_on`), and once the swap is taken no later cut takes one of them
+  (`swaps.propose_swaps`); a near-miss whose piece is already cut takes no add. Three
+  precons cut a piece their own near-miss add needed: Blood Rites (Exquisite Blood,
+  beside Sanguine Bond and four more), Abzan Armor (Jaws of Defeat, beside Overkill)
+  and Multiverse Reforged (Archfiend of Despair, beside Unstoppable Slasher). Blood
+  Rites loses Victimize, whose upgrade slot was Exquisite Blood and which no other
+  upgrade cut replaces, and the guide-matched Exquisite Blood cut; Abzan Armor and
+  Multiverse Reforged take other cuts and match no guide card differently.
 
 ## What is left
 

@@ -164,7 +164,8 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   Vampire tribal and no page holds the package. Shipped with it: a held lane as
   deep as a main never folds into a held tribe, whose page is a type search
   (`metrics.focus`; only Blood Rites moves). Aristocrats is its second main, and
-  its tune adds the guide's Skullclamp and Victimize (544 / 196 / 62). Still
+  its tune adds the guide's Skullclamp (544 / 196 / 62; Victimize too, until the
+  near-miss piece fix kept the slot it took, Exquisite Blood: 542 / 195 / 61). Still
   unreached there: Pyre of Heroes and Lich-Knights' Conquest have no search;
   Altar of Dementia, Diabolic Intent, Razaketh and Dictate of Erebos are on the
   Aristocrats page, outranked. Only four serve
@@ -182,15 +183,6 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   Sram and Heroic Intervention, 20 swaps). Left: no read separates an Aura deck's
   gear from Equipment (Ellivere's lane is enchanted creatures; Equipment makes none),
   and Ancestral Mask's count of enchantments emits no carer ident.
-  (s) **A near-miss's own piece can be cut** (2026-10-25). Blood Rites' tune adds
-  Sanguine Bond, Vito, Marauding Blight-Priest, Enduring Tenacity and Aetherflux
-  Reservoir as near-miss swaps that each complete Exquisite Blood, then cuts
-  Exquisite Blood as a popular upgrade slot off every lane, for Victimize. Combo
-  protection (`tune.combo_pieces`) reads only the combos the deck holds before the
-  tune, so a near-miss's piece already in the deck stays cuttable. One guide cuts
-  Exquisite Blood ("only good if running the combo"), so the cut scores as a guide
-  match, but this tune runs the combo. The fix: once a near-miss swap is taken,
-  protect the pieces it completes.
   (n) **Lane follow-up verdicts — don't re-suggest without a card** (2026-10-24:
   a targeted Treasure conversion is no `ramp` — Vraska, Betrayal's Sting's −2,
   Kitesail Larcenist answer the target, whose controller keeps it, CR 110.2 /
@@ -497,6 +489,14 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   `nether_shadow_graveyard_return_parked`); Bumi's Feast
   Lecture's earthbend return binds to the Food token (`LastCreated`) instead of the
   land (`test_earthbend_last_created_binding_canary`).
+- **Phase misparses behind the granted death-payoff read** (found 2026-10-25,
+  phase v0.104.0; report upstream, Dan posts). Mathas, Fiend Seeker's granted "When
+  this creature dies, each opponent draws a card and gains 2 life" parses as `Draw`
+  with target `Controller` (the dying creature's controller, not each of their
+  opponents). No ledger row or canary: `death_matters`' granted arm
+  (`core_makers._grants_death_payoff`) drops the card anyway, because the grant goes
+  to a creature an opponent controls, whose death pays that opponent's trigger
+  (CR 603.3a), so the misparse moves no read.
 - **Phase misparses behind the "Self-recurring fodder" serve** (found 2026-10-09,
   phase v0.104.0; report upstream, Dan posts). The serve reads the card's graveyard
   return routes (`card_advantage.comes_back_from_graveyard`); three legal creatures

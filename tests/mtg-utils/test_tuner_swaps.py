@@ -489,6 +489,70 @@ def test_dead_weight_replaces_filler_with_synergy_not_engine_cards():
     assert len(out["swaps"]) == 3  # all three junk cards replaced with synergy adds
 
 
+def test_a_combo_piece_the_proposals_own_add_completes_is_never_cut():
+    # Sanguine Bond completes Exquisite Blood (backlog (s), Blood Rites): once
+    # the near-miss add is taken, the dead-weight drain must not cut the piece
+    # the add needs, even as the least-played filler.
+    sig = _sig_of("proliferate_matters")
+    label = spec_for(sig).label
+    classes = [
+        _real_cc("Exquisite Blood", "filler", edhrec_rank=9000),
+        _cc("Junk A", "filler", cmc=4.0),
+        _cc("Junk B", "filler", cmc=3.0),
+        _cc("Theme Engine", "engine", served=[label]),
+    ]
+    focus_r = _focus(viable=[{"label": label, "depth": 20, "cards": []}])
+    sourcing = Sourcing(focus_r, [sig], {})
+    issues = [
+        sourcing.issue(
+            "near_miss_combo",
+            severity=9,
+            message="Sanguine Bond completes Exquisite Blood",
+            label="Sanguine Bond",
+            terminal=True,
+            relies_on=("Exquisite Blood",),
+        ),
+        sourcing.issue("dead_weight", severity=7, count=3, message="dead weight"),
+    ]
+    payoffs = [
+        {
+            "name": f"Payoff {i}",
+            "type_line": "Creature",
+            "oracle_text": "Proliferate.",
+            "cmc": 3.0,
+            "prices": {"usd": "1.00"},
+            "color_identity": [],
+        }
+        for i in range(3)
+    ]
+    bond = {**test_card("Sanguine Bond"), "prices": {"usd": "1.00"}}
+    out = propose_swaps(
+        classes,
+        issues,
+        SwapContext(
+            budgets={},
+            focus_result=focus_r,
+            deck_signals=[sig],
+            search_fn=lambda **kw: [bond] if kw.get("name") else payoffs,
+            identity="",
+            fmt="commander",
+            paper_only=True,
+            owned={},
+            budget=50.0,
+            max_swaps=10,
+            top_heavy=False,
+        ),
+    )
+    assert "Sanguine Bond" in {s["add"]["name"] for s in out["swaps"]}
+    assert "Exquisite Blood" not in {s["cut"]["name"] for s in out["swaps"]}
+
+
+def _sig_of(key):
+    return Signal(
+        key=key, scope="you", subject="", text="", source="X", confidence="high"
+    )
+
+
 def test_top_issues_flags_dead_weight_only_with_a_redeploy_target():
     base = {
         "efficiency_r": {"verdict": "ok"},

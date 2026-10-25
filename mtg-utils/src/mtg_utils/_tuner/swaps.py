@@ -900,9 +900,16 @@ def propose_swaps(
     # Copies cut so far per name: a name may be cut up to the copies it holds (each
     # pool lists it once per copy), and never more across pools.
     used_cuts: Counter[str] = Counter()
+    # The deck cards the proposal's own adds need: a near-miss add completes a
+    # combo with them (``Issue.relies_on``), so cutting one would leave the add
+    # without its line. ``combo_pieces`` protects the combos the deck holds
+    # before the tune; this protects the ones the tune completes.
+    relied_on: set[str] = set()
 
-    def take_cut(pool: str) -> tuple[str, CardClass] | None:
+    def take_cut(pool: str, keep: Collection[str] = ()) -> tuple[str, CardClass] | None:
         for reason, card in cut_iters.get(pool, iter(())):
+            if card.name in relied_on or card.name in keep:
+                continue  # an add the proposal makes needs it
             if used_cuts[card.name] < card.quantity:
                 return reason, card
         return None
@@ -1438,6 +1445,8 @@ def propose_swaps(
         remedy = issue.remedy
         if remedy is None:
             continue  # nothing to source — the issue is the builder's to read
+        if any(used_cuts[name] for name in issue.relies_on):
+            continue  # a piece the add needs is already cut
         # Every cut is a NONLAND (cut_candidates never trims lands), so the add must be
         # nonland too — else a theme swap silently adds a value land (e.g. Fountainport
         # on the Aristocrats lane), shifting the land count a swap is meant to
@@ -1514,13 +1523,14 @@ def propose_swaps(
                         f"{allow_buys}, or allow it again."
                     )
                 break
-            cut_entry = take_cut(remedy.cut_from)
+            cut_entry = take_cut(remedy.cut_from, issue.relies_on)
             if cut_entry is None and remedy.lane_ok:
-                cut_entry = take_cut(CUT_LANE)
+                cut_entry = take_cut(CUT_LANE, issue.relies_on)
             if cut_entry is None:
                 break  # no appropriate cut for this issue — don't grab a wrong one
             reason, cut = cut_entry
             add_card, cost, off_avenue = picked
+            relied_on.update(issue.relies_on)
             commit(
                 issue.kind,
                 issue.message,

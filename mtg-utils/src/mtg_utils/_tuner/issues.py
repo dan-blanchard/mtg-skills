@@ -175,6 +175,9 @@ class Issue:
     count: int | None = None
     advisory: bool | None = None
     grant_covered: bool | None = None
+    #: The deck cards an add for this issue needs kept: a near-miss combo's
+    #: pieces already in the deck. Engine-only, never on the wire.
+    relies_on: tuple[str, ...] = ()
 
     def to_json(self) -> dict:
         """The scorecard's wire shape: the set fields, never the remedy."""
@@ -420,9 +423,11 @@ class Sourcing:
         count: int | None = None,
         advisory: bool | None = None,
         terminal: bool = False,
+        relies_on: tuple[str, ...] = (),
     ) -> Issue:
         """An :class:`Issue` of ``kind`` with its remedy decided (``terminal``:
-        a near-miss whose line ends the game)."""
+        a near-miss whose line ends the game; ``relies_on``: the deck cards its
+        add needs kept)."""
         covered = None
         if kind == "role_short":
             # A Grant-covered role keeps its literal shortfall but downgrades to
@@ -442,6 +447,7 @@ class Sourcing:
             count=count,
             advisory=advisory,
             grant_covered=covered,
+            relies_on=relies_on,
         )
 
 
@@ -632,6 +638,7 @@ def top_issues(
                 severity=9 if terminal else 2,
                 message=f"{missing} completes {' + '.join(others)} → {result}",
                 terminal=terminal,
+                relies_on=tuple(others),
             )
         )
 
