@@ -1079,7 +1079,7 @@ def _damage_target_reaches(
       that player"), ``ParentTargetController`` ("that creature's/permanent's/
       land's controller" — a controller is always a player, CR 102.1; Ankh of
       Mishra, Backfire), and ``DefendingPlayer`` ("defending player" — the
-      attacked player, CR 506.4c; Falkenrath Perforator) are bare zero-field
+      attacked player, CR 506.2; Falkenrath Perforator) are bare zero-field
       player-designator marker tags: a player, never a permanent. A bare
       ``Controller`` (the SOURCE's OWN controller — "deals 2 damage to you",
       Voltaic Visionary) stays the incidental SELF-damage exclusion
@@ -5434,8 +5434,8 @@ def effect_owner_targets_per_opponent(root: object, effect_node: object) -> bool
     ``Opponent``). This is a DIFFERENT tell from the effect's own target
     filter's ``controller`` (which reads the loop's bound iteration
     variable, e.g. ``TargetPlayer`` — ambiguous on its own); the wrapper's
-    per-opponent CARDINALITY is unambiguous. CR 506.4's "each opponent"
-    multiplayer default.
+    per-opponent CARDINALITY is unambiguous: one target per opponent,
+    the lane's own reading.
     """
     owner = _find_owner_wrapper(root, effect_node)
     if owner is None:

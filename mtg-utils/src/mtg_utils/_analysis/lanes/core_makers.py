@@ -2391,7 +2391,7 @@ def _direct_damage(tree: ConceptTree) -> list[Signal]:
     ``Or`` alternation), "target opponent" (an empty-``type_filters`` ``Typed``
     scoped by ``controller``), "that player" (``ScopedPlayer``), "that creature's/
     permanent's controller" (``ParentTargetController``, CR 102.1), or "defending
-    player" (``DefendingPlayer``, CR 506.4c) — NOT a creature/permanent-only bite,
+    player" (``DefendingPlayer``, CR 506.2) — NOT a creature/permanent-only bite,
     NOT incidental self-damage ("deals N damage to you" — a bare ``Controller``).
     Damage DOUBLERS are a separate lane. Scope "you" (the burn controller).
 

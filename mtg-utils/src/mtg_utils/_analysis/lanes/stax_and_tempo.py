@@ -497,7 +497,7 @@ def _tap_lanes(tree: ConceptTree) -> list[Signal]:
                     # ambiguous alone (b11's own docstring above), but the
                     # WRAPPER's ``multi_target.max`` scaling by opponent
                     # COUNT (``PlayerCount`` qty filtered to ``Opponent``)
-                    # is unambiguous: CR 506.4's "each opponent" default.
+                    # is unambiguous: one target per opponent.
                     fire("tap_down", "opponents", c.raw)
                 elif ctrl is None and _FOR_EACH_OPPONENT_TAP_RE.search(
                     tree.oracle or ""
