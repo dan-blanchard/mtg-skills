@@ -76,6 +76,7 @@ from mtg_utils._card_ir.crosswalk import (
     power_threshold_preds,
     recipient_tag,
     references_modified,
+    replacement_event_tag,
     residue_is,
     spell_filter_class,
     static_mode_tag,
@@ -486,6 +487,8 @@ def _cast_from_exile_unit_sources(unit: AbilityUnit) -> set[str]:
     return out
 
 
+# Retired 2026-10-25: ``CAST_FROM_EXILE_REGEX``, the mined sweep pattern ("whenever you
+# cast a spell … from exile", plot) this lane's Card IR read replaced (ADR-0027).
 def _cast_from_exile(tree: ConceptTree) -> list[Signal]:
     """cast_from_exile — a play/cast-FROM-EXILE build-around (CR 406.1 / 601.2 /
     601.3 / 702.170d). Reads the ``GrantCastingPermission`` effect's
@@ -1303,18 +1306,17 @@ def _coin_flip(tree: ConceptTree) -> list[Signal]:
     ``you``.
 
     A replacement of your coin flips ("If you would flip a coin, instead flip
-    two coins and ignore one" — Krark's Thumb; CR 614.1a, 705.3) also carries
-    the subject ``fixer``: the flip fixers a coin-flip deck wants.
+    two coins and ignore one" — Krark's Thumb; CR 614.1a) also carries the
+    subject ``fixer``: the flip fixers a coin-flip deck wants.
     """
     out: list[Signal] = []
-    for c in tree.effect_concepts("flip_coin"):
-        out.append(Signal("coin_flip", "you", "", c.raw, tree.name, "high"))
-        break
-    else:
-        if any(has_nested_flip_coin(unit.node) for unit in tree.units):
-            out.append(Signal("coin_flip", "you", "", "", tree.name, "high"))
+    flip = next(iter(tree.effect_concepts("flip_coin")), None)
+    if flip is not None:
+        out.append(Signal("coin_flip", "you", "", flip.raw, tree.name, "high"))
+    elif any(has_nested_flip_coin(unit.node) for unit in tree.units):
+        out.append(Signal("coin_flip", "you", "", "", tree.name, "high"))
     if any(
-        unit.origin == "replacement" and getattr(unit.node, "event", None) == "CoinFlip"
+        unit.origin == "replacement" and replacement_event_tag(unit.node) == "CoinFlip"
         for unit in tree.units
     ):
         out.append(Signal("coin_flip", "you", "fixer", "", tree.name, "high"))
@@ -1972,6 +1974,8 @@ def _cost_reduction_subjects(tree: ConceptTree) -> list[Signal]:
     return out
 
 
+# Retired 2026-10-25: ``COST_REDUCTION_REGEX``, the mined sweep pattern ("spells … cost
+# {N} less to cast / activate") this lane's Card IR read replaced (ADR-0027).
 def _cost_reduction(tree: ConceptTree) -> list[Signal]:
     """cost_reduction — a static spell-cost REDUCER build-around (CR 601.2f / 118.7).
     Mirrors the live ``cost_reduction`` doer: a ``static_ability`` whose ``mode`` is a
@@ -2170,6 +2174,8 @@ _BLOCK_TRIGGER_KEYWORDS: frozenset[str] = frozenset(
 )
 
 
+# Retired 2026-10-25: ``BLOCKED_MATTERS_REGEX``, the mined sweep pattern ("whenever …
+# becomes blocked" / "whenever … blocks") this lane's Card IR read replaced (ADR-0027).
 def _blocked_matters(tree: ConceptTree) -> list[Signal]:
     """blocked_matters — a combat-block payoff (CR 509). Mirrors the live
     ``_PAYOFF_TRIGGER_KEYS`` ``becomes_blocked`` / ``blocks`` rows: a trigger whose

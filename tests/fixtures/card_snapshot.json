@@ -275207,6 +275207,143 @@
     "type_line": "Instant"
    }
   },
+  "Cruel Edict": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Target opponent sacrifices a creature of their choice.",
+       "duration": null,
+       "effect": {
+        "count": {
+         "type": "Fixed",
+         "value": 1
+        },
+        "target": {
+         "controller": "TargetOpponent",
+         "properties": [],
+         "type": "Typed",
+         "type_filters": [
+          "Creature"
+         ]
+        },
+        "type": "Sacrifice"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Sorcery"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Black"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pauper": "legal",
+      "paupercommander": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "Black"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "0c3d9c1d-a984-4971-810c-e493d0a55e5c",
+       "19ac44d0-f648-4a84-ac70-f840fe3cf82c",
+       "3dacf711-2cf7-4545-aea6-95b5f8aaa121",
+       "54151d43-2e22-4e6c-a6fe-327959382dd1",
+       "d921b2ea-8df3-40b2-8016-dbf5a0ec51a8"
+      ]
+     },
+     "name": "Cruel Edict",
+     "non_ability_text": null,
+     "oracle_text": "Target opponent sacrifices a creature of their choice.",
+     "power": null,
+     "printings": [
+      "10E",
+      "9ED",
+      "DDC",
+      "DVD",
+      "P02",
+      "P07",
+      "PRM"
+     ],
+     "rarities": [
+      "uncommon"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "10c585c4-bf5b-4d8f-94a9-e9a5036a688f",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 2.0,
+    "color_identity": [
+     "B"
+    ],
+    "colors": [
+     "B"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "legal",
+     "paupercommander": "legal",
+     "penny": "legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}{B}",
+    "name": "Cruel Edict",
+    "oracle_id": "10c585c4-bf5b-4d8f-94a9-e9a5036a688f",
+    "oracle_text": "Target opponent sacrifices a creature of their choice.",
+    "type_line": "Sorcery"
+   }
+  },
   "Cruel Fate": {
    "phase_records": [
     {
@@ -648985,6 +649122,215 @@
     "oracle_id": "0ba134d8-ee7d-48ec-8dc6-57942b8e9261",
     "oracle_text": "[+1]: Each player discards a card.\n[−2]: Target player sacrifices a creature.\n[−6]: Separate all permanents target player controls into two piles. That player sacrifices all permanents in the pile of their choice.",
     "type_line": "Legendary Planeswalker — Liliana"
+   }
+  },
+  "Liliana's Triumph": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Each opponent sacrifices a creature of their choice. If you control a Liliana planeswalker, each opponent also discards a card.",
+       "duration": null,
+       "effect": {
+        "count": {
+         "type": "Fixed",
+         "value": 1
+        },
+        "target": {
+         "controller": "You",
+         "properties": [],
+         "type": "Typed",
+         "type_filters": [
+          "Creature"
+         ]
+        },
+        "type": "Sacrifice"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "player_scope": {
+        "type": "Opponent"
+       },
+       "sub_ability": {
+        "condition": {
+         "comparator": "GE",
+         "lhs": {
+          "qty": {
+           "filter": {
+            "controller": "ScopedPlayer",
+            "properties": [
+             {
+              "type": "InZone",
+              "zone": "Battlefield"
+             }
+            ],
+            "type": "Typed",
+            "type_filters": [
+             "Planeswalker",
+             {
+              "Subtype": "Liliana"
+             }
+            ]
+           },
+           "type": "ObjectCount"
+          },
+          "type": "Ref"
+         },
+         "rhs": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "type": "QuantityCheck"
+        },
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "target": {
+          "type": "Controller"
+         },
+         "type": "Discard"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "player_scope": {
+         "type": "Opponent"
+        },
+        "sub_ability": null,
+        "sub_link": "SequentialSibling",
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Instant"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Black"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "Black"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "84803db8-fdb0-462b-92f6-33d591593d2d",
+       "fe1f0f9e-556c-40b7-bba9-a539c4c4fd30"
+      ]
+     },
+     "name": "Liliana's Triumph",
+     "non_ability_text": null,
+     "oracle_text": "Each opponent sacrifices a creature of their choice. If you control a Liliana planeswalker, each opponent also discards a card.",
+     "power": null,
+     "printings": [
+      "PRM",
+      "PWAR",
+      "TSR",
+      "WAR"
+     ],
+     "rarities": [
+      "uncommon",
+      "special"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2019-05-03",
+       "text": "Controlling more than one planeswalker of the appropriate type won't have any more of a benefit than just controlling one."
+      },
+      {
+       "date": "2019-05-03",
+       "text": "Whether you control an appropriate planeswalker is checked only as the spell resolves."
+      },
+      {
+       "date": "2021-03-19",
+       "text": "As Liliana's Triumph resolves, the opponent whose turn it is (or, if it's your turn, the next opponent in turn order) chooses a creature to sacrifice, then each other opponent in turn order does the same, knowing the choices made before them. Then all the chosen creatures are sacrificed at the same time. Then, if you control a Liliana planeswalker, in the same order, each opponent chooses a card in their hand without revealing it, and those cards are discarded at the same time."
+      },
+      {
+       "date": "2021-03-19",
+       "text": "You can cast Liliana's Triumph even if some or all of your opponents will be unable to sacrifice a creature. If you control a Liliana planeswalker, they'll still discard a card, even if they couldn't sacrifice a creature."
+      }
+     ],
+     "scryfall_oracle_id": "c2e68ac5-cfff-4b76-8062-25a82fdf9a5c",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 2.0,
+    "color_identity": [
+     "B"
+    ],
+    "colors": [
+     "B"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}{B}",
+    "name": "Liliana's Triumph",
+    "oracle_id": "c2e68ac5-cfff-4b76-8062-25a82fdf9a5c",
+    "oracle_text": "Each opponent sacrifices a creature of their choice. If you control a Liliana planeswalker, each opponent also discards a card.",
+    "type_line": "Instant"
    }
   },
   "Liliana, Dreadhorde General": {

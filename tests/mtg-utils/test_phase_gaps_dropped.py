@@ -245,9 +245,10 @@ def test_coin_flip_outcomes_are_walked(name, ident):
         ("Wild Wurm", "bounce_tempo|you|"),
         # "If you win the flip, return ~ to its owner's hand."
         ("Viashino Sandswimmer", "bounce_tempo|you|"),
-        # A win that exiles the card itself and returns it.
+        # A win that exiles the card itself and returns it transformed: the
+        # transform vehicle, not a blink (Frenetic Sliver's untransformed return
+        # is one — test_lane_reads_off_the_ir).
         ("Ral, Monsoon Mage // Ral, Leyline Prodigy", "blink_flicker|you|enabler"),
-        ("Frenetic Sliver", "blink_flicker|you|enabler"),
         # "If you lose the flip, counter target artifact spell you control …"
         ("Goblin Artisans", "counter_control|you|"),
         # "If you lose the flip, return that spell to its owner's hand" — the

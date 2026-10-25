@@ -920,6 +920,9 @@ def _grants_death_payoff(granted: GrantedTrigger) -> bool:
 # resilience auras — Gift of Immortality, the Zendikons, Resurrection Orb,
 # Oathkeeper, Forebear's Blade), which are a resilience lane, not aristocrats.
 # rules-lawyer-grounded (CR 700.4 + the aristocrats-payoff boundary).
+# Retired 2026-10-25: ``DEATH_MATTERS_REGEX``, the mined sweep pattern ("whenever …
+# creatures die", "creatures that died this turn") this lane's Card IR read replaced
+# (ADR-0027).
 def _death_matters(tree: ConceptTree) -> list[Signal]:
     """Aristocrats payoff — cares about OTHER creatures dying (CR 700.4). Tier-1.
 

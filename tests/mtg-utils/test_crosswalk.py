@@ -415,24 +415,23 @@ def test_land_creatures_matter_condition_reference_bridge():
     assert ("land_creatures_matter", "you", "") in _idents("Earth Rumble Wrestlers")
 
 
-@pytest.mark.parametrize(
-    "name",
-    [
-        "Faerie Conclave",  # self-animate manland
-        "Mutavault",  # self-animate manland
-        "Genju of the Cedars",  # Aura-granted self-animate (same bucket)
-    ],
-)
-def test_land_creatures_matter_excludes_manland_and_genju(name):
-    """A manland's self-animate (and its Aura-granted sibling, the Genju
-    cycle) opens no land-creatures theme — a utility land-into-creature
-    isn't a build-around "theme" the way an anthem/maker is (CR 305/110.1);
-    see :func:`_land_protection`'s own structural read of the SAME shape. The
-    manland itself is the theme's body: the page-only ``self`` subject."""
+@pytest.mark.parametrize("name", ["Faerie Conclave", "Mutavault"])
+def test_land_creatures_matter_manland_is_only_the_self_subject(name):
+    """A manland's self-animate opens no land-creatures theme — a utility
+    land-into-creature isn't a build-around "theme" the way an anthem/maker is
+    (CR 305/110.1); see :func:`_land_protection`'s own structural read of the
+    SAME shape. The manland itself is the theme's body: the page-only ``self``
+    subject."""
     lc = {i for i in _idents(name) if i[0] == "land_creatures_matter"}
-    assert lc == (
-        {("land_creatures_matter", "you", "self")} if "Genju" not in name else set()
-    )
+    assert lc == {("land_creatures_matter", "you", "self")}
+    assert ("land_protection", "you", "") in _idents(name)
+
+
+@pytest.mark.parametrize("name", ["Genju of the Cedars"])
+def test_land_creatures_matter_excludes_genju(name):
+    """The Genju cycle's Aura-granted animation of the enchanted land is the
+    same utility case, and the Aura is no land: no land-creatures ident."""
+    assert "land_creatures_matter" not in _keys(name)
     assert ("land_protection", "you", "") in _idents(name)
 
 

@@ -109,7 +109,7 @@ PUMP_MATTERS_REGEX = "target (?:[a-z]+ )*creature(?: you control)? gets \\+[0-9x
 
 # The Zhou Yu "can't attack unless defending player controls an Island" restriction —
 # the cares-about-Islands payoff the island_matters synth arm
-# (tree_synthesis.types_tribal) reads. CR 702.14c.
+# (tree_synthesis.types_tribal) reads. CR 508.1c (an attack restriction).
 ISLAND_MATTERS_REGEX = "can'?t attack unless defending player controls an island"
 
 # ADR-0027: vehicles_matter migrated to the Card IR via a byte-identical kept WORD

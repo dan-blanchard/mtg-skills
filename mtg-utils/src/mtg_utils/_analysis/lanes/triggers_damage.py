@@ -126,6 +126,8 @@ from mtg_utils._card_ir.text_idioms import (
 )
 
 
+# Retired 2026-10-25: ``FLASH_GRANT_REGEX``, the mined sweep pattern ("as though it had
+# flash" / "have flash" (flash_grant)) this lane's Card IR read replaced (ADR-0027).
 def _spell_keyword_grant(tree: ConceptTree) -> list[Signal]:
     """spell_keyword_grant (+ flash_grant / flash_makers / convoke_makers)
     — grants a keyword to spells / castable cards (CR 702.8 flash, 702.34
@@ -1260,6 +1262,9 @@ def _power_double(tree: ConceptTree) -> list[Signal]:
     return []
 
 
+# Retired 2026-10-25: ``PROTECTION_GRANT_REGEX``, the mined sweep pattern ("gains
+# protection from / hexproof / shroud" (protection_grant)) this lane's Card IR read
+# replaced (ADR-0027).
 def _keyword_grant_lanes(tree: ConceptTree) -> list[Signal]:
     """The AddKeyword mod-site cluster (CR 613.1f layer 6) — one shared walk,
     per-ability aggregation (granularity b), direction gates per checklist #6
@@ -1536,6 +1541,10 @@ def _iter_base_pt_modal_threaded_statics(
             queue.extend(modes)
 
 
+# Retired 2026-10-25: ``BASE_PT_SET_REGEX`` and ``BASE_PT_SET_FULL_REGEX``, the mined
+# sweep pattern ("base power and toughness N/N", "becomes a N/N … in addition to its
+# other types" (the full one also P/T switches)) this lane's Card IR read replaced
+# (ADR-0027).
 def _base_pt_set(tree: ConceptTree) -> list[Signal]:
     """base_pt_set — the fixed base-P/T-SET toolbox (CR 613.4b's "and/or" —
     613.4d for the switch form): a mod site carrying ``SetPower`` and/or
@@ -2160,6 +2169,8 @@ def _forced_attack(tree: ConceptTree) -> list[Signal]:
     return out
 
 
+# Retired 2026-10-25: ``DAMAGE_PREVENTION_REGEX``, the mined sweep pattern ("prevent the
+# next N / all … damage") this lane's Card IR read replaced (ADR-0027).
 def _damage_prevention(tree: ConceptTree) -> list[Signal]:
     """damage_prevention — the CR 615 prevention shield: a ``PreventDamage``
     effect (Fog — ``{amount: All, scope: CombatDamage}``; Story Circle's
@@ -2489,6 +2500,9 @@ _INCREASE_QTY_MODS: frozenset[str] = frozenset({"Times", "Plus"})
 _DAMAGE_AMP_MODS: frozenset[str] = frozenset({"Double", "Triple", "Plus"})
 
 
+# Retired 2026-10-25: ``COUNTER_DOUBLING_REGEX``, the mined sweep pattern ("double the
+# number of … counters", "would put … counters … instead … twice") this lane's Card IR
+# read replaced (ADR-0027).
 def _replacement_doubler_lanes(tree: ConceptTree) -> list[Signal]:
     """The CR 614.1a replacement-doubler cluster — one shared walk over the
     typed replacement units, split by ``event`` (granularity a):

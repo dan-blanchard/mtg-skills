@@ -83,6 +83,7 @@ from mtg_utils._card_ir.crosswalk import (
     iter_cost_leaves,
     iter_deep_target_grants,
     iter_delayed_trigger_condition_defs,
+    iter_flip_outcomes,
     iter_mod_sites,
     iter_nested_granted_effect_concepts,
     iter_node_filters,
@@ -884,6 +885,23 @@ def _blink_flicker(tree: ConceptTree) -> list[Signal]:
             for c in iter_nested_granted_effect_concepts(unit.node)
             if c.concept == "change_zone"
         ]
+        # A coin flip's outcome the effect walk leaves out as the card's own
+        # drawback (Frenetic Sliver grants each Sliver "flip a coin. If you win
+        # the flip, exile ~ and return it to the battlefield …"): a blink of your
+        # own permanent all the same (CR 400.7: the returned permanent is a new
+        # object). One that returns it transformed (Ral, Monsoon Mage) is the
+        # transform vehicle, not a blink.
+        flip_moves = [
+            c
+            for outcome in iter_flip_outcomes(unit.node)
+            for c in walk_effect_chain(outcome)
+            if c.concept == "change_zone"
+        ]
+        if not any(
+            getattr(c.node, "enter_transformed", False) is True
+            for c in (*czs, *flip_moves)
+        ):
+            czs += flip_moves
         # A replacement the effect sets up over your permanents ("If a permanent
         # you control would be put into a graveyard from the battlefield this
         # turn, exile it instead. Return it to the battlefield …" — Cosmic

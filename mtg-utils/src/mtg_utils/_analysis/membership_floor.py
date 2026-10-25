@@ -515,13 +515,10 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # control`) is DELETED with the _DETECTORS pacify row above. Its broad `creatures
     # your opponents control` branch over-fired on every -X/-X debuff anthem (Elesh
     # Norn, Massacre Wurm, Cower in Fear — NOT restriction/tax statics), which the
-    # structural `restriction` IR arm correctly drops. The genuine firings are
-    # reproduced byte-identically by _STAX_TAXES_MIRROR (_signals_ir) from
-    # STAX_TAXES_REGEX (the union of this row + the deleted _DETECTORS row + the kept
-    # SWEEP row). The deleted producer fired HIGH (forced scope 'opponents') and fed
-    # has_other_plan, so the byte-identical _STAX_TAXES_PLAN_MIRROR (below) re-supplies
-    # the voltron silence — NOT _VOLTRON_SILENCING_PLAN_KEYS (the IR is broader). The
-    # serve spec stays hand-registered. CR 604.1 / 903.10a.
+    # structural `restriction` IR arm correctly drops. The genuine firings were once
+    # reproduced by a kept mirror of the union regex (STAX_TAXES_REGEX, retired with
+    # the mirror); the stax lane (lanes.stax_and_tempo._stax_lanes) reads them off the
+    # Card IR now. The serve spec stays hand-registered. CR 604.1 / 903.10a.
     # ADR-0027 β: cost_reduction migrated to the Card IR — this _HAND_FLOOR producer
     # (and the SWEEP_DETECTORS row) are deleted. The lane fires from the IR arm +
     # _COST_REDUCER_MIRROR in _signals_ir; the deleted regex's voltron silence is
@@ -959,16 +956,13 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # require) is deleted. The lane now fires from a STRUCTURAL IR arm reading project's
     # DamageToPlayer recipient marker (SIDECAR v13 — the player recipient phase keeps on
     # the DamageDone trigger's valid_target but the projected Trigger drops) PLUS a
-    # byte-identical kept mirror (_signals_ir) for the granted-ability / ETB-burst /
+    # kept mirror (since retired) for the granted-ability / ETB-burst /
     # "another player" textual tail phase can't structure as a DamageDone trigger. The
     # IR path is BROADER (+recall: "deals 6 or more damage to an opponent", plural "deal
     # damage to a player", "deals damage to another player" the word-order regex
-    # missed), so a byte-identical _DAMAGE_TO_OPP_MATTERS_PLAN_MIRROR below re-supplies
-    # the deleted high-confidence producer's voltron silence — NOT
-    # _VOLTRON_SILENCING_PLAN_KEYS (that would over-silence the ir_only recall-gain
-    # bodies). The exact regex was DAMAGE_TO_OPP_MATTERS_REGEX, since retired
-    # (_sweep_detectors), shared by the mirror, the plan-mirror, and the hand-registered
-    # serve. Distinct from combat_damage_to_opp (already migrated 42f6d81 — the literal
+    # missed). The exact regex was DAMAGE_TO_OPP_MATTERS_REGEX, since retired with
+    # its mirrors; the lane (lanes.triggers_damage) reads the IR and the serve is its
+    # ident. Distinct from combat_damage_to_opp (already migrated 42f6d81 — the literal
     # "combat damage to a player" recipient). CR 119.3. ADR-0027: permanent_etb migrated
     # to the Card IR — an `etb` Trigger whose subject Filter carries the 'Permanent'
     # card_type and controller=='you' (Amareth, the canonical card). The structural IR

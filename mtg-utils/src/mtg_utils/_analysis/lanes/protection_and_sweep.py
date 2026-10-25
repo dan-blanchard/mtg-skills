@@ -300,6 +300,8 @@ def _bending_lanes(tree: ConceptTree, keywords: frozenset[str]) -> list[Signal]:
     return out
 
 
+# Retired 2026-10-25: ``STATION_MATTERS_REGEX``, the mined sweep pattern (the words
+# "station" / "spacecraft") this lane's Card IR read replaced (ADR-0027).
 def _station_lanes(tree: ConceptTree, keywords: frozenset[str]) -> list[Signal]:
     """station_makers / station_matters (§2, ADR-0036/0037 Stage 5 fold,
     Tier-1) — CR 702.184a/702.184b. A card PERFORMS station when it (a)

@@ -4377,3 +4377,12 @@ def test_one_sided_keep_n_serves_by_its_ident_not_the_symmetric_wraths():
     serve = SPECS[("keep_n_wrath", "opponents")].serve
     assert serve.matches(_card("Archfiend of Depravity"))
     assert not serve.matches(_card("Cataclysm"))  # the symmetric keep-N
+
+
+def test_crimes_serve_reaches_a_targeted_edict_not_an_untargeted_one():
+    """ "Target player sacrifices a creature" targets a player (CR 700.13); "each
+    opponent sacrifices" targets no one."""
+    serve = SPECS[("crimes_matter", "you")].serve
+    assert serve.matches(_card("Diabolic Edict"))
+    assert serve.matches(_card("Cruel Edict"))
+    assert not serve.matches(_card("Liliana's Triumph"))

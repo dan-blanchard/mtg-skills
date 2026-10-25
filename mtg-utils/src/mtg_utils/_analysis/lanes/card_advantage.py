@@ -520,6 +520,9 @@ def _returns_on_death(unit: AbilityUnit) -> bool:
 _DIES_RECURSION_GRANT_KEYWORDS: frozenset[str] = frozenset({"Persist", "Undying"})
 
 
+# Retired 2026-10-25: ``DIES_RECURSION_REGEX``, the mined sweep pattern ("when ~ dies,
+# return it to the battlefield", the would-die exile-with-counters return, and undying /
+# persist) this lane's Card IR read replaced (ADR-0027).
 def _dies_recursion(tree: ConceptTree) -> list[Signal]:
     """dies_recursion — SELF-recursion on death (CR 702.93a undying /
     702.79a persist: "when this permanent is put into a graveyard from the
@@ -1684,6 +1687,8 @@ def etb_bulk_draw(tree: ConceptTree) -> bool:
     return False
 
 
+# Retired 2026-10-25: ``GROUP_HUG_DRAW_REGEX``, the mined sweep pattern ("each player
+# draws" / "each player who drew") this lane's Card IR read replaced (ADR-0027).
 def _group_hug_draw(tree: ConceptTree) -> list[Signal]:
     """group_hug_draw — a draw GIVEN to everyone (CR 121.1): "each player
     draws a card" (Temple Bell — the ``player_scope: All`` wrapper on the
@@ -2782,6 +2787,9 @@ def _buffs_with_counters(c: ConceptNode) -> bool:
     return OTHER_CHOOSER not in c.subject and "+1/+1 counter" in c.subject
 
 
+# Retired 2026-10-25: ``COMBAT_BUFF_ENGINE_SWEEP_REGEX``, the mined sweep pattern ("at
+# the beginning of combat on your turn … that creature gets +" and attack-trigger pumps)
+# this lane's Card IR read replaced (ADR-0027).
 def _combat_buff_engine(tree: ConceptTree) -> list[Signal]:
     """combat_buff_engine — combat-keyed pump (CR 508 / 509.3a): a trigger in
     the combat frame (attacks / blocks / becomes-blocked / begin-combat) with

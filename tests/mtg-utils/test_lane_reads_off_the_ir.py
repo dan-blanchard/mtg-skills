@@ -93,9 +93,29 @@ def test_land_creature_payoffs_and_animators_split(name, subjects):
 
 def test_a_flip_replacement_is_the_fixer():
     """Krark's Thumb: "If you would flip a coin, instead flip two coins and
-    ignore one" (CR 614.1a, 705.3)."""
+    ignore one" (CR 614.1a)."""
     assert ("coin_flip", "you", "fixer") in _idents("Krark's Thumb")
 
 
 def test_a_land_put_into_a_graveyard_trigger_punishes_land_loss():
     assert ("land_destruction", "you", "punish") in _idents("Dingus Egg")
+
+
+def test_a_coin_flip_gated_self_blink_is_a_blink_enabler():
+    """Frenetic Sliver grants each Sliver "flip a coin. If you win the flip,
+    exile this permanent and return it to the battlefield …" — the outcome the
+    effect walk leaves out as the card's own drawback still blinks it."""
+    assert ("blink_flicker", "you", "enabler") in _idents("Frenetic Sliver")
+
+
+@pytest.mark.parametrize(
+    ("name", "targeted"),
+    [
+        ("Diabolic Edict", True),  # "Target player sacrifices a creature"
+        ("Cruel Edict", True),  # "Target opponent sacrifices a creature"
+        ("Liliana's Triumph", False),  # "Each opponent sacrifices a creature"
+        ("Grave Pact", False),
+    ],
+)
+def test_a_targeted_player_edict_carries_the_target_subject(name, targeted):
+    assert (("edict_makers", "opponents", "target") in _idents(name)) is targeted

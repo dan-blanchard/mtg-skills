@@ -305,6 +305,9 @@ def _tap_owner_text(tree: ConceptTree, unit: AbilityUnit, node: object) -> str:
     return tree.oracle or ""
 
 
+# Retired 2026-10-25: ``TAP_DOWN_REGEX``, the mined sweep pattern ("tap target … an
+# opponent controls", "skips its next untap step", detain (tap_down)) this lane's Card
+# IR read replaced (ADR-0027).
 def _tap_lanes(tree: ConceptTree) -> list[Signal]:
     """tap_down + tapper_engine — the CR 701.26a tap-doer pair, one shared
     effect walk (a tap-as-COST emits no ``SetTapState`` effect — Prodigal
@@ -667,6 +670,9 @@ def _tap_untap_matters(tree: ConceptTree) -> list[Signal]:
     return []
 
 
+# Retired 2026-10-25: ``DIG_UNTIL_REGEX``, the mined sweep pattern ("exile / reveal
+# cards from the top of your library until") this lane's Card IR read replaced
+# (ADR-0027).
 def _dig_until(tree: ConceptTree) -> list[Signal]:
     """dig_until — the reveal-until-a-condition deep dig (CR 701.20a): a
     ``RevealUntil`` effect whose ``player`` is the Controller (Hermit Druid —
@@ -1618,6 +1624,9 @@ def _type_change(tree: ConceptTree) -> list[Signal]:
     return []
 
 
+# Retired 2026-10-25: ``STAX_TAXES_REGEX`` and ``SYMMETRIC_STAX_REGEX``, the mined sweep
+# pattern ("opponents can't …", "spells your opponents cast cost more" / "players can't
+# …", "doesn't untap") this lane's Card IR read replaced (ADR-0027).
 def _stax_lanes(tree: ConceptTree) -> list[Signal]:
     """stax_taxes (scope "opponents") + symmetric_stax (scope "each") — CR
     101.2 + 604.1. A pure Tier-1 UNION (ADR-0036/0037 fold — the residue

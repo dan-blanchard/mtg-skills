@@ -1360,6 +1360,8 @@ def _gives_control_to_other(node: TypedMirrorNode, unit: AbilityUnit) -> bool:
     )
 
 
+# Retired 2026-10-25: ``GAIN_CONTROL_REGEX``, the mined sweep pattern (the bare "gain
+# control of") this lane's Card IR read replaced (ADR-0027).
 def _gain_control(tree: ConceptTree) -> list[Signal]:
     """gain_control — YOU-THEFT (you take control of a permanent you don't own,
     CR 110.2). Mirrors the deleted ``_signals_ir``'s line ~9270: a ``GainControl``

@@ -490,18 +490,28 @@ def _graveyard_return_concept(card: dict) -> bool:
     return _concept_any_face(card, graveyard_return_direction)
 
 
+def _key_subjects(card: dict, key: str) -> frozenset[str]:
+    """The subjects CARD's ``key`` idents carry, any scope
+    (:func:`_signal_idents_for`; ``"key|scope|subject"``)."""
+    out = set()
+    for ident in _signal_idents_for(card):
+        k, _, rest = ident.partition("|")
+        if k == key:
+            out.add(rest.partition("|")[2])
+    return frozenset(out)
+
+
 def _land_animator_concept(card: dict) -> bool:
     """concept arm for the 'land-animation' preset: the card carries the bare
     ``land_protection|you|`` ident — the land animators and manlands. The key's
     subjects are the lands' protection (``shield`` — Terra Eternal, Tomik's
-    ledgered hexproof), never an animation. Or a ``land_creatures_matter`` ident
-    but the ``self`` one: a land that already is a creature (Dryad Arbor)
-    animates nothing."""
-    idents = _signal_idents_for(card)
-    return "land_protection|you|" in idents or any(
-        i.startswith("land_creatures_matter|") and not i.endswith("|self")
-        for i in idents
-    )
+    ledgered hexproof), never an animation. Or the land-creatures lane's
+    ``animator`` subject: its payoffs (a land-creature anthem — Sylvan Advocate;
+    a land-creature token maker — Jyoti) and a land that already is a creature
+    (``self`` — Dryad Arbor) animate nothing."""
+    return "land_protection|you|" in _signal_idents_for(
+        card
+    ) or "animator" in _key_subjects(card, "land_creatures_matter")
 
 
 def _self_mill_concept(card: dict) -> bool:
@@ -685,9 +695,8 @@ def _land_removal_concept(card: dict) -> bool:
     """concept arm for the 'land-removal' preset: a ``land_destruction`` ident
     but the ``punish`` one (a land-loss payoff — Dingus Egg — destroys nothing),
     or the target-type walk over destroy / exile effects."""
-    return any(
-        i.startswith("land_destruction|") and not i.endswith("|punish")
-        for i in _signal_idents_for(card)
+    return bool(
+        _key_subjects(card, "land_destruction") - {"punish"}
     ) or _LAND_REMOVAL_WALK(card)
 
 
@@ -2387,7 +2396,8 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
         ),
         concept=_land_removal_concept,
         should_match=("Sinkhole", "Strip Mine", "Wasteland", "Armageddon"),
-        should_not_match=("Lightning Bolt", "Doom Blade", "Wrath of God"),
+        # Dingus Egg punishes land loss; it destroys nothing.
+        should_not_match=("Lightning Bolt", "Doom Blade", "Wrath of God", "Dingus Egg"),
     ),
     Preset(
         name="mass-land-denial",
@@ -3801,10 +3811,11 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
             "task #83 structural-view conversion: the concept is DELIBERATELY "
             "SPLIT across three signal keys (see each lane's own exclusion "
             "comment): `land_protection|you|` (self-animating manlands — Mutavault, "
-            "Treetop Village, the Restless cycle — deliberately NOT in "
-            "land_creatures_matter; also carries reverse-animators like Ashaya, "
-            "hence prec ~0.66 for this composite) + `land_creatures_matter` "
-            "(anthem/maker land-creature builds) + `earthbend_makers` (the "
+            "Treetop Village, the Restless cycle; also carries reverse-animators "
+            "like Ashaya, hence prec ~0.66 for this composite) + the "
+            "`land_creatures_matter|you|animator` subject (2026-10-25: the lane's "
+            "payoffs — anthems, land-creature token makers — and its `self` "
+            "lands animate nothing, 13 cards out) + `earthbend_makers` (the "
             "Avatar-crossover Earthbend keyword, CR 701.66, prec 1.00) UNION the "
             "printed `Earthbend` and `Awaken` (CR 702.113 — turns a land you "
             "control into a creature, the alternative-cost Battle for Zendikar "
@@ -3830,6 +3841,9 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
             # A land shield (hexproof, Tomik's ledgered row) animates nothing.
             "Tomik, Distinguished Advokist",
             "Terra Eternal",
+            # A land-creature anthem and a land that already is a creature.
+            "Sylvan Advocate",
+            "Dryad Arbor",
         ),
     ),
     # ── Vehicles (Crew) ──

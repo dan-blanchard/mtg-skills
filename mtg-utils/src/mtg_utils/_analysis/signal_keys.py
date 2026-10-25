@@ -220,6 +220,8 @@ DOER_SUBJECTS: Final = frozenset(
         ("land_destruction", "bounce"),
         ("land_destruction", "tuck"),
         ("land_destruction", "sacrifice"),
+        # an edict on a targeted player (Diabolic Edict): the crime it commits
+        ("edict_makers", "target"),
         # a creature that sacrifices itself (Sakura-Tribe Elder): loop fuel
         ("sacrifice_outlets", "self"),
         # the page-only doers (above)

@@ -1595,7 +1595,8 @@ def _recover_cost_reduction(card: Card, oracle: str) -> Card:
 # This card-level pass — the _recover_base_pt_set precedent (phase dropped the WHOLE
 # Effect, so synthesize it from the raw oracle) — emits a `clone` Effect with a
 # Creature (or Permanent, for a "copy of a permanent" changeling) subject so the arm
-# reads STRUCTURE and the kept CLONE_MATTERS_REGEX mirror retires. CR 707.1 / 707.2.
+# reads STRUCTURE (the CLONE_MATTERS_REGEX mirror it replaced is retired). CR 707.1 /
+# 707.2.
 #
 # Append-only and gated to a body phase left WITHOUT any clone Effect: a card phase
 # DID structure a copy on (Copy Artifact / Copy Land / Mycosynth Gardens / Thespian's

@@ -604,8 +604,9 @@ SPECS_1: dict[tuple[str, str], SignalSpec] = {
         None,
         serve_idents=frozenset({"coin_flip|you|", "coin_flip|you|fixer"}),
         extras=(
-            # A flip FIXER replaces or fixes your flips (Krark's Thumb, Edgar, King
-            # of Figaro's Two-Headed Coin; CR 705.3): the lane's ``fixer`` subject.
+            # A flip FIXER replaces your flips (Krark's Thumb, CR 614.1a) or fixes
+            # their result (Edgar, King of Figaro's Two-Headed Coin, CR 705.3): the
+            # lane's ``fixer`` subject.
             SubAvenue(
                 "Flip fixing",
                 "cards that bias, repeat, or ignore unfavorable coin flips "
@@ -1211,10 +1212,9 @@ SPECS_1: dict[tuple[str, str], SignalSpec] = {
         None,
         serve_idents=frozenset({"spell_keyword_grant|you|"}),
     ),
-    # ADR-0027: flash_grant's SWEEP_DETECTORS row is deleted (detection moved to the
-    # Card IR — a cast_with_keyword{flash} static + the byte-identical FLASH_GRANT_REGEX
-    # kept mirror), so hand-register the spec the sweep auto-register loop used to
-    # build.
+    # ADR-0027: flash_grant reads the Card IR (a cast_with_keyword{flash} static;
+    # the FLASH_GRANT_REGEX kept mirror is retired), so hand-register the spec the
+    # sweep auto-register loop used to build.
     ("flash_grant", "you"): _spec(
         *SWEEP_LABELS["flash_grant"],
         None,
@@ -1338,9 +1338,9 @@ SPECS_1: dict[tuple[str, str], SignalSpec] = {
         serve_idents=frozenset({"keyword_grant_target|you|*"}),
     ),
     # ADR-0027 Cluster D: protection_grant's SWEEP_DETECTORS row is deleted (detection
-    # moved to the Card IR — the structural protective-keyword grant arm in
-    # crosswalk_signals.py UNION a byte-identical PROTECTION_GRANT_REGEX kept
-    # mirror), so hand-register the spec the sweep auto-register loop used to
+    # moved to the Card IR — the structural protective-keyword grant arm; the
+    # PROTECTION_GRANT_REGEX kept mirror is retired), so hand-register the spec the
+    # sweep auto-register loop used to
     # build (scope "you", the deleted SWEEP row's scope). SWEEP_LABELS keeps the
     # human label.
     ("protection_grant", "you"): _spec(
@@ -1485,8 +1485,8 @@ SPECS_1: dict[tuple[str, str], SignalSpec] = {
     # A "becomes blocked" payoff (General Marhault: +3/+3 for each creature blocking it)
     # wants Lure effects — forcing every able creature to block maxes the per-blocker
     # bonus. ADR-0027 Cluster D: the SWEEP_DETECTORS row is deleted (detection moved to
-    # the Card IR — the structural becomes_blocked arm UNION a byte-identical
-    # BLOCKED_MATTERS_REGEX kept mirror); the serve is the lane's ident.
+    # the Card IR — the structural becomes_blocked arm; the BLOCKED_MATTERS_REGEX kept
+    # mirror is retired); the serve is the lane's ident.
     ("blocked_matters", "you"): _sweep_spec_with_extras(
         "blocked_matters",
         (_LURE_EXTRA,),
@@ -1612,11 +1612,11 @@ SPECS_1: dict[tuple[str, str], SignalSpec] = {
         serve_idents=frozenset({"scaling_pump|you|"}),
     ),
     # ADR-0027 Cluster C: base_pt_set migrated to the Card IR — its SWEEP_DETECTORS row
-    # is deleted (detection moved to the structural cat=="base_pt_set" arm UNION the
-    # carved BASE_PT_SET_REGEX kept word mirror), so the auto-register loop no longer
-    # builds this spec. Hand-register the spec the sweep loop used to build — the serve
-    # pool is set-P/T effects + the creatures that exploit a set base P/T. Scope 'any'
-    # (the deleted SWEEP row's scope).
+    # is deleted (detection moved to the structural cat=="base_pt_set" arm; the
+    # carved BASE_PT_SET_REGEX kept word mirror is retired), so the auto-register loop
+    # no longer builds this spec. Hand-register the spec the sweep loop used to
+    # build — the serve pool is set-P/T effects + the creatures that exploit a set
+    # base P/T. Scope 'any' (the deleted SWEEP row's scope).
     ("base_pt_set", "any"): _spec(
         *SWEEP_LABELS["base_pt_set"],
         # Serve rides the lane (2026-10-18): regex missed X-valued sets (Biomass

@@ -107,7 +107,9 @@ from mtg_utils._card_ir.crosswalk import (
     targeting_trigger_side,
     time_counter_kind_refs,
     token_profile_keywords,
+    trigger_def_event,
     trigger_scope,
+    trigger_zone_changes,
     untap_rider_targets,
 )
 from mtg_utils._card_ir.mirror.runtime import (
@@ -2607,10 +2609,9 @@ def _land_destruction(tree: ConceptTree) -> list[Signal]:
         # A payoff for every land put into a graveyard from the battlefield, any
         # player's (Dingus Egg, Akki Raider): subject ``punish``, the carer of a
         # land-destruction deck.
-        if (
-            getattr(unit.node, "mode", None) == "ChangesZone"
-            and getattr(unit.node, "origin", None) == "Battlefield"
-            and getattr(unit.node, "destination", None) == "Graveyard"
+        if trigger_def_event(unit.node) in ("dies", "changes_zone") and any(
+            dest == "Graveyard" and origin in ("Battlefield", None)
+            for origin, dest in trigger_zone_changes(unit.node)
         ):
             kinds.add("punish")
         # A trigger on a land that destroys that land (Price of Glory's "Whenever

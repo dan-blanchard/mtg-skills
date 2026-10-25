@@ -808,7 +808,7 @@ _TOKEN_MAKER_EXTRA = SubAvenue(
     "Zendikar / Deep Forest Hermit)",
     serve=Serve(oracle=re.compile(_TOKEN_MAKER_ORACLE, _IC)),
 )
-# Flicker enablers (CR 603.6e) for a repeated-ETB commander — re-use your own ETBs:
+# Flicker enablers (CR 603.6a) for a repeated-ETB commander — re-use your own ETBs:
 # the blink lane's exile-and-return of a permanent you control.
 _FLICKER_EXTRA = SubAvenue(
     "Blink / flicker",

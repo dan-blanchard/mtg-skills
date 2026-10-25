@@ -143,55 +143,37 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   read: theme adds serving two viable avenues first (46 adds), and theme adds by
   a synergy / play-rate blend (53).
   Six guide summaries don't tag sources per row (`guide_sizes.py` skips them).
-  (r) **Theme reach, what's left** (2026-10-24; the experiment table is in
-  `docs/plans/precon-audit-2026-10-18.md`, "Theme reach"). Shipped: a type- or
-  preset-searched theme takes up to one add in five from its serve's broader
-  page, never the first, with the fit floor read off its own members; the theme's
-  adds are shared by depth over the main avenues; and under a creature commander
-  the suit-up avenue never folds into another theme. 164 theme guide adds still
-  have no search (2026-10-25). Measured negative, so don't re-suggest without a new read:
-  payoffs first (47 guide adds over the serve's whole match set, 44 over the
-  150-card page, against 50: the payoffs cost more and spend small budgets); the
-  whole match set as the theme page (no gain, twice the tune time); support at
-  one in three or more (generic tribal support takes the members' budget);
-  slots shared over every viable avenue (35) or by carers (45), because the
-  generic subs' pages hold staples (Murder for Fae Dominion's Spellslinger).
-  Left: the guide adds that serve only a lane that isn't viable still have no
-  search. Measured negative 2026-10-24 (the
-  audit's "The tuner-policy leftovers"): one swap off the serve page, cut from the
-  upgrade pool, for each lane below the viable floor that the commander holds and
-  cares about (58 adds; 60 held to the emerging floor, flat), and the shallow
-  lanes' pages are noise. Shipped 2026-10-25: a "When this creature dies, <payoff>"
-  a card grants to creatures you control reads as `death_matters|you`
-  (`crosswalk.iter_granted_triggers`, the grantee threaded to the chosen target;
-  eight legal cards gain it, Clavileño, Showstopper and Infernal Scarring among
-  them, none lose). Alone it moved no swap (543 / 195 / 60): Clavileño then holds
-  Aristocrats (28 deep), but 26 of its members are Vampires, so it folds into
-  Vampire tribal and no page holds the package. Shipped with it: a held lane as
-  deep as a main never folds into a held tribe, whose page is a type search
-  (`metrics.focus`; only Blood Rites moves). Aristocrats is its second main, and
-  its tune adds the guide's Skullclamp (544 / 196 / 62; Victimize too, until the
-  near-miss piece fix kept the slot it took, Exquisite Blood: 542 / 195 / 61). Still
-  unreached there: Pyre of Heroes and Lich-Knights' Conquest, though both read
-  as `sacrifice_outlets|you|`, which the Aristocrats serve counts (page reach,
-  not a lane); Altar of Dementia, Diabolic Intent, Razaketh and Dictate of
-  Erebos are on the Aristocrats page, outranked. Only four serve
-  only a sub (Living Energy's Arcum Dagsson, Clever Impersonator, Scrap Welder; Deep
-  Clue Sea's Displaced Dinosaurs). Measured negative 2026-10-24: a sub with a main's carers
-  (6) taking one add that also serves a main (57 adds, 2 guide cuts fewer; neither
-  deck moved). At
-  a913f172 the 150-card play-rate page (`swaps._PAGE`) hid 71 main-avenue guide
-  adds; "the most played that fits" never reaches them, and payoffs first
-  didn't either. Virtue and Valor's Auras that pump their creature
-  (`voltron_makers|you|pump`) count as Ellivere's lane doers since 2026-10-24
-  (`metrics._LANE_DOER_IDENTS`), so they left the off-lane upgrade slots; the deep
-  lane's least-played half still trades Daybreak Coronet, Angelic Destiny, Ancestral
-  Mask and Snake Umbra (none a guide cut; now for Whispersilk Cloak, Hardened Scales,
-  Sram and Heroic Intervention, 20 swaps). Left: no read separates an Aura deck's
-  gear from Equipment (Ellivere's lane is enchanted creatures; Equipment makes none).
-  Ancestral Mask's count of every player's enchantments is an enchantments carer
-  since 2026-10-25, so Virtue and Valor keeps it; the slot it held moves Sram and
-  All That Glitters off the tune's adds (543 / 196 / 59).
+  (r) **Theme reach, what's left** (2026-10-25; the experiment table is in
+  `docs/plans/precon-audit-2026-10-18.md`, "Theme reach"). 164 theme guide adds
+  still have no search. Open:
+  - the guide adds that serve only a lane that isn't viable;
+  - the 150-card play-rate page (`swaps._PAGE`), which hid 71 main-avenue guide
+    adds at a913f172 ("the most played that fits" never reaches them, nor did
+    payoffs first). Blood Rites' Pyre of Heroes and Lich-Knights' Conquest are
+    this lever: both carry `sacrifice_outlets|you|`, which the Aristocrats serve
+    counts, but the page doesn't hold them; Altar of Dementia, Diabolic Intent,
+    Razaketh and Dictate of Erebos are on it, outranked;
+  - four guide adds serve only a sub (Living Energy's Arcum Dagsson, Clever
+    Impersonator, Scrap Welder; Deep Clue Sea's Displaced Dinosaurs);
+  - no read separates an Aura deck's gear from Equipment (Ellivere's lane is
+    enchanted creatures; Equipment makes none).
+  Measured deltas: a granted "When this creature dies, <payoff>" read as
+  `death_matters|you` alone moved no swap (543 / 195 / 60); a held lane as deep
+  as a main never folding into a held tribe added Blood Rites' Skullclamp (544 /
+  196 / 62; 542 / 195 / 61 after the near-miss piece fix); Ancestral Mask's count
+  of every player's enchantments read as an enchantments carer keeps it in Virtue
+  and Valor, and its slot moves Sram and All That Glitters off the adds (543 /
+  196 / 59). Measured negative, so don't re-suggest without a new read: payoffs
+  first (47 guide adds over the serve's whole match set, 44 over the 150-card
+  page, against 50: the payoffs cost more and spend small budgets); the whole
+  match set as the theme page (no gain, twice the tune time); support at one in
+  three or more (generic tribal support takes the members' budget); slots shared
+  over every viable avenue (35) or by carers (45), because the generic subs'
+  pages hold staples (Murder for Fae Dominion's Spellslinger); one swap off the
+  serve page for each lane below the viable floor that the commander holds and
+  cares about (58 adds; 60 held to the emerging floor, flat); a sub with a
+  main's carers taking one add that also serves a main (57 adds, 2 guide cuts
+  fewer).
   (n) **Lane follow-up verdicts — don't re-suggest without a card** (2026-10-24:
   a targeted Treasure conversion is no `ramp` — Vraska, Betrayal's Sting's −2,
   Kitesail Larcenist answer the target, whose controller keeps it, CR 110.2 /
@@ -200,58 +182,44 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   trigger's self-return firing `bounce_tempo` (none; the other trigger
   back-references on cards that fire return an event object — a blocked
   creature, a damage source, a land tapped for mana).
-  (o) **Theme matching off the IR, what's left** (2026-10-25). A theme's
-  candidate page derives from its serve (``signal_specs.theme_page``: Find's
-  ``engine.lane_page``, the tuner's ``swaps._run_search``, ``search_filters``);
-  ``SignalSpec.search`` / ``SubAvenue.search`` is only the page's override — a
-  tribe's or source type's card type, a preset, a mana-value band — and never an
-  oracle pattern (``test_a_theme_pages_by_its_serve_not_a_pattern``). One-sided
-  keep-N serves by ``keep_n_wrath|opponents|`` (the deck's own symmetric
-  keep-N wraths are ``|each|``); Crimes' serve adds targeted removal
-  (``removal|you|``, ``exile_removal|you|``: Swords to Plowshares, Beast
-  Within); Creature-lands' serve takes the lands themselves
-  (``land_creatures_matter|you|self``, page-only, ``lands_feed``: Mutavault,
-  Dryad Arbor), its payoffs and animators split by subject (``""`` /
-  ``animator``) for its two sub-avenues. Flip fixing serves
-  ``coin_flip|you|fixer`` (Krark's Thumb's flip replacement; Edgar, King of
-  Figaro by ledger row), Punish land loss ``land_destruction|you|punish``
-  (Dingus Egg, Akki Raider; Price of Glory is ``destroy`` now). The ETB pages'
-  blink, dies-recursion and self-bounce sub-avenues serve
-  ``blink_flicker|you|enabler`` (Cosmic Intervention's replacement read;
-  Teferi's Time Twist by ledger row), ``dies_recursion|you|`` and
-  ``permanent_recast|you|replay``; each page lost only noise (Portcullis,
-  Frenetic Sliver's coin-flip branch, the "Undying" names). The unreferenced
-  ``_sweep_detectors`` regexes are deleted. Left: 51 sub-avenues still serve
-  on an oracle pattern (Forest-bounce untap engines has no land-bounce read:
-  ``permanent_etb|you|replay`` + ``untap_engine|you|`` admits Wirewood
-  Symbiote's Elf bounce; Self-bounce (recast your clones) misses the
-  web-slinging cost bounces its ident would need).
-  Serves were written to credit a deck's own cards, not to page candidates:
-  each OR arm (types, keywords, cmc and stat floors) admits a card on its own.
-  ``tests/deck-forge/test_serve_arm_guards.py`` (2026-10-24) pins, for each of
-  the 95 structured arms on a page serve, a real card the arm is meant for and
-  a near miss the serve rejects; a new arm needs a row. colorless_matters'
-  Eldrazi type arm takes only colourless cards (``Serve.types_colorless``: not
-  Nest Invader; Eldrazi Displacer is devoid, CR 702.114a). An IR hit whose emitting unit decides no role
+  (o) **Theme matching off the IR, what's left** (2026-10-25). A theme pages
+  by its serve (``signal_specs.theme_page``); no search carries an oracle
+  pattern (``test_a_theme_pages_by_its_serve_not_a_pattern``). Left: 51
+  sub-avenues still serve on an oracle pattern, among them Forest-bounce untap
+  engines (no land-bounce read: ``permanent_etb|you|replay`` +
+  ``untap_engine|you|`` would admit Wirewood Symbiote's Elf bounce) and
+  Self-bounce (recast your clones), whose ident ``permanent_recast|you|replay``
+  would miss the web-slinging cost bounces. A card phase has no record for
+  carries no ident at all, so it drops off a pattern-free page: of the
+  permanents-entering makers, Oko, Lord of the Fae; Flourishing Forces; Enter
+  the Eternities; Quintorius, Fate Splitter; Potential Horizon; Searing Soloist;
+  Plunderer's Prize. The ledger rows that gate on a node's absence (Sanwell,
+  Avenger Ace; Estrid's Invocation; Venture Forth; Hide in Plain Sight; the
+  typeless reanimations) retire only through ``test_bridge_ledger``'s "already
+  served" guard, not their own gap.
+  Rules that stand: serves were written to credit a deck's own cards, so each
+  OR arm admits a card on its own; ``tests/deck-forge/test_serve_arm_guards.py``
+  pins each structured arm on a page serve to a real card and a near miss, and a
+  new arm needs a row. An IR hit whose emitting unit decides no role
   (``ranking._unit_role``) is read by lining the unit's text up with an oracle
   clause, then that clause with a compat ability (``ranking._hit_clauses``):
   reading the payoff test off the unit itself would drop both text alignments,
   and would give a role to the hits no single ability emits (a keyword's
   lifelink, Crucible of Worlds' whole-card ident, a modal spell's text-less
-  mode), which still score structural. A card phase has no
-  record for carries no ident at all, so it drops off a pattern-free page: of
-  the permanents-entering makers, Oko, Lord of the Fae; Flourishing Forces;
-  Enter the Eternities; Quintorius, Fate Splitter; Potential Horizon; Searing
-  Soloist; Plunderer's Prize. The ledger rows that gate on a node's absence
-  (Sanwell, Avenger Ace; Estrid's Invocation; Venture Forth; Hide in Plain
-  Sight; the typeless reanimations) retire only through
-  ``test_bridge_ledger``'s "already served" guard, not their own gap. Don't
-  re-suggest: an enters drawback (Phage, the sacrifice-unless lands), an
+  mode), which still score structural.
+  Don't re-suggest: an enters drawback (Phage, the sacrifice-unless lands), an
   Equipment's auto-attach, a token or search another player gets (the Hunted
   cycle, gift, Path to Exile) and a card putting only itself are no
   permanents-entering member; the Emergence Auras' "that land gains
   indestructible" replacement (CR 614.1a) guards only the land they animate,
-  the animator's own payoff like Kamahl's Will, not land protection.
+  the animator's own payoff like Kamahl's Will, not land protection; an
+  untargeted edict ("each opponent sacrifices" — Liliana's Triumph, Grave Pact)
+  commits no crime (CR 700.13: a crime targets); a land-creature anthem or
+  token maker (Sylvan Advocate, Jyoti) and a land already a creature (Dryad
+  Arbor) animate no land, so the land-animation preset leaves them out (13
+  cards); a coin-flip-gated self-exile-and-return (Frenetic Sliver) is a blink
+  though the effect walk drops it as the card's own drawback, but one returning
+  the card transformed (Ral, Monsoon Mage) is the transform vehicle.
   (l) **Tune speed, what's left** (2026-10-25, a warm Blood Rites tune's
   profile). By size: the ranking's synergy read of ~1,000 distinct candidates
   (`score_candidate`, 1.15 s, most of it `Serve.matches` computing a card's

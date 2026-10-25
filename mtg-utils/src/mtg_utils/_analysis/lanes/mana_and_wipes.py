@@ -527,6 +527,8 @@ _DRAW_FOR_EACH_TRACKED_TAGS: frozenset[str] = frozenset(
 )
 
 
+# Retired 2026-10-25: ``DRAW_FOR_EACH_REGEX``, the mined sweep pattern ("draw a card for
+# each" / "cards equal to the number of") this lane's Card IR read replaced (ADR-0027).
 def _draw_for_each(tree: ConceptTree) -> list[Signal]:
     """draw_for_each — a draw SCALING with a board count (CR 120 / 107.3):
     "draw a card for each creature you control" (Shamanic Revelation). The
@@ -1378,6 +1380,8 @@ def _recovered_exile_removal(c: ConceptNode) -> bool:
     )
 
 
+# Retired 2026-10-25: ``EXILE_REMOVAL_REGEX``, the mined sweep pattern ("exile target
+# creature / permanent / artifact / …") this lane's Card IR read replaced (ADR-0027).
 def _exile_removal(tree: ConceptTree) -> list[Signal]:
     """exile_removal — a SINGLE-TARGET exile of a battlefield permanent (CR
     406.1 "without any way to return" / 115.1): Swords to Plowshares, Path to
@@ -1648,6 +1652,8 @@ def _anthem_static(tree: ConceptTree) -> list[Signal]:
     return []
 
 
+# Retired 2026-10-25: ``SCALING_PUMP_SWEEP_REGEX``, the mined sweep pattern ("gets +X/+X
+# for each" (scaling_pump)) this lane's Card IR read replaced (ADR-0027).
 def _pump_scaling_lanes(tree: ConceptTree) -> list[Signal]:
     """scaling_pump / count_anthem — a +X/+X that SCALES with a board count
     (CR 107.3 / 613.4c). Two typed surfaces:

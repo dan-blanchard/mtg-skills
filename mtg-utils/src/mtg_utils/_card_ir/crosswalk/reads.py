@@ -3823,10 +3823,11 @@ def adds_creature_type(static_def: object) -> bool:
 
 def granted_card_types(static_def: object) -> tuple[str, ...]:
     """The card types a continuous effect gives its objects without making them
-    creatures (CR 205.1b: "becomes an artifact in addition to its other types"
-    — Memnarchitect, Neurok Transmuter; a ``SetCardTypes`` replacing them —
-    a Licid's "becomes an Aura enchantment", Vraska, Betrayal's Sting's
-    Treasure artifact). Empty for an animation (:func:`adds_creature_type`,
+    creatures: an ``AddType`` keeping the prior types (CR 205.1b: "becomes an
+    artifact in addition to its other types" — Memnarchitect, Neurok
+    Transmuter), or a ``SetCardTypes`` replacing them (CR 205.1a: a Licid's
+    "becomes an Aura enchantment", Vraska, Betrayal's Sting's Treasure
+    artifact). Empty for an animation (:func:`adds_creature_type`,
     CR 613.1d — Karn's Touch's "becomes an artifact creature"), which this read
     leaves to the animation lanes."""
     if adds_creature_type(static_def):
@@ -3971,6 +3972,21 @@ def has_nested_flip_coin(node: object) -> bool:
     :func:`has_nested_roll_die` sibling.
     """
     return any(tag_of(n) == "FlipCoin" for n in _iter_typed_nodes(node))
+
+
+def iter_flip_outcomes(node: object) -> Iterator[TypedMirrorNode]:
+    """Each outcome of every coin flip under ``node`` (a ``FlipCoin`` /
+    ``FlipCoins`` ``win_effect`` / ``lose_effect``, CR 705.2), granted bodies
+    included — the drawback outcomes too, which the effect walk leaves out
+    (:func:`is_own_drawback`: Frenetic Sliver's "If you win the flip, exile ~
+    and return it to the battlefield")."""
+    for n in _iter_typed_nodes(node):
+        if tag_of(n) not in ("FlipCoin", "FlipCoins"):
+            continue
+        for field in _FLIP_OUTCOME_FIELDS:
+            outcome = getattr(n, field, None)
+            if isinstance(outcome, TypedMirrorNode):
+                yield outcome
 
 
 def has_nested_fight(node: object) -> bool:

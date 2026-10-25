@@ -831,10 +831,16 @@ SPECS_3: dict[tuple[str, str], SignalSpec] = {
         "Crimes",
         "targeted removal and abilities that count as committing a crime",
         # The crime payoffs, and the crimes a deck commits most: targeted removal
-        # (Swords to Plowshares, Path to Exile, Beast Within).
+        # (Swords to Plowshares, Path to Exile, Beast Within) and a targeted
+        # player's edict (Diabolic Edict, Cruel Edict).
         None,
         serve_idents=frozenset(
-            {"crimes_matter|you|", "removal|you|", "exile_removal|you|"}
+            {
+                "crimes_matter|you|",
+                "removal|you|",
+                "exile_removal|you|",
+                "edict_makers|opponents|target",
+            }
         ),
     ),
     # Serve idents: the connive doers and the connive payoffs ("whenever a

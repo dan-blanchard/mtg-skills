@@ -1893,7 +1893,21 @@ def _edict_makers(tree: ConceptTree) -> list[Signal]:
             # the shape; firing edict_makers here poisoned both reads.
             if tag_of(getattr(c.node, "target", None)) == "TrackedSet":
                 continue
-            fire(sacrifice_actor_scope(unit, c.node), c.raw)
+            scope = sacrifice_actor_scope(unit, c.node)
+            fire(scope, c.raw)
+            # A targeted player's edict ("Target player sacrifices a creature" —
+            # Diabolic Edict, Cruel Edict) also carries the subject ``target``: it
+            # targets the player (CR 700.13, a crime when that's an opponent).
+            if (
+                scope
+                and "target" not in seen
+                and filter_controller(effect_filter(c.node))
+                in ("TargetPlayer", "TargetOpponent")
+            ):
+                seen.add("target")
+                out.append(
+                    Signal("edict_makers", scope, "target", c.raw, tree.name, "high")
+                )
     return out
 
 
@@ -2569,6 +2583,9 @@ def _copied_noncreature_permanent(word: str) -> bool:
 _SELF_COPY_KEYWORDS: frozenset[str] = frozenset({"Myriad", "Encore", "Squad"})
 
 
+# Retired 2026-10-25: ``CLONE_MATTERS_REGEX`` and ``TOKEN_COPY_MATTERS_REGEX``, the
+# mined sweep pattern ("becomes / enters as a copy of" / "a token that's a copy of",
+# populate) this lane's Card IR read replaced (ADR-0027).
 def _copy_clone(tree: ConceptTree) -> list[Signal]:
     """copy_permanent / clone_makers / token_copy_makers — the copy cluster (CR 707 /
     701.36). Three structural surfaces (Dan's clone-vs-token-copy boundary):
