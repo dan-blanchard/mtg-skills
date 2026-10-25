@@ -78,15 +78,9 @@ _SUBJECT_TEMPLATES = {
 
 
 # Type-GRANT phrasing (B1). _GRANT_VETO (broad) drops any type-grant from the payoff
-# lane. _ENABLER_GRANT (tight) requires a GROUP subject ("creatures you control ... are
-# the chosen type"), so board-wide granters (Xenograft, Arcane Adaptation, Maskwood
-# Nexus, Leyline of Transformation) count as enablers, but a lone CHANGELING ("this card
-# is every creature type") does not — it's a tribe member, surfaced by the bodies lane.
+# lane: a board-wide granter (Xenograft, Arcane Adaptation, Maskwood Nexus) is an
+# enabler, the type_changers idents' lane.
 _GRANT_VETO = r"(?:is|are) (?:the chosen type|every creature type)"
-_ENABLER_GRANT = (
-    r"(?:creature|permanent)s? you control[^.]*?"
-    r"(?:is|are) (?:the chosen type|every creature type)"
-)
 
 
 def _payoff_extra(subj: str, esc: str) -> SubAvenue:
@@ -150,20 +144,15 @@ def _type_changer_idents(tribe_subjects: tuple[str, ...]) -> frozenset[str]:
 def _enabler_extra(subj: str) -> SubAvenue:
     # Type-changers (Xenograft, Arcane Adaptation) turn OTHER creatures into {subj}s, so
     # the tribe grows and your {subj} payoffs hit more bodies. A distinct lane: an
-    # enabler is NOT a payoff or a tribe member (B1). The open grant ("the chosen
-    # type") is subject-agnostic, so it credits every {subj} lane. The serve ALSO
-    # carries the structural type_changers idents (task #96): the oracle regex only
-    # knows the chosen/every-type wordings, so a fixed-subtype changer (Hivestone,
-    # "are Slivers in addition to their other creature types") was invisible on
-    # this sub-avenue — hidden from the Find surface's enabler browsing.
+    # enabler is NOT a payoff or a tribe member (B1). The serve is the structural
+    # type_changers idents (task #96): the open grants ("the chosen type", every
+    # type) credit every {subj} lane, a fixed-subtype changer (Hivestone, "are
+    # Slivers in addition to their other creature types") only its own.
     return SubAvenue(
         f"{subj} enablers",
         f"cards that make your other creatures {subj}s (type-changers like Xenograft), "
         f"growing the tribe so your {subj} lords and payoffs reach more of the board",
-        serve=Serve(
-            oracle=re.compile(_ENABLER_GRANT, _IC),
-            signal_idents=_type_changer_idents((subj,)),
-        ),
+        serve=Serve(signal_idents=_type_changer_idents((subj,))),
     )
 
 
@@ -373,7 +362,6 @@ def _subject_spec(signal: Signal) -> SignalSpec:
                 "Nexus) so tribal payoffs reach more of the board"
             ),
             serve=Serve(
-                oracle=re.compile(_ENABLER_GRANT, _IC),
                 signal_idents=_type_changer_idents(
                     () if subj in ("", "all") else (subj,)
                 ),

@@ -73,7 +73,7 @@ ARM_PINS: dict[tuple[str, str], tuple[str, str]] = {
     ("clone_makers|you", "power_min"): ("Ghalta, Primal Hunger", "Shivan Dragon"),
     # a death trigger worth copying beside a mana-value floor
     ("clone_makers|you|High-value death triggers to copy", "all_of[1].cmc_min"): (
-        "Antler Skulkin",
+        "Kokusho, the Evening Star",
         "Colossal Dreadmaw",
     ),
     # a colourless Eldrazi; Nest Invader is green

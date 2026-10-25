@@ -4,8 +4,6 @@ original ``signal_specs.py``), verbatim, in original order.
 
 from __future__ import annotations
 
-import re
-
 from mtg_utils._analysis._sweep_detectors import (
     SWEEP_LABELS,
 )
@@ -26,7 +24,6 @@ from ._shared import (
     _ETB_PAYOFF_EXTRA,
     _FLICKER_EXTRA,
     _HELLBENT_PUNISH_EXTRA,
-    _IC,
     _PLUS_ONE_PLACERS,
     _SELF_BOUNCE_EXTRA,
     _SELF_BOUNCE_RECAST_EXTRA,
@@ -46,25 +43,20 @@ _CONNIVE_SERVE_IDENTS = frozenset({"connive_makers|you|", "connive_matters|you|"
 # The explore serve (explore_makers / explore_matters): both lanes.
 _EXPLORE_SERVE_IDENTS = frozenset({"explore_makers|you|", "explore_matters|you|"})
 
-# The activated-ability engine's enablers: haste grants (Thousand-Year Elixir's
-# "as though it had haste" by pattern, the grant lanes' haste by ident) and
-# activated-ability cost reducers (Training Grounds). The untaps of one creature
-# (Freed from the Real) are the main serve's ``untap_engine`` ident. Find and the
-# tuner page the extra by its serve (``pages_by_serve``), so the pattern below is
-# only the serve's arm.
-_ABILITY_HASTE_COST_ORACLE = (
-    r"activated abilities[^.]*\bcost\b"
-    r"|activate (?:its |their )?abilit(?:y|ies)[^.]*as though"
-    r"|as though (?:those creatures|it|they) (?:had|have) haste"
-)
+# The activated-ability engine's enablers: haste grants (the grant lanes' haste
+# idents), a haste-for-activations static (Thousand-Year Elixir) and an
+# activation-cost reducer (Training Grounds) — the activated_ability lane's
+# ``enabler`` subject. The untaps of one creature (Freed from the Real) are the main
+# serve's ``untap_engine`` ident. A tax on activations (Suppression Field) is the
+# opposite.
 _ABILITY_HASTE_COST_EXTRA = SubAvenue(
     "Untap, haste and cheaper activations",
     "untap the tapper again, give it haste, or cut its activation cost "
     "(Freed from the Real, Thousand-Year Elixir, Training Grounds)",
     serve=Serve(
-        oracle=re.compile(_ABILITY_HASTE_COST_ORACLE, _IC),
         signal_idents=frozenset(
             {
+                "activated_ability|you|enabler",
                 "keyword_grant_target|you|haste",
                 "team_buff|you|haste",
                 "aura_equip_kw_grant|you|haste",
@@ -75,13 +67,13 @@ _ABILITY_HASTE_COST_EXTRA = SubAvenue(
 )
 
 # The dash avenue's Equipment movers (Brass Squire, Armory Automaton): the
-# "attach … Equipment" arm of the old serve regex, moved here verbatim — the
-# Equipment themselves serve through the type arm.
-_EQUIPMENT_MOVER_ORACLE = r"attach [^.]*equipment"
+# voltron_makers lane's attachers and tutors. An Equipment that attaches only itself
+# (Foot Chopper's germ, Sparring Collar's {R}{R}) moves no other gear; the Equipment
+# themselves serve through the type arm.
 _EQUIPMENT_MOVER_EXTRA = SubAvenue(
     "Equipment movers",
     "cards that attach your Equipment for free (Brass Squire, Armory Automaton)",
-    serve=Serve(oracle=re.compile(_EQUIPMENT_MOVER_ORACLE, _IC)),
+    serve=Serve(signal_idents=frozenset({"voltron_makers|you|"})),
 )
 
 # clone_makers / copy_permanent / wants_cloning share one serve: every copy lane.

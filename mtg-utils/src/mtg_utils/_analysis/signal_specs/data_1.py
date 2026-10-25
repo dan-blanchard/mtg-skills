@@ -26,6 +26,7 @@ from ._shared import (
     _CREATURE_COST_EXTRA,
     _DAMAGE_SOAK_EXTRA,
     _DEATH_DRAIN_EXTRA,
+    _DEATH_PAYOFF_IDENTS,
     _DEATHTOUCH_GEAR_EXTRA,
     _DIES_RECURSION_EXTRA,
     _DRAWBACK_EXTRA,
@@ -125,15 +126,16 @@ _CREATURES_ENTERING_IDENTS = _TOKEN_MAKER_IDENTS | {
 # The aristocrats serve (sacrifice_outlets you, death_matters any): the creature-
 # token fodder, the outlets, the death payoffs on every side, the edicts, and the
 # death-value fodder (a permanent whose own death trigger replaces it).
-_ARISTOCRATS_IDENTS = _TOKEN_MAKER_IDENTS | {
-    "sacrifice_outlets|you|",
-    "death_matters|any|",
-    "death_matters|you|",
-    "death_matters|opponents|",
-    "edict_makers|opponents|",
-    "edict_makers|each|",
-    "self_death_payoff|you|",
-}
+_ARISTOCRATS_IDENTS = (
+    _TOKEN_MAKER_IDENTS
+    | _DEATH_PAYOFF_IDENTS
+    | {
+        "sacrifice_outlets|you|",
+        "edict_makers|opponents|",
+        "edict_makers|each|",
+        "self_death_payoff|you|",
+    }
+)
 
 # The kind-agnostic counter serve (any_counter_matters / any_counter_makers, you).
 _ANY_COUNTER_IDENTS = frozenset(
@@ -162,12 +164,11 @@ _PROLIFERATE_IDENTS = _ANY_COUNTER_IDENTS | frozenset(
 
 
 # Each-opponent group burn: the symmetric-damage serve's adjacency (a Pestilence
-# deck also wants Sizzle). The branch of the old serve regex.
-_GROUP_BURN_ORACLE = r"deals \d+ damage to each opponent"
+# deck also wants Sizzle) — direct_damage's ``each_opponent`` subject.
 _GROUP_BURN_EXTRA = SubAvenue(
     "Group burn",
     "burn that hits each opponent, beside the sweepers and pingers that hit everyone",
-    serve=Serve(oracle=re.compile(_GROUP_BURN_ORACLE, _IC)),
+    serve=Serve(signal_idents=frozenset({"direct_damage|you|each_opponent"})),
 )
 
 
@@ -459,7 +460,7 @@ SPECS_1: dict[tuple[str, str], SignalSpec] = {
     ),
     # The PAYOFF that pairs with the FUEL above: reanimation effects + cast-from-grave
     # creatures, because Celes-style commanders reward a creature re-entering play from
-    # the graveyard, not merely a full graveyard. See _REANIMATE_ORACLE (_shared).
+    # the graveyard, not merely a full graveyard. See _REANIMATION_EXTRA (_shared).
     ("reanimator", "you"): _spec(
         "Reanimation",
         "reanimation effects that return a creature from your graveyard to the "

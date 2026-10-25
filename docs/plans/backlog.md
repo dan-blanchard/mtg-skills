@@ -133,8 +133,10 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   of Hearts) reads narrow, though the caster picks their biggest.
   (m) **Recall** (`precon-audit/misses.py`, at the largest guide's thirty
   swaps and each precon's own guides' budget, `budgets.json`, Spellbook cached):
-  196 of 408 cuttable guide cuts, 59 of 610 in-scope guide adds, 543 swaps
-  (2026-10-25; 61 adds before Ancestral Mask read as a carer, (r); 195 / 61, 542
+  195 of 408 cuttable guide cuts, 59 of 610 in-scope guide adds, 543 swaps
+  (2026-10-25; 196 cuts before Forensic Gadgeteer read as an activation-cost
+  enabler, (o): Deep Clue Sea now cuts Chulane's extra ramp for it and keeps
+  Hornet Queen; 61 adds before Ancestral Mask read as a carer, (r); 195 / 61, 542
   swaps at 04925758; 180 / 57 before the near-tie
   budget rule, 169 / 56 at 9e0026ed). The levers by size at the shipped tune: adds
   a page held but outranked (244), theme adds no search reaches (169, (r)), cuts the popularity threshold still shields (62),
@@ -184,19 +186,64 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   creature, a damage source, a land tapped for mana).
   (o) **Theme matching off the IR, what's left** (2026-10-25). A theme pages
   by its serve (``signal_specs.theme_page``); no search carries an oracle
-  pattern (``test_a_theme_pages_by_its_serve_not_a_pattern``). Left: 51
-  sub-avenues still serve on an oracle pattern, among them Forest-bounce untap
-  engines (no land-bounce read: ``permanent_etb|you|replay`` +
-  ``untap_engine|you|`` would admit Wirewood Symbiote's Elf bounce) and
-  Self-bounce (recast your clones), whose ident ``permanent_recast|you|replay``
-  would miss the web-slinging cost bounces. A card phase has no record for
-  carries no ident at all, so it drops off a pattern-free page: of the
-  permanents-entering makers, Oko, Lord of the Fae; Flourishing Forces; Enter
-  the Eternities; Quintorius, Fate Splitter; Potential Horizon; Searing Soloist;
-  Plunderer's Prize. The ledger rows that gate on a node's absence (Sanwell,
-  Avenger Ace; Estrid's Invocation; Venture Forth; Hide in Plain Sight; the
-  typeless reanimations) retire only through ``test_bridge_ledger``'s "already
-  served" guard, not their own gap.
+  pattern (``test_a_theme_pages_by_its_serve_not_a_pattern``). Fifteen
+  sub-avenues and one spec still serve on an oracle pattern, each for want of a
+  read (a real member it would lose has no ident; page diffs and lost-card
+  classes: ``~/mtg/tuner-work/w11/``):
+  - a crippling drawback (Enlist fodder; the Ability-strip targets spec, Pass D
+    below) or a downside that hurts its controller (Drawback creatures to
+    donate): no lane reads a drawback;
+  - Symmetric mana: no read for each player's land search or Treasure, nor a
+    land-tap trigger on any player's land (Manabarbs, Storm Cauldron);
+  - Empty-hand punishers: no read of an opponent's hand-size condition or an "N
+    minus the cards in their hand" amount (The Rack);
+  - Untap effects: ``untap_engine`` misses a granted "untap this creature"
+    (Pemmin's-Aura-likes: Gauntlets of Light, Scuttling Sliver, Touch of Vitae),
+    a back-referenced "untap it" (Amulet of Vigor, Captain America, Living
+    Legend) and Urban Burgeoning's granted untap step;
+  - Mass token makers: no token-count read (and ``token_maker`` is a subject
+    key, so no subject can carry one);
+  - Forest-bounce untap engines: no read pairs a land-bounce cost with the
+    untap (``permanent_etb|you|replay`` + ``untap_engine|you|`` would admit
+    Wirewood Symbiote's Elf bounce), and ``untap_engine``'s subject is its
+    subtype scope;
+  - Token-aristocrats drain: no token-event drain read (``tokens_matter`` alone
+    admits Anointed Procession);
+  - Trigger copiers: ``ability_copy`` is the synthesis stage's whole-suite node,
+    with no triggered / activated split;
+  - Combat support: no read of an activated or bestowed Aura pump
+    (Firebreathing, Nyxborn Wolf) or an Equipment-token maker;
+  - Damage / life-loss amplifiers: no read of "deals that much damage to each
+    other opponent" (Hydra Omnivore) or "loses life equal to the life lost this
+    turn" (Wound Reflection);
+  - Power-as-damage payoffs: ``damage_equal_power`` reads a power burn to a
+    player only — no bite, "twice its power", greatest-power or each-opponent
+    form (Bite Down, Polliwallop, Mega Flare, Heartfire Hero);
+  - Single-target pump / protection: ``keyword_grant_target`` misses a choice
+    of keyword (Gideon Blackblade) and a quoted ability given to a target
+    (Feign Death);
+  - Soak blockers: phase types "can block any number of creatures"
+    (``ExtraBlockers``), but no key fits it;
+  - the tribal payoffs (``signal_specs.core._payoff_extra``): its own comment's
+    task B-1 — the one-shot chooser classes (Distant Melody, Cavern of Souls)
+    and the tribe's own lords need structural arms first.
+  Outside that count, the subject specs ``core._subject_spec`` builds still page
+  by a pattern interpolating their subject: a keyword tribe ("Flying matters"),
+  the meld partner, ``token_maker``'s tribe tokens and the tribe spec's payoff
+  phrasing. Creature-ETB payoffs ANDs an enters-payoff ident with a burn or
+  drain ident on the same card, not in the same trigger: a per-trigger payload
+  subject on ``creature_etb`` would tighten it.
+  A card phase has no record for carries no ident at all, so it drops off a
+  pattern-free page: of the permanents-entering makers, Oko, Lord of the Fae;
+  Flourishing Forces; Enter the Eternities; Quintorius, Fate Splitter; Potential
+  Horizon; Searing Soloist; Plunderer's Prize; of the token makers and counter
+  placers, the same Oko, Flourishing Forces and Quintorius; Rootha, Ardent
+  Artisan (sacrifice outlets); Change the Narrative (cost reducers); Nylea's
+  Oracle (go-wide anthems). The ledger rows that gate on a node's absence
+  (Sanwell, Avenger Ace; Estrid's Invocation, both rows; Venture Forth; Hide in
+  Plain Sight; the typeless reanimations; the dropped return costs;
+  Catastrophe's creature branch; the where-X player burns) retire only through
+  ``test_bridge_ledger``'s "already served" guard, not their own gap.
   Rules that stand: serves were written to credit a deck's own cards, so each
   OR arm admits a card on its own; ``tests/deck-forge/test_serve_arm_guards.py``
   pins each structured arm on a page serve to a real card and a near miss, and a
