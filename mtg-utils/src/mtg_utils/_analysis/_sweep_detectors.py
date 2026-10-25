@@ -683,105 +683,11 @@ DEATH_MATTERS_REGEX = (
     r"|creatures? (?:that )?died this turn"
     r"|creature[^.]*\bdied\b[^.]*this turn"
 )
-# ADR-0027 — artifacts_matter (the ARTIFACTS go-wide / matters axis: a card that cares
-# about your artifact population — "artifacts you control" anthems, "for each artifact
-# you control" count payoffs, affinity / metalcraft / improvise, artifact ETB / cast
-# triggers, artifact tutors / recursion / sac-outlets / token-makers — affinity per
-# CR 702.41, metalcraft CR 207.2c, artifact tokens CR 205.3g). MIGRATED to the Card IR
-# via the STRUCTURAL arms (the `_TYPE_MATTERS_LANE` count/grant/trigger DOERs, the
-# `_ARTIFACT_TOKEN_SUBTYPES` maker/sac arm, the type-gate condition arm, and the
-# type_line membership arm — all already present in extract_signals_ir) PLUS a NARROWED
-# kept-mirror of the deleted oracle-regex producer. NO sidecar bump (the v20 projection
-# already structures the artifact filters / triggers / token subtypes these arms read).
-#
-# NARROWED (signals-only over-fire fix): the deleted producer's bare `\baffinity\b`
-# branch over-fired on EVERY affinity-for-NON-artifact card ("Affinity for snow lands"
-# Icebreaker Kraken, "Affinity for creatures" Argivian Phalanx, "Affinity for Birds"
-# Bartz and Boko, "Affinity for Slivers" Thrumming Hivepool — 22 commander-legal
-# over-fires verified vs Scryfall oracle, NONE an artifacts deck). The narrowed branch
-# `affinity for artifacts` keeps the real affinity-matters bodies (conferred "spells you
-# cast have affinity for artifacts" — Sami; the Golems whose Artifact type_line still
-# opens the lane via membership) while dropping the 22. The structural IR arm
-# add()-dedups its +325 ir_only recall GAIN (the Food/Clue/Treasure-subtype sac payoffs
-# and DFC back-face artifact-recursion the brittle oracle regex MISSED).
-#
-# Floor-disabled residual after the swap (commander-legal, _IR_FLOOR_LANES=frozenset()):
-# regex_only==22 (ALL the affinity-for-other over-fire, 0 genuine recall lost),
-# ir_only==325 (genuine gain). SCOPE PARITY holds (both fire scope 'you' only). The
-# SWEEP_DETECTORS "if you control an artifact" row is KEPT (len stays >=36); the mirror
-# UNIONs it (the deleted _HAND_FLOOR producer + the kept SWEEP regex run together
-# per-clause). artifacts_matter is NOT in _IR_FLOOR_LANES (floor-mirror-dep == 0).
-# 2026-10-18: the artifact-token MAKER branches ("create … Treasure/Clue/… token",
-# "investigate") are gone — a card that makes artifact tokens is a doer, credited on
-# token_maker / treasure_makers / clue_makers / food_makers, and artifacts_matter is
-# the payoff key the tuner reads as a card that cares about artifacts.
-ARTIFACTS_MATTER_REGEX = (
-    r"\bartifacts? you control\b"
-    r"|artifact creatures? you control"
-    r"|for each artifact you control"
-    r"|whenever an? artifact (?:you control )?enters"
-    r"|affinity for artifacts"
-    r"|artifact (?:card|spell)[^.]*(?:from|in)[^.]*graveyard"
-    r"|search [^.]*\bfor [^.]*artifact[^.]*card|noncreature artifact card"
-    r"|put (?:an?|that|up to \w+) artifact cards?[^.]*"
-    r"(?:into your hand|onto the battlefield)"
-    r"|\bimprovise\b"
-    r"|sacrifices? (?:an?|another|two|three|x|\d+) artifacts?\b"
-    r"(?!,? (?:or )?(?:an? )?(?:creature|enchantment|land|permanent))"
-    r"|abilit(?:y|ies) of (?:an? )?artifacts?\b"
-    r"|\bmetalcraft\b"
-    r"|search (?:your library )?for an?[^.]*artifact card"
-    r"|reveal an artifact card"
-    r"|if an artifact entered the battlefield under your control"
-    r"|artifact,? instant,? and sorcery spells"
-)
-# ADR-0027 — enchantments_matter (the ENCHANTMENTS go-wide / matters axis: a card that
-# cares about your enchantment population — "enchantments you control" anthems, "for each
-# enchantment you control" count payoffs, constellation ("whenever an enchantment you
-# control enters"), enchantress cast triggers, enchantment tutors / recursion-from-
-# graveyard / hand-matters, and Role-token makers — Roles ARE Aura enchantments per
-# CR 303.7 / 111.10j, Auras are enchantments per CR 205.2 / 303). MIGRATED to the Card IR
-# via the STRUCTURAL arms (the `_TYPE_MATTERS_LANE` Enchantment count/grant/trigger DOERs,
-# the Enchantment make_token / sac-payoff DOER, the type-gate condition arm, the becomes-
-# Enchantment / type-recursion / type-tutor arms, the Aura-subtype "loose enchantments
-# member" arm, and the type_line membership arm — all already present in
-# extract_signals_ir, shared with artifacts_matter) PLUS a BYTE-IDENTICAL kept-mirror of
-# the deleted oracle-regex producer. NO sidecar bump (the v20 projection already structures
-# the enchantment filters / triggers / token subtypes these arms read).
-#
-# The structural arms ADD +95 ir_only recall the brittle oracle regex MISSED — the Licids
-# that "become an Aura enchantment" (Gliding/Nurturing/Calming Licid …), the enchantment-
-# creature / Aura / Glimmer token makers (Aerie Worshippers, Fated Intervention, Tunnel
-# Surveyor), Aura recursion (Nomad Mythmaker, Retether, Storm Herald), enchantment tutors
-# / recursion (Plea for Guidance, Triumphant Reckoning, Crystal Dragon // Rob the Hoard),
-# affinity-for-enchantments (Brine Giant), single-type "sacrifice an enchantment" outlets
-# (Faith Healer, Auratog, Phantatog), and "if you control an enchantment" conditions
-# (Flutterfox, Blood-Cursed Knight, Lagonna-Band Elder) — every one a real enchantment-
-# population care. The Bargain symmetric-sac gate (CR 702.166a, the shared arm landed by
-# the artifacts pass) keeps the lane shut for the ~20 "sacrifice an artifact, ENCHANTMENT,
-# or token" alt-cost cards (Torch the Tower, Beseech the Mirror) — those are GONE on this
-# base, not over-fires. phase carries NO clean shape for the oracle-idiom family the
-# deleted regex read (enchantment tutors / recursion-from-graveyard / "enchantment card in
-# your hand" miracle-grant / Role-token makers), so the kept-mirror runs PER-CLAUSE over
-# the reminder-stripped oracle, recovering all 15 byte-identically (Role-token makers
-# Royal Treatment / Become Brutes — Roles ARE Aura enchantments; Yenna, Rite of Harmony's
-# constellation, Aminatou's "enchantment card in your hand"). add() dedups vs the
-# structural arm. There is NO dedicated enchantment SWEEP_DETECTORS row (unlike artifacts'
-# "if you control an artifact" row), so the mirror is the deleted producer alone and
-# SWEEP_DETECTORS stays at 36. enchantments_matter is NOT in _IR_FLOOR_LANES
-# (floor-mirror-dep == 0 — a structural type-matters lane).
-ENCHANTMENTS_MATTER_REGEX = (
-    r"\benchantments? you control\b"
-    r"|for each enchantment you control"
-    r"|whenever an? enchantment (?:you control )?enters"
-    r"|search (?:your library )?for an?[^.]*enchantment card"
-    r"|return [^.]*enchantment cards?[^.]*(?:graveyard|hand)"
-    r"|enchantment cards? in your hand"
-    r"|reveal[^.]*enchantment cards?[^.]*hand|put all enchantment cards"
-)
-# The enchantment-cast idiom, kept apart so its hits carry the ``cast`` subject: a
-# cast trigger never sees an uncast permanent (CR 601.2i).
-ENCHANTMENTS_CAST_REGEX = r"cast (?:an?|your (?:first|second)) enchantment"
+# ADR-0027 — artifacts_matter / enchantments_matter migrated to the Card IR; the
+# per-clause text mirrors that rode beside the structural arms (the deleted oracle
+# producers' ARTIFACTS_MATTER_REGEX / ENCHANTMENTS_MATTER_REGEX / the enchantment-cast
+# idiom) were retired 2026-10-24 for typed reads of every population filter over your
+# artifacts / enchantments (``lanes.board_and_ramp._artifacts_enchantments_matter``).
 # ADR-0027 — landfall (the LAND-ETB payoff axis: a card that CARES when a land
 # enters — the "Landfall —" ability word (CR 207.2c), the keyword-LESS "whenever a
 # land you control enters" trigger, the extra-land STATIC ("play N additional

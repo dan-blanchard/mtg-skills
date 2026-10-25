@@ -79,11 +79,18 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   Intervention, Kaya's Ghostform, Fey Steed and six more), so Spark Double
   (an extra loyalty counter) and Lae'zel (no typed planeswalker filter) keep
   it.
-  (d) **The text mirrors are still regexes.** The three `_matters` text mirrors
-  (artifacts / enchantments / the cast arm) match patterns over the text phase
-  carries on the card's nodes (`board_and_ramp._non_animation_texts`), not over
-  oracle clauses, but a pattern is still the read; each payoff they catch wants
-  a typed read off the tree.
+  (d) **The type payoffs' last oracle read** (2026-10-24). The three
+  `_matters` text mirrors are retired: `_artifacts_enchantments_matter` reads
+  every filter over artifacts / enchantments you control or own
+  (`crosswalk.iter_node_filters`), and seven ledger rows bridge the clauses
+  phase parks or drops (Assassin's Ink, Guardian Beast, Karn, Living Legacy,
+  Phylactery Lich, Robobrain War Mind, Windwright Mage, Soldevi Machinist,
+  Sanwell, Anrakyr; Floodtide Serpent, Balduvian Shaman, Estrid's
+  Invocation). Don't re-suggest: a choice of types ("creature or artifact you
+  control" — Abuelo, Heliod, Zimone) and stax or edicts over other players'
+  artifacts (Null Rod, Harsh Mentor, Pick Your Poison) are no payoff. Left:
+  the becomes-type arm still reads `_BECOMES_TYPE_RE` over oracle clauses, and
+  Ward of Bones' artifact-count comparison (a lock on opponents) reads as one.
   (g) **The guide cuts the tuner protects** (2026-10-24, the experiment table in
   `docs/plans/precon-audit-2026-10-18.md`, "The remaining tuner levers"). Shipped:
   popular cards (inside `UPGRADE_RANK`, not premium) off every lane and on none of

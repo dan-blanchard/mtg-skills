@@ -39,16 +39,30 @@ def _text_only_tree(card: dict) -> ConceptTree:
     )
 
 
-def _wire_ir(monkeypatch, mapping: dict, cards: list[dict] = ()):
+def _real_trees(name: str) -> tuple[ConceptTree, ...]:
+    """A real card's concept trees from the committed snapshot (``testkit``)."""
+    test_card_ir(name)  # seeds the snapshot's phase records
+    return tuple(card_trees.trees_for(test_card(name)))
+
+
+def _wire_ir(
+    monkeypatch, mapping: dict, cards: list[dict] = (), real: dict | None = None
+):
     """Wire a {oracle_id: Card} IR index (the compat-Card resolver) plus a text-only tree per
     ``cards`` (the concept-tree resolver) into the engine for the test. ``cards`` empty leaves
     ``trees_for`` untouched — for a REAL card (e.g. Jyoti below), the caller
     pre-seeds ``_ir_lookup``'s trees memo via ``mtg_utils.testkit`` instead,
-    so a text-only (zero-unit) tree here would shadow the real one."""
+    so a text-only (zero-unit) tree here would shadow the real one. ``real``
+    maps a synthetic card's oracle_id to a real card whose trees it borrows —
+    the type payoff lanes read typed filters, never a text-only tree's oracle."""
     monkeypatch.setattr(_ir_lookup, "_crosswalk_index", lambda: mapping)
     if not cards:
         return
-    trees = {c["oracle_id"]: (_text_only_tree(c),) for c in cards}
+    borrowed = {oid: _real_trees(name) for oid, name in (real or {}).items()}
+    trees = {
+        c["oracle_id"]: borrowed.get(c["oracle_id"]) or (_text_only_tree(c),)
+        for c in cards
+    }
     monkeypatch.setattr(
         card_trees,
         "trees_for",
@@ -61,18 +75,18 @@ CMD = {
     "type_line": "Legendary Creature — Elf",
     "cmc": 4.0,
     "color_identity": ["G", "W"],
-    # ADR-0039 task #80 step 6: artifacts_matter (not creature_etb — a genuinely
-    # structural lane needing a real typed trigger unit a synthetic text-only
-    # tree can't supply) fires from the crosswalk's whole-card text mirror with
-    # zero units, so it stays testable through a synthetic fixture. The label/
-    # search-spec assertions below check "Artifacts" accordingly; the endpoint
-    # plumbing under test (does a migrated key surface through /api/signals and
-    # /api/snapshot avenues) is unaffected by which key demonstrates it.
+    # The signal tests borrow Steel Overseer's real trees for this card
+    # (``_wire_ir``'s ``real``): artifacts_matter is read off typed filters, so
+    # a text-only tree fires nothing. The label/search-spec assertions below
+    # check "Artifacts" accordingly; the endpoint plumbing under test (does a
+    # key surface through /api/signals and /api/snapshot avenues) is unaffected
+    # by which key demonstrates it.
     "oracle_text": "Whenever an artifact you control enters, draw a card.",
     "prices": {"usd": "5.00"},
     "oracle_id": "etb-boss-oid",
 }
 CMD_IR = Card(oracle_id="etb-boss-oid", name="ETB Boss", faces=(Face(name="ETB Boss"),))
+_CMD_TREES = {"etb-boss-oid": "Steel Overseer"}
 TOK = {
     "name": "Token Maker",
     "type_line": "Sorcery",
@@ -107,7 +121,7 @@ def _client(*, search_results=None, combos_fn=None, bulk=True):
 
 
 def test_signals_endpoint_surfaces_scoped_actionable_signal(monkeypatch):
-    _wire_ir(monkeypatch, {"etb-boss-oid": CMD_IR}, [CMD])
+    _wire_ir(monkeypatch, {"etb-boss-oid": CMD_IR}, [CMD], real=_CMD_TREES)
     sigs = _client().get("/api/signals").json()["signals"]
     etb = next(s for s in sigs if s["key"] == "artifacts_matter")
     assert etb["scope"] == "you"
@@ -171,14 +185,14 @@ def test_snapshot_includes_bracket_estimate():
 
 
 def test_snapshot_includes_live_budgets_and_signals(monkeypatch):
-    _wire_ir(monkeypatch, {"etb-boss-oid": CMD_IR}, [CMD])
+    _wire_ir(monkeypatch, {"etb-boss-oid": CMD_IR}, [CMD], real=_CMD_TREES)
     snap = _client().get("/api/snapshot").json()
     assert snap["budgets"]["ramp"]["max"] == 12
     assert any(s["key"] == "artifacts_matter" for s in snap["signals"])
 
 
 def test_snapshot_avenues_include_engine_avenue_with_search_spec(monkeypatch):
-    _wire_ir(monkeypatch, {"etb-boss-oid": CMD_IR}, [CMD])
+    _wire_ir(monkeypatch, {"etb-boss-oid": CMD_IR}, [CMD], real=_CMD_TREES)
     snap = _client().get("/api/snapshot").json()
     avs = {a["id"]: a for a in snap["avenues"]}
     etb = avs["engine:artifacts_matter:you"]
@@ -248,10 +262,9 @@ def _jyoti_client(monkeypatch):
 
 def test_avenues_deduped_when_same_spec_via_two_scopes(monkeypatch):
     """Two cards both opening the Artifacts avenue must resolve to one spec and
-    not produce duplicate identically-labeled avenues. ADR-0039 task #80 step 6:
-    artifacts_matter fires from the crosswalk's whole-card text mirror with zero
-    units, so a text-only tree per card (no structural anthem IR needed) is
-    enough to exercise the dedup path."""
+    not produce duplicate identically-labeled avenues. Each borrows a real
+    artifacts payoff's trees (Galazeth Prismari's grant, Steel Overseer's
+    counters): artifacts_matter is read off typed filters."""
     lord_a = {
         "name": "Lord A",
         "type_line": "Legendary Creature",
@@ -268,7 +281,12 @@ def test_avenues_deduped_when_same_spec_via_two_scopes(monkeypatch):
         "oracle_text": "Artifacts you control get +1/+0.",
         "prices": {"usd": "1"},
     }
-    _wire_ir(monkeypatch, {}, [lord_a, lord_b])
+    _wire_ir(
+        monkeypatch,
+        {},
+        [lord_a, lord_b],
+        real={"lord-a-oid": "Galazeth Prismari", "lord-b-oid": "Steel Overseer"},
+    )
     session = DeckSession("commander")
     session.add("Lord A", zone="commanders")
     session.add("Lord B")

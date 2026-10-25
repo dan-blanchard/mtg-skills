@@ -63,25 +63,20 @@ def test_a_self_animation_keeps_the_payoff_it_grants():
 
 
 def _tree_only_payoffs(name: str) -> set[str]:
-    """The type-payoff keys the lane reads off the card's tree alone: the text
-    mirrors read nothing (no node text, no oracle)."""
+    """The type-payoff keys the lane reads off the card's tree alone (no
+    oracle)."""
     from dataclasses import replace
-    from unittest import mock
 
-    from mtg_utils._analysis.lanes import (
-        _artifacts_enchantments_matter,
-        board_and_ramp,
-    )
+    from mtg_utils._analysis.lanes import _artifacts_enchantments_matter
     from mtg_utils._analysis.signal_trees import signal_trees_for
 
     test_signals(name)  # seeds the snapshot's trees (CI-safe)
-    with mock.patch.object(board_and_ramp, "_non_animation_texts", return_value=[]):
-        return {
-            s.key
-            for tree in signal_trees_for(test_card(name))
-            for s in _artifacts_enchantments_matter(replace(tree, oracle=""))
-            if s.subject == ""
-        }
+    return {
+        s.key
+        for tree in signal_trees_for(test_card(name))
+        for s in _artifacts_enchantments_matter(replace(tree, oracle=""))
+        if s.subject == ""
+    }
 
 
 @pytest.mark.parametrize(
@@ -142,20 +137,56 @@ def test_no_artifact_payoff_where_another_type_pays(name):
     assert "artifacts_matter" not in _tree_only_payoffs(name)
 
 
-def test_the_text_mirrors_read_node_text_not_oracle():
-    # Galvanic Blast's metalcraft rider is nested text phase carries on a node:
-    # the mirrors read it with the oracle blanked.
-    from dataclasses import replace
+@pytest.mark.parametrize(
+    ("name", "key"),
+    [
+        # A count of your artifacts in a sub-ability, a mana amount, a gate.
+        ("Aerid Konstrari", "artifacts_matter"),  # +X/+0, X = artifacts you control
+        ("Tolarian Academy", "artifacts_matter"),  # {U} for each artifact
+        ("Galvanic Blast", "artifacts_matter"),  # metalcraft's instead-condition
+        ("Mox Opal", "artifacts_matter"),  # metalcraft activation restriction
+        # A grant to them, an effect on them.
+        ("Galazeth Prismari", "artifacts_matter"),  # artifacts you control have …
+        ("Steel Overseer", "artifacts_matter"),  # a counter on each of them
+        # Mana for artifact spells (CR 106.6), a granted affinity (CR 702.41a).
+        ("Grand Architect", "artifacts_matter"),
+        ("Sami, Wildcat Captain", "artifacts_matter"),
+        # An activation of an artifact's ability (CR 602.1).
+        ("Kurkesh, Onakke Ancient", "artifacts_matter"),
+        # Artifact spells cast from your graveyard; artifact cards counted there.
+        ("Noctis, Prince of Lucis", "artifacts_matter"),
+        ("Salvage Slasher", "artifacts_matter"),
+        # The card the ability moved ("If you put an artifact card into your
+        # hand this way").
+        ("Chrome Courier", "artifacts_matter"),
+        # A reanimation that animates the artifact card it returns.
+        ("Brilliance Unleashed", "artifacts_matter"),
+    ],
+)
+def test_type_references_read_off_the_tree(name, key):
+    assert key in _tree_only_payoffs(name)
 
-    from mtg_utils._analysis.lanes import _artifacts_enchantments_matter
-    from mtg_utils._analysis.signal_trees import signal_trees_for
 
-    test_signals("Galvanic Blast")  # seeds the snapshot's trees (CI-safe)
-    assert any(
-        s.key == "artifacts_matter"
-        for tree in signal_trees_for(test_card("Galvanic Blast"))
-        for s in _artifacts_enchantments_matter(replace(tree, oracle=""))
-    )
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Null Rod",  # stax over every artifact's abilities
+        "Pick Your Poison",  # an edict on an opponent's artifact
+        "Harsh Mentor",  # an opponent's activation punished
+        "Abuelo, Ancestral Echo",  # "creature or artifact you control": a choice
+        "Geosurge",  # mana for artifact OR creature spells
+        "Acolyte Hybrid",  # a destroyed artifact may be anyone's
+    ],
+)
+def test_no_artifact_payoff_without_your_artifacts(name):
+    assert "artifacts_matter" not in _tree_only_payoffs(name)
+
+
+@pytest.mark.parametrize("name", ["Demon of Fate's Design", "Creeping Peeper"])
+def test_an_enchantment_cast_permission_or_mana_is_the_cast_subject(name):
+    # Paying life for an enchantment spell, mana spendable on one: a cast
+    # (CR 601.2i), never a permanent put onto the battlefield.
+    assert ("enchantments_matter", "you", "cast") in _idents(name)
 
 
 def test_resource_token_maker_keeps_its_own_lane():

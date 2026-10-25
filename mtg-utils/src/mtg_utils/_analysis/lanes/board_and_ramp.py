@@ -33,9 +33,6 @@ from mtg_utils._analysis.signal_base import (
     _resolve_subject,
 )
 from mtg_utils._analysis.text_reads import (
-    _ARTIFACTS_MATTER_MIRROR,
-    _ENCHANTMENTS_CAST_MIRROR,
-    _ENCHANTMENTS_MATTER_MIRROR,
     _TOKEN_SUBJECT_WORDS,
 )
 from mtg_utils._analysis.tree_synthesis import (
@@ -56,24 +53,30 @@ from mtg_utils._analysis.tree_synthesis import (
 )
 from mtg_utils._analysis.tree_synthesis.combat import ATTACK_TRIGGER_KEYWORDS
 from mtg_utils._card_ir.crosswalk import (
+    _OPPONENT_ACTOR_TAGS,
     AbilityUnit,
     ConceptNode,
     ConceptTree,
     _is_static_def,
     adds_creature_type,
     aggregate_filter,
+    cast_with_keyword_name,
     change_zone_dirs,
     controller_paid_cost_leaves,
     count_distinct_operand_filter,
     count_operand_filter,
     effect_filter,
+    effect_owner_player_scope,
     effects_exclusive,
+    entered_this_turn_filters,
     filter_controller,
     filter_core_types,
     filter_inzone_zones,
+    filter_owned_controller,
     filter_predicates,
     filter_subtypes,
     granted_keyword_names,
+    granted_next_spell_keyword,
     in_uncertain_branch,
     iter_condition_sites,
     iter_cost_leaves,
@@ -81,12 +84,15 @@ from mtg_utils._card_ir.crosswalk import (
     iter_delayed_trigger_condition_defs,
     iter_mod_sites,
     iter_nested_granted_effect_concepts,
+    iter_node_filters,
     iter_static_defs,
     iter_threaded_target_statics,
     iter_typed_nodes,
     land_searches,
+    mana_spell_type_restriction,
     or_arms,
     ref_count_filter,
+    reveal_until_player,
     static_mode_field,
     static_mode_tag,
     tag_of,
@@ -1746,50 +1752,124 @@ _MOD_PAYOFF_TAGS: frozenset[str] = frozenset(
 )
 
 
-def _non_animation_texts(tree: ConceptTree) -> list[str]:
-    """The text phase carries on the card's nodes, for the ``_matters`` text
-    mirrors: every description in each ability unit (nested ones included —
-    Galvanic Blast's metalcraft rider, a trigger's modal bullets) plus the
-    root's mode text, minus what an animation claims. A static that makes its
-    objects creatures (CR 613.1d — Bello's "each non-Equipment artifact and
-    non-Aura enchantment you control … is a 4/4 Elemental creature", whose "you
-    control" the mirrors would otherwise read as a payoff) drops its own
-    description; an ability holding a one-shot animation of something other
-    than the card itself drops whole, since the animated set is named by the
-    effect's target, not the animating fragment ("Target noncreature artifact
-    you control becomes …" — Rise and Shine, Alloy Animist, Skilled Animator).
-    A self-animation keeps its ability's text: the artifacts it names there are
-    a cost or a payoff, not the animated set (Bladewheel Chariot's "Tap two
-    other untapped artifacts you control", Iron Man Armor's granted "+1/+1 for
-    each artifact you control").
+def _mana_spell_types(node: TypedMirrorNode) -> tuple[str, ...]:
+    """The spell type words a ``Mana`` effect's mana may be spent on (CR 106.6):
+    :func:`mana_spell_type_restriction`'s, or one of an ``Any`` list's choices
+    ("Spend this mana only to cast an enchantment spell, unlock a door, or turn
+    a permanent face up" — Creeping Peeper)."""
+    words = mana_spell_type_restriction(node).split()
+    restrictions = getattr(node, "restrictions", None)
+    for r in restrictions if isinstance(restrictions, list) else ():
+        if isinstance(r, MirrorVariant) and r.key == "Any":
+            for alt in r.inner if isinstance(r.inner, list) else ():
+                if isinstance(alt, MirrorVariant) and alt.key == "SpellType":
+                    words += str(alt.inner).split()
+    return tuple(words)
 
-    Text no node carries is read off the tree by the lane's typed arms instead
-    (2026-10-24): a Saga chapter's (phase's unit reads "Chapter 3") grant, cheat,
-    tap or exile, a modal header's condition (``card_modal_conditions``), an
-    alternative cost's tap (``casting_options``), the Enchant keyword's
-    controller (``card_enchant_filter``) and a delayed trigger's watcher.
 
-    A text-only tree (``ConceptTree.is_text_only``: a face phase has no record
-    for, ADR-0038 W2c) has no node text, so its oracle clauses are read."""
-    if tree.is_text_only:
-        return _clauses(_kept(tree))
-    out: list[str] = []
-    for unit in tree.units:
-        animating = [d for d in iter_static_defs(unit.node) if adds_creature_type(d)]
-        if any(tag_of(getattr(d, "affected", None)) != "SelfRef" for d in animating):
-            continue
-        skip = {id(d) for d in animating}
-        for node in iter_typed_nodes(unit.node):
-            if id(node) in skip:
-                continue
-            desc = getattr(node, "description", None)
-            if isinstance(desc, str) and desc:
-                out.append(desc)
-            modes = getattr(node, "mode_descriptions", None)
-            if isinstance(modes, list):
-                out.extend(d for d in modes if isinstance(d, str))
-    out.extend(tree.card_modal_mode_descriptions)
-    return out
+def _affinity_words(keyword: object) -> tuple[str, ...]:
+    """The type words an ``Affinity`` keyword value names ("affinity for
+    artifacts" — CR 702.41a), or ``()``."""
+    if isinstance(keyword, MirrorVariant) and keyword.key == "Affinity":
+        types = getattr(keyword.inner, "type_filters", None) or ()
+        return tuple(t for t in types if isinstance(t, str))
+    return ()
+
+
+def _cast_keyword_grant_lanes(node: object) -> list[str]:
+    """A grant of improvise or affinity for artifacts / enchantments to spells
+    you cast: a ``CastWithKeyword`` static ("Spells you cast have affinity for
+    artifacts" — Sami, Wildcat Captain; Inspiring Statuary's improvise) or the
+    next spell's (Archway of Innovation, Don & Raph). Improvise taps your
+    artifacts (CR 702.126a), affinity counts them (CR 702.41a)."""
+    if not isinstance(node, TypedMirrorNode):
+        return []
+    name = cast_with_keyword_name(node) or granted_next_spell_keyword(node)
+    if name == "Improvise":
+        return ["artifacts_matter"]
+    if name != "Affinity":
+        return []
+    return _kind_word_lanes(_affinity_words(_cast_keyword_value(node)))
+
+
+def _cast_keyword_value(node: TypedMirrorNode) -> object:
+    """The keyword value :func:`cast_with_keyword_name` /
+    :func:`granted_next_spell_keyword` name (a string or a parameterized
+    variant): a ``CastWithKeyword`` mode's ``keyword``, or a next-spell grant's
+    ``HasKeyword`` modifier's."""
+    mode = getattr(node, "mode", None)
+    if isinstance(mode, MirrorVariant) and mode.key == "CastWithKeyword":
+        inner = mode.inner
+        return inner.inner if isinstance(inner, MirrorVariant) else inner
+    return getattr(getattr(node, "modifier", None), "keyword", None)
+
+
+def _checks_own_moved_card(node: object) -> bool:
+    """A type check on a card of yours the ability itself moved or paid: one it
+    put into a hand (``ZoneChangedThisWay`` to ``Hand`` — Chrome Courier), a
+    card among those it milled or revealed (``TrackedSetFiltered``), the card
+    paid as its cost (``CostPaidObjectMatchesFilter`` — Leonardo da Vinci's
+    discard). A permanent it destroyed "this way" may be anyone's (Acolyte
+    Hybrid)."""
+    tag = tag_of(node)
+    if tag == "ZoneChangedThisWay":
+        return getattr(node, "destination", None) == "Hand"
+    return tag in ("TrackedSetFiltered", "CostPaidObjectMatchesFilter")
+
+
+def _zone_card_count_lanes(node: object) -> list[str]:
+    """A count of artifact / enchantment cards in a zone not only an
+    opponent's ("for each artifact card in your graveyard" — Salvage Slasher;
+    "in all graveyards" — Slag Fiend). "artifact and/or creature cards" counts
+    either, so every type it lists must name the lane."""
+    if tag_of(node) != "ZoneCardCount" or getattr(node, "scope", None) == "Opponent":
+        return []
+    types = getattr(node, "card_types", None)
+    words = [t for t in types if isinstance(t, str)] if isinstance(types, list) else []
+    per_type = [_kind_word_lanes((t,)) for t in words]
+    if not per_type:
+        return []
+    return [lane for lane in per_type[0] if all(lane in p for p in per_type)]
+
+
+def _your_population_lanes(filt: object) -> list[str]:
+    """:func:`_typed_matters_lanes` for a filter over permanents you control or
+    cards you own; any other controller's population is no care of yours."""
+    if filter_controller(filt) != "You" and filter_owned_controller(filt) != "You":
+        return []
+    # A subtyped population is that subtype's care, a narrower one (Vehicles,
+    # Foods, Incubators, Bobbleheads — :func:`_generic_board_lanes`'s rule).
+    if filter_subtypes(filt):
+        return []
+    return _typed_matters_lanes(filt)
+
+
+def _non_animation_units(tree: ConceptTree) -> list[AbilityUnit]:
+    """The card's units bar one whose static animates objects other than the
+    card itself (CR 613.1d — Bello's "each non-Equipment artifact … you control
+    … is a 4/4 Elemental creature"; Rise and Shine's target artifact): the set
+    it animates is no payoff. A reanimation that animates the card it returns
+    (Brilliance Unleashed's "target artifact card in your graveyard … It's a
+    0/0 artifact creature") keeps its unit: the returned card is the care."""
+
+    def animates_others(unit: AbilityUnit) -> bool:
+        return any(
+            adds_creature_type(d) and tag_of(getattr(d, "affected", None)) != "SelfRef"
+            for d in iter_static_defs(unit.node)
+        )
+
+    def picks_a_graveyard_card(unit: AbilityUnit) -> bool:
+        return any(
+            "Graveyard" in filter_inzone_zones(filt)
+            for n in unit.iter_typed()
+            for _field, filt in iter_node_filters(n)
+        )
+
+    return [
+        unit
+        for unit in tree.units
+        if not animates_others(unit) or picks_a_graveyard_card(unit)
+    ]
 
 
 def _artifacts_enchantments_matter(tree: ConceptTree) -> list[Signal]:
@@ -1817,6 +1897,17 @@ def _artifacts_enchantments_matter(tree: ConceptTree) -> list[Signal]:
 
     The ``Permanent``-in-list gate drops the Bargain alt-cost over-fires.
 
+    Since 2026-10-24 no text is read (the per-clause mirrors are retired): every
+    filter over artifacts / enchantments you control or own, wherever it sits
+    (a count, a condition, a grant, an effect target, a watched trigger —
+    ``crosswalk.iter_node_filters``), a zone count of the cards, mana spendable
+    only on the type, a granted improvise / affinity, a graveyard-cast or
+    alternative-cost permission, an activation trigger on the type, and a
+    reveal-until for it. A choice of types counts only when every alternative
+    names the type, and a stax or edict over other players' artifacts (Null
+    Rod, Pick Your Poison) is no payoff. The clauses phase parks or drops ride
+    the bridge ledger.
+
     A count, condition or watched trigger over an artifact / enchantment TYPE you
     control ("for each Equipment you control", "Vehicles you control" counted,
     "if you control an Equipment") is the payoff too (:func:`_type_payoff_lanes`).
@@ -1831,6 +1922,87 @@ def _artifacts_enchantments_matter(tree: ConceptTree) -> list[Signal]:
     """
     out: list[str] = []
     cast_out: list[str] = []
+    # Every reference to artifacts / enchantments you control (or own, in your
+    # graveyard), wherever it sits: a count ("~ gets +X/+0, where X is the
+    # number of artifacts you control" — Aerid Konstrari; Tolarian Academy's
+    # mana; Etherium Pteramander's cost reduction), a metalcraft or "if you
+    # control an artifact" gate (Mox Opal's activation restriction, Galvanic
+    # Blast's instead-condition), a grant to them ("Artifacts you control have
+    # '{T}: Add one mana'" — Galazeth Prismari), an effect on all or one of them
+    # (Steel Overseer's counters, Drafna's bounce, Unwinding Clock's untap), a
+    # trigger watching them (Aloy's "artifact creatures you control attack"). A
+    # choice of types names the type only if every alternative does (Abuelo's
+    # "creature or artifact you control" is no artifact deck's), and a subtyped
+    # population is that subtype's (:func:`_your_population_lanes`).
+    for unit in _non_animation_units(tree):
+        nodes = list(unit.iter_typed())
+        # An ``Or``'s arms are read through the ``Or``.
+        or_arms_seen = {
+            id(arm)
+            for n in nodes
+            if tag_of(n) == "Or"
+            for _field, arm in iter_node_filters(n)
+        }
+        for n in nodes:
+            # "you" in an effect another player performs is that player (an edict
+            # phase writes with a you-controlled subject — Baleful Beholder's
+            # "Each opponent sacrifices an enchantment"; CR 701.21a).
+            theirs = (
+                tag_of(n) == "Sacrifice" and _sac_is_edict(unit, n)
+            ) or effect_owner_player_scope(unit.node, n) in _OPPONENT_ACTOR_TAGS
+            # A type check on the card the effect itself moved or paid ("If you
+            # put an artifact card into your hand this way" — Chrome Courier; "if
+            # the discarded card was an artifact card" — Leonardo da Vinci; an
+            # artifact card among the cards milled this way — Tomakul
+            # Scrapsmith) checks your own card: its filter names no controller.
+            lanes_of = (
+                _typed_matters_lanes
+                if _checks_own_moved_card(n)
+                else _your_population_lanes
+            )
+            for _field, filt in iter_node_filters(n):
+                if id(filt) not in or_arms_seen and not theirs:
+                    out.extend(_every_arm_lanes(filt, lanes_of))
+            out.extend(_zone_card_count_lanes(n))
+            # Mana only for artifact spells (CR 106.6 — Grand Architect, Cargo
+            # Ship) or enchantment spells (Creeping Peeper: a cast, CR 601.2i);
+            # "artifact or creature spells" (Geosurge) spends on either.
+            if tag_of(n) == "Mana":
+                spell_type = _mana_spell_types(n)
+                if "or" not in spell_type:
+                    if _names_artifact_kind(spell_type):
+                        out.append("artifacts_matter")
+                    if "Enchantment" in spell_type:
+                        cast_out.append("enchantments_matter")
+            out.extend(_cast_keyword_grant_lanes(n))
+    # "if an artifact entered the battlefield under your control this turn"
+    # (Fixer, Akal Pakal; the entry ledger's controller rides its ``player``).
+    for unit in tree.units:
+        for filt in entered_this_turn_filters(unit.node):
+            out.extend(_type_payoff_lanes(filt))
+    # A trigger on your activating an ability of an artifact (Kurkesh, Ashnod
+    # the Uncaring; CR 602.1): the watched source is the artifact, the activator
+    # you. An opponent's activation (Harsh Mentor) punishes, it cares nothing.
+    for unit in tree.units:
+        if (
+            unit.origin == "trigger"
+            and getattr(unit.node, "mode", None) == "AbilityActivated"
+            and tag_of(getattr(unit.node, "valid_target", None)) == "Controller"
+        ):
+            out.extend(_typed_matters_lanes(getattr(unit.node, "valid_card", None)))
+        # "You may cast artifact spells from your graveyard" (Noctis, Edgar):
+        # a graveyard-cast permission over the type (CR 601.2).
+        if unit.origin == "static" and (
+            static_mode_tag(unit.node) == "GraveyardCastPermission"
+        ):
+            out.extend(_typed_matters_lanes(getattr(unit.node, "affected", None)))
+        # "you may cast an enchantment spell by paying life … rather than paying
+        # its mana cost" (Demon of Fate's Design): a cast of the type, so the
+        # ``cast`` subject (CR 601.2i — never a permanent put onto the field).
+        if unit.origin == "static" and (
+            static_mode_tag(unit.node) == "CastWithAlternativeCost"
+        ):
+            cast_out.extend(_typed_matters_lanes(getattr(unit.node, "affected", None)))
     for c in tree.iter_concepts():
         node = c.node
         # count operand (scaling value over your artifacts/enchantments, or over
@@ -1838,6 +2010,11 @@ def _artifacts_enchantments_matter(tree: ConceptTree) -> list[Signal]:
         out.extend(_type_payoff_lanes(count_operand_filter(node)))
         if c.role != "effect":
             continue
+        # A reveal-until of your library for an artifact / enchantment card
+        # (Madcap Experiment; CR 701.20a) digs for the type like a tutor; one
+        # another player makes (Shape Anew, Indomitable Creativity) is theirs.
+        if tag_of(node) == "RevealUntil" and reveal_until_player(node) == "you":
+            out.extend(_every_arm_lanes(effect_filter(node)))
         if c.concept in ("tutor", "dig") or tag_of(node) == "SearchOutsideGame":
             # ADR-0038 W4 giant: ``dig`` ("look at the top N cards …, put
             # an artifact card into your hand/battlefield" — Commune with
@@ -2032,11 +2209,19 @@ def _artifacts_enchantments_matter(tree: ConceptTree) -> list[Signal]:
     # no opponent/edict gate applies here, unlike the effect arm above. The
     # Permanent-in-list gate still drops the OPTIONAL Bargain alt-cost (CR
     # 702.166a — Ice Out's "sacrifice an artifact, enchantment, or token").
+    # Every cost the controller pays counts (``controller_paid_cost_leaves``): a
+    # granted ability's (Clan Crafter's "{2}, Sacrifice an artifact:") and an
+    # "unless you sacrifice an artifact" (Vulshok War Boar) too.
     for unit in tree.units:
         leaves = [c.node for c in unit.costs if c.concept == "sacrifice"] + [
             leaf
             for leaf in iter_cost_leaves(getattr(unit.node, "cost", None))
             if tag_of(leaf) == "Sacrifice"
+        ]
+        leaves += [
+            paid.leaf
+            for paid in controller_paid_cost_leaves(unit)
+            if tag_of(paid.leaf) == "Sacrifice"
         ]
         for leaf in leaves:
             filt = effect_filter(leaf)
@@ -2242,40 +2427,6 @@ def _artifacts_enchantments_matter(tree: ConceptTree) -> list[Signal]:
         for trig in iter_delayed_trigger_condition_defs(unit.node):
             if trigger_def_event(trig) == "enters":
                 out.extend(_type_payoff_lanes(getattr(trig, "valid_card", None)))
-    # ADR-0038 W4 giant — a SANCTIONED byte-identical port of legacy's
-    # ``_ARTIFACTS_MATTER_MIRROR`` (the LIVE constant, imported not re-typed):
-    # phase carries no clean structural shape for this oracle-idiom family —
-    # Metalcraft ability-word payoffs (CR 207.2c; affinity and improvise are read
-    # off the keywords below too), artifact tutors and graveyard recursion,
-    # "abilities of artifacts", "becomes an artifact" — so the legacy
-    # per-clause reminder-stripped-oracle scan is the last-resort mechanism.
-    # Corpus-verified in the legacy path (regex_only==22, ALL
-    # affinity-for-non-artifact over-fire, 0 genuine recall lost by the
-    # narrowed `affinity for artifacts` branch).
-    # Run PER-CLAUSE over ``_kept(tree)`` to match the legacy clause loop.
-    payoff_clauses = _non_animation_texts(tree)
-    if any(_ARTIFACTS_MATTER_MIRROR.search(cl) for cl in payoff_clauses):
-        out.append("artifacts_matter")
-    # ADR-0038 W4 giant — a SANCTIONED byte-identical port of legacy's
-    # ``_ENCHANTMENTS_MATTER_MIRROR`` (the LIVE constant, imported not
-    # re-typed): the enchantment sibling of the artifacts mirror above. phase
-    # carries no clean structural shape for this oracle-idiom family either —
-    # enchantment tutors / graveyard recursion phrased as "enchantment card"
-    # (Auramancer), "enchantment card in your hand" miracle-grants (Aminatou),
-    # Role-token makers (Roles are Aura enchantments, CR 303.7), constellation
-    # ("whenever an enchantment enters"), and enchantress cast triggers — so
-    # the legacy per-clause reminder-stripped-oracle scan is the last-resort
-    # mechanism, same as the artifacts sibling. Corpus-verified in the legacy
-    # path (regex_only EMPTY after the mirror — 0 genuine recall lost). Run
-    # PER-CLAUSE over ``_kept(tree)`` to match the legacy clause loop.
-    if any(_ENCHANTMENTS_MATTER_MIRROR.search(cl) for cl in payoff_clauses):
-        out.append("enchantments_matter")
-    # The mirror's enchantment-CAST idiom, kept apart so it
-    # carries the ``cast`` subject: a casting permission or mana restriction no
-    # trigger types ("you may cast an enchantment spell by paying life" — Demon
-    # of Fate's Design; Creeping Peeper's mana) — CR 601.2i.
-    if any(_ENCHANTMENTS_CAST_MIRROR.search(cl) for cl in payoff_clauses):
-        cast_out.append("enchantments_matter")
     # KEYWORD payoffs, read off the card's printed keywords rather than its text:
     # "Affinity for [text]" (CR 702.41a: "costs {1} less to cast for each [text]
     # you control") over an artifact kind — artifacts, Equipment (CR 301.5),

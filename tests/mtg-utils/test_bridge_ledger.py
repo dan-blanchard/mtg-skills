@@ -240,6 +240,9 @@ def _fixed_view(tree, carriers: list[str]) -> ConceptTree:
 # names the wrong node; the check below fails if a listed row ever does carry
 # its clause in a residue (the entry is then stale).
 _MISPARSE_ROWS = {
+    "artifact_cast_permission_empty_effect": (
+        "the cast permission parsed as an empty Unimplemented effect"
+    ),
     "land_shield_misscoped_selfref": (
         "the lands' hexproof parsed as a SelfRef grant to the card itself"
     ),
@@ -504,7 +507,9 @@ def test_no_bridge_fires_where_a_structural_read_already_serves(monkeypatch):
     stood down: its gap missed the structure that arrived (pattern rot the other
     way). Production signals with the bridge lane removed must lack the row's
     ``(key, scope, subject)`` on every pin it fires on — a row serving one
-    subject (Arcade Gannon's ``type_matters|Human``) isn't served by another."""
+    subject (Arcade Gannon's ``type_matters|Human``) isn't served by another, and
+    a bridge's HIGH signal isn't served by the membership floor's LOW one (every
+    artifact carries a low ``artifacts_matter``)."""
     from mtg_utils._analysis import lanes
     from mtg_utils._analysis.bridge_ledger import bridge_signals
 
@@ -516,7 +521,11 @@ def test_no_bridge_fires_where_a_structural_read_already_serves(monkeypatch):
         for pin in b.pins:
             if not b.fires(_tree(pin)):
                 continue
-            idents = {(s.key, s.scope, s.subject) for s in test_signals(pin)}
+            idents = {
+                (s.key, s.scope, s.subject)
+                for s in test_signals(pin)
+                if s.confidence == "high"
+            }
             if (b.key, b.scope, b.subject) in idents:
                 served.append(f"{b.bridge_id}: {pin!r} ({b.key}/{b.scope})")
     assert not served, "structural reads already serve: " + "; ".join(served)

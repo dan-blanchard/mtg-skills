@@ -17098,25 +17098,19 @@ def test_enchantments_matter_and_condition_descent():
     assert ("enchantments_matter", "you", "") in _idents("Banishing Slash")
 
 
-def test_enchantments_matter_graveyard_recursion_mirror():
-    """``_ENCHANTMENTS_MATTER_MIRROR`` port (the artifacts-sibling regex
-    mirror, byte-identical from ``_signals_ir``): "Return ... target
-    enchantment card ... from your graveyard to your hand" (Reconstruct
-    History) is a MODAL multi-type recursion phase structures as several
-    SEPARATE single-target effects, not one type-filtered node the
-    structural recursion arm reads — the last-resort per-clause mirror
-    catches it (CR 115.1/400.7 — a modal "up to one target X card" clause
-    per type)."""
+def test_enchantments_matter_graveyard_recursion_filter():
+    """ "Return ... target enchantment card ... from your graveyard to your
+    hand" (Reconstruct History) is a MODAL multi-type recursion phase structures
+    as several SEPARATE single-target effects; each target filter names an
+    enchantment card you own (CR 115.1/400.7 — a modal "up to one target X
+    card" clause per type)."""
     assert ("enchantments_matter", "you", "") in _idents("Reconstruct History")
 
 
-def test_enchantments_matter_constellation_mirror():
-    """``_ENCHANTMENTS_MATTER_MIRROR`` port: "Whenever a creature or
-    enchantment you control enters this turn, draw a card" (Rite of
-    Harmony) is a constellation-style ETB trigger on an INSTANT (a
-    Flashback spell payoff, not a permanent's own triggered ability) —
-    phase structures it, but past this key's structural arm reach; the
-    mirror catches it (CR 603.2 — triggered abilities)."""
+def test_enchantments_matter_constellation_delayed_trigger():
+    """ "Whenever a creature or enchantment you control enters this turn, draw
+    a card" (Rite of Harmony) is a constellation-style delayed ETB trigger on an
+    INSTANT (CR 603.7a), read off the delayed watcher (CR 603.2)."""
     assert ("enchantments_matter", "you", "") in _idents("Rite of Harmony")
 
 

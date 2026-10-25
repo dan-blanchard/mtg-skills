@@ -74,6 +74,8 @@ from mtg_utils._card_ir.crosswalk import (
     filter_inzone_zones,
     filter_subtypes,
     has_nested_damage_reaching,
+    mana_restrictions,
+    mana_spell_type_restriction,
     named_permanent_refs,
     protective_keyword,
     pt_mod_signs,
@@ -5119,6 +5121,246 @@ BRIDGES.update(
                 gap=_land_to_graveyard_event_gap,
                 match=_oracle_match(_LAND_TO_GRAVEYARD_RX),
                 subject="land",
+            ),
+        )
+    }
+)
+
+
+# ── artifacts_matter / enchantments_matter: the type references phase drops ──
+# The lane reads every filter over artifacts / enchantments you control
+# (``lanes.board_and_ramp._artifacts_enchantments_matter``); these are the
+# clauses whose filter phase parks or loses, each the type population "you
+# control" the lane would read (CR 301 / 303).
+_YOUR_ARTIFACTS_RX = re.compile(
+    r"\b(?:noncreature )?(?:artifacts?|artifact creatures?) you control\b"
+    r"|\bif you control an artifact\b",
+    re.IGNORECASE,
+)
+_YOUR_ENCHANTMENTS_RX = re.compile(
+    r"\b(?:white )?enchantments? you control\b", re.IGNORECASE
+)
+
+
+def _your_artifacts_parked(tree: ConceptTree) -> bool:
+    return _says(_YOUR_ARTIFACTS_RX, [*tree.residues(), *tree.hollow_statics()])
+
+
+def _your_enchantments_parked(tree: ConceptTree) -> bool:
+    return _says(_YOUR_ENCHANTMENTS_RX, [*tree.residues(), *tree.hollow_statics()])
+
+
+# Windwright Mage's "as long as an artifact card is in your graveyard" parks as
+# an Unrecognized condition, the reference only in the node's own ``text``.
+_ARTIFACT_IN_GRAVEYARD_RX = re.compile(
+    r"\ban artifact card is in your graveyard\b", re.IGNORECASE
+)
+
+
+def _artifact_graveyard_condition_gap(tree: ConceptTree) -> bool:
+    return any(
+        tag_of(n) == "Unrecognized"
+        and _ARTIFACT_IN_GRAVEYARD_RX.search(getattr(n, "text", "") or "")
+        for n in tree.iter_typed()
+    )
+
+
+def _artifact_graveyard_condition_match(tree: ConceptTree) -> bool:
+    return _artifact_graveyard_condition_gap(tree)
+
+
+# Soldevi Machinist's "Spend this mana only to activate abilities of artifacts"
+# keeps ``ActivateOnly`` and drops the artifact (CR 106.6).
+_ARTIFACT_ABILITY_MANA_RX = re.compile(
+    r"\bspend this mana only to activate abilities of artifacts\b", re.IGNORECASE
+)
+
+
+def _activate_only_mana_without_type(tree: ConceptTree) -> bool:
+    return any(
+        tag_of(n) == "Mana"
+        and "ActivateOnly" in mana_restrictions(n)
+        and not mana_spell_type_restriction(n)
+        for n in tree.iter_typed()
+    )
+
+
+# Estrid's Invocation's "You may have ~ enter as a copy of an enchantment you
+# control" leaves only the granted upkeep trigger on its static (no copy node).
+_ENTER_AS_ENCHANTMENT_COPY_RX = re.compile(
+    r"\benter as a copy of an enchantment you control\b", re.IGNORECASE
+)
+
+
+def _no_copy_node(tree: ConceptTree) -> bool:
+    return not tree.has_typed("BecomeCopy", "CopyTokenOf")
+
+
+# Anrakyr the Traveller's "you may cast an artifact spell from your hand or
+# graveyard by paying life equal to its mana value" parses as an EMPTY
+# ``Unimplemented`` effect (no text survives).
+_CAST_ARTIFACT_FOR_LIFE_RX = re.compile(
+    r"\byou may cast an artifact spell from your hand or graveyard by paying life\b",
+    re.IGNORECASE,
+)
+
+
+def _empty_effect_residue(tree: ConceptTree) -> bool:
+    return any(True for _ in tree.residues("empty"))
+
+
+# Sanwell, Avenger Ace's "As long as an artifact creature you control is
+# attacking, prevent all damage that would be dealt to ~" keeps the prevention
+# and drops its condition.
+_ARTIFACT_ATTACKING_RX = re.compile(
+    r"\bas long as an artifact creature you control is attacking\b", re.IGNORECASE
+)
+
+
+def _no_attacking_condition(tree: ConceptTree) -> bool:
+    return not tree.has_typed("Attacking")
+
+
+BRIDGES.update(
+    {
+        b.bridge_id: b
+        for b in (
+            Bridge(
+                bridge_id="your_artifacts_reference_parse_failure",
+                key="artifacts_matter",
+                kind="upstream_parse_failure",
+                todo=(
+                    "upstream phase-rs report candidate (Dan posts): a clause "
+                    "naming artifacts you control parks as a residue or a hollow "
+                    "static — Assassin's Ink's 'costs {1} less to cast if you "
+                    "control an artifact', Guardian Beast's noncreature-artifact "
+                    "shield, Karn, Living Legacy's emblem tap cost, Phylactery "
+                    "Lich's counter, Robobrain War Mind's energy count. Retires "
+                    "per card as phase types the clause"
+                ),
+                census=(
+                    "5 hits / the legal corpus (Assassin's Ink, Guardian Beast, "
+                    "Karn, Living Legacy, Phylactery Lich, Robobrain War Mind), "
+                    "MTGJSON 2026-10-17 @ phase v0.104.0, 2026-10-24"
+                ),
+                pins=(
+                    "Assassin's Ink",
+                    "Guardian Beast",
+                    "Karn, Living Legacy",
+                    "Phylactery Lich",
+                    "Robobrain War Mind",
+                ),
+                gap=_your_artifacts_parked,
+                match=_oracle_match(_YOUR_ARTIFACTS_RX),
+            ),
+            Bridge(
+                bridge_id="your_enchantments_reference_parse_failure",
+                key="enchantments_matter",
+                kind="upstream_parse_failure",
+                todo=(
+                    "upstream phase-rs report candidate (Dan posts): a clause "
+                    "naming enchantments you control parks — Floodtide Serpent's "
+                    "attack cost (a hollow static), Balduvian Shaman's text "
+                    "change (a residue). Retires per card as phase types it"
+                ),
+                census=(
+                    "2 hits / the legal corpus (Balduvian Shaman, Floodtide "
+                    "Serpent), MTGJSON 2026-10-17 @ phase v0.104.0, 2026-10-24"
+                ),
+                pins=("Balduvian Shaman", "Floodtide Serpent"),
+                gap=_your_enchantments_parked,
+                match=_oracle_match(_YOUR_ENCHANTMENTS_RX),
+            ),
+            Bridge(
+                bridge_id="artifact_graveyard_condition_unrecognized",
+                key="artifacts_matter",
+                kind="upstream_parse_failure",
+                todo=(
+                    "upstream phase-rs report candidate (Dan posts): Windwright "
+                    "Mage's 'as long as an artifact card is in your graveyard' "
+                    "parks as an Unrecognized condition. Retires on the bump "
+                    "that types the zone check"
+                ),
+                census=(
+                    "1 hit / the legal corpus (Windwright Mage), MTGJSON "
+                    "2026-10-17 @ phase v0.104.0, 2026-10-24"
+                ),
+                pins=("Windwright Mage",),
+                gap=_artifact_graveyard_condition_gap,
+                match=_artifact_graveyard_condition_match,
+            ),
+            Bridge(
+                bridge_id="artifact_ability_mana_type_dropped",
+                key="artifacts_matter",
+                kind="dropped_clause",
+                todo=(
+                    "upstream phase-rs report candidate (Dan posts): Soldevi "
+                    "Machinist's 'Spend this mana only to activate abilities of "
+                    "artifacts' keeps ActivateOnly and drops 'of artifacts'. "
+                    "Retires on the bump that types the source"
+                ),
+                census=(
+                    "1 hit / the legal corpus (Soldevi Machinist), MTGJSON "
+                    "2026-10-17 @ phase v0.104.0, 2026-10-24"
+                ),
+                pins=("Soldevi Machinist",),
+                gap=_activate_only_mana_without_type,
+                match=_oracle_match(_ARTIFACT_ABILITY_MANA_RX),
+            ),
+            Bridge(
+                bridge_id="enchantment_copy_entry_dropped",
+                key="enchantments_matter",
+                kind="dropped_clause",
+                todo=(
+                    "upstream phase-rs report candidate (Dan posts): Estrid's "
+                    "Invocation's 'enter as a copy of an enchantment you control' "
+                    "leaves no copy node beside its granted trigger. Retires on "
+                    "the bump that types the clone entry (CR 707.9)"
+                ),
+                census=(
+                    "1 hit / the legal corpus (Estrid's Invocation), MTGJSON "
+                    "2026-10-17 @ phase v0.104.0, 2026-10-24"
+                ),
+                pins=("Estrid's Invocation",),
+                gap=_no_copy_node,
+                match=_oracle_match(_ENTER_AS_ENCHANTMENT_COPY_RX),
+            ),
+            Bridge(
+                bridge_id="artifact_cast_permission_empty_effect",
+                key="artifacts_matter",
+                kind="upstream_parse_failure",
+                todo=(
+                    "upstream phase-rs report candidate (Dan posts): Anrakyr the "
+                    "Traveller's attack trigger 'you may cast an artifact spell "
+                    "from your hand or graveyard by paying life equal to its mana "
+                    "value' parses as an empty Unimplemented effect. Retires on "
+                    "the bump that types the cast permission"
+                ),
+                census=(
+                    "1 hit / the legal corpus (Anrakyr the Traveller), MTGJSON "
+                    "2026-10-17 @ phase v0.104.0, 2026-10-24"
+                ),
+                pins=("Anrakyr the Traveller",),
+                gap=_empty_effect_residue,
+                match=_oracle_match(_CAST_ARTIFACT_FOR_LIFE_RX),
+            ),
+            Bridge(
+                bridge_id="artifact_attacking_condition_dropped",
+                key="artifacts_matter",
+                kind="dropped_clause",
+                todo=(
+                    "upstream phase-rs report candidate (Dan posts): Sanwell, "
+                    "Avenger Ace's 'As long as an artifact creature you control "
+                    "is attacking' drops from its damage prevention. Retires on "
+                    "the bump that types the condition"
+                ),
+                census=(
+                    "1 hit / the legal corpus (Sanwell, Avenger Ace), MTGJSON "
+                    "2026-10-17 @ phase v0.104.0, 2026-10-24"
+                ),
+                pins=("Sanwell, Avenger Ace",),
+                gap=_no_attacking_condition,
+                match=_oracle_match(_ARTIFACT_ATTACKING_RX),
             ),
         )
     }

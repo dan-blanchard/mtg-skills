@@ -2183,6 +2183,26 @@ def graveyard_recursion(node: object) -> tuple[str, object] | None:
     return GRAVEYARD_RECURSION_DESTINATIONS[dest], sub
 
 
+#: The node tags an object filter takes (one population, or a list of them).
+_OBJECT_FILTER_TAGS: frozenset[str] = frozenset({"Typed", "Or", "And"})
+
+
+def iter_node_filters(node: object) -> Iterator[tuple[str, object]]:
+    """Each object filter ONE node holds directly, as ``(field, filter)``: a
+    count's ``filter``, a static's ``affected``, a trigger's ``valid_card``, an
+    effect's ``target``, a restriction's ``source_filter``. A variant-wrapped
+    or listed filter is unwrapped; a filter nested inside another (an ``Or``'s
+    arms) is that node's own, reached by walking it."""
+    if not isinstance(node, TypedMirrorNode):
+        return
+    for f in fields(node):
+        val = getattr(node, f.name, MISSING)
+        for item in val if isinstance(val, list) else (val,):
+            v = item.inner if isinstance(item, MirrorVariant) else item
+            if isinstance(v, TypedMirrorNode) and tag_of(v) in _OBJECT_FILTER_TAGS:
+                yield f.name, v
+
+
 def recursion_card_types(
     tree: ConceptTree, node: object, sub: object
 ) -> tuple[str, ...]:

@@ -13,11 +13,8 @@ from functools import lru_cache
 from mtg_utils._analysis import signal_keys
 from mtg_utils._analysis._subtypes import CREATURE_SUBTYPES
 from mtg_utils._analysis._sweep_detectors import (
-    ARTIFACTS_MATTER_REGEX,
     DAMAGE_REDIRECT_REGEX,
     DISCARD_OUTLET_REGEX,
-    ENCHANTMENTS_CAST_REGEX,
-    ENCHANTMENTS_MATTER_REGEX,
     LURE_MATTERS_REGEX,
     TOUGHNESS_VALUE_REGEX,
 )
@@ -889,23 +886,6 @@ _DAMAGE_REDIRECT_MIRROR = re.compile(DAMAGE_REDIRECT_REGEX, re.IGNORECASE)
 
 
 _TOUGHNESS_VALUE_MIRROR = re.compile(TOUGHNESS_VALUE_REGEX, re.IGNORECASE)
-
-
-_ARTIFACTS_MATTER_MIRROR = re.compile(
-    r"(?:"
-    + ARTIFACTS_MATTER_REGEX
-    + r")|(?:if you control an artifact"
-    + r"|if you control (?:a|an|one or more) artifacts?)",
-    re.IGNORECASE,
-)
-
-
-_ENCHANTMENTS_MATTER_MIRROR = re.compile(
-    ENCHANTMENTS_MATTER_REGEX,
-    re.IGNORECASE,
-)
-
-_ENCHANTMENTS_CAST_MIRROR = re.compile(ENCHANTMENTS_CAST_REGEX, re.IGNORECASE)
 
 
 _STAX_TAXES_RESIDUE_RE = re.compile(
