@@ -5045,6 +5045,86 @@ BRIDGES.update(
 )
 
 
+# ── land_protection: the shield and the land recursion phase loses ──────────
+# Tomik's "Lands on the battlefield and land cards in graveyards can't be the
+# targets of spells or abilities your opponents control" (CR 702.11: hexproof's
+# "can't be the target of spells or abilities your opponents control") parses
+# as a Hexproof grant to Tomik itself (a SelfRef def), the shield
+# ``lanes.stax_and_tempo._land_protection_shield`` reads off a land filter.
+_LANDS_UNTARGETABLE_RX = re.compile(
+    r"\blands on the battlefield[^.]*can't be the targets? of", re.IGNORECASE
+)
+
+
+def _land_shield_on_self(tree: ConceptTree) -> bool:
+    return _selfref_def_says(tree, _LANDS_UNTARGETABLE_RX)
+
+
+# Sacred Ground's "Whenever a spell or ability an opponent controls causes a
+# land to be put into your graveyard from the battlefield, return that card to
+# the battlefield": phase types the return but reads the event as an ``Unknown``
+# mode, the phrase only in the mode's own text, so no read knows the returned
+# card is a land of yours.
+_LAND_TO_GRAVEYARD_RX = re.compile(
+    r"\bcauses? a land to be put into your graveyard from the battlefield\b",
+    re.IGNORECASE,
+)
+
+
+def _land_to_graveyard_event_gap(tree: ConceptTree) -> bool:
+    return _says(_LAND_TO_GRAVEYARD_RX, tree.unknown_trigger_modes())
+
+
+BRIDGES.update(
+    {
+        b.bridge_id: b
+        for b in (
+            Bridge(
+                bridge_id="land_shield_misscoped_selfref",
+                key="land_protection",
+                kind="upstream_parse_failure",
+                todo=(
+                    "upstream phase-rs report candidate (Dan posts): Tomik's "
+                    "'Lands on the battlefield and land cards in graveyards can't "
+                    "be the targets of spells or abilities your opponents "
+                    "control' parses as a Hexproof grant to Tomik itself (a "
+                    "SelfRef def). Retires on the bump that scopes it to lands"
+                ),
+                census=(
+                    "1 hit / the legal corpus (Tomik, Distinguished Advokist), "
+                    "MTGJSON 2026-10-17 @ phase v0.104.0, 2026-10-24"
+                ),
+                pins=("Tomik, Distinguished Advokist",),
+                gap=_land_shield_on_self,
+                match=_oracle_match(_LANDS_UNTARGETABLE_RX),
+                subject="shield",
+            ),
+            Bridge(
+                bridge_id="land_return_trigger_unknown_mode",
+                key="permanent_recast",
+                kind="upstream_parse_failure",
+                todo=(
+                    "upstream phase-rs report candidate (Dan posts): Sacred "
+                    "Ground's 'Whenever a spell or ability an opponent controls "
+                    "causes a land to be put into your graveyard from the "
+                    "battlefield' parses as an Unknown trigger mode (its return "
+                    "is typed). Retires on the bump that types the ChangesZone "
+                    "event"
+                ),
+                census=(
+                    "1 hit / the legal corpus (Sacred Ground), MTGJSON "
+                    "2026-10-17 @ phase v0.104.0, 2026-10-24"
+                ),
+                pins=("Sacred Ground",),
+                gap=_land_to_graveyard_event_gap,
+                match=_oracle_match(_LAND_TO_GRAVEYARD_RX),
+                subject="land",
+            ),
+        )
+    }
+)
+
+
 def bridge_fires(bridge_id: str, tree: ConceptTree) -> bool:
     """Whether the registered bridge fires for this tree (gap AND match)."""
     return BRIDGES[bridge_id].fires(tree)

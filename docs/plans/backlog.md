@@ -214,9 +214,11 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   reading the payoff test off the unit itself would drop both text alignments,
   and would give a role to the hits no single ability emits (a keyword's
   lifelink, Crucible of Worlds' whole-card ident, a modal spell's text-less
-  mode), which still score structural. Two serves a theme pages by still
-  carry an oracle arm (``permanent_etb``, ``land_protection`` — the Pass D
-  entry says why each held); their page is partly a pattern.
+  mode), which still score structural. One serve a theme pages by still
+  carries an oracle arm (``permanent_etb`` — the Pass D entry says why it held);
+  its page is partly a pattern. ``land_protection`` reads idents since
+  2026-10-24 (the shield subject and ``permanent_recast|you|land``; Tomik's
+  mis-scoped hexproof and Sacred Ground's Unknown-mode event are ledgered).
   ``self_etb_payload``'s page reads idents since 2026-10-24 (the recast
   doers, ``permanent_recast|you|reanimate`` / ``replay``, page-only). Seven
   creature reanimations phase parks or mistypes carry no recursion ident (the
@@ -272,15 +274,13 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   cards, every "when ~ enters" and token maker; the ident union — token makers,
   self-ETB payloads, blink enablers, reanimation, land puts — pages 7,174 and
   drops 1,953, the resource-token makers and cheats each a key of its own: the
-  serve's breadth is the open call, not a lane), `land_protection` (the shield
-  subject pages 9 cards to the regex's 19 — the regex's other ten are the
-  animators themselves and land recursion, Sacred Ground and Soul of Windgrace,
-  which no key carries apart from `landfall|you|`; Tomik's static is
-  Unimplemented), `ability_strip_payoff` (the crippling-drawback text beside a
-  power floor; no lane reads a drawback a strip turns off). Lane follow-ups the
-  pass found: a `(key, subject)` role table that
-  `DOER_SUBJECTS`, `MEMBERSHIP_SUBJECTS`, `PAGE_ONLY_SUBJECTS`, the pair reads' wildcards and the presets
-  all read (today each reads its own set); an `attack_trigger_side` crosswalk read
+  serve's breadth is the open call, not a lane), `ability_strip_payoff` (the
+  crippling-drawback text beside a power floor; no lane reads a drawback a strip
+  turns off). Lane follow-ups the pass found: a `(key, subject)` role table that
+  `DOER_SUBJECTS`, `MEMBERSHIP_SUBJECTS`, `PAGE_ONLY_SUBJECTS`, the pair reads'
+  wildcards and the presets all read (today each reads its own set; the
+  `land-animation` preset reads the `land_protection` key, so the twelve shield
+  grants — Terra Eternal, Elspeth, Knight-Errant's emblem, Tomik — sit on it); an `attack_trigger_side` crosswalk read
   beside `targeting_trigger_side` (the defensive-trigger veto lives in
   `tree_synthesis.combat`, and `stax_and_tempo`'s own `attacks` reads skip it —
   MacCready still reads as an attack payoff); the spell-additional-cost walk keeps

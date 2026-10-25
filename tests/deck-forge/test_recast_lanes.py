@@ -87,6 +87,13 @@ def test_permanent_recast_emission(name, expected):
         ("Blinking Spirit", "replay", False),  # returns only itself
         ("Unsummon", "replay", False),  # any creature: tempo
         ("Zndrsplt's Judgment", "replay", False),  # each player returns their own
+        # A land card back from your graveyard, or played from it.
+        ("Life from the Loam", "land", True),  # to hand
+        ("Glimpse the Core", "land", True),  # a Cave card onto the battlefield
+        ("Crucible of Worlds", "land", True),  # play lands from your graveyard
+        ("Sacred Ground", "land", True),  # the ledgered Unknown-mode event
+        ("Raise Dead", "land", False),  # a creature card
+        ("Argivian Restoration", "land", False),  # an artifact card
     ],
 )
 def test_permanent_recast_doer_subjects(name, subject, expected):
@@ -101,7 +108,7 @@ def test_recast_doers_open_no_avenue_and_feed_the_self_etb_page():
     from mtg_utils._analysis.signal_specs import SPECS, avenue_spec_for
     from mtg_utils.testkit import test_card
 
-    for subject in ("reanimate", "replay"):
+    for subject in ("reanimate", "replay", "land"):
         sig = Signal("permanent_recast", "you", subject, "", "x", "high")
         assert avenue_spec_for(sig) is None
     serve = SPECS[("self_etb_payload", "you")].serve

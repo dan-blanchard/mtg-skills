@@ -240,6 +240,9 @@ def _fixed_view(tree, carriers: list[str]) -> ConceptTree:
 # names the wrong node; the check below fails if a listed row ever does carry
 # its clause in a residue (the entry is then stale).
 _MISPARSE_ROWS = {
+    "land_shield_misscoped_selfref": (
+        "the lands' hexproof parsed as a SelfRef grant to the card itself"
+    ),
     "sokrates_granted_prevention_misparse": (
         "the granted prevention parsed as a CreateToken replacement"
     ),

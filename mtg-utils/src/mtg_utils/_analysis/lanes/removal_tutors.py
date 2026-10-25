@@ -1768,7 +1768,10 @@ def _permanent_recast(tree: ConceptTree) -> list[Signal]:
     than this one from a graveyard onto the battlefield (Sun Titan, Argivian
     Restoration — :func:`_reanimates_permanent`), ``replay`` returns a permanent
     you control other than this one to your hand to cast again (Whitemane Lion,
-    Kor Skyfisher, the bounce lands — :func:`_replays_own_permanent`).
+    Kor Skyfisher, the bounce lands — :func:`_replays_own_permanent`), and
+    ``land`` returns a land card from your graveyard to the battlefield or your
+    hand, or lets you play lands from it (Life from the Loam, Crucible of
+    Worlds — :func:`_recurs_land`): what keeps a land-animation deck's lands.
     """
     out: list[Signal] = []
     if has_permanent_recast(tree):
@@ -1812,6 +1815,32 @@ def _reanimates_permanent(tree: ConceptTree, c: ConceptNode) -> bool:
     )
 
 
+def _recurs_land(tree: ConceptTree, c: ConceptNode) -> bool:
+    """A ``graveyard_recursion`` of a land card to the battlefield or your hand
+    (Life from the Loam, Soul of Windgrace, Splendid Reclamation): a land lost
+    to removal comes back. A land card named by subtype only ("a Cave card")
+    counts; a tuck to the library does not."""
+    if c.recovered_by in ("reanimate", "graveyard_return"):
+        return recovered_card_recursion(c, ("Land",))
+    hit = graveyard_recursion(c.node)
+    if hit is None or hit[0] == "library":
+        return False
+    sub = hit[1]
+    cores = recursion_card_types(tree, c.node, sub)
+    if cores:
+        return "Land" in cores
+    return any(s.lower() in LAND_SUBTYPES for s in filter_subtypes(sub))
+
+
+def _plays_lands_from_graveyard(unit: AbilityUnit) -> bool:
+    """A static letting you play land cards from your graveyard (CR 305.1 —
+    Crucible of Worlds, Ramunap Excavator): its ``GraveyardCastPermission``
+    names lands."""
+    return static_mode_tag(unit.node) == "GraveyardCastPermission" and (
+        "Land" in filter_core_types(getattr(unit.node, "affected", None))
+    )
+
+
 def _replays_own_permanent(unit: AbilityUnit, c: ConceptNode) -> bool:
     """A return of a permanent you control from the battlefield to its owner's
     hand (CR 400.7: cast again, it is a new object whose enters triggers fire
@@ -1834,14 +1863,18 @@ def _recast_doer_subjects(tree: ConceptTree) -> list[str]:
     """The ``permanent_recast`` doer subjects the card's effects carry."""
     found: set[str] = set()
     for unit in tree.units:
+        if unit.origin == "static" and _plays_lands_from_graveyard(unit):
+            found.add("land")
         # An emblem's or a granted ability's (Teyo's end-step reanimation).
         granted = iter_nested_granted_effect_concepts(unit.node)
         for c in chain(unit.effects, granted):
             if _reanimates_permanent(tree, c):
                 found.add("reanimate")
+            if _recurs_land(tree, c):
+                found.add("land")
             if _replays_own_permanent(unit, c):
                 found.add("replay")
-    return [s for s in ("reanimate", "replay") if s in found]
+    return [s for s in ("reanimate", "replay", "land") if s in found]
 
 
 #: Self-ETB payload effects phase types with no ``EFFECT_CONCEPTS`` row (they

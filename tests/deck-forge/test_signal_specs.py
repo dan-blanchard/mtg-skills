@@ -145,13 +145,19 @@ def test_land_protection_serves_indestructible_and_untargetable_lands():
     # A land-animation commander (Noyan Dar) wants its creature-lands kept alive: Terra
     # Eternal ("All lands have indestructible") and Tomik ("Lands … can't be the targets
     # of … your opponents"). A mana dork is not land protection. Real oracle.
+    # Land recursion keeps them too (Life from the Loam, Crucible of Worlds); an
+    # animator protecting only what it animates (Lumbering Falls' hexproof) is the
+    # payoff, not its protection. Tomik's static is a ledgered misparse.
     sig = _sig("land_protection", "you")
-    terra_eternal = _card("Terra Eternal")
-    tomik = _card("Tomik, Distinguished Advokist")
-    assert serves(terra_eternal, sig) is True
-    assert serves(tomik, sig) is True
-    llanowar_elves = _card("Llanowar Elves")
-    assert serves(llanowar_elves, sig) is False
+    for name in (
+        "Terra Eternal",
+        "Tomik, Distinguished Advokist",
+        "Life from the Loam",
+        "Crucible of Worlds",
+    ):
+        assert serves(_card(name), sig) is True, name
+    for name in ("Llanowar Elves", "Lumbering Falls"):
+        assert serves(_card(name), sig) is False, name
 
 
 def test_entered_attacker_serves_etb_pump_and_haste():

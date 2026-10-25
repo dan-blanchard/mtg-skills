@@ -167,13 +167,16 @@ STEP_TRIGGER_KEYS: Final = {
 # own (``signal_specs.core.avenue_spec_for``): a one-shot step of another card's
 # engine. A reanimation spell or a bounce-your-own creature re-delivers a self-ETB
 # card (the ``self_etb_payload`` page) without being a recast engine itself, and a
-# deck with three of them is no recast deck. Each is a doer too (below).
+# deck with three of them is no recast deck; a land recursion keeps an animated
+# land (the ``land_protection`` page). Each is a doer too (below).
 PAGE_ONLY_SUBJECTS: Final = frozenset(
     {
         # a permanent card put from a graveyard onto the battlefield (Sun Titan)
         ("permanent_recast", "reanimate"),
         # a permanent you control returned to your hand (Whitemane Lion)
         ("permanent_recast", "replay"),
+        # a land card returned from your graveyard, or played from it (Crucible)
+        ("permanent_recast", "land"),
     }
 )
 

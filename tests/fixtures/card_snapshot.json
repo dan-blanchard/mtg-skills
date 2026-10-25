@@ -633299,6 +633299,260 @@
     "type_line": "Enchantment"
    }
   },
+  "Life from the Loam": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Return up to three target land cards from your graveyard to your hand.",
+       "duration": null,
+       "effect": {
+        "destination": "Hand",
+        "enter_tapped": false,
+        "enter_transformed": false,
+        "enters_attacking": false,
+        "origin": "Graveyard",
+        "owner_library": false,
+        "target": {
+         "controller": "You",
+         "properties": [
+          {
+           "type": "InZone",
+           "zone": "Graveyard"
+          }
+         ],
+         "type": "Typed",
+         "type_filters": [
+          "Land"
+         ]
+        },
+        "type": "ChangeZone"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "multi_target": {
+        "max": {
+         "type": "Fixed",
+         "value": 3
+        },
+        "min": 0
+       },
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Sorcery"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Green"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [
+      {
+       "Dredge": 3
+      }
+     ],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "Green"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "2b6f329e-4ed8-4a19-a0c9-3690b8bb6894",
+       "2ffea52b-51a0-4395-8569-9015048e0729",
+       "59927e3b-65bc-4ab6-ad7b-6f558ccca6a8",
+       "6200afaf-2720-488a-b760-e4d17d8aea79",
+       "7ac16d09-8bc7-407c-a757-666f4707bc90",
+       "899ed197-e434-4f01-a71f-053ae3820d6c",
+       "b57d97cf-2252-47f3-9eff-6003626bc900",
+       "b8d6aa91-f8ec-4051-a050-299f501cc349",
+       "cdb6432f-3f56-4c92-b09a-2a5b64620c04",
+       "d7447c11-05a1-44e4-831a-0bacf97d447d",
+       "e49ff5f6-804c-4f8e-a3d6-3cc96837ff6b"
+      ]
+     },
+     "name": "Life from the Loam",
+     "non_ability_text": null,
+     "oracle_text": "Return up to three target land cards from your graveyard to your hand.\nDredge 3 (If you would draw a card, you may mill three cards instead. If you do, return this card from your graveyard to your hand.)",
+     "power": null,
+     "printings": [
+      "DDJ",
+      "MMA",
+      "PEWK",
+      "PUMA",
+      "RAV",
+      "RVR",
+      "SLD",
+      "SLZ",
+      "TD0",
+      "TDC",
+      "UMA"
+     ],
+     "rarities": [
+      "rare",
+      "mythic"
+     ],
+     "replacements": [
+      {
+       "active_zones": [
+        "Graveyard"
+       ],
+       "condition": null,
+       "description": "CR 702.52a: Dredge — instead of drawing, you may mill 3 cards and return this card from your graveyard to your hand.",
+       "draw_scope": "IndividualDraw",
+       "event": "Draw",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "count": {
+          "type": "Fixed",
+          "value": 3
+         },
+         "destination": "Graveyard",
+         "target": {
+          "type": "Controller"
+         },
+         "type": "Mill"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "destination": "Hand",
+          "enter_tapped": false,
+          "enter_transformed": false,
+          "enters_attacking": false,
+          "origin": "Graveyard",
+          "owner_library": false,
+          "target": {
+           "type": "SelfRef"
+          },
+          "type": "ChangeZone"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": null,
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "mode": {
+        "decline": null,
+        "type": "Optional"
+       },
+       "valid_card": null
+      }
+     ],
+     "rulings": [
+      {
+       "date": "2024-01-12",
+       "text": "Dredge can replace any card draw, not only the one during your draw step."
+      },
+      {
+       "date": "2024-01-12",
+       "text": "If an effect puts a card into your hand without specifically using the word \"draw,\" you're not drawing a card. Dredge can't replace this event."
+      },
+      {
+       "date": "2024-01-12",
+       "text": "If you're drawing multiple cards, each draw is performed one at a time. For example, if you're instructed to draw two cards and you replace the first draw with a dredge ability, another card with a dredge ability (including one that was milled by the first dredge ability) may be used to replace the second draw."
+      },
+      {
+       "date": "2024-01-12",
+       "text": "Once you've announced that you're applying a card's dredge ability to replace a draw, players can't take any actions until you've put that card into your hand and milled cards."
+      },
+      {
+       "date": "2024-01-12",
+       "text": "One card draw can't be replaced by multiple dredge abilities."
+      },
+      {
+       "date": "2024-01-12",
+       "text": "You can't attempt to use a dredge ability if you don't have enough cards in your library."
+      }
+     ],
+     "scryfall_oracle_id": "ac8fba34-512c-4f24-999a-ab72f1ce4acb",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 2.0,
+    "color_identity": [
+     "G"
+    ],
+    "colors": [
+     "G"
+    ],
+    "keywords": [
+     "Dredge",
+     "Mill"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}{G}",
+    "name": "Life from the Loam",
+    "oracle_id": "ac8fba34-512c-4f24-999a-ab72f1ce4acb",
+    "oracle_text": "Return up to three target land cards from your graveyard to your hand.\nDredge 3 (If you would draw a card, you may mill three cards instead. If you do, return this card from your graveyard to your hand.)",
+    "type_line": "Sorcery"
+   }
+  },
   "Life of the Party": {
    "phase_records": [
     {
@@ -650061,6 +650315,317 @@
     "power": "4",
     "toughness": "5",
     "type_line": "Creature — Beast"
+   }
+  },
+  "Lumbering Falls": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": {
+        "type": "Tap"
+       },
+       "description": "{T}: Add {G} or {U}.",
+       "duration": null,
+       "effect": {
+        "produced": {
+         "color_options": [
+          "Green",
+          "Blue"
+         ],
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "type": "AnyOneColor"
+        },
+        "type": "Mana"
+       },
+       "forward_result": false,
+       "is_mana_ability": true,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      },
+      {
+       "condition": null,
+       "cost": {
+        "cost": {
+         "generic": 2,
+         "shards": [
+          "Green",
+          "Blue"
+         ],
+         "type": "Cost"
+        },
+        "type": "Mana"
+       },
+       "description": "{2}{G}{U}: Until end of turn, ~ becomes a 3/3 green and blue Elemental creature with hexproof. It's still a land.",
+       "duration": "UntilEndOfTurn",
+       "effect": {
+        "duration": "UntilEndOfTurn",
+        "static_abilities": [
+         {
+          "active_zones": [],
+          "affected": {
+           "type": "SelfRef"
+          },
+          "affected_zone": null,
+          "characteristic_defining": false,
+          "condition": null,
+          "description": "become a 3/3 green and blue Elemental creature with hexproof",
+          "effect_zone": null,
+          "mode": "Continuous",
+          "modifications": [
+           {
+            "type": "SetPower",
+            "value": 3
+           },
+           {
+            "type": "SetToughness",
+            "value": 3
+           },
+           {
+            "colors": [
+             "Green",
+             "Blue"
+            ],
+            "type": "SetColor"
+           },
+           {
+            "keyword": "Hexproof",
+            "type": "AddKeyword"
+           },
+           {
+            "core_type": "Creature",
+            "type": "AddType"
+           },
+           {
+            "set": "Creature",
+            "type": "RemoveAllSubtypes"
+           },
+           {
+            "subtype": "Elemental",
+            "type": "AddSubtype"
+           }
+          ]
+         }
+        ],
+        "target": null,
+        "type": "GenericEffect"
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": "UntilEndOfTurn",
+        "effect": {
+         "duration": "UntilEndOfTurn",
+         "static_abilities": [
+          {
+           "active_zones": [],
+           "affected": {
+            "type": "SelfRef"
+           },
+           "affected_zone": null,
+           "characteristic_defining": false,
+           "condition": null,
+           "description": "It's still a land",
+           "effect_zone": null,
+           "mode": "Continuous",
+           "modifications": [
+            {
+             "core_type": "Land",
+             "type": "AddType"
+            }
+           ]
+          }
+         ],
+         "target": null,
+         "type": "GenericEffect"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "sub_link": "SequentialSibling",
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Land"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Green",
+      "Blue"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "type": "NoCost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "5d0edcbd-94d8-42e0-a76c-b98c2a126847",
+       "6cb11668-a672-4c12-a15f-96930cc3bd3b",
+       "9e1cc021-a41a-4969-a007-3cf88d7b8c8e",
+       "c1a5d35b-8f33-4110-9bb3-298e0a263bda",
+       "ca355f8f-c0a1-45e1-8c55-8a540046effc",
+       "d75fb845-e000-4f5d-9546-1fd610726aa2",
+       "e3c4e109-2aa7-4f5f-8b59-7b89c03de2df",
+       "f0d8d2e4-3ebe-4311-b99e-dea9fb0b20ac",
+       "f7e9db98-3a2d-46d8-a07f-99d66a4d9f2f"
+      ]
+     },
+     "name": "Lumbering Falls",
+     "non_ability_text": null,
+     "oracle_text": "This land enters tapped.\n{T}: Add {G} or {U}.\n{2}{G}{U}: Until end of turn, this land becomes a 3/3 green and blue Elemental creature with hexproof. It's still a land.",
+     "power": null,
+     "printings": [
+      "AFC",
+      "BFZ",
+      "C21",
+      "EOS",
+      "M3C",
+      "PBFZ",
+      "PIO"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [
+      {
+       "condition": null,
+       "description": "~ enters tapped.",
+       "destination_zone": "Battlefield",
+       "event": "Moved",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "scope": {
+          "type": "Single"
+         },
+         "state": {
+          "type": "Tap"
+         },
+         "target": {
+          "type": "SelfRef"
+         },
+         "type": "SetTapState"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": {
+        "type": "Mandatory"
+       },
+       "valid_card": {
+        "type": "SelfRef"
+       }
+      }
+     ],
+     "rulings": [
+      {
+       "date": "2015-08-25",
+       "text": "A land that becomes a creature may be affected by \"summoning sickness.\" You can't attack with it or use any of its {T} abilities (including its mana abilities) unless it began your most recent turn on the battlefield under your control. Note that summoning sickness cares about when that permanent came under your control, not when it became a creature nor when it entered the battlefield."
+      },
+      {
+       "date": "2015-08-25",
+       "text": "An ability that turns a land into a creature also sets that creature's power and toughness. If the land was already a creature (for example, if it was the target of a spell with awaken), this will overwrite the previous effect that set its power and toughness. Effects that modify its power or toughness will continue to apply no matter when they started to take effect. The same is true for counters that change its power or toughness (such as +1/+1 counters) and effects that switch its power and toughness. For example, if Lumbering Falls has been made a 0/0 creature with three +1/+1 counters on it, activating its last ability will turn it into a 6/6 creature that's still a land."
+      },
+      {
+       "date": "2015-08-25",
+       "text": "This land is colorless until the last ability gives it colors."
+      },
+      {
+       "date": "2015-08-25",
+       "text": "When a land becomes a creature, that doesn't count as having a creature enter the battlefield. The permanent was already on the battlefield; it only changed its types. Abilities that trigger whenever a creature enters the battlefield won't trigger."
+      }
+     ],
+     "scryfall_oracle_id": "c2878f4e-3044-4d60-8ec1-b325edfca397",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 0.0,
+    "color_identity": [
+     "G",
+     "U"
+    ],
+    "colors": [],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "",
+    "name": "Lumbering Falls",
+    "oracle_id": "c2878f4e-3044-4d60-8ec1-b325edfca397",
+    "oracle_text": "This land enters tapped.\n{T}: Add {G} or {U}.\n{2}{G}{U}: Until end of turn, this land becomes a 3/3 green and blue Elemental creature with hexproof. It's still a land.",
+    "produced_mana": [
+     "G",
+     "U"
+    ],
+    "type_line": "Land"
    }
   },
   "Lumbering Laundry": {
@@ -872552,6 +873117,159 @@
     "power": "4",
     "toughness": "3",
     "type_line": "Legendary Creature — Human Noble Monk"
+   }
+  },
+  "Sacred Ground": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Enchantment"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "White"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "premodern": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "White"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "37ae4b01-a9c1-4eec-9204-78cb2508e0df",
+       "7101e615-adf1-4b58-87b2-32832b30fabb",
+       "d43ccab9-c059-4f25-b27c-3f2d506251bd",
+       "d636da33-7d58-4292-9827-a074ef123dc4",
+       "d72dc68a-d6f9-4a18-8282-0f104999591f",
+       "d83d48a7-c6d3-4aa9-8416-88eece34a158",
+       "fb3adae5-0cdc-404c-bb4f-fdf1bc0332cc"
+      ]
+     },
+     "name": "Sacred Ground",
+     "non_ability_text": null,
+     "oracle_text": "Whenever a spell or ability an opponent controls causes a land to be put into your graveyard from the battlefield, return that card to the battlefield.",
+     "power": null,
+     "printings": [
+      "7ED",
+      "8ED",
+      "9ED",
+      "STH"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "b18e773c-611b-4c18-8b2d-8d3a7e5ddc93",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever a spell or ability an opponent controls causes a land to be put into your graveyard from the battlefield, return that card to the battlefield.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "destination": "Battlefield",
+         "enter_tapped": false,
+         "enter_transformed": false,
+         "enters_attacking": false,
+         "origin": null,
+         "owner_library": false,
+         "target": {
+          "type": "ParentTarget"
+         },
+         "type": "ChangeZone"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": {
+        "Unknown": "Whenever a spell or ability an opponent controls causes a land to be put into your graveyard from the battlefield"
+       },
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": null,
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 2.0,
+    "color_identity": [
+     "W"
+    ],
+    "colors": [
+     "W"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}{W}",
+    "name": "Sacred Ground",
+    "oracle_id": "b18e773c-611b-4c18-8b2d-8d3a7e5ddc93",
+    "oracle_text": "Whenever a spell or ability an opponent controls causes a land to be put into your graveyard from the battlefield, return that card to the battlefield.",
+    "type_line": "Enchantment"
    }
   },
   "Sacred Nectar": {

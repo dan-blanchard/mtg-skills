@@ -447,9 +447,15 @@ SPECS_4: dict[tuple[str, str], SignalSpec] = {
     ("land_protection", "you"): _spec(
         "Land protection",
         "keep your animated lands alive: indestructible, untargetable, land recursion",
-        r"lands?[^.]*(?:have|gain|with)[^.]*indestructible|all lands[^.]*indestructible"
-        r"|lands?[^.]*can'?t be[^.]*target|lands?[^.]*hexproof"
-        r"|whenever[^.]*causes? a land[^.]*graveyard",
+        # Serve idents: indestructible / hexproof / shroud grants to lands (Terra
+        # Eternal, an emblem's — the shield subject) and land recursion (Life
+        # from the Loam, Crucible of Worlds — permanent_recast's land doer). An
+        # animator that protects only what it animates (Kamahl's Will, Lumbering
+        # Falls) is the payoff, not its protection.
+        None,
+        serve_idents=frozenset(
+            {"land_protection|you|shield", "permanent_recast|you|land"}
+        ),
     ),
     # Newly-entered attacker payoff (Samut): wants HASTE + ETB-pump anthems so a
     # creature that entered this turn can attack at once for value. Ogre Battledriver /
