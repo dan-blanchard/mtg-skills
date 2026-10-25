@@ -248,28 +248,16 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   permanents-entering member; the Emergence Auras' "that land gains
   indestructible" replacement (CR 614.1a) guards only the land they animate,
   the animator's own payoff like Kamahl's Will, not land protection.
-  (l) **Tune speed, what's left** (2026-10-24). The ranking's per-unit ident
-  attribution persists in a write-back sidecar beside the signals index
-  (`<bulk>.provenance.pkl`, `ident_provenance.attach_provenance_sidecar`; the
-  deck-tune CLI and the hub attach it), and the index build reads blink's
-  concept arm off its one extraction (`Preset.concept_signals`): the build
-  147 → 107 s (payload byte-identical), a warm Blood Rites tune 15.6 → 12.5 s
-  (profiled: attribution 9.1 → 0 s). A tune's first sight of a candidate still
-  pays its attribution (about 9 ms a card). `card_search.filter_records`
-  memoizes each search context's gate (`_gated`, per records list; on the bulk
-  path the playable pool already holds layout, legality and game, so the saving is
-  the color-identity and set cut), so a tune's 17 pages scan the in-identity slice,
-  not the ~100k-printing pool: 5.3 → 1.9 s of a profiled Blood Rites tune
-  (18.5 → 14.9 s), warm tunes 13.7–17.1 → 11.2–12.3 s, swaps and guide matches
-  unchanged on all 25 precons. A per-serve slice memo measured no gain (two serve pages a
-  tune). The sidecar key's closure walk memoizes each module's import read by
-  the sha256 of its bytes (in-process and under `$TMPDIR`; the walk and the
-  content hash still run every load), the live known-tokens.toml parse is a
-  pickle beside it, and the phase card-data load runs with the cyclic GC paused:
-  per process 0.6 + 0.3 + 0.8 s off, warm tunes 10.1–11.5 → 7.7–9.2 s on three
-  precons, output byte-identical. Left, by size: the job-quality reads build
-  each candidate's synthesized trees (3.5 s profiled of a Blood Rites tune), and
-  the pages' own filters (presets, serves) over the slice (1.6 s profiled).
+  (l) **Tune speed, what's left** (2026-10-25, measured at 33ca5243: a warm Blood
+  Rites tune profiles at 8.2 s; warm `deck-tune` runs over the 25 precons take 6.6–10.3 s, median 8.0).
+  By size, in the profile: the ranking's synergy read (`ranking.score_candidate`,
+  1.8 s, of which each candidate's clause serves, `Serve.matches`, 1.0 s; a card on
+  two pages is scored twice); the live signal extraction of the ~250 deck and
+  candidate cards the signals index doesn't serve (`extract_signals`, 1.6 s); the
+  phase card-data load every process pays (`trees._phase_record_index`, 1.2 s);
+  the pages' scan of the in-identity slice (1.2 s; the card filters already run
+  once per card, 0.5 s of it); and the theme ties' and job orders' rankings
+  (1.0 s). A per-serve slice memo measured no gain (two serve pages a tune).
 
 - **Competitive Brawl's "banned as a commander" reads as `restricted`.** The
   2026-10-12 B&R update introduced the category (mtg.wiki "Competitive Brawl"

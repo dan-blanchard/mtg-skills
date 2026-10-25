@@ -77,18 +77,18 @@ def _known_tokens_cached_only(request, monkeypatch):
 
 
 @pytest.fixture(autouse=True)
-def _no_provenance_sidecar():
-    """No test leaves the ident-provenance sidecar attached for the tests after it:
-    ``deck-tune --bulk-data`` attaches it process-wide
-    (``ident_provenance.attach_provenance_sidecar``), and an attachment would serve
-    the next test a stale attribution and write the run's into the fixture bulk's
+def _no_write_back_sidecars():
+    """No test leaves a write-back sidecar attached for the tests after it:
+    ``deck-tune --bulk-data`` attaches the ident-provenance and job-read ones
+    process-wide (``write_back.WriteBackSidecar``), and an attachment would serve
+    the next test a stale value and write the run's into the fixture bulk's
     sidecar at exit. Each test starts and ends detached, so the exit write has
     nothing to write."""
 
     def detach() -> None:
-        module = sys.modules.get("mtg_utils._analysis.ident_provenance")
+        module = sys.modules.get("mtg_utils._analysis.write_back")
         if module is not None:
-            module._detach()
+            module.detach_all()
 
     detach()
     yield

@@ -123,4 +123,4 @@ def test_the_provenance_sidecar_serves_what_a_process_wrote_back(monkeypatch, tm
 
     bulk.write_text("[ ]")  # another bulk: another key
     assert ident_provenance.attach_provenance_sidecar(bulk)
-    assert ident_provenance._PERSISTED == {}
+    assert ident_provenance._SIDECAR.persisted == {}

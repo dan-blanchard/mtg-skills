@@ -85,14 +85,17 @@ from __future__ import annotations
 import math
 from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from mtg_utils._analysis.job_quality._common import (
+    MISSING,
     NO_COST,
     activation_mana,
     cast_cost,
     faces,
     front_mana_cost,
+    recall,
+    remember,
     unit_kind,
     unpriced,
 )
@@ -676,8 +679,8 @@ def _source_fuel(s: _Source) -> str | None:
     return None
 
 
-#: oracle_id -> the card's deck fuel.
-_FUEL_MEMO: dict[str, str | None] = {}
+#: ("draw_fuel", oracle_id) -> the card's deck fuel.
+_FUEL_MEMO: dict[tuple[str, str], str | None] = {}
 
 
 def draw_fuel(card: dict) -> str | None:
@@ -686,8 +689,9 @@ def draw_fuel(card: dict) -> str | None:
     engine, or one fired by the turn, opponents or any spell. The engine is
     the one that flows the most cards."""
     oid = card.get("oracle_id")
-    if oid and oid in _FUEL_MEMO:
-        return _FUEL_MEMO[oid]
+    key = ("draw_fuel", oid or "")
+    if oid and (hit := recall(_FUEL_MEMO, key)) is not MISSING:
+        return cast("str | None", hit)
     engines = [
         s
         for s in _sources(card)
@@ -696,7 +700,7 @@ def draw_fuel(card: dict) -> str | None:
     best = max(engines, key=lambda s: _advantage(s) * s.rate, default=None)
     fuel = _source_fuel(best) if best is not None else None
     if oid and signal_trees_for(card, bulk=card):
-        _FUEL_MEMO[oid] = fuel
+        remember(_FUEL_MEMO, key, fuel)
     return fuel
 
 

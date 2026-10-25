@@ -1333,3 +1333,25 @@ def test_filter_records_memoizes_the_gate_per_records_list():
         filter_records(list(cards), fmt=fmt, color_identity="R")
     assert len(cs._GATE_CACHE) <= cs._GATE_CACHE_MAX
     cs._GATE_CACHE.clear()
+
+
+def test_filter_records_reads_a_cards_filters_once_per_card():
+    """Every printing of a card answers a page's card filters alike (text, type,
+    what the card does), so ``filter_records`` asks them once per card; the
+    printing's own filter, its price, still reads each printing."""
+    calls = []
+
+    class CountingServe:
+        def matches(self, card: dict) -> bool:
+            calls.append(card["prices"]["usd"])
+            return True
+
+    printings = [
+        {**_make_card(name="Test Card", price_usd=usd), "oracle_id": "test-oid"}
+        for usd in ("9.00", "1.00", "3.00")
+    ]
+    kept = filter_records(
+        printings, fmt=FORMATS["commander"], price_max=5.0, serve=CountingServe()
+    )
+    assert [c["prices"]["usd"] for c in kept] == ["1.00"]  # the cheapest printing
+    assert calls == ["1.00"]  # the $9 printing fails its price before the card asks

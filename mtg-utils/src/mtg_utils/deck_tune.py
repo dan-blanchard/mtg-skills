@@ -24,6 +24,7 @@ import click
 
 from mtg_utils import card_search, combo_search
 from mtg_utils._analysis.ident_provenance import attach_provenance_sidecar
+from mtg_utils._analysis.job_quality import attach_job_read_sidecar
 from mtg_utils._tuner.tune import TuneParams, tune
 from mtg_utils.deck_cli import (
     acquire_for_cli,
@@ -178,9 +179,11 @@ def main(
             )
     else:
         search = functools.partial(card_search.search_cards, bulk_path)
-        # The ranking's per-ability attribution, persisted across tunes over
-        # this bulk (a third of a precon tune when computed live).
+        # The ranking's per-ability attribution and the job reads' card values,
+        # persisted across tunes over this bulk (each a third of a precon tune
+        # when computed live).
         attach_provenance_sidecar(bulk_path)
+        attach_job_read_sidecar(bulk_path)
     by_name = hd.by_name
 
     def combos_fn(deck: dict) -> dict:

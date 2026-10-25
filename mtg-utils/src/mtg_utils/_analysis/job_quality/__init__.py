@@ -31,6 +31,7 @@ from __future__ import annotations
 
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
+from typing import TYPE_CHECKING, cast
 
 from mtg_utils._analysis.job_quality import (
     board_wipe,
@@ -39,7 +40,16 @@ from mtg_utils._analysis.job_quality import (
     ramp,
     removal,
 )
+from mtg_utils._analysis.job_quality._common import (
+    JOB_READS,
+    MISSING,
+    recall,
+    remember,
+)
 from mtg_utils._analysis.signal_trees import signal_trees_for
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 @dataclass(frozen=True)
@@ -87,11 +97,12 @@ class JobRead:
         return round(base - abs(base) * (1 - f), 3)
 
     def _card_score(self, card: dict) -> float | None:
-        """The card's own score, deck-free (memoized per oracle_id)."""
+        """The card's own score, deck-free (memoized per oracle_id, and
+        persisted by the job-read sidecar when one is attached)."""
         oid = card.get("oracle_id")
         key = (self.job, oid or "")
-        if oid and key in _SCORE_MEMO:
-            return _SCORE_MEMO[key]
+        if oid and (hit := recall(_SCORE_MEMO, key)) is not MISSING:
+            return cast("float | None", hit)
         feats = self.features(card)
         score = (
             None
@@ -99,13 +110,23 @@ class JobRead:
             else round(sum(self.weights[k] * v for k, v in feats.items()), 3)
         )
         if oid and (feats is not None or signal_trees_for(card, bulk=card)):
-            _SCORE_MEMO[key] = score  # never a None read before phase data is there
+            # never a None read before phase data is there
+            remember(_SCORE_MEMO, key, score)
         return score
 
 
 #: (job, oracle_id) -> score: a read walks every unit of every face, and an
 #: upgrade pass asks it for each card of a job's match set (thousands).
 _SCORE_MEMO: dict[tuple[str, str], float | None] = {}
+
+
+def attach_job_read_sidecar(bulk_path: Path | None) -> bool:
+    """Serve the reads' deck-free per-card values (each job's score, card draw's
+    fuel) from ``<bulk_path>.job-reads.pkl`` and write back, at process exit,
+    what this process computes (``_common.JOB_READS``). An entry holds for the
+    same signal path, reads and bulk only; a served value is the one a live
+    read computes. ``False`` (no bulk) leaves the reads live-only."""
+    return JOB_READS.attach(bulk_path)
 
 
 #: Each job's read, by ``issues.upgrade_job``'s job names. ``orders`` was

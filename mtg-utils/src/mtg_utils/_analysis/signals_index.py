@@ -370,10 +370,11 @@ def _imported_mtg_modules(path: Path) -> tuple[str, tuple[str, ...]] | None:
     return digest, names
 
 
-def signal_source_files() -> tuple[Path, ...]:
+def signal_source_files(*extra_roots: str) -> tuple[Path, ...]:
     """Every ``.py`` file transitively reachable from ``_analysis.signals``
-    and ``theme_presets`` (:data:`_ROOT_MODULES`) by following
-    ``mtg_utils``-internal imports (module-level + lazy) — the
+    and ``theme_presets`` (:data:`_ROOT_MODULES`), and from ``extra_roots``
+    (a reader of the signal path keying its own cache: the job reads), by
+    following ``mtg_utils``-internal imports (module-level + lazy) — the
     exact file set whose content can change ``extract_signals``'s
     output or a concept arm's. Recomputed by a fresh walk every call
     (never a cached/hand-written list), so a newly-added lane module or
@@ -386,10 +387,11 @@ def signal_source_files() -> tuple[Path, ...]:
     ``extract_signals`` at runtime still counts — over-invalidating
     on an unrelated edit costs one wasted rebuild; under-invalidating serves
     stale signals silently, which is the one failure mode this sidecar must
-    never have."""
+    never have. A walk with ``extra_roots`` is a superset of the plain one, so
+    the import memo it persists still holds every read the plain walk needs."""
     known = set(_imports_memo())
     seen: set[str] = set()
-    queue: list[str] = list(_ROOT_MODULES)
+    queue: list[str] = [*_ROOT_MODULES, *extra_roots]
     files: set[Path] = set()
     used: dict[str, tuple[str, ...]] = {}
     while queue:
@@ -423,16 +425,17 @@ def signal_source_files() -> tuple[Path, ...]:
     return tuple(sorted(files))
 
 
-def _content_hash() -> str:
+def _content_hash(*extra_roots: str) -> str:
     """SHA-256 over every signal-source file's bytes + ``PHASE_TAG`` +
     ``SIGNALS_SIDECAR_VERSION`` — the sidecar's actual version key. ANY byte
     change anywhere in the reachable source graph, a phase-rs bump, or a
     sidecar-shape bump changes this hash and silently invalidates every
-    existing sidecar on its next load."""
+    existing sidecar on its next load. With ``extra_roots``, the same over
+    their closure too (:func:`signal_source_files`)."""
     from mtg_utils import _phase
 
     hasher = hashlib.sha256()
-    for path in signal_source_files():
+    for path in signal_source_files(*extra_roots):
         hasher.update(str(path).encode())
         with contextlib.suppress(OSError):
             hasher.update(path.read_bytes())
