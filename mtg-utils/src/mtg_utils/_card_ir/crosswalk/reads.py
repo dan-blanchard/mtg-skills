@@ -9899,13 +9899,17 @@ def _zero_mana_cost(cost: object) -> bool:
     return False
 
 
-def _targets_own_creature(effect: object) -> bool:
+def targets_own_creature(effect: object, unit: AbilityUnit | None = None) -> bool:
+    """Whether ``effect`` targets a creature or permanent you control on the
+    battlefield — never a mass ``*All`` effect, never a card in a graveyard or
+    hand. Given the effect's ``unit``, the overlay-corrected controller reads
+    (:func:`filter_controller`)."""
     if tag_of(effect) is None or (tag_of(effect) or "").endswith("All"):
         return False
     chosen = tag_of(getattr(effect, "redirect_to", None)) == "ChosenTarget"
     for field in ("target", "redirect_object_filter") if chosen else ("target",):
         filt = getattr(effect, field, None)
-        if tag_of(filt) != "Typed" or filter_controller(filt) != "You":
+        if tag_of(filt) != "Typed" or filter_controller(filt, unit) != "You":
             continue
         # A card in a graveyard or hand is no creature you control (CR 110.1).
         if set(filter_inzone_zones(filt)) - {"Battlefield"}:
@@ -9940,7 +9944,7 @@ def free_own_target_activations(tree: ConceptTree) -> bool:
                 continue
             if not _zero_mana_cost(getattr(node, "cost", None)):
                 continue
-            if _targets_own_creature(getattr(node, "effect", None)):
+            if targets_own_creature(getattr(node, "effect", None)):
                 return True
     return False
 

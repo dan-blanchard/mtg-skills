@@ -2473,25 +2473,42 @@ def test_the_theme_is_shared_by_depth_over_two_mains():
     assert adds == ["Deep 0", "Deep 1", "Shallow 0"]
 
 
-def test_a_near_tie_goes_to_the_cheaper_card():
-    """Removal's upgrade of Murder takes the most-played card doing its job,
-    unless a card within a factor of two of its play-rate (``_CHEAPER_TIE``)
-    costs less: the budget it leaves reaches the issues after it. Path to Exile
-    at rank 14 and $1 goes before Swords to Plowshares at rank 10 and $5; at
-    rank 40 it is no near tie and Swords keeps the slot."""
+def _murder_upgrade(path_rank, path_usd, budget):
+    """The add trading Murder (rank 8000) up to five swaps on ``budget``: Swords
+    to Plowshares at rank 10 and $5, or Path to Exile."""
     murder = _real_cc("Murder", "spine", roles=["interaction"], edhrec_rank=8000)
+    pool = [
+        {**_played("Swords to Plowshares", 10), "prices": {"usd": "5.00"}},
+        {**_played("Path to Exile", path_rank), "prices": {"usd": path_usd}},
+    ]
+    out = _swaps_for_issue_dicts(
+        [murder],
+        [{"kind": "upgrade", "severity": 1, "count": 1}],
+        _upgrade_ctx([murder], pool, budget=budget),
+    )
+    return [s["add"]["name"] for s in out["swaps"]]
 
-    def upgrade(path_rank):
-        pool = [
-            {**_played("Swords to Plowshares", 10), "prices": {"usd": "5.00"}},
-            _played("Path to Exile", path_rank),
-        ]
-        out = _swaps_for_issue_dicts(
-            [murder],
-            [{"kind": "upgrade", "severity": 1, "count": 1}],
-            _upgrade_ctx([murder], pool),
-        )
-        return [s["add"]["name"] for s in out["swaps"]]
 
-    assert upgrade(14) == ["Path to Exile"]
-    assert upgrade(40) == ["Swords to Plowshares"]
+def test_within_an_even_share_of_the_budget_the_most_played_card_is_the_add():
+    """An add costing no more than an even share of what is left over the swaps
+    still open (``_Purse.share``) takes the slot: $50 over five swaps is $10 a
+    swap, so Swords to Plowshares at $5 keeps it over a cheaper near tie."""
+    assert _murder_upgrade(14, "1.00", 50.0) == ["Swords to Plowshares"]
+
+
+def test_past_the_share_the_first_card_that_fits_it_is_the_add():
+    """$20 over five swaps is $4 a swap: Swords to Plowshares at $5 spends past
+    it, so the most played card after it that fits the share is the add — Path
+    to Exile at $1, a near tie of Swords at rank 14 or not at rank 40."""
+    assert _murder_upgrade(14, "1.00", 20.0) == ["Path to Exile"]
+    assert _murder_upgrade(40, "1.00", 20.0) == ["Path to Exile"]
+
+
+def test_past_the_share_with_nothing_inside_it_a_near_tie_goes_to_the_cheaper_card():
+    """$10 over five swaps is $2 a swap, and neither card fits it: a card within
+    a factor of two of the first pick's play-rate (``_CHEAPER_TIE``) that costs
+    less is the add, the budget it leaves reaching the issues after it — Path
+    to Exile at rank 14 and $3; at rank 40 it is no near tie and Swords keeps
+    the slot."""
+    assert _murder_upgrade(14, "3.00", 10.0) == ["Path to Exile"]
+    assert _murder_upgrade(40, "3.00", 10.0) == ["Swords to Plowshares"]

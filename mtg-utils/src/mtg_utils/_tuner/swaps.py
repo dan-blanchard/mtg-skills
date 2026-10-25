@@ -130,6 +130,13 @@ _THEME_TIE_WINDOW = 300
 #: (2026-10-24, against 479 swaps / 179 guide-matching cuts / 56 guide-matching
 #: adds): 0.1 took 512 / 186 / 56, 0.2 538 / 192 / 59, 0.3 546 / 195 / 60, and
 #: 0.5 569 / 199 / 61 — wider keeps gaining, but a threefold rank gap is no tie.
+#: The near tie weighs only a first pick past an even share of what is left
+#: (``_Purse.share``), and before it the first card in the window that fits the
+#: share: a precon tune bound by its budget spent half of it on one card-draw
+#: or protection staple (Esper Sentinel $55, Rhystic Study $68, Deflecting Swat
+#: $71; $637 for two guide adds), and an unbound one gave up Victimize for a
+#: cheaper near tie it never needed. Measured on the 25 precons (2026-10-25,
+#: against 543 / 195 / 59): 560 / 197 / 66.
 _CHEAPER_TIE = 0.3
 #: How many candidates past the first pick the near tie looks at.
 _CHEAPER_WINDOW = 10
@@ -594,6 +601,11 @@ class _Purse(Protocol):
 
     def charge(self, record: dict, cost: float) -> None: ...
 
+    def share(self, adds: int) -> float:
+        """An even share of what is left over ``adds`` more adds: an add priced
+        within it leaves every later add the same, so the budget binds only
+        past it (``find_add``'s near tie)."""
+
     @property
     def usd_spent(self) -> float: ...
 
@@ -619,6 +631,11 @@ class _UsdLedger:
 
     def charge(self, record: dict, cost: float) -> None:
         self.spent += cost
+
+    def share(self, adds: int) -> float:
+        if self.budget is None:  # owned-only: every add it can make is free
+            return math.inf
+        return (self.budget - self.spent) / max(1, adds)
 
     @property
     def usd_spent(self) -> float:
@@ -651,6 +668,9 @@ class _WildcardLedger:
         if rarity in self.remaining:
             self.remaining[rarity] -= 1
             self.spent[rarity] += 1
+
+    def share(self, adds: int) -> float:
+        return math.inf  # one wildcard of its rarity, whatever the card
 
     @property
     def usd_spent(self) -> float:
@@ -1240,9 +1260,12 @@ def propose_swaps(
         job it keeps: a candidate must be an upgrade (:func:`_upgrades`), and
         the roles the cut frees are no overshoot.
 
-        Where play-rate means something, the first eligible candidate is weighed
-        against the next ``_CHEAPER_WINDOW``: the cheapest near tie
-        (:func:`_near_tie`) is the add, so the budget reaches more issues.
+        Where play-rate means something, the first eligible candidate is the add
+        when it costs no more than an even share of what is left over the swaps
+        still open (``_Purse.share``). Past that share the budget binds: the
+        next ``_CHEAPER_WINDOW`` candidates are weighed, and the first that fits
+        the share is the add, else the cheapest near tie (:func:`_near_tie`), so
+        the budget reaches more issues.
         """
         ranked = _ranked_pool(
             spec,
@@ -1265,12 +1288,12 @@ def propose_swaps(
         fallback: tuple[dict, float] | None = None
         eligible: list[tuple[dict, float]] = []
         avenue = spec.get("_avenue")
-        # Where play-rate orders the page, the first pick is weighed against
-        # the next few: a near tie (:func:`_near_tie`) that costs less is the
-        # add, so the budget reaches more issues.
+        # Where play-rate orders the page: the even share and the near tie
+        # (the docstring).
         tie_read = read_for(job)
         if tie_read is not None and not tie_read.orders:
             tie_read = None
+        share = ledger.share(ctx.max_swaps - len(swaps))
         first: tuple[dict, float] | None = None
         best: tuple[dict, float] | None = None
         looked = 0
@@ -1301,7 +1324,7 @@ def propose_swaps(
                 fallback = fallback or (card, cost)  # keep the best overshooting option
                 continue
             if not guard:
-                if not ctx.playrate or (first is None and cost <= 0):
+                if not ctx.playrate or cost <= share:
                     return card, cost, False
                 if first is None:
                     first = best = (card, cost)

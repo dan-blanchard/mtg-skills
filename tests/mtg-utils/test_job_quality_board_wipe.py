@@ -1,6 +1,8 @@
 """The board-wipe read (``job_quality.board_wipe``): how well a card sweeps the
 board, off its own trees — real cards (ADR-0056)."""
 
+from dataclasses import replace
+
 import pytest
 
 from mtg_utils._analysis.job_quality import board_wipe, job_score
@@ -364,21 +366,49 @@ def test_tokens_for_the_wiped_players_refill_the_board(name):
         ("Corpse Explosion", True),
         ("Cloudkill", True),
         ("Specter of Mortality", True),
+        ("Chandra's Ignition", True),
+        ("Waltz of Rage", True),
+        ("Nibelheim Aflame", True),
+        ("Rupture", True),
         ("Volcanic Eruption", False),
+        ("Kindle the Carnage", False),
+        ("Too Greedily, Too Deep", False),
     ],
 )
 def test_an_amount_that_is_no_count_reads_by_what_it_names(name, lethal):
     """No wrapper decides an amount that counts nothing. The size of an object
-    of the caster's own reads at the kill size: one paid as a cost (Ichor
+    the caster picks reads at the kill size: one paid as a cost (Ichor
     Explosion's sacrificed creature, its ruling: "as it last existed on the
-    battlefield"; Corpse Explosion's exiled creature card) or the greatest mana
-    value of a commander you own (Cloudkill). Specter of Mortality's creature
-    cards exiled from your own graveyard scale. Volcanic Eruption's "Destroy X
-    target Mountains" may take anyone's, yours too, but nothing makes them
-    yours and X caps them: narrow."""
+    battlefield"; Corpse Explosion's exiled creature card); a target among the
+    creatures they control (Chandra's Ignition's "Target creature you control
+    deals damage equal to its power", its power read as the spell resolves, its
+    ruling; Nibelheim Aflame's "It" back to one); or the creature the sweep's own
+    instruction has them sacrifice (Rupture's "Sacrifice a creature": no player
+    named, so the caster follows it, CR 608.2c, and sacrifices one they control,
+    CR 701.21a). So does the greatest mana value of a commander you own
+    (Cloudkill). Specter of Mortality's creature cards exiled from your own
+    graveyard scale. Narrow: Volcanic Eruption's "Destroy X target Mountains" may
+    take anyone's, yours too, but nothing makes them yours and X caps them;
+    Kindle the Carnage's card is discarded at random, no pick; Too Greedily, Too
+    Deep's creature card may come from any graveyard."""
     features = board_wipe.features(_real(name))
     assert features["lethal"] == float(lethal)
     assert features["small"] == float(not lethal)
+
+
+def test_the_sources_own_power_is_its_printed_power():
+    """Jack of Hearts, Volatile Hero's dying "he deals damage equal to his power
+    to each creature" uses his power as he last existed (CR 608.2h); the read
+    takes the card's printed 2, its own call. A printed power is read as it is
+    and an amount it becomes is never below 0 (CR 107.1b): the tree's power set
+    to 5 and to -1 (machinery, no real card) sweeps for 5 and for 0."""
+    card = _real("Jack of Hearts, Volatile Hero")
+    (sweep,) = board_wipe._sweeps(card)
+    assert sweep.mag == 2
+    (tree,) = signal_trees_for(card, bulk=card)
+    for printed, mag in ((5, 5), (-1, 0)):
+        (sweep,) = board_wipe._tree_sweeps(replace(tree, power=printed), walker=False)
+        assert sweep.mag == mag
 
 
 def _deck(*names: str, size: int = 100) -> tuple[dict, ...]:
@@ -410,13 +440,16 @@ def test_a_count_of_a_type_the_deck_holds_reads_what_it_has_out():
     assert scores[2] - scores[1] < 0.05  # no cliff between seven Gates and eight
 
 
-def test_a_sacrificed_creatures_power_is_the_decks_biggest():
-    """Ichor Explosion's X is the sacrificed creature's power: in a deck of 2/2s
-    a -2/-2, half a kill; with a 6/6 to give up, lethal."""
-    ichor = _real("Ichor Explosion")
-    bears = board_wipe.features(ichor, _deck("Grizzly Bears"))
-    assert bears["lethal"] == pytest.approx(0.5)
-    assert board_wipe.features(ichor, _deck("Colossal Dreadmaw"))["lethal"] == 1.0
+@pytest.mark.parametrize("name", ["Ichor Explosion", "Chandra's Ignition"])
+def test_a_picked_creatures_power_is_the_decks_biggest(name):
+    """Ichor Explosion's X is the sacrificed creature's power, Chandra's
+    Ignition's damage the power of the creature you target among your own: in a
+    deck of 2/2s half a kill; with a 6/6 to pick, lethal."""
+    card = _real(name)
+    assert board_wipe.features(card, _deck("Grizzly Bears"))["lethal"] == (
+        pytest.approx(0.5)
+    )
+    assert board_wipe.features(card, _deck("Colossal Dreadmaw"))["lethal"] == 1.0
 
 
 def test_a_negative_power_stays_negative_in_the_deck_read():

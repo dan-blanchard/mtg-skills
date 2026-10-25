@@ -1112,6 +1112,91 @@ the lead off and on.
   (`trees.PhaseRecordIndex`: 1.2 s and every record decoded before, 0.02 s and only
   the ones a tune reads now; the peak RSS fell by a third of a gigabyte).
 
+### The budget's even share (2026-10-25)
+
+Backlog (m)'s largest lever, the adds a page held but outranked, and (j)'s small
+read. The bar as in "The tuner-policy leftovers". Two `misses.py` runs, Spellbook
+cached (rows marked *run*). The other rows were screened first: one process, the 25
+tunes in sequence (`find_add` traced), scored against HEAD's guide lists, which
+read HEAD as 543 / 189 / 58 (the run's name matching differs by a few cards); the
+screen reproduces a run's swaps exactly.
+
+| change | swaps / cuts / adds | |
+|---|---|---|
+| HEAD (f9e25ec9), *run* | 543 / 195 / 59 | |
+| E1 the near tie only where the budget binds (screen) | 543 / 188 / 59 | +1 add, -1 cut |
+| E2 E1, and an unbound theme page's near tie to the better fit (screen) | 541 / 187 / 58 | rejected |
+| Auras only on Virtue and Valor's suit-up page (screen, that deck) | 20 → 20 swaps, adds -1 | rejected |
+| E3 E1, and past the share the window's first card within it: job adds only (screen) | 565 / 192 / 63 | |
+| … every add (screen) | 560 / 191 / 63 | |
+| … without E1 (screen, job adds) | 566 / 192 / 60 | |
+| the even share (E3, every add, one rule; screen) | 560 / 191 / 64 | |
+| **the even share**, *run* | **560 / 197 / 66** | **shipped** |
+| … and the guarded Spine fills too (screen, against 560 / 191 / 64) | 557 / 191 / 63 | rejected |
+| … and the cheapest card in the window, near tie or not, past the share (screen, same) | 563 / 192 / 64 | adds flat, rejected |
+| the wipe read's caster-picked power, *run* | 560 / 197 / 66 | **shipped** (read fix, no swap moved) |
+
+Against HEAD: 17 more swaps, 2 more guide-matching cuts (Staff of Compleation in
+Abzan Armor, Siege-Gang Commander in Mardu Surge), 7 more guide-matching adds:
+Ohran Frostfang, Aurelia, the Law Above, Victimize, Insidious Roots, Ripples of
+Undeath, Kellan, Inquisitive Prodigy, Crucible of Worlds, Faerie Mastermind, Muscle
+Sliver, Lotus Bloom, Liquimetal Torque, Boros Charm and Clever Concealment, for
+Firemane Commando, Cyclonic Rift, Likeness Looter, Spellstutter Sprite, Homing
+Sliver and Elemental Bond. Per job: wipe 3 → 2, removal 6 → 7, protection 3 → 4,
+draw 11, ramp 5 → 8, theme 31 → 34.
+
+- **What outranks the guide adds.** Every `find_add` traced at HEAD: of the
+  outranked guide adds, 122 sat on theme pages (91 behind a more-played pick; 17
+  ahead of it but passed over for a cheaper near tie; the rest unaffordable,
+  overshooting a full role, or on a page that picked nothing), 37 on removal
+  pages, 26 ramp, 21 draw, 16 protection, 6 wipes, 24 on a support or filtered
+  page. No card read separates them from the picks. On the theme pages the tune
+  read, a commander pair read (ADR-0042's rows) fires on 8.0% of the guide adds and
+  7.3% of the rest; 31% of the outranked guide adds carry a template role, against
+  28% of the theme picks. The top fifth of a page's synergy holds guide adds at
+  twice the page's rate (0.093 against 0.04), but every synergy-led order has lost
+  in the tune (payoffs first, the blend, E2). What the trace did show is the
+  budget: in the tunes that spent their budget, card-draw upgrades took $436 for two
+  guide adds and protection upgrades $201 for none, against $569 for 24 on theme
+  upgrades (Esper Sentinel, $55, was an add in five precons, Rhystic Study, $68, in
+  three, Deflecting Swat, $71, in two).
+- **The even share** (`swaps.find_add`, `_Purse.share`). What is left over the
+  swaps still open is the share an add may cost without leaving any later add
+  less. The first eligible card within it is the add; past it the budget binds,
+  and the next ten are weighed: the first that fits the share is the add (most
+  played first, and still an upgrade of the cut), else the cheapest near tie, as
+  before. Two effects: an unbound tune no longer trades its most-played pick for
+  a cheaper near tie it never needed (Victimize over Deadly Dispute in Blood Rites,
+  Aurelia over Geode Rager in Blame Game, Muscle Sliver, Boros Charm), and a bound
+  one stops spending half its budget on one staple (Blame Game spends $44 of $169,
+  from $162). Abzan Armor and Tinker Time reach thirty swaps on the money saved,
+  Mardu Surge twenty from sixteen. Fae Dominion loses two guide adds: past the share, Glen Elendra
+  Guardian ($0.37) takes Spellstutter Sprite's ($3.67) slot. Most tunes now end
+  on their cut pool, not their budget.
+- **Variants.** Job adds only (E3, a theme card has no substitute in its window)
+  matched the same adds with five swaps more; one rule for every add is the simpler
+  statement. The guarded Spine fills (ADR-0040's avenue guard) keep their first
+  on-avenue pick: the share there cost Quick Draw's Jeska's Will and Virtue and
+  Valor's Clever Concealment for Fae Dominion's Likeness Looter (one add fewer).
+  Past the share, the cheapest card in the window whether or not it is a near
+  tie matched the same adds with one guide cut more; this task's bar asks adds
+  to rise, so the near tie stays. The share never overrides the on-theme rule:
+  on a theme page every card in the window fits the theme, and card draw's and
+  ramp's order already puts an on-theme near tie first (`JobRead.theme_ties`;
+  the other jobs measured negative on it, backlog (j)), so the share picks
+  among an order the rule has already set.
+  Screened rows differ from a run by a guide add or two (the screen read HEAD as
+  58 adds, the run 59); the shipped rule's gain is the run's.
+- **The wipe read's caster-picked power** (backlog (j)). A size read off a target
+  among the creatures you control (Chandra's Ignition, Waltz of Rage; Nibelheim
+  Aflame, Showstopping Surprise and Nova Flame's "it") or off the creature the
+  sweep has you sacrifice (Rupture: the instruction names no player, so the caster
+  follows it, CR 608.2c, and sacrifices one they control, CR 701.21a) is the
+  caster's pick, read at the kill size (the deck's biggest in a deck), as a
+  cost's object is; the source's own power is its printed power (Jack of Hearts,
+  Volatile Hero), never below 0 (CR 107.1b). Chandra's Ignition reads lethal (it
+  read 2); no tune moved.
+
 ## What is left
 
 `docs/plans/backlog.md`, "What the polymorph tune and the 25-precon audit still

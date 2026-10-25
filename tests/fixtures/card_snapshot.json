@@ -582286,6 +582286,285 @@
     "type_line": "Legendary Planeswalker — Jace"
    }
   },
+  "Jack of Hearts, Volatile Hero": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "ability_tag": {
+        "type": "PowerUp"
+       },
+       "activation_restrictions": [
+        {
+         "type": "OnlyOnce"
+        }
+       ],
+       "condition": null,
+       "cost": {
+        "cost": {
+         "generic": 4,
+         "shards": [
+          "Red",
+          "Red"
+         ],
+         "type": "Cost"
+        },
+        "type": "Mana"
+       },
+       "cost_reduction": {
+        "amount_per": 1,
+        "condition": {
+         "type": "SourceEnteredThisTurn"
+        },
+        "count": {
+         "qty": {
+          "type": "SelfManaValue"
+         },
+         "type": "Ref"
+        }
+       },
+       "description": "Power-up — {4}{R}{R}: Discard your hand, then draw three cards. Put two +1/+1 counters on ~.",
+       "duration": null,
+       "effect": {
+        "count": {
+         "qty": {
+          "player": {
+           "type": "Controller"
+          },
+          "type": "HandSize"
+         },
+         "type": "Ref"
+        },
+        "target": {
+         "type": "Controller"
+        },
+        "type": "Discard"
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "count": {
+          "type": "Fixed",
+          "value": 3
+         },
+         "target": {
+          "type": "Controller"
+         },
+         "type": "Draw"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "count": {
+           "type": "Fixed",
+           "value": 2
+          },
+          "counter_type": "P1P1",
+          "target": {
+           "type": "SelfRef"
+          },
+          "type": "PutCounter"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": null,
+         "sub_link": "SequentialSibling",
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "brawl_commander": true,
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Alien",
+       "Human",
+       "Hero"
+      ],
+      "supertypes": [
+       "Legendary"
+      ]
+     },
+     "color_identity": [
+      "Red"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "is_commander": true,
+     "keywords": [
+      "Flying",
+      "Haste"
+     ],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "Red",
+       "Red"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "7882b42b-d88f-48fe-9b30-cfb338accadb"
+      ]
+     },
+     "name": "Jack of Hearts, Volatile Hero",
+     "non_ability_text": null,
+     "oracle_text": "Flying, haste\nWhen Jack of Hearts dies, he deals damage equal to his power to each creature.\nPower-up — {4}{R}{R}: Discard your hand, then draw three cards. Put two +1/+1 counters on Jack of Hearts. (Activate each power-up ability only once. Reduce the cost by his mana cost if he entered this turn.)",
+     "power": {
+      "type": "Fixed",
+      "value": 2
+     },
+     "printings": [
+      "MSC"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "25b30117-03ef-49a5-8743-2d1c167d4bc3",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 2
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "When ~ dies, he deals damage equal to his power to each creature.",
+       "destination": "Graveyard",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "amount": {
+          "qty": {
+           "scope": {
+            "type": "Source"
+           },
+           "type": "Power"
+          },
+          "type": "Ref"
+         },
+         "target": {
+          "controller": null,
+          "properties": [],
+          "type": "Typed",
+          "type_filters": [
+           "Creature"
+          ]
+         },
+         "type": "DamageAll"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "ChangesZone",
+       "optional": false,
+       "origin": "Battlefield",
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Graveyard"
+       ],
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 3.0,
+    "color_identity": [
+     "R"
+    ],
+    "colors": [
+     "R"
+    ],
+    "keywords": [
+     "Flying",
+     "Haste",
+     "Power-up"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}{R}{R}",
+    "name": "Jack of Hearts, Volatile Hero",
+    "oracle_id": "25b30117-03ef-49a5-8743-2d1c167d4bc3",
+    "oracle_text": "Flying, haste\nWhen Jack of Hearts dies, he deals damage equal to his power to each creature.\nPower-up — {4}{R}{R}: Discard your hand, then draw three cards. Put two +1/+1 counters on Jack of Hearts. (Activate each power-up ability only once. Reduce the cost by his mana cost if he entered this turn.)",
+    "power": "2",
+    "toughness": "2",
+    "type_line": "Legendary Creature — Alien Human Hero"
+   }
+  },
   "Jaddi Lifestrider": {
    "phase_records": [
     {
@@ -618504,6 +618783,188 @@
     "name": "Killing Wave",
     "oracle_id": "69d6b906-5461-4eba-8667-dbb8c0ce3fcb",
     "oracle_text": "For each creature, its controller sacrifices it unless they pay X life.",
+    "type_line": "Sorcery"
+   }
+  },
+  "Kindle the Carnage": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Discard a card at random. If you do, ~ deals damage equal to that card's mana value to each creature. You may repeat this process any number of times.",
+       "duration": null,
+       "effect": {
+        "count": {
+         "type": "Fixed",
+         "value": 1
+        },
+        "random": true,
+        "target": {
+         "type": "Controller"
+        },
+        "type": "Discard"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "repeat_until": {
+        "type": "ControllerChoice"
+       },
+       "sub_ability": {
+        "condition": {
+         "signal": "OptionalEffectPerformed",
+         "type": "EffectOutcome"
+        },
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "amount": {
+          "qty": {
+           "scope": {
+            "type": "Demonstrative"
+           },
+           "type": "ObjectManaValue"
+          },
+          "type": "Ref"
+         },
+         "target": {
+          "controller": null,
+          "properties": [],
+          "type": "Typed",
+          "type_filters": [
+           "Creature"
+          ]
+         },
+         "type": "DamageAll"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "sub_link": "SequentialSibling",
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Sorcery"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Red"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "Red",
+       "Red"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "4b5dfa91-8f93-41b7-95e9-3374550f1617"
+      ]
+     },
+     "name": "Kindle the Carnage",
+     "non_ability_text": null,
+     "oracle_text": "Discard a card at random. If you do, Kindle the Carnage deals damage equal to that card's mana value to each creature. You may repeat this process any number of times.",
+     "power": null,
+     "printings": [
+      "DIS"
+     ],
+     "rarities": [
+      "uncommon"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2006-05-01",
+       "text": "A creature that’s been dealt lethal damage by an iteration of this effect will remain on the battlefield and be dealt more damage by any further iterations. After you stop, all creatures that have been dealt lethal damage are put into their owners’ graveyards at the same time."
+      },
+      {
+       "date": "2006-05-01",
+       "text": "A single regeneration shield is sufficient to save a particular creature, no matter how many instances of damage are on it."
+      },
+      {
+       "date": "2006-05-01",
+       "text": "All the damage has the same source. However, each iteration of this process is a separate instance of damage. An effect that prevents damage the “next time” this card would deal it will prevent damage from only one iteration."
+      },
+      {
+       "date": "2006-05-01",
+       "text": "Any damage prevention or regeneration abilities must be activated before Kindle the Carnage starts resolving in order to have any effect. You can’t wait to see which (if any) cards are discarded."
+      },
+      {
+       "date": "2006-05-01",
+       "text": "You decide whether to repeat the process after each iteration. In other words, you discard a card, see what it is, Kindle the Carnage deals damage, then you decide whether to continue. If so, you discard a card, see what it is, Kindle the Carnage deals damage, then you decide whether to continue, and so on."
+      }
+     ],
+     "scryfall_oracle_id": "6562f141-7f57-4218-b873-f2fc0211e124",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 3.0,
+    "color_identity": [
+     "R"
+    ],
+    "colors": [
+     "R"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}{R}{R}",
+    "name": "Kindle the Carnage",
+    "oracle_id": "6562f141-7f57-4218-b873-f2fc0211e124",
+    "oracle_text": "Discard a card at random. If you do, Kindle the Carnage deals damage equal to that card's mana value to each creature. You may repeat this process any number of times.",
     "type_line": "Sorcery"
    }
   },
@@ -755200,6 +755661,279 @@
     "power": "2",
     "toughness": "1",
     "type_line": "Creature — Rat Rogue // Legendary Creature — Rat Wizard"
+   }
+  },
+  "Nibelheim Aflame": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "declares_chosen_group": 0,
+       "description": "Choose target creature you control. It deals damage equal to its power to each other creature. If this spell was cast from a graveyard, discard your hand and draw four cards.",
+       "duration": null,
+       "effect": {
+        "target": {
+         "controller": "You",
+         "properties": [],
+         "type": "Typed",
+         "type_filters": [
+          "Creature"
+         ]
+        },
+        "type": "TargetOnly"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "amount": {
+          "qty": {
+           "scope": {
+            "type": "Anaphoric"
+           },
+           "type": "Power"
+          },
+          "type": "Ref"
+         },
+         "damage_source": "Target",
+         "target": {
+          "controller": null,
+          "properties": [
+           {
+            "type": "Another"
+           }
+          ],
+          "type": "Typed",
+          "type_filters": [
+           "Creature"
+          ]
+         },
+         "type": "DamageAll"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": {
+          "type": "WasCast",
+          "zone": "Graveyard"
+         },
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "count": {
+           "qty": {
+            "player": {
+             "type": "Controller"
+            },
+            "type": "HandSize"
+           },
+           "type": "Ref"
+          },
+          "target": {
+           "type": "Controller"
+          },
+          "type": "Discard"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": {
+          "condition": null,
+          "cost": null,
+          "description": null,
+          "duration": null,
+          "effect": {
+           "count": {
+            "type": "Fixed",
+            "value": 4
+           },
+           "target": {
+            "type": "Controller"
+           },
+           "type": "Draw"
+          },
+          "forward_result": false,
+          "kind": "Spell",
+          "optional": false,
+          "optional_targeting": false,
+          "sub_ability": null,
+          "target_prompt": null
+         },
+         "sub_link": "SequentialSibling",
+         "target_prompt": null
+        },
+        "sub_link": "SequentialSibling",
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Sorcery"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Red"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [
+      {
+       "Flashback": {
+        "data": {
+         "generic": 5,
+         "shards": [
+          "Red",
+          "Red"
+         ],
+         "type": "Cost"
+        },
+        "type": "Mana"
+       }
+      }
+     ],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "standard": "legal",
+      "standardbrawl": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 2,
+      "shards": [
+       "Red",
+       "Red"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "3d3e926a-74af-4996-849f-d31e0fdedeae",
+       "f6c21de9-7278-4406-8037-afe2c29b271f"
+      ]
+     },
+     "name": "Nibelheim Aflame",
+     "non_ability_text": null,
+     "oracle_text": "Choose target creature you control. It deals damage equal to its power to each other creature. If this spell was cast from a graveyard, discard your hand and draw four cards.\nFlashback {5}{R}{R} (You may cast this card from your graveyard for its flashback cost. Then exile it.)",
+     "power": null,
+     "printings": [
+      "FIN",
+      "PFIN"
+     ],
+     "rarities": [
+      "mythic"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2025-06-06",
+       "text": "\"Flashback [cost]\" means \"You may cast this card from your graveyard if the resulting spell is an instant or sorcery spell by paying [cost] rather than paying its mana cost\" and \"If the flashback cost was paid, exile this card instead of putting it anywhere else any time it would leave the stack.\""
+      },
+      {
+       "date": "2025-06-06",
+       "text": "A spell cast using flashback will always be exiled afterward, whether it resolves, is countered, or leaves the stack in some other way."
+      },
+      {
+       "date": "2025-06-06",
+       "text": "If a card with flashback is put into your graveyard during your turn, you can cast it if it's legal to do so before any other player can take any actions."
+      },
+      {
+       "date": "2025-06-06",
+       "text": "If the target creature is an illegal target as Nibelheim Aflame tries to resolve, it won't resolve and none of its effects will happen. No damage will be dealt, and you won't discard and draw even if you cast Nibelheim Aflame from a graveyard."
+      },
+      {
+       "date": "2025-06-06",
+       "text": "The creature is the source of the damage, not Nibelheim Aflame. For example, Nibelheim Aflame can have a white creature deal damage to a creature with protection from red."
+      },
+      {
+       "date": "2025-06-06",
+       "text": "To determine the total cost of a spell, start with the mana cost or alternative cost (such as a flashback cost) you're paying, add any cost increases, then apply any cost reductions. The mana value of the spell is determined only by its mana cost, no matter what the total cost to cast the spell was."
+      },
+      {
+       "date": "2025-06-06",
+       "text": "Use the power of the target creature as Nibelheim Aflame resolves to determine how much damage it deals to each other creature."
+      },
+      {
+       "date": "2025-06-06",
+       "text": "You can cast a spell using flashback even if it was somehow put into your graveyard without having been cast."
+      },
+      {
+       "date": "2025-06-06",
+       "text": "You must still follow any timing restrictions and permissions, including those based on the card's type. For instance, you can cast a sorcery using flashback only when you could normally cast a sorcery."
+      }
+     ],
+     "scryfall_oracle_id": "eab5eef8-d180-4b08-a770-6b3a1df03745",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 4.0,
+    "color_identity": [
+     "R"
+    ],
+    "colors": [
+     "R"
+    ],
+    "keywords": [
+     "Flashback"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "legal",
+     "standardbrawl": "legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}{R}{R}",
+    "name": "Nibelheim Aflame",
+    "oracle_id": "eab5eef8-d180-4b08-a770-6b3a1df03745",
+    "oracle_text": "Choose target creature you control. It deals damage equal to its power to each other creature. If this spell was cast from a graveyard, discard your hand and draw four cards.\nFlashback {5}{R}{R} (You may cast this card from your graveyard for its flashback cost. Then exile it.)",
+    "type_line": "Sorcery"
    }
   },
   "Niblis of Frost": {
@@ -896749,6 +897483,174 @@
     "oracle_id": "14cefb15-d833-4c70-80c9-f2d34b6c846b",
     "oracle_text": "As this enchantment enters, choose a card name.\nYou have protection from the chosen card name. (You can't be targeted, dealt damage, or enchanted by anything with that name.)",
     "type_line": "Enchantment"
+   }
+  },
+  "Rupture": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Sacrifice a creature. ~ deals damage equal to that creature's power to each creature without flying and each player.",
+       "duration": null,
+       "effect": {
+        "count": {
+         "type": "Fixed",
+         "value": 1
+        },
+        "target": {
+         "controller": null,
+         "properties": [],
+         "type": "Typed",
+         "type_filters": [
+          "Creature"
+         ]
+        },
+        "type": "Sacrifice"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "amount": {
+          "qty": {
+           "scope": {
+            "type": "Demonstrative"
+           },
+           "type": "Power"
+          },
+          "type": "Ref"
+         },
+         "player_filter": {
+          "type": "All"
+         },
+         "target": {
+          "controller": null,
+          "properties": [
+           {
+            "type": "WithoutKeyword",
+            "value": "Flying"
+           }
+          ],
+          "type": "Typed",
+          "type_filters": [
+           "Creature"
+          ]
+         },
+         "type": "DamageAll"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "sub_link": "SequentialSibling",
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Sorcery"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Red"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "premodern": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 2,
+      "shards": [
+       "Red"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "6f3becdf-4019-43a4-999b-15b83fe53b8e",
+       "db53c1fb-3641-44a3-b0b4-b7b2ba993646"
+      ]
+     },
+     "name": "Rupture",
+     "non_ability_text": null,
+     "oracle_text": "Sacrifice a creature. Rupture deals damage equal to that creature's power to each creature without flying and each player.",
+     "power": null,
+     "printings": [
+      "NEM",
+      "PLST",
+      "PRM"
+     ],
+     "rarities": [
+      "uncommon"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "d2179a54-4b45-4b67-a31c-aa1a7bcfda2c",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 3.0,
+    "color_identity": [
+     "R"
+    ],
+    "colors": [
+     "R"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}{R}",
+    "name": "Rupture",
+    "oracle_id": "d2179a54-4b45-4b67-a31c-aa1a7bcfda2c",
+    "oracle_text": "Sacrifice a creature. Rupture deals damage equal to that creature's power to each creature without flying and each player.",
+    "type_line": "Sorcery"
    }
   },
   "Ruric Thar, the Unbowed": {
@@ -1082296,6 +1083198,187 @@
     "power": "2",
     "toughness": "4",
     "type_line": "Legendary Creature — Human Advisor"
+   }
+  },
+  "Too Greedily, Too Deep": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Put target creature card from a graveyard onto the battlefield under your control. That creature deals damage equal to its power to each other creature.",
+       "duration": null,
+       "effect": {
+        "destination": "Battlefield",
+        "enter_tapped": false,
+        "enter_transformed": false,
+        "enters_attacking": false,
+        "enters_under": "You",
+        "origin": "Graveyard",
+        "owner_library": false,
+        "target": {
+         "controller": null,
+         "properties": [
+          {
+           "type": "InZone",
+           "zone": "Graveyard"
+          }
+         ],
+         "type": "Typed",
+         "type_filters": [
+          "Creature"
+         ]
+        },
+        "type": "ChangeZone"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "amount": {
+          "qty": {
+           "scope": {
+            "type": "Anaphoric"
+           },
+           "type": "Power"
+          },
+          "type": "Ref"
+         },
+         "damage_source": "Target",
+         "target": {
+          "controller": null,
+          "properties": [
+           {
+            "type": "Another"
+           }
+          ],
+          "type": "Typed",
+          "type_filters": [
+           "Creature"
+          ]
+         },
+         "type": "DamageAll"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "sub_link": "SequentialSibling",
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Sorcery"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Black",
+      "Red"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 5,
+      "shards": [
+       "Black",
+       "Red"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "328b93f0-5078-4334-9c95-60ecdd17a388",
+       "4a8e2312-1a17-4f7b-bd9a-c510a4cf127b",
+       "595c37f7-2f5e-4055-ae85-3ad4e2c8cb5c"
+      ]
+     },
+     "name": "Too Greedily, Too Deep",
+     "non_ability_text": null,
+     "oracle_text": "Put target creature card from a graveyard onto the battlefield under your control. That creature deals damage equal to its power to each other creature.",
+     "power": null,
+     "printings": [
+      "LTC"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2023-06-16",
+       "text": "If the card you return to the battlefield isn't a creature on the battlefield, it has no power and therefore deals no damage."
+      }
+     ],
+     "scryfall_oracle_id": "af65bbf9-e328-4b8b-8caa-c6dff743867b",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 7.0,
+    "color_identity": [
+     "B",
+     "R"
+    ],
+    "colors": [
+     "B",
+     "R"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{5}{B}{R}",
+    "name": "Too Greedily, Too Deep",
+    "oracle_id": "af65bbf9-e328-4b8b-8caa-c6dff743867b",
+    "oracle_text": "Put target creature card from a graveyard onto the battlefield under your control. That creature deals damage equal to its power to each other creature.",
+    "type_line": "Sorcery"
    }
   },
   "Topan Freeblade": {

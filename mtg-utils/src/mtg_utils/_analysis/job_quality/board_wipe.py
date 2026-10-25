@@ -63,13 +63,23 @@ deck built on it holds (Olivia's Wrath's Vampires, Gates Ablaze's Gates) and
 the size of a sacrificed creature off the deck itself (:func:`_deck_magnitude`),
 the sweep killing in proportion: Olivia's Wrath reads 0.32 in Blood Rites
 (0.15 deck-free), Gates Ablaze -0.08, 0.02 and 0.14 among 3, 8 and 15 Gates.
+The caster picks the object a size reads off when it is a target among the
+creatures they control (Chandra's Ignition and Waltz of Rage, "Target creature
+you control deals damage equal to its power"; Nibelheim Aflame, Showstopping
+Surprise and Nova Flame's "it") or the creature they sacrifice in the sweep's
+own instructions (Rupture, CR 608.2c / 701.21a), so it reads as a cost's object
+does. A size of the source itself reads its printed one (Jack of Hearts,
+Volatile Hero's dying power; the effect uses his last known power, CR 608.2h,
+which the read takes at the card's own, its own call), a negative power reading
+0 (CR 107.1b).
 
 Left unread (none a guide add or a pick of the 25-precon tune): an exile of
 each permanent sharing a name (Eye of Singularity); a blocked-by slice phase
 drops (Glyph of Reincarnation); a pitch or a discarded X counts a card as
 one mana, so Sunscour's two white cards read as a two-mana Wrath (no
-card-disadvantage feature); and a power read off a target you control or the
-source itself (Chandra's Ignition, Rupture, Jack of Hearts) reads narrow.
+card-disadvantage feature); and a size read off a card the caster takes from a
+graveyard (Volcanic Vision's instant or sorcery, Too Greedily, Too Deep's
+creature card from any graveyard) reads narrow.
 """
 
 from __future__ import annotations
@@ -89,6 +99,7 @@ from mtg_utils._analysis.job_quality._common import (
     unit_kind,
     unpriced,
 )
+from mtg_utils._analysis.lanes._shared import sacrifice_actor_scope
 from mtg_utils._analysis.lanes.mana_and_wipes import (
     mass_bounce_effects,
     mass_removal_effects,
@@ -126,6 +137,7 @@ from mtg_utils._card_ir.crosswalk import (
     static_affected,
     static_mode_tag,
     tag_of,
+    targets_own_creature,
 )
 from mtg_utils._card_ir.trees import fixed_stat, object_facts, phase_records_for
 
@@ -324,7 +336,9 @@ def _amount_qty(node: TypedMirrorNode, field: str) -> object | None:
     )
 
 
-def _scale(node: TypedMirrorNode, field: str, unit: AbilityUnit) -> int:
+def _scale(
+    node: TypedMirrorNode, field: str, unit: AbilityUnit, own_power: int | None
+) -> int:
     """A non-fixed amount on ``node.field`` (a damage amount, a shrink's
     toughness), read by what it counts: ``_SCALING`` for an X the caster sizes,
     a count of the board's creatures (Chain Reaction), a count the deck fills
@@ -332,7 +346,10 @@ def _scale(node: TypedMirrorNode, field: str, unit: AbilityUnit) -> int:
     (:func:`_tracked_set_fills`); ``_NARROW_COUNT`` for a bounded count
     (:data:`_BOUNDED`), a count of anything narrower, or a set the unit's other
     effects make of any player's cards; ``KILL_SIZE`` for a size of one of the
-    caster's own objects (:func:`_own_size`). Anything else reads narrow."""
+    caster's own objects (:func:`_own_size`); the source's own power, its printed
+    ``own_power``, a negative one reading 0 (CR 107.1b: "If a calculation that
+    would determine the result of an effect yields a negative number, zero is
+    used instead"). Anything else reads narrow."""
     amount = getattr(node, field, None)
     if tag_of(amount) == "Variable":
         return _SCALING
@@ -349,8 +366,10 @@ def _scale(node: TypedMirrorNode, field: str, unit: AbilityUnit) -> int:
         return _SCALING if creatures else _NARROW_COUNT
     if tag == "FilteredTrackedSetSize":
         return _SCALING if _tracked_set_fills(node, unit) else _NARROW_COUNT
-    if _own_size(qty) is not None:
+    if _own_size(qty, unit) is not None:
         return KILL_SIZE
+    if tag == "Power" and _size_scope(qty) == "Source" and own_power is not None:
+        return max(own_power, 0)
     return _NARROW_COUNT
 
 
@@ -373,19 +392,47 @@ _MOVES = frozenset({"change_zone", "destroy", "sacrifice", "discard", "mill"})
 _OBJECT_SIZES = {"Power": "power", "Toughness": "toughness", "ObjectManaValue": "cmc"}
 
 
-def _own_size(qty: object) -> str | None:
+def _size_scope(qty: object) -> str | None:
+    """The object a size quantity reads off (phase's ``scope`` tag)."""
+    return tag_of(getattr(qty, "scope", None))
+
+
+def _picked_by_caster(qty: object, unit: AbilityUnit) -> bool:
+    """Whether the caster picks the object a size quantity reads off: one paid as
+    a cost; a target among the creatures they control, or "it" back to one
+    (Chandra's Ignition's "Target creature you control deals damage equal to its
+    power", Nibelheim Aflame's "Choose target creature you control. It deals
+    damage equal to its power", Nova Flame) — the target is chosen as the spell
+    is put on the stack (CR 115.1) and its power read as it resolves (Chandra's
+    Ignition's ruling); or "that creature" a sacrifice in the sweep's own
+    instructions takes (Rupture's "Sacrifice a creature"): the instruction names
+    no player, so the spell's controller follows it (CR 608.2c) and sacrifices one
+    they control (CR 701.21a)."""
+    scope = _size_scope(qty)
+    if scope == "CostPaidObject":
+        return True
+    if scope in ("Target", "Anaphoric"):
+        return any(targets_own_creature(c.node, unit) for c in unit.effects)
+    if scope == "Demonstrative":
+        return any(
+            c.concept == "sacrifice" and sacrifice_actor_scope(unit, c.node) is None
+            for c in unit.effects
+        )
+    return False
+
+
+def _own_size(qty: object, unit: AbilityUnit) -> str | None:
     """The size (``power`` / ``toughness`` / ``cmc``) a quantity reads off the
-    caster's own objects, else ``None``: an object paid as a cost (Ichor
-    Explosion's sacrificed creature, Corpse Explosion's exiled creature card,
-    Disaster Radius's revealed one), which the caster picks, or the greatest
-    mana value among the commanders you own, on the battlefield or in the
-    command zone (Cloudkill). A deck-free read takes it at ``KILL_SIZE``, the size
-    the reads take a Commander board's creatures at — the read's own call; a
-    deck reads a cost's object at its own biggest (:func:`_deck_magnitude`)."""
+    caster's own objects, else ``None``: an object the caster picks
+    (:func:`_picked_by_caster` — a cost's, Ichor Explosion's sacrificed creature,
+    Corpse Explosion's exiled creature card, Disaster Radius's revealed one; a
+    target creature you control; a creature the sweep has you sacrifice), or the
+    greatest mana value among the commanders you own, on the battlefield or in
+    the command zone (Cloudkill). A deck-free read takes it at ``KILL_SIZE``, the
+    size the reads take a Commander board's creatures at — the read's own call;
+    a deck reads it at its own biggest (:func:`_deck_magnitude`)."""
     tag = tag_of(qty)
-    if tag in _OBJECT_SIZES and tag_of(getattr(qty, "scope", None)) == (
-        "CostPaidObject"
-    ):
+    if tag in _OBJECT_SIZES and _picked_by_caster(qty, unit):
         return _OBJECT_SIZES[tag]
     if tag == "PropertyAggregate" and getattr(qty, "property", None) == "ManaValue":
         filt = getattr(getattr(qty, "source", None), "filter", None)
@@ -404,10 +451,10 @@ def _built_around(qty: object) -> bool:
     return bool(subtypes - set(BASIC_LAND_TYPE_COLORS))
 
 
-def _deck_amount(c: ConceptNode) -> object | None:
+def _deck_amount(c: ConceptNode, unit: AbilityUnit) -> object | None:
     """The quantity of a sweep amount its deck decides, else ``None``: a count of
     a type only a deck built on it holds (:func:`_built_around`), or a size of
-    one of the caster's own objects paid as a cost (:func:`_own_size`). A deck's
+    one of the caster's own objects (:func:`_own_size`). A deck's
     records don't say which is its commander, so Cloudkill's commander's mana
     value stays the deck-free read's."""
     field = _AMOUNT_FIELDS.get(tag_of(c.node) or "")
@@ -416,18 +463,20 @@ def _deck_amount(c: ConceptNode) -> object | None:
     qty = _amount_qty(c.node, field)
     if tag_of(qty) in _FILLED and quantity_scope(qty) == "you" and _built_around(qty):
         return qty
-    return qty if tag_of(qty) in _OBJECT_SIZES and _own_size(qty) else None
+    return (
+        qty if tag_of(qty) in _OBJECT_SIZES and _picked_by_caster(qty, unit) else None
+    )
 
 
-def _magnitude(c: ConceptNode, u: AbilityUnit) -> int | None:
+def _magnitude(c: ConceptNode, u: AbilityUnit, own_power: int | None) -> int | None:
     """A damage sweep's damage or a shrink's toughness loss: its fixed number,
-    else :func:`_scale`."""
+    else :func:`_scale` (``own_power``: the card's printed power)."""
     field = _AMOUNT_FIELDS.get(tag_of(c.node) or "")
     if field is None:
         return None
     v = fixed_value(getattr(c.node, field, None))
     if v is None:
-        return _scale(c.node, field, u)
+        return _scale(c.node, field, u, own_power)
     return -v if field == "toughness" else v
 
 
@@ -702,7 +751,7 @@ def _tree_sweeps(tree: ConceptTree, *, walker: bool) -> list[_Sweep]:
                 ctrl = "TargetPlayer"
             non = set(filter_non_types(filt))
             types = (cores | (_SWEPT if "Permanent" in cores else set())) & _SWEPT
-            mag = _magnitude(c, u)
+            mag = _magnitude(c, u, tree.power)
             if chain and tag == "PumpAll" and id(c.node) not in delayed:
                 mag = _SCALING
             # An activation that taps or sacrifices nothing repeats for mana:
@@ -744,7 +793,7 @@ def _tree_sweeps(tree: ConceptTree, *, walker: bool) -> list[_Sweep]:
                     x_cards=x_cards,
                     drawback=drawback,
                     refills=refills,
-                    amount=_deck_amount(c),
+                    amount=_deck_amount(c, u),
                 )
             )
     return out
@@ -1047,7 +1096,8 @@ def _deck_magnitude(s: _Sweep, deck: Sequence[dict]) -> float | None:
     as the creatures it casts a wipe into. Blood Rites' 36 Vampires of 100 read
     2.88; fifteen Gates, 1.2."""
     board = _board(deck)
-    size = _own_size(s.amount)
+    # ``_deck_amount`` keeps a size only when the caster's own object decides it.
+    size = _OBJECT_SIZES.get(tag_of(s.amount) or "")
     if size is not None:
         values = [
             v

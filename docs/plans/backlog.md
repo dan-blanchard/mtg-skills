@@ -128,22 +128,41 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   fitted on main-job removal and only gates). Theme fit as a tie lost for removal,
   wipes and protection. Protection goes unsearched in 18 guide adds' decks because
   ADR-0024 asks for it only from a combo or control deck or a voltron plan; a
-  target of 5 or 3 for every shape matched fewer adds. Open, small: a power read
-  off a target you control or the source itself (Chandra's Ignition, Rupture, Jack
-  of Hearts) reads narrow, though the caster picks their biggest.
+  target of 5 or 3 for every shape matched fewer adds. Left narrow, none a guide
+  card: a size off a card the caster takes from a graveyard (Volcanic Vision, Too
+  Greedily, Too Deep) or off a random discard (Kindle the Carnage).
+  Open, small: "which object a size reads off" (`Target` / `Anaphoric` /
+  `Demonstrative` / `Source` on a `Ref(Power…)`) is answered in
+  `board_wipe._picked_by_caster` by asking whether the unit targets a creature
+  you control, not by resolving the referent; `lanes/triggers_damage.py` asks
+  a near question by text (`_POWER_ITS_OWN_DOER`, "deals damage equal to its
+  power"). A crosswalk `quantity_referent(qty, unit)` would serve both;
+  resolving the referent changes reads, so it wants a precon rerun.
   (m) **Recall** (`precon-audit/misses.py`, at the largest guide's thirty
   swaps and each precon's own guides' budget, `budgets.json`, Spellbook cached):
-  195 of 408 cuttable guide cuts, 59 of 610 in-scope guide adds, 543 swaps
-  (2026-10-25; 196 cuts before Forensic Gadgeteer read as an activation-cost
-  enabler, (o): Deep Clue Sea now cuts Chulane's extra ramp for it and keeps
-  Hornet Queen; 61 adds before Ancestral Mask read as a carer, (r); 195 / 61, 542
-  swaps at 04925758; 180 / 57 before the near-tie
-  budget rule, 169 / 56 at 9e0026ed). The levers by size at the shipped tune: adds
-  a page held but outranked (244), theme adds no search reaches (169, (r)), cuts the popularity threshold still shields (62),
-  commander-lane cards the guides trim (57), and cuts a budget-bound tune never
-  reaches (27, from 43). Measured negative, so don't re-suggest without a new
-  read: theme adds serving two viable avenues first (46 adds), and theme adds by
-  a synergy / play-rate blend (53).
+  197 of 408 cuttable guide cuts, 66 of 610 in-scope guide adds, 560 swaps
+  (2026-10-25, the even share; 195 / 59, 543 swaps before it; 180 / 57 before the
+  near-tie budget rule, 169 / 56 at 9e0026ed). The levers by size at the shipped
+  tune: adds a page held but outranked (287 — the gate reasons fell, since a pick
+  inside the share stops the scan before the gates see the rest), theme adds no
+  search reaches (164, (r)), cuts the popularity threshold still shields (61),
+  commander-lane cards the guides trim (57), and cuts a tune never reaches (26).
+  Most tunes now end on their cut pool, not their budget (Animated Army, Sliver
+  Swarm 15 swaps; Blame Game spends $44 of $169). The outranked adds, by what beat
+  them (`find_add` traced, 2026-10-25, before the even share): theme pages 122 (91
+  behind a more-played pick, 17 ahead of it but passed over for a cheaper near
+  tie, 8 on a page that picked nothing), removal 37, ramp 26, draw 21, protection
+  16, wipes 6. No card read separates them from the picks: a commander pair read
+  (ADR-0042's rows) fires on 8.0% of the theme pages' guide adds and 7.3% of the
+  rest, a template role on 31% of the outranked guide adds and 28% of the theme
+  picks; the top fifth of a page's synergy holds guide adds at twice the rate,
+  which the synergy orderings below already lost on. Measured negative, so don't
+  re-suggest without a new read: theme adds serving two viable avenues first (46
+  adds), theme adds by a synergy / play-rate blend (53), and, against the even
+  share's experiments (the audit's "The budget's even share"): a theme page's near
+  tie to the better fit where the budget doesn't bind (58), the even share on the
+  guarded Spine fills (one add fewer), and the cheapest card in the window, near
+  tie or not, past the share (adds flat, one cut more).
   Six guide summaries don't tag sources per row (`guide_sizes.py` skips them).
   (r) **Theme reach, what's left** (2026-10-25; the experiment table is in
   `docs/plans/precon-audit-2026-10-18.md`, "Theme reach"). 164 theme guide adds
@@ -156,9 +175,12 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
     counts, but the page doesn't hold them; Altar of Dementia, Diabolic Intent,
     Razaketh and Dictate of Erebos are on it, outranked;
   - four guide adds serve only a sub (Living Energy's Arcum Dagsson, Clever
-    Impersonator, Scrap Welder; Deep Clue Sea's Displaced Dinosaurs);
-  - no read separates an Aura deck's gear from Equipment (Ellivere's lane is
-    enchanted creatures; Equipment makes none).
+    Impersonator, Scrap Welder; Deep Clue Sea's Displaced Dinosaurs).
+  An Aura deck's gear apart from Equipment (Ellivere counts enchanted creatures;
+  an Aura makes one, CR 303.4b; Equipment an "equipped" one, 301.5a) was
+  simulated before building the read: Auras only on Virtue and Valor's suit-up
+  page took Sram and lost Swiftfoot Boots and Lightning Greaves, the guide adds
+  that page makes (one add fewer) — don't build it without a new read.
   Measured deltas: a granted "When this creature dies, <payoff>" read as
   `death_matters|you` alone moved no swap (543 / 195 / 60); a held lane as deep
   as a main never folding into a held tribe added Blood Rites' Skullclamp (544 /
