@@ -1064,7 +1064,8 @@ the lead off and on.
 |---|---|---|---|
 | HEAD (a825a59c) | 543 / 196 / 61 | 6.1 · 1.58 | |
 | S the speed levers (on HEAD) | 543 / 196 / 61 | 4.7 · 1.25 | **shipped**: all 25 results byte-identical |
-| W S + the wipe read's amounts | 543 / 196 / 61 | 4.4 · 1.23 | **shipped** (read fixes): all 25 byte-identical |
+| W S + the wipe read's amounts | 543 / 196 / 61 | 4.4 · 1.23 | read fixes: all 25 byte-identical |
+| W2 W with the deck's count in proportion (review fixes) | 543 / 196 / 61 | 4.9 · 2.03 | **shipped** (read fixes): all 25 byte-identical; the run rebuilt the signals index and the phase-records sidecar |
 | L W + the deck-fit lead, four tribal precons (off → on) | 77 / 23 / 18 → 73 / 23 / 16 | | rejected |
 
 - **The deck-fit read (L).** What a sweep leaves of the deck's own permanents, read off
@@ -1087,15 +1088,22 @@ the lead off and on.
   wipe upgrade is already a guide add (Vanquish the Horde, Blasphemous Act). Rejected,
   and the read with it.
 - **The wipe read's amounts (W).** No wrapper decides an amount that counts nothing.
-  The size of the caster's own object paid as a cost reads at the kill size (Ichor
-  Explosion's sacrificed creature, its ruling; Corpse Explosion's exiled card, now a
-  lethal sweep; Cloudkill's commander), a "this way" set of the caster's own cards
-  scales (Specter of Mortality's exiled creature cards) and one taken from the other
-  players stays narrow (Volcanic Eruption's Mountains). In a deck
-  (`JobRead.deck_features`), a count of a type only a deck built on it holds reads
-  off the deck: Olivia's Wrath in Blood Rites' 36 Vampires is a lethal sweep (0.15 to
-  0.39), Gates Ablaze among eight Gates; a sacrificed creature's size is the deck's
-  biggest. No tune changed.
+  The size of an object of the caster's own reads at the kill size: one paid as a
+  cost (Ichor Explosion's sacrificed creature, its ruling; Corpse Explosion's exiled
+  card, now a lethal sweep) or the greatest mana value of a commander you own
+  (Cloudkill). A "this way" set of the caster's own cards scales (Specter of
+  Mortality's creature cards exiled from your graveyard); any other stays narrow
+  (Volcanic Eruption's "Destroy X target Mountains" may take anyone's, yours too,
+  but nothing makes them yours and X caps them). In a deck (`JobRead.in_deck`), a
+  count of a type only a deck built on it holds is what the deck has out: its share
+  of the deck's cards over a board of eight of its own permanents, the sweep killing
+  in proportion to the kill size, so the read rises smoothly with the count. Olivia's
+  Wrath in Blood Rites (36 Vampires of 100: 2.88 out) reads 0.32, from 0.15; Gates
+  Ablaze -0.13 with no Gates, -0.08 with 3, 0.02 with 8, 0.14 with 15. A sacrificed
+  creature's size is the deck's biggest, a negative power kept (Loot, the Anomaly's
+  -2). The first cut (a count of eight or more read as a full sweep) jumped from
+  -0.13 to 0.78 between seven Gates and eight. An amount drawn from a negative power
+  is 0 (CR 107.1b). No tune changed.
 - **Speed (S).** A Blood Rites tune profiled at 7.9 s, now 5.6. Each candidate's ranking
   readout is computed once per tune (`rank_candidates`' `scores`: 1,591 readouts for
   1,027 cards before), `deck-tune` seeds the signals index before the deck is read (the

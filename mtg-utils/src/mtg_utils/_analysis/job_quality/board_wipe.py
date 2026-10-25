@@ -52,14 +52,17 @@ wiped players create are theirs (CR 111.2), no rider and no clean sweep (March
 of Souls, The Phasing of Zhalfir, Mogg Infestation).
 
 Read since 2026-10-25: an amount that is no count reads by what its rules text
-names, never by phase's wrapper — the size of the caster's own object paid as a
-cost (Ichor Explosion's sacrificed creature, Corpse Explosion's exiled one,
-Cloudkill's commander's mana value) at ``KILL_SIZE``, a "this way" set of the
-caster's own cards (Specter of Mortality's exiled creature cards) scaling, one
-taken from the other players (Volcanic Eruption's Mountains) narrow. Given its
-deck (``JobRead.deck_features``), the read takes a count of a type only a deck
-built on it holds (Olivia's Wrath's Vampires, Gates Ablaze's Gates) and the
-size of a sacrificed creature off the deck itself (:func:`_deck_magnitude`).
+names, never by phase's wrapper — the size of an object of the caster's own at
+``KILL_SIZE`` (one paid as a cost: Ichor Explosion's sacrificed creature,
+Corpse Explosion's exiled one; Cloudkill's greatest mana value of a commander
+you own), a "this way" set of the caster's own cards scaling (Specter of
+Mortality's creature cards exiled from your graveyard), and any other narrow
+(Volcanic Eruption's "Destroy X target Mountains", anyone's, capped by X).
+Given its deck (``JobRead.in_deck``), the read takes a count of a type only a
+deck built on it holds (Olivia's Wrath's Vampires, Gates Ablaze's Gates) and
+the size of a sacrificed creature off the deck itself (:func:`_deck_magnitude`),
+the sweep killing in proportion: Olivia's Wrath reads 0.32 in Blood Rites
+(0.15 deck-free), Gates Ablaze -0.08, 0.02 and 0.14 among 3, 8 and 15 Gates.
 
 Left unread (none a guide add or a pick of the 25-precon tune): an exile of
 each permanent sharing a name (Eye of Singularity); a blocked-by slice phase
@@ -92,7 +95,7 @@ from mtg_utils._analysis.lanes.mana_and_wipes import (
     mass_shrink_effects,
     static_population_shrinks,
 )
-from mtg_utils._analysis.signal_trees import signal_trees_for
+from mtg_utils._analysis.signal_trees import derived_memo, signal_trees_for
 from mtg_utils._analysis.write_back import MISSING
 from mtg_utils._card_ir.crosswalk import (
     _DIRECTED_PLAYER_TAGS,
@@ -124,7 +127,7 @@ from mtg_utils._card_ir.crosswalk import (
     static_mode_tag,
     tag_of,
 )
-from mtg_utils._card_ir.trees import object_facts, phase_records_for
+from mtg_utils._card_ir.trees import fixed_stat, object_facts, phase_records_for
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -302,6 +305,16 @@ class _Sweep:
     amount: object = field(default=None, compare=False, repr=False)
 
 
+#: The field a sweep effect's size sits on: a damage amount, a shrink's
+#: toughness.
+_AMOUNT_FIELDS = {
+    "DamageAll": "amount",
+    "DealDamage": "amount",
+    "PumpAll": "toughness",
+    "Pump": "toughness",
+}
+
+
 def _amount_qty(node: TypedMirrorNode, field: str) -> object | None:
     """The quantity under a non-fixed amount on ``node.field``, through phase's
     ``Quantity`` / ``Multiply`` / ``Offset`` wrappers (a shrink's ``Multiply(-1,
@@ -317,9 +330,9 @@ def _scale(node: TypedMirrorNode, field: str, unit: AbilityUnit) -> int:
     a count of the board's creatures (Chain Reaction), a count the deck fills
     (:data:`_FILLED`) or a set of the caster's own cards the unit moves
     (:func:`_tracked_set_fills`); ``_NARROW_COUNT`` for a bounded count
-    (:data:`_BOUNDED`), a count of anything narrower, or a set the unit took from
-    the other players; ``KILL_SIZE`` for a size of one of the caster's own
-    objects (:func:`_own_size`). Anything else reads narrow."""
+    (:data:`_BOUNDED`), a count of anything narrower, or a set the unit's other
+    effects make of any player's cards; ``KILL_SIZE`` for a size of one of the
+    caster's own objects (:func:`_own_size`). Anything else reads narrow."""
     amount = getattr(node, field, None)
     if tag_of(amount) == "Variable":
         return _SCALING
@@ -345,8 +358,9 @@ def _tracked_set_fills(node: TypedMirrorNode, unit: AbilityUnit) -> bool:
     """Whether a "this way" set the amount counts is the caster's own cards: the
     unit's other effect that fills it moves cards of yours (Specter of
     Mortality's "exile one or more creature cards from your graveyard", as many
-    as the deck's graveyard holds), not the other players' (Volcanic Eruption's
-    Mountains destroyed, as many as the X targets reach among theirs)."""
+    as the deck's graveyard holds). Volcanic Eruption's "Destroy X target
+    Mountains" can take anyone's, yours too, but no scope makes them yours and
+    X and the Mountains on the battlefield cap them, so its set reads narrow."""
     return any(
         c.node is not node and c.concept in _MOVES and c.scope == "you"
         for c in unit.effects
@@ -360,13 +374,14 @@ _OBJECT_SIZES = {"Power": "power", "Toughness": "toughness", "ObjectManaValue": 
 
 
 def _own_size(qty: object) -> str | None:
-    """The record field (``power`` / ``toughness`` / ``cmc``) of a size read off
-    one of the caster's own objects, else ``None``: the object paid as a cost
-    (Ichor Explosion's sacrificed creature, Corpse Explosion's exiled creature
-    card, Disaster Radius's revealed one), or the greatest mana value among the
-    commanders you own (Cloudkill). The caster picks it, so a deck reads it at
-    its own biggest; a deck-free read at ``KILL_SIZE``, the size the reads take
-    a Commander board's creatures at — the read's own call."""
+    """The size (``power`` / ``toughness`` / ``cmc``) a quantity reads off the
+    caster's own objects, else ``None``: an object paid as a cost (Ichor
+    Explosion's sacrificed creature, Corpse Explosion's exiled creature card,
+    Disaster Radius's revealed one), which the caster picks, or the greatest
+    mana value among the commanders you own, on the battlefield or in the
+    command zone (Cloudkill). A deck-free read takes it at ``KILL_SIZE``, the size
+    the reads take a Commander board's creatures at — the read's own call; a
+    deck reads a cost's object at its own biggest (:func:`_deck_magnitude`)."""
     tag = tag_of(qty)
     if tag in _OBJECT_SIZES and tag_of(getattr(qty, "scope", None)) == (
         "CostPaidObject"
@@ -395,12 +410,7 @@ def _deck_amount(c: ConceptNode) -> object | None:
     one of the caster's own objects paid as a cost (:func:`_own_size`). A deck's
     records don't say which is its commander, so Cloudkill's commander's mana
     value stays the deck-free read's."""
-    field = {
-        "DamageAll": "amount",
-        "DealDamage": "amount",
-        "PumpAll": "toughness",
-        "Pump": "toughness",
-    }.get(tag_of(c.node) or "")
+    field = _AMOUNT_FIELDS.get(tag_of(c.node) or "")
     if field is None or fixed_value(getattr(c.node, field, None)) is not None:
         return None
     qty = _amount_qty(c.node, field)
@@ -410,14 +420,15 @@ def _deck_amount(c: ConceptNode) -> object | None:
 
 
 def _magnitude(c: ConceptNode, u: AbilityUnit) -> int | None:
-    tag = tag_of(c.node)
-    if tag in ("DamageAll", "DealDamage"):
-        v = fixed_value(getattr(c.node, "amount", None))
-        return v if v is not None else _scale(c.node, "amount", u)
-    if tag in ("PumpAll", "Pump"):
-        v = fixed_value(getattr(c.node, "toughness", None))
-        return -v if v is not None else _scale(c.node, "toughness", u)
-    return None
+    """A damage sweep's damage or a shrink's toughness loss: its fixed number,
+    else :func:`_scale`."""
+    field = _AMOUNT_FIELDS.get(tag_of(c.node) or "")
+    if field is None:
+        return None
+    v = fixed_value(getattr(c.node, field, None))
+    if v is None:
+        return _scale(c.node, field, u)
+    return -v if field == "toughness" else v
 
 
 def _mode(c: ConceptNode) -> str:
@@ -787,7 +798,7 @@ def _static_sweep(shrinks: Sequence[tuple[AbilityUnit, object]]) -> _Sweep:
 
 #: oracle_id -> its sweeps, for the deck read, which asks again for a card the
 #: deck-free score already read. Bounded: the oldest entry goes first.
-_SWEEPS_MEMO: dict[str, list[_Sweep]] = {}
+_SWEEPS_MEMO: dict[str, list[_Sweep]] = derived_memo()
 _SWEEPS_MEMO_MAX = 4096
 
 
@@ -937,7 +948,10 @@ def _best(sweeps: Sequence[_Sweep]) -> _Sweep:
 def features(card: dict, deck: Sequence[dict] | None = None) -> dict[str, float] | None:
     """The board-wipe read's features for ``card``, or ``None`` when it has no
     sweep of its own. Given ``deck`` (its cards' records), an amount the deck
-    decides (:func:`_deck_amount`) is read off it (:func:`_deck_magnitude`)."""
+    decides (:func:`_deck_amount`) is read off it (:func:`_deck_magnitude`), and
+    a damage or shrink of that size kills in proportion to ``KILL_SIZE`` (its
+    ``lethal``, ``small`` and ``clean`` shares), so the read rises smoothly with
+    what the deck holds — the read's own call."""
     sweeps = _sweeps(card)
     if not sweeps:
         return None
@@ -946,13 +960,16 @@ def features(card: dict, deck: Sequence[dict] | None = None) -> dict[str, float]
     best = _best(sweeps)
     x = "{X}" in front_mana_cost(card) or best.x_cards
     cost = _cost(card, best, x=x)
-    lethal = _lethal(best)
+    sized = best.mode in ("damage", "shrink")
+    if deck is not None and best.amount is not None and sized:
+        kill = min(max(best.mag or 0.0, 0.0) / KILL_SIZE, 1.0)
+    else:
+        kill = float(_lethal(best))
     creatures = "Creature" in best.types
     # A sweep on demand: one the card is cast or activated for, not one an
     # event elsewhere fires (Sarkhan's Unsealing's power-7 cast trigger).
-    clean = (
+    clean = kill * (
         best.kind in _PRIMARY
-        and lethal
         and creatures
         and not best.preds & (_NARROW | _SIZED | _SPARES)
         and not best.spares
@@ -963,19 +980,17 @@ def features(card: dict, deck: Sequence[dict] | None = None) -> dict[str, float]
     return {
         "creatures": float(creatures),
         "breadth": float(len(best.types)),
-        "lethal": float(lethal),
+        "lethal": kill,
         "bounce": float(best.mode == "bounce"),
-        "small": float(
-            best.mode in ("damage", "shrink") and (best.mag or 0) < KILL_SIZE
-        ),
+        "small": (1.0 - kill) if sized else 0.0,
         "one_sided": float(best.ctrl in ("Opponent", "TargetPlayer")),
         "spares": float(best.spares or bool(best.preds & _SPARES)),
         "narrow": float(bool(best.preds & _NARROW)),
         "flexible": float(best.modal or best.overload or x or best.x_bound),
         "cost": min(max(cost, 1.0), 9.0),
-        "cheap": float(not clean and cost <= _CHEAP),
-        "clean": float(clean),
-        "cheap_clean": float(clean and cost <= _REFERENCE_COST),
+        "cheap": (1.0 - clean) * (cost <= _CHEAP),
+        "clean": clean,
+        "cheap_clean": clean * (cost <= _REFERENCE_COST),
         "repeat": float(
             any(
                 (s.kind == "activated" and not s.self_sac)
@@ -992,12 +1007,8 @@ def features(card: dict, deck: Sequence[dict] | None = None) -> dict[str, float]
 # The card read is deck-free, so a count of a type only a deck built on it holds
 # reads narrow (:func:`_built_around`) and the size of the caster's own creature
 # reads at ``KILL_SIZE`` (:func:`_own_size`). Given the deck, both are read off
-# it: Olivia's Wrath counts Blood Rites' 36 Vampires.
-
-#: A deck holds enough of a type for a count of its own to scale when it holds
-#: a board's worth of them (``_BOARD_CREATURES``): Blood Rites' 36 Vampires for
-#: Olivia's Wrath, none in Fae Dominion. The read's own call.
-_BUILT_ON = _BOARD_CREATURES
+# it, and the sweep is lethal in proportion (:func:`features`): Olivia's Wrath
+# counts the Vampires Blood Rites has out.
 
 #: id(deck) -> (deck, its cards with their facts): a tune scores one deck's
 #: cards thousands of times. Bounded; the deck is held, so its id can't be
@@ -1019,34 +1030,40 @@ def _board(deck: Sequence[dict]) -> tuple[tuple[dict, ObjectFacts], ...]:
     return board
 
 
-def _stat(rec: dict, name: str) -> int | None:
-    """A record's printed ``power``, ``toughness`` or ``cmc`` as a number (its
-    front face's when the record keeps them per face); ``None`` for a ``*`` or a
-    missing one."""
-    value = rec.get(name)
-    if value is None:
-        value = ((rec.get("card_faces") or [{}])[0]).get(name)
-    if isinstance(value, (int, float)):
-        return int(value)
-    return int(value) if isinstance(value, str) and value.isdigit() else None
+def _size(rec: dict, facts: ObjectFacts, size: str) -> int | None:
+    """A deck card's printed size: its mana value (``ObjectFacts.mana_value``),
+    or its front face's fixed power or toughness (``trees.fixed_stat``)."""
+    if size == "cmc":
+        return facts.mana_value
+    face = rec if size in rec else (rec.get("card_faces") or [{}])[0]
+    return fixed_stat(face.get(size))
 
 
-def _deck_magnitude(s: _Sweep, deck: Sequence[dict]) -> int | None:
-    """``s``'s amount as its deck decides it (:func:`_deck_amount`): a count of a
-    type the deck holds ``_BUILT_ON`` of scales, a narrow count otherwise; the
-    size of the caster's own object is the deck's biggest creature's."""
+def _deck_magnitude(s: _Sweep, deck: Sequence[dict]) -> float | None:
+    """``s``'s amount as its deck decides it (:func:`_deck_amount`). The size of
+    the caster's own object is the deck's biggest creature's. A count of yours
+    is what the deck has out: its share of the deck's cards over a board of
+    ``_BOARD_CREATURES`` permanents of your own — the read's own call, as many
+    as the creatures it casts a wipe into. Blood Rites' 36 Vampires of 100 read
+    2.88; fifteen Gates, 1.2."""
     board = _board(deck)
     size = _own_size(s.amount)
     if size is not None:
         values = [
             v
             for rec, facts in board
-            if facts.has_type("Creature") and (v := _stat(rec, size)) is not None
+            if facts.has_type("Creature") and (v := _size(rec, facts, size)) is not None
         ]
-        return max(values, default=s.mag)
+        # The size stays signed (Loot, the Anomaly's -2: "All other rules and
+        # effects that check his power use the real value"), but an amount it
+        # becomes is never below 0: "If a calculation that would determine the
+        # result of an effect yields a negative number, zero is used instead"
+        # (CR 107.1b) — Ichor Explosion sacrificing a -2/4 gives -0/-0.
+        biggest = max(values, default=s.mag)
+        return None if biggest is None else max(biggest, 0)
     filt = getattr(s.amount, "filter", None)
-    held = sum(filter_admits(filt, facts) is not False for _rec, facts in board)
-    return _SCALING if held >= _BUILT_ON else _NARROW_COUNT
+    held = sum(filter_admits(filt, facts) is True for _rec, facts in board)
+    return round(_BOARD_CREATURES * held / len(board), 3) if board else 0.0
 
 
 def _in_deck(sweeps: Sequence[_Sweep], deck: Sequence[dict]) -> list[_Sweep]:
@@ -1061,10 +1078,10 @@ def _in_deck(sweeps: Sequence[_Sweep], deck: Sequence[dict]) -> list[_Sweep]:
 _DECK_DEPENDENT = JOB_READS.memo("wipe_deck_amount")
 
 
-def deck_dependent(card: dict) -> bool:
+def _deck_dependent(card: dict) -> bool:
     """Whether ``card``'s features change with its deck: a sweep amount the deck
     decides (:func:`_deck_amount`: Olivia's Wrath's Vampires, Ichor Explosion's
-    sacrificed creature)."""
+    sacrificed creature). Memoized per oracle_id, and persisted."""
     oid = card.get("oracle_id")
     if oid and (hit := _DECK_DEPENDENT.get(oid)) is not MISSING:
         return bool(hit)
@@ -1072,6 +1089,13 @@ def deck_dependent(card: dict) -> bool:
     if oid and (out or signal_trees_for(card, bulk=card)):
         _DECK_DEPENDENT.put(oid, out)
     return out
+
+
+def deck_features(card: dict, deck: Sequence[dict]) -> dict[str, float] | None:
+    """``card``'s features in ``deck`` when its deck decides one of its sweep
+    amounts (:func:`_deck_amount`), else ``None``: the deck-free read holds
+    (``JobRead.in_deck``)."""
+    return features(card, deck) if _deck_dependent(card) else None
 
 
 #: Board wipe's weights, log10 play-rate per unit (ridge fit, 2026-10-19,

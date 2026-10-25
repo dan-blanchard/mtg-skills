@@ -72,13 +72,11 @@ class JobRead:
     #: Whether this read orders the job's Spine fill ("board wipes short")
     #: ahead of the fill's mana-value band. Board wipes, by measurement.
     fill_orders: bool = False
-    #: The read's features in a deck, for a card whose features its deck decides
-    #: (``deck_dependent``): board wipe's counts of a type only a deck built on it
-    #: holds (Olivia's Wrath's Vampires), a size of the caster's own creature.
-    deck_features: Callable[[dict, Sequence[dict]], dict[str, float] | None] | None = (
-        None
-    )
-    deck_dependent: Callable[[dict], bool] | None = None
+    #: The read's features in a deck, or ``None`` where the deck changes nothing:
+    #: board wipe's counts of a type only a deck built on it holds (Olivia's
+    #: Wrath's Vampires) and the size of the caster's own creature
+    #: (``board_wipe.deck_features``).
+    in_deck: Callable[[dict, Sequence[dict]], dict[str, float] | None] | None = None
 
     def deck_fit(self, card: dict, deck: Sequence[dict] | None) -> float:
         """The share of ``card``'s job ``deck`` (its cards' records) can fuel;
@@ -93,18 +91,13 @@ class JobRead:
         lowered by the share of the job the deck can't fuel (:meth:`deck_fit`):
         by that fraction of its size, whichever its sign. The card part is
         memoized per oracle_id, the deck part read per call. A card whose
-        features its deck decides (:attr:`deck_dependent`) is scored off its
-        features in ``deck``."""
+        features its deck decides (:attr:`in_deck`) is scored off its features
+        in ``deck``."""
         base = self._card_score(card)
-        if (
-            base is not None
-            and deck
-            and self.deck_features is not None
-            and self.deck_dependent is not None
-            and self.deck_dependent(card)
-        ):
-            feats = self.deck_features(card, deck)
-            base = None if feats is None else self._weighed(feats)
+        if base is not None and deck and self.in_deck is not None:
+            feats = self.in_deck(card, deck)
+            if feats is not None:
+                base = self._weighed(feats)
         if base is None or deck is None or self.fit is None:
             return base
         f = self.deck_fit(card, deck)
@@ -183,8 +176,7 @@ READS: dict[str, JobRead] = {
             board_wipe.WEIGHTS,
             orders=True,
             fill_orders=True,
-            deck_features=board_wipe.features,
-            deck_dependent=board_wipe.deck_dependent,
+            in_deck=board_wipe.deck_features,
         ),
         JobRead("ramp", ramp.features, ramp.WEIGHTS, orders=False, theme_ties=True),
         JobRead(

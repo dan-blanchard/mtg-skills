@@ -125,13 +125,11 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   ADR-0024 asks for it only from a combo or control deck or a voltron plan; a
   target of 5 or 3 for every shape matched fewer adds. Open, small: a power read
   off a target you control or the source itself (Chandra's Ignition, Rupture, Jack
-  of Hearts) reads narrow, though the caster picks their biggest; only a cost's
-  object (Ichor and Corpse Explosion) reads the deck's own.
+  of Hearts) reads narrow, though the caster picks their biggest.
   (m) **Recall** (`precon-audit/misses.py`, at the largest guide's thirty
   swaps and each precon's own guides' budget, `budgets.json`, Spellbook cached):
   196 of 408 cuttable guide cuts, 61 of 610 in-scope guide adds, 543 swaps
-  (2026-10-25, unchanged by the speed work and the wipe read's amounts; 195 / 61,
-  542 swaps at 04925758; 180 / 57 before the near-tie
+  (2026-10-25; 195 / 61, 542 swaps at 04925758; 180 / 57 before the near-tie
   budget rule, 169 / 56 at 9e0026ed). The levers by size at the shipped tune: adds
   a page held but outranked (244), theme adds no search reaches (169, (r)), cuts the popularity threshold still shields (62),
   commander-lane cards the guides trim (57), and cuts a budget-bound tune never
@@ -247,17 +245,12 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   permanents-entering member; the Emergence Auras' "that land gains
   indestructible" replacement (CR 614.1a) guards only the land they animate,
   the animator's own payoff like Kamahl's Will, not land protection.
-  (l) **Tune speed, what's left** (2026-10-25: a warm Blood Rites tune profiles at
-  5.6 s, from 7.9; the 25 precons' median `misses.py` tune 4.4 s, from 6.1, peak
-  RSS 1.23 GB, from 1.58). Shipped: one readout per candidate per tune
-  (`rank_candidates`' `scores`), the signals index seeded before the deck is read
-  (`deck-tune`), one live extraction for a card's keys and idents, and the phase
-  records read per oracle_id from a sidecar beside card-data
-  (`trees.PhaseRecordIndex`). Left, by size: the ranking's synergy read of ~1,000
-  distinct candidates (`score_candidate`, 1.15 s, most of it `Serve.matches`
-  computing a card's idents once per deck spec); the corrected trees built for
-  ~1,500 deck, candidate and gate cards (`build_trees`, 1.1 s); the pages' scan of
-  the in-identity slice (1.0 s); and the deck's own membership-free signals
+  (l) **Tune speed, what's left** (2026-10-25, a warm Blood Rites tune's
+  profile). By size: the ranking's synergy read of ~1,000 distinct candidates
+  (`score_candidate`, 1.15 s, most of it `Serve.matches` computing a card's
+  idents once per deck spec); the corrected trees built for ~1,500 deck,
+  candidate and gate cards (`build_trees`, 1.1 s); the pages' scan of the
+  in-identity slice (1.0 s); and the deck's own membership-free signals
   (`read_deck_signals`, 81 live `extract_signals`, 0.66 s: the index stores only
   the membership-inclusive set). `deck-tune` also asks Commander Spellbook live
   (about 1 s). A per-serve slice memo measured no gain (two serve pages a tune).

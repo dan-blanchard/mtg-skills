@@ -152,26 +152,67 @@ def test_phase_record_index_load_restores_garbage_collection(
         ct._phase_record_index.cache_clear()
 
 
+_GROUP_BLOBS = ct._group_blobs
+
+
+def _records_index(card_data, monkeypatch, builds):
+    """The phase record index over ``card_data``, counting sidecar builds."""
+    group = _GROUP_BLOBS
+
+    def counting(path):
+        builds.append(path)
+        return group(path)
+
+    monkeypatch.setattr(_phase, "ensure_card_data", lambda: card_data)
+    monkeypatch.setattr(ct, "_group_blobs", counting)
+    ct._phase_record_index.cache_clear()
+    return ct._phase_record_index()
+
+
 def test_phase_record_index_reads_each_group_from_its_sidecar(tmp_path, monkeypatch):
-    """The index reads each oracle_id's records from a sidecar beside card-data,
-    decoded when read: value for value the file's own records, a missing
-    oracle_id ``None``, and a second process (the cache cleared) reads the
-    sidecar it wrote."""
+    """The index reads each oracle_id's records from the sidecar, decoded when
+    read: value for value the file's own records, a missing oracle_id ``None``;
+    a second process (the cache cleared) reads the sidecar without a build."""
     (rec,) = _ported_phase_records()
     card_data = tmp_path / "card-data.json"
     card_data.write_text(json.dumps({"x": rec}), encoding="utf-8")
-    monkeypatch.setattr(_phase, "ensure_card_data", lambda: card_data)
     oid = rec["scryfall_oracle_id"]
-    ct._phase_record_index.cache_clear()
+    builds: list = []
     try:
-        index = ct._phase_record_index()
+        index = _records_index(card_data, monkeypatch, builds)
         assert index is not None
         assert len(index) == 1
         assert index.get(oid) == (rec,)
         assert index.get("no such oid") is None
-        assert (tmp_path / "card-data.json.records.pkl").is_file()
+        assert ct._records_sidecar_path(card_data).is_file()
+        assert _records_index(card_data, monkeypatch, builds).get(oid) == (rec,)
+        assert len(builds) == 1
+    finally:
         ct._phase_record_index.cache_clear()
-        assert ct._phase_record_index().get(oid) == (rec,)
+
+
+def test_phase_record_index_rebuilds_a_stale_sidecar(tmp_path, monkeypatch):
+    """A sidecar older than card-data, or keyed by other grouping code, is
+    rebuilt: the new card-data's records are served."""
+    import os
+
+    (rec,) = _ported_phase_records()
+    card_data = tmp_path / "card-data.json"
+    card_data.write_text(json.dumps({"x": rec}), encoding="utf-8")
+    oid = rec["scryfall_oracle_id"]
+    builds: list = []
+    try:
+        _records_index(card_data, monkeypatch, builds)
+        renamed = {**rec, "name": "Renamed"}
+        card_data.write_text(json.dumps({"x": renamed}), encoding="utf-8")
+        sidecar = ct._records_sidecar_path(card_data)
+        earlier = card_data.stat().st_mtime - 10
+        os.utime(sidecar, (earlier, earlier))
+        assert _records_index(card_data, monkeypatch, builds).get(oid) == (renamed,)
+        assert len(builds) == 2
+        monkeypatch.setattr(ct, "_records_sidecar_key", lambda: 1)
+        _records_index(card_data, monkeypatch, builds)
+        assert len(builds) == 3
     finally:
         ct._phase_record_index.cache_clear()
 

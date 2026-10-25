@@ -69,62 +69,81 @@ class PhaseRecordIndex:
         return len(self._blobs)
 
 
-#: The per-oracle_id records sidecar's format. Bump it with any change to what
-#: ``_group_by_oracle_id`` keeps beyond the impostor list, which keys the sidecar
-#: itself (:func:`_records_sidecar_key`).
-_RECORDS_SIDECAR_VERSION = 1
-
-
-def _records_sidecar_key() -> str:
-    """What the records sidecar was grouped under: the format and the impostor
-    records ``_group_by_oracle_id`` drops (``_phase.is_impostor_record``)."""
+def _records_sidecar_key() -> int:
+    """What the records sidecar was grouped by: the content of the grouping code
+    (``_card_ir.build._group_by_oracle_id``) and of ``_phase``, whose impostor
+    records the grouping drops, and the phase tag — so an edit to either file
+    rebuilds it, with no version to bump by hand."""
     import hashlib
 
     from mtg_utils import _phase
+    from mtg_utils._card_ir import build
 
-    impostors = repr(sorted(_phase._IMPOSTOR_RECORDS))  # noqa: SLF001
-    digest = hashlib.sha256(impostors.encode()).hexdigest()[:16]
-    return f"{_RECORDS_SIDECAR_VERSION}:{digest}"
+    hasher = hashlib.sha256(f"phase_tag:{_phase.PHASE_TAG}".encode())
+    for module in (build, _phase):
+        hasher.update(Path(module.__file__ or "").read_bytes())
+    return int(hasher.hexdigest()[:15], 16)
 
 
-def _record_blobs(card_data: Path) -> dict[str, bytes] | None:
+def _records_sidecar_path(card_data: Path) -> Path:
+    """Where the records sidecar for ``card_data`` lives: beside it."""
+    return card_data.with_name(card_data.name + ".records.pkl")
+
+
+class _StaleError(Exception):
+    """The records sidecar is missing or stale (:func:`_record_blobs`)."""
+
+
+def _record_blobs(card_data: Path) -> dict[str, bytes]:
     """oracle_id → the JSON of its grouped phase records, from the pickled
-    sidecar beside ``card_data`` (rebuilt when card-data is newer or the key
-    differs, under a lock so concurrent first runs build it once). ``None`` when
-    card-data holds no group."""
+    sidecar beside ``card_data`` (:func:`_records_sidecar_path`). Read first;
+    only a sidecar missing, older than card-data or keyed by other code
+    (:func:`_records_sidecar_key`) is rebuilt, under a lock, re-read inside it
+    so concurrent first runs build it once (``_sidecar.exclusive_lock``)."""
+    from mtg_utils._sidecar import exclusive_lock, load_pickle_sidecar
+
+    sidecar = _records_sidecar_path(card_data)
+    key = _records_sidecar_key()
+
+    def load(build_fn: Callable[[], dict[str, bytes]]) -> dict[str, bytes]:
+        return load_pickle_sidecar(
+            card_data,
+            sidecar,
+            version_tag=key,
+            value_key="records",
+            build_fn=build_fn,
+            validate=lambda v: isinstance(v, dict),
+        )
+
+    def stale() -> dict[str, bytes]:
+        raise _StaleError
+
+    try:
+        return load(stale)
+    except _StaleError:
+        with exclusive_lock(sidecar.with_name(sidecar.name + ".lock")):
+            return load(lambda: _group_blobs(card_data))
+
+
+def _group_blobs(card_data: Path) -> dict[str, bytes]:
+    """``card_data``'s records grouped by oracle_id
+    (``_card_ir.build._group_by_oracle_id``), each group as its own JSON."""
     import gc
 
     from mtg_utils._card_ir.build import _group_by_oracle_id
-    from mtg_utils._sidecar import exclusive_lock, load_pickle_sidecar
 
-    key = _records_sidecar_key()
-    sidecar = card_data.with_name(card_data.name + ".records.pkl")
-
-    def build() -> dict:
-        # Decoding the ~100 MB file allocates millions of containers, which trip
-        # full collections that each walk the whole heap (the bulk pool
-        # included); JSON builds no reference cycles, so nothing collectable
-        # waits while the collector is paused.
-        collecting = gc.isenabled()
-        gc.disable()
-        try:
-            groups = _group_by_oracle_id(json.loads(card_data.read_bytes()))
-            blobs = {oid: json.dumps(recs).encode() for oid, recs in groups.items()}
-        finally:
-            if collecting:
-                gc.enable()
-        return {"key": key, "blobs": blobs}
-
-    with exclusive_lock(sidecar.with_name(sidecar.name + ".lock")):
-        value = load_pickle_sidecar(
-            card_data,
-            sidecar,
-            version_tag=_RECORDS_SIDECAR_VERSION,
-            value_key="records",
-            build_fn=build,
-            validate=lambda v: isinstance(v, dict) and v.get("key") == key,
-        )
-    return value["blobs"] or None
+    # Decoding the ~100 MB file allocates millions of containers, which trip
+    # full collections that each walk the whole heap (the bulk pool included);
+    # JSON builds no reference cycles, so nothing collectable waits while the
+    # collector is paused.
+    collecting = gc.isenabled()
+    gc.disable()
+    try:
+        groups = _group_by_oracle_id(json.loads(card_data.read_bytes()))
+        return {oid: json.dumps(recs).encode() for oid, recs in groups.items()}
+    finally:
+        if collecting:
+            gc.enable()
 
 
 @functools.cache
@@ -228,9 +247,9 @@ def _face_key(name: str | None) -> str:
     return (name or "").strip().casefold()
 
 
-def _face_power(value: object) -> int | None:
-    """A face's fixed printed power as an int, or ``None`` for a missing /
-    non-fixed (``*``, ``1+*``) power — mirrors ``build_concept_tree``'s
+def fixed_stat(value: object) -> int | None:
+    """A face's fixed printed power (or toughness) as an int, or ``None`` for a
+    missing / non-fixed (``*``, ``1+*``) one — mirrors ``build_concept_tree``'s
     ``Fixed``-tag-only read of phase's own ``power`` node."""
     if isinstance(value, bool):
         return None
@@ -288,7 +307,7 @@ def _text_only_tree(face: dict, bulk: dict, *, oracle_id: str) -> ConceptTree | 
         card_subtypes=card_subtypes,
         card_supertypes=card_supertypes,
         cmc=cmc,
-        power=_face_power(face.get("power")),
+        power=fixed_stat(face.get("power")),
         has_printed_cost=bool(face.get("mana_cost")),
         oracle=face.get("oracle_text") or "",
     )

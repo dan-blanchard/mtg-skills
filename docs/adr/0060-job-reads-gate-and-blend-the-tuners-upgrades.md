@@ -267,14 +267,17 @@ precons 543 / 196 / 61 against 542 / 195 / 61: Deluge of Doom and Boompile are n
 longer picked, and Tinker Time's saved mana buys a guide cut.
 
 **Amendment (2026-10-25, the deck's amounts).** A read may take a card's features
-in its deck (`JobRead.deck_features`, for a card `deck_dependent` marks): the
-board-wipe read counts a type only a deck built on it holds off the deck (Olivia's
-Wrath in Blood Rites' 36 Vampires, 0.15 to 0.39) and reads a sacrificed creature's
-size as the deck's biggest. Deck-free, an amount that counts nothing reads by what
-it names, not phase's wrapper: a cost's object at the kill size (Corpse Explosion
-now lethal), a set of the caster's own cards scaling, one of the other players'
-narrow. On the 25 precons every result is byte-identical (543 / 196 / 61). A
-deck-fit wipe read (the share of the deck's own permanents a sweep leaves) leading
-the wipe order in a tribal deck was measured and rejected: it took Raise the
-Palisade in Fae Dominion but lost three guide adds there on the budget (the audit
-report, "The deck-fit wipe read and the tune's speed").
+in its deck (`JobRead.in_deck`, `None` where the deck changes nothing): the
+board-wipe read counts a type only a deck built on it holds as the deck's share of
+it over a board of eight of its own permanents, and kills in proportion to the kill
+size (Olivia's Wrath in Blood Rites' 36 Vampires of 100, 0.15 to 0.32; Gates Ablaze
+rises smoothly with its Gates); a sacrificed creature's size is the deck's biggest.
+Deck-free, an amount that counts nothing reads by what it names, not phase's
+wrapper: an object of the caster's own at the kill size (Corpse Explosion now
+lethal; Cloudkill's greatest commander mana value), a set of the caster's own cards
+scaling, anything else narrow. On the 25 precons every result is byte-identical
+(543 / 196 / 61). A deck-fit wipe read (the share of the
+deck's own permanents a sweep leaves) leading the wipe order in a tribal deck was
+measured and rejected: it took Raise the Palisade in Fae Dominion but lost three
+guide adds there on the budget (the audit report, "The deck-fit wipe read and the
+tune's speed").

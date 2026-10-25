@@ -131,7 +131,23 @@ def as_signal_tree(tree: ConceptTree) -> ConceptTree:
     return apply_tree_synthesis(apply_overlay_corrections(tree))
 
 
+#: Per-oracle_id memos of values read off the signal trees, kept by their
+#: readers (the board-wipe read's sweeps): cleared with the trees.
+_DERIVED_MEMOS: list[dict] = []
+
+
+def derived_memo() -> dict:
+    """A reader's own memo of values read off a card's signal trees, which
+    :func:`clear_caches` drops with the trees it was read from."""
+    memo: dict = {}
+    _DERIVED_MEMOS.append(memo)
+    return memo
+
+
 def clear_caches() -> None:
-    """Drop the signal-tree memo (test hygiene; the owner's memos are separate)."""
+    """Drop the signal-tree memo and the memos read off it (test hygiene; the
+    owner's memos are separate)."""
     _SIGNAL_TREES_MEMO.clear()
     _CERTAIN_IDENTS_MEMO.clear()
+    for memo in _DERIVED_MEMOS:
+        memo.clear()

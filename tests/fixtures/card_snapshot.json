@@ -655022,6 +655022,236 @@
     "type_line": "Legendary Creature — Snake Elf Scout"
    }
   },
+  "Loot, the Anomaly": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "If ~'s power is negative, he assigns combat damage as though his power were positive.",
+       "duration": null,
+       "effect": {
+        "description": "Effect sentence candidate but line failed effect parser: If ~'s power is negative, he assigns combat damage as though his power were positive.",
+        "name": "effect_structure",
+        "type": "Unimplemented"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      },
+      {
+       "activation_restrictions": [
+        {
+         "data": {
+          "condition": {
+           "comparator": "GE",
+           "lhs": {
+            "qty": {
+             "player": {
+              "type": "Controller"
+             },
+             "type": "GraveyardSize"
+            },
+            "type": "Ref"
+           },
+           "rhs": {
+            "type": "Fixed",
+            "value": 7
+           },
+           "type": "QuantityComparison"
+          }
+         },
+         "type": "RequiresCondition"
+        }
+       ],
+       "condition": null,
+       "cost": {
+        "count": 1,
+        "target": {
+         "filters": [
+          {
+           "controller": null,
+           "properties": [
+            {
+             "type": "Another"
+            }
+           ],
+           "type": "Typed",
+           "type_filters": [
+            "Creature"
+           ]
+          },
+          {
+           "controller": null,
+           "properties": [
+            {
+             "type": "Another"
+            }
+           ],
+           "type": "Typed",
+           "type_filters": [
+            "Planeswalker"
+           ]
+          }
+         ],
+         "type": "Or"
+        },
+        "type": "Sacrifice"
+       },
+       "description": "Threshold — Sacrifice another creature or planeswalker: ~ gets -2/-0 until end of turn. Activate only if there are seven or more cards in your graveyard.",
+       "duration": "UntilEndOfTurn",
+       "effect": {
+        "power": {
+         "type": "Fixed",
+         "value": -2
+        },
+        "target": {
+         "type": "SelfRef"
+        },
+        "toughness": {
+         "type": "Fixed",
+         "value": 0
+        },
+        "type": "Pump"
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "brawl_commander": true,
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Beast",
+       "Horror"
+      ],
+      "supertypes": [
+       "Legendary"
+      ]
+     },
+     "color_identity": [
+      "Black"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "is_commander": true,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "standard": "legal",
+      "standardbrawl": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 2,
+      "shards": [
+       "Black"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "4f6fd2fa-8bc8-4743-bbc8-b56475d64eff"
+      ]
+     },
+     "name": "Loot, the Anomaly",
+     "non_ability_text": null,
+     "oracle_text": "If Loot's power is negative, he assigns combat damage as though his power were positive.\nThreshold — Sacrifice another creature or planeswalker: Loot gets -2/-0 until end of turn. Activate only if there are seven or more cards in your graveyard.",
+     "power": {
+      "type": "Fixed",
+      "value": -2
+     },
+     "printings": [
+      "FRA"
+     ],
+     "rarities": [
+      "uncommon"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2026-08-21",
+       "text": "If another effect causes Loot to deal combat damage equal to his toughness rather than his power, use his toughness to determine how much combat damage to assign, even if he also has negative power."
+      },
+      {
+       "date": "2026-08-21",
+       "text": "Loot's first ability doesn't change his power. It changes only the amount of combat damage he assigns. All other rules and effects that check his power use the real value, even if they cause damage \"equal to a creature's power\" to be dealt. In that case, if Loot's power is negative, no damage is dealt."
+      }
+     ],
+     "scryfall_oracle_id": "e0142e7d-7b0b-4290-a56c-5fa950fdccf8",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 4
+     },
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 3.0,
+    "color_identity": [
+     "B"
+    ],
+    "colors": [
+     "B"
+    ],
+    "keywords": [
+     "Threshold"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "legal",
+     "standardbrawl": "legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}{B}",
+    "name": "Loot, the Anomaly",
+    "oracle_id": "e0142e7d-7b0b-4290-a56c-5fa950fdccf8",
+    "oracle_text": "If Loot's power is negative, he assigns combat damage as though his power were positive.\nThreshold — Sacrifice another creature or planeswalker: Loot gets -2/-0 until end of turn. Activate only if there are seven or more cards in your graveyard.",
+    "power": "-2",
+    "toughness": "4",
+    "type_line": "Legendary Creature — Beast Horror"
+   }
+  },
   "Lord Skitter's Blessing": {
    "phase_records": [
     {

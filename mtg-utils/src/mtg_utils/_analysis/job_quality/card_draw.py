@@ -126,6 +126,7 @@ from mtg_utils._card_ir.crosswalk import (
     triggering_player_side,
     watches_itself,
 )
+from mtg_utils._card_ir.trees import fixed_stat
 from mtg_utils.theme_presets import signal_keys_for
 
 if TYPE_CHECKING:
@@ -716,8 +717,8 @@ def _feeds(record: dict, fuel: str) -> bool:
     makes_bodies = "token_maker" in signal_keys_for(record)
     if fuel == "creatures":
         return "Creature" in face or makes_bodies
-    toughness = str(record.get("toughness") or "")
-    return ("Creature" in face and toughness in ("0", "1")) or makes_bodies
+    toughness = fixed_stat(record.get("toughness"))
+    return ("Creature" in face and toughness in (0, 1)) or makes_bodies
 
 
 #: (the deck's oracle ids, fuel) -> the share of its nonland cards feeding it.

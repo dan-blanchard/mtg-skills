@@ -77,6 +77,27 @@ def _known_tokens_cached_only(request, monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def _phase_records_sidecar_in_tmp(monkeypatch, tmp_path_factory):
+    """No test writes a phase-records sidecar beside the user's card-data: the
+    ``_cached_only`` fixtures hand the real cached card-data to the Card IR,
+    whose index keeps its per-oracle_id records in a sidecar beside it
+    (``trees._records_sidecar_path``). Every test's goes to one temp dir of the
+    session's instead, keyed by the card-data path."""
+    import hashlib
+
+    from mtg_utils._card_ir import trees
+
+    root = tmp_path_factory.getbasetemp() / "phase-records"
+    root.mkdir(exist_ok=True)
+
+    def in_tmp(card_data):
+        digest = hashlib.sha256(str(card_data).encode()).hexdigest()[:16]
+        return root / f"{digest}.records.pkl"
+
+    monkeypatch.setattr(trees, "_records_sidecar_path", in_tmp)
+
+
+@pytest.fixture(autouse=True)
 def _no_write_back_sidecars():
     """No test leaves a write-back sidecar attached for the tests after it:
     ``deck-tune --bulk-data`` attaches the ident-provenance and job-read ones

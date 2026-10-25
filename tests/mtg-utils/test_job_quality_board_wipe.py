@@ -368,54 +368,79 @@ def test_tokens_for_the_wiped_players_refill_the_board(name):
     ],
 )
 def test_an_amount_that_is_no_count_reads_by_what_it_names(name, lethal):
-    """No wrapper decides an amount that counts nothing. The size of the
-    caster's own object (Ichor Explosion's sacrificed creature, its ruling: "as
-    it last existed on the battlefield"; Corpse Explosion's exiled creature
-    card; Cloudkill's commander's mana value) reads at the kill size, a Specter
-    of Mortality's creature cards exiled from your own graveyard scale, and
-    Volcanic Eruption's Mountains destroyed this way, the other players', stay
-    narrow."""
+    """No wrapper decides an amount that counts nothing. The size of an object
+    of the caster's own reads at the kill size: one paid as a cost (Ichor
+    Explosion's sacrificed creature, its ruling: "as it last existed on the
+    battlefield"; Corpse Explosion's exiled creature card) or the greatest mana
+    value of a commander you own (Cloudkill). Specter of Mortality's creature
+    cards exiled from your own graveyard scale. Volcanic Eruption's "Destroy X
+    target Mountains" may take anyone's, yours too, but nothing makes them
+    yours and X caps them: narrow."""
     features = board_wipe.features(_real(name))
     assert features["lethal"] == float(lethal)
     assert features["small"] == float(not lethal)
 
 
-def _deck(*names: str) -> tuple[dict, ...]:
-    return tuple(_real(n) for n in names)
+def _deck(*names: str, size: int = 100) -> tuple[dict, ...]:
+    """A deck of ``names``, filled to ``size`` cards with Forests."""
+    return tuple(_real(n) for n in [*names, *["Forest"] * (size - len(names))])
 
 
-def test_a_count_of_a_type_the_deck_is_built_on_scales_in_that_deck():
-    """Olivia's Wrath's -X/-X counts the Vampires you control: narrow to a
-    deck-free read, a lethal sweep in a deck holding a board's worth of them,
-    and narrow again in one with none. Gates Ablaze's damage counts your Gates
-    the same way, lands though they are."""
+def test_a_count_of_a_type_the_deck_holds_reads_what_it_has_out():
+    """Olivia's Wrath's -X/-X counts the Vampires you control, Gates Ablaze's
+    damage the Gates: a deck has out its share of them over a board of eight of
+    its own permanents, so the sweep kills in proportion, rising smoothly with
+    the count — no step. Blood Rites' 36 Vampires of 100 read 2.88."""
     wrath, gates = _real("Olivia's Wrath"), _real("Gates Ablaze")
-    vampires = _deck(*["Sengir Vampire"] * 8)
-    bears = _deck(*["Grizzly Bears"] * 8)
-    assert board_wipe.deck_dependent(wrath)
     assert board_wipe.features(wrath)["lethal"] == 0.0
-    assert board_wipe.features(wrath, vampires)["lethal"] == 1.0
-    assert board_wipe.features(wrath, bears)["lethal"] == 0.0
-    assert job_score(wrath, "board_wipe", vampires) > job_score(wrath, "board_wipe")
-    assert job_score(wrath, "board_wipe", bears) == job_score(wrath, "board_wipe")
-    plazas = _deck(*["Gateway Plaza"] * 8)
-    assert board_wipe.features(gates, plazas)["lethal"] == 1.0
-    assert board_wipe.features(gates, bears)["lethal"] == 0.0
+    vampires = board_wipe.features(wrath, _deck(*["Sengir Vampire"] * 36))
+    assert vampires["lethal"] == pytest.approx(0.72)
+    assert vampires["small"] == pytest.approx(0.28)
+    assert job_score(wrath, "board_wipe", _deck()) == job_score(wrath, "board_wipe")
+    lethal = [
+        board_wipe.features(gates, _deck(*["Gateway Plaza"] * n))["lethal"]
+        for n in (0, 3, 7, 8, 15, 50)
+    ]
+    assert lethal == pytest.approx([0.0, 0.06, 0.14, 0.16, 0.3, 1.0])
+    scores = [
+        job_score(gates, "board_wipe", _deck(*["Gateway Plaza"] * n))
+        for n in (3, 7, 8, 15)
+    ]
+    assert scores == sorted(scores)
+    assert scores[2] - scores[1] < 0.05  # no cliff between seven Gates and eight
 
 
 def test_a_sacrificed_creatures_power_is_the_decks_biggest():
     """Ichor Explosion's X is the sacrificed creature's power: in a deck of 2/2s
-    a -2/-2, small; with a 6/6 to give up, lethal."""
+    a -2/-2, half a kill; with a 6/6 to give up, lethal."""
     ichor = _real("Ichor Explosion")
-    assert board_wipe.features(ichor, _deck("Grizzly Bears"))["small"] == 1.0
-    big = _deck("Grizzly Bears", "Colossal Dreadmaw")
-    assert board_wipe.features(ichor, big)["lethal"] == 1.0
+    bears = board_wipe.features(ichor, _deck("Grizzly Bears"))
+    assert bears["lethal"] == pytest.approx(0.5)
+    assert board_wipe.features(ichor, _deck("Colossal Dreadmaw"))["lethal"] == 1.0
+
+
+def test_a_negative_power_stays_negative_in_the_deck_read():
+    """Loot, the Anomaly is a -2/4. A rule that checks his power uses the real
+    value (his ruling; a comparison uses a negative value, CR 107.1b), so the
+    deck read's size keeps the sign. An effect's amount computed from it is 0,
+    never negative (CR 107.1b; his ruling: damage "equal to a creature's power"
+    is none): Ichor Explosion with only him to sacrifice is a -0/-0, no kill and
+    no pump."""
+    loot = _real("Loot, the Anomaly")
+    (facts,) = (f for _r, f in board_wipe._board((loot,)))
+    assert board_wipe._size(loot, facts, "power") == -2
+    ichor = _real("Ichor Explosion")
+    deck = _deck("Loot, the Anomaly")
+    (sweep,) = board_wipe._in_deck(board_wipe._sweeps(ichor), deck)
+    assert sweep.mag == 0
+    features = board_wipe.features(ichor, deck)
+    assert features["lethal"] == 0.0
+    assert features["small"] == 1.0
 
 
 def test_a_card_with_no_deck_decided_amount_scores_alike_in_any_deck():
     """Wrath of God's sweep owes nothing to the deck: one score everywhere."""
-    wrath = _real("Wrath of God")
-    assert not board_wipe.deck_dependent(wrath)
-    assert job_score(wrath, "board_wipe", _deck("Sengir Vampire")) == _score(
+    assert board_wipe.deck_features(_real("Wrath of God"), _deck()) is None
+    assert job_score(_real("Wrath of God"), "board_wipe", _deck()) == _score(
         "Wrath of God"
     )
