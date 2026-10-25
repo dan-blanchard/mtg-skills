@@ -1972,7 +1972,12 @@ def player_counter_kind(node: TypedMirrorNode) -> str:
     return ck if isinstance(ck, str) else ""
 
 
-def count_operand_qty(node: TypedMirrorNode) -> object | None:
+def count_operand_qty(
+    node: TypedMirrorNode,
+    *,
+    fields: tuple[str, ...] = ("amount", "count", "value", "announced_x"),
+    wrappers: tuple[str, ...] = ("Multiply",),
+) -> object | None:
     """The QTY node of an effect's dynamic count operand, or ``None``.
 
     Two shapes carry a named scaler (CR 700.5 devotion / 700.6 domain / 700.8 party,
@@ -1989,13 +1994,20 @@ def count_operand_qty(node: TypedMirrorNode) -> object | None:
     announce-locked X (CR 601.2b / 602.2b, the v0.25.0 channel) moves the computed
     operand off ``amount`` (now a bare ``Variable`` Ref) onto its own field
     (Monstrous Onslaught's Max-Power Aggregate).
+
+    ``fields`` names the operand fields read (a P/T change reads ``toughness``);
+    ``wrappers`` the scalar wrappers stepped through, in order, each at most once:
+    a mass shrink's "-X/-X where X is …" is ``Quantity(value=Multiply(-1,
+    inner=Ref(…)))``, and Drag to the Bottom's "1 plus" puts an ``Offset`` inside
+    that (``("Quantity", "Multiply", "Offset")``).
     """
-    for fname in ("amount", "count", "value", "announced_x"):
+    for fname in fields:
         q = getattr(node, fname, MISSING)
         if not _present(q):
             continue
-        if tag_of(q) == "Multiply":
-            q = getattr(q, "inner", None)
+        for wrapper in wrappers:
+            if tag_of(q) == wrapper:
+                q = getattr(q, "value" if wrapper == "Quantity" else "inner", None)
         if tag_of(q) == "Ref":
             qty = getattr(q, "qty", None)
             if isinstance(qty, TypedMirrorNode):
@@ -2004,6 +2016,27 @@ def count_operand_qty(node: TypedMirrorNode) -> object | None:
     if isinstance(dc, TypedMirrorNode):
         return dc
     return None
+
+
+def quantity_scope(qty: object) -> str | None:
+    """Whose things a count quantity counts, as a Signal scope (``"you"`` /
+    ``"opponents"`` / ``"each"`` / ``"any"``), or ``None`` when it names no player
+    (a tracked set, the source's own power). An ``ObjectCount`` reads its filter's
+    controller (``"each"`` for no controller: every player's); a player-resource
+    or zone count its ``player`` / ``controller`` / ``scope`` field or its
+    source's (``HandSize.player``, ``BasicLandTypeCount.controller``,
+    ``ZoneCardCount.scope``, ``DistinctCardTypes``' graveyard ``Zone.scope``),
+    through :func:`_scope_from_player_tag`."""
+    if tag_of(qty) == "ObjectCount":
+        return _scope_from_player_node(getattr(qty, "filter", None))
+    for fname in ("player", "controller", "scope"):
+        v = getattr(qty, fname, MISSING)
+        if _present(v):
+            scope = _scope_from_player_tag(v if isinstance(v, str) else tag_of(v))
+            if scope is not None:
+                return scope
+    source = getattr(qty, "source", MISSING)
+    return quantity_scope(source) if _present(source) else None
 
 
 # Recipient tags marking a discard DIRECTED at another player (CR 701.9): a targeted

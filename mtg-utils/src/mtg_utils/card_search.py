@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import re
 import threading
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -156,39 +156,35 @@ def _matches_filters(
     partner_of: Sequence[Sequence[str]] | None = None,
     serve: ThemeServe | None = None,
 ) -> bool:
+    """Whether one card passes a search's gate and page filters: the same
+    :func:`_scan` :func:`filter_records` runs, over just this card."""
     unreleased = unreleased_ok or frozenset()
-    return (
-        _passes_gate(
-            card,
-            allowed_colors=allowed_colors,
-            exact_colors=exact_colors,
-            fmt=fmt,
-            arena_only=arena_only,
-            paper_only=paper_only,
-            unreleased=unreleased,
-            set_lower=set_lower,
-        )
-        and _matches_printing(
-            card,
-            price_min=price_min,
-            price_max=price_max,
-            fmt=fmt,
-            unreleased=unreleased,
-            is_commander_filter=is_commander_filter,
-        )
-        and _matches_card(
-            card,
-            oracle_re=oracle_re,
-            type_lower=type_lower,
-            name_substr=_norm_name(name_substr) if name_substr is not None else None,
-            cmc_min=cmc_min,
-            cmc_max=cmc_max,
-            presets=presets,
-            any_presets=any_presets,
-            partner_of=partner_of,
-            serve=serve,
-        )
+    gated = _passes_gate(
+        card,
+        allowed_colors=allowed_colors,
+        exact_colors=exact_colors,
+        fmt=fmt,
+        arena_only=arena_only,
+        paper_only=paper_only,
+        unreleased=unreleased,
+        set_lower=set_lower,
     )
+    query = _PageQuery(
+        oracle_re=oracle_re,
+        type_lower=type_lower,
+        name_norm=_norm_name(name_substr) if name_substr is not None else None,
+        cmc_min=cmc_min,
+        cmc_max=cmc_max,
+        presets=presets,
+        any_presets=any_presets,
+        partner_of=partner_of,
+        serve=serve,
+        price_min=price_min,
+        price_max=price_max,
+        unreleased=unreleased,
+        is_commander_filter=is_commander_filter,
+    )
+    return bool(_scan([card] if gated else [], query, fmt=fmt))
 
 
 def _passes_gate(
@@ -241,76 +237,75 @@ def _passes_gate(
     return True
 
 
-def _matches_card(
-    card: dict,
-    *,
-    oracle_re: re.Pattern | None,
-    type_lower: str | tuple[str, ...] | None,
-    name_substr: str | None,
-    cmc_min: float | None,
-    cmc_max: float | None,
-    presets: tuple[Preset, ...],
-    any_presets: tuple[Preset, ...],
-    partner_of: Sequence[Sequence[str]] | None,
-    serve: ThemeServe | None,
-) -> bool:
-    """A page's own filters that read the card, past the context's gate
-    (:func:`_passes_gate`): its text, type, name, mana value and what it does. Every
-    printing of a card answers alike (:func:`filter_records` asks once per card);
-    the printing's own filters are :func:`_matches_printing`. ``name_substr`` comes
-    normalized (:func:`_norm_name`)."""
-    if oracle_re is not None and not oracle_re.search(_get_oracle_text(card)):
+@dataclass(frozen=True, eq=False)
+class _PageQuery:
+    """A page's own filters, past its search context's gate: what the card must be
+    (:func:`_matches_card`) and what the printing must be (:func:`_matches_printing`).
+    ``name_norm`` is normalized (:func:`_norm_name`)."""
+
+    oracle_re: re.Pattern | None
+    type_lower: str | tuple[str, ...] | None
+    name_norm: str | None
+    cmc_min: float | None
+    cmc_max: float | None
+    presets: tuple[Preset, ...]
+    any_presets: tuple[Preset, ...]
+    partner_of: Sequence[Sequence[str]] | None
+    serve: ThemeServe | None
+    price_min: float | None
+    price_max: float | None
+    unreleased: frozenset[str]
+    is_commander_filter: bool
+
+
+def _matches_card(card: dict, q: _PageQuery) -> bool:
+    """The page's filters that read the card: its text, type, name, mana value
+    and what it does. Every printing of a card answers alike (:func:`_scan` asks
+    once per card)."""
+    if q.oracle_re is not None and not q.oracle_re.search(_get_oracle_text(card)):
         return False
 
-    if type_lower is not None:
+    if q.type_lower is not None:
         _tl = (card.get("type_line") or "").lower()
-        _wanted = (type_lower,) if isinstance(type_lower, str) else type_lower
+        _wanted = (q.type_lower,) if isinstance(q.type_lower, str) else q.type_lower
         if not any(type_line_has(_tl, w) for w in _wanted):
             return False
 
-    if name_substr is not None and name_substr not in _norm_name(
+    if q.name_norm is not None and q.name_norm not in _norm_name(
         (card.get("name") or "").lower()
     ):
         return False
 
     cmc = card.get("cmc", 0)
-    if cmc_min is not None and cmc < cmc_min:
+    if q.cmc_min is not None and cmc < q.cmc_min:
         return False
-    if cmc_max is not None and cmc > cmc_max:
+    if q.cmc_max is not None and cmc > q.cmc_max:
         return False
 
-    if presets and not all(p.matches(card) for p in presets):
+    if q.presets and not all(p.matches(card) for p in q.presets):
         return False
-    if any_presets and not any(p.matches(card) for p in any_presets):
+    if q.any_presets and not any(p.matches(card) for p in q.any_presets):
         return False
 
     # A theme's serving predicate (``signal_specs.Serve.matches``): the cards the
     # theme counts as serving it, read off their idents where the serve is IR.
-    if serve is not None and not serve.matches(card):
+    if q.serve is not None and not q.serve.matches(card):
         return False
 
     # A second-commander search (``card_classify.valid_partner_search``): the card
     # must pair with one of these partner abilities (CR 702.124). Last: it reads the
     # card's trees, which the cheaper checks above spare most of the pool.
-    return partner_of is None or can_partner(partner_of, card)
+    return q.partner_of is None or can_partner(q.partner_of, card)
 
 
-def _matches_printing(
-    card: dict,
-    *,
-    price_min: float | None,
-    price_max: float | None,
-    fmt: Format,
-    unreleased: frozenset[str],
-    is_commander_filter: bool,
-) -> bool:
-    """A page's own filters that read the printing: its price, and the commander
+def _matches_printing(card: dict, q: _PageQuery, *, fmt: Format) -> bool:
+    """The page's filters that read the printing: its price, and the commander
     gate (legality, which a record carries per printing)."""
     price = _extract_price(card)
-    if price_min is not None and (price is None or price < price_min):
+    if q.price_min is not None and (price is None or price < q.price_min):
         return False
 
-    if price_max is not None and (price is None or price > price_max):
+    if q.price_max is not None and (price is None or price > q.price_max):
         return False
 
     # A pre-release legend counts (``commander_eligibility`` admits the
@@ -318,9 +313,33 @@ def _matches_printing(
     # together would return nothing, which is exactly the combination someone
     # brewing around a spoiled commander reaches for.
     return (
-        not is_commander_filter
-        or fmt.commander_eligibility(card, unreleased=unreleased)["eligible"]
+        not q.is_commander_filter
+        or fmt.commander_eligibility(card, unreleased=q.unreleased)["eligible"]
     )
+
+
+def _scan(gated: Iterable[dict], q: _PageQuery, *, fmt: Format) -> list[dict]:
+    """The gated records that pass the page's filters, in order. The card's
+    filters run once per card, not per printing: a slice holds a few printings of
+    each card, and every field those filters read — text, type line, faces,
+    keywords, mana cost and value, stats, what the card does (its idents and
+    trees, per oracle_id) — is the card's (2026-10-25: no such field differs
+    between two printings of one oracle_id and name in the bulk). The verdicts
+    live for this call only."""
+    verdicts: dict[tuple[str, str], bool] = {}
+    matched = []
+    for card in gated:
+        key = (card.get("oracle_id") or "", card.get("name") or "")
+        ok = verdicts.get(key) if key[0] else None
+        if ok is False or not _matches_printing(card, q, fmt=fmt):
+            continue
+        if ok is None:
+            ok = _matches_card(card, q)
+            if key[0]:
+                verdicts[key] = ok
+        if ok:
+            matched.append(card)
+    return matched
 
 
 # Cached format-invariant "playable" subsets of bulk, keyed by
@@ -547,43 +566,22 @@ def filter_records(
         unreleased=unreleased,
         set_lower=set_code.lower() if set_code else None,
     )
-    # The card's filters run once per card, not per printing: a slice holds a few
-    # printings of each card, and every field those filters read — text, type
-    # line, faces, keywords, mana cost and value, stats, what the card does (its
-    # idents and trees, per oracle_id) — is the card's (2026-10-25: no such field
-    # differs between two printings of one oracle_id and name in the bulk). The
-    # verdicts live for this call only.
-    verdicts: dict[tuple[str, str], bool] = {}
-    matched = []
-    for card in _gated(records, gate, fmt=fmt):
-        key = (card.get("oracle_id") or "", card.get("name") or "")
-        ok = verdicts.get(key) if key[0] else None
-        if ok is False or not _matches_printing(
-            card,
-            price_min=price_min,
-            price_max=price_max,
-            fmt=fmt,
-            unreleased=unreleased,
-            is_commander_filter=is_commander_filter,
-        ):
-            continue
-        if ok is None:
-            ok = _matches_card(
-                card,
-                oracle_re=oracle_re,
-                type_lower=type_lower,
-                name_substr=name_norm,
-                cmc_min=cmc_min,
-                cmc_max=cmc_max,
-                presets=presets,
-                any_presets=any_presets,
-                partner_of=partner_of,
-                serve=serve,
-            )
-            if key[0]:
-                verdicts[key] = ok
-        if ok:
-            matched.append(card)
+    query = _PageQuery(
+        oracle_re=oracle_re,
+        type_lower=type_lower,
+        name_norm=name_norm,
+        cmc_min=cmc_min,
+        cmc_max=cmc_max,
+        presets=presets,
+        any_presets=any_presets,
+        partner_of=partner_of,
+        serve=serve,
+        price_min=price_min,
+        price_max=price_max,
+        unreleased=unreleased,
+        is_commander_filter=is_commander_filter,
+    )
+    matched = _scan(_gated(records, gate, fmt=fmt), query, fmt=fmt)
 
     # Deduplicate by name, keeping the cheapest printing (shared acquisition-cost rule:
     # a priced printing beats a price-less one, cheapest among priced).

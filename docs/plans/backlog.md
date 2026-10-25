@@ -101,13 +101,10 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   (j) **Job-read verdicts — don't re-suggest without a new read** (ADR-0060 and
   its 2026-10-24 amendments; the experiment table is the audit's "The tuner-policy
   leftovers"). The order is the blend (wipes, draw, protection) or play-rate
-  (removal, ramp), theme fit breaking a near tie for draw and ramp. The wipe read's
-  listed misreads are read (an X paid in cards, a pitch, a lands-stay-tapped rider,
-  Massacre Girl's chain, a dropped chosen-type / colour / pile / "for each" clause, a
-  draw each player may get); the read leading the wipe upgrades was then flat twice
-  (547 / 195 / 60): it moves picks only in precons whose guides add no wipe, and the
-  guide wipe adds it misses are deck-fit (Raise the Palisade and Faerie Slumber Party
-  under faeries, Expel the Interlopers and Tragic Arrogance under Ellivere, Chain
+  (removal, ramp), theme fit breaking a near tie for draw and ramp. The wipe read
+  leading its upgrades was flat twice (547 / 195 / 60): it moves picks only in
+  precons whose guides add no wipe, and the guide wipe adds it misses are deck-fit
+  (Raise the Palisade and Faerie Slumber Party under faeries, Expel the Interlopers and Tragic Arrogance under Ellivere, Chain
   Reaction and Winds of Abandon in Blame Game). A new read would be a deck-fit wipe
   read (the share of the deck's own board a sweep leaves). Rejected for removal: the
   deck's count of instant any-permanent answers deciding flexible vs targeted (59 and
@@ -117,24 +114,19 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   fitted on main-job removal and only gates). Theme fit as a tie lost for removal,
   wipes and protection. Protection goes unsearched in 18 guide adds' decks because
   ADR-0024 asks for it only from a combo or control deck or a voltron plan; a target
-  of 5 or 3 for every shape matched fewer adds. The wipe read's last listed misreads
-  are read too (a count of yours, Boompile's coin flip, a creature's activation
-  cost, a conditional discount at half, the wiped players' tokens; the audit's "The
-  tuner-policy leftovers"): 546 / 195 / 60 to 547 / 196 / 60 on 33ca5243, Deluge of
-  Doom and Boompile no longer picked; what `board_wipe`'s docstring still leaves
-  unread is no guide add or pick.
+  of 5 or 3 for every shape matched fewer adds. Open, small: a wipe amount that is
+  no count (a sacrificed creature's power, an aggregate, a tracked set) still reads
+  by phase's wrapper in `board_wipe._scale`, scaling under a `Multiply` (Cloudkill,
+  Specter of Mortality, Ichor Explosion) and narrow bare (Corpse Explosion,
+  Volcanic Eruption); none is a guide add or a tune pick. A count of yours that
+  names a build-around type (Gates Ablaze's Gates, Olivia's Wrath's Vampires) reads
+  narrow whatever the deck holds; the deck-fit wipe read above would see the Gates.
   (m) **Recall** (`precon-audit/misses.py`, at the largest guide's thirty
   swaps and each precon's own guides' budget, `budgets.json`, Spellbook cached):
-  195 of 408 cuttable guide cuts, 60 of 610 in-scope guide adds (2026-10-24, after
-  the near-tie budget rule; 180 / 57 before it, 169 / 56 at 9e0026ed; 195 / 60 again,
-  543 swaps, after the ETB serves and the artifacts / enchantments payoffs read the
-  IR, 2026-10-25; the wipe read's last misread fixes, measured on 33ca5243 before
-  those, added one cut: 547 / 196 / 60 against 546 / 195 / 60). Shipped: where play-rate orders a page, a near tie that costs less is the add (`swaps._near_tie`:
-  play-rates within a factor of two, read scores within 0.1 for an ordering job;
-  every width from 0.1 to 0.5 log10 rank cleared the bar and wider kept gaining —
-  the budget binds; the table is the audit's "The last tuner levers"). The levers
-  by size at the shipped tune: adds a page held but outranked (244), theme adds no
-  search reaches (169, (r)), cuts the popularity threshold still shields (62),
+  196 of 408 cuttable guide cuts, 61 of 610 in-scope guide adds, 543 swaps
+  (2026-10-25; 195 / 61, 542 swaps at 04925758; 180 / 57 before the near-tie
+  budget rule, 169 / 56 at 9e0026ed). The levers by size at the shipped tune: adds
+  a page held but outranked (244), theme adds no search reaches (169, (r)), cuts the popularity threshold still shields (62),
   commander-lane cards the guides trim (57), and cuts a budget-bound tune never
   reaches (27, from 43). Measured negative, so don't re-suggest without a new
   read: theme adds serving two viable avenues first (46 adds), and theme adds by
@@ -249,14 +241,15 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   indestructible" replacement (CR 614.1a) guards only the land they animate,
   the animator's own payoff like Kamahl's Will, not land protection.
   (l) **Tune speed, what's left** (2026-10-25, measured at 33ca5243: a warm Blood
-  Rites tune profiles at 8.2 s; warm `deck-tune` runs over the 25 precons take 6.6–10.3 s, median 8.0).
+  Rites tune profiles at 8.2 s; warm `deck-tune` runs over the 25 precons take
+  6.6–10.3 s, median 8.0).
   By size, in the profile: the ranking's synergy read (`ranking.score_candidate`,
   1.8 s, of which each candidate's clause serves, `Serve.matches`, 1.0 s; a card on
   two pages is scored twice); the live signal extraction of the ~250 deck and
   candidate cards the signals index doesn't serve (`extract_signals`, 1.6 s); the
   phase card-data load every process pays (`trees._phase_record_index`, 1.2 s);
-  the pages' scan of the in-identity slice (1.2 s; the card filters already run
-  once per card, 0.5 s of it); and the theme ties' and job orders' rankings
+  the pages' scan of the in-identity slice (1.2 s); and the theme ties' and job
+  orders' rankings
   (1.0 s). A per-serve slice memo measured no gain (two serve pages a tune).
 
 - **Competitive Brawl's "banned as a commander" reads as `restricted`.** The

@@ -4,8 +4,11 @@ next one serves them without re-reading the card — real cards (ADR-0056)."""
 
 import dataclasses
 
+import pytest
+
 from mtg_utils._analysis import job_quality
 from mtg_utils._analysis.job_quality import _common, card_draw
+from mtg_utils._analysis.write_back import MISSING
 from mtg_utils.testkit import test_card, test_signals
 
 
@@ -14,11 +17,11 @@ def _real(name: str) -> dict:
     return test_card(name)
 
 
-def _fresh_process(monkeypatch) -> None:
-    """Nothing attached, nothing memoized."""
+def _fresh_process() -> None:
+    """Nothing attached, nothing memoized: detaching clears the reads' memos."""
     _common.JOB_READS.detach()
-    monkeypatch.setattr(job_quality, "_SCORE_MEMO", {})
-    monkeypatch.setattr(card_draw, "_FUEL_MEMO", {})
+    assert not job_quality._SCORES.local
+    assert not card_draw._FUELS.local
 
 
 def test_the_job_read_sidecar_serves_what_a_process_wrote_back(monkeypatch, tmp_path):
@@ -29,7 +32,7 @@ def test_the_job_read_sidecar_serves_what_a_process_wrote_back(monkeypatch, tmp_
     bulk.write_text("[]")
     wrath, clamp = _real("Wrath of God"), _real("Skullclamp")
 
-    _fresh_process(monkeypatch)
+    _fresh_process()
     assert job_quality.attach_job_read_sidecar(bulk)
     live_score = job_quality.job_score(wrath, "board_wipe")
     live_fuel = card_draw.draw_fuel(clamp)
@@ -38,7 +41,7 @@ def test_the_job_read_sidecar_serves_what_a_process_wrote_back(monkeypatch, tmp_
     _common.JOB_READS.flush()
     assert (tmp_path / "AllPrintings.json.job-reads.pkl").is_file()
 
-    _fresh_process(monkeypatch)
+    _fresh_process()
     assert job_quality.attach_job_read_sidecar(bulk)
 
     def no_read(*_a, **_k):
@@ -54,4 +57,16 @@ def test_the_job_read_sidecar_serves_what_a_process_wrote_back(monkeypatch, tmp_
 
     bulk.write_text("[ ]")  # another bulk: another key
     assert job_quality.attach_job_read_sidecar(bulk)
-    assert _common.JOB_READS.persisted == {}
+    assert job_quality._SCORES.persisted(("board_wipe", wrath["oracle_id"])) is MISSING
+
+
+def test_a_read_outside_reads_is_scored_live():
+    """Only the job's own read in ``READS`` is memoized: another read of the
+    same job, with its own weights, scores the card by those weights."""
+    wrath = _real("Wrath of God")
+    wipe = job_quality.READS["board_wipe"]
+    assert wipe.score(wrath) is not None
+    doubled = dataclasses.replace(
+        wipe, weights={k: 2 * v for k, v in wipe.weights.items()}
+    )
+    assert doubled.score(wrath) == pytest.approx(2 * wipe.score(wrath), abs=0.002)

@@ -539041,6 +539041,212 @@
     "type_line": "Sorcery"
    }
   },
+  "Hour of Revelation": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Destroy all nonland permanents.",
+       "duration": null,
+       "effect": {
+        "cant_regenerate": false,
+        "target": {
+         "controller": null,
+         "properties": [],
+         "type": "Typed",
+         "type_filters": [
+          "Permanent",
+          {
+           "Non": "Land"
+          }
+         ]
+        },
+        "type": "DestroyAll"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Sorcery"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "White"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 3,
+      "shards": [
+       "White",
+       "White",
+       "White"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "01a8fb39-5ae9-43e3-bca1-32f5795d9e7f",
+       "89a89652-95ef-45b4-80c3-02241483f3c0",
+       "ddb53e90-f91e-4da9-ab70-5460958c6c99"
+      ]
+     },
+     "name": "Hour of Revelation",
+     "non_ability_text": null,
+     "oracle_text": "This spell costs {3} less to cast if there are ten or more nonland permanents on the battlefield.\nDestroy all nonland permanents.",
+     "power": null,
+     "printings": [
+      "AKR",
+      "HOU",
+      "PHOU",
+      "ZNC"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2017-07-14",
+       "text": "You determine the cost to cast Hour of Revelation before you pay any of that cost. For example, if the only nonland permanents on the battlefield are Tezzeret the Schemer and nine Etherium Cells he’s given you, Hour of Revelation costs {W}{W}{W} to cast. You may sacrifice three Etherium Cells to pay this cost, even though there are no longer ten or more nonland permanents after you produce {W}{W}{W}."
+      },
+      {
+       "date": "2018-01-19",
+       "text": "There are many important moments in the story, but the most crucial—called “story spotlights”—are shown on cards. These cards have the Planeswalker symbol in their text box; this symbol has no effect on gameplay. You can read more about these events in the official Magic fiction at http://www.mtgstory.com."
+      }
+     ],
+     "scryfall_oracle_id": "920c1dd4-c3f6-4020-a6f0-2e8acad2c212",
+     "static_abilities": [
+      {
+       "active_zones": [
+        "Hand",
+        "Stack",
+        "Command",
+        "Graveyard",
+        "Exile",
+        "Library"
+       ],
+       "affected": {
+        "type": "SelfRef"
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": {
+        "comparator": "GE",
+        "lhs": {
+         "qty": {
+          "filter": {
+           "controller": null,
+           "properties": [
+            {
+             "type": "InZone",
+             "zone": "Battlefield"
+            }
+           ],
+           "type": "Typed",
+           "type_filters": [
+            "Permanent",
+            {
+             "Non": "Land"
+            }
+           ]
+          },
+          "type": "ObjectCount"
+         },
+         "type": "Ref"
+        },
+        "rhs": {
+         "type": "Fixed",
+         "value": 10
+        },
+        "type": "QuantityComparison"
+       },
+       "description": "This spell costs {3} less to cast if there are ten or more nonland permanents on the battlefield.",
+       "effect_zone": null,
+       "mode": {
+        "ModifyCost": {
+         "amount": {
+          "generic": 3,
+          "shards": [],
+          "type": "Cost"
+         },
+         "mode": "Reduce",
+         "spell_filter": null
+        }
+       },
+       "modifications": []
+      }
+     ],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 6.0,
+    "color_identity": [
+     "W"
+    ],
+    "colors": [
+     "W"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{3}{W}{W}{W}",
+    "name": "Hour of Revelation",
+    "oracle_id": "920c1dd4-c3f6-4020-a6f0-2e8acad2c212",
+    "oracle_text": "This spell costs {3} less to cast if there are ten or more nonland permanents on the battlefield.\nDestroy all nonland permanents.",
+    "type_line": "Sorcery"
+   }
+  },
   "Howling Galefang": {
    "phase_records": [
     {
@@ -588992,6 +589198,241 @@
     "oracle_id": "f83f6ba0-bb23-4c62-8a16-b17f5fbc0740",
     "oracle_text": "Enchant creature\nEnchanted creature gets -X/-X, where X is the number of cards in your hand.",
     "type_line": "Enchantment — Aura"
+   }
+  },
+  "Kagemaro, First to Suffer": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": {
+        "costs": [
+         {
+          "cost": {
+           "generic": 0,
+           "shards": [
+            "Black"
+           ],
+           "type": "Cost"
+          },
+          "type": "Mana"
+         },
+         {
+          "count": 1,
+          "target": {
+           "type": "SelfRef"
+          },
+          "type": "Sacrifice"
+         }
+        ],
+        "type": "Composite"
+       },
+       "description": "{B}, Sacrifice ~: All creatures get -X/-X until end of turn, where X is the number of cards in your hand.",
+       "duration": "UntilEndOfTurn",
+       "effect": {
+        "power": {
+         "type": "Quantity",
+         "value": {
+          "factor": -1,
+          "inner": {
+           "qty": {
+            "player": {
+             "type": "Controller"
+            },
+            "type": "HandSize"
+           },
+           "type": "Ref"
+          },
+          "type": "Multiply"
+         }
+        },
+        "target": {
+         "controller": null,
+         "properties": [],
+         "type": "Typed",
+         "type_filters": [
+          "Creature"
+         ]
+        },
+        "toughness": {
+         "type": "Quantity",
+         "value": {
+          "factor": -1,
+          "inner": {
+           "qty": {
+            "player": {
+             "type": "Controller"
+            },
+            "type": "HandSize"
+           },
+           "type": "Ref"
+          },
+          "type": "Multiply"
+         }
+        },
+        "type": "PumpAll"
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "brawl_commander": true,
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Demon",
+       "Spirit"
+      ],
+      "supertypes": [
+       "Legendary"
+      ]
+     },
+     "color_identity": [
+      "Black"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "is_commander": true,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 3,
+      "shards": [
+       "Black",
+       "Black"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "752f8672-1c37-4ab2-b290-fe3147784475"
+      ]
+     },
+     "name": "Kagemaro, First to Suffer",
+     "non_ability_text": null,
+     "oracle_text": "Kagemaro's power and toughness are each equal to the number of cards in your hand.\n{B}, Sacrifice Kagemaro: All creatures get -X/-X until end of turn, where X is the number of cards in your hand.",
+     "power": {
+      "type": "Variable",
+      "value": "*"
+     },
+     "printings": [
+      "SOK"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2005-06-01",
+       "text": "The value of X is determined as the ability resolves."
+      }
+     ],
+     "scryfall_oracle_id": "da3e399f-6801-4e4d-9b1d-ba15fcfb7ee4",
+     "static_abilities": [
+      {
+       "active_zones": [],
+       "affected": {
+        "type": "SelfRef"
+       },
+       "affected_zone": null,
+       "characteristic_defining": true,
+       "condition": null,
+       "description": "~'s power and toughness are each equal to the number of cards in your hand.",
+       "effect_zone": null,
+       "mode": "Continuous",
+       "modifications": [
+        {
+         "type": "SetDynamicPower",
+         "value": {
+          "qty": {
+           "player": {
+            "type": "Controller"
+           },
+           "type": "HandSize"
+          },
+          "type": "Ref"
+         }
+        },
+        {
+         "type": "SetDynamicToughness",
+         "value": {
+          "qty": {
+           "player": {
+            "type": "Controller"
+           },
+           "type": "HandSize"
+          },
+          "type": "Ref"
+         }
+        }
+       ]
+      }
+     ],
+     "toughness": {
+      "type": "Variable",
+      "value": "*"
+     },
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 5.0,
+    "color_identity": [
+     "B"
+    ],
+    "colors": [
+     "B"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{3}{B}{B}",
+    "name": "Kagemaro, First to Suffer",
+    "oracle_id": "da3e399f-6801-4e4d-9b1d-ba15fcfb7ee4",
+    "oracle_text": "Kagemaro's power and toughness are each equal to the number of cards in your hand.\n{B}, Sacrifice Kagemaro: All creatures get -X/-X until end of turn, where X is the number of cards in your hand.",
+    "power": "*",
+    "toughness": "*",
+    "type_line": "Legendary Creature — Demon Spirit"
    }
   },
   "Kaheera, the Orphanguard": {
@@ -727591,6 +728032,196 @@
     "type_line": "Land"
    }
   },
+  "Mutilate": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "All creatures get -1/-1 until end of turn for each Swamp you control.",
+       "duration": "UntilEndOfTurn",
+       "effect": {
+        "power": {
+         "type": "Quantity",
+         "value": {
+          "factor": -1,
+          "inner": {
+           "qty": {
+            "filter": {
+             "controller": "You",
+             "properties": [],
+             "type": "Typed",
+             "type_filters": [
+              {
+               "Subtype": "Swamp"
+              }
+             ]
+            },
+            "type": "ObjectCount"
+           },
+           "type": "Ref"
+          },
+          "type": "Multiply"
+         }
+        },
+        "target": {
+         "controller": null,
+         "properties": [],
+         "type": "Typed",
+         "type_filters": [
+          "Creature"
+         ]
+        },
+        "toughness": {
+         "type": "Quantity",
+         "value": {
+          "factor": -1,
+          "inner": {
+           "qty": {
+            "filter": {
+             "controller": "You",
+             "properties": [],
+             "type": "Typed",
+             "type_filters": [
+              {
+               "Subtype": "Swamp"
+              }
+             ]
+            },
+            "type": "ObjectCount"
+           },
+           "type": "Ref"
+          },
+          "type": "Multiply"
+         }
+        },
+        "type": "PumpAll"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Sorcery"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Black"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "premodern": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 2,
+      "shards": [
+       "Black",
+       "Black"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "04587192-e5a6-46f6-98b5-3b349d618880",
+       "1810cd19-7bd1-46ee-a262-713eec2307cc",
+       "38d662a5-8ae1-42b6-8086-b7615e58da08",
+       "6189cab3-1963-4590-9cbc-7ab4a693d7c6",
+       "a0a4ffd3-f116-4e9a-b46a-b92402ab2afb",
+       "b931c7cb-ef83-440c-9195-ace311f4a601",
+       "c2038b12-30b8-42ff-a15d-87cbbf72c939",
+       "c48bc86b-df0a-4a9c-8aad-c3ffb742a5ff",
+       "d9cbdabf-18e3-4c0c-b37b-097aaa650066"
+      ]
+     },
+     "name": "Mutilate",
+     "non_ability_text": null,
+     "oracle_text": "All creatures get -1/-1 until end of turn for each Swamp you control.",
+     "power": null,
+     "printings": [
+      "40K",
+      "C14",
+      "DDD",
+      "FDC",
+      "GVL",
+      "M13",
+      "MB2",
+      "TOR"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2012-07-01",
+       "text": "The effect is based on the number of Swamps you control when Mutilate resolves. Only creatures on the battlefield at that time will be affected. The effect won't change later in the turn, even if the number of Swamps you control changes."
+      }
+     ],
+     "scryfall_oracle_id": "698e79ec-c2bc-4973-a095-f3c57b50e39c",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 4.0,
+    "color_identity": [
+     "B"
+    ],
+    "colors": [
+     "B"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}{B}{B}",
+    "name": "Mutilate",
+    "oracle_id": "698e79ec-c2bc-4973-a095-f3c57b50e39c",
+    "oracle_text": "All creatures get -1/-1 until end of turn for each Swamp you control.",
+    "type_line": "Sorcery"
+   }
+  },
   "Mycoid Resurrection": {
    "phase_records": [
     {
@@ -807842,6 +808473,168 @@
     "name": "Planar Birth",
     "oracle_id": "7a9d13b3-3823-463a-acd9-8b7a9d5e121f",
     "oracle_text": "Return all basic land cards from all graveyards to the battlefield tapped under their owners' control.",
+    "type_line": "Sorcery"
+   }
+  },
+  "Planar Despair": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Domain — All creatures get -1/-1 until end of turn for each basic land type among lands you control.",
+       "duration": "UntilEndOfTurn",
+       "effect": {
+        "power": {
+         "type": "Quantity",
+         "value": {
+          "factor": -1,
+          "inner": {
+           "qty": {
+            "controller": "You",
+            "type": "BasicLandTypeCount"
+           },
+           "type": "Ref"
+          },
+          "type": "Multiply"
+         }
+        },
+        "target": {
+         "controller": null,
+         "properties": [],
+         "type": "Typed",
+         "type_filters": [
+          "Creature"
+         ]
+        },
+        "toughness": {
+         "type": "Quantity",
+         "value": {
+          "factor": -1,
+          "inner": {
+           "qty": {
+            "controller": "You",
+            "type": "BasicLandTypeCount"
+           },
+           "type": "Ref"
+          },
+          "type": "Multiply"
+         }
+        },
+        "type": "PumpAll"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Sorcery"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Black"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "premodern": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 3,
+      "shards": [
+       "Black",
+       "Black"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "3a92d454-3f23-45bf-921f-25b0da4ce138"
+      ]
+     },
+     "name": "Planar Despair",
+     "non_ability_text": null,
+     "oracle_text": "Domain — All creatures get -1/-1 until end of turn for each basic land type among lands you control.",
+     "power": null,
+     "printings": [
+      "APC"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2021-06-18",
+       "text": "Domain abilities count the number of basic land types among lands you control, not how many lands you control or how many of any type."
+      },
+      {
+       "date": "2021-06-18",
+       "text": "The basic land types are Plains, Island, Swamp, Mountain, and Forest. Land types other than basic land types (such as Desert) don't contribute to domain abilities."
+      }
+     ],
+     "scryfall_oracle_id": "1ba36042-8902-4abb-a4ae-a8d26d81a0de",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 5.0,
+    "color_identity": [
+     "B"
+    ],
+    "colors": [
+     "B"
+    ],
+    "keywords": [
+     "Domain"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{3}{B}{B}",
+    "name": "Planar Despair",
+    "oracle_id": "1ba36042-8902-4abb-a4ae-a8d26d81a0de",
+    "oracle_text": "Domain — All creatures get -1/-1 until end of turn for each basic land type among lands you control.",
     "type_line": "Sorcery"
    }
   },
@@ -1019110,6 +1019903,267 @@
     "type_line": "Enchantment — Aura"
    }
   },
+  "Terisiare's Devastation": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "You lose X life and create X tapped Powerstone tokens. Then all creatures get -1/-1 until end of turn for each artifact you control.",
+       "duration": null,
+       "effect": {
+        "amount": {
+         "qty": {
+          "name": "X",
+          "type": "Variable"
+         },
+         "type": "Ref"
+        },
+        "target": {
+         "type": "Controller"
+        },
+        "type": "LoseLife"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "colors": [],
+         "count": {
+          "qty": {
+           "name": "X",
+           "type": "Variable"
+          },
+          "type": "Ref"
+         },
+         "enters_attacking": false,
+         "keywords": [],
+         "name": "Powerstone",
+         "owner": {
+          "type": "Controller"
+         },
+         "power": {
+          "type": "Fixed",
+          "value": 0
+         },
+         "tapped": true,
+         "toughness": {
+          "type": "Fixed",
+          "value": 0
+         },
+         "type": "Token",
+         "types": [
+          "Artifact",
+          "Powerstone"
+         ]
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": "UntilEndOfTurn",
+         "effect": {
+          "power": {
+           "type": "Quantity",
+           "value": {
+            "factor": -1,
+            "inner": {
+             "qty": {
+              "filter": {
+               "controller": "You",
+               "properties": [],
+               "type": "Typed",
+               "type_filters": [
+                "Artifact"
+               ]
+              },
+              "type": "ObjectCount"
+             },
+             "type": "Ref"
+            },
+            "type": "Multiply"
+           }
+          },
+          "target": {
+           "controller": null,
+           "properties": [],
+           "type": "Typed",
+           "type_filters": [
+            "Creature"
+           ]
+          },
+          "toughness": {
+           "type": "Quantity",
+           "value": {
+            "factor": -1,
+            "inner": {
+             "qty": {
+              "filter": {
+               "controller": "You",
+               "properties": [],
+               "type": "Typed",
+               "type_filters": [
+                "Artifact"
+               ]
+              },
+              "type": "ObjectCount"
+             },
+             "type": "Ref"
+            },
+            "type": "Multiply"
+           }
+          },
+          "type": "PumpAll"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": null,
+         "sub_link": "SequentialSibling",
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Sorcery"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Black"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 2,
+      "shards": [
+       "X",
+       "Black",
+       "Black"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "related_token_ids": [
+       "af8db311-3520-5cf7-8410-7390c29da873"
+      ],
+      "source_printing_ids": [
+       "494a9b67-cfd8-44cd-adbb-8e8a9eeca0d4",
+       "8a50d35d-9e2a-458b-9bc0-320e98a832e5"
+      ]
+     },
+     "name": "Terisiare's Devastation",
+     "non_ability_text": null,
+     "oracle_text": "You lose X life and create X tapped Powerstone tokens. Then all creatures get -1/-1 until end of turn for each artifact you control. (The tokens are artifacts with \"{T}: Add {C}. This mana can't be spent to cast a nonartifact spell.\")",
+     "power": null,
+     "printings": [
+      "BRC",
+      "PRM"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2022-10-14",
+       "text": "Although all the cards in The Brothers’ War that create Powerstone tokens create a tapped Powerstone token, entering the battlefield tapped isn’t part of the token’s definition. Notably, if you create a token that is a copy of a Powerstone token, the token copy won’t enter the battlefield tapped."
+      },
+      {
+       "date": "2022-10-14",
+       "text": "Powerstone tokens are a kind of predefined token. Each one has the artifact subtype “Powerstone” and the ability “{T}: Add {C}. This mana can’t be spent to cast a nonartifact spell.”"
+      },
+      {
+       "date": "2022-10-14",
+       "text": "You can use the {C} added by a Powerstone token on anything that isn’t a nonartifact spell. This includes paying costs to activate abilities of both artifact and nonartifact permanents, paying ward costs, and so on."
+      }
+     ],
+     "scryfall_oracle_id": "03c1e376-1410-4321-90fe-a6997e8db85a",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "all_parts": [
+     {
+      "component": "token",
+      "id": "d45fe4b6-aeaf-4f84-b660-c7b482ed8512",
+      "name": "Powerstone",
+      "oracle_id": "91da73fe-d028-43d7-bf75-f7ef30b45664",
+      "type_line": "Token Artifact — Powerstone"
+     }
+    ],
+    "arena_available": false,
+    "cmc": 4.0,
+    "color_identity": [
+     "B"
+    ],
+    "colors": [
+     "B"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{X}{2}{B}{B}",
+    "name": "Terisiare's Devastation",
+    "oracle_id": "03c1e376-1410-4321-90fe-a6997e8db85a",
+    "oracle_text": "You lose X life and create X tapped Powerstone tokens. Then all creatures get -1/-1 until end of turn for each artifact you control. (The tokens are artifacts with \"{T}: Add {C}. This mana can't be spent to cast a nonartifact spell.\")",
+    "produced_mana": [
+     "C"
+    ],
+    "type_line": "Sorcery"
+   }
+  },
   "Terminal Velocity": {
    "phase_records": [
     {
@@ -1020523,6 +1021577,188 @@
     "oracle_id": "b81f041d-98db-4408-9472-c483e4a502bc",
     "oracle_text": "Destroy target nonartifact, nonblack creature. It can't be regenerated.",
     "type_line": "Instant"
+   }
+  },
+  "Terror Tide": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Fathomless descent — All creatures get -X/-X until end of turn, where X is the number of permanent cards in your graveyard.",
+       "duration": "UntilEndOfTurn",
+       "effect": {
+        "power": {
+         "type": "Quantity",
+         "value": {
+          "factor": -1,
+          "inner": {
+           "qty": {
+            "card_types": [
+             "Permanent"
+            ],
+            "scope": "Controller",
+            "type": "ZoneCardCount",
+            "zone": "Graveyard"
+           },
+           "type": "Ref"
+          },
+          "type": "Multiply"
+         }
+        },
+        "target": {
+         "controller": null,
+         "properties": [],
+         "type": "Typed",
+         "type_filters": [
+          "Creature"
+         ]
+        },
+        "toughness": {
+         "type": "Quantity",
+         "value": {
+          "factor": -1,
+          "inner": {
+           "qty": {
+            "card_types": [
+             "Permanent"
+            ],
+            "scope": "Controller",
+            "type": "ZoneCardCount",
+            "zone": "Graveyard"
+           },
+           "type": "Ref"
+          },
+          "type": "Multiply"
+         }
+        },
+        "type": "PumpAll"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Sorcery"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Black"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "standard": "legal",
+      "standardbrawl": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 2,
+      "shards": [
+       "Black",
+       "Black"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "0a281d2c-20b9-4887-a924-9be6c07b7629",
+       "39776030-4a89-4b22-952b-4a7f33f655b5"
+      ]
+     },
+     "name": "Terror Tide",
+     "non_ability_text": null,
+     "oracle_text": "Fathomless descent — All creatures get -X/-X until end of turn, where X is the number of permanent cards in your graveyard.",
+     "power": null,
+     "printings": [
+      "LCI",
+      "PLCI"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2023-11-10",
+       "text": "Cards with the ability word \"fathomless descent\" have abilities that care how many permanent cards are in your graveyard."
+      },
+      {
+       "date": "2023-11-10",
+       "text": "Some descend triggered abilities include intervening \"if\" clauses (i.e. \"if you have [four or eight] permanent cards in your graveyard\" in the middle of the ability). Each of these abilities checks your graveyard at the moment it would trigger to see if it does. If you don't have the required number of permanent cards in your graveyard at that time, the ability doesn't trigger at all. If it does trigger, it will check again as it tries to resolve. If you don't have the required number of permanent cards in your graveyard at that time, the ability won't resolve and none of its effects will happen."
+      },
+      {
+       "date": "2023-11-10",
+       "text": "The value of X is checked only once, as Terror Tide resolves."
+      }
+     ],
+     "scryfall_oracle_id": "12be58f4-1c12-4bca-8069-1f049cd8a90c",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 4.0,
+    "color_identity": [
+     "B"
+    ],
+    "colors": [
+     "B"
+    ],
+    "keywords": [
+     "Fathomless descent"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "legal",
+     "standardbrawl": "legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}{B}{B}",
+    "name": "Terror Tide",
+    "oracle_id": "12be58f4-1c12-4bca-8069-1f049cd8a90c",
+    "oracle_text": "Fathomless descent — All creatures get -X/-X until end of turn, where X is the number of permanent cards in your graveyard.",
+    "type_line": "Sorcery"
    }
   },
   "Tervigon": {

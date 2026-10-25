@@ -88,20 +88,19 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, cast
 
 from mtg_utils._analysis.job_quality._common import (
-    MISSING,
+    JOB_READS,
     NO_COST,
     activation_mana,
     cast_cost,
     faces,
     front_mana_cost,
-    recall,
-    remember,
     unit_kind,
     unpriced,
 )
 from mtg_utils._analysis.lanes.card_advantage import draw_engine_scope
 from mtg_utils._analysis.roles import role_of
 from mtg_utils._analysis.signal_trees import signal_trees_for
+from mtg_utils._analysis.write_back import MISSING
 from mtg_utils._card_ir.crosswalk import (
     ENTERS_EVENTS,
     amount_factor,
@@ -679,8 +678,8 @@ def _source_fuel(s: _Source) -> str | None:
     return None
 
 
-#: ("draw_fuel", oracle_id) -> the card's deck fuel.
-_FUEL_MEMO: dict[tuple[str, str], str | None] = {}
+#: oracle_id -> the card's deck fuel (persisted by the job-read sidecar).
+_FUELS = JOB_READS.memo("draw_fuel")
 
 
 def draw_fuel(card: dict) -> str | None:
@@ -689,8 +688,7 @@ def draw_fuel(card: dict) -> str | None:
     engine, or one fired by the turn, opponents or any spell. The engine is
     the one that flows the most cards."""
     oid = card.get("oracle_id")
-    key = ("draw_fuel", oid or "")
-    if oid and (hit := recall(_FUEL_MEMO, key)) is not MISSING:
+    if oid and (hit := _FUELS.get(oid)) is not MISSING:
         return cast("str | None", hit)
     engines = [
         s
@@ -700,7 +698,7 @@ def draw_fuel(card: dict) -> str | None:
     best = max(engines, key=lambda s: _advantage(s) * s.rate, default=None)
     fuel = _source_fuel(best) if best is not None else None
     if oid and signal_trees_for(card, bulk=card):
-        remember(_FUEL_MEMO, key, fuel)
+        _FUELS.put(oid, fuel)
     return fuel
 
 

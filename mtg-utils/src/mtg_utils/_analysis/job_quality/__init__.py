@@ -40,13 +40,9 @@ from mtg_utils._analysis.job_quality import (
     ramp,
     removal,
 )
-from mtg_utils._analysis.job_quality._common import (
-    JOB_READS,
-    MISSING,
-    recall,
-    remember,
-)
+from mtg_utils._analysis.job_quality._common import JOB_READS
 from mtg_utils._analysis.signal_trees import signal_trees_for
+from mtg_utils._analysis.write_back import MISSING
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -97,11 +93,14 @@ class JobRead:
         return round(base - abs(base) * (1 - f), 3)
 
     def _card_score(self, card: dict) -> float | None:
-        """The card's own score, deck-free (memoized per oracle_id, and
-        persisted by the job-read sidecar when one is attached)."""
+        """The card's own score, deck-free: memoized per oracle_id, and persisted
+        by the job-read sidecar when one is attached, for the job's own read in
+        :data:`READS` only (another read, with its own features or weights, is
+        scored live)."""
         oid = card.get("oracle_id")
         key = (self.job, oid or "")
-        if oid and (hit := recall(_SCORE_MEMO, key)) is not MISSING:
+        memoized = bool(oid) and READS.get(self.job) is self
+        if memoized and (hit := _SCORES.get(key)) is not MISSING:
             return cast("float | None", hit)
         feats = self.features(card)
         score = (
@@ -109,15 +108,14 @@ class JobRead:
             if feats is None
             else round(sum(self.weights[k] * v for k, v in feats.items()), 3)
         )
-        if oid and (feats is not None or signal_trees_for(card, bulk=card)):
-            # never a None read before phase data is there
-            remember(_SCORE_MEMO, key, score)
+        if memoized and (feats is not None or signal_trees_for(card, bulk=card)):
+            _SCORES.put(key, score)  # never a None read before phase data is there
         return score
 
 
 #: (job, oracle_id) -> score: a read walks every unit of every face, and an
 #: upgrade pass asks it for each card of a job's match set (thousands).
-_SCORE_MEMO: dict[tuple[str, str], float | None] = {}
+_SCORES = JOB_READS.memo("score")
 
 
 def attach_job_read_sidecar(bulk_path: Path | None) -> bool:

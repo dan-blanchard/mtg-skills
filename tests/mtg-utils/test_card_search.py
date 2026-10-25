@@ -1355,3 +1355,68 @@ def test_filter_records_reads_a_cards_filters_once_per_card():
     )
     assert [c["prices"]["usd"] for c in kept] == ["1.00"]  # the cheapest printing
     assert calls == ["1.00"]  # the $9 printing fails its price before the card asks
+
+
+@pytest.mark.parametrize(
+    "name", ["Wall of Omens", "Swords to Plowshares", "Llanowar Elves"]
+)
+def test_a_cards_printings_answer_its_card_filters_alike(name):
+    """What ``filter_records`` asks once per card reads only the card: two
+    printings of one real card, differing in every per-printing field (price,
+    set, rarity, games, frame, promo), answer each card filter alike — an oracle
+    pattern, a type, a mana value, presets and a serve."""
+    import re
+
+    from mtg_utils._analysis.signal_specs import Serve
+    from mtg_utils.card_search import _matches_card, _PageQuery, resolve_presets
+
+    base = test_card(name)
+    printings = [
+        {
+            **base,
+            "prices": {"usd": "0.25"},
+            "set": "aaa",
+            "rarity": "common",
+            "games": ["paper"],
+            "promo": False,
+        },
+        {
+            **base,
+            "prices": {"usd": "40.00"},
+            "set": "zzz",
+            "rarity": "mythic",
+            "games": ["arena", "paper"],
+            "frame_effects": ["showcase"],
+            "promo": True,
+            "full_art": True,
+        },
+    ]
+
+    def query(**kw):
+        fields = {
+            "oracle_re": None,
+            "type_lower": None,
+            "name_norm": None,
+            "cmc_min": None,
+            "cmc_max": None,
+            "presets": (),
+            "any_presets": (),
+            "partner_of": None,
+            "serve": None,
+            "price_min": None,
+            "price_max": None,
+            "unreleased": frozenset(),
+            "is_commander_filter": False,
+        }
+        return _PageQuery(**{**fields, **kw})
+
+    queries = [
+        query(oracle_re=re.compile("draw|exile|add", re.IGNORECASE)),
+        query(type_lower=("creature", "instant")),
+        query(cmc_max=1),
+        query(presets=resolve_presets(("removal",))),
+        query(any_presets=resolve_presets(("removal", "protects-board"))),
+        query(serve=Serve(keywords=frozenset({"defender"}))),
+    ]
+    for q in queries:
+        assert len({_matches_card(p, q) for p in printings}) == 1

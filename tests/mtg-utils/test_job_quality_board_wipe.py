@@ -278,17 +278,30 @@ def test_clause_dropped_canary(name):
     assert "Choose" not in str(face)
 
 
-@pytest.mark.parametrize("name", ["Deluge of Doom", "Essence Pulse"])
-def test_a_count_of_yours_is_no_scaling_x(name):
-    """Deluge of Doom's X is the card types in your graveyard, Essence Pulse's the
-    life you gained this turn: an X the card defines (CR 107.3), off what is yours,
-    not one the caster sizes or the board's creatures. Phase wraps the -X/-X in a
-    Multiply; it reads as the unwrapped count of yours does (Gates Ablaze's Gates),
-    a narrow one."""
+@pytest.mark.parametrize(
+    ("name", "scales"),
+    [
+        ("Deluge of Doom", False),
+        ("Essence Pulse", False),
+        ("Planar Despair", False),
+        ("Kagemaro, First to Suffer", False),
+        ("Mutilate", True),
+        ("Terror Tide", True),
+        ("Terisiare's Devastation", True),
+        ("Gates Ablaze", False),
+    ],
+)
+def test_an_x_the_card_defines_scales_when_the_deck_fills_it(name, scales):
+    """An X the card defines (CR 107.3) is narrow when its count is bounded:
+    Deluge of Doom's distinct card types (CR 205.2a), Planar Despair's basic land
+    types (five, CR 305.6), Essence Pulse's life gained this turn (its own 2
+    first), Kagemaro's cards in hand (cut to seven at cleanup, CR 402.2). It
+    scales when the deck fills the count: Mutilate's Swamps, Terror Tide's
+    permanent cards in your graveyard, Terisiare's Devastation's artifacts; not a
+    type only a deck built on it holds (Gates Ablaze's Gates)."""
     features = board_wipe.features(_real(name))
-    assert features["small"] == 1.0
-    assert features["clean"] == 0.0
-    assert board_wipe.features(_real("Gates Ablaze"))["small"] == 1.0
+    assert features["lethal"] == float(scales)
+    assert features["small"] == float(not scales)
 
 
 def test_a_multiplied_count_of_the_board_still_scales():
@@ -316,6 +329,15 @@ def test_a_creatures_activation_costs_its_mana(name, cost):
     features = board_wipe.features(_real(name))
     assert features["cost"] == cost
     assert features["cheap_clean"] == 0.0
+
+
+def test_a_board_count_discount_is_taken_whole():
+    """Hour of Revelation costs {3} less with ten or more nonland permanents on
+    the battlefield: the board the read casts a wipe into meets it, as it meets
+    Blasphemous Act's per-creature discount, so the sweep costs {W}{W}{W}."""
+    features = board_wipe.features(_real("Hour of Revelation"))
+    assert features["cost"] == 3.0
+    assert features["cheap_clean"] == 1.0
 
 
 def test_a_conditional_discount_is_taken_at_half():

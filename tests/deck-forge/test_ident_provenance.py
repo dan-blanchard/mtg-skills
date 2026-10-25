@@ -100,7 +100,7 @@ def test_the_provenance_sidecar_serves_what_a_process_wrote_back(monkeypatch, tm
     next process serves it without re-running a lane, and the value is the one a
     live attribution computes. A changed bulk (its identity is the key) serves
     nothing: re-attaching to it re-keys."""
-    from mtg_utils._analysis import ident_provenance
+    from mtg_utils._analysis import ident_provenance, write_back
 
     bulk = tmp_path / "AllPrintings.json"
     bulk.write_text("[]")
@@ -123,4 +123,7 @@ def test_the_provenance_sidecar_serves_what_a_process_wrote_back(monkeypatch, tm
 
     bulk.write_text("[ ]")  # another bulk: another key
     assert ident_provenance.attach_provenance_sidecar(bulk)
-    assert ident_provenance._SIDECAR.persisted == {}
+    assert (
+        ident_provenance._PERSISTED.persisted(test_card("Myr Galvanizer")["oracle_id"])
+        is write_back.MISSING
+    )

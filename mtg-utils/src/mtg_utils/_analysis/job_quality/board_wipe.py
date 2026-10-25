@@ -39,15 +39,17 @@ chains (Massacre Girl, CR 603.7a); a choice the sweep's filter never reads limit
 it (Harsh Mercy, Sudden Demise, Void); a draw "each player who controls" a
 creature gets is no rider for the caster (Shatter the Sky, Depopulate); and the
 clauses phase drops whole are read by name (``_CLAUSE_DROPPED``: Extinction,
-Swarmyard Massacre, Do or Die), each retired by its canary. Then: an X the card
-defines from what is yours is a narrow count, not a scaling one (Deluge of
-Doom's card types in your graveyard, Essence Pulse's life gained; CR 107.3); a
-sweep behind a coin flip is gated (Boompile, CR 705.1-705.2); a creature's
-activation costs its mana as any permanent's does (Jaya Ballard, Task Mage;
-Infected Vermin; CR 602.1a); a conditional discount is taken at half (Avenge,
-Hour of Revelation; CR 601.2f); and tokens the wiped players create are theirs
-(CR 111.2), no rider and no clean sweep (March of Souls, The Phasing of
-Zhalfir, Mogg Infestation).
+Swarmyard Massacre, Do or Die), each retired by its canary. An X the card
+defines (CR 107.3) scales when the deck fills what it counts (Mutilate's Swamps,
+Terror Tide's permanent cards in your graveyard) and is narrow when the count
+is bounded (Deluge of Doom's card types, Essence Pulse's life gained,
+:data:`_BOUNDED`); a sweep behind a coin flip is gated (Boompile, CR
+705.1-705.2); a creature's activation costs its mana as any permanent's does
+(Jaya Ballard, Task Mage; Infected Vermin; CR 602.2); a discount behind a
+board-count condition is taken on the board the read assumes, one behind any
+other condition at half (Hour of Revelation, Avenge; CR 601.2f); and tokens the
+wiped players create are theirs (CR 111.2), no rider and no clean sweep (March
+of Souls, The Phasing of Zhalfir, Mogg Infestation).
 
 Left unread (none a guide add or a pick of the 25-precon tune): an exile of
 each permanent sharing a name (Eye of Singularity); a blocked-by slice phase
@@ -80,9 +82,13 @@ from mtg_utils._analysis.lanes.mana_and_wipes import (
 )
 from mtg_utils._analysis.signal_trees import signal_trees_for
 from mtg_utils._card_ir.crosswalk import (
+    _DIRECTED_PLAYER_TAGS,
+    BASIC_LAND_TYPE_COLORS,
+    EFFECT_CONCEPTS,
     SWEPT_PERMANENT_TYPES,
     affected_tag,
     change_zone_dirs,
+    count_operand_qty,
     effect_filter,
     effect_owner_player_scope,
     filter_controller,
@@ -90,12 +96,15 @@ from mtg_utils._card_ir.crosswalk import (
     filter_non_types,
     filter_owners,
     filter_predicates,
+    filter_subtypes,
     iter_cost_leaves,
     iter_static_defs,
     iter_typed_nodes,
     mana_value_of_cost,
     modify_cost_mode,
     overload_sweep,
+    quantity_scope,
+    quantity_threshold,
     recipient_tag,
     static_affected,
     static_mode_tag,
@@ -107,6 +116,7 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
 
     from mtg_utils._card_ir.crosswalk import AbilityUnit, ConceptNode, ConceptTree
+    from mtg_utils._card_ir.mirror.runtime import TypedMirrorNode
 
 #: The permanent types a sweep is read as reaching: the lanes' swept types
 #: (``crosswalk.SWEPT_PERMANENT_TYPES``), "permanent" read as all of them.
@@ -119,8 +129,26 @@ _CORE_TYPES = _SWEPT | {"Land", "Battle"}
 _KILLS = frozenset({"destroy", "exile", "tuck", "sacrifice"})
 #: A variable amount the caster sizes (X) or a count of the board's creatures.
 _SCALING = 99
-#: A count of something narrow (your Gates, spells cast from exile this turn).
+#: A count of something narrow (spells cast from exile this turn, the Beasts on
+#: the battlefield) or a bounded one (:data:`_BOUNDED`).
 _NARROW_COUNT = 2
+#: Counts with a small cap, or a floor of the card's own, whatever the deck
+#: holds: distinct card types (Deluge of Doom's, among the CR 205.2a types a
+#: graveyard holds), basic land types (domain: five, CR 305.6), the life gained
+#: this turn (Essence Pulse gains its own 2 first), and cards in hand, which the
+#: cleanup step cuts back to the maximum hand size, normally seven (CR 402.2,
+#: 514.1), and which the caster spends casting spells (Kagemaro, First to
+#: Suffer). The read's own call: each reads as ``_NARROW_COUNT``.
+_BOUNDED = frozenset(
+    {"DistinctCardTypes", "BasicLandTypeCount", "LifeGainedThisTurn", "HandSize"}
+)
+#: Object counts: what is on the battlefield (``ObjectCount``) or in a zone
+#: (``ZoneCardCount``). Of yours (``crosswalk.quantity_scope``), the deck fills
+#: them (Mutilate's Swamps, Dead of Winter's snow permanents, Terisiare's
+#: Devastation's artifacts, Terror Tide's permanent cards in your graveyard), so
+#: they scale, unless they name a type only a deck built on it holds
+#: (:func:`_built_around`).
+_FILLED = frozenset({"ObjectCount", "ZoneCardCount"})
 #: The units a card is cast or activated for: a trigger from elsewhere (cycling,
 #: a delayed cast trigger) is a second read.
 _PRIMARY = frozenset({"spell", "etb", "chapter", "activated", "loyalty", "static"})
@@ -181,20 +209,15 @@ _CHOSEN_QTY = frozenset({"Variable", "CostXPaid", "ChosenNumber"})
 #: at six, Vanquish's {6}{W}{W} read two mana and Blasphemous Act's {8}{R} three,
 #: though on any board of eight or more Act costs {R} and Vanquish {W}{W}.
 _BOARD_CREATURES = 8
-#: A discount behind a condition (Avenge's "if a player attacked you during
-#: their last turn", Hour of Revelation's ten nonland permanents) holds or not
-#: as the cost is locked in (CR 601.2f), which a deck-free read can't see: it is
-#: taken at this share. The read's own call, as the ramp read halves the mana a
-#: condition gates.
+#: A discount behind a condition holds or not as the cost is locked in (CR
+#: 601.2f). One counting the board's permanents (Hour of Revelation's "ten or more
+#: nonland permanents on the battlefield") holds on the board the read casts a
+#: wipe into (``_BOARD_CREATURES``' creatures and the artifacts and enchantments
+#: beside them), so it is taken whole; any other (Avenge's "if a player attacked
+#: you during their last turn") a deck-free read can't see, so it is taken at
+#: this share. The read's own call, as the ramp read halves the mana a condition
+#: gates.
 _CONDITIONAL_DISCOUNT = 0.5
-#: The phase effects whose outcome is a coin flip: what they hold happens only
-#: when the flip goes your way (CR 705.2).
-_COIN_FLIPS = frozenset({"FlipCoin", "FlipCoins", "FlipCoinUntilLose"})
-#: A token's recipient naming the controller of the object the effect just
-#: handled: March of Souls' "its controller creates" a Spirit for each creature
-#: destroyed. The player who creates a token owns and controls it (CR 111.2), so
-#: the wiped players get bodies back.
-_WIPED_PLAYER = frozenset({"ParentTargetController"})
 #: The X that clears a Commander board when nothing on the card says more.
 _BOARD_X = 4
 #: Undaunted's discount at a four-player table: {1} per opponent (CR 702.125a).
@@ -258,68 +281,53 @@ class _Sweep:
     refills: bool = False  # the wiped players get tokens back (CR 111.2)
 
 
-def _scale(qty: object) -> int:
-    """A non-fixed amount: ``_SCALING`` for X or a count of the board's creatures
-    (Chain Reaction) or a Multiply of one (Cloudkill); ``_NARROW_COUNT`` for a
-    count of anything narrower, a count of yours among them
-    (:func:`_counts_yours`)."""
-    tag = tag_of(qty)
-    if tag == "Variable":
+def _scale(node: TypedMirrorNode, field: str) -> int:
+    """A non-fixed amount on ``node.field`` (a damage amount, a shrink's
+    toughness): ``_SCALING`` for an X the caster sizes, a count of the board's
+    creatures (Chain Reaction) or a count the deck fills (:data:`_FILLED`);
+    ``_NARROW_COUNT`` for a bounded count (:data:`_BOUNDED`) or a count of
+    anything narrower. Any other amount (a sacrificed creature's power, an
+    aggregate) reads scaling under phase's ``Multiply`` (Cloudkill's commander's
+    mana value), narrow bare (Corpse Explosion)."""
+    amount = getattr(node, field, None)
+    if tag_of(amount) == "Variable":
         return _SCALING
-    if tag == "Quantity":
-        inner = getattr(qty, "value", None)
-        if tag_of(inner) != "Multiply" or _counts_yours(inner):
-            return _NARROW_COUNT
-        return _SCALING
-    if tag == "Offset":
-        return _scale(getattr(qty, "inner", None))
-    if tag == "Ref":
-        inner = getattr(qty, "qty", None)
-        if tag_of(inner) in ("Variable", "CostXPaid"):
-            return _SCALING
-        if tag_of(inner) == "ObjectCount":
-            filt = getattr(inner, "filter", None)
-            if (
-                "Creature" in filter_core_types(filt)
-                and filter_controller(filt) != "You"
-            ):
-                return _SCALING
-    return _NARROW_COUNT
-
-
-def _counts_yours(amount: object) -> bool:
-    """Whether a (scaled) amount counts only what is yours: the X the card
-    defines, not one the caster chooses (CR 107.3), off your own graveyard
-    (Deluge of Doom's card types), life gained (Essence Pulse), hand, lands or
-    permanents (Mutilate's Swamps). Phase wraps a "-X/-X" in ``Multiply(-1, …)``,
-    which read as scaling whatever it counted; a count of yours reads as the
-    unwrapped one does (Gates Ablaze's Gates), at ``_NARROW_COUNT`` — the read's
-    own call, with no deck to count."""
-    while tag_of(amount) in ("Multiply", "Offset"):
-        amount = getattr(amount, "inner", None)
-    if tag_of(amount) != "Ref":
-        return False
-    qty = getattr(amount, "qty", None)
-    if tag_of(qty) == "ObjectCount":
-        return filter_controller(getattr(qty, "filter", None)) == "You"
-    return (
-        getattr(qty, "controller", None) == "You"
-        or getattr(qty, "scope", None) == "Controller"
-        or tag_of(getattr(qty, "player", None)) == "Controller"
-        or getattr(getattr(qty, "source", None), "scope", None) == "Controller"
+    qty = count_operand_qty(
+        node, fields=(field,), wrappers=("Quantity", "Multiply", "Offset")
     )
+    tag = tag_of(qty)
+    if tag in ("Variable", "CostXPaid"):
+        return _SCALING
+    if tag in _BOUNDED:
+        return _NARROW_COUNT
+    if tag in _FILLED and quantity_scope(qty) == "you":
+        return _NARROW_COUNT if _built_around(qty) else _SCALING
+    if tag == "ObjectCount":
+        creatures = "Creature" in filter_core_types(getattr(qty, "filter", None))
+        return _SCALING if creatures else _NARROW_COUNT
+    if tag in _FILLED:
+        return _NARROW_COUNT
+    wrapped = (tag_of(amount), tag_of(getattr(amount, "value", None)))
+    return _SCALING if "Multiply" in wrapped else _NARROW_COUNT
+
+
+def _built_around(qty: object) -> bool:
+    """Whether a count of yours names a subtype other than a basic land type (CR
+    305.6): Gates Ablaze's Gates, Olivia's Wrath's Vampires, Thundercloud
+    Shaman's Giants. Only a deck built on that type fills it, which a deck-free
+    read can't see, so it reads narrow; Mutilate's Swamps come with the basics."""
+    subtypes = set(filter_subtypes(getattr(qty, "filter", None)))
+    return bool(subtypes - set(BASIC_LAND_TYPE_COLORS))
 
 
 def _magnitude(c: ConceptNode) -> int | None:
     tag = tag_of(c.node)
     if tag in ("DamageAll", "DealDamage"):
-        amount = getattr(c.node, "amount", None)
-        v = fixed_value(amount)
-        return v if v is not None else _scale(amount)
+        v = fixed_value(getattr(c.node, "amount", None))
+        return v if v is not None else _scale(c.node, "amount")
     if tag in ("PumpAll", "Pump"):
-        tough = getattr(c.node, "toughness", None)
-        v = fixed_value(tough)
-        return -v if v is not None else _scale(tough)
+        v = fixed_value(getattr(c.node, "toughness", None))
+        return -v if v is not None else _scale(c.node, "toughness")
     return None
 
 
@@ -374,7 +382,7 @@ def _gates(u: AbilityUnit) -> tuple[set[int], set[int]]:
     for n in iter_typed_nodes(u.node):
         if tag_of(n) == "CreateDelayedTrigger":
             delayed.update(id(m) for m in iter_typed_nodes(n) if m is not n)
-        if tag_of(n) in _COIN_FLIPS:
+        if EFFECT_CONCEPTS.get(tag_of(n) or "") == "flip_coin":
             gated.update(id(m) for m in iter_typed_nodes(n) if m is not n)
         effect = getattr(n, "effect", None)
         if n is not u.node and tag_of(getattr(n, "condition", None)) and tag_of(effect):
@@ -400,10 +408,11 @@ def _x_floor(u: AbilityUnit) -> int | None:
 def _discount(tree: ConceptTree) -> tuple[str, float, int] | None:
     """The card's own cost reduction (CR 601.2f): ``("board", n, cap)`` for "{n}
     less for each creature on the battlefield", ``("fixed", n, cap)`` for a flat
-    one, and a conditional one (Hour of Revelation, Avenge) at
-    ``_CONDITIONAL_DISCOUNT`` of its ``n``. ``cap`` is the face's generic mana: a
-    generic reduction never touches the colored part of the cost (CR 118.7a), so
-    Vanquish the Horde never costs less than {W}{W}."""
+    one or one behind a board-count condition (Hour of Revelation), and one
+    behind any other condition (Avenge) at ``_CONDITIONAL_DISCOUNT`` of its
+    ``n``. ``cap`` is the face's generic mana: a generic reduction never touches
+    the colored part of the cost (CR 118.7a), so Vanquish the Horde never costs
+    less than {W}{W}."""
     for u in tree.units:
         if u.origin != "static":
             continue
@@ -417,10 +426,21 @@ def _discount(tree: ConceptTree) -> tuple[str, float, int] | None:
                 getattr(count, "filter", None)
             )
             cut = float(generic) if isinstance(generic, int) else 0.0
-            if tag_of(getattr(sdef, "condition", None)) is not None:
+            cond = getattr(sdef, "condition", None)
+            if tag_of(cond) is not None and not quantity_threshold(cond, _board_count):
                 cut *= _CONDITIONAL_DISCOUNT
             return ("board" if board else "fixed", cut, _face_generic(tree))
     return None
+
+
+def _board_count(lhs: object) -> bool:
+    """Whether a condition's quantity counts the battlefield's permanents,
+    creatures among them: a count the read's board meets (Hour of Revelation)."""
+    qty = getattr(lhs, "qty", None)
+    if tag_of(lhs) != "Ref" or tag_of(qty) != "ObjectCount":
+        return False
+    cores = filter_core_types(getattr(qty, "filter", None))
+    return "Creature" in cores or "Permanent" in cores
 
 
 def _face_generic(tree: ConceptTree) -> int:
@@ -521,10 +541,13 @@ def _tree_sweeps(tree: ConceptTree, *, walker: bool) -> list[_Sweep]:
         drawback = _keeps_lands_tapped(u)
         leaves = {tag_of(n) for n in iter_cost_leaves(getattr(u.node, "cost", None))}
         unparsed = any(tag_of(n) == "Unimplemented" for n in iter_typed_nodes(u.node))
-        # Tokens the wiped players create for what they lost (March of Souls, The
-        # Phasing of Zhalfir, Mogg Infestation): their boards come back as bodies.
+        # Tokens another player creates in the sweep's own unit, a directed
+        # recipient (``crosswalk._DIRECTED_PLAYER_TAGS``): March of Souls' "its
+        # controller creates" a Spirit for each creature destroyed. Whoever creates
+        # a token owns and controls it (CR 111.2), so the wiped boards come back
+        # as bodies (The Phasing of Zhalfir, Mogg Infestation).
         refills = any(
-            c.concept == "make_token" and recipient_tag(c.node) in _WIPED_PLAYER
+            c.concept == "make_token" and recipient_tag(c.node) in _DIRECTED_PLAYER_TAGS
             for c in u.effects
         )
         # Value to the caster riding the sweep: a draw, token or life that is yours
@@ -535,7 +558,7 @@ def _tree_sweeps(tree: ConceptTree, *, walker: bool) -> list[_Sweep]:
             id(c.node) not in sweeps
             and c.scope == "you"
             and c.concept in ("draw", "make_token", "gain_life")
-            and recipient_tag(c.node) not in _WIPED_PLAYER
+            and recipient_tag(c.node) not in _DIRECTED_PLAYER_TAGS
             and effect_owner_player_scope(u.node, c.node) is None
             for c in u.effects
         )
@@ -779,8 +802,9 @@ def _cost(card: dict, best: _Sweep, *, x: bool) -> float:
         # sweep's own cost again — the read's own call.
         cost *= 2
     if best.kind == "activated" and best.act_mana is not None:
-        # The activation cost is paid each time (CR 602.1a), a creature's too:
-        # Jaya Ballard, Task Mage's sweep is {5}{R}{R} on top of the card.
+        # Activating an ability pays its costs (CR 602.2; the activation cost is
+        # everything before the colon, 602.1a), a creature's too: Jaya Ballard,
+        # Task Mage's sweep is {5}{R}{R} on top of the card.
         cost += best.act_mana + (_BOARD_X if best.x_bound else 0)
     return cost
 
@@ -853,8 +877,8 @@ def features(card: dict) -> dict[str, float] | None:
 #: (0.487 over 807), the guides' wipe adds at the 84th percentile of their
 #: identity's wipes (79th), 8 of 19 in its top decile (8); with the misread
 #: fixes of the module docstring, 0.510, the 84th percentile, 9 of 19; with the
-#: last five (a count of yours to the tokens for the wiped players), 0.514, the
-#: 87th percentile, 9 of 19, the cut side unchanged (9 of the bottom two).
+#: last five (an X the card defines to the tokens for the wiped players), 0.526,
+#: the 86th percentile, 9 of 19, the cut side unchanged (9 of the bottom two).
 WEIGHTS: dict[str, float] = {
     "creatures": 0.21,  # sweeps creatures
     "breadth": -0.02,  # per permanent type swept

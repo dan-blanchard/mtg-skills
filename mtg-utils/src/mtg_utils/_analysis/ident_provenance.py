@@ -75,6 +75,9 @@ def _provenance_content_key() -> str:
 
 #: ``<bulk>.provenance.pkl``: oracle_id -> its attribution.
 _SIDECAR = WriteBackSidecar(".provenance.pkl", _provenance_content_key)
+#: The persisted attributions (the source-tree identity check stays in
+#: :data:`_UNIT_IDENTS_MEMO`).
+_PERSISTED = _SIDECAR.memo("attribution")
 
 
 def attach_provenance_sidecar(bulk_path: Path | None) -> bool:
@@ -126,7 +129,7 @@ def unit_idents_for(card: dict) -> Attribution:
     cached = _UNIT_IDENTS_MEMO.get(oid) if oid else None
     if cached is not None and cached[0] is source:
         return cached[1]
-    persisted = _SIDECAR.persisted.get(oid) if oid else None
+    persisted = _PERSISTED.persisted(oid) if oid else None
     if isinstance(persisted, dict):
         _UNIT_IDENTS_MEMO[oid] = (source, persisted)
         return persisted
@@ -152,7 +155,7 @@ def unit_idents_for(card: dict) -> Attribution:
             out[(ti, ui)] = frozenset(emitted & full)
     if oid:
         _UNIT_IDENTS_MEMO[oid] = (source, out)
-        _SIDECAR.record(oid, out)
+        _PERSISTED.record(oid, out)
     return out
 
 

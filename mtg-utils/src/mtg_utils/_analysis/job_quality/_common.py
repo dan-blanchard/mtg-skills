@@ -15,8 +15,6 @@ from mtg_utils._card_ir.crosswalk import ENTERS_EVENTS, iter_cost_leaves, tag_of
 from mtg_utils._card_ir.trees import phase_records_for
 
 if TYPE_CHECKING:
-    from collections.abc import Hashable
-
     from mtg_utils._card_ir.crosswalk import AbilityUnit, ConceptTree
 
 #: Damage or a shrink of at least this much kills most creatures outright (a
@@ -159,15 +157,18 @@ def one_unit(tree: ConceptTree, unit: AbilityUnit) -> ConceptTree:
     return dataclasses.replace(tree, units=(unit,))
 
 
-#: Bumped only for an on-disk payload SHAPE change; the content hash is the
-#: version key.
+#: Bumped for a change in what a persisted value means, or for an edit to a
+#: data file a read loads: the content hash covers the reads' ``.py`` closure only.
 JOB_READS_SIDECAR_VERSION = 1
 
 
 def _job_reads_content_key() -> str:
-    """The content hash of everything a job read's value is computed by: the
-    signal path (its lanes, tree synthesis, the phase pin) and the reads' own
-    closure (``signals_index.content_hash`` walked from this package too)."""
+    """The content hash of the code a job read's value is computed by: every
+    ``.py`` file the signal path (its lanes, tree synthesis, the phase pin) and
+    the reads themselves import (``signals_index.content_hash`` walked from this
+    package too). As for the signals index, a data file under ``mtg_utils/data``
+    is not hashed: an edit there that changes a read bumps
+    :data:`JOB_READS_SIDECAR_VERSION`."""
     from mtg_utils._analysis import signals_index
 
     digest = signals_index.content_hash("mtg_utils._analysis.job_quality")
@@ -176,28 +177,8 @@ def _job_reads_content_key() -> str:
     ).hexdigest()
 
 
-#: ``<bulk>.job-reads.pkl``: the reads' deck-free per-card values (a job's score,
-#: card draw's fuel), persisted across processes. A tune scores a job's whole
-#: match set, about a thousand cards whose signal trees are built and
-#: synthesized only for it: a third of a precon tune when computed live.
+#: ``<bulk>.job-reads.pkl``: the reads' deck-free per-card values, persisted
+#: across processes. A tune scores a job's whole match set, about a thousand
+#: cards whose signal trees are built and synthesized only for it: a third of a
+#: precon tune when computed live.
 JOB_READS = WriteBackSidecar(".job-reads.pkl", _job_reads_content_key)
-#: What :func:`recall` returns for a key neither memo holds.
-MISSING = object()
-
-
-def recall(memo: dict, key: Hashable) -> object:
-    """``memo``'s value for ``key``, else the attached job-read sidecar's (kept
-    in ``memo`` from then on), else :data:`MISSING`."""
-    if key in memo:
-        return memo[key]
-    persisted = JOB_READS.persisted
-    if key in persisted:
-        memo[key] = persisted[key]
-        return memo[key]
-    return MISSING
-
-
-def remember(memo: dict, key: Hashable, value: object) -> None:
-    """Memoize ``value`` in ``memo`` and for the job-read sidecar's write-back."""
-    memo[key] = value
-    JOB_READS.record(key, value)
