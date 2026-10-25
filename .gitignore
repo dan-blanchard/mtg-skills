@@ -67,3 +67,6 @@ mtg-utils/src/mtg_utils/data/card_art/*.jpeg
 
 # Playwright MCP scratch (snapshots/screenshots from live UI testing)
 .playwright-mcp/
+
+# splice_snapshot.py writes this flock file beside the snapshot
+tests/fixtures/card_snapshot.json.lock

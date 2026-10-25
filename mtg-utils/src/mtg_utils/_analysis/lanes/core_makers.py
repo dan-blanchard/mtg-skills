@@ -83,6 +83,7 @@ from mtg_utils._card_ir.crosswalk import (
     mod_value,
     nested_plus_one_keyword_grant,
     own_turn_step_triggers,
+    plays_lands_from_graveyard,
     recipient_tag,
     redirects_stack_object,
     ref_count_filter,
@@ -2238,7 +2239,6 @@ def additional_land_play(tree: ConceptTree) -> bool:
 # legacy ``LANDFALL_REGEX`` has no top-of-library branch at all (corpus-
 # verified — including it over-fired 8 commander-legal cards with no
 # graveyard-recursion angle, e.g. Augur of Autumn, The Fourth Doctor).
-_LANDFALL_GY_PERMISSION_MODES = frozenset({"GraveyardCastPermission"})
 
 # Last-resort word idioms (mechanism preference (d)): the residue phase's
 # typed substrate leaves wholly unstructured. PER-CLAUSE scoped (period /
@@ -2331,15 +2331,8 @@ def _landfall(tree: ConceptTree) -> list[Signal]:
                 return [Signal("landfall", "you", "", "", tree.name, "high")]
     if additional_land_play(tree):
         return [Signal("landfall", "you", "", "", tree.name, "high")]
-    for unit in tree.units:
-        nodes = [c.node for c in unit.iter_concepts()]
-        if unit.origin == "static":
-            nodes.append(unit.node)
-        for node in nodes:
-            if static_mode_tag(node) in _LANDFALL_GY_PERMISSION_MODES and (
-                "Land" in filter_core_types(getattr(node, "affected", None))
-            ):
-                return [Signal("landfall", "you", "", "", tree.name, "high")]
+    if any(plays_lands_from_graveyard(unit) for unit in tree.units):
+        return [Signal("landfall", "you", "", "", tree.name, "high")]
     for c in tree.effect_concepts("change_zone"):
         origin, dest = change_zone_dirs(c.node)
         if origin == "Graveyard" and dest == "Battlefield" and "Land" in c.subject:

@@ -7,6 +7,7 @@ from __future__ import annotations
 import re
 from collections.abc import Callable, Iterator
 from dataclasses import replace
+from functools import partial
 
 from mtg_utils._analysis._subtypes import (
     CREATURE_SUBTYPES,
@@ -60,7 +61,7 @@ from mtg_utils._card_ir.crosswalk import (
     _is_static_def,
     adds_creature_type,
     aggregate_filter,
-    cast_with_keyword_name,
+    cast_keyword_type_words,
     change_zone_dirs,
     controller_paid_cost_leaves,
     count_distinct_operand_filter,
@@ -76,7 +77,6 @@ from mtg_utils._card_ir.crosswalk import (
     filter_predicates,
     filter_subtypes,
     granted_keyword_names,
-    granted_next_spell_keyword,
     in_uncertain_branch,
     iter_condition_sites,
     iter_cost_leaves,
@@ -1686,15 +1686,19 @@ def _kind_word_lanes(words: tuple[str, ...]) -> list[str]:
     return out
 
 
-def _generic_board_lanes(filt: object) -> list[str]:
+def _generic_board_lanes(filt: object, *, owned: bool = False) -> list[str]:
     """artifacts/enchantments lane(s) for a GENERIC own-board anthem subject — a
     static buff/grant over your whole artifact/enchantment board (Padeem; Fountain
     Watch composite). Mirrors the deleted ``_signals_ir``'s ``_generic_board_subject``:
     controller you,
-    NO subtype (a subtyped buff is a narrower tribal care), Artifact/Enchantment in
-    core types.
+    NO subtype (a subtyped buff is a narrower tribal care — Vehicles, Foods,
+    Incubators, Bobbleheads), Artifact/Enchantment in core types. With ``owned``
+    a population of cards you own reads too (your graveyard's artifact cards).
     """
-    if filter_controller(filt) != "You" or filter_subtypes(filt):
+    yours = filter_controller(filt) == "You" or (
+        owned and filter_owned_controller(filt) == "You"
+    )
+    if not yours or filter_subtypes(filt):
         return []
     cores = filter_core_types(filt)
     if "Permanent" in cores:
@@ -1752,56 +1756,16 @@ _MOD_PAYOFF_TAGS: frozenset[str] = frozenset(
 )
 
 
-def _mana_spell_types(node: TypedMirrorNode) -> tuple[str, ...]:
-    """The spell type words a ``Mana`` effect's mana may be spent on (CR 106.6):
-    :func:`mana_spell_type_restriction`'s, or one of an ``Any`` list's choices
-    ("Spend this mana only to cast an enchantment spell, unlock a door, or turn
-    a permanent face up" — Creeping Peeper)."""
-    words = mana_spell_type_restriction(node).split()
-    restrictions = getattr(node, "restrictions", None)
-    for r in restrictions if isinstance(restrictions, list) else ():
-        if isinstance(r, MirrorVariant) and r.key == "Any":
-            for alt in r.inner if isinstance(r.inner, list) else ():
-                if isinstance(alt, MirrorVariant) and alt.key == "SpellType":
-                    words += str(alt.inner).split()
-    return tuple(words)
-
-
-def _affinity_words(keyword: object) -> tuple[str, ...]:
-    """The type words an ``Affinity`` keyword value names ("affinity for
-    artifacts" — CR 702.41a), or ``()``."""
-    if isinstance(keyword, MirrorVariant) and keyword.key == "Affinity":
-        types = getattr(keyword.inner, "type_filters", None) or ()
-        return tuple(t for t in types if isinstance(t, str))
-    return ()
-
-
 def _cast_keyword_grant_lanes(node: object) -> list[str]:
     """A grant of improvise or affinity for artifacts / enchantments to spells
-    you cast: a ``CastWithKeyword`` static ("Spells you cast have affinity for
-    artifacts" — Sami, Wildcat Captain; Inspiring Statuary's improvise) or the
-    next spell's (Archway of Innovation, Don & Raph). Improvise taps your
-    artifacts (CR 702.126a), affinity counts them (CR 702.41a)."""
-    if not isinstance(node, TypedMirrorNode):
-        return []
-    name = cast_with_keyword_name(node) or granted_next_spell_keyword(node)
+    you cast (:func:`cast_keyword_type_words`: "Spells you cast have affinity for
+    artifacts" — Sami, Wildcat Captain; Inspiring Statuary's improvise; the next
+    spell's — Archway of Innovation, Don & Raph). Improvise taps your artifacts
+    (CR 702.126a), affinity counts the type it names (CR 702.41a)."""
+    name, words = cast_keyword_type_words(node)
     if name == "Improvise":
         return ["artifacts_matter"]
-    if name != "Affinity":
-        return []
-    return _kind_word_lanes(_affinity_words(_cast_keyword_value(node)))
-
-
-def _cast_keyword_value(node: TypedMirrorNode) -> object:
-    """The keyword value :func:`cast_with_keyword_name` /
-    :func:`granted_next_spell_keyword` name (a string or a parameterized
-    variant): a ``CastWithKeyword`` mode's ``keyword``, or a next-spell grant's
-    ``HasKeyword`` modifier's."""
-    mode = getattr(node, "mode", None)
-    if isinstance(mode, MirrorVariant) and mode.key == "CastWithKeyword":
-        inner = mode.inner
-        return inner.inner if isinstance(inner, MirrorVariant) else inner
-    return getattr(getattr(node, "modifier", None), "keyword", None)
+    return _kind_word_lanes(words) if name == "Affinity" else []
 
 
 def _checks_own_moved_card(node: object) -> bool:
@@ -1830,18 +1794,6 @@ def _zone_card_count_lanes(node: object) -> list[str]:
     if not per_type:
         return []
     return [lane for lane in per_type[0] if all(lane in p for p in per_type)]
-
-
-def _your_population_lanes(filt: object) -> list[str]:
-    """:func:`_typed_matters_lanes` for a filter over permanents you control or
-    cards you own; any other controller's population is no care of yours."""
-    if filter_controller(filt) != "You" and filter_owned_controller(filt) != "You":
-        return []
-    # A subtyped population is that subtype's care, a narrower one (Vehicles,
-    # Foods, Incubators, Bobbleheads — :func:`_generic_board_lanes`'s rule).
-    if filter_subtypes(filt):
-        return []
-    return _typed_matters_lanes(filt)
 
 
 def _non_animation_units(tree: ConceptTree) -> list[AbilityUnit]:
@@ -1897,7 +1849,8 @@ def _artifacts_enchantments_matter(tree: ConceptTree) -> list[Signal]:
 
     The ``Permanent``-in-list gate drops the Bargain alt-cost over-fires.
 
-    Since 2026-10-24 no text is read (the per-clause mirrors are retired): every
+    Since 2026-10-24 no text is read except the ``_BECOMES_TYPE_RE`` port (the
+    per-clause mirrors are retired): every
     filter over artifacts / enchantments you control or own, wherever it sits
     (a count, a condition, a grant, an effect target, a watched trigger —
     ``crosswalk.iter_node_filters``), a zone count of the cards, mana spendable
@@ -1933,7 +1886,8 @@ def _artifacts_enchantments_matter(tree: ConceptTree) -> list[Signal]:
     # trigger watching them (Aloy's "artifact creatures you control attack"). A
     # choice of types names the type only if every alternative does (Abuelo's
     # "creature or artifact you control" is no artifact deck's), and a subtyped
-    # population is that subtype's (:func:`_your_population_lanes`).
+    # population is that subtype's (:func:`_generic_board_lanes`).
+    yours = partial(_generic_board_lanes, owned=True)
     for unit in _non_animation_units(tree):
         nodes = list(unit.iter_typed())
         # An ``Or``'s arms are read through the ``Or``.
@@ -1944,46 +1898,51 @@ def _artifacts_enchantments_matter(tree: ConceptTree) -> list[Signal]:
             for _field, arm in iter_node_filters(n)
         }
         for n in nodes:
+            tag = tag_of(n)
+            filters = [
+                f for _field, f in iter_node_filters(n) if id(f) not in or_arms_seen
+            ]
             # "you" in an effect another player performs is that player (an edict
             # phase writes with a you-controlled subject — Baleful Beholder's
             # "Each opponent sacrifices an enchantment"; CR 701.21a).
-            theirs = (
-                tag_of(n) == "Sacrifice" and _sac_is_edict(unit, n)
-            ) or effect_owner_player_scope(unit.node, n) in _OPPONENT_ACTOR_TAGS
-            # A type check on the card the effect itself moved or paid ("If you
-            # put an artifact card into your hand this way" — Chrome Courier; "if
-            # the discarded card was an artifact card" — Leonardo da Vinci; an
-            # artifact card among the cards milled this way — Tomakul
-            # Scrapsmith) checks your own card: its filter names no controller.
-            lanes_of = (
-                _typed_matters_lanes
-                if _checks_own_moved_card(n)
-                else _your_population_lanes
-            )
-            for _field, filt in iter_node_filters(n):
-                if id(filt) not in or_arms_seen and not theirs:
+            if filters and not (
+                (tag == "Sacrifice" and _sac_is_edict(unit, n))
+                or effect_owner_player_scope(unit.node, n) in _OPPONENT_ACTOR_TAGS
+            ):
+                # A type check on the card the effect itself moved or paid ("If
+                # you put an artifact card into your hand this way" — Chrome
+                # Courier; "if the discarded card was an artifact card" —
+                # Leonardo da Vinci; an artifact card among the cards milled this
+                # way — Tomakul Scrapsmith) checks your own card: its filter
+                # names no controller.
+                lanes_of = _typed_matters_lanes if _checks_own_moved_card(n) else yours
+                for filt in filters:
                     out.extend(_every_arm_lanes(filt, lanes_of))
-            out.extend(_zone_card_count_lanes(n))
+            if tag == "ZoneCardCount":
+                out.extend(_zone_card_count_lanes(n))
             # Mana only for artifact spells (CR 106.6 — Grand Architect, Cargo
             # Ship) or enchantment spells (Creeping Peeper: a cast, CR 601.2i);
             # "artifact or creature spells" (Geosurge) spends on either.
-            if tag_of(n) == "Mana":
-                spell_type = _mana_spell_types(n)
+            elif tag == "Mana":
+                spell_type = tuple(mana_spell_type_restriction(n, any_of=True).split())
                 if "or" not in spell_type:
                     if _names_artifact_kind(spell_type):
                         out.append("artifacts_matter")
                     if "Enchantment" in spell_type:
                         cast_out.append("enchantments_matter")
-            out.extend(_cast_keyword_grant_lanes(n))
-    # "if an artifact entered the battlefield under your control this turn"
-    # (Fixer, Akal Pakal; the entry ledger's controller rides its ``player``).
+            elif tag == "GrantNextSpellAbility" or isinstance(
+                getattr(n, "mode", None), MirrorVariant
+            ):
+                out.extend(_cast_keyword_grant_lanes(n))
     for unit in tree.units:
+        # "if an artifact entered the battlefield under your control this turn"
+        # (Fixer, Akal Pakal; the entry ledger's controller rides its ``player``).
         for filt in entered_this_turn_filters(unit.node):
             out.extend(_type_payoff_lanes(filt))
-    # A trigger on your activating an ability of an artifact (Kurkesh, Ashnod
-    # the Uncaring; CR 602.1): the watched source is the artifact, the activator
-    # you. An opponent's activation (Harsh Mentor) punishes, it cares nothing.
-    for unit in tree.units:
+        # A trigger on your activating an ability of an artifact (Kurkesh, Ashnod
+        # the Uncaring; CR 602.1): the watched source is the artifact, the
+        # activator you. An opponent's activation (Harsh Mentor) punishes, it
+        # cares nothing.
         if (
             unit.origin == "trigger"
             and getattr(unit.node, "mode", None) == "AbilityActivated"
@@ -2209,26 +2168,10 @@ def _artifacts_enchantments_matter(tree: ConceptTree) -> list[Signal]:
     # no opponent/edict gate applies here, unlike the effect arm above. The
     # Permanent-in-list gate still drops the OPTIONAL Bargain alt-cost (CR
     # 702.166a — Ice Out's "sacrifice an artifact, enchantment, or token").
-    # Every cost the controller pays counts (``controller_paid_cost_leaves``): a
-    # granted ability's (Clan Crafter's "{2}, Sacrifice an artifact:") and an
-    # "unless you sacrifice an artifact" (Vulshok War Boar) too.
-    for unit in tree.units:
-        leaves = [c.node for c in unit.costs if c.concept == "sacrifice"] + [
-            leaf
-            for leaf in iter_cost_leaves(getattr(unit.node, "cost", None))
-            if tag_of(leaf) == "Sacrifice"
-        ]
-        leaves += [
-            paid.leaf
-            for paid in controller_paid_cost_leaves(unit)
-            if tag_of(paid.leaf) == "Sacrifice"
-        ]
-        for leaf in leaves:
-            filt = effect_filter(leaf)
-            cores = filter_core_types(filt)
-            if "Permanent" in cores:
-                continue
-            out.extend(_kind_word_lanes(cores + filter_subtypes(filt)))
+    # Every cost the controller pays counts (``controller_paid_cost_leaves``: the
+    # unit's activation cost, a spell's additional cost, a granted ability's —
+    # Clan Crafter's "{2}, Sacrifice an artifact:" — and an "unless you sacrifice
+    # an artifact" — Vulshok War Boar).
     # TAP-COST PAYOFF — a cost you pay by tapping untapped artifacts or
     # enchantments you control: an activation cost ("Tap an untapped artifact you
     # control:"), a spell's additional cost (Disruption Protocol's "tap an
@@ -2239,7 +2182,14 @@ def _artifacts_enchantments_matter(tree: ConceptTree) -> list[Signal]:
     # alternative names the type.
     for unit in tree.units:
         for paid in controller_paid_cost_leaves(unit):
-            if tag_of(paid.leaf) != "TapCreatures":
+            leaf_tag = tag_of(paid.leaf)
+            if leaf_tag == "Sacrifice":
+                filt = effect_filter(paid.leaf)
+                cores = filter_core_types(filt)
+                if "Permanent" not in cores:
+                    out.extend(_kind_word_lanes(cores + filter_subtypes(filt)))
+                continue
+            if leaf_tag != "TapCreatures":
                 continue
             filt = getattr(paid.leaf, "filter", None)
             if filter_controller(filt) not in (None, "You"):
@@ -2317,7 +2267,7 @@ def _artifacts_enchantments_matter(tree: ConceptTree) -> list[Signal]:
     # own P/T digits between "becomes a" and "artifact" break the anchor —
     # Blinkmoth Nexus's "becomes a 1/1 … artifact creature" — deliberately
     # excluded, matching legacy exactly). Run PER-CLAUSE over
-    # ``_kept(tree)`` like the main mirror. A "becomes a COPY of" (True
+    # ``_kept(tree)``. A "becomes a COPY of" (True
     # Polymorph, Absorbing Man) is a clone effect, not a type-grant —
     # legacy's ``e.category not in (make_token, clone)`` guard excludes
     # it structurally; the per-clause text scan has no category to read,

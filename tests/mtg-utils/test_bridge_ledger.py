@@ -508,10 +508,11 @@ def test_no_bridge_fires_where_a_structural_read_already_serves(monkeypatch):
     way). Production signals with the bridge lane removed must lack the row's
     ``(key, scope, subject)`` on every pin it fires on — a row serving one
     subject (Arcade Gannon's ``type_matters|Human``) isn't served by another, and
-    a bridge's HIGH signal isn't served by the membership floor's LOW one (every
-    artifact carries a low ``artifacts_matter``)."""
+    the membership floor is no structural read of a clause (every artifact
+    carries its low ``artifacts_matter``), so its signals are left out."""
     from mtg_utils._analysis import lanes
     from mtg_utils._analysis.bridge_ledger import bridge_signals
+    from mtg_utils._analysis.signals import extract_signals
 
     without = tuple(lane for lane in lanes._LANES if lane is not bridge_signals)
     assert len(without) == len(lanes._LANES) - 1
@@ -521,10 +522,10 @@ def test_no_bridge_fires_where_a_structural_read_already_serves(monkeypatch):
         for pin in b.pins:
             if not b.fires(_tree(pin)):
                 continue
+            test_signals(pin)  # seeds the snapshot's trees (CI-safe)
             idents = {
                 (s.key, s.scope, s.subject)
-                for s in test_signals(pin)
-                if s.confidence == "high"
+                for s in extract_signals(test_card(pin), include_membership=False)
             }
             if (b.key, b.scope, b.subject) in idents:
                 served.append(f"{b.bridge_id}: {pin!r} ({b.key}/{b.scope})")

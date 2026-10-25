@@ -468,10 +468,10 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # `_TYPE_MATTERS_LANE` count/grant/trigger DOERs, the `_ARTIFACT_TOKEN_SUBTYPES`
     # maker/sac arm, the type-gate condition arm, and the type_line membership arm —
     # +325 ir_only recall the brittle oracle regex missed: Food/Clue/Treasure subtype
-    # sac payoffs + DFC back-face recursion) PLUS the NARROWED _ARTIFACTS_MATTER_MIRROR
-    # (the deleted _HAND_FLOOR producer UNIONed with the kept "if you control an
-    # artifact" SWEEP row) run per-clause for the oracle-idiom family no structural
-    # shape covers.
+    # sac payoffs + DFC back-face recursion). The per-clause _ARTIFACTS_MATTER_MIRROR
+    # that rode beside them (the deleted _HAND_FLOOR producer UNIONed with the kept
+    # "if you control an artifact" SWEEP row) was retired 2026-10-24 for typed reads
+    # of every filter over your artifacts (lanes.board_and_ramp).
     # NARROWED: the bare `\baffinity\b` branch became `affinity for artifacts`,
     # dropping the 22 affinity-for-non-artifact over-fires (Icebreaker Kraken's snow
     # affinity, Argivian Phalanx's creature affinity — none an artifacts deck). BOTH
@@ -493,12 +493,9 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # artifacts_matter; +95 ir_only recall the brittle oracle regex missed: Licids that
     # become Auras, Aura / Glimmer / enchantment-creature token makers, Aura recursion,
     # single-type sac-an-enchantment outlets, "if you control an enchantment"
-    # conditions) PLUS the BYTE-IDENTICAL _ENCHANTMENTS_MATTER_MIRROR (the deleted
-    # _HAND_FLOOR producer ALONE — there is NO dedicated enchantment SWEEP row, unlike
-    # artifacts' "if you control an artifact" row, so SWEEP_DETECTORS stays 36) run
-    # per-clause for the oracle-idiom family no structural shape covers (enchantment
-    # tutors / recursion-from-graveyard /
-    # "enchantment card in your hand" miracle-grant / Role-token makers). BOTH this
+    # conditions). The BYTE-IDENTICAL _ENCHANTMENTS_MATTER_MIRROR (the deleted
+    # _HAND_FLOOR producer ALONE) that rode beside them per-clause was retired
+    # 2026-10-24 for typed reads of every filter over your enchantments. BOTH this
     # clause-scoped _HAND_FLOOR producer AND the type_line membership producer below are
     # deleted (the IR membership arm reproduces the latter byte-identically). The serve
     # spec stays hand-registered; _ENCHANTMENTS_MATTER_PLAN_MIRROR re-supplies the

@@ -944,13 +944,20 @@ def _ramp_dropped_clause_match(tree: ConceptTree) -> bool:
 # condition as ``T_condition__Unrecognized`` — the "land creature" reference
 # survives only in that node's own ``text`` field (a typed field, not a
 # whole-card regex).
+_LAND_CREATURE_RX = re.compile(r"land creature", re.IGNORECASE)
+
+
+def _unrecognized_says(tree: ConceptTree, rx: re.Pattern[str]) -> bool:
+    """Whether an ``Unrecognized`` condition / filter node's own ``text`` says
+    ``rx`` — the clause phase parked whole there."""
+    return any(
+        tag_of(n) == "Unrecognized" and rx.search(getattr(n, "text", "") or "")
+        for n in tree.iter_typed()
+    )
+
+
 def _land_creatures_condition_ref_gap(tree: ConceptTree) -> bool:
-    for n in tree.iter_typed():
-        if tag_of(n) == "Unrecognized":
-            text = getattr(n, "text", "") or ""
-            if "land creature" in text.lower():
-                return True
-    return False
+    return _unrecognized_says(tree, _LAND_CREATURE_RX)
 
 
 def _land_creatures_condition_ref_match(tree: ConceptTree) -> bool:
@@ -5143,11 +5150,11 @@ _YOUR_ENCHANTMENTS_RX = re.compile(
 
 
 def _your_artifacts_parked(tree: ConceptTree) -> bool:
-    return _says(_YOUR_ARTIFACTS_RX, [*tree.residues(), *tree.hollow_statics()])
+    return _parked_says(tree, _YOUR_ARTIFACTS_RX)
 
 
 def _your_enchantments_parked(tree: ConceptTree) -> bool:
-    return _says(_YOUR_ENCHANTMENTS_RX, [*tree.residues(), *tree.hollow_statics()])
+    return _parked_says(tree, _YOUR_ENCHANTMENTS_RX)
 
 
 # Windwright Mage's "as long as an artifact card is in your graveyard" parks as
@@ -5158,15 +5165,7 @@ _ARTIFACT_IN_GRAVEYARD_RX = re.compile(
 
 
 def _artifact_graveyard_condition_gap(tree: ConceptTree) -> bool:
-    return any(
-        tag_of(n) == "Unrecognized"
-        and _ARTIFACT_IN_GRAVEYARD_RX.search(getattr(n, "text", "") or "")
-        for n in tree.iter_typed()
-    )
-
-
-def _artifact_graveyard_condition_match(tree: ConceptTree) -> bool:
-    return _artifact_graveyard_condition_gap(tree)
+    return _unrecognized_says(tree, _ARTIFACT_IN_GRAVEYARD_RX)
 
 
 # Soldevi Machinist's "Spend this mana only to activate abilities of artifacts"
@@ -5206,7 +5205,7 @@ _CAST_ARTIFACT_FOR_LIFE_RX = re.compile(
 
 
 def _empty_effect_residue(tree: ConceptTree) -> bool:
-    return any(True for _ in tree.residues("empty"))
+    return tree.has_residue("empty")
 
 
 # Sanwell, Avenger Ace's "As long as an artifact creature you control is
@@ -5287,7 +5286,7 @@ BRIDGES.update(
                 ),
                 pins=("Windwright Mage",),
                 gap=_artifact_graveyard_condition_gap,
-                match=_artifact_graveyard_condition_match,
+                match=_artifact_graveyard_condition_gap,
             ),
             Bridge(
                 bridge_id="artifact_ability_mana_type_dropped",

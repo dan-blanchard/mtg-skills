@@ -23,13 +23,10 @@ from mtg_utils._analysis.tree_synthesis.value_engines import (
     _subtree_has_graveyard_zone,
 )
 from mtg_utils._card_ir.crosswalk import (
-    _OPPONENT_ACTOR_TAGS,
     AbilityUnit,
     ConceptNode,
     ConceptTree,
     counter_kind,
-    effect_owner_player_scope,
-    filter_controller,
     filter_core_types,
     filter_non_types,
     filter_predicates,
@@ -42,6 +39,7 @@ from mtg_utils._card_ir.crosswalk import (
     mod_keyword_name,
     modify_cost_mode,
     names_subtype_payoff,
+    replays_own_permanent,
     residue_is,
     static_mode_field,
     static_mode_tag,
@@ -310,17 +308,10 @@ def has_permanent_recast(tree: ConceptTree) -> bool:
                     and not _is_self_flicker_return(unit, c.node)
                 ):
                     return True
-        if unit.origin == "ability":
-            for c in unit.effects:
-                # "you control" is the actor's: a foe returning a creature
-                # they control (Zndrsplt's Judgment) recasts nothing of yours.
-                if (
-                    c.concept == "bounce"
-                    and filter_controller(getattr(c.node, "target", None)) == "You"
-                    and effect_owner_player_scope(unit.node, c.node)
-                    not in _OPPONENT_ACTOR_TAGS
-                ):
-                    return True
+        if unit.origin == "ability" and any(
+            replays_own_permanent(unit, c) for c in unit.effects
+        ):
+            return True
         # phase v0.104.0: the graveyard-cast permission static parked whole
         # as an Unimplemented residue (recovery token ``cast_from_zone``).
         if any(_recovered_graveyard_permanent_cast(tree, c) for c in unit.effects):

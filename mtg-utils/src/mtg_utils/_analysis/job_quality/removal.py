@@ -29,6 +29,7 @@ from mtg_utils._analysis.job_quality._common import (
 from mtg_utils._analysis.lanes.removal_tutors import removal_edict_answers
 from mtg_utils._analysis.signal_trees import signal_trees_for
 from mtg_utils._card_ir.crosswalk import (
+    PERMANENT_CARD_TYPES,
     change_zone_dirs,
     effect_filter,
     effect_owner_duration,
@@ -46,10 +47,6 @@ if TYPE_CHECKING:
 
     from mtg_utils._card_ir.crosswalk import AbilityUnit, ConceptNode, ConceptTree
 
-#: The permanent types an answer can be read as reaching (CR 110.4a).
-_PERMANENT_TYPES = frozenset(
-    {"Creature", "Artifact", "Enchantment", "Planeswalker", "Land", "Battle"}
-)
 #: A variable amount (X, a count) reads as a kill.
 _SCALING = 99
 #: Removal whose condition phase drops whole, leaving no condition node and no
@@ -83,8 +80,8 @@ def _breadth(types: frozenset[str]) -> int:
     if "Any" in reach:  # "any target" damage: a creature, planeswalker or battle
         reach |= {"Creature", "Planeswalker", "Battle"}
     if "Permanent" in reach:
-        reach |= _PERMANENT_TYPES
-    return len(reach & _PERMANENT_TYPES)
+        reach |= PERMANENT_CARD_TYPES
+    return len(reach & PERMANENT_CARD_TYPES)
 
 
 def _mode(c: ConceptNode, *, edict: bool) -> str:

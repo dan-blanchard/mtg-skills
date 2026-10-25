@@ -91,6 +91,9 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   artifacts (Null Rod, Harsh Mentor, Pick Your Poison) are no payoff. Left:
   the becomes-type arm still reads `_BECOMES_TYPE_RE` over oracle clauses, and
   Ward of Bones' artifact-count comparison (a lock on opponents) reads as one.
+  The three missing-shape rows (Sanwell, Avenger Ace; Estrid's Invocation;
+  Anrakyr the Traveller) gate on a node's absence, so they retire only through
+  `test_bridge_ledger`'s "already served" guard, not their own gap.
   (g) **The guide cuts the tuner protects** (2026-10-24, the experiment table in
   `docs/plans/precon-audit-2026-10-18.md`, "The remaining tuner levers"). Shipped:
   popular cards (inside `UPGRADE_RANK`, not premium) off every lane and on none of
@@ -237,7 +240,10 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   cards put there from the battlefield this turn" (Thrilling Encore, Supper
   for Spiders, Myojin of Grim Betrayal), the cloak reminder (Become
   Anonymous), opening an Attraction and drafting from a spellbook onto the
-  battlefield.
+  battlefield. The ``permanent_etb`` page's idents
+  (``signal_specs.data_3._PERMANENT_ETB_IDENTS``) are a hand-kept list of what
+  makes a permanent enter; they should derive from a manifest property of each
+  key.
   (l) **Tune speed, what's left** (2026-10-24). The ranking's per-unit ident
   attribution persists in a write-back sidecar beside the signals index
   (`<bulk>.provenance.pkl`, `ident_provenance.attach_provenance_sidecar`; the
@@ -286,7 +292,11 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   crippling-drawback text beside a power floor; no lane reads a drawback a strip
   turns off). Lane follow-ups the pass found: a `(key, subject)` role table that
   `DOER_SUBJECTS`, `MEMBERSHIP_SUBJECTS`, `PAGE_ONLY_SUBJECTS`, the pair reads'
-  wildcards and the presets all read (today each reads its own set; the
+  wildcards and the presets all read (today each reads its own set:
+  `PAGE_ONLY_SUBJECTS` belongs in it as a role, and the voltron `has_other_plan`
+  read should ask `avenue_spec_for(s) is not None` instead of keeping its own
+  exclusion lists — membership_floor's step-trigger exclusion duplicates
+  `STEP_TRIGGER_KEYS` the same way; the
   `land-animation` preset reads the `land_protection` key, so the twelve shield
   grants — Terra Eternal, Elspeth, Knight-Errant's emblem, Tomik — sit on it); an `attack_trigger_side` crosswalk read
   beside `targeting_trigger_side` (the defensive-trigger veto lives in

@@ -51,9 +51,9 @@ from mtg_utils._analysis.tree_synthesis import (
     structural_untap_subject,
 )
 from mtg_utils._card_ir.crosswalk import (
-    _OPPONENT_ACTOR_TAGS,
     CREATURE_OR_PERMANENT,
     MASS_FILTER_EFFECT_TAGS,
+    PERMANENT_CARD_TYPES,
     SUSPENDED_CARD,
     AbilityUnit,
     ConceptNode,
@@ -66,7 +66,6 @@ from mtg_utils._card_ir.crosswalk import (
     counter_kind,
     damage_recipient,
     effect_filter,
-    effect_owner_player_scope,
     effect_player_reach,
     effect_reaches_permanent,
     filter_color_predicates,
@@ -95,9 +94,11 @@ from mtg_utils._card_ir.crosswalk import (
     named_filter_subtypes,
     negative_pt_field,
     overload_sweep,
+    plays_lands_from_graveyard,
     pt_mod_signs,
     recipient_tag,
     recursion_card_types,
+    replays_own_permanent,
     sacrifice_names_no_player,
     static_mode_field,
     static_mode_tag,
@@ -1767,12 +1768,12 @@ def _permanent_recast(tree: ConceptTree) -> list[Signal]:
     subject (``signal_keys.PAGE_ONLY_SUBJECTS``: a self-ETB card's page counts
     them, and none opens an avenue): ``reanimate`` puts a permanent card other
     than this one from a graveyard onto the battlefield (Sun Titan, Argivian
-    Restoration — :func:`_reanimates_permanent`), ``replay`` returns a permanent
-    you control other than this one to your hand to cast again (Whitemane Lion,
-    Kor Skyfisher, the bounce lands — :func:`_replays_own_permanent`), and
-    ``land`` returns a land card from your graveyard to the battlefield or your
-    hand, or lets you play lands from it (Life from the Loam, Crucible of
-    Worlds — :func:`_recurs_land`): what keeps a land-animation deck's lands.
+    Restoration), ``replay`` returns a permanent you control other than this one
+    to your hand to cast again (Whitemane Lion, Kor Skyfisher, the bounce lands),
+    and ``land`` returns a land card from your graveyard to the battlefield or
+    your hand, or lets you play lands from it (Life from the Loam, Crucible of
+    Worlds): what keeps a land-animation deck's lands
+    (:func:`_recast_doer_subjects`).
     """
     out: list[Signal] = []
     if has_permanent_recast(tree):
@@ -1782,82 +1783,40 @@ def _permanent_recast(tree: ConceptTree) -> list[Signal]:
     return out
 
 
-#: The permanent card types (CR 110.4a) a reanimation's filter can name.
-_PERMANENT_CARD_TYPES: frozenset[str] = frozenset(
-    {"Artifact", "Battle", "Creature", "Enchantment", "Land", "Planeswalker"}
-)
-
-
-def _names_permanent_card(cores: Sequence[str], subtypes: Sequence[str]) -> bool:
-    """A recursion filter's type evidence names a permanent card: a permanent
-    card type or ``Permanent`` itself ("target permanent card"), or, with no
-    core type, a subtype of a permanent type ("target Aura card", "Phoenix
-    card"; CR 205.3). A bare "target card" (Regrowth) may be an instant."""
+def _names_card_type(
+    cores: Sequence[str], subtypes: Sequence[str], types: frozenset[str]
+) -> bool:
+    """A recursion filter's type evidence names a card of one of ``types``: a
+    core type among them, or, with no core type, a subtype of one ("target Aura
+    card", "Phoenix card", "a Cave card"; CR 205.3). A bare "target card"
+    (Regrowth) may be an instant."""
     if cores:
-        return any(t in _PERMANENT_CARD_TYPES or t == "Permanent" for t in cores)
+        return any(t in types for t in cores)
     return any(
-        subtype_card_type(s) in _PERMANENT_CARD_TYPES or s.lower() in LAND_SUBTYPES
+        subtype_card_type(s) in types
+        or ("Land" in types and s.lower() in LAND_SUBTYPES)
         for s in subtypes
     )
 
 
-def _reanimates_permanent(tree: ConceptTree, c: ConceptNode) -> bool:
-    """A ``graveyard_recursion`` onto the battlefield of a permanent card
-    (:func:`_names_permanent_card`). The card's own return names itself
-    (``SelfRef`` — Reassembling Skeleton), with no type of its own."""
-    if c.recovered_by == "reanimate":
-        return recovered_card_recursion(c, ("Permanent", *_PERMANENT_CARD_TYPES))
-    hit = graveyard_recursion(c.node)
-    if hit is None or hit[0] != "battlefield":
-        return False
+def _recursion_names(
+    tree: ConceptTree,
+    c: ConceptNode,
+    hit: tuple[str, object],
+    types: frozenset[str],
+) -> bool:
+    """Whether a :func:`graveyard_recursion` ``hit`` moves a card of ``types``
+    (:func:`_names_card_type`). The card's own return names itself (``SelfRef``
+    — Reassembling Skeleton), with no type of its own."""
     sub = hit[1]
-    return _names_permanent_card(
-        recursion_card_types(tree, c.node, sub), filter_subtypes(sub)
+    return _names_card_type(
+        recursion_card_types(tree, c.node, sub), filter_subtypes(sub), types
     )
 
 
-def _recurs_land(tree: ConceptTree, c: ConceptNode) -> bool:
-    """A ``graveyard_recursion`` of a land card to the battlefield or your hand
-    (Life from the Loam, Soul of Windgrace, Splendid Reclamation): a land lost
-    to removal comes back. A land card named by subtype only ("a Cave card")
-    counts; a tuck to the library does not."""
-    if c.recovered_by in ("reanimate", "graveyard_return"):
-        return recovered_card_recursion(c, ("Land",))
-    hit = graveyard_recursion(c.node)
-    if hit is None or hit[0] == "library":
-        return False
-    sub = hit[1]
-    cores = recursion_card_types(tree, c.node, sub)
-    if cores:
-        return "Land" in cores
-    return any(s.lower() in LAND_SUBTYPES for s in filter_subtypes(sub))
-
-
-def _plays_lands_from_graveyard(unit: AbilityUnit) -> bool:
-    """A static letting you play land cards from your graveyard (CR 305.1 —
-    Crucible of Worlds, Ramunap Excavator): its ``GraveyardCastPermission``
-    names lands."""
-    return static_mode_tag(unit.node) == "GraveyardCastPermission" and (
-        "Land" in filter_core_types(getattr(unit.node, "affected", None))
-    )
-
-
-def _replays_own_permanent(unit: AbilityUnit, c: ConceptNode) -> bool:
-    """A return of a permanent you control from the battlefield to its owner's
-    hand (CR 400.7: cast again, it is a new object whose enters triggers fire
-    anew): Whitemane Lion's "return a creature you control", Kor Skyfisher's
-    "a permanent you control", a bounce land's "a land you control". The card
-    returning only itself is a self-bounce (Blinking Spirit — ``SelfRef``), a
-    graveyard card is a recall, and a foe returning a permanent they control
-    (Zndrsplt's Judgment) replays nothing of yours."""
-    if c.concept != "bounce":
-        return False
-    target = effect_filter(c.node)
-    if tag_of(target) == "SelfRef" or filter_controller(target) != "You":
-        return False
-    if set(filter_inzone_zones(target)) - {"Battlefield"}:
-        return False
-    return effect_owner_player_scope(unit.node, c.node) not in _OPPONENT_ACTOR_TAGS
+#: A permanent card (CR 110.4a), by its type or as "permanent card".
+_PERMANENT_CARD = PERMANENT_CARD_TYPES | {"Permanent"}
+_LAND_CARD = frozenset({"Land"})
 
 
 def _pays_by_replaying(unit: AbilityUnit) -> bool:
@@ -1874,22 +1833,40 @@ def _pays_by_replaying(unit: AbilityUnit) -> bool:
 
 
 def _recast_doer_subjects(tree: ConceptTree) -> list[str]:
-    """The ``permanent_recast`` doer subjects the card's effects carry."""
+    """The ``permanent_recast`` doer subjects the card's effects carry:
+    ``reanimate`` (a permanent card put from a graveyard onto the battlefield),
+    ``land`` (a land card back to the battlefield or your hand, or played from
+    your graveyard — a land lost to removal comes back; a tuck to the library is
+    not) and ``replay`` (:func:`crosswalk.replays_own_permanent`, or a cost paid
+    that way)."""
     found: set[str] = set()
     for unit in tree.units:
-        if unit.origin == "static" and _plays_lands_from_graveyard(unit):
+        if plays_lands_from_graveyard(unit):
             found.add("land")
         if _pays_by_replaying(unit):
             found.add("replay")
         # An emblem's or a granted ability's (Teyo's end-step reanimation).
         granted = iter_nested_granted_effect_concepts(unit.node)
         for c in chain(unit.effects, granted):
-            if _reanimates_permanent(tree, c):
-                found.add("reanimate")
-            if _recurs_land(tree, c):
-                found.add("land")
-            if _replays_own_permanent(unit, c):
+            if replays_own_permanent(unit, c):
                 found.add("replay")
+            if c.recovered_by in ("reanimate", "graveyard_return"):
+                if c.recovered_by == "reanimate" and recovered_card_recursion(
+                    c, _PERMANENT_CARD
+                ):
+                    found.add("reanimate")
+                if recovered_card_recursion(c, _LAND_CARD):
+                    found.add("land")
+                continue
+            hit = graveyard_recursion(c.node)
+            if hit is None:
+                continue
+            if hit[0] == "battlefield" and _recursion_names(
+                tree, c, hit, _PERMANENT_CARD
+            ):
+                found.add("reanimate")
+            if hit[0] != "library" and _recursion_names(tree, c, hit, _LAND_CARD):
+                found.add("land")
     return [s for s in ("reanimate", "replay", "land") if s in found]
 
 

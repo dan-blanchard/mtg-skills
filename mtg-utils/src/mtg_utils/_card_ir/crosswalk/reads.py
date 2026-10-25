@@ -19,6 +19,7 @@ from __future__ import annotations
 import re
 from collections.abc import Callable, Iterable, Iterator
 from dataclasses import fields
+from functools import cache
 from typing import TYPE_CHECKING, Any, Literal, NamedTuple, cast, get_args
 
 from mtg_utils._card_ir.branches import (
@@ -450,7 +451,7 @@ def mana_restrictions(node: TypedMirrorNode) -> tuple[str, ...]:
     return ()
 
 
-def mana_spell_type_restriction(node: TypedMirrorNode) -> str:
+def mana_spell_type_restriction(node: TypedMirrorNode, *, any_of: bool = False) -> str:
     """The spell type a ``Mana`` effect's mana is limited to (CR 106.6), or ``""``.
 
     phase carries the typed restrictions as variants beside the string ones
@@ -458,12 +459,27 @@ def mana_spell_type_restriction(node: TypedMirrorNode) -> str:
     ``spell_type`` ("Artifact": The Mightstone and Weakstone's "can't be spent to
     cast nonartifact spells"; "Colorless Eldrazi": Eldrazi Temple), and
     ``SpellType`` with a bare string ("Multicolored": Pillar of the Paruns).
+
+    With ``any_of`` a spell type that is one choice of an ``Any`` list reads too
+    ("Spend this mana only to cast an enchantment spell, unlock a door, or turn
+    a permanent face up" — Creeping Peeper): the mana MAY go to that type, though
+    it isn't limited to it.
     """
     rs = getattr(node, "restrictions", MISSING)
     if not (_present(rs) and isinstance(rs, (list, tuple))):
         return ""
     for r in rs:
         if not isinstance(r, MirrorVariant):
+            continue
+        if any_of and r.key == "Any" and isinstance(r.inner, list):
+            for alt in r.inner:
+                if (
+                    isinstance(alt, MirrorVariant)
+                    and alt.key == "SpellType"
+                    and isinstance(alt.inner, str)
+                    and alt.inner
+                ):
+                    return alt.inner
             continue
         if r.key == "SpellTypeOrAbilityActivation":
             spell_type = getattr(r.inner, "spell_type", None)
@@ -2128,13 +2144,27 @@ def change_zone_dirs(node: TypedMirrorNode) -> tuple[str | None, str | None]:
     )
 
 
-#: Where a graveyard recursion puts the card (phase's destination zone) → the
-#: recursion's subject.
-GRAVEYARD_RECURSION_DESTINATIONS: dict[str, str] = {
-    "Battlefield": "battlefield",
-    "Hand": "hand",
-    "Library": "library",
-}
+#: The zones a graveyard recursion puts the card into; the recursion's subject
+#: is the zone, lower-cased.
+GRAVEYARD_RECURSION_ZONES: frozenset[str] = frozenset(
+    {"Battlefield", "Hand", "Library"}
+)
+
+
+def puts_under_your_control(
+    node: object, sub: object, *, onto_battlefield: bool = True
+) -> bool:
+    """Whether a card or permanent ``node`` moves (its filter ``sub``) ends up
+    yours: put onto the battlefield under your control (``enters_under: You`` —
+    a reanimation or theft of theirs for you), or otherwise — a permanent
+    enters under its owner's control by default (CR 110.2) — not only an
+    opponent's (an ``Opponent``-controlled filter, opponent owners)."""
+    if onto_battlefield and getattr(node, "enters_under", None) == "You":
+        return True
+    if filter_controller(sub) == "Opponent":
+        return False
+    owners = filter_owners(sub)
+    return not (owners and all(o == "Opponent" for o in owners))
 
 
 def graveyard_recursion(node: object) -> tuple[str, object] | None:
@@ -2154,8 +2184,8 @@ def graveyard_recursion(node: object) -> tuple[str, object] | None:
 
     A pull from opponents' graveyards only is graveyard hate, not a recursion
     of yours — an ``Opponent``-controlled filter, or opponent owners unless the
-    card enters the battlefield under your control (``enters_under: You``; CR
-    110.2: a reanimation of theirs for you)."""
+    card enters the battlefield under your control
+    (:func:`puts_under_your_control`)."""
     if not isinstance(node, TypedMirrorNode):
         return None
     sub = effect_filter(node)
@@ -2171,36 +2201,40 @@ def graveyard_recursion(node: object) -> tuple[str, object] | None:
     origin, dest = change_zone_dirs(node)
     if origin is None and "Graveyard" in filter_inzone_zones(sub):
         origin = "Graveyard"
-    if origin != "Graveyard" or dest not in GRAVEYARD_RECURSION_DESTINATIONS:
+    if origin != "Graveyard" or dest not in GRAVEYARD_RECURSION_ZONES:
         return None
-    owners = filter_owners(sub)
-    if (
-        owners
-        and all(o == "Opponent" for o in owners)
-        and not (dest == "Battlefield" and getattr(node, "enters_under", None) == "You")
-    ):
+    if not puts_under_your_control(node, sub, onto_battlefield=dest == "Battlefield"):
         return None
-    return GRAVEYARD_RECURSION_DESTINATIONS[dest], sub
+    return dest.lower(), sub
 
 
-#: The node tags an object filter takes (one population, or a list of them).
-_OBJECT_FILTER_TAGS: frozenset[str] = frozenset({"Typed", "Or", "And"})
+#: The node tags an object filter takes: one population (``Typed``) or a list
+#: of them (``Or`` / ``And``) — the shapes a filter the reads type-gate takes.
+OBJECT_FILTER_TAGS: frozenset[str] = frozenset({"Typed", "Or", "And"})
+
+
+@cache
+def _field_names(cls: type) -> tuple[str, ...]:
+    return tuple(f.name for f in fields(cast("Any", cls)))
 
 
 def iter_node_filters(node: object) -> Iterator[tuple[str, object]]:
     """Each object filter ONE node holds directly, as ``(field, filter)``: a
     count's ``filter``, a static's ``affected``, a trigger's ``valid_card``, an
-    effect's ``target``, a restriction's ``source_filter``. A variant-wrapped
-    or listed filter is unwrapped; a filter nested inside another (an ``Or``'s
-    arms) is that node's own, reached by walking it."""
+    effect's ``target``, a restriction's ``source_filter`` (an
+    :data:`OBJECT_FILTER_TAGS` node). A variant-wrapped or listed filter is
+    unwrapped; a filter nested inside another (an ``Or``'s arms) is that node's
+    own, reached by walking it. An ``AttachedTo`` back-reference ("enchanted
+    creature") is out: it names the one object the card is attached to, not a
+    population, and carries no type of its own."""
     if not isinstance(node, TypedMirrorNode):
         return
-    for f in fields(node):
-        val = getattr(node, f.name, MISSING)
+    for name in _field_names(type(node)):
+        val = getattr(node, name, MISSING)
         for item in val if isinstance(val, list) else (val,):
             v = item.inner if isinstance(item, MirrorVariant) else item
-            if isinstance(v, TypedMirrorNode) and tag_of(v) in _OBJECT_FILTER_TAGS:
-                yield f.name, v
+            if isinstance(v, TypedMirrorNode) and tag_of(v) in OBJECT_FILTER_TAGS:
+                yield name, v
 
 
 def recursion_card_types(
@@ -3491,6 +3525,61 @@ def granted_next_spell_keyword(node: object) -> str | None:
     if isinstance(kw, TypedMirrorNode):
         return tag_of(kw)
     return None
+
+
+def cast_keyword_type_words(node: object) -> tuple[str | None, tuple[str, ...]]:
+    """``(keyword, type words)`` of a keyword a node confers on spells: an
+    always-on ``CastWithKeyword`` static (:func:`cast_with_keyword_name` —
+    "Spells you cast have affinity for artifacts", Sami, Wildcat Captain) or the
+    next spell's (:func:`granted_next_spell_keyword` — Archway of Innovation's
+    improvise). The type words are a parameterized keyword's own filter
+    (affinity's "for artifacts" / "for Equipment", CR 702.41a); ``()`` for a
+    bare keyword. ``(None, ())`` when the node confers none."""
+    if not isinstance(node, TypedMirrorNode):
+        return None, ()
+    name = cast_with_keyword_name(node)
+    if name is not None:
+        mode = getattr(node, "mode", MISSING)
+        kw = _variant_field(getattr(mode, "inner", None), "keyword")
+    else:
+        name = granted_next_spell_keyword(node)
+        if name is None:
+            return None, ()
+        kw = getattr(getattr(node, "modifier", None), "keyword", None)
+    param = kw.inner if isinstance(kw, MirrorVariant) else None
+    return name, tuple(_type_filter_words(getattr(param, "type_filters", None)))
+
+
+def plays_lands_from_graveyard(unit: AbilityUnit) -> bool:
+    """Whether a unit lets you play land cards from your graveyard (CR 305.1 —
+    Crucible of Worlds, Ramunap Excavator): a ``GraveyardCastPermission``
+    naming lands, on the static unit itself or a concept node it holds (a
+    granted or chapter permission)."""
+    nodes = [c.node for c in unit.iter_concepts()]
+    if unit.origin == "static":
+        nodes.append(unit.node)
+    return any(
+        static_mode_tag(n) == "GraveyardCastPermission"
+        and "Land" in filter_core_types(getattr(n, "affected", None))
+        for n in nodes
+    )
+
+
+def replays_own_permanent(unit: AbilityUnit, c: ConceptNode) -> bool:
+    """Whether a ``bounce`` concept returns a permanent you control other than
+    this one from the battlefield to its owner's hand (CR 400.7: cast again,
+    it is a new object): Whitemane Lion's "return a creature you control",
+    Chulane's activated bounce. The card returning only itself is a self-bounce
+    (``SelfRef``), a graveyard card is a recall, and a foe returning a
+    permanent they control (Zndrsplt's Judgment) replays nothing of yours."""
+    if c.concept != "bounce" or not isinstance(c.node, TypedMirrorNode):
+        return False
+    target = effect_filter(c.node)
+    if tag_of(target) == "SelfRef" or filter_controller(target) != "You":
+        return False
+    if set(filter_inzone_zones(target)) - {"Battlefield"}:
+        return False
+    return effect_owner_player_scope(unit.node, c.node) not in _OPPONENT_ACTOR_TAGS
 
 
 def _variant_field(inner: object, field: str) -> object:
@@ -7443,7 +7532,7 @@ def triggering_player_side(unit: AbilityUnit) -> ControllerSide | None:
 #: The target shapes of a ``SetTapState`` that name an object to tap (a filter
 #: the controller chooses from), as opposed to a ``SelfRef`` self-tap or a
 #: back-reference to an object an earlier clause chose.
-_TAP_OBJECT_TARGET_TAGS: frozenset[str] = frozenset({"Typed", "Or", "And"})
+_TAP_OBJECT_TARGET_TAGS: frozenset[str] = OBJECT_FILTER_TAGS
 
 
 def taps_target_object(node: object) -> bool:
@@ -7735,6 +7824,11 @@ def _overloaded(tree: ConceptTree) -> bool:
     return any(alt.kind == "overload" for alt in tree.card_alt_costs)
 
 
+#: The six permanent types (CR 110.4); a "permanent card" is a card of one
+#: (CR 110.4a).
+PERMANENT_CARD_TYPES: frozenset[str] = frozenset(
+    {"Artifact", "Battle", "Creature", "Enchantment", "Land", "Planeswalker"}
+)
 #: The permanent types a destroy or exile sweep reads as clearing — a sweep
 #: affects every object it describes without targeting one (CR 115.10). Leaving
 #: lands out is the lanes' own decision: a land sweep is land destruction, a
@@ -9049,7 +9143,7 @@ def names_subtype_payoff(tree: ConceptTree, subtype: str) -> bool:
 #: ``valid_target`` / ``valid_card`` / ``valid_source`` take for "that creature",
 #: the enchanted / equipped object among them ("When enchanted creature attacks,
 #: return it" — Contempt).
-_OBJECT_FILTER_TAGS: frozenset[str] = _TAP_OBJECT_TARGET_TAGS | {"AttachedTo"}
+_TRIGGER_OBJECT_TAGS: frozenset[str] = OBJECT_FILTER_TAGS | {"AttachedTo"}
 
 #: What an effect's back-reference names (:func:`effect_back_reference`).
 BackReferenceKind = Literal["chosen", "event", "self", "linked", "unknown"]
@@ -9124,7 +9218,7 @@ def effect_back_reference(
     # the card's own event touches ("Whenever this creature blocks a creature").
     for field in ("valid_card", "valid_source", "valid_target"):
         watched = getattr(unit.node, field, None)
-        if tag_of(watched) in _OBJECT_FILTER_TAGS:
+        if tag_of(watched) in _TRIGGER_OBJECT_TAGS:
             return "event", watched
     return "self", None
 

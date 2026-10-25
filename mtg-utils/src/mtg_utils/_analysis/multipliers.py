@@ -41,7 +41,11 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from typing import NamedTuple
 
-from mtg_utils._card_ir.crosswalk import AbilityUnit, ConceptTree
+from mtg_utils._card_ir.crosswalk import (
+    PERMANENT_CARD_TYPES,
+    AbilityUnit,
+    ConceptTree,
+)
 from mtg_utils._card_ir.crosswalk.describe import unit_text
 from mtg_utils._card_ir.crosswalk.reads import (
     ObjectFacts,
@@ -70,9 +74,6 @@ _CAUSE_EVENTS = {
     "CreatureDying": "dies",
     "CreatureAttacking": "attacks",
 }
-_PERMANENT_TYPES = frozenset(
-    {"Artifact", "Battle", "Creature", "Enchantment", "Land", "Planeswalker"}
-)
 
 #: A ``CopySpell`` of a stack ability → its :attr:`Multiplication.kind` (CR 707.10).
 _STACK_ABILITY_KINDS = {
@@ -188,10 +189,10 @@ class Commander:
         (phase's ``Card`` type) for a stack one."""
         event = _CAUSE_EVENTS.get(cause)
         wanted = set(cause_types) or (
-            set(_PERMANENT_TYPES) if cause == "EntersBattlefield" else {"Creature"}
+            set(PERMANENT_CARD_TYPES) if cause == "EntersBattlefield" else {"Creature"}
         )
         if "Permanent" in wanted:
-            wanted = set(_PERMANENT_TYPES)
+            wanted = set(PERMANENT_CARD_TYPES)
         for trigger in self.triggers:
             if not self._source_covered(
                 affected, on_battlefield=trigger.on_battlefield

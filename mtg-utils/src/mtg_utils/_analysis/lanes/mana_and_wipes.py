@@ -56,7 +56,6 @@ from mtg_utils._card_ir.crosswalk import (
     filter_inzone_zones,
     filter_names_creatures,
     filter_owned_controller,
-    filter_owners,
     filter_predicates,
     filter_subtypes,
     filter_without_keywords,
@@ -79,6 +78,7 @@ from mtg_utils._card_ir.crosswalk import (
     overload_sweep,
     produced_contribution,
     pt_mod_signs,
+    puts_under_your_control,
     recipient_tag,
     ref_count_qty,
     reveal_until_player,
@@ -3030,7 +3030,7 @@ def _unit_targets_player(unit: AbilityUnit) -> bool:
     )
 
 
-def _puts_onto_battlefield(unit: AbilityUnit, node: object) -> bool:
+def _puts_a_card_for_you(unit: AbilityUnit, node: object) -> bool:
     """Whether one effect puts a card or permanent other than this one onto the
     battlefield under your control (CR 110.2: a permanent's controller is the
     player under whose control it entered — by default its owner): a
@@ -3058,15 +3058,11 @@ def _puts_onto_battlefield(unit: AbilityUnit, node: object) -> bool:
         return False
     if tag_of(getattr(node, "target", None)) == "SelfRef":
         return False
-    if getattr(node, "enters_under", None) == "You":
-        return True
-    if effect_owner_player_scope(unit.node, node) in _OPPONENT_ACTOR_TAGS:
+    if getattr(node, "enters_under", None) != "You" and (
+        effect_owner_player_scope(unit.node, node) in _OPPONENT_ACTOR_TAGS
+    ):
         return False
-    sub = effect_filter(node)
-    owners = filter_owners(sub)
-    return filter_controller(sub) != "Opponent" and not (
-        owners and all(o == "Opponent" for o in owners)
-    )
+    return puts_under_your_control(node, effect_filter(node))
 
 
 def _searched_by_another(unit: AbilityUnit) -> bool:
@@ -3082,7 +3078,7 @@ def _searched_by_another(unit: AbilityUnit) -> bool:
 
 def _battlefield_put(tree: ConceptTree) -> list[Signal]:
     """``permanent_etb|you|put`` — the card puts a card or permanent other than
-    itself onto the battlefield under your control (:func:`_puts_onto_battlefield`;
+    itself onto the battlefield under your control (:func:`_puts_a_card_for_you`;
     a granted ability's put included): what a "whenever a permanent you control
     enters" engine (Amareth, Amulet of Vigor) wants beside the token makers. A
     page-only doer (``signal_keys.PAGE_ONLY_SUBJECTS``): every ramp spell and
@@ -3092,7 +3088,7 @@ def _battlefield_put(tree: ConceptTree) -> list[Signal]:
             continue
         granted = iter_nested_granted_effect_concepts(unit.node)
         for c in chain(unit.effects, granted):
-            if _puts_onto_battlefield(unit, c.node):
+            if _puts_a_card_for_you(unit, c.node):
                 return [Signal("permanent_etb", "you", "put", c.raw, tree.name, "high")]
     return []
 
