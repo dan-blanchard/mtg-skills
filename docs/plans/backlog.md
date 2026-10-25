@@ -140,8 +140,10 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   resolving the referent changes reads, so it wants a precon rerun.
   (m) **Recall** (`precon-audit/misses.py`, at the largest guide's thirty
   swaps and each precon's own guides' budget, `budgets.json`, Spellbook cached):
-  197 of 408 cuttable guide cuts, 66 of 610 in-scope guide adds, 560 swaps
-  (2026-10-25, the even share; 195 / 59, 543 swaps before it; 180 / 57 before the
+  199 of 408 cuttable guide cuts, 67 of 610 in-scope guide adds, 562 swaps
+  (2026-10-25, the second (o) pass: VelociRampTor adds Ghalta and Mavren for
+  Boros Charm, Virtue and Valor adds Sram, Sliver Swarm cuts Descendants' Fury;
+  197 / 66, 560 swaps at the even share; 195 / 59, 543 swaps before it; 180 / 57 before the
   near-tie budget rule, 169 / 56 at 9e0026ed). The levers by size at the shipped
   tune: adds a page held but outranked (287 — the gate reasons fell, since a pick
   inside the share stops the scan before the gates see the rest), theme adds no
