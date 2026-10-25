@@ -42,6 +42,7 @@ from mtg_utils._analysis.tree_synthesis import (
 from mtg_utils._card_ir.crosswalk import (
     ATTACHED_OBJECT_PREDICATES,
     CHOSEN_PLAYER_SCOPE,
+    OBJECT_FILTER_TAGS,
     OPPONENT_ACTOR_TAGS,
     SELF_REFERENCE_TARGETS,
     AbilityUnit,
@@ -840,7 +841,7 @@ def _grantee_is_your_creature(granted: GrantedTrigger) -> bool:
     tag = grantee if isinstance(grantee, str) else tag_of(grantee)
     if tag == "SourceOrPaired":
         return True
-    if tag not in ("Typed", "Or", "And"):
+    if tag not in OBJECT_FILTER_TAGS:
         return False
     if names_attached_object(grantee):
         return True
