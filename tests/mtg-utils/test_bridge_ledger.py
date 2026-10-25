@@ -98,6 +98,19 @@ def test_bridge_still_needed_and_serving(bridge, pin):
     assert bridge.fires(tree)
 
 
+def test_bridge_ids_are_unique():
+    """Each ``BRIDGES.update`` block keys its rows by id, so a second row reusing an
+    id silently replaces the first: every ``bridge_id`` literal is distinct."""
+    ids = [
+        kw.value.value
+        for node in ast.walk(ast.parse(inspect.getsource(bridge_ledger)))
+        if isinstance(node, ast.Call)
+        for kw in node.keywords
+        if kw.arg == "bridge_id" and isinstance(kw.value, ast.Constant)
+    ]
+    assert len(ids) == len(set(ids)), sorted(i for i in set(ids) if ids.count(i) > 1)
+
+
 def test_ledger_hygiene():
     """Every row is complete: a named retirement path, an authored census,
     at least one pin that resolves to a real card face, a known kind, and an id key that
@@ -268,6 +281,19 @@ _MISPARSE_ROWS = {
     ),
     "opponent_sacrifice_actor_dropped": (
         "'each opponent sacrifices' parsed as a Sacrifice naming no player"
+    ),
+    "creature_spell_discount_filter_dropped": (
+        "a creature-spell discount parsed as a ModifyCost with no spell filter"
+    ),
+    "etb_drain_boon_misparse": (
+        "the one-time drain boon parsed as the controller losing life"
+    ),
+    "target_players_drain_target_dropped": (
+        "the targeted players' life loss parsed as a LoseLife with no target"
+    ),
+    "team_indestructible_misbound": (
+        "a team indestructible grant parsed onto the player (Controller) or with "
+        "its 'you control' dropped"
     ),
 }
 
