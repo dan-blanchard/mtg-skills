@@ -265,3 +265,16 @@ Zhalfir). The board-wipe row: Spearman 0.526 (0.510), guide adds at the 86th
 percentile (84th), 9 of 19 in the top decile, 9 of the bottom two. On the 25
 precons 543 / 196 / 61 against 542 / 195 / 61: Deluge of Doom and Boompile are no
 longer picked, and Tinker Time's saved mana buys a guide cut.
+
+**Amendment (2026-10-25, the deck's amounts).** A read may take a card's features
+in its deck (`JobRead.deck_features`, for a card `deck_dependent` marks): the
+board-wipe read counts a type only a deck built on it holds off the deck (Olivia's
+Wrath in Blood Rites' 36 Vampires, 0.15 to 0.39) and reads a sacrificed creature's
+size as the deck's biggest. Deck-free, an amount that counts nothing reads by what
+it names, not phase's wrapper: a cost's object at the kill size (Corpse Explosion
+now lethal), a set of the caster's own cards scaling, one of the other players'
+narrow. On the 25 precons every result is byte-identical (543 / 196 / 61). A
+deck-fit wipe read (the share of the deck's own permanents a sweep leaves) leading
+the wipe order in a tribal deck was measured and rejected: it took Raise the
+Palisade in Fae Dominion but lost three guide adds there on the budget (the audit
+report, "The deck-fit wipe read and the tune's speed").

@@ -1050,6 +1050,60 @@ are the median per precon.
   upgrade cut replaces, and the guide-matched Exquisite Blood cut; Abzan Armor and
   Multiverse Reforged take other cuts and match no guide card differently.
 
+### The deck-fit wipe read and the tune's speed (2026-10-25)
+
+Backlog (j)'s lever and its small item, and (l). The bar as in "The tuner-policy
+leftovers". Three `misses.py` runs, Spellbook cached, each tune's whole result
+dumped and compared byte for byte; the speed and final runs seed the signals index
+and attach the provenance and job-read sidecars first, as `deck-tune` does. Tune
+seconds are the median per precon. The lead was measured on the four precons it can
+move (a deck most of whose creatures share a type), one process, the same cache,
+the lead off and on.
+
+| change | swaps / cuts / adds | tune s · GB | |
+|---|---|---|---|
+| HEAD (a825a59c) | 543 / 196 / 61 | 6.1 · 1.58 | |
+| S the speed levers (on HEAD) | 543 / 196 / 61 | 4.7 · 1.25 | **shipped**: all 25 results byte-identical |
+| W S + the wipe read's amounts | 543 / 196 / 61 | 4.4 · 1.23 | **shipped** (read fixes): all 25 byte-identical |
+| L W + the deck-fit lead, four tribal precons (off → on) | 77 / 23 / 18 → 73 / 23 / 16 | | rejected |
+
+- **The deck-fit read (L).** What a sweep leaves of the deck's own permanents, read off
+  its filter against the deck's records: a chosen creature type is the deck's most
+  common, a bound the caster sets sits at the kill size (Expel the Interlopers names
+  four), one each is one of the two creatures a seat, a one-sided sweep leaves all,
+  damage or a shrink spares a toughness above it. Raise the Palisade leaves 28 of Fae
+  Dominion's 29 creatures, Toxic Deluge none. The deck-free read already prices a
+  spare and one-sidedness at the average deck's board, so the read moves nothing
+  where the deck is average; it leads only in a deck most of whose creatures share a
+  type. There Raise the Palisade became Fae Dominion's wipe upgrade (a guide add), but
+  it costs $0.29 less than Toxic Deluge, which made Nezahal affordable as the first
+  card-draw upgrade, so the near tie took Talion, the Kindly Lord ($7.92) and the
+  budget ran out five swaps earlier: Deadly Dispute, Likeness Looter and Spellstutter
+  Sprite, all guide adds, lost. Blood Rites (Winds of Abandon for Olivia's Wrath, and
+  Damn upgraded to Toxic Deluge), Sliver Swarm (Cyclonic Rift, Raise the Palisade) and
+  VelociRampTor (Storm's Wrath, Austere Command, Mizzium Mortars, Winds of Abandon)
+  moved no guide card. Ellivere's Expel the Interlopers and Tragic Arrogance and Blame
+  Game's Chain Reaction and Winds of Abandon need a second wipe slot: each deck's one
+  wipe upgrade is already a guide add (Vanquish the Horde, Blasphemous Act). Rejected,
+  and the read with it.
+- **The wipe read's amounts (W).** No wrapper decides an amount that counts nothing.
+  The size of the caster's own object paid as a cost reads at the kill size (Ichor
+  Explosion's sacrificed creature, its ruling; Corpse Explosion's exiled card, now a
+  lethal sweep; Cloudkill's commander), a "this way" set of the caster's own cards
+  scales (Specter of Mortality's exiled creature cards) and one taken from the other
+  players stays narrow (Volcanic Eruption's Mountains). In a deck
+  (`JobRead.deck_features`), a count of a type only a deck built on it holds reads
+  off the deck: Olivia's Wrath in Blood Rites' 36 Vampires is a lethal sweep (0.15 to
+  0.39), Gates Ablaze among eight Gates; a sacrificed creature's size is the deck's
+  biggest. No tune changed.
+- **Speed (S).** A Blood Rites tune profiled at 7.9 s, now 5.6. Each candidate's ranking
+  readout is computed once per tune (`rank_candidates`' `scores`: 1,591 readouts for
+  1,027 cards before), `deck-tune` seeds the signals index before the deck is read (the
+  deck's cards paid 153 live extractions for their keys and their idents; 253 in
+  all, 81 now), and the phase card-data is read per oracle_id from a sidecar beside it
+  (`trees.PhaseRecordIndex`: 1.2 s and every record decoded before, 0.02 s and only
+  the ones a tune reads now; the peak RSS fell by a third of a gigabyte).
+
 ## What is left
 
 `docs/plans/backlog.md`, "What the polymorph tune and the 25-precon audit still

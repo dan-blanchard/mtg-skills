@@ -262426,6 +262426,191 @@
     "type_line": "Creature — Vampire Rogue"
    }
   },
+  "Corpse Explosion": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "~ deals damage equal to the exiled card's power to each creature and each planeswalker.",
+       "duration": null,
+       "effect": {
+        "amount": {
+         "qty": {
+          "scope": {
+           "type": "CostPaidObject"
+          },
+          "type": "Power"
+         },
+         "type": "Ref"
+        },
+        "target": {
+         "filters": [
+          {
+           "controller": null,
+           "properties": [],
+           "type": "Typed",
+           "type_filters": [
+            "Creature"
+           ]
+          },
+          {
+           "controller": null,
+           "properties": [],
+           "type": "Typed",
+           "type_filters": [
+            "Planeswalker"
+           ]
+          }
+         ],
+         "type": "Or"
+        },
+        "type": "DamageAll"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "additional_cost": {
+      "data": {
+       "count": 1,
+       "filter": {
+        "controller": "You",
+        "properties": [
+         {
+          "type": "InZone",
+          "zone": "Graveyard"
+         }
+        ],
+        "type": "Typed",
+        "type_filters": [
+         "Creature"
+        ]
+       },
+       "type": "Exile",
+       "zone": "Graveyard"
+      },
+      "type": "Required"
+     },
+     "card_type": {
+      "core_types": [
+       "Sorcery"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Black",
+      "Red"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "Black",
+       "Red"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "7f510ca1-8d33-4703-b36b-377b99bcc163",
+       "c700eff3-138b-4d4c-ba36-58b98986168c"
+      ]
+     },
+     "name": "Corpse Explosion",
+     "non_ability_text": null,
+     "oracle_text": "As an additional cost to cast this spell, exile a creature card from your graveyard.\nCorpse Explosion deals damage equal to the exiled card's power to each creature and each planeswalker.",
+     "power": null,
+     "printings": [
+      "PRM",
+      "PSNC",
+      "SNC"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2022-04-29",
+       "text": "Once you have begun to cast Corpse Explosion, there is no point at which players can respond by removing cards from your graveyard to prevent you from being able to pay for it with a specific creature card."
+      },
+      {
+       "date": "2022-04-29",
+       "text": "Use the card's power as it last existed in the graveyard to determine how much damage is dealt."
+      }
+     ],
+     "scryfall_oracle_id": "ab715312-0103-4681-b559-520026abd350",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 3.0,
+    "color_identity": [
+     "B",
+     "R"
+    ],
+    "colors": [
+     "B",
+     "R"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}{B}{R}",
+    "name": "Corpse Explosion",
+    "oracle_id": "ab715312-0103-4681-b559-520026abd350",
+    "oracle_text": "As an additional cost to cast this spell, exile a creature card from your graveyard.\nCorpse Explosion deals damage equal to the exiled card's power to each creature and each planeswalker.",
+    "type_line": "Sorcery"
+   }
+  },
   "Corpse Knight": {
    "phase_records": [
     {
@@ -452354,6 +452539,242 @@
     "type_line": "Artifact"
    }
   },
+  "Gateway Plaza": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": {
+        "type": "Tap"
+       },
+       "description": "{T}: Add one mana of any color.",
+       "duration": null,
+       "effect": {
+        "produced": {
+         "color_options": [
+          "White",
+          "Blue",
+          "Black",
+          "Red",
+          "Green"
+         ],
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "type": "AnyOneColor"
+        },
+        "type": "Mana"
+       },
+       "forward_result": false,
+       "is_mana_ability": true,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Land"
+      ],
+      "subtypes": [
+       "Gate"
+      ],
+      "supertypes": []
+     },
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pauper": "legal",
+      "paupercommander": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "type": "NoCost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "3433a2c2-d252-4cd8-97e8-389875b2cda0",
+       "7d3d5162-126d-4430-9884-8e79afa974c2",
+       "81d69cf2-8643-4926-857e-febbd54d870f",
+       "8df2bfae-233f-41ff-9acf-e0ca25dac128",
+       "b58dd869-4225-4b4f-ae8f-15b4338fd390"
+      ]
+     },
+     "name": "Gateway Plaza",
+     "non_ability_text": null,
+     "oracle_text": "This land enters tapped.\nWhen this land enters, sacrifice it unless you pay {1}.\n{T}: Add one mana of any color.",
+     "power": null,
+     "printings": [
+      "GRN",
+      "PIO",
+      "PLST",
+      "RNA",
+      "WAR"
+     ],
+     "rarities": [
+      "common"
+     ],
+     "replacements": [
+      {
+       "condition": null,
+       "description": "~ enters tapped.",
+       "destination_zone": "Battlefield",
+       "event": "Moved",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "scope": {
+          "type": "Single"
+         },
+         "state": {
+          "type": "Tap"
+         },
+         "target": {
+          "type": "SelfRef"
+         },
+         "type": "SetTapState"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": {
+        "type": "Mandatory"
+       },
+       "valid_card": {
+        "type": "SelfRef"
+       }
+      }
+     ],
+     "scryfall_oracle_id": "a6543f71-0326-4e1f-b58f-9ce325d5d036",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "When ~ enters, sacrifice it unless you pay {1}.",
+       "destination": "Battlefield",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "target": {
+          "type": "SelfRef"
+         },
+         "type": "Sacrifice"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "ChangesZone",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "unless_pay": {
+        "cost": {
+         "cost": {
+          "generic": 1,
+          "shards": [],
+          "type": "Cost"
+         },
+         "type": "Mana"
+        },
+        "payer": {
+         "type": "Controller"
+        }
+       },
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 0.0,
+    "color_identity": [],
+    "colors": [],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "legal",
+     "paupercommander": "legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "",
+    "name": "Gateway Plaza",
+    "oracle_id": "a6543f71-0326-4e1f-b58f-9ce325d5d036",
+    "oracle_text": "This land enters tapped.\nWhen this land enters, sacrifice it unless you pay {1}.\n{T}: Add one mana of any color.",
+    "produced_mana": [
+     "B",
+     "G",
+     "R",
+     "U",
+     "W"
+    ],
+    "type_line": "Land — Gate"
+   }
+  },
   "Gathan Raiders": {
    "phase_records": [
     {
@@ -545097,6 +545518,189 @@
     "power": "1",
     "toughness": "1",
     "type_line": "Creature — Phyrexian Vampire"
+   }
+  },
+  "Ichor Explosion": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "All creatures get -X/-X until end of turn, where X is the sacrificed creature's power.",
+       "duration": "UntilEndOfTurn",
+       "effect": {
+        "power": {
+         "type": "Quantity",
+         "value": {
+          "factor": -1,
+          "inner": {
+           "qty": {
+            "scope": {
+             "type": "CostPaidObject"
+            },
+            "type": "Power"
+           },
+           "type": "Ref"
+          },
+          "type": "Multiply"
+         }
+        },
+        "target": {
+         "controller": null,
+         "properties": [],
+         "type": "Typed",
+         "type_filters": [
+          "Creature"
+         ]
+        },
+        "toughness": {
+         "type": "Quantity",
+         "value": {
+          "factor": -1,
+          "inner": {
+           "qty": {
+            "scope": {
+             "type": "CostPaidObject"
+            },
+            "type": "Power"
+           },
+           "type": "Ref"
+          },
+          "type": "Multiply"
+         }
+        },
+        "type": "PumpAll"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "additional_cost": {
+      "data": {
+       "count": 1,
+       "target": {
+        "controller": null,
+        "properties": [],
+        "type": "Typed",
+        "type_filters": [
+         "Creature"
+        ]
+       },
+       "type": "Sacrifice"
+      },
+      "type": "Required"
+     },
+     "card_type": {
+      "core_types": [
+       "Sorcery"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Black"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 5,
+      "shards": [
+       "Black",
+       "Black"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "0b207e2f-4604-43c5-bb35-a877e35ddd81"
+      ]
+     },
+     "name": "Ichor Explosion",
+     "non_ability_text": null,
+     "oracle_text": "As an additional cost to cast this spell, sacrifice a creature.\nAll creatures get -X/-X until end of turn, where X is the sacrificed creature's power.",
+     "power": null,
+     "printings": [
+      "NPH"
+     ],
+     "rarities": [
+      "uncommon"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2011-06-01",
+       "text": "X is the power of the sacrificed creature as it last existed on the battlefield."
+      },
+      {
+       "date": "2013-04-15",
+       "text": "Players can only respond once this spell has been cast and all its costs have been paid. No one can try to destroy the creature you sacrificed to prevent you from casting this spell."
+      },
+      {
+       "date": "2013-04-15",
+       "text": "You must sacrifice exactly one creature to cast this spell; you cannot cast it without sacrificing a creature, and you cannot sacrifice additional creatures."
+      }
+     ],
+     "scryfall_oracle_id": "d33aa11b-011b-4d12-85a9-4f956153fb1d",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 7.0,
+    "color_identity": [
+     "B"
+    ],
+    "colors": [
+     "B"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{5}{B}{B}",
+    "name": "Ichor Explosion",
+    "oracle_id": "d33aa11b-011b-4d12-85a9-4f956153fb1d",
+    "oracle_text": "As an additional cost to cast this spell, sacrifice a creature.\nAll creatures get -X/-X until end of turn, where X is the sacrificed creature's power.",
+    "type_line": "Sorcery"
    }
   },
   "Ichor Synthesizer": {
@@ -770652,6 +771256,180 @@
     "type_line": "Creature — Vampire Soldier"
    }
   },
+  "Olivia's Wrath": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Each non-Vampire creature gets -X/-X until end of turn, where X is the number of Vampires you control.",
+       "duration": "UntilEndOfTurn",
+       "effect": {
+        "power": {
+         "type": "Quantity",
+         "value": {
+          "factor": -1,
+          "inner": {
+           "qty": {
+            "filter": {
+             "controller": "You",
+             "properties": [],
+             "type": "Typed",
+             "type_filters": [
+              {
+               "Subtype": "Vampire"
+              }
+             ]
+            },
+            "type": "ObjectCount"
+           },
+           "type": "Ref"
+          },
+          "type": "Multiply"
+         }
+        },
+        "target": {
+         "controller": null,
+         "properties": [],
+         "type": "Typed",
+         "type_filters": [
+          "Creature",
+          {
+           "Non": {
+            "Subtype": "Vampire"
+           }
+          }
+         ]
+        },
+        "toughness": {
+         "type": "Quantity",
+         "value": {
+          "factor": -1,
+          "inner": {
+           "qty": {
+            "filter": {
+             "controller": "You",
+             "properties": [],
+             "type": "Typed",
+             "type_filters": [
+              {
+               "Subtype": "Vampire"
+              }
+             ]
+            },
+            "type": "ObjectCount"
+           },
+           "type": "Ref"
+          },
+          "type": "Multiply"
+         }
+        },
+        "type": "PumpAll"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Sorcery"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Black"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 4,
+      "shards": [
+       "Black"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "3eb5cc8d-a198-43cd-a2bd-9c9414d815b2",
+       "98893cc1-f502-4ca6-b6c1-e09fa1f4ef7a",
+       "fd9fbe48-56c2-4812-8009-f71dac26c1ad"
+      ]
+     },
+     "name": "Olivia's Wrath",
+     "non_ability_text": null,
+     "oracle_text": "Each non-Vampire creature gets -X/-X until end of turn, where X is the number of Vampires you control.",
+     "power": null,
+     "printings": [
+      "LCC",
+      "VOC"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "9aebd891-c8c5-4309-a07b-6cab1b204172",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 5.0,
+    "color_identity": [
+     "B"
+    ],
+    "colors": [
+     "B"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{4}{B}",
+    "name": "Olivia's Wrath",
+    "oracle_id": "9aebd891-c8c5-4309-a07b-6cab1b204172",
+    "oracle_text": "Each non-Vampire creature gets -X/-X until end of turn, where X is the number of Vampires you control.",
+    "type_line": "Sorcery"
+   }
+  },
   "Olivia, Opulent Outlaw": {
    "phase_records": [
     {
@@ -964807,6 +965585,246 @@
     "type_line": "Creature — Human Warrior"
    }
   },
+  "Specter of Mortality": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Specter"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Black"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [
+      "Flying"
+     ],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "standard": "legal",
+      "standardbrawl": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 3,
+      "shards": [
+       "Black",
+       "Black"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "3026523f-65a0-49a4-a46e-bb91a8988ea4",
+       "5e4c00b5-f6d6-4fbd-828f-ad30321f2cd9"
+      ]
+     },
+     "name": "Specter of Mortality",
+     "non_ability_text": null,
+     "oracle_text": "Flying\nWhen this creature enters, you may exile one or more creature cards from your graveyard. When you do, each other creature gets -X/-X until end of turn, where X is the number of cards exiled this way.",
+     "power": {
+      "type": "Fixed",
+      "value": 3
+     },
+     "printings": [
+      "PWOE",
+      "WOE"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "caff40b1-28d1-4ef6-90d1-51a1dc06cbcd",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 3
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "When ~ enters, you may exile one or more creature cards from your graveyard. When you do, each other creature gets -X/-X until end of turn, where X is the number of cards exiled this way.",
+       "destination": "Battlefield",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "destination": "Exile",
+         "enter_tapped": false,
+         "enter_transformed": false,
+         "enters_attacking": false,
+         "origin": "Graveyard",
+         "owner_library": false,
+         "target": {
+          "type": "TriggeringSource"
+         },
+         "type": "ChangeZone"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": true,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": {
+          "type": "WhenYouDo"
+         },
+         "cost": null,
+         "description": null,
+         "duration": "UntilEndOfTurn",
+         "effect": {
+          "power": {
+           "type": "Quantity",
+           "value": {
+            "factor": -1,
+            "inner": {
+             "qty": {
+              "caused_by": "Exiled",
+              "filter": {
+               "controller": null,
+               "properties": [],
+               "type": "Typed",
+               "type_filters": [
+                "Card"
+               ]
+              },
+              "type": "FilteredTrackedSetSize"
+             },
+             "type": "Ref"
+            },
+            "type": "Multiply"
+           }
+          },
+          "target": {
+           "controller": null,
+           "properties": [
+            {
+             "type": "Another"
+            }
+           ],
+           "type": "Typed",
+           "type_filters": [
+            "Creature"
+           ]
+          },
+          "toughness": {
+           "type": "Quantity",
+           "value": {
+            "factor": -1,
+            "inner": {
+             "qty": {
+              "caused_by": "Exiled",
+              "filter": {
+               "controller": null,
+               "properties": [],
+               "type": "Typed",
+               "type_filters": [
+                "Card"
+               ]
+              },
+              "type": "FilteredTrackedSetSize"
+             },
+             "type": "Ref"
+            },
+            "type": "Multiply"
+           }
+          },
+          "type": "PumpAll"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": null,
+         "sub_link": "SequentialSibling",
+         "target_prompt": null
+        },
+        "target_choice_timing": "Resolution",
+        "target_prompt": null
+       },
+       "mode": "ChangesZone",
+       "optional": true,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 5.0,
+    "color_identity": [
+     "B"
+    ],
+    "colors": [
+     "B"
+    ],
+    "keywords": [
+     "Flying"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "legal",
+     "standardbrawl": "legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{3}{B}{B}",
+    "name": "Specter of Mortality",
+    "oracle_id": "caff40b1-28d1-4ef6-90d1-51a1dc06cbcd",
+    "oracle_text": "Flying\nWhen this creature enters, you may exile one or more creature cards from your graveyard. When you do, each other creature gets -X/-X until end of turn, where X is the number of cards exiled this way.",
+    "power": "3",
+    "toughness": "3",
+    "type_line": "Creature — Specter"
+   }
+  },
   "Spectral Adversary": {
    "phase_records": [
     {
@@ -1124587,6 +1125605,216 @@
     "power": "3",
     "toughness": "2",
     "type_line": "Creature — Elemental Chimera"
+   }
+  },
+  "Volcanic Eruption": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Destroy X target Mountains. ~ deals damage to each creature and each player equal to the number of Mountains put into a graveyard this way.",
+       "duration": null,
+       "effect": {
+        "cant_regenerate": false,
+        "target": {
+         "controller": null,
+         "properties": [],
+         "type": "Typed",
+         "type_filters": [
+          {
+           "Subtype": "Mountain"
+          }
+         ]
+        },
+        "type": "Destroy"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "multi_target": {
+        "max": {
+         "qty": {
+          "name": "X",
+          "type": "Variable"
+         },
+         "type": "Ref"
+        },
+        "min": {
+         "qty": {
+          "name": "X",
+          "type": "Variable"
+         },
+         "type": "Ref"
+        }
+       },
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "amount": {
+          "qty": {
+           "filter": {
+            "controller": null,
+            "properties": [],
+            "type": "Typed",
+            "type_filters": [
+             {
+              "Subtype": "Mountain"
+             }
+            ]
+           },
+           "type": "FilteredTrackedSetSize"
+          },
+          "type": "Ref"
+         },
+         "player_filter": {
+          "type": "All"
+         },
+         "target": {
+          "controller": null,
+          "properties": [],
+          "type": "Typed",
+          "type_filters": [
+           "Creature"
+          ]
+         },
+         "type": "DamageAll"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "sub_link": "SequentialSibling",
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Sorcery"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Blue"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "premodern": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 0,
+      "shards": [
+       "X",
+       "Blue",
+       "Blue",
+       "Blue"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "12ce386d-9010-4b4f-86ae-b9e1ce0268f6",
+       "271df2c5-04c4-49f4-82fd-bdde9f1fa779",
+       "4574329d-ce71-447b-8bcf-ea528d9f19a7",
+       "54a40a85-b314-4ee1-bcfe-db8a80c0a35f",
+       "5828713a-edb3-4b11-b1f9-8f1bfc3c103f",
+       "6663f9e2-f752-42cf-97a0-01a14ca0aa1b",
+       "6d7c78a4-e3db-42bf-8365-d7a08c26f4a9",
+       "81dc6d66-b475-4c14-a48a-f99ff4fcbcc3",
+       "a80582b1-09db-45f8-b362-0e5207a5a8e6",
+       "ca669988-e009-4b3e-af20-ee5885554d34"
+      ]
+     },
+     "name": "Volcanic Eruption",
+     "non_ability_text": null,
+     "oracle_text": "Destroy X target Mountains. Volcanic Eruption deals damage to each creature and each player equal to the number of Mountains put into a graveyard this way.",
+     "power": null,
+     "printings": [
+      "2ED",
+      "30A",
+      "3ED",
+      "4BB",
+      "4ED",
+      "CED",
+      "CEI",
+      "FBB",
+      "LEA",
+      "LEB",
+      "SUM"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2004-10-04",
+       "text": "Can be used with X equal to zero. This is useful if no Mountains are on the battlefield."
+      }
+     ],
+     "scryfall_oracle_id": "4c15889e-3172-413b-b805-a2b7ad05f636",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 3.0,
+    "color_identity": [
+     "U"
+    ],
+    "colors": [
+     "U"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{X}{U}{U}{U}",
+    "name": "Volcanic Eruption",
+    "oracle_id": "4c15889e-3172-413b-b805-a2b7ad05f636",
+    "oracle_text": "Destroy X target Mountains. Volcanic Eruption deals damage to each creature and each player equal to the number of Mountains put into a graveyard this way.",
+    "type_line": "Sorcery"
    }
   },
   "Volcanic Fallout": {
