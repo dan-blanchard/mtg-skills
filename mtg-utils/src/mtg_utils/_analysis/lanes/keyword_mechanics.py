@@ -1301,13 +1301,24 @@ def _coin_flip(tree: ConceptTree) -> list[Signal]:
     below (:func:`has_nested_flip_coin`) reaches it. A die roll (``RollDie``
     → ``dice_makers``, CR 706) is a SEPARATE lane — kept split. Scope
     ``you``.
+
+    A replacement of your coin flips ("If you would flip a coin, instead flip
+    two coins and ignore one" — Krark's Thumb; CR 614.1a, 705.3) also carries
+    the subject ``fixer``: the flip fixers a coin-flip deck wants.
     """
+    out: list[Signal] = []
     for c in tree.effect_concepts("flip_coin"):
-        return [Signal("coin_flip", "you", "", c.raw, tree.name, "high")]
-    for unit in tree.units:
-        if has_nested_flip_coin(unit.node):
-            return [Signal("coin_flip", "you", "", "", tree.name, "high")]
-    return []
+        out.append(Signal("coin_flip", "you", "", c.raw, tree.name, "high"))
+        break
+    else:
+        if any(has_nested_flip_coin(unit.node) for unit in tree.units):
+            out.append(Signal("coin_flip", "you", "", "", tree.name, "high"))
+    if any(
+        unit.origin == "replacement" and getattr(unit.node, "event", None) == "CoinFlip"
+        for unit in tree.units
+    ):
+        out.append(Signal("coin_flip", "you", "fixer", "", tree.name, "high"))
+    return out
 
 
 # A SYMMETRIC "whenever a player discards a card" watcher (Confessor, Spirit

@@ -55380,6 +55380,215 @@
     "type_line": "Enchantment"
    }
   },
+  "Ancestral Mask": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Enchantment"
+      ],
+      "subtypes": [
+       "Aura"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Green"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [
+      {
+       "Enchant": {
+        "controller": null,
+        "properties": [],
+        "type": "Typed",
+        "type_filters": [
+         "Creature"
+        ]
+       }
+      }
+     ],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "pauper": "legal",
+      "paupercommander": "legal",
+      "premodern": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 2,
+      "shards": [
+       "Green"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "09f97283-3325-424a-9f31-65fe9a0bff97",
+       "0d75292c-cc03-4c40-be01-a8dba66b761c",
+       "1203f98a-fb6e-4f16-88e3-553eba177450",
+       "1e89f357-c508-4cde-8584-79d49e471f6c",
+       "c7a19fc5-20f3-48d2-8c12-e012d3b302e7"
+      ]
+     },
+     "name": "Ancestral Mask",
+     "non_ability_text": null,
+     "oracle_text": "Enchant creature\nEnchanted creature gets +2/+2 for each other enchantment on the battlefield.",
+     "power": null,
+     "printings": [
+      "EMA",
+      "HA2",
+      "MMQ",
+      "PLST",
+      "PMEI",
+      "WOC"
+     ],
+     "rarities": [
+      "common",
+      "uncommon"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "db5380ed-ba28-4ea2-abc3-4998e2022903",
+     "static_abilities": [
+      {
+       "active_zones": [],
+       "affected": {
+        "controller": null,
+        "properties": [
+         {
+          "type": "EnchantedBy"
+         }
+        ],
+        "type": "Typed",
+        "type_filters": [
+         "Creature"
+        ]
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": null,
+       "description": "Enchanted creature gets +2/+2 for each other enchantment on the battlefield.",
+       "effect_zone": null,
+       "mode": "Continuous",
+       "modifications": [
+        {
+         "type": "AddDynamicPower",
+         "value": {
+          "factor": 2,
+          "inner": {
+           "qty": {
+            "filter": {
+             "controller": null,
+             "properties": [
+              {
+               "type": "Another"
+              },
+              {
+               "type": "InZone",
+               "zone": "Battlefield"
+              }
+             ],
+             "type": "Typed",
+             "type_filters": [
+              "Enchantment"
+             ]
+            },
+            "type": "ObjectCount"
+           },
+           "type": "Ref"
+          },
+          "type": "Multiply"
+         }
+        },
+        {
+         "type": "AddDynamicToughness",
+         "value": {
+          "factor": 2,
+          "inner": {
+           "qty": {
+            "filter": {
+             "controller": null,
+             "properties": [
+              {
+               "type": "Another"
+              },
+              {
+               "type": "InZone",
+               "zone": "Battlefield"
+              }
+             ],
+             "type": "Typed",
+             "type_filters": [
+              "Enchantment"
+             ]
+            },
+            "type": "ObjectCount"
+           },
+           "type": "Ref"
+          },
+          "type": "Multiply"
+         }
+        }
+       ]
+      }
+     ],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 3.0,
+    "color_identity": [
+     "G"
+    ],
+    "colors": [
+     "G"
+    ],
+    "keywords": [
+     "Enchant"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "legal",
+     "paupercommander": "legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}{G}",
+    "name": "Ancestral Mask",
+    "oracle_id": "db5380ed-ba28-4ea2-abc3-4998e2022903",
+    "oracle_text": "Enchant creature\nEnchanted creature gets +2/+2 for each other enchantment on the battlefield.",
+    "type_line": "Enchantment — Aura"
+   }
+  },
   "Ancestral Recall": {
    "phase_records": [
     {
@@ -202482,6 +202691,259 @@
     "oracle_id": "a28ef7a5-4b47-4429-838b-a64a7c0701d0",
     "oracle_text": "Return target black creature card from your graveyard to your hand.\nMadness {0} (If you discard this card, discard it into exile. When you do, cast it for its madness cost or put it into your graveyard.)",
     "type_line": "Sorcery"
+   }
+  },
+  "Calming Licid": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": {
+        "costs": [
+         {
+          "cost": {
+           "generic": 0,
+           "shards": [
+            "White"
+           ],
+           "type": "Cost"
+          },
+          "type": "Mana"
+         },
+         {
+          "type": "Tap"
+         }
+        ],
+        "type": "Composite"
+       },
+       "description": "{W}, {T}: ~ loses this ability and becomes an Aura enchantment with enchant creature. Attach it to target creature. You may pay {W} to end this effect.",
+       "duration": "Permanent",
+       "effect": {
+        "duration": "Permanent",
+        "end_cost": {
+         "generic": 0,
+         "shards": [
+          "White"
+         ],
+         "type": "Cost"
+        },
+        "static_abilities": [
+         {
+          "active_zones": [],
+          "affected": {
+           "type": "SelfRef"
+          },
+          "affected_zone": null,
+          "characteristic_defining": false,
+          "condition": null,
+          "description": "lose this ability and becomes an Aura enchantment with enchant creature",
+          "effect_zone": null,
+          "mode": "Continuous",
+          "modifications": [
+           {
+            "keyword": {
+             "Enchant": {
+              "controller": null,
+              "properties": [],
+              "type": "Typed",
+              "type_filters": [
+               "Creature"
+              ]
+             }
+            },
+            "type": "AddKeyword"
+           },
+           {
+            "core_types": [
+             "Enchantment"
+            ],
+            "type": "SetCardTypes"
+           },
+           {
+            "set": "Enchantment",
+            "type": "RemoveAllSubtypes"
+           },
+           {
+            "subtype": "Aura",
+            "type": "AddSubtype"
+           }
+          ]
+         }
+        ],
+        "target": null,
+        "type": "GenericEffect"
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "selection": {
+          "at_resolution": {}
+         },
+         "target": {
+          "controller": null,
+          "properties": [],
+          "type": "Typed",
+          "type_filters": [
+           "Creature"
+          ]
+         },
+         "type": "Attach"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "sub_link": "SequentialSibling",
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Licid"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "White"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "premodern": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 2,
+      "shards": [
+       "White"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "155fc239-c2eb-41cc-9a0a-2414da3c3d7b",
+       "cfd7a1ae-f5e4-40d1-8408-82dfc052cc1e"
+      ]
+     },
+     "name": "Calming Licid",
+     "non_ability_text": null,
+     "oracle_text": "{W}, {T}: This creature loses this ability and becomes an Aura enchantment with enchant creature. Attach it to target creature. You may pay {W} to end this effect.\nEnchanted creature can't attack.",
+     "power": {
+      "type": "Fixed",
+      "value": 2
+     },
+     "printings": [
+      "PLST",
+      "STH"
+     ],
+     "rarities": [
+      "uncommon"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2013-04-15",
+       "text": "If a spell that can target enchantments but not creatures (such as Clear) is cast targeting the Licid after it has become an enchantment, but the Licid's controller pays the cost, the Licid will no longer be an enchantment. This will result in the spell failing to resolve for having no legal targets."
+      },
+      {
+       "date": "2013-04-15",
+       "text": "Paying the cost to end the effect is a special action and can't be responded to."
+      }
+     ],
+     "scryfall_oracle_id": "93d20859-249f-47ae-8f6d-095228e7b6e9",
+     "static_abilities": [
+      {
+       "active_zones": [],
+       "affected": {
+        "controller": null,
+        "properties": [
+         {
+          "type": "EnchantedBy"
+         }
+        ],
+        "type": "Typed",
+        "type_filters": [
+         "Creature"
+        ]
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": null,
+       "description": "Enchanted creature can't attack.",
+       "effect_zone": null,
+       "mode": "CantAttack",
+       "modifications": []
+      }
+     ],
+     "toughness": {
+      "type": "Fixed",
+      "value": 2
+     },
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 3.0,
+    "color_identity": [
+     "W"
+    ],
+    "colors": [
+     "W"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}{W}",
+    "name": "Calming Licid",
+    "oracle_id": "93d20859-249f-47ae-8f6d-095228e7b6e9",
+    "oracle_text": "{W}, {T}: This creature loses this ability and becomes an Aura enchantment with enchant creature. Attach it to target creature. You may pay {W} to end this effect.\nEnchanted creature can't attack.",
+    "power": "2",
+    "toughness": "2",
+    "type_line": "Creature — Licid"
    }
   },
   "Camel": {
@@ -622129,6 +622591,148 @@
     "type_line": "Creature — Human Warrior Werewolf // Creature — Werewolf"
    }
   },
+  "Krark's Thumb": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Artifact"
+      ],
+      "subtypes": [],
+      "supertypes": [
+       "Legendary"
+      ]
+     },
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 2,
+      "shards": [],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "78a5d49a-747e-4ec8-a20a-ca917c315774",
+       "9f63277b-e139-46c8-b9e3-0cfb647f44cc",
+       "d011d66d-7d27-4305-8a1b-7b5c24169769"
+      ]
+     },
+     "name": "Krark's Thumb",
+     "non_ability_text": null,
+     "oracle_text": "If you would flip a coin, instead flip two coins and ignore one.",
+     "power": null,
+     "printings": [
+      "MRD",
+      "PLST",
+      "SLD"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [
+      {
+       "condition": null,
+       "description": "If you would flip a coin, instead flip two coins and ignore one.",
+       "event": "CoinFlip",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "count": {
+          "factor": 2,
+          "inner": {
+           "qty": {
+            "type": "EventContextAmount"
+           },
+           "type": "Ref"
+          },
+          "type": "Multiply"
+         },
+         "lose_effect": null,
+         "type": "FlipCoins",
+         "win_effect": null
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": {
+        "type": "Mandatory"
+       },
+       "valid_card": null,
+       "valid_player": "You"
+      }
+     ],
+     "rulings": [
+      {
+       "date": "2004-10-04",
+       "text": "If you and your opponent both flip at the same time, you can see your opponent's result before choosing which result to keep."
+      },
+      {
+       "date": "2019-01-25",
+       "text": "If an effect tells you to flip more than one coin at once, this replaces each individual coin flip. For example, if an effect tells you to flip two coins, you don't flip four coins and ignore any two; you flip two coins, flip two coins, and then ignore one flip from each pair of flips. You will know the results of all simultaneous flips before choosing which to ignore."
+      }
+     ],
+     "scryfall_oracle_id": "a97c8482-775c-4f11-9872-25b4f9bfcb1a",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 2.0,
+    "color_identity": [],
+    "colors": [],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}",
+    "name": "Krark's Thumb",
+    "oracle_id": "a97c8482-775c-4f11-9872-25b4f9bfcb1a",
+    "oracle_text": "If you would flip a coin, instead flip two coins and ignore one.",
+    "type_line": "Legendary Artifact"
+   }
+  },
   "Krark, the Thumbless": {
    "phase_records": [
     {
@@ -674263,6 +674867,193 @@
     "type_line": "Enchantment — Aura"
    }
   },
+  "Mana Clash": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "You and target opponent each flip a coin. ~ deals 1 damage to each player whose coin comes up tails. Repeat this process until both players' coins come up heads on the same flip.",
+       "duration": null,
+       "effect": {
+        "description": "You and target opponent each flip a coin",
+        "name": "unbound_subject",
+        "type": "Unimplemented"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "amount": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "player_filter": {
+          "type": "All"
+         },
+         "type": "DamageEachPlayer"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "description": "Repeat this process until both players' coins come up heads on the same flip",
+          "name": "unrecognized_clause_head",
+          "type": "Unimplemented"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": null,
+         "sub_link": "SequentialSibling",
+         "target_prompt": null
+        },
+        "sub_link": "SequentialSibling",
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Sorcery"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Red"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "premodern": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 0,
+      "shards": [
+       "Red"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "004909d8-b362-44c4-ae6f-96b28546fb72",
+       "37b2e818-a5a8-4b9b-93e8-121dd7fefe32",
+       "72955141-d990-459f-adbe-7d3d0f5f6c95",
+       "740b85ff-61a3-4de0-a055-60daad13ac2a",
+       "74c092c3-1fbe-4319-aefe-d5b819ee953f",
+       "9ebe3ab1-cfd8-4883-8e79-e4b46bfc8745",
+       "a01f27b7-f1d0-4fb6-b743-ca7a810ef85c",
+       "bd41352f-617f-40f6-b612-11022180c18b",
+       "d1042a84-4550-4ff3-933e-a9c2d26d1bd3",
+       "d1a54ce6-d1a7-4c25-8210-3dbd98c46460",
+       "d2ef6728-afe4-42c4-9ec9-ca2914d46051"
+      ]
+     },
+     "name": "Mana Clash",
+     "non_ability_text": null,
+     "oracle_text": "You and target opponent each flip a coin. Mana Clash deals 1 damage to each player whose coin comes up tails. Repeat this process until both players' coins come up heads on the same flip.",
+     "power": null,
+     "printings": [
+      "4BB",
+      "4ED",
+      "5ED",
+      "7ED",
+      "8ED",
+      "9ED",
+      "DRK",
+      "REN"
+     ],
+     "rarities": [
+      "uncommon",
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2004-10-04",
+       "text": "Always affects the player and targets one of their opponents."
+      },
+      {
+       "date": "2004-10-04",
+       "text": "Each point of damage is dealt separately, so if you are damaged twice by this spell, each time is considered a separate time this source deals damage."
+      },
+      {
+       "date": "2004-10-04",
+       "text": "This card’s coin flip has no winner or loser."
+      }
+     ],
+     "scryfall_oracle_id": "a2f5a5fd-14dc-48e8-bdb0-984a83288023",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 1.0,
+    "color_identity": [
+     "R"
+    ],
+    "colors": [
+     "R"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{R}",
+    "name": "Mana Clash",
+    "oracle_id": "a2f5a5fd-14dc-48e8-bdb0-984a83288023",
+    "oracle_text": "You and target opponent each flip a coin. Mana Clash deals 1 damage to each player whose coin comes up tails. Repeat this process until both players' coins come up heads on the same flip.",
+    "type_line": "Sorcery"
+   }
+  },
   "Mana Crypt": {
    "phase_records": [
     {
@@ -692300,6 +693091,197 @@
     "power": "4",
     "toughness": "5",
     "type_line": "Legendary Artifact Creature — Wizard"
+   }
+  },
+  "Memnarchitect": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": {
+        "cost": {
+         "generic": 1,
+         "shards": [
+          "Blue",
+          "Blue"
+         ],
+         "type": "Cost"
+        },
+        "type": "Mana"
+       },
+       "description": "{1}{U}{U}: Target permanent becomes an artifact in addition to its other types.",
+       "duration": "Permanent",
+       "effect": {
+        "duration": "Permanent",
+        "static_abilities": [
+         {
+          "active_zones": [],
+          "affected": {
+           "type": "ParentTarget"
+          },
+          "affected_zone": null,
+          "characteristic_defining": false,
+          "condition": null,
+          "description": "become an artifact in addition to its other types",
+          "effect_zone": null,
+          "mode": "Continuous",
+          "modifications": [
+           {
+            "core_type": "Artifact",
+            "type": "AddType"
+           }
+          ]
+         }
+        ],
+        "target": {
+         "controller": null,
+         "properties": [],
+         "type": "Typed",
+         "type_filters": [
+          "Permanent"
+         ]
+        },
+        "type": "GenericEffect"
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Vedalken",
+       "Artificer"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Blue"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {},
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "Blue"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "3a608af8-fb34-4f63-88d8-1d9e767b0e63"
+      ]
+     },
+     "name": "Memnarchitect",
+     "non_ability_text": null,
+     "oracle_text": "Spells you cast have affinity for artifact creatures that weren't originally artifact creatures. (They cost {1} less to cast for each artifact creature you control that wasn't originally an artifact creature.)\n{1}{U}{U}: Target permanent becomes an artifact in addition to its other types.",
+     "power": {
+      "type": "Fixed",
+      "value": 1
+     },
+     "printings": [
+      "UNK"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "87d325ef-9274-466d-aa87-3bd4e7f6cc1f",
+     "static_abilities": [
+      {
+       "active_zones": [
+        "Battlefield"
+       ],
+       "affected": {
+        "controller": "You",
+        "properties": [],
+        "type": "Typed",
+        "type_filters": [
+         "Card"
+        ]
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": null,
+       "description": "Spells you cast have affinity for artifact creatures that weren't originally artifact creatures.",
+       "effect_zone": null,
+       "mode": {
+        "CastWithKeyword": {
+         "keyword": {
+          "Affinity": {
+           "controller": null,
+           "properties": [],
+           "type_filters": [
+            {
+             "Subtype": "Artifact creatures that weren't originally artifact creature"
+            }
+           ]
+          }
+         }
+        }
+       },
+       "modifications": []
+      }
+     ],
+     "toughness": {
+      "type": "Fixed",
+      "value": 4
+     },
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 2.0,
+    "color_identity": [
+     "U"
+    ],
+    "colors": [
+     "U"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "not_legal",
+     "competitivebrawl": "not_legal",
+     "duel": "not_legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "not_legal",
+     "modern": "not_legal",
+     "oathbreaker": "not_legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "not_legal"
+    },
+    "mana_cost": "{1}{U}",
+    "name": "Memnarchitect",
+    "oracle_id": "87d325ef-9274-466d-aa87-3bd4e7f6cc1f",
+    "oracle_text": "Spells you cast have affinity for artifact creatures that weren't originally artifact creatures. (They cost {1} less to cast for each artifact creature you control that wasn't originally an artifact creature.)\n{1}{U}{U}: Target permanent becomes an artifact in addition to its other types.",
+    "power": "1",
+    "toughness": "4",
+    "type_line": "Creature — Vedalken Artificer"
    }
   },
   "Memnite": {
@@ -742628,6 +743610,252 @@
     "power": "10",
     "toughness": "6",
     "type_line": "Creature — Boar"
+   }
+  },
+  "Nest Invader": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Eldrazi",
+       "Drone"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Green"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pauper": "legal",
+      "paupercommander": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "Green"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "related_token_ids": [
+       "2f56ee0f-dfdb-5fa5-9334-bf9b2bc17cc5",
+       "72736a8e-7059-58e0-83df-1a88d355766b",
+       "b8344681-32bd-5558-b94a-2b9b37919ba1",
+       "d461a50f-61bc-58fa-84e5-28fd6f6c9fe9"
+      ],
+      "source_printing_ids": [
+       "24517d9c-6cde-41e8-9e82-ee73f069379a",
+       "3085f5b1-d2e3-4dd4-8263-024b2b5da4b4",
+       "55135987-719d-4b7d-a721-b100334a3c68",
+       "6367090f-9291-4ef6-9864-025ce0eb0eca"
+      ]
+     },
+     "name": "Nest Invader",
+     "non_ability_text": null,
+     "oracle_text": "When this creature enters, create a 0/1 colorless Eldrazi Spawn creature token. It has \"Sacrifice this token: Add {C}.\"",
+     "power": {
+      "type": "Fixed",
+      "value": 2
+     },
+     "printings": [
+      "MM2",
+      "PC2",
+      "PCA",
+      "PLST",
+      "PZ1",
+      "ROE"
+     ],
+     "rarities": [
+      "common"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "a7584a28-0829-4897-abf4-6be1a9232347",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 2
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "When ~ enters, create a 0/1 colorless Eldrazi Spawn creature token. It has \"Sacrifice ~: Add {C}.\"",
+       "destination": "Battlefield",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "colors": [],
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "enters_attacking": false,
+         "keywords": [],
+         "name": "Eldrazi Spawn",
+         "owner": {
+          "type": "Controller"
+         },
+         "power": {
+          "type": "Fixed",
+          "value": 0
+         },
+         "static_abilities": [
+          {
+           "active_zones": [],
+           "affected": {
+            "type": "SelfRef"
+           },
+           "affected_zone": null,
+           "characteristic_defining": false,
+           "condition": null,
+           "description": "have \"Sacrifice ~: Add {C}.\"",
+           "effect_zone": null,
+           "mode": "Continuous",
+           "modifications": [
+            {
+             "definition": {
+              "condition": null,
+              "cost": {
+               "count": 1,
+               "target": {
+                "type": "SelfRef"
+               },
+               "type": "Sacrifice"
+              },
+              "description": "Sacrifice ~: Add {C}.",
+              "duration": null,
+              "effect": {
+               "produced": {
+                "count": {
+                 "type": "Fixed",
+                 "value": 1
+                },
+                "type": "Colorless"
+               },
+               "type": "Mana"
+              },
+              "forward_result": false,
+              "is_mana_ability": true,
+              "kind": "Activated",
+              "optional": false,
+              "optional_targeting": false,
+              "sub_ability": null,
+              "target_prompt": null
+             },
+             "type": "GrantAbility"
+            }
+           ]
+          }
+         ],
+         "tapped": false,
+         "toughness": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "type": "Token",
+         "types": [
+          "Creature",
+          "Eldrazi",
+          "Spawn"
+         ]
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "ChangesZone",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "all_parts": [
+     {
+      "component": "token",
+      "id": "06e3f3c1-866c-4214-82e0-dcca2d1aba1e",
+      "name": "Eldrazi Spawn",
+      "oracle_id": "3aaf906a-e749-4e86-ac79-97650b92f271",
+      "type_line": "Token Creature — Eldrazi Spawn"
+     }
+    ],
+    "arena_available": false,
+    "cmc": 2.0,
+    "color_identity": [
+     "G"
+    ],
+    "colors": [
+     "G"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "legal",
+     "paupercommander": "legal",
+     "penny": "legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}{G}",
+    "name": "Nest Invader",
+    "oracle_id": "a7584a28-0829-4897-abf4-6be1a9232347",
+    "oracle_text": "When this creature enters, create a 0/1 colorless Eldrazi Spawn creature token. It has \"Sacrifice this token: Add {C}.\"",
+    "power": "2",
+    "produced_mana": [
+     "C"
+    ],
+    "toughness": "2",
+    "type_line": "Creature — Eldrazi Drone"
    }
   },
   "Nest of Scarabs": {
@@ -990745,6 +991973,252 @@
     "type_line": "Sorcery"
    }
   },
+  "Sugar Coat": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Enchantment"
+      ],
+      "subtypes": [
+       "Aura"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Blue"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [
+      "Flash",
+      {
+       "Enchant": {
+        "filters": [
+         {
+          "controller": null,
+          "properties": [],
+          "type": "Typed",
+          "type_filters": [
+           "Creature"
+          ]
+         },
+         {
+          "controller": null,
+          "properties": [],
+          "type": "Typed",
+          "type_filters": [
+           {
+            "Subtype": "Food"
+           }
+          ]
+         }
+        ],
+        "type": "Or"
+       }
+      }
+     ],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "standard": "legal",
+      "standardbrawl": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 2,
+      "shards": [
+       "Blue"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "fcacbe71-efb0-49e1-b2d0-3ee65ec6cf8b"
+      ]
+     },
+     "name": "Sugar Coat",
+     "non_ability_text": null,
+     "oracle_text": "Flash\nEnchant creature or Food\nEnchanted permanent is a colorless Food artifact with \"{2}, {T}, Sacrifice this artifact: You gain 3 life\" and loses all other card types and abilities.",
+     "power": null,
+     "printings": [
+      "BLB"
+     ],
+     "rarities": [
+      "uncommon"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2024-07-26",
+       "text": "A creature enchanted with Sugar Coat stops being a creature. Equipment attached to that creature become unattached. Auras attached to that creature will be put into their owner's graveyard (unless they could also enchant a Food artifact)."
+      },
+      {
+       "date": "2024-07-26",
+       "text": "The enchanted permanent still retains its name, mana cost, and mana value. It isn't a token unless it already was one."
+      },
+      {
+       "date": "2024-11-08",
+       "text": "Food is an artifact type. Even though it appears on some creatures, it's never a creature type."
+      },
+      {
+       "date": "2024-11-08",
+       "text": "Whatever you do, don't eat the delicious cards."
+      },
+      {
+       "date": "2024-11-08",
+       "text": "You can't sacrifice a Food to pay multiple costs. For example, you can't sacrifice a Food token to activate its own ability and also to activate Maraleaf Rider's ability."
+      }
+     ],
+     "scryfall_oracle_id": "1caa8c8a-ff45-4eee-a834-6e5e1fb54721",
+     "static_abilities": [
+      {
+       "active_zones": [],
+       "affected": {
+        "controller": null,
+        "properties": [
+         {
+          "type": "EnchantedBy"
+         }
+        ],
+        "type": "Typed",
+        "type_filters": [
+         "Permanent"
+        ]
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": null,
+       "description": "Enchanted permanent is a colorless Food artifact with \"{2}, {T}, Sacrifice ~: You gain 3 life\" and loses all other card types and abilities.",
+       "effect_zone": null,
+       "mode": "Continuous",
+       "modifications": [
+        {
+         "core_types": [
+          "Artifact"
+         ],
+         "type": "SetCardTypes"
+        },
+        {
+         "colors": [],
+         "type": "SetColor"
+        },
+        {
+         "set": "Artifact",
+         "type": "RemoveAllSubtypes"
+        },
+        {
+         "subtype": "Food",
+         "type": "AddSubtype"
+        },
+        {
+         "type": "RemoveAllAbilities"
+        },
+        {
+         "definition": {
+          "condition": null,
+          "cost": {
+           "costs": [
+            {
+             "cost": {
+              "generic": 2,
+              "shards": [],
+              "type": "Cost"
+             },
+             "type": "Mana"
+            },
+            {
+             "type": "Tap"
+            },
+            {
+             "count": 1,
+             "target": {
+              "type": "SelfRef"
+             },
+             "type": "Sacrifice"
+            }
+           ],
+           "type": "Composite"
+          },
+          "description": "{2}, {T}, Sacrifice ~: You gain 3 life",
+          "duration": null,
+          "effect": {
+           "amount": {
+            "type": "Fixed",
+            "value": 3
+           },
+           "type": "GainLife"
+          },
+          "forward_result": false,
+          "kind": "Activated",
+          "optional": false,
+          "optional_targeting": false,
+          "sub_ability": null,
+          "target_prompt": null
+         },
+         "type": "GrantAbility"
+        }
+       ]
+      }
+     ],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 3.0,
+    "color_identity": [
+     "U"
+    ],
+    "colors": [
+     "U"
+    ],
+    "keywords": [
+     "Enchant",
+     "Flash"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "legal",
+     "standardbrawl": "legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}{U}",
+    "name": "Sugar Coat",
+    "oracle_id": "1caa8c8a-ff45-4eee-a834-6e5e1fb54721",
+    "oracle_text": "Flash\nEnchant creature or Food\nEnchanted permanent is a colorless Food artifact with \"{2}, {T}, Sacrifice this artifact: You gain 3 life\" and loses all other card types and abilities.",
+    "type_line": "Enchantment — Aura"
+   }
+  },
   "Sulfuric Vortex": {
    "phase_records": [
     {
@@ -1015919,6 +1017393,190 @@
     "name": "Teferi's Reproach",
     "oracle_id": "9381b4a5-a8e0-412d-bc7f-ae15afa0f135",
     "oracle_text": "Choose target opponent. Until that player's next turn, they gain protection from everything and their life total can't change. All nonland permanents they control phase out. (While they're phased out, they're treated as though they don't exist. They phase in before that player untaps during their next untap step.)\nExile Teferi's Reproach.",
+    "type_line": "Instant"
+   }
+  },
+  "Teferi's Time Twist": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Instant"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Blue"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pauper": "legal",
+      "paupercommander": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "Blue"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "c878bdc0-d697-4a2f-bba5-758b27f4247a"
+      ]
+     },
+     "name": "Teferi's Time Twist",
+     "non_ability_text": null,
+     "oracle_text": "Exile target permanent you control. Return that card to the battlefield under its owner's control at the beginning of the next end step. If it enters as a creature, it enters with an additional +1/+1 counter on it.",
+     "parse_warnings": [
+      {
+       "description": "Exile target permanent you control. Return that card to the battlefield under its owner's control at the beginning of the next end step. If ",
+       "detector": "Condition_If",
+       "gap": {
+        "guard": "it enters as a creature",
+        "kind": "unparsed_condition"
+       },
+       "items": [
+        0
+       ],
+       "line_index": 0,
+       "type": "SwallowedClause",
+       "unit_span": {
+        "end_byte": 214,
+        "first_line": 0,
+        "last_line": 0,
+        "ordinal_within_span": 0,
+        "precision": "Exact",
+        "start_byte": 0
+       }
+      }
+     ],
+     "power": null,
+     "printings": [
+      "WAR"
+     ],
+     "rarities": [
+      "common"
+     ],
+     "replacements": [
+      {
+       "condition": null,
+       "description": "Exile target permanent you control. Return that card to the battlefield under its owner's control at the beginning of the next end step. If it enters as a creature, it enters with an additional +1/+1 counter on it.",
+       "destination_zone": "Battlefield",
+       "event": "Moved",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "counter_type": "P1P1",
+         "target": {
+          "type": "SelfRef"
+         },
+         "type": "PutCounter"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": {
+        "type": "Mandatory"
+       },
+       "valid_card": {
+        "type": "SelfRef"
+       }
+      }
+     ],
+     "rulings": [
+      {
+       "date": "2019-05-03",
+       "text": "A creature returned to the battlefield this way enters the battlefield with one +1/+1 counter if it would otherwise enter with no +1/+1 counters."
+      },
+      {
+       "date": "2019-05-03",
+       "text": "Auras attached to the exiled permanent will be put into their owners’ graveyards. Equipment attached to the exiled permanent will become unattached and remain on the battlefield. Any counters on the exiled permanent will cease to exist. Once the exiled permanent returns, it’s considered a new object with no relation to the object that it was."
+      },
+      {
+       "date": "2019-05-03",
+       "text": "If a token is exiled this way, it will cease to exist and won’t return to the battlefield."
+      },
+      {
+       "date": "2019-05-03",
+       "text": "The permanent returns untapped unless another effect causes it to enter the battlefield tapped."
+      },
+      {
+       "date": "2019-05-03",
+       "text": "To determine whether the entering permanent is entering as a creature, consider any effects that will modify that permanent’s characteristics once it’s on the battlefield, including that permanent’s own abilities that affect only itself and effects from other objects."
+      }
+     ],
+     "scryfall_oracle_id": "f5479d4f-bc4b-4452-a944-41be623f8367",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 2.0,
+    "color_identity": [
+     "U"
+    ],
+    "colors": [
+     "U"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "legal",
+     "paupercommander": "legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}{U}",
+    "name": "Teferi's Time Twist",
+    "oracle_id": "f5479d4f-bc4b-4452-a944-41be623f8367",
+    "oracle_text": "Exile target permanent you control. Return that card to the battlefield under its owner's control at the beginning of the next end step. If it enters as a creature, it enters with an additional +1/+1 counter on it.",
     "type_line": "Instant"
    }
   },
@@ -1135284,6 +1136942,314 @@
     "power": "2",
     "toughness": "2",
     "type_line": "Creature — Sliver"
+   }
+  },
+  "Ward of Bones": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Artifact"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 6,
+      "shards": [],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "a271351e-5d5e-443b-99a4-ebdc8a3c4923"
+      ]
+     },
+     "name": "Ward of Bones",
+     "non_ability_text": null,
+     "oracle_text": "Each opponent who controls more creatures than you can't cast creature spells. The same is true for artifacts and enchantments.\nEach opponent who controls more lands than you can't play lands.",
+     "power": null,
+     "printings": [
+      "EVE",
+      "SLZ"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2008-08-01",
+       "text": "Spelling this out completely: — Each opponent who controls more creatures than you can’t play creature cards. — Each opponent who controls more artifacts than you can’t play artifact cards. — Each opponent who controls more enchantments than you can’t play enchantment cards. — Each opponent who controls more lands than you can’t play land cards."
+      }
+     ],
+     "scryfall_oracle_id": "c3ea1497-63ac-46bb-95e9-d98b93a880b3",
+     "static_abilities": [
+      {
+       "active_zones": [],
+       "affected": {
+        "controller": null,
+        "properties": [],
+        "type": "Typed",
+        "type_filters": [
+         "Creature"
+        ]
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": null,
+       "description": "Each opponent who controls more creatures than you can't cast creature spells. The same is true for artifacts and enchantments.",
+       "effect_zone": null,
+       "mode": {
+        "CantBeCast": {
+         "who": "Opponents"
+        }
+       },
+       "modifications": [],
+       "per_player_condition": {
+        "comparator": "GT",
+        "lhs": {
+         "qty": {
+          "filter": {
+           "controller": "ScopedPlayer",
+           "properties": [],
+           "type": "Typed",
+           "type_filters": [
+            "Creature"
+           ]
+          },
+          "type": "ObjectCount"
+         },
+         "type": "Ref"
+        },
+        "rhs": {
+         "qty": {
+          "filter": {
+           "controller": "You",
+           "properties": [],
+           "type": "Typed",
+           "type_filters": [
+            "Creature"
+           ]
+          },
+          "type": "ObjectCount"
+         },
+         "type": "Ref"
+        },
+        "type": "QuantityComparison"
+       }
+      },
+      {
+       "active_zones": [],
+       "affected": {
+        "controller": null,
+        "properties": [],
+        "type": "Typed",
+        "type_filters": [
+         "Artifact"
+        ]
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": null,
+       "description": "Each opponent who controls more creatures than you can't cast creature spells. The same is true for artifacts and enchantments.",
+       "effect_zone": null,
+       "mode": {
+        "CantBeCast": {
+         "who": "Opponents"
+        }
+       },
+       "modifications": [],
+       "per_player_condition": {
+        "comparator": "GT",
+        "lhs": {
+         "qty": {
+          "filter": {
+           "controller": "ScopedPlayer",
+           "properties": [],
+           "type": "Typed",
+           "type_filters": [
+            "Artifact"
+           ]
+          },
+          "type": "ObjectCount"
+         },
+         "type": "Ref"
+        },
+        "rhs": {
+         "qty": {
+          "filter": {
+           "controller": "You",
+           "properties": [],
+           "type": "Typed",
+           "type_filters": [
+            "Artifact"
+           ]
+          },
+          "type": "ObjectCount"
+         },
+         "type": "Ref"
+        },
+        "type": "QuantityComparison"
+       }
+      },
+      {
+       "active_zones": [],
+       "affected": {
+        "controller": null,
+        "properties": [],
+        "type": "Typed",
+        "type_filters": [
+         "Enchantment"
+        ]
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": null,
+       "description": "Each opponent who controls more creatures than you can't cast creature spells. The same is true for artifacts and enchantments.",
+       "effect_zone": null,
+       "mode": {
+        "CantBeCast": {
+         "who": "Opponents"
+        }
+       },
+       "modifications": [],
+       "per_player_condition": {
+        "comparator": "GT",
+        "lhs": {
+         "qty": {
+          "filter": {
+           "controller": "ScopedPlayer",
+           "properties": [],
+           "type": "Typed",
+           "type_filters": [
+            "Enchantment"
+           ]
+          },
+          "type": "ObjectCount"
+         },
+         "type": "Ref"
+        },
+        "rhs": {
+         "qty": {
+          "filter": {
+           "controller": "You",
+           "properties": [],
+           "type": "Typed",
+           "type_filters": [
+            "Enchantment"
+           ]
+          },
+          "type": "ObjectCount"
+         },
+         "type": "Ref"
+        },
+        "type": "QuantityComparison"
+       }
+      },
+      {
+       "active_zones": [],
+       "affected": {
+        "controller": "Opponent",
+        "properties": [],
+        "type": "Typed",
+        "type_filters": []
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": null,
+       "description": "Each opponent who controls more lands than you can't play lands.",
+       "effect_zone": null,
+       "mode": {
+        "Other": "CantPlayLand"
+       },
+       "modifications": [],
+       "per_player_condition": {
+        "comparator": "GT",
+        "lhs": {
+         "qty": {
+          "filter": {
+           "controller": "ScopedPlayer",
+           "properties": [],
+           "type": "Typed",
+           "type_filters": [
+            "Land"
+           ]
+          },
+          "type": "ObjectCount"
+         },
+         "type": "Ref"
+        },
+        "rhs": {
+         "qty": {
+          "filter": {
+           "controller": "You",
+           "properties": [],
+           "type": "Typed",
+           "type_filters": [
+            "Land"
+           ]
+          },
+          "type": "ObjectCount"
+         },
+         "type": "Ref"
+        },
+        "type": "QuantityComparison"
+       }
+      }
+     ],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 6.0,
+    "color_identity": [],
+    "colors": [],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{6}",
+    "name": "Ward of Bones",
+    "oracle_id": "c3ea1497-63ac-46bb-95e9-d98b93a880b3",
+    "oracle_text": "Each opponent who controls more creatures than you can't cast creature spells. The same is true for artifacts and enchantments.\nEach opponent who controls more lands than you can't play lands.",
+    "type_line": "Artifact"
    }
   },
   "Wargate": {

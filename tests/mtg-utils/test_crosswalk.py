@@ -333,7 +333,7 @@ def test_psychic_frog_draw_and_discard_are_in_different_units():
     ],
 )
 def test_land_creatures_matter_aggregation(name, should_fire):
-    assert (("land_creatures_matter", "you", "") in _idents(name)) is should_fire
+    assert ("land_creatures_matter" in _keys(name)) is should_fire
 
 
 @pytest.mark.parametrize(
@@ -349,7 +349,7 @@ def test_land_creatures_matter_animator_alignment(name):
     first-class ``Animate`` EFFECT node (Badgermole's earthbend) and the threaded
     one-shot animate (Awakener Druid) — both turn YOUR land into a creature, the same
     land-creatures payoff land_protection already caught (CR 305 / 110.1)."""
-    assert ("land_creatures_matter", "you", "") in _idents(name)
+    assert ("land_creatures_matter", "you", "animator") in _idents(name)
 
 
 # ADR-0038 W3 batch 4 (lands-and-ramp cluster): the mass-static / threaded
@@ -364,7 +364,7 @@ def test_land_creatures_matter_animator_alignment(name):
     ],
 )
 def test_land_creatures_matter_mass_and_threaded_search_animate(name):
-    assert ("land_creatures_matter", "you", "") in _idents(name)
+    assert ("land_creatures_matter", "you", "animator") in _idents(name)
 
 
 def test_land_creatures_matter_excludes_land_type_only_change():
@@ -388,7 +388,7 @@ def test_land_creatures_matter_subtype_animate_bridge():
     STRUCTURAL at the phase v0.23.0 bump (task #84: the line parses as a
     real SetPT+AddType static the lane's set_pt read sees; the sweep arm
     retired with an empty re-census)."""
-    assert ("land_creatures_matter", "you", "") in _idents("Ambush Commander")
+    assert ("land_creatures_matter", "you", "animator") in _idents("Ambush Commander")
 
 
 @pytest.mark.parametrize(
@@ -403,7 +403,7 @@ def test_land_creatures_matter_dynamic_animate_bridge(name):
     formula) parks wholesale as Unimplemented, closed via a typed
     ``tree_synthesis`` sweep arm (CR 107.3/613.1d/613.4; ADR-0039 task #82;
     formerly the ``land_creatures_dynamic_animate_dropped`` bridge)."""
-    assert ("land_creatures_matter", "you", "") in _idents(name)
+    assert ("land_creatures_matter", "you", "animator") in _idents(name)
 
 
 def test_land_creatures_matter_condition_reference_bridge():
@@ -425,10 +425,14 @@ def test_land_creatures_matter_condition_reference_bridge():
 )
 def test_land_creatures_matter_excludes_manland_and_genju(name):
     """A manland's self-animate (and its Aura-granted sibling, the Genju
-    cycle) stays ``land_protection``-only — a utility land-into-creature
+    cycle) opens no land-creatures theme — a utility land-into-creature
     isn't a build-around "theme" the way an anthem/maker is (CR 305/110.1);
-    see :func:`_land_protection`'s own structural read of the SAME shape."""
-    assert "land_creatures_matter" not in _keys(name)
+    see :func:`_land_protection`'s own structural read of the SAME shape. The
+    manland itself is the theme's body: the page-only ``self`` subject."""
+    lc = {i for i in _idents(name) if i[0] == "land_creatures_matter"}
+    assert lc == (
+        {("land_creatures_matter", "you", "self")} if "Genju" not in name else set()
+    )
     assert ("land_protection", "you", "") in _idents(name)
 
 
@@ -462,7 +466,9 @@ def test_land_creatures_matter_targetplayer_chosen_mass_animate():
     become 3/3 creatures..." is still YOUR OWN spell — the recipient is
     chosen at activation, not symmetric — corpus-verified narrow (the sole
     commander-legal TargetPlayer-controller mass Land→Creature static)."""
-    assert ("land_creatures_matter", "you", "") in _idents("Jolrael, Empress of Beasts")
+    assert ("land_creatures_matter", "you", "animator") in _idents(
+        "Jolrael, Empress of Beasts"
+    )
 
 
 @pytest.mark.parametrize(
@@ -16374,12 +16380,8 @@ def test_artifacts_matter_excludes_bargain_optional_alt_cost():
 
 
 def test_artifacts_matter_excludes_manland_self_animate():
-    """MANDATORY SHED (ADR-0038 W4 session adjudication): Blinkmoth Nexus's
-    "{1}: ~ becomes a 1/1 Blinkmoth artifact creature … It's still a land"
-    is a SELF-animate manland, not a build-around type-grant — legacy's own
-    ``_BECOMES_TYPE_RE`` mirror never matches it either (the P/T digits
-    between "becomes a" and "artifact" break the anchor), a byte-identical
-    exclusion this port preserves (CR 205.1b)."""
+    """Blinkmoth Nexus's "{1}: ~ becomes a 1/1 Blinkmoth artifact creature …
+    It's still a land" animates itself (CR 613.1d): no type grant."""
     assert "artifacts_matter" not in _keys("Blinkmoth Nexus")
 
 

@@ -8,7 +8,7 @@ re-exported public surface.
 from __future__ import annotations
 
 import re
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 
 from mtg_utils._analysis import signal_keys
 from mtg_utils._analysis._subtypes import CREATURE_SUBTYPES
@@ -834,21 +834,32 @@ def _manland_landish(affected: object) -> bool:
     )
 
 
+def _creature_grant_targets(tree: ConceptTree) -> Iterator[object]:
+    """The ``affected`` of every modification on TREE that makes its objects
+    creatures (``AddType{Creature}``, CR 613.1d)."""
+    for unit in tree.units:
+        for sdef, mod in iter_mod_sites(unit.node):
+            if (
+                tag_of(mod) == "AddType"
+                and getattr(mod, "core_type", None) == "Creature"
+            ):
+                yield getattr(sdef, "affected", None)
+
+
+def animates_itself_as_land(tree: ConceptTree) -> bool:
+    """Whether TREE is a land that makes itself a creature (a manland:
+    Mutavault, Celestial Colonnade, the Restless cycle; CR 613.1d)."""
+    return tree.is_type("Land") and any(
+        tag_of(aff) == "SelfRef" for aff in _creature_grant_targets(tree)
+    )
+
+
 def has_structural_manland(tree: ConceptTree) -> bool:
     """Whether phase already carries a typed self-animate / landish-affected
     node the land_protection lane's manland arm sees — the synth gap-gate."""
-    for unit in tree.units:
-        for sdef, mod in iter_mod_sites(unit.node):
-            if tag_of(mod) != "AddType":
-                continue
-            if getattr(mod, "core_type", None) != "Creature":
-                continue
-            affected = getattr(sdef, "affected", None)
-            if tag_of(affected) == "SelfRef" and tree.is_type("Land"):
-                return True
-            if _manland_landish(affected):
-                return True
-    return False
+    return animates_itself_as_land(tree) or any(
+        _manland_landish(aff) for aff in _creature_grant_targets(tree)
+    )
 
 
 def _matches_manland_idiom(oracle: str) -> bool:

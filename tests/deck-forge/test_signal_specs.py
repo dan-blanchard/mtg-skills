@@ -1351,9 +1351,8 @@ def test_every_producible_key_resolves_to_a_spec():
 def test_a_theme_pages_by_its_serve_not_a_pattern():
     """A theme's page derives from its serve (``signal_specs.theme_page``), its
     search only an override (a tribe's card type, a preset). No spec or
-    sub-avenue carries an oracle pattern beside a serve that pages — the
-    pattern would decide nothing. The one pattern left is One-sided keep-N's,
-    whose serve admits nothing, so it has no serve to page by."""
+    sub-avenue carries an oracle pattern search, and every serve admits
+    something to page by."""
     from mtg_utils._analysis import signal_keys
     from mtg_utils._analysis.signal_specs import SPECS
 
@@ -1362,14 +1361,11 @@ def test_a_theme_pages_by_its_serve_not_a_pattern():
         for key in sorted(signal_keys.SUBJECT_KEYS)
         for subject in ("Goblin", "Flying", "", "Artifact", "Desert")
     ]
-    patterned = set()
     for spec in filter(None, specs):
         for avenue in (spec, *spec.extras):
             assert avenue.serve is not None, avenue.label
-            if "oracle" in avenue.search:
-                assert page_serve(avenue.search, avenue.serve) is None, avenue.label
-                patterned.add(avenue.label)
-    assert patterned == {"One-sided keep-N"}
+            assert "oracle" not in avenue.search, avenue.label
+            assert not avenue.serve.admits_nothing(), avenue.label
 
 
 def test_search_filters_for_subject_signal_inject_identity():
@@ -1392,9 +1388,7 @@ def test_land_creature_avenue_searches_exclude_false_positives():
         return set(score_candidate(card, active_signals=[], avenues=avenues)["served"])
 
     assert served(LAND_CREATURE_PAYOFF)  # a land-creature payoff is surfaced
-    # A manland itself (Mishra's Factory) is not: the lane's ident is its
-    # animators' and payoffs', not the manlands' (backlog).
-    assert not served(MANLAND)
+    assert served(MANLAND)  # Mishra's Factory, the theme's own body
     assert not served(PLANT_MAKER)  # Avenger's Plant tokens — surfaced by none
     assert not served(CLONE)  # Silent Hallcreeper clone — surfaced by none
     # A transform DFC (Saga front // Land back) is NOT a creature-land: "Land"
@@ -1638,87 +1632,29 @@ class TestCoinFlipSpec:
     """The coin-flip avenue must fan out a Flip-fixing sub-avenue that surfaces
     Krark's-Thumb-style fixers (otherwise they sink past the package cap)."""
 
-    def test_coin_flip_has_flip_fixing_subavenue(self):
-        import re
-
+    def _fix(self):
         spec = spec_for(_sig("coin_flip", "you"))
         assert spec is not None
         assert spec.label == "Coin flips"
         fix = {e.label: e for e in spec.extras}.get("Flip fixing")
         assert fix is not None, "expected a 'Flip fixing' sub-avenue"
-        # Krark's Thumb is the canonical fixer — the sub-avenue's search must surface it.
-        krark = "If you would flip a coin, instead flip two coins and ignore one."
-        assert re.search(fix.serve.oracle.pattern, krark, re.IGNORECASE)
-        # but a plain flip payoff is NOT a fixer (stays in the main avenue only).
-        plain = "Flip a coin. If you win the flip, draw a card."
-        assert not re.search(fix.serve.oracle.pattern, plain, re.IGNORECASE)
-        # the main avenue still recognizes generic flip payoffs — through the
-        # coin_flip lane's ident since the 2026-10-18 serve-ident pass.
+        return spec, fix.serve
+
+    def test_flip_fixing_serves_the_fixers(self):
+        """Krark's Thumb replaces your flips; Edgar, King of Figaro forces their
+        result (CR 705.3) — both serve the parent avenue too."""
+        spec, fix = self._fix()
+        for name in ("Krark's Thumb", "Edgar, King of Figaro"):
+            assert fix.matches(_card(name)), name
+            assert spec.serve.matches(_card(name)), name
+
+    def test_flip_fixing_excludes_the_flip_payoffs(self):
+        """A payoff that flips or reads a flip's result (Chance Encounter, Mana
+        Clash) is the main avenue's, not a fixer."""
+        spec, fix = self._fix()
+        for name in ("Chance Encounter", "Mana Clash"):
+            assert not fix.matches(_card(name)), name
         assert spec.serve.matches(_card("Chance Encounter"))
-
-    def test_flip_fixing_catches_outcome_forcing_fixers(self):
-        """Edgar, King of Figaro fixes flips by FORCING THE OUTCOME
-        ('those coins come up heads and you win those flips'), not by
-        re-flipping. The Krark's-Thumb-shaped regex missed this whole class —
-        the sub-avenue (and the parent avenue) must surface it."""
-        import re
-
-        spec = spec_for(_sig("coin_flip", "you"))
-        fix = {e.label: e for e in spec.extras}["Flip fixing"]
-        edgar = (
-            "The first time you flip one or more coins each turn, "
-            "those coins come up heads and you win those flips."
-        )
-        # Edgar is a genuine fixer — the sub-avenue search must catch it.
-        assert re.search(fix.serve.oracle.pattern, edgar, re.IGNORECASE)
-        # …and it serves the parent coin-flip avenue (it IS a coin-flip card,
-        # phrased "flip one or more coins"/"come up heads", not "flip a coin"),
-        # read off the coin_flip lane's ident (2026-10-18).
-        assert spec.serve.matches(_card("Edgar, King of Figaro"))
-        # but a plain flip-resolution payoff stays out of the fixer sub-avenue.
-        plain = "Flip a coin. If you win the flip, draw a card."
-        assert not re.search(fix.serve.oracle.pattern, plain, re.IGNORECASE)
-
-    def test_flip_fixing_excludes_conditional_payoffs(self):
-        """The e21b7d6 broadening (bare 'come up heads' / 'you win … flip') wrongly
-        caught three PAYOFFS that reference a flip result as a CONDITION rather than
-        GRANTING/manipulating the flip. A regex can't separate a grant from a condition,
-        so the fixer sub-avenue must pin {Krark's Thumb, Edgar} and exclude these three
-        (verified against bulk: the precise matcher yields exactly the two real fixers)."""
-        import re
-
-        spec = spec_for(_sig("coin_flip", "you"))
-        fix = {e.label: e for e in spec.extras}["Flip fixing"]
-        rx = re.compile(fix.serve.oracle.pattern, re.IGNORECASE)
-
-        # The two REAL fixers — must match (a grant / a re-flip).
-        edgar = (
-            "The first time you flip one or more coins each turn, those coins come up "
-            "heads and you win those flips."
-        )
-        krark = "If you would flip a coin, instead flip two coins and ignore one."
-        assert rx.search(edgar)
-        assert rx.search(krark)
-
-        # Three PAYOFFS that merely reference a flip result — must NOT match.
-        mana_clash = (
-            "You and target opponent each flip a coin. Mana Clash deals 1 damage to "
-            "each player whose coin comes up tails. Repeat this process until both "
-            "players' coins come up heads on the same flip."
-        )
-        two_headed_giant = (
-            "Whenever this creature attacks, flip two coins. If both coins come up "
-            "heads, this creature gains double strike until end of turn. If both coins "
-            "come up tails, this creature gains menace until end of turn."
-        )
-        squees_revenge = (
-            "Choose a number. Flip a coin that many times or until you lose a flip, "
-            "whichever comes first. If you win all the flips, draw two cards for each "
-            "flip."
-        )
-        assert not rx.search(mana_clash)
-        assert not rx.search(two_headed_giant)
-        assert not rx.search(squees_revenge)
 
 
 class TestSpellslingerServe:
@@ -2248,9 +2184,7 @@ class TestStructuredServeFixes4:
 
         assert spec.label not in served("Counterspell")  # not a crime enabler
         assert spec.label in served("Vadmir, New Blood")  # a crime payoff
-        # Targeted removal, the crime itself, is not served: the lane's ident is
-        # the payoffs' (backlog).
-        assert spec.label not in served("Murder")
+        assert spec.label in served("Murder")  # targeted removal, the crime itself
 
 
 class TestMediumServeFixes:
@@ -3235,8 +3169,8 @@ def test_dies_recursion_and_flicker_are_separate_avenues_on_etb_lanes():
         assert _lane_covers(ephemerate, _sig(key)), f"{key} should serve flicker"
     # But the mechanics are categorized SEPARATELY: the flicker sub-avenue serves
     # exile-return, not death-return, and vice versa.
-    flicker_serve = serve_from_dict({"oracle": signal_specs._FLICKER_ORACLE})
-    dies_serve = serve_from_dict({"oracle": signal_specs._DIES_RECURSION_ORACLE})
+    flicker_serve = signal_specs._FLICKER_EXTRA.serve
+    dies_serve = signal_specs._DIES_RECURSION_EXTRA.serve
     assert flicker_serve.matches(ephemerate) is True
     assert flicker_serve.matches(feign) is False  # death-return is not flicker
     assert dies_serve.matches(feign) is True
@@ -4429,3 +4363,17 @@ def test_enchantments_serves_role_token_makers():
     sig = _sig("enchantments_matter", "you")
     assert serves(_card("Gylwain, Casting Director"), sig) is True
     assert serves(_card("Grizzly Bears"), sig) is False
+
+
+def test_crimes_serve_reaches_the_crimes():
+    """A crime is a spell or ability that targets an opponent or what they
+    control (CR 700.13): the targeted removal a crimes deck commits most."""
+    serve = SPECS[("crimes_matter", "you")].serve
+    for name in ("Swords to Plowshares", "Path to Exile", "Beast Within"):
+        assert serve.matches(_card(name)), name
+
+
+def test_one_sided_keep_n_serves_by_its_ident_not_the_symmetric_wraths():
+    serve = SPECS[("keep_n_wrath", "opponents")].serve
+    assert serve.matches(_card("Archfiend of Depravity"))
+    assert not serve.matches(_card("Cataclysm"))  # the symmetric keep-N

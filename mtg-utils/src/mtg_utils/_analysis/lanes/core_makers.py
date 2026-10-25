@@ -37,6 +37,7 @@ from mtg_utils._analysis.tree_synthesis import (
     _is_creature_death_subject,
     _is_death_payoff_effect,
     _mirror_token_maker_type_subjects,
+    animates_itself_as_land,
     creature_death_condition,
 )
 from mtg_utils._card_ir.crosswalk import (
@@ -47,6 +48,7 @@ from mtg_utils._card_ir.crosswalk import (
     SELF_REFERENCE_TARGETS,
     AbilityUnit,
     ConceptTree,
+    adds_creature_type,
     answers_its_target,
     change_zone_dirs,
     controller_paid_cost_leaves,
@@ -561,7 +563,9 @@ def _has_land_and_creature(subject: tuple[str, ...]) -> bool:
 
 
 def _land_creatures_matter(tree: ConceptTree) -> list[Signal]:
-    """A land-creatures build — anthem over Land+Creature, or a land-animator.
+    """A land-creatures build — anthem over Land+Creature (subject ``""``), or a
+    land-animator (subject ``animator``); a land that is or makes itself a
+    creature is the page-only ``self``.
 
     Mirrors the deleted ``_signals_ir``'s line ~7720, plus two ADR-0038 W3 batch 4
     additions
@@ -621,11 +625,10 @@ def _land_creatures_matter(tree: ConceptTree) -> list[Signal]:
 
     * **manland self-animate** (Faerie Conclave, Mutavault, Celestial Colonnade,
       the "Restless" cycle, ~35 corpus cards) and its Aura-granted sibling (the
-      Genju cycle: Genju of the Cedars/Falls/Spires/Realm) stay
-      ``land_protection``-only (a utility land-into-creature isn't a
-      build-around "theme" the way an anthem/maker is — see
-      :func:`_land_protection`'s own structural read of the SAME shape,
-      deliberately not shared here so this settled lane cannot move); the
+      Genju cycle: Genju of the Cedars/Falls/Spires/Realm) open no theme (a
+      utility land-into-creature isn't a build-around "theme" the way an
+      anthem/maker is): the manland itself carries only the page-only
+      ``self`` subject below, the theme's own body, and the Genju nothing; the
       REVERSE animator that makes creatures BE lands STATICALLY (Ashaya's
       "Nontoken creatures you control are Forest lands...") is the same
       non-anthem utility case, one level up (CR 305/110.1) — distinct from
@@ -659,9 +662,16 @@ def _land_creatures_matter(tree: ConceptTree) -> list[Signal]:
     # set_pt read below sees directly, and the arm's re-census found zero
     # remaining gap members. Primal Adversary / Sage of the Maze's
     # dynamic-value animate stays bucket-B; membership unchanged.
+    # The animators — an effect turning your lands into creatures — carry the
+    # subject ``animator``; the payoffs (a land-creature anthem, a land-creature
+    # token maker) the empty one.
+    _animator = Signal(
+        "land_creatures_matter", "you", "animator", "", tree.name, "high"
+    )
+    hits: list[Signal] = []
     for c in tree.iter_concepts():
         if c.concept == "synth_land_creatures_dynamic_animate":
-            return [Signal("land_creatures_matter", "you", "", "", tree.name, "high")]
+            hits.append(_animator)
     for unit in tree.units:
         for concept in unit.statics:
             if concept.concept in (
@@ -669,19 +679,22 @@ def _land_creatures_matter(tree: ConceptTree) -> list[Signal]:
                 "grant_keyword",
                 "set_pt",
             ) and _has_land_and_creature(concept.subject):
-                return [
+                animates = any(
+                    adds_creature_type(d) for d in iter_static_defs(unit.node)
+                )
+                hits.append(
                     Signal(
                         "land_creatures_matter",
                         "you",
-                        "",
+                        "animator" if animates else "",
                         concept.raw,
                         tree.name,
                         "high",
                     )
-                ]
+                )
         for concept in unit.effect_concepts("make_token"):
             if _has_land_and_creature(concept.subject):
-                return [
+                hits.append(
                     Signal(
                         "land_creatures_matter",
                         "you",
@@ -690,9 +703,9 @@ def _land_creatures_matter(tree: ConceptTree) -> list[Signal]:
                         tree.name,
                         "high",
                     )
-                ]
+                )
         if _is_creature_animator(unit):
-            return [Signal("land_creatures_matter", "you", "", "", tree.name, "high")]
+            hits.append(_animator)
         # recall-completion b2 (ADR-0034): align the you-scoped land ANIMATOR with the
         # land_protection breadth. _is_creature_animator (static-only, Land-core-only)
         # missed the first-class ``Animate`` EFFECT node (the earthbend family — Bumi,
@@ -716,9 +729,16 @@ def _land_creatures_matter(tree: ConceptTree) -> list[Signal]:
                 and "Creature" in (getattr(c.node, "types", None) or ())
                 and filter_controller(tgt) in ("You", None)
             ):
-                return [
-                    Signal("land_creatures_matter", "you", "", c.raw, tree.name, "high")
-                ]
+                hits.append(
+                    Signal(
+                        "land_creatures_matter",
+                        "you",
+                        "animator",
+                        c.raw,
+                        tree.name,
+                        "high",
+                    )
+                )
         for resolved, sdef in iter_threaded_target_statics(unit.node):
             landish = "Land" in filter_core_types(resolved) or (
                 {t.lower() for t in filter_subtypes(resolved)} & _LAND_SUBTYPE_WORDS
@@ -730,11 +750,7 @@ def _land_creatures_matter(tree: ConceptTree) -> list[Signal]:
                     tag_of(mod) == "AddType"
                     and getattr(mod, "core_type", None) == "Creature"
                 ):
-                    return [
-                        Signal(
-                            "land_creatures_matter", "you", "", "", tree.name, "high"
-                        )
-                    ]
+                    hits.append(_animator)
         # ADR-0038 W3 batch 4 (lands-and-ramp cluster): a MASS animate static def
         # (:func:`iter_static_defs` — reachable via a nested ``GenericEffect``
         # anywhere in the unit, not just the threaded-ParentTarget shape above)
@@ -767,11 +783,7 @@ def _land_creatures_matter(tree: ConceptTree) -> list[Signal]:
                     for c in unit.iter_concepts()
                     if c.concept in ("tutor", "change_zone")
                 ):
-                    return [
-                        Signal(
-                            "land_creatures_matter", "you", "", "", tree.name, "high"
-                        )
-                    ]
+                    hits.append(_animator)
                 continue
             if tag_of(aff) not in ("Typed", "Or", "And"):
                 continue
@@ -789,9 +801,7 @@ def _land_creatures_matter(tree: ConceptTree) -> list[Signal]:
                 {t.lower() for t in filter_subtypes(aff)} & _LAND_SUBTYPE_WORDS
             )
             if landish:
-                return [
-                    Signal("land_creatures_matter", "you", "", "", tree.name, "high")
-                ]
+                hits.append(_animator)
         # ADR-0039 W7: a self-recursion whose face-down substitute profile
         # carries the Land core type + a land subtype (Yedora, Grave
         # Gardener: "return it to the battlefield face down... It's a
@@ -807,10 +817,28 @@ def _land_creatures_matter(tree: ConceptTree) -> list[Signal]:
             prof = getattr(c.node, "face_down_profile", None)
             extra = getattr(prof, "extra_core_types", None) if prof else None
             if extra and extra is not MISSING and "Land" in extra:
-                return [
+                hits.append(
                     Signal("land_creatures_matter", "you", "", c.raw, tree.name, "high")
-                ]
-    return []
+                )
+    # A land that is or makes itself a creature (Dryad Arbor; a manland —
+    # Mutavault, Inkmoth Nexus; CR 613.1d): the theme's own body, subject
+    # ``self`` — a page member that opens no avenue (the manland exclusion
+    # above), read off phase's self-animation or, where phase drops the
+    # ability, the manland synth arm.
+    if not hits and (
+        tree.is_type("Land")
+        and (
+            tree.is_type("Creature")
+            or animates_itself_as_land(tree)
+            or any(c.concept == "synth_manland" for c in tree.iter_concepts())
+        )
+    ):
+        hits.append(
+            Signal("land_creatures_matter", "you", "self", "", tree.name, "high")
+        )
+    # One signal per subject: a card both pays off and animates (Embodiment of
+    # Insight's vigilance anthem and its landfall animation).
+    return list({sig.subject: sig for sig in hits}.values())
 
 
 # ── Batch 2 lanes (ADR-0035 Stage 2) ─────────────────────────────────────────

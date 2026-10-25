@@ -323,27 +323,28 @@ SPECS_1: dict[tuple[str, str], SignalSpec] = {
         "lands that are or become creatures — the backbone of a land-creatures deck",
         # The lane adds the land animators (Quirion Druid, earthbend, Nissa, Who Shakes
         # the World); exile / destroy a land creature (Consuming Sinkhole) is no longer
-        # served.
+        # served. The creature-lands themselves (Mutavault, Dryad Arbor) are the
+        # ``self`` subject, and as lands they feed the theme's depth.
         None,
-        serve_idents=frozenset({"land_creatures_matter|you|"}),
+        serve_idents=frozenset(
+            {
+                "land_creatures_matter|you|",
+                "land_creatures_matter|you|animator",
+                "land_creatures_matter|you|self",
+            }
+        ),
+        serve_lands_feed=True,
         extras=(
             SubAvenue(
                 "Land-creature payoffs",
                 "anthems and abilities that specifically pump land creatures",
-                serve=Serve(oracle=re.compile(r"\bland creatures?\b", _IC)),
+                serve=Serve(signal_idents=frozenset({"land_creatures_matter|you|"})),
             ),
             SubAvenue(
                 "Animate your lands",
                 "effects that turn lands you control into creatures",
-                # second alt catches mass animators that name the land type
-                # directly ("All Forests ... are 1/1 ... creatures" - Life and
-                # Limb, Living Plane), the Yedora-Forest-lands payoff.
                 serve=Serve(
-                    oracle=re.compile(
-                        r"(?:lands?|forests?) you control[^.]*become[^.]*creature"
-                        r"|all (?:lands?|forests?)[^.]*(?:are|become)[^.]*creature",
-                        _IC,
-                    )
+                    signal_idents=frozenset({"land_creatures_matter|you|animator"})
                 ),
             ),
             SubAvenue(
@@ -601,28 +602,15 @@ SPECS_1: dict[tuple[str, str], SignalSpec] = {
         # Serve rides the lane (2026-10-18): regex missed 'Flip five coins' / 'each
         # player flips a coin' (Ral Zarek, Goblin Assassin)
         None,
-        serve_idents=frozenset({"coin_flip|you|"}),
+        serve_idents=frozenset({"coin_flip|you|", "coin_flip|you|fixer"}),
         extras=(
-            # A flip FIXER either re-flips/ignores (the Krark's Thumb family) or
-            # declaratively GRANTS the result ("come up heads AND you win", Edgar). The
-            # bare branches `come up heads` / `you win … flip` (e21b7d6) wrongly caught
-            # PAYOFFS that reference a flip result as a CONDITION: Mana Clash ("come up
-            # heads on the same flip"), Two-Headed Giant ("if both come up heads"),
-            # Squee's Revenge ("if you win all the flips, draw"). A regex can't separate
-            # a grant from a condition, so we match only the declarative grant. Verified
-            # against bulk: this yields EXACTLY {Krark's Thumb, Edgar}.
+            # A flip FIXER replaces or fixes your flips (Krark's Thumb, Edgar, King
+            # of Figaro's Two-Headed Coin; CR 705.3): the lane's ``fixer`` subject.
             SubAvenue(
                 "Flip fixing",
                 "cards that bias, repeat, or ignore unfavorable coin flips "
                 "(Krark's Thumb effects)",
-                serve=Serve(
-                    oracle=re.compile(
-                        r"instead flip [^.]*coin|\breflip"
-                        r"|flip [^.]*coins? again|flip an additional coin"
-                        r"|come up heads and you win",
-                        _IC,
-                    )
-                ),
+                serve=Serve(signal_idents=frozenset({"coin_flip|you|fixer"})),
             ),
         ),
     ),
@@ -707,9 +695,11 @@ SPECS_1: dict[tuple[str, str], SignalSpec] = {
         "One-sided keep-N",
         "opponents keep N and sacrifice the rest while your board is "
         "untouched (Archfiend of Depravity)",
+        # The one-sided resets alone: the deck's own symmetric keep-N wraths are
+        # the ``each`` ident, never this lane's depth.
         None,
+        serve_idents=frozenset({"keep_n_wrath|opponents|"}),
         extras=(_BOARD_PROTECTION_EXTRA,),
-        search={"oracle": r"opponents? choose[^.]*then sacrifices? the rest"},
     ),
     # task B-5: combat_choice_makers — you make opponents' attack/block
     # declarations (CR 508.1a / 509.1a transferred to you). Pairs with the
@@ -1251,11 +1241,8 @@ SPECS_1: dict[tuple[str, str], SignalSpec] = {
         None,
         serve_idents=frozenset({"group_hug_draw|each|"}),
     ),
-    # ADR-0027: dies_recursion's SWEEP_DETECTORS row is deleted (detection moved to the
-    # Card IR — the undying/persist keyword bearers via _IR_KEYWORD_MAP plus a
-    # byte-identical DIES_RECURSION_REGEX kept word mirror for the bare dies-return
-    # grants / keyword-less granters), so hand-register the spec the sweep
-    # auto-register loop used to build. CR 700.4 / 603.6c.
+    # dies_recursion: the undying / persist bearers and granters and the bare
+    # dies-return grants, read off the Card IR. CR 700.4 / 603.6c.
     ("dies_recursion", "you"): _spec(
         *SWEEP_LABELS["dies_recursion"],
         # Serve rides the lane (2026-10-18): regex missed dies-return Auras/Equipment

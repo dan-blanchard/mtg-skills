@@ -30,7 +30,6 @@ from mtg_utils._analysis.lanes.counters_voltron import TOKEN_YOURS_SIDES
 from mtg_utils._analysis.lanes.mana_and_wipes import _anthem_static
 from mtg_utils._analysis.signal_base import (
     Signal,
-    _clauses,
     _resolve_subject,
 )
 from mtg_utils._analysis.text_reads import (
@@ -66,6 +65,7 @@ from mtg_utils._card_ir.crosswalk import (
     controller_paid_cost_leaves,
     count_distinct_operand_filter,
     count_operand_filter,
+    counts_behind_another_player,
     effect_filter,
     effect_owner_player_scope,
     effects_exclusive,
@@ -76,6 +76,7 @@ from mtg_utils._card_ir.crosswalk import (
     filter_owned_controller,
     filter_predicates,
     filter_subtypes,
+    granted_card_types,
     granted_keyword_names,
     in_uncertain_branch,
     iter_condition_sites,
@@ -101,6 +102,7 @@ from mtg_utils._card_ir.crosswalk import (
     trigger_counter_filter,
     trigger_def_event,
     trigger_subject_scope,
+    walk_effect_chain,
 )
 from mtg_utils._card_ir.crosswalk.reads import names_attached_object, strips_abilities
 from mtg_utils._card_ir.mirror.runtime import (
@@ -109,9 +111,6 @@ from mtg_utils._card_ir.mirror.runtime import (
     TypedMirrorNode,
 )
 from mtg_utils._card_ir.recovery import IMPERATIVE, OTHER_PLAYER, SELF
-from mtg_utils._card_ir.text_idioms import (
-    _BECOMES_TYPE_RE,
-)
 
 
 def _sac_subject_present(tgt: object) -> bool:
@@ -885,6 +884,18 @@ def _blink_flicker(tree: ConceptTree) -> list[Signal]:
             for c in iter_nested_granted_effect_concepts(unit.node)
             if c.concept == "change_zone"
         ]
+        # A replacement the effect sets up over your permanents ("If a permanent
+        # you control would be put into a graveyard from the battlefield this
+        # turn, exile it instead. Return it to the battlefield …" — Cosmic
+        # Intervention): its exile and return are the blink (CR 614.1a).
+        for n in unit.iter_typed():
+            rep = getattr(n, "replacement", None)
+            if (
+                tag_of(n) == "AddTargetReplacement"
+                and isinstance(rep, TypedMirrorNode)
+                and filter_controller(getattr(rep, "valid_card", None)) == "You"
+            ):
+                czs += [c for c in walk_effect_chain(rep) if c.concept == "change_zone"]
         exiles = [
             c
             for c in czs
@@ -1877,8 +1888,7 @@ def _artifacts_enchantments_matter(tree: ConceptTree) -> list[Signal]:
 
     The ``Permanent``-in-list gate drops the Bargain alt-cost over-fires.
 
-    Since 2026-10-24 no text is read except the ``_BECOMES_TYPE_RE`` port (the
-    per-clause mirrors are retired): every
+    No text is read. Every
     filter over artifacts / enchantments you control or own, wherever it sits
     (a count, a condition, a grant, an effect target, a watched trigger —
     ``crosswalk.iter_node_filters``), a zone count of the cards, mana spendable
@@ -1925,10 +1935,15 @@ def _artifacts_enchantments_matter(tree: ConceptTree) -> list[Signal]:
             if tag_of(n) == "Or"
             for _field, arm in iter_node_filters(n)
         }
+        # A count of yours another player's beats is a check for having fewer
+        # (Ward of Bones' lock on each opponent with more artifacts than you).
+        behind = counts_behind_another_player(unit.node)
         for n in nodes:
             tag = tag_of(n)
             filters = [
-                f for _field, f in iter_node_filters(n) if id(f) not in or_arms_seen
+                f
+                for _field, f in iter_node_filters(n)
+                if id(f) not in or_arms_seen and id(n) not in behind
             ]
             # "you" in an effect another player performs is that player (an edict
             # phase writes with a you-controlled subject — Baleful Beholder's
@@ -1945,7 +1960,12 @@ def _artifacts_enchantments_matter(tree: ConceptTree) -> list[Signal]:
                 # names no controller.
                 lanes_of = _typed_matters_lanes if _checks_own_moved_card(n) else yours
                 for filt in filters:
-                    out.extend(_every_arm_lanes(filt, lanes_of))
+                    # A count of every player's ("for each other enchantment on
+                    # the battlefield" — Ancestral Mask) grows with yours.
+                    if tag == "ObjectCount" and filter_controller(filt) is None:
+                        out.extend(_every_arm_lanes(filt, _typed_matters_lanes))
+                    else:
+                        out.extend(_every_arm_lanes(filt, lanes_of))
             if tag == "ZoneCardCount":
                 out.extend(_zone_card_count_lanes(n))
             # Mana only for artifact spells (CR 106.6 — Grand Architect, Cargo
@@ -2284,35 +2304,23 @@ def _artifacts_enchantments_matter(tree: ConceptTree) -> list[Signal]:
             if tag_of(aff) in ("Or", "And"):
                 for br in getattr(aff, "filters", None) or ():
                     out.extend(_generic_board_lanes(br))
-    # BECOMES-TYPE doer (ADR-0038 W4 giant) — a SANCTIONED byte-identical
-    # port of legacy's ``_BECOMES_TYPE_RE`` (the LIVE constant, imported
-    # not re-typed): a "becomes a/an artifact" type-grant (Relic's Roar's
-    # "target artifact or creature becomes a Dinosaur artifact creature";
-    # Captain Rex Nebula's Vehicle animate). phase drops the granted type
-    # to an ``AddType`` mod carrying no back-link to the ORIGINAL clause
-    # shape the regex discriminates on (a lone-target "becomes a/an
-    # <adj>* artifact" vs a plural/no-article board grant — "Vehicles you
-    # control BECOME artifact creatures" — or a self-animate manland whose
-    # own P/T digits between "becomes a" and "artifact" break the anchor —
-    # Blinkmoth Nexus's "becomes a 1/1 … artifact creature" — deliberately
-    # excluded, matching legacy exactly). Run PER-CLAUSE over
-    # ``_kept(tree)``. A "becomes a COPY of" (True
-    # Polymorph, Absorbing Man) is a clone effect, not a type-grant —
-    # legacy's ``e.category not in (make_token, clone)`` guard excludes
-    # it structurally; the per-clause text scan has no category to read,
-    # so it excludes on the "copy" word instead (never the deciding vote
-    # for a real type-grant clause, which never says "copy"). CR 205.1b. A
-    # match followed by "creature" ("becomes an artifact creature" — Karn's
-    # Touch, Titania's Song, a Vehicle's crew) makes the permanent a creature:
-    # animation (CR 613.1d, ``animate_makers``), never this payoff.
-    for cl in _clauses(_kept(tree)):
-        bt_m = _BECOMES_TYPE_RE.search(cl)
-        if (
-            bt_m
-            and "copy" not in bt_m.group(0).lower()
-            and not cl[bt_m.end() :].lstrip().lower().startswith("creature")
-        ):
-            out.append(_TYPE_MATTERS_LANE[bt_m.group(1).capitalize()])
+    # A type grant: "target permanent becomes an artifact in addition to its
+    # other types" (Memnarchitect, Neurok Transmuter), a Licid's "becomes an
+    # Aura enchantment", Captain Rex Nebula's Vehicle artifact (CR 205.1b,
+    # :func:`granted_card_types`). One that makes its objects creatures too
+    # (Karn's Touch's "artifact creature") is animation (CR 613.1d), one that
+    # takes their abilities too (Sugar Coat's Food, Kitesail Larcenist's
+    # Treasure; CR 613.1f) is removal, and a "becomes a copy of" (True
+    # Polymorph) grants no type.
+    for unit in tree.units:
+        for sdef in iter_static_defs(unit.node):
+            if strips_abilities(sdef):
+                continue
+            out.extend(
+                _TYPE_MATTERS_LANE[t]
+                for t in granted_card_types(sdef)
+                if t in _TYPE_MATTERS_LANE
+            )
     # CAST-TRIGGER doer (recall gap): "whenever you cast an artifact/enchantment
     # spell, <payoff>" (Argothian Enchantress, Enchantress's Presence, Sythis,
     # Mishra). Mirrors the deleted ``_signals_ir``'s line ~10974 — the watched-spell

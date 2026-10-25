@@ -4,7 +4,7 @@ Re-exports the full public + private surface of the original module so
 ``import mtg_utils._analysis.signal_specs`` and
 ``from mtg_utils._analysis.signal_specs import X`` keep working unchanged for
 every name any other file in the repo imports or accesses (including private
-names tests reach into directly, e.g. ``signal_specs._FLICKER_ORACLE``).
+names tests reach into directly, e.g. ``signal_specs._FLICKER_EXTRA``).
 
 See ``_shared.py`` (dataclasses + builder-helper constants), ``data_1.py``..
 ``data_4.py`` (the SPECS dict literal, sliced in original order), and
@@ -52,7 +52,6 @@ from ._shared import (
     _DEATHTOUCH_GEAR_EXTRA,
     _DEATHTOUCH_GEAR_ORACLE,
     _DIES_RECURSION_EXTRA,
-    _DIES_RECURSION_ORACLE,
     _DIES_VALUE_ORACLE,
     _DISCARD_PUNISH_EXTRA,
     _DISCARD_PUNISH_ORACLE,
@@ -69,7 +68,6 @@ from ._shared import (
     _EXTRA_COMBAT_EXTRA,
     _EXTRA_COMBAT_ORACLE,
     _FLICKER_EXTRA,
-    _FLICKER_ORACLE,
     _FORCE_ATTACK_EXTRA,
     _FORCE_ATTACK_ORACLE,
     _FORCE_FEED_EXTRA,
@@ -107,7 +105,6 @@ from ._shared import (
     _SAC_OUTLET_EXTRA,
     _SAC_OUTLET_ORACLE,
     _SELF_BOUNCE_EXTRA,
-    _SELF_BOUNCE_ORACLE,
     _SELF_BOUNCE_RECAST_EXTRA,
     _SELF_BOUNCE_RECAST_ORACLE,
     _SELF_RECUR_EXTRA,
@@ -222,7 +219,6 @@ __all__ = [
     "_DEATH_DRAIN_EXTRA",
     "_DEATH_DRAIN_ORACLE",
     "_DIES_RECURSION_EXTRA",
-    "_DIES_RECURSION_ORACLE",
     "_DIES_VALUE_ORACLE",
     "_DISCARD_PUNISH_EXTRA",
     "_DISCARD_PUNISH_ORACLE",
@@ -240,7 +236,6 @@ __all__ = [
     "_EXTRA_COMBAT_EXTRA",
     "_EXTRA_COMBAT_ORACLE",
     "_FLICKER_EXTRA",
-    "_FLICKER_ORACLE",
     "_FORCE_ATTACK_EXTRA",
     "_FORCE_ATTACK_ORACLE",
     "_FORCE_FEED_EXTRA",
@@ -279,7 +274,6 @@ __all__ = [
     "_SAC_OUTLET_EXTRA",
     "_SAC_OUTLET_ORACLE",
     "_SELF_BOUNCE_EXTRA",
-    "_SELF_BOUNCE_ORACLE",
     "_SELF_BOUNCE_RECAST_EXTRA",
     "_SELF_BOUNCE_RECAST_ORACLE",
     "_SELF_RECUR_EXTRA",

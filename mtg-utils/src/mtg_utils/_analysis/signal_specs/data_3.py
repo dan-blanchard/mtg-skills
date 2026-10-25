@@ -830,10 +830,12 @@ SPECS_3: dict[tuple[str, str], SignalSpec] = {
     ("crimes_matter", "you"): _spec(
         "Crimes",
         "targeted removal and abilities that count as committing a crime",
-        # Serve idents (2026-10-18): the regex matched exactly the lane's own cards; the
-        # lane is the source of truth.
+        # The crime payoffs, and the crimes a deck commits most: targeted removal
+        # (Swords to Plowshares, Path to Exile, Beast Within).
         None,
-        serve_idents=frozenset({"crimes_matter|you|"}),
+        serve_idents=frozenset(
+            {"crimes_matter|you|", "removal|you|", "exile_removal|you|"}
+        ),
     ),
     # Serve idents: the connive doers and the connive payoffs ("whenever a
     # creature you control connives" — connive_matters). The regex's remainder:

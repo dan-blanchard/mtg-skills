@@ -494,8 +494,14 @@ def _land_animator_concept(card: dict) -> bool:
     """concept arm for the 'land-animation' preset: the card carries the bare
     ``land_protection|you|`` ident — the land animators and manlands. The key's
     subjects are the lands' protection (``shield`` — Terra Eternal, Tomik's
-    ledgered hexproof), never an animation."""
-    return "land_protection|you|" in _signal_idents_for(card)
+    ledgered hexproof), never an animation. Or a ``land_creatures_matter`` ident
+    but the ``self`` one: a land that already is a creature (Dryad Arbor)
+    animates nothing."""
+    idents = _signal_idents_for(card)
+    return "land_protection|you|" in idents or any(
+        i.startswith("land_creatures_matter|") and not i.endswith("|self")
+        for i in idents
+    )
 
 
 def _self_mill_concept(card: dict) -> bool:
@@ -670,6 +676,19 @@ def _removal_edict_concept(
         )
 
     return _match
+
+
+_LAND_REMOVAL_WALK = _removal_edict_concept("Land")
+
+
+def _land_removal_concept(card: dict) -> bool:
+    """concept arm for the 'land-removal' preset: a ``land_destruction`` ident
+    but the ``punish`` one (a land-loss payoff — Dingus Egg — destroys nothing),
+    or the target-type walk over destroy / exile effects."""
+    return any(
+        i.startswith("land_destruction|") and not i.endswith("|punish")
+        for i in _signal_idents_for(card)
+    ) or _LAND_REMOVAL_WALK(card)
 
 
 # ─── Evergreen keyword abilities ──────────────────────────────────────────
@@ -2366,8 +2385,7 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
             "deliberately EXCLUDE Land, routing it here instead — see "
             "``_removal``'s docstring)."
         ),
-        signal_keys=("land_destruction",),
-        concept=_removal_edict_concept("Land"),
+        concept=_land_removal_concept,
         should_match=("Sinkhole", "Strip Mine", "Wasteland", "Armageddon"),
         should_not_match=("Lightning Bolt", "Doom Blade", "Wrath of God"),
     ),
@@ -3802,10 +3820,7 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
             "genuine losses."
         ),
         keywords=("Earthbend", "Awaken"),
-        signal_keys=(
-            "land_creatures_matter",
-            "earthbend_makers",
-        ),
+        signal_keys=("earthbend_makers",),
         concept=_land_animator_concept,
         should_match=("Mutavault", "Treetop Village"),
         should_not_match=(

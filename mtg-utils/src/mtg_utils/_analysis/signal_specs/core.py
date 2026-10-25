@@ -641,8 +641,7 @@ def pages_by_serve(search: Mapping[str, object]) -> bool:
 def page_serve(search: Mapping[str, object], serve: Serve | None) -> Serve | None:
     """The serve a theme's page filters by (:func:`theme_page`), or None: a theme
     that pages by its serve (:func:`pages_by_serve`) and carries one. A serve that
-    admits nothing on any dimension (One-sided keep-N's) is none, or its page
-    would be empty: that theme pages by its search's pattern."""
+    admits nothing on any dimension is none, or its page would be empty."""
     if serve is None or serve.admits_nothing() or not pages_by_serve(search):
         return None
     return serve
@@ -658,7 +657,7 @@ def theme_page(
     theme's page derives from its serve; what its search holds beside (a
     mana-value band) narrows it. A search that overrides the serve
     (:func:`pages_by_serve`) pages by its own fetch, and so does a search with no
-    serve to page by: an agent's avenue, One-sided keep-N's pattern."""
+    serve to page by: an agent's avenue."""
     return dict(search), page_serve(search, serve)
 
 

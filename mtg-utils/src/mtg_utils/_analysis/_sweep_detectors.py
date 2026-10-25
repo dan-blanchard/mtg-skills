@@ -34,48 +34,6 @@ from __future__ import annotations
 # counter"), and signal_specs reuses it for the serve pool — so the two never drift.
 KEYWORD_COUNTER_REGEX = "(?:put|with|of an?)[^.]{0,60}?(?:flying|menace|trample|reach|haste|deathtouch|hexproof|indestructible|lifelink|vigilance) counter|enters with (?:a|an|one|two|\\d+)[^.]*?(?:flying|menace|trample|reach|haste|deathtouch|hexproof|indestructible|lifelink|vigilance) counter"
 
-# ADR-0027 — group_hug_draw migrated to the Card IR (the symmetric group-hug draw lane:
-# a card that draws for EVERY player — Howling Mine, Wheel of Fortune, Prosperity). Its
-# SWEEP_DETECTORS row is deleted; detection moved to a STRUCTURAL arm (a `draw` Effect
-# scope=='each', signals.extract_signals_ir) UNION a BYTE-IDENTICAL kept WORD MIRROR
-# (this exact regex in signals._IR_KEPT_DETECTORS, scope 'each') for the 4 cards phase
-# under-structures (Grothama / Mathise / Vault 11 / Winter Sky fold "each player draws"
-# to scope 'any' or emit no draw Effect). This mined regex survives as a shared
-# constant.
-GROUP_HUG_DRAW_REGEX = "each player (?:may )?draws?\\b|each player who drew"
-# ADR-0027 — dies_recursion migrated to the Card IR (SELF-recursion-on-death; CR 700.4
-# / 603.6c). Its SWEEP_DETECTORS row is deleted; detection moved to a BYTE-IDENTICAL
-# kept WORD MIRROR (this exact regex in signals._IR_KEPT_DETECTORS, scope 'you') — phase
-# v0.1.19 carries no structural "returns itself on death" form (the dies trigger
-# flattens to event='other' with the return buried in the effect raw). The undying /
-# persist keyword BEARERS already open the lane via _IR_KEYWORD_MAP; this mirror recovers
-# the bare dies-return grants (Feign Death / Supernatural Stamina) and the keyword-LESS
-# GRANTERS (Mikaeus / Cauldron of Souls / Endling). This mined regex survives as a shared
-# constant; signal_specs' Dies-recursion sub-avenue serves by it. See the deleted-row
-# comment below for the full residual / over-fire adjudication.
-DIES_RECURSION_REGEX = "if [^.]* would die, instead exile it with [^.]*counters?|when [^.]* dies, return (?:it|her|him|them) to the battlefield|\\b(?:undying|persist)\\b"
-# ADR-0027 — station_matters migrated to the Card IR (the EOE Station keyword action;
-# CR 702.184). Its SWEEP_DETECTORS row is deleted; detection moved to a BYTE-IDENTICAL
-# kept WORD MIRROR (this exact regex in _signals_ir._IR_KEPT_DETECTORS, scope 'you') —
-# phase v0.1.19 doesn't structure Station for the carriers (the bare "Station" keyword +
-# its charge-counter accrual live in reminder/level text), so the floor-disabled
-# structural `station` effect arm caught only 1 card and missed all 44 regex producers.
-# This mined regex survives as a shared constant. See the deleted-row comment below for
-# the full residual / over-fire adjudication.
-STATION_MATTERS_REGEX = "\\bstation\\b|\\bspacecraft\\b"
-# ADR-0027 — flash_grant migrated to the Card IR. The GRANT-to-OTHERS structural form
-# binds in extract_signals_ir (a cast_with_keyword{flash} static — "cast <a class of>
-# spells as though they had flash"; Vedalken Orrery, Leyline of Anticipation, Teferi,
-# Yeva — the 29 commander-legal cards phase parses structurally). phase folds the
-# ACTIVATED / conditional flash-grant (Winding Canyons {2}{T}, Emergence Zone, Teferi
-# Time Raveler +1) and leaves the "cast this spell as though it had flash" self-flash
-# textual, so the FULL deleted SWEEP regex is kept BYTE-IDENTICALLY as the
-# _IR_KEPT_DETECTORS mirror (signals._IR_KEPT_DETECTORS) — the union reproduces the
-# deleted producer's 81 commander-legal fires EXACTLY (regex_only 0, ir_only 0, scope
-# parity 'you'). This mined regex survives as a shared constant so the kept mirror
-# reuses it — mirror / (now-deleted) detector never drift. SWEEP_LABELS still carries
-# the human label. CR 702.8 (flash).
-FLASH_GRANT_REGEX = "as though (?:it|they) (?:had|have) flash|have flash\\b"
 # ADR-0027 — stickers_matter migrated to the Card IR (the Unfinity sticker-sheet
 # archetype — CR 123 stickers / CR 122 ticket counters: the {TK} ability-sticker costs
 # on "Stickers"-type creatures plus the "put a sticker"/"name|art|ability sticker"
@@ -89,18 +47,6 @@ FLASH_GRANT_REGEX = "as though (?:it|they) (?:had|have) flash|have flash\\b"
 # a shared constant so the kept mirror reuses it — mirror / (now-deleted) detector never
 # drift. SWEEP_LABELS still carries the human label. CR 123 / 122.1.
 STICKERS_MATTER_REGEX = "\\{tk\\}|\\bstickers?\\b"
-# ADR-0027 — theft_matters migrated to the Card IR (STEAL an OPPONENT's cards and
-# CAST/PLAY them: the impulse-from-opponent steal-and-cast engines, the heist Arena
-# keyword action, and the name-strip three-zone rifles). Its SWEEP_DETECTORS row is
-# deleted; phase carries NO structural form, so the lane rides a BYTE-IDENTICAL kept
-# WORD MIRROR (this exact regex in signals._IR_KEPT_DETECTORS, scope 'opponents') —
-# the seven arms' `[^.]*` spans never cross a clause, so flat-over-kept_oracle ==
-# per-clause == the deleted producer's 33 commander-legal fires EXACTLY. This mined
-# regex survives as a shared constant so the kept mirror reuses it — mirror /
-# (now-deleted) detector never drift. SWEEP_LABELS still carries the human label. CR
-# DD9 (heist) / 613.1b
-# (control-changing effects).
-THEFT_MATTERS_REGEX = "conjure a duplicate of[^.]*from an opponent's library|you may (?:play|cast)[^.]*from that player's hand|cast (?:spells )?from (?:that|target) (?:player|opponent)'s hand|play (?:with )?(?:lands and )?(?:spells )?from (?:that|target) (?:player|opponent)'s hand|(?:each player|each opponent|target opponent|that player)[^.]*exiles? cards from the top of their library|search (?:that player|target opponent|an opponent|each opponent)'?s? graveyard, hand,? and library|\\bheist\\b"
 # ADR-0027 discard-discarder scope (SIDECAR v26): discard_outlet migrated to the Card IR
 # (cost arm + scope in ('you','each') structural arm + a byte-identical PER-CLAUSE
 # mirror of this regex). The regex survives as a shared constant so the kept mirror
@@ -120,86 +66,6 @@ DISCARD_OUTLET_REGEX = "discard (?:a|an|another|two|three|your hand|x|\\d+) [^:.
 # is copy_limit's alone). The constant keeps its NAMED_PERMANENT name (it matches
 # the "permanent named X" shape).
 NAMED_PERMANENT_REGEX = "(?:permanent|creature|another permanent) named [A-Z]|a permanent you control named|control a (?:permanent|creature)[^.]*named"
-# ADR-0027 dig library-owner scope (SIDECAR v27): dig_until migrated to the Card IR (a
-# `dig_until` EFFECT scope=='you' structural arm — the own-library digs project.py now
-# scopes from the digger's `player` — UNION a byte-identical PER-CLAUSE mirror of this
-# regex for the 44 your-library digs phase re-categorizes to cheat_play/reveal/
-# topdeck_stack). The regex survives as a shared constant so the kept mirror
-# (_DIG_UNTIL_SWEEP_RE in _signals_regex) reuses it — mirror / (now-deleted) detector
-# never drift. Its `[^.]*` arm never
-# crosses a clause boundary, but the deleted SWEEP ran PER-CLAUSE over the reminder-
-# stripped oracle, so the mirror runs per-clause too. The regex is YOUR-library-anchored
-# ("your library" / "you exile"), so it never matched the opponent-library mills the
-# structural arm also excludes (scope!='you'). CR 701.23 (search/dig) / 401.
-DIG_UNTIL_REGEX = "exile cards? from the top of your library until|exile (?:the )?top[^.]*until you exile|reveal cards from the top of your library until"
-# ADR-0027 topdeck library-owner scope (SIDECAR v28): topdeck_selection migrated to the
-# Card IR. Detection moves to a `topdeck_select` EFFECT scope=='you' STRUCTURAL arm
-# (supplement._topdeck_select_owner_scope scopes the look/reveal + scry/surveil selection
-# from the library OWNER — own-library → 'you', opponent peek → 'opp', Morph reveal →
-# re-categorized out) UNION a byte-identical PER-CLAUSE mirror of this regex for the 148
-# your-library reveals phase re-categorizes to reveal / cast_play (Fact or Fiction, the
-# pile cards, cascade/dig bodies). The regex survives as a shared constant so the kept
-# mirror (_TOPDECK_SELECTION_SWEEP_RE in _signals_regex) reuses it — mirror /
-# (now-deleted) detector never drift. The
-# deleted SWEEP ran PER-CLAUSE over the reminder-stripped oracle, so the mirror runs
-# per-clause too. The regex is YOUR-library-anchored ("of your library", "from the top of
-# your library", "from among them"), so it never matched the opponent-library / opponent-
-# hand peeks the structural arm also excludes (scope!='you'). CR 116 / 701.18 / 701.42.
-TOPDECK_SELECTION_REGEX = "look at the top (?:two|three|four|five|six|seven|eight|nine|ten|\\w+|x|\\d+) cards? of your library|reveal the top (?:two|three|four|five|six|seven|eight|nine|ten|\\w+|x|\\d+) cards? of your library|reveal cards from the top of your library until|put [^.]*from among them onto the battlefield"
-# ADR-0027 exile_removal (SIDECAR v30): migrated to the Card IR. Detection moves to a
-# `cat=="exile"` single-target permanent-removal STRUCTURAL arm (the v30 supplement
-# retains cat=exile + a permanent subject on the rider-swallow / dropped-subject cases)
-# UNION a byte-identical PER-CLAUSE mirror of this regex (_EXILE_REMOVAL_SWEEP_RE in
-# _signals_regex) for the blink/GY-hate over-fires the regex matched + the Drach'Nyen
-# ETB-exile-dropped tail (phase carries no structural form — its ETB exile trigger is
-# lost entirely). The regex survives as a shared constant so the kept mirror reuses it
-# — mirror / (now-deleted) detector never drift. The deleted SWEEP ran PER-CLAUSE over
-# the reminder-
-# stripped oracle, so the mirror runs per-clause too. CR 406.1 (one-way exile = removal)
-# / 115.1 (single target).
-EXILE_REMOVAL_REGEX = "exile (?:up to (?:one|two|three|\\w+|x) )?(?:other )?target (?:[a-z]+ )*(?:creature|permanent|artifact|enchantment|planeswalker)|exile [^.]*and target (?:permanent|creature)"
-# ADR-0027 per-clause draw raw (SIDECAR v32): draw_for_each migrated to the Card IR.
-# Detection moves to a `draw` EFFECT scaling-count STRUCTURAL arm gated by the draw's
-# PER-CLAUSE raw (project.py carries the draw-local clause on `Effect.clause_raw`; the
-# arm runs _is_scaling_count over clause_raw, so a fixed draw sharing an ability with a
-# for-each cost / damage / life / token rider — Tamiyo's Logbook, Castle Locthwain, the
-# Parley draws — no longer fires) UNION a byte-identical PER-CLAUSE mirror of this regex
-# (_DRAW_FOR_EACH_SWEEP_RE in _signals_regex) for the cards phase RE-CATEGORIZES off the
-# draw effect or leaves textual (Borrowed Knowledge, Curse of Surveillance, Sea Gate
-# Restoration — 12 commander-legal regex-only). The regex survives as a shared constant
-# so the kept mirror reuses it — mirror / (now-deleted) detector never drift. Its arms
-# ("draw … for each"
-# / "draw cards equal to the number of") never cross a clause boundary, so the mirror
-# runs PER-CLAUSE over the reminder-stripped oracle == the deleted SWEEP path byte-
-# identically. The structural arm adds +48 genuine scaling draws the regex missed (a
-# counted SUBJECT — "draw cards equal to the greatest power among creatures"; a "where
-# X is the number of <type>" count) and drops the ~40 fixed-draw + sibling-rider over-
-# fires. CR 107.3.
-DRAW_FOR_EACH_REGEX = "draw a card for each|draw cards equal to the number of|draws? (?:a card |cards )?for each"
-# ADR-0027: tap_down migrated to the Card IR (the tap-down control lane — tap an
-# OPPONENT's permanent / "skips its next untap step" / detain; CR 701.21 detain, CR
-# 502.x untap step). Its SWEEP_DETECTORS row is deleted; detection moves to a
-# BYTE-IDENTICAL kept WORD MIRROR (this exact regex in signals._IR_KEPT_DETECTORS, scope
-# 'opponents'). phase carries a structural `tap` Effect, but only the scope='opp'
-# subset — and that subset infers opponent-scope from the COST CONTEXT, not the tap
-# TARGET, so it fires on a bare "Tap target creature" whose cost names an opponent
-# (Cryptic Cruiser) while MISSING the 89 cards whose tap target IS "an opponent
-# controls" but whose phase parse drops the controller predicate (Frost Lynx, Icefall
-# Regent, Dungeon Geists, Time of Ice, Kor Hookmaster …). So the structural `tap`/opp
-# arm AND the _IR_KEYWORD_MAP['detain'] entry are BOTH removed for this key and replaced
-# by this mirror, making the IR re-supply == the deleted producer (the broad
-# any-controller target tap stays on the SEPARATE tapper_engine lane, scope 'any', which
-# is untouched). The four arms' `[^.]*` span never crosses a clause boundary (the
-# splitter cuts on [.;\n]; `[^.]*` excludes `.`, and no `;`/`\n` lands inside a span on
-# the corpus), so flat-over-kept_oracle == the deleted per-clause SWEEP firing EXACTLY
-# (commander-legal, by oracle_id: both 101, ir_only 0, regex_only 0; scope parity
-# 'opponents' on all 101). This mined regex survives as a shared constant so the kept
-# mirror reuses it — mirror / (now-deleted) detector never drift. SWEEP_LABELS still
-# carries the human label. The
-# deleted producer fired HIGH-confidence scope 'opponents' and fed has_other_plan, so the
-# byte-identical re-supply adds tap_down to signals._VOLTRON_SILENCING_PLAN_KEYS. CR
-# 701.21 / 502.
-TAP_DOWN_REGEX = "(?<!un)tap target (?:permanent|creature|land|nonland permanent)[^.]*(?:an opponent|that player) controls|skips? (?:their|his or her|its) next untap step|tap (?:up to )?\\w+ target permanents? (?:an opponent|that player) controls|\\bdetain\\b"
 # ADR-0027: topdeck_stack migrated to the Card IR. Its SWEEP_DETECTORS row is deleted;
 # detection moves to a STRUCTURAL arm (extract_signals_ir — phase's `topdeck_stack`
 # put-into-library Effect, gated counter_kind in {top, topbottom} so the removal-tuck
@@ -225,30 +91,6 @@ TOPDECK_STACK_SWEEP_REGEX = "put (?:two|three|\\w+) cards? from your hand on top
 COMBAT_DAMAGE_TO_OPP_DS_GRANT_REGEX = (
     "attacking creatures you control have[^.]*double strike"
 )
-# ADR-0027 — noncombat_damage_payoff migrated to the Card IR via a BYTE-IDENTICAL kept
-# WORD MIRROR (the _IR_KEPT_DETECTORS row, scope 'you', HIGH conf). The lane was an
-# _IR_FLOOR_LANES floor reuse (phase v0.1.19 carries no single category for "burn
-# outside combat" — its damage Effects don't flag the CR-702.19a noncombat/combat
-# distinction, and the MV-scaling burn arms fold their amount into raw), so the lane
-# rides this mirror, NOT a structural arm. The lone `[^.]*` arm ("whenever a source
-# you control deals [^.]* damage") never crosses a period, so flat over the reminder-
-# stripped kept_oracle == the deleted floor Detector's per-clause scan EXACTLY
-# (commander-legal, floor-disabled, by oracle_id: both==92, regex_only==0, ir_only==0).
-# This mined regex survives as a shared constant so the kept mirror reuses it — mirror
-# / (now-deleted) detector never drift. SWEEP_LABELS still carries the human label. CR
-# 120.1 / 510 / 702.19a.
-NONCOMBAT_DAMAGE_PAYOFF_REGEX = "noncombat damage|deals that much damage to (?:each opponent|any target|that creature)|deals exactly \\d+ damage|whenever (?:a|another) source you control deals [^.]*damage|deals damage equal to (?:that spell's|the exiled card's|that card's|that creature's) mana value"
-# ADR-0027 β — cost_reduction migrated to the Card IR; its SWEEP_DETECTORS row is
-# deleted but the EXACT mined regex survives here (SWEEP_LABELS keeps the human label).
-# The lane's firing now comes from the IR arm + _COST_REDUCER_MIRROR (in _signals_ir),
-# not this regex.
-COST_REDUCTION_REGEX = "spells?[^.]*cost \\{[wubrg]\\}[^.]*less to cast|cost \\{w\\}, \\{u\\}, \\{b\\}, \\{r\\}, or \\{g\\} less|cost \\{[wubrgc\\d]\\}+ less to cast|cost \\{?\\d+\\}? less to activate|(?:cards you drew this turn|abilities you activate)[^.]{0,40}?cost \\{?\\d|costs? \\{?\\d+\\}? less to cast for each|cost \\{?\\d+\\}? less for each"
-# ADR-0027 β — keyword_grant_target migrated to the Card IR; its SWEEP_DETECTORS row is
-# deleted but the EXACT mined regex survives here so the voltron PLAN mirror in
-# _signals_regex reuses it (SWEEP_LABELS keeps the human label). The lane's firing now
-# comes from the IR arm (the single_target_grant marker in _signals_ir — project._single_target_keyword_
-# grant_markers), not this regex.
-KEYWORD_GRANT_TARGET_REGEX = "target creature (?:you control )?(?:gains?|gets [+\\-][0-9x]/[+\\-][0-9x] and gains?) (?:deathtouch|trample|flying|menace|vigilance|double strike|first strike|lifelink|haste|hexproof|indestructible|protection|reach|ward|shroud)"
 # ADR-0027 β / #24 — pump_makers migrated to the Card IR; its SWEEP_DETECTORS row is
 # deleted but the EXACT mined regex survives here as a shared constant. The lane (a
 # POSITIVE single-target combat-trick buff: "target creature gets +N/+N") now has a
@@ -265,244 +107,9 @@ KEYWORD_GRANT_TARGET_REGEX = "target creature (?:you control )?(?:gains?|gets [+
 # its overlap with the structural arm. SWEEP_LABELS keeps the label. CR 122.1b/613.4c.
 PUMP_MATTERS_REGEX = "target (?:[a-z]+ )*creature(?: you control)? gets \\+[0-9x]/\\+[0-9x]|target [A-Z][a-z]+ you control gets \\+|target creature(?: you control)? gets \\+[\\dxX]"
 
-# ADR-0027 Cluster C — base_pt_set migrated to the Card IR. The deleted SWEEP_DETECTORS
-# regex was a 4-MECHANIC UMBRELLA: fixed base-P/T set (base_pt_set, CR 613.4b layer 7b) +
-# switch P/T (CR 613.4d layer 7d) + "in addition to its types" type-conferral (CR 205.1b)
-# + dynamic "equal to X" (variable_pt's CDA territory, CR 613.4a). The migration carves
-# out ONLY the fixed base-P/T-set mechanic. Two pins:
-#   • BASE_PT_SET_FULL_REGEX — the EXACT deleted umbrella, kept ONLY for the voltron
-#     has_other_plan re-supply (the deleted SWEEP detector fired HIGH on all four arms, so
-#     a faithful voltron silence must reproduce its full firing set — _base_pt_set_has_plan
-#     in _signals_regex; voltron stays 3010 by set equality).
-#   • BASE_PT_SET_REGEX — the CARVED base-P/T-set-ONLY arms (drop the two switch arms and
-#     narrow the type-conferral arm to require a literal N/N): the SIGNALS kept WORD MIRROR
-#     (_BASE_PT_SET_MIRROR in signals._IR_KEPT_DETECTORS, scope 'any') so switch_pt / pure
-#     type-conferral are NOT swept into base_pt_set. The
-#     structural arm (the SIDECAR v32 SelfBasePt self-transform + the supplement static-
-#     parser-failed recovery) supplies the cards phase DROPS the clause for (Bogardan
-#     Dragonheart, Answered Prayers, Curse of Conformity); this mirror recovers the dynamic
-#     "base power … equal to X" tail phase routes elsewhere (Trench Gorger, Fractalize —
-#     variable_pt stays silent on them, so the mirror prevents a recall loss). The carved
-#     arms span an `[^.]*` (the type-conferral arm), so the mirror runs PER-CLAUSE over the
-#     reminder-stripped kept_oracle == the deleted per-clause SWEEP firing. CR 613.4b.
-BASE_PT_SET_FULL_REGEX = "base power (?:and toughness )?\\d|has base power|base toughness \\d|becomes a [^.]*with base power and toughness|becomes a [^.]* in addition to its other types|switch (?:each |target )?creature'?s'? power and toughness|switch [^.]{0,40}power and toughness|base power and toughness of each [^.]*become"
-BASE_PT_SET_REGEX = "base power (?:and toughness )?\\d|has base power|base toughness \\d|becomes a [^.]*with base power and toughness|becomes a [^.]*?\\b\\d+/\\d+\\b[^.]* in addition to its other types|base power and toughness of each [^.]*become"
-
-# ADR-0027 Cluster D — protection_grant migrated to the Card IR. The EXACT deleted
-# SWEEP_DETECTORS regex, pinned so the byte-identical kept WORD MIRROR
-# (PROTECTION_GRANT_REGEX in signals._IR_KEPT_DETECTORS, scope 'you') reuses it. The
-# deleted SWEEP ran
-# PER-CLAUSE over the reminder-stripped oracle; the two `[^.]*` arms never cross a
-# sentence boundary, so a FLAT search over the reminder-stripped joined-face
-# kept_oracle == the per-clause SWEEP firing byte-identically (verified 0 flat-only
-# / 0 clause-only over the commander-legal corpus). The structural arm is BROADER —
-# it adds the single-target indestructible/ward grants, the suit-up auras, and the
-# parameterized protection-from-color team grants the word-order regex missed — so the
-# mirror is NOT _VOLTRON_SILENCING_PLAN_KEYS; a byte _PROTECTION_GRANT_PLAN_MIRROR
-# re-supplies the voltron silence (see signals). CR 702.11/16/12/18/21.
-PROTECTION_GRANT_REGEX = "gains? protection from|gains? (?:hexproof|shroud)\\b|target [^.]*gains? protection|can't be the target of (?:spells?|abilities)[^.]*your opponents control"
-
-# ADR-0027 Cluster D — combat_buff_engine migrated to the Card IR (SIGNALS-ONLY). The
-# EXACT deleted SWEEP_DETECTORS regex (the per-clause attacks/blocks/begin-combat
-# "gets +/-" arms), pinned so the byte-identical kept mirror (run per-clause over
-# kept_oracle in extract_signals_ir) and the _combat_buff_engine_has_plan voltron
-# re-supply (_signals_regex) both reuse it. The SWEEP ran PER-CLAUSE over the reminder-stripped oracle; the
-# `[^.]*` arms never cross a sentence boundary, so the mirror runs per-clause to match
-# byte-identically. The structural arm (a triggered ability with Trigger.event in
-# {attacks, blocks, begin_combat} + a pump/pump_target/place_counter effect) is BROADER
-# — it adds the keyword combat-pumps (Battle cry / Mentor / Exalted / Bushido / Rampage
-# / Melee) and "attacks → +1/+1 counter" engines the literal "gets +" regex missed
-# (+588 ir_only) — so the mirror is NOT _VOLTRON_SILENCING_PLAN_KEYS; the byte
-# _combat_buff_engine_has_plan re-supplies the voltron silence (see signals). CR 508.
-COMBAT_BUFF_ENGINE_SWEEP_REGEX = (
-    r"at the beginning of combat on your turn[^.]*creature[^.]*\.?\s*"
-    r"(?:until end of turn,? )?that creature gets \+"
-    r"|whenever (?:this creature|[A-Z][a-z]+) attacks[^.]*(?:creature|it) gets "
-    r"\+\d/"
-    r"|whenever [\w ]+ blocks(?: or becomes blocked)?[^.]*gets [+\-]"
-    r"|whenever [\w ]+ attacks[^.]*,? (?:it|[\w ]+?) gets [+\-]"
-)
-# ADR-0027 Cluster D (SIDECAR v36) — blocked_matters migrated to the Card IR. The
-# EXACT deleted SWEEP_DETECTORS regex, pinned as a shared constant so the byte-
-# identical kept WORD MIRROR (signals._IR_KEPT_DETECTORS, scope 'you') reuses it. Two arms: the
-# ATTACKER-side textual "whenever … becomes blocked" (CR 509.3c) and the BLOCKER-side
-# "whenever <creature> blocks" (CR 509.3a) — the lane historically covered both halves
-# of the declare-blockers combat-trigger archetype. The STRUCTURAL becomes_blocked arm
-# (_PAYOFF_TRIGGER_KEYS, extract_signals_ir) covers ONLY the attacker payoff (and adds
-# the Rampage/Bushido/Flanking/Afflict/Infect keyword reminder triggers this regex
-# missed); this mirror recovers the blocker-side "whenever X blocks" half the arm
-# deliberately doesn't fold in. The two `[^.]*` arms never cross a sentence boundary,
-# so a FLAT search over the reminder-stripped joined-face kept_oracle == the per-clause
-# SWEEP firing byte-identically (verified 0 flat-only / 0 clause-only over the
-# commander-legal corpus). The structural arm is BROADER (the keyword tail), so the
-# mirror is NOT _VOLTRON_SILENCING_PLAN_KEYS; a byte _BLOCKED_MATTERS_PLAN_MIRROR
-# re-supplies the voltron silence. CR 509.3c/d / 702.45a / 702.25a / 702.131.
-BLOCKED_MATTERS_REGEX = "whenever [^.]*becomes blocked|\\bwhenever \\w[^.]*\\bblocks\\b"
-
-# ADR-0027 — scaling_pump migrated to the Card IR. The EXACT deleted SWEEP_DETECTORS
-# regex, pinned as a shared constant so the byte-identical kept WORD MIRROR
-# (_SCALING_PUMP_SWEEP_MIRROR in signals._IR_KEPT_DETECTORS, scope 'you') and the voltron
-# _SCALING_PUMP_PLAN_MIRROR (_signals_regex) reuse ONE source so they never drift from
-# the deleted detector. The
-# single arm has no `[^.]*` span, so a flat .search over the reminder-stripped joined-
-# face kept_oracle == the deleted per-clause SWEEP firing (commander-legal: flat ==
-# per-clause == 223, identical sets). The structural _is_scaling_count arm supplies the
-# broader "+X/+X where X is the number/greatest of" + counter-op set the narrow regex
-# missed; this mirror recovers the token-/equipment-granted + pump_target-amount-dropped
-# tail. CR 613 / 107.3.
-SCALING_PUMP_SWEEP_REGEX = "gets [+\\-][0-9x]/[+\\-][0-9x] for (?:each|every)"
-
-# ADR-0027 β — unspent_mana migrated to the Card IR via a kept-mirror; its
-# SWEEP_DETECTORS row is deleted but the EXACT mined regex survives here as a shared
-# constant. The lane is the "you KEEP unspent mana across steps/phases" payoff — a
-# continuous mana-RULE static (CR 500.4 / 106.4). phase DOES carry a structured form
-# for the pure statics (a `StepEndUnspentMana` static-ability mode, action `Retain`
-# for the "you don't lose unspent <color> mana" cards — Leyline Tyrant, Omnath Locus
-# of Mana, Ashling, Electro, Fangorn, Upwelling — or `Transform: <color>` for the
-# convert-instead-of-lose cards — Kruphix, Horizon Stone, Omnath Locus of All, Ozai),
-# BUT the v17 projection DROPS that static mode entirely (no Effect category exists for
-# it), AND every one of those 11 structural cards already matches this regex's "don't
-# lose unspent" / "\bunspent mana\b" arms — so a structural arm (a new category + a
-# SIDECAR bump) would gain ZERO recall over this mirror. The mana-BURST riders ("Until
-# end of turn, you don't lose this mana as steps and phases end" — Savage Ventmaw,
-# Avatar Roku, Birgi, Brazen Collector, Sakiko, Rousing Refrain, …) have NO structural
-# form: phase buries the retention clause in an Unimplemented(name="lose") sub-ability
-# of a `ramp` trigger, so they MUST ride a regex mirror regardless. The regex IS the
-# cheapest correct path. The mirror and the voltron PLAN mirror reuse this one constant,
-# so detector / silence never drift. SWEEP_LABELS keeps the human label. No arm
-# spans a sentence (`.;\n`), so a flat full-text scan over the reminder-stripped oracle
-# (the _IR_KEPT_DETECTORS path) reproduces the deleted per-clause SWEEP firing set
-# byte-identically. CR 500.4 / 106.4.
-UNSPENT_MANA_REGEX = (
-    "\\bunspent mana\\b|don't lose unspent|lose unspent mana|\\bmana burn\\b"
-    "|loses? (?:one or more )?unspent mana|don't lose (?:this |unspent )?"
-    "(?:\\w+ )?mana as (?:steps|phases|those steps)"
-)
-
-# ADR-0027 — stax_taxes + symmetric_stax pinned regexes (see the SWEEP_DETECTORS
-# stax rows below for the full rationale). STAX_TAXES_REGEX is the byte-exact UNION of
-# the three deleted/kept stax_taxes producers — the _signals_regex _DETECTORS pacify
-# row (`creatures … can't attack` / `can't attack you`), the _HAND_FLOOR row
-# (`opponents can't` / `spells your opponents cast cost` / `creatures your opponents
-# control`), and the kept SWEEP row (the long opponent-tax / restriction pattern) —
-# so the _STAX_TAXES_MIRROR kept detector (_signals_ir) and the _STAX_TAXES_PLAN_MIRROR
-# voltron gate (_signals_regex) share ONE source. SYMMETRIC_STAX_REGEX is the kept
-# SWEEP row alone (symmetric_stax had no _signals_regex producer). Run per-clause over
-# the reminder-stripped kept_oracle, these reproduce the deleted regex BYTE-IDENTICALLY
-# (commander-legal, floor-disabled: stax_taxes mirror==regex==339, symmetric mirror==
-# regex==292); the broader structural restriction arm then ADDS the genuine ir_only
-# recall. CR 604.1 / 118.9.
-STAX_TAXES_REGEX = (
-    # _DETECTORS pacify row
-    r"creatures? (?:with|you don't control|an opponent controls)[^.]*can't attack"
-    r"|can't attack you\b"
-    # _HAND_FLOOR row
-    r"|\bopponents? can't\b|spells your opponents cast cost"
-    r"|creatures your opponents control"
-    # kept SWEEP row
-    r"|(?:target player|that player|each player|a player|that opponent)"
-    r"[^.]{0,90}?can't (?:cast|activate|attack|block|search|untap|draw)"
-    r"|must pay \{?\d?\}?[^.]*additional"
-    r"|spells?[^.]*cost \{?\d+\}? more to (?:cast|activate)"
-    r"|noncreature spells?[^.]*cost(?:s)? \{?\d"
-    r"|noncreature spells?[^.]*can't be cast"
-    r"|spells? with mana value \d[^.]*can't be cast"
-    r"|players? can't cast|that player can't cast spells|spells can't be cast"
-    r"|can cast spells only|your opponents control enter(?:s)? tapped"
-    r"|nonbasic lands enter(?:s)? tapped|costs? players \{?\d+\}? more"
-    r"|doing the chosen action costs"
-    r"|players? can't pay life or sacrifice nonland permanents"
-)
-SYMMETRIC_STAX_REGEX = (
-    r"players? can't (?:cast|untap|attack|gain|search their|draw|play|activate)"
-    r"|other permanents enter (?:the battlefield )?tapped"
-    r"|(?:doesn't|don't|does not) untap during (?:its|their|the)"
-)
-
-# ADR-0027 β: token_copy_makers migrated to the Card IR via a kept-mirror — the
-# deleted _HAND_FLOOR producer is pinned here byte-identically so the
-# _TOKEN_COPY_MATTERS_MIRROR kept detector (_signals_ir) and the
-# _TOKEN_COPY_MATTERS_PLAN_MIRROR voltron gate (_signals_regex) share ONE source.
-# Matched reminder-STRIPPED: a token-COPY maker / populate / token-DOUBLER payoff.
-# The `\bpopulate\b` arm covers CR 702.95 (populate IS a token copy); the "twice that
-# many … tokens" arm credits token DOUBLERS (Adrix and Nev, Mondrak — they fork
-# token-copy spells). NOT a structural CopyTokenOf/Populate arm: phase structures those
-# (421 cards) but the 80-card struct-only delta is 100% reminder-text SELF-copies
-# (Embalm/Eternalize/Offspring/Double-team) the reminder-stripped regex excludes.
-# CR 702.95 / 707.
-TOKEN_COPY_MATTERS_REGEX = "tokens? that(?:'s| are) (?:a )?cop(?:y|ies) of|create a token that's a copy|\\bpopulate\\b|twice that many[^.]*tokens?"
-# ADR-0027 clone copied-type subject (SIDECAR v30): clone_makers migrated to the Card
-# IR. This is the COMBINED deleted regex — the _DETECTORS "becomes a copy" entry UNION
-# the deleted SWEEP widen above — pinned byte-identically so the _CLONE_MATTERS_MIRROR
-# kept detector (_signals_ir) and the _CLONE_MATTERS_PLAN_MIRROR voltron gate
-# (_signals_regex) share ONE source. Matched reminder-STRIPPED: a
-# permanent that itself becomes / enters as a copy (CR 707.1) — the structural arm
-# (cat=='clone') supplies the broad "becomes a copy of target creature" recall on top,
-# this mirror recovers the 54 cards phase under-structures / mis-categorizes / copies a
-# non-creature. The two `[^.]*` arms never cross a clause on the commander-legal corpus,
-# so flat-over-kept_oracle == the deleted per-clause firing EXACTLY (137 → 137, 0 miss /
-# 0 extra). The token-copy phrase ("create a token that's a copy") is deliberately
-# EXCLUDED — that's the separate token_copy_makers lane (Dan's clone-vs-token-copy
-# boundary). CR 707.1 / 707.2.
-CLONE_MATTERS_REGEX = "becomes? a copy of|enters [^.]*as a copy of|enter (?:the battlefield )?as a copy of|may have [^.]*enter as a copy|create a copy of the card|is a copy of (?:that|the chosen) card"
-
-# ADR-0027: tokens_matter migrated to the Card IR via a kept-mirror — the UNION of the
-# two deleted _HAND_FLOOR producers is pinned here byte-identically so the
-# _TOKENS_MATTER_MIRROR kept detector (_signals_ir) and the _TOKENS_MATTER_PLAN_MIRROR
-# voltron gate (_signals_regex) share ONE source.
-# Matched reminder-STRIPPED, PER-CLAUSE. Two deleted producers, unioned:
-#   (1) the GO-WIDE count-scaler — a creature whose own/granted P/T scales with the
-#       creature board ("gets +N/+N for each creature you control"; "power … equal to
-#       the number of creatures you control" — Adeline, Leonardo, Bravado, Might of the
-#       Masses). Kind-agnostic on purpose (it counts ANY creature, so any creature-token
-#       maker pumps it).
-#   (2) the broad token PAYOFF — "tokens you control" anthems/refs (Intangible Virtue,
-#       Mirror Box, Brudiclad), a "whenever a/one or more/another … token … enters"
-#       trigger (Woodland Champion, Junk Winder), and the token DOUBLER replacement
-#       ("tokens would be created/put", "create twice that many … token", "twice that
-#       many … tokens" — Doubling Season, Parallel Lives, Mondrak, Divine Visitation).
-# NOT a structural arm: phase carries NO shape for "tokens you control" / "for each
-# creature you control" payoffs (they survive only in raw), and a structural-only
-# migration would LOSE 161 commander-legal cards. The amass / fabricate keyword cards
-# (59) already fire tokens_matter STRUCTURALLY from the IR (the amass / fabricate
-# effect-category fan-out + the moved _IR_KEYWORD_MAP keyword route), so the mirror
-# covers ONLY the two _HAND_FLOOR producers; mirror OR IR-structural reproduces the full
-# regex firing EXACTLY (commander-legal: regex==hybrid==230, 0 miss, 0 over-fire).
-# CR 111.1 / 701.47 (amass) / 702.123 (fabricate).
-TOKENS_MATTER_REGEX = "(?:gets? \\+\\d+/\\+\\d+|power (?:and toughness )?(?:is|are) equal to)[^.]*(?:for each (?:other )?creature you control|number of creatures you control)|\\btokens? you control\\b|whenever (?:a|one or more|another)[^.]*?\\btokens?\\b[^.]*?\\benters?\\b|tokens? would be (?:created|put)|create twice that many[^.]*token|twice that many[^.]*tokens?"
-
-# ADR-0027 β: entered_attacker migrated to the Card IR via a byte-identical kept-mirror.
-# The deleted _HAND_FLOOR producer is pinned here so the _ENTERED_ATTACKER_MIRROR kept
-# detector (_signals_ir) shares ONE source. The lane is the freshly-entered-attacker
-# payoff (Samut "if that creature entered this turn, draw a card" on combat damage;
-# Redoubled Stormsinger forks tokens that entered this turn on attack; Hixus rewards
-# itself having entered this turn when it blocks). The "entered (the battlefield) this
-# turn" predicate is NOT projected — it survives only in raw — so there is no structural
-# IR shape to read; for ~3 commander-legal cards a byte-identical mirror is the clean
-# SIGNALS-ONLY path (regex==mirror, 0 lost, 0 over-fire). The serve spec stays hand-
-# registered in signal_specs.py, independent of this regex.
-# CR 603.10a (entered this turn) / 506.4 / 509 (attacking creatures).
-ENTERED_ATTACKER_REGEX = "(?:deals combat damage|attacks)[^.]*entered (?:the battlefield )?this turn|entered (?:the battlefield )?this turn[^.]*(?:attacks|deals combat damage)"
-
-# ADR-0027: migrated to the Card IR via byte-identical kept-mirrors. The deleted
-# _HAND_FLOOR producer is pinned here so the kept detectors (_signals_ir) share ONE
-# source. ADR-0034 _matters sweep — SPLIT by role: the original lane fused two
-# populations under one regex's two alternations.
-#  * ISLAND_MAKERS_REGEX (`\bislandwalk\b`) — the islandwalk DOER/HAS side: islandwalk
-#    BEARERS (Thada Adel, Wrexial), GRANTERS / token-makers (Lord of Atlantis,
-#    Master of the Pearl Trident, Fishliver Oil, Chasm Skulker), and islandwalk
-#    references (Mystic Decree, Merfolk Assassin). Emits `island_makers`.
-#  * ISLAND_MATTERS_REGEX (the Zhou Yu "can't attack unless defending player controls
-#    an Island" restriction) — the cares-about-Islands PAYOFF side: a card that wants
-#    the defender to control an Island. Emits `island_matters`.
-# Splitting at the alternation IS the maker/payoff split (each old member matched
-# exactly one alternation → union is set-equal; gate: both==79, makers>0, keep>0).
-# NOT the Scryfall `islandwalk` keyword array: that lists only the keyword the card HAS,
-# missing every GRANTER (the conferred-keyword gap). Neither pattern carries a `[^.]*`
-# span, so a flat scan over the reminder-stripped oracle == the deleted floor Detector's
-# per-clause scan. The serve specs stay hand-registered in signal_specs.py. CR 702.14c
-# (islandwalk evasion) / 702.14b (landwalk is an evasion ability).
-ISLAND_MAKERS_REGEX = "\\bislandwalk\\b"
+# The Zhou Yu "can't attack unless defending player controls an Island" restriction —
+# the cares-about-Islands payoff the island_matters synth arm
+# (tree_synthesis.types_tribal) reads. CR 702.14c.
 ISLAND_MATTERS_REGEX = "can'?t attack unless defending player controls an island"
 
 # ADR-0027: vehicles_matter migrated to the Card IR via a byte-identical kept WORD
@@ -545,25 +152,6 @@ COLOR_CHANGE_REGEX = (
 )
 
 
-# ADR-0027 β: gain_control migrated to the Card IR. The deleted _DETECTORS producer (an
-# inline `gain control of` literal in _signals_regex, NOT a SWEEP row) is pinned here so
-# the NARROWED _GAIN_CONTROL_MIRROR kept detector (_signals_ir) and the
-# _GAIN_CONTROL_PLAN_MIRROR voltron gate (_signals_regex) share ONE source. UNLIKE the
-# byte-identical color_change/toughness_combat re-homes, gain_control rides a recall-
-# GAINING structural arm (cat=='gain_control' excl donate / Owned-return / give-away):
-# +85 commander-legal theft cards the bare regex MISSED ("you control enchanted creature"
-# Auras — Control Magic / Mind Control / Confiscate / Enslave / Treachery; "control
-# target player" — Mindslaver / Worst Fears; "exchange control" — Political Trickery /
-# Juxtapose), while DROPPING 4 the bare regex over-fired (a you-own reset — Gruul Charm /
-# Brand; a can't-gain protection — Guardian Beast; an own-recovery — Coveted Falcon). The
-# 9 genuine theft cards phase emits NO gain_control category for (Seize the Spotlight,
-# Power of Persuasion, Invert Polarity, Wake the Dragon, Expropriate, Midnight Crusader
-# Shuttle, Captivating Glance, Herald of Leshrac, Risky Move) ride the narrowed mirror
-# (this regex run PER-CLAUSE, vetoed per-clause by those same 3 over-fire forms). CR
-# 800.4a / 720.1 (one player controls a permanent at a time). The serve spec stays
-# hand-registered in signal_specs.py, independent of this detector.
-GAIN_CONTROL_REGEX = "gain control of"
-
 # ADR-0027 C14 — the NARROWED toughness-as-VALUE residue mirror. The combat-REDIRECT
 # alternative ("assigns combat damage equal to its toughness rather than its power") is
 # now read STRUCTURALLY (phase's AssignDamageFromToughness modification → combat_damage_
@@ -590,21 +178,6 @@ TOUGHNESS_VALUE_REGEX = (
     r"|(?<!\bbecome )(?<!\bbecomes )equal to [^.]{0,40}\btoughness\b(?! are each)"
 )
 
-# ADR-0027 β — damage_to_opp_matters migrated to the Card IR. The exact deleted
-# _DETECTORS regex (a "whenever ~ deals (noncombat) damage to a PLAYER / opponent"
-# connect-payoff — ANY damage, NOT the literal "combat damage" the combat_* keys
-# require, per the rules-lawyer audit: the connect-trigger axis for self-source
-# pingers / evasion the tribe/combat keys miss). Pinned here as a shared constant so
-# signals._IR_KEPT_DETECTORS reuses it for the kept mirror (the granted-ability / ETB-
-# burst tail phase can't structure as a DamageDone trigger) and the voltron PLAN mirror
-# in _signals_regex reuses it — so mirror / silence never drift. The structural projection (SIDECAR v13's
-# DamageToPlayer recipient marker) fires the lane on the phase-typed DamageDone
-# triggers; this regex covers the textual tail. CR 119.3 / 510.1c.
-DAMAGE_TO_OPP_MATTERS_REGEX = (
-    r"\bwhen(?:ever)?\b[^.]*?\bdeals (?:noncombat )?damage to "
-    r"(?:a player|an opponent|one of your opponents|each opponent"
-    r"|target opponent|that player|a player or planeswalker)\b"
-)
 
 # ADR-0027 β — damage_redirect migrated to the Card IR via two byte-identical kept
 # mirrors (signals-only, NO sidecar bump). The lane has two DISJOINT arms (corpus
@@ -637,95 +210,7 @@ DAMAGE_REDIRECT_REGEX = (
     "|that damage is dealt to [^.]*instead|deal that damage to [^.]*instead"
 )
 
-# ADR-0027: damage_prevention's EXACT deleted SWEEP regex, pinned so ONE source feeds
-# the _DAMAGE_PREVENTION_MIRROR kept detector (_signals_ir, recovering the 88 cards
-# phase's effect category doesn't structure) AND the _DAMAGE_PREVENTION_PLAN_MIRROR
-# voltron gate (_signals_regex). Every arm uses `[^.]*` (never crosses a period), so a
-# flat scan over the reminder-stripped kept_oracle == the deleted per-clause SWEEP
-# firing set BYTE-IDENTICALLY (466==466, 0 mismatch over commander-legal). CR 615.
-DAMAGE_PREVENTION_REGEX = (
-    "prevent the next (?:\\d+|x) damage"
-    "|prevent (?:all|the next \\d+|x|all combat|all but \\d+|that) [^.]*damage"
-    "|prevent that damage|prevent all damage"
-    "|prevent [^.]*damage that would be dealt"
-)
 
-# ADR-0027 β: free_cast migrated to the Card IR via a byte-identical kept-mirror
-# (_FREE_CAST_MIRROR in _signals_ir). The SWEEP_DETECTORS row is deleted; the EXACT
-# regex is pinned here, reused by the IR mirror and the has_other_plan plan-mirror.
-# SWEEP_LABELS keeps the label.
-FREE_CAST_REGEX = "rather than pay (?:its|their|the) mana cost|without paying (?:its|their) mana cost|may cast (?:it|that (?:card|spell)|those cards)[^.]*without paying"
-
-# ADR-0027: death_matters (the ARISTOCRATS payoff — OTHER creatures dying as a
-# resource, CR 700.4: "dies" = battlefield→graveyard) migrated to the Card IR via a
-# BYTE-IDENTICAL kept-mirror (_DEATH_MATTERS_MIRROR + the two substring-AND branches in
-# _signals_ir). The two deleted producers (the clause-scoped _DETECTORS lambda and the
-# "died this turn" _HAND_FLOOR regex) had no single structural shape: phase's `dies`
-# TRIGGER (project @ SIDECAR v11 — battlefield→graveyard, the disjoint complement of the
-# broader `leaves` event ltb_matters reads) covers only the "whenever a creature dies"
-# TRIGGER form, but the dominant family is the MORBID "if a creature died this turn"
-# CONDITION (104 cards — Bone Picker, Reaper from the Abyss, Bontu), which is NO trigger
-# at all, plus conferred / "until end of turn" / quoted dies triggers phase leaves
-# textual (Necrosynthesis, Relic Vial, Massacre Girl) and the death-trigger DOUBLERS
-# (Teysa Karlov, Drivnod). So the lane rides this byte-identical regex (commander-legal
-# corpus: regex==mirror, 0 lost, 0 over-fire) run PER-CLAUSE. The STRUCTURAL `dies`-
-# trigger arm in extract_signals_ir adds +90 ir_only recall (the verbose "is put into a
-# graveyard from the battlefield" payoffs — Field of Souls, Dingus Egg, Sarulf — the
-# literal-"dies" regex MISSED), add()-deduped with the mirror. The regex-expressible
-# branches are pinned here (reused by the IR mirror and the has_other_plan
-# _DEATH_MATTERS_PLAN_MIRROR); the mirror ALSO runs
-# the two substring-AND branches ("whenever"&"dies", "dying"&"trigger") the deleted
-# lambda did, which no single regex expresses. NO SWEEP row (death_matters was a clause-
-# scoped baseline widen, never swept). NO sidecar bump (the v11 projection already emits
-# the `dies` trigger event). CR 700.4 / 603.6e (dies ⊂ leaves the battlefield).
-DEATH_MATTERS_REGEX = (
-    r"whenever [^.]*(?:creatures?|permanents?|tokens?|they|control) die\b"
-    r"|creatures? (?:that )?died this turn"
-    r"|creature[^.]*\bdied\b[^.]*this turn"
-)
-# ADR-0027 — artifacts_matter / enchantments_matter migrated to the Card IR; the
-# per-clause text mirrors that rode beside the structural arms (the deleted oracle
-# producers' ARTIFACTS_MATTER_REGEX / ENCHANTMENTS_MATTER_REGEX / the enchantment-cast
-# idiom) were retired 2026-10-24 for typed reads of every population filter over your
-# artifacts / enchantments (``lanes.board_and_ramp._artifacts_enchantments_matter``).
-# ADR-0027 — landfall (the LAND-ETB payoff axis: a card that CARES when a land
-# enters — the "Landfall —" ability word (CR 207.2c), the keyword-LESS "whenever a
-# land you control enters" trigger, the extra-land STATIC ("play N additional
-# lands" — Azusa, Dryad of the Ilysian Grove), and land RECURSION from the graveyard
-# (Crucible of Worlds, Splendid Reclamation, Titania) that replays lands for repeat
-# landfall) migrated to the Card IR via a STRUCTURAL arm + a BYTE-IDENTICAL
-# kept-mirror. The structural `etb`-trigger arm (a Trigger whose subject is a Land)
-# in extract_signals_ir ADDS +5 ir_only recall: the DISJUNCTIVE / qualified
-# land-ETB triggers the bare "whenever a land" substring MISSED — "this land or
-# another land you control enters" (Field of the Dead), "a land you control enters
-# from exile" (Faldorn), "a nonbasic land an opponent controls enters" (Spectrum
-# Sentinel), "one or more lands enter under an opponent's control" (Deep Gnome
-# Terramancer), and the transform-on-land-ETB (Twists and Turns) — all genuine
-# land-ETB payoffs. But phase carries NO structural shape for the OTHER three
-# branches of the deleted producer: the "Landfall —" ability word as a CONDITION
-# ("if you had a land enter the battlefield this turn" — Searing Blaze, Groundswell,
-# Quarry Beetle), the extra-land STATIC ("play N additional lands" — 30 cards), and
-# land RECURSION ("play lands from your graveyard" / "return … lands … from your
-# graveyard to the battlefield" — 32 cards). A structural-only migration would LOSE
-# 78 genuine cards, so the lane ALSO rides this byte-identical regex (commander-legal
-# corpus: post-IR ⊇ original-regex, 0 lost, +5 gained) run PER-CLAUSE over the
-# reminder-stripped kept_oracle, PLUS the one SUBSTRING-AND branch the deleted lambda
-# ran on the lower-cased clause ("whenever a land" & "enter" — no single regex
-# expresses a substring-AND), checked inline in extract_signals_ir. The three
-# regex-expressible branches (the "landfall" ability word, "play N additional lands",
-# and the two land-recursion forms) are pinned here. landfall was NEVER a SWEEP key,
-# so no SWEEP row is touched (len stays >=36). NO sidecar bump (the v20 projection
-# already emits the land-ETB trigger). NOT a voltron-key add (the deleted producer
-# fed has_other_plan when it fired — forced scope 'you' → always HIGH — so a faithful
-# byte-identical reproduction, NOT _VOLTRON_SILENCING_PLAN_KEYS, restores the voltron
-# silence in _signals_regex without over-silencing the +5 ir_only recall-gain
-# bodies). CR 207.2c / 305 / 903.10a.
-LANDFALL_REGEX = (
-    r"landfall"
-    r"|play (?:an|one|two|three|\d+) additional lands?"
-    r"|play lands? from your graveyard"
-    r"|return [^.]*\blands?\b[^.]*from your graveyard to the battlefield"
-)
 # ADR-0027 — land_destruction (the LD-support build-around axis: a card whose OWN
 # ability repeatedly destroys lands — the Armageddon/Numot stax-LD plan, CR 701.8a)
 # migrated to the Card IR via a BYTE-IDENTICAL membership-gated kept-mirror. The
@@ -785,52 +270,6 @@ LAND_SACRIFICE_REGEX = (
     r"|whenever you sacrifice (?:a|one or more|another) lands?"
     r"|unless you sacrifice a land"
 )
-# ADR-0027 — cast_from_exile (the CAST/PLAY-FROM-EXILE build-around axis: payoffs and
-# enablers that cast or play cards FROM EXILE — "whenever you cast a spell from exile"
-# / "from anywhere other than your hand" Paradox triggers (Vega, Iraxxa, Quintorius
-# Kand, Nalfeshnee, Keeper of Secrets), self-cast-from-exile creatures (Eternal Scourge,
-# Misthollow Griffin, Squee), exile-and-cast engines (Court of Locthwain, Tinybones,
-# Norin), the Adventure-style "exile this card from your hand … cast it for as long as
-# it remains exiled" cycle (Masked Bandits, Rakish Revelers, Spara's Adjudicators), Plot
-# from the top of the library (Fblthp); CR 207.2c / 601.3b / 702.143 / 702.170)
-# migrated to the Card IR. phase carries NO usable STRUCTURAL form for this lane: it
-# DROPS the "from exile" zone qualifier off both the `cast_spell` trigger (no zone) AND
-# the self-cast `cast_from_zone` Effect (zones=() on Eternal Scourge / Misthollow), and
-# the only exile cast-zone phase DOES project — `castable_zones=('exile',)` — is the
-# 51-card FORETELL-SPELL serve pool, DISJOINT from the 77 detector firings (overlap 0),
-# so reading it as a detector would over-fire 51 keyword-having spells. Over the
-# commander-legal corpus (floor-disabled, by oracle_id) the structural IR emits this
-# lane on ZERO cards — the lane fired ONLY from the deleted regex (77 commander-legal,
-# all scope 'you' HIGH). This CAST_FROM_EXILE_REGEX (the EXACT deleted _HAND_FLOOR
-# pattern) run FLAT over the reminder-stripped kept_oracle in extract_signals_ir's
-# _IR_KEPT_DETECTORS loop reproduces the deleted per-clause producer BYTE-IDENTICALLY:
-# every `[^.]*?` arm anchors within a single clause and no card's match is split by a
-# `;`/`\n` only (commander-legal: flat==per-clause==77, 0 gain, 0 loss). Distinct from
-# impulse_top_play (exile the TOP of YOUR library then temporary-play — its own avenue)
-# and play_from_top (the ONGOING permission to play off the top of the LIBRARY — a
-# different zone, not exile). cast_from_exile was NEVER a SWEEP key, so no SWEEP row is
-# touched (len stays 33); only this CONSTANT is pinned here. NO sidecar bump. The
-# deleted producer fired HIGH conf scope 'you' and so counted toward has_other_plan (it
-# is NOT in _GENERIC_KEYS / _VOLTRON_COMPAT_KEYS), silencing the spurious commander-
-# damage voltron tell on a cast-from-exile creature commander that is NOT a vanilla
-# beater (Vega, Iraxxa, Quintorius Kand, Norin, Tinybones). Because the IR re-supply IS
-# this byte-identical mirror (IR==regex==77), the hybrid re-silences via
-# _VOLTRON_SILENCING_PLAN_KEYS (signals.py) — no broadening, no over-silence — matching
-# the land_sacrifice / extra_combats kept-mirror precedent; NO _CAST_FROM_EXILE_PLAN_
-# MIRROR is needed. CR 207.2c / 601.3b / 903.10a.
-CAST_FROM_EXILE_REGEX = (
-    r"top card of your library has plot"
-    r"|(?:whenever|each time) you (?:cast a spell|play a (?:card|land)"
-    r"|play a land or cast a spell)[^.]*?from exile"
-    r"|spells? you cast from exile"
-    r"|you may (?:play|cast) (?:it|that card|this card|those cards?|them)"
-    r"[^.]*?(?:for as long as it remains exiled|from exile)"
-    r"|you may play (?:a |that )?card[^.]*?from exile"
-    # Paradox (CR 207.2c): zone-agnostic "from anywhere other than your hand"
-    # payoffs (Vega, Iraxxa) — the literal-"from exile" branches miss 16/17.
-    r"|(?:cast a spell|play a land|play a card)[^.]*?"
-    r"from anywhere other than your hand"
-)
 # ADR-0027 — exile_matters (the EXILE-ZONE-AS-RESOURCE archetype axis: a card that
 # cares about the EXILE zone as a standing resource — "cards you own in exile" /
 # "card in exile with <kind> counter on it" payoffs (Cosmogoyf / Crackling Drake P/T
@@ -871,63 +310,7 @@ EXILE_MATTERS_REGEX = (
     r"cards? (?:you own )?(?:that are )?in exile"
     r"|for each card (?:you own )?(?:in )?exile"
 )
-# ADR-0027 — superfriends_matters (the PLANESWALKER-as-a-group cares-about lane:
-# "planeswalkers you control" anthems / loyalty-counter payoffs / "activate a loyalty
-# ability" engines / "planeswalker type" group refs (Leori) / "abilities of a
-# planeswalker" copiers (The Chain Veil, Oath of Teferi)) migrated to the Card IR. The
-# lane keeps its EXISTING structural arm in extract_signals_ir (a Condition gated on a
-# Planeswalker subject you control — "as long as you control a <Name> planeswalker, …",
-# "if you control a Chandra planeswalker, …"), which fires on 26 commander-legal cards
-# the deleted regex's narrow word patterns MISS (the singular "control a <Name>
-# planeswalker" gate: Charging War Boar, Court Cleric, Renegade Firebrand, Oath of
-# Chandra/Liliana). phase v0.1.19 carries NO structural form for the BROADER textual
-# refs (the "planeswalkers you control" anthem, the "loyalty counter" payoffs, the
-# "activate a loyalty ability" engines, the "abilities of a planeswalker" copiers —
-# these scatter into pump_target / counter / activated-ability shapes with no
-# "this references planeswalkers-as-a-group" tag), so those ride this
-# SUPERFRIENDS_MATTERS_REGEX (the EXACT deleted _HAND_FLOOR pattern) run FLAT over the
-# reminder-stripped kept_oracle in extract_signals_ir's _IR_KEPT_DETECTORS loop. No
-# branch carries a `[^.]*` cross-clause span, so flat==per-clause (commander-legal:
-# flat-mirror==per-clause-regex==149, 0 gain, 0 loss). The lane was a regex FLOOR lane
-# (in _IR_FLOOR_LANES, so the IR path re-ran the deleted producer); the kept mirror
-# replaces that floor re-run — superfriends_matters is removed from _IR_FLOOR_LANES
-# (floor-mirror-dep -> 0). superfriends_matters was NEVER a SWEEP key, so no SWEEP row
-# is touched (len unchanged); only this CONSTANT is pinned here. NO sidecar bump. The
-# deleted producer fired HIGH conf scope 'you' and so counted toward has_other_plan (it
-# is NOT in _GENERIC_KEYS / _VOLTRON_COMPAT_KEYS), silencing the spurious commander-
-# damage voltron tell on a superfriends engine that is NOT a vanilla beater. Because the
-# IR re-supply (structural arm + kept mirror) is BROADER than the deleted regex (+26
-# ir_only), _VOLTRON_SILENCING_PLAN_KEYS would OVER-silence those 26 structural bodies;
-# instead a byte-identical _SUPERFRIENDS_MATTERS_PLAN_MIRROR (== this regex over the
-# reminder-STRIPPED `text`) OR'd into has_other_plan restores ONLY the old regex's
-# silence set (voltron 3010 -> 3010, file-swap delta 0). CR 306 / 606 / 903.10a.
-SUPERFRIENDS_MATTERS_REGEX = (
-    r"planeswalkers? you control|loyalty counters?"
-    r"|activate (?:a |one )?loyalty|one or more loyalty"
-    r"|planeswalker type"
-    r"|abilit(?:y|ies) of (?:a |target |another |each )?planeswalker"
-)
 
-# ADR-0027: counter_doubling migrated to the Card IR. This is the byte-identical UNION
-# of the two deleted oracle regexes — the _HAND_FLOOR producer (the first three arms)
-# and this SWEEP_DETECTORS row (the last four arms) — pinned here so the
-# _COUNTER_DOUBLING_MIRROR kept detector (_signals_ir) and the _COUNTER_DOUBLING_PLAN_MIRROR
-# voltron gate (_signals_regex) share ONE source.
-# phase v0.1.19 MANGLES the one-shot / activated / triggered "double the number of …
-# counters" forms (Vorel, Gilder Bairn, Kalonian Hydra, Primordial Hydra, Voracious
-# Hydra, …) — to a generic `double` effect or a plain `place_counter`/`counter_distribute`
-# that loses the doubling semantics — so no clean structural arm reaches the 46; the
-# mirror recovers them. The structural `cat == "counter_doubling"` replacement arm adds
-# the 6 canonical replacement doublers the regex MISSED (Doubling Season, Branching
-# Evolution, Primal Vigor, Corpsejack Menace, The Earth Crystal, Struggle for Project
-# Purity). Commander-legal: mirror == old regex == 69 exactly, 0 over-fire. CR 122 / 614.
-COUNTER_DOUBLING_REGEX = (
-    r"double the number of [^.]*counters?"
-    r"|would put[^.]*counters?[^.]*\binstead\b[^.]*(?:twice|double|that many plus)"
-    r"|that many plus one[^.]*counters?"
-    r"|one or more counters? would be put on"
-    r"|(?:put|placed?) (?:twice that many|that many plus (?:one|\d+))[^.]*counters?"
-)
 # ADR-0027 — void_warp_matters migrated to the Card IR. Its SWEEP_DETECTORS row is
 # deleted; detection moves to a BYTE-IDENTICAL kept WORD MIRROR (this exact regex in
 # signals._IR_KEPT_DETECTORS, scope 'you'). Void (CR 207.2c ability word) and Warp (the
@@ -985,10 +368,10 @@ SWEEP_DETECTORS: tuple[dict, ...] = (
     # debuff anthem the HAND_FLOOR `creatures your opponents control` branch matched).
     # Because the arm is broader, the deleted regex is reproduced BYTE-IDENTICALLY by a
     # per-clause kept-mirror (signals._signals_ir, run over the reminder-stripped
-    # kept_oracle, the same input the deleted detectors scanned) of these EXACT pinned
-    # regexes: STAX_TAXES_REGEX (the union of the THREE deleted producers — the
+    # kept_oracle, the same input the deleted detectors scanned) of two pinned regexes,
+    # since retired: stax_taxes' union of the THREE deleted producers (the
     # _signals_regex _DETECTORS pacify row + the _HAND_FLOOR `opponents can't` /
-    # `creatures your opponents control` row + this SWEEP row) and SYMMETRIC_STAX_REGEX
+    # `creatures your opponents control` row + this SWEEP row) and symmetric_stax's
     # (this SWEEP row — symmetric_stax had no _signals_regex producer). The two SWEEP
     # rows are KEPT in this list (len stays 36; they ARE the pinned regex source and,
     # since extract_signals still runs them, they re-supply the regex-path has_other_plan

@@ -469,7 +469,7 @@ _TEAM_EVASION_GRANT_RX = re.compile(
     re.IGNORECASE,
 )
 # The deleted SWEEP detector's exact single-target keyword-grant regex
-# (``_sweep_detectors.KEYWORD_GRANT_TARGET_REGEX``), reused verbatim
+# (``KEYWORD_GRANT_TARGET_REGEX``, since retired), reused verbatim
 # (ADR-0038 W3 batch 4) as the split/aftermath back-half text-only-tree
 # residue read below — single source, zero drift.
 _KEYWORD_GRANT_TARGET_KEPT_RX = re.compile(

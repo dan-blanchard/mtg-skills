@@ -185,6 +185,8 @@ PAGE_ONLY_SUBJECTS: Final = frozenset(
         ("permanent_etb", "put"),
         # a permanent you control returned to hand to replay, a land included
         ("permanent_etb", "replay"),
+        # a land that is or makes itself a creature (Mutavault, Dryad Arbor)
+        ("land_creatures_matter", "self"),
     }
 )
 

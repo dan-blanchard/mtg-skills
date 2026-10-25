@@ -5647,6 +5647,82 @@ BRIDGES.update(
 )
 
 
+# Teferi's Time Twist: "Exile target permanent you control. Return that card to
+# the battlefield under its owner's control at the beginning of the next end
+# step." phase keeps only the "enters with an additional +1/+1 counter"
+# replacement; the exile and return leave no node.
+_TIME_TWIST_BLINK_RX = re.compile(
+    r"\bexile target permanent you control\. return that card to the "
+    r"battlefield\b",
+    re.IGNORECASE,
+)
+
+
+def _no_change_zone(tree: ConceptTree) -> bool:
+    return not tree.has_effect("change_zone")
+
+
+# Edgar, King of Figaro's Two-Headed Coin — "The first time you flip one or more
+# coins each turn, those coins come up heads and you win those flips" (a flip
+# fixer, CR 705.3) — parks whole as an Unimplemented residue.
+_FLIP_RESULT_FIXED_RX = re.compile(
+    r"\bcoins? come up heads and you win\b", re.IGNORECASE
+)
+
+
+def _flip_result_fixed_parked(tree: ConceptTree) -> bool:
+    return _says(_FLIP_RESULT_FIXED_RX, tree.residues())
+
+
+BRIDGES.update(
+    {
+        b.bridge_id: b
+        for b in (
+            Bridge(
+                bridge_id="blink_spell_dropped",
+                key="blink_flicker",
+                kind="dropped_clause",
+                todo=(
+                    "upstream phase-rs report candidate (Dan posts): Teferi's Time "
+                    "Twist's 'Exile target permanent you control. Return that card "
+                    "to the battlefield …' leaves no node beside its +1/+1 counter "
+                    "replacement — retires on the phase bump that types the exile "
+                    "and the return"
+                ),
+                census=(
+                    "1 hit / the legal corpus's exile-and-return spells with no "
+                    "zone-change node (Teferi's Time Twist), MTGJSON 2026-10-17 @ "
+                    "phase v0.104.0, 2026-10-25"
+                ),
+                pins=("Teferi's Time Twist",),
+                gap=_no_change_zone,
+                match=_oracle_match(_TIME_TWIST_BLINK_RX),
+                subject="enabler",
+            ),
+            Bridge(
+                bridge_id="flip_result_fixer_parse_failure",
+                key="coin_flip",
+                kind="upstream_parse_failure",
+                todo=(
+                    "upstream phase-rs report candidate (Dan posts): Edgar, King of "
+                    "Figaro's 'those coins come up heads and you win those flips' "
+                    "parks as an Unimplemented residue — retires on the phase bump "
+                    "that types the fixed flip result"
+                ),
+                census=(
+                    "1 hit / the legal corpus's parked flip fixers (Edgar, King of "
+                    "Figaro), MTGJSON 2026-10-17 @ phase v0.104.0, 2026-10-25"
+                ),
+                pins=("Edgar, King of Figaro",),
+                gap=_flip_result_fixed_parked,
+                match=_flip_result_fixed_parked,
+                subject="fixer",
+            ),
+        )
+    }
+)
+
+
 def bridge_fires(bridge_id: str, tree: ConceptTree) -> bool:
     """Whether the registered bridge fires for this tree (gap AND match)."""
     return BRIDGES[bridge_id].fires(tree)

@@ -322,13 +322,7 @@ SPECS_4: dict[tuple[str, str], SignalSpec] = {
                 "Punish land loss",
                 "turn every destroyed land into damage or value (Dingus Egg, "
                 "Price of Glory)",
-                serve=Serve(
-                    oracle=re.compile(
-                        r"whenever a land(?: card)? is put into a graveyard"
-                        r"|whenever a player taps a land[^.]*destroy",
-                        _IC,
-                    )
-                ),
+                serve=Serve(signal_idents=frozenset({"land_destruction|you|punish"})),
             ),
             _LANDS_FROM_GRAVE_EXTRA,
         ),
@@ -670,7 +664,9 @@ SPECS_4: dict[tuple[str, str], SignalSpec] = {
         None,
         serve_idents=frozenset({"colorless_matters|you|"}),
         serve_keywords=("devoid",),
+        # The colourless Eldrazi only (devoid's included): Nest Invader is green.
         serve_types=("eldrazi",),
+        serve_types_colorless=True,
         serve_not=r"counter target colorless",
     ),
     # ADR-0027 #24n G1 — base_power_matters (NEW niche lane). The payoffs that REWARD /

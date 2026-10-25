@@ -2583,6 +2583,8 @@ def _land_destruction(tree: ConceptTree) -> list[Signal]:
     a cost or a drawback, not land destruction (Return of the Nightstalkers).
     The membership floor's subject-less ident stays the repeatable-LD
     commander's (Numot), and ``mass_land_denial`` the brackets' read (ADR-0030).
+    A land-loss payoff (a trigger on a land put into a graveyard from the
+    battlefield) carries ``punish``.
     Scope "you", HIGH.
     """
     kinds: set[str] = set()
@@ -2594,6 +2596,33 @@ def _land_destruction(tree: ConceptTree) -> list[Signal]:
             kinds.add(kind)
     if any("Land" in types for _c, types in _edict_answers(tree)):
         kinds.add("sacrifice")
+    for unit in tree.units:
+        vc = getattr(unit.node, "valid_card", None)
+        if (
+            unit.origin != "trigger"
+            or filter_core_types(vc) != ("Land",)
+            or filter_controller(vc) == "You"
+        ):
+            continue
+        # A payoff for every land put into a graveyard from the battlefield, any
+        # player's (Dingus Egg, Akki Raider): subject ``punish``, the carer of a
+        # land-destruction deck.
+        if (
+            getattr(unit.node, "mode", None) == "ChangesZone"
+            and getattr(unit.node, "origin", None) == "Battlefield"
+            and getattr(unit.node, "destination", None) == "Graveyard"
+        ):
+            kinds.add("punish")
+        # A trigger on a land that destroys that land (Price of Glory's "Whenever
+        # a player taps a land for mana, if it's not that player's turn, destroy
+        # that land").
+        if any(
+            tag_of(c.node) == "Destroy"
+            and tag_of(getattr(c.node, "target", None))
+            in ("ParentTarget", "TriggeringSource")
+            for c in unit.effects
+        ):
+            kinds.add("destroy")
     return [
         Signal("land_destruction", "you", kind, "", tree.name, "high")
         for kind in sorted(kinds)

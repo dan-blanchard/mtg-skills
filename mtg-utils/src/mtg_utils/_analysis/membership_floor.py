@@ -100,7 +100,7 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # _HAND_FLOOR producers (this GO-WIDE count-scaler — "gets +N/+N for each creature
     # you control" / "power … equal to the number of creatures you control": Leonardo,
     # Adeline, Suki, Bravado — and the broad token PAYOFF producer below) are unioned
-    # into TOKENS_MATTER_REGEX (_sweep_detectors) and re-fired byte-identically by
+    # into TOKENS_MATTER_REGEX (since retired) and re-fired byte-identically by
     # _TOKENS_MATTER_MIRROR in _signals_ir. Both fired HIGH-confidence (forced scope
     # 'you') and fed has_other_plan (a go-wide token engine is a real plan, not a
     # vanilla beater), so the voltron silence is re-supplied via
@@ -191,8 +191,9 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # ADR-0027: death_matters migrated to the Card IR. This "creature DIED this turn"
     # _HAND_FLOOR producer (scope "any", high-confidence — it fed has_other_plan) is
     # deleted along with the clause-scoped _DETECTORS producer above; both survive
-    # byte-identically as the _DEATH_MATTERS_MIRROR in _signals_ir (the union pinned as
-    # DEATH_MATTERS_REGEX), and the morbid-condition family feeds the regex-path
+    # byte-identically as the _DEATH_MATTERS_MIRROR in _signals_ir (the union later
+    # DEATH_MATTERS_REGEX, since retired), and the morbid-condition family feeds the
+    # regex-path
     # has_other_plan via _DEATH_MATTERS_PLAN_MIRROR below. The serve spec stays hand-
     # registered in signal_specs.py. CR 700.4.
     # ADR-0027 β: debuff_makers migrated to the Card IR. This Maha opponent-SHRINK
@@ -307,7 +308,7 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # predicate is NOT projected (it survives only in raw), so there is no
     # structural IR shape to read — for ~3 commander-legal cards the clean
     # SIGNALS-ONLY path is a byte-identical _ENTERED_ATTACKER_MIRROR of the exact
-    # deleted regex (pinned as ENTERED_ATTACKER_REGEX in _sweep_detectors), run
+    # deleted regex (later ENTERED_ATTACKER_REGEX, since retired), run
     # per-clause over the reminder-stripped oracle in _signals_ir, byte-identical
     # to this deleted floor Detector. NO voltron PLAN mirror is needed: each of
     # the 3 cards keeps has_other_plan via OTHER high-confidence non-generic
@@ -525,7 +526,7 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # (and the SWEEP_DETECTORS row) are deleted. The lane fires from the IR arm +
     # _COST_REDUCER_MIRROR in _signals_ir; the deleted regex's voltron silence is
     # restored by _COST_REDUCTION_PLAN_MIRROR above (its high-confidence producer fed
-    # has_other_plan). The serve survives via the pinned COST_REDUCTION_REGEX constant.
+    # has_other_plan). (Its COST_REDUCTION_REGEX constant is since retired.)
     # ADR-0027: cast_from_exile migrated to the Card IR — this _HAND_FLOOR producer
     # (the CAST/PLAY-FROM-EXILE build-around: payoffs/enablers that cast or play cards
     # FROM EXILE — plot, the "from exile" / "from anywhere other than your hand" Paradox
@@ -535,7 +536,7 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # cast_from_zone Effect; the only exile cast-zone it projects — castable_zones=
     # ('exile',) — is the 51-card foretell-spell SERVE pool, DISJOINT from these 77
     # detector firings), so the lane fires SOLELY from the byte-identical kept word
-    # mirror — CAST_FROM_EXILE_REGEX (pinned in _sweep_detectors) run FLAT over the
+    # mirror — CAST_FROM_EXILE_REGEX (since retired) run FLAT over the
     # reminder-stripped kept_oracle in extract_signals_ir's _IR_KEPT_DETECTORS loop
     # (commander-legal: flat==per-clause==77, 0 gain/loss). Distinct from impulse_top_
     # play (exile the TOP of YOUR library then temporary-play — its own avenue) and
@@ -804,7 +805,8 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # ── Mechanics recovered from the "rejected" families (still-zero commanders) ──
     # ADR-0027 β: token_copy_makers migrated to the Card IR via a kept-mirror — the
     # lane fires from _TOKEN_COPY_MATTERS_MIRROR in _signals_ir (the EXACT deleted
-    # regex, pinned as TOKEN_COPY_MATTERS_REGEX, over the reminder-stripped oracle),
+    # regex, later TOKEN_COPY_MATTERS_REGEX, since retired, over the reminder-stripped
+    # oracle),
     # NOT a structural CopyTokenOf/Populate arm (phase structures those but the 80-card
     # struct-only delta is 100% reminder-text SELF-copies — Embalm/Eternalize/Offspring/
     # Double-team — the regex excludes). This _HAND_FLOOR producer fired HIGH-confidence
@@ -882,7 +884,8 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # over-fired on GY-hate / recursion — "exile target nonland CARD from a graveyard",
     # Moratorium Stone / Secret Salvage / Shiko — which is NOT battlefield removal; the
     # structural arm excludes a graveyard zone, correctly dropping them). The SWEEP
-    # row's broader regex survives as EXILE_REMOVAL_REGEX (the byte-identical kept
+    # row's broader regex survived as EXILE_REMOVAL_REGEX, since retired (the
+    # byte-identical kept
     # mirror); the serve spec stays hand-registered. CR 406.1 / 115.1.
     # ADR-0027: counter_control migrated to the Card IR — phase's `counter_spell`
     # effect category plus a `counter_spell` dropped-static face marker for the
@@ -925,7 +928,7 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # over-silence those recall-gain bodies. The serve spec (signal_specs.py, a
     # standalone _spec on untap effects) survives. CR 701.16 / 903.10a. ADR-0027 β:
     # gain_control migrated to the Card IR — this _DETECTORS producer (the bare `gain
-    # control of` literal, pinned now as GAIN_CONTROL_REGEX in _sweep_detectors) is
+    # control of` literal, later GAIN_CONTROL_REGEX, since retired) is
     # deleted. The lane fires from a GATED structural arm in extract_signals_ir
     # (cat=='gain_control' excl donate / Owned-return / give-away — a +85 recall-gaining
     # superset that catches the "you control enchanted creature" / "control target
@@ -963,7 +966,7 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # missed), so a byte-identical _DAMAGE_TO_OPP_MATTERS_PLAN_MIRROR below re-supplies
     # the deleted high-confidence producer's voltron silence — NOT
     # _VOLTRON_SILENCING_PLAN_KEYS (that would over-silence the ir_only recall-gain
-    # bodies). The exact regex is pinned as DAMAGE_TO_OPP_MATTERS_REGEX
+    # bodies). The exact regex was DAMAGE_TO_OPP_MATTERS_REGEX, since retired
     # (_sweep_detectors), shared by the mirror, the plan-mirror, and the hand-registered
     # serve. Distinct from combat_damage_to_opp (already migrated 42f6d81 — the literal
     # "combat damage to a player" recipient). CR 119.3. ADR-0027: permanent_etb migrated
@@ -1003,8 +1006,9 @@ _HAND_FLOOR: tuple[tuple[str, re.Pattern[str], str], ...] = (
     # broad "becomes a copy of target creature" family (triggered/activated/sorcery
     # clones — Cytoshape, Oko, Lazav, Sunfrill Imitator's Dinosaur) the narrow ETB-only
     # patterns missed, UNION a byte- identical _CLONE_MATTERS_MIRROR (the COMBINED
-    # deleted regex — this _DETECTORS entry plus the SWEEP widen, pinned as
-    # CLONE_MATTERS_REGEX) over the reminder-stripped kept_oracle for the 54 cards phase
+    # deleted regex — this _DETECTORS entry plus the SWEEP widen, later
+    # CLONE_MATTERS_REGEX, since retired) over the reminder-stripped kept_oracle for the
+    # 54 cards phase
     # under-structures (Spark Double / Stunt Double / Mockingbird — no clone effect) or
     # that copy a non-creature (Copy Artifact — the regex fired clone_makers regardless
     # of copied type). A token-copy clone ("create a token that's a copy" — Mirror

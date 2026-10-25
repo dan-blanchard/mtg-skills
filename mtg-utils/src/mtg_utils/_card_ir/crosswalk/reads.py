@@ -3821,6 +3821,29 @@ def adds_creature_type(static_def: object) -> bool:
     return False
 
 
+def granted_card_types(static_def: object) -> tuple[str, ...]:
+    """The card types a continuous effect gives its objects without making them
+    creatures (CR 205.1b: "becomes an artifact in addition to its other types"
+    — Memnarchitect, Neurok Transmuter; a ``SetCardTypes`` replacing them —
+    a Licid's "becomes an Aura enchantment", Vraska, Betrayal's Sting's
+    Treasure artifact). Empty for an animation (:func:`adds_creature_type`,
+    CR 613.1d — Karn's Touch's "becomes an artifact creature"), which this read
+    leaves to the animation lanes."""
+    if adds_creature_type(static_def):
+        return ()
+    out: list[str] = []
+    for mod in getattr(static_def, "modifications", None) or ():
+        tag = tag_of(mod)
+        if tag == "AddType":
+            types = [getattr(mod, "core_type", None)]
+        elif tag == "SetCardTypes":
+            types = list(getattr(mod, "core_types", None) or ())
+        else:
+            continue
+        out.extend(t for t in types if isinstance(t, str) and t not in out)
+    return tuple(out)
+
+
 def _static_defs(root: object, *, emblem: bool = False) -> tuple[TypedMirrorNode, ...]:
     if isinstance(root, TypedMirrorNode):
         attr = _EMBLEM_STATIC_DEFS_CACHE_ATTR if emblem else _STATIC_DEFS_CACHE_ATTR
@@ -4524,6 +4547,33 @@ def spell_count_at_least(root: object) -> int:
             if isinstance(c, int) and c > best:
                 best = c
     return best
+
+
+def counts_behind_another_player(root: object) -> frozenset[int]:
+    """The ids of the ``ObjectCount`` nodes under ``root`` that count your own
+    objects in a comparison another player wins: "each opponent who controls
+    more artifacts than you" (Ward of Bones), "if an opponent controls more
+    lands than you". The check is for having FEWER of them, so the count is no
+    reason to play more."""
+    out: set[int] = set()
+    for n in _iter_typed_nodes(root):
+        if tag_of(n) != "QuantityComparison":
+            continue
+        sides = []
+        for side in (getattr(n, "lhs", None), getattr(n, "rhs", None)):
+            qty = getattr(side, "qty", None) if tag_of(side) == "Ref" else None
+            if tag_of(qty) != "ObjectCount":
+                break
+            sides.append((qty, filter_controller(getattr(qty, "filter", None))))
+        if len(sides) != 2:
+            continue
+        (lq, lc), (rq, rc) = sides
+        comp = getattr(n, "comparator", None)
+        if comp in ("GT", "GE") and rc == "You" and lc not in (None, "You"):
+            out.add(id(rq))
+        elif comp in ("LT", "LE") and lc == "You" and rc not in (None, "You"):
+            out.add(id(lq))
+    return frozenset(out)
 
 
 def spell_velocity_static_two(root: object) -> bool:

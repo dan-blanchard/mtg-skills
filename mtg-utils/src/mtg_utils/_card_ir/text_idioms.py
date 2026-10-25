@@ -90,14 +90,6 @@ _GOAD_REWARD_REF = re.compile(
     re.IGNORECASE,
 )
 
-# "becomes a/an artifact|enchantment" — a TYPE-GRANT (animate / grant the type) whose
-# granted card-type phase drops to a subject=None base_pt_set/animate/state. Anchored
-# on "becomes" + the type so a token "create a token that's an artifact" (a maker, not
-# a grant) and a clone "becomes a copy of" never match.
-_BECOMES_TYPE_RE = re.compile(
-    r"becomes? (?:a|an) (?:\w+ )*?(artifact|enchantment)\b", re.IGNORECASE
-)
-
 # ADR-0027 counter/modified taxonomy — strip a leaked comparator phrase off a
 # phase counter-KIND string. phase's filter-property ``counters.data`` is usually a
 # clean kind ("oil", "time", "bounty") but sometimes carries the comparator clause

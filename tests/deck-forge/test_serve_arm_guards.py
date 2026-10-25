@@ -76,7 +76,8 @@ ARM_PINS: dict[tuple[str, str], tuple[str, str]] = {
         "Antler Skulkin",
         "Colossal Dreadmaw",
     ),
-    ("colorless_matters|you", "types"): ("Reality Smasher", "Grizzly Bears"),
+    # a colourless Eldrazi; Nest Invader is green
+    ("colorless_matters|you", "types"): ("Reality Smasher", "Nest Invader"),
     ("colorless_matters|you", "keywords"): ("Barrage Tyrant", "Grizzly Bears"),
     ("combat_damage_to_opp|opponents", "keywords"): ("Hidden Strings", "Counterspell"),
     ("cost_reduction|you", "cmc_min"): ("Worldspine Wurm", "Colossal Dreadmaw"),
@@ -261,7 +262,11 @@ def _arm_alone(serve: Serve, arm: str) -> Serve:
         serve = serve.all_of[int(idx)]
     kw = {arm: getattr(serve, arm)}
     if arm == "types":
-        kw |= {"not_types": serve.not_types, "types_cmc_min": serve.types_cmc_min}
+        kw |= {
+            "not_types": serve.not_types,
+            "types_cmc_min": serve.types_cmc_min,
+            "types_colorless": serve.types_colorless,
+        }
     return dataclasses.replace(Serve(), **kw)
 
 

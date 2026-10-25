@@ -284,7 +284,7 @@ def _kicked_spell_matters(tree: ConceptTree) -> list[Signal]:
 # Wealth). phase structures ``cast_from_zone``/``alt_cost`` but carries no
 # 'free' discriminator distinguishing a genuine free-cast from a flash-
 # grant/Bargain/Prototype alt-cost, so the deleted SWEEP regex (pinned
-# ``FREE_CAST_REGEX`` in ``_sweep_detectors.py``) is the only tell — copied
+# ``FREE_CAST_REGEX``, since retired) is the only tell — copied
 # byte-identically here (NOT imported, matching the existing
 # ``_MINUS_COUNTER_KEPT_RX`` / ``_COST_*_KEPT_RX`` inline-copy precedent in
 # this module). The "without paying its mana cost" / "rather than pay ...

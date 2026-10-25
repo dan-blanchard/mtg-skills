@@ -15,7 +15,6 @@ import re
 from dataclasses import dataclass, field
 
 from mtg_utils._analysis._sweep_detectors import (
-    DIES_RECURSION_REGEX,
     KEYWORD_COUNTER_REGEX,
     PUMP_MATTERS_REGEX,
     SWEEP_DETECTORS,
@@ -115,6 +114,11 @@ class Serve:
     # greater). Unlike ``cmc_min`` — an OR dimension of its own — it never serves
     # a card by itself.
     types_cmc_min: float | None = None
+    # The ``types`` arm's colour gate: with it set, a card matching ``types``
+    # serves through it only if it is colourless (Reality Smasher, Eldrazi
+    # Displacer's devoid — CR 702.114a; not Nest Invader, a green Eldrazi). Like
+    # ``types_cmc_min``, never an arm alone.
+    types_colorless: bool = False
     # Not a match dimension: the LANDS this serve matches are the avenue's feeders
     # and count toward its depth (the land-type lane's Deserts). Every other
     # avenue's land members are mana base, never theme support (``_tuner.metrics
@@ -181,6 +185,7 @@ class Serve:
                 self.types_cmc_min is None
                 or (card.get("cmc") or 0) >= self.types_cmc_min
             )
+            and (not self.types_colorless or _is_colorless(card))
         ):
             return True
         if self.keywords:
@@ -296,6 +301,8 @@ class Serve:
             out["not_types"] = sorted(self.not_types)
         if self.types_cmc_min is not None:
             out["types_cmc_min"] = self.types_cmc_min
+        if self.types_colorless:
+            out["types_colorless"] = True
         if self.lands_feed:
             out["lands_feed"] = True
         if self.keywords:
@@ -333,8 +340,8 @@ class Serve:
         return out
 
     def admits_nothing(self) -> bool:
-        """True for a serve with no dimension set (``Serve()``, One-sided keep-N's):
-        no card feeds it, so no page filters by it."""
+        """True for a serve with no dimension set (``Serve()``): no card feeds
+        it, so no page filters by it."""
         return self == Serve()
 
     def is_structured(self) -> bool:
@@ -397,6 +404,16 @@ def _compile(pat: str | None) -> re.Pattern[str] | None:
         return None
 
 
+def _is_colorless(card: dict) -> bool:
+    """Whether the card has no colour (CR 105.2c), read off its front face for a
+    double-faced card whose record carries the colours per face."""
+    colors = card.get("colors")
+    if colors is None:
+        faces = card.get("card_faces") or ()
+        colors = faces[0].get("colors") if faces else None
+    return colors is not None and not colors
+
+
 def serve_from_dict(data: dict) -> Serve:
     """Rebuild a Serve from an avenue dict's stored ``serve`` (or a bare ``search``
     fragment: ``oracle`` + ``card_type``). Used by ranking to classify candidates with
@@ -409,6 +426,7 @@ def serve_from_dict(data: dict) -> Serve:
         types=frozenset(t.lower() for t in (types or ())),
         not_types=frozenset(t.lower() for t in (data.get("not_types") or ())),
         types_cmc_min=data.get("types_cmc_min"),
+        types_colorless=bool(data.get("types_colorless")),
         lands_feed=bool(data.get("lands_feed")),
         keywords=frozenset(k.lower() for k in (data.get("keywords") or ())),
         cmc_min=data.get("cmc_min"),
@@ -458,8 +476,7 @@ class SignalSpec:
     type's ``card_type``, a preset, a name — that pages by its own fetch (the
     tribe's members, not the generic tribal support its serve also admits); a
     mana-value band beside nothing else narrows the serve's page. Empty for
-    most themes. Its one oracle pattern is One-sided keep-N's, whose serve
-    admits nothing (``Serve.admits_nothing``), so it has no serve to page by."""
+    most themes, and never an oracle pattern."""
 
     label: str
     avenue: str
@@ -490,6 +507,8 @@ def _spec(
     serve_mana_cost: str | None = None,
     serve_idents: frozenset[str] = frozenset(),
     serve_not: str | None = None,
+    serve_lands_feed: bool = False,
+    serve_types_colorless: bool = False,
 ) -> SignalSpec:
     return SignalSpec(
         label=label,
@@ -512,6 +531,8 @@ def _spec(
             mana_cost=re.compile(serve_mana_cost, _IC) if serve_mana_cost else None,
             signal_idents=serve_idents,
             not_oracle=re.compile(serve_not, _IC) if serve_not else None,
+            lands_feed=serve_lands_feed,
+            types_colorless=serve_types_colorless,
         ),
         extras=tuple(extras),
     )
@@ -787,36 +808,25 @@ _TOKEN_MAKER_EXTRA = SubAvenue(
     "Zendikar / Deep Forest Hermit)",
     serve=Serve(oracle=re.compile(_TOKEN_MAKER_ORACLE, _IC)),
 )
-# Flicker enablers (CR 603.6e) for a repeated-ETB commander — re-use your own ETBs.
-# Pronoun/"you control"-return anchor keeps reanimation (graveyard return) out.
-_FLICKER_ORACLE = (
-    r"exile[^.]*(?:creature|permanent)s?(?: you control)?[^.]*return "
-    r"(?:it|them|that card|those cards|that permanent)[^.]*battlefield"
-    # Two-sentence form: "exile … . Return it/that … battlefield" (Charming Prince,
-    # Flickerwisp) — crosses one sentence boundary, anchored to a return-pronoun.
-    r"|exile[^.]{0,90}?\.\s*returns? (?:it|them|that|those)[^.]{0,50}?battlefield"
-)
+# Flicker enablers (CR 603.6e) for a repeated-ETB commander — re-use your own ETBs:
+# the blink lane's exile-and-return of a permanent you control.
 _FLICKER_EXTRA = SubAvenue(
     "Blink / flicker",
     "exile-and-return your own ETB creatures to re-use their enter triggers "
     "(Ephemerate / Cloudshift / Conjurer's Closet)",
-    serve=Serve(oracle=re.compile(_FLICKER_ORACLE, _IC)),
+    serve=Serve(signal_idents=frozenset({"blink_flicker|you|enabler"})),
     search={"preset_names": ("blink",)},
 )
 # Dies-recursion is a DISTINCT mechanic from flicker (CR: blink exiles to the exile
 # zone, 400.1; dies puts to the graveyard, 700.4 — different zones, 603.6c). Both
 # re-fire an ETB by making the creature leave and return, so an ETB-reuse / LTB
 # commander wants BOTH — but as SEPARATE avenues, never lumped into the flicker serve.
-# Mirrors the dies_recursion lane (bare dies-return grants + undying/persist).
-# ADR-0027: dies_recursion migrated to the Card IR; its SWEEP_DETECTORS row is deleted,
-# so reuse the shared DIES_RECURSION_REGEX constant (the serve keeps the old regex,
-# kept in lockstep with the IR kept-mirror so serve and detection never drift).
-_DIES_RECURSION_ORACLE = DIES_RECURSION_REGEX
+# The dies_recursion lane: dies-return grants, undying / persist, earthbend's return.
 _DIES_RECURSION_EXTRA = SubAvenue(
     "Dies-recursion",
     "creatures that come back when they die — re-fire enter triggers via death "
     "(Feign Death / Supernatural Stamina / undying / persist)",
-    serve=Serve(oracle=re.compile(_DIES_RECURSION_ORACLE, _IC)),
+    serve=Serve(signal_idents=frozenset({"dies_recursion|you|"})),
 )
 # Activated sacrifice OUTLETS (Viscera Seer / Ashnod's Altar / Carrion Feeder): a cost
 # that sacs a creature/permanent, to kill a self-death-payoff commander on demand.
@@ -830,25 +840,14 @@ _SAC_OUTLET_EXTRA = SubAvenue(
     "its death trigger (Viscera Seer / Ashnod's Altar / Carrion Feeder)",
     serve=Serve(oracle=re.compile(_SAC_OUTLET_ORACLE, _IC)),
 )
-# Self-bounce ETB creatures (Whitemane Lion / Kor Skyfisher / Stonecloaker): "when this
-# creature enters, return a/another permanent you control to its owner's hand" — a
-# RECAST engine. Recasting re-fires both the creature-cast trigger and the enter
-# trigger, so a creature-cast / ETB commander wants them. Anchored to "you control" so
-# a tempo bounce of an OPPONENT's permanent never registers.
-_SELF_BOUNCE_ORACLE = (
-    # ETB self-bounce (Whitemane Lion, Kor Skyfisher) AND the upkeep/end-step engines
-    # (Mistbreath Elder, First Responder) that return your own creature each turn to
-    # re-fire its enter trigger on recast. Loose middle catches "up to one other".
-    r"(?:when this creature enters,?(?: you may)?"
-    r"|at the beginning of (?:your|each) (?:upkeep|end step),?(?: you may)?) "
-    r"return (?:a|an|another|target|up to one|up to two)[^.]{0,30}?"
-    r"(?:creature|permanent|nonland permanent)s? you control to (?:its|their) owner"
-)
+# Self-bounce recast engines (Whitemane Lion / Kor Skyfisher / Stonecloaker, Mistbreath
+# Elder's upkeep return): a permanent you control returned to your hand to recast,
+# re-firing both the creature-cast trigger and the enter trigger.
 _SELF_BOUNCE_EXTRA = SubAvenue(
     "Self-bounce recast engines",
     "creatures that return your own permanent on enter — recast to re-fire enter and "
     "cast triggers (Whitemane Lion / Kor Skyfisher / Stonecloaker)",
-    serve=Serve(oracle=re.compile(_SELF_BOUNCE_ORACLE, _IC)),
+    serve=Serve(signal_idents=frozenset({"permanent_recast|you|replay"})),
 )
 # Self-SACRIFICING creatures (Spore Frog / Caustic Caterpillar / Selfless Spirit): the
 # sac is the activation cost, so one use both yields a repeatable effect AND drops the
