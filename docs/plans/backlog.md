@@ -232,9 +232,14 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   not the ~100k-printing pool: 5.3 → 1.9 s of a profiled Blood Rites tune
   (18.5 → 14.9 s), warm tunes 13.7–17.1 → 11.2–12.3 s, swaps and guide matches
   unchanged on all 25 precons. A per-serve slice memo measured no gain (two serve pages a
-  tune). Left, by size: `signals_index.signal_source_files` walks the 214
-  modules' ASTs twice a process (2.6 s) to key the sidecar, and the pages' own
-  filters (presets, serves) over the slice (1.6 s).
+  tune). The sidecar key's closure walk memoizes each module's import read by
+  the sha256 of its bytes (in-process and under `$TMPDIR`; the walk and the
+  content hash still run every load), the live known-tokens.toml parse is a
+  pickle beside it, and the phase card-data load runs with the cyclic GC paused:
+  per process 0.6 + 0.3 + 0.8 s off, warm tunes 10.1–11.5 → 7.7–9.2 s on three
+  precons, output byte-identical. Left, by size: the job-quality reads build
+  each candidate's synthesized trees (3.5 s profiled of a Blood Rites tune), and
+  the pages' own filters (presets, serves) over the slice (1.6 s profiled).
 
 - **Competitive Brawl's "banned as a commander" reads as `restricted`.** The
   2026-10-12 B&R update introduced the category (mtg.wiki "Competitive Brawl"

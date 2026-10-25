@@ -9,12 +9,15 @@ with no real bulk / phase cache / network.
 
 from __future__ import annotations
 
+import importlib
+import os
 import pickle
 import threading
 import time
 
 import pytest
 
+import mtg_utils
 from mtg_utils import theme_presets
 from mtg_utils._analysis import signals_index
 from mtg_utils._analysis.signals import Signal
@@ -151,6 +154,102 @@ class TestSignalSourceFiles:
         # committing this test).
         files = signals_index.signal_source_files()
         assert not any("signal_specs" in p.parts for p in files)
+
+
+@pytest.fixture
+def fake_closure(tmp_path, monkeypatch):
+    """A two-module closure outside the real source tree: ``mtg_utils.zz_root``
+    imports ``mtg_utils.zz_lane`` lazily (inside a function, as the real lanes'
+    heavy imports are), both served from a temp dir spliced onto
+    ``mtg_utils.__path__``, with the import memo's disk copy under a temp
+    ``$TMPDIR`` and its in-process copy empty. Returns ``(pkg_dir, new_process)``;
+    ``new_process()`` drops the in-process memo, as a fresh process starts."""
+    pkg = tmp_path / "pkg"
+    pkg.mkdir()
+    (pkg / "zz_root.py").write_text(
+        "def lazy():\n    import mtg_utils.zz_lane\n", encoding="utf-8"
+    )
+    (pkg / "zz_lane.py").write_text("X = 1\n", encoding="utf-8")
+    monkeypatch.setattr(mtg_utils, "__path__", [*mtg_utils.__path__, str(pkg)])
+    monkeypatch.setattr(signals_index, "_ROOT_MODULES", ("mtg_utils.zz_root",))
+    tmpdir = tmp_path / "tmpdir"
+    tmpdir.mkdir()
+    monkeypatch.setenv("TMPDIR", str(tmpdir))
+    importlib.invalidate_caches()
+
+    def new_process() -> None:
+        monkeypatch.setattr(signals_index, "_IMPORTS_BY_DIGEST", {})
+        monkeypatch.setattr(signals_index, "_IMPORTS_LOADED", [False])
+
+    new_process()
+    return pkg, new_process
+
+
+class TestImportMemo:
+    """The closure walk's per-file import read is memoized by the file's content
+    digest, in-process and on disk: a warm walk parses nothing, and a walk after
+    an edit is exactly what a fresh parse gives."""
+
+    def test_a_warm_walk_parses_nothing(self, fake_closure, monkeypatch):
+        _pkg, new_process = fake_closure
+        cold = signals_index.signal_source_files()
+        assert {p.name for p in cold} == {"zz_root.py", "zz_lane.py"}
+
+        new_process()
+
+        def boom(*_args):
+            raise AssertionError("re-parsed a file whose bytes the memo holds")
+
+        monkeypatch.setattr(signals_index, "_parse_mtg_imports", boom)
+        assert signals_index.signal_source_files() == cold
+
+    def test_an_edit_adding_an_import_reaches_the_new_module(self, fake_closure):
+        pkg, new_process = fake_closure
+        signals_index.signal_source_files()
+        new_process()
+
+        (pkg / "zz_new.py").write_text("Y = 1\n", encoding="utf-8")
+        (pkg / "zz_lane.py").write_text(
+            "X = 1\n\ndef f():\n    import mtg_utils.zz_new\n", encoding="utf-8"
+        )
+        importlib.invalidate_caches()
+        names = {p.name for p in signals_index.signal_source_files()}
+        assert names == {"zz_root.py", "zz_lane.py", "zz_new.py"}
+
+    def test_an_edited_lane_file_invalidates_the_sidecar(
+        self, fake_closure, tmp_path, monkeypatch
+    ):
+        """The sidecar's key still hashes every closure file's bytes: an edit
+        that keeps the file's size and mtime still forces a rebuild, in a process
+        whose import memo is warm."""
+        pkg, new_process = fake_closure
+        bulk = tmp_path / "AllPrintings.json"
+        bulk.write_text("{}", encoding="utf-8")
+        calls = []
+
+        def fake_extract(rec, *_args, **kwargs):
+            if kwargs.get("include_membership", True):
+                calls.append(rec["oracle_id"])
+            return []
+
+        monkeypatch.setattr("mtg_utils._analysis.signals.extract_signals", fake_extract)
+        records = [{"oracle_id": "oid-1", "name": "Card"}]
+        signals_index.load_signals_index(bulk, records=records)
+        new_process()
+        signals_index.load_signals_index(bulk, records=records)
+        assert calls == ["oid-1"]  # warm memo, unchanged source: served
+
+        lane = pkg / "zz_lane.py"
+        before = lane.stat()
+        lane.write_text("X = 2\n", encoding="utf-8")
+        os.utime(lane, ns=(before.st_atime_ns, before.st_mtime_ns))
+        assert (lane.stat().st_size, lane.stat().st_mtime_ns) == (
+            before.st_size,
+            before.st_mtime_ns,
+        )
+        new_process()
+        signals_index.load_signals_index(bulk, records=records)
+        assert calls == ["oid-1", "oid-1"]  # rebuilt, never served stale
 
 
 class TestContentHash:

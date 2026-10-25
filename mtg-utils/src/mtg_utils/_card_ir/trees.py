@@ -52,16 +52,29 @@ def _phase_record_index() -> dict[str, tuple[dict, ...]] | None:
     same grouping the sidecar builders use — so a DFC / split card's faces are
     never silently dropped here (ADR-0035/0038 task #74; a first-record-wins
     index previously dropped whichever face iterated second, e.g. Avatar
-    Aang's front face when phase's dict keys sort its back face first)."""
+    Aang's front face when phase's dict keys sort its back face first).
+
+    The cyclic garbage collector is paused for the load: decoding the ~100 MB
+    file allocates millions of containers, which trips full collections that
+    each walk the whole heap (the bulk pool included) — about 0.8 s of a tune's
+    1.2 s here. JSON builds no reference cycles, so nothing collectable waits."""
+    import gc
+
     from mtg_utils import _phase
     from mtg_utils._card_ir.build import _group_by_oracle_id
 
+    collecting = gc.isenabled()
+    gc.disable()
     try:
-        cdp = _phase.ensure_card_data()
-        data = json.loads(cdp.read_text())
-    except (FileNotFoundError, RuntimeError, OSError, ValueError):
-        return None
-    groups = _group_by_oracle_id(data)
+        try:
+            cdp = _phase.ensure_card_data()
+            data = json.loads(cdp.read_text())
+        except (FileNotFoundError, RuntimeError, OSError, ValueError):
+            return None
+        groups = _group_by_oracle_id(data)
+    finally:
+        if collecting:
+            gc.enable()
     if not groups:
         return None
     return {oid: tuple(recs) for oid, recs in groups.items()}
@@ -593,19 +606,34 @@ def _known_tokens_index() -> dict[str, dict] | None:
     fetched/read (offline, cold cache, CI: :mod:`mtg_utils.testkit`-driven
     tests must stay network-independent). ``None`` only if BOTH fail (the
     fallback ships in the package, so this is theoretical short of a
-    corrupted install)."""
+    corrupted install).
+
+    The live file's parse (6 MB of toml, ~0.4 s) is cached as a pickle beside it
+    (``_sidecar.load_pickle_sidecar``: stale when the toml is newer), versioned by
+    this module's own bytes, so an edit to the parser re-parses on its own."""
+    import hashlib
+    import sys
+
     from mtg_utils import _phase
+    from mtg_utils._sidecar import load_pickle_sidecar
 
     path = _phase.ensure_known_tokens()
     if path is not None:
         try:
-            text = path.read_text()
+            parser = hashlib.sha256(Path(__file__).read_bytes())
+            parser.update(f"|py{sys.version_info[0]}.{sys.version_info[1]}".encode())
+            parsed = load_pickle_sidecar(
+                path,
+                path.with_name(path.name + ".parsed.pkl"),
+                version_tag=int(parser.hexdigest()[:15], 16),
+                value_key="tokens",
+                build_fn=lambda: _parse_known_tokens_toml(path.read_text()),
+                validate=lambda value: isinstance(value, dict),
+            )
         except OSError:
-            text = None
-        if text is not None:
-            parsed = _parse_known_tokens_toml(text)
-            if parsed is not None:
-                return parsed
+            parsed = None
+        if parsed is not None:
+            return parsed
 
     fallback = (
         Path(__file__).resolve().parent.parent / "data" / _KNOWN_TOKENS_FALLBACK_ASSET

@@ -27,10 +27,12 @@ zero code from this task — a regression pin for that finding.
 
 from __future__ import annotations
 
+import os
 from functools import lru_cache
 
 import pytest
 
+from mtg_utils import _phase
 from mtg_utils._analysis.lanes import (
     extract_crosswalk_signals,
     graveyard_return_direction,
@@ -184,6 +186,47 @@ def test_empty_when_known_tokens_index_unavailable(monkeypatch):
     monkeypatch.setattr(il, "_known_tokens_index", lambda: None)
     rec = _rec("X", [_MUTAGEN_ID], _token_node("Mutagen"))
     assert il._known_token_trees(rec, oracle_id="oid7") == []
+
+
+_TOML = """[[token]]
+id = "{tid}"
+rules_text = "{text}"
+[token.body]
+display_name = "Mutagen"
+core_types = ["Artifact"]
+subtypes = ["Mutagen"]
+"""
+
+
+def test_live_toml_parse_is_cached_beside_it_until_the_toml_changes(
+    tmp_path, monkeypatch
+):
+    """The live known-tokens.toml's parse is a pickle beside it: a second process
+    reads the pickle, not the toml, and a refreshed toml is parsed afresh."""
+    toml = tmp_path / "known-tokens.toml"
+    toml.write_text(_TOML.format(tid="t1", text="Old."), encoding="utf-8")
+    monkeypatch.setattr(_phase, "ensure_known_tokens", lambda: toml)
+    il._known_tokens_index.cache_clear()
+    try:
+        assert il._known_tokens_index()["t1"]["rules_text"] == "Old."
+        assert (tmp_path / "known-tokens.toml.parsed.pkl").exists()
+
+        def boom(_text):
+            raise AssertionError("re-parsed a toml whose parse is cached")
+
+        parse = il._parse_known_tokens_toml
+        monkeypatch.setattr(il, "_parse_known_tokens_toml", boom)
+        il._known_tokens_index.cache_clear()
+        assert il._known_tokens_index()["t1"]["rules_text"] == "Old."
+
+        monkeypatch.setattr(il, "_parse_known_tokens_toml", parse)
+        toml.write_text(_TOML.format(tid="t2", text="New."), encoding="utf-8")
+        later = toml.stat().st_mtime_ns + 10**9
+        os.utime(toml, ns=(later, later))
+        il._known_tokens_index.cache_clear()
+        assert set(il._known_tokens_index()) == {"t2"}
+    finally:
+        il._known_tokens_index.cache_clear()
 
 
 def test_dedupes_repeated_matches_within_one_rec(monkeypatch):

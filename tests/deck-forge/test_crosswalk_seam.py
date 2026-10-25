@@ -17,11 +17,14 @@ mirror schema — no bulk / sidecar / phase / network.
 
 from __future__ import annotations
 
+import gc
+import json
 from collections.abc import Callable
 from functools import lru_cache
 
 import pytest
 
+from mtg_utils import _phase
 from mtg_utils._analysis.lanes import (
     SERVED_SIGNAL_KEYS,
     extract_crosswalk_signals,
@@ -120,6 +123,33 @@ def test_ir_for_returns_none_without_oracle_id(monkeypatch):
 def test_trees_for_degrades_without_phase_data(monkeypatch):
     monkeypatch.setattr(ct, "_phase_record_index", _returns(None))
     assert ct.trees_for({"oracle_id": "x"}) == ()
+
+
+@pytest.mark.parametrize("present", [True, False])
+def test_phase_record_index_load_restores_garbage_collection(
+    present, tmp_path, monkeypatch
+):
+    """The load pauses the cyclic collector and turns it back on, whether
+    card-data loads or is missing."""
+    (rec,) = _ported_phase_records()
+    card_data = tmp_path / "card-data.json"
+    if present:
+        card_data.write_text(json.dumps({"x": rec}), encoding="utf-8")
+
+    def ensure():
+        if not present:
+            raise RuntimeError("no card-data")
+        return card_data
+
+    monkeypatch.setattr(_phase, "ensure_card_data", ensure)
+    ct._phase_record_index.cache_clear()
+    try:
+        assert gc.isenabled()
+        index = ct._phase_record_index()
+        assert gc.isenabled()
+        assert (index is not None) is present
+    finally:
+        ct._phase_record_index.cache_clear()
 
 
 def test_trees_for_none_without_oracle_id():

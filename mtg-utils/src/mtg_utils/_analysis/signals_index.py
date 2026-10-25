@@ -64,7 +64,10 @@ content hash over:
     :func:`signal_source_files`. This is a live AST walk, not a
     hand-maintained list: adding a new lane helper, threading a new
     corrections pass, or editing any file already in the graph changes the
-    hash on its own, with no second place to remember to update.
+    hash on its own, with no second place to remember to update. The walk
+    runs every load; only each file's import read is memoized, keyed by the
+    sha256 of the file's bytes (in-process, and persisted under ``$TMPDIR``),
+    so a memoized walk is the one a fresh parse would produce.
   * ``_phase.PHASE_TAG`` (a phase-rs bump changes the Card IR the crosswalk
     reads even when no ``mtg_utils`` file changes).
   * ``SIGNALS_SIDECAR_VERSION`` (bumped only for an on-disk payload SHAPE
@@ -105,13 +108,14 @@ import ast
 import contextlib
 import hashlib
 import importlib.util
+import json
 import pickle
 import sys
 from collections.abc import Callable, Iterable, Sized
 from pathlib import Path
 from typing import TYPE_CHECKING, NamedTuple
 
-from mtg_utils._sidecar import exclusive_lock
+from mtg_utils._sidecar import atomic_write_json, exclusive_lock, sha_keyed_path
 
 if TYPE_CHECKING:
     from mtg_utils._analysis.signals import Signal
@@ -271,8 +275,8 @@ def _module_file(modname: str) -> Path | None:
     return path if path.suffix == ".py" else None
 
 
-def _imported_mtg_modules(path: Path) -> set[str]:
-    """Every ``mtg_utils...`` dotted module name *path* imports, found via a
+def _parse_mtg_imports(source: bytes, filename: str) -> tuple[str, ...]:
+    """Every ``mtg_utils...`` dotted module name *source* imports, found via a
     FULL ``ast.walk`` (module-level statements AND ones nested inside a
     function body — several signal-facing modules, e.g. ``theme_presets`` /
     ``_ir_lookup`` / ``engine``, import their heaviest dependency lazily to
@@ -282,11 +286,12 @@ def _imported_mtg_modules(path: Path) -> set[str]:
     ``__init__``" — both ``pkg`` and ``pkg.name`` are added as candidates;
     :func:`_module_file` resolves whichever is real and the caller silently
     drops whichever isn't a module at all (e.g. a plain function/constant
-    name)."""
+    name). A pure function of the bytes (and the Python version parsing them),
+    which is what lets :func:`_imported_mtg_modules` memoize it by content."""
     try:
-        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
-    except (OSError, SyntaxError, UnicodeDecodeError):
-        return set()
+        tree = ast.parse(source.decode("utf-8"), filename=filename)
+    except (SyntaxError, UnicodeDecodeError, ValueError):
+        return ()
     names: set[str] = set()
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
@@ -299,7 +304,70 @@ def _imported_mtg_modules(path: Path) -> set[str]:
             names.add(node.module)
             for alias in node.names:
                 names.add(f"{node.module}.{alias.name}")
-    return names
+    return tuple(sorted(names))
+
+
+# ── The import read's memo: content-addressed, in-process and on disk ───────
+#
+# Parsing the closure's ~100 modules is most of what keying the sidecar costs
+# (about 0.3 s a walk, twice a process: this module's load and the provenance
+# sidecar's key). The parse is a pure function of a file's bytes, so its memo is
+# keyed by the sha256 of those bytes: a cached answer is exactly what a fresh
+# parse would return, with no mtime trusted anywhere. The walk itself (and every
+# ``find_spec`` resolution in it) still runs on every call, so a new import edge,
+# a new module file or a deleted one is seen at once.
+
+_IMPORTS_CACHE_VERSION = 1
+_IMPORTS_CACHE_PREFIX = "signals-imports"
+#: sha256(file bytes) -> the ``mtg_utils`` names that file imports. Filled from
+#: the on-disk cache on first use (:data:`_IMPORTS_LOADED`), then by each parse.
+_IMPORTS_BY_DIGEST: dict[str, tuple[str, ...]] = {}
+_IMPORTS_LOADED: list[bool] = [False]
+
+
+def _imports_cache_path() -> Path:
+    """The persisted memo, one per package checkout (so worktrees don't prune each
+    other's entries) and Python version (the parser that produced it)."""
+    return sha_keyed_path(
+        _IMPORTS_CACHE_PREFIX,
+        str(Path(__file__).resolve().parents[1]),
+        f"py{sys.version_info[0]}.{sys.version_info[1]}",
+        _IMPORTS_CACHE_VERSION,
+    )
+
+
+def _imports_memo() -> dict[str, tuple[str, ...]]:
+    if not _IMPORTS_LOADED[0]:
+        _IMPORTS_LOADED[0] = True
+        with contextlib.suppress(OSError, ValueError):
+            payload = json.loads(_imports_cache_path().read_text(encoding="utf-8"))
+            if (
+                isinstance(payload, dict)
+                and payload.get("version") == _IMPORTS_CACHE_VERSION
+                and isinstance(payload.get("imports"), dict)
+            ):
+                _IMPORTS_BY_DIGEST.update(
+                    (digest, tuple(names))
+                    for digest, names in payload["imports"].items()
+                    if isinstance(names, list)
+                )
+    return _IMPORTS_BY_DIGEST
+
+
+def _imported_mtg_modules(path: Path) -> tuple[str, tuple[str, ...]] | None:
+    """*path*'s content digest and the ``mtg_utils`` names it imports
+    (:func:`_parse_mtg_imports`), parsed only when no memo holds those exact
+    bytes; ``None`` when the file can't be read."""
+    try:
+        source = path.read_bytes()
+    except OSError:
+        return None
+    digest = hashlib.sha256(source).hexdigest()
+    memo = _imports_memo()
+    names = memo.get(digest)
+    if names is None:
+        names = memo[digest] = _parse_mtg_imports(source, str(path))
+    return digest, names
 
 
 def signal_source_files() -> tuple[Path, ...]:
@@ -307,18 +375,23 @@ def signal_source_files() -> tuple[Path, ...]:
     and ``theme_presets`` (:data:`_ROOT_MODULES`) by following
     ``mtg_utils``-internal imports (module-level + lazy) — the
     exact file set whose content can change ``extract_signals``'s
-    output or a concept arm's. Recomputed via a fresh AST walk every call
+    output or a concept arm's. Recomputed by a fresh walk every call
     (never a cached/hand-written list), so a newly-added lane module or
     corrections pass is picked up automatically the next time this runs — the
-    "audit the actual import graph" the sidecar's invalidation depends on. Deliberately
+    "audit the actual import graph" the sidecar's invalidation depends on. Only
+    each file's import read is memoized, by the file's content digest
+    (:func:`_imported_mtg_modules`), so the walk returns exactly what an
+    unmemoized one would. Deliberately
     conservative: a module reachable here but NOT actually read by
     ``extract_signals`` at runtime still counts — over-invalidating
     on an unrelated edit costs one wasted rebuild; under-invalidating serves
     stale signals silently, which is the one failure mode this sidecar must
     never have."""
+    known = set(_imports_memo())
     seen: set[str] = set()
     queue: list[str] = list(_ROOT_MODULES)
     files: set[Path] = set()
+    used: dict[str, tuple[str, ...]] = {}
     while queue:
         name = queue.pop()
         if name in seen:
@@ -328,9 +401,25 @@ def signal_source_files() -> tuple[Path, ...]:
         if path is None:
             continue
         files.add(path)
-        for dep in _imported_mtg_modules(path):
+        read = _imported_mtg_modules(path)
+        if read is None:
+            continue
+        digest, deps = read
+        used[digest] = deps
+        for dep in deps:
             if dep not in seen:
                 queue.append(dep)
+    if not used.keys() <= known:
+        # Persist this walk's reads — only these, so edited files' old entries
+        # drop out. Best-effort: a failed write just means the next process parses.
+        with contextlib.suppress(OSError):
+            atomic_write_json(
+                _imports_cache_path(),
+                {
+                    "version": _IMPORTS_CACHE_VERSION,
+                    "imports": {d: list(n) for d, n in sorted(used.items())},
+                },
+            )
     return tuple(sorted(files))
 
 
