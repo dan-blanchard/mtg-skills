@@ -76,6 +76,7 @@ from mtg_utils._card_ir.crosswalk import (
     filter_owned_controller,
     filter_predicates,
     filter_subtypes,
+    filter_takes_in_card,
     granted_card_types,
     granted_keyword_names,
     in_uncertain_branch,
@@ -221,22 +222,47 @@ def _sacrifice_self_cost(tree: ConceptTree) -> list[Signal]:
     Such a body is no outlet for the rest of the board, so the bare ident
     (:func:`_sacrifice_outlets`) stays the real outlets; the subject is the
     loop fuel a recursion engine (``creature_recursion``) and an aristocrats
-    deck want (CR 602.1a: a cost is paid by the activator; CR 701.21a)."""
-    if "Creature" in tree.card_types and any(
-        unit.origin == "ability"
-        and any(
-            tag_of(leaf) == "Sacrifice"
-            and tag_of(getattr(leaf, "target", None)) == "SelfRef"
-            # The unit's own cost only: ``controller_paid_cost_leaves`` also
-            # walks the abilities a made token carries (Spawnsire of Ulamog's
-            # Spawn: "Sacrifice this creature: Add {C}"), whose "this
-            # creature" is the token.
-            for leaf in iter_cost_leaves(getattr(unit.node, "cost", None))
+    deck want (CR 602.1a: a cost is paid by the activator; CR 701.21a).
+
+    A grant the creature itself falls under counts too: a Sliver's "All
+    Slivers have 'Sacrifice this permanent: …'" (Basal Sliver; CR 113.1a)."""
+    if "Creature" not in tree.card_types:
+        return []
+    if any(
+        # The unit's own cost only: ``controller_paid_cost_leaves`` also walks
+        # the abilities a made token carries (Spawnsire of Ulamog's Spawn:
+        # "Sacrifice this creature: Add {C}"), whose "this creature" is the token.
+        (
+            unit.origin == "ability"
+            and _sacrifices_itself(getattr(unit.node, "cost", None))
+        )
+        # A static's grant only: an effect's or trigger's ``SelfRef`` grant is
+        # the token it makes (Nest Invader's Spawn).
+        or (
+            unit.origin == "static"
+            and any(
+                tag_of(mod) == "GrantAbility"
+                and _sacrifices_itself(
+                    getattr(getattr(mod, "definition", None), "cost", None)
+                )
+                and filter_takes_in_card(getattr(sdef, "affected", None), tree)
+                for sdef, mod in iter_mod_sites(unit.node)
+            )
         )
         for unit in tree.units
     ):
         return [Signal("sacrifice_outlets", "you", "self", "", tree.name, "high")]
     return []
+
+
+def _sacrifices_itself(cost: object) -> bool:
+    """Whether an activation cost sacrifices its own permanent (a ``SelfRef``
+    Sacrifice leaf)."""
+    return any(
+        tag_of(leaf) == "Sacrifice"
+        and tag_of(getattr(leaf, "target", None)) == "SelfRef"
+        for leaf in iter_cost_leaves(cost)
+    )
 
 
 def _sacrifice_outlets(tree: ConceptTree) -> list[Signal]:

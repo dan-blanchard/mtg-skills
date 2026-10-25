@@ -46,12 +46,11 @@ from mtg_utils._card_ir.crosswalk import (
     effect_filter,
     effect_owner_player_scope,
     exiled_library_side,
-    filter_admits,
     filter_controller,
     filter_core_types,
     filter_inzone_zones,
-    filter_predicates,
     filter_subtypes,
+    filter_takes_in_card,
     graveyard_recursion,
     has_fixed_count,
     hurts_triggering_player,
@@ -66,7 +65,6 @@ from mtg_utils._card_ir.crosswalk import (
     mod_keyword_name,
     modal_mode_description,
     normalised_keyword_name,
-    object_facts_of,
     optional_clause_actor,
     own_turn_step_triggers,
     permission_tag,
@@ -491,8 +489,19 @@ def _self_death_payoff(tree: ConceptTree) -> list[Signal]:
     ``dies_recursion``, not here; and the SHUFFLE-BACK exclusion drops the
     "shuffle … into its owner's library" protection rider (Kozilek — a
     dies-to-Library move is self-preservation, not value). Scope "you".
+
+    Soulshift the card gives itself is one too (CR 702.46a: "When this
+    permanent is put into a graveyard from the battlefield, you may return
+    target Spirit card … to your hand"): phase expands a fixed soulshift into
+    the trigger, but leaves Kodama of the Center Tree's "~ has soulshift X"
+    only the keyword grant.
     """
     for unit in tree.units:
+        if unit.origin == "static" and any(
+            mod_keyword_name(mod) == "Soulshift" and _grants_itself(sdef, tree)
+            for sdef, mod in iter_mod_sites(unit.node)
+        ):
+            return [Signal("self_death_payoff", "you", "", "", tree.name, "high")]
         if unit.origin != "trigger" or unit.trigger_event != "dies":
             continue
         if not watches_itself(unit.node):
@@ -890,25 +899,10 @@ def _holder_return_route(
     )
 
 
-def _takes_in_card(filt: object, tree: ConceptTree) -> bool:
-    """Whether a group or target filter takes in the card itself: "All Slivers" on
-    a Sliver, "target creature you control" on a creature (CR 115.5: only a spell
-    or ability is an illegal target for itself) — never "other Slivers", "another
-    target creature" or an opponent's."""
-    if tag_of(filt) == "SelfRef":
-        return True
-    if filter_controller(filt) == "Opponent":
-        return False
-    if {"Another", "Other"} & set(filter_predicates(filt)):
-        return False
-    return filter_admits(filt, object_facts_of((tree,))) is True
-
-
 def _grants_itself(sdef: object, tree: ConceptTree) -> bool:
     """Whether a static's ``affected`` group takes in the card itself
-    (:func:`_takes_in_card`; Hibernation Sliver's ruling: a Sliver is affected by
-    its own ability)."""
-    return _takes_in_card(getattr(sdef, "affected", None), tree)
+    (:func:`filter_takes_in_card`)."""
+    return filter_takes_in_card(getattr(sdef, "affected", None), tree)
 
 
 _GRANTING_OBJECT: frozenset[str] = frozenset({"GrantingObject"})
@@ -970,8 +964,8 @@ def _perpetual_graveyard_return(
     combat damage to a player or planeswalker, return this card from your
     graveyard to battlefield tapped.'" The grant goes to the dying card
     (``TriggeringSource``), the card itself when it is what died — or to a target
-    the card can be (:func:`_takes_in_card`): Kami of Mourning's enters trigger
-    gives "target creature you control" the return, and it can target itself."""
+    the card can be (:func:`filter_takes_in_card`): Kami of Mourning's enters
+    trigger gives "target creature you control" the return, and it can target itself."""
     for node in nodes:
         if tag_of(node) not in ("ApplyPerpetual", "GenericEffect"):
             continue
@@ -982,7 +976,7 @@ def _perpetual_graveyard_return(
                 tag_of(target) == "TriggeringSource"
                 and watches_itself(unit.node, among_others=True)
             )
-            or (tag_of(target) == "Typed" and _takes_in_card(target, tree))
+            or (tag_of(target) == "Typed" and filter_takes_in_card(target, tree))
         ):
             continue
         for kind, body in iter_nested_granted_bodies(node):

@@ -214,6 +214,8 @@ DOER_SUBJECTS: Final = frozenset(
         ("draw_matters", "draw_step"),
         # a blink enabler
         ("blink_flicker", "enabler"),
+        # a haste-for-activations grant or an activation-cost reducer
+        ("activated_ability", "enabler"),
         # one-shot land destruction; the floor's repeatable LD is the carer
         ("land_destruction", "destroy"),
         ("land_destruction", "exile"),

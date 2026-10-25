@@ -36,6 +36,7 @@ from mtg_utils._card_ir.crosswalk import (
     basic_land_type_grants,
     board_power_threshold,
     cast_trigger_origin,
+    cast_with_keyword_name,
     change_zone_dirs,
     color_count_preds,
     condition_tags,
@@ -52,6 +53,9 @@ from mtg_utils._card_ir.crosswalk import (
     effects_exclusive,
     exiled_library_side,
     filter_controller,
+    filter_core_types,
+    filter_inanyzone_zones,
+    filter_inzone_zones,
     filter_predicates,
     granted_keyword_names,
     granted_trigger_events,
@@ -81,6 +85,7 @@ from mtg_utils._card_ir.crosswalk import (
     spell_filter_class,
     static_mode_tag,
     tag_of,
+    token_creator_side,
     trigger_caster_scope,
     trigger_def_event,
     trigger_scope,
@@ -438,10 +443,13 @@ def _cast_from_exile_unit_evidence(unit: AbilityUnit) -> bool:
     return bool(_cast_from_exile_unit_sources(unit))
 
 
-#: The cast-trigger origins (:func:`cast_trigger_origin`) of a cast-from-exile
-#: payoff: "a spell from exile", and "from anywhere other than your hand".
+#: Paradox's cast origin (:func:`cast_trigger_origin`): "from anywhere other
+#: than your hand".
+_BEYOND_HAND_ORIGIN = ("NotEquals", "Hand")
+#: The cast-trigger origins of a cast-from-exile payoff: "a spell from exile",
+#: and paradox's.
 _FROM_EXILE_CAST_ORIGINS: frozenset[tuple[str, str]] = frozenset(
-    {("Equals", "Exile"), ("NotEquals", "Hand")}
+    {("Equals", "Exile"), _BEYOND_HAND_ORIGIN}
 )
 
 
@@ -489,6 +497,24 @@ def _cast_from_exile_unit_sources(unit: AbilityUnit) -> set[str]:
 
 # Retired 2026-10-25: ``CAST_FROM_EXILE_REGEX``, the mined sweep pattern ("whenever you
 # cast a spell … from exile", plot) this lane's Card IR read replaced (ADR-0027).
+#: The zones beside your hand phase lists for "from anywhere other than your hand".
+_BEYOND_HAND_ZONES = frozenset({"Graveyard", "Library", "Exile"})
+
+
+def _counts_casts_beyond_hand(tree: ConceptTree) -> bool:
+    """Whether the card counts your spells cast this turn from anywhere other
+    than your hand ("if you've played a land or cast a spell this turn from
+    anywhere other than your hand" — Spider-Man 2099): a ``SpellsCastThisTurn``
+    whose filter's ``InAnyZone`` takes every zone but your hand."""
+    for n in tree.iter_typed():
+        if tag_of(n) != "SpellsCastThisTurn":
+            continue
+        zones = set(filter_inanyzone_zones(getattr(n, "filter", None)))
+        if zones >= _BEYOND_HAND_ZONES and "Hand" not in zones:
+            return True
+    return False
+
+
 def _cast_from_exile(tree: ConceptTree) -> list[Signal]:
     """cast_from_exile — a play/cast-FROM-EXILE build-around (CR 406.1 / 601.2 /
     601.3 / 702.170d). Reads the ``GrantCastingPermission`` effect's
@@ -565,15 +591,35 @@ def _cast_from_exile(tree: ConceptTree) -> list[Signal]:
                 return [Signal("cast_from_exile", "you", "", c.raw, tree.name, "high")]
             grant = grant or c
     out: list[Signal] = []
-    if any(
-        cast_trigger_origin(trig) in _FROM_EXILE_CAST_ORIGINS
+    # The payoff, beside the bare ident under its own ``payoff`` subject:
+    # "Whenever you cast a spell from exile" (Faldorn, Dread Wolf Herald),
+    # paradox's "from anywhere other than your hand" (Vega — also ``paradox``),
+    # and a keyword or a free cast your spells cast from exile have
+    # ("Noncreature spells you cast from exile have convoke" — Party Thrasher;
+    # Wild-Magic Sorcerer's cascade; Charred Foyer's "pay {0} rather than pay the
+    # mana cost").
+    origins = {
+        cast_trigger_origin(trig)
         for unit in tree.units
         for trig in iter_unit_trigger_defs(unit)
         if trigger_caster_scope(trig) == "you"
-    ):
-        # "Whenever you cast a spell from exile" (Faldorn, Dread Wolf Herald)
-        # and paradox's "from anywhere other than your hand" (Vega): the payoff.
+    }
+    granted = any(
+        (
+            cast_with_keyword_name(unit.node) is not None
+            or static_mode_tag(unit.node) == "CastWithAlternativeCost"
+        )
+        and filter_controller(affected := getattr(unit.node, "affected", None)) == "You"
+        and "Exile" in filter_inzone_zones(affected)
+        for unit in tree.units
+        if unit.origin == "static"
+    )
+    paradox = _BEYOND_HAND_ORIGIN in origins or _counts_casts_beyond_hand(tree)
+    if origins & _FROM_EXILE_CAST_ORIGINS or granted or paradox:
         out.append(Signal("cast_from_exile", "you", "", "", tree.name, "high"))
+        out.append(Signal("cast_from_exile", "you", "payoff", "", tree.name, "high"))
+    if paradox:
+        out.append(Signal("cast_from_exile", "you", "paradox", "", tree.name, "high"))
     if grant is not None:
         sources = set().union(*(_cast_from_exile_unit_sources(u) for u in tree.units))
         if sources:
@@ -1814,6 +1860,14 @@ def _opponent_discard(tree: ConceptTree) -> list[Signal]:
             out.append(
                 Signal("opponent_discard", "opponents", "", "", tree.name, "high")
             )
+        # The watcher is the payoff itself, under its own ``punish`` subject:
+        # what a hand-attack deck stacks beside the discard (Mind Rot, the bare
+        # ident). A card's own discard trigger (madness) watches no player.
+        if is_punisher_watch and unit.effects and "punish" not in seen:
+            seen.add("punish")
+            out.append(
+                Signal("opponent_discard", "opponents", "punish", "", tree.name, "high")
+            )
         # phase v0.66.0 pin bump (v0.65.0 #7830 "resolve scoped unless
         # payments"): a punisher's "target opponent loses N life unless
         # that player discards ..." now parses STRUCTURALLY — the payoff is
@@ -1965,12 +2019,17 @@ def _cost_reduction_subjects(tree: ConceptTree) -> list[Signal]:
             affected = getattr(sdef, "affected", None)
             if filt is None or filter_controller(affected) != "You":
                 continue
-            subject = spell_filter_class(filt)
-            if subject not in seen:
-                seen.add(subject)
-                out.append(
-                    Signal("cost_reduction", "you", subject, "", tree.name, "high")
-                )
+            subjects = [spell_filter_class(filt)]
+            # A creature-spell discount (Herald's Horn, Krosan Drover) is also
+            # ``creature``, the class a creature-heavy deck stacks.
+            if "Creature" in filter_core_types(filt):
+                subjects.append("creature")
+            for subject in subjects:
+                if subject not in seen:
+                    seen.add(subject)
+                    out.append(
+                        Signal("cost_reduction", "you", subject, "", tree.name, "high")
+                    )
     return out
 
 
@@ -2125,6 +2184,21 @@ def _donate_makers(tree: ConceptTree) -> list[Signal]:
                 and "Owned" not in filter_predicates(sub)
             ):
                 return [Signal("donate_makers", "you", "", c.raw, tree.name, "high")]
+    return []
+
+
+def _donated_creature_tokens(tree: ConceptTree) -> list[Signal]:
+    """``donate_makers|you|token`` — the card makes an opponent create a creature
+    token (CR 111.2: "The player who creates a token is its owner"): the Hunted
+    cycle, Forbidden Orchard, Phelddagrif. A creature handed over the way a
+    donate deck wants, though no control changes (:func:`token_creator_side`)."""
+    for unit in tree.units:
+        for c in unit.effect_concepts("make_token"):
+            if (
+                "Creature" in (getattr(c.node, "types", None) or ())
+                and token_creator_side(unit, c.node) == "opponents"
+            ):
+                return [Signal("donate_makers", "you", "token", "", tree.name, "high")]
     return []
 
 
@@ -2504,6 +2578,7 @@ LANES = (
     _extra_combats,
     _cost_reduction,
     _donate_makers,
+    _donated_creature_tokens,
     _conjure_makers,
     _blocked_matters,
     _initiative,

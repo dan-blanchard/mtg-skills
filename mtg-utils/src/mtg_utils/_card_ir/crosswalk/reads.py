@@ -847,6 +847,28 @@ def filter_admits(filt: object, facts: ObjectFacts) -> bool | None:
     return True
 
 
+def filter_takes_in_card(filt: object, tree: ConceptTree) -> bool:
+    """Whether a group or target filter takes in the card itself: "All Slivers" on
+    a Sliver, "target creature you control" on a creature (CR 115.5: only a spell
+    or ability is an illegal target for itself) — never "other Slivers", "another
+    target creature" or an opponent's. The read a grant the card falls under goes
+    through (Hibernation Sliver's ruling: a Sliver is affected by its own
+    ability); an ``Or`` takes it in when an arm does ("Henry Wu and other Human
+    creatures you control")."""
+    tag = tag_of(filt)
+    if tag == "SelfRef":
+        return True
+    if tag == "Or":
+        return any(
+            filter_takes_in_card(f, tree) for f in getattr(filt, "filters", ()) or ()
+        )
+    if filter_controller(filt) == "Opponent":
+        return False
+    if {"Another", "Other"} & set(filter_predicates(filt)):
+        return False
+    return filter_admits(filt, object_facts_of((tree,))) is True
+
+
 _COMPARE: dict[str, Callable[[int, int], bool]] = {
     "EQ": lambda a, b: a == b,
     "NE": lambda a, b: a != b,
@@ -2283,7 +2305,12 @@ def graveyard_recursion(node: object) -> RecursionHit | None:
             return None
     elif tag in ("ChangeZone", "ChangeZoneAll"):
         origin, dest = change_zone_dirs(node)
-        if origin is None and "Graveyard" in filter_inzone_zones(sub):
+        # "from your hand or graveyard" (Swift Warkite) is an ``InAnyZone``
+        # choice that a graveyard is among.
+        if origin is None and "Graveyard" in (
+            *filter_inzone_zones(sub),
+            *filter_inanyzone_zones(sub),
+        ):
             origin = "Graveyard"
         if origin != "Graveyard" or dest not in GRAVEYARD_RECURSION_ZONES:
             return None
@@ -6926,6 +6953,40 @@ def is_team_buff_filter(filt: object) -> bool:
         and not filter_subtypes(filt)
         and set(filter_predicates(filt)) <= _TEAM_BUFF_OK_PREDS
     )
+
+
+def is_attacking_team_filter(filt: object) -> bool:
+    """The attacking part of your team as a group (CR 508.1k: a declared attacker
+    "remains an attacking creature until" it leaves combat): "attacking creatures
+    you control" (Jazal Goldmane, Tears of Rage), "other attacking creatures"
+    (Qala, Ajani's Pridemate), "attacking tokens you control" (Waystone's
+    Guidance, Neyali, Suns' Vanguard) — no subtype, colour or other narrowing
+    (:func:`is_team_buff_filter`'s whole team, attacking)."""
+    return _team_part_filter(filt, "Attacking")
+
+
+def is_token_team_filter(filt: object) -> bool:
+    """Your creature tokens as a group: "creature tokens you control"
+    (Intangible Virtue), "tokens you control" — no subtype, colour or other
+    narrowing (:func:`is_team_buff_filter`'s whole team, its tokens)."""
+    return _team_part_filter(filt, "Token")
+
+
+def _team_part_filter(filt: object, part: str) -> bool:
+    """Whether a filter is your whole team narrowed only by ``part`` (a
+    predicate: ``Attacking``, ``Token``) — tokens of no named type count, a
+    token being a creature or not."""
+    preds = set(filter_predicates(filt))
+    if (
+        filter_controller(filt) != "You"
+        or part not in preds
+        or filter_subtypes(filt)
+        or not preds - {part, "Token"} <= _TEAM_BUFF_OK_PREDS
+    ):
+        return False
+    if "Token" in preds and not filter_core_types(filt):
+        return True
+    return _names_every_creature(filt)
 
 
 def team_buff_sites(

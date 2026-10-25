@@ -31,10 +31,15 @@ from mtg_utils._analysis.signal_base import (
     Signal,
     _clauses,
 )
-from mtg_utils._analysis.tree_synthesis import has_structural_extra_land_drop
+from mtg_utils._analysis.tree_synthesis import (
+    has_structural_extra_land_drop,
+    untaps_your_lands,
+)
 from mtg_utils._card_ir.crosswalk import (
     CREATURE_OR_PERMANENT,
+    DYNAMIC_PT_SET_MODS,
     SWEPT_PERMANENT_TYPES,
+    TEAM_BUFF_GRANT_KW,
     AbilityUnit,
     ConceptNode,
     ConceptTree,
@@ -61,9 +66,11 @@ from mtg_utils._card_ir.crosswalk import (
     filter_predicates,
     filter_subtypes,
     filter_without_keywords,
+    is_attacking_team_filter,
     is_creature_population,
     is_self_discard_cost,
     is_team_buff_filter,
+    is_token_team_filter,
     iter_condition_sites,
     iter_cost_leaves,
     iter_mod_sites,
@@ -82,6 +89,7 @@ from mtg_utils._card_ir.crosswalk import (
     overload_sweep,
     produced_contribution,
     pt_mod_signs,
+    pump_is_negative,
     puts_under_your_control,
     recipient_tag,
     ref_count_qty,
@@ -373,7 +381,22 @@ def _mana_amplifier(tree: ConceptTree) -> list[Signal]:
 
     The generic ramp lane keeps co-firing where applicable (additive, matching
     the live path). Scope "you".
+
+    Untapping every land you control (Wilderness Reclamation, Bear Umbra,
+    Zacama — ``tree_synthesis.untaps_your_lands``) lets each tap for mana again:
+    the ``untap_lands`` subject, the lane's own decision, beside (never in place
+    of) a doubler.
     """
+    out = _mana_doubler(tree)
+    if untaps_your_lands(tree):
+        out.append(
+            Signal("mana_amplifier", "you", "untap_lands", "", tree.name, "high")
+        )
+    return out
+
+
+def _mana_doubler(tree: ConceptTree) -> list[Signal]:
+    """:func:`_mana_amplifier`'s doubler arms."""
     for unit in tree.units:
         if unit.origin == "replacement":
             vc = getattr(unit.node, "valid_card", None)
@@ -1614,9 +1637,15 @@ def _raising_anthem_defs(tree: ConceptTree) -> Iterator[TypedMirrorNode]:
     toughness both raised or left, at least one raised (:func:`pt_mod_signs` —
     plain ints and the scaling ``AddDynamic*`` forms alike)."""
     for sdef in _anthem_defs(tree):
-        power, toughness = pt_mod_signs(sdef)
-        if max(power, toughness) >= 1 and min(power, toughness) >= 0:
+        if _raises_pt(sdef):
             yield sdef
+
+
+def _raises_pt(sdef: object) -> bool:
+    """Whether a P/T modification raises: power and toughness both raised or
+    left, at least one raised (:func:`pt_mod_signs`)."""
+    power, toughness = pt_mod_signs(sdef)
+    return max(power, toughness) >= 1 and min(power, toughness) >= 0
 
 
 def _anthem_static(tree: ConceptTree) -> list[Signal]:
@@ -1831,12 +1860,92 @@ def _team_buff(tree: ConceptTree) -> list[Signal]:
     a colour, a keyword — Vanquisher's Banner, Honor of the Pure, Favorable
     Winds) or a symmetric one (Bad Moon) is only ``anthem_static``. Scope "you".
     """
-    for _unit, sdef in team_buff_sites(tree):
-        return [Signal("team_buff", "you", "", _site_raw(sdef), tree.name, "high")]
-    for sdef in _raising_anthem_defs(tree):
-        if is_team_buff_filter(getattr(sdef, "affected", None)):
-            return [Signal("team_buff", "you", "", _site_raw(sdef), tree.name, "high")]
-    return []
+    site = next((sdef for _unit, sdef in team_buff_sites(tree)), None) or next(
+        (
+            sdef
+            for sdef in _raising_anthem_defs(tree)
+            if is_team_buff_filter(getattr(sdef, "affected", None))
+        ),
+        None,
+    )
+    out = _team_pump(tree)
+    if site is None:
+        return out
+    return [Signal("team_buff", "you", "", _site_raw(site), tree.name, "high"), *out]
+
+
+def _team_pump(tree: ConceptTree) -> list[Signal]:
+    """The go-wide team boosts beside the anthem, each under its own
+    ``team_buff`` subject:
+
+    * ``pump`` — a one-shot +N/+N over your whole team until end of turn
+      ("Creatures you control get +1/+0 until end of turn" — Banners Raised,
+      Akroan Phalanx's activation, Wild Beastmaster's attack trigger), where a
+      static one is ``anthem_static``. Raised power and toughness, at least one
+      (:func:`_raises_pt`), over the team
+      (:func:`~mtg_utils._card_ir.crosswalk.reads.is_team_buff_filter`).
+    * ``attackers`` — raised P/T or an evergreen keyword for the attacking part
+      of the team, one-shot or static
+      (:func:`~mtg_utils._card_ir.crosswalk.reads.is_attacking_team_filter`):
+      Jazal Goldmane, Tears of Rage, Waystone's Guidance, Neyali's double strike.
+    * ``base_pt`` — the whole team's base power and toughness set ("Creatures
+      you control have base power and toughness X/X until end of turn" —
+      Biomass Mutation, Oko's Hospitality), the go-wide finisher.
+    * ``keyword`` — a keyword the whole team gains from a choice the card makes
+      ("choose first strike, vigilance, or lifelink. Creatures you control gain
+      that ability" — Angelic Skirmisher), which phase keeps unnamed
+      (``AddChosenKeyword``) where ``team_buff``'s grant names it.
+    * ``tokens`` — raised P/T over your creature tokens, a static one or one the
+      card gives another object ("Commander creatures you own have 'Creature
+      tokens you control get +2/+2'" — Inspiring Leader; Intangible Virtue).
+    """
+    found: dict[str, str] = {}
+    for unit in tree.units:
+        for c in unit.effects:
+            # The one-shot ``PumpAll`` (Banners Raised); a shrink is none.
+            if tag_of(c.node) != "PumpAll" or pump_is_negative(c.node):
+                continue
+            filt = effect_filter(c.node)
+            if unit.origin != "static" and is_team_buff_filter(filt):
+                found.setdefault("pump", c.raw)
+            elif is_attacking_team_filter(filt):
+                found.setdefault("attackers", c.raw)
+        # ``deep``: an emblem's static is the card's too (The Capitoline Triad).
+        for sdef, mod in iter_mod_sites(unit.node, deep=True):
+            affected = getattr(sdef, "affected", None)
+            if is_team_buff_filter(affected):
+                if tag_of(mod) in _BASE_PT_SET_MODS:
+                    found.setdefault("base_pt", "")
+                elif tag_of(mod) == "AddChosenKeyword":
+                    found.setdefault("keyword", "")
+                elif unit.origin != "static" and _raises_pt(sdef):
+                    found.setdefault("pump", "")
+            elif is_attacking_team_filter(affected) and (
+                _raises_pt(sdef) or _grants_team_keyword(mod)
+            ):
+                found.setdefault("attackers", "")
+            elif is_token_team_filter(affected) and _raises_pt(sdef):
+                found.setdefault("tokens", "")
+    return [
+        Signal("team_buff", "you", subject, raw, tree.name, "high")
+        for subject, raw in found.items()
+    ]
+
+
+#: The modifications that set power or toughness: the fixed pair and the
+#: computed one (:data:`~mtg_utils._card_ir.crosswalk.reads.DYNAMIC_PT_SET_MODS`).
+_BASE_PT_SET_MODS: frozenset[str] = DYNAMIC_PT_SET_MODS | {"SetPower", "SetToughness"}
+
+
+def _grants_team_keyword(mod: object) -> bool:
+    """Whether a modification grants an evergreen keyword ``team_buff`` reads
+    (:data:`~mtg_utils._card_ir.crosswalk.reads.TEAM_BUFF_GRANT_KW`)."""
+    kw = getattr(mod, "keyword", None)
+    return (
+        tag_of(mod) in ("AddKeyword", "AddKeywordUntilEndOfTurn")
+        and isinstance(kw, str)
+        and kw.lower().replace(" ", "") in TEAM_BUFF_GRANT_KW
+    )
 
 
 # Fix (e)'s reveal-producer allow-list (a unit that actually REVEALS/

@@ -155,6 +155,7 @@ from mtg_utils._analysis.tree_synthesis.mana_ramp_lands import (
     structural_land_fetch_split,
     structural_untap_scope,
     structural_untap_subject,
+    untaps_your_lands,
 )
 from mtg_utils._analysis.tree_synthesis.mechanics_misc import (
     _arm_celebration_matters,
@@ -444,4 +445,5 @@ __all__ = [
     "structural_untap_scope",
     "structural_untap_subject",
     "synthesize_nodes",
+    "untaps_your_lands",
 ]

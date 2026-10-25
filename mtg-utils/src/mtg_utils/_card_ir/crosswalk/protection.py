@@ -33,6 +33,7 @@ from typing import TYPE_CHECKING, Literal
 from mtg_utils._card_ir.crosswalk.reads import (
     _GRANTED_ABILITY_TAGS,
     _GRANTED_TRIGGER_TAGS,
+    PROTECTIVE_KEYWORDS,
     _present,
     _variant_field,
     animates,
@@ -341,6 +342,33 @@ def protective_grant_recipients(
     indestructible" — Yahenni), a grant only an opponent's objects take, and a
     keyword that comes with animating the object (:func:`animates`: Avalanche
     Caller's land, Darksteel Mutation's Insect)."""
+    for kw, who, _ in _protective_grants(tree):
+        yield kw, who
+
+
+def protective_team_grants(tree: ConceptTree) -> Iterator[str]:
+    """Every protective keyword the card gives a group of your permanents, not a
+    chosen few (:func:`protective_grant_recipients`' grants whose ``affected`` is
+    a filter over your permanents): "Permanents you control gain hexproof and
+    indestructible" (Heroic Intervention), "Other permanents you control have
+    indestructible" (Avacyn), "Creatures you control gain indestructible"
+    (Flawless Maneuver). A grant to targets ("up to four target permanents you
+    control" — Invisible Force Field) or to one attached permanent is not one."""
+    for kw, who, affected in _protective_grants(tree):
+        if (
+            who == "permanent"
+            and kw in PROTECTIVE_KEYWORDS
+            and tag_of(affected) in ("Typed", "Or", "And")
+            and filter_controller(affected) == "You"
+        ):
+            yield kw
+
+
+def _protective_grants(
+    tree: ConceptTree,
+) -> Iterator[tuple[str, ProtectionRecipient, object]]:
+    """:func:`protective_grant_recipients`' grants, each with the ``affected``
+    filter it names (``None`` for a player's own protective mode)."""
     card_is_aura = "Aura" in tree.card_subtypes
     for unit in tree.units:
         threaded: dict[int, object] = {}
@@ -355,7 +383,7 @@ def protective_grant_recipients(
                 and id(n) not in in_token
                 and _filter_recipient(tree, getattr(n, "affected", None)) == "player"
             ):
-                yield _PLAYER_PROTECTION_MODES[mode], "player"
+                yield _PLAYER_PROTECTION_MODES[mode], "player", None
         for sdef, mod in iter_mod_sites(unit.node, deep=True):
             affected = getattr(sdef, "affected", MISSING)
             if not _present(affected):
@@ -364,7 +392,7 @@ def protective_grant_recipients(
                 card_is_aura and id(sdef) not in in_token
             )
             if _umbra_armored_aura(sdef, mod, aura=aura):
-                yield "umbra armor", "permanent"
+                yield "umbra armor", "permanent", affected
                 continue
             kw = protective_keyword(mod)
             if kw is None or id(sdef) in in_token:
@@ -374,7 +402,7 @@ def protective_grant_recipients(
                 continue
             who = _self_or_granted(tree, unit, sdef, affected, granted, resolved)
             if who is not None:
-                yield kw, who
+                yield kw, who, affected
 
 
 # ── Saves ───────────────────────────────────────────────────────────────────────

@@ -43,6 +43,7 @@ from mtg_utils._card_ir.crosswalk import (
     damage_to_player_trigger_kind,
     detriment_directed_scope,
     double_target_kind,
+    double_triggers_cause,
     double_triggers_cause_core_types,
     effect_damage_amplifier,
     effect_filter,
@@ -2036,6 +2037,9 @@ _TRIGGER_DOUBLING_GRANT_RE = re.compile(
     r"\btriggers?\b.*\ban additional time\b", re.IGNORECASE | re.DOTALL
 )
 
+#: The ``DoubleTriggers`` causes an object entering the battlefield meets.
+_ENTERS_CAUSES = frozenset({"EntersBattlefield", "BattlefieldTransition"})
+
 
 def _trigger_doubling(tree: ConceptTree) -> list[Signal]:
     """trigger_doubling — the trigger-doubling engine (grounded by
@@ -2058,7 +2062,18 @@ def _trigger_doubling(tree: ConceptTree) -> list[Signal]:
     for unit in tree.units:
         for sdef in iter_static_defs(unit.node):
             if static_mode_tag(sdef) == "DoubleTriggers":
-                return [Signal("trigger_doubling", "you", "", "", tree.name, "high")]
+                out = [Signal("trigger_doubling", "you", "", "", tree.name, "high")]
+                # An entering object's triggers (Panharmonicon, Yarok; one
+                # entering or leaving — Gandalf the White): the ``enters``
+                # subject a blink / ETB deck pages by.
+                cause = double_triggers_cause(sdef)
+                if cause is not None and cause[0] in _ENTERS_CAUSES:
+                    out.append(
+                        Signal(
+                            "trigger_doubling", "you", "enters", "", tree.name, "high"
+                        )
+                    )
+                return out
         for c in unit.iter_concepts():
             if (
                 c.concept == OTHER
@@ -2153,10 +2168,20 @@ def _forced_attack(tree: ConceptTree) -> list[Signal]:
                 continue
             out.append(Signal("forced_attack", "any", "", "", tree.name, "high"))
             seen_any = True
+            if _forces_others(affected):
+                out.append(
+                    Signal("forced_attack", "any", "others", "", tree.name, "high")
+                )
         for c in unit.effects:
             if tag_of(c.node) == "ForceAttack":
                 out.append(Signal("forced_attack", "any", "", c.raw, tree.name, "high"))
                 seen_any = True
+                if _forces_others(getattr(c.node, "target", None)):
+                    out.append(
+                        Signal(
+                            "forced_attack", "any", "others", c.raw, tree.name, "high"
+                        )
+                    )
     kept = _kept(tree)
     if (
         not seen_any
@@ -2167,6 +2192,20 @@ def _forced_attack(tree: ConceptTree) -> list[Signal]:
     if _FORCED_ATTACK_PUNISH_RX.search(kept):
         out.append(Signal("forced_attack", "you", "", "", tree.name, "high"))
     return out
+
+
+def _forces_others(filt: object) -> bool:
+    """Whether an attack compulsion falls on creatures beyond your own: every
+    creature (Warmonger Hellkite), an opponent's (Alluring Siren's target
+    creature an opponent controls, War's Toll) — not the card itself
+    (Juggernaut) or only your creatures (Goblin Rabblemaster's other Goblins).
+    The ``others`` subject: what a rewards-for-being-attacked deck forces."""
+    tag = tag_of(filt)
+    if filt is None or tag in ("SelfRef", "LastCreated"):
+        return False
+    if tag in ("Typed", "Or", "And"):
+        return filter_controller(filt) != "You"
+    return tag not in ("ParentTarget", "AttachedTo")
 
 
 # Retired 2026-10-25: ``DAMAGE_PREVENTION_REGEX``, the mined sweep pattern ("prevent the
@@ -2551,12 +2590,12 @@ def _replacement_doubler_lanes(tree: ConceptTree) -> list[Signal]:
     All scope "you" (live).
     """
     out: list[Signal] = []
-    seen: set[str] = set()
+    seen: set[tuple[str, str]] = set()
 
-    def fire(key: str, raw: str) -> None:
-        if key not in seen:
-            seen.add(key)
-            out.append(Signal(key, "you", "", raw, tree.name, "high"))
+    def fire(key: str, raw: str, subject: str = "") -> None:
+        if (key, subject) not in seen:
+            seen.add((key, subject))
+            out.append(Signal(key, "you", subject, raw, tree.name, "high"))
 
     for unit in tree.units:
         if unit.origin != "replacement":
@@ -2587,6 +2626,10 @@ def _replacement_doubler_lanes(tree: ConceptTree) -> list[Signal]:
             ):
                 fire("counter_doubling", raw)
                 fire("counter_replace_bonus", raw)
+                if tag_of(getattr(node, "counter_match", None)) is None and (
+                    _reaches_planeswalkers(vc)
+                ):
+                    fire("counter_doubling", raw, _LOYALTY)
         elif ev == "DamageDone":
             mod = replacement_damage_mod(node)
             if mod in _DAMAGE_AMP_MODS:
@@ -2620,14 +2663,65 @@ def _replacement_doubler_lanes(tree: ConceptTree) -> list[Signal]:
         if c.recovered_by == "counter_bonus" and not is_theirs(c):
             fire("counter_doubling", c.raw)
             fire("counter_replace_bonus", c.raw)
-    for c in tree.effect_concepts("double_quantity"):
-        if double_target_kind(c.node) == "Counters":
-            fire("counter_doubling", c.raw)
-    for c in tree.effect_concepts("multiply_counter"):
-        mult = getattr(c.node, "multiplier", None)
-        if isinstance(mult, int) and mult >= 2:
-            fire("counter_doubling", c.raw)
+    # The one-shot doublers, an ability one grants included (Evolution Vat's
+    # "{2}{G}{U}: Double the number of +1/+1 counters on this creature", Level
+    # Up's attack trigger).
+    for unit in tree.units:
+        for c in (*unit.effects, *iter_nested_granted_effect_concepts(unit.node)):
+            if tag_of(c.node) == "AddTargetReplacement":
+                # A replacement an effect sets up for a turn (Kaya, Geist
+                # Hunter's -2: "Until end of turn, if one or more tokens would be
+                # created under your control, twice that many … instead") doubles
+                # tokens as a static one does. Only one naming your tokens: phase
+                # also types Galloping Lizrog's "put twice that many +1/+1
+                # counters" as an owner-less token replacement.
+                rep = getattr(c.node, "replacement", None)
+                if not isinstance(rep, TypedMirrorNode):
+                    continue
+                qm = replacement_qty_mod(rep)
+                if (
+                    qm is not None
+                    and qm[0] in _INCREASE_QTY_MODS
+                    and replacement_event_tag(rep) == "CreateToken"
+                    and replacement_token_owner_scope(rep) == "You"
+                ):
+                    fire("token_doubling", getattr(rep, "description", None) or "")
+            elif c.concept == "double_quantity":
+                if double_target_kind(c.node) != "Counters":
+                    continue
+                fire("counter_doubling", c.raw)
+                # "each kind of counter on target permanent" (Gilder Bairn)
+                if _doubles_every_kind(c.node) and _reaches_planeswalkers(
+                    getattr(c.node, "target", None)
+                ):
+                    fire("counter_doubling", c.raw, _LOYALTY)
+            elif c.concept == "multiply_counter":
+                mult = getattr(c.node, "multiplier", None)
+                if isinstance(mult, int) and mult >= 2:
+                    fire("counter_doubling", c.raw)
     return out
+
+
+# The ``counter_doubling`` subject of a doubler of every counter kind on any
+# permanent you control: it doubles a planeswalker's loyalty counters too, the
+# ones it enters with included (CR 122.6: counters put on an object include "an
+# object that's given counters as it enters the battlefield") — Doubling Season,
+# Vorinclex, Gilder Bairn. A doubler limited to one kind (Hardened Scales'
+# +1/+1) or to creatures stays out.
+_LOYALTY = "loyalty"
+_PLANESWALKER_REACH = frozenset({"Permanent", "Planeswalker"})
+
+
+def _reaches_planeswalkers(filt: object) -> bool:
+    """Whether a doubler's object filter takes in a planeswalker: none (any
+    permanent) or one naming Permanent or Planeswalker."""
+    return filt is None or bool(_PLANESWALKER_REACH & set(filter_core_types(filt)))
+
+
+def _doubles_every_kind(double: object) -> bool:
+    """Whether a one-shot ``Double`` of counters names no counter kind."""
+    data = getattr(getattr(double, "target_kind", None), "data", None)
+    return getattr(data, "inner", data) is None
 
 
 def _is_tribe_damage_source(vs: object) -> bool:

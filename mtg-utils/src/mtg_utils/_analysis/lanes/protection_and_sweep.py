@@ -59,6 +59,7 @@ from mtg_utils._card_ir.crosswalk import (
     names_subtype_payoff,
     protective_grant_recipients,
     protective_saves,
+    protective_team_grants,
     puts_commander_into_hand,
     residue_is,
     silences_own_enter_triggers,
@@ -1682,16 +1683,28 @@ _SWEEP_SYNTH_KEYS: tuple[tuple[str, str], ...] = (
 #     combat-damage-to-a-player payoff, Hidden Strings, Stolen Identity).
 #     The keyword array is the only source: phase gives the cipher spells no
 #     node for the encoded trigger.
-_SWEEP_KEYWORD_LANES: tuple[tuple[frozenset[str], str, str], ...] = (
-    (frozenset({"power-up"}), "powerup_matters", "you"),
-    (frozenset({"sneak"}), "recast_etb", "you"),
+#   * squad → token_copy_makers, subject ``self`` (CR 702.157a: "When this
+#     creature enters, if its squad cost was paid, create a token that's a copy
+#     of it for each time its squad cost was paid"). Additive where phase types
+#     the trigger; phase v0.104.0 parks Ruthless Radrat's and Thrill-Kill
+#     Disciple's squad whole.
+#   * exploit and squad → self_etb_payload: each is an enters trigger of the
+#     card's own (CR 702.110a: "When this creature enters, you may sacrifice a
+#     creature", opening the card's "when this creature exploits" payoff; squad's
+#     token copies), so a blink or recast re-delivers it.
+_SWEEP_KEYWORD_LANES: tuple[tuple[frozenset[str], str, str, str], ...] = (
+    (frozenset({"power-up"}), "powerup_matters", "you", ""),
+    (frozenset({"sneak"}), "recast_etb", "you", ""),
     (
         frozenset({"casualty", "bargain", "exploit", "devour"}),
         "sacrifice_outlets",
         "you",
+        "",
     ),
-    (frozenset({"umbra armor", "totem armor"}), "board_protection", "you"),
-    (frozenset({"cipher"}), "combat_damage_matters", "opponents"),
+    (frozenset({"umbra armor", "totem armor"}), "board_protection", "you", ""),
+    (frozenset({"cipher"}), "combat_damage_matters", "opponents", ""),
+    (frozenset({"squad"}), "token_copy_makers", "you", "self"),
+    (frozenset({"exploit", "squad"}), "self_etb_payload", "you", ""),
 )
 
 
@@ -1705,8 +1718,8 @@ def _keyword_field_signals_sweep(keywords: frozenset[str], name: str) -> list[Si
     """
     low = {k.lower() for k in keywords}
     return [
-        Signal(key, scope, "", "", name, "high")
-        for kws, key, scope in _SWEEP_KEYWORD_LANES
+        Signal(key, scope, subject, "", name, "high")
+        for kws, key, scope, subject in _SWEEP_KEYWORD_LANES
         if low & kws
     ]
 
@@ -2140,13 +2153,24 @@ def _board_protection(tree: ConceptTree) -> list[Signal]:
     (Estrid, the Masked's Mask) — is ``protective_grant_recipients``; and a grant
     phase parks unparsed (Umbra Mystic's "Auras attached to permanents you
     control have umbra armor") is the ``protective_grant_parse_failure`` ledger
-    bridge."""
+    bridge.
+
+    Each protective keyword it gives a group of your permanents
+    (:func:`~mtg_utils._card_ir.crosswalk.protection.protective_team_grants` —
+    Heroic Intervention, Avacyn, Flawless Maneuver) is also the keyword's
+    subject: the team protection a one-sided wrath or a go-wide board wants."""
     if (
-        next(protective_grant_recipients(tree), None) is not None
-        or next(protective_saves(tree), None) is not None
+        next(protective_grant_recipients(tree), None) is None
+        and next(protective_saves(tree), None) is None
     ):
-        return [Signal("board_protection", "you", "", "", tree.name, "high")]
-    return []
+        return []
+    return [
+        Signal("board_protection", "you", "", "", tree.name, "high"),
+        *(
+            Signal("board_protection", "you", kw, "", tree.name, "high")
+            for kw in sorted(set(protective_team_grants(tree)))
+        ),
+    ]
 
 
 def _pillowfort(tree: ConceptTree) -> list[Signal]:

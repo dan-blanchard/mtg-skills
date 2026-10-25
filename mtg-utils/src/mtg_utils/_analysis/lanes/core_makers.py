@@ -50,6 +50,7 @@ from mtg_utils._card_ir.crosswalk import (
     ConceptTree,
     adds_creature_type,
     answers_its_target,
+    cast_with_keyword_name,
     change_zone_dirs,
     controller_paid_cost_leaves,
     counter_kind,
@@ -91,6 +92,7 @@ from mtg_utils._card_ir.crosswalk import (
     names_attached_object,
     nested_plus_one_keyword_grant,
     own_turn_step_triggers,
+    player_filter_tag,
     plays_lands_from_graveyard,
     recipient_tag,
     redirects_stack_object,
@@ -232,9 +234,47 @@ def _spell_copy_makers(tree: ConceptTree) -> list[Signal]:
     you. Distinct from clone (creatures-on-battlefield) and token-copy.
     """
     hits = tree.effect_concepts("copy_spell")
-    if hits:
-        return [Signal("spell_copy_makers", "you", "", hits[0].raw, tree.name, "high")]
-    return []
+    if not hits:
+        return []
+    out = [Signal("spell_copy_makers", "you", "", hits[0].raw, tree.name, "high")]
+    if _copies_creature_spells(tree):
+        out.append(
+            Signal("spell_copy_makers", "you", "creature", "", tree.name, "high")
+        )
+    return out
+
+
+def _copies_creature_spells(tree: ConceptTree) -> bool:
+    """Whether the spells the card copies are creature spells, whose copies
+    become token creatures (CR 707.10f: as such a copy resolves it "becomes a
+    token permanent"): "Copy target creature spell you control" (Double Major), a cast
+    trigger watching creature spells or the chosen creature type (Volo, Guide
+    to Monsters; Reflections of Littjara), or replicate granted to a creature
+    type's spells (Hatchery Sliver). The ``creature`` subject: a copy effect a
+    legend-rule-off or clone deck counts beside its clones."""
+    for unit in tree.units:
+        for c in unit.effect_concepts("copy_spell"):
+            tgt = getattr(c.node, "target", None)
+            filt = (
+                getattr(unit.node, "valid_card", None)
+                if unit.origin == "trigger" and tag_of(tgt) == "TriggeringSource"
+                else tgt
+            )
+            if _names_creature_spells(filt):
+                return True
+        if (
+            unit.origin == "static"
+            and cast_with_keyword_name(unit.node) == "Replicate"
+            and _names_creature_spells(getattr(unit.node, "affected", None))
+        ):
+            return True
+    return False
+
+
+def _names_creature_spells(filt: object) -> bool:
+    return filter_names_creatures(filt) or "IsChosenCreatureType" in (
+        filter_predicates(filt)
+    )
 
 
 # The symmetric "each player creates" idiom (CR 111.2) — a widening on the
@@ -2301,20 +2341,47 @@ def _direct_damage(tree: ConceptTree) -> list[Signal]:
     reads as a recovered damage clause. (The synthesis arms that stood in for
     it and for Maestros Diabolist's quoted Devil grant retired at phase
     v0.104.0.)
+
+    Burn that hits each opponent at once (a ``DamageEachPlayer`` / ``DamageAll``
+    whose ``player_filter`` is ``Opponent`` — Boltwave, Chandra, Pyrogenius's +2,
+    Dagger Caster) also carries the ``each_opponent`` subject: the group burn a
+    Pestilence deck wants beside its symmetric sweepers.
     """
+    hit = _direct_damage_hit(tree)
+    if hit is None:
+        return []
+    out = [Signal("direct_damage", "you", "", hit, tree.name, "high")]
+    # The burn may sit in an ability the card grants or its tokens carry (a
+    # Wizard token's "Whenever you cast a noncreature spell, this token deals 1
+    # damage to each opponent" — Cornered by Black Mages), the same reach
+    # ``has_nested_damage_reaching_player`` gives the bare ident.
+    if any(
+        tag_of(n) in _EACH_PLAYER_DAMAGE_TAGS and player_filter_tag(n) == "Opponent"
+        for n in tree.iter_typed()
+    ):
+        out.append(
+            Signal("direct_damage", "you", "each_opponent", "", tree.name, "high")
+        )
+    return out
+
+
+_EACH_PLAYER_DAMAGE_TAGS = frozenset({"DamageEachPlayer", "DamageAll"})
+
+
+def _direct_damage_hit(tree: ConceptTree) -> str | None:
+    """The text of the card's first burn that reaches a player
+    (:func:`_direct_damage`), ``""`` for one with no clause of its own, or None."""
     for unit in tree.units:
         for c in unit.effect_concepts("deal_damage"):
             if c.recovered_by == "damage":
                 if OTHER_PLAYER in c.reading:
-                    return [
-                        Signal("direct_damage", "you", "", c.raw, tree.name, "high")
-                    ]
+                    return c.raw
                 continue
             if effect_reaches_player(c.node, unit.node):
-                return [Signal("direct_damage", "you", "", c.raw, tree.name, "high")]
+                return c.raw
         if has_nested_damage_reaching_player(unit.node):
-            return [Signal("direct_damage", "you", "", "", tree.name, "high")]
-    return []
+            return ""
+    return None
 
 
 _LANDFALL_STATIC_LAND_DROP_MODES = frozenset(

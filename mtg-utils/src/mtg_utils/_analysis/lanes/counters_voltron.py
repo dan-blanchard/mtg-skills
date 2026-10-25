@@ -19,6 +19,7 @@ from mtg_utils._analysis.lanes._shared import (
     typed_token_payoff_signals,
 )
 from mtg_utils._analysis.signal_base import Signal
+from mtg_utils._analysis.tree_synthesis import ETB_TRIGGER_EVENTS
 from mtg_utils._card_ir.crosswalk import (
     AbilityUnit,
     ConceptTree,
@@ -50,6 +51,7 @@ from mtg_utils._card_ir.crosswalk import (
     modify_cost_mode,
     modify_cost_spell_filter,
     names_attached_object,
+    or_arms,
     own_token_filters,
     pt_mod_signs,
     recipient_tag,
@@ -1689,8 +1691,10 @@ def _voltron_maker_unit_gear_attach(unit: AbilityUnit) -> bool:
     ``GainControl`` node's own ``target`` is directly ``Typed(Equipment)``],
     Stolen Uniform's "Choose target creature … and target Equipment … Attach
     it" [a sibling ``TargetOnly`` node's own ``target`` is directly
-    ``Typed(Equipment)``]). Narrowly scoped to avoid the Hammer of Nazahn /
-    Ajani's Chosen / Sigarda's Aid over-fire class: (1) the ``Attach``'s own
+    ``Typed(Equipment)``]). Narrowly scoped, so a trigger that attaches the
+    gear that entered (Hammer of Nazahn, Sigarda's Aid) is
+    :func:`_attaches_entering_gear`'s own read, and one watching any enchantment
+    (Ajani's Chosen) stays out: (1) the ``Attach``'s own
     ``attachment`` must itself be an unresolved back-reference (never fires
     when ``attachment`` is absent — a self-attach — or already a direct
     Typed filter, both handled by the base arm above); (2) the resolving
@@ -1840,7 +1844,7 @@ def _voltron_makers(tree: ConceptTree) -> list[Signal]:
         ):
             return [Signal("voltron_makers", "you", "", c.raw, tree.name, "high")]
     for unit in tree.units:
-        if _voltron_maker_unit_gear_attach(unit):
+        if _voltron_maker_unit_gear_attach(unit) or _attaches_entering_gear(unit):
             return [Signal("voltron_makers", "you", "", "", tree.name, "high")]
         if any(
             getattr(tok, "name", None) not in _DEBUFF_ROLES
@@ -1880,6 +1884,30 @@ def _voltron_makers(tree: ConceptTree) -> list[Signal]:
             if isinstance(desc, str) and _VOLTRON_REANIMATE_ATTACH_RX.search(desc):
                 return [Signal("voltron_makers", "you", "", desc, tree.name, "high")]
     return []
+
+
+def _attaches_entering_gear(unit: AbilityUnit) -> bool:
+    """Whether an enters trigger watching OTHER Equipment or Auras of yours
+    attaches the one that entered: "Whenever ~ or another Equipment you control
+    enters, you may attach that Equipment to target creature you control" (Hammer
+    of Nazahn), "Whenever an Equipment you control enters, you may attach it"
+    (Sigarda's Aid) — a free equip of every new piece of gear. Phase binds the
+    attached object as the trigger's (``TriggeringSource``) or, on Hammer of
+    Nazahn, the chain's (``ParentTarget``)."""
+    if unit.origin != "trigger" or unit.trigger_event not in ETB_TRIGGER_EVENTS:
+        return False
+    watched = getattr(unit.node, "valid_card", None)
+    if not any(
+        {s.lower() for s in filter_subtypes(arm)} & _VOLTRON_SUBTYPES
+        for arm in or_arms(watched)
+    ):
+        return False
+    return any(
+        c.concept == "attach"
+        and tag_of(getattr(c.node, "attachment", None))
+        in ("TriggeringSource", "ParentTarget")
+        for c in unit.effects
+    )
 
 
 #: The subject of ``voltron_makers`` on an Aura or Equipment whose own static pumps

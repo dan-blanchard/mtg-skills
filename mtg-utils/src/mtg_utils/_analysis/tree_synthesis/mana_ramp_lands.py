@@ -190,6 +190,19 @@ def _engine_untap_surfaces(
                     yield unit, tgt, mass
 
 
+def untaps_your_lands(tree: ConceptTree) -> bool:
+    """Whether a board-wide untap surface (:func:`_engine_untap_surfaces`)
+    untaps every land you control ("untap all lands you control" — Wilderness
+    Reclamation, Bear Umbra's granted attack trigger, Zacama; "untap all
+    permanents you control" — Seedborn Muse): each land taps for mana again."""
+    return any(
+        mass
+        and filter_controller(scope_filter) == "You"
+        and {"Land", "Permanent"} & set(filter_core_types(scope_filter))
+        for _unit, scope_filter, mass in _engine_untap_surfaces(tree)
+    )
+
+
 def has_structural_untap_engine(tree: ConceptTree) -> bool:
     """A DELIBERATE untap engine phase structures (CR 701.26/701.26b).
 

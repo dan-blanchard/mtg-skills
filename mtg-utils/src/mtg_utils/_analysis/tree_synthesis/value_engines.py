@@ -43,6 +43,7 @@ from mtg_utils._card_ir.crosswalk import (
     filter_controller_side,
     filter_core_types,
     filter_inzone_zones,
+    filter_takes_in_card,
     hand_count_scopes,
     hand_size_scopes,
     has_nested_connive,
@@ -52,7 +53,10 @@ from mtg_utils._card_ir.crosswalk import (
     has_nested_roll_die,
     iter_condition_sites,
     iter_cost_leaves,
+    iter_granted_triggers,
+    iter_mod_sites,
     iter_typed_nodes,
+    mod_keyword_name,
     quantity_threshold,
     recipient_tag,
     settap_state,
@@ -60,6 +64,9 @@ from mtg_utils._card_ir.crosswalk import (
     steals_card_to_cast,
     tag_of,
     trigger_constraint_tag,
+    trigger_def_event,
+    walk_effect_chain,
+    watches_itself,
 )
 from mtg_utils._card_ir.mirror.runtime import (
     MISSING,
@@ -358,9 +365,10 @@ _SELF_ETB_OWN_RECIPIENTS = frozenset({"Controller", "SelfRef"})
 _SELF_ETB_STATIC_TAGS = frozenset({"AddDynamicPower", "AddDynamicToughness"})
 # Keyword actions phase types with no ``EFFECT_CONCEPTS`` row (they decorate as
 # ``other``): bolster and endure put +1/+1 counters or make a Spirit, learn
-# draws or fetches a Lesson — value on every entry (Sandsteppe Scavenger,
-# Fortress Kin-Guard, Gnarled Professor).
-_SELF_ETB_ACTION_TAGS = frozenset({"Bolster", "Endure", "Learn"})
+# draws or fetches a Lesson, a spellbook draft conjures a card into your hand —
+# value on every entry (Sandsteppe Scavenger, Fortress Kin-Guard, Gnarled
+# Professor, Adaptive Armorer).
+_SELF_ETB_ACTION_TAGS = frozenset({"Bolster", "Endure", "Learn", "DraftFromSpellbook"})
 
 
 def _self_etb_harm_lands_on_you(unit: AbilityUnit, c: ConceptNode) -> bool:
@@ -419,17 +427,51 @@ def has_self_etb_payload(tree: ConceptTree) -> bool:
     for wants_cloning): any :func:`_is_self_etb_payload` concept qualifies —
     Shriekmaw's destroy, Mulldrifter's draw, Fleshbag Marauder's edict,
     Siege-Gang Commander's tokens, Craterhoof's pump; a drawback-only
-    trigger (Hecatomb, the Karoo lands, Foul Imp) does not."""
+    trigger (Hecatomb, the Karoo lands, Foul Imp) does not. A trigger watching
+    the card beside others fires on its own entry too ("Whenever this creature
+    or another nontoken creature you control enters" — Angelic Sell-Sword)."""
     for unit in tree.units:
         if (
             unit.origin == "trigger"
             and unit.trigger_event in ETB_TRIGGER_EVENTS
-            and tag_of(getattr(unit.node, "valid_card", None)) == "SelfRef"
+            and watches_itself(unit.node, among_others=True)
             and any(
                 _is_self_etb_payload(unit, c) for c in (*unit.effects, *unit.statics)
             )
         ):
             return True
+    return _grants_itself_etb_payload(tree)
+
+
+def _grants_itself_etb_payload(tree: ConceptTree) -> bool:
+    """A self-ETB value trigger the card gets from a grant it falls under (CR
+    113.1a): "All Slivers have 'When this permanent enters, destroy target
+    artifact or enchantment'" (Harmonic Sliver), Cephalid Sage's threshold "this
+    creature has 'When this creature enters, draw three cards …'"; and exploit
+    (CR 702.110a, an enters trigger) given to a group the card is in (Henry Wu,
+    InGen Geneticist's Humans). The grant's other permanents re-enter with it too,
+    but the card itself is a body worth flickering."""
+    for unit in tree.units:
+        if any(
+            mod_keyword_name(mod) == "Exploit"
+            and filter_takes_in_card(getattr(sdef, "affected", None), tree)
+            for sdef, mod in iter_mod_sites(unit.node)
+        ):
+            return True
+        for granted in iter_granted_triggers(unit):
+            trig = granted.trigger
+            if not (
+                trigger_def_event(trig) in ETB_TRIGGER_EVENTS
+                and tag_of(getattr(trig, "valid_card", None)) == "SelfRef"
+            ):
+                continue
+            if not filter_takes_in_card(granted.grantee, tree):
+                continue
+            execute = getattr(trig, "execute", None)
+            if isinstance(execute, TypedMirrorNode) and any(
+                _is_self_etb_payload(unit, c) for c in walk_effect_chain(execute)
+            ):
+                return True
     return False
 
 

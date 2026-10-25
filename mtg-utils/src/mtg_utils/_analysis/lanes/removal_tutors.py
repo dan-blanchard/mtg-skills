@@ -1891,12 +1891,19 @@ def _recast_doer_subjects(tree: ConceptTree) -> list[tuple[str, str]]:
                 tree, unit, c, hit, _LAND_CARD
             ):
                 found.add("land")
-    if any(not _land_only(f) for f in replays):
+    # Web-slinging's cost returns a tapped creature you control to its owner's
+    # hand (CR 702.188a) — phase keeps only the keyword, the card's own or one it
+    # gives your spells (Amazing Spider-Man's "Each legendary spell you cast …
+    # has web-slinging").
+    web_slinging = any(ac.kind == "web-slinging" for ac in tree.card_alt_costs) or any(
+        "web-slinging" in granted_alt_cost_kinds(unit) for unit in tree.units
+    )
+    if web_slinging or any(not _land_only(f) for f in replays):
         found.add("replay")
     out = [
         ("permanent_recast", s) for s in ("reanimate", "replay", "land") if s in found
     ]
-    if replays:
+    if replays or web_slinging:
         out.append(("permanent_etb", "replay"))
     return out
 
@@ -2259,6 +2266,33 @@ def _activated_ability(tree: ConceptTree) -> list[Signal]:
             continue
         if any(c.concept not in _ACTIVATED_ABILITY_DROP_EFFECTS for c in unit.effects):
             return [Signal("activated_ability", "you", "", "", tree.name, "high")]
+    return []
+
+
+def _activated_ability_enabler(tree: ConceptTree) -> list[Signal]:
+    """``activated_ability|you|enabler`` — a static that lets your creatures'
+    activated abilities be used sooner or cheaper: "You may activate abilities of
+    creatures you control as though those creatures had haste" (Thousand-Year
+    Elixir; CR 302.6 ties a creature's {T} abilities to summoning sickness) or
+    "Activated abilities of creatures you control cost {2} less to activate"
+    (Training Grounds; every player's — Heartstone; the enchanted artifact's —
+    Power Artifact). One that reaches only an opponent's permanents feeds no
+    engine of yours. It feeds a tap-ability engine without being one."""
+    for unit in tree.units:
+        if (
+            unit.origin != "static"
+            or filter_controller(getattr(unit.node, "affected", None)) == "Opponent"
+        ):
+            continue
+        mode = static_mode_tag(unit.node)
+        if mode == "CanActivateAbilitiesAsThoughHaste" or (
+            mode == "ReduceAbilityCost"
+            and static_mode_field(unit.node, "keyword") == "activated"
+            and static_mode_field(unit.node, "mode") == "Reduce"
+        ):
+            return [
+                Signal("activated_ability", "you", "enabler", "", tree.name, "high")
+            ]
     return []
 
 
@@ -2797,6 +2831,7 @@ LANES = (
     _self_counter_grow,
     _flash_matters_lane,
     _activated_ability,
+    _activated_ability_enabler,
     _mass_death_payoff,
     _destroy_legendary,
     _opponent_exile_matters_lane,
