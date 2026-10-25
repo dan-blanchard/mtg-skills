@@ -14,6 +14,8 @@ exclusions bundled per axis — using a different representative card wherever o
 is available, so the two files' regression coverage stays independent.
 """
 
+import pytest
+
 from mtg_utils._analysis.signal_specs import spec_for
 from mtg_utils._analysis.signals import Signal
 from mtg_utils.testkit import test_signals
@@ -128,6 +130,71 @@ def test_creature_etb_does_not_fire_permanent_etb():
     # a creature-only ETB is creature_etb, not the generic permanent axis: Impact
     # Tremors' "a creature you control enters" never opens permanent_etb.
     assert "permanent_etb" not in {s.key for s in test_signals("Impact Tremors")}
+
+
+def _idents(name):
+    return {f"{s.key}|{s.scope}|{s.subject}" for s in test_signals(name)}
+
+
+@pytest.mark.parametrize(
+    ("name", "ident", "expected"),
+    [
+        # A card or permanent other than this one put onto the battlefield under
+        # your control.
+        ("Rampant Growth", "permanent_etb|you|put", True),  # a land search
+        ("Skyshroud Ranger", "permanent_etb|you|put", True),  # a land from hand
+        ("Dredge the Mire", "permanent_etb|you|put", True),  # theirs, for you
+        ("Ephemerate", "permanent_etb|you|put", True),  # a blink's return
+        ("Path to Exile", "permanent_etb|you|put", False),  # the target's controller
+        ("Nether Shadow", "permanent_etb|you|put", False),  # puts only itself
+        ("Mox Diamond", "permanent_etb|you|put", False),  # puts only itself
+        # A token copy of the card itself.
+        ("Pack Rat", "token_copy_makers|you|self", True),
+        ("Aven Initiate", "token_copy_makers|you|self", True),  # embalm
+        ("Herald of the Host", "token_copy_makers|you|self", True),  # myriad
+        ("Parallel Lives", "token_copy_makers|you|self", False),  # copies others
+        # A card put onto the battlefield face down; a morph is cast.
+        ("Manifest Dread", "facedown_makers|you|manifest", True),
+        ("Ainok Tracker", "facedown_makers|you|manifest", False),
+        # A cost paid by returning a land you control to hand.
+        ("Coral Atoll", "permanent_recast|you|replay", True),
+    ],
+)
+def test_permanents_entering_doers(name, ident, expected):
+    assert (ident in _idents(name)) is expected
+
+
+def test_permanent_etb_pages_what_makes_permanents_enter():
+    """The "Permanents entering" page reads idents: makers, puts, the other
+    engines and the ETB doublers; an enters drawback or an opponent's search
+    makes nothing enter. Its doers open no avenue of their own."""
+    from mtg_utils._analysis.signal_specs import SPECS, avenue_spec_for
+    from mtg_utils.testkit import test_card, test_card_ir
+
+    serve = SPECS[("permanent_etb", "you")].serve
+    assert serve.oracle is None
+    for name in (
+        "Rampant Growth",
+        "Krenko, Mob Boss",
+        "Panharmonicon",
+        "Amulet of Vigor",
+        "Pack Rat",
+        "Whitemane Lion",
+        "Mulldrifter",
+        "Manifest Dread",
+    ):
+        test_card_ir(name)
+        assert serve.matches(test_card(name)), name
+    for name in ("Phage the Untouchable", "Hidden Horror", "Path to Exile"):
+        test_card_ir(name)
+        assert not serve.matches(test_card(name)), name
+    for key, subject in (
+        ("permanent_etb", "put"),
+        ("token_copy_makers", "self"),
+        ("facedown_makers", "manifest"),
+    ):
+        sig = Signal(key=key, scope="you", subject=subject, text="", source="X")
+        assert avenue_spec_for(sig) is None, (key, subject)
 
 
 # ── new keys must have specs so the UI renders an avenue + serves() works ──

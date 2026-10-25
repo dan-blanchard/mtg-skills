@@ -364,7 +364,12 @@ def _facedown_makers(tree: ConceptTree) -> list[Signal]:
     are CAST face down) ride the keyword field-lookup in
     :func:`_keyword_field_signals_b5`. Scope "you".
     """
-    return _whole_card_maker(tree, "facedown", "facedown_makers", "you")
+    sigs = _whole_card_maker(tree, "facedown", "facedown_makers", "you")
+    if sigs:
+        # The effect node puts a card onto the battlefield (the ``manifest``
+        # subject a permanents-entering page counts, page-only); a morph is cast.
+        sigs.append(Signal("facedown_makers", "you", "manifest", "", tree.name, "high"))
+    return sigs
 
 
 def _dice_makers(tree: ConceptTree) -> list[Signal]:

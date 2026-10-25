@@ -2565,6 +2565,10 @@ def _copied_noncreature_permanent(word: str) -> bool:
     )
 
 
+#: Keywords that each make a token copy of the card itself (see ``_copy_clone``).
+_SELF_COPY_KEYWORDS: frozenset[str] = frozenset({"Myriad", "Encore", "Squad"})
+
+
 def _copy_clone(tree: ConceptTree) -> list[Signal]:
     """copy_permanent / clone_makers / token_copy_makers — the copy cluster (CR 707 /
     701.36). Three structural surfaces (Dan's clone-vs-token-copy boundary):
@@ -2590,7 +2594,9 @@ def _copy_clone(tree: ConceptTree) -> list[Signal]:
       COPIED object, so it is not read here. The Embalm / Eternalize / … reminder
       self-copies carry a
       ``SelfRef`` target (a copy of THIS card, not a copy-others payoff — Adorned
-      Pouncer) and are EXCLUDED structurally, the discriminator fully in the IR.
+      Pouncer) and are EXCLUDED structurally, the discriminator fully in the IR;
+      they carry the ``self`` subject instead (a token entering — the
+      permanents-entering page's, page-only).
 
     The token-doubling cross-open (Doubling Season forks copy-tokens) and the
     clone-self idiom veto (Progenitor Mimic) stay ``live_only``. Scope "you".
@@ -2635,6 +2641,7 @@ def _copy_clone(tree: ConceptTree) -> list[Signal]:
                 fire("clone_makers", raw)
             if any(_copied_noncreature_permanent(w) for w in words):
                 fire("copy_permanent", raw)
+    self_copy = ""
     for unit in tree.units:
         granted = {
             id(c.node): c for c in iter_nested_granted_effect_concepts(unit.node)
@@ -2655,11 +2662,14 @@ def _copy_clone(tree: ConceptTree) -> list[Signal]:
             # copy-others engine; a GRANTED "copy of this creature" names the
             # creature it is granted to (Splinter Twin, Mirage Phalanx's soulbond
             # partner, Trickster's Talisman's equipped creature).
+            # It still puts a token onto the battlefield, the ``self`` subject a
+            # permanents-entering page counts (``signal_keys.PAGE_ONLY_SUBJECTS``).
             if (
                 c.concept == "copy_token"
                 and tag_of(tgt) == "SelfRef"
                 and id(c.node) not in granted
             ):
+                self_copy = self_copy or c.raw or "self"
                 continue
             # phase v0.104.0 parks Ochre Jelly's / Shredder's "create a token
             # that's a copy of it" as a residue the ``clone`` token recovers, with
@@ -2667,8 +2677,17 @@ def _copy_clone(tree: ConceptTree) -> list[Signal]:
             if c.recovered_by == "clone" and (
                 SELF in c.subject or _copies_a_named_card(unit)
             ):
+                self_copy = self_copy or c.raw or "self"
                 continue
             fire("token_copy_makers", c.raw)
+    # The self-copy keywords phase keeps as keywords alone, each a token copy of
+    # this creature: myriad (CR 702.116a), encore (702.141a), squad (702.157a).
+    if not self_copy and _SELF_COPY_KEYWORDS & set(tree.card_keywords):
+        self_copy = "self"
+    if self_copy:
+        out.append(
+            Signal("token_copy_makers", "you", "self", self_copy, tree.name, "high")
+        )
     if "clone_makers" not in seen:
         idiom = _clone_text_idiom(tree)
         if idiom is not None:

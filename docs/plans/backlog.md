@@ -214,18 +214,23 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   reading the payoff test off the unit itself would drop both text alignments,
   and would give a role to the hits no single ability emits (a keyword's
   lifelink, Crucible of Worlds' whole-card ident, a modal spell's text-less
-  mode), which still score structural. One serve a theme pages by still
-  carries an oracle arm (``permanent_etb`` — the Pass D entry says why it held);
-  its page is partly a pattern. ``land_protection`` reads idents since
-  2026-10-24 (the shield subject and ``permanent_recast|you|land``; Tomik's
-  mis-scoped hexproof and Sacred Ground's Unknown-mode event are ledgered).
-  ``self_etb_payload``'s page reads idents since 2026-10-24 (the recast
-  doers, ``permanent_recast|you|reanimate`` / ``replay``, page-only). Seven
-  creature reanimations phase parks or mistypes carry no recursion ident (the
-  ``reanimate`` preset misses them too): Custodi Soulcaller and Venerable
-  Warsinger (an X filter parked), Return of the Nightstalkers (parked whole),
-  Agadeem's Awakening and Lich-Knights' Conquest (no card type on the filter),
-  Can't Stay Away and Vigor Mortis (typed as a replacement).
+  mode), which still score structural. Every main serve a theme pages by reads
+  idents since 2026-10-24 (``self_etb_payload``, ``land_protection`` and
+  ``permanent_etb`` dropped their oracle arm for page-only doers,
+  ``signal_keys.PAGE_ONLY_SUBJECTS``). What the IR still misses there:
+  seven creature reanimations phase parks or mistypes carry no recursion
+  ident (the ``reanimate`` preset misses them too) — Custodi Soulcaller and
+  Venerable Warsinger (an X filter parked), Return of the Nightstalkers
+  (parked whole), Agadeem's Awakening and Lich-Knights' Conquest (no card type
+  on the filter), Can't Stay Away and Vigor Mortis (typed as a replacement);
+  and about forty permanents-entering makers no lane reads — the Alchemy
+  rebuilt-Jace token (Jace's Machinations and thirteen more), the named
+  Cadet / Ox tokens (Flourishing Forces, Quintorius, Oko, Lord of the Fae),
+  the token-increase replacements (Xorn, Academy Manufactor), "all creature
+  cards put there from the battlefield this turn" (Thrilling Encore, Supper
+  for Spiders, Myojin of Grim Betrayal), the cloak reminder (Become
+  Anonymous), opening an Attraction and drafting from a spellbook onto the
+  battlefield.
   (l) **Tune speed, what's left** (2026-10-24). The ranking's per-unit ident
   attribution persists in a write-back sidecar beside the signals index
   (`<bulk>.provenance.pkl`, `ident_provenance.attach_provenance_sidecar`; the
@@ -270,11 +275,7 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
 - **Pass D: the serves still on a regex** (2026-10-23;
   `docs/plans/serve-idents-and-avenue-support.md` "Pass D"; each spec's comment
   names its remainder). Regex-only, measured over the legal corpus:
-  `permanent_etb` (the regex pages 8,596
-  cards, every "when ~ enters" and token maker; the ident union — token makers,
-  self-ETB payloads, blink enablers, reanimation, land puts — pages 7,174 and
-  drops 1,953, the resource-token makers and cheats each a key of its own: the
-  serve's breadth is the open call, not a lane), `ability_strip_payoff` (the
+  `ability_strip_payoff` (the
   crippling-drawback text beside a power floor; no lane reads a drawback a strip
   turns off). Lane follow-ups the pass found: a `(key, subject)` role table that
   `DOER_SUBJECTS`, `MEMBERSHIP_SUBJECTS`, `PAGE_ONLY_SUBJECTS`, the pair reads'

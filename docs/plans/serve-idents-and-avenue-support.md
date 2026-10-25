@@ -181,7 +181,10 @@ alone (`self_etb_payload`, `permanent_etb`, `land_protection`, and
 `ability_strip_payoff`'s drawback text beside its power floor), four keep a regex
 beside their idents (`xspell_matters`, `team_buff`, `target_redirect`,
 `spell_redirect`), and thirteen serve on types or keywords alone; the backlog
-lists why.
+lists why. Since 2026-10-24 only `ability_strip_payoff`'s drawback text is left:
+the redirects, `xspell_matters` and `team_buff` read their lanes, and
+`self_etb_payload`, `permanent_etb` and `land_protection` read page-only doers
+(`signal_keys.PAGE_ONLY_SUBJECTS`).
 
 ## 3. Pass B: an avenue needs cards that care
 

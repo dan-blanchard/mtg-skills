@@ -7,6 +7,7 @@ from __future__ import annotations
 import re
 from collections.abc import Iterable, Iterator
 from dataclasses import fields
+from itertools import chain
 
 from mtg_utils._analysis._subtypes import LAND_SUBTYPES, subtype_card_type
 from mtg_utils._analysis._sweep_detectors import DISCARD_OUTLET_REGEX
@@ -32,6 +33,7 @@ from mtg_utils._analysis.signal_base import (
 )
 from mtg_utils._analysis.tree_synthesis import has_structural_extra_land_drop
 from mtg_utils._card_ir.crosswalk import (
+    _OPPONENT_ACTOR_TAGS,
     CREATURE_OR_PERMANENT,
     SWEPT_PERMANENT_TYPES,
     AbilityUnit,
@@ -54,6 +56,7 @@ from mtg_utils._card_ir.crosswalk import (
     filter_inzone_zones,
     filter_names_creatures,
     filter_owned_controller,
+    filter_owners,
     filter_predicates,
     filter_subtypes,
     filter_without_keywords,
@@ -78,6 +81,7 @@ from mtg_utils._card_ir.crosswalk import (
     pt_mod_signs,
     recipient_tag,
     ref_count_qty,
+    reveal_until_player,
     static_pt_mods_on_others,
     tag_of,
     targets_the_card,
@@ -3026,8 +3030,76 @@ def _unit_targets_player(unit: AbilityUnit) -> bool:
     )
 
 
+def _puts_onto_battlefield(unit: AbilityUnit, node: object) -> bool:
+    """Whether one effect puts a card or permanent other than this one onto the
+    battlefield under your control (CR 110.2: a permanent's controller is the
+    player under whose control it entered — by default its owner): a
+    ``ChangeZone`` / ``ChangeZoneAll`` onto the battlefield (a cheat, a
+    reanimation, a land put, a blink's return), or a dig / reveal that keeps its
+    card there (:func:`_kept_onto_battlefield`).
+
+    Out: the card putting itself (``SelfRef`` — Nether Shadow, Mox Diamond's
+    alternative), a put another player makes (an opponent actor, a search
+    another player is told to make — Path to Exile's, Settle the Wreckage's,
+    any ``ParentTargetController`` search; the cheat lane reads Arcum
+    Dagsson's), and a card from an opponent's graveyard or library returning
+    under its owner's control. Into your control (``enters_under: You``) is
+    yours whoever owned it (Dredge the Mire)."""
+    if not isinstance(node, TypedMirrorNode):
+        return False
+    tag = tag_of(node)
+    if tag in ("Dig", "RevealUntil"):
+        if tag == "RevealUntil" and reveal_until_player(node) not in (None, "you"):
+            return False
+        return _kept_onto_battlefield(node)
+    if tag not in ("ChangeZone", "ChangeZoneAll"):
+        return False
+    if change_zone_dirs(node)[1] != "Battlefield":
+        return False
+    if tag_of(getattr(node, "target", None)) == "SelfRef":
+        return False
+    if getattr(node, "enters_under", None) == "You":
+        return True
+    if effect_owner_player_scope(unit.node, node) in _OPPONENT_ACTOR_TAGS:
+        return False
+    sub = effect_filter(node)
+    owners = filter_owners(sub)
+    return filter_controller(sub) != "Opponent" and not (
+        owners and all(o == "Opponent" for o in owners)
+    )
+
+
+def _searched_by_another(unit: AbilityUnit) -> bool:
+    """A sibling search another player makes (:func:`_directed_search_sibling`),
+    or one through a target's controller (Path to Exile's "its controller may
+    search")."""
+    return _directed_search_sibling(unit) or any(
+        c.concept == "tutor"
+        and tag_of(getattr(c.node, "target_player", None)) == "ParentTargetController"
+        for c in unit.effects
+    )
+
+
+def _battlefield_put(tree: ConceptTree) -> list[Signal]:
+    """``permanent_etb|you|put`` — the card puts a card or permanent other than
+    itself onto the battlefield under your control (:func:`_puts_onto_battlefield`;
+    a granted ability's put included): what a "whenever a permanent you control
+    enters" engine (Amareth, Amulet of Vigor) wants beside the token makers. A
+    page-only doer (``signal_keys.PAGE_ONLY_SUBJECTS``): every ramp spell and
+    reanimation carries it, so it opens no avenue."""
+    for unit in tree.units:
+        if unit.kind == "BeginGame" or _searched_by_another(unit):
+            continue
+        granted = iter_nested_granted_effect_concepts(unit.node)
+        for c in chain(unit.effects, granted):
+            if _puts_onto_battlefield(unit, c.node):
+                return [Signal("permanent_etb", "you", "put", c.raw, tree.name, "high")]
+    return []
+
+
 LANES = (
     _mana_amplifier,
+    _battlefield_put,
     _extra_land_drop,
     _group_mana,
     _draw_for_each,

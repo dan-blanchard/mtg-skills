@@ -177,6 +177,12 @@ PAGE_ONLY_SUBJECTS: Final = frozenset(
         ("permanent_recast", "replay"),
         # a land card returned from your graveyard, or played from it (Crucible)
         ("permanent_recast", "land"),
+        # a token copy of the card itself (Embalm, Pack Rat): a token entering
+        ("token_copy_makers", "self"),
+        # a card put onto the battlefield face down (manifest, cloak)
+        ("facedown_makers", "manifest"),
+        # a card put onto the battlefield under your control (Rampant Growth)
+        ("permanent_etb", "put"),
     }
 )
 

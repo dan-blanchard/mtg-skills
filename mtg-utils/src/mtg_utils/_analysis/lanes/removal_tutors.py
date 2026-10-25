@@ -62,6 +62,7 @@ from mtg_utils._card_ir.crosswalk import (
     cast_with_keyword_name,
     change_zone_dirs,
     color_keyed_sites,
+    controller_paid_cost_leaves,
     counter_kind,
     damage_recipient,
     effect_filter,
@@ -1859,12 +1860,27 @@ def _replays_own_permanent(unit: AbilityUnit, c: ConceptNode) -> bool:
     return effect_owner_player_scope(unit.node, c.node) not in _OPPONENT_ACTOR_TAGS
 
 
+def _pays_by_replaying(unit: AbilityUnit) -> bool:
+    """A cost the unit's controller pays by returning a permanent they control
+    to its owner's hand (CR 118.1: a cost "to stop another action from taking
+    place", too): Coral Atoll's "sacrifice it unless you return an untapped
+    Island you control", Urban Retreat's activation. The returned permanent is
+    cast again, as a replay's is."""
+    return any(
+        tag_of(paid.leaf) == "ReturnToHand"
+        and filter_controller(getattr(paid.leaf, "filter", None)) == "You"
+        for paid in controller_paid_cost_leaves(unit)
+    )
+
+
 def _recast_doer_subjects(tree: ConceptTree) -> list[str]:
     """The ``permanent_recast`` doer subjects the card's effects carry."""
     found: set[str] = set()
     for unit in tree.units:
         if unit.origin == "static" and _plays_lands_from_graveyard(unit):
             found.add("land")
+        if _pays_by_replaying(unit):
+            found.add("replay")
         # An emblem's or a granted ability's (Teyo's end-step reanimation).
         granted = iter_nested_granted_effect_concepts(unit.node)
         for c in chain(unit.effects, granted):

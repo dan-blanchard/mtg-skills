@@ -29803,6 +29803,176 @@
     "type_line": "Instant"
    }
   },
+  "Ainok Tracker": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Dog",
+       "Scout"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Red"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [
+      "FirstStrike",
+      {
+       "Morph": {
+        "generic": 4,
+        "shards": [
+         "Red"
+        ],
+        "type": "Cost"
+       }
+      }
+     ],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pauper": "legal",
+      "paupercommander": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 5,
+      "shards": [
+       "Red"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "0ff9400d-4842-471f-bf7e-3b21df352e0a",
+       "9bf5b767-b2aa-4086-abdc-6ed5e412590e"
+      ]
+     },
+     "name": "Ainok Tracker",
+     "non_ability_text": null,
+     "oracle_text": "First strike\nMorph {4}{R} (You may cast this card face down as a 2/2 creature for {3}. Turn it face up any time for its morph cost.)",
+     "power": {
+      "type": "Fixed",
+      "value": 3
+     },
+     "printings": [
+      "KTK",
+      "PLST",
+      "PRM",
+      "UGIN"
+     ],
+     "rarities": [
+      "common"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2014-09-20",
+       "text": "A permanent that turns face up or face down changes characteristics but is otherwise the same permanent. Spells and abilities that were targeting that permanent, as well as Auras and Equipment that were attached to the permanent, aren’t affected."
+      },
+      {
+       "date": "2014-09-20",
+       "text": "Any time you have priority, you may turn the face-down creature face up by revealing what its morph cost is and paying that cost. This is a special action. It doesn’t use the stack and can’t be responded to. Only a face-down permanent can be turned face up this way; a face-down spell cannot."
+      },
+      {
+       "date": "2014-09-20",
+       "text": "At any time, you can look at a face-down spell or permanent you control. You can’t look at face-down spells or permanents you don’t control unless an effect instructs you to do so."
+      },
+      {
+       "date": "2014-09-20",
+       "text": "Because the permanent is on the battlefield both before and after it’s turned face up, turning a permanent face up doesn’t cause any enters-the-battlefield abilities to trigger."
+      },
+      {
+       "date": "2014-09-20",
+       "text": "If a face-down permanent leaves the battlefield, you must reveal it. You must also reveal all face-down spells and permanents you control if you leave the game or if the game ends."
+      },
+      {
+       "date": "2014-09-20",
+       "text": "Morph lets you cast a card face down by paying {3}, and lets you turn the face-down permanent face up any time you have priority by paying its morph cost."
+      },
+      {
+       "date": "2014-09-20",
+       "text": "The face-down spell has no mana cost and has a mana value of 0. When you cast a face-down spell, put it on the stack face down so no other player knows what it is, and pay {3}. This is an alternative cost."
+      },
+      {
+       "date": "2014-09-20",
+       "text": "When the spell resolves, it enters the battlefield as a 2/2 creature with no name, mana cost, creature types, or abilities. It’s colorless and has a mana value of 0. Other effects that apply to the creature can still grant it any of these characteristics."
+      },
+      {
+       "date": "2014-09-20",
+       "text": "You must ensure that your face-down spells and permanents can easily be differentiated from each other. You’re not allowed to mix up the cards that represent them on the battlefield in order to confuse other players. The order they entered the battlefield should remain clear. Common methods for doing this include using markers or dice, or simply placing them in order on the battlefield."
+      }
+     ],
+     "scryfall_oracle_id": "bf84a598-12d3-406d-8eeb-40592e782b87",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 3
+     },
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 6.0,
+    "color_identity": [
+     "R"
+    ],
+    "colors": [
+     "R"
+    ],
+    "keywords": [
+     "First strike",
+     "Morph"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "legal",
+     "paupercommander": "legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{5}{R}",
+    "name": "Ainok Tracker",
+    "oracle_id": "bf84a598-12d3-406d-8eeb-40592e782b87",
+    "oracle_text": "First strike\nMorph {4}{R} (You may cast this card face down as a 2/2 creature for {3}. Turn it face up any time for its morph cost.)",
+    "power": "3",
+    "toughness": "3",
+    "type_line": "Creature — Dog Scout"
+   }
+  },
   "Air Bladder": {
    "phase_records": [
     {
@@ -51050,6 +51220,163 @@
     "oracle_id": "fe340efa-6b69-4ccc-a13c-3688f1c44c29",
     "oracle_text": "Equipped creature gets +3/+0 and is every creature type.\nEquip {3} ({3}: Attach to target creature you control. Equip only as a sorcery.)",
     "type_line": "Artifact — Equipment"
+   }
+  },
+  "Amulet of Vigor": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Artifact"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "0790fb8c-7ff3-4681-a2c0-f16642f4f94b",
+       "311af3f7-463b-4fe0-aefc-5cd26a5fbd3d",
+       "997bc933-ac30-477b-a4e1-5333b796a99d",
+       "d62617c4-e3fc-4ac2-a969-aa33afcd76eb"
+      ]
+     },
+     "name": "Amulet of Vigor",
+     "non_ability_text": null,
+     "oracle_text": "Whenever a permanent you control enters tapped, untap it.",
+     "power": null,
+     "printings": [
+      "LCC",
+      "PLST",
+      "SLD",
+      "WWK"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2010-03-01",
+       "text": "For Amulet of Vigor's ability to trigger, a permanent must enter tapped due to an effect that says \"put [the permanent] onto the battlefield tapped,\" \"[this permanent] enters tapped,\" or the like. If it enters untapped, the ability won't trigger, even if you tap that permanent afterward."
+      },
+      {
+       "date": "2010-03-01",
+       "text": "If you control more than one Amulet of Vigor, each Amulet's ability triggers when a permanent enters tapped and under your control. The first ability that resolves will untap that permanent. If the permanent somehow becomes tapped again before the next ability resolves, the next ability will untap it as well (and so on)."
+      }
+     ],
+     "scryfall_oracle_id": "dba16032-66c1-4ccb-9d65-d41ac550d182",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": [
+      {
+       "batched": false,
+       "condition": {
+        "type": "ZoneChangeObjectIsTapped"
+       },
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever a permanent you control enters tapped, untap it.",
+       "destination": "Battlefield",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "scope": {
+          "type": "Single"
+         },
+         "state": {
+          "type": "Untap"
+         },
+         "target": {
+          "type": "TriggeringSource"
+         },
+         "type": "SetTapState"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "ChangesZone",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "controller": "You",
+        "properties": [],
+        "type": "Typed",
+        "type_filters": [
+         "Permanent"
+        ]
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 1.0,
+    "color_identity": [],
+    "colors": [],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}",
+    "name": "Amulet of Vigor",
+    "oracle_id": "dba16032-66c1-4ccb-9d65-d41ac550d182",
+    "oracle_text": "Whenever a permanent you control enters tapped, untap it.",
+    "type_line": "Artifact"
    }
   },
   "Amy Pond": {
@@ -101914,6 +102241,247 @@
     "power": "2",
     "toughness": "1",
     "type_line": "Creature — Bird Wizard"
+   }
+  },
+  "Aven Initiate": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "activation_restrictions": [
+        {
+         "type": "AsSorcery"
+        }
+       ],
+       "activation_zone": "Graveyard",
+       "condition": null,
+       "cost": {
+        "costs": [
+         {
+          "cost": {
+           "generic": 6,
+           "shards": [
+            "Blue"
+           ],
+           "type": "Cost"
+          },
+          "type": "Mana"
+         },
+         {
+          "count": 1,
+          "filter": {
+           "type": "SelfRef"
+          },
+          "type": "Exile",
+          "zone": "Graveyard"
+         }
+        ],
+        "type": "Composite"
+       },
+       "description": null,
+       "duration": null,
+       "effect": {
+        "additional_modifications": [
+         {
+          "colors": [
+           "White"
+          ],
+          "type": "SetColor"
+         },
+         {
+          "type": "RemoveManaCost"
+         },
+         {
+          "subtype": "Zombie",
+          "type": "AddSubtype"
+         }
+        ],
+        "count": {
+         "type": "Fixed",
+         "value": 1
+        },
+        "enters_attacking": false,
+        "owner": {
+         "type": "Controller"
+        },
+        "tapped": false,
+        "target": {
+         "type": "SelfRef"
+        },
+        "type": "CopyTokenOf"
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Bird",
+       "Warrior"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Blue"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [
+      "Flying",
+      {
+       "Embalm": {
+        "data": {
+         "generic": 6,
+         "shards": [
+          "Blue"
+         ],
+         "type": "Cost"
+        },
+        "type": "Mana"
+       }
+      }
+     ],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pauper": "legal",
+      "paupercommander": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 3,
+      "shards": [
+       "Blue"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "related_token_ids": [
+       "03462caa-c066-5f44-8af9-5932944e808b",
+       "766616ef-47e2-5ca9-90d6-c30f1cfaab20"
+      ],
+      "source_printing_ids": [
+       "61203781-24ad-4bc9-9b69-97149f3043bc",
+       "e078dfbe-ebdf-4ea8-aed7-cb2c986e7656",
+       "eba15599-ba74-4506-847a-4472214d8d33"
+      ]
+     },
+     "name": "Aven Initiate",
+     "non_ability_text": null,
+     "oracle_text": "Flying\nEmbalm {6}{U} ({6}{U}, Exile this card from your graveyard: Create a token that's a copy of it, except it's a white Zombie Bird Warrior with no mana cost. Embalm only as a sorcery.)",
+     "power": {
+      "type": "Fixed",
+      "value": 3
+     },
+     "printings": [
+      "2X2",
+      "AKH",
+      "AKR"
+     ],
+     "rarities": [
+      "common"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2017-04-18",
+       "text": "For each card with embalm, a corresponding game play supplement token can be found in some Amonkhet booster packs. These supplements are not required to play with cards with embalm; you can use the same items to represent an embalmed token as you would any other token."
+      },
+      {
+       "date": "2017-04-18",
+       "text": "The token copies exactly what was printed on the original card and nothing else. It doesn't copy any information about the object the card was before it was put into your graveyard."
+      },
+      {
+       "date": "2017-04-18",
+       "text": "The token is a Zombie in addition to its other types and is white instead of its other colors. It has no mana cost, and thus its mana value is 0. These are copiable values of the token that other effects may copy."
+      },
+      {
+       "date": "2017-07-14",
+       "text": "If a spell or ability puts a creature card with embalm into your graveyard during your main phase, you'll have priority immediately after that spell or ability resolves. You can activate the creature card's embalm ability before any player can exile it with an effect, such as that of Crook of Condemnation, if it's legal for you to do so."
+      },
+      {
+       "date": "2017-07-14",
+       "text": "Once you've activated an embalm ability, the card is immediately exiled. Opponents can't try to stop the ability by exiling the card with an effect such as that of Crook of Condemnation."
+      }
+     ],
+     "scryfall_oracle_id": "c872012d-b598-4076-8385-2e3771c0306f",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 2
+     },
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "all_parts": [
+     {
+      "component": "token",
+      "id": "12feaabf-7b3e-4cef-8d45-1b9bbe2baaf6",
+      "name": "Aven Initiate",
+      "oracle_id": "76a82a10-643d-441c-9895-70004cc56487",
+      "type_line": "Token Creature — Zombie Bird Warrior"
+     }
+    ],
+    "arena_available": true,
+    "cmc": 4.0,
+    "color_identity": [
+     "U"
+    ],
+    "colors": [
+     "U"
+    ],
+    "keywords": [
+     "Embalm",
+     "Flying"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "legal",
+     "paupercommander": "legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{3}{U}",
+    "name": "Aven Initiate",
+    "oracle_id": "c872012d-b598-4076-8385-2e3771c0306f",
+    "oracle_text": "Flying\nEmbalm {6}{U} ({6}{U}, Exile this card from your graveyard: Create a token that's a copy of it, except it's a white Zombie Bird Warrior with no mana cost. Embalm only as a sorcery.)",
+    "power": "3",
+    "toughness": "2",
+    "type_line": "Creature — Bird Warrior"
    }
   },
   "Aven Mindcensor": {
@@ -256978,6 +257546,241 @@
     "type_line": "Creature — Shapeshifter Rogue"
    }
   },
+  "Coral Atoll": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": {
+        "type": "Tap"
+       },
+       "description": "{T}: Add {C}{U}.",
+       "duration": null,
+       "effect": {
+        "produced": {
+         "colorless_count": 1,
+         "colors": [
+          "Blue"
+         ],
+         "type": "Mixed"
+        },
+        "type": "Mana"
+       },
+       "forward_result": false,
+       "is_mana_ability": true,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Land"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Blue"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "premodern": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "type": "NoCost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "5d7c4619-e5af-4aa0-bd3f-6bf0e1fdc1fc",
+       "77e3ea71-ea9f-4bbf-93cb-0f6339f8a3ab",
+       "b92121b6-b12e-4fe3-9afb-f2c77c2796ac"
+      ]
+     },
+     "name": "Coral Atoll",
+     "non_ability_text": null,
+     "oracle_text": "This land enters tapped.\nWhen this land enters, sacrifice it unless you return an untapped Island you control to its owner's hand.\n{T}: Add {C}{U}.",
+     "power": null,
+     "printings": [
+      "C14",
+      "CMR",
+      "VIS"
+     ],
+     "rarities": [
+      "uncommon"
+     ],
+     "replacements": [
+      {
+       "condition": null,
+       "description": "~ enters tapped.",
+       "destination_zone": "Battlefield",
+       "event": "Moved",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "scope": {
+          "type": "Single"
+         },
+         "state": {
+          "type": "Tap"
+         },
+         "target": {
+          "type": "SelfRef"
+         },
+         "type": "SetTapState"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": {
+        "type": "Mandatory"
+       },
+       "valid_card": {
+        "type": "SelfRef"
+       }
+      }
+     ],
+     "rulings": [
+      {
+       "date": "2006-02-01",
+       "text": "This has a triggered ability when it enters, not a replacement effect, as previously worded."
+      }
+     ],
+     "scryfall_oracle_id": "3f347ebf-e0d2-4ae0-ad84-df7a460404e0",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "When ~ enters, sacrifice it unless you return an untapped Island you control to its owner's hand.",
+       "destination": "Battlefield",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "target": {
+          "type": "SelfRef"
+         },
+         "type": "Sacrifice"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "ChangesZone",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "unless_pay": {
+        "cost": {
+         "count": 1,
+         "filter": {
+          "controller": "You",
+          "properties": [
+           {
+            "type": "Untapped"
+           }
+          ],
+          "type": "Typed",
+          "type_filters": [
+           {
+            "Subtype": "Island"
+           }
+          ]
+         },
+         "type": "ReturnToHand"
+        },
+        "payer": {
+         "type": "Controller"
+        }
+       },
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 0.0,
+    "color_identity": [
+     "U"
+    ],
+    "colors": [],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "",
+    "name": "Coral Atoll",
+    "oracle_id": "3f347ebf-e0d2-4ae0-ad84-df7a460404e0",
+    "oracle_text": "This land enters tapped.\nWhen this land enters, sacrifice it unless you return an untapped Island you control to its owner's hand.\n{T}: Add {C}{U}.",
+    "produced_mana": [
+     "C",
+     "U"
+    ],
+    "type_line": "Land"
+   }
+  },
   "Coral Barrier": {
    "phase_records": [
     {
@@ -336186,6 +336989,157 @@
     "power": "1",
     "toughness": "5",
     "type_line": "Creature — Illusion"
+   }
+  },
+  "Dredge the Mire": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Each opponent chooses a creature card in their graveyard. Put those cards onto the battlefield under your control.",
+       "duration": null,
+       "effect": {
+        "description": "choose a creature card in their graveyard",
+        "name": "unparsed_verb_arguments",
+        "type": "Unimplemented"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "player_scope": {
+        "type": "Opponent"
+       },
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "destination": "Battlefield",
+         "enters_under": "You",
+         "origin": "Exile",
+         "target": {
+          "id": 0,
+          "type": "TrackedSet"
+         },
+         "type": "ChangeZoneAll"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "sub_link": "SequentialSibling",
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Sorcery"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Black"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 3,
+      "shards": [
+       "Black"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "4194675b-0807-431c-9d47-7e51e5a1dac0",
+       "f57b4b40-bd46-4859-89f0-fa0bd04cc6e9"
+      ]
+     },
+     "name": "Dredge the Mire",
+     "non_ability_text": null,
+     "oracle_text": "Each opponent chooses a creature card in their graveyard. Put those cards onto the battlefield under your control.",
+     "power": null,
+     "printings": [
+      "C20",
+      "SCD"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2020-04-17",
+       "text": "As Dredge the Mire resolves, first the next opponent in turn order (or, if it’s an opponent’s turn, the opponent whose turn it is) chooses a creature card in their graveyard, then each other opponent in turn order does the same knowing the choices made before them. Then all the chosen cards are returned at the same time."
+      },
+      {
+       "date": "2020-04-17",
+       "text": "In a multiplayer game, if a player leaves the game, all cards that player owns leave as well. If you leave the game, any permanents you control from Dredge the Mire are exiled."
+      }
+     ],
+     "scryfall_oracle_id": "10e286b0-7245-4c30-a7a9-6d4a9c49b0a7",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 4.0,
+    "color_identity": [
+     "B"
+    ],
+    "colors": [
+     "B"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{3}{B}",
+    "name": "Dredge the Mire",
+    "oracle_id": "10e286b0-7245-4c30-a7a9-6d4a9c49b0a7",
+    "oracle_text": "Each opponent chooses a creature card in their graveyard. Put those cards onto the battlefield under your control.",
+    "type_line": "Sorcery"
    }
   },
   "Dreg Mangler": {
@@ -775258,6 +776212,260 @@
     "type_line": "Enchantment — Aura"
    }
   },
+  "Pack Rat": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": {
+        "costs": [
+         {
+          "cost": {
+           "generic": 2,
+           "shards": [
+            "Black"
+           ],
+           "type": "Cost"
+          },
+          "type": "Mana"
+         },
+         {
+          "count": {
+           "type": "Fixed",
+           "value": 1
+          },
+          "filter": null,
+          "random": false,
+          "self_ref": false,
+          "type": "Discard"
+         }
+        ],
+        "type": "Composite"
+       },
+       "description": "{2}{B}, Discard a card: Create a token that's a copy of ~.",
+       "duration": null,
+       "effect": {
+        "count": {
+         "type": "Fixed",
+         "value": 1
+        },
+        "enters_attacking": false,
+        "owner": {
+         "type": "Controller"
+        },
+        "tapped": false,
+        "target": {
+         "type": "SelfRef"
+        },
+        "type": "CopyTokenOf"
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Rat"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Black"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "Black"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "related_token_ids": [
+       "3ae3c4af-2b85-5943-bab1-760e1b7da047"
+      ],
+      "source_printing_ids": [
+       "05245679-e337-4119-b350-e61e0520f264",
+       "170693f5-13db-4191-99b1-e527ffb5b88e",
+       "33fb161c-ff04-4bf2-8320-48302dfb085c",
+       "5c2c421c-e7fe-495c-8fbb-e25b1c1f7526",
+       "d58013ef-d277-4104-a7c4-772d953f59a5",
+       "f3864bc8-f86e-4c41-b454-e19d1939147b"
+      ]
+     },
+     "name": "Pack Rat",
+     "non_ability_text": null,
+     "oracle_text": "Pack Rat's power and toughness are each equal to the number of Rats you control.\n{2}{B}, Discard a card: Create a token that's a copy of this creature.",
+     "power": {
+      "type": "Variable",
+      "value": "*"
+     },
+     "printings": [
+      "HA2",
+      "RTR",
+      "RVR",
+      "SLD"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2024-01-12",
+       "text": "If Pack Rat leaves the battlefield before its activated ability resolves, the token will still enter the battlefield as a copy of Pack Rat, using Pack Rat's copiable values from when it was last on the battlefield."
+      },
+      {
+       "date": "2024-01-12",
+       "text": "Pack Rat's first ability counts any creature you control with the creature type Rat, not just Pack Rats. That ability works in all zones, not only the battlefield."
+      },
+      {
+       "date": "2024-01-12",
+       "text": "The token will copy Pack Rat's two abilities. Its power and toughness will be equal to the number of Rats you control (not the number of Rats you controlled when the token entered the battlefield). It will also be able to create copies of itself."
+      },
+      {
+       "date": "2024-01-12",
+       "text": "The token won't copy counters on Pack Rat, nor will it copy other effects that have changed Pack Rat's power, toughness, types, color, or so on. Normally, this means the token will simply be a Pack Rat. But if any copy effects have affected that Pack Rat, they're taken into account."
+      }
+     ],
+     "scryfall_oracle_id": "5632c2df-71e6-41b7-b8f5-c683812cc0e2",
+     "static_abilities": [
+      {
+       "active_zones": [],
+       "affected": {
+        "type": "SelfRef"
+       },
+       "affected_zone": null,
+       "characteristic_defining": true,
+       "condition": null,
+       "description": "~'s power and toughness are each equal to the number of Rats you control.",
+       "effect_zone": null,
+       "mode": "Continuous",
+       "modifications": [
+        {
+         "type": "SetDynamicPower",
+         "value": {
+          "qty": {
+           "filter": {
+            "controller": "You",
+            "properties": [],
+            "type": "Typed",
+            "type_filters": [
+             {
+              "Subtype": "Rat"
+             }
+            ]
+           },
+           "type": "ObjectCount"
+          },
+          "type": "Ref"
+         }
+        },
+        {
+         "type": "SetDynamicToughness",
+         "value": {
+          "qty": {
+           "filter": {
+            "controller": "You",
+            "properties": [],
+            "type": "Typed",
+            "type_filters": [
+             {
+              "Subtype": "Rat"
+             }
+            ]
+           },
+           "type": "ObjectCount"
+          },
+          "type": "Ref"
+         }
+        }
+       ]
+      }
+     ],
+     "toughness": {
+      "type": "Variable",
+      "value": "*"
+     },
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "all_parts": [
+     {
+      "component": "token",
+      "id": "6870a2af-80e1-4813-a332-2b1bd789f1c1",
+      "name": "Copy",
+      "oracle_id": "88c78601-87f0-45e7-b2e0-e7ffcfb1cb70",
+      "type_line": "Token"
+     }
+    ],
+    "arena_available": true,
+    "cmc": 2.0,
+    "color_identity": [
+     "B"
+    ],
+    "colors": [
+     "B"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}{B}",
+    "name": "Pack Rat",
+    "oracle_id": "5632c2df-71e6-41b7-b8f5-c683812cc0e2",
+    "oracle_text": "Pack Rat's power and toughness are each equal to the number of Rats you control.\n{2}{B}, Discard a card: Create a token that's a copy of this creature.",
+    "power": "*",
+    "toughness": "*",
+    "type_line": "Creature — Rat"
+   }
+  },
   "Pact of Negation": {
    "phase_records": [
     {
@@ -932205,6 +933413,168 @@
     "oracle_id": "376c9d3f-21d3-4251-bb6a-026fa9e1b0e1",
     "oracle_text": "Search your library for up to two Forest cards, put them onto the battlefield, then shuffle.",
     "type_line": "Sorcery"
+   }
+  },
+  "Skyshroud Ranger": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "activation_restrictions": [
+        {
+         "type": "AsSorcery"
+        }
+       ],
+       "condition": null,
+       "cost": {
+        "type": "Tap"
+       },
+       "description": "{T}: You may put a land card from your hand onto the battlefield. Activate only as a sorcery.",
+       "duration": null,
+       "effect": {
+        "destination": "Battlefield",
+        "enter_tapped": false,
+        "enter_transformed": false,
+        "enters_attacking": false,
+        "origin": "Hand",
+        "owner_library": false,
+        "target": {
+         "controller": "You",
+         "properties": [
+          {
+           "type": "InZone",
+           "zone": "Hand"
+          }
+         ],
+         "type": "Typed",
+         "type_filters": [
+          "Land"
+         ]
+        },
+        "type": "ChangeZone"
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": true,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_choice_timing": "Resolution",
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Elf",
+       "Ranger"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Green"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pauper": "legal",
+      "paupercommander": "legal",
+      "premodern": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 0,
+      "shards": [
+       "Green"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "9a2fd9e5-1986-4998-b08c-80897b9b27e7",
+       "efe01296-2b8b-4cdf-a041-a08bebea9c29"
+      ]
+     },
+     "name": "Skyshroud Ranger",
+     "non_ability_text": null,
+     "oracle_text": "{T}: You may put a land card from your hand onto the battlefield. Activate only as a sorcery.",
+     "power": {
+      "type": "Fixed",
+      "value": 1
+     },
+     "printings": [
+      "10E",
+      "TMP"
+     ],
+     "rarities": [
+      "common"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2007-05-01",
+       "text": "Putting the card onto the battlefield is optional. When the ability resolves, you can choose not to."
+      }
+     ],
+     "scryfall_oracle_id": "8f47a230-7500-4afb-97cd-dbd444c307c8",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 1
+     },
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 1.0,
+    "color_identity": [
+     "G"
+    ],
+    "colors": [
+     "G"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "legal",
+     "paupercommander": "legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{G}",
+    "name": "Skyshroud Ranger",
+    "oracle_id": "8f47a230-7500-4afb-97cd-dbd444c307c8",
+    "oracle_text": "{T}: You may put a land card from your hand onto the battlefield. Activate only as a sorcery.",
+    "power": "1",
+    "toughness": "1",
+    "type_line": "Creature — Elf Ranger"
    }
   },
   "Skyward Spider": {

@@ -4436,8 +4436,11 @@ def test_token_copy_makers_fires(name):
 
 def test_token_copy_makers_excludes_selfref_self_copy():
     """Adorned Pouncer's Eternalize self-copy is a ``CopyTokenOf`` with a ``SelfRef``
-    target (a copy of THIS card, not a copy-others payoff) — must NOT fire (CR 707)."""
-    assert "token_copy_makers" not in _keys("Adorned Pouncer")
+    target (a copy of THIS card, not a copy-others payoff) — must NOT fire the
+    copy-others ident (CR 707); it carries the page-only ``self`` subject instead."""
+    idents = _idents("Adorned Pouncer")
+    assert ("token_copy_makers", "you", "") not in idents
+    assert ("token_copy_makers", "you", "self") in idents
 
 
 def test_connive_makers_fires():

@@ -235,7 +235,8 @@ PAIR_READS: dict[str, PairRead] = {
             candidate=(
                 "trigger_doubling|you|*",
                 "ability_copy|you|*",
-                "token_copy_makers|you|*",
+                # a copy of others (a token copy of itself is no doubler)
+                "token_copy_makers|you|",
                 "clone_makers|you|*",
             ),
             anchor_kind="commander",

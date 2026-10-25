@@ -85,6 +85,44 @@ _CLONE_SERVE_IDENTS = frozenset(
     {"clone_makers|you|", "copy_permanent|you|", "token_copy_makers|you|"}
 )
 
+# What puts a permanent onto the battlefield under your control (the
+# ``permanent_etb`` page).
+_PERMANENT_ETB_IDENTS: frozenset[str] = frozenset(
+    {
+        "permanent_etb|you|",
+        "permanent_etb|you|put",
+        "token_maker|you|*",
+        "token_maker|any|*",
+        "artifacts_matter|you|token",
+        "enchantments_matter|you|token",
+        "treasure_makers|you|",
+        "clue_makers|you|",
+        "food_makers|you|",
+        "blood_makers|you|",
+        "incubate_makers|you|",
+        "amass_makers|you|",
+        "token_copy_makers|you|",
+        "token_copy_makers|you|self",
+        "token_doubling|you|",
+        "self_etb_payload|you|",
+        "blink_flicker|you|enabler",
+        "creature_recursion|you|battlefield",
+        "creature_recursion|you|mass",
+        "reanimator|you|",
+        "permanent_recast|you|*",
+        "cheat_into_play|you|*",
+        "cheat_into_play|any|*",
+        "cheat_from_top|you|",
+        "cheat_from_top|any|",
+        "ramp|you|land",
+        "extra_land_drop|you|",
+        "facedown_makers|you|manifest",
+        "has_ninjutsu|you|",
+        "trigger_doubling|you|",
+    }
+)
+
+
 SPECS_3: dict[tuple[str, str], SignalSpec] = {
     # ── Mechanics recovered from the "rejected" families ────────────────────────
     # ADR-0027 β: token_copy_makers migrated to the Card IR via a byte-identical kept-
@@ -1336,17 +1374,20 @@ SPECS_3: dict[tuple[str, str], SignalSpec] = {
             }
         ),
     ),
-    # `enters the battlefield` is a DEAD branch — Scryfall templated the phrase down to
-    # bare "enters" years ago (CR glossary), so it matched ~1 card and the serve missed
-    # every Panharmonicon/Yarok ETB-engine. Key on the ETB-trigger / flicker clauses.
+    # The cards that put permanents onto the battlefield under your control, so the
+    # "whenever a permanent you control enters" engine (Amareth, Amulet of Vigor)
+    # fires: token makers, cheats and reanimation, land puts and extra land drops,
+    # manifests, blink, the recast doers, ETB doublers, the self-ETB cards a
+    # replay engine (Cloudstone Curio) re-delivers, and the other engines.
     ("permanent_etb", "you"): _spec(
         "Permanents entering",
         "cheap permanents, token makers, and flicker to repeatedly trigger your "
         "permanent enters-the-battlefield value engine",
-        r"create [^.]*token|put [^.]*onto the battlefield"
-        r"|when (?:this|[A-Z][\w']+)[^.]*enters"
-        r"|(?:a|an|another|one or more)[^.]*permanents? you control enters"
-        r"|(?:artifact or creature|creature or artifact)[^.]*enter",
+        # Serve idents: the lanes above. A card whose own enters trigger is a
+        # drawback (Phage, Hidden Horror), an Equipment's auto-attach, or a
+        # search an opponent makes (Path to Exile's land) makes nothing enter.
+        None,
+        serve_idents=_PERMANENT_ETB_IDENTS,
         extras=(_FLICKER_EXTRA, _DIES_RECURSION_EXTRA, _SELF_BOUNCE_EXTRA),
     ),
     # The avenue is Equipment-for-a-dasher: the serve gates on the dash ident, the
