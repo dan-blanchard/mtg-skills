@@ -125,7 +125,8 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   swaps and each precon's own guides' budget, `budgets.json`, Spellbook cached):
   195 of 408 cuttable guide cuts, 60 of 610 in-scope guide adds (2026-10-24, after
   the near-tie budget rule, and unchanged after the wipe read's last misread fixes;
-  180 / 57 before it, 169 / 56 at 9e0026ed). Shipped: where play-rate orders a page, a near tie that costs less is the add (`swaps._near_tie`:
+  180 / 57 before it, 169 / 56 at 9e0026ed; 195 / 60 again, 543 swaps, after the ETB
+  serves and the artifacts / enchantments payoffs read the IR, 2026-10-25). Shipped: where play-rate orders a page, a near tie that costs less is the add (`swaps._near_tie`:
   play-rates within a factor of two, read scores within 0.1 for an ordering job;
   every width from 0.1 to 0.5 log10 rank cleared the bar and wider kept gaining —
   the budget binds; the table is the audit's "The last tuner levers"). The levers
