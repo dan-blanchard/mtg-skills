@@ -248,11 +248,11 @@ def signal_keys_for(card: dict) -> frozenset[str]:
     cached = _SIGNAL_KEY_INDEX.get(oid)
     if cached is not None:
         return cached
-    from mtg_utils._analysis.signals import extract_signals
-
-    keys = frozenset(sig.key for sig in extract_signals(card))
-    _SIGNAL_KEY_INDEX[oid] = keys
-    return keys
+    # One live extraction answers both memos: the keys are the idents' first
+    # field, as :func:`remember_signal_idents` reads them, and a card read for
+    # its keys is usually read for its idents next (a serve's ident arm).
+    remember_signal_idents(oid, _signal_idents_for(card))
+    return _SIGNAL_KEY_INDEX[oid]
 
 
 def has_signal_coverage(card: dict) -> bool:

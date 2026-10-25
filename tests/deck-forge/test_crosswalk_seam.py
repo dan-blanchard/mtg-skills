@@ -152,6 +152,30 @@ def test_phase_record_index_load_restores_garbage_collection(
         ct._phase_record_index.cache_clear()
 
 
+def test_phase_record_index_reads_each_group_from_its_sidecar(tmp_path, monkeypatch):
+    """The index reads each oracle_id's records from a sidecar beside card-data,
+    decoded when read: value for value the file's own records, a missing
+    oracle_id ``None``, and a second process (the cache cleared) reads the
+    sidecar it wrote."""
+    (rec,) = _ported_phase_records()
+    card_data = tmp_path / "card-data.json"
+    card_data.write_text(json.dumps({"x": rec}), encoding="utf-8")
+    monkeypatch.setattr(_phase, "ensure_card_data", lambda: card_data)
+    oid = rec["scryfall_oracle_id"]
+    ct._phase_record_index.cache_clear()
+    try:
+        index = ct._phase_record_index()
+        assert index is not None
+        assert len(index) == 1
+        assert index.get(oid) == (rec,)
+        assert index.get("no such oid") is None
+        assert (tmp_path / "card-data.json.records.pkl").is_file()
+        ct._phase_record_index.cache_clear()
+        assert ct._phase_record_index().get(oid) == (rec,)
+    finally:
+        ct._phase_record_index.cache_clear()
+
+
 def test_trees_for_none_without_oracle_id():
     assert ct.trees_for({"name": "no oid"}) == ()
 

@@ -43,8 +43,92 @@ if TYPE_CHECKING:
     from mtg_utils._card_ir.mirror.schema import MirrorSchema
 
 
+class PhaseRecordIndex:
+    """oracle_id → its phase records, each oracle_id's decoded from its own JSON
+    on first read and kept: a tune reads a few thousand of the ~35,000, so the
+    process never decodes the rest (:func:`_phase_record_index`)."""
+
+    __slots__ = ("_blobs", "_decoded")
+
+    def __init__(self, blobs: dict[str, bytes]) -> None:
+        self._blobs = blobs
+        self._decoded: dict[str, tuple[dict, ...]] = {}
+
+    def get(
+        self, oid: str, default: tuple[dict, ...] | None = None
+    ) -> tuple[dict, ...] | None:
+        recs = self._decoded.get(oid)
+        if recs is None:
+            blob = self._blobs.get(oid)
+            if blob is None:
+                return default
+            recs = self._decoded[oid] = tuple(json.loads(blob))
+        return recs
+
+    def __len__(self) -> int:
+        return len(self._blobs)
+
+
+#: The per-oracle_id records sidecar's format. Bump it with any change to what
+#: ``_group_by_oracle_id`` keeps beyond the impostor list, which keys the sidecar
+#: itself (:func:`_records_sidecar_key`).
+_RECORDS_SIDECAR_VERSION = 1
+
+
+def _records_sidecar_key() -> str:
+    """What the records sidecar was grouped under: the format and the impostor
+    records ``_group_by_oracle_id`` drops (``_phase.is_impostor_record``)."""
+    import hashlib
+
+    from mtg_utils import _phase
+
+    impostors = repr(sorted(_phase._IMPOSTOR_RECORDS))  # noqa: SLF001
+    digest = hashlib.sha256(impostors.encode()).hexdigest()[:16]
+    return f"{_RECORDS_SIDECAR_VERSION}:{digest}"
+
+
+def _record_blobs(card_data: Path) -> dict[str, bytes] | None:
+    """oracle_id → the JSON of its grouped phase records, from the pickled
+    sidecar beside ``card_data`` (rebuilt when card-data is newer or the key
+    differs, under a lock so concurrent first runs build it once). ``None`` when
+    card-data holds no group."""
+    import gc
+
+    from mtg_utils._card_ir.build import _group_by_oracle_id
+    from mtg_utils._sidecar import exclusive_lock, load_pickle_sidecar
+
+    key = _records_sidecar_key()
+    sidecar = card_data.with_name(card_data.name + ".records.pkl")
+
+    def build() -> dict:
+        # Decoding the ~100 MB file allocates millions of containers, which trip
+        # full collections that each walk the whole heap (the bulk pool
+        # included); JSON builds no reference cycles, so nothing collectable
+        # waits while the collector is paused.
+        collecting = gc.isenabled()
+        gc.disable()
+        try:
+            groups = _group_by_oracle_id(json.loads(card_data.read_bytes()))
+            blobs = {oid: json.dumps(recs).encode() for oid, recs in groups.items()}
+        finally:
+            if collecting:
+                gc.enable()
+        return {"key": key, "blobs": blobs}
+
+    with exclusive_lock(sidecar.with_name(sidecar.name + ".lock")):
+        value = load_pickle_sidecar(
+            card_data,
+            sidecar,
+            version_tag=_RECORDS_SIDECAR_VERSION,
+            value_key="records",
+            build_fn=build,
+            validate=lambda v: isinstance(v, dict) and v.get("key") == key,
+        )
+    return value["blobs"] or None
+
+
 @functools.cache
-def _phase_record_index() -> dict[str, tuple[dict, ...]] | None:
+def _phase_record_index() -> PhaseRecordIndex | None:
     """oracle_id → ALL phase ``card-data.json`` records sharing it (insertion
     order, so a DFC's front face precedes its back face), loaded once per
     process. ``None`` when phase card-data is unavailable so :func:`trees_for`
@@ -54,30 +138,18 @@ def _phase_record_index() -> dict[str, tuple[dict, ...]] | None:
     index previously dropped whichever face iterated second, e.g. Avatar
     Aang's front face when phase's dict keys sort its back face first).
 
-    The cyclic garbage collector is paused for the load: decoding the ~100 MB
-    file allocates millions of containers, which trips full collections that
-    each walk the whole heap (the bulk pool included) — about 0.8 s of a tune's
-    1.2 s here. JSON builds no reference cycles, so nothing collectable waits."""
-    import gc
-
+    The groups are read from a sidecar beside card-data holding each
+    oracle_id's records as its own JSON (:func:`_record_blobs`), decoded only
+    when read (:class:`PhaseRecordIndex`): decoding the whole file cost every
+    process about 0.6 s of a tune, most of it for cards the tune never reads.
+    A decoded group is the file's own records, value for value."""
     from mtg_utils import _phase
-    from mtg_utils._card_ir.build import _group_by_oracle_id
 
-    collecting = gc.isenabled()
-    gc.disable()
     try:
-        try:
-            cdp = _phase.ensure_card_data()
-            data = json.loads(cdp.read_text())
-        except (FileNotFoundError, RuntimeError, OSError, ValueError):
-            return None
-        groups = _group_by_oracle_id(data)
-    finally:
-        if collecting:
-            gc.enable()
-    if not groups:
+        blobs = _record_blobs(_phase.ensure_card_data())
+    except (FileNotFoundError, RuntimeError, OSError, ValueError):
         return None
-    return {oid: tuple(recs) for oid, recs in groups.items()}
+    return PhaseRecordIndex(blobs) if blobs else None
 
 
 @functools.cache

@@ -83,6 +83,29 @@ def test_real_payoff_outscores_token_equipment():
     assert _score(_MIDNIGHT_REAPER) > _score(_FLAYER_HUSK)
 
 
+def test_a_shared_scores_memo_ranks_alike_and_scores_each_card_once(monkeypatch):
+    """A tune ranks one card on several lists (``rank_candidates``' ``scores``):
+    with the memo the rows and their order are the ones a fresh ranking gives,
+    and a card two lists hold is scored once."""
+    cards = [_ELVEN_BOW, _FLAYER_HUSK, _BASTION, _BLOOD_ARTIST, _MIDNIGHT_REAPER]
+    kw = {"active_signals": _ARI_SIGNALS, "focus_sets": _ARI_FOCUS}
+    fresh = rank_candidates(cards, **kw)
+    calls = []
+    score = ranking.score_candidate
+
+    def counting(card, **inner):
+        calls.append(card["name"])
+        return score(card, **inner)
+
+    monkeypatch.setattr(ranking, "score_candidate", counting)
+    memo: dict = {}
+    first = rank_candidates(cards[:3], **kw, scores=memo)
+    both = rank_candidates(cards, **kw, scores=memo)
+    assert sorted(calls) == sorted(c["name"] for c in cards)
+    assert both == fresh
+    assert first == rank_candidates(cards[:3], **kw)
+
+
 def test_ranking_puts_payoffs_above_box_tickers():
     ranked = rank_candidates(
         [_ELVEN_BOW, _FLAYER_HUSK, _BASTION, _BLOOD_ARTIST, _MIDNIGHT_REAPER],

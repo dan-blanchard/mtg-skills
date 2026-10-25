@@ -622,9 +622,16 @@ def rank_candidates(
     row_class_permutation: bool = False,
     deck_mana: DeckMana | None = None,
     meta_share: Callable[[str], float] | None = None,
+    scores: dict[int, tuple[dict, dict]] | None = None,
 ) -> list[dict]:
     """Score and sort candidates: synergy desc, then price asc (no-listing last),
     then cmc asc.
+
+    ``scores`` is a caller's memo of each card's readout, by the record's id (the
+    record is held beside it, so the id can't be reused while the entry lives):
+    a tune ranks one card on two pages, in its job order's ties and its theme
+    ties, and the readout depends only on the card and the scoring arguments,
+    which every call sharing one memo must pass alike.
 
     ``meta_share`` (ADR-0059) is a digital build's meta archetype share by card
     name (``MetaContext.share``): a tiebreak after synergy, before price — among
@@ -643,26 +650,31 @@ def rank_candidates(
     synergy_key = "synergy_fit" if rank_by == "fit" else "synergy_score"
     avenue_preds = _avenue_predicates(avenues)
     signal_specs = [avenue_spec_for(signal) for signal in active_signals]
-    scored = [
-        {
-            "card": c,
-            "score": score_candidate(
-                c,
-                active_signals=active_signals,
-                avenues=avenues,
-                widening_base=widening_base,
-                focus_sets=focus_sets,
-                deck_tribes=deck_tribes,
-                _avenue_preds=avenue_preds,
-                _signal_specs=signal_specs,
-                _ir_resolved=(ir_for(c),),
-                rate_index=rate_index,
-                pair_ctx=pair_ctx,
-                deck_mana=deck_mana,
-            ),
-        }
-        for c in cards
-    ]
+
+    def score(c: dict) -> dict:
+        hit = scores.get(id(c)) if scores is not None else None
+        if hit is not None and hit[0] is c:
+            return dict(hit[1])
+        readout = score_candidate(
+            c,
+            active_signals=active_signals,
+            avenues=avenues,
+            widening_base=widening_base,
+            focus_sets=focus_sets,
+            deck_tribes=deck_tribes,
+            _avenue_preds=avenue_preds,
+            _signal_specs=signal_specs,
+            _ir_resolved=(ir_for(c),),
+            rate_index=rate_index,
+            pair_ctx=pair_ctx,
+            deck_mana=deck_mana,
+        )
+        if scores is not None:
+            scores[id(c)] = (c, readout)
+            return dict(readout)
+        return readout
+
+    scored = [{"card": c, "score": score(c)} for c in cards]
     if meta_share is not None:
         for r in scored:
             r["score"]["meta_share"] = meta_share(r["card"].get("name") or "")

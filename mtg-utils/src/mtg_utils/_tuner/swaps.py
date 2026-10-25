@@ -861,6 +861,21 @@ def propose_swaps(
         if "creature" in (c.record.get("type_line") or "").lower()
         for st in split_type_line(c.record.get("type_line", ""))[1]
     )
+    # Every ranking below scores in this one context, so each candidate's
+    # readout is computed once (``rank_candidates``' ``scores``) however many
+    # pages, ties and theme ties hold it. Lives for this call only.
+    readouts: dict[int, tuple[dict, dict]] = {}
+
+    def rank(cards: list[dict]) -> list[dict]:
+        return rank_candidates(
+            cards,
+            active_signals=ctx.deck_signals,
+            focus_sets=focus_sets,
+            deck_tribes=deck_tribes,
+            deck_mana=ctx.deck_mana,
+            scores=readouts,
+        )
+
     cuts = cut_candidates(
         classes,
         budgets=ctx.budgets,
@@ -1043,13 +1058,7 @@ def propose_swaps(
             # something (the Commander family; the one EDHREC-popularity lean,
             # user-directed), then the better fit, then price. Elsewhere
             # synergy alone orders the page, then price.
-            scored = rank_candidates(
-                pool,
-                active_signals=ctx.deck_signals,
-                focus_sets=focus_sets,
-                deck_tribes=deck_tribes,
-                deck_mana=ctx.deck_mana,
-            )
+            scored = rank(pool)
             # The floor is the theme's own members' (a support card scoring
             # higher must not push a member below it): support only joins.
             floor = _FIT_FLOOR * max(
@@ -1138,15 +1147,7 @@ def propose_swaps(
         tied = [c for c in pool if leads[lead(c)] > 1]
         synergy = {
             id(r["card"]): (-r["score"]["synergy_score"], i)
-            for i, r in enumerate(
-                rank_candidates(
-                    tied,
-                    active_signals=ctx.deck_signals,
-                    focus_sets=focus_sets,
-                    deck_tribes=deck_tribes,
-                    deck_mana=ctx.deck_mana,
-                )
-            )
+            for i, r in enumerate(rank(tied))
         }
         out = sorted(
             pool,
@@ -1197,13 +1198,7 @@ def propose_swaps(
         viable = focus_sets["viable"]
         if not viable or not cards:
             return set()
-        scored = rank_candidates(
-            list(cards),
-            active_signals=ctx.deck_signals,
-            focus_sets=focus_sets,
-            deck_tribes=deck_tribes,
-            deck_mana=ctx.deck_mana,
-        )
+        scored = rank(list(cards))
         return {
             r["card"].get("name", "")
             for r in scored

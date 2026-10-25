@@ -36,6 +36,7 @@ from mtg_utils.deck_cli import (
 )
 from mtg_utils.formats import resolve_deck_medium
 from mtg_utils.hydrated_deck import HydratedDeck
+from mtg_utils.theme_presets import seed_signal_key_index
 
 
 def _ensure_ir() -> None:
@@ -181,7 +182,11 @@ def main(
         search = functools.partial(card_search.search_cards, bulk_path)
         # The ranking's per-ability attribution and the job reads' card values,
         # persisted across tunes over this bulk (each a third of a precon tune
-        # when computed live).
+        # when computed live), and the signals index the presets read, seeded
+        # before the tune reads the deck's own cards (the first preset page
+        # would seed it anyway, after the classification paid a live signal
+        # extraction for each of them) — the hub's warm-up, in its order.
+        seed_signal_key_index(bulk_path)
         attach_provenance_sidecar(bulk_path)
         attach_job_read_sidecar(bulk_path)
     by_name = hd.by_name
