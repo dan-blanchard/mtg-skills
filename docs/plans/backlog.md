@@ -117,16 +117,19 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   fitted on main-job removal and only gates). Theme fit as a tie lost for removal,
   wipes and protection. Protection goes unsearched in 18 guide adds' decks because
   ADR-0024 asks for it only from a combo or control deck or a voltron plan; a target
-  of 5 or 3 for every shape matched fewer adds. Still open, small: the wipe misreads
-  in `board_wipe`'s docstring (a count of yours read as scaling, Boompile's dropped
-  coin flip, a creature's own activation cost, a conditional discount, tokens for the
-  wiped players); none is a guide add, two are tune picks (Deluge of Doom, Boompile).
+  of 5 or 3 for every shape matched fewer adds. The wipe read's last listed misreads
+  are read too (a count of yours, Boompile's coin flip, a creature's activation
+  cost, a conditional discount at half, the wiped players' tokens; the audit's "The
+  tuner-policy leftovers"): 546 / 195 / 60 to 547 / 196 / 60 on 33ca5243, Deluge of
+  Doom and Boompile no longer picked; what `board_wipe`'s docstring still leaves
+  unread is no guide add or pick.
   (m) **Recall** (`precon-audit/misses.py`, at the largest guide's thirty
   swaps and each precon's own guides' budget, `budgets.json`, Spellbook cached):
   195 of 408 cuttable guide cuts, 60 of 610 in-scope guide adds (2026-10-24, after
-  the near-tie budget rule, and unchanged after the wipe read's last misread fixes;
-  180 / 57 before it, 169 / 56 at 9e0026ed; 195 / 60 again, 543 swaps, after the ETB
-  serves and the artifacts / enchantments payoffs read the IR, 2026-10-25). Shipped: where play-rate orders a page, a near tie that costs less is the add (`swaps._near_tie`:
+  the near-tie budget rule; 180 / 57 before it, 169 / 56 at 9e0026ed; 195 / 60 again,
+  543 swaps, after the ETB serves and the artifacts / enchantments payoffs read the
+  IR, 2026-10-25; the wipe read's last misread fixes, measured on 33ca5243 before
+  those, added one cut: 547 / 196 / 60 against 546 / 195 / 60). Shipped: where play-rate orders a page, a near tie that costs less is the add (`swaps._near_tie`:
   play-rates within a factor of two, read scores within 0.1 for an ordering job;
   every width from 0.1 to 0.5 log10 rank cleared the bar and wider kept gaining —
   the budget binds; the table is the audit's "The last tuner levers"). The levers

@@ -917,6 +917,7 @@ guide matches equal HEAD's). Tune seconds are the median per precon.
 | the ramp read orders its upgrades, blended with play-rate | 532 / 195 / 56 | 243 | 6.6 | rejected |
 | a commander-paid lane below the viable floor gets one swap off its serve page, cut from the upgrade pool | 550 / 196 / 58 | 243 | 6.0 | rejected |
 | … only a lane at least the emerging floor deep | 548 / 195 / 60 | 244 | 5.9 | flat, rejected |
+| W3 the last five wipe misreads (on 33ca5243) | 547 / 196 / 60 | 249 | 5.3 | **shipped** (read fixes) |
 
 - **The wipe read's misreads (W1, W2).** An X paid in cards is an X (Sickening and
   Devastating Dreams, CR 107.3a: 0.80 to 0.48); a pitch cost is the cards it pitches,
@@ -944,11 +945,26 @@ guide matches equal HEAD's). Tune seconds are the median per precon.
   Expel the Interlopers and Tragic Arrogance in Virtue and Valor (sweeps that leave
   one big creature), Chain Reaction and Winds of Abandon in Blame Game. What would
   change it is a deck-fit wipe read (the share of the deck's own board a sweep
-  leaves), not a better card read. Misreads remain (the module docstring): none is a
-  guide add, and two are shipped picks in decks with no in-scope guide wipe add to
-  displace (Deluge of Doom in Sultai Arisen, whose X counts card types in your
-  graveyard; Boompile in Tinker Time, whose coin flip phase drops), so no fix of
-  them can move a guide match either.
+  leaves), not a better card read. The misreads left then were no guide add, and
+  two were shipped picks in decks with no in-scope guide wipe add to displace
+  (Deluge of Doom in Sultai Arisen, Boompile in Tinker Time); W3 reads them.
+- **The last wipe misreads (W3).** Phase wraps a "-X/-X" in `Multiply(-1, …)`, which
+  read as scaling whatever it counted; an X the card defines from what is yours (CR
+  107.3) now reads as the unwrapped count of yours does, a narrow one (Deluge of
+  Doom's card types in your graveyard 0.78 to -0.13, Essence Pulse's life gained,
+  Mutilate's Swamps; Cloudkill's commander mana value still scales). A sweep under a
+  coin flip is gated (Boompile, CR 705.1-705.2: 0.58 to 0.00). A creature's
+  activation costs its mana as any permanent's does (CR 602.1a: Jaya Ballard, Task
+  Mage 0.66 to 0.10, Infected Vermin 0.86 to 0.36). A discount behind a condition
+  is taken at half, as the ramp read halves gated mana (CR 601.2f; Avenge 0.82 to
+  0.36, Hour of Revelation 0.72 to 0.25). And the tokens "its controller creates"
+  for each creature destroyed are the wiped players' (CR 111.2): no rider and no
+  clean sweep (March of Souls 0.36 to 0.16, The Phasing of Zhalfir 0.82 to 0.18,
+  Mogg Infestation). ADR-0060's board-wipe row: Spearman 0.510 to 0.514, guide adds
+  at the 87th percentile (84th), 9 of 19 in the top decile, the cut side unchanged.
+  On the tunes: Sultai Arisen takes Scourge of Fleets for Deluge of Doom, Tinker Time
+  Ashling's Command for Boompile (the mana saved buys a guide cut, Vedalken
+  Humiliator), and Eldrazi Unbound Blasphemous Act over Damn.
 - **Removal's deck fit.** Beast Within, Chaos Warp and Generous Gift read alike (0.61)
   and Beast Within is the most played, so play-rate's pick recurs (14 upgrades, many of
   them for an any-permanent answer the deck already ran: Casualties of War, Cast Out,

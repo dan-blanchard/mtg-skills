@@ -44,7 +44,7 @@ Measured on the 25 precons (eighth pass, `docs/plans/precon-audit/job_reads.py`)
 | job | fit on main-job cards: CV Spearman | production read over every card it scores: Spearman / guide adds, median percentile (read vs play-rate) | use |
 |---|---|---|---|
 | protection | 0.56 | 0.56 / 0.92 vs 0.97 | gate + blend (Dan's call) |
-| board wipe | 0.50 | 0.51 / 0.84 vs 0.92 (2026-10-24, last; 0.50 / 0.84, 0.49 / 0.79 before) | gate + blend |
+| board wipe | 0.50 | 0.51 / 0.87 vs 0.92 (2026-10-24, the last misreads; 0.51 / 0.84, 0.50 / 0.84, 0.49 / 0.79 before) | gate + blend |
 | removal | 0.40 | 0.16 / 0.49 vs 0.94 | gate |
 | card draw | 0.33 | 0.33 / 0.76 vs 0.85 | gate + blend |
 | ramp | 0.28 | 0.27 / 0.69 vs 0.89 | gate |
@@ -248,3 +248,15 @@ tribe or its one big creature), which no card read reaches. So the order stays t
 blend. Also measured and rejected (the audit report, "The tuner-policy leftovers"):
 removal reordered by the deck's count of instant any-permanent answers (59 and 56
 adds) and the ramp read ordering its upgrades blended with play-rate (56).
+
+**Amendment (2026-10-24, the last misreads).** The five the read still listed are
+read: an X the card defines from what is yours is a narrow count, not a scaling
+one (CR 107.3; Deluge of Doom, Essence Pulse); a sweep under a coin flip is gated
+(CR 705.1-705.2; Boompile); a creature's activation costs its mana (CR 602.1a; Jaya
+Ballard, Task Mage, Infected Vermin); a conditional discount is taken at half (CR
+601.2f; Avenge, Hour of Revelation), the read's own call; and the tokens the wiped
+players create are theirs (CR 111.2), no rider and no clean sweep (March of Souls,
+The Phasing of Zhalfir). The board-wipe row: Spearman 0.514 (0.510), guide adds at
+the 87th percentile (84th), 9 of 19 in the top decile, 9 of the bottom two. On the
+25 precons 547 / 196 / 60 against 546 / 195 / 60: Deluge of Doom and Boompile are no
+longer picked, and Tinker Time's saved mana buys a guide cut.

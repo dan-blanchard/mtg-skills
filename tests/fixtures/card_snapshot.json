@@ -104462,6 +104462,192 @@
     "type_line": "Enchantment"
    }
   },
+  "Avenge": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Destroy all creatures. You gain 1 life for each creature destroyed this way.",
+       "duration": null,
+       "effect": {
+        "cant_regenerate": false,
+        "target": {
+         "controller": null,
+         "properties": [],
+         "type": "Typed",
+         "type_filters": [
+          "Creature"
+         ]
+        },
+        "type": "DestroyAll"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "amount": {
+          "qty": {
+           "caused_by": "Destroyed",
+           "filter": {
+            "controller": null,
+            "properties": [],
+            "type": "Typed",
+            "type_filters": [
+             "Creature"
+            ]
+           },
+           "type": "FilteredTrackedSetSize"
+          },
+          "type": "Ref"
+         },
+         "type": "GainLife"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "sub_link": "SequentialSibling",
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Sorcery"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "White"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 4,
+      "shards": [
+       "White",
+       "White"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "8b385779-bc6b-4f67-8724-d8ae136d1436",
+       "973d2d1c-2e40-424e-bcd8-66130e99082f"
+      ]
+     },
+     "name": "Avenge",
+     "non_ability_text": null,
+     "oracle_text": "This spell costs {2} less to cast if a player attacked you during their last turn.\nDestroy all creatures. You gain 1 life for each creature destroyed this way.",
+     "power": null,
+     "printings": [
+      "MSC"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "65a64759-3a93-4542-84fc-3af5ccb741f4",
+     "static_abilities": [
+      {
+       "active_zones": [
+        "Hand",
+        "Stack",
+        "Command",
+        "Graveyard",
+        "Exile",
+        "Library"
+       ],
+       "affected": {
+        "type": "SelfRef"
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": {
+        "type": "AnyPlayerAttackedYouLastTurn"
+       },
+       "description": "This spell costs {2} less to cast if a player attacked you during their last turn.",
+       "effect_zone": null,
+       "mode": {
+        "ModifyCost": {
+         "amount": {
+          "generic": 2,
+          "shards": [],
+          "type": "Cost"
+         },
+         "mode": "Reduce",
+         "spell_filter": null
+        }
+       },
+       "modifications": []
+      }
+     ],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 6.0,
+    "color_identity": [
+     "W"
+    ],
+    "colors": [
+     "W"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{4}{W}{W}",
+    "name": "Avenge",
+    "oracle_id": "65a64759-3a93-4542-84fc-3af5ccb741f4",
+    "oracle_text": "This spell costs {2} less to cast if a player attacked you during their last turn.\nDestroy all creatures. You gain 1 life for each creature destroyed this way.",
+    "type_line": "Sorcery"
+   }
+  },
   "Avenger of Zendikar": {
    "phase_records": [
     {
@@ -168212,6 +168398,155 @@
     "oracle_id": "dc4a4996-108a-4aac-850f-2d9f76403446",
     "oracle_text": "Return target permanent to its owner's hand.",
     "type_line": "Instant"
+   }
+  },
+  "Boompile": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": {
+        "type": "Tap"
+       },
+       "description": "{T}: Flip a coin. If you win the flip, destroy all nonland permanents.",
+       "duration": null,
+       "effect": {
+        "lose_effect": null,
+        "type": "FlipCoin",
+        "win_effect": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "cant_regenerate": false,
+          "target": {
+           "controller": null,
+           "properties": [],
+           "type": "Typed",
+           "type_filters": [
+            "Permanent",
+            {
+             "Non": "Land"
+            }
+           ]
+          },
+          "type": "DestroyAll"
+         },
+         "forward_result": false,
+         "kind": "Activated",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": null,
+         "target_prompt": null
+        }
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Artifact"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 4,
+      "shards": [],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "68ac12f5-5198-447e-ac67-fdc4e876571d",
+       "86dea2dc-7e94-41e6-a0ef-81aaa10aaf8c",
+       "dbfe710f-5e92-4be9-9f2f-363af767a91e",
+       "e27c6a13-d19f-44c5-9e68-0153a627b343"
+      ]
+     },
+     "name": "Boompile",
+     "non_ability_text": null,
+     "oracle_text": "{T}: Flip a coin. If you win the flip, destroy all nonland permanents.",
+     "power": null,
+     "printings": [
+      "C16",
+      "CMM",
+      "PLST",
+      "PZ2"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2016-11-08",
+       "text": "If you win the flip, Boompile is destroyed along with all the other nonland permanents."
+      },
+      {
+       "date": "2016-11-08",
+       "text": "You flip a coin as Boompile’s ability resolves. No player may take actions between seeing the result of the flip and all nonland permanents being destroyed."
+      }
+     ],
+     "scryfall_oracle_id": "85b8902f-2515-4ded-b28a-a83334f089f1",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 4.0,
+    "color_identity": [],
+    "colors": [],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{4}",
+    "name": "Boompile",
+    "oracle_id": "85b8902f-2515-4ded-b28a-a83334f089f1",
+    "oracle_text": "{T}: Flip a coin. If you win the flip, destroy all nonland permanents.",
+    "type_line": "Artifact"
    }
   },
   "Boon of Emrakul": {
@@ -307855,6 +308190,163 @@
     "type_line": "Creature — Horror"
    }
   },
+  "Deluge of Doom": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "All creatures get -X/-X until end of turn, where X is the number of card types among cards in your graveyard.",
+       "duration": "UntilEndOfTurn",
+       "effect": {
+        "power": {
+         "type": "Quantity",
+         "value": {
+          "factor": -1,
+          "inner": {
+           "qty": {
+            "source": {
+             "scope": "Controller",
+             "type": "Zone",
+             "zone": "Graveyard"
+            },
+            "type": "DistinctCardTypes"
+           },
+           "type": "Ref"
+          },
+          "type": "Multiply"
+         }
+        },
+        "target": {
+         "controller": null,
+         "properties": [],
+         "type": "Typed",
+         "type_filters": [
+          "Creature"
+         ]
+        },
+        "toughness": {
+         "type": "Quantity",
+         "value": {
+          "factor": -1,
+          "inner": {
+           "qty": {
+            "source": {
+             "scope": "Controller",
+             "type": "Zone",
+             "zone": "Graveyard"
+            },
+            "type": "DistinctCardTypes"
+           },
+           "type": "Ref"
+          },
+          "type": "Multiply"
+         }
+        },
+        "type": "PumpAll"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Sorcery"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Black"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 2,
+      "shards": [
+       "Black"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "948927b2-087a-4f57-844e-68fc8ab01bc0",
+       "b64ace2b-e1f6-4aec-b08f-fdb7fb893483"
+      ]
+     },
+     "name": "Deluge of Doom",
+     "non_ability_text": null,
+     "oracle_text": "All creatures get -X/-X until end of turn, where X is the number of card types among cards in your graveyard.",
+     "power": null,
+     "printings": [
+      "DSC"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "a81fcdf8-59e7-471d-96ce-f87e656572b1",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 3.0,
+    "color_identity": [
+     "B"
+    ],
+    "colors": [
+     "B"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}{B}",
+    "name": "Deluge of Doom",
+    "oracle_id": "a81fcdf8-59e7-471d-96ce-f87e656572b1",
+    "oracle_text": "All creatures get -X/-X until end of turn, where X is the number of card types among cards in your graveyard.",
+    "type_line": "Sorcery"
+   }
+  },
   "Dementia Sliver": {
    "phase_records": [
     {
@@ -382111,6 +382603,185 @@
     "type_line": "Sorcery"
    }
   },
+  "Essence Pulse": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "You gain 2 life. Each creature gets -X/-X until end of turn, where X is the amount of life you gained this turn.",
+       "duration": null,
+       "effect": {
+        "amount": {
+         "type": "Fixed",
+         "value": 2
+        },
+        "type": "GainLife"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": "UntilEndOfTurn",
+        "effect": {
+         "power": {
+          "type": "Quantity",
+          "value": {
+           "factor": -1,
+           "inner": {
+            "qty": {
+             "player": {
+              "type": "Controller"
+             },
+             "type": "LifeGainedThisTurn"
+            },
+            "type": "Ref"
+           },
+           "type": "Multiply"
+          }
+         },
+         "target": {
+          "controller": null,
+          "properties": [],
+          "type": "Typed",
+          "type_filters": [
+           "Creature"
+          ]
+         },
+         "toughness": {
+          "type": "Quantity",
+          "value": {
+           "factor": -1,
+           "inner": {
+            "qty": {
+             "player": {
+              "type": "Controller"
+             },
+             "type": "LifeGainedThisTurn"
+            },
+            "type": "Ref"
+           },
+           "type": "Multiply"
+          }
+         },
+         "type": "PumpAll"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "sub_link": "SequentialSibling",
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Sorcery"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Black"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 3,
+      "shards": [
+       "Black"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "aec4825e-0369-4794-9cbd-0b0c69da3d23",
+       "e3e32d1b-e580-4d09-b285-c8d6c5297896"
+      ]
+     },
+     "name": "Essence Pulse",
+     "non_ability_text": null,
+     "oracle_text": "You gain 2 life. Each creature gets -X/-X until end of turn, where X is the amount of life you gained this turn.",
+     "power": null,
+     "printings": [
+      "C21",
+      "PRM"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2021-04-16",
+       "text": "This ability counts the total amount of life gained without considering any life you lost during that turn. For example, if you lost 3 life and gained 3 life earlier in the turn, you will gain 2 more life from Essence Pulse and each creature will get -5/-5."
+      }
+     ],
+     "scryfall_oracle_id": "0d4bd5e0-8346-4025-8694-d2e1897ee0c2",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 4.0,
+    "color_identity": [
+     "B"
+    ],
+    "colors": [
+     "B"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{3}{B}",
+    "name": "Essence Pulse",
+    "oracle_id": "0d4bd5e0-8346-4025-8694-d2e1897ee0c2",
+    "oracle_text": "You gain 2 life. Each creature gets -X/-X until end of turn, where X is the amount of life you gained this turn.",
+    "type_line": "Sorcery"
+   }
+  },
   "Essence Scatter": {
    "phase_records": [
     {
@@ -451333,6 +452004,149 @@
     "power": "2",
     "toughness": "2",
     "type_line": "Creature — Vampire Warrior"
+   }
+  },
+  "Gates Ablaze": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "~ deals X damage to each creature, where X is the number of Gates you control.",
+       "duration": null,
+       "effect": {
+        "amount": {
+         "qty": {
+          "filter": {
+           "controller": "You",
+           "properties": [],
+           "type": "Typed",
+           "type_filters": [
+            {
+             "Subtype": "Gate"
+            }
+           ]
+          },
+          "type": "ObjectCount"
+         },
+         "type": "Ref"
+        },
+        "target": {
+         "controller": null,
+         "properties": [],
+         "type": "Typed",
+         "type_filters": [
+          "Creature"
+         ]
+        },
+        "type": "DamageAll"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Sorcery"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Red"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 2,
+      "shards": [
+       "Red"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "2b574b44-01e1-4197-99bd-57e54aebc5ff",
+       "66347aed-5aa0-4b20-9aa3-b0e76205d6c0"
+      ]
+     },
+     "name": "Gates Ablaze",
+     "non_ability_text": null,
+     "oracle_text": "Gates Ablaze deals X damage to each creature, where X is the number of Gates you control.",
+     "power": null,
+     "printings": [
+      "PIO",
+      "RNA"
+     ],
+     "rarities": [
+      "uncommon"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "3b97bf8e-d5c4-4eae-a453-73456e0461a1",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 3.0,
+    "color_identity": [
+     "R"
+    ],
+    "colors": [
+     "R"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}{R}",
+    "name": "Gates Ablaze",
+    "oracle_id": "3b97bf8e-d5c4-4eae-a453-73456e0461a1",
+    "oracle_text": "Gates Ablaze deals X damage to each creature, where X is the number of Gates you control.",
+    "type_line": "Sorcery"
    }
   },
   "Gatewatch Beacon": {
@@ -551997,6 +552811,218 @@
     "type_line": "Artifact — Equipment"
    }
   },
+  "Infected Vermin": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": {
+        "cost": {
+         "generic": 2,
+         "shards": [
+          "Black"
+         ],
+         "type": "Cost"
+        },
+        "type": "Mana"
+       },
+       "description": "{2}{B}: ~ deals 1 damage to each creature and each player.",
+       "duration": null,
+       "effect": {
+        "amount": {
+         "type": "Fixed",
+         "value": 1
+        },
+        "player_filter": {
+         "type": "All"
+        },
+        "target": {
+         "controller": null,
+         "properties": [],
+         "type": "Typed",
+         "type_filters": [
+          "Creature"
+         ]
+        },
+        "type": "DamageAll"
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      },
+      {
+       "activation_restrictions": [
+        {
+         "data": {
+          "condition": {
+           "comparator": "GE",
+           "lhs": {
+            "qty": {
+             "player": {
+              "type": "Controller"
+             },
+             "type": "GraveyardSize"
+            },
+            "type": "Ref"
+           },
+           "rhs": {
+            "type": "Fixed",
+            "value": 7
+           },
+           "type": "QuantityComparison"
+          }
+         },
+         "type": "RequiresCondition"
+        }
+       ],
+       "condition": null,
+       "cost": {
+        "cost": {
+         "generic": 3,
+         "shards": [
+          "Black"
+         ],
+         "type": "Cost"
+        },
+        "type": "Mana"
+       },
+       "description": "Threshold — {3}{B}: ~ deals 3 damage to each creature and each player. Activate only if there are seven or more cards in your graveyard.",
+       "duration": null,
+       "effect": {
+        "amount": {
+         "type": "Fixed",
+         "value": 3
+        },
+        "player_filter": {
+         "type": "All"
+        },
+        "target": {
+         "controller": null,
+         "properties": [],
+         "type": "Typed",
+         "type_filters": [
+          "Creature"
+         ]
+        },
+        "type": "DamageAll"
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Rat"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Black"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "premodern": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 2,
+      "shards": [
+       "Black"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "00615487-3526-4b4c-bb06-8f2af1f101d0"
+      ]
+     },
+     "name": "Infected Vermin",
+     "non_ability_text": null,
+     "oracle_text": "{2}{B}: This creature deals 1 damage to each creature and each player.\nThreshold — {3}{B}: This creature deals 3 damage to each creature and each player. Activate only if there are seven or more cards in your graveyard.",
+     "power": {
+      "type": "Fixed",
+      "value": 1
+     },
+     "printings": [
+      "ODY"
+     ],
+     "rarities": [
+      "uncommon"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "448396b8-b691-457a-8569-1282c3fca65a",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 1
+     },
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 3.0,
+    "color_identity": [
+     "B"
+    ],
+    "colors": [
+     "B"
+    ],
+    "keywords": [
+     "Threshold"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}{B}",
+    "name": "Infected Vermin",
+    "oracle_id": "448396b8-b691-457a-8569-1282c3fca65a",
+    "oracle_text": "{2}{B}: This creature deals 1 damage to each creature and each player.\nThreshold — {3}{B}: This creature deals 3 damage to each creature and each player. Activate only if there are seven or more cards in your graveyard.",
+    "power": "1",
+    "toughness": "1",
+    "type_line": "Creature — Rat"
+   }
+  },
   "Infectious Rage": {
    "phase_records": [
     {
@@ -575044,6 +576070,330 @@
     "oracle_id": "46327e52-b04a-4155-bda6-9559e46fb9ed",
     "oracle_text": "Whenever a creature you control enters, target opponent loses life equal to the difference between that creature's power and its toughness.",
     "type_line": "Enchantment"
+   }
+  },
+  "Jaya Ballard, Task Mage": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": {
+        "costs": [
+         {
+          "cost": {
+           "generic": 0,
+           "shards": [
+            "Red"
+           ],
+           "type": "Cost"
+          },
+          "type": "Mana"
+         },
+         {
+          "type": "Tap"
+         },
+         {
+          "count": {
+           "type": "Fixed",
+           "value": 1
+          },
+          "filter": null,
+          "random": false,
+          "self_ref": false,
+          "type": "Discard"
+         }
+        ],
+        "type": "Composite"
+       },
+       "description": "{R}, {T}, Discard a card: Destroy target blue permanent.",
+       "duration": null,
+       "effect": {
+        "cant_regenerate": false,
+        "target": {
+         "controller": null,
+         "properties": [
+          {
+           "color": "Blue",
+           "type": "HasColor"
+          }
+         ],
+         "type": "Typed",
+         "type_filters": [
+          "Permanent"
+         ]
+        },
+        "type": "Destroy"
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      },
+      {
+       "condition": null,
+       "cost": {
+        "costs": [
+         {
+          "cost": {
+           "generic": 1,
+           "shards": [
+            "Red"
+           ],
+           "type": "Cost"
+          },
+          "type": "Mana"
+         },
+         {
+          "type": "Tap"
+         },
+         {
+          "count": {
+           "type": "Fixed",
+           "value": 1
+          },
+          "filter": null,
+          "random": false,
+          "self_ref": false,
+          "type": "Discard"
+         }
+        ],
+        "type": "Composite"
+       },
+       "description": "{1}{R}, {T}, Discard a card: ~ deals 3 damage to any target. A creature dealt damage this way can't be regenerated this turn.",
+       "duration": null,
+       "effect": {
+        "amount": {
+         "type": "Fixed",
+         "value": 3
+        },
+        "target": {
+         "type": "Any"
+        },
+        "type": "DealDamage"
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": "UntilEndOfTurn",
+        "effect": {
+         "duration": "UntilEndOfTurn",
+         "static_abilities": [
+          {
+           "active_zones": [],
+           "affected": {
+            "type": "ParentTarget"
+           },
+           "affected_zone": null,
+           "characteristic_defining": false,
+           "condition": null,
+           "description": null,
+           "effect_zone": null,
+           "mode": "CantBeRegenerated",
+           "modifications": [
+            {
+             "mode": "CantBeRegenerated",
+             "type": "AddStaticMode"
+            }
+           ]
+          }
+         ],
+         "target": {
+          "id": 0,
+          "type": "TrackedSet"
+         },
+         "type": "GenericEffect"
+        },
+        "forward_result": false,
+        "kind": "Activated",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "target_prompt": null
+      },
+      {
+       "condition": null,
+       "cost": {
+        "costs": [
+         {
+          "cost": {
+           "generic": 5,
+           "shards": [
+            "Red",
+            "Red"
+           ],
+           "type": "Cost"
+          },
+          "type": "Mana"
+         },
+         {
+          "type": "Tap"
+         },
+         {
+          "count": {
+           "type": "Fixed",
+           "value": 1
+          },
+          "filter": null,
+          "random": false,
+          "self_ref": false,
+          "type": "Discard"
+         }
+        ],
+        "type": "Composite"
+       },
+       "description": "{5}{R}{R}, {T}, Discard a card: ~ deals 6 damage to each creature and each player.",
+       "duration": null,
+       "effect": {
+        "amount": {
+         "type": "Fixed",
+         "value": 6
+        },
+        "player_filter": {
+         "type": "All"
+        },
+        "target": {
+         "controller": null,
+         "properties": [],
+         "type": "Typed",
+         "type_filters": [
+          "Creature"
+         ]
+        },
+        "type": "DamageAll"
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "brawl_commander": true,
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Human",
+       "Spellshaper"
+      ],
+      "supertypes": [
+       "Legendary"
+      ]
+     },
+     "color_identity": [
+      "Red"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "is_commander": true,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "Red",
+       "Red"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "09900d9a-3086-4608-8d5d-56339f7b5773",
+       "2890840e-da0b-40ba-b3c2-7e4af39922b3",
+       "a1f85b2a-7836-4058-87a5-859c4311a7e4"
+      ]
+     },
+     "name": "Jaya Ballard, Task Mage",
+     "non_ability_text": null,
+     "oracle_text": "{R}, {T}, Discard a card: Destroy target blue permanent.\n{1}{R}, {T}, Discard a card: Jaya Ballard deals 3 damage to any target. A creature dealt damage this way can't be regenerated this turn.\n{5}{R}{R}, {T}, Discard a card: Jaya Ballard deals 6 damage to each creature and each player.",
+     "power": {
+      "type": "Fixed",
+      "value": 2
+     },
+     "printings": [
+      "PD2",
+      "PLST",
+      "PMPS08",
+      "PRM",
+      "PTSP",
+      "TSP",
+      "TSR"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "cbbad3da-695e-4527-9678-0942f3751287",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 2
+     },
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 3.0,
+    "color_identity": [
+     "R"
+    ],
+    "colors": [
+     "R"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}{R}{R}",
+    "name": "Jaya Ballard, Task Mage",
+    "oracle_id": "cbbad3da-695e-4527-9678-0942f3751287",
+    "oracle_text": "{R}, {T}, Discard a card: Destroy target blue permanent.\n{1}{R}, {T}, Discard a card: Jaya Ballard deals 3 damage to any target. A creature dealt damage this way can't be regenerated this turn.\n{5}{R}{R}, {T}, Discard a card: Jaya Ballard deals 6 damage to each creature and each player.",
+    "power": "2",
+    "toughness": "2",
+    "type_line": "Legendary Creature — Human Spellshaper"
    }
   },
   "Jaya's Immolating Inferno": {
@@ -676148,6 +677498,198 @@
     "type_line": "Instant"
    }
   },
+  "March of Souls": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Destroy all creatures. They can't be regenerated. For each creature destroyed this way, its controller creates a 1/1 white Spirit creature token with flying.",
+       "duration": null,
+       "effect": {
+        "cant_regenerate": true,
+        "target": {
+         "controller": null,
+         "properties": [],
+         "type": "Typed",
+         "type_filters": [
+          "Creature"
+         ]
+        },
+        "type": "DestroyAll"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "colors": [
+          "White"
+         ],
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "enters_attacking": false,
+         "keywords": [
+          "Flying"
+         ],
+         "name": "Spirit",
+         "owner": {
+          "type": "ParentTargetController"
+         },
+         "power": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "tapped": false,
+         "toughness": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "type": "Token",
+         "types": [
+          "Creature",
+          "Spirit"
+         ]
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "repeat_for": {
+         "qty": {
+          "caused_by": "Destroyed",
+          "filter": {
+           "controller": null,
+           "properties": [],
+           "type": "Typed",
+           "type_filters": [
+            "Creature"
+           ]
+          },
+          "type": "FilteredTrackedSetSize"
+         },
+         "type": "Ref"
+        },
+        "sub_ability": null,
+        "sub_link": "SequentialSibling",
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Sorcery"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "White"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "premodern": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 4,
+      "shards": [
+       "White"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "related_token_ids": [
+       "4e0e7748-abc8-5a7b-ab2f-483c152fa372"
+      ],
+      "source_printing_ids": [
+       "f07dd0f1-b80b-4af0-ae76-907ec55ec7d5"
+      ]
+     },
+     "name": "March of Souls",
+     "non_ability_text": null,
+     "oracle_text": "Destroy all creatures. They can't be regenerated. For each creature destroyed this way, its controller creates a 1/1 white Spirit creature token with flying.",
+     "power": null,
+     "printings": [
+      "PLS"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "bca7101b-e74b-42af-ac63-1b3defb4137d",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "all_parts": [
+     {
+      "component": "token",
+      "id": "7ebb3b03-943e-4b5a-be04-f59316b81333",
+      "name": "Spirit",
+      "oracle_id": "dc4e2134-f0c2-49aa-9ea3-ebf83af1445c",
+      "type_line": "Token Creature — Spirit"
+     }
+    ],
+    "arena_available": false,
+    "cmc": 5.0,
+    "color_identity": [
+     "W"
+    ],
+    "colors": [
+     "W"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{4}{W}",
+    "name": "March of Souls",
+    "oracle_id": "bca7101b-e74b-42af-ac63-1b3defb4137d",
+    "oracle_text": "Destroy all creatures. They can't be regenerated. For each creature destroyed this way, its controller creates a 1/1 white Spirit creature token with flying.",
+    "type_line": "Sorcery"
+   }
+  },
   "March of the Machines": {
    "phase_records": [
     {
@@ -710965,6 +712507,200 @@
     "power": "1",
     "toughness": "1",
     "type_line": "Creature — Bird Bard"
+   }
+  },
+  "Mogg Infestation": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Destroy all creatures target player controls. For each creature that died this way, that player creates two 1/1 red Goblin creature tokens.",
+       "duration": null,
+       "effect": {
+        "cant_regenerate": false,
+        "target": {
+         "controller": "TargetPlayer",
+         "properties": [],
+         "type": "Typed",
+         "type_filters": [
+          "Creature"
+         ]
+        },
+        "type": "DestroyAll"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "colors": [
+          "Red"
+         ],
+         "count": {
+          "type": "Fixed",
+          "value": 2
+         },
+         "enters_attacking": false,
+         "keywords": [],
+         "name": "Goblin",
+         "owner": {
+          "type": "ParentTargetController"
+         },
+         "power": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "tapped": false,
+         "toughness": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "type": "Token",
+         "types": [
+          "Creature",
+          "Goblin"
+         ]
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "repeat_for": {
+         "qty": {
+          "filter": {
+           "controller": null,
+           "properties": [],
+           "type": "Typed",
+           "type_filters": [
+            "Creature"
+           ]
+          },
+          "type": "FilteredTrackedSetSize"
+         },
+         "type": "Ref"
+        },
+        "sub_ability": null,
+        "sub_link": "SequentialSibling",
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Sorcery"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Red"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "premodern": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 3,
+      "shards": [
+       "Red",
+       "Red"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "related_token_ids": [
+       "12a89d08-9938-5ef1-8c72-d8d57cff8cda"
+      ],
+      "source_printing_ids": [
+       "5a91aa6f-cb2f-4aad-9415-bba4eb9b76ca",
+       "bfeb1145-3729-481e-a314-c325ed2f2a35",
+       "ef8b7992-d4d9-4d0f-9eca-5085588a4669"
+      ]
+     },
+     "name": "Mogg Infestation",
+     "non_ability_text": null,
+     "oracle_text": "Destroy all creatures target player controls. For each creature that died this way, that player creates two 1/1 red Goblin creature tokens.",
+     "power": null,
+     "printings": [
+      "PLST",
+      "STH",
+      "TPR"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "cfd61b53-83c6-4886-8503-ddcb92dc7f85",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "all_parts": [
+     {
+      "component": "token",
+      "id": "e9577d3c-ee19-4b53-adac-b304287a066f",
+      "name": "Goblin",
+      "oracle_id": "4465eff4-5851-4721-a248-866c686c2ab8",
+      "type_line": "Token Creature — Goblin"
+     }
+    ],
+    "arena_available": false,
+    "cmc": 5.0,
+    "color_identity": [
+     "R"
+    ],
+    "colors": [
+     "R"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{3}{R}{R}",
+    "name": "Mogg Infestation",
+    "oracle_id": "cfd61b53-83c6-4886-8503-ddcb92dc7f85",
+    "oracle_text": "Destroy all creatures target player controls. For each creature that died this way, that player creates two 1/1 red Goblin creature tokens.",
+    "type_line": "Sorcery"
    }
   },
   "Mogis, God of Slaughter": {

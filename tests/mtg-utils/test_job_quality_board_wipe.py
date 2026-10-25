@@ -276,3 +276,66 @@ def test_clause_dropped_canary(name):
     assert target["properties"] == []
     assert target["controller"] is None
     assert "Choose" not in str(face)
+
+
+@pytest.mark.parametrize("name", ["Deluge of Doom", "Essence Pulse"])
+def test_a_count_of_yours_is_no_scaling_x(name):
+    """Deluge of Doom's X is the card types in your graveyard, Essence Pulse's the
+    life you gained this turn: an X the card defines (CR 107.3), off what is yours,
+    not one the caster sizes or the board's creatures. Phase wraps the -X/-X in a
+    Multiply; it reads as the unwrapped count of yours does (Gates Ablaze's Gates),
+    a narrow one."""
+    features = board_wipe.features(_real(name))
+    assert features["small"] == 1.0
+    assert features["clean"] == 0.0
+    assert board_wipe.features(_real("Gates Ablaze"))["small"] == 1.0
+
+
+def test_a_multiplied_count_of_the_board_still_scales():
+    """Cloudkill's -X/-X is its commander's mana value, no count of yours: it
+    still reads as a lethal sweep."""
+    assert board_wipe.features(_real("Cloudkill"))["lethal"] == 1.0
+
+
+def test_a_coin_flip_gates_the_sweep():
+    """Boompile destroys every nonland permanent only if you win the flip (CR
+    705.2), half the time (705.1): a conditional sweep, not a clean one."""
+    features = board_wipe.features(_real("Boompile"))
+    assert features["lethal"] == 1.0
+    assert features["clean"] == 0.0
+    assert _score("Boompile") < _score("Wrath of God")
+
+
+@pytest.mark.parametrize(
+    ("name", "cost"), [("Jaya Ballard, Task Mage", 9.0), ("Infected Vermin", 6.0)]
+)
+def test_a_creatures_activation_costs_its_mana(name, cost):
+    """The activation cost is paid each time the ability is activated (CR
+    602.1a), a creature's as much as an artifact's: Jaya Ballard's six damage is
+    {5}{R}{R} on top of the card (capped at nine), Infected Vermin's ping {2}{B}."""
+    features = board_wipe.features(_real(name))
+    assert features["cost"] == cost
+    assert features["cheap_clean"] == 0.0
+
+
+def test_a_conditional_discount_is_taken_at_half():
+    """Avenge costs {2} less only if a player attacked you during their last
+    turn: the condition decides the cost as it is locked in (CR 601.2f), so the
+    read takes half the discount, and Avenge is no four-mana Wrath."""
+    features = board_wipe.features(_real("Avenge"))
+    assert features["cost"] == 5.0
+    assert features["cheap_clean"] == 0.0
+    assert _score("Avenge") < _score("Wrath of God")
+
+
+@pytest.mark.parametrize(
+    "name", ["March of Souls", "The Phasing of Zhalfir", "Mogg Infestation"]
+)
+def test_tokens_for_the_wiped_players_refill_the_board(name):
+    """Each creature destroyed gives its controller a token, and the player who
+    creates a token controls it (CR 111.2): no rider for the caster, and the
+    board comes back as bodies, so the sweep is not clean."""
+    features = board_wipe.features(_real(name))
+    assert features["lethal"] == 1.0
+    assert features["rider"] == 0.0
+    assert features["clean"] == 0.0
