@@ -61,6 +61,7 @@ from mtg_utils._analysis._sweep_detectors import NAMED_PERMANENT_REGEX
 from mtg_utils._analysis.signal_base import Signal
 from mtg_utils._card_ir.crosswalk import (
     DAMAGE_EFFECT_TAGS,
+    FACE_DOWN_PUT_TAGS,
     TEAM_BUFF_GRANT_KW,
     _filter_type_words,
     aggregate_filter,
@@ -73,6 +74,7 @@ from mtg_utils._card_ir.crosswalk import (
     filter_core_types,
     filter_inzone_zones,
     filter_subtypes,
+    graveyard_recursion,
     has_nested_damage_reaching,
     mana_restrictions,
     mana_spell_type_restriction,
@@ -5360,6 +5362,285 @@ BRIDGES.update(
                 pins=("Sanwell, Avenger Ace",),
                 gap=_no_attacking_condition,
                 match=_oracle_match(_ARTIFACT_ATTACKING_RX),
+            ),
+        )
+    }
+)
+
+
+# ── permanent_recast reanimate / permanent_etb put: re-deliveries phase loses ──
+# The self-ETB page reads a reanimation of a permanent card off a typed
+# ``crosswalk.graveyard_recursion`` (``lanes.removal_tutors._recast_doer_
+# subjects``); the permanents-entering page reads every put and token off the
+# tree (``lanes.mana_and_wipes._battlefield_put``). These rows bridge the
+# clauses phase parks, mistypes or drops.
+
+
+def _no_graveyard_reanimation(tree: ConceptTree) -> bool:
+    """No node puts a card from a graveyard onto the battlefield."""
+    return not any(
+        (hit := graveyard_recursion(n)) is not None and hit.dest == "battlefield"
+        for n in tree.iter_typed()
+    )
+
+
+def _typeless_reanimation(tree: ConceptTree) -> bool:
+    """A reanimation whose moved filter names no card type or subtype (the
+    "creature cards" phase drops)."""
+    return any(
+        (hit := graveyard_recursion(n)) is not None
+        and hit.dest == "battlefield"
+        and not filter_core_types(hit.filter)
+        and not filter_subtypes(hit.filter)
+        for n in tree.iter_typed()
+    )
+
+
+# Custodi Soulcaller and Venerable Warsinger park the reanimation as an
+# Unimplemented node carrying only its "where X is …" clause; Can't Stay Away,
+# Vigor Mortis and Aberrant Return type the whole spell as a replacement.
+_CREATURE_REANIMATION_RX = re.compile(
+    r"\breturn target creature card (?:with mana value \S+ or less )?from your "
+    r"graveyard to the battlefield\b"
+    r"|\bput one, two, or three target creature cards from graveyards onto the "
+    r"battlefield\b",
+    re.IGNORECASE,
+)
+# Return of the Nightstalkers' "Return all Nightstalker permanent cards from your
+# graveyard to the battlefield" parks whole.
+_PERMANENT_REANIMATION_RX = re.compile(
+    r"\bpermanent cards from your graveyard to the battlefield\b", re.IGNORECASE
+)
+# Agadeem's Awakening's and Lich-Knights' Conquest's "creature cards", and
+# Balthor's "black and all red creature cards", drop from the filter.
+_TYPELESS_REANIMATION_RX = re.compile(
+    r"\bcreature cards? from (?:your|their) graveyards? to the battlefield\b"
+    r"|\bfrom your graveyard to the battlefield any number of target creature cards\b",
+    re.IGNORECASE,
+)
+
+
+def _permanent_reanimation_parked(tree: ConceptTree) -> bool:
+    return _parked_says(tree, _PERMANENT_REANIMATION_RX)
+
+
+# Mirrormind Crown's token-copy replacement is a hollow static;
+# Ruthless Radrat's squad keyword parks whole; Write into Being's "Manifest one
+# of those cards", Become Anonymous's "cloak those cards", Araumi's granted
+# encore (CR 702.141a), Violent Echoes' "empower Jace X" (CR 701.71a: it
+# creates the Jace token) and Krovikan Vampire's "put that card onto the
+# battlefield under your control" (the recovery stage marks it as the card's own)
+# park.
+_PARKED_TOKEN_OR_PUT_RX = re.compile(
+    r"\binstead create that many tokens that are copies\b"
+    r"|\bsquad—"
+    r"|\bmanifest one of those cards\b|\bcloak those cards\b"
+    r"|\bgains? encore\b|\bempower jace\b"
+    r"|\bdied, put that card onto the battlefield under your control\b",
+    re.IGNORECASE,
+)
+
+
+def _token_or_put_parked(tree: ConceptTree) -> bool:
+    return _parked_says(tree, _PARKED_TOKEN_OR_PUT_RX)
+
+
+# Hide in Plain Sight's "cloak two of them" leaves a destination-less Dig.
+_CLOAK_TWO_RX = re.compile(r"\bcloak two of them\b", re.IGNORECASE)
+
+
+def _no_face_down_put(tree: ConceptTree) -> bool:
+    return not tree.has_typed(*FACE_DOWN_PUT_TAGS)
+
+
+# Venture Forth's "Put that card onto the battlefield" (the land its exile-until
+# finds) leaves no node.
+_VENTURE_FORTH_RX = re.compile(
+    r"\buntil you exile a land card\. put that card onto the battlefield\b",
+    re.IGNORECASE,
+)
+
+
+def _nothing_onto_the_battlefield(tree: ConceptTree) -> bool:
+    return not any(
+        getattr(n, "destination", None) == "Battlefield" for n in tree.iter_typed()
+    )
+
+
+# Bank Job's end-step "put it into your graveyard and create a Treasure token"
+# parks with no text as a ``delayed_unplayed_exile_sweep`` residue.
+_BANK_JOB_TREASURE_RX = re.compile(
+    r"\bput it into your graveyard and create a treasure token\b", re.IGNORECASE
+)
+
+
+def _unplayed_exile_sweep_parked(tree: ConceptTree) -> bool:
+    return tree.has_residue("delayed_unplayed_exile_sweep")
+
+
+BRIDGES.update(
+    {
+        b.bridge_id: b
+        for b in (
+            Bridge(
+                bridge_id="creature_reanimation_misparse",
+                key="permanent_recast",
+                kind="upstream_parse_failure",
+                todo=(
+                    "upstream phase-rs report candidate (Dan posts): a creature "
+                    "reanimation leaves no graveyard-to-battlefield node — Custodi "
+                    "Soulcaller's and Venerable Warsinger's 'mana value X or less' "
+                    "returns park as an Unimplemented node carrying only their X "
+                    "clause; Can't Stay Away and Vigor Mortis type the spell as a "
+                    "replacement (Aberrant Return too). Retires per card as "
+                    "phase types the ChangeZone"
+                ),
+                census=(
+                    "5 hits / the legal corpus (Aberrant Return, Can't Stay Away, "
+                    "Custodi Soulcaller, Venerable Warsinger, Vigor Mortis), "
+                    "MTGJSON 2026-10-17 @ phase v0.104.0, 2026-10-25"
+                ),
+                pins=(
+                    "Aberrant Return",
+                    "Can't Stay Away",
+                    "Custodi Soulcaller",
+                    "Venerable Warsinger",
+                    "Vigor Mortis",
+                ),
+                gap=_no_graveyard_reanimation,
+                match=_oracle_match(_CREATURE_REANIMATION_RX),
+                subject="reanimate",
+            ),
+            Bridge(
+                bridge_id="permanent_reanimation_parse_failure",
+                key="permanent_recast",
+                kind="upstream_parse_failure",
+                todo=(
+                    "upstream phase-rs report candidate (Dan posts): Return of the "
+                    "Nightstalkers' 'Return all Nightstalker permanent cards from "
+                    "your graveyard to the battlefield' parks whole. Retires on the "
+                    "bump that types it"
+                ),
+                census=(
+                    "1 hit / the legal corpus (Return of the Nightstalkers), "
+                    "MTGJSON 2026-10-17 @ phase v0.104.0, 2026-10-25"
+                ),
+                pins=("Return of the Nightstalkers",),
+                gap=_permanent_reanimation_parked,
+                match=_oracle_match(_PERMANENT_REANIMATION_RX),
+                subject="reanimate",
+            ),
+            Bridge(
+                bridge_id="reanimation_card_type_dropped",
+                key="permanent_recast",
+                kind="dropped_clause",
+                todo=(
+                    "upstream phase-rs report candidate (Dan posts): 'creature "
+                    "cards' drops from a reanimation's filter — Agadeem's "
+                    "Awakening, Lich-Knights' Conquest, Balthor the Defiled (its "
+                    "'and all red' too). Retires per card as the type lands"
+                ),
+                census=(
+                    "3 hits / the legal corpus (Agadeem's Awakening, Balthor the "
+                    "Defiled, Lich-Knights' Conquest), MTGJSON 2026-10-17 @ phase "
+                    "v0.104.0, 2026-10-25"
+                ),
+                pins=(
+                    "Agadeem's Awakening // Agadeem, the Undercrypt",
+                    "Balthor the Defiled",
+                    "Lich-Knights' Conquest",
+                ),
+                gap=_typeless_reanimation,
+                match=_oracle_match(_TYPELESS_REANIMATION_RX),
+                subject="reanimate",
+            ),
+            Bridge(
+                bridge_id="permanent_entry_parse_failure",
+                key="permanent_etb",
+                kind="upstream_parse_failure",
+                todo=(
+                    "upstream phase-rs report candidate (Dan posts): a token or a "
+                    "face-down put parks — Mirrormind Crown's token-copy "
+                    "replacement (a hollow "
+                    "static), Ruthless Radrat's squad, Write into Being's "
+                    "manifest, Become Anonymous's cloak, Araumi's granted encore, "
+                    "Violent Echoes' empower Jace, Krovikan Vampire's put. "
+                    "Retires per card"
+                ),
+                census=(
+                    "7 hits / the legal corpus (Araumi of the Dead Tide, Become "
+                    "Anonymous, Krovikan Vampire, Mirrormind Crown, Ruthless "
+                    "Radrat, Violent Echoes, Write into Being), MTGJSON "
+                    "2026-10-17 @ phase v0.104.0, 2026-10-25"
+                ),
+                pins=(
+                    "Araumi of the Dead Tide",
+                    "Become Anonymous",
+                    "Krovikan Vampire",
+                    "Mirrormind Crown",
+                    "Ruthless Radrat",
+                    "Violent Echoes",
+                    "Write into Being",
+                ),
+                gap=_token_or_put_parked,
+                match=_oracle_match(_PARKED_TOKEN_OR_PUT_RX),
+                subject="put",
+            ),
+            Bridge(
+                bridge_id="cloak_dropped_from_dig",
+                key="permanent_etb",
+                kind="dropped_clause",
+                todo=(
+                    "upstream phase-rs report candidate (Dan posts): Hide in Plain "
+                    "Sight's 'cloak two of them' leaves a destination-less Dig. "
+                    "Retires on the bump that types the cloak"
+                ),
+                census=(
+                    "1 hit / the legal corpus (Hide in Plain Sight), MTGJSON "
+                    "2026-10-17 @ phase v0.104.0, 2026-10-25"
+                ),
+                pins=("Hide in Plain Sight",),
+                gap=_no_face_down_put,
+                match=_oracle_match(_CLOAK_TWO_RX),
+                subject="put",
+            ),
+            Bridge(
+                bridge_id="exiled_land_put_dropped",
+                key="permanent_etb",
+                kind="dropped_clause",
+                todo=(
+                    "upstream phase-rs report candidate (Dan posts): Venture "
+                    "Forth's 'Put that card onto the battlefield' (the land its "
+                    "exile-until finds) leaves no node. Retires on the bump that "
+                    "types the put"
+                ),
+                census=(
+                    "1 hit / the legal corpus (Venture Forth), MTGJSON 2026-10-17 "
+                    "@ phase v0.104.0, 2026-10-25"
+                ),
+                pins=("Venture Forth",),
+                gap=_nothing_onto_the_battlefield,
+                match=_oracle_match(_VENTURE_FORTH_RX),
+                subject="put",
+            ),
+            Bridge(
+                bridge_id="treasure_empty_effect",
+                key="permanent_etb",
+                kind="upstream_parse_failure",
+                todo=(
+                    "upstream phase-rs report candidate (Dan posts): Bank Job's "
+                    "end-step 'put it into your graveyard and create a Treasure "
+                    "token' parks textless (delayed_unplayed_exile_sweep). "
+                    "Retires on the bump that types it"
+                ),
+                census=(
+                    "1 hit / the legal corpus (Bank Job), MTGJSON 2026-10-17 @ "
+                    "phase v0.104.0, 2026-10-25"
+                ),
+                pins=("Bank Job",),
+                gap=_unplayed_exile_sweep_parked,
+                match=_oracle_match(_BANK_JOB_TREASURE_RX),
+                subject="put",
             ),
         )
     }

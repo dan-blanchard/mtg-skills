@@ -2664,18 +2664,16 @@ def _copy_clone(tree: ConceptTree) -> list[Signal]:
             # partner, Trickster's Talisman's equipped creature).
             # It still puts a token onto the battlefield, the ``self`` subject a
             # permanents-entering page counts (``signal_keys.PAGE_ONLY_SUBJECTS``).
+            # phase v0.104.0 parks Ochre Jelly's / Shredder's "create a token
+            # that's a copy of it" as a residue the ``clone`` token recovers, with
+            # no typed target: the seam marks the same self-copy (``SELF``).
             if (
                 c.concept == "copy_token"
                 and tag_of(tgt) == "SelfRef"
                 and id(c.node) not in granted
-            ):
-                self_copy = self_copy or c.raw or "self"
-                continue
-            # phase v0.104.0 parks Ochre Jelly's / Shredder's "create a token
-            # that's a copy of it" as a residue the ``clone`` token recovers, with
-            # no typed target: the seam marks the same self-copy (``SELF``).
-            if c.recovered_by == "clone" and (
-                SELF in c.subject or _copies_a_named_card(unit)
+            ) or (
+                c.recovered_by == "clone"
+                and (SELF in c.subject or _copies_a_named_card(unit))
             ):
                 self_copy = self_copy or c.raw or "self"
                 continue

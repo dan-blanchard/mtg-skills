@@ -157,7 +157,31 @@ def _idents(name):
         ("Manifest Dread", "facedown_makers|you|manifest", True),
         ("Ainok Tracker", "facedown_makers|you|manifest", False),
         # A cost paid by returning a land you control to hand.
-        ("Coral Atoll", "permanent_recast|you|replay", True),
+        ("Coral Atoll", "permanent_etb|you|replay", True),
+        ("Coral Atoll", "permanent_recast|you|replay", False),  # a land only
+        # Tokens and puts read off the tree: a Role (parked, recovered), a
+        # granted myriad, a token-increase replacement, a parked reanimation of
+        # an opponent's card for you (CR 110.2a), an Attraction (CR 701.51b),
+        # empowering Jace (CR 701.71a), a spellbook draft onto the battlefield,
+        # a granted offspring.
+        ("Become Brutes", "permanent_etb|you|put", True),
+        ("Blade of Selves", "permanent_etb|you|put", True),
+        ("Xorn", "permanent_etb|you|put", True),
+        ("Bone Dancer", "permanent_etb|you|put", True),
+        ("Thrilling Encore", "permanent_etb|you|put", True),
+        ("Ride Guide", "permanent_etb|you|put", True),
+        ("Jace's Machinations", "permanent_etb|you|put", True),
+        ("Masterpiece Vault", "permanent_etb|you|put", True),
+        ("Zinnia, Valley's Voice", "permanent_etb|you|put", True),
+        ("Hunted Troll", "permanent_etb|you|put", False),  # an opponent's tokens
+        # An enters watcher over more than one of your permanent types; "artifact
+        # creature" is one object's types.
+        ("Haliya, Guided by Light", "permanent_etb|you|", True),
+        ("Canoptek Spyder", "permanent_etb|you|", False),
+        # Its controller manifests: not yours.
+        ("Reality Shift", "facedown_makers|you|manifest", False),
+        # A trigger's event creature exiled and returned (CR 400.7).
+        ("Gossip's Talent", "blink_flicker|you|enabler", True),
     ],
 )
 def test_permanents_entering_doers(name, ident, expected):

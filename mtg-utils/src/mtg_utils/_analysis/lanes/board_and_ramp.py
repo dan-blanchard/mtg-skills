@@ -54,7 +54,7 @@ from mtg_utils._analysis.tree_synthesis import (
 )
 from mtg_utils._analysis.tree_synthesis.combat import ATTACK_TRIGGER_KEYWORDS
 from mtg_utils._card_ir.crosswalk import (
-    _OPPONENT_ACTOR_TAGS,
+    OPPONENT_ACTOR_TAGS,
     AbilityUnit,
     ConceptNode,
     ConceptTree,
@@ -89,7 +89,7 @@ from mtg_utils._card_ir.crosswalk import (
     iter_threaded_target_statics,
     iter_typed_nodes,
     land_searches,
-    mana_spell_type_restriction,
+    mana_spell_types,
     or_arms,
     ref_count_filter,
     reveal_until_player,
@@ -914,6 +914,22 @@ def _blink_flicker(tree: ConceptTree) -> list[Signal]:
             if all(effects_exclusive(unit.node, e.node, c.node) for e in exiles):
                 continue
             tgt = tag_of(getattr(c.node, "target", None))
+            # A trigger's event object exiled and returned (Gossip's Talent's
+            # "Whenever a creature you control deals combat damage to a player,
+            # you may exile it, then return it"): the same object, a creature
+            # of yours the trigger watches.
+            if (
+                tgt == "TriggeringSource"
+                and not self_exile
+                and _watches_your_permanent(unit)
+                and any(
+                    tag_of(getattr(e.node, "target", None)) == "TriggeringSource"
+                    for e in exiles
+                )
+            ):
+                return [
+                    Signal("blink_flicker", "you", "enabler", "", tree.name, "high")
+                ]
             if tgt in ("ParentTarget", "TrackedSet") or (  # the SAME exiled object
                 # …but never unearth's Graveyard→Battlefield self-return whose "exile
                 # it" is the delayed cleanup (Anathemancer, Hell's Thunder — CR
@@ -939,6 +955,18 @@ def _blink_flicker(tree: ConceptTree) -> list[Signal]:
                     Signal("blink_flicker", "you", "enabler", "", tree.name, "high")
                 ]
     return []
+
+
+def _watches_your_permanent(unit: AbilityUnit) -> bool:
+    """A trigger whose event object is a permanent you control other than the
+    card: its watched ``valid_card`` / ``valid_source`` names "you control"."""
+    if unit.origin != "trigger":
+        return False
+    return any(
+        tag_of(w := getattr(unit.node, field, None)) == "Typed"
+        and filter_controller(w) == "You"
+        for field in ("valid_card", "valid_source")
+    )
 
 
 def blink_flicker_is_maker(signal: Signal) -> bool:
@@ -1907,7 +1935,7 @@ def _artifacts_enchantments_matter(tree: ConceptTree) -> list[Signal]:
             # "Each opponent sacrifices an enchantment"; CR 701.21a).
             if filters and not (
                 (tag == "Sacrifice" and _sac_is_edict(unit, n))
-                or effect_owner_player_scope(unit.node, n) in _OPPONENT_ACTOR_TAGS
+                or effect_owner_player_scope(unit.node, n) in OPPONENT_ACTOR_TAGS
             ):
                 # A type check on the card the effect itself moved or paid ("If
                 # you put an artifact card into your hand this way" — Chrome
@@ -1924,11 +1952,12 @@ def _artifacts_enchantments_matter(tree: ConceptTree) -> list[Signal]:
             # Ship) or enchantment spells (Creeping Peeper: a cast, CR 601.2i);
             # "artifact or creature spells" (Geosurge) spends on either.
             elif tag == "Mana":
-                spell_type = tuple(mana_spell_type_restriction(n, any_of=True).split())
-                if "or" not in spell_type:
-                    if _names_artifact_kind(spell_type):
+                spell_types = mana_spell_types(n, any_of=True)
+                if len(spell_types) == 1:
+                    words = tuple(spell_types[0].split())
+                    if _names_artifact_kind(words):
                         out.append("artifacts_matter")
-                    if "Enchantment" in spell_type:
+                    if "Enchantment" in words:
                         cast_out.append("enchantments_matter")
             elif tag == "GrantNextSpellAbility" or isinstance(
                 getattr(n, "mode", None), MirrorVariant

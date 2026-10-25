@@ -8,10 +8,10 @@ from collections.abc import Iterable, Sequence
 
 from mtg_utils._analysis.signal_base import Signal, _clauses
 from mtg_utils._card_ir.crosswalk import (
-    _OPPONENT_ACTOR_TAGS,
     ARTIFACT_TOKEN_SUBTYPES,
     CHOSEN_PLAYER_SCOPE,
     LAND_SUBTYPE_WORDS,
+    OPPONENT_ACTOR_TAGS,
     TARGET_BACKREF_TAGS,
     AbilityUnit,
     ConceptNode,
@@ -361,7 +361,7 @@ def _attack_compulsion_hit(kept: str, *patterns: re.Pattern[str]) -> bool:
 # opponent like a "target player sacrifices" filter. (Friend-or-foe's foes read
 # ``Opponent``, its friends you.)
 _EDICT_ACTORS: frozenset[str] = frozenset(
-    {*_OPPONENT_ACTOR_TAGS, "All", "EachPlayer", "Each", CHOSEN_PLAYER_SCOPE}
+    {*OPPONENT_ACTOR_TAGS, "All", "EachPlayer", "Each", CHOSEN_PLAYER_SCOPE}
 )
 
 
@@ -369,7 +369,7 @@ def _edict_scope(owner_tag: str | None) -> str:
     """An edict actor tag → lane scope (CR 701.21a). An opponent actor → opponents; a
     symmetric each-player actor → each (mirrors ``_ir_scope`` opp/each); a player
     the card picks out → opponents, like a ``TargetPlayer`` controller."""
-    if owner_tag in _OPPONENT_ACTOR_TAGS or owner_tag == CHOSEN_PLAYER_SCOPE:
+    if owner_tag in OPPONENT_ACTOR_TAGS or owner_tag == CHOSEN_PLAYER_SCOPE:
         return "opponents"
     return "each"
 

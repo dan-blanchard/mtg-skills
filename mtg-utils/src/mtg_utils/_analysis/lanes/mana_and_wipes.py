@@ -33,12 +33,12 @@ from mtg_utils._analysis.signal_base import (
 )
 from mtg_utils._analysis.tree_synthesis import has_structural_extra_land_drop
 from mtg_utils._card_ir.crosswalk import (
-    _OPPONENT_ACTOR_TAGS,
     CREATURE_OR_PERMANENT,
     SWEPT_PERMANENT_TYPES,
     AbilityUnit,
     ConceptNode,
     ConceptTree,
+    cast_keyword_type_words,
     change_zone_dirs,
     controller_paid_cost_leaves,
     count_operand_filter,
@@ -46,10 +46,12 @@ from mtg_utils._card_ir.crosswalk import (
     discard_is_random,
     discard_recipient_scope,
     double_target_kind,
+    effect_actor_scope,
     effect_filter,
     effect_owner_player_scope,
     effect_owner_raw,
     effect_owner_reads_chosen_group,
+    enters_under_you,
     filter_color_predicates,
     filter_controller,
     filter_core_types,
@@ -70,7 +72,9 @@ from mtg_utils._card_ir.crosswalk import (
     iter_static_defs,
     iter_typed_nodes,
     mana_replacement_multiplier,
+    manifests_for_you,
     memo_on,
+    mod_keyword_name,
     named_filter_subtypes,
     names_attached_object,
     negative_pt_field,
@@ -81,11 +85,14 @@ from mtg_utils._card_ir.crosswalk import (
     puts_under_your_control,
     recipient_tag,
     ref_count_qty,
+    replacement_event_tag,
+    replacement_token_owner_scope,
     reveal_until_player,
     static_pt_mods_on_others,
     tag_of,
     targets_the_card,
     team_buff_sites,
+    token_creator_side,
 )
 from mtg_utils._card_ir.mirror.runtime import (
     MirrorVariant,
@@ -95,6 +102,7 @@ from mtg_utils._card_ir.recovery import (
     CARD,
     ON_SELF,
     OTHER_PLAYER,
+    SELF,
     TARGET_OBJECT,
     YOURS,
     is_theirs,
@@ -3032,24 +3040,33 @@ def _unit_targets_player(unit: AbilityUnit) -> bool:
 
 def _puts_a_card_for_you(unit: AbilityUnit, node: object) -> bool:
     """Whether one effect puts a card or permanent other than this one onto the
-    battlefield under your control (CR 110.2: a permanent's controller is the
-    player under whose control it entered — by default its owner): a
-    ``ChangeZone`` / ``ChangeZoneAll`` onto the battlefield (a cheat, a
-    reanimation, a land put, a blink's return), or a dig / reveal that keeps its
-    card there (:func:`_kept_onto_battlefield`).
+    battlefield under your control (:func:`crosswalk.puts_under_your_control`,
+    CR 110.2a: the player the effect instructs controls it): a ``ChangeZone`` /
+    ``ChangeZoneAll`` onto the battlefield (a cheat, a reanimation, a land put,
+    a blink's return), a dig / reveal that keeps its card there
+    (:func:`_kept_onto_battlefield`), a spellbook draft onto the battlefield
+    (Masterpiece Vault), a manifest or cloak of yours
+    (:func:`crosswalk.manifests_for_you`), opening an Attraction (CR 701.51b:
+    "put it onto the battlefield under your control") and empowering Jace
+    (CR 701.71a: "If you don't control a Jace planeswalker token, create" one).
 
     Out: the card putting itself (``SelfRef`` — Nether Shadow, Mox Diamond's
-    alternative), a put another player makes (an opponent actor, a search
-    another player is told to make — Path to Exile's, Settle the Wreckage's,
-    any ``ParentTargetController`` search; the cheat lane reads Arcum
-    Dagsson's), and a card from an opponent's graveyard or library returning
-    under its owner's control. Into your control (``enters_under: You``) is
-    yours whoever owned it (Dredge the Mire)."""
+    alternative), and a put another player makes (an opponent actor, another
+    player's reveal, a search another player is told to make — Path to Exile's,
+    Settle the Wreckage's; the cheat lane reads Arcum Dagsson's)."""
     if not isinstance(node, TypedMirrorNode):
         return False
     tag = tag_of(node)
+    if tag in ("OpenAttractions", "EmpowerJace") or manifests_for_you(node):
+        return True
+    if tag == "DraftFromSpellbook":
+        return getattr(node, "destination", None) == "Battlefield"
     if tag in ("Dig", "RevealUntil"):
-        if tag == "RevealUntil" and reveal_until_player(node) not in (None, "you"):
+        if (
+            tag == "RevealUntil"
+            and not enters_under_you(node)
+            and reveal_until_player(node) not in (None, "you")
+        ):
             return False
         return _kept_onto_battlefield(node)
     if tag not in ("ChangeZone", "ChangeZoneAll"):
@@ -3058,11 +3075,72 @@ def _puts_a_card_for_you(unit: AbilityUnit, node: object) -> bool:
         return False
     if tag_of(getattr(node, "target", None)) == "SelfRef":
         return False
-    if getattr(node, "enters_under", None) != "You" and (
-        effect_owner_player_scope(unit.node, node) in _OPPONENT_ACTOR_TAGS
-    ):
+    if filter_controller(effect_filter(node)) == "Opponent":
         return False
-    return puts_under_your_control(node, effect_filter(node))
+    return puts_under_your_control(
+        node, actor=effect_owner_player_scope(unit.node, node)
+    )
+
+
+#: Keywords whose ability makes a token copy of the card (CR 702.116a myriad,
+#: 702.141a encore, 702.128a embalm, 702.129a eternalize, 702.157a squad,
+#: 702.175a offspring): one a card grants, or carries, makes a token.
+_TOKEN_KEYWORDS: frozenset[str] = frozenset(
+    {"Myriad", "Encore", "Embalm", "Eternalize", "Squad", "Offspring"}
+)
+
+
+def _makes_token_for_you(unit: AbilityUnit, c: ConceptNode) -> bool:
+    """A token-making concept whose token is yours: a ``make_token`` (a parked
+    one the recovery stage reads included — Become Brutes' Role), a
+    ``copy_token`` or a ``populate``, neither created by nor for an opponent
+    (``effect_actor_scope`` / ``token_creator_side``: the Hunted cycle's "target
+    opponent creates")."""
+    if c.concept not in ("make_token", "copy_token", "populate"):
+        return False
+    if c.scope == "opponents":
+        return False
+    return "opponents" not in (
+        effect_actor_scope(unit, c.node),
+        token_creator_side(unit, c.node),
+    )
+
+
+def _recovered_put_for_you(c: ConceptNode) -> bool:
+    """A parked "put … onto the battlefield" the recovery stage reads as a
+    ``reanimate`` (phase v0.104.0 fails closed on "all creature cards in all
+    graveyards that were put there this turn" — Thrilling Encore; "the top
+    creature card of defending player's graveyard … under your control" — Bone
+    Dancer): you perform it (no ``OtherPlayer`` mark; CR 110.2a — what you put
+    is yours), and it moves no card that is the card itself (``Self`` — Nether
+    Shadow's "put this card onto the battlefield")."""
+    return (
+        c.recovered_by == "reanimate"
+        and OTHER_PLAYER not in c.subject
+        and SELF not in c.subject
+    )
+
+
+def _grants_token_keyword(unit: AbilityUnit) -> bool:
+    """A grant of a token-copy keyword to your objects ("Equipped creature has
+    myriad" — Blade of Selves; "Each artifact creature card in your graveyard
+    has encore" — Wire Surgeons; "Creature spells you cast gain offspring" —
+    Zinnia, Valley's Voice) or a token-creation replacement of yours ("If you
+    would create one or more Treasure tokens, instead create those tokens plus
+    an additional Treasure token" — Xorn; CR 614.1a)."""
+    if (
+        unit.origin == "replacement"
+        and replacement_event_tag(unit.node) == "CreateToken"
+    ):
+        return replacement_token_owner_scope(unit.node) != "Opponent"
+    if cast_keyword_type_words(unit.node)[0] in _TOKEN_KEYWORDS:
+        return True
+    return any(
+        tag_of(mod) == "AddKeyword"
+        and mod_keyword_name(mod) in _TOKEN_KEYWORDS
+        and filter_controller(getattr(sdef, "affected", None)) != "Opponent"
+        for sdef, mod in iter_mod_sites(unit.node, deep=True)
+    )
 
 
 def _searched_by_another(unit: AbilityUnit) -> bool:
@@ -3077,18 +3155,30 @@ def _searched_by_another(unit: AbilityUnit) -> bool:
 
 
 def _battlefield_put(tree: ConceptTree) -> list[Signal]:
-    """``permanent_etb|you|put`` — the card puts a card or permanent other than
-    itself onto the battlefield under your control (:func:`_puts_a_card_for_you`;
-    a granted ability's put included): what a "whenever a permanent you control
-    enters" engine (Amareth, Amulet of Vigor) wants beside the token makers. A
-    page-only doer (``signal_keys.PAGE_ONLY_SUBJECTS``): every ramp spell and
+    """``permanent_etb|you|put`` — the card makes a card or permanent other than
+    itself enter the battlefield under your control: it puts one there
+    (:func:`_puts_a_card_for_you`, a parked put — :func:`_recovered_put_for_you`),
+    makes a token (:func:`_makes_token_for_you`), or grants or carries a
+    token-copy keyword (:func:`_grants_token_keyword`); a granted ability's
+    included. What a "whenever a permanent you control enters" engine
+    (Amareth, Amulet of Vigor) wants. A page-only doer
+    (``signal_keys.PAGE_ONLY_SUBJECTS``): every ramp spell, token maker and
     reanimation carries it, so it opens no avenue."""
+    if _TOKEN_KEYWORDS & set(tree.card_keywords):
+        return [Signal("permanent_etb", "you", "put", "", tree.name, "high")]
     for unit in tree.units:
-        if unit.kind == "BeginGame" or _searched_by_another(unit):
+        if unit.kind == "BeginGame":
             continue
+        if _grants_token_keyword(unit):
+            return [Signal("permanent_etb", "you", "put", "", tree.name, "high")]
+        searched = _searched_by_another(unit)
         granted = iter_nested_granted_effect_concepts(unit.node)
         for c in chain(unit.effects, granted):
-            if _puts_a_card_for_you(unit, c.node):
+            if (
+                _makes_token_for_you(unit, c)
+                or _recovered_put_for_you(c)
+                or (not searched and _puts_a_card_for_you(unit, c.node))
+            ):
                 return [Signal("permanent_etb", "you", "put", c.raw, tree.name, "high")]
     return []
 

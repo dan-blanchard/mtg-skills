@@ -30,6 +30,7 @@ from mtg_utils._card_ir.crosswalk import (
     ATTACHED_OBJECT_PREDICATES,
     DAMAGE_EFFECT_TAGS,
     OTHER,
+    PERMANENT_CARD_TYPES,
     PROTECTIVE_KEYWORDS,
     AbilityUnit,
     ConceptNode,
@@ -74,6 +75,7 @@ from mtg_utils._card_ir.crosswalk import (
     named_permanent_refs,
     normalised_keyword,
     normalised_keyword_name,
+    or_arms,
     parked_prevention,
     player_filter_tag,
     protective_grant_recipients,
@@ -591,6 +593,25 @@ def _delayed_had_enter_creature_etb(trig: object) -> bool:
     return _ETB_HAD_RE.search(desc.lower()) is not None
 
 
+def _watches_your_permanents(vc: object) -> bool:
+    """An enters watcher over permanents you control of more than one type:
+    "another permanent you control" (Amareth — the ``Permanent`` core type), or
+    a list of your types naming one beside creatures ("Whenever ~ or another
+    creature or artifact you control enters" — Haliya, Guided by Light), the
+    card itself among them aside. A creature-only watcher is ``creature_etb``."""
+    arms = [a for a in or_arms(vc) if tag_of(a) != "SelfRef"]
+    if not arms or any(filter_controller(a) != "You" for a in arms):
+        return False
+    if any("Permanent" in filter_core_types(a) for a in arms):
+        return True
+    # One arm's types are one object's ("artifact creature" — Canoptek Spyder);
+    # the alternatives are the arms.
+    alternatives = {
+        frozenset(filter_core_types(a)) & PERMANENT_CARD_TYPES for a in arms
+    } - {frozenset()}
+    return len(alternatives) > 1
+
+
 def _etb_trigger_lanes(tree: ConceptTree) -> list[Signal]:
     """creature_etb + permanent_etb — the ETB-payoff pair (CR 603.6a: "Whenever
     a [type] enters, …"). One shared trigger walk:
@@ -710,14 +731,14 @@ def _etb_trigger_lanes(tree: ConceptTree) -> list[Signal]:
 
     for unit in tree.units:
         if unit.origin == "trigger":
+            if unit.trigger_event == "enters" and _watches_your_permanents(
+                getattr(unit.node, "valid_card", None)
+            ):
+                fire("permanent_etb", "you")
             if is_creature_etb_trigger_def(unit.node):
                 fire_etb_from(unit.node)
             elif unit.trigger_event == "enters":
-                vc = getattr(unit.node, "valid_card", None)
-                if "Permanent" in filter_core_types(vc) and (
-                    filter_controller(vc) == "You"
-                ):
-                    fire("permanent_etb", "you")
+                pass
             else:
                 scope = _unknown_mode_creature_etb(unit.node)
                 if scope is not None:
@@ -728,6 +749,15 @@ def _etb_trigger_lanes(tree: ConceptTree) -> list[Signal]:
             scope = _unimplemented_ability_creature_etb(unit.node)
             if scope is not None:
                 fire("creature_etb", scope)
+        elif (
+            unit.origin == "replacement"
+            and getattr(unit.node, "destination_zone", None) == "Battlefield"
+            and "Permanent" in filter_core_types(getattr(unit.node, "valid_card", None))
+            and filter_controller(getattr(unit.node, "valid_card", None)) == "You"
+        ):
+            # "As a historic permanent you control enters, …" (Displaced
+            # Dinosaurs): a replacement on your permanents entering (CR 614.12).
+            fire("permanent_etb", "you")
         if unit.origin == "static":
             dt_cores = double_triggers_cause_core_types(unit.node)
             if dt_cores is not None and (not dt_cores or "Creature" in dt_cores):

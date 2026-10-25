@@ -40,9 +40,9 @@ from mtg_utils._analysis.tree_synthesis import (
     creature_death_condition,
 )
 from mtg_utils._card_ir.crosswalk import (
-    _OPPONENT_ACTOR_TAGS,
     ATTACHED_OBJECT_PREDICATES,
     CHOSEN_PLAYER_SCOPE,
+    OPPONENT_ACTOR_TAGS,
     AbilityUnit,
     ConceptTree,
     answers_its_target,
@@ -139,7 +139,7 @@ def _win_lose_game(tree: ConceptTree) -> list[Signal]:
 
 
 # Owner actors naming someone other than the controller alone.
-_OTHER_ACTORS = frozenset({*_OPPONENT_ACTOR_TAGS, CHOSEN_PLAYER_SCOPE})
+_OTHER_ACTORS = frozenset({*OPPONENT_ACTOR_TAGS, CHOSEN_PLAYER_SCOPE})
 
 
 def _discard_makers(tree: ConceptTree) -> list[Signal]:

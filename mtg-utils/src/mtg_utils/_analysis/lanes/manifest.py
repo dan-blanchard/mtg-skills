@@ -1858,3 +1858,52 @@ SERVED_SIGNAL_KEYS: frozenset[str] = frozenset(
 # ExileTop/RevealTop activated-cost engines, the Manifest family) firing on
 # genuine build-around staples the deleted SWEEP regex's narrower grammar
 # never matched.
+
+
+# ── The permanents-entering property ─────────────────────────────────────────
+# A served key whose every emission is a card that makes a permanent enter the
+# battlefield under your control — what a "whenever a permanent you control
+# enters" engine (Amareth, Amulet of Vigor) wants. The ``permanent_etb`` page
+# (``signal_specs`` "Permanents entering") is derived from it: every scope and
+# subject of each key here, plus the subject-scoped idents below. Beside the
+# makers' own keys, ``permanent_etb|you|put`` reads the put, the token and the
+# token-copy keyword off the tree for every card (``lanes.mana_and_wipes.
+# _battlefield_put``), so a maker key added later still pages its cards there.
+PERMANENT_ENTRY_KEYS: frozenset[str] = frozenset(
+    {
+        "permanent_etb",
+        signal_keys.TOKEN_MAKER,
+        "treasure_makers",
+        "clue_makers",
+        "food_makers",
+        "blood_makers",
+        "incubate_makers",
+        "amass_makers",
+        "token_copy_makers",
+        "token_doubling",
+        "myriad_grant",
+        "reanimator",
+        "permanent_recast",
+        signal_keys.CHEAT_INTO_PLAY,
+        "cheat_from_top",
+        "extra_land_drop",
+        "has_ninjutsu",
+        "trigger_doubling",
+    }
+)
+#: The ``(key, subject)`` idents of keys that make a permanent enter only under
+#: that subject: an artifact / enchantment token maker, a blink enabler, a
+#: creature reanimation, a land put, a manifest of yours; and the self-ETB card a
+#: replay engine (Cloudstone Curio) re-delivers.
+PERMANENT_ENTRY_SUBJECTS: frozenset[tuple[str, str]] = frozenset(
+    {
+        ("artifacts_matter", "token"),
+        ("enchantments_matter", "token"),
+        ("blink_flicker", "enabler"),
+        ("creature_recursion", "battlefield"),
+        ("creature_recursion", "mass"),
+        ("ramp", "land"),
+        ("facedown_makers", "manifest"),
+        ("self_etb_payload", ""),
+    }
+)

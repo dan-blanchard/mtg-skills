@@ -67,6 +67,7 @@ from mtg_utils._card_ir.crosswalk import (
     iter_unit_trigger_defs,
     ki_counter_kind_refs,
     mana_restricted_to_multicolored,
+    manifests_for_you,
     modify_cost_mode,
     modify_cost_spell_filter,
     oil_counter_kind_refs,
@@ -365,9 +366,11 @@ def _facedown_makers(tree: ConceptTree) -> list[Signal]:
     :func:`_keyword_field_signals_b5`. Scope "you".
     """
     sigs = _whole_card_maker(tree, "facedown", "facedown_makers", "you")
-    if sigs:
-        # The effect node puts a card onto the battlefield (the ``manifest``
-        # subject a permanents-entering page counts, page-only); a morph is cast.
+    # The effect node puts a card onto the battlefield (the ``manifest``
+    # subject a permanents-entering page counts, page-only) when you manifest
+    # or cloak it (:func:`crosswalk.manifests_for_you` — not Reality Shift's
+    # "Its controller manifests"); a morph is cast.
+    if any(manifests_for_you(c.node) for c in tree.effect_concepts("facedown")):
         sigs.append(Signal("facedown_makers", "you", "manifest", "", tree.name, "high"))
     return sigs
 

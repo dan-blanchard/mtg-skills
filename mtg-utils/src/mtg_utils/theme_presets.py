@@ -490,6 +490,14 @@ def _graveyard_return_concept(card: dict) -> bool:
     return _concept_any_face(card, graveyard_return_direction)
 
 
+def _land_animator_concept(card: dict) -> bool:
+    """concept arm for the 'land-animation' preset: the card carries the bare
+    ``land_protection|you|`` ident — the land animators and manlands. The key's
+    subjects are the lands' protection (``shield`` — Terra Eternal, Tomik's
+    ledgered hexproof), never an animation."""
+    return "land_protection|you|" in _signal_idents_for(card)
+
+
 def _self_mill_concept(card: dict) -> bool:
     """concept arm for the 'self-mill' preset (task #83): true when ANY
     face fills YOUR OWN graveyard from YOUR OWN library. See
@@ -3774,7 +3782,7 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
         notes=(
             "task #83 structural-view conversion: the concept is DELIBERATELY "
             "SPLIT across three signal keys (see each lane's own exclusion "
-            "comment): `land_protection` (self-animating manlands — Mutavault, "
+            "comment): `land_protection|you|` (self-animating manlands — Mutavault, "
             "Treetop Village, the Restless cycle — deliberately NOT in "
             "land_creatures_matter; also carries reverse-animators like Ashaya, "
             "hence prec ~0.66 for this composite) + `land_creatures_matter` "
@@ -3795,12 +3803,19 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
         ),
         keywords=("Earthbend", "Awaken"),
         signal_keys=(
-            "land_protection",
             "land_creatures_matter",
             "earthbend_makers",
         ),
+        concept=_land_animator_concept,
         should_match=("Mutavault", "Treetop Village"),
-        should_not_match=("Lightning Bolt", "Counterspell", "Sinkhole"),
+        should_not_match=(
+            "Lightning Bolt",
+            "Counterspell",
+            "Sinkhole",
+            # A land shield (hexproof, Tomik's ledgered row) animates nothing.
+            "Tomik, Distinguished Advokist",
+            "Terra Eternal",
+        ),
     ),
     # ── Vehicles (Crew) ──
     Preset(

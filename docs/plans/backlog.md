@@ -79,21 +79,12 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   Intervention, Kaya's Ghostform, Fey Steed and six more), so Spark Double
   (an extra loyalty counter) and Lae'zel (no typed planeswalker filter) keep
   it.
-  (d) **The type payoffs' last oracle read** (2026-10-24). The three
-  `_matters` text mirrors are retired: `_artifacts_enchantments_matter` reads
-  every filter over artifacts / enchantments you control or own
-  (`crosswalk.iter_node_filters`), and seven ledger rows bridge the clauses
-  phase parks or drops (Assassin's Ink, Guardian Beast, Karn, Living Legacy,
-  Phylactery Lich, Robobrain War Mind, Windwright Mage, Soldevi Machinist,
-  Sanwell, Anrakyr; Floodtide Serpent, Balduvian Shaman, Estrid's
-  Invocation). Don't re-suggest: a choice of types ("creature or artifact you
-  control" — Abuelo, Heliod, Zimone) and stax or edicts over other players'
-  artifacts (Null Rod, Harsh Mentor, Pick Your Poison) are no payoff. Left:
-  the becomes-type arm still reads `_BECOMES_TYPE_RE` over oracle clauses, and
-  Ward of Bones' artifact-count comparison (a lock on opponents) reads as one.
-  The three missing-shape rows (Sanwell, Avenger Ace; Estrid's Invocation;
-  Anrakyr the Traveller) gate on a node's absence, so they retire only through
-  `test_bridge_ledger`'s "already served" guard, not their own gap.
+  (d) **Type payoffs, what's left** (2026-10-24). The becomes-type arm of
+  `_artifacts_enchantments_matter` still reads `_BECOMES_TYPE_RE` over oracle
+  clauses, and Ward of Bones' artifact-count comparison (a lock on opponents)
+  reads as a payoff. Don't re-suggest: a choice of types ("creature or artifact
+  you control" — Abuelo, Heliod, Zimone) and stax or edicts over other
+  players' artifacts (Null Rod, Harsh Mentor, Pick Your Poison) are no payoff.
   (g) **The guide cuts the tuner protects** (2026-10-24, the experiment table in
   `docs/plans/precon-audit-2026-10-18.md`, "The remaining tuner levers"). Shipped:
   popular cards (inside `UPGRADE_RANK`, not premium) off every lane and on none of
@@ -224,26 +215,24 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   reading the payoff test off the unit itself would drop both text alignments,
   and would give a role to the hits no single ability emits (a keyword's
   lifelink, Crucible of Worlds' whole-card ident, a modal spell's text-less
-  mode), which still score structural. Every main serve a theme pages by reads
-  idents since 2026-10-24 (``self_etb_payload``, ``land_protection`` and
-  ``permanent_etb`` dropped their oracle arm for page-only doers,
-  ``signal_keys.PAGE_ONLY_SUBJECTS``). What the IR still misses there:
-  seven creature reanimations phase parks or mistypes carry no recursion
-  ident (the ``reanimate`` preset misses them too) — Custodi Soulcaller and
-  Venerable Warsinger (an X filter parked), Return of the Nightstalkers
-  (parked whole), Agadeem's Awakening and Lich-Knights' Conquest (no card type
-  on the filter), Can't Stay Away and Vigor Mortis (typed as a replacement);
-  and about forty permanents-entering makers no lane reads — the Alchemy
-  rebuilt-Jace token (Jace's Machinations and thirteen more), the named
-  Cadet / Ox tokens (Flourishing Forces, Quintorius, Oko, Lord of the Fae),
-  the token-increase replacements (Xorn, Academy Manufactor), "all creature
-  cards put there from the battlefield this turn" (Thrilling Encore, Supper
-  for Spiders, Myojin of Grim Betrayal), the cloak reminder (Become
-  Anonymous), opening an Attraction and drafting from a spellbook onto the
-  battlefield. The ``permanent_etb`` page's idents
-  (``signal_specs.data_3._PERMANENT_ETB_IDENTS``) are a hand-kept list of what
-  makes a permanent enter; they should derive from a manifest property of each
-  key.
+  mode), which still score structural. Three sub-avenues of the ETB pages
+  still serve on a regex (``_FLICKER_EXTRA``, ``_DIES_RECURSION_EXTRA``,
+  ``_SELF_BOUNCE_EXTRA``: blink, dies-recursion and self-bounce); their idents
+  (``blink_flicker|you|enabler``, ``dies_recursion|you|``,
+  ``permanent_recast|you|replay``) want a page diff first. A card phase has no
+  record for carries no ident at all, so it drops off a pattern-free page: of
+  the permanents-entering makers, Oko, Lord of the Fae; Flourishing Forces;
+  Enter the Eternities; Quintorius, Fate Splitter; Potential Horizon; Searing
+  Soloist; Plunderer's Prize. The ledger rows that gate on a node's absence
+  (Sanwell, Avenger Ace; Estrid's Invocation; Venture Forth; Hide in Plain
+  Sight; the typeless reanimations) retire only through
+  ``test_bridge_ledger``'s "already served" guard, not their own gap. Don't
+  re-suggest: an enters drawback (Phage, the sacrifice-unless lands), an
+  Equipment's auto-attach, a token or search another player gets (the Hunted
+  cycle, gift, Path to Exile) and a card putting only itself are no
+  permanents-entering member; the Emergence Auras' "that land gains
+  indestructible" replacement (CR 614.1a) guards only the land they animate,
+  the animator's own payoff like Kamahl's Will, not land protection.
   (l) **Tune speed, what's left** (2026-10-24). The ranking's per-unit ident
   attribution persists in a write-back sidecar beside the signals index
   (`<bulk>.provenance.pkl`, `ident_provenance.attach_provenance_sidecar`; the
@@ -296,9 +285,7 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   `PAGE_ONLY_SUBJECTS` belongs in it as a role, and the voltron `has_other_plan`
   read should ask `avenue_spec_for(s) is not None` instead of keeping its own
   exclusion lists — membership_floor's step-trigger exclusion duplicates
-  `STEP_TRIGGER_KEYS` the same way; the
-  `land-animation` preset reads the `land_protection` key, so the twelve shield
-  grants — Terra Eternal, Elspeth, Knight-Errant's emblem, Tomik — sit on it); an `attack_trigger_side` crosswalk read
+  `STEP_TRIGGER_KEYS` the same way); an `attack_trigger_side` crosswalk read
   beside `targeting_trigger_side` (the defensive-trigger veto lives in
   `tree_synthesis.combat`, and `stax_and_tempo`'s own `attacks` reads skip it —
   MacCready still reads as an attack payoff); the spell-additional-cost walk keeps

@@ -9,6 +9,10 @@ import re
 from mtg_utils._analysis._sweep_detectors import (
     SWEEP_LABELS,
 )
+from mtg_utils._analysis.lanes.manifest import (
+    PERMANENT_ENTRY_KEYS,
+    PERMANENT_ENTRY_SUBJECTS,
+)
 
 from ._shared import (
     _AMASS_SERVE_IDENTS,
@@ -86,39 +90,16 @@ _CLONE_SERVE_IDENTS = frozenset(
 )
 
 # What puts a permanent onto the battlefield under your control (the
-# ``permanent_etb`` page).
+# ``permanent_etb`` page), derived from the manifest's permanents-entering
+# property: every scope and subject of each key, and its subject-scoped idents.
 _PERMANENT_ETB_IDENTS: frozenset[str] = frozenset(
     {
-        "permanent_etb|you|",
-        "permanent_etb|you|put",
-        "token_maker|you|*",
-        "token_maker|any|*",
-        "artifacts_matter|you|token",
-        "enchantments_matter|you|token",
-        "treasure_makers|you|",
-        "clue_makers|you|",
-        "food_makers|you|",
-        "blood_makers|you|",
-        "incubate_makers|you|",
-        "amass_makers|you|",
-        "token_copy_makers|you|",
-        "token_copy_makers|you|self",
-        "token_doubling|you|",
-        "self_etb_payload|you|",
-        "blink_flicker|you|enabler",
-        "creature_recursion|you|battlefield",
-        "creature_recursion|you|mass",
-        "reanimator|you|",
-        "permanent_recast|you|*",
-        "cheat_into_play|you|*",
-        "cheat_into_play|any|*",
-        "cheat_from_top|you|",
-        "cheat_from_top|any|",
-        "ramp|you|land",
-        "extra_land_drop|you|",
-        "facedown_makers|you|manifest",
-        "has_ninjutsu|you|",
-        "trigger_doubling|you|",
+        *(
+            f"{key}|{scope}|*"
+            for key in PERMANENT_ENTRY_KEYS
+            for scope in ("you", "any")
+        ),
+        *(f"{key}|you|{subject}" for key, subject in PERMANENT_ENTRY_SUBJECTS),
     }
 )
 

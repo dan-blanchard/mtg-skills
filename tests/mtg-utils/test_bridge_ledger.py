@@ -240,6 +240,10 @@ def _fixed_view(tree, carriers: list[str]) -> ConceptTree:
 # names the wrong node; the check below fails if a listed row ever does carry
 # its clause in a residue (the entry is then stale).
 _MISPARSE_ROWS = {
+    "creature_reanimation_misparse": (
+        "the reanimation parsed as an X-clause residue or as a replacement"
+    ),
+    "treasure_empty_effect": "the Treasure clause parked with no text",
     "artifact_cast_permission_empty_effect": (
         "the cast permission parsed as an empty Unimplemented effect"
     ),

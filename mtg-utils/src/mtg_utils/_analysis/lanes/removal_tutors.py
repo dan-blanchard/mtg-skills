@@ -58,6 +58,7 @@ from mtg_utils._card_ir.crosswalk import (
     AbilityUnit,
     ConceptNode,
     ConceptTree,
+    RecursionHit,
     affected_tag,
     cast_with_keyword_name,
     change_zone_dirs,
@@ -1769,17 +1770,19 @@ def _permanent_recast(tree: ConceptTree) -> list[Signal]:
     them, and none opens an avenue): ``reanimate`` puts a permanent card other
     than this one from a graveyard onto the battlefield (Sun Titan, Argivian
     Restoration), ``replay`` returns a permanent you control other than this one
-    to your hand to cast again (Whitemane Lion, Kor Skyfisher, the bounce lands),
-    and ``land`` returns a land card from your graveyard to the battlefield or
-    your hand, or lets you play lands from it (Life from the Loam, Crucible of
-    Worlds): what keeps a land-animation deck's lands
-    (:func:`_recast_doer_subjects`).
+    to your hand to cast again (Whitemane Lion, Kor Skyfisher) — one that can
+    return only a land re-delivers no other enters value (a bounce land), so it
+    carries only ``permanent_etb|you|replay``, the land re-entering that a
+    permanents-entering engine (Amulet of Vigor) counts — and ``land`` returns a
+    land card from your graveyard to the battlefield or your hand, or lets you
+    play lands from it (Life from the Loam, Crucible of Worlds): what keeps a
+    land-animation deck's lands (:func:`_recast_doer_subjects`).
     """
     out: list[Signal] = []
     if has_permanent_recast(tree):
         out.append(Signal("permanent_recast", "you", "", "", tree.name, "high"))
-    for subject in _recast_doer_subjects(tree):
-        out.append(Signal("permanent_recast", "you", subject, "", tree.name, "high"))
+    for key, subject in _recast_doer_subjects(tree):
+        out.append(Signal(key, "you", subject, "", tree.name, "high"))
     return out
 
 
@@ -1801,17 +1804,31 @@ def _names_card_type(
 
 def _recursion_names(
     tree: ConceptTree,
+    unit: AbilityUnit,
     c: ConceptNode,
-    hit: tuple[str, object],
+    hit: RecursionHit,
     types: frozenset[str],
 ) -> bool:
     """Whether a :func:`graveyard_recursion` ``hit`` moves a card of ``types``
-    (:func:`_names_card_type`). The card's own return names itself (``SelfRef``
-    — Reassembling Skeleton), with no type of its own."""
-    sub = hit[1]
+    (:func:`_names_card_type`; a back-reference to a card an earlier clause
+    chose reads that card's types — :func:`recursion_card_types`). The card's
+    own return names itself (``SelfRef`` — Reassembling Skeleton), with no type
+    of its own."""
     return _names_card_type(
-        recursion_card_types(tree, c.node, sub), filter_subtypes(sub), types
+        recursion_card_types(tree, c.node, hit.filter, unit),
+        filter_subtypes(hit.filter),
+        types,
     )
+
+
+def _land_only(filt: object) -> bool:
+    """A filter that can name only a land ("a land you control"; "an untapped
+    Island you control" — CR 205.3i land types)."""
+    cores = set(filter_core_types(filt))
+    if cores:
+        return cores <= {"Land"}
+    subtypes = filter_subtypes(filt)
+    return bool(subtypes) and all(s.lower() in LAND_SUBTYPES for s in subtypes)
 
 
 #: A permanent card (CR 110.4a), by its type or as "permanent card".
@@ -1819,37 +1836,40 @@ _PERMANENT_CARD = PERMANENT_CARD_TYPES | {"Permanent"}
 _LAND_CARD = frozenset({"Land"})
 
 
-def _pays_by_replaying(unit: AbilityUnit) -> bool:
-    """A cost the unit's controller pays by returning a permanent they control
-    to its owner's hand (CR 118.1: a cost "to stop another action from taking
-    place", too): Coral Atoll's "sacrifice it unless you return an untapped
-    Island you control", Urban Retreat's activation. The returned permanent is
-    cast again, as a replay's is."""
-    return any(
-        tag_of(paid.leaf) == "ReturnToHand"
-        and filter_controller(getattr(paid.leaf, "filter", None)) == "You"
+def _replay_costs(unit: AbilityUnit) -> list[object]:
+    """The filters of each cost the unit's controller pays by returning a
+    permanent they control to its owner's hand (CR 118.1: a cost "to stop
+    another action from taking place", too): Coral Atoll's "sacrifice it unless
+    you return an untapped Island you control", Urban Retreat's activation.
+    The returned permanent is cast again, as a replay's is."""
+    return [
+        filt
         for paid in controller_paid_cost_leaves(unit)
-    )
+        if tag_of(paid.leaf) == "ReturnToHand"
+        and filter_controller(filt := getattr(paid.leaf, "filter", None)) == "You"
+    ]
 
 
-def _recast_doer_subjects(tree: ConceptTree) -> list[str]:
-    """The ``permanent_recast`` doer subjects the card's effects carry:
-    ``reanimate`` (a permanent card put from a graveyard onto the battlefield),
-    ``land`` (a land card back to the battlefield or your hand, or played from
-    your graveyard — a land lost to removal comes back; a tuck to the library is
-    not) and ``replay`` (:func:`crosswalk.replays_own_permanent`, or a cost paid
-    that way)."""
+def _recast_doer_subjects(tree: ConceptTree) -> list[tuple[str, str]]:
+    """The doer idents the card's effects carry, as ``(key, subject)``:
+    ``permanent_recast`` ``reanimate`` (a permanent card put from a graveyard
+    onto the battlefield), ``land`` (a land card back to the battlefield or
+    your hand, or played from your graveyard — a land lost to removal comes
+    back; a tuck to the library is not) and ``replay``
+    (:func:`crosswalk.replays_own_permanent`, or a cost paid that way, of a
+    permanent that can be other than a land), and ``permanent_etb`` ``replay``
+    for any replay."""
     found: set[str] = set()
+    replays: list[object] = []
     for unit in tree.units:
         if plays_lands_from_graveyard(unit):
             found.add("land")
-        if _pays_by_replaying(unit):
-            found.add("replay")
+        replays.extend(_replay_costs(unit))
         # An emblem's or a granted ability's (Teyo's end-step reanimation).
         granted = iter_nested_granted_effect_concepts(unit.node)
         for c in chain(unit.effects, granted):
             if replays_own_permanent(unit, c):
-                found.add("replay")
+                replays.append(effect_filter(c.node))
             if c.recovered_by in ("reanimate", "graveyard_return"):
                 if c.recovered_by == "reanimate" and recovered_card_recursion(
                     c, _PERMANENT_CARD
@@ -1861,13 +1881,22 @@ def _recast_doer_subjects(tree: ConceptTree) -> list[str]:
             hit = graveyard_recursion(c.node)
             if hit is None:
                 continue
-            if hit[0] == "battlefield" and _recursion_names(
-                tree, c, hit, _PERMANENT_CARD
+            if hit.dest == "battlefield" and _recursion_names(
+                tree, unit, c, hit, _PERMANENT_CARD
             ):
                 found.add("reanimate")
-            if hit[0] != "library" and _recursion_names(tree, c, hit, _LAND_CARD):
+            if hit.dest != "library" and _recursion_names(
+                tree, unit, c, hit, _LAND_CARD
+            ):
                 found.add("land")
-    return [s for s in ("reanimate", "replay", "land") if s in found]
+    if any(not _land_only(f) for f in replays):
+        found.add("replay")
+    out = [
+        ("permanent_recast", s) for s in ("reanimate", "replay", "land") if s in found
+    ]
+    if replays:
+        out.append(("permanent_etb", "replay"))
+    return out
 
 
 #: Self-ETB payload effects phase types with no ``EFFECT_CONCEPTS`` row (they

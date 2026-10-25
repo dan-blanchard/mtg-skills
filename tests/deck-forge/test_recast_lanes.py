@@ -83,7 +83,11 @@ def test_permanent_recast_emission(name, expected):
         # A permanent you control returned to your hand to cast again.
         ("Whitemane Lion", "replay", True),
         ("Kor Skyfisher", "replay", True),
-        ("Azorius Chancery", "replay", True),
+        # A bounce land returns only a land: no other enters value to replay.
+        ("Azorius Chancery", "replay", False),
+        # Reanimation of a card an earlier clause chose (a back-reference).
+        ("Jolted Awake", "reanimate", True),
+        ("Revivify", "reanimate", True),
         ("Blinking Spirit", "replay", False),  # returns only itself
         ("Unsummon", "replay", False),  # any creature: tempo
         ("Zndrsplt's Judgment", "replay", False),  # each player returns their own

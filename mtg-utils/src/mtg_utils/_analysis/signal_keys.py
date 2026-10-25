@@ -183,6 +183,8 @@ PAGE_ONLY_SUBJECTS: Final = frozenset(
         ("facedown_makers", "manifest"),
         # a card put onto the battlefield under your control (Rampant Growth)
         ("permanent_etb", "put"),
+        # a permanent you control returned to hand to replay, a land included
+        ("permanent_etb", "replay"),
     }
 )
 
