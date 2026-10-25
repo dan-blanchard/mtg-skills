@@ -23,6 +23,7 @@ from mtg_utils._analysis.signal_base import (
     _resolve_subject,
     _tinybones_scope,
 )
+from mtg_utils._card_ir.crosswalk import KEYWORD_COUNTER_KINDS
 from mtg_utils.card_classify import card_pt_int
 
 
@@ -369,15 +370,18 @@ def _detect_multi_tribe_anthem(
 
 
 def _detect_token_maker(clause: str, vocab: frozenset[str]) -> list[tuple[str, str]]:
+    """``(token_maker, subtype)`` per creature type a "create … creature token"
+    clause names — every one: a "Zombie Mutant" token is a Zombie and a Mutant
+    (CR 205.3m) — or one ``""`` entry when it names none."""
     out: list[tuple[str, str]] = []
     for m in _TOKEN_MAKER_PATTERN.finditer(clause):
         head = re.split(r"creature tokens?", m.group(0), flags=re.IGNORECASE)[0]
-        chosen = ""
-        for w in reversed(_TOKEN_SUBJECT_WORDS.findall(head)):
-            if w.lower() in vocab:
-                chosen = w.capitalize()
-                break
-        out.append((signal_keys.TOKEN_MAKER, chosen))
+        chosen = [
+            w.capitalize()
+            for w in reversed(_TOKEN_SUBJECT_WORDS.findall(head))
+            if w.lower() in vocab
+        ]
+        out.extend((signal_keys.TOKEN_MAKER, sub) for sub in chosen or [""])
     return out
 
 
@@ -831,22 +835,10 @@ _NAMED_COUNTER_KINDS: frozenset[str] = frozenset(
 )
 
 
-_KEYWORD_COUNTER_KINDS: frozenset[str] = frozenset(
-    {
-        "flying",
-        "menace",
-        "trample",
-        "reach",
-        "haste",
-        "deathtouch",
-        "hexproof",
-        "indestructible",
-        "lifelink",
-        "vigilance",
-        "firststrike",
-        "doublestrike",
-    }
-)
+# The keyword counters (CR 122.1b, crosswalk's list) a deck wants on its
+# creatures: decayed is the drawback one ("This creature can't block" and a
+# sacrifice after it attacks — CR 702.147a).
+_KEYWORD_COUNTER_KINDS: frozenset[str] = KEYWORD_COUNTER_KINDS - {"decayed"}
 
 
 _OPP_COUNTER_BENEFICIAL: frozenset[str] = (

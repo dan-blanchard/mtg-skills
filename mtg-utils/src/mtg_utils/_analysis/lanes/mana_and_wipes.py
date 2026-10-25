@@ -66,6 +66,7 @@ from mtg_utils._card_ir.crosswalk import (
     filter_predicates,
     filter_subtypes,
     filter_without_keywords,
+    gives_each_player_ramp,
     is_attacking_team_filter,
     is_creature_population,
     is_self_discard_cost,
@@ -101,6 +102,7 @@ from mtg_utils._card_ir.crosswalk import (
     targets_the_card,
     team_buff_sites,
     token_creator_side,
+    watches_each_players_land_taps,
 )
 from mtg_utils._card_ir.mirror.runtime import (
     MirrorVariant,
@@ -466,11 +468,24 @@ def _group_mana(tree: ConceptTree) -> list[Signal]:
     for the taps-for-mana mirrors, ``ScopedPlayer`` for the each-player-upkeep
     forms, ``Player`` for a targeted gift). A controller-only producer (Sol
     Ring — no recipient field) never fires (checklist #5). Scope "each".
+
+    Two subjects beside it, the symmetric-mana avenue's (backlog (o)):
+    ``land_tap`` — a trigger on ANY player tapping a land for mana, the shared
+    doubler or punisher (Mana Flare, Manabarbs, Price of Glory, Storm Cauldron;
+    :func:`crosswalk.watches_each_players_land_taps`); ``ramp`` — every player
+    searches for a land or makes a Treasure-like token (Collective Voyage, New
+    Frontiers, Marching Duodrone; :func:`crosswalk.gives_each_player_ramp`).
     """
+    out: list[Signal] = []
     for c in tree.effect_concepts("ramp"):
         if recipient_tag(c.node) in _GROUP_MANA_RECIPIENTS:
-            return [Signal("group_mana", "each", "", c.raw, tree.name, "high")]
-    return []
+            out.append(Signal("group_mana", "each", "", c.raw, tree.name, "high"))
+            break
+    if any(watches_each_players_land_taps(unit) for unit in tree.units):
+        out.append(Signal("group_mana", "each", "land_tap", "", tree.name, "high"))
+    if gives_each_player_ramp(tree):
+        out.append(Signal("group_mana", "each", "ramp", "", tree.name, "high"))
+    return out
 
 
 # ADR-0038 W3 batch 4 (draw-etb-tokens cluster) — draw_for_each's LOCAL

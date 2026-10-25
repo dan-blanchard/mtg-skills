@@ -76,18 +76,23 @@ from mtg_utils._card_ir.crosswalk import (
     filter_subtypes,
     graveyard_recursion,
     has_nested_damage_reaching,
+    is_power_damage,
     mana_restrictions,
     mana_spell_type_restriction,
+    mod_keyword_name,
     named_permanent_refs,
     protective_keyword,
     pt_mod_signs,
     pump_is_negative,
     references_modified,
     residue_is,
+    root_target_filter,
     sacrifice_names_no_player,
+    settap_state,
     static_mode_field,
     tag_of,
     trigger_turn_constraint,
+    unit_keyword_grants,
 )
 from mtg_utils._card_ir.mirror.runtime import MISSING
 from mtg_utils._card_ir.recovery import ANY_TARGET, TARGET_OBJECT
@@ -6465,6 +6470,510 @@ BRIDGES.update(
                 pins=("Huntmaster Liger",),
                 gap=_mutate_count_unbound,
                 match=_oracle_match(_TEAM_PUMP_X_RX),
+            ),
+        )
+    }
+)
+
+
+# ── Item (o), second pass: the misparses the last pattern pages lose (2026-10-25) ─
+# Each row keeps a real member of a now pattern-free theme page served until a pin
+# bump types its clause; the reads it would otherwise ride are named per row.
+
+# A "create two / X … creature tokens" clause phase parks whole (an intervening-if
+# or a where-X amount — Regna, the Redeemer; Vren, the Relentless): the
+# mass_token_makers read (``crosswalk.makes_creature_tokens_at_once``) needs its
+# typed Token count.
+_MASS_TOKEN_RX = re.compile(
+    r"\bcreate (?:two|three|four|five|six|seven|eight|nine|ten|x|\d{2,}) "
+    r"[^.\"]*creature tokens?\b",
+    re.IGNORECASE,
+)
+
+
+def _mass_token_parked(tree: ConceptTree) -> bool:
+    return _parked_says(tree, _MASS_TOKEN_RX)
+
+
+def _mass_token_static_misparse(tree: ConceptTree) -> bool:
+    """No Token node, and a static def (not a residue) carries the clause."""
+    return not tree.has_typed("Token") and any(
+        _MASS_TOKEN_RX.search(getattr(sdef, "description", "") or "")
+        for u in tree.iter_units("static")
+        for sdef in u.static_defs()
+    )
+
+
+# Commence the Endgame's "amass Zombies X": phase drops the amass clause (the
+# amass_makers keyword fallback keeps the key, not the Army's Zombie type, CR
+# 701.47a).
+_AMASS_ZOMBIES_RX = re.compile(r"\bamass Zombies\b", re.IGNORECASE)
+
+
+def _no_amass_node(tree: ConceptTree) -> bool:
+    return not tree.has_typed("Amass")
+
+
+# Power-as-damage clauses phase loses: Combo Attack's "two target creatures your
+# team controls each deal damage equal to their power to target creature" parks
+# whole, and Widespread Brutality's "the Army you amassed deals damage equal to
+# its power to each non-Army creature" leaves no node at all.
+_TEAM_POWER_BITE_RX = re.compile(
+    r"\beach deal damage equal to their power to target creature\b", re.IGNORECASE
+)
+_ARMY_POWER_BITE_RX = re.compile(
+    r"\bthe Army you amassed deals damage equal to its power\b", re.IGNORECASE
+)
+
+
+def _team_power_bite_parked(tree: ConceptTree) -> bool:
+    return _parked_says(tree, _TEAM_POWER_BITE_RX)
+
+
+def _no_power_damage_node(tree: ConceptTree) -> bool:
+    return not any(is_power_damage(n) for n in tree.iter_typed())
+
+
+# Anthem of Rakdos's hellbent "if a source you control would deal damage …, it
+# deals double that damage … instead" stays a hollow static.
+_HELLBENT_DOUBLE_RX = re.compile(r"\bit deals double that damage\b", re.IGNORECASE)
+
+
+def _hellbent_double_hollow(tree: ConceptTree) -> bool:
+    return _hollow_static_says(tree, _HELLBENT_DOUBLE_RX)
+
+
+# Double strike handed to creatures of yours in clauses phase parks or loses:
+# Sylvia Brightspear's "Dragons your team controls have double strike" (a
+# static_structure residue), Aradesh's "the creature that attacked gains double
+# strike", Sigarda's Vanguard's chosen creatures (the "choose any number of
+# creatures with different powers" clause parked, so the grant has no target),
+# Jin Sakai's modal "It gains double strike" (dropped behind a parked
+# intervening-if), Urdnan's "it gains double strike … instead".
+_PARKED_DOUBLE_STRIKE_RX = re.compile(
+    r"\b(?:your team controls have|the creature that attacked gains) "
+    r"double strike\b",
+    re.IGNORECASE,
+)
+_CHOSEN_CREATURES_RX = re.compile(
+    r"\bchoose (?:any number of )?creatures with different powers\b", re.IGNORECASE
+)
+_LONE_ATTACKER_DOUBLE_STRIKE_RX = re.compile(
+    r"\bif no other creatures are attacking that player\b[^•]*•[^•]*\bit gains "
+    r"double strike\b",
+    re.IGNORECASE,
+)
+_PARKED_TARGET_DOUBLE_STRIKE_RX = re.compile(
+    r"\bit gains double strike\b[^.]*\binstead\b", re.IGNORECASE
+)
+_THAT_CREATURE_DOUBLE_STRIKE_RX = re.compile(
+    r"\bthat creature gains double strike\b", re.IGNORECASE
+)
+_TARGET_GAINS_DOUBLE_STRIKE_RX = re.compile(
+    r"\btarget creature gains double strike\b", re.IGNORECASE
+)
+
+
+def _double_strike_parked(tree: ConceptTree) -> bool:
+    return _parked_says(tree, _PARKED_DOUBLE_STRIKE_RX)
+
+
+def _chosen_creatures_parked(tree: ConceptTree) -> bool:
+    return _parked_says(tree, _CHOSEN_CREATURES_RX)
+
+
+def _no_double_strike_grant(tree: ConceptTree) -> bool:
+    return not any(
+        tag_of(n) == "AddKeyword" and mod_keyword_name(n) == "DoubleStrike"
+        for n in tree.iter_typed()
+    )
+
+
+def _target_double_strike_parked(tree: ConceptTree) -> bool:
+    return _parked_says(tree, _PARKED_TARGET_DOUBLE_STRIKE_RX)
+
+
+# Violent Urge's delirium clause "that creature gains double strike" is its own
+# ability unit phase leaves with a back-reference and no target, so no thread
+# reaches the spell's target.
+def _orphan_double_strike_grant(tree: ConceptTree) -> bool:
+    return any(
+        tag_of(getattr(sdef, "affected", None)) == "ParentTarget"
+        and any(
+            mod_keyword_name(mod) == "DoubleStrike"
+            for mod in getattr(sdef, "modifications", None) or ()
+        )
+        and not unit_keyword_grants(unit)
+        for unit in tree.iter_units()
+        for sdef in unit.static_defs()
+    )
+
+
+# Become Brutes's "For each of those creatures, create a Monster Role token attached
+# to it" parks as an unparsed_quantity residue (CR 303.7: a Role is an Aura).
+_ROLE_ATTACHED_RX = re.compile(
+    r"\bcreate an? \w+ Role token attached to\b", re.IGNORECASE
+)
+
+
+def _role_attach_parked(tree: ConceptTree) -> bool:
+    return _parked_says(tree, _ROLE_ATTACHED_RX)
+
+
+# Howl of the Hunt's "When this Aura enters, if enchanted creature is a Wolf or
+# Werewolf, untap that creature": phase binds "that creature" as a back-reference
+# with no target in its unit, not the enchanted creature.
+_AURA_UNTAP_THAT_RX = re.compile(
+    r"\bif enchanted creature is an? [^.,]+, untap that creature\b", re.IGNORECASE
+)
+
+
+def _orphan_untap_back_reference(tree: ConceptTree) -> bool:
+    return any(
+        tag_of(n) == "SetTapState"
+        and settap_state(n) == "Untap"
+        and tag_of(getattr(n, "target", None)) == "ParentTarget"
+        and root_target_filter(unit) is None
+        for unit in tree.iter_units()
+        for n in unit.iter_typed()
+    )
+
+
+# Single-target grants phase parks or misreads: Barbarian Guides's "gains snow
+# landwalk of the chosen type" (parked), Phyrexian Splicer's "another target
+# creature gains it" (parked beside its keyword choice), and Sokrates, Athenian
+# Teacher's quoted "If this creature would deal combat damage to a player,
+# prevent that damage …" (read as a token replacement).
+_PARKED_LANDWALK_GRANT_RX = re.compile(
+    r"\bgains? snow landwalk of the chosen type\b", re.IGNORECASE
+)
+_SPLICE_GRANT_RX = re.compile(r"\banother target creature gains it\b", re.IGNORECASE)
+_QUOTED_PREVENT_GRANT_RX = re.compile(
+    r"\btarget creature gains \"if this creature would deal combat damage\b",
+    re.IGNORECASE,
+)
+
+
+def _landwalk_grant_parked(tree: ConceptTree) -> bool:
+    return _parked_says(tree, _PARKED_LANDWALK_GRANT_RX)
+
+
+def _splice_grant_parked(tree: ConceptTree) -> bool:
+    return _parked_says(tree, _SPLICE_GRANT_RX)
+
+
+def _quoted_grant_read_as_token_replacement(tree: ConceptTree) -> bool:
+    return any(
+        tag_of(n) == "AddTargetReplacement"
+        and tag_of(getattr(n, "target", None)) == "None"
+        for n in tree.iter_typed()
+    )
+
+
+def _item_o_census(*hits: str) -> str:
+    """A row's census line: its hits over the legal corpus at this pass's bulk
+    and pin."""
+    n = len(hits)
+    return (
+        f"{n} hit{'s' if n != 1 else ''} / the legal corpus ({', '.join(hits)}), "
+        "MTGJSON 2026-10-17 @ phase v0.104.0, 2026-10-25"
+    )
+
+
+def _upstream(what: str) -> str:
+    return f"upstream phase-rs report candidate (Dan posts): {what}"
+
+
+BRIDGES.update(
+    {
+        b.bridge_id: b
+        for b in (
+            Bridge(
+                bridge_id="mass_token_clause_parked",
+                key="mass_token_makers",
+                kind="upstream_parse_failure",
+                todo=_upstream(
+                    "a 'create two / X … creature tokens' clause behind an "
+                    "intervening-if or a where-X amount parks whole. Retires on the "
+                    "bump that types the Token and its count"
+                ),
+                census=_item_o_census(
+                    "Call the Coppercoats",
+                    "Comet, Stellar Pup",
+                    "Drowner of Truth // Drowned Jungle",
+                    "Hazezon Tamar",
+                    "Nantuko Shrine",
+                    "Notorious Throng",
+                    "Regna, the Redeemer",
+                    "Tangled Colony",
+                    "Undercellar Sweep",
+                    "Vault 12: The Necropolis",
+                    "Vren, the Relentless",
+                ),
+                pins=(
+                    "Call the Coppercoats",
+                    "Drowner of Truth // Drowned Jungle",
+                    "Hazezon Tamar",
+                    "Notorious Throng",
+                    "Regna, the Redeemer",
+                    "Tangled Colony",
+                    "Undercellar Sweep",
+                    "Vault 12: The Necropolis",
+                    "Vren, the Relentless",
+                ),
+                gap=_mass_token_parked,
+                match=_mass_token_parked,
+            ),
+            Bridge(
+                bridge_id="mass_token_static_misparse",
+                key="mass_token_makers",
+                kind="upstream_parse_failure",
+                todo=_upstream(
+                    "Brood Birthing's 'If you control an Eldrazi Spawn, create three "
+                    "… Spawn creature tokens' parses as a static def with no Token "
+                    "node. Retires on the bump that types it"
+                ),
+                census=_item_o_census("Brood Birthing"),
+                pins=("Brood Birthing",),
+                gap=_mass_token_static_misparse,
+                match=_oracle_match(_MASS_TOKEN_RX),
+            ),
+            Bridge(
+                bridge_id="amass_zombies_dropped",
+                key="token_maker",
+                subject="Zombie",
+                kind="dropped_clause",
+                todo=_upstream(
+                    "Commence the Endgame's 'amass Zombies X' leaves no Amass node "
+                    "(amass_makers' keyword fallback keeps the key, not the Army's "
+                    "type). Retires on the bump that types the amass"
+                ),
+                census=_item_o_census("Commence the Endgame"),
+                pins=("Commence the Endgame",),
+                gap=_no_amass_node,
+                match=_oracle_match(_AMASS_ZOMBIES_RX),
+            ),
+            Bridge(
+                bridge_id="team_power_bite_parked",
+                key="damage_equal_power",
+                subject="creature",
+                kind="upstream_parse_failure",
+                todo=_upstream(
+                    "Combo Attack's 'each deal damage equal to their power to target "
+                    "creature' parks whole. Retires on the bump that types the damage"
+                ),
+                census=_item_o_census("Combo Attack"),
+                pins=("Combo Attack",),
+                gap=_team_power_bite_parked,
+                match=_team_power_bite_parked,
+            ),
+            Bridge(
+                bridge_id="army_power_bite_dropped",
+                key="damage_equal_power",
+                subject="creature",
+                kind="dropped_clause",
+                todo=_upstream(
+                    "Widespread Brutality's 'the Army you amassed deals damage equal "
+                    "to its power to each non-Army creature' leaves no node beside "
+                    "the amass. Retires on the bump that types the damage"
+                ),
+                census=_item_o_census("Widespread Brutality"),
+                pins=("Widespread Brutality",),
+                gap=_no_power_damage_node,
+                match=_oracle_match(_ARMY_POWER_BITE_RX),
+            ),
+            Bridge(
+                bridge_id="hellbent_damage_doubling_hollow",
+                key="damage_doubling",
+                kind="upstream_parse_failure",
+                todo=_upstream(
+                    "Anthem of Rakdos's hellbent damage doubler stays a hollow "
+                    "static. Retires on the bump that types the replacement"
+                ),
+                census=_item_o_census("Anthem of Rakdos"),
+                pins=("Anthem of Rakdos",),
+                gap=_hellbent_double_hollow,
+                match=_hellbent_double_hollow,
+            ),
+            Bridge(
+                bridge_id="team_double_strike_parked",
+                key="team_buff",
+                subject="double strike",
+                kind="upstream_parse_failure",
+                todo=_upstream(
+                    "double strike handed to creatures of yours parks — Sylvia "
+                    "Brightspear's 'Dragons your team controls', Aradesh's 'the "
+                    "creature that attacked'. Retires on the bump that types the "
+                    "grant"
+                ),
+                census=_item_o_census("Aradesh, the Founder", "Sylvia Brightspear"),
+                pins=("Aradesh, the Founder", "Sylvia Brightspear"),
+                gap=_double_strike_parked,
+                match=_double_strike_parked,
+            ),
+            Bridge(
+                bridge_id="chosen_creatures_double_strike_parked",
+                key="team_buff",
+                subject="double strike",
+                kind="upstream_parse_failure",
+                todo=_upstream(
+                    "Sigarda's Vanguard's 'choose any number of creatures with "
+                    "different powers' parks, so 'Those creatures gain double "
+                    "strike' has no target. Retires on the bump that types the "
+                    "choice"
+                ),
+                census=_item_o_census("Sigarda's Vanguard", "Sigardian Zealot"),
+                pins=("Sigarda's Vanguard",),
+                gap=_chosen_creatures_parked,
+                match=_chosen_creatures_parked,
+            ),
+            Bridge(
+                bridge_id="lone_attacker_double_strike_dropped",
+                key="keyword_grant_target",
+                subject="double strike",
+                kind="dropped_clause",
+                todo=_upstream(
+                    "Jin Sakai, Ghost of Tsushima's intervening-if 'if no other "
+                    "creatures are attacking that player' parks and its modes ('It "
+                    "gains double strike', 'It can't be blocked') leave no node. "
+                    "Retires on the bump that types the modes"
+                ),
+                census=_item_o_census("Jin Sakai, Ghost of Tsushima"),
+                pins=("Jin Sakai, Ghost of Tsushima",),
+                gap=_no_double_strike_grant,
+                match=_oracle_match(_LONE_ATTACKER_DOUBLE_STRIKE_RX),
+            ),
+            Bridge(
+                bridge_id="target_double_strike_parked",
+                key="keyword_grant_target",
+                subject="double strike",
+                kind="upstream_parse_failure",
+                todo=_upstream(
+                    "Urdnan, Dromoka Warrior's 'it gains double strike … instead' "
+                    "behind a counter condition parks. Retires on the bump that "
+                    "types the upgrade"
+                ),
+                census=_item_o_census("Urdnan, Dromoka Warrior"),
+                pins=("Urdnan, Dromoka Warrior",),
+                gap=_target_double_strike_parked,
+                match=_target_double_strike_parked,
+            ),
+            Bridge(
+                bridge_id="orphan_double_strike_grant",
+                key="keyword_grant_target",
+                subject="double strike",
+                kind="upstream_parse_failure",
+                todo=_upstream(
+                    "Violent Urge's delirium 'that creature gains double strike' "
+                    "is its own unit with a back-reference and no target. Retires "
+                    "on the bump that threads it to the spell's target"
+                ),
+                census=_item_o_census("Reyav, Master Smith", "Violent Urge"),
+                pins=("Violent Urge",),
+                gap=_orphan_double_strike_grant,
+                match=_oracle_match(_THAT_CREATURE_DOUBLE_STRIKE_RX),
+            ),
+            Bridge(
+                bridge_id="aftermath_face_double_strike",
+                key="keyword_grant_target",
+                subject="double strike",
+                kind="missing_face",
+                todo=(
+                    "the W2c gap (ADR-0038): phase has no record for an aftermath "
+                    "half (Onward // Victory's Victory, 'Target creature gains "
+                    "double strike until end of turn'). Retires when the face gets "
+                    "a unit"
+                ),
+                census=_item_o_census("Onward // Victory"),
+                pins=("Onward // Victory",),
+                gap=_text_only_face,
+                match=_oracle_match(_TARGET_GAINS_DOUBLE_STRIKE_RX),
+            ),
+            Bridge(
+                bridge_id="role_attach_parked",
+                key="voltron_makers",
+                kind="upstream_parse_failure",
+                todo=_upstream(
+                    "Become Brutes's 'create a Monster Role token attached to it' "
+                    "parks as an unparsed_quantity residue. Retires on the bump "
+                    "that types the Role"
+                ),
+                census=_item_o_census("Become Brutes", "Dunbarrow Revivalist"),
+                pins=("Become Brutes",),
+                gap=_role_attach_parked,
+                match=_role_attach_parked,
+            ),
+            Bridge(
+                bridge_id="aura_untap_back_reference_unbound",
+                key="untap_engine",
+                kind="upstream_parse_failure",
+                todo=_upstream(
+                    "Howl of the Hunt's 'untap that creature' binds a "
+                    "back-reference with no target in its unit, not the enchanted "
+                    "creature. Retires on the bump that binds it"
+                ),
+                census=_item_o_census("Howl of the Hunt"),
+                pins=("Howl of the Hunt",),
+                gap=_orphan_untap_back_reference,
+                match=_oracle_match(_AURA_UNTAP_THAT_RX),
+            ),
+            Bridge(
+                bridge_id="enters_drain_recipient_dropped",
+                key="creature_etb",
+                subject="punish",
+                kind="upstream_parse_failure",
+                todo=_upstream(
+                    "Tinybones Joins Up's 'any number of target players each mill a "
+                    "card and lose 1 life' keeps a LoseLife with no recipient. "
+                    "Retires on the bump that carries the targets onto it"
+                ),
+                census=_item_o_census("Tinybones Joins Up"),
+                pins=("Tinybones Joins Up",),
+                gap=_untargeted_life_loss,
+                match=_oracle_match(_TARGET_PLAYERS_MILL_DRAIN_RX),
+            ),
+            Bridge(
+                bridge_id="landwalk_choice_grant_parked",
+                key="keyword_grant_target",
+                subject="landwalk",
+                kind="upstream_parse_failure",
+                todo=_upstream(
+                    "Barbarian Guides's 'gains snow landwalk of the chosen type' "
+                    "parks. Retires on the bump that types the grant"
+                ),
+                census=_item_o_census("Barbarian Guides"),
+                pins=("Barbarian Guides",),
+                gap=_landwalk_grant_parked,
+                match=_landwalk_grant_parked,
+            ),
+            Bridge(
+                bridge_id="keyword_swap_parked",
+                key="keyword_grant_target",
+                kind="upstream_parse_failure",
+                todo=_upstream(
+                    "Phyrexian Splicer's keyword choice and its 'another target "
+                    "creature gains it' park. Retires on the bump that types the "
+                    "swap"
+                ),
+                census=_item_o_census("Phyrexian Splicer"),
+                pins=("Phyrexian Splicer",),
+                gap=_splice_grant_parked,
+                match=_splice_grant_parked,
+            ),
+            Bridge(
+                bridge_id="quoted_grant_read_as_token_replacement",
+                key="keyword_grant_target",
+                subject="ability",
+                kind="upstream_parse_failure",
+                todo=_upstream(
+                    "Sokrates, Athenian Teacher's quoted damage-prevention grant to "
+                    "a target creature reads as a token-creation replacement with no "
+                    "target. Retires on the bump that types the grant"
+                ),
+                census=_item_o_census("Sokrates, Athenian Teacher"),
+                pins=("Sokrates, Athenian Teacher",),
+                gap=_quoted_grant_read_as_token_replacement,
+                match=_oracle_match(_QUOTED_PREVENT_GRANT_RX),
             ),
         )
     }

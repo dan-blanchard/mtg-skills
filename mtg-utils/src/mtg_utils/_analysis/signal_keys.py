@@ -185,6 +185,19 @@ PAGE_ONLY_SUBJECTS: Final = frozenset(
         ("permanent_etb", "put"),
         # a permanent you control returned to hand to replay, a land included
         ("permanent_etb", "replay"),
+        # a land you control returned to hand to pay for an untap (Quirion Ranger)
+        ("permanent_etb", "land_untap"),
+        # two or more creature tokens made at once (Battle Screech): the go-wide
+        # pages' depth, no theme of its own
+        ("mass_token_makers", ""),
+        # a creature that may block more than one attacker (Wall of Glare): the
+        # prevention deck's soak, no theme of its own
+        ("extra_blockers", ""),
+        ("extra_blockers", "any"),
+        # a permanent's own downside (Sea Serpent, Demonic Taskmaster): what an
+        # ability strip turns off or a donate deck hands over, no theme of its own
+        ("self_drawback", "restriction"),
+        ("self_drawback", "harm"),
         # a land that is or makes itself a creature (Mutavault, Dryad Arbor)
         ("land_creatures_matter", "self"),
     }

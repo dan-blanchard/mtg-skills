@@ -46,6 +46,7 @@ _MISSING_FACE_PINS = {
     "Driven // Despair": "Despair",
     "Appeal // Authority": "Authority",
     "Tomb of Annihilation": "Tomb of Annihilation",
+    "Onward // Victory": "Victory",
 }
 
 
@@ -253,6 +254,19 @@ def _fixed_view(tree, carriers: list[str]) -> ConceptTree:
 # names the wrong node; the check below fails if a listed row ever does carry
 # its clause in a residue (the entry is then stale).
 _MISPARSE_ROWS = {
+    "mass_token_static_misparse": (
+        "the token clause parsed as a static def with no Token node"
+    ),
+    "orphan_double_strike_grant": (
+        "the delirium grant parsed onto a back-reference with no target"
+    ),
+    "aura_untap_back_reference_unbound": (
+        "the untap parsed onto a back-reference with no target"
+    ),
+    "enters_drain_recipient_dropped": "the life loss parsed with no recipient",
+    "quoted_grant_read_as_token_replacement": (
+        "the quoted grant parsed as a token replacement with no target"
+    ),
     "creature_reanimation_misparse": (
         "the reanimation parsed as an X-clause residue or as a replacement"
     ),

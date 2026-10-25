@@ -6210,8 +6210,12 @@ def test_opponent_discard_excludes_past_tense_watcher_condition():
     disjoint ``discard_matters`` lane already covers, never a genuine
     opponent_discard member. The legacy byte-mirror's "an opponent
     discarded" text match is a mass-shed OVER-FIRE, adjudicated and
-    negative-pinned this session."""
-    assert "opponent_discard" not in _keys("Tinybones, Trinket Thief")
+    negative-pinned this session. Its activation ("Each opponent with no
+    cards in hand loses 10 life") is the empty-hand payoff, the only
+    opponent_discard ident it carries."""
+    assert {
+        i for i in _idents("Tinybones, Trinket Thief") if i[0] == "opponent_discard"
+    } == {("opponent_discard", "opponents", "empty_hand")}
 
 
 def test_opponent_discard_excludes_self_discard_then_unrelated_count():

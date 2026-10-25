@@ -34,6 +34,7 @@ from mtg_utils._card_ir.crosswalk import (
     iter_typed_nodes,
     mod_keyword_name,
     node_duration,
+    pump_is_negative,
     tag_of,
 )
 from mtg_utils._card_ir.mirror.runtime import MirrorVariant
@@ -534,12 +535,25 @@ def _pump_fixed_value(node: object) -> int | None:
     return getattr(node, "value", 0) or 0 if tag_of(node) == "Fixed" else None
 
 
-def has_structural_pump_makers(tree: ConceptTree) -> bool:
+def _targets_a_friendly_object(target: object) -> bool:
+    """A chosen object of any side but an opponent's ("target creature",
+    "target creature you control")."""
+    return (
+        tag_of(target) in ("Typed", "Or", "And")
+        and filter_controller(target) != "Opponent"
+    )
+
+
+def has_structural_pump_makers(tree: ConceptTree, *, targeted: bool = False) -> bool:
     """A duration-scoped ``Pump``/``PumpAll`` effect with a positive fixed
     power OR toughness (widened from power-only), a "+"-grounded dynamic
     amount, OR a nested ``GenericEffect``/``Continuous``-static
     ``AddPower``/``AddToughness`` grant (the firebreathing self-buff
-    excluded via the ``SelfRef``-affected veto)."""
+    excluded via the ``SelfRef``-affected veto). With ``targeted`` — asked of a
+    card already a pump maker — whether one of its pumps lands on ONE chosen
+    creature that isn't an opponent's (CR 115.1a: "target creature gets +3/+3"
+    — Brute Force), never a ``PumpAll`` or a grant to a group (Charge's
+    "Creatures you control get +1/+1")."""
     for unit in tree.units:
         if any(c.concept == "pump" for c in unit.effects):
             dur_unit = any(
@@ -553,8 +567,23 @@ def has_structural_pump_makers(tree: ConceptTree) -> bool:
                     continue  # firebreathing self-pump veto
                 p = getattr(c.node, "power", None)
                 t = getattr(c.node, "toughness", None)
-                raw = c.raw or getattr(unit.node, "description", None) or ""
                 pv, tv = _pump_fixed_value(p), _pump_fixed_value(t)
+                if targeted:
+                    # A fixed raise on either side ("+2/-2" — Lash of Malice),
+                    # or an amount with no fixed sign: the caller asks only of
+                    # a pump maker ("+X/+X where X is …" — Kang Dynasty).
+                    if (
+                        tag_of(c.node) == "Pump"
+                        and _targets_a_friendly_object(getattr(c.node, "target", None))
+                        and (
+                            (pv is not None and pv > 0)
+                            or (tv is not None and tv > 0)
+                            or not pump_is_negative(c.node)
+                        )
+                    ):
+                        return True
+                    continue
+                raw = c.raw or getattr(unit.node, "description", None) or ""
                 has_plus = "+" in raw and target_tag != "SelfRef"
                 # Power and toughness are gated INDEPENDENTLY (widened from
                 # power-only): a Fixed amount decides on its OWN sign, a
@@ -575,9 +604,15 @@ def has_structural_pump_makers(tree: ConceptTree) -> bool:
         for node in iter_typed_nodes(unit.node):
             if tag_of(node) != "GenericEffect":
                 continue
+            if targeted and not _targets_a_friendly_object(
+                getattr(node, "target", None)
+            ):
+                continue
             for st in getattr(node, "static_abilities", None) or ():
                 if tag_of(getattr(st, "affected", None)) == "SelfRef":
                     continue  # firebreathing / self-buff veto
+                if targeted and tag_of(getattr(st, "affected", None)) != "ParentTarget":
+                    continue
                 mods = getattr(st, "modifications", None) or ()
                 vals = (
                     getattr(m, "value", None)

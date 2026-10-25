@@ -206,65 +206,43 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   trigger's self-return firing `bounce_tempo` (none; the other trigger
   back-references on cards that fire return an event object — a blocked
   creature, a damage source, a land tapped for mana).
-  (o) **Theme matching off the IR, what's left** (2026-10-25). A theme pages
-  by its serve (``signal_specs.theme_page``); no search carries an oracle
-  pattern (``test_a_theme_pages_by_its_serve_not_a_pattern``). Fifteen
-  sub-avenues and one spec still serve on an oracle pattern, each for want of a
-  read (a real member it would lose has no ident; page diffs and lost-card
-  classes: ``~/mtg/tuner-work/w11/``):
-  - a crippling drawback (Enlist fodder; the Ability-strip targets spec, Pass D
-    below) or a downside that hurts its controller (Drawback creatures to
-    donate): no lane reads a drawback;
-  - Symmetric mana: no read for each player's land search or Treasure, nor a
-    land-tap trigger on any player's land (Manabarbs, Storm Cauldron);
-  - Empty-hand punishers: no read of an opponent's hand-size condition or an "N
-    minus the cards in their hand" amount (The Rack);
-  - Untap effects: ``untap_engine`` misses a granted "untap this creature"
-    (Pemmin's-Aura-likes: Gauntlets of Light, Scuttling Sliver, Touch of Vitae),
-    a back-referenced "untap it" (Amulet of Vigor, Captain America, Living
-    Legend) and Urban Burgeoning's granted untap step;
-  - Mass token makers: no token-count read (and ``token_maker`` is a subject
-    key, so no subject can carry one);
-  - Forest-bounce untap engines: no read pairs a land-bounce cost with the
-    untap (``permanent_etb|you|replay`` + ``untap_engine|you|`` would admit
-    Wirewood Symbiote's Elf bounce), and ``untap_engine``'s subject is its
-    subtype scope;
-  - Token-aristocrats drain: no token-event drain read (``tokens_matter`` alone
-    admits Anointed Procession);
-  - Trigger copiers: ``ability_copy`` is the synthesis stage's whole-suite node,
-    with no triggered / activated split;
-  - Combat support: no read of an activated or bestowed Aura pump
-    (Firebreathing, Nyxborn Wolf) or an Equipment-token maker;
-  - Damage / life-loss amplifiers: no read of "deals that much damage to each
-    other opponent" (Hydra Omnivore) or "loses life equal to the life lost this
-    turn" (Wound Reflection);
-  - Power-as-damage payoffs: ``damage_equal_power`` reads a power burn to a
-    player only — no bite, "twice its power", greatest-power or each-opponent
-    form (Bite Down, Polliwallop, Mega Flare, Heartfire Hero);
-  - Single-target pump / protection: ``keyword_grant_target`` misses a choice
-    of keyword (Gideon Blackblade) and a quoted ability given to a target
-    (Feign Death);
-  - Soak blockers: phase types "can block any number of creatures"
-    (``ExtraBlockers``), but no key fits it;
-  - the tribal payoffs (``signal_specs.core._payoff_extra``): its own comment's
-    task B-1 — the one-shot chooser classes (Distant Melody, Cavern of Souls)
-    and the tribe's own lords need structural arms first.
-  Outside that count, the subject specs ``core._subject_spec`` builds still page
-  by a pattern interpolating their subject: a keyword tribe ("Flying matters"),
-  the meld partner, ``token_maker``'s tribe tokens and the tribe spec's payoff
-  phrasing. Creature-ETB payoffs ANDs an enters-payoff ident with a burn or
-  drain ident on the same card, not in the same trigger: a per-trigger payload
-  subject on ``creature_etb`` would tighten it.
+  (o) **Theme matching off the IR, what's left** (2026-10-25, after the second
+  pass that took fourteen of the fifteen pattern sub-avenues (the tribal
+  payoffs keep theirs, below), the Ability-strip spec, the meld partner and
+  ``token_maker``'s tribe tokens off their patterns; page diffs and the class
+  of every card a page lost:
+  ``~/mtg/tuner-work/w13/classification-final.tsv``). A theme pages by its
+  serve (``signal_specs.theme_page``); no search carries an oracle pattern
+  (``test_a_theme_pages_by_its_serve_not_a_pattern``). Three subject specs
+  ``core._subject_spec`` builds still OR a pattern beside their structural
+  arms, each because the pattern alone still pages real members no read names:
+  - the tribe spec (``type_matters``' main page; Goblin: 10 cards the pattern
+    alone pages): a devour count (Voracious Dragon), an offering (Patron of
+    the Akki), a chosen token type (Sarpadian Empires) and a keyword for
+    controlling one (Tribal Golem); the rest are an opponent's tokens of the
+    tribe, a protection from it and a conjured card's name;
+  - its payoff sub-avenue (``_payoff_extra``; Goblin: 30): a "behold a {s}"
+    cost (Champion of the Weird), a chosen-type count (Caller of the Hunt) and
+    a "shares a creature type" phase drops (Cryptic Gateway); the rest are
+    chosen-type punishers and type changers;
+  - the keyword tribe ("Flying matters": 431): nearly all name the keyword to
+    fight it (reach's reminder, "destroy target creature with flying",
+    "creatures without flying"), but a few put it on bodies ``keyword_bodies``
+    doesn't follow yet: Tek's land-conditioned flying, Flowstone Sculpture's
+    keyword choice, Valkyrie's Call's returned Angel, Will of the Temur's
+    flying Dragon copy.
   A card phase has no record for carries no ident at all, so it drops off a
   pattern-free page: of the permanents-entering makers, Oko, Lord of the Fae;
   Flourishing Forces; Enter the Eternities; Quintorius, Fate Splitter; Potential
   Horizon; Searing Soloist; Plunderer's Prize; of the token makers and counter
   placers, the same Oko, Flourishing Forces and Quintorius; Rootha, Ardent
   Artisan (sacrifice outlets); Change the Narrative (cost reducers); Nylea's
-  Oracle (go-wide anthems). The ledger rows that gate on a node's absence
-  (Sanwell, Avenger Ace; Estrid's Invocation, both rows; Venture Forth; Hide in
-  Plain Sight; the typeless reanimations; the dropped return costs;
-  Catastrophe's creature branch; the where-X player burns) retire only through
+  Oracle (go-wide anthems); Avoided Stairwurm (Enlist fodder, Ability-strip
+  targets). The ledger rows that gate on a node's absence (Sanwell, Avenger
+  Ace; Estrid's Invocation, both rows; Venture Forth; Hide in Plain Sight; the
+  typeless reanimations; the dropped return costs; Catastrophe's creature
+  branch; the where-X player burns; Commence the Endgame's amass; Widespread
+  Brutality's Army bite; Jin Sakai's modes) retire only through
   ``test_bridge_ledger``'s "already served" guard, not their own gap.
   Rules that stand: serves were written to credit a deck's own cards, so each
   OR arm admits a card on its own; ``tests/deck-forge/test_serve_arm_guards.py``
@@ -288,7 +266,23 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   Arbor) animate no land, so the land-animation preset leaves them out (13
   cards); a coin-flip-gated self-exile-and-return (Frenetic Sliver) is a blink
   though the effect walk drops it as the card's own drawback, but one returning
-  the card transformed (Ral, Monsoon Mage) is the transform vehicle.
+  the card transformed (Ral, Monsoon Mage) is the transform vehicle. What the
+  second pass dropped from the pages, each class adjudicated: an upkeep "sacrifice
+  it unless you pay" is the card's restriction (``self_drawback|you|restriction``),
+  not harm a donate deck hands over (76 cards), and a pact, an extra-turn spell
+  or another instant or sorcery is no permanent to donate; a self-mill on a card
+  that reads its graveyard is fuel (Splinterfright, Sidisi), not harm; a payoff
+  for damage dealt to you, a Phyrexian Arena's paid draw and a curse on another
+  permanent are no drawback; a creature that untaps only itself, a
+  {Q} cost, a threaten's untap and a "doesn't untap" static are no untap effect
+  (294 cards); a debuff Aura ("enchanted creature gets -N/-N") is removal, and
+  an Equipment payoff or equip-cost reducer is ``voltron_matters``' page, not
+  gear; a creature giving itself double strike, and "that much damage" counting
+  something other than damage dealt, amplify nothing; a symmetric draw, token,
+  tutor or Food is no symmetric mana; a sacrifice-cost drain (Anje, Glass-Cast
+  Heart) is the aristocrats outlet, not a token-leaves drain, and a drain on the
+  token a card makes is that token's; a curse watching its enchanted player's
+  creatures enter punishes them, not a creature-ETB payoff of yours.
   (l) **Tune speed, what's left** (2026-10-25, after the speed pass that took a
   warm Blood Rites `deck-tune` from 5.0 to 2.9 s; the 25 precons' warm tunes,
   each in a fresh process with the sidecars attached, 2.4 / 3.5 → 1.0 / 1.7 s

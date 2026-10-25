@@ -43,11 +43,14 @@ from mtg_utils._analysis.tree_synthesis import (
 from mtg_utils._card_ir.crosswalk import (
     ATTACHED_OBJECT_PREDICATES,
     CHOSEN_PLAYER_SCOPE,
+    COMBAT_RESTRICTION_MODES,
+    GRANTED_KEYWORD_TOKEN_SUBTYPES,
     OBJECT_FILTER_TAGS,
     OPPONENT_ACTOR_TAGS,
     SELF_REFERENCE_TARGETS,
     AbilityUnit,
     ConceptTree,
+    _list_field,
     adds_creature_type,
     answers_its_target,
     cast_with_keyword_name,
@@ -87,6 +90,7 @@ from mtg_utils._card_ir.crosswalk import (
     keyword_action_events,
     keyword_counter_placements,
     keyword_token_creations,
+    makes_creature_tokens_at_once,
     mod_keyword_name,
     mod_value,
     names_attached_object,
@@ -100,6 +104,7 @@ from mtg_utils._card_ir.crosswalk import (
     static_mode_tag,
     steals_stack_spell,
     tag_of,
+    token_creator_side,
     trigger_def_event,
     trigger_phase,
     trigger_scope,
@@ -371,6 +376,12 @@ def _token_maker(tree: ConceptTree) -> list[Signal]:
     afterlife's Spirit (CR 702.135a — Afterlife Insurance) and mobilize's
     Warrior (CR 702.181a — Infantry Shield).
 
+    ``mass_token_makers`` beside it (backlog (o)): one of those token effects
+    creates two or more creature tokens at once, or a number the board or a
+    choice decides (X, "for each …") — Battle Screech, Secure the Wastes,
+    Grand Crescendo (:func:`crosswalk.makes_creature_tokens_at_once`). The
+    go-wide build-around, as against a single token maker.
+
     A token the target's controller creates ("Destroy target permanent. Its
     controller creates a 3/3 green Beast creature token." — Beast Within,
     Pongify) reads the target like the ``ParentTargetOwner`` case above, and
@@ -393,6 +404,7 @@ def _token_maker(tree: ConceptTree) -> list[Signal]:
         )
 
     need_mirror = False
+    mass = False
     for unit in tree.units:
         concepts = list(unit.effect_concepts("make_token"))
         concepts.extend(iter_nested_token_effects(unit.node))
@@ -467,15 +479,62 @@ def _token_maker(tree: ConceptTree) -> list[Signal]:
                 continue
             if "Creature" not in types:
                 continue
-            subject = ""
-            for word in reversed(types):
-                resolved = _resolve_subject(word, CREATURE_SUBTYPES)
-                if resolved:
-                    subject = resolved
-                    break
-            fire(subject, concept.raw, "any" if owner_override else "you")
+            # Every creature type the token has: a "Goblin Scout" token is a
+            # Goblin and a Scout (CR 205.3m).
+            subjects = [
+                resolved
+                for word in reversed(types)
+                if (resolved := _resolve_subject(word, CREATURE_SUBTYPES))
+            ] or [""]
+            for subject in subjects:
+                fire(subject, concept.raw, "any" if owner_override else "you")
+            if not mass and makes_creature_tokens_at_once(concept.node):
+                mass = True
+                out.append(
+                    Signal(
+                        "mass_token_makers", "you", "", concept.raw, tree.name, "high"
+                    )
+                )
     for keyword, subject in keyword_token_creations(tree, granted=True):
         fire(subject, keyword)
+    # A granted token keyword with a count past one ("Equipped creature has …
+    # mobilize X, where X is its power" — Infantry Shield) makes them at once.
+    if not mass and any(
+        tag_of(mod) == "AddDynamicKeyword"
+        and getattr(mod, "kind", None) in GRANTED_KEYWORD_TOKEN_SUBTYPES
+        and filter_controller_side(getattr(sdef, "affected", None)) != "opponents"
+        for unit in tree.units
+        for sdef, mod in iter_mod_sites(unit.node, deep=True)
+    ):
+        mass = True
+        out.append(Signal("mass_token_makers", "you", "", "", tree.name, "high"))
+    # A token copy "except it's a Spirit in addition to its other types"
+    # (Hofri Ghostforge) is a Spirit token.
+    for unit in tree.units:
+        for n in unit.iter_typed():
+            if tag_of(n) != "CopyTokenOf" or token_creator_side(unit, n) == "opponents":
+                continue
+            for mod in _list_field(n, "additional_modifications"):
+                kind = (
+                    getattr(mod, "subtype", None)
+                    if tag_of(mod) == "AddSubtype"
+                    else None
+                )
+                resolved = _resolve_subject(kind, CREATURE_SUBTYPES) if kind else ""
+                if resolved:
+                    fire(resolved, "copy")
+    # Embalm and eternalize make a token copy that's a Zombie in addition to its
+    # other types (CR 702.128a / 702.129a).
+    if {"Embalm", "Eternalize"} & set(tree.card_keywords):
+        fire("Zombie", "embalm")
+    # "Amass Goblins N": the Army is a Goblin too (CR 701.47a).
+    for event in keyword_action_events(tree):
+        if event.tag == "Amass" and event.yours:
+            for n in event.unit.iter_typed():
+                kind = getattr(n, "subtype", None) if tag_of(n) == "Amass" else None
+                resolved = _resolve_subject(kind, CREATURE_SUBTYPES) if kind else ""
+                if resolved:
+                    fire(resolved, "amass")
     if need_mirror:
         for subject in sorted(_mirror_token_maker_type_subjects(tree.oracle or "")):
             fire(subject, "")
@@ -1397,7 +1456,7 @@ def _enters_with_plus_one(node: object) -> bool:
 # "{S}: Enchanted creature gains defender until end of turn", an anti-
 # synergy escape hatch, not an unconditional benefit) lives in a DIFFERENT,
 # "ability"-origin unit and never gates this veto.
-_PACIFY_AURA_MODES = frozenset({"CantAttack", "CantBlock", "CantAttackOrBlock"})
+_PACIFY_AURA_MODES = COMBAT_RESTRICTION_MODES
 _PACIFY_PT_MOD_TAGS = frozenset({"AddPower", "AddToughness"})
 _PACIFY_ALWAYS_COMPENSATING_TAGS = frozenset({"AddKeyword", "SetPower", "SetToughness"})
 
@@ -1881,6 +1940,21 @@ def _chosen_type_options(choices: list[Choice]) -> tuple[str, ...] | None:
     return tuple(dict.fromkeys(options)) or None
 
 
+#: Effects over your own cards that a chosen-type filter narrows: a dig, a
+#: reveal-until, a library search, a grant to your next spell.
+_CHOSEN_TYPE_SELF_EFFECTS: frozenset[str] = frozenset(
+    {"Dig", "RevealUntil", "SearchLibrary", "GrantNextSpellAbility"}
+)
+
+#: The answers beside :func:`crosswalk.answers_its_target`'s (destroy, exile,
+#: counter) whose filter names what they remove, not what they reward: a
+#: chosen-type filter of yours under one is a sweeper's or a misparsed "that
+#: player controls" (Tsabo's Decree's destroy), never a payoff.
+_CHOSEN_TYPE_ANSWERS: frozenset[str] = frozenset(
+    {"Sacrifice", "Bounce", "BounceAll", "DamageAll"}
+)
+
+
 def _chosen_type_matters(tree: ConceptTree) -> list[Signal]:
     """chosen_type_matters — wildcard tribal payoffs (task B-1, 2026-07-16
     study: 7 adjudicated extraction gaps).
@@ -1899,7 +1973,7 @@ def _chosen_type_matters(tree: ConceptTree) -> list[Signal]:
     choose too). Type-GRANTS stay type_changers-only (CR 613.1d layer 4:
     granting membership is the enabler side; referencing the choice in a
     reward filter is the payoff side — the c934b718 membership-not-payoff
-    law). Two read sites:
+    law). The read sites:
 
     * marked STATICS via ``_chosen_type_serve_statics`` (continuous payloads,
       trigger-doublers, ModifyCost reductions — with the serve-vs-punish
@@ -1911,9 +1985,11 @@ def _chosen_type_matters(tree: ConceptTree) -> list[Signal]:
       SpellCast (you cast the spells that Door counts); "each" for an
       any-player watch (Species Specialist's chosen-type dies-trigger).
 
-    One-shot chosen-type value (Distant Melody), chosen-type mana
-    (Cavern of Souls), and replacement payoffs (Metallic Mimic) are known
-    not-served-yet classes — recorded for a v2 arm, not dismissed.
+    * the one-shot chosen-type value of an ability over your permanents of
+      the type (Distant Melody) and chosen-type mana (Cavern of Souls).
+
+    Replacement payoffs (Metallic Mimic) are a known not-served-yet class —
+    recorded for a v2 arm, not dismissed.
 
     A card that chooses a card or land type and no creature type (Cloud Key,
     Umori, the Collector, Shimmer) is no tribal payoff, whatever its filter's
@@ -1962,6 +2038,44 @@ def _chosen_type_matters(tree: ConceptTree) -> list[Signal]:
         mode_tag = mode if isinstance(mode, str) else tag_of(mode)
         scope = "you" if ctrl == "You" or mode_tag == "SpellCast" else "each"
         push(scope, str(getattr(node, "description", "") or ""))
+    # The one-shot and mana classes (backlog (o)): an ability's effect over your
+    # permanents of the chosen type ("Choose a creature type. Draw a card for each
+    # permanent you control of that type." — Distant Melody), and mana spendable
+    # only on a creature spell of the chosen type (Cavern of Souls). A filter of
+    # every player's chosen-type creatures (Extinction's destroy) is a punisher.
+    if "CreatureType" in kinds:
+        for unit in tree.units:
+            answered = {
+                id(getattr(n, "target", None))
+                for n in iter_typed_nodes(unit.node)
+                if answers_its_target(n) or tag_of(n) in _CHOSEN_TYPE_ANSWERS
+            }
+            # A creature of the chosen type you sacrifice as a cost (Doom Cannon).
+            for c in unit.costs:
+                if tag_of(c.node) == "Sacrifice" and "IsChosenCreatureType" in (
+                    filter_predicates(getattr(c.node, "target", None))
+                ):
+                    push("you", str(getattr(unit.node, "description", "") or ""))
+            for n in iter_typed_nodes(unit.node):
+                # Your library or your next spell, of the chosen type (For the
+                # Ancestors' dig, Riptide Shapeshifter's reveal, Progenitor's
+                # Icon's flash).
+                if tag_of(n) in _CHOSEN_TYPE_SELF_EFFECTS and any(
+                    "IsChosenCreatureType" in filter_predicates(getattr(n, field, None))
+                    for field in ("filter", "spell_filter")
+                ):
+                    push("you", str(getattr(unit.node, "description", "") or ""))
+                if (
+                    tag_of(n) == "Mana"
+                    and "ChosenCreatureType" in _list_field(n, "restrictions")
+                ) or (
+                    unit.origin in ("ability", "trigger")
+                    and tag_of(n) == "Typed"
+                    and "IsChosenCreatureType" in filter_predicates(n)
+                    and filter_controller(n) == "You"
+                    and id(n) not in answered
+                ):
+                    push("you", str(getattr(unit.node, "description", "") or ""))
     return out
 
 

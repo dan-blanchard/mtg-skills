@@ -585,17 +585,17 @@ _LOYALTY_DOUBLER_EXTRA = SubAvenue(
 )
 # Damage-soak payoffs for a damage-PREVENTION commander (Oriss "{T}: prevent all damage
 # to target creature"): a wall that blocks any number of attackers (block the whole
-# team, then prevent its damage) or a redirect-to-one-body soak (Palisade Giant /
-# Pariah, then prevent that body's damage) converts prevention into a hard lock.
-_DAMAGE_SOAK_ORACLE = (
-    r"can block any number of creatures"
-    r"|all damage[^.]*dealt to[^.]*instead"
-    r"|damage that would be dealt to you is dealt to [^.]*instead"
-)
+# team, then prevent its damage — extra_blockers' ``any`` subject) or a
+# redirect-to-one-body soak (Palisade Giant / Pariah, then prevent that body's damage —
+# the damage_redirect lane, CR 614.9) converts prevention into a hard lock. A redirect
+# of an opponent's creature's damage onto its controller (Treacherous Link) shields
+# nothing of yours.
 _DAMAGE_SOAK_EXTRA = SubAvenue(
     "Soak blockers",
     "creatures that block any number of attackers or soak all damage onto one body",
-    serve=Serve(oracle=re.compile(_DAMAGE_SOAK_ORACLE, _IC)),
+    serve=Serve(
+        signal_idents=frozenset({"damage_redirect|you|", "extra_blockers|you|any"})
+    ),
 )
 # Cheap unblockable creatures (Vnwxt speed deck): CHEAP "can't be blocked" bodies
 # connect early and reliably, so an opponent loses life every turn (advancing speed)
@@ -671,52 +671,44 @@ _SPELLSLINGER_SPEC = _spec(
 # enters payoff (creature_etb, typed_enters_punish — your artifacts or a tribe entering
 # burns the table — tribal_etb_multi) on a card that deals damage or drains. A value
 # enters payoff (Soul Warden's life) and an opponent's creature entering (Blood Seeker)
-# are none.
+# are none. The burn or drain must ride the enters trigger itself (creature_etb's
+# ``punish`` subject; typed_enters_punish for your artifacts or a tribe entering), not
+# sit elsewhere on the card.
 _ETB_PAYOFF_EXTRA = SubAvenue(
     "Creature-ETB payoffs",
     "permanents that punish each creature entering — damage, drain, or power-based "
     "(Impact Tremors / Purphoros)",
     serve=Serve(
-        all_of=(
-            Serve(
-                signal_idents=frozenset(
-                    {
-                        "creature_etb|you|",
-                        "typed_enters_punish|you|",
-                        "tribal_etb_multi|you|",
-                    }
-                )
-            ),
-            Serve(
-                signal_idents=frozenset(
-                    {"direct_damage|you|", "lifeloss_makers|opponents|"}
-                )
-            ),
-        )
+        signal_idents=frozenset({"creature_etb|you|punish", "typed_enters_punish|you|"})
     ),
 )
-# Crippling-drawback oracle (Abigale ability-strip targets): self-negative clauses that
-# make a big creature cheap/unplayable — the inefficiency a "loses all abilities" strip
-# removes. ANDed with a power floor so it serves BIG bodies, not small drawback ones.
-_CRIPPLING_DRAWBACK_ORACLE = (
-    r"can't attack or block unless|can't attack unless|cumulative upkeep"
-    r"|at the beginning of (?:your|each) upkeep, "
-    r"(?:you )?(?:sacrifice|discard|lose \d|mill)"
-    r"|gets? -\d/-\d for each|when this creature enters, sacrifice"
+
+
+def _sub_avenue_spec(sub: SubAvenue) -> SignalSpec:
+    """A page-only key's spec: the sub-avenue it serves."""
+    return SignalSpec(label=sub.label, avenue=sub.avenue, serve=sub.serve)
+
+
+# The crippled big bodies an ability strip (Abigale) or an enlist creature (Aradesh)
+# makes use of: self_drawback's subjects — a combat restriction, a self-shrink,
+# cumulative upkeep, an enters cost, or a harm to their controller — ANDed with a power
+# floor so it serves BIG bodies, not small drawback ones.
+_CRIPPLED_IDENTS: frozenset[str] = frozenset(
+    {"self_drawback|you|restriction", "self_drawback|you|harm"}
+)
+_CRIPPLED_BIG_BODIES = Serve(
+    all_of=(
+        Serve(signal_idents=_CRIPPLED_IDENTS),
+        Serve(power_min=5),
+    )
 )
 # Enlist fodder (Aradesh): a big creature that stays back (a crippling drawback keeps it
 # from attacking) is ideal to TAP for enlist — its full power is added with no downside.
-# Reuses the crippling-drawback oracle ANDed with a power floor (Serve.all_of).
 _ENLIST_FODDER_EXTRA = SubAvenue(
     "Enlist fodder",
     "big stay-back creatures to tap for their power (their drawback stops them "
     "attacking anyway)",
-    serve=Serve(
-        all_of=(
-            Serve(oracle=re.compile(_CRIPPLING_DRAWBACK_ORACLE, _IC)),
-            Serve(power_min=5),
-        )
-    ),
+    serve=_CRIPPLED_BIG_BODIES,
 )
 # Token DOUBLERS (CR 614.1a: a replacement effect): a token-flood commander doubles
 # output with Doubling Season / Parallel Lives / Mondrak — the lane's increase
@@ -741,36 +733,30 @@ _GOWIDE_ANTHEM_EXTRA = SubAvenue(
     serve=Serve(signal_idents=frozenset({"anthem_static|you|", "team_buff|you|*"})),
 )
 # Token-aristocrats drain: payoffs that fire on TOKEN creation / a token leaving and
-# bleed the table (Mirkwood Bats, Nadier's Nightblade, Rotwidow Pack). A token-flood
-# commander triggers these just by making tokens, so it wants them even without a sac
-# outlet. Token-SPECIFIC trigger (not the generic "whenever a creature dies" Blood
-# Artist, which needs deaths and is already served by the death/aristocrats lanes).
-_TOKEN_ARISTOCRAT_ORACLE = (
-    r"(?:create|sacrifice)s?[^.]*tokens?[^.]*each (?:opponent|player) loses"
-    r"|tokens? you control (?:leaves|dies)[^.]*"
-    r"(?:each (?:opponent|player)|that player) loses"
-)
+# bleed the table (Mirkwood Bats, Nadier's Nightblade, Sanguine Brushstroke's Blood
+# tokens) — tokens_matter's ``drain`` subject. A token-flood commander triggers these
+# just by making tokens, so it wants them even without a sac outlet. Token-SPECIFIC
+# trigger (not the generic "whenever a creature dies" Blood Artist, which needs deaths
+# and is already served by the death/aristocrats lanes), and never a made token's own
+# leaves trigger (Kaito, Dancing Shadow's Drone).
 _TOKEN_ARISTOCRAT_EXTRA = SubAvenue(
     "Token-aristocrats drain",
     "payoffs that bleed the table whenever you make or lose a token (Mirkwood Bats, "
     "Nadier's Nightblade)",
-    serve=Serve(oracle=re.compile(_TOKEN_ARISTOCRAT_ORACLE, _IC)),
+    serve=Serve(signal_idents=frozenset({"tokens_matter|you|drain"})),
 )
 # MASS token makers — "create TWO/X creature tokens at once" (Battle Screech, Grand
-# Crescendo, Secure the Wastes, Champions from Beyond). The go-wide BUILD-AROUND subset
-# (~558), distinct from the ~2315 generic single-token makers the tokens_matter serve
-# deliberately excludes: a single-maker is generically good (every deck runs a few), but
-# "create X tokens in one card" is archetype-unique to go-wide. Within-avenue clean for
-# flood commander; far narrower than the generic-maker flood.
-_GOWIDE_MAKER_ORACLE = (
-    r"create (?:two|three|four|five|six|seven|eight|nine|ten|x|\d{2,}) "
-    r"[^.]*creature tokens?"
-)
+# Crescendo, Secure the Wastes, Champions from Beyond): the mass_token_makers lane, one
+# token effect making two or more creature tokens of yours, or a number the board or a
+# choice decides. The go-wide BUILD-AROUND subset, distinct from the generic
+# single-token makers the tokens_matter serve deliberately excludes: a single-maker is
+# generically good (every deck runs a few), but "create X tokens in one card" is
+# archetype-unique to go-wide.
 _GOWIDE_MAKER_EXTRA = SubAvenue(
     "Mass token makers",
     "cards that create two or more creature tokens at once to flood the board "
     "(Battle Screech, Secure the Wastes, Grand Crescendo)",
-    serve=Serve(oracle=re.compile(_GOWIDE_MAKER_ORACLE, _IC)),
+    serve=Serve(signal_idents=frozenset({"mass_token_makers|you|"})),
 )
 # Protect the wide board: team-wide indestructible / hexproof / protection / shroud
 # (Heroic Intervention, Rootborn Defenses, Boros Charm, Flawless Maneuver): a go-wide
@@ -878,13 +864,14 @@ _ETB_DOUBLER_EXTRA = SubAvenue(
     serve=Serve(signal_idents=frozenset({"trigger_doubling|you|enters"})),
 )
 # Trigger COPIERS (Strionic Resonator / Lithoform Engine): copy a triggered ability
-# you control — a payoff for any trigger-heavy deck, ETB triggers included. Distinct
-# from the Panharmonicon doubler (which keys on the "entering" wording).
-_TRIGGER_COPY_ORACLE = r"copy target [^.]*triggered ability you control"
+# (CR 707.10) — a payoff for any trigger-heavy deck, ETB triggers included:
+# ability_copy's ``triggered`` subject. Distinct from the Panharmonicon doubler (a
+# static that makes entering triggers fire twice) and from an activated-only copier
+# (Rings of Brighthearth).
 _TRIGGER_COPY_EXTRA = SubAvenue(
     "Trigger copiers",
     "copy a triggered ability you control (Strionic Resonator / Lithoform Engine)",
-    serve=Serve(oracle=re.compile(_TRIGGER_COPY_ORACLE, _IC)),
+    serve=Serve(signal_idents=frozenset({"ability_copy|you|triggered"})),
 )
 # Self-recurring fodder: aristocrats wants creatures that bring THEMSELVES back from the
 # graveyard (Bloodghast / Gravecrawler) — never Sun-Titan-style reanimation of OTHER
@@ -1085,20 +1072,15 @@ _DISCARD_PUNISH_EXTRA = SubAvenue(
 )
 # Empty-hand (hellbent) OPPONENT punishers: the 8-Rack package a hand-attack deck wants
 # once it strips opponents' hands (The Rack, Wheel of Torture, Shrieking Affliction,
-# Rackling, Guul Draz Specter). Opponent-anchored (that player / each opponent / their)
-# so a SELF-hellbent madness payoff ("YOU have no cards in hand") and a plain draw spell
-# never qualify.
-_HELLBENT_PUNISH_ORACLE = (
-    r"(?:that player|each opponent|target opponent|defending player|an opponent) "
-    r"(?:has |have )?(?:one or fewer|no|zero) cards? in (?:their )?hand"
-    r"|minus the number of cards in (?:that player's|their|an opponent's"
-    r"|defending player's) hand"
-)
+# Rackling, Guul Draz Specter) — opponent_discard's ``empty_hand`` subject: a condition
+# on an opponent's small hand, or damage scaled by "N minus the cards in their hand".
+# A SELF-hellbent payoff ("YOU have no cards in hand") and a refill of the hellbent
+# player's hand (Ghirapur Orrery) never qualify.
 _HELLBENT_PUNISH_EXTRA = SubAvenue(
     "Empty-hand punishers",
     "8-Rack payoffs that punish an opponent's empty hand (The Rack, Wheel of Torture, "
     "Shrieking Affliction)",
-    serve=Serve(oracle=re.compile(_HELLBENT_PUNISH_ORACLE, _IC)),
+    serve=Serve(signal_idents=frozenset({"opponent_discard|opponents|empty_hand"})),
 )
 
 
@@ -1186,17 +1168,15 @@ _SELF_BOUNCE_RECAST_EXTRA = SubAvenue(
 # Drawback creatures whose downside PUNISHES their controller — the donate target
 # (Abyssal Persecutor "you can't win", Flesh Reaver "deals damage to you", Demonic
 # Taskmaster "upkeep: sacrifice a creature"): hand them to an opponent for the downside.
-_DRAWBACK_ORACLE = (
-    r"you can't win|you lose the game"
-    r"|deals (?:that much )?damage to you\b"
-    r"|at the beginning of (?:your )?upkeep, (?:sacrifice|you lose|discard)"
-    r"|at the beginning of your (?:upkeep|end step)[^.]*(?:lose the game|lose \d+ life)"
-)
+# self_drawback's ``harm``: a permanent's mandatory trigger or static that hurts its
+# controller. A spell (the pacts, Final Fortune) is nothing to hand over, a payoff that
+# watches damage to you (Auntie Blyte) hurts no one, and a loss beside a draw (Dark
+# Confidant) is card advantage.
 _DRAWBACK_EXTRA = SubAvenue(
     "Drawback creatures to donate",
     "creatures whose downside hurts their controller — give them to an opponent "
     "(Abyssal Persecutor / Flesh Reaver / Demonic Taskmaster)",
-    serve=Serve(oracle=re.compile(_DRAWBACK_ORACLE, _IC)),
+    serve=Serve(signal_idents=frozenset({"self_drawback|you|harm"})),
 )
 # Force-feed: give opponents creatures that benefit YOU (the Hunted cycle, Forbidden
 # Orchard) — a control-change/donate deck punishes its own gifts: donate_makers'
@@ -1207,17 +1187,18 @@ _FORCE_FEED_EXTRA = SubAvenue(
     "give opponents creatures that work for you (Forbidden Orchard, the Hunted cycle)",
     serve=Serve(signal_idents=frozenset({"donate_makers|you|token"})),
 )
-# Untap effects to reuse tap abilities / retrigger a tap-untap commander — covers the
-# "enchanted/this/that creature" forms (Freed from the Real) the bare target/all form
-# missed, plus the untap symbol {Q}.
-_UNTAP_ORACLE = (
-    r"untap (?:target|all|another|each|enchanted|this|that|it|two|up to)|\{q\}"
-)
+# Untap effects to reuse tap abilities / retrigger a tap-untap commander: the
+# untap_engine lane — an untap of a permanent of yours other than the card itself,
+# the enchanted creature (Freed from the Real, Pemmin's Aura), a granted "untap this"
+# (Gauntlets of Light, Scuttling Sliver), "untap it" on the permanent a trigger
+# watched (Amulet of Vigor), one-shot untaps (Twiddle, Cerulean Wisps). A self-untap
+# (Blisterspit Gremlin, the {Q} costs), an untap of a creature you steal (Act of
+# Treason) or an opponent's (Provoke), and "you may choose not to untap" are none.
 _UNTAP_EXTRA = SubAvenue(
     "Untap effects",
     "untap your permanents to reuse their tap abilities or retrigger (Freed from the "
     "Real / Pemmin's Aura / Kiora's Follower)",
-    serve=Serve(oracle=re.compile(_UNTAP_ORACLE, _IC)),
+    serve=Serve(signal_idents=frozenset({"untap_engine|you|*", "untap_engine|each|*"})),
 )
 # (2) Cast-from-graveyard CREATURES recast themselves from the yard, re-firing the
 # payoff each turn (CR 702.146 Disturb / Escape). The graveyard-cast umbrella preset is
@@ -1284,20 +1265,40 @@ def _sweep_spec_with_extras(
 
 
 # Combat support shared by the combat lanes: gear that suits up the attacker plus the
-# keyword-anthems that buff your attackers (double strike / trample / evasion).
-#: The gear half of the combat-support serve: equipment and auras that suit up
-#: the attacker.
-GEAR_SUPPORT_ORACLE = r"equipped creature|enchanted creature gets|\bequip \{"
-_COMBAT_SUPPORT_ORACLE = (
-    GEAR_SUPPORT_ORACLE
-    + r"|(?:attacking )?creatures you control (?:have|gain|get)[^.]*"
-    r"(?:double strike|first strike|trample|menace|deathtouch|vigilance"
-    r"|can't be blocked)"
+# keyword-anthems that buff your attackers (double strike / trample / evasion). Every
+# Equipment (by type: CR 301.5 — it exists to be attached to a creature), the Auras
+# that pump or grant a keyword to the creature they enchant (voltron_makers' ``pump``,
+# a bestow creature and an activated Aura pump included; aura_equip_kw_grant), the
+# cards that make Equipment (voltron_makers' ``gear``) or attach it, an anthem or
+# keyword grant to your equipped creatures ("Equipped creatures you control get +1/+1"
+# — Stone Haven Outfitter; "… have indestructible" — Zamriel), and the team buffs and
+# combat-keyword grants (team_buff). A shrinking Aura (Dead Weight) is removal, and an
+# Equipment payoff that buffs no creature (Puresteel Paladin's equip discount, Syr
+# Gwyn's draw) is a carer, not support.
+_COMBAT_SUPPORT_KEYWORDS = (
+    "double strike",
+    "first strike",
+    "trample",
+    "menace",
+    "deathtouch",
+    "vigilance",
 )
 _COMBAT_SUPPORT_EXTRA = SubAvenue(
     "Combat support (gear & keyword anthems)",
     "equipment/auras and keyword-anthems that suit up and buff your attackers",
-    serve=Serve(oracle=re.compile(_COMBAT_SUPPORT_ORACLE, _IC)),
+    serve=Serve(
+        types=frozenset({"equipment"}),
+        signal_idents=frozenset(
+            {
+                "voltron_makers|you|*",
+                "aura_equip_kw_grant|you|*",
+                "team_evasion_grant|you|*",
+                "team_buff|you|",
+                "team_buff|you|attackers",
+                *(f"team_buff|you|{kw}" for kw in _COMBAT_SUPPORT_KEYWORDS),
+            }
+        ),
+    ),
 )
 # Extra combats (Aggravated Assault, Relentless Assault, Seize the Day, Moraug): each
 # added combat phase is another round of attack + combat-damage triggers, so a commander
@@ -1310,21 +1311,16 @@ _EXTRA_COMBAT_EXTRA = SubAvenue(
 )
 # Symmetric group mana: a group-mana commander (Shizuko group-ramp, Yurlok mana-burn)
 # wants the shared mana-doublers and mana-punishers keyed on "whenever a player taps a
-# land for mana" (Mana Flare, Heartbeat of Spring, Manabarbs, Overabundance) plus join-
-# forces group ramp (Collective Voyage). The sweep serve only credited "each player adds
-# {", so these went unserved. One-sided dorks ("{T}: Add {G}") never match.
-_SYM_MANA_ORACLE = (
-    r"(?:whenever|if) a player taps a land for mana"
-    r"|whenever a land is tapped for mana"
-    r"|\bjoin forces\b|each player may (?:pay|search)"
-    r"|for each untapped land[^.]*deals"
-    r"|each player (?:creates|may draw)"
-)
+# land for mana" (Mana Flare, Heartbeat of Spring, Manabarbs, Price of Glory) plus
+# group ramp — every player searches for a land or makes a Treasure (Collective
+# Voyage, New Frontiers, Marching Duodrone): every group_mana subject. One-sided dorks
+# ("{T}: Add {G}") never match, nor a join-forces or each-player effect that hands out
+# no mana (Minds Aglow's cards, Alliance of Arms' Soldiers, Elephant Resurgence).
 _SYM_MANA_EXTRA = SubAvenue(
     "Symmetric mana (group ramp & mana-punishers)",
     "shared mana-doublers and mana-punishers that exploit the symmetry "
     "(Mana Flare, Heartbeat of Spring, Manabarbs, Collective Voyage)",
-    serve=Serve(oracle=re.compile(_SYM_MANA_ORACLE, _IC)),
+    serve=Serve(signal_idents=frozenset({"group_mana|each|*"})),
 )
 # Mana AMPLIFICATION for an unspent-mana commander (Omnath Locus of Mana, Kruphix): it
 # keeps mana between steps, so it wants untap-all-lands (Bear Umbra, Wilderness
@@ -1363,15 +1359,20 @@ _PARADOX_PAYOFF_EXTRA = SubAvenue(
 )
 # Heroic / targeting enablers: cheap spells that TARGET one of your creatures to fire
 # the heroic payoff (Gods Willing, Brute Force, Defiant Strike). They must use "target"
-# (CR 115.1a) and BUFF it (gets +/gains) — an "each creature" anthem doesn't target (so
-# won't trigger heroic) and targeted REMOVAL ("gets -N/-N", destroy) isn't a self-buff,
-# so both stay out.
-_TARGETED_BUFF_ORACLE = r"target creature (?:you control )?(?:gets? \+|gains?\b)"
+# (CR 115.1a) and BUFF it: the pump_makers lane's ``target`` subject (a pump on one
+# chosen creature) and keyword_grant_target — a keyword, a choice of keywords (Gideon
+# Blackblade) or a quoted ability (Feign Death) given to a target creature. An "each
+# creature" anthem doesn't target (so won't trigger heroic) and targeted REMOVAL
+# ("gets -N/-N", destroy) isn't a self-buff, so both stay out.
 _TARGETED_BUFF_EXTRA = SubAvenue(
     "Single-target pump / protection",
     "cheap spells that target one of your creatures to trigger heroic (Gods Willing / "
     "Brute Force / Defiant Strike)",
-    serve=Serve(oracle=re.compile(_TARGETED_BUFF_ORACLE, _IC)),
+    serve=Serve(
+        signal_idents=frozenset(
+            {"keyword_grant_target|you|*", "pump_makers|you|target"}
+        )
+    ),
 )
 # Instant-speed pump (Giant Growth / Berserk) to push through extra combat damage and
 # survive blocks: the pump_makers lane.
@@ -1382,30 +1383,28 @@ _PUMP_EXTRA = SubAvenue(
 )
 # Damage / life-loss AMPLIFIERS — a commander that deals combat damage to opponents
 # wants its damage doubled (Gratuitous Violence, Furnace of Rath, Angrath's Marauders,
-# Gisela) or the resulting life loss reflected back (Wound Reflection, Fiendish Duo).
-# Combat damage IS life loss, so these are the payoff a combat-damage-to-opponents deck
-# is built to exploit.
-_DAMAGE_AMPLIFIER_ORACLE = (
-    r"loses? life equal to the life [^.]*lost this turn"
-    r"|would deal damage[^.]*(?:deals?|that source deals?) (?:double|twice)"
-    r"|deals? double that (?:much )?damage"
-    r"|deals? (?:that much|twice that much) damage to that "
-    r"(?:player|creature'?s controller)"
-    # Pinged-to-the-whole-table amplifiers (Kediss, Hydra Omnivore, Kosei, Imodane):
-    # "deals that much damage to each (other) opponent" copies your combat damage onto
-    # every opponent — the same push-through amplifier role for a multiplayer board.
-    r"|deals? that much damage to each (?:other )?opponent"
-    # Granting DOUBLE STRIKE doubles the combat damage (and the combat-damage triggers)
-    # you push through — the same amplifier role (Duelist's Heritage, Berserkers'
-    # Onslaught). Keyed on the GRANT ("gains/have double strike"), so a bare vanilla
-    # double-striker's keyword line ("Double strike") isn't mistaken for an amplifier.
-    r"|(?:gains?|have) double strike"
-)
+# Gisela) or the resulting life loss reflected back (Wound Reflection, Fiendish Duo):
+# every damage_doubling subject (a replacement that doubles it; ``repeat`` — the damage
+# dealt again to the other opponents, Hydra Omnivore, Kediss; ``life_loss`` — Wound
+# Reflection), the damage reflectors (Repercussion) and a double-strike grant to your
+# creatures (CR 702.4b: a second combat damage step — Duelist's Heritage). A creature
+# granting itself double strike doubles no one else's damage.
 _DAMAGE_AMPLIFIER_EXTRA = SubAvenue(
     "Damage / life-loss amplifiers",
     "doublers that magnify the damage and life loss you push through (Gratuitous "
     "Violence, Furnace of Rath, Wound Reflection, Fiendish Duo)",
-    serve=Serve(oracle=re.compile(_DAMAGE_AMPLIFIER_ORACLE, _IC)),
+    serve=Serve(
+        signal_idents=frozenset(
+            {
+                "damage_doubling|you|*",
+                "damage_reflect|you|",
+                "team_buff|you|double strike",
+                "keyword_grant_target|you|double strike",
+                "aura_equip_kw_grant|you|double strike",
+                "all_creatures_kw_grant|any|double strike",
+            }
+        )
+    ),
 )
 # Stacking cost reducers: a commander whose own text makes spells cost less (Stenn,
 # Thryx, Danitha, Umori) wants to STACK more category reducers (Cloud Key, Etherium
@@ -1440,15 +1439,19 @@ _CREATURE_COST_EXTRA = SubAvenue(
     serve=Serve(signal_idents=frozenset({"cost_reduction|you|creature"})),
 )
 # Power-as-damage payoffs: convert a big/pumped creature's power into damage (Fling,
-# Chandra's Ignition, Soul's Fire). Matches single-target AND board-sweep forms — the
-# mined fling regex only had single-target ("to any target"), missing Ignition's "to
-# each other creature and player".
-_POWER_FLING_ORACLE = r"deals? damage equal to (?:its|that creature's|[^.]{0,30}) power"
+# Chandra's Ignition, Soul's Fire): every damage_equal_power subject — to a player, and
+# the bite to a creature (Bite Down, Polliwallop's twice its power) — the fights (CR
+# 701.14a: each deals damage equal to its power to the other) and the granted
+# "{T}: deal damage equal to its power" engines (power_tap_engine).
 _POWER_FLING_EXTRA = SubAvenue(
     "Power-as-damage payoffs",
     "fling effects that turn your big creature's power into damage (Fling / Chandra's "
     "Ignition / Soul's Fire)",
-    serve=Serve(oracle=re.compile(_POWER_FLING_ORACLE, _IC)),
+    serve=Serve(
+        signal_idents=frozenset(
+            {"damage_equal_power|you|*", "fight_makers|you|", "power_tap_engine|you|"}
+        )
+    ),
 )
 # Force-block effects for a "becomes blocked" payoff commander (General Marhault
 # Elsdragon: +3/+3 for each creature blocking the attacker). Forcing every able

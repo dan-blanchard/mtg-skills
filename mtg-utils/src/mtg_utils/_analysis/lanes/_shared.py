@@ -141,6 +141,16 @@ _GY_CAST_KEYWORDS: frozenset[str] = frozenset(
 # you. Keyword field-lookup, same survivor rationale.
 _GY_MATTERS_KEYWORDS: frozenset[str] = frozenset({"dredge", "delve", "scavenge"})
 
+# A keyword grant that is a drawback never names a keyword-grant subject:
+# defender (CR 702.3b: "A creature with defender can't attack") and cumulative
+# upkeep (CR 702.24a: an increasing cost, else sacrifice it — Mana Chains). Nor
+# does phase's ``Unknown`` placeholder, which names no keyword (Concerted Effort),
+# or decayed (CR 702.147a: "This creature can't block" and a sacrifice after it
+# attacks — a decayed counter, CR 122.1b).
+_DRAWBACK_GRANT_KW: frozenset[str] = frozenset(
+    {"defender", "cumulative upkeep", "unknown", "decayed"}
+)
+
 # Equipment / Aura / Role subtypes that mark a voltron build-around (CR 301.5 /
 # 303.4 / 702.5). Mirrors the deleted ``_signals_regex``'s ``_EQUIP_AURA_SUBTYPES``
 # (+ Role, a Aura subtype phase carries on Virtuous Role tokens).

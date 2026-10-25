@@ -172,3 +172,96 @@ def test_combat_protection_and_burn(name, ident, has):
 )
 def test_engines_and_payoffs(name, ident, has):
     assert (ident in _idents(name)) is has
+
+
+# ── the second pass: sub-avenues that dropped their pattern ─────────────────
+
+
+@_cases(
+    # a body that blocks more than one attacker — the soak blocker
+    ("Palace Guard", "extra_blockers|you|any", True),
+    ("Brave the Sands", "extra_blockers|you|", True),
+    ("Night Market Guard", "extra_blockers|you|", True),
+    ("Night Market Guard", "extra_blockers|you|any", False),  # one more only
+    # a token of yours leaving drains (Nadier's Nightblade)
+    ("Nadier's Nightblade", "tokens_matter|you|drain", True),
+    ("Anointed Procession", "tokens_matter|you|drain", False),
+    # an activation that makes a token and drains in one resolution
+    ("Rotwidow Pack", "tokens_matter|you|drain", True),
+    # two or more creature tokens at once
+    ("Siege-Gang Commander", "mass_token_makers|you|", True),
+    ("Battle Screech", "mass_token_makers|you|", True),
+    ("Dragon Roost", "mass_token_makers|you|", False),  # one at a time
+    # a copier of triggered abilities (CR 707.10)
+    ("Strionic Resonator", "ability_copy|you|triggered", True),
+    ("Rings of Brighthearth", "ability_copy|you|triggered", False),  # activated
+    # a payoff on an opponent's empty or small hand (CR 402.1)
+    ("Rackling", "opponent_discard|opponents|empty_hand", True),
+    ("Mind Rot", "opponent_discard|opponents|empty_hand", False),
+    # symmetric mana: every player's land taps (CR 106.12a), every player's ramp
+    ("Mana Flare", "group_mana|each|land_tap", True),
+    ("Veteran Explorer", "group_mana|each|ramp", True),
+    ("Kami of the Crescent Moon", "group_mana|each|ramp", False),  # cards
+)
+def test_bodies_tokens_and_symmetry(name, ident, has):
+    assert (ident in _idents(name)) is has
+
+
+@_cases(
+    # a pump on one chosen creature (CR 115.1a), never a team pump
+    ("Brute Force", "pump_makers|you|target", True),
+    ("Charge", "pump_makers|you|target", False),
+    # a quoted ability one target gains
+    ("Retraction Helix", "keyword_grant_target|you|ability", True),
+    ("Giant Growth", "keyword_grant_target|you|ability", False),
+    # damage dealt again (Hydra Omnivore), life lost again (Wound Reflection)
+    ("Hydra Omnivore", "damage_doubling|you|repeat", True),
+    ("Wound Reflection", "damage_doubling|you|life_loss", True),
+    ("Fiery Emancipation", "damage_doubling|you|repeat", False),  # a doubler
+    # a fight-shaped bite: damage equal to power to a creature (CR 208.1)
+    ("Ambuscade", "damage_equal_power|you|creature", True),
+    # a creature of yours entering burns or drains
+    ("Impact Tremors", "creature_etb|you|punish", True),
+    ("Trespasser's Curse", "creature_etb|you|punish", False),  # theirs entering
+    ("Soul Warden", "creature_etb|you|punish", False),  # a life gain
+    # a land of yours returned to untap (Quirion Ranger)
+    ("Quirion Ranger", "permanent_etb|you|land_untap", True),
+    ("Simic Growth Chamber", "permanent_etb|you|land_untap", False),
+    # an untap ability a card hands others: a trigger's "untap it", a {Q} cost
+    # (CR 107.6)
+    ("Dionus, Elvish Archdruid", "untap_engine|you|Elf", True),
+    ("Umbral Mantle", "untap_engine|you|", True),
+)
+def test_combat_and_damage_reads(name, ident, has):
+    assert (ident in _idents(name)) is has
+
+
+@_cases(
+    # the card hurts its controller (CR 701.21a / 119.3 / 701.17a / 104.3)
+    ("Demonic Taskmaster", "self_drawback|you|harm", True),
+    ("Bitterblossom", "self_drawback|you|harm", True),
+    ("Phage the Untouchable", "self_drawback|you|harm", True),
+    ("Tolarian Serpent", "self_drawback|you|harm", True),  # mills seven a turn
+    ("Splinterfright", "self_drawback|you|harm", False),  # it reads the mill
+    ("Ob Nixilis, Unshackled", "self_drawback|you|harm", False),  # theirs
+    ("Phyrexian Arena", "self_drawback|you|harm", False),  # pays for a draw
+    # the card holds itself back (CR 508.1c, CR 702.24a)
+    ("Sea Serpent", "self_drawback|you|restriction", True),
+    ("Aboroth", "self_drawback|you|restriction", True),
+    # a filter naming a subtype (CR 205.3), on either side or yours
+    ("Goblin Grenade", "subtype_ref|you|Goblin", True),
+    ("Opportunistic Dragon", "subtype_ref|any|Human", True),
+    ("Opportunistic Dragon", "subtype_ref|you|Human", False),  # an opponent's
+    ("Coat of Arms", "subtype_ref|you|shared", True),
+    # a keyword put on bodies of yours: a grant, a token's, a counter (CR 122.1b)
+    ("Jump", "keyword_bodies|you|flying", True),
+    ("Battle Screech", "keyword_bodies|you|flying", True),
+    ("Agent's Toolkit", "keyword_bodies|you|flying", True),
+    ("Plummet", "keyword_bodies|you|flying", False),
+    # a meld card names its partner (CR 701.42a)
+    ("Gisela, the Broken Blade", "meld_pair|you|Bruna, the Fading Light", True),
+    # embalm's token is a Zombie (CR 702.128a)
+    ("Aven Initiate", "token_maker|you|Zombie", True),
+)
+def test_drawbacks_subtypes_and_keywords(name, ident, has):
+    assert (ident in _idents(name)) is has

@@ -13,17 +13,20 @@ from mtg_utils._card_ir.crosswalk import LAND_DENIAL_KINDS
 
 from ._shared import (
     _CHEAP_EVASION_EXTRA,
-    _CRIPPLING_DRAWBACK_ORACLE,
+    _CRIPPLED_BIG_BODIES,
+    _DAMAGE_SOAK_EXTRA,
     _DIES_RECURSION_EXTRA,
+    _DRAWBACK_EXTRA,
     _ENLIST_FODDER_EXTRA,
     _FLICKER_EXTRA,
-    _IC,
+    _GOWIDE_MAKER_EXTRA,
     _LANDS_FROM_GRAVE_EXTRA,
     _PILLOWFORT_IDENTS,
     Serve,
     SignalSpec,
     SubAvenue,
     _spec,
+    _sub_avenue_spec,
 )
 
 # The foretell serve (both lanes): bearers, granters and foretold-card payoffs.
@@ -126,12 +129,7 @@ SPECS_4: dict[tuple[str, str], SignalSpec] = {
         label="Ability-strip targets",
         avenue="big creatures whose crippling drawback gets stripped, then buffed into "
         "a beater",
-        serve=Serve(
-            all_of=(
-                Serve(oracle=re.compile(_CRIPPLING_DRAWBACK_ORACLE, _IC)),
-                Serve(power_min=5),
-            )
-        ),
+        serve=_CRIPPLED_BIG_BODIES,
     ),
     # Arcane tribal (The Unspeakable + the Kamigawa Kirins / Spiritcraft legends): the
     # Arcane-subtype instants & sorceries (CR 205.3k) the commander recurs / pays off,
@@ -831,4 +829,27 @@ SPECS_4: dict[tuple[str, str], SignalSpec] = {
         None,
         serve_idents=frozenset({"cmdzone_ability|you|"}),
     ),
+    # Page-only doers (``signal_keys.PAGE_ONLY_SUBJECTS``): each key serves a theme's
+    # sub-avenue and opens no avenue of its own, so its spec is that sub-avenue's —
+    # what the key-agreement gate resolves it to.
+    ("mass_token_makers", "you"): _sub_avenue_spec(_GOWIDE_MAKER_EXTRA),
+    # subtype_ref's subjects are the subtypes a card's filters name; the tribal
+    # specs (``core._subject_spec``) read them per tribe. Its own serve counts no
+    # subject, so a deck's signal opens no avenue (``avenue_spec_for``).
+    ("subtype_ref", "you"): _spec(
+        "Tribe references",
+        "cards that name a creature type in what they affect, count or cost",
+        None,
+        serve_idents=frozenset({"subtype_ref|you|"}),
+    ),
+    # keyword_bodies' subjects are keywords; the keyword-tribe specs read them per
+    # keyword, and its own serve counts none, so it opens no avenue.
+    ("keyword_bodies", "you"): _spec(
+        "Keyword bodies",
+        "cards that put a keyword on creatures of yours",
+        None,
+        serve_idents=frozenset({"keyword_bodies|you|"}),
+    ),
+    ("self_drawback", "you"): _sub_avenue_spec(_DRAWBACK_EXTRA),
+    ("extra_blockers", "you"): _sub_avenue_spec(_DAMAGE_SOAK_EXTRA),
 }

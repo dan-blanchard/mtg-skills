@@ -7,7 +7,10 @@ from __future__ import annotations
 import re
 
 from mtg_utils._analysis import signal_keys
-from mtg_utils._analysis.lanes._shared import _GRANT_ABILITY_MOD_TAGS
+from mtg_utils._analysis.lanes._shared import (
+    _DRAWBACK_GRANT_KW,
+    _GRANT_ABILITY_MOD_TAGS,
+)
 from mtg_utils._analysis.signal_base import Signal
 from mtg_utils._analysis.text_reads import (
     _COUNTER_KIND_KEYS,
@@ -38,11 +41,13 @@ from mtg_utils._card_ir.crosswalk import (
     ConceptTree,
     attack_deterrent,
     change_zone_dirs,
+    copied_ability_kind,
     counter_kind_any,
     counter_pred_kinds,
     counts_opponents_land_type,
     evasion_keyword_kind,
     evasion_sites,
+    extra_blocker_grants,
     filter_controller,
     filter_core_types,
     filter_non_types,
@@ -53,6 +58,7 @@ from mtg_utils._card_ir.crosswalk import (
     iter_cost_leaves,
     iter_mod_sites,
     iter_typed_nodes,
+    keyword_bodies,
     makes_lands_type,
     mod_keyword_name,
     modify_cost_mode,
@@ -62,10 +68,12 @@ from mtg_utils._card_ir.crosswalk import (
     protective_team_grants,
     puts_commander_into_hand,
     residue_is,
+    self_drawbacks,
     silences_own_enter_triggers,
     spell_has_variable_target_count,
     static_mode_field,
     static_mode_player_sides,
+    subtype_refs,
     tag_of,
     trigger_constraint_tag,
 )
@@ -73,6 +81,7 @@ from mtg_utils._card_ir.mirror.runtime import (
     MirrorVariant,
     TypedMirrorNode,
 )
+from mtg_utils._card_ir.recovery import SELF
 from mtg_utils._card_ir.text_idioms import _counter_kind_token
 
 # ── Batch-15 mirror constants + census sets ──────────────────────────────────
@@ -864,11 +873,20 @@ def _ability_copy(tree: ConceptTree) -> list[Signal]:
     CopySpell.target StackAbility-vs-StackSpell discriminator +
     GrantAllActivatedAbilitiesOf, when they land, structure this lane — a
     candidate structural split. Scope "you", HIGH.
+
+    Subject ``triggered`` (beside the subject-less ident): a copier of a
+    triggered ability (CR 707.10) — a ``CopySpell`` of a ``StackAbility``
+    whose kind is ``Triggered`` (Strionic Resonator) or unnamed, either kind
+    (Lithoform Engine: "activated or triggered ability";
+    :func:`crosswalk.copied_ability_kind`). An activated-only copier (Rings of
+    Brighthearth) and a whole-suite importer (Necrotic Ooze) copy no trigger.
     """
-    for c in tree.iter_concepts():
-        if c.concept == "synth_ability_copy":
-            return [Signal("ability_copy", "you", "", "", tree.name, "high")]
-    return []
+    out: list[Signal] = []
+    if any(c.concept == "synth_ability_copy" for c in tree.iter_concepts()):
+        out.append(Signal("ability_copy", "you", "", "", tree.name, "high"))
+    if any(copied_ability_kind(n) in ("Triggered", "Any") for n in tree.iter_typed()):
+        out.append(Signal("ability_copy", "you", "triggered", "", tree.name, "high"))
+    return out
 
 
 def _ability_strip_payoff(tree: ConceptTree) -> list[Signal]:
@@ -1217,7 +1235,21 @@ def _meld_pair(tree: ConceptTree) -> list[Signal]:
     if not tree.name:
         return []
     if has_structural_meld_pair(tree):
-        return [Signal(signal_keys.MELD_PAIR, "you", tree.name, "", tree.name, "high")]
+        # The half whose trigger melds also names its partner (the Meld node's
+        # ``partner`` — Gisela, the Broken Blade's Bruna): a second subject, so
+        # the partner's page serves this half and this half's deck reads the
+        # partner's page (CR 701.42a: the two cards meld together).
+        partners = {
+            p
+            for n in tree.iter_typed()
+            if tag_of(n) == "Meld"
+            and isinstance(p := getattr(n, "partner", None), str)
+            and p != tree.name
+        }
+        return [
+            Signal(signal_keys.MELD_PAIR, "you", name, "", tree.name, "high")
+            for name in (tree.name, *sorted(partners))
+        ]
     for c in tree.iter_concepts():
         if c.concept == "synth_meld_pair":
             return [
@@ -2202,8 +2234,95 @@ def _voting_matters(tree: ConceptTree) -> list[Signal]:
     return []
 
 
+def _keyword_bodies(tree: ConceptTree) -> list[Signal]:
+    """keyword_bodies — the keywords the card puts on bodies of yours
+    (:func:`crosswalk.keyword_bodies`: a self-grant, a creature token with the
+    keyword, a keyword counter; CR 702). Subject: the keyword; a drawback
+    (:data:`_DRAWBACK_GRANT_KW` — Mana Chains' cumulative upkeep) names none. A
+    keyword deck's page counts them beside the cards that print it; it opens no
+    avenue. HIGH."""
+    return [
+        Signal("keyword_bodies", "you", kw, "", tree.name, "high")
+        for kw in sorted(keyword_bodies(tree) - _DRAWBACK_GRANT_KW)
+    ]
+
+
+def _subtype_ref(tree: ConceptTree) -> list[Signal]:
+    """subtype_ref — the subtypes the card's object filters name
+    (:func:`crosswalk.subtype_refs`; CR 205.3): scope ``any`` for every one
+    (a tribe's page counts a card that mentions the tribe at all), ``you`` for
+    one no opponent's filter names (the tribe's payoffs: a lord, a count, a
+    sacrifice cost, a discount), and ``you|shared`` for a "shares a creature
+    type" payoff that serves every tribe (Coat of Arms). A subtype a card only
+    HAS is its type line's (``type_matters``), one it only makes is
+    ``token_maker``'s. The pages read it; it opens no avenue. HIGH."""
+    refs = subtype_refs(tree)
+    out = [
+        Signal("subtype_ref", "any", sub, "", tree.name, "high")
+        for sub in sorted(refs.any_side)
+    ]
+    out += [
+        Signal("subtype_ref", "you", sub, "", tree.name, "high")
+        for sub in sorted(refs.yours)
+    ]
+    if refs.shares_type:
+        out.append(Signal("subtype_ref", "you", "shared", "", tree.name, "high"))
+    return out
+
+
+def _self_drawback(tree: ConceptTree) -> list[Signal]:
+    """self_drawback — a permanent's own downside (:func:`crosswalk.
+    self_drawbacks`): subject ``restriction`` when it fights or survives only on
+    a condition (Sea Serpent's Island clause, Kefnet's hand size, Grim Strider's
+    shrink, cumulative upkeep, Balduvian Horde's enters cost) and ``harm`` when
+    it hurts its controller (Demonic Taskmaster's upkeep sacrifice, Flesh
+    Reaver's damage, Abyssal Persecutor's "You can't win the game"). The
+    ability-strip and enlist pages want the big crippled bodies, the donate page
+    the harm (CR 613.1f: an ability-removing effect turns both off). HIGH."""
+    found = self_drawbacks(tree)
+    # A self-sacrifice phase parks as a residue the recovery stage reads ("At
+    # the beginning of your upkeep, sacrifice ~ unless you put two cards from
+    # your graveyard on the bottom of your library" — Gurzigost).
+    restriction = found.restriction or any(
+        c.recovered_by == "sacrifice" and SELF in c.reading
+        for unit in tree.units
+        if unit.origin == "trigger"
+        for c in unit.effects
+    )
+    return [
+        Signal("self_drawback", "you", subject, "", tree.name, "high")
+        for subject, hit in (("restriction", restriction), ("harm", found.harm))
+        if hit
+    ]
+
+
+def _extra_blockers(tree: ConceptTree) -> list[Signal]:
+    """extra_blockers — a creature that may block more than one attacker (CR
+    509.1a has each blocker block one; these abilities let it block more): its
+    own static (Wall of Glare, Palace Guard), one its Aura or
+    Equipment hands the creature it's attached to (Entangler, Echo Circlet), or
+    a one-shot grant to a target (Valor Made Real, Give No Ground) —
+    :func:`crosswalk.extra_blocker_grants`. Subject ``any`` for "any number of
+    creatures" (a soak blocker: it blocks a whole attack, then a prevention
+    effect blanks the damage), "" for a fixed number more. Scope the blocker's
+    side: "target creature defending player controls" (Blaze of Glory) is the
+    opponents', a creature-type grant with no controller ``each``. HIGH."""
+    seen: set[tuple[str, str]] = set()
+    out: list[Signal] = []
+    for grant in extra_blocker_grants(tree):
+        key = (grant.side, "any" if grant.count is None else "")
+        if key not in seen:
+            seen.add(key)
+            out.append(Signal("extra_blockers", key[0], key[1], "", tree.name, "high"))
+    return out
+
+
 LANES = (
     _evasion_self,
+    _extra_blockers,
+    _self_drawback,
+    _subtype_ref,
+    _keyword_bodies,
     _cant_block_grant,
     _global_ability_grant,
     _opponent_counter_grant,

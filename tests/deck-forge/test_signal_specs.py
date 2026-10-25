@@ -1323,7 +1323,7 @@ def test_token_maker_subject_spec_and_generic_fallback():
     assert "Construct" in sub.label  # "Construct tokens"
     # pages the cards that CREATE Construct tokens (its serve), not the type line.
     assert sub.search == {}
-    assert sub.serve.search("Create a 0/0 colorless Construct artifact creature token")
+    assert sub.serve.matches(_card("Urza, Lord High Artificer"))
     generic = spec_for(_sig_sub("token_maker", ""))  # no subject → static spec
     assert generic is not None
     assert page_serve(generic.search, generic.serve) is generic.serve
@@ -1800,9 +1800,9 @@ class TestSubjectSpecs:
         spec = spec_for(_subj_sig("token_maker", "Dryad"))
         assert spec.label == "Dryad tokens"
         # a card that CREATES Dryad tokens serves it…
-        assert spec.serve.search("Create a 1/1 green Dryad creature token.")
+        assert spec.serve.matches(_card("Awaken the Woods"))
         # …a plain Dryad creature (no token creation) does NOT.
-        assert not spec.serve.search("Dryad — this creature has reach.")
+        assert not spec.serve.matches(_card("Dryad Arbor"))
         # the page is its serve's (token creation), not the type line.
         assert spec.search == {}
 

@@ -21,6 +21,7 @@ from mtg_utils._card_ir.crosswalk import (
     AbilityUnit,
     ConceptNode,
     ConceptTree,
+    _list_field,
     change_zone_dirs,
     effect_back_reference,
     effect_filter,
@@ -36,7 +37,9 @@ from mtg_utils._card_ir.crosswalk import (
     iter_nested_granted_effect_concepts,
     iter_nested_trigger_defs,
     iter_search_landings,
+    iter_static_grant_sites,
     iter_typed_nodes,
+    memo_on,
     parked_search_puts_onto_battlefield,
     reveal_until_player,
     search_filter_land_facts,
@@ -148,6 +151,18 @@ def _untap_target_ok(target: object) -> bool:
 
 def _engine_untap_surfaces(
     tree: ConceptTree,
+) -> tuple[tuple[AbilityUnit, object | None, bool], ...]:
+    """:func:`_walk_engine_untap_surfaces`, walked once per tree (four readers
+    share it)."""
+    return memo_on(
+        tree,
+        "_xw_engine_untap_surfaces",
+        lambda t: tuple(_walk_engine_untap_surfaces(t)),
+    )
+
+
+def _walk_engine_untap_surfaces(
+    tree: ConceptTree,
 ) -> Iterator[tuple[AbilityUnit, object | None, bool]]:
     """``(unit, scope_filter, mass)`` per qualifying untap-engine surface —
     the ONE walk :func:`has_structural_untap_engine` (bool),
@@ -175,6 +190,11 @@ def _engine_untap_surfaces(
             mass = tag_of(getattr(node, "scope", None)) == "All"
             if mass or _untap_target_ok(target):
                 yield unit, target, mass
+            elif (
+                watched := _back_referenced_untap_group(unit, target, node)
+            ) is not None:
+                yield unit, watched, False
+        yield from _granted_untap_surfaces(unit)
         for cc in unit.costs:
             for leaf in iter_cost_leaves(cc.node):
                 if tag_of(leaf) != "EffectCost":
@@ -188,6 +208,89 @@ def _engine_untap_surfaces(
                 tgt = getattr(eff, "target", None)
                 if mass or _untap_target_ok(tgt):
                     yield unit, tgt, mass
+
+
+def _object_target_before(unit: AbilityUnit, node: object) -> bool:
+    """Whether an effect of ``unit`` ahead of ``node`` (in the unit's effect
+    order) targets an object — the antecedent a later "that creature" would
+    name instead of the triggering one."""
+    for c in unit.effects:
+        if c.node is node:
+            return False
+        if tag_of(getattr(c.node, "target", None)) in ("Typed", "Or", "And"):
+            return True
+    return False
+
+
+def _back_referenced_untap_group(
+    unit: AbilityUnit, target: object, node: object
+) -> object | None:
+    """The group a trigger's "untap it" reaches: the trigger watches a group of
+    your permanents and untaps the one that set it off (``TriggeringSource``) —
+    Amulet of Vigor's "Whenever a permanent you control enters tapped, untap
+    it", Captain America, Living Legend's first-tap untap. A trigger watching
+    the card itself (its own self-untap) or another player's permanents is
+    none."""
+    if unit.origin != "trigger":
+        return None
+    if tag_of(target) != "TriggeringSource" and not (
+        # "that creature" / "that land" with no target of the unit's own
+        # before it: the object the trigger watched (Tiller Engine's "Whenever
+        # a land you control enters tapped, choose one — • Untap that land";
+        # Pine Walker).
+        target is None and not _object_target_before(unit, node)
+    ):
+        return None
+    watched = getattr(unit.node, "valid_card", None)
+    if tag_of(watched) not in ("Typed", "Or", "And"):
+        return None
+    attached = has_filter_property(watched, "EquippedBy") or has_filter_property(
+        watched, "EnchantedBy"
+    )
+    if filter_controller(watched) != "You" and not attached:
+        # The creature its Equipment is attached to (Genji Glove's "Whenever
+        # equipped creature attacks, … untap it") is yours to equip.
+        return None
+    return watched if (filter_core_types(watched) or filter_subtypes(watched)) else None
+
+
+def _granted_untap_surfaces(
+    unit: AbilityUnit,
+) -> Iterator[tuple[AbilityUnit, object | None, bool]]:
+    """Untap surfaces a static hands OTHER permanents: an ability it grants
+    that untaps the grantee — an activated "untap this" (Gauntlets of Light's
+    enchanted creature, Scuttling Sliver's Slivers, Touch of Vitae's one-shot
+    target), a trigger's "untap it" (Dionus, Elvish Archdruid's Elves), an
+    ability paid for with {Q} (CR 107.6: the untap symbol — Umbral Mantle's
+    equipped creature) — and the untap-during-each-other-player's-untap-step
+    mode it adds (Urban Burgeoning's enchanted land). The scope filter is the
+    grant's ``affected`` (a one-shot grant's ``ParentTarget`` resolves to the
+    effect's target); a
+    grant to the card itself (``SelfRef``) is its own self-untap, not an
+    engine, and an opponent's permanents are no engine of yours."""
+    for sdef, host in iter_static_grant_sites(unit):
+        affected = getattr(sdef, "affected", None)
+        if affected is None or tag_of(affected) == "SelfRef":
+            continue
+        scope = host if tag_of(affected) == "ParentTarget" else affected
+        if filter_controller(scope) == "Opponent":
+            continue
+        for mod in _list_field(sdef, "modifications"):
+            mtag = tag_of(mod)
+            if mtag in ("GrantAbility", "GrantTrigger"):
+                cost = getattr(getattr(mod, "definition", None), "cost", None)
+                if any(
+                    tag_of(n) == "SetTapState"
+                    and settap_state(n) == "Untap"
+                    and tag_of(getattr(n, "target", None)) == "SelfRef"
+                    for n in iter_typed_nodes(mod)
+                ) or any(tag_of(leaf) == "Untap" for leaf in iter_cost_leaves(cost)):
+                    yield unit, scope, False
+            elif (
+                mtag == "AddStaticMode"
+                and static_mode_tag(mod) == "UntapsDuringEachOtherPlayersUntapStep"
+            ):
+                yield unit, scope, False
 
 
 def untaps_your_lands(tree: ConceptTree) -> bool:
@@ -219,7 +322,7 @@ def has_structural_untap_engine(tree: ConceptTree) -> bool:
     :func:`structural_untap_scope` fold the same surfaces into the ident
     subject / scope.
     """
-    return next(_engine_untap_surfaces(tree), None) is not None
+    return bool(_engine_untap_surfaces(tree))
 
 
 def structural_untap_scope(tree: ConceptTree) -> str:

@@ -4,8 +4,6 @@ original ``signal_specs.py``), verbatim, in original order.
 
 from __future__ import annotations
 
-import re
-
 from mtg_utils._analysis._sweep_detectors import (
     SWEEP_LABELS,
 )
@@ -39,7 +37,6 @@ from ._shared import (
     _FORCE_FEED_EXTRA,
     _GOWIDE_ANTHEM_EXTRA,
     _GOWIDE_MAKER_EXTRA,
-    _IC,
     _KEYWORD_COUNTER_EXTRA,
     _LANDS_FROM_GRAVE_EXTRA,
     _LURE_EXTRA,
@@ -354,15 +351,11 @@ SPECS_1: dict[tuple[str, str], SignalSpec] = {
                 # to untap a creature -- or, with Oboro Breezecaller, an animated
                 # land, re-tapping it for mana. Narrow but real in forest-animation
                 # decks; the bounce cost is the precision gate (a plain {T}: untap
-                # is not this).
+                # is not this — nor Wirewood Symbiote's Elf).
                 "bounce a Forest/land you control to untap a creature or land",
-                serve=Serve(
-                    oracle=re.compile(
-                        r"return a (?:forest|land) you control to its "
-                        r"owner's hand[^.]*untap",
-                        _IC,
-                    )
-                ),
+                # permanent_etb's ``land_untap``: a land you control returned to
+                # its owner's hand pays for an untap in the same ability.
+                serve=Serve(signal_idents=frozenset({"permanent_etb|you|land_untap"})),
             ),
         ),
     ),

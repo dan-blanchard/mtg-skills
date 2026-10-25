@@ -531,6 +531,21 @@ SERVED_SIGNAL_KEYS: frozenset[str] = frozenset(
         "copy_limit",
         "base_power_matters",
         "damage_redirect",
+        # backlog (o): a creature that may block more than one attacker (CR
+        # 509.1a has a blocker block one) — the soak blocker a prevention deck
+        # walls up with.
+        "extra_blockers",
+        # backlog (o): a creature-token maker that makes two or more at once
+        # (Battle Screech, Secure the Wastes) — the go-wide build-around.
+        "mass_token_makers",
+        # backlog (o): a permanent's own downside — a combat restriction or
+        # a harm to its controller (ability-strip, enlist and donate pages).
+        "self_drawback",
+        # backlog (o): the subtypes a card's object filters name — the
+        # tribal pages' payoffs and mentions.
+        "subtype_ref",
+        # backlog (o): the keywords a card puts on bodies of yours.
+        "keyword_bodies",
         # The soak payoffs a redirect-to-self commander fires (Rite of Passage).
         "damage_received_matters",
         # NB: land_destruction's batch-8 KEPT verdict (the membership-gated

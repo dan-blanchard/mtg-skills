@@ -19,7 +19,8 @@ import dataclasses
 
 import pytest
 
-from mtg_utils._analysis.signal_specs import SPECS, Serve, page_serve
+from mtg_utils._analysis.signal_specs import SPECS, Serve, page_serve, spec_for
+from mtg_utils._analysis.signals import Signal
 from mtg_utils.testkit import test_card, test_card_ir
 
 # The structured arms a serve ORs (``Serve.matches``), beside its pattern and
@@ -211,7 +212,26 @@ ARM_PINS: dict[tuple[str, str], tuple[str, str]] = {
     # a cheap token maker to sacrifice; Hornet Queen costs seven
     ("wants_fodder|you", "all_of[1].cmc_max"): ("Hangarback Walker", "Hornet Queen"),
     ("wants_lifegain|you", "keywords"): ("Baneslayer Angel", "Serra Angel"),
+    # a keyword tribe's bodies by their printed keyword (CR 702.9a: flying)
+    ("keyword_tribe|you|Flying", "keywords"): ("Baneslayer Angel", "Grizzly Bears"),
     ("xspell_matters|you", "mana_cost"): ("Walking Ballista", "Sol Ring"),
+    # the combat sub-avenue's gear: any Equipment (CR 301.5) is combat support;
+    # a vanilla 2/2 is not
+    **{
+        (f"{ref}|Combat support (gear & keyword anthems)", "types"): (
+            "Bonesplitter",
+            "Grizzly Bears",
+        )
+        for ref in (
+            "combat_buff_engine|you",
+            "combat_choice_makers|opponents",
+            "combat_damage_matters|opponents",
+            "combat_damage_to_opp|opponents",
+            "evasion_self|you",
+            "forced_attack|you",
+            "regenerate_makers|you",
+        )
+    },
 }
 
 
@@ -228,10 +248,26 @@ def _arm_names(serve: Serve) -> list[str]:
     ]
 
 
+# The subject specs ``core._subject_spec`` builds per subject, one sample of
+# each family: the arms are the same for every subject of the key.
+_SUBJECT_SAMPLES = (
+    ("type_matters", "Goblin"),
+    ("typed_spellcast", "Goblin"),
+    ("keyword_tribe", "Flying"),
+    ("token_maker", "Goblin"),
+)
+
+
 def _page_serves() -> dict[str, Serve]:
-    """Every theme's page serve, main and sub-avenue, by "key|scope[|label]"."""
+    """Every theme's page serve, main and sub-avenue, by "key|scope[|label]" —
+    the static specs and a sample of each subject spec family."""
+    specs = dict(SPECS)
+    for key, subject in _SUBJECT_SAMPLES:
+        sig = Signal(key=key, scope="you", subject=subject, text="", source="cmd")
+        if (spec := spec_for(sig)) is not None:
+            specs[(key, f"you|{subject}")] = spec
     out: dict[str, Serve] = {}
-    for (key, scope), spec in SPECS.items():
+    for (key, scope), spec in specs.items():
         if (srv := page_serve(spec.search, spec.serve)) is not None:
             out[f"{key}|{scope}"] = srv
         for extra in spec.extras:

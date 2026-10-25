@@ -8,6 +8,7 @@ import re
 from collections.abc import Iterator
 
 from mtg_utils._analysis.lanes._shared import (
+    _DRAWBACK_GRANT_KW,
     _REVEAL_WHO_OPP,
     _SPELL_GRANT_KEYWORDS,
     _attack_compulsion_hit,
@@ -27,6 +28,7 @@ from mtg_utils._analysis.text_reads import (
 )
 from mtg_utils._analysis.tree_synthesis import SynthesizedNode
 from mtg_utils._card_ir.crosswalk import (
+    ABILITY_GRANT_MOD_TAGS,
     ATTACHED_OBJECT_PREDICATES,
     DAMAGE_EFFECT_TAGS,
     OTHER,
@@ -35,6 +37,7 @@ from mtg_utils._card_ir.crosswalk import (
     AbilityUnit,
     ConceptNode,
     ConceptTree,
+    attacks_your_opponents,
     cast_with_keyword_name,
     change_zone_dirs,
     damage_filter_scope,
@@ -45,9 +48,11 @@ from mtg_utils._card_ir.crosswalk import (
     double_target_kind,
     double_triggers_cause,
     double_triggers_cause_core_types,
+    doubles_opponents_life_loss,
     effect_damage_amplifier,
     effect_filter,
     effect_owner_player_scope,
+    effect_reaches_player,
     entered_this_turn_filters,
     filter_controller,
     filter_core_types,
@@ -62,9 +67,11 @@ from mtg_utils._card_ir.crosswalk import (
     is_opponent_cast_trigger_def,
     iter_cost_leaves,
     iter_delayed_trigger_condition_defs,
+    iter_granted_triggers,
     iter_mod_sites,
     iter_nested_granted_effect_concepts,
     iter_nested_trigger_defs,
+    iter_power_damage,
     iter_static_defs,
     iter_threaded_target_statics,
     iter_typed_nodes,
@@ -80,11 +87,13 @@ from mtg_utils._card_ir.crosswalk import (
     parked_prevention,
     player_filter_tag,
     protective_grant_recipients,
+    punishes_creatures_entering,
     punishes_triggering_caster,
     recipient_tag,
     redirects_damage_from_you,
     ref_count_qty,
     ref_qty_tag,
+    repeats_damage_to_players,
     replacement_damage_mod,
     replacement_event_tag,
     replacement_qty_mod,
@@ -502,13 +511,6 @@ _AURA_EQUIP_KW: frozenset[str] = frozenset(
         "indestructible",
     }
 )
-# A keyword grant that is a drawback never names a keyword-grant subject:
-# defender (CR 702.3b: "A creature with defender can't attack") and cumulative
-# upkeep (CR 702.24a: an increasing cost, else sacrifice it — Mana Chains). Nor
-# does phase's ``Unknown`` placeholder, which names no keyword (Concerted Effort).
-_DRAWBACK_GRANT_KW: frozenset[str] = frozenset(
-    {"defender", "cumulative upkeep", "unknown"}
-)
 # Suit-up predicates: the grant lands on the creature the Aura/Equipment is
 # attached to (live ``_is_aura_equip_protection_subject`` — CR 303 / 301).
 # ``DoublePT`` modes that double POWER (CR 613.4c; a toughness-only doubler is
@@ -716,17 +718,21 @@ def _etb_trigger_lanes(tree: ConceptTree) -> list[Signal]:
       restriction, not a payoff engine, consistent with the SelfRef
       exclusion. All corpus re-measured 0 genuine members lost — live_only
       after this batch is exactly this adjudicated shed set. CR 603.6a.
+    * ``creature_etb|you|punish`` — that trigger, watching your creatures (or
+      every player's), carries its own burn or drain: damage reaching a player
+      or an opponent losing life (Impact Tremors, Purphoros, Corpse Knight) —
+      the payload in the same trigger, not elsewhere on the card.
     * ``permanent_etb`` — the GENERIC permanent-ETB engine: a Permanent-cored
       watcher with controller You (Amareth; checklist #6 — an opp-scoped
       permanent-ETB punisher is excluded, mirroring live).
     """
     out: list[Signal] = []
-    seen: set[str] = set()
+    seen: set[tuple[str, str, str]] = set()
 
-    def fire(key: str, scope: str) -> None:
-        if key + scope not in seen:
-            seen.add(key + scope)
-            out.append(Signal(key, scope, "", "", tree.name, "high"))
+    def fire(key: str, scope: str, subject: str = "") -> None:
+        if (key, scope, subject) not in seen:
+            seen.add((key, scope, subject))
+            out.append(Signal(key, scope, subject, "", tree.name, "high"))
 
     def fire_etb_from(trig: object) -> None:
         ctrl = filter_controller(getattr(trig, "valid_card", None))
@@ -779,6 +785,10 @@ def _etb_trigger_lanes(tree: ConceptTree) -> list[Signal]:
         for trig in iter_delayed_trigger_condition_defs(unit.node):
             if is_creature_etb_trigger_def(trig):
                 fire_etb_from(trig)
+        # The payoff's own payload (backlog (o)): an enters trigger on your
+        # creatures that burns or drains a player itself.
+        if punishes_creatures_entering(unit):
+            fire("creature_etb", "you", "punish")
     return out
 
 
@@ -1326,6 +1336,14 @@ def _keyword_grant_lanes(tree: ConceptTree) -> list[Signal]:
 
     A drawback grant (:data:`_DRAWBACK_GRANT_KW` — defender, cumulative
     upkeep) never becomes a subject.
+
+    ``keyword_grant_target|you|ability`` (backlog (o)): a quoted ability given
+    to a target creature that isn't an opponent's — a triggered one (Feign
+    Death, Undying Malice, Commando Raid) or an activated one (Retraction
+    Helix) — :func:`crosswalk.unit_keyword_grants` over
+    :data:`crosswalk.ABILITY_GRANT_MOD_TAGS`. A choice of keywords ("gains your
+    choice of vigilance, lifelink, or indestructible" — Gideon Blackblade) rides
+    the keyword walk itself.
     """
     out: list[Signal] = []
     seen: set[str] = set()
@@ -1367,6 +1385,18 @@ def _keyword_grant_lanes(tree: ConceptTree) -> list[Signal]:
             fire_kw("keyword_grant_target", "you", mod)
             if normalised_keyword(mod) in PROTECTIVE_KEYWORDS:
                 fire("protection_grant", "you", "")
+        # A quoted ability given to a target creature (Feign Death's dies-return,
+        # Commando Raid's combat-damage trigger): subject ``ability``.
+        ability_ident = ("keyword_grant_target", "you", "ability")
+        if ability_ident not in seen_kw and any(
+            filter_names_creatures(resolved)
+            and filter_controller(resolved) != "Opponent"
+            for resolved, _mod in unit_keyword_grants(
+                unit, mod_tags=ABILITY_GRANT_MOD_TAGS
+            )
+        ):
+            seen_kw.add(ability_ident)
+            out.append(Signal(*ability_ident, "", tree.name, "high"))
         # (phase v0.104.0's intervening-if threaten-then-haste — Might Makes
         # Right — is the ledger row conditional_threaten_haste_parked: the
         # grant is the clause's second verb, not the gain_control the recovery
@@ -1411,6 +1441,12 @@ def _keyword_grant_lanes(tree: ConceptTree) -> list[Signal]:
             affected = getattr(sdef, "affected", None)
             raw = _site_raw(sdef)
             atag = tag_of(affected)
+            if atag == "SourceOrPaired":
+                # "As long as ~ is paired with another creature, both creatures
+                # have double strike" (Silverblade Paladin): a soulbond pair is
+                # two creatures you control (CR 702.95a).
+                fire_kw("team_buff", "you", mod, raw)
+                continue
             if atag == "TriggeringSource" or (
                 atag == "ParentTarget" and all(mod is not m for _r, m in targeted)
             ):
@@ -1432,16 +1468,45 @@ def _keyword_grant_lanes(tree: ConceptTree) -> list[Signal]:
                 continue
             cores = set(filter_core_types(affected))
             on_board = not set(filter_inzone_zones(affected)) - {"Battlefield"}
+            ctrl = filter_controller(affected)
+            # Yours, or every player's creatures of a type ("All Sliver
+            # creatures have double strike" — Fury Sliver: your Slivers get it
+            # too) or attacking your opponents (Blast-Furnace Hellkite).
+            yours = ctrl == "You" or (
+                ctrl is None
+                and (
+                    bool(filter_subtypes(affected)) or attacks_your_opponents(affected)
+                )
+            )
             if (
                 filter_names_creatures(affected)
-                and filter_controller(affected) == "You"
+                and yours
                 and on_board  # Sedris's graveyard cards have unearth — no team
             ):
                 fire_kw("team_buff", "you", mod, raw)
-            if set(filter_predicates(affected)) & ATTACHED_OBJECT_PREDICATES and (
+            # The suit-up recipient, or every creature of yours that has gear
+            # on it ("Equipped creatures you control have haste" — Firion,
+            # Wild Rose Warrior; Zamriel, Seraph of Steel).
+            preds = set(filter_predicates(affected))
+            if (preds & ATTACHED_OBJECT_PREDICATES or "HasAttachment" in preds) and (
                 cores & {"Creature", "Permanent"}
             ):
                 fire_kw("aura_equip_kw_grant", "you", mod, raw)
+    # A trigger granted to your creatures that hands its bearer a keyword:
+    # "Commander creatures you own have 'Whenever this creature attacks, it
+    # gains double strike'" (Flaming Fist) — a team grant, by its grantee.
+    for unit in tree.units:
+        for granted in iter_granted_triggers(unit):
+            grantee = granted.grantee
+            if granted.chosen or not filter_names_creatures(grantee):
+                continue
+            if filter_controller(grantee) not in ("You", None):
+                continue
+            for sdef, mod in iter_mod_sites(granted.trigger, deep=True):
+                if tag_of(mod) == "AddKeyword" and (
+                    tag_of(getattr(sdef, "affected", None)) == "SelfRef"
+                ):
+                    fire_kw("team_buff", "you", mod, _site_raw(sdef))
     if _TEAM_EVASION_GRANT_RX.search(_kept(tree)):
         fire("team_evasion_grant", "you", "")
     # ADR-0038 W3 batch 4 — the split/aftermath BACK-HALF grant residue: phase
@@ -2481,16 +2546,28 @@ def _recovered_power_to_player(c: ConceptNode) -> bool:
 
 
 def _damage_equal_power(tree: ConceptTree) -> list[Signal]:
-    """damage_equal_power — the Fling shape (CR 120.3 recipient rules): a
-    ``DealDamage`` whose amount is a ``Ref`` over a POWER qty
-    (:func:`ref_qty_tag`) reaching a PLAYER recipient — the "any target"
-    ``Any`` (Fling), a DIRECT player node, or (recall-completion b2) an
-    ``Or`` / ``And`` recipient CONTAINING a player ("target creature or
-    player"). A ``ParentTarget`` re-reference is NOT accepted: it names an
-    earlier CREATURE target ("Tap target creature. ~ deals damage equal to
-    its power to that creature" — Abyssal Hunter, the bite/creature_ping
-    shape). A fixed amount (Prodigal Sorcerer) never fires. Scope "you".
+    """damage_equal_power — the Fling shape (CR 120.3 recipient rules): damage
+    whose amount is a creature's POWER, however scaled
+    (:func:`crosswalk.iter_power_damage` — its power, twice it, the greatest
+    power among a group; CR 208.1) reaching a PLAYER recipient — the "any
+    target" ``Any`` (Fling), a DIRECT player node ("target opponent" — Caldera
+    Pyremaw), an ``Or`` / ``And`` recipient CONTAINING a player ("target
+    creature or player"), or every opponent at once (Heartfire Hero's "deals
+    damage equal to its power to each opponent"). A ``ParentTarget``
+    re-reference is NOT accepted: it names an earlier CREATURE target ("Tap
+    target creature. ~ deals damage equal to its power to that creature" —
+    Abyssal Hunter). A fixed amount (Prodigal Sorcerer) never fires. A damage
+    replacement that raises your sources' damage to the card's power (Ojer
+    Axonil, Deepest Might) reaches the players it names. Scope "you".
+
+    Subject ``creature`` beside it (backlog (o)): the same power-scaled damage
+    dealt to anything else — a creature, planeswalker or battle (CR 120.1: damage
+    is dealt to those or to players) — the bite (Bite Down, Polliwallop's twice
+    its power, Band Together's two biters, Mega Flare's greatest power, Abyssal
+    Hunter's tap-and-bite). The power-as-damage page reads both; the player half
+    stays the subject-less ident.
     """
+    found: dict[str, str] = {}
     for unit in tree.units:
         for c in unit.effect_concepts("deal_damage"):
             # phase v0.104.0 fails closed: an intervening-if power burn
@@ -2498,30 +2575,31 @@ def _damage_equal_power(tree: ConceptTree) -> list[Signal]:
             # power to any target") parks whole as an Unimplemented residue
             # the recovery stage's "damage" token re-decorates; with no typed
             # amount/recipient, the seam's reading names both.
-            if c.recovered_by == "damage":
-                if _recovered_power_to_player(c):
-                    return [
-                        Signal(
-                            "damage_equal_power", "you", "", c.raw, tree.name, "high"
-                        )
-                    ]
-                continue
-            if tag_of(c.node) not in ("DealDamage", "EachSourceDealsDamage"):
-                continue
-            if ref_qty_tag(c.node, "amount") != "Power":
-                continue
-            tgt = damage_recipient(c.node)
+            if c.recovered_by == "damage" and POWER_SCALED in c.subject:
+                subject = "" if _recovered_power_to_player(c) else "creature"
+                found.setdefault(subject, c.raw)
+        for node, tgt in iter_power_damage(unit.node):
             tt = tag_of(tgt)
             player = (
-                tt in _DEP_PLAYER_TAGS
+                tag_of(node) == "DamageEachPlayer"
+                # "… to each other creature and each opponent" (Chandra's
+                # Ignition): a sweep with a player filter
+                or tag_of(getattr(node, "player_filter", None)) is not None
+                or tt in _DEP_PLAYER_TAGS
                 or (tt == "Typed" and "Player" in filter_core_types(tgt))
                 or _dep_or_and_reaches_player(tgt)
+                or effect_reaches_player(node, unit.node)
             )
-            if player:
-                return [
-                    Signal("damage_equal_power", "you", "", c.raw, tree.name, "high")
-                ]
-    return []
+            found.setdefault("" if player else "creature", _site_raw(unit.node))
+        if (
+            unit.origin == "replacement"
+            and replacement_damage_mod(unit.node) == "SetToSourcePower"
+        ):
+            found.setdefault("", _site_raw(unit.node))
+    return [
+        Signal("damage_equal_power", "you", subject, raw, tree.name, "high")
+        for subject, raw in found.items()
+    ]
 
 
 # ── Batch 11 lanes (ADR-0035 Stage 2) ────────────────────────────────────────
@@ -2656,6 +2734,17 @@ def _replacement_doubler_lanes(tree: ConceptTree) -> list[Signal]:
                 and source_ctrl != "Opponent"
             ):
                 fire("damage_doubling", _site_raw(unit.node))
+    # The amplifiers that deal the damage again rather than replace it (backlog
+    # (o)): ``repeat`` — a trigger on your source's damage dealing that much
+    # again to players (Hydra Omnivore, Kediss, Imodane;
+    # :func:`crosswalk.repeats_damage_to_players`); ``life_loss`` — each
+    # opponent loses the life they lost this turn again (Wound Reflection;
+    # :func:`crosswalk.doubles_opponents_life_loss`).
+    for unit in tree.units:
+        if repeats_damage_to_players(unit):
+            fire("damage_doubling", _site_raw(unit.node), "repeat")
+        if doubles_opponents_life_loss(unit):
+            fire("damage_doubling", _site_raw(unit.node), "life_loss")
     # A "that many plus N" bonus phase v0.104.0 parks as a residue, recovered by
     # the ``counter_bonus`` token (Prairie Dog's activated one, Zabaz's modular
     # one): the typed arm's Plus mod, read off the clause, your side only.

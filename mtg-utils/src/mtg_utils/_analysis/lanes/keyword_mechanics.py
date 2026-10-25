@@ -82,6 +82,7 @@ from mtg_utils._card_ir.crosswalk import (
     references_modified,
     replacement_event_tag,
     residue_is,
+    rewards_opponent_small_hand,
     spell_filter_class,
     static_mode_tag,
     tag_of,
@@ -1885,6 +1886,15 @@ def _opponent_discard(tree: ConceptTree) -> list[Signal]:
             out.append(
                 Signal("opponent_discard", "opponents", "", "", tree.name, "high")
             )
+    # The empty-hand payoff, under its own ``empty_hand`` subject: what a
+    # hand-attack deck wins with once the hands are gone — a condition on an
+    # opponent's small hand or damage scaled by "N minus the cards in their
+    # hand" (The Rack, Shrieking Affliction; :func:`crosswalk.
+    # rewards_opponent_small_hand`). It discards nothing itself.
+    if rewards_opponent_small_hand(tree):
+        out.append(
+            Signal("opponent_discard", "opponents", "empty_hand", "", tree.name, "high")
+        )
     return out
 
 

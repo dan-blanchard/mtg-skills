@@ -101,6 +101,7 @@ from mtg_utils._card_ir.crosswalk import (
     recursion_card_types,
     replays_own_permanent,
     sacrifice_names_no_player,
+    settap_state,
     static_mode_field,
     static_mode_tag,
     tag_of,
@@ -1860,13 +1861,23 @@ def _recast_doer_subjects(tree: ConceptTree) -> list[tuple[str, str]]:
     back; a tuck to the library is not) and ``replay``
     (:func:`crosswalk.replays_own_permanent`, or a cost paid that way, of a
     permanent that can be other than a land), and ``permanent_etb`` ``replay``
-    for any replay."""
+    for any replay — ``land_untap`` too when a land you control returned to its
+    owner's hand pays for an untap in the same ability (Quirion Ranger, Scryb
+    Ranger, Oboro Breezecaller: the Forest-bounce untap engines; a creature
+    returned — Wirewood Symbiote's Elf — is none)."""
     found: set[str] = set()
     replays: list[object] = []
+    land_untap = False
     for unit in tree.units:
         if plays_lands_from_graveyard(unit):
             found.add("land")
-        replays.extend(_replay_costs(unit))
+        costs = _replay_costs(unit)
+        replays.extend(costs)
+        if not land_untap and any(_land_only(f) for f in costs):
+            land_untap = any(
+                tag_of(n) == "SetTapState" and settap_state(n) == "Untap"
+                for n in iter_typed_nodes(unit.node)
+            )
         # An emblem's or a granted ability's (Teyo's end-step reanimation).
         granted = iter_nested_granted_effect_concepts(unit.node)
         for c in chain(unit.effects, granted):
@@ -1905,6 +1916,8 @@ def _recast_doer_subjects(tree: ConceptTree) -> list[tuple[str, str]]:
     ]
     if replays or web_slinging:
         out.append(("permanent_etb", "replay"))
+    if land_untap:
+        out.append(("permanent_etb", "land_untap"))
     return out
 
 
@@ -2129,14 +2142,20 @@ def _pump_makers_lane(tree: ConceptTree) -> list[Signal]:
       (Kessig Wolf Run's "+X/+0", Liliana of the Dark Realms's "+X/+X") with
       no raw text to ground a positive/negative dynamic-amount tell.
 
-    Scope "you", HIGH.
+    Subject ``target`` beside it (backlog (o)): the pump lands on ONE chosen
+    creature that isn't an opponent's (Brute Force, Giant Growth) — the
+    single-target page's heroic enabler, never a team pump (Charge). Scope
+    "you", HIGH.
     """
-    if has_structural_pump_makers(tree):
-        return [Signal("pump_makers", "you", "", "", tree.name, "high")]
-    for c in tree.iter_concepts():
-        if c.concept == "synth_pump_makers":
-            return [Signal("pump_makers", "you", "", "", tree.name, "high")]
-    return []
+    if not (
+        has_structural_pump_makers(tree)
+        or any(c.concept == "synth_pump_makers" for c in tree.iter_concepts())
+    ):
+        return []
+    out = [Signal("pump_makers", "you", "", "", tree.name, "high")]
+    if has_structural_pump_makers(tree, targeted=True):
+        out.append(Signal("pump_makers", "you", "target", "", tree.name, "high"))
+    return out
 
 
 def _self_counter_grow(tree: ConceptTree) -> list[Signal]:

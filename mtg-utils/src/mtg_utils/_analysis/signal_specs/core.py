@@ -83,16 +83,28 @@ _SUBJECT_TEMPLATES = {
 _GRANT_VETO = r"(?:is|are) (?:the chosen type|every creature type)"
 
 
-def _payoff_extra(subj: str, esc: str) -> SubAvenue:
-    # Lords/anthems that REWARD a board of {subj}s. Positive shapes:
-    #   - the tribe's own lords ("{subj}s you control"),
-    #   - "shares a creature type" pumps (Shared Animosity, Coat of Arms) — any tribe,
-    #   - OPEN type-of-choice payoffs ("choose a creature type" then reward it:
-    #     Vanquisher's Banner, Door of Destinies) — work for ANY tribe,
-    #   - RESTRICTED type-of-choice payoffs that name an explicit list ("choose Elf,
-    #     Goblin, …") — credited ONLY when THIS subject is named (so Dawn-Blessed
-    #     Pennant counts for Goblin/Elf, never an unlisted tribe like Scarecrow).
-    # not_oracle drops type-GRANTERS ("are the chosen type") — enablers, not payoffs.
+def _payoff_extra(subj: str) -> SubAvenue:
+    # Lords/anthems that REWARD a board of {subj}s, read off the lanes:
+    #   - the tribe's own lords and payoffs — a filter of {subj}s that isn't an
+    #     opponent's (subtype_ref's ``you`` scope: "{subj}s you control get +1/+1",
+    #     "for each {subj} you control", "Sacrifice a {subj}") and the static
+    #     anthems over the tribe;
+    #   - "shares a creature type" pumps (Shared Animosity, Coat of Arms) — any
+    #     tribe (subtype_ref's ``shared``);
+    #   - OPEN type-of-choice payoffs (chosen_type_matters: Vanquisher's Banner, Door
+    #     of Destinies, Distant Melody, Cavern of Souls) — work for ANY tribe;
+    #   - RESTRICTED type-of-choice payoffs that name an explicit list — credited
+    #     ONLY when THIS subject is named (Dawn-Blessed Pennant counts for
+    #     Goblin/Elf, never an unlisted tribe like Scarecrow).
+    # A type-GRANTER ("are the chosen type" — Xenograft) is an enabler, the
+    # _enabler_extra's; not_oracle drops it.
+    #
+    # The pattern stays beside the structural arms (backlog (o)): what it alone
+    # pages are chosen-type punishers and type changers (no payoff) but also
+    # payoffs no read names yet — a "behold a {subj}" cost (Champion of the
+    # Weird), a chosen-type count (Caller of the Hunt), a dropped "shares a
+    # creature type" (Cryptic Gateway).
+    esc = re.escape(subj)
     positive = (
         rf"{esc}s? you control"
         r"|shares (?:a|at least one) creature type"
@@ -105,14 +117,14 @@ def _payoff_extra(subj: str, esc: str) -> SubAvenue:
         "payoffs (Coat of Arms, Door of Destinies) that work for any chosen tribe",
         serve=Serve(
             oracle=re.compile(positive, _IC),
-            # task B-1: the structural successor to the choose-a-type text
-            # arm above. Today the text arm supersets it (every chooser's
-            # oracle says "choose a creature type" somewhere) but it also
-            # credits PUNISHER choosers (Engineered Plague) — retire the text
-            # arm onto this ident once the one-shot chooser classes (Distant
-            # Melody, Cavern of Souls) get structural arms of their own.
-            signal_idents=_CHOSEN_TYPE_IDENTS | _chosen_type_named_idents((subj,)),
             not_oracle=re.compile(_GRANT_VETO, _IC),
+            signal_idents=_CHOSEN_TYPE_IDENTS
+            | _chosen_type_named_idents((subj,))
+            | {
+                f"subtype_ref|you|{subj}",
+                "subtype_ref|you|shared",
+                f"anthem_static|you|{subj}",
+            },
         ),
     )
 
@@ -324,27 +336,49 @@ _EMPTY_SUBJECT_IS_VALUE = _TYPE_CHANGER_KEYS | {signal_keys.ANIMATE_MAKERS}
 def _subject_spec(signal: Signal) -> SignalSpec:
     """Build a spec for a subject-bearing signal by interpolating the subject."""
     subj = signal.subject
-    esc = re.escape(subj)
     # keyword-tribe: the subject is an ability keyword (Flying), not a creature type —
-    # find creatures that HAVE the keyword (oracle), not a type-line match.
+    # find creatures that HAVE the keyword, not a type-line match.
+    # The bodies by their keyword (CR 702) and the cards that put it on bodies
+    # (keyword_bodies), the payoffs that count or pump them (keyword_tribe
+    # itself), and the grants that hand the keyword out. The pattern stays beside
+    # them (backlog (o)): most of what it alone pages names the keyword to fight
+    # it (reach's reminder, "destroy target creature with flying", "creatures
+    # without flying"), but a few put it on bodies keyword_bodies doesn't follow
+    # yet (Tek's land-conditioned flying, Flowstone Sculpture's keyword choice).
     if signal.key == signal_keys.KEYWORD_TRIBE:
+        kw = subj.lower()
         return SignalSpec(
             label=f"{subj} matters",
             avenue=f"creatures with {subj} plus anthems and payoffs that reward them",
-            serve=Serve(oracle=re.compile(rf"\b{esc}\b", _IC)),
+            serve=Serve(
+                oracle=re.compile(rf"\b{re.escape(subj)}\b", _IC),
+                keywords=frozenset({kw}),
+                signal_idents=frozenset(
+                    {
+                        f"{signal_keys.KEYWORD_TRIBE}|you|{subj}",
+                        f"{signal_keys.KEYWORD_TRIBE}|any|{subj}",
+                        f"keyword_bodies|you|{kw}",
+                        f"team_buff|you|{kw}",
+                        f"team_evasion_grant|you|{kw}",
+                        f"aura_equip_kw_grant|you|{kw}",
+                        f"keyword_grant_target|you|{kw}",
+                        f"all_creatures_kw_grant|any|{kw}",
+                    }
+                ),
+            ),
         )
-    # meld: the subject is THIS commander's own name. Its single meld partner names it
-    # ("(Melds with <name>.)" on the back piece, "a creature named <name>" on the front
-    # piece, CR 701.42), so serve exactly that one partner — not every meld half.
+    # meld: the subject is a card of the pair. The meld lane names each half
+    # itself and the half whose trigger melds also names its partner (the Meld
+    # node's partner, CR 701.42a), so the cards carrying this subject are the pair
+    # — not every meld half.
     if signal.key == signal_keys.MELD_PAIR:
-        partner_re = rf"(?:melds with|creature named) {esc}"
         return SignalSpec(
             label=f"Meld partner of {subj}",
             avenue=(
                 f"the specific card that melds with {subj} (plus tutors/recursion to "
                 "assemble the pair)"
             ),
-            serve=Serve(oracle=re.compile(partner_re, _IC)),
+            serve=Serve(signal_idents=frozenset({f"{signal.key}|you|{subj}"})),
         )
     # type_changers (task #96, ADR-0040): a mass creature-type changer's own
     # spec. Subject "" (chosen) / "all" (every type) is subject-agnostic — one
@@ -374,15 +408,20 @@ def _subject_spec(signal: Signal) -> SignalSpec:
     # token-maker: the deck CREATES {s} tokens, so find cards that *make* them (not the
     # tribe — searching the type line surfaced {s} creatures that don't make tokens).
     if signal.key == signal_keys.TOKEN_MAKER:
-        token_re = rf"create\b[^.]*\b{esc}\b[^.]*token"
         # A token-maker commander (Krenko → token_maker:Goblin) is a flood deck: offer
         # the creature-ETB payoffs and token doublers alongside the tribe-token payoffs.
         return SignalSpec(
             label=f"{subj} tokens",
             avenue=f"cards that create {subj} tokens to go wide",
-            serve=Serve(oracle=re.compile(token_re, _IC)),
+            # The lane's own subject: a creature token of the tribe you (or a
+            # player you pick) create.
+            serve=Serve(
+                signal_idents=frozenset(
+                    {f"{signal.key}|you|{subj}", f"{signal.key}|any|{subj}"}
+                )
+            ),
             extras=(
-                _payoff_extra(subj, esc),
+                _payoff_extra(subj),
                 _TOKEN_DOUBLER_EXTRA,
                 _ETB_PAYOFF_EXTRA,
                 _GOWIDE_ANTHEM_EXTRA,
@@ -408,14 +447,39 @@ def _subject_spec(signal: Signal) -> SignalSpec:
     # sub-avenue to pull its bodies; the widened serve credits them all.
     group = _tribal_group(subj) if is_type_tribal else None
     members = sorted(group) if group else [subj.lower()]
-    type_alt = "|".join(re.escape(m) for m in members)
     # Bodies serve: the tribe's own members (type-line) PLUS changelings ("is/are every
     # creature type", CR 702.73a — a changeling IS a member of every tribe). NOT the
     # type-GRANTERS ("is/are the chosen type"): Xenograft & co. don't BECOME a member,
     # they turn your OTHER creatures into the tribe — surfaced by the separate enabler
     # sub-avenue (_enabler_extra), never counted as a body or payoff (B1).
-    serve_oracle = rf"\b(?:{type_alt})s?\b" + (
+    # Beside the bodies, the cards that name the tribe: any filter naming a member
+    # type (subtype_ref's ``any`` scope — a lord, a tutor, a sacrifice cost, a
+    # hoser), a type it hands an object, a token of the tribe, and a static anthem
+    # over it. The pattern stays beside them (backlog (o)): it alone still pages
+    # a devour count (Voracious Dragon), an offering (Patron of the Akki) and a
+    # chosen token type (Sarpadian Empires), beside an opponent's tokens of the
+    # tribe and a protection from it.
+    serve_oracle = rf"\b(?:{'|'.join(re.escape(m) for m in members)})s?\b" + (
         r"|(?:is|are) every creature type" if is_type_tribal else ""
+    )
+    # The members in an ident subject's spelling.
+    tribes = tuple(m.capitalize() for m in members)
+    mentions = frozenset(
+        ident
+        for t in tribes
+        for ident in (
+            f"subtype_ref|any|{t}",
+            f"{signal_keys.TOKEN_MAKER}|you|{t}",
+            f"{signal_keys.TOKEN_MAKER}|any|{t}",
+            f"anthem_static|you|{t}",
+        )
+    ) | (
+        # Every creature type's: a changeling granter ("is every creature type" —
+        # Amorphous Axe, Mistform Ultimus) and a "shares a creature type" payoff
+        # (Coat of Arms).
+        frozenset({"has_changeling|you|", "subtype_ref|you|shared"})
+        if is_type_tribal
+        else frozenset()
     )
     group_extras: tuple[SubAvenue, ...] = ()
     if group:
@@ -439,7 +503,8 @@ def _subject_spec(signal: Signal) -> SignalSpec:
             # not only the oracle "Xs you control" payoff phrasing. Without this,
             # vanilla / oracle-silent members (Dread Shade, Llanowar Elves) were
             # dropped — fatal for lord-less tribes (Shade/Kraken/Yeti read 0/10).
-            types=frozenset(members) if is_type_tribal else frozenset(),
+            # A spell of the type is a "{s} spell" too (CR 205.3).
+            types=frozenset(members),
             keywords=frozenset({"changeling"}) if is_type_tribal else frozenset(),
             # Structural enabler arm (task #96, ADR-0040): a mass type-changer
             # SERVES the tribe it grows (Leyline of Transformation under a
@@ -454,17 +519,16 @@ def _subject_spec(signal: Signal) -> SignalSpec:
             # and anthems that add zero bodies to the ObjectCount it reads.
             # Type-CHANGERS stay on both tribal-bodies lanes: Maskwood Nexus
             # genuinely raises the count.
-            signal_idents=(
-                _type_changer_idents(tuple(members)) if is_type_tribal else frozenset()
-            )
+            signal_idents=mentions
+            | (_type_changer_idents(tuple(members)) if is_type_tribal else frozenset())
             | (
-                _CHOSEN_TYPE_IDENTS | _chosen_type_named_idents(tuple(members))
+                _CHOSEN_TYPE_IDENTS | _chosen_type_named_idents(tribes)
                 if signal.key == signal_keys.TYPE_MATTERS
                 else frozenset()
             ),
         ),
         extras=(
-            _payoff_extra(subj, esc),
+            _payoff_extra(subj),
             # Type-changers (Xenograft) are enablers, not payoffs/members — a distinct
             # lane, only for true tribes (type_matters), not typed-spellcast (B1).
             *((_enabler_extra(subj),) if is_type_tribal else ()),

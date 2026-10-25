@@ -23,6 +23,7 @@ from mtg_utils._analysis.tree_synthesis import ETB_TRIGGER_EVENTS
 from mtg_utils._card_ir.crosswalk import (
     AbilityUnit,
     ConceptTree,
+    _list_field,
     aggregate_filter,
     blight_placements,
     cost_reduction_count_filters,
@@ -31,6 +32,7 @@ from mtg_utils._card_ir.crosswalk import (
     counter_kind,
     counter_kind_any,
     counter_pred_kinds,
+    drains_opponents,
     effect_filter,
     effect_owner_player_scope,
     filter_controller,
@@ -38,6 +40,7 @@ from mtg_utils._card_ir.crosswalk import (
     filter_predicates,
     filter_subtypes,
     granted_keyword_names,
+    has_filter_property,
     iter_condition_sites,
     iter_cost_leaves,
     iter_mod_sites,
@@ -51,9 +54,11 @@ from mtg_utils._card_ir.crosswalk import (
     modify_cost_mode,
     modify_cost_spell_filter,
     names_attached_object,
+    negative_pt_field,
     or_arms,
     own_token_filters,
     pt_mod_signs,
+    pump_is_negative,
     recipient_tag,
     ref_count_filter,
     replacement_added_token_subtypes,
@@ -69,6 +74,7 @@ from mtg_utils._card_ir.crosswalk import (
     tag_of,
     token_creator_side,
     trigger_counter_filter,
+    watches_your_tokens,
 )
 from mtg_utils._card_ir.crosswalk.reads import chooses
 from mtg_utils._card_ir.mirror.runtime import (
@@ -1636,10 +1642,29 @@ def _token_board_payoffs(tree: ConceptTree) -> list[Signal]:
 
     Each filter carries the kind it names (:func:`typed_token_payoff_signals`):
     a creature token is the bare ``tokens_matter``, an artifact token
-    ``artifacts_matter``. Scope "you"."""
+    ``artifacts_matter``. Scope "you".
+
+    Subject ``drain`` (backlog (o)): a trigger on your tokens being made or
+    leaving the battlefield (:func:`crosswalk.watches_your_tokens`) that makes
+    an opponent lose life (:func:`crosswalk.drains_opponents`) — Mirkwood
+    Bats, Nadier's Nightblade: a token flood bleeds the table with no sacrifice
+    outlet — and an activated ability that makes a creature token and drains in
+    the same resolution (Rotwidow Pack's "Create a 1/2 green Spider creature
+    token …, then each opponent loses 1 life for each Spider you control"). A
+    death trigger on any creature (Blood Artist) is the death lane's, and a made
+    token's own ability (Kaito's Drone) is the token's."""
     out: list[Signal] = []
     if any(e.tag == "Populate" and e.yours for e in keyword_action_events(tree)):
         out.append(Signal("tokens_matter", "you", "", "", tree.name, "high"))
+    if any(
+        (
+            watches_your_tokens(u)
+            or (u.kind == "Activated" and u.has_effect("make_token"))
+        )
+        and drains_opponents(u)
+        for u in tree.units
+    ):
+        out.append(Signal("tokens_matter", "you", "drain", "", tree.name, "high"))
     for unit in tree.units:
         for filt in own_token_filters(unit):
             out.extend(
@@ -1926,28 +1951,125 @@ def _voltron_gear_pump(tree: ConceptTree) -> list[Signal]:
     maker (``_voltron_makers``), so a pump-only Aura emitted nothing. A shrink
     (Agoraphobia's -5/-0) or a mixed one is not a pump (:func:`pt_mod_signs`).
     Its own subject: the bare ``voltron_makers`` stays the attach and fetch
-    doers."""
-    if not ({s.lower() for s in tree.card_subtypes} & {"aura", "equipment"}):
-        return []
+    doers.
+
+    A bestow creature is that Aura when cast for its bestow cost (CR 702.103b:
+    Nyxborn Wolf's "Enchanted creature gets +3/+1"), and an activated or
+    triggered pump of the creature it's attached to counts too (Firebreathing's
+    "{R}: Enchanted creature gets +1/+0 until end of turn", Mantle of
+    Leadership's, Holy Frazzle-Cannon's +1/+1 counter as the equipped creature
+    attacks).
+
+    ``voltron_makers|you|power``: a mixed Aura that raises the creature's power
+    at a toughness cost ("Enchanted creature gets +2/-1" — Riot Spikes; "{R}:
+    +1/-1" — Flowstone Blade): an attacker's buff, kept apart from the pure
+    pump because the same card shrinks a small creature to death.
+
+    ``voltron_makers|you|gear`` (backlog (o)): the card makes Equipment — an
+    Equipment token (Iron Hills Blacksmith's Axe, Toggo's Rock) or an artifact
+    of yours that becomes one (Dan Lewis, Arterial Alchemy's Blood tokens)."""
+    found: dict[str, str] = {}
+    if _makes_equipment(tree):
+        found["gear"] = ""
+    # An anthem for your suited-up creatures ("Equipped creatures you control get
+    # +1/+1" — Stone Haven Outfitter) pumps whatever the gear goes on, and so does a
+    # hone counter put on your Equipment (CR 122.1j: +1/+0 to the creature it
+    # equips — Dwalin, Weaponmaster).
+    if any(
+        tag_of(n) in ("PutCounter", "PutCounterAll")
+        and counter_kind(n).lower() == "hone"
+        for n in tree.iter_typed()
+    ):
+        found.setdefault(VOLTRON_GEAR_PUMP, "")
+    for unit in tree.units:
+        for sdef in iter_static_defs(unit.node):
+            affected = getattr(sdef, "affected", None)
+            if has_filter_property(affected, "HasAttachment") and (
+                filter_controller(affected) == "You"
+            ):
+                power, toughness = pt_mod_signs(sdef)
+                if max(power, toughness) > 0 and min(power, toughness) >= 0:
+                    found.setdefault(VOLTRON_GEAR_PUMP, _site_raw(sdef))
+    gear = {s.lower() for s in tree.card_subtypes} & {"aura", "equipment"}
+    bestow = any(k.lower() == "bestow" for k in tree.card_keywords)
+    # A Licid's ability turns it into an Aura ("~ becomes an Aura enchantment
+    # with enchant creature" — Transmogrifying Licid).
+    becomes_aura = any(
+        tag_of(n) == "AddSubtype" and getattr(n, "subtype", None) == "Aura"
+        for n in tree.iter_typed()
+    )
+    if not (gear or bestow or becomes_aura):
+        return _gear_signals(found, tree)
     for unit in tree.units:
         for sdef in iter_static_defs(unit.node):
             # The creature an Equipment equips (CR 301.5a) or the object an
             # Aura enchants (CR 303.4) — "Equipped creature gets +2/+0".
             if not names_attached_object(getattr(sdef, "affected", None)):
                 continue
-            signs = pt_mod_signs(sdef)
-            if max(signs) > 0 and min(signs) >= 0:
-                return [
-                    Signal(
-                        "voltron_makers",
-                        "you",
-                        VOLTRON_GEAR_PUMP,
-                        _site_raw(sdef),
-                        tree.name,
-                        "high",
+            power, toughness = pt_mod_signs(sdef)
+            if max(power, toughness) > 0 and min(power, toughness) >= 0:
+                found.setdefault(VOLTRON_GEAR_PUMP, _site_raw(sdef))
+            elif power > 0:
+                found.setdefault(VOLTRON_GEAR_POWER, _site_raw(sdef))
+        if unit.origin not in ("ability", "trigger"):
+            continue
+        watched = getattr(unit.node, "valid_card", None)
+        for c in unit.effects:
+            target = getattr(c.node, "target", None)
+            # "Whenever equipped creature attacks, put a +1/+1 counter on that
+            # creature" (Holy Frazzle-Cannon): the creature the trigger watched.
+            if not (
+                names_attached_object(target)
+                or (
+                    tag_of(target) == "TriggeringSource"
+                    and (
+                        names_attached_object(watched)
+                        or tag_of(watched) == "AttachedTo"
                     )
-                ]
-    return []
+                )
+            ):
+                continue
+            tag = tag_of(c.node)
+            if tag == "PutCounter" and counter_kind(c.node) == "P1P1":
+                found.setdefault(VOLTRON_GEAR_PUMP, "")
+            elif tag in ("Pump", "PumpAll"):
+                if not pump_is_negative(c.node):
+                    found.setdefault(VOLTRON_GEAR_PUMP, "")
+                elif not negative_pt_field(c.node, "power"):
+                    found.setdefault(VOLTRON_GEAR_POWER, "")
+    return _gear_signals(found, tree)
+
+
+#: The subject of ``voltron_makers`` on a mixed power-up Aura (+N/-M —
+#: :func:`_voltron_gear_pump`).
+VOLTRON_GEAR_POWER = "power"
+
+
+def _gear_signals(found: dict[str, str], tree: ConceptTree) -> list[Signal]:
+    return [
+        Signal("voltron_makers", "you", subject, raw, tree.name, "high")
+        for subject, raw in found.items()
+    ]
+
+
+def _makes_equipment(tree: ConceptTree) -> bool:
+    """Whether the card makes an Equipment of yours (CR 301.5): a token whose
+    types include Equipment (Iron Hills Blacksmith, U.S.Agent's Sturdy Shield),
+    or a static that adds the Equipment subtype to your artifacts (Dan Lewis,
+    Gemcutter Buccaneer, Arterial Alchemy). An opponent's token is no gear of
+    yours."""
+    for unit in tree.units:
+        for n in iter_typed_nodes(unit.node):
+            tag = tag_of(n)
+            if (
+                tag == "Token"
+                and "Equipment" in _list_field(n, "types")
+                and token_creator_side(unit, n) in TOKEN_YOURS_SIDES
+            ):
+                return True
+            if tag == "AddSubtype" and getattr(n, "subtype", None) == "Equipment":
+                return True
+    return False
 
 
 def _voltron_equip_style_keyword(mod: TypedMirrorNode) -> bool:
