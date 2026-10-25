@@ -31,6 +31,7 @@ from mtg_utils._analysis import signal_keys
 from mtg_utils._analysis._subtypes import (
     CREATURE_SUBTYPES,
 )
+from mtg_utils._analysis.card_reads import card_read
 from mtg_utils._analysis.signal_base import (
     _GENERIC_KEYS,
     Signal,
@@ -390,6 +391,13 @@ def folded_object_records(
     return out
 
 
+@card_read("membership_free_signals")
+def _membership_free_signals(card: dict) -> tuple[Signal, ...]:
+    """CARD's signals without the membership floor — what it does, not what it is:
+    a deck card's share of :func:`_deck_signal_stats`."""
+    return tuple(extract_signals(card, include_membership=False))
+
+
 def _deck_signal_stats(
     records: Sequence[dict | None],
     commander_names: set[str],
@@ -427,7 +435,11 @@ def _deck_signal_stats(
         # Membership signals come from the COMMANDER only (see rank_deck_signals);
         # a deployment with no card data degrades to empty signals, never to
         # text-guessing.
-        sigs = extract_signals(card, include_membership=is_cmd)
+        sigs = (
+            extract_signals(card, include_membership=True)
+            if is_cmd
+            else list(_membership_free_signals(card))
+        )
         if is_cmd and resolve_object is not None:
             # Dedupe folded signals against the commander's own by ident —
             # one physical card must contribute at most 1 to support per

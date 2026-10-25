@@ -22,6 +22,7 @@ from dataclasses import dataclass
 from typing import Protocol
 
 from mtg_utils._analysis.budgets import COMMANDER_TEMPLATE, Template
+from mtg_utils._analysis.card_reads import has_trees
 from mtg_utils._analysis.job_quality import JobRead, read_for
 from mtg_utils._analysis.ranking import rank_candidates
 from mtg_utils._analysis.roles import DeckMana, role_of
@@ -30,7 +31,6 @@ from mtg_utils._analysis.signal_specs import (
     serve_page_search,
     theme_page,
 )
-from mtg_utils._card_ir.trees import trees_for
 from mtg_utils._tuner.classify import CardClass, is_premium
 from mtg_utils._tuner.issues import (
     CUT_FILLER,
@@ -235,7 +235,7 @@ def _does_the_job(
     phase pin), which its template role already vouched for, and for a read of
     part of the job (removal, of interaction) unless it reads the ``cut``."""
     read = read_for(job)
-    if read is None or not trees_for(card, bulk=card):
+    if read is None or not has_trees(card):
         return True
     if not read.whole_job and (cut is None or read.score(cut) is None):
         return True
@@ -702,6 +702,18 @@ class _GameChangerRoom:
         self.room += bool(cut is not None and cut.record.get("game_changer"))
 
 
+def search_key(spec: Mapping[str, object]) -> tuple:
+    """What :func:`_run_search` reads of ``spec`` — its public keys and its
+    ``_serve`` — as a memo key: two specs that differ only in what the tuner does
+    with the page after (a ``_filter``, the ``_avenue`` it is credited to) are one
+    search."""
+    return tuple(
+        sorted(
+            (k, v) for k, v in spec.items() if not k.startswith("_") or k == "_serve"
+        )
+    )
+
+
 def _run_search(
     search_fn: Callable[..., list[dict]],
     spec: dict,
@@ -994,7 +1006,7 @@ def propose_swaps(
         """The spec's search, its first ``limit`` cards. One search per spec at
         the deepest page asked so far: the search sorts before it pages, so a
         shorter page is the deeper one's head."""
-        skey = (tuple(sorted(spec.items())), capped)
+        skey = (search_key(spec), capped)
         deep = _search_memo.get(skey)
         if deep is None or deep[0] < limit:
             deep = (

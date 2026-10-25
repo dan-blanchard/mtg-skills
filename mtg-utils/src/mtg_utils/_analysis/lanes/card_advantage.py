@@ -9,6 +9,7 @@ from collections.abc import Sequence
 from typing import Literal, get_args
 
 from mtg_utils._analysis._sweep_detectors import TOPDECK_STACK_SWEEP_REGEX
+from mtg_utils._analysis.card_reads import card_read
 from mtg_utils._analysis.lanes._shared import (
     _GRANT_ABILITY_MOD_TAGS,
     _PT_COUNTER_KINDS,
@@ -1263,6 +1264,7 @@ def _self_recurring(tree: ConceptTree) -> list[Signal]:
     return []
 
 
+@card_read("self_return_routes")
 def card_self_return_routes(card: dict) -> frozenset[SelfReturnRoute]:
     """CARD's :func:`self_return_routes` across every face."""
     from mtg_utils._card_ir.trees import trees_for

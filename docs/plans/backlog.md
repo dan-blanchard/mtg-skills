@@ -289,15 +289,29 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   cards); a coin-flip-gated self-exile-and-return (Frenetic Sliver) is a blink
   though the effect walk drops it as the card's own drawback, but one returning
   the card transformed (Ral, Monsoon Mage) is the transform vehicle.
-  (l) **Tune speed, what's left** (2026-10-25, a warm Blood Rites tune's
-  profile). By size: the ranking's synergy read of ~1,000 distinct candidates
-  (`score_candidate`, 1.15 s, most of it `Serve.matches` computing a card's
-  idents once per deck spec); the corrected trees built for ~1,500 deck,
-  candidate and gate cards (`build_trees`, 1.1 s); the pages' scan of the
-  in-identity slice (1.0 s); and the deck's own membership-free signals
-  (`read_deck_signals`, 81 live `extract_signals`, 0.66 s: the index stores only
-  the membership-inclusive set). `deck-tune` also asks Commander Spellbook live
-  (about 1 s). A per-serve slice memo measured no gain (two serve pages a tune).
+  (l) **Tune speed, what's left** (2026-10-25, after the speed pass that took a
+  warm Blood Rites `deck-tune` from 5.0 to 2.9 s; the 25 precons' warm tunes,
+  each in a fresh process with the sidecars attached, 2.4 / 3.5 → 1.0 / 1.7 s
+  median / max; the precon audit, which attaches none, 6.3 / 11.8 → 5.4 / 10.1
+  s). By size: Commander Spellbook's latency (0.5–1.2 s, now longer
+  than the deck reads it overlaps in `tune()` — started before the CLI's seed and
+  attaches it would hide ~0.4 s more); imports (0.4 s, 0.28 of it the generated
+  phase-mirror dataclasses); `Serve.matches` per deck spec per candidate (~100 ×
+  1,000–2,500, record reads only now — a per-card view of the type line,
+  keywords and idents would cut it); the trees `is_wincon_card` builds for a
+  closer page's ~150 cards (its `Game` is an input, so no per-card memo); every
+  other deck CLI (`deck-signals`, `deck-rank`, `proposal-check`) still pays the
+  ~1 s exit collection `deck-tune` skips; and `write_back.flush` re-reads the
+  whole sidecar to merge at exit. Persisting the corrected trees themselves is
+  open and promising: unpickling a card's trees took 0.02 ms against 1.06 ms to
+  build them (600 cards, 3.5 KB a card pickled), so a per-oracle_id lazy store
+  like the phase-records sidecar would take the remaining builds and most of a
+  cold tune's (check first that a pickled tree reads as the built one; the
+  per-card reads in `_analysis/card_reads` would then be redundant). Don't
+  re-suggest: a per-serve slice memo (no gain, two serve pages a tune); the
+  collector off for the whole tune (a tune may start the signals index's
+  whole-pool build, which makes ~50 cyclic objects a card — the tune collects at
+  a 100,000 young threshold instead, measured as fast).
 
 - **Competitive Brawl's "banned as a commander" reads as `restricted`.** The
   2026-10-12 B&R update introduced the category (mtg.wiki "Competitive Brawl"

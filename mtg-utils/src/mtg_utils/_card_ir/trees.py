@@ -68,6 +68,9 @@ class PhaseRecordIndex:
     def __len__(self) -> int:
         return len(self._blobs)
 
+    def __contains__(self, oid: object) -> bool:
+        return oid in self._blobs
+
 
 def _records_sidecar_key() -> int:
     """What the records sidecar was grouped by: the content of the grouping code
@@ -128,22 +131,16 @@ def _record_blobs(card_data: Path) -> dict[str, bytes]:
 def _group_blobs(card_data: Path) -> dict[str, bytes]:
     """``card_data``'s records grouped by oracle_id
     (``_card_ir.build._group_by_oracle_id``), each group as its own JSON."""
-    import gc
-
+    from mtg_utils import _gc
     from mtg_utils._card_ir.build import _group_by_oracle_id
 
     # Decoding the ~100 MB file allocates millions of containers, which trip
     # full collections that each walk the whole heap (the bulk pool included);
     # JSON builds no reference cycles, so nothing collectable waits while the
     # collector is paused.
-    collecting = gc.isenabled()
-    gc.disable()
-    try:
+    with _gc.paused():
         groups = _group_by_oracle_id(json.loads(card_data.read_bytes()))
         return {oid: json.dumps(recs).encode() for oid, recs in groups.items()}
-    finally:
-        if collecting:
-            gc.enable()
 
 
 @functools.cache
@@ -192,6 +189,8 @@ _TREES_MEMO: dict[str, tuple[ConceptTree, ...]] = {}
 # phase-uncovered objects) — a SEPARATE memo so the fold path and the plain
 # path can't poison each other regardless of call order (2026-07-25 review).
 _TEXT_ONLY_FALLBACK_MEMO: dict[str, tuple[ConceptTree, ...]] = {}
+# oracle_id -> :func:`reads_bulk_faces`'s answer.
+_BULK_FACES_MEMO: dict[str, bool] = {}
 
 
 def clear_caches() -> None:
@@ -206,6 +205,7 @@ def clear_caches() -> None:
     _TREES_MEMO.clear()
     _TEXT_ONLY_FALLBACK_MEMO.clear()
     _RECORDS_MEMO.clear()
+    _BULK_FACES_MEMO.clear()
 
 
 # ── ADR-0038 W2c — text-only face trees ────────────────────────────────────
@@ -884,6 +884,7 @@ def seed_records(oid: str, recs: Sequence[dict]) -> None:
     """Pre-populate the phase records :func:`phase_records_for` serves
     (testkit only — production reads ``_phase_record_index``)."""
     _RECORDS_MEMO[oid] = tuple(recs)
+    _BULK_FACES_MEMO.pop(oid, None)
 
 
 def phase_records_for(oid: str) -> tuple[dict, ...]:
@@ -896,11 +897,47 @@ def phase_records_for(oid: str) -> tuple[dict, ...]:
     return tuple(recs or ())
 
 
+def memoized_trees(oid: str) -> tuple[ConceptTree, ...] | None:
+    """The trees memo's entry for ``oid`` — ``None`` when none is built yet —
+    without building one: a per-card memo over these trees keeps the entry it read
+    and is valid while it is still the memo's (``_analysis.card_reads``)."""
+    return _TREES_MEMO.get(oid)
+
+
 def has_memoized_trees(oid: str) -> bool:
     """Whether the trees memo holds non-empty trees for ``oid`` (testkit only: a
     seed is skipped when real trees are already there; an empty entry, memoized
     when no phase data was available, is re-seeded)."""
-    return bool(_TREES_MEMO.get(oid))
+    return bool(memoized_trees(oid))
+
+
+def reads_bulk_faces(card: dict) -> bool:
+    """Whether ``trees_for(card, bulk=card)`` holds a text-only tree that
+    ``trees_for(card)`` doesn't: a two-face card with a face phase has no record
+    for (:func:`_text_only_trees`). The trees memo keeps whichever call builds
+    first, so such a card's trees depend on the order it is read in; a per-card
+    memo over them (``_analysis.card_reads``) reads it live, as the callers did."""
+    faces = card.get("card_faces") or ()
+    if len(faces) != 2 or card.get("layout") in _TEXT_ONLY_EXCLUDED_LAYOUTS:
+        return False
+    oid = card.get("oracle_id") or ""
+    held = _BULK_FACES_MEMO.get(oid)
+    if held is None:
+        recs = phase_records_for(oid)
+        held = bool(recs) and bool(_text_only_trees(card, recs, oracle_id=oid))
+        _BULK_FACES_MEMO[oid] = held
+    return held
+
+
+def has_phase_records(oid: str) -> bool:
+    """Whether :func:`phase_records_for` has records for ``oid``, without decoding
+    them: the gate a persisted per-card read keeps, so a process with no phase
+    data never stores its empty answers (``_analysis.card_reads``)."""
+    recs = _RECORDS_MEMO.get(oid)
+    if recs is not None:
+        return bool(recs)
+    index = _phase_record_index()
+    return index is not None and oid in index
 
 
 def trees_for(

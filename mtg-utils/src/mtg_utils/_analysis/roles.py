@@ -24,9 +24,9 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING
 
 from mtg_utils._analysis._subtypes import CREATURE_SUBTYPES, LAND_SUBTYPES
+from mtg_utils._analysis.card_reads import card_read, has_trees
 from mtg_utils._analysis.tree_synthesis.mechanics_misc import OUTLAW_SUBTYPES
 from mtg_utils._card_ir.compat_lookup import ir_for
 from mtg_utils._card_ir.crosswalk.reads import (
@@ -40,9 +40,6 @@ from mtg_utils._card_ir.trees import object_facts, trees_for
 from mtg_utils.card_classify import is_land, ramp_by_text, removal_reach_by_text
 from mtg_utils.card_ir import Card
 from mtg_utils.theme_presets import get_preset, has_signal_coverage
-
-if TYPE_CHECKING:
-    from mtg_utils._card_ir.mirror.runtime import TypedMirrorNode
 
 # Targeted removal + counterspells fold together into one `interaction` role (ADR-0024).
 # creature-edict (forced sacrifice — Diabolic Edict, Fleshbag) is removal that bypasses
@@ -231,21 +228,16 @@ class DeckMana:
 
     def _first_dead_reason(self, card: Mapping) -> str | None:
         first: str | None = None
-        for tree in trees_for(dict(card)):
-            for unit in tree.units:
-                for node in unit.iter_typed():
-                    if tag_of(node) != "Mana":
-                        continue
-                    reason = self._dead_reason(node)
-                    if reason is None:
-                        return None
-                    first = first or reason
+        for kind, spell_type in _mana_effects(card):
+            reason = self._dead_reason(kind, spell_type)
+            if reason is None:
+                return None
+            first = first or reason
         return first
 
-    def _dead_reason(self, node: TypedMirrorNode) -> str | None:
-        if produced_kind(node) in _DECK_COLORED_MANA and self.identity == frozenset():
+    def _dead_reason(self, kind: str, spell_type: str) -> str | None:
+        if kind in _DECK_COLORED_MANA and self.identity == frozenset():
             return "makes no mana under a colorless commander"
-        spell_type = mana_spell_type_restriction(node)
         if spell_type and not self._can_spend(spell_type):
             return (
                 f"its mana can only cast {spell_type.lower()} spells, and neither a "
@@ -263,6 +255,20 @@ class DeckMana:
                 _restriction_admits(spell_type, c) for c in self.commanders
             ) or (total > 0 and usable / total >= _RESTRICTED_MANA_SHARE)
         return self._usable[spell_type]
+
+
+@card_read("mana_effects")
+def _mana_effects(card: Mapping) -> tuple[tuple[str, str], ...]:
+    """Each ``Mana`` effect of the card's, in order, as what :meth:`DeckMana.dead_mana`
+    reads of it: the kind it produces (``produced_kind``) and the spell type its
+    mana is limited to (``mana_spell_type_restriction``, ``""`` for none)."""
+    return tuple(
+        (produced_kind(node), mana_spell_type_restriction(node))
+        for tree in trees_for(dict(card))
+        for unit in tree.units
+        for node in unit.iter_typed()
+        if tag_of(node) == "Mana"
+    )
 
 
 def _ir_draws(ir: Card) -> bool:
@@ -401,7 +407,7 @@ def is_interaction(card: dict) -> bool:
     vs 404.1), so no consumer-side veto is needed."""
     return bool(
         _matches_any(card, _INTERACTION_PRESETS)
-        or (not trees_for(card, bulk=card) and removal_reach_by_text(card).removes)
+        or (not has_trees(card) and removal_reach_by_text(card).removes)
     )
 
 
@@ -426,6 +432,7 @@ def protects(card: dict) -> bool:
     return _matches_preset(card, "protects-board")
 
 
+@card_read("mana_gated")
 def _conditionally_gated(card: dict) -> bool:
     """Every ability of the card's that adds mana or makes a Treasure may be
     activated only while a condition holds (``crosswalk.mana_ability_gates``: Mox

@@ -5,7 +5,8 @@ from __future__ import annotations
 import json
 import re
 import threading
-from collections.abc import Callable, Iterable, Sequence
+from array import array
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -298,9 +299,15 @@ def _matches_card(card: dict, q: _PageQuery) -> bool:
     return q.partner_of is None or can_partner(q.partner_of, card)
 
 
+def _reads_printings(q: _PageQuery) -> bool:
+    """Whether :func:`_matches_printing` can turn a printing away for ``q``."""
+    return q.price_min is not None or q.price_max is not None or q.is_commander_filter
+
+
 def _matches_printing(card: dict, q: _PageQuery, *, fmt: Format) -> bool:
     """The page's filters that read the printing: its price, and the commander
-    gate (legality, which a record carries per printing)."""
+    gate (legality, which a record carries per printing). Read only where
+    :func:`_reads_printings` says it can fail."""
     price = _extract_price(card)
     if q.price_min is not None and (price is None or price < q.price_min):
         return False
@@ -318,26 +325,46 @@ def _matches_printing(card: dict, q: _PageQuery, *, fmt: Format) -> bool:
     )
 
 
-def _scan(gated: Iterable[dict], q: _PageQuery, *, fmt: Format) -> list[dict]:
+def _card_index(cards: Sequence[dict]) -> array[int]:
+    """For each printing in ``cards``, the index of its card's first printing
+    there: one card is one oracle_id and name, and a printing with no oracle_id
+    is a card of its own."""
+    first: dict[tuple[str, str], int] = {}
+    out = array("I")
+    for i, card in enumerate(cards):
+        oid = card.get("oracle_id") or ""
+        out.append(first.setdefault((oid, card.get("name") or ""), i) if oid else i)
+    return out
+
+
+def _scan(
+    gated: Sequence[dict],
+    q: _PageQuery,
+    *,
+    fmt: Format,
+    card_index: array[int] | None = None,
+) -> list[dict]:
     """The gated records that pass the page's filters, in order. The card's
-    filters run once per card, not per printing: a slice holds a few printings of
-    each card, and every field those filters read — text, type line, faces,
-    keywords, mana cost and value, stats, what the card does (its idents and
-    trees, per oracle_id) — is the card's (2026-10-25: no such field differs
-    between two printings of one oracle_id and name in the bulk). The verdicts
-    live for this call only."""
-    verdicts: dict[tuple[str, str], bool] = {}
+    filters run once per card, not per printing (``card_index``, the slice's
+    :func:`_card_index`): a slice holds a few printings of each card, and every
+    field those filters read — text, type line, faces, keywords, mana cost and
+    value, stats, what the card does (its idents and trees, per oracle_id) — is
+    the card's (2026-10-25: no such field differs between two printings of one
+    oracle_id and name in the bulk). The verdicts live for this call only."""
+    if card_index is None:
+        card_index = _card_index(gated)
+    printings = _reads_printings(q)
+    # Per printing, its card's verdict: 0 not read yet, 1 fails, 2 passes.
+    verdicts = bytearray(len(gated))
     matched = []
-    for card in gated:
-        key = (card.get("oracle_id") or "", card.get("name") or "")
-        ok = verdicts.get(key) if key[0] else None
-        if ok is False or not _matches_printing(card, q, fmt=fmt):
+    for i, card in enumerate(gated):
+        first = card_index[i]
+        ok = verdicts[first]
+        if ok == 1 or (printings and not _matches_printing(card, q, fmt=fmt)):
             continue
-        if ok is None:
-            ok = _matches_card(card, q)
-            if key[0]:
-                verdicts[key] = ok
-        if ok:
+        if ok == 0:
+            ok = verdicts[first] = 2 if _matches_card(card, q) else 1
+        if ok == 2:
             matched.append(card)
     return matched
 
@@ -471,17 +498,22 @@ class _GateKey:
 # be mutated while it is searched (no caller does: the bulk path pages the cached
 # playable pool, a pool-bounded build a fresh list per request). Bounded, the
 # oldest entry first, and locked: the hub's Find and Tune run in a thread pool.
-_GATE_CACHE: dict[tuple[int, int, _GateKey], tuple[Sequence[dict], list[dict]]] = {}
+_GATE_CACHE: dict[
+    tuple[int, int, _GateKey], tuple[Sequence[dict], list[dict], array[int]]
+] = {}
 _GATE_CACHE_MAX = 16
 _GATE_LOCK = threading.Lock()
 
 
-def _gated(records: Sequence[dict], gate: _GateKey, *, fmt: Format) -> list[dict]:
-    """The records that pass ``gate``, memoized per records list."""
+def _gated(
+    records: Sequence[dict], gate: _GateKey, *, fmt: Format
+) -> tuple[list[dict], array[int]]:
+    """The records that pass ``gate`` and their grouping by card
+    (:func:`_card_index`), memoized per records list."""
     key = (id(records), len(records), gate)
     hit = _GATE_CACHE.get(key)
     if hit is not None and hit[0] is records:
-        return hit[1]
+        return hit[1], hit[2]
     colors = set(gate.colors) if gate.colors is not None else None
     passed = [
         card
@@ -497,11 +529,12 @@ def _gated(records: Sequence[dict], gate: _GateKey, *, fmt: Format) -> list[dict
             set_lower=gate.set_lower,
         )
     ]
+    index = _card_index(passed)
     with _GATE_LOCK:
         while len(_GATE_CACHE) >= _GATE_CACHE_MAX:
             del _GATE_CACHE[next(iter(_GATE_CACHE))]
-        _GATE_CACHE[key] = (records, passed)
-    return passed
+        _GATE_CACHE[key] = (records, passed, index)
+    return passed, index
 
 
 def filter_records(
@@ -581,7 +614,8 @@ def filter_records(
         unreleased=unreleased,
         is_commander_filter=is_commander_filter,
     )
-    matched = _scan(_gated(records, gate, fmt=fmt), query, fmt=fmt)
+    gated, index = _gated(records, gate, fmt=fmt)
+    matched = _scan(gated, query, fmt=fmt, card_index=index)
 
     # Deduplicate by name, keeping the cheapest printing (shared acquisition-cost rule:
     # a priced printing beats a price-less one, cheapest among priced).

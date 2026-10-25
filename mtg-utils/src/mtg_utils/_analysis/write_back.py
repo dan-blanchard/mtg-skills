@@ -16,6 +16,7 @@ of them starts the cache over. Nothing attached, the memos are in-process only.
 from __future__ import annotations
 
 import atexit
+import hashlib
 import pickle
 import threading
 from pathlib import Path
@@ -163,6 +164,17 @@ class WriteBackMemo:
         """Memoize ``value`` and record it for the write-back."""
         self.local[key] = value
         self.record(key, value)
+
+
+def content_key(tag: str, *roots: str) -> str:
+    """An owner's code identity for its sidecar: the signal path's content hash
+    (``signals_index.content_hash``, its import closure walked from ``roots`` too:
+    the modules whose values the owner persists) with ``tag``, the owner's payload
+    version."""
+    from mtg_utils._analysis import signals_index
+
+    digest = signals_index.content_hash(*roots)
+    return hashlib.sha256(f"{digest}|{tag}".encode()).hexdigest()
 
 
 def _read(path: Path, key: object) -> dict[str, dict[Hashable, object]]:

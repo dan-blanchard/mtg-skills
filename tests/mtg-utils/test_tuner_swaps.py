@@ -21,6 +21,7 @@ from mtg_utils._tuner.swaps import (
     _upgrades,
     cut_candidates,
     propose_swaps,
+    search_key,
 )
 from mtg_utils.testkit import test_card
 from mtg_utils.theme_presets import get_preset
@@ -2512,3 +2513,22 @@ def test_past_the_share_with_nothing_inside_it_a_near_tie_goes_to_the_cheaper_ca
     the slot."""
     assert _murder_upgrade(14, "3.00", 10.0) == ["Path to Exile"]
     assert _murder_upgrade(40, "3.00", 10.0) == ["Swords to Plowshares"]
+
+
+def test_specs_that_differ_after_the_search_are_one_search():
+    """A remedy's page and the same page with a tuner-side filter, or credited to
+    an avenue, run one search (``search_key``: what ``_run_search`` reads); a
+    different serve, card type or band is another search."""
+    serve = spec_for(_type_sig("artifacts_matter")).serve
+    page = {"card_type": "Vampire", "_serve": serve}
+    same = [
+        {**page, "_filter": is_reliable_ramp},
+        {**page, "_avenue": "Vampire tribal", "_share": 0.2},
+    ]
+    assert all(search_key(s) == search_key(page) for s in same)
+    other = [
+        {**page, "_serve": None},
+        {**page, "card_type": "Goblin"},
+        {**page, "cmc_max": 3},
+    ]
+    assert all(search_key(s) != search_key(page) for s in other)

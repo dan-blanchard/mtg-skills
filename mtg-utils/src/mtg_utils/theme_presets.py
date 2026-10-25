@@ -110,6 +110,7 @@ from pathlib import Path
 from types import MappingProxyType
 from typing import TYPE_CHECKING
 
+from mtg_utils import _gc
 from mtg_utils.card_classify import get_oracle_text, is_land
 
 if TYPE_CHECKING:
@@ -445,10 +446,14 @@ def seed_signal_key_index(bulk_path: Path | None) -> bool:
         sidecar = load_signals_sidecar(path)
         if sidecar is None:
             return False
-        for oid, idents in sidecar.index.items():
-            remember_signal_idents(oid, idents)
-        for oid, names in sidecar.concepts.items():
-            _CONCEPT_INDEX.setdefault(oid, frozenset(names))
+        # The collector paused: the seed makes sets for each of ~40,000 cards and
+        # no garbage, and with it on, its collections over the heap cost more than
+        # the seed's own work.
+        with _gc.paused():
+            for oid, idents in sidecar.index.items():
+                remember_signal_idents(oid, idents)
+            for oid, names in sidecar.concepts.items():
+                _CONCEPT_INDEX.setdefault(oid, frozenset(names))
         _SEEDED_BULK_IDENTITIES.add(identity)
     return True
 

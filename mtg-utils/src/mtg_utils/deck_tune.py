@@ -22,7 +22,8 @@ from pathlib import Path
 
 import click
 
-from mtg_utils import card_search, combo_search
+from mtg_utils import _gc, card_search, combo_search
+from mtg_utils._analysis.card_reads import attach_card_read_sidecar
 from mtg_utils._analysis.ident_provenance import attach_provenance_sidecar
 from mtg_utils._analysis.job_quality import attach_job_read_sidecar
 from mtg_utils._tuner.tune import TuneParams, tune
@@ -180,15 +181,17 @@ def main(
             )
     else:
         search = functools.partial(card_search.search_cards, bulk_path)
-        # The ranking's per-ability attribution and the job reads' card values,
-        # persisted across tunes over this bulk (each a third of a precon tune
-        # when computed live), and the signals index the presets read, seeded
-        # before the tune reads the deck's own cards (the first preset page
-        # would seed it anyway, after the classification paid a live signal
-        # extraction for each of them) — the hub's warm-up, in its order.
+        # The ranking's per-ability attribution, the job reads' card values and
+        # the other per-card tree reads (``card_reads``), persisted across tunes
+        # over this bulk (each a third of a precon tune when computed live), and
+        # the signals index the presets read, seeded before the tune reads the
+        # deck's own cards (the first preset page would seed it anyway, after the
+        # classification paid a live signal extraction for each of them) — the
+        # hub's warm-up, in its order.
         seed_signal_key_index(bulk_path)
         attach_provenance_sidecar(bulk_path)
         attach_job_read_sidecar(bulk_path)
+        attach_card_read_sidecar(bulk_path)
     by_name = hd.by_name
 
     def combos_fn(deck: dict) -> dict:
@@ -218,3 +221,6 @@ def main(
         click.echo(f"deck-tune: wrote {output}")
     else:
         click.echo(text)
+    # The process exits next: the interpreter's final collection would only walk
+    # the pool and the trees (about 1 s), which die with it.
+    _gc.skip_exit_collection()

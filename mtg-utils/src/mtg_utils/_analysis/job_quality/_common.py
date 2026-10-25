@@ -5,12 +5,11 @@ the constants two or more reads agree on."""
 from __future__ import annotations
 
 import dataclasses
-import hashlib
 import json
 from typing import TYPE_CHECKING
 
 from mtg_utils._analysis.costs import effective_mana_value
-from mtg_utils._analysis.write_back import WriteBackSidecar
+from mtg_utils._analysis.write_back import WriteBackSidecar, content_key
 from mtg_utils._card_ir.crosswalk import ENTERS_EVENTS, iter_cost_leaves, tag_of
 from mtg_utils._card_ir.trees import phase_records_for
 
@@ -165,16 +164,14 @@ JOB_READS_SIDECAR_VERSION = 1
 def _job_reads_content_key() -> str:
     """The content hash of the code a job read's value is computed by: every
     ``.py`` file the signal path (its lanes, tree synthesis, the phase pin) and
-    the reads themselves import (``signals_index.content_hash`` walked from this
+    the reads themselves import (``write_back.content_key``, walked from this
     package too). As for the signals index, a data file under ``mtg_utils/data``
     is not hashed: an edit there that changes a read bumps
     :data:`JOB_READS_SIDECAR_VERSION`."""
-    from mtg_utils._analysis import signals_index
-
-    digest = signals_index.content_hash("mtg_utils._analysis.job_quality")
-    return hashlib.sha256(
-        f"{digest}|job_reads_version:{JOB_READS_SIDECAR_VERSION}".encode()
-    ).hexdigest()
+    return content_key(
+        f"job_reads_version:{JOB_READS_SIDECAR_VERSION}",
+        "mtg_utils._analysis.job_quality",
+    )
 
 
 #: ``<bulk>.job-reads.pkl``: the reads' deck-free per-card values, persisted

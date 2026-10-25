@@ -393,9 +393,9 @@ def _hit_clauses(
     if not idents:
         return (), {}
     units = [
-        (_norm_raw(text), _unit_role(unit.origin, emitted))
+        (_norm_raw(unit.description), _unit_role(unit.origin, emitted))
         for unit, emitted in emitting_units(card, idents)
-        if isinstance(text := getattr(unit.node, "description", None), str) and text
+        if unit.description
     ]
     if not units:
         return (), {}

@@ -100,8 +100,8 @@ def _phase_records_sidecar_in_tmp(monkeypatch, tmp_path_factory):
 @pytest.fixture(autouse=True)
 def _no_write_back_sidecars():
     """No test leaves a write-back sidecar attached for the tests after it:
-    ``deck-tune --bulk-data`` attaches the ident-provenance and job-read ones
-    process-wide (``write_back.WriteBackSidecar``), and an attachment would serve
+    ``deck-tune --bulk-data`` attaches the ident-provenance, job-read and
+    card-read ones process-wide (``write_back.WriteBackSidecar``), and an attachment would serve
     the next test a stale value and write the run's into the fixture bulk's
     sidecar at exit. Each test starts and ends detached, so the exit write has
     nothing to write."""

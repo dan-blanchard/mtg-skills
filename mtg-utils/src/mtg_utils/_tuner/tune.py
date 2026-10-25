@@ -9,9 +9,11 @@ from __future__ import annotations
 
 from collections import Counter
 from collections.abc import Callable, Mapping, Sequence
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING
 
+from mtg_utils import _gc
 from mtg_utils._analysis.budgets import banded_slot_budgets, template_for
 from mtg_utils._analysis.multipliers import commander_multipliers
 from mtg_utils._analysis.signals import read_deck_signals
@@ -160,6 +162,10 @@ def _focus_public(focus_r: dict) -> dict:
     return {k: v for k, v in focus_r.items() if not k.startswith("_")}
 
 
+# A tune builds trees, reads and pages beside the card pool's millions of
+# containers and makes little cyclic garbage: at the default pace the collector
+# mostly walks them (``_gc``).
+@_gc.relaxed()
 def tune(
     hd: HydratedDeck,
     *,
@@ -227,8 +233,29 @@ def tune(
     overflow = max(0, total - deck_size) if exact else 0
     shortfall = max(0, deck_size - total)
 
-    mana = mana_audit(hd)
-    combos = combos_or_none(combos_fn, deck)
+    # Commander Spellbook is a network round-trip (about 0.5 s): it runs beside the
+    # deck's own reads below, none of which needs its answer.
+    with ThreadPoolExecutor(max_workers=1) as spellbook:
+        combos_job = spellbook.submit(combos_or_none, combos_fn, deck)
+        mana = mana_audit(hd)
+
+        # ADR-0029: resolve signals through the Card IR (regex fallback when no
+        # sidecar). One extraction pass yields both the ranked signals and the
+        # task-#101 emerging-tribal payoff subjects.
+        # The counted deck (commanders + main deck): a sideboard never shapes the
+        # avenues or the classes.
+        read = read_deck_signals(
+            hd.deck_records(), commander_names, resolve_object=resolve_object
+        )
+        deck_signals, payoff_subjects = read.ranked, read.payoff_subjects
+        deck_mana = hd.deck_mana
+        # ADR-0059: the ladder is a digital deck's population, so only a digital
+        # build reads its meta archetype.
+        meta = params.meta if medium_is_digital(game.medium) else None
+        classes = classify_deck(
+            hd, deck_signals, commander_names, deck_mana=deck_mana, meta=meta
+        )
+        combos = combos_job.result()
     combo_count = len((combos or {}).get("combos") or [])
     # Cards in a combo line are protected from the cut proposer (ADR-0029): the
     # deterministic core must not quietly cut a combo piece.
@@ -237,23 +264,6 @@ def tune(
         for combo in (combos or {}).get("combos") or []
         for name in combo.get("cards") or []
     }
-
-    # ADR-0029: resolve signals through the Card IR (regex fallback when no
-    # sidecar). One extraction pass yields both the ranked signals and the
-    # task-#101 emerging-tribal payoff subjects.
-    # The counted deck (commanders + main deck): a sideboard never shapes the
-    # avenues or the classes.
-    read = read_deck_signals(
-        hd.deck_records(), commander_names, resolve_object=resolve_object
-    )
-    deck_signals, payoff_subjects = read.ranked, read.payoff_subjects
-    deck_mana = hd.deck_mana
-    # ADR-0059: the ladder is a digital deck's population, so only a digital build
-    # reads its meta archetype.
-    meta = params.meta if medium_is_digital(game.medium) else None
-    classes = classify_deck(
-        hd, deck_signals, commander_names, deck_mana=deck_mana, meta=meta
-    )
     # The curve the deck actually plays: each nonland at its effective cost (a warp or
     # evoke card at the cheaper cost), so shape and efficiency read the real speed.
     nonland = [c for c in classes if c.bucket != "land"]

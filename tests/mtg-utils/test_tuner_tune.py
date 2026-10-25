@@ -64,6 +64,28 @@ def _hd(deck_size=100):
     return HydratedDeck.from_parsed(deck, by_name=_INDEX)
 
 
+def test_a_tune_asks_spellbook_at_the_relaxed_pace_and_restores_it():
+    """``tune`` collects at ``_gc.RELAXED_THRESHOLD`` (its Commander Spellbook
+    request among the work it does meanwhile) and leaves the interpreter's own
+    pace; the request is the deck's, asked once."""
+    import gc
+
+    from mtg_utils import _gc
+
+    before = gc.get_threshold()
+    asked = []
+
+    def combos(deck):
+        asked.append((deck["commanders"][0]["name"], gc.get_threshold()[0]))
+        return {"combos": [], "near_misses": []}
+
+    tune(
+        _hd(), search_fn=_fake_search, params=TuneParams(max_swaps=0), combos_fn=combos
+    )
+    assert asked == [("Krenko, Mob Boss", _gc.RELAXED_THRESHOLD)]
+    assert gc.get_threshold() == before
+
+
 def test_diagnostic_only_returns_scorecard_no_swaps():
     out = tune(_hd(), search_fn=_fake_search, params=TuneParams(max_swaps=0))
     sc = out["scorecard"]

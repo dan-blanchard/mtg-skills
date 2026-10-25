@@ -87,12 +87,11 @@ def test_keys_are_tree_and_unit_ordinals():
         assert isinstance(ui, int)
 
 
-def _detach(monkeypatch) -> None:
+def _detach() -> None:
     """A fresh process: nothing attached, nothing memoized."""
     from mtg_utils._analysis import ident_provenance
 
     ident_provenance._detach()
-    monkeypatch.setattr(ident_provenance, "_UNIT_IDENTS_MEMO", {})
 
 
 def test_the_provenance_sidecar_serves_what_a_process_wrote_back(monkeypatch, tmp_path):
@@ -105,25 +104,36 @@ def test_the_provenance_sidecar_serves_what_a_process_wrote_back(monkeypatch, tm
     bulk = tmp_path / "AllPrintings.json"
     bulk.write_text("[]")
     live = _attribution("Myr Galvanizer")
+    idents = frozenset().union(*live.values())
+    live_units = ident_provenance.emitting_units(test_card("Myr Galvanizer"), idents)
+    assert live_units
 
-    _detach(monkeypatch)
+    _detach()
     assert ident_provenance.attach_provenance_sidecar(bulk)
     assert unit_idents_for(test_card("Myr Galvanizer")) == live
     ident_provenance.flush_provenance_sidecar()
     assert (tmp_path / "AllPrintings.json.provenance.pkl").is_file()
 
-    _detach(monkeypatch)
+    _detach()
     ident_provenance.attach_provenance_sidecar(bulk)
 
     def no_lane_run(*_a, **_k):
         raise AssertionError("served from the sidecar, never recomputed")
 
     monkeypatch.setattr(ident_provenance, "extract_crosswalk_signals", no_lane_run)
+    # Served, the emitting units' facts need no trees either.
+    monkeypatch.setattr(ident_provenance, "trees_for", no_lane_run)
     assert unit_idents_for(test_card("Myr Galvanizer")) == live
+    assert (
+        ident_provenance.emitting_units(test_card("Myr Galvanizer"), idents)
+        == live_units
+    )
 
     bulk.write_text("[ ]")  # another bulk: another key
     assert ident_provenance.attach_provenance_sidecar(bulk)
     assert (
-        ident_provenance._PERSISTED.persisted(test_card("Myr Galvanizer")["oracle_id"])
+        ident_provenance._SIDECAR.served(
+            "attribution", test_card("Myr Galvanizer")["oracle_id"]
+        )
         is write_back.MISSING
     )

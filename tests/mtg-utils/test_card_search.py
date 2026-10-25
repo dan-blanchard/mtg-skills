@@ -11,6 +11,8 @@ from mtg_utils.card_classify import color_identity_subset
 from mtg_utils.card_search import (
     _extract_price,
     _matches_filters,
+    _PageQuery,
+    _scan,
     filter_records,
     format_results,
     main,
@@ -1355,6 +1357,56 @@ def test_filter_records_reads_a_cards_filters_once_per_card():
     )
     assert [c["prices"]["usd"] for c in kept] == ["1.00"]  # the cheapest printing
     assert calls == ["1.00"]  # the $9 printing fails its price before the card asks
+
+
+def test_a_page_reads_each_card_once_and_keeps_the_slice_order():
+    """A page reads each card once, on its first printing, and keeps every
+    printing of a card that passes, in the slice's order — printings interleaved
+    across cards, and a printing with no oracle_id read on its own."""
+    calls = []
+
+    class FirstLetterServe:
+        def matches(self, card: dict) -> bool:
+            calls.append(card["prices"]["usd"])
+            return card["name"].startswith("A")
+
+    def printing(name, oid, usd):
+        card = _make_card(name=name, price_usd=usd)
+        return {**card, "oracle_id": oid} if oid else card
+
+    gated = [
+        printing("Alpha", "a", "1.00"),
+        printing("Beta", "b", "2.00"),
+        printing("Alpha", "a", "3.00"),
+        printing("Aleph", None, "4.00"),
+        printing("Beta", "b", "5.00"),
+        printing("Aleph", None, "6.00"),
+        printing("Alpha", "a", "7.00"),
+    ]
+    q = _PageQuery(
+        oracle_re=None,
+        type_lower=None,
+        name_norm=None,
+        cmc_min=None,
+        cmc_max=None,
+        presets=(),
+        any_presets=(),
+        partner_of=None,
+        serve=FirstLetterServe(),
+        price_min=None,
+        price_max=None,
+        unreleased=frozenset(),
+        is_commander_filter=False,
+    )
+    kept = _scan(gated, q, fmt=FORMATS["commander"])
+    assert [c["prices"]["usd"] for c in kept] == [
+        "1.00",
+        "3.00",
+        "4.00",
+        "6.00",
+        "7.00",
+    ]
+    assert calls == ["1.00", "2.00", "4.00", "6.00"]
 
 
 @pytest.mark.parametrize(

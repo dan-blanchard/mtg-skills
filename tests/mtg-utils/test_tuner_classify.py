@@ -269,6 +269,7 @@ def test_ranked_signals_and_payoffs_extracts_once_per_card(monkeypatch):
     # doubling a cold tune's lane-pass cost. The combined read does one pass
     # and must return exactly what the two separate calls return.
     import mtg_utils._analysis.signals as signals_mod
+    from mtg_utils._analysis import card_reads
     from mtg_utils._analysis.signals import ranked_signals_and_payoffs
 
     deck = {
@@ -292,6 +293,9 @@ def test_ranked_signals_and_payoffs_extracts_once_per_card(monkeypatch):
         return real(*args, **kwargs)
 
     monkeypatch.setattr(signals_mod, "extract_signals", counting)
+    # The deck cards' membership-free signals are memoized per card
+    # (``card_reads``): forget the ones the expected values above read.
+    card_reads.CARD_READS.detach()
     ranked, payoffs = ranked_signals_and_payoffs(hd.records, {"Krenko, Mob Boss"})
     assert calls["n"] == len(hd.records)  # ONE pass, not two
     assert ranked == expected_ranked
