@@ -78124,6 +78124,148 @@
     "type_line": "Instant"
    }
   },
+  "Argivian Restoration": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Return target artifact card from your graveyard to the battlefield.",
+       "duration": null,
+       "effect": {
+        "destination": "Battlefield",
+        "enter_tapped": false,
+        "enter_transformed": false,
+        "enters_attacking": false,
+        "origin": "Graveyard",
+        "owner_library": false,
+        "target": {
+         "controller": "You",
+         "properties": [
+          {
+           "type": "InZone",
+           "zone": "Graveyard"
+          }
+         ],
+         "type": "Typed",
+         "type_filters": [
+          "Artifact"
+         ]
+        },
+        "type": "ChangeZone"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Sorcery"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Blue"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "pauper": "legal",
+      "paupercommander": "legal",
+      "premodern": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 2,
+      "shards": [
+       "Blue",
+       "Blue"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "3f14b3a6-5490-4a50-9449-542e23f1d6b1",
+       "41af4cf0-0af4-44ac-ba82-50d21d5fde2b",
+       "9f1a9d35-1b2a-44a2-9bbc-8529a7487905",
+       "fd7d85bd-121b-4a82-a1b7-9becd5845159"
+      ]
+     },
+     "name": "Argivian Restoration",
+     "non_ability_text": null,
+     "oracle_text": "Return target artifact card from your graveyard to the battlefield.",
+     "power": null,
+     "printings": [
+      "2XM",
+      "DDF",
+      "PLST",
+      "WTH"
+     ],
+     "rarities": [
+      "common",
+      "uncommon"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "d887919a-68d5-455d-977c-4f1f0b4b3141",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 4.0,
+    "color_identity": [
+     "U"
+    ],
+    "colors": [
+     "U"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "legal",
+     "paupercommander": "legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}{U}{U}",
+    "name": "Argivian Restoration",
+    "oracle_id": "d887919a-68d5-455d-977c-4f1f0b4b3141",
+    "oracle_text": "Return target artifact card from your graveyard to the battlefield.",
+    "type_line": "Sorcery"
+   }
+  },
   "Argothian Enchantress": {
    "phase_records": [
     {
@@ -106617,6 +106759,265 @@
     "power": "2",
     "toughness": "1",
     "type_line": "Creature — Human Soldier"
+   }
+  },
+  "Azorius Chancery": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": {
+        "type": "Tap"
+       },
+       "description": "{T}: Add {W}{U}.",
+       "duration": null,
+       "effect": {
+        "produced": {
+         "colors": [
+          "White",
+          "Blue"
+         ],
+         "type": "Fixed"
+        },
+        "type": "Mana"
+       },
+       "forward_result": false,
+       "is_mana_ability": true,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Land"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Blue",
+      "White"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pauper": "legal",
+      "paupercommander": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "type": "NoCost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "0784336e-89ed-44ad-a9c4-58c5ee1fc01a",
+       "118fd026-3777-4ce4-bea9-6fdfa05e7110",
+       "16389f46-fd96-4a11-ba78-0867cab80282",
+       "26700da8-2b89-4a15-b167-38bfaf7b4348",
+       "382b28ea-3706-480c-b7cc-4f16160d5d6b",
+       "481a83e6-0e6c-4953-92d4-814000d19456",
+       "48a944c2-0711-4e0c-9cd5-cfd5ad5f8266",
+       "4ccd100d-3a53-4cfe-8d38-639573547f54",
+       "50ef0ac3-e911-4d67-a751-8d86160ae843",
+       "541776bb-8643-4742-873b-8bf211d6ee99",
+       "7084fc02-8941-4a4f-805d-3c1625cf1d58",
+       "798a1aeb-2f0b-496b-a5bc-ee815100fd82",
+       "86fc4096-5a24-4092-8982-3eb4b0150cd2",
+       "a9d629f3-24b0-400c-b054-b66250696708",
+       "b016251f-e9f2-4c23-90f2-d8675e55dd9b",
+       "cac2ce0a-cb91-4b47-a340-a63924809bb8",
+       "caccc497-5312-4a28-8582-aa95bcbfb436",
+       "cdcce65a-5645-4444-9f49-0270fab0e440",
+       "d70df0a7-8a09-4715-9a31-8016511c3feb",
+       "e58365d2-e4db-444b-b1a9-795668ad3038",
+       "eed7cbd5-c462-40c3-8a79-ce5e95561116"
+      ]
+     },
+     "name": "Azorius Chancery",
+     "non_ability_text": null,
+     "oracle_text": "This land enters tapped.\nWhen this land enters, return a land you control to its owner's hand.\n{T}: Add {W}{U}.",
+     "power": null,
+     "printings": [
+      "2X2",
+      "AFC",
+      "BRC",
+      "C13",
+      "C16",
+      "C18",
+      "C19",
+      "C20",
+      "CLU",
+      "CM2",
+      "CMA",
+      "CMD",
+      "DDI",
+      "DIS",
+      "DSC",
+      "GK2",
+      "IMA",
+      "KHC",
+      "M3C",
+      "MKC",
+      "MM2",
+      "PRM",
+      "TD0",
+      "VOC"
+     ],
+     "rarities": [
+      "common",
+      "uncommon"
+     ],
+     "replacements": [
+      {
+       "condition": null,
+       "description": "~ enters tapped.",
+       "destination_zone": "Battlefield",
+       "event": "Moved",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "scope": {
+          "type": "Single"
+         },
+         "state": {
+          "type": "Tap"
+         },
+         "target": {
+          "type": "SelfRef"
+         },
+         "type": "SetTapState"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": {
+        "type": "Mandatory"
+       },
+       "valid_card": {
+        "type": "SelfRef"
+       }
+      }
+     ],
+     "rulings": [
+      {
+       "date": "2013-04-15",
+       "text": "If this land enters the battlefield and you control no other lands, its ability will force you to return it to your hand."
+      }
+     ],
+     "scryfall_oracle_id": "189fc8f4-17ac-4f1d-82c8-8401445bdaf4",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "When ~ enters, return a land you control to its owner's hand.",
+       "destination": "Battlefield",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "destination": null,
+         "selection": "at_resolution",
+         "target": {
+          "controller": "You",
+          "properties": [],
+          "type": "Typed",
+          "type_filters": [
+           "Land"
+          ]
+         },
+         "type": "Bounce"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "ChangesZone",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 0.0,
+    "color_identity": [
+     "U",
+     "W"
+    ],
+    "colors": [],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "legal",
+     "paupercommander": "legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "",
+    "name": "Azorius Chancery",
+    "oracle_id": "189fc8f4-17ac-4f1d-82c8-8401445bdaf4",
+    "oracle_text": "This land enters tapped.\nWhen this land enters, return a land you control to its owner's hand.\n{T}: Add {W}{U}.",
+    "produced_mana": [
+     "U",
+     "W"
+    ],
+    "type_line": "Land"
    }
   },
   "Azorius Charm": {
@@ -462893,6 +463294,236 @@
     "name": "Glimpse of Nature",
     "oracle_id": "5fae52ed-1b84-406e-951d-b0d329dc48a7",
     "oracle_text": "Whenever you cast a creature spell this turn, draw a card.",
+    "type_line": "Sorcery"
+   }
+  },
+  "Glimpse the Core": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": null,
+       "duration": null,
+       "effect": {
+        "count": {
+         "type": "Fixed",
+         "value": 1
+        },
+        "filter": {
+         "controller": null,
+         "properties": [
+          {
+           "type": "HasSupertype",
+           "value": "Basic"
+          }
+         ],
+         "type": "Typed",
+         "type_filters": [
+          "Land",
+          {
+           "Subtype": "Forest"
+          }
+         ]
+        },
+        "reveal": false,
+        "type": "SearchLibrary"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "destination": "Battlefield",
+         "enter_tapped": true,
+         "enter_transformed": false,
+         "enters_attacking": false,
+         "origin": "Library",
+         "owner_library": false,
+         "target": {
+          "type": "Any"
+         },
+         "type": "ChangeZone"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "target": {
+           "type": "Controller"
+          },
+          "type": "Shuffle"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": null,
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "target_prompt": null
+      },
+      {
+       "condition": null,
+       "cost": null,
+       "description": null,
+       "duration": null,
+       "effect": {
+        "destination": "Battlefield",
+        "enter_tapped": true,
+        "enter_transformed": false,
+        "enters_attacking": false,
+        "origin": "Graveyard",
+        "owner_library": false,
+        "target": {
+         "controller": "You",
+         "properties": [
+          {
+           "type": "InZone",
+           "zone": "Graveyard"
+          }
+         ],
+         "type": "Typed",
+         "type_filters": [
+          {
+           "Subtype": "Cave"
+          }
+         ]
+        },
+        "type": "ChangeZone"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Sorcery"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Green"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "standard": "legal",
+      "standardbrawl": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "Green"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "de7d6aed-3dc8-417d-a190-1660cfc8ee4a"
+      ]
+     },
+     "modal": {
+      "allow_repeat_modes": false,
+      "chooser": {
+       "type": "Controller"
+      },
+      "max_choices": 1,
+      "min_choices": 1,
+      "mode_count": 2,
+      "mode_descriptions": [
+       "Search your library for a basic Forest card, put that card onto the battlefield tapped, then shuffle.",
+       "Return target Cave card from your graveyard to the battlefield tapped."
+      ]
+     },
+     "name": "Glimpse the Core",
+     "non_ability_text": null,
+     "oracle_text": "Choose one —\n• Search your library for a basic Forest card, put that card onto the battlefield tapped, then shuffle.\n• Return target Cave card from your graveyard to the battlefield tapped.",
+     "power": null,
+     "printings": [
+      "LCI",
+      "PWCS"
+     ],
+     "rarities": [
+      "uncommon"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "fa44fa48-d270-4f0f-b672-d63e1c1942ce",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 2.0,
+    "color_identity": [
+     "G"
+    ],
+    "colors": [
+     "G"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "legal",
+     "standardbrawl": "legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}{G}",
+    "name": "Glimpse the Core",
+    "oracle_id": "fa44fa48-d270-4f0f-b672-d63e1c1942ce",
+    "oracle_text": "Choose one —\n• Search your library for a basic Forest card, put that card onto the battlefield tapped, then shuffle.\n• Return target Cave card from your graveyard to the battlefield tapped.",
     "type_line": "Sorcery"
    }
   },
@@ -1006778,6 +1007409,328 @@
     "power": "6",
     "toughness": "6",
     "type_line": "Legendary Creature — Spirit Dragon"
+   }
+  },
+  "Teyo, Aegis Adept": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "activation_restrictions": [
+        {
+         "type": "AsSorcery"
+        }
+       ],
+       "condition": null,
+       "cost": {
+        "amount": 1,
+        "type": "Loyalty"
+       },
+       "description": "[+1]: Up to one target creature's base power perpetually becomes equal to its toughness. It perpetually gains \"~ can attack as though it didn't have defender.\"",
+       "duration": null,
+       "effect": {
+        "amount": {
+         "qty": {
+          "scope": {
+           "type": "Source"
+          },
+          "type": "Toughness"
+         },
+         "type": "Ref"
+        },
+        "target": {
+         "controller": null,
+         "properties": [],
+         "type": "Typed",
+         "type_filters": [
+          "Creature"
+         ]
+        },
+        "type": "SetLifeTotal"
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "multi_target": {
+        "max": {
+         "type": "Fixed",
+         "value": 1
+        },
+        "min": 0
+       },
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "modification": {
+          "kind": "GrantAbility",
+          "modifications": [
+           {
+            "mode": "CanAttackWithDefender",
+            "type": "AddStaticMode"
+           }
+          ]
+         },
+         "target": {
+          "type": "ParentTarget"
+         },
+         "type": "ApplyPerpetual"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "sub_link": "SequentialSibling",
+        "target_prompt": null
+       },
+       "target_prompt": null
+      },
+      {
+       "activation_restrictions": [
+        {
+         "type": "AsSorcery"
+        }
+       ],
+       "condition": null,
+       "cost": {
+        "amount": -2,
+        "type": "Loyalty"
+       },
+       "description": "[−2]: Conjure a card named Lumbering Lightshield onto the battlefield.",
+       "duration": null,
+       "effect": {
+        "cards": [
+         {
+          "count": {
+           "type": "Fixed",
+           "value": 1
+          },
+          "name": "Lumbering Lightshield"
+         }
+        ],
+        "destination": "Battlefield",
+        "tapped": false,
+        "type": "Conjure"
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      },
+      {
+       "activation_restrictions": [
+        {
+         "type": "AsSorcery"
+        }
+       ],
+       "condition": null,
+       "cost": {
+        "amount": -6,
+        "type": "Loyalty"
+       },
+       "description": "[−6]: You get an emblem with \"At the beginning of your end step, return target white creature card from your graveyard to the battlefield. You gain life equal to its toughness.\"",
+       "duration": null,
+       "effect": {
+        "statics": [],
+        "triggers": [
+         {
+          "batched": false,
+          "condition": null,
+          "constraint": {
+           "type": "OnlyDuringYourTurn"
+          },
+          "damage_kind": "Any",
+          "description": "At the beginning of your end step, return target white creature card from your graveyard to the battlefield. You gain life equal to its toughness",
+          "destination": null,
+          "execute": {
+           "condition": null,
+           "cost": null,
+           "description": null,
+           "duration": null,
+           "effect": {
+            "destination": "Battlefield",
+            "enter_tapped": false,
+            "enter_transformed": false,
+            "enters_attacking": false,
+            "origin": "Graveyard",
+            "owner_library": false,
+            "target": {
+             "controller": "You",
+             "properties": [
+              {
+               "color": "White",
+               "type": "HasColor"
+              },
+              {
+               "type": "InZone",
+               "zone": "Graveyard"
+              }
+             ],
+             "type": "Typed",
+             "type_filters": [
+              "Creature"
+             ]
+            },
+            "type": "ChangeZone"
+           },
+           "forward_result": false,
+           "kind": "Spell",
+           "optional": false,
+           "optional_targeting": false,
+           "sub_ability": {
+            "condition": null,
+            "cost": null,
+            "description": null,
+            "duration": null,
+            "effect": {
+             "amount": {
+              "qty": {
+               "scope": {
+                "type": "Anaphoric"
+               },
+               "type": "Toughness"
+              },
+              "type": "Ref"
+             },
+             "type": "GainLife"
+            },
+            "forward_result": false,
+            "kind": "Spell",
+            "optional": false,
+            "optional_targeting": false,
+            "sub_ability": null,
+            "sub_link": "SequentialSibling",
+            "target_prompt": null
+           },
+           "target_prompt": null
+          },
+          "mode": "Phase",
+          "optional": false,
+          "origin": null,
+          "phase": "End",
+          "secondary": false,
+          "trigger_zones": [
+           "Command"
+          ],
+          "valid_card": null,
+          "valid_source": null,
+          "valid_target": null
+         }
+        ],
+        "type": "CreateEmblem"
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "brawl_commander": true,
+     "card_type": {
+      "core_types": [
+       "Planeswalker"
+      ],
+      "subtypes": [
+       "Teyo"
+      ],
+      "supertypes": [
+       "Legendary"
+      ]
+     },
+     "color_identity": [
+      "White"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "is_oathbreaker": true,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "historic": "legal",
+      "timeless": "legal"
+     },
+     "loyalty": "4",
+     "mana_cost": {
+      "generic": 2,
+      "shards": [
+       "White",
+       "White"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "8f4c701d-8a2c-44bf-9e36-f37936179244"
+      ]
+     },
+     "name": "Teyo, Aegis Adept",
+     "non_ability_text": null,
+     "oracle_text": "[+1]: Up to one target creature's base power perpetually becomes equal to its toughness. It perpetually gains \"This creature can attack as though it didn't have defender.\"\n[−2]: Conjure a card named Lumbering Lightshield onto the battlefield.\n[−6]: You get an emblem with \"At the beginning of your end step, return target white creature card from your graveyard to the battlefield. You gain life equal to its toughness.\"",
+     "power": null,
+     "printings": [
+      "J21"
+     ],
+     "rarities": [
+      "mythic"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "9febfc66-2c2d-4a53-89eb-9650026abeed",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 4.0,
+    "color_identity": [
+     "W"
+    ],
+    "colors": [
+     "W"
+    ],
+    "keywords": [
+     "Conjure"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "not_legal",
+     "competitivebrawl": "legal",
+     "duel": "not_legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "not_legal",
+     "modern": "not_legal",
+     "oathbreaker": "not_legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "not_legal"
+    },
+    "loyalty": "4",
+    "mana_cost": "{2}{W}{W}",
+    "name": "Teyo, Aegis Adept",
+    "oracle_id": "9febfc66-2c2d-4a53-89eb-9650026abeed",
+    "oracle_text": "[+1]: Up to one target creature's base power perpetually becomes equal to its toughness. It perpetually gains \"This creature can attack as though it didn't have defender.\"\n[−2]: Conjure a card named Lumbering Lightshield onto the battlefield.\n[−6]: You get an emblem with \"At the beginning of your end step, return target white creature card from your graveyard to the battlefield. You gain life equal to its toughness.\"",
+    "type_line": "Legendary Planeswalker — Teyo"
    }
   },
   "Teysa Karlov": {

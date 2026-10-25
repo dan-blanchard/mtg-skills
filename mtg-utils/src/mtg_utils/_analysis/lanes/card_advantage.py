@@ -16,6 +16,7 @@ from mtg_utils._analysis.lanes._shared import (
     _condition_leaves,
     _discard_watch_is_opponent,
     _target_owner_beneficiary_scope,
+    recovered_card_recursion,
 )
 from mtg_utils._analysis.signal_base import (
     Signal,
@@ -49,9 +50,9 @@ from mtg_utils._card_ir.crosswalk import (
     filter_controller,
     filter_core_types,
     filter_inzone_zones,
-    filter_owners,
     filter_predicates,
     filter_subtypes,
+    graveyard_recursion,
     has_fixed_count,
     hurts_triggering_player,
     is_dies_return_trigger,
@@ -70,6 +71,7 @@ from mtg_utils._card_ir.crosswalk import (
     own_turn_step_triggers,
     permission_tag,
     recipient_tag,
+    recursion_card_types,
     requires_condition_inner,
     residue_is,
     reveal_until_player,
@@ -94,9 +96,6 @@ from mtg_utils._card_ir.recovery import (
     OTHER_CHOOSER,
     OTHER_PLAYER,
     SELF,
-    TARGETED,
-    THEIRS,
-    YOURS,
 )
 from mtg_utils._card_ir.text_idioms import (
     _TOPDECK_OTHER_ZONE,
@@ -1364,59 +1363,6 @@ def _has_exile_then_return_replacement(tree: ConceptTree) -> bool:
     return has_exile_redirect and has_delayed_return
 
 
-def _recovered_creature_card_recursion(c: ConceptNode) -> bool:
-    """A recovered reanimation / recall residue (phase v0.104.0 fail-closed;
-    tokens ``reanimate`` / ``graveyard_return``) of a creature card picked out of
-    a graveyard — a target, or one from your own — that is not the card itself
-    (its own return is self-recursion) and not only an opponent's (graveyard
-    hate, the typed arm's ``Opponent`` controller gate)."""
-    subject = c.subject
-    return (
-        c.recovered_by in ("reanimate", "graveyard_return")
-        and "Creature" in subject
-        and CARD in subject
-        and "Graveyard" in c.zones
-        and (TARGETED in subject or YOURS in subject)
-        and SELF not in subject
-        and THEIRS not in subject
-        and c.scope != "opponents"
-    )
-
-
-#: Where a creature card recursion puts the card (phase's ``ChangeZone``
-#: destination) → the ``creature_recursion`` subject.
-_RECURSION_DESTINATIONS: dict[str, str] = {
-    "Battlefield": "battlefield",
-    "Hand": "hand",
-    "Library": "library",
-}
-
-
-def _graveyard_recursion_destination(node: object, sub: object) -> str | None:
-    """The ``creature_recursion`` subject of a ``ChangeZone`` / ``ChangeZoneAll``
-    out of a graveyard, or ``None``. The graveyard is the node's ``origin``, or,
-    where phase leaves the origin unset, the moved filter's ``InZone`` (Ashen
-    Powder's "Put target creature card from an opponent's graveyard onto the
-    battlefield under your control"). A pull from opponents' graveyards only is
-    graveyard hate unless the creature enters under your control
-    (``enters_under: You``) — then it is a reanimation of theirs for you."""
-    if not isinstance(node, TypedMirrorNode):
-        return None
-    origin, dest = change_zone_dirs(node)
-    if origin is None and "Graveyard" in filter_inzone_zones(sub):
-        origin = "Graveyard"
-    if origin != "Graveyard" or dest not in _RECURSION_DESTINATIONS:
-        return None
-    owners = filter_owners(sub)
-    if (
-        owners
-        and all(o == "Opponent" for o in owners)
-        and not (dest == "Battlefield" and getattr(node, "enters_under", None) == "You")
-    ):
-        return None
-    return _RECURSION_DESTINATIONS[dest]
-
-
 def _exiled_set_reanimation(unit: AbilityUnit) -> bool:
     """A mass reanimation routed through exile (CR 400.7: each move makes a new
     object, so phase tracks the exiled cards as a set): Living Death's "Each
@@ -1471,7 +1417,7 @@ def _creature_recursion(tree: ConceptTree) -> list[Signal]:
     pull is graveyard hate, not your loop). A type-less "target card"
     (Regrowth) has no Creature core — no fire. Scope "you".
 
-    The subject is the DESTINATION (:data:`_RECURSION_DESTINATIONS`), one
+    The subject is the DESTINATION (``crosswalk.graveyard_recursion``), one
     signal per destination the card reaches: "battlefield" for a reanimation
     (Zombify, Unburial Rites, Patriarch's Bidding), "hand" for a recall (Raise
     Dead, Gravedigger), "library" for a tuck back (Aether Helix's recall
@@ -1522,31 +1468,16 @@ def _creature_recursion(tree: ConceptTree) -> list[Signal]:
             # become-an-Aura body) and parks it as a residue the ``reanimate`` /
             # ``graveyard_return`` token recovers; no typed filter survives, so
             # the seam's reading of the clause stands in for it.
-            if _recovered_creature_card_recursion(c):
+            if recovered_card_recursion(c, ("Creature",)):
                 dest = "battlefield" if c.recovered_by == "reanimate" else "hand"
                 dests.setdefault(dest, c.raw)
                 continue
-            t = tag_of(c.node)
-            sub = effect_filter(c.node)
-            if filter_controller(sub) == "Opponent":
+            hit = graveyard_recursion(c.node)
+            if hit is None:
                 continue
-            types = filter_core_types(sub)
-            if (
-                not types
-                and t in ("ChangeZone", "ChangeZoneAll")
-                and tag_of(sub) == "AttachedTo"
-            ):
-                types = tree.card_enchant_core_types
-            if "Creature" not in types:
-                continue
-            if t in ("ChangeZone", "ChangeZoneAll"):
-                dest = _graveyard_recursion_destination(c.node, sub)
-                if dest is not None:
-                    dests.setdefault(dest, c.raw)
-            elif t in ("Bounce", "PutAtLibraryPosition") and (
-                "Graveyard" in filter_inzone_zones(sub)
-            ):
-                dests.setdefault("hand" if t == "Bounce" else "library", c.raw)
+            dest, sub = hit
+            if "Creature" in recursion_card_types(tree, c.node, sub):
+                dests.setdefault(dest, c.raw)
     return [
         Signal("creature_recursion", "you", d, raw, tree.name, "high")
         for d, raw in sorted(dests.items())

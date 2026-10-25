@@ -547,7 +547,9 @@ PAIR_READS: dict[str, PairRead] = {
             candidate=("self_etb_payload|you|*",),
             candidate_not=("token_maker|*",),
             anchor_kind="commander",
-            anchor=("permanent_recast|you|*",),
+            # The engine alone: its one-shot doers (reanimate, replay) re-deliver
+            # once, not every turn.
+            anchor=("permanent_recast|you|",),
             weight=3.0,
             label="ETB value x recast-engine commander",
             rationale=(

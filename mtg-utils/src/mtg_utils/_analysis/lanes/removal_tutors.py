@@ -6,15 +6,17 @@ from __future__ import annotations
 
 import re
 from collections.abc import Iterator, Sequence
+from itertools import chain
 
 from mtg_utils._analysis import signal_keys
-from mtg_utils._analysis._subtypes import LAND_SUBTYPES
+from mtg_utils._analysis._subtypes import LAND_SUBTYPES, subtype_card_type
 from mtg_utils._analysis.lanes._shared import (
     _PERMANENT_TYPES,
     _RETURN_TARGET_TAGS,
     _root_target_filter,
     _site_raw,
     _tuck_preceded_by_selection,
+    recovered_card_recursion,
     sacrifice_actor_scope,
 )
 from mtg_utils._analysis.signal_base import Signal
@@ -49,6 +51,7 @@ from mtg_utils._analysis.tree_synthesis import (
     structural_untap_subject,
 )
 from mtg_utils._card_ir.crosswalk import (
+    _OPPONENT_ACTOR_TAGS,
     CREATURE_OR_PERMANENT,
     MASS_FILTER_EFFECT_TAGS,
     SUSPENDED_CARD,
@@ -62,6 +65,7 @@ from mtg_utils._card_ir.crosswalk import (
     counter_kind,
     damage_recipient,
     effect_filter,
+    effect_owner_player_scope,
     effect_player_reach,
     effect_reaches_permanent,
     filter_color_predicates,
@@ -75,6 +79,7 @@ from mtg_utils._card_ir.crosswalk import (
     forages,
     granted_alt_cost_kinds,
     granted_keyword_names,
+    graveyard_recursion,
     has_filter_property,
     has_nested_damage_reaching,
     iter_cost_leaves,
@@ -91,6 +96,7 @@ from mtg_utils._card_ir.crosswalk import (
     overload_sweep,
     pt_mod_signs,
     recipient_tag,
+    recursion_card_types,
     sacrifice_names_no_player,
     static_mode_field,
     static_mode_tag,
@@ -1755,10 +1761,87 @@ def _permanent_recast(tree: ConceptTree) -> list[Signal]:
     self-bounce — :func:`has_permanent_recast`, three structural arms).
     The recast-loop pair row's ANCHOR class (iteration-3): each re-entry
     re-fires a self-ETB payload (CR 603.6a). Scope "you", HIGH.
+
+    Beside the engine, the one-shot re-deliveries it is made of carry a doer
+    subject (``signal_keys.PAGE_ONLY_SUBJECTS``: a self-ETB card's page counts
+    them, and none opens an avenue): ``reanimate`` puts a permanent card other
+    than this one from a graveyard onto the battlefield (Sun Titan, Argivian
+    Restoration — :func:`_reanimates_permanent`), ``replay`` returns a permanent
+    you control other than this one to your hand to cast again (Whitemane Lion,
+    Kor Skyfisher, the bounce lands — :func:`_replays_own_permanent`).
     """
+    out: list[Signal] = []
     if has_permanent_recast(tree):
-        return [Signal("permanent_recast", "you", "", "", tree.name, "high")]
-    return []
+        out.append(Signal("permanent_recast", "you", "", "", tree.name, "high"))
+    for subject in _recast_doer_subjects(tree):
+        out.append(Signal("permanent_recast", "you", subject, "", tree.name, "high"))
+    return out
+
+
+#: The permanent card types (CR 110.4a) a reanimation's filter can name.
+_PERMANENT_CARD_TYPES: frozenset[str] = frozenset(
+    {"Artifact", "Battle", "Creature", "Enchantment", "Land", "Planeswalker"}
+)
+
+
+def _names_permanent_card(cores: Sequence[str], subtypes: Sequence[str]) -> bool:
+    """A recursion filter's type evidence names a permanent card: a permanent
+    card type or ``Permanent`` itself ("target permanent card"), or, with no
+    core type, a subtype of a permanent type ("target Aura card", "Phoenix
+    card"; CR 205.3). A bare "target card" (Regrowth) may be an instant."""
+    if cores:
+        return any(t in _PERMANENT_CARD_TYPES or t == "Permanent" for t in cores)
+    return any(
+        subtype_card_type(s) in _PERMANENT_CARD_TYPES or s.lower() in LAND_SUBTYPES
+        for s in subtypes
+    )
+
+
+def _reanimates_permanent(tree: ConceptTree, c: ConceptNode) -> bool:
+    """A ``graveyard_recursion`` onto the battlefield of a permanent card
+    (:func:`_names_permanent_card`). The card's own return names itself
+    (``SelfRef`` — Reassembling Skeleton), with no type of its own."""
+    if c.recovered_by == "reanimate":
+        return recovered_card_recursion(c, ("Permanent", *_PERMANENT_CARD_TYPES))
+    hit = graveyard_recursion(c.node)
+    if hit is None or hit[0] != "battlefield":
+        return False
+    sub = hit[1]
+    return _names_permanent_card(
+        recursion_card_types(tree, c.node, sub), filter_subtypes(sub)
+    )
+
+
+def _replays_own_permanent(unit: AbilityUnit, c: ConceptNode) -> bool:
+    """A return of a permanent you control from the battlefield to its owner's
+    hand (CR 400.7: cast again, it is a new object whose enters triggers fire
+    anew): Whitemane Lion's "return a creature you control", Kor Skyfisher's
+    "a permanent you control", a bounce land's "a land you control". The card
+    returning only itself is a self-bounce (Blinking Spirit — ``SelfRef``), a
+    graveyard card is a recall, and a foe returning a permanent they control
+    (Zndrsplt's Judgment) replays nothing of yours."""
+    if c.concept != "bounce":
+        return False
+    target = effect_filter(c.node)
+    if tag_of(target) == "SelfRef" or filter_controller(target) != "You":
+        return False
+    if set(filter_inzone_zones(target)) - {"Battlefield"}:
+        return False
+    return effect_owner_player_scope(unit.node, c.node) not in _OPPONENT_ACTOR_TAGS
+
+
+def _recast_doer_subjects(tree: ConceptTree) -> list[str]:
+    """The ``permanent_recast`` doer subjects the card's effects carry."""
+    found: set[str] = set()
+    for unit in tree.units:
+        # An emblem's or a granted ability's (Teyo's end-step reanimation).
+        granted = iter_nested_granted_effect_concepts(unit.node)
+        for c in chain(unit.effects, granted):
+            if _reanimates_permanent(tree, c):
+                found.add("reanimate")
+            if _replays_own_permanent(unit, c):
+                found.add("replay")
+    return [s for s in ("reanimate", "replay") if s in found]
 
 
 #: Self-ETB payload effects phase types with no ``EFFECT_CONCEPTS`` row (they

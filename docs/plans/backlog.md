@@ -214,10 +214,16 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   reading the payoff test off the unit itself would drop both text alignments,
   and would give a role to the hits no single ability emits (a keyword's
   lifelink, Crucible of Worlds' whole-card ident, a modal spell's text-less
-  mode), which still score structural. Three serves a theme pages by still
-  carry an oracle arm (``self_etb_payload``, ``permanent_etb``,
-  ``land_protection`` — the Pass D entry says why each held); their page is
-  partly a pattern.
+  mode), which still score structural. Two serves a theme pages by still
+  carry an oracle arm (``permanent_etb``, ``land_protection`` — the Pass D
+  entry says why each held); their page is partly a pattern.
+  ``self_etb_payload``'s page reads idents since 2026-10-24 (the recast
+  doers, ``permanent_recast|you|reanimate`` / ``replay``, page-only). Seven
+  creature reanimations phase parks or mistypes carry no recursion ident (the
+  ``reanimate`` preset misses them too): Custodi Soulcaller and Venerable
+  Warsinger (an X filter parked), Return of the Nightstalkers (parked whole),
+  Agadeem's Awakening and Lich-Knights' Conquest (no card type on the filter),
+  Can't Stay Away and Vigor Mortis (typed as a replacement).
   (l) **Tune speed, what's left** (2026-10-24). The ranking's per-unit ident
   attribution persists in a write-back sidecar beside the signals index
   (`<bulk>.provenance.pkl`, `ident_provenance.attach_provenance_sidecar`; the
@@ -262,13 +268,7 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
 - **Pass D: the serves still on a regex** (2026-10-23;
   `docs/plans/serve-idents-and-avenue-support.md` "Pass D"; each spec's comment
   names its remainder). Regex-only, measured over the legal corpus:
-  `self_etb_payload` (the blink-enabler and reanimation idents —
-  `blink_flicker|you|enabler`, `creature_recursion|you|battlefield` / `mass` —
-  page 713 cards to the regex's 747, but a bounce-to-replay engine (Whitemane
-  Lion, Kor Skyfisher) carries only the 2,034-card `blink_flicker|you|`, and a
-  your-own subject on `bounce_tempo` would leak into the key-level `bounce`
-  preset, which excludes self-bounce; artifact reanimation, Argivian
-  Restoration, has no ident either), `permanent_etb` (the regex pages 8,596
+  `permanent_etb` (the regex pages 8,596
   cards, every "when ~ enters" and token maker; the ident union — token makers,
   self-ETB payloads, blink enablers, reanimation, land puts — pages 7,174 and
   drops 1,953, the resource-token makers and cheats each a key of its own: the
@@ -279,7 +279,7 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   Unimplemented), `ability_strip_payoff` (the crippling-drawback text beside a
   power floor; no lane reads a drawback a strip turns off). Lane follow-ups the
   pass found: a `(key, subject)` role table that
-  `DOER_SUBJECTS`, `MEMBERSHIP_SUBJECTS`, the pair reads' wildcards and the presets
+  `DOER_SUBJECTS`, `MEMBERSHIP_SUBJECTS`, `PAGE_ONLY_SUBJECTS`, the pair reads' wildcards and the presets
   all read (today each reads its own set); an `attack_trigger_side` crosswalk read
   beside `targeting_trigger_side` (the defensive-trigger veto lives in
   `tree_synthesis.combat`, and `stax_and_tempo`'s own `attacks` reads skip it —

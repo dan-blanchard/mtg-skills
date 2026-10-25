@@ -68,6 +68,54 @@ def test_permanent_recast_emission(name, expected):
     assert ("permanent_recast|you|" in _idents_of(name)) is expected
 
 
+@pytest.mark.parametrize(
+    ("name", "subject", "expected"),
+    [
+        # A permanent card from a graveyard onto the battlefield.
+        ("Argivian Restoration", "reanimate", True),  # an artifact card
+        ("Animate Dead", "reanimate", True),  # the Aura's own reattach
+        ("Glimpse the Core", "reanimate", True),  # a Cave card (a land subtype)
+        ("Teyo, Aegis Adept", "reanimate", True),  # the emblem's end-step return
+        ("Revival Experiment", "reanimate", True),  # a recovered residue
+        ("Reassembling Skeleton", "reanimate", False),  # returns only itself
+        ("Raise Dead", "reanimate", False),  # to hand, not the battlefield
+        ("Regrowth", "reanimate", False),  # "target card" may be an instant
+        # A permanent you control returned to your hand to cast again.
+        ("Whitemane Lion", "replay", True),
+        ("Kor Skyfisher", "replay", True),
+        ("Azorius Chancery", "replay", True),
+        ("Blinking Spirit", "replay", False),  # returns only itself
+        ("Unsummon", "replay", False),  # any creature: tempo
+        ("Zndrsplt's Judgment", "replay", False),  # each player returns their own
+    ],
+)
+def test_permanent_recast_doer_subjects(name, subject, expected):
+    test_card_ir(name)  # snapshot residency (parametrize -> bare variable)
+    assert (f"permanent_recast|you|{subject}" in _idents_of(name)) is expected
+
+
+def test_recast_doers_open_no_avenue_and_feed_the_self_etb_page():
+    """A one-shot re-delivery feeds a self-ETB card's page and opens no avenue of
+    its own (``signal_keys.PAGE_ONLY_SUBJECTS``), and is no voltron plan."""
+    from mtg_utils._analysis.signal_base import Signal
+    from mtg_utils._analysis.signal_specs import SPECS, avenue_spec_for
+    from mtg_utils.testkit import test_card
+
+    for subject in ("reanimate", "replay"):
+        sig = Signal("permanent_recast", "you", subject, "", "x", "high")
+        assert avenue_spec_for(sig) is None
+    serve = SPECS[("self_etb_payload", "you")].serve
+    assert serve.oracle is None
+    for name in ("Whitemane Lion", "Argivian Restoration", "Ephemerate", "Sun Titan"):
+        test_card_ir(name)
+        assert serve.matches(test_card(name)), name
+    for name in ("Reassembling Skeleton", "Unsummon", "Raise Dead"):
+        test_card_ir(name)
+        assert not serve.matches(test_card(name)), name
+    # Whitemane Lion's replay is no other plan: it keeps its carrier membership.
+    assert "voltron_matters|you|carrier" in _idents_of("Whitemane Lion")
+
+
 def test_recast_row_fires_and_gates():
     from mtg_utils._analysis.pair_reads import build_pair_context, pair_score
     from mtg_utils.testkit import test_card

@@ -2128,6 +2128,79 @@ def change_zone_dirs(node: TypedMirrorNode) -> tuple[str | None, str | None]:
     )
 
 
+#: Where a graveyard recursion puts the card (phase's destination zone) → the
+#: recursion's subject.
+GRAVEYARD_RECURSION_DESTINATIONS: dict[str, str] = {
+    "Battlefield": "battlefield",
+    "Hand": "hand",
+    "Library": "library",
+}
+
+
+def graveyard_recursion(node: object) -> tuple[str, object] | None:
+    """``(destination, moved filter)`` of an effect that returns a card from a
+    graveyard, or ``None``. The shared walk the recursion lanes type-gate
+    (``creature_recursion``'s creature cards, ``permanent_recast``'s permanent
+    and land cards).
+
+    * a ``ChangeZone`` / ``ChangeZoneAll`` out of a graveyard: the node's
+      ``origin``, or, where phase leaves it unset, the moved filter's
+      ``InZone`` (Ashen Powder's "Put target creature card from an opponent's
+      graveyard onto the battlefield under your control"), to the battlefield,
+      a hand or a library;
+    * the legacy shapes (the Advocate cycle): a ``Bounce`` (→ hand) or
+      ``PutAtLibraryPosition`` (→ library) whose subject carries ``InZone:
+      Graveyard``.
+
+    A pull from opponents' graveyards only is graveyard hate, not a recursion
+    of yours — an ``Opponent``-controlled filter, or opponent owners unless the
+    card enters the battlefield under your control (``enters_under: You``; CR
+    110.2: a reanimation of theirs for you)."""
+    if not isinstance(node, TypedMirrorNode):
+        return None
+    sub = effect_filter(node)
+    if filter_controller(sub) == "Opponent":
+        return None
+    tag = tag_of(node)
+    if tag in ("Bounce", "PutAtLibraryPosition"):
+        if "Graveyard" not in filter_inzone_zones(sub):
+            return None
+        return ("hand" if tag == "Bounce" else "library"), sub
+    if tag not in ("ChangeZone", "ChangeZoneAll"):
+        return None
+    origin, dest = change_zone_dirs(node)
+    if origin is None and "Graveyard" in filter_inzone_zones(sub):
+        origin = "Graveyard"
+    if origin != "Graveyard" or dest not in GRAVEYARD_RECURSION_DESTINATIONS:
+        return None
+    owners = filter_owners(sub)
+    if (
+        owners
+        and all(o == "Opponent" for o in owners)
+        and not (dest == "Battlefield" and getattr(node, "enters_under", None) == "You")
+    ):
+        return None
+    return GRAVEYARD_RECURSION_DESTINATIONS[dest], sub
+
+
+def recursion_card_types(
+    tree: ConceptTree, node: object, sub: object
+) -> tuple[str, ...]:
+    """The card types a :func:`graveyard_recursion` moves: its filter's core
+    types, or, for a reanimation Aura's own reattach (Animate Dead's "Return
+    enchanted creature card to the battlefield", an ``AttachedTo()`` target
+    with no type of its own — CR 303.4f), the card types the Aura's printed
+    Enchant keyword names (:attr:`ConceptTree.card_enchant_core_types`)."""
+    types = filter_core_types(sub)
+    if (
+        not types
+        and tag_of(node) in ("ChangeZone", "ChangeZoneAll")
+        and tag_of(sub) == "AttachedTo"
+    ):
+        return tuple(tree.card_enchant_core_types)
+    return types
+
+
 #: A whole added PHASE (``segment: Phase``) → the step-name kind the readers key
 #: on: an added combat phase is ``"begincombat"`` (its first step), an added
 #: beginning phase ``"untap"`` (CR 501.1: untap, upkeep, draw), an added ending

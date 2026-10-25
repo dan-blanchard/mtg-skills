@@ -163,6 +163,20 @@ STEP_TRIGGER_KEYS: Final = {
     "extra_end_step": "end_step_triggers",
 }
 
+# The ``(key, subject)`` idents a theme's page counts that open no avenue of their
+# own (``signal_specs.core.avenue_spec_for``): a one-shot step of another card's
+# engine. A reanimation spell or a bounce-your-own creature re-delivers a self-ETB
+# card (the ``self_etb_payload`` page) without being a recast engine itself, and a
+# deck with three of them is no recast deck. Each is a doer too (below).
+PAGE_ONLY_SUBJECTS: Final = frozenset(
+    {
+        # a permanent card put from a graveyard onto the battlefield (Sun Titan)
+        ("permanent_recast", "reanimate"),
+        # a permanent you control returned to your hand (Whitemane Lion)
+        ("permanent_recast", "replay"),
+    }
+)
+
 # The ``(key, subject)`` idents that mark the DOER side of a payoff key that is
 # not a subject key: each feeds the payoff, and the theme's serve counts it as
 # depth, without caring about the theme (``_tuner.metrics.focus``'s carer read
@@ -195,5 +209,7 @@ DOER_SUBJECTS: Final = frozenset(
         ("land_destruction", "sacrifice"),
         # a creature that sacrifices itself (Sakura-Tribe Elder): loop fuel
         ("sacrifice_outlets", "self"),
+        # the page-only doers (above)
+        *PAGE_ONLY_SUBJECTS,
     }
 )

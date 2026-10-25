@@ -1015,8 +1015,23 @@ SPECS_3: dict[tuple[str, str], SignalSpec] = {
         "ETB value to re-deliver",
         "blink, recursion, and bounce engines that re-fire this card's "
         "enters-the-battlefield value",
-        r"exile [^.]*return[^.]*battlefield|return [^.]*from your graveyard "
-        r"to the battlefield",
+        # Serve idents: blink enablers, creature reanimation (one card or a
+        # mass return), the repeatable recast engines (Muldrotha, Meren,
+        # Chulane) and their one-shot steps — a permanent card put from a
+        # graveyard onto the battlefield (Sun Titan, Argivian Restoration) and a
+        # permanent you control returned to hand to cast again (Whitemane Lion,
+        # Kor Skyfisher).
+        None,
+        serve_idents=frozenset(
+            {
+                "blink_flicker|you|enabler",
+                "creature_recursion|you|battlefield",
+                "creature_recursion|you|mass",
+                "permanent_recast|you|",
+                "permanent_recast|you|reanimate",
+                "permanent_recast|you|replay",
+            }
+        ),
     ),
     # Tap/untap commander (Tui and La) wants the untap effects that retrigger it.
     # ADR-0027: tap_untap_matters had its SWEEP_DETECTORS row deleted (detection moved

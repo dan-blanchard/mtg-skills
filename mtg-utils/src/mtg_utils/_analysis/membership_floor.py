@@ -1979,6 +1979,8 @@ def _apply_membership_floor(
         and s.key not in _VOLTRON_COMPAT_KEYS
         and s.key not in _VOLTRON_HAS_OTHER_PLAN_COMPAT
         and s.key not in _VOLTRON_PLAN_BROADENED
+        # a page-only doer opens no avenue, so it is no plan either
+        and (s.key, s.subject) not in signal_keys.PAGE_ONLY_SUBJECTS
         for s in out
     ) or bool(_BROADENED_PLAN_MIRROR.search(kept_oracle))
     # (base) commander-damage fallback (CR 903.10a): only when nothing else gave a

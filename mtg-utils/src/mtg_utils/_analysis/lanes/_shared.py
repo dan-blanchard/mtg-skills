@@ -41,6 +41,7 @@ from mtg_utils._card_ir.mirror.runtime import (
     MirrorVariant,
     TypedMirrorNode,
 )
+from mtg_utils._card_ir.recovery import CARD, SELF, TARGETED, THEIRS, YOURS
 
 # The b13 conferred-grant / condition-payoff raw anchors (soulbond / undying /
 # changeling / cascade / the Stage-3b madness/affinity/mutate re-categorizers)
@@ -962,3 +963,23 @@ def typed_token_payoff_signals(
         Signal(key, "you", subject, raw, name, "high")
         for key, subject in dict.fromkeys(idents)
     ]
+
+
+def recovered_card_recursion(c: ConceptNode, card_types: Iterable[str]) -> bool:
+    """A recovered reanimation / recall residue (phase v0.104.0 fails closed on
+    one it can't fully parse; tokens ``reanimate`` / ``graveyard_return``) of a
+    card of one of ``card_types`` picked out of a graveyard — a target, or one
+    from your own — that is not the card itself (its own return is
+    self-recursion) and not only an opponent's (graveyard hate, the typed
+    arm's ``Opponent`` controller gate)."""
+    subject = c.subject
+    return (
+        c.recovered_by in ("reanimate", "graveyard_return")
+        and any(t in subject for t in card_types)
+        and CARD in subject
+        and "Graveyard" in c.zones
+        and (TARGETED in subject or YOURS in subject)
+        and SELF not in subject
+        and THEIRS not in subject
+        and c.scope != "opponents"
+    )

@@ -714,11 +714,15 @@ def avenue_spec_for(signal: Signal) -> SignalSpec | None:
     "can't be blocked except by …" body (``evasion_self|you|partial``) does
     not open the evasion avenue. A membership-floor subject
     (``signal_keys.MEMBERSHIP_SUBJECTS``: a carrier commander) always opens it,
-    and a step trigger (``signal_keys.STEP_TRIGGER_KEYS``) never does. A serve
+    and a step trigger (``signal_keys.STEP_TRIGGER_KEYS``) or a page-only doer
+    (``signal_keys.PAGE_ONLY_SUBJECTS``) never does. A serve
     that does not read the key at all serves something else the key's emitters
     want (a recursion engine's loop fuel), and every subject opens it.
     ``spec_for`` stays the per-signal lookup for every other caller."""
-    if signal.key in _STEP_TRIGGERS:
+    if (
+        signal.key in _STEP_TRIGGERS
+        or (signal.key, signal.subject) in signal_keys.PAGE_ONLY_SUBJECTS
+    ):
         return None
     spec = spec_for(signal)
     if (
