@@ -4099,6 +4099,45 @@ def iter_unit_trigger_defs(
         yield from iter_delayed_trigger_condition_defs(unit.node)
 
 
+class GrantedTrigger(NamedTuple):
+    """A trigger one unit grants, with the object(s) it is granted to."""
+
+    trigger: TypedMirrorNode  # the granted trigger definition
+    grantee: object  # the granting def's ``affected``: a filter node or a tag
+    chosen: bool  # the grantee is a target the ability chooses
+
+
+def iter_granted_triggers(unit: AbilityUnit) -> Iterator[GrantedTrigger]:
+    """Every trigger ``unit`` grants through a ``GrantTrigger`` modification
+    (CR 113.1a: "Abilities can also be granted to objects by rules or
+    effects"), paired with who gets it: the granting def's ``affected`` set
+    ("Creatures you control gain '…'" — Showstopper; "Enchanted creature has
+    '…'" — Infernal Scarring; a soulbond pair — Doom Weaver), or, for "It gains
+    '…'" / "those creatures gain '…'", the chosen target the chain threads to it
+    (:func:`iter_threaded_target_statics` — Clavileño's attacking Vampire, Rabid
+    Attack's "target creatures you control"; ``chosen`` marks those). A
+    back-reference the thread can't follow stays its tag. The deep mod-site walk
+    (:func:`iter_mod_sites`), so a modal arm's or a created token's grant is
+    read too (a Pest token's own "When this creature dies" — ``SelfRef``)."""
+    chosen: dict[int, object] = {}
+    for tag, resets in (("ParentTarget", None), ("TrackedSet", ends_target_thread)):
+        for tgt, sdef in iter_threaded_target_statics(
+            unit.node, affected_tag=tag, resets_thread=resets
+        ):
+            chosen.setdefault(id(sdef), tgt)
+    for sdef, mod in iter_mod_sites(unit.node, deep=True):
+        if tag_of(mod) not in _GRANTED_TRIGGER_TAGS:
+            continue
+        trig = getattr(mod, "trigger", None)
+        if not isinstance(trig, TypedMirrorNode):
+            continue
+        target = chosen.get(id(sdef))
+        if target is not None:
+            yield GrantedTrigger(trig, target, chosen=True)
+        else:
+            yield GrantedTrigger(trig, static_affected(sdef, unit), chosen=False)
+
+
 # ADR-0038 W3 batch 2 unit 2 — the typed_spellcast lane's shared nested-mode
 # descent. A tribal cast-cost-modifier static (CR 601.2f / 702.2's
 # keyword-spell grants: Freerunning, Prowl, Cascade, "costs {N} less") can

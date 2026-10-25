@@ -332105,6 +332105,392 @@
     "type_line": "Instant"
    }
   },
+  "Doom Weaver": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Spider",
+       "Horror"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Black"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [
+      "Reach",
+      "Soulbond"
+     ],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 4,
+      "shards": [
+       "Black",
+       "Black"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "08c79a77-810d-4ee2-8afc-18ddfba41ad1",
+       "d0ac7745-901b-4e26-896b-7f5014d9454d"
+      ]
+     },
+     "name": "Doom Weaver",
+     "non_ability_text": null,
+     "oracle_text": "Reach\nSoulbond (You may pair this creature with another unpaired creature when either enters. They remain paired for as long as you control both of them.)\nAs long as Doom Weaver is paired with another creature, each of those creatures has \"When this creature dies, draw cards equal to its power.\"",
+     "power": {
+      "type": "Fixed",
+      "value": 1
+     },
+     "printings": [
+      "PRM",
+      "VOC"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2021-11-19",
+       "text": "Use the creature's power as it last existed on the battlefield to determine how many cards to draw."
+      }
+     ],
+     "scryfall_oracle_id": "172b94a0-2801-4623-aed8-902591c2d591",
+     "static_abilities": [
+      {
+       "active_zones": [],
+       "affected": {
+        "type": "SourceOrPaired"
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": {
+        "type": "SourceIsPaired"
+       },
+       "description": "As long as ~ is paired with another creature, each of those creatures has \"When ~ dies, draw cards equal to its power.\"",
+       "effect_zone": null,
+       "mode": "Continuous",
+       "modifications": [
+        {
+         "trigger": {
+          "batched": false,
+          "condition": null,
+          "constraint": null,
+          "damage_kind": "Any",
+          "description": "When ~ dies, draw cards equal to its power.",
+          "destination": "Graveyard",
+          "execute": {
+           "condition": null,
+           "cost": null,
+           "description": null,
+           "duration": null,
+           "effect": {
+            "count": {
+             "qty": {
+              "scope": {
+               "type": "Anaphoric"
+              },
+              "type": "Power"
+             },
+             "type": "Ref"
+            },
+            "target": {
+             "type": "Controller"
+            },
+            "type": "Draw"
+           },
+           "forward_result": false,
+           "kind": "Spell",
+           "optional": false,
+           "optional_targeting": false,
+           "sub_ability": null,
+           "target_prompt": null
+          },
+          "mode": "ChangesZone",
+          "optional": false,
+          "origin": "Battlefield",
+          "phase": null,
+          "secondary": false,
+          "trigger_zones": [
+           "Graveyard"
+          ],
+          "valid_card": {
+           "type": "SelfRef"
+          },
+          "valid_source": null,
+          "valid_target": null
+         },
+         "type": "GrantTrigger"
+        }
+       ]
+      }
+     ],
+     "toughness": {
+      "type": "Fixed",
+      "value": 8
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": {
+        "conditions": [
+         {
+          "filter": {
+           "controller": "You",
+           "properties": [
+            {
+             "type": "InZone",
+             "zone": "Battlefield"
+            },
+            {
+             "type": "Unpaired"
+            }
+           ],
+           "type": "Typed",
+           "type_filters": [
+            "Creature"
+           ]
+          },
+          "type": "SourceMatchesFilter"
+         },
+         {
+          "filter": {
+           "controller": "You",
+           "properties": [
+            {
+             "type": "Another"
+            },
+            {
+             "type": "InZone",
+             "zone": "Battlefield"
+            },
+            {
+             "type": "Unpaired"
+            }
+           ],
+           "type": "Typed",
+           "type_filters": [
+            "Creature"
+           ]
+          },
+          "type": "ControlsType"
+         }
+        ],
+        "type": "And"
+       },
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "CR 702.95a: When this creature enters, you may pair it with another unpaired creature you control.",
+       "destination": "Battlefield",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "target": {
+          "controller": "You",
+          "properties": [
+           {
+            "type": "Another"
+           },
+           {
+            "type": "InZone",
+            "zone": "Battlefield"
+           },
+           {
+            "type": "Unpaired"
+           }
+          ],
+          "type": "Typed",
+          "type_filters": [
+           "Creature"
+          ]
+         },
+         "type": "PairWith"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": true,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_choice_timing": "Resolution",
+        "target_prompt": null
+       },
+       "mode": "ChangesZone",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [],
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": null
+      },
+      {
+       "batched": false,
+       "condition": {
+        "conditions": [
+         {
+          "filter": {
+           "controller": "You",
+           "properties": [
+            {
+             "type": "InZone",
+             "zone": "Battlefield"
+            },
+            {
+             "type": "Unpaired"
+            }
+           ],
+           "type": "Typed",
+           "type_filters": [
+            "Creature"
+           ]
+          },
+          "type": "SourceMatchesFilter"
+         },
+         {
+          "destination": "Battlefield",
+          "filter": {
+           "controller": "You",
+           "properties": [
+            {
+             "type": "Another"
+            },
+            {
+             "type": "InZone",
+             "zone": "Battlefield"
+            },
+            {
+             "type": "Unpaired"
+            }
+           ],
+           "type": "Typed",
+           "type_filters": [
+            "Creature"
+           ]
+          },
+          "type": "ZoneChangeObjectMatchesFilter"
+         }
+        ],
+        "type": "And"
+       },
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "CR 702.95a: Whenever another unpaired creature you control enters, you may pair it with this creature.",
+       "destination": "Battlefield",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "target": {
+          "type": "TriggeringSource"
+         },
+         "type": "PairWith"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": true,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_choice_timing": "Resolution",
+        "target_prompt": null
+       },
+       "mode": "ChangesZone",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [],
+       "valid_card": {
+        "controller": "You",
+        "properties": [
+         {
+          "type": "Another"
+         },
+         {
+          "type": "Unpaired"
+         }
+        ],
+        "type": "Typed",
+        "type_filters": [
+         "Creature"
+        ]
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 6.0,
+    "color_identity": [
+     "B"
+    ],
+    "colors": [
+     "B"
+    ],
+    "keywords": [
+     "Reach",
+     "Soulbond"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{4}{B}{B}",
+    "name": "Doom Weaver",
+    "oracle_id": "172b94a0-2801-4623-aed8-902591c2d591",
+    "oracle_text": "Reach\nSoulbond (You may pair this creature with another unpaired creature when either enters. They remain paired for as long as you control both of them.)\nAs long as Doom Weaver is paired with another creature, each of those creatures has \"When this creature dies, draw cards equal to its power.\"",
+    "power": "1",
+    "toughness": "8",
+    "type_line": "Creature — Spider Horror"
+   }
+  },
   "Doomed Dissenter": {
    "phase_records": [
     {
@@ -389683,6 +390069,217 @@
     "power": "1",
     "toughness": "2",
     "type_line": "Creature — Human Cleric"
+   }
+  },
+  "Expedition Diviner": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Merfolk",
+       "Wizard"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Blue"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [
+      "Flying"
+     ],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pauper": "legal",
+      "paupercommander": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 3,
+      "shards": [
+       "Blue"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "090f6e94-fb5f-4861-a465-f11766303676",
+       "71bb1c17-a68c-465f-9383-315eebcee813"
+      ]
+     },
+     "name": "Expedition Diviner",
+     "non_ability_text": null,
+     "oracle_text": "Flying\nAs long as you control another Wizard, this creature has \"When this creature dies, draw a card.\"",
+     "power": {
+      "type": "Fixed",
+      "value": 3
+     },
+     "printings": [
+      "J25",
+      "ZNR"
+     ],
+     "rarities": [
+      "common"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2020-09-25",
+       "text": "Expedition Diviner has just one instance of its triggered ability, no matter how many other Wizards you control beyond the first."
+      },
+      {
+       "date": "2020-09-25",
+       "text": "If Expedition Diviner dies at the same time that each other Wizard you control leaves the battlefield, its ability triggers. For example, if the only creatures you control are two Expedition Diviners and both die at the same time, their abilities each trigger."
+      }
+     ],
+     "scryfall_oracle_id": "bd6bc87d-fc75-43bc-a7d7-49d89dabcd3a",
+     "static_abilities": [
+      {
+       "active_zones": [],
+       "affected": {
+        "type": "SelfRef"
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": {
+        "filter": {
+         "controller": "You",
+         "properties": [
+          {
+           "type": "Another"
+          },
+          {
+           "type": "InZone",
+           "zone": "Battlefield"
+          }
+         ],
+         "type": "Typed",
+         "type_filters": [
+          {
+           "Subtype": "Wizard"
+          }
+         ]
+        },
+        "type": "IsPresent"
+       },
+       "description": "As long as you control another Wizard, ~ has \"When ~ dies, draw a card.\"",
+       "effect_zone": null,
+       "mode": "Continuous",
+       "modifications": [
+        {
+         "trigger": {
+          "batched": false,
+          "condition": null,
+          "constraint": null,
+          "damage_kind": "Any",
+          "description": "When ~ dies, draw a card.",
+          "destination": "Graveyard",
+          "execute": {
+           "condition": null,
+           "cost": null,
+           "description": null,
+           "duration": null,
+           "effect": {
+            "count": {
+             "type": "Fixed",
+             "value": 1
+            },
+            "target": {
+             "type": "Controller"
+            },
+            "type": "Draw"
+           },
+           "forward_result": false,
+           "kind": "Spell",
+           "optional": false,
+           "optional_targeting": false,
+           "sub_ability": null,
+           "target_prompt": null
+          },
+          "mode": "ChangesZone",
+          "optional": false,
+          "origin": "Battlefield",
+          "phase": null,
+          "secondary": false,
+          "trigger_zones": [
+           "Graveyard"
+          ],
+          "valid_card": {
+           "type": "SelfRef"
+          },
+          "valid_source": null,
+          "valid_target": null
+         },
+         "type": "GrantTrigger"
+        }
+       ]
+      }
+     ],
+     "toughness": {
+      "type": "Fixed",
+      "value": 2
+     },
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 4.0,
+    "color_identity": [
+     "U"
+    ],
+    "colors": [
+     "U"
+    ],
+    "keywords": [
+     "Flying"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "legal",
+     "paupercommander": "legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{3}{U}",
+    "name": "Expedition Diviner",
+    "oracle_id": "bd6bc87d-fc75-43bc-a7d7-49d89dabcd3a",
+    "oracle_text": "Flying\nAs long as you control another Wizard, this creature has \"When this creature dies, draw a card.\"",
+    "power": "3",
+    "toughness": "2",
+    "type_line": "Creature — Merfolk Wizard"
    }
   },
   "Expedition Lookout": {
@@ -552200,6 +552797,218 @@
     "oracle_id": "32aa920c-0d91-4bc9-803c-d13857688d10",
     "oracle_text": "Exile target colorless creature. You gain life equal to its power.",
     "type_line": "Instant"
+   }
+  },
+  "Infernal Scarring": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Enchantment"
+      ],
+      "subtypes": [
+       "Aura"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Black"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [
+      {
+       "Enchant": {
+        "controller": null,
+        "properties": [],
+        "type": "Typed",
+        "type_filters": [
+         "Creature"
+        ]
+       }
+      }
+     ],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pauper": "legal",
+      "paupercommander": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "Black"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "5af212ef-cbf2-407b-9221-3a8cea6531dd",
+       "975e4b8e-add9-439c-9463-e2facee96c10",
+       "9cf7ff14-0de8-4ef9-8425-df15629adc4b",
+       "d1ead8cc-5b7d-4a6d-a56f-95da91a958d2"
+      ]
+     },
+     "name": "Infernal Scarring",
+     "non_ability_text": null,
+     "oracle_text": "Enchant creature\nEnchanted creature gets +2/+0 and has \"When this creature dies, draw a card.\"",
+     "power": null,
+     "printings": [
+      "M19",
+      "M21",
+      "ORI",
+      "PLST"
+     ],
+     "rarities": [
+      "common"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2020-06-23",
+       "text": "If Infernal Scarring and the enchanted creature are destroyed at the same time, the player will draw a card."
+      },
+      {
+       "date": "2020-06-23",
+       "text": "The player who controlled the creature when it died is the one who will draw a card."
+      }
+     ],
+     "scryfall_oracle_id": "3fc640dd-6292-4d36-82fb-bd366bc00bd3",
+     "static_abilities": [
+      {
+       "active_zones": [],
+       "affected": {
+        "controller": null,
+        "properties": [
+         {
+          "type": "EnchantedBy"
+         }
+        ],
+        "type": "Typed",
+        "type_filters": [
+         "Creature"
+        ]
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": null,
+       "description": "Enchanted creature gets +2/+0 and has \"When ~ dies, draw a card.\"",
+       "effect_zone": null,
+       "mode": "Continuous",
+       "modifications": [
+        {
+         "type": "AddPower",
+         "value": 2
+        },
+        {
+         "type": "AddToughness",
+         "value": 0
+        },
+        {
+         "trigger": {
+          "batched": false,
+          "condition": null,
+          "constraint": null,
+          "damage_kind": "Any",
+          "description": "When ~ dies, draw a card.",
+          "destination": "Graveyard",
+          "execute": {
+           "condition": null,
+           "cost": null,
+           "description": null,
+           "duration": null,
+           "effect": {
+            "count": {
+             "type": "Fixed",
+             "value": 1
+            },
+            "target": {
+             "type": "Controller"
+            },
+            "type": "Draw"
+           },
+           "forward_result": false,
+           "kind": "Spell",
+           "optional": false,
+           "optional_targeting": false,
+           "sub_ability": null,
+           "target_prompt": null
+          },
+          "mode": "ChangesZone",
+          "optional": false,
+          "origin": "Battlefield",
+          "phase": null,
+          "secondary": false,
+          "trigger_zones": [
+           "Graveyard"
+          ],
+          "valid_card": {
+           "type": "SelfRef"
+          },
+          "valid_source": null,
+          "valid_target": null
+         },
+         "type": "GrantTrigger"
+        }
+       ]
+      }
+     ],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 2.0,
+    "color_identity": [
+     "B"
+    ],
+    "colors": [
+     "B"
+    ],
+    "keywords": [
+     "Enchant"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "legal",
+     "paupercommander": "legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}{B}",
+    "name": "Infernal Scarring",
+    "oracle_id": "3fc640dd-6292-4d36-82fb-bd366bc00bd3",
+    "oracle_text": "Enchant creature\nEnchanted creature gets +2/+0 and has \"When this creature dies, draw a card.\"",
+    "type_line": "Enchantment — Aura"
    }
   },
   "Infernal Vessel": {
@@ -793703,6 +794512,298 @@
     "type_line": "Creature — Human Advisor"
    }
   },
+  "Pest Infestation": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Destroy up to X target artifacts and/or enchantments. Create twice X 1/1 black and green Pest creature tokens with \"When ~ dies, you gain 1 life.\"",
+       "duration": null,
+       "effect": {
+        "cant_regenerate": false,
+        "target": {
+         "filters": [
+          {
+           "controller": null,
+           "properties": [],
+           "type": "Typed",
+           "type_filters": [
+            "Artifact"
+           ]
+          },
+          {
+           "controller": null,
+           "properties": [],
+           "type": "Typed",
+           "type_filters": [
+            "Enchantment"
+           ]
+          }
+         ],
+         "type": "Or"
+        },
+        "type": "Destroy"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "multi_target": {
+        "max": {
+         "qty": {
+          "name": "X",
+          "type": "Variable"
+         },
+         "type": "Ref"
+        },
+        "min": 0
+       },
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "colors": [
+          "Black",
+          "Green"
+         ],
+         "count": {
+          "factor": 2,
+          "inner": {
+           "qty": {
+            "name": "X",
+            "type": "Variable"
+           },
+           "type": "Ref"
+          },
+          "type": "Multiply"
+         },
+         "enters_attacking": false,
+         "keywords": [],
+         "name": "Pest",
+         "owner": {
+          "type": "Controller"
+         },
+         "power": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "static_abilities": [
+          {
+           "active_zones": [],
+           "affected": {
+            "type": "SelfRef"
+           },
+           "affected_zone": null,
+           "characteristic_defining": false,
+           "condition": null,
+           "description": null,
+           "effect_zone": null,
+           "mode": "Continuous",
+           "modifications": [
+            {
+             "trigger": {
+              "batched": false,
+              "condition": null,
+              "constraint": null,
+              "damage_kind": "Any",
+              "description": "When ~ dies, you gain 1 life.",
+              "destination": "Graveyard",
+              "execute": {
+               "condition": null,
+               "cost": null,
+               "description": null,
+               "duration": null,
+               "effect": {
+                "amount": {
+                 "type": "Fixed",
+                 "value": 1
+                },
+                "type": "GainLife"
+               },
+               "forward_result": false,
+               "kind": "Spell",
+               "optional": false,
+               "optional_targeting": false,
+               "sub_ability": null,
+               "target_prompt": null
+              },
+              "mode": "ChangesZone",
+              "optional": false,
+              "origin": "Battlefield",
+              "phase": null,
+              "secondary": false,
+              "trigger_zones": [
+               "Graveyard"
+              ],
+              "valid_card": {
+               "type": "SelfRef"
+              },
+              "valid_source": null,
+              "valid_target": null
+             },
+             "type": "GrantTrigger"
+            }
+           ]
+          }
+         ],
+         "tapped": false,
+         "toughness": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "type": "Token",
+         "types": [
+          "Creature",
+          "Pest"
+         ]
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "sub_link": "SequentialSibling",
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Sorcery"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Green"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 0,
+      "shards": [
+       "X",
+       "X",
+       "Green"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "related_token_ids": [
+       "5d96727f-b037-5af6-a854-b39b4bc4b5ea",
+       "aece7d3f-d168-5b09-849e-b8895dadecb8",
+       "be7c7de8-06e4-5ea4-8faf-18881dbcee45",
+       "fda6f4a3-6734-5347-8712-e449ed76e0a8"
+      ],
+      "source_printing_ids": [
+       "4720b4f2-e6af-4223-9250-a0ed21ed5693",
+       "4a45bf1f-748d-4075-976d-cc355fce1862",
+       "8407c498-b972-49fe-b30a-a864c39ddc7a",
+       "99add821-568b-4931-8525-a673e6cc8f65",
+       "99b7ac6b-b320-44b3-90b9-337a8be5a8e9",
+       "c9b8626d-d3d8-4460-9adf-112f48f173f6"
+      ]
+     },
+     "name": "Pest Infestation",
+     "non_ability_text": null,
+     "oracle_text": "Destroy up to X target artifacts and/or enchantments. Create twice X 1/1 black and green Pest creature tokens with \"When this token dies, you gain 1 life.\"",
+     "power": null,
+     "printings": [
+      "C21",
+      "EOC",
+      "OTP",
+      "PLST",
+      "PRM",
+      "SOC"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2021-04-16",
+       "text": "If any artifacts or enchantments were chosen as targets, and all of them are illegal targets as Pest Infestation tries to resolve, it won't resolve and none of its effects will happen. No Pests will be created."
+      },
+      {
+       "date": "2021-04-16",
+       "text": "The number of Pests created is equal to twice the chosen value of X, no matter how many artifacts and enchantments were destroyed."
+      }
+     ],
+     "scryfall_oracle_id": "1b704798-0c69-4c18-ac7e-42933ce90028",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "all_parts": [
+     {
+      "component": "token",
+      "id": "2b613822-b9c2-439e-9533-a91bed12b5e9",
+      "name": "Pest",
+      "oracle_id": "37c4adc8-7455-4725-95fb-169a8b0254e5",
+      "type_line": "Token Creature — Pest"
+     }
+    ],
+    "arena_available": true,
+    "cmc": 1.0,
+    "color_identity": [
+     "G"
+    ],
+    "colors": [
+     "G"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{X}{X}{G}",
+    "name": "Pest Infestation",
+    "oracle_id": "1b704798-0c69-4c18-ac7e-42933ce90028",
+    "oracle_text": "Destroy up to X target artifacts and/or enchantments. Create twice X 1/1 black and green Pest creature tokens with \"When this token dies, you gain 1 life.\"",
+    "type_line": "Sorcery"
+   }
+  },
   "Pestilence": {
    "phase_records": [
     {
@@ -832392,6 +833493,208 @@
     "power": "5",
     "toughness": "4",
     "type_line": "Creature — Beast"
+   }
+  },
+  "Rabid Attack": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Until end of turn, any number of target creatures you control each get +1/+0 and gain \"When ~ dies, draw a card.\"",
+       "duration": "UntilEndOfTurn",
+       "effect": {
+        "duration": "UntilEndOfTurn",
+        "static_abilities": [
+         {
+          "active_zones": [],
+          "affected": {
+           "type": "ParentTarget"
+          },
+          "affected_zone": null,
+          "characteristic_defining": false,
+          "condition": null,
+          "description": "get +1/+0 and gain \"When ~ dies, draw a card.\"",
+          "effect_zone": null,
+          "mode": "Continuous",
+          "modifications": [
+           {
+            "type": "AddPower",
+            "value": 1
+           },
+           {
+            "type": "AddToughness",
+            "value": 0
+           },
+           {
+            "trigger": {
+             "batched": false,
+             "condition": null,
+             "constraint": null,
+             "damage_kind": "Any",
+             "description": "When ~ dies, draw a card.",
+             "destination": "Graveyard",
+             "execute": {
+              "condition": null,
+              "cost": null,
+              "description": null,
+              "duration": null,
+              "effect": {
+               "count": {
+                "type": "Fixed",
+                "value": 1
+               },
+               "target": {
+                "type": "Controller"
+               },
+               "type": "Draw"
+              },
+              "forward_result": false,
+              "kind": "Spell",
+              "optional": false,
+              "optional_targeting": false,
+              "sub_ability": null,
+              "target_prompt": null
+             },
+             "mode": "ChangesZone",
+             "optional": false,
+             "origin": "Battlefield",
+             "phase": null,
+             "secondary": false,
+             "trigger_zones": [
+              "Graveyard"
+             ],
+             "valid_card": {
+              "type": "SelfRef"
+             },
+             "valid_source": null,
+             "valid_target": null
+            },
+            "type": "GrantTrigger"
+           }
+          ]
+         }
+        ],
+        "target": {
+         "controller": "You",
+         "properties": [],
+         "type": "Typed",
+         "type_filters": [
+          "Creature"
+         ]
+        },
+        "type": "GenericEffect"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "multi_target": {
+        "max": null,
+        "min": 0
+       },
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Instant"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Black"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "standard": "legal",
+      "standardbrawl": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "Black"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "f5e67560-3135-4b27-a344-5859edf8bcd9"
+      ]
+     },
+     "name": "Rabid Attack",
+     "non_ability_text": null,
+     "oracle_text": "Until end of turn, any number of target creatures you control each get +1/+0 and gain \"When this creature dies, draw a card.\"",
+     "power": null,
+     "printings": [
+      "SOS"
+     ],
+     "rarities": [
+      "uncommon"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "4db02b34-efec-437c-ab28-aa318b8879ad",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 2.0,
+    "color_identity": [
+     "B"
+    ],
+    "colors": [
+     "B"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "legal",
+     "standardbrawl": "legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}{B}",
+    "name": "Rabid Attack",
+    "oracle_id": "4db02b34-efec-437c-ab28-aa318b8879ad",
+    "oracle_text": "Until end of turn, any number of target creatures you control each get +1/+0 and gain \"When this creature dies, draw a card.\"",
+    "type_line": "Instant"
    }
   },
   "Rad Rascal": {

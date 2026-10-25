@@ -43,6 +43,7 @@ from mtg_utils._card_ir.crosswalk import (
     ATTACHED_OBJECT_PREDICATES,
     CHOSEN_PLAYER_SCOPE,
     OPPONENT_ACTOR_TAGS,
+    SELF_REFERENCE_TARGETS,
     AbilityUnit,
     ConceptTree,
     answers_its_target,
@@ -62,13 +63,16 @@ from mtg_utils._card_ir.crosswalk import (
     filter_core_types,
     filter_inanyzone_zones,
     filter_inzone_zones,
+    filter_names_creatures,
     filter_owned_controller,
     filter_predicates,
     filter_subtypes,
     has_nested_damage_reaching_player,
     has_nested_extra_turn,
     hurts_triggering_player,
+    is_dies_return_trigger,
     is_self_discard_cost,
+    iter_granted_triggers,
     iter_mod_sites,
     iter_nested_token_effects,
     iter_nested_trigger_defs,
@@ -81,6 +85,7 @@ from mtg_utils._card_ir.crosswalk import (
     keyword_token_creations,
     mod_keyword_name,
     mod_value,
+    names_attached_object,
     nested_plus_one_keyword_grant,
     own_turn_step_triggers,
     plays_lands_from_graveyard,
@@ -95,8 +100,15 @@ from mtg_utils._card_ir.crosswalk import (
     trigger_scope,
     trigger_subject,
     trigger_subject_scope,
+    walk_effect_chain,
+    watches_itself,
 )
-from mtg_utils._card_ir.crosswalk.reads import Choice, choice_of, strips_abilities
+from mtg_utils._card_ir.crosswalk.reads import (
+    Choice,
+    GrantedTrigger,
+    choice_of,
+    strips_abilities,
+)
 from mtg_utils._card_ir.mirror.runtime import (
     MISSING,
     TypedMirrorNode,
@@ -811,6 +823,63 @@ def _land_creatures_matter(tree: ConceptTree) -> list[Signal]:
 # rejected by both, so it is not falsely "covered" and reaches the SUBTYPE synth arm.
 
 
+def _grantee_is_your_creature(granted: GrantedTrigger) -> bool:
+    """Whether a granted trigger goes to a creature you control other than the
+    card itself. A granted trigger's source is the creature whose ability
+    triggered (CR 113.7), and its controller is that creature's controller (CR
+    603.3a), so a death payoff granted to an opponent's creature pays that
+    opponent, and one granted to every creature pays each controller alike. Read
+    as yours: a population or a target you control; a chosen target naming no
+    controller (the caster aims a death payoff at their own creature, the read's
+    own decision — Clavileño's "target attacking Vampire" also can't be another
+    player's, CR 508.1a); the enchanted or equipped creature; a soulbond pair
+    (CR 702.95a: both creatures you control). Not the card itself (``SelfRef`` —
+    a self-grant is :func:`_self_death_payoff`'s; a token's own ability), a token
+    just made (``LastCreated``), or a back-reference left unresolved."""
+    grantee = granted.grantee
+    tag = grantee if isinstance(grantee, str) else tag_of(grantee)
+    if tag == "SourceOrPaired":
+        return True
+    if tag not in ("Typed", "Or", "And"):
+        return False
+    if names_attached_object(grantee):
+        return True
+    side = filter_controller_side(grantee)
+    if side != "you" and not (granted.chosen and side is None):
+        return False
+    return filter_names_creatures(grantee)
+
+
+def _grants_death_payoff(granted: GrantedTrigger) -> bool:
+    """Whether a unit grants "When this creature dies, <payoff>" to creatures you
+    control (:func:`_grantee_is_your_creature`), making the granter a death
+    payoff for each of them (CR 700.4, 113.1a). The payoff is
+    :func:`_is_death_payoff_effect`'s value; a grant that returns the dying
+    creature (to the battlefield, :func:`is_dies_return_trigger` — Feign Death;
+    or to its owner's hand — Kaya the Inexorable's ghostform, Verdant Rebirth)
+    is resilience, not a payoff, whatever it adds beside."""
+    trig = granted.trigger
+    if (
+        trigger_def_event(trig) != "dies"
+        or getattr(trig, "origin", None) != "Battlefield"
+        or not watches_itself(trig)
+        or not _grantee_is_your_creature(granted)
+        or is_dies_return_trigger(trig)
+    ):
+        return False
+    execute = getattr(trig, "execute", None)
+    if not isinstance(execute, TypedMirrorNode):
+        return False
+    effects = tuple(walk_effect_chain(execute))
+    if any(
+        tag_of(c.node) == "Bounce"
+        and tag_of(getattr(c.node, "target", None)) in SELF_REFERENCE_TARGETS
+        for c in effects
+    ):
+        return False
+    return any(_is_death_payoff_effect(c) for c in effects)
+
+
 # The aristocrats death-payoff effect kinds (CR 700.4): the equipment/aura
 # AttachedTo dies-trigger arm fires ONLY when the trigger's effect EXTRACTS VALUE
 # from the equipped/enchanted creature's death — draw (Skullclamp, Bequeathal),
@@ -825,7 +894,7 @@ def _land_creatures_matter(tree: ConceptTree) -> list[Signal]:
 def _death_matters(tree: ConceptTree) -> list[Signal]:
     """Aristocrats payoff — cares about OTHER creatures dying (CR 700.4). Tier-1.
 
-    Five structural arms, zero oracle text / regex at lane time (ADR-0036 fold —
+    Six structural arms, zero oracle text / regex at lane time (ADR-0036 fold —
     the ``_DEATH_MATTERS_MIRROR`` is deleted):
 
     * a battlefield ``dies`` trigger watching a real CREATURE object (Blood Artist /
@@ -842,11 +911,17 @@ def _death_matters(tree: ConceptTree) -> list[Signal]:
       a creature died this turn" state family (Bone Picker, Mahadi, the Zubera
       count payoffs).
     * a ``CreatureDying`` trigger-DOUBLER (Teysa Karlov, Drivnod — CR 603.2).
+    * a "When this creature dies, <payoff>" the card GRANTS to other creatures you
+      control (:func:`_grants_death_payoff` — Clavileño's attacking Vampire,
+      Showstopper's team, Infernal Scarring's enchanted creature): each of their
+      deaths pays its controller. Scope "you".
     * the ``tree_synthesis`` bucket-B synth node (the morbid / combat-damage-dies /
       description-only other-creature death tail phase emits no typed node for).
     """
     out: list[Signal] = []
     for unit in tree.units:
+        if any(_grants_death_payoff(g) for g in iter_granted_triggers(unit)):
+            out.append(Signal("death_matters", "you", "", "", tree.name, "high"))
         if unit.trigger_event != "dies":
             continue
         # CR 700.4: "dies" is put into a graveyard FROM THE BATTLEFIELD. A

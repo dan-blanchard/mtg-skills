@@ -45,6 +45,8 @@ from mtg_utils._card_ir.crosswalk import (
     AbilityUnit,
     ConceptTree,
     build_concept_tree,
+    filter_subtypes,
+    iter_granted_triggers,
     lost_pile_count,
     replacement_event_tag,
     replacement_token_types,
@@ -703,6 +705,48 @@ def test_death_matters_fires_with_scope(name, ident):
 )
 def test_death_matters_excludes_self_and_nondeath(name):
     assert "death_matters" not in _keys(name)
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Clavileño, First of the Blessed",  # "It gains" — the attacking Vampire
+        "Showstopper",  # "creatures you control gain"
+        "Rabid Attack",  # "target creatures you control … gain"
+        "Infernal Scarring",  # "Enchanted creature … has"
+        "Doom Weaver",  # a soulbond pair
+        "Time Lord Regeneration",  # Time Lord, CR 205.3m's two-word creature type
+    ],
+)
+def test_death_matters_reads_a_granted_dies_payoff(name):
+    """A "When this creature dies, <payoff>" granted to a creature you control
+    pays its controller each time one dies (CR 113.1a, 603.3a, 700.4): the
+    granter is a death payoff."""
+    assert ("death_matters", "you", "") in _idents(name)
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Mathas, Fiend Seeker",  # granted to an opponent's creature: it pays them
+        "Endless Whispers",  # every creature: each controller alike
+        "Kaya the Inexorable",  # returns the dying creature to hand: resilience
+        "Feign Death",  # returns it to the battlefield: dies_recursion's
+        "Expedition Diviner",  # granted to itself: a self-death payoff
+        "Pest Infestation",  # a token's own death trigger
+    ],
+)
+def test_death_matters_skips_grants_that_pay_no_death(name):
+    assert "death_matters" not in _keys(name)
+
+
+def test_granted_trigger_resolves_its_chosen_target():
+    """Clavileño's "It gains '…'" goes to the attacking Vampire its trigger
+    targets: the grantee is that filter, threaded through the chain."""
+    tree = _tree("Clavileño, First of the Blessed")
+    [granted] = [g for u in tree.units for g in iter_granted_triggers(u)]
+    assert granted.chosen
+    assert filter_subtypes(granted.grantee) == ("Vampire",)
 
 
 @pytest.mark.parametrize(

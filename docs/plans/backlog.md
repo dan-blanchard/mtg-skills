@@ -154,10 +154,14 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   sacrifice package) still have no search. Measured negative 2026-10-24 (the
   audit's "The tuner-policy leftovers"): one swap off the serve page, cut from the
   upgrade pool, for each lane below the viable floor that the commander holds and
-  cares about (58 adds; 60 held to the emerging floor, flat) — Blood Rites' package
-  is not such a lane (Clavileño holds Vampire, Demon and Combat by the signal read),
-  and the shallow lanes' pages are noise. A new read would be the commander's lane
-  read itself (Clavileño's granted dies trigger as a death payoff). Only four serve
+  cares about (58 adds; 60 held to the emerging floor, flat), and the shallow
+  lanes' pages are noise. Shipped 2026-10-25: a "When this creature dies, <payoff>"
+  a card grants to creatures you control reads as `death_matters|you`
+  (`crosswalk.iter_granted_triggers`, the grantee threaded to the chosen target;
+  eight legal cards gain it, Clavileño, Showstopper and Infernal Scarring among
+  them, none lose). Alone it moved no swap (543 / 195 / 60): Clavileño then holds
+  Aristocrats (28 deep), but 26 of its members are Vampires, so it folds into
+  Vampire tribal and no page holds the package. Only four serve
   only a sub (Living Energy's Arcum Dagsson, Clever Impersonator, Scrap Welder; Deep
   Clue Sea's Displaced Dinosaurs). Measured negative 2026-10-24: a sub with a main's carers
   (6) taking one add that also serves a main (57 adds, 2 guide cuts fewer; neither
