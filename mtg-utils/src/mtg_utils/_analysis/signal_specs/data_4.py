@@ -833,23 +833,6 @@ SPECS_4: dict[tuple[str, str], SignalSpec] = {
     # sub-avenue and opens no avenue of its own, so its spec is that sub-avenue's —
     # what the key-agreement gate resolves it to.
     ("mass_token_makers", "you"): _sub_avenue_spec(_GOWIDE_MAKER_EXTRA),
-    # subtype_ref's subjects are the subtypes a card's filters name; the tribal
-    # specs (``core._subject_spec``) read them per tribe. Its own serve counts no
-    # subject, so a deck's signal opens no avenue (``avenue_spec_for``).
-    ("subtype_ref", "you"): _spec(
-        "Tribe references",
-        "cards that name a creature type in what they affect, count or cost",
-        None,
-        serve_idents=frozenset({"subtype_ref|you|"}),
-    ),
-    # keyword_bodies' subjects are keywords; the keyword-tribe specs read them per
-    # keyword, and its own serve counts none, so it opens no avenue.
-    ("keyword_bodies", "you"): _spec(
-        "Keyword bodies",
-        "cards that put a keyword on creatures of yours",
-        None,
-        serve_idents=frozenset({"keyword_bodies|you|"}),
-    ),
     ("self_drawback", "you"): _sub_avenue_spec(_DRAWBACK_EXTRA),
     ("extra_blockers", "you"): _sub_avenue_spec(_DAMAGE_SOAK_EXTRA),
 }

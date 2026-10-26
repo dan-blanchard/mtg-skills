@@ -144,13 +144,17 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   resolving the referent changes reads, so it wants a precon rerun.
   (m) **Recall** (`precon-audit/misses.py`, at the largest guide's thirty
   swaps and each precon's own guides' budget, `budgets.json`, Spellbook cached):
-  252 of 408 cuttable guide cuts, 75 of 610 in-scope guide adds, 669 swaps
-  (2026-10-25, the cut pool: an over-band trim drains its excess, only a main
+  256 of 408 cuttable guide cuts, 76 of 610 in-scope guide adds, 680 swaps
+  (2026-10-25, the third (o) pass: Fae Dominion cuts Faerie Formation and adds
+  Likeness Looter and Spellstutter Sprite, not Faerie Mastermind; Multiverse
+  Reforged cuts Brainsurge, Fact or Fiction and Shark Typhoon and adds Archfiend
+  of Depravity; Graveyard Overdrive no longer adds Six; 252 / 75, 669 swaps
+  before it, the cut pool: an over-band trim drains its excess, only a main
   shields an off-lane card from the upgrade tiers, an off-theme card's theme
   upgrade need not be more played and may cost one band more — the audit's "The
   cut pool"; 199 / 67, 562 swaps before it; 197 / 66, 560 swaps at the even share;
   195 / 59, 543 swaps before it; 180 / 57 before the near-tie budget rule, 169 / 56
-  at 9e0026ed). The levers by size at the shipped tune: adds a page held but
+  at 9e0026ed). The levers by size at the cut pool's tune: adds a page held but
   outranked (251 — the gate reasons fell, since a pick inside the share stops the
   scan before the gates see the rest), theme adds no search reaches (164, (r)),
   commander-lane cards the guides trim (57), cuts the popularity threshold still
@@ -229,31 +233,37 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   trigger's self-return firing `bounce_tempo` (none; the other trigger
   back-references on cards that fire return an event object — a blocked
   creature, a damage source, a land tapped for mana).
-  (o) **Theme matching off the IR, what's left** (2026-10-25, after the second
-  pass that took fourteen of the fifteen pattern sub-avenues (the tribal
-  payoffs keep theirs, below), the Ability-strip spec, the meld partner and
-  ``token_maker``'s tribe tokens off their patterns; page diffs and the class
-  of every card a page lost:
+  (o) **Theme matching off the IR, what's left** (2026-10-25, after the third
+  pass: the tribe spec and its payoff sub-avenue page off the IR too, so only
+  the keyword tribe ORs a pattern; the class of every card the tribe pages lost
+  is in ``~/mtg/tuner-work/w16/classification-tribes.tsv``, the second pass's in
   ``~/mtg/tuner-work/w13/classification-final.tsv``). A theme pages by its
   serve (``signal_specs.theme_page``); no search carries an oracle pattern
-  (``test_a_theme_pages_by_its_serve_not_a_pattern``). Three subject specs
-  ``core._subject_spec`` builds still OR a pattern beside their structural
-  arms, each because the pattern alone still pages real members no read names:
-  - the tribe spec (``type_matters``' main page; Goblin: 10 cards the pattern
-    alone pages): a devour count (Voracious Dragon), an offering (Patron of
-    the Akki), a chosen token type (Sarpadian Empires) and a keyword for
-    controlling one (Tribal Golem); the rest are an opponent's tokens of the
-    tribe, a protection from it and a conjured card's name;
-  - its payoff sub-avenue (``_payoff_extra``; Goblin: 30): a "behold a {s}"
-    cost (Champion of the Weird), a chosen-type count (Caller of the Hunt) and
-    a "shares a creature type" phase drops (Cryptic Gateway); the rest are
-    chosen-type punishers and type changers;
-  - the keyword tribe ("Flying matters": 431): nearly all name the keyword to
-    fight it (reach's reminder, "destroy target creature with flying",
-    "creatures without flying"), but a few put it on bodies ``keyword_bodies``
-    doesn't follow yet: Tek's land-conditioned flying, Flowstone Sculpture's
-    keyword choice, Valkyrie's Call's returned Angel, Will of the Temur's
-    flying Dragon copy.
+  (``test_a_theme_pages_by_its_serve_not_a_pattern``). Open:
+  - the keyword tribe ("Flying matters") keeps its pattern: of the 431 cards
+    it alone pages nearly all name the keyword to fight it, but phase drops
+    the keyword from about twenty real flying bodies (more for trample) in
+    unrelated shapes — a grant left out of a static's or a pump's
+    modifications (Valkyrie's Call, Chariot of the Sun, Tromp the Domains), a
+    parked token maker (Notorious Throng, Welcome the Darkness), an
+    Unrecognized condition (Tek, Tribal Golem), a keyword misread as a subtype
+    (Will of the Temur), a Role token's reminder (Monstrous Rage). That is a
+    regex lane's worth of ledger rows, so the pattern stays until phase types
+    them; ``keyword_bodies`` now follows the shapes phase does type (keyword
+    counters a creature enters with or gets at random, a token copy's extra
+    keywords, a replacement's added token, a keyword chosen for itself,
+    perpetual grants, a Vehicle token); Flowstone Sculpture's keyword choice
+    (phase leaves it ``Unimplemented``) is one the pattern alone still pages;
+  - the tribe pages were checked on Goblin, Elf, Zombie, Dragon and Sliver
+    (and Angel, Vampire, Merfolk, Wizard, Human): every real member they
+    lost has an IR ident or a ledger row (the 21 ``_reference_row`` rows). The
+    other tribes weren't, and phase drops ran 0–3 members a tribe;
+  - ``type_matters``' token-profile join gains Eye and Hand of Vecna on the
+    Zombie page (their Vecna is a Zombie God), no member.
+  The page-only keys (``signal_keys.PAGE_ONLY_KEYS``: ``subtype_ref``,
+  ``keyword_bodies`` and ``land_return_untap``, the Forest-bounce untap engines
+  split off ``permanent_etb``) feed a theme's page and open no avenue or plan
+  (``signal_keys.is_page_only``).
   A card phase has no record for carries no ident at all, so it drops off a
   pattern-free page: of the permanents-entering makers, Oko, Lord of the Fae;
   Flourishing Forces; Enter the Eternities; Quintorius, Fate Splitter; Potential
@@ -305,7 +315,22 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   tutor or Food is no symmetric mana; a sacrifice-cost drain (Anje, Glass-Cast
   Heart) is the aristocrats outlet, not a token-leaves drain, and a drain on the
   token a card makes is that token's; a curse watching its enchanted player's
-  creatures enter punishes them, not a creature-ETB payoff of yours.
+  creatures enter punishes them, not a creature-ETB payoff of yours. What the
+  third pass dropped from the tribe pages (``/rules-lawyer``, 2026-10-25): a
+  protection from the tribe guards its holder (CR 702.16b/e); a targeted
+  removal (CR 115.1) that can't hit the tribe spares no board (Victim of
+  Night), while an untargeted mass effect (CR 115.10) or an every-player edict
+  that leaves the tribe out rewards a board of it — the lane's call (Eyeblight
+  Massacre, Kindred Dominance, Call to the Grave) — and pages on both the
+  tribe and its payoffs; a Siege's
+  "Dragons" is an anchor word with no tie to the type (its ruling, CR 607.2m);
+  a party counts one Wizard (CR 700.8); a four-material craft (Throne of the
+  Grim Captain, CR 702.167a), a named card (conjured, tutored) and an
+  opponent's tokens of the tribe are no tribe's; a token maker of the tribe
+  is its main page's, not a payoff. Merging ``creature_etb|you|punish`` into
+  ``typed_enters_punish`` doesn't hold: 17 cards carry both, but each keeps
+  cards the other rightly lacks (a landfall or artifact-entering burn there; a
+  drain or a creature-entering burn here), and the ETB-payoff page reads both.
   (l) **Tune speed, what's left** (2026-10-25, after the speed pass that took a
   warm Blood Rites `deck-tune` from 5.0 to 2.9 s; the 25 precons' warm tunes,
   each in a fresh process with the sidecars attached, 2.4 / 3.5 → 1.0 / 1.7 s

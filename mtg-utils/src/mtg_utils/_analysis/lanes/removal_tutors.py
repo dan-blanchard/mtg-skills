@@ -1861,9 +1861,9 @@ def _recast_doer_subjects(tree: ConceptTree) -> list[tuple[str, str]]:
     back; a tuck to the library is not) and ``replay``
     (:func:`crosswalk.replays_own_permanent`, or a cost paid that way, of a
     permanent that can be other than a land), and ``permanent_etb`` ``replay``
-    for any replay — ``land_untap`` too when a land you control returned to its
-    owner's hand pays for an untap in the same ability (Quirion Ranger, Scryb
-    Ranger, Oboro Breezecaller: the Forest-bounce untap engines; a creature
+    for any replay — and ``land_return_untap`` when a land you control returned
+    to its owner's hand pays for an untap in the same ability (Quirion Ranger,
+    Scryb Ranger, Oboro Breezecaller: the Forest-bounce untap engines; a creature
     returned — Wirewood Symbiote's Elf — is none)."""
     found: set[str] = set()
     replays: list[object] = []
@@ -1917,7 +1917,7 @@ def _recast_doer_subjects(tree: ConceptTree) -> list[tuple[str, str]]:
     if replays or web_slinging:
         out.append(("permanent_etb", "replay"))
     if land_untap:
-        out.append(("permanent_etb", "land_untap"))
+        out.append(("land_return_untap", ""))
     return out
 
 

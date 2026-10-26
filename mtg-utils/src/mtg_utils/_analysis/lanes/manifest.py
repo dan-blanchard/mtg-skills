@@ -546,6 +546,9 @@ SERVED_SIGNAL_KEYS: frozenset[str] = frozenset(
         "subtype_ref",
         # backlog (o): the keywords a card puts on bodies of yours.
         "keyword_bodies",
+        # backlog (o): a land you control returned to its owner's hand pays for
+        # an untap in the same ability (Quirion Ranger).
+        "land_return_untap",
         # The soak payoffs a redirect-to-self commander fires (Rite of Passage).
         "damage_received_matters",
         # NB: land_destruction's batch-8 KEPT verdict (the membership-gated

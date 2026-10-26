@@ -48,6 +48,10 @@ _MISSING_FACE_PINS = {
     "Tomb of Annihilation": "Tomb of Annihilation",
     "Onward // Victory": "Victory",
 }
+# Pins whose row reads a back face phase does record: the face to build.
+_BACK_FACE_PINS = {
+    "Invasion of New Capenna // Holy Frazzle-Cannon": "Holy Frazzle-Cannon",
+}
 
 
 @lru_cache(maxsize=1)
@@ -69,10 +73,13 @@ def _tree(name: str) -> ConceptTree:
         trees = _text_only_trees(record, tuple(records), oracle_id=record["oracle_id"])
         (tree,) = (t for t in trees if t.name == _MISSING_FACE_PINS[name])
         return tree
-    rec = next(
-        (r for r in records if r["name"] == name),
-        next(r for r in records if r["name"] == name.split(" // ", maxsplit=1)[0]),
-    )
+    if name in _BACK_FACE_PINS:
+        rec = next(r for r in records if r["name"] == _BACK_FACE_PINS[name])
+    else:
+        rec = next(
+            (r for r in records if r["name"] == name),
+            next(r for r in records if r["name"] == name.split(" // ", maxsplit=1)[0]),
+        )
     root = strict_load_card(rec, _schema(), name=rec["name"])
     return build_concept_tree(root, name=rec["name"])
 
@@ -308,6 +315,12 @@ _MISPARSE_ROWS = {
     "team_indestructible_misbound": (
         "a team indestructible grant parsed onto the player (Controller) or with "
         "its 'you control' dropped"
+    ),
+    "human_enters_counter_misparse": (
+        "the Humans' extra counter parsed as a replacement on the card itself"
+    ),
+    "chosen_type_sweep_misparse": (
+        "the one-sided -3/-3 parsed as a Pump of any target"
     ),
 }
 

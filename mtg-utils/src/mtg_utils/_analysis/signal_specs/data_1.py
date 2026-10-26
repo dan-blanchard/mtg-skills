@@ -353,9 +353,9 @@ SPECS_1: dict[tuple[str, str], SignalSpec] = {
                 # decks; the bounce cost is the precision gate (a plain {T}: untap
                 # is not this — nor Wirewood Symbiote's Elf).
                 "bounce a Forest/land you control to untap a creature or land",
-                # permanent_etb's ``land_untap``: a land you control returned to
+                # land_return_untap: a land you control returned to
                 # its owner's hand pays for an untap in the same ability.
-                serve=Serve(signal_idents=frozenset({"permanent_etb|you|land_untap"})),
+                serve=Serve(signal_idents=frozenset({"land_return_untap|you|"})),
             ),
         ),
     ),

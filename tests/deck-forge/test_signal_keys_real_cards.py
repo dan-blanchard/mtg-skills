@@ -234,6 +234,7 @@ _REAL_CASES: dict[str, str] = {
     "land_destruction": "Numot, the Devastator",
     "land_exchange": "Political Trickery",
     "land_protection": "Living Plane",
+    "land_return_untap": "Quirion Ranger",
     "land_sacrifice_makers": "Hearthhull, the Worldseed",
     "land_sacrifice_matters": "The Gitrog Monster",
     # A land-type payoff names its land type (Yuma: Deserts).

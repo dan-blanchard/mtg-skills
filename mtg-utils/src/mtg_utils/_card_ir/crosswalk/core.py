@@ -41,6 +41,7 @@ from collections.abc import Iterator
 from dataclasses import dataclass, field
 from functools import cached_property
 
+from mtg_utils._card_ir.creature_types import CREATURE_TYPES
 from mtg_utils._card_ir.crosswalk.cost_text import (
     ALT_COST_KEYWORDS,
     FACE_DOWN_KEYWORDS,
@@ -589,6 +590,12 @@ class ConceptTree:
     # reason ``card_enchant_filter`` is: the condition-population walk reads
     # them as it reads a unit's conditions.
     card_modal_conditions: tuple[object, ...] = ()
+    # The condition of each card-root ``casting_restrictions`` entry that lets
+    # you cast the card only while it holds (``RequiresCondition``, CR 601.3: a
+    # player can begin to cast a spell only if no rule or effect prohibits it):
+    # Feast of Blood's "Cast this spell only if you control two or more
+    # Vampires". Raw condition nodes, read like ``card_modal_conditions``.
+    card_cast_conditions: tuple[object, ...] = ()
     # The mana values of the card's own unconditional alternative casting costs
     # (``reads.CURVE_COST_KEYWORDS`` — warp, evoke, dash, blitz, prototype,
     # impending), read off ``root.keywords`` like ``card_enchant_filter``: the
@@ -608,11 +615,12 @@ class ConceptTree:
     # (Escape Velocity's escape, in its lowercase kind). Fold with
     # ``reads.normalised_keyword_name`` to compare.
     card_keywords: tuple[str, ...] = ()
-    # The type words of each printed keyword whose parameter is an object filter,
-    # as ``(keyword, core types + subtypes)`` in ``root.keywords`` order: "Affinity
-    # for planeswalkers" → ``("Affinity", ("Planeswalker",))`` (CR 702.41a: "This
-    # spell costs {1} less to cast for each [text] you control"). ``card_keywords``
-    # keeps only the name.
+    # The type words of each printed keyword whose parameter is an object filter
+    # or a bare creature type, as ``(keyword, core types + subtypes)`` in
+    # ``root.keywords`` order: "Affinity for planeswalkers" → ``("Affinity",
+    # ("Planeswalker",))`` (CR 702.41a: "This spell costs {1} less to cast for
+    # each [text] you control"); "Goblin offering" → ``("Offering",
+    # ("Goblin",))``. ``card_keywords`` keeps only the name.
     card_keyword_types: tuple[tuple[str, tuple[str, ...]], ...] = ()
 
     @property
@@ -1078,10 +1086,15 @@ def _cost_concepts(ability: TypedMirrorNode) -> tuple[ConceptNode, ...]:
 
 
 # The cost primitives with no effect concept that a spell's additional cost
-# keeps (:func:`_spell_additional_cost_concepts`): paying life, blighting, and
-# tapping untapped permanents you control.
-_ADDITIONAL_COST_PRIMITIVE_TAGS = _PAYLIFE_COST_TAGS | frozenset(
-    {"Blight", "TapCreatures"}
+# keeps (:func:`_spell_additional_cost_concepts`): paying life, blighting,
+# tapping untapped permanents you control, and beholding a quality (CR 701.4a:
+# "Behold a [quality]" means "Reveal a [quality] card from your hand or choose a
+# [quality] permanent you control" — Champion of the Weird's Goblin) or
+# revealing a card of one (Dragonlord's Prerogative's "you may reveal a Dragon
+# card"), whose filter names what the spell asks you to have.
+_QUALITY_COST_TAGS = frozenset({"Behold", "Reveal"})
+_ADDITIONAL_COST_PRIMITIVE_TAGS = (
+    _PAYLIFE_COST_TAGS | frozenset({"Blight", "TapCreatures"}) | _QUALITY_COST_TAGS
 )
 
 
@@ -1115,21 +1128,46 @@ def _spell_additional_cost_concepts(root: TypedMirrorNode) -> tuple[ConceptNode,
     cost primitive (CR 701.68a), kept for ``minus_counters_matter``'s blight read
     (``crosswalk.reads.blight_placements``), and so is a ``TapCreatures`` leaf
     (Disruption Protocol's "tap an untapped artifact you control or pay {1}"),
-    for the readers of ``crosswalk.reads.controller_paid_cost_leaves``.
+    for the readers of ``crosswalk.reads.controller_paid_cost_leaves``. A
+    behold that buys a casting permission rides ``casting_options`` instead
+    ("You may cast this spell as though it had flash if you behold a Dragon as
+    an additional cost to cast it" — Molten Exhale), and joins it.
     """
-    ac = getattr(root, "additional_cost", MISSING)
-    if not isinstance(ac, TypedMirrorNode):
-        return ()
     out: list[ConceptNode] = []
-    for n in iter_typed_nodes(ac):
-        if n is ac:
-            continue
-        cn = _decorate_effect(n, "cost")
-        if cn is None:
-            continue
-        if cn.concept != OTHER or tag_of(n) in _ADDITIONAL_COST_PRIMITIVE_TAGS:
+    ac = getattr(root, "additional_cost", MISSING)
+    if isinstance(ac, TypedMirrorNode):
+        for n in iter_typed_nodes(ac):
+            if n is ac:
+                continue
+            cn = _decorate_effect(n, "cost")
+            if cn is None:
+                continue
+            if cn.concept != OTHER or tag_of(n) in _ADDITIONAL_COST_PRIMITIVE_TAGS:
+                out.append(cn)
+    for n in _casting_option_cost_leaves(root, alternative=False):
+        if tag_of(n) in _QUALITY_COST_TAGS and (cn := _decorate_effect(n, "cost")):
             out.append(cn)
     return tuple(out)
+
+
+def _casting_option_cost_leaves(
+    root: TypedMirrorNode, *, alternative: bool
+) -> Iterator[TypedMirrorNode]:
+    """Every node of the costs the card's root ``casting_options`` entries
+    carry: the ALTERNATIVE costs (``kind='AlternativeCost'``, CR 118.9) with
+    ``alternative``, else the others (an optional cost that buys a casting
+    permission — Molten Exhale's behold for flash)."""
+    opts = getattr(root, "casting_options", MISSING)
+    if not _present(opts) or not isinstance(opts, list):
+        return
+    for opt in opts:
+        if not isinstance(opt, TypedMirrorNode):
+            continue
+        if (getattr(opt, "kind", None) == "AlternativeCost") is not alternative:
+            continue
+        cost = getattr(opt, "cost", MISSING)
+        if isinstance(cost, TypedMirrorNode):
+            yield from iter_typed_nodes(cost)
 
 
 # The alternative-cost leaves :func:`_spell_alt_cost_paylife_concepts` reads.
@@ -1155,24 +1193,12 @@ def _spell_alt_cost_paylife_concepts(root: TypedMirrorNode) -> tuple[ConceptNode
     for a future consumer to widen, same discipline as
     :func:`_spell_additional_cost_concepts`'s own carve-out.
     """
-    opts = getattr(root, "casting_options", MISSING)
-    if not _present(opts) or not isinstance(opts, list):
-        return ()
-    out: list[ConceptNode] = []
-    for opt in opts:
-        if not isinstance(opt, TypedMirrorNode):
-            continue
-        if getattr(opt, "kind", None) != "AlternativeCost":
-            continue
-        cost = getattr(opt, "cost", MISSING)
-        if not isinstance(cost, TypedMirrorNode):
-            continue
-        for n in iter_typed_nodes(cost):
-            if tag_of(n) in _ALT_COST_PRIMITIVE_TAGS:
-                cn = _decorate_effect(n, "cost")
-                if cn is not None:
-                    out.append(cn)
-    return tuple(out)
+    return tuple(
+        cn
+        for n in _casting_option_cost_leaves(root, alternative=True)
+        if tag_of(n) in _ALT_COST_PRIMITIVE_TAGS
+        and (cn := _decorate_effect(n, "cost")) is not None
+    )
 
 
 # The keyword-cost leaves :func:`_keyword_cost_concepts` decorates: a life
@@ -1599,11 +1625,19 @@ def build_concept_tree(
         present_keywords.add(name)
         card_keywords.append(name)
         # The parameter is the keyword's own struct (``S_Affinity``), not a
-        # ``Typed`` filter node, so its ``type_filters`` list is read directly.
+        # ``Typed`` filter node, so its ``type_filters`` list is read directly;
+        # a keyword whose parameter is a bare creature type carries it as a
+        # string ("Goblin offering" — Patron of the Akki, CR 702.48a).
         if isinstance(kw, MirrorVariant) and (
             words := _type_filter_words(getattr(kw.inner, "type_filters", None))
         ):
             card_keyword_types.append((name, tuple(words)))
+        elif (
+            isinstance(kw, MirrorVariant)
+            and isinstance(kw.inner, str)
+            and kw.inner.lower() in CREATURE_TYPES
+        ):
+            card_keyword_types.append((name, (kw.inner,)))
     dropped_rows, dropped_curve = _dropped_keyword_costs(root, present_keywords)
     card_alt_costs.extend(dropped_rows)
     # A keyword phase parked as a residue (Escape Velocity's escape) still names it.
@@ -1640,6 +1674,15 @@ def build_concept_tree(
                 cond = getattr(cond, "condition", None)
             if cond is not None:
                 card_modal_conditions.append(cond)
+    # A ``RequiresCondition`` casting restriction keys its condition as ``data``.
+    restrictions = getattr(root, "casting_restrictions", None)
+    card_cast_conditions = [
+        cond
+        for r in (restrictions if isinstance(restrictions, list) else ())
+        if tag_of(r) == "RequiresCondition"
+        and isinstance(data := getattr(r, "data", None), MirrorVariant)
+        and isinstance(cond := data.inner, TypedMirrorNode)
+    ]
     units: list[AbilityUnit] = []
 
     # A spell-level ``additional_cost`` (CR 601.2b) rides the ROOT, not any
@@ -1853,6 +1896,7 @@ def build_concept_tree(
         card_modal_mode_costs=card_modal_mode_costs,
         card_enchant_filter=card_enchant_filter,
         card_modal_conditions=tuple(card_modal_conditions),
+        card_cast_conditions=tuple(card_cast_conditions),
         card_curve_costs=tuple(card_curve_costs),
         card_alt_costs=tuple(card_alt_costs),
         card_keywords=tuple(card_keywords),

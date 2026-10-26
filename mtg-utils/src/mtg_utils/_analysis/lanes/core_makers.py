@@ -50,11 +50,11 @@ from mtg_utils._card_ir.crosswalk import (
     SELF_REFERENCE_TARGETS,
     AbilityUnit,
     ConceptTree,
-    _list_field,
     adds_creature_type,
     answers_its_target,
     cast_with_keyword_name,
     change_zone_dirs,
+    chosen_type_payoffs,
     controller_paid_cost_leaves,
     counter_kind,
     creature_type_change_kinds,
@@ -90,6 +90,7 @@ from mtg_utils._card_ir.crosswalk import (
     keyword_action_events,
     keyword_counter_placements,
     keyword_token_creations,
+    made_token_subtypes,
     makes_creature_tokens_at_once,
     mod_keyword_name,
     mod_value,
@@ -104,7 +105,6 @@ from mtg_utils._card_ir.crosswalk import (
     static_mode_tag,
     steals_stack_spell,
     tag_of,
-    token_creator_side,
     trigger_def_event,
     trigger_phase,
     trigger_scope,
@@ -114,9 +114,7 @@ from mtg_utils._card_ir.crosswalk import (
     watches_itself,
 )
 from mtg_utils._card_ir.crosswalk.reads import (
-    Choice,
     GrantedTrigger,
-    choice_of,
     strips_abilities,
 )
 from mtg_utils._card_ir.mirror.runtime import (
@@ -508,33 +506,16 @@ def _token_maker(tree: ConceptTree) -> list[Signal]:
     ):
         mass = True
         out.append(Signal("mass_token_makers", "you", "", "", tree.name, "high"))
-    # A token copy "except it's a Spirit in addition to its other types"
-    # (Hofri Ghostforge) is a Spirit token.
-    for unit in tree.units:
-        for n in unit.iter_typed():
-            if tag_of(n) != "CopyTokenOf" or token_creator_side(unit, n) == "opponents":
-                continue
-            for mod in _list_field(n, "additional_modifications"):
-                kind = (
-                    getattr(mod, "subtype", None)
-                    if tag_of(mod) == "AddSubtype"
-                    else None
-                )
-                resolved = _resolve_subject(kind, CREATURE_SUBTYPES) if kind else ""
-                if resolved:
-                    fire(resolved, "copy")
+    # A token copy "except it's a Spirit" (Hofri Ghostforge), the Army of an
+    # "amass Goblins N" (CR 701.47a), a token of a type chosen from a printed list
+    # (Sarpadian Empires, Vol. VII): crosswalk.made_token_subtypes.
+    for kind, how in made_token_subtypes(tree):
+        if resolved := _resolve_subject(kind, CREATURE_SUBTYPES):
+            fire(resolved, how)
     # Embalm and eternalize make a token copy that's a Zombie in addition to its
     # other types (CR 702.128a / 702.129a).
     if {"Embalm", "Eternalize"} & set(tree.card_keywords):
         fire("Zombie", "embalm")
-    # "Amass Goblins N": the Army is a Goblin too (CR 701.47a).
-    for event in keyword_action_events(tree):
-        if event.tag == "Amass" and event.yours:
-            for n in event.unit.iter_typed():
-                kind = getattr(n, "subtype", None) if tag_of(n) == "Amass" else None
-                resolved = _resolve_subject(kind, CREATURE_SUBTYPES) if kind else ""
-                if resolved:
-                    fire(resolved, "amass")
     if need_mirror:
         for subject in sorted(_mirror_token_maker_type_subjects(tree.oracle or "")):
             fire(subject, "")
@@ -1843,175 +1824,24 @@ def _type_changers(tree: ConceptTree) -> list[Signal]:
 
 
 # ── task B-1: chosen_type_matters — wildcard tribal payoffs ──────────────────
-# The chosen-type reference markers phase stamps into filters. A CreatureType
-# choice made as the permanent enters (CR 614.12 — the Voice of All as-enters
-# replacement shape) persists, and every payoff site that cares carries one of
-# these filter properties. IsChosenCardType is the spell-cast form (Door of
-# Destinies watches CAST SPELLS of the chosen type, a Card filter).
-_CHOSEN_TYPE_PREDS = frozenset({"IsChosenCreatureType", "IsChosenCardType"})
-# Static modes admitted by the marked-static arm: a plain continuous payload
-# (Door's dynamic anthem, Adaptive Automaton's lord line) or a trigger-doubler
-# over the chosen type (Roaming Throne). Default-deny keeps punisher-shaped
-# statics out (An-Zerrin Ruins' marked "CantUntap" static).
-_CHOSEN_STATIC_MODES = frozenset({"Continuous", "DoubleTriggers"})
-
-
-def _chosen_type_serve_statics(tree: ConceptTree) -> list[tuple[str, str]]:
-    """(scope, raw) per marked static that SERVES the chosen type.
-
-    Serve-vs-punish gates, in order: controller ``Opponent`` skips (Plague
-    Engineer projects -1/-1 onto an opponent's chosen tribe); a mode outside
-    ``_CHOSEN_STATIC_MODES`` skips (An-Zerrin Ruins' CantUntap); a negative
-    literal AddPower/AddToughness payload skips (the valence gate — phase
-    drops Engineered Plague's marker today, but once its parser structures
-    the "-1/-1 to the chosen type" static this gate keeps it out). Controller
-    You → scope "you"; unscoped (Cover of Darkness's symmetric Fear grant,
-    Urza's-Incubator-style neutral filters) → "each"."""
-    out: list[tuple[str, str]] = []
-    for unit in tree.units:
-        for node in iter_static_defs(unit.node):
-            mode = static_mode_tag(node)
-            affected = getattr(node, "affected", None)
-            if affected is None:
-                continue
-            ctrl = filter_controller(affected)
-            if ctrl == "Opponent":
-                continue
-            # Cost-reduction rides the ModifyCost static mode: a Reduce whose
-            # spell_filter is marked serves the chosen type (Herald's Horn /
-            # Urza's Incubator); an Increase would be a tax, never a serve.
-            if mode == "ModifyCost":
-                inner = getattr(getattr(node, "mode", None), "inner", None)
-                spell_filter = getattr(inner, "spell_filter", None)
-                if (
-                    getattr(inner, "mode", None) == "Reduce"
-                    and spell_filter is not None
-                    and set(filter_predicates(spell_filter)) & _CHOSEN_TYPE_PREDS
-                ):
-                    scope = "you" if ctrl == "You" else "each"
-                    out.append((scope, _site_raw(node)))
-                continue
-            if not set(filter_predicates(affected)) & _CHOSEN_TYPE_PREDS:
-                continue
-            if mode not in _CHOSEN_STATIC_MODES:
-                continue
-            if any(
-                tag_of(m) in ("AddPower", "AddToughness")
-                and isinstance(getattr(m, "value", None), int)
-                and getattr(m, "value", 0) < 0
-                for m in getattr(node, "modifications", None) or ()
-            ):
-                continue
-            scope = "you" if ctrl == "You" else "each"
-            out.append((scope, _site_raw(node)))
-    return out
-
-
-#: The type choices that are not a creature type (CR 205.2a card types; land
-#: types): a chosen-type marker read off one of these names no tribe.
-_NON_CREATURE_TYPE_CHOICES = frozenset({"CardType", "LandType"})
-
-
-def _choices(tree: ConceptTree) -> list[Choice]:
-    """Every ``Choose`` effect on the tree (:func:`choice_of`):
-    ``("CreatureType", ())`` for an open choice (Door of Destinies),
-    ``("CreatureType", ("Elemental", …))`` for a listed one (Dawn-Blessed
-    Pennant), ``("CardType", ("Artifact", …))`` for Cloud Key."""
-    return [
-        choice
-        for unit in tree.units
-        for eff in getattr(unit, "effects", None) or ()
-        if (choice := choice_of(getattr(eff, "node", None))) is not None
-    ]
-
-
-def _chosen_type_options(choices: list[Choice]) -> tuple[str, ...] | None:
-    """The creature types a RESTRICTED chooser may pick (Dawn-Blessed Pennant:
-    "choose Elemental, Elf, …, or Treefolk"); ``None`` for an open choice
-    ("choose a creature type": Door of Destinies) or when no creature-type
-    Choose is present."""
-    options: list[str] = []
-    for kind, listed in choices:
-        if kind != "CreatureType":
-            continue
-        if not listed:
-            return None  # an open chosen type: the wildcard serves every tribe
-        options.extend(listed)
-    return tuple(dict.fromkeys(options)) or None
-
-
-#: Effects over your own cards that a chosen-type filter narrows: a dig, a
-#: reveal-until, a library search, a grant to your next spell.
-_CHOSEN_TYPE_SELF_EFFECTS: frozenset[str] = frozenset(
-    {"Dig", "RevealUntil", "SearchLibrary", "GrantNextSpellAbility"}
-)
-
-#: The answers beside :func:`crosswalk.answers_its_target`'s (destroy, exile,
-#: counter) whose filter names what they remove, not what they reward: a
-#: chosen-type filter of yours under one is a sweeper's or a misparsed "that
-#: player controls" (Tsabo's Decree's destroy), never a payoff.
-_CHOSEN_TYPE_ANSWERS: frozenset[str] = frozenset(
-    {"Sacrifice", "Bounce", "BounceAll", "DamageAll"}
-)
 
 
 def _chosen_type_matters(tree: ConceptTree) -> list[Signal]:
-    """chosen_type_matters — wildcard tribal payoffs (task B-1, 2026-07-16
-    study: 7 adjudicated extraction gaps).
-
-    Cards that choose a creature type as they enter (CR 614.12) and PAY OFF
-    the chosen type — Door of Destinies, Kindred Discovery, Herald's Horn,
-    Urza's Incubator. The subject is chosen at runtime, so the payoff serves
-    WHATEVER tribe the deck fields; every per-subject tribal spec credits the
-    key via its serve-side ``signal_idents`` arm (a Sliver deck wants
-    Herald's Horn exactly as a Goblin deck does). Subject is always ``""``
-    (the chosen type), mirroring type_changers' chosen-subject convention.
-
-    The lane keys on the payoff sites that REFERENCE the choice — the
-    ``IsChosenCreatureType`` / ``IsChosenCardType`` filter properties — never
-    on the ``Choose`` replacement itself (punishers like Engineered Plague
-    choose too). Type-GRANTS stay type_changers-only (CR 613.1d layer 4:
-    granting membership is the enabler side; referencing the choice in a
-    reward filter is the payoff side — the c934b718 membership-not-payoff
-    law). The read sites:
-
-    * marked STATICS via ``_chosen_type_serve_statics`` (continuous payloads,
-      trigger-doublers, ModifyCost reductions — with the serve-vs-punish
-      gates documented there);
-    * marked TRIGGERS: a trigger whose ``valid_card`` carries the marker
-      (Kindred Discovery's enters-or-attacks draw). Corpus-verified all-
-      serve at phase v0.23.0 (9 cards, every payload beneficial). Scope
-      "you" when the watched filter is controller-You or the trigger is a
-      SpellCast (you cast the spells that Door counts); "each" for an
-      any-player watch (Species Specialist's chosen-type dies-trigger).
-
-    * the one-shot chosen-type value of an ability over your permanents of
-      the type (Distant Melody) and chosen-type mana (Cavern of Souls).
-
-    Replacement payoffs (Metallic Mimic) are a known not-served-yet class —
-    recorded for a v2 arm, not dismissed.
-
-    A card that chooses a card or land type and no creature type (Cloud Key,
-    Umori, the Collector, Shimmer) is no tribal payoff, whatever its filter's
-    marker reads.
-
-    A RESTRICTED chooser (Dawn-Blessed Pennant picks from eight printed types)
-    serves only those tribes, so it emits one signal per listed type instead of
-    the wildcard ``""`` — a Scarecrow deck never reads it as a payoff."""
+    """chosen_type_matters — wildcard tribal payoffs (task B-1): a card that
+    pays off a creature type chosen as it's cast, enters or resolves (Door of
+    Destinies, Herald's Horn, Distant Melody, Cavern of Souls, Kindred
+    Dominance — :func:`crosswalk.chosen_type_payoffs`, which owns the sites and
+    the serve-vs-punish gates). The subject is chosen at runtime, so the payoff
+    serves WHATEVER tribe the deck fields: subject ``""``, read by every tribal
+    spec's serve (a Sliver deck wants Herald's Horn as a Goblin deck does). A
+    RESTRICTED chooser (Dawn-Blessed Pennant picks from eight printed types)
+    emits one signal per listed type instead — a Scarecrow deck never reads it
+    as a payoff."""
+    read = chosen_type_payoffs(tree)
     out: list[Signal] = []
-    choices = _choices(tree)
-    kinds = {kind for kind, _ in choices}
-    if kinds & _NON_CREATURE_TYPE_CHOICES and "CreatureType" not in kinds:
-        # A card that chooses a card type (CR 205.2a: Cloud Key's "artifact,
-        # creature, …") or a land type (Shimmer) and no creature type reads
-        # no creature type (CR 205.3m) off its marker, so the chosen-type
-        # payoff serves no tribe.
-        return out
     seen: set[tuple[str, str]] = set()
-    subjects = _chosen_type_options(choices) or ("",)
-
-    def push(scope: str, raw: str) -> None:
-        for subject in subjects:
+    for scope, raw in read.sites:
+        for subject in read.subjects:
             if (scope, subject) not in seen:
                 seen.add((scope, subject))
                 out.append(
@@ -2019,63 +1849,6 @@ def _chosen_type_matters(tree: ConceptTree) -> list[Signal]:
                         "chosen_type_matters", scope, subject, raw, tree.name, "high"
                     )
                 )
-
-    for scope, raw in _chosen_type_serve_statics(tree):
-        push(scope, raw)
-    for unit in tree.units:
-        if unit.origin != "trigger":
-            continue
-        node = unit.node
-        valid_card = getattr(node, "valid_card", None)
-        if valid_card is None:
-            continue
-        if not set(filter_predicates(valid_card)) & _CHOSEN_TYPE_PREDS:
-            continue
-        ctrl = filter_controller(valid_card)
-        if ctrl == "Opponent":
-            continue
-        mode = getattr(node, "mode", None)
-        mode_tag = mode if isinstance(mode, str) else tag_of(mode)
-        scope = "you" if ctrl == "You" or mode_tag == "SpellCast" else "each"
-        push(scope, str(getattr(node, "description", "") or ""))
-    # The one-shot and mana classes (backlog (o)): an ability's effect over your
-    # permanents of the chosen type ("Choose a creature type. Draw a card for each
-    # permanent you control of that type." — Distant Melody), and mana spendable
-    # only on a creature spell of the chosen type (Cavern of Souls). A filter of
-    # every player's chosen-type creatures (Extinction's destroy) is a punisher.
-    if "CreatureType" in kinds:
-        for unit in tree.units:
-            answered = {
-                id(getattr(n, "target", None))
-                for n in iter_typed_nodes(unit.node)
-                if answers_its_target(n) or tag_of(n) in _CHOSEN_TYPE_ANSWERS
-            }
-            # A creature of the chosen type you sacrifice as a cost (Doom Cannon).
-            for c in unit.costs:
-                if tag_of(c.node) == "Sacrifice" and "IsChosenCreatureType" in (
-                    filter_predicates(getattr(c.node, "target", None))
-                ):
-                    push("you", str(getattr(unit.node, "description", "") or ""))
-            for n in iter_typed_nodes(unit.node):
-                # Your library or your next spell, of the chosen type (For the
-                # Ancestors' dig, Riptide Shapeshifter's reveal, Progenitor's
-                # Icon's flash).
-                if tag_of(n) in _CHOSEN_TYPE_SELF_EFFECTS and any(
-                    "IsChosenCreatureType" in filter_predicates(getattr(n, field, None))
-                    for field in ("filter", "spell_filter")
-                ):
-                    push("you", str(getattr(unit.node, "description", "") or ""))
-                if (
-                    tag_of(n) == "Mana"
-                    and "ChosenCreatureType" in _list_field(n, "restrictions")
-                ) or (
-                    unit.origin in ("ability", "trigger")
-                    and tag_of(n) == "Typed"
-                    and "IsChosenCreatureType" in filter_predicates(n)
-                    and filter_controller(n) == "You"
-                    and id(n) not in answered
-                ):
-                    push("you", str(getattr(unit.node, "description", "") or ""))
     return out
 
 

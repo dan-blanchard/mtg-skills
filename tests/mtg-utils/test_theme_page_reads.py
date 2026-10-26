@@ -6,7 +6,9 @@ from __future__ import annotations
 
 import pytest
 
-from mtg_utils.testkit import test_signals
+from mtg_utils._card_ir.crosswalk import spared_types
+from mtg_utils._card_ir.trees import trees_for
+from mtg_utils.testkit import test_card, test_phase_records, test_signals
 
 
 def _idents(name: str) -> set[str]:
@@ -225,8 +227,8 @@ def test_bodies_tokens_and_symmetry(name, ident, has):
     ("Trespasser's Curse", "creature_etb|you|punish", False),  # theirs entering
     ("Soul Warden", "creature_etb|you|punish", False),  # a life gain
     # a land of yours returned to untap (Quirion Ranger)
-    ("Quirion Ranger", "permanent_etb|you|land_untap", True),
-    ("Simic Growth Chamber", "permanent_etb|you|land_untap", False),
+    ("Quirion Ranger", "land_return_untap|you|", True),
+    ("Simic Growth Chamber", "land_return_untap|you|", False),
     # an untap ability a card hands others: a trigger's "untap it", a {Q} cost
     # (CR 107.6)
     ("Dionus, Elvish Archdruid", "untap_engine|you|Elf", True),
@@ -265,3 +267,135 @@ def test_combat_and_damage_reads(name, ident, has):
 )
 def test_drawbacks_subtypes_and_keywords(name, ident, has):
     assert (ident in _idents(name)) is has
+
+
+# ── the tribe pages' last pass: the references the pattern alone paged ───────
+
+
+@_cases(
+    # a keyword's creature-type parameter (CR 702.48a offering)
+    ("Patron of the Akki", "subtype_ref|you|Goblin", True),
+    # a behold or reveal cost, additional or buying flash (CR 701.4a)
+    ("Champion of the Weird", "subtype_ref|you|Goblin", True),
+    ("Dragonlord's Prerogative", "subtype_ref|you|Dragon", True),
+    ("Molten Exhale", "subtype_ref|you|Dragon", True),
+    # a casting condition (CR 601.3)
+    ("Feast of Blood", "subtype_ref|you|Vampire", True),
+    # mana spendable only on the type's spells (CR 106.6)
+    ("Crucible of the Spirit Dragon", "subtype_ref|you|Dragon", True),
+    # a mass effect that spares the type (CR 115.10), not a target restriction
+    ("Eyeblight Massacre", "subtype_ref|you|Elf", True),
+    ("Call to the Grave", "subtype_ref|you|Zombie", True),
+    ("Victim of Night", "subtype_ref|you|Zombie", False),
+    ("Anowon, the Ruin Sage", "subtype_ref|you|Vampire", True),
+    # a mass pump and a sacrifice only you make spare nothing
+    ("Return of the Wildspeaker", "subtype_ref|any|Human", False),
+    ("Archdemon of Unx", "subtype_ref|any|Zombie", False),
+    # a dig names its type by the cards it keeps (its "the rest" spares
+    # nothing: test_spared_types)
+    ("Goblin Ringleader", "subtype_ref|you|Goblin", True),
+    # a misread grant's stray words are no subtype
+    ("Will of the Temur", "subtype_ref|you|Flying", False),
+    ("Will of the Temur", "subtype_ref|any|Dragon", True),
+    # a type the card grants pages the main page only: the enabler, no payoff
+    ("Will of the Temur", "subtype_ref|you|Dragon", False),
+)
+def test_tribe_references(name, ident, has):
+    assert (ident in _idents(name)) is has
+
+
+@_cases(
+    # a count of the chosen type, a cost, a damage doubler, a reveal to hand
+    ("Caller of the Hunt", "chosen_type_matters|you|", True),
+    ("Doom Cannon", "chosen_type_matters|you|", True),
+    ("Collective Inferno", "chosen_type_matters|you|", True),
+    ("Bloodline Shaman", "chosen_type_matters|you|", True),
+    # a sweep that spares the chosen type
+    ("Kindred Dominance", "chosen_type_matters|you|", True),
+    # a prevention against the type and a -1/-1 to an opponent's are no payoff
+    ("Circle of Solace", "chosen_type_matters|you|", False),
+    ("Plague Engineer", "chosen_type_matters|you|", False),
+    # a token of a type chosen from a printed list
+    ("Sarpadian Empires, Vol. VII", "token_maker|you|Goblin", True),
+)
+def test_chosen_type_payoffs_and_tokens(name, ident, has):
+    assert (ident in _idents(name)) is has
+
+
+@_cases(
+    # a keyword counter a creature enters with or gets at random (CR 122.1b)
+    ("Ascent of the Worthy", "keyword_bodies|you|flying", True),
+    ("Crystalline Giant", "keyword_bodies|you|flying", True),
+    # a token copy with the keyword, a replacement's added token
+    ("Haunting Imitation", "keyword_bodies|you|flying", True),
+    ("Stridehangar Automaton", "keyword_bodies|you|flying", True),
+    # a keyword chosen for itself, an Alchemy perpetual grant
+    ("Gabriel Angelfire", "keyword_bodies|you|flying", True),
+    ("Second Little Pig", "keyword_bodies|you|flying", True),
+    # a crewed Vehicle token becomes a creature (CR 702.122a)
+    ("Lita, Mechanical Engineer", "keyword_bodies|you|flying", True),
+    # another player's token
+    ("Death by Dragons", "keyword_bodies|you|flying", False),
+)
+def test_keyword_bodies_followed(name, ident, has):
+    assert (ident in _idents(name)) is has
+
+
+@pytest.mark.parametrize(
+    ("name", "subtype", "has"),
+    [
+        ("Goblin Ringleader", "", False),  # "the rest on the bottom" moves no permanent
+        ("Archdemon of Unx", "", False),  # a sacrifice only you make
+        ("Return of the Wildspeaker", "", False),  # a mass pump rewards the others
+        ("Anowon, the Ruin Sage", "Vampire", True),  # each player's edict
+        ("Eyeblight Massacre", "Elf", True),  # a mass shrink
+    ],
+)
+def test_spared_types(name, subtype, has):
+    (tree, *_) = trees_for(test_card(name))
+    spared = spared_types(tree).subtypes
+    assert bool(spared) is has
+    if has:
+        assert subtype in spared
+
+
+def _effect_nodes(name: str, tag: str) -> list[dict]:
+    def walk(o):
+        if isinstance(o, dict):
+            if o.get("type") == tag:
+                yield o
+            for v in o.values():
+                yield from walk(v)
+        elif isinstance(o, list):
+            for v in o:
+                yield from walk(v)
+
+    return [n for rec in test_phase_records(name) for n in walk(rec)]
+
+
+@pytest.mark.retirement_canary
+def test_chosen_token_type_canary():
+    """Retirement canary for ``crosswalk.made_token_subtypes``' ``"chosen"``
+    arm: phase v0.104.0 types no "of the chosen color and type" on Sarpadian
+    Empires, Vol. VII's token, so the read joins it to the card's printed-list
+    choice."""
+    (token,) = _effect_nodes("Sarpadian Empires, Vol. VII", "Token")
+    assert token.get("types") == ["Creature"], (
+        "made_token_subtypes: RETIRE-READY — phase types Sarpadian Empires' token "
+        "now. Drop the 'chosen' arm (and this canary) if the token reads its type."
+    )
+    assert "token_maker|you|Goblin" in _idents("Sarpadian Empires, Vol. VII")
+
+
+@pytest.mark.retirement_canary
+def test_stray_grant_subtype_canary():
+    """Retirement canary for ``crosswalk.reads._SUBTYPE_WORDS``' gate on a
+    granted subtype: phase v0.104.0 reads Will of the Temur's "except it's a 4/4
+    Dragon creature with flying" as the subtypes ``With`` and ``Flying``."""
+    subs = {n.get("subtype") for n in _effect_nodes("Will of the Temur", "AddSubtype")}
+    assert "Flying" in subs, (
+        "_SUBTYPE_WORDS: RETIRE-READY for Will of the Temur — phase no longer "
+        "reads its keyword as a subtype. Check the keyword_bodies flying it drops "
+        "(backlog (o)) and whether the gate still guards a card."
+    )
+    assert "subtype_ref|any|Flying" not in _idents("Will of the Temur")

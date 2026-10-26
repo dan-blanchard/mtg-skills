@@ -163,6 +163,18 @@ STEP_TRIGGER_KEYS: Final = {
     "extra_end_step": "end_step_triggers",
 }
 
+# The keys only a theme's page reads, with no spec of their own: ``subtype_ref``
+# (the subtypes a card's filters name — a tribe's pages read it per tribe),
+# ``keyword_bodies`` (the keywords a card puts on bodies of yours — a keyword
+# tribe's page reads it per keyword) and ``land_return_untap`` (a land you control
+# returned to its owner's hand pays for an untap — Quirion Ranger, the
+# land-animation page's untap engines). None opens an avenue
+# (``signal_specs.core.spec_for`` has none to give), and the key-agreement gate
+# leaves them out.
+PAGE_ONLY_KEYS: Final = frozenset(
+    {"subtype_ref", "keyword_bodies", "land_return_untap"}
+)
+
 # The ``(key, subject)`` idents a theme's page counts that open no avenue of their
 # own (``signal_specs.core.avenue_spec_for``): a one-shot step of another card's
 # engine. A reanimation spell or a bounce-your-own creature re-delivers a self-ETB
@@ -185,8 +197,6 @@ PAGE_ONLY_SUBJECTS: Final = frozenset(
         ("permanent_etb", "put"),
         # a permanent you control returned to hand to replay, a land included
         ("permanent_etb", "replay"),
-        # a land you control returned to hand to pay for an untap (Quirion Ranger)
-        ("permanent_etb", "land_untap"),
         # two or more creature tokens made at once (Battle Screech): the go-wide
         # pages' depth, no theme of its own
         ("mass_token_makers", ""),
@@ -202,6 +212,14 @@ PAGE_ONLY_SUBJECTS: Final = frozenset(
         ("land_creatures_matter", "self"),
     }
 )
+
+
+def is_page_only(key: str, subject: str) -> bool:
+    """Whether a signal only feeds a theme's page and opens no avenue — or plan
+    — of its own: a page-only key (:data:`PAGE_ONLY_KEYS`) or a page-only doer's
+    ``(key, subject)`` (:data:`PAGE_ONLY_SUBJECTS`)."""
+    return key in PAGE_ONLY_KEYS or (key, subject) in PAGE_ONLY_SUBJECTS
+
 
 # The ``(key, subject)`` idents that mark the DOER side of a payoff key that is
 # not a subject key: each feeds the payoff, and the theme's serve counts it as

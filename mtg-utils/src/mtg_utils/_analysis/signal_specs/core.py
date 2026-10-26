@@ -77,47 +77,29 @@ _SUBJECT_TEMPLATES = {
 }
 
 
-# Type-GRANT phrasing (B1). _GRANT_VETO (broad) drops any type-grant from the payoff
-# lane: a board-wide granter (Xenograft, Arcane Adaptation, Maskwood Nexus) is an
-# enabler, the type_changers idents' lane.
-_GRANT_VETO = r"(?:is|are) (?:the chosen type|every creature type)"
-
-
 def _payoff_extra(subj: str) -> SubAvenue:
     # Lords/anthems that REWARD a board of {subj}s, read off the lanes:
     #   - the tribe's own lords and payoffs — a filter of {subj}s that isn't an
     #     opponent's (subtype_ref's ``you`` scope: "{subj}s you control get +1/+1",
-    #     "for each {subj} you control", "Sacrifice a {subj}") and the static
-    #     anthems over the tribe;
+    #     "for each {subj} you control", "Sacrifice a {subj}", "behold a
+    #     {subj}", a sweeper that spares them) and the static anthems over the
+    #     tribe;
     #   - "shares a creature type" pumps (Shared Animosity, Coat of Arms) — any
     #     tribe (subtype_ref's ``shared``);
     #   - OPEN type-of-choice payoffs (chosen_type_matters: Vanquisher's Banner, Door
-    #     of Destinies, Distant Melody, Cavern of Souls) — work for ANY tribe;
+    #     of Destinies, Distant Melody, Cavern of Souls, Caller of the Hunt) — work
+    #     for ANY tribe;
     #   - RESTRICTED type-of-choice payoffs that name an explicit list — credited
     #     ONLY when THIS subject is named (Dawn-Blessed Pennant counts for
     #     Goblin/Elf, never an unlisted tribe like Scarecrow).
     # A type-GRANTER ("are the chosen type" — Xenograft) is an enabler, the
-    # _enabler_extra's; not_oracle drops it.
-    #
-    # The pattern stays beside the structural arms (backlog (o)): what it alone
-    # pages are chosen-type punishers and type changers (no payoff) but also
-    # payoffs no read names yet — a "behold a {subj}" cost (Champion of the
-    # Weird), a chosen-type count (Caller of the Hunt), a dropped "shares a
-    # creature type" (Cryptic Gateway).
-    esc = re.escape(subj)
-    positive = (
-        rf"{esc}s? you control"
-        r"|shares (?:a|at least one) creature type"
-        r"|choose a (?:creature|kindred) type"
-        rf"|choose\b[^.]*\b{esc}s?\b"
-    )
+    # _enabler_extra's; a chosen-type punisher (Engineered Plague) and a token
+    # maker of the tribe (the main page's) are no payoff.
     return SubAvenue(
         f"{subj} payoffs",
         f"lords and anthems that reward a board of {subj}s, plus type-agnostic tribal "
         "payoffs (Coat of Arms, Door of Destinies) that work for any chosen tribe",
         serve=Serve(
-            oracle=re.compile(positive, _IC),
-            not_oracle=re.compile(_GRANT_VETO, _IC),
             signal_idents=_CHOSEN_TYPE_IDENTS
             | _chosen_type_named_idents((subj,))
             | {
@@ -343,8 +325,11 @@ def _subject_spec(signal: Signal) -> SignalSpec:
     # itself), and the grants that hand the keyword out. The pattern stays beside
     # them (backlog (o)): most of what it alone pages names the keyword to fight
     # it (reach's reminder, "destroy target creature with flying", "creatures
-    # without flying"), but a few put it on bodies keyword_bodies doesn't follow
-    # yet (Tek's land-conditioned flying, Flowstone Sculpture's keyword choice).
+    # without flying"), but phase drops the keyword from too many real bodies to
+    # ledger one by one — a grant left out of a static's modifications (Valkyrie's
+    # Call, Chariot of the Sun), a parked token maker (Notorious Throng), an
+    # Unrecognized condition (Tek), a keyword misread as a subtype (Will of the
+    # Temur): about twenty for flying, more for trample.
     if signal.key == signal_keys.KEYWORD_TRIBE:
         kw = subj.lower()
         return SignalSpec(
@@ -442,7 +427,7 @@ def _subject_spec(signal: Signal) -> SignalSpec:
         signal_keys.DAMAGE_FOR_EACH,
     )
     # Synonym-GROUP tribes (sea monsters): a member type's serve covers the WHOLE group,
-    # by type-line AND by the group-naming payoff oracle (Whelming Wave). card_search's
+    # by type-line AND by every member type's idents (Whelming Wave). card_search's
     # card_type is single-token-only (no OR), so each OTHER member gets its own search
     # sub-avenue to pull its bodies; the widened serve credits them all.
     group = _tribal_group(subj) if is_type_tribal else None
@@ -453,15 +438,14 @@ def _subject_spec(signal: Signal) -> SignalSpec:
     # they turn your OTHER creatures into the tribe — surfaced by the separate enabler
     # sub-avenue (_enabler_extra), never counted as a body or payoff (B1).
     # Beside the bodies, the cards that name the tribe: any filter naming a member
-    # type (subtype_ref's ``any`` scope — a lord, a tutor, a sacrifice cost, a
-    # hoser), a type it hands an object, a token of the tribe, and a static anthem
-    # over it. The pattern stays beside them (backlog (o)): it alone still pages
-    # a devour count (Voracious Dragon), an offering (Patron of the Akki) and a
-    # chosen token type (Sarpadian Empires), beside an opponent's tokens of the
-    # tribe and a protection from it.
-    serve_oracle = rf"\b(?:{'|'.join(re.escape(m) for m in members)})s?\b" + (
-        r"|(?:is|are) every creature type" if is_type_tribal else ""
-    )
+    # type (subtype_ref's ``any`` scope — a lord, a tutor, a sacrifice cost, an
+    # offering, a behold, a sweeper that spares them, a hoser), a type it hands an
+    # object, a token of the tribe, a static anthem over it, and — a true tribe's —
+    # the tribe's own key (``type_matters``: its bodies, a transformed face's
+    # included, the tokens it makes, and the payoffs phase leaves subject-less).
+    # What only the old pattern paged and no read names is no member: an
+    # opponent's tokens of the tribe, a protection from it, a targeted removal that
+    # can't hit it (Victim of Night), another card's name (backlog (o)).
     # The members in an ident subject's spelling.
     tribes = tuple(m.capitalize() for m in members)
     mentions = frozenset(
@@ -469,9 +453,11 @@ def _subject_spec(signal: Signal) -> SignalSpec:
         for t in tribes
         for ident in (
             f"subtype_ref|any|{t}",
+            f"subtype_ref|you|{t}",
             f"{signal_keys.TOKEN_MAKER}|you|{t}",
             f"{signal_keys.TOKEN_MAKER}|any|{t}",
             f"anthem_static|you|{t}",
+            *((f"{signal_keys.TYPE_MATTERS}|you|{t}",) if is_type_tribal else ()),
         )
     ) | (
         # Every creature type's: a changeling granter ("is every creature type" —
@@ -498,9 +484,8 @@ def _subject_spec(signal: Signal) -> SignalSpec:
         avenue=avenue_t.format(s=subj),
         search={"card_type": subj},
         serve=Serve(
-            oracle=re.compile(serve_oracle, _IC),
             # A creature IS a member of its own tribe (CR 205.3) — match by TYPE-LINE,
-            # not only the oracle "Xs you control" payoff phrasing. Without this,
+            # not only by the idents of the cards that name it. Without this,
             # vanilla / oracle-silent members (Dread Shade, Llanowar Elves) were
             # dropped — fatal for lord-less tribes (Shade/Kraken/Yeti read 0/10).
             # A spell of the type is a "{s} spell" too (CR 205.3).
@@ -509,9 +494,8 @@ def _subject_spec(signal: Signal) -> SignalSpec:
             # Structural enabler arm (task #96, ADR-0040): a mass type-changer
             # SERVES the tribe it grows (Leyline of Transformation under a
             # Sliver commander — the benchmark's falsely-filler build-around),
-            # by its own emitted type_changers idents. Bodies-by-type-line
-            # above are unchanged: B1 still keeps granters out of the body
-            # oracle; this arm credits them at the serve level instead.
+            # by its own emitted type_changers idents; the bodies are matched by
+            # type line above.
             # Wildcard chosen-type payoffs serve EVERY tribe (task B-1):
             # Herald's Horn credits a Sliver deck exactly as a Goblin deck —
             # but ONLY on the type_matters lane (verified-review F4): a
@@ -765,14 +749,13 @@ def avenue_spec_for(signal: Signal) -> SignalSpec | None:
     "can't be blocked except by …" body (``evasion_self|you|partial``) does
     not open the evasion avenue. A membership-floor subject
     (``signal_keys.MEMBERSHIP_SUBJECTS``: a carrier commander) always opens it,
-    and a step trigger (``signal_keys.STEP_TRIGGER_KEYS``) or a page-only doer
-    (``signal_keys.PAGE_ONLY_SUBJECTS``) never does. A serve
+    and a step trigger (``signal_keys.STEP_TRIGGER_KEYS``) or a page-only key
+    or doer (:func:`signal_keys.is_page_only`) never does. A serve
     that does not read the key at all serves something else the key's emitters
     want (a recursion engine's loop fuel), and every subject opens it.
     ``spec_for`` stays the per-signal lookup for every other caller."""
-    if (
-        signal.key in _STEP_TRIGGERS
-        or (signal.key, signal.subject) in signal_keys.PAGE_ONLY_SUBJECTS
+    if signal.key in _STEP_TRIGGERS or signal_keys.is_page_only(
+        signal.key, signal.subject
     ):
         return None
     spec = spec_for(signal)
@@ -818,12 +801,13 @@ def _assert_every_producible_key_resolves() -> None:
     (extraction worked, ``spec_for`` returned None, the avenue was dropped); now it
     fails loudly at import — which ``app.py`` / ``ranking.py`` / every test trigger
     transitively. ``signals`` is imported lazily to keep the module import order
-    one-way (signals never imports signal_specs)."""
+    one-way (signals never imports signal_specs). A page-only key
+    (``signal_keys.PAGE_ONLY_KEYS``) has no spec by design."""
     from mtg_utils._analysis.signals import Signal, producible_static_keys
 
     orphans = sorted(
         key
-        for key in producible_static_keys()
+        for key in producible_static_keys() - signal_keys.PAGE_ONLY_KEYS
         if spec_for(Signal(key=key, scope="any", subject="", text="", source=""))
         is None
     )

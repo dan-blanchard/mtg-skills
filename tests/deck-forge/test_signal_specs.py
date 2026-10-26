@@ -1333,10 +1333,14 @@ def test_every_producible_key_resolves_to_a_spec():
     """The readable twin of the import-time key-agreement gate (ADR-0014): every
     subject-less key a detector can emit must resolve to a spec, so a new detector
     without a spec can't silently produce a no-op avenue. DERIVED from the producer
-    tables (replaces the old hand-typed list, which was exactly the drift this guards)."""
+    tables (replaces the old hand-typed list, which was exactly the drift this guards).
+    A page-only key has none by design."""
+    from mtg_utils._analysis.signal_keys import PAGE_ONLY_KEYS
     from mtg_utils._analysis.signals import producible_static_keys
 
-    for key in sorted(producible_static_keys()):
+    for key in sorted(PAGE_ONLY_KEYS):
+        assert spec_for(_sig(key, "you")) is None, key
+    for key in sorted(producible_static_keys() - PAGE_ONLY_KEYS):
         spec = spec_for(_sig(key, "any"))
         assert spec is not None, key
         assert spec.label, key
@@ -1823,7 +1827,18 @@ class TestSubjectSpecs:
         assert spec.search == {"card_type": "Elemental"}  # the creatures
         payoff = spec.extras[0]
         assert payoff.label == "Elemental payoffs"
-        assert "you control" in payoff.serve.oracle.pattern  # the lords/anthems
+        # the lords/anthems, by the filters that name the tribe — no pattern
+        assert "subtype_ref|you|Elemental" in payoff.serve.signal_idents
+        assert payoff.serve.oracle is None
+        assert spec.serve.oracle is None
+
+    @pytest.mark.parametrize("tribe", ["Goblin", "Elf", "Zombie", "Dragon", "Sliver"])
+    def test_a_tribe_pages_off_the_ir(self, tribe):
+        """Backlog (o): only the keyword tribe ORs an oracle pattern; a creature
+        tribe's main page and every sub-avenue page by types and idents."""
+        spec = spec_for(_subj_sig("type_matters", tribe))
+        assert spec.serve.oracle is None
+        assert all(extra.serve.oracle is None for extra in spec.extras), tribe
 
 
 class TestStructuredServeFixes:

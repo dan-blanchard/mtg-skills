@@ -207,8 +207,6 @@ from mtg_utils._analysis.lanes.card_advantage import (
     LANES as _CARD_ADVANTAGE_LANES,
 )
 from mtg_utils._analysis.lanes.core_makers import (
-    _CHOSEN_STATIC_MODES,
-    _CHOSEN_TYPE_PREDS,
     _DFE_MISPARSE_RX,
     _DFE_RECOVERED_RX,
     _EACH_PLAYER_TOKEN_MAKER_RE,
@@ -226,7 +224,6 @@ from mtg_utils._analysis.lanes.core_makers import (
     _PACIFY_PT_MOD_TAGS,
     GrantPayload,
     _chosen_type_matters,
-    _chosen_type_serve_statics,
     _damage_for_each,
     _death_matters,
     _direct_damage,
@@ -798,8 +795,6 @@ __all__ = [
     "_CAST_ADD_SAC_RX",
     "_CAST_FROM_EXILE_PERMS",
     "_CHEAT_REVEAL_PRODUCERS",
-    "_CHOSEN_STATIC_MODES",
-    "_CHOSEN_TYPE_PREDS",
     "_CLONE_BECOME_COPY_RX",
     "_CLONE_LAND_EXCLUDE_RX",
     "_CLONE_TOKEN_EXCLUDE_RX",
@@ -1013,7 +1008,6 @@ __all__ = [
     "_choose_opponent_bound_discard",
     "_chooses_opponent",
     "_chosen_type_matters",
-    "_chosen_type_serve_statics",
     "_clone_copied_words",
     "_clone_text_idiom",
     "_clone_words_from_raw",

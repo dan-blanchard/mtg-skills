@@ -27,7 +27,12 @@ from mtg_utils._card_ir.branches import (
     natural_top_only,
     uncertain_list,
 )
-from mtg_utils._card_ir.card_subtypes import BATTLE_TYPES, PLANESWALKER_TYPES
+from mtg_utils._card_ir.card_subtypes import (
+    ARTIFACT_TYPES,
+    BATTLE_TYPES,
+    ENCHANTMENT_TYPES,
+    PLANESWALKER_TYPES,
+)
 from mtg_utils._card_ir.creature_types import CREATURE_TYPES
 from mtg_utils._card_ir.mirror.runtime import (
     MISSING,
@@ -8186,16 +8191,24 @@ def replacement_added_token_subtypes(node: TypedMirrorNode) -> tuple[str, ...]:
     replacement that creates a kind it doesn't watch (a maker of that kind)
     from one that adds to the kind it watches (a payoff)."""
     out: list[str] = []
+    for chars in replacement_token_specs(node):
+        for st in getattr(chars, "subtypes", None) or ():
+            if isinstance(st, str) and st not in out:
+                out.append(st)
+    return tuple(out)
+
+
+def replacement_token_specs(node: object) -> Iterator[object]:
+    """The ``characteristics`` of each token a ``CreateToken`` replacement
+    creates beside or instead of the replaced creation: its
+    ``additional_token_spec`` and each ``ensure_token_specs`` entry
+    (:func:`replacement_added_token_subtypes`)."""
     for field in ("additional_token_spec", "ensure_token_specs"):
         specs = getattr(node, field, MISSING)
         if not _present(specs):
             continue
         for spec in specs if isinstance(specs, list) else (specs,):
-            chars = getattr(spec, "characteristics", None)
-            for st in getattr(chars, "subtypes", None) or ():
-                if isinstance(st, str) and st not in out:
-                    out.append(st)
-    return tuple(out)
+            yield getattr(spec, "characteristics", None)
 
 
 def forages(unit: AbilityUnit) -> bool:
@@ -8902,7 +8915,7 @@ def attacks_your_opponents(filt: object) -> bool:
     among them, whoever else's are (CR 508.1a)."""
     return any(
         tag_of(prop) == "Attacking" and getattr(prop, "defender", None) == "Opponent"
-        for prop in _list_field(filt, "properties")
+        for prop in list_field(filt, "properties")
     )
 
 
@@ -9149,7 +9162,7 @@ def untap_rider_targets(unit: AbilityUnit) -> Iterator[tuple[object, TypedMirror
         node = c.node
         tag = tag_of(node)
         target = getattr(node, "target", None)
-        choices = (getattr(b, "effect", None) for b in _list_field(node, "branches"))
+        choices = (getattr(b, "effect", None) for b in list_field(node, "branches"))
         untap = next(
             (
                 n
@@ -9234,7 +9247,7 @@ class EvasionSite(NamedTuple):
     conditional: bool
 
 
-def _list_field(node: object, name: str) -> list[Any]:
+def list_field(node: object, name: str) -> list[Any]:
     """A node's list field, ``[]`` when absent or null — an absent optional field
     loads as the truthy :data:`MISSING` sentinel, so ``getattr(…) or ()`` would
     iterate it (``extra_keywords`` and some ``modifications`` default to it)."""
@@ -9267,7 +9280,7 @@ def _evasion_mode_kinds(sdef: TypedMirrorNode) -> list[str | None]:
     mode = static_mode_tag(sdef)
     if mode in _EVASION_MODE_KINDS:
         out.append(_EVASION_MODE_KINDS[mode])
-    for mod in _list_field(sdef, "modifications"):
+    for mod in list_field(sdef, "modifications"):
         tag = tag_of(mod)
         if tag == "AddStaticMode":
             added = static_mode_tag(mod)
@@ -9326,7 +9339,7 @@ def evasion_sites(tree: ConceptTree) -> tuple[EvasionSite, ...]:
                     if tag == "Token"
                     else tuple(
                         k if isinstance(k, str) else getattr(k, "key", "")
-                        for k in _list_field(n, "extra_keywords")
+                        for k in list_field(n, "extra_keywords")
                     )
                 )
                 gated = unit_gated or id(n) in chance
@@ -9392,7 +9405,7 @@ def makes_lands_type(tree: ConceptTree, land_type: str) -> bool:
                     tag_of(m) == "AddSubtype"
                     and getattr(m, "subtype", None) == land_type
                 )
-                for m in _list_field(n, "modifications")
+                for m in list_field(n, "modifications")
             )
             if not changes:
                 continue
@@ -9467,7 +9480,7 @@ def names_subtype_payoff(tree: ConceptTree, subtype: str) -> bool:
                 isinstance(ct, MirrorVariant)
                 and ct.key == "Subtype"
                 and ct.inner == subtype
-                for ct in _list_field(n, "card_types")
+                for ct in list_field(n, "card_types")
             ):
                 return True
             if tag == "Splice" and getattr(n, "subtype", None) == subtype:
@@ -10516,6 +10529,232 @@ def chooses(node: object, kind: str) -> bool:
     return choice is not None and choice.kind == kind
 
 
+# ── Chosen creature type payoffs (task B-1; backlog (o)) ─────────────────────
+# The chosen-type reference markers phase stamps into filters. A CreatureType
+# choice made as the permanent enters (CR 614.12 — the Voice of All as-enters
+# replacement shape) persists, and every payoff site that cares carries one of
+# these filter properties. IsChosenCardType is the spell-cast form (Door of
+# Destinies watches CAST SPELLS of the chosen type, a Card filter).
+_CHOSEN_TYPE_PREDS = frozenset({"IsChosenCreatureType", "IsChosenCardType"})
+#: The creature-type marker alone, for the sites a card type can't fill.
+_CHOSEN_CREATURE_PRED = frozenset({"IsChosenCreatureType"})
+# Static modes admitted by the marked-static arm: a plain continuous payload
+# (Door's dynamic anthem, Adaptive Automaton's lord line) or a trigger-doubler
+# over the chosen type (Roaming Throne). Default-deny keeps punisher-shaped
+# statics out (An-Zerrin Ruins' marked "CantUntap" static).
+_CHOSEN_STATIC_MODES = frozenset({"Continuous", "DoubleTriggers"})
+#: The type choices that are not a creature type (CR 205.2a card types; land
+#: types): a chosen-type marker read off one of these names no tribe.
+_NON_CREATURE_TYPE_CHOICES = frozenset({"CardType", "LandType"})
+#: Effects over your own cards that a chosen-type filter narrows: a dig, a
+#: reveal-until, a library search, a grant to your next spell.
+_CHOSEN_TYPE_SELF_EFFECTS: frozenset[str] = frozenset(
+    {"Dig", "RevealUntil", "SearchLibrary", "GrantNextSpellAbility"}
+)
+#: The answers beside :func:`answers_its_target`'s (destroy, exile, counter)
+#: whose filter names what they remove, not what they reward: a chosen-type
+#: filter of yours under one is a sweeper's or a misparsed "that player
+#: controls" (Tsabo's Decree's destroy), never a payoff.
+_CHOSEN_TYPE_ANSWERS: frozenset[str] = frozenset(
+    {"Sacrifice", "Bounce", "BounceAll", "DamageAll"}
+)
+
+
+class ChosenTypePayoffs(NamedTuple):
+    """Where a card pays off a creature type chosen as it's cast, enters or
+    resolves (:func:`chosen_type_payoffs`)."""
+
+    #: The types a restricted chooser may pick (Dawn-Blessed Pennant's eight),
+    #: else ``("",)``: an open choice serves whatever tribe a deck fields.
+    subjects: tuple[str, ...]
+    #: ``(scope, clause)`` per payoff site: ``"you"`` for your own objects or
+    #: spells, ``"each"`` for a filter of every player's.
+    sites: tuple[tuple[str, str], ...]
+
+
+def _marked(filt: object, preds: frozenset[str] = _CHOSEN_TYPE_PREDS) -> bool:
+    return bool(set(filter_predicates(filt)) & preds)
+
+
+def _chosen_type_serve_statics(tree: ConceptTree) -> list[tuple[str, str]]:
+    """(scope, raw) per marked static that SERVES the chosen type.
+
+    Serve-vs-punish gates, in order: controller ``Opponent`` skips (Plague
+    Engineer projects -1/-1 onto an opponent's chosen tribe); a mode outside
+    ``_CHOSEN_STATIC_MODES`` skips (An-Zerrin Ruins' CantUntap); a negative
+    literal AddPower/AddToughness payload skips (the valence gate — phase
+    drops Engineered Plague's marker today, but once its parser structures
+    the "-1/-1 to the chosen type" static this gate keeps it out). Controller
+    You → scope "you"; unscoped (Cover of Darkness's symmetric Fear grant,
+    Urza's-Incubator-style neutral filters) → "each"."""
+    out: list[tuple[str, str]] = []
+    for unit in tree.units:
+        for node in iter_static_defs(unit.node):
+            mode = static_mode_tag(node)
+            affected = getattr(node, "affected", None)
+            if affected is None:
+                continue
+            ctrl = filter_controller(affected)
+            if ctrl == "Opponent":
+                continue
+            scope = "you" if ctrl == "You" else "each"
+            # Cost-reduction rides the ModifyCost static mode: a Reduce whose
+            # spell_filter is marked serves the chosen type (Herald's Horn /
+            # Urza's Incubator); an Increase would be a tax, never a serve.
+            if mode == "ModifyCost":
+                inner = getattr(getattr(node, "mode", None), "inner", None)
+                if getattr(inner, "mode", None) == "Reduce" and _marked(
+                    getattr(inner, "spell_filter", None)
+                ):
+                    out.append((scope, _node_raw(node)))
+                continue
+            if not _marked(affected) or mode not in _CHOSEN_STATIC_MODES:
+                continue
+            if any(
+                tag_of(m) in ("AddPower", "AddToughness")
+                and isinstance(getattr(m, "value", None), int)
+                and getattr(m, "value", 0) < 0
+                for m in list_field(node, "modifications")
+            ):
+                continue
+            out.append((scope, _node_raw(node)))
+    return out
+
+
+def _chosen_type_payoffs(tree: ConceptTree) -> ChosenTypePayoffs:
+    """The card's payoffs for a chosen creature type (task B-1): Door of
+    Destinies, Kindred Discovery, Herald's Horn, Urza's Incubator. The type is
+    chosen at runtime, so the payoff serves whatever tribe the deck fields.
+
+    The read keys on the payoff sites that REFERENCE the choice — the
+    ``IsChosenCreatureType`` / ``IsChosenCardType`` filter properties — never
+    on the ``Choose`` itself (punishers like Engineered Plague choose too).
+    Type-GRANTS are the type changers' (CR 613.1d layer 4: granting membership
+    is the enabler side; referencing the choice in a reward filter is the
+    payoff side). The sites:
+
+    * marked STATICS (:func:`_chosen_type_serve_statics`: continuous payloads,
+      trigger-doublers, ModifyCost reductions);
+    * marked TRIGGERS: a trigger whose watched card carries the marker
+      (Kindred Discovery's enters-or-attacks draw) — scope "you" when the
+      watched filter is yours or the trigger is a SpellCast (Door counts the
+      spells you cast), "each" for an any-player watch (Species Specialist);
+    * the one-shot value of an ability over your permanents of the type
+      (Distant Melody), your library or next spell of the type (For the
+      Ancestors' dig, Progenitor's Icon's flash), the top card put into your
+      hand if it's of the type (Bloodline Shaman), and chosen-type mana
+      (Cavern of Souls);
+    * a count of creatures of the type, anyone's but an opponent's alone
+      (Caller of the Hunt's power and toughness);
+    * a creature of the type you sacrifice or tap as a cost (Doom Cannon);
+    * damage your sources of the type deal, doubled or raised (Collective
+      Inferno) — a prevention (Circle of Solace) guards against the type;
+    * a mass effect that spares the type (:func:`spared_types`: Kindred
+      Dominance).
+
+    Replacement payoffs over entering creatures (Metallic Mimic) are a known
+    not-served-yet class. A card that chooses a card or land type and no
+    creature type (Cloud Key, Umori, Shimmer) is no tribal payoff, whatever its
+    filter's marker reads. A RESTRICTED chooser (Dawn-Blessed Pennant picks from
+    eight printed types) serves only those tribes."""
+    choices = [
+        choice
+        for unit in tree.units
+        for eff in unit.effects
+        if (choice := choice_of(eff.node)) is not None
+    ]
+    kinds = {kind for kind, _ in choices}
+    if kinds & _NON_CREATURE_TYPE_CHOICES and "CreatureType" not in kinds:
+        # CR 205.3m: a card or land type chosen names no creature type.
+        return ChosenTypePayoffs(("",), ())
+    listed: list[str] = []
+    for kind, options in choices:
+        if kind != "CreatureType":
+            continue
+        if not options:
+            listed = []
+            break
+        listed.extend(options)
+    subjects = tuple(dict.fromkeys(listed)) or ("",)
+    sites = _chosen_type_serve_statics(tree)
+    for unit in tree.units:
+        node = unit.node
+        valid_card = getattr(node, "valid_card", None)
+        if unit.origin == "trigger" and valid_card is not None and _marked(valid_card):
+            ctrl = filter_controller(valid_card)
+            if ctrl != "Opponent":
+                mode = getattr(node, "mode", None)
+                mode_tag = mode if isinstance(mode, str) else tag_of(mode)
+                you = ctrl == "You" or mode_tag == "SpellCast"
+                sites.append(("you" if you else "each", _node_raw(node)))
+        # Damage your sources of the type would deal, raised (CR 614.1a).
+        source = getattr(node, "damage_source_filter", None)
+        if (
+            unit.origin == "replacement"
+            and _marked(source, _CHOSEN_CREATURE_PRED)
+            and filter_controller(source) == "You"
+        ):
+            sites.append(("you", _node_raw(node)))
+        # Every count of the type that isn't an opponent's alone.
+        for n in unit.iter_typed():
+            if (
+                tag_of(n) == "ObjectCount"
+                and _marked(filt := getattr(n, "filter", None))
+                and filter_controller(filt) != "Opponent"
+            ):
+                sites.append(("you", _node_raw(node)))
+                break
+    for unit in tree.units if "CreatureType" in kinds else ():
+        raw = _node_raw(unit.node)
+        answered = {
+            id(getattr(n, "target", None))
+            for n in iter_typed_nodes(unit.node)
+            if answers_its_target(n) or tag_of(n) in _CHOSEN_TYPE_ANSWERS
+        }
+        # A creature of the chosen type you sacrifice or tap as a cost.
+        if any(
+            _marked(getattr(leaf, "target", None), _CHOSEN_CREATURE_PRED)
+            for c in unit.costs
+            for leaf in iter_cost_leaves(c.node)
+        ):
+            sites.append(("you", raw))
+        for n in iter_typed_nodes(unit.node):
+            tag = tag_of(n)
+            if (
+                # Your library or your next spell, of the chosen type.
+                (
+                    tag in _CHOSEN_TYPE_SELF_EFFECTS
+                    and any(
+                        _marked(getattr(n, field, None), _CHOSEN_CREATURE_PRED)
+                        for field in ("filter", "spell_filter")
+                    )
+                )
+                # The revealed top card to your hand if it's of the type.
+                or (
+                    tag == "TargetMatchesFilter"
+                    and _marked(getattr(n, "filter", None), _CHOSEN_CREATURE_PRED)
+                )
+                or (tag == "Mana" and "ChosenCreatureType" in mana_restrictions(n))
+                or (
+                    unit.origin in ("ability", "trigger")
+                    and tag == "Typed"
+                    and _marked(n, _CHOSEN_CREATURE_PRED)
+                    and filter_controller(n) == "You"
+                    and id(n) not in answered
+                )
+            ):
+                sites.append(("you", raw))
+                break
+    if spared_types(tree).chosen:
+        sites.append(("you", ""))
+    return ChosenTypePayoffs(subjects, tuple(sites))
+
+
+def chosen_type_payoffs(tree: ConceptTree) -> ChosenTypePayoffs:
+    """:func:`_chosen_type_payoffs`, read once per tree."""
+    return memo_on(tree, "_xw_chosen_type_payoffs", _chosen_type_payoffs)
+
+
 def strips_abilities(static_def: object) -> bool:
     """Whether a static removes the abilities its affected object has from its
     rules text (CR 613.1f, layer 6): an explicit "loses all abilities"
@@ -10611,7 +10850,7 @@ def _extra_blocker_counts(sdef: object) -> Iterator[int | None]:
     hit, n = _extra_blockers_count(getattr(sdef, "mode", MISSING))
     if hit:
         yield n
-    for mod in _list_field(sdef, "modifications"):
+    for mod in list_field(sdef, "modifications"):
         if tag_of(mod) == "AddStaticMode":
             hit, n = _extra_blockers_count(getattr(mod, "mode", MISSING))
             if hit:
@@ -10805,7 +11044,7 @@ def _token_ramps(node: object) -> bool:
     """Whether a ``Token`` effect makes a mana source: a predefined ramp token
     (:data:`RAMP_TOKEN_SUBTYPES`), or one whose own abilities add mana (Kibo's
     Banana)."""
-    types = _list_field(node, "types")
+    types = list_field(node, "types")
     if RAMP_TOKEN_SUBTYPES & {t for t in types if isinstance(t, str)}:
         return True
     return any(tag_of(n) == "Mana" for n in iter_typed_nodes(node))
@@ -10904,7 +11143,7 @@ def makes_creature_tokens_at_once(node: TypedMirrorNode) -> bool:
     variable one (X, "for each …" — Secure the Wastes, Grand Crescendo)."""
     return (
         tag_of(node) == "Token"
-        and "Creature" in _list_field(node, "types")
+        and "Creature" in list_field(node, "types")
         and (amount_is_scaling(node, "count") or amount_factor(node, "count") >= 2)
     )
 
@@ -11197,6 +11436,93 @@ _CORE_TYPE_WORDS: frozenset[str] = frozenset(
 )
 
 
+class SparedTypes(NamedTuple):
+    """The creature types a card's mass effects leave out (CR 205.3m)."""
+
+    subtypes: frozenset[str]  # "Non-Elf creatures get -2/-2" (Eyeblight Massacre)
+    chosen: bool  # "creatures that aren't of the chosen type" (Kindred Dominance)
+
+
+def _excluded_creature_types(filt: object) -> tuple[set[str], bool]:
+    """The creature types an object filter excludes — a ``Non`` subtype entry
+    (:func:`filter_non_types`: "each non-Dragon creature") or a ``Not`` arm over
+    a subtype or the chosen creature type — and whether the chosen type is one
+    of them."""
+    subs = {w for w in filter_non_types(filt) if w.lower() in CREATURE_TYPES}
+    chosen = False
+    for n in iter_typed_nodes(filt):
+        if tag_of(n) == "Not":
+            negated = getattr(n, "filter", None)
+            chosen = chosen or "IsChosenCreatureType" in filter_predicates(negated)
+            subs.update(
+                s for s in filter_subtypes(negated) if s.lower() in CREATURE_TYPES
+            )
+    return subs, chosen
+
+
+def _spared_types(tree: ConceptTree) -> SparedTypes:
+    """The creature types the card's harmful mass effects spare: a sweeper, a
+    mass shrink or a mass bounce over every object but a type
+    (:data:`MASS_FILTER_EFFECT_TAGS`: "Non-Elf creatures get -2/-2 until end of
+    turn" — Eyeblight Massacre; "deals 2 damage to each non-Dragon creature" —
+    Breath Weapon; "Destroy all creatures that aren't of the chosen type" —
+    Kindred Dominance) and an edict every player obeys ("each player sacrifices
+    a non-Vampire creature" — Anowon, the Ruin Sage; "that player sacrifices a
+    non-Zombie creature" at each player's upkeep — Call to the Grave). Each is
+    one-sided against every other type, so a board of that type is what it
+    rewards (the lane's call). Left out: a mass effect over an opponent's
+    objects alone, which spares their tribe; a targeted effect that can't hit the
+    type (Victim of Night's "destroy target non-Vampire, non-Werewolf,
+    non-Zombie creature"), which spares no board; a mass pump ("Non-Human
+    creatures you control get +3/+3" — Return of the Wildspeaker), which
+    rewards the other types; a sacrifice only you make, as a cost or an
+    upkeep drawback (Veko, Death's Doorkeeper; Archdemon of Unx); and a
+    library dig's "put the rest on the bottom", which moves no permanent
+    (Goblin Ringleader)."""
+    subs: set[str] = set()
+    chosen = False
+    for unit in tree.units:
+        for n in unit.iter_typed():
+            tag = tag_of(n)
+            if tag == "PumpAll":
+                harms = pump_is_negative(n) or negative_pt_field(n, "toughness")
+            elif tag == "ChangeZoneAll":
+                harms = getattr(n, "origin", None) == "Battlefield"
+            elif tag == "Sacrifice":
+                reach = effect_player_reach(unit.node, n)
+                if reach == "scoped":
+                    reach = scoped_player_scope(unit)
+                harms = reach == "each"
+            else:
+                harms = tag in MASS_FILTER_EFFECT_TAGS
+            target = getattr(n, "target", None)
+            # A sweep of an opponent's objects alone spares their tribe.
+            if not harms or filter_controller_side(target) == "opponents":
+                continue
+            found, by_choice = _excluded_creature_types(target)
+            subs |= found
+            chosen = chosen or by_choice
+    return SparedTypes(frozenset(subs), chosen)
+
+
+def spared_types(tree: ConceptTree) -> SparedTypes:
+    """:func:`_spared_types`, read once per tree."""
+    return memo_on(tree, "_xw_spared_types", _spared_types)
+
+
+#: Every subtype word a type grant may hand an object (CR 205.3): a misparsed
+#: grant's stray word ("except it's a 4/4 Dragon creature with flying" read as
+#: the subtypes ``With`` and ``Flying`` — Will of the Temur) names none.
+_SUBTYPE_WORDS: frozenset[str] = (
+    CREATURE_TYPES
+    | ARTIFACT_TYPES
+    | ENCHANTMENT_TYPES
+    | PLANESWALKER_TYPES
+    | BATTLE_TYPES
+    | LAND_SUBTYPE_WORDS
+)
+
+
 class SubtypeRefs(NamedTuple):
     """The subtypes a card's object filters name (CR 205.3: subtypes)."""
 
@@ -11205,50 +11531,66 @@ class SubtypeRefs(NamedTuple):
     shares_type: bool  # "shares a creature type" (Coat of Arms)
 
 
-def subtype_refs(tree: ConceptTree) -> SubtypeRefs:
+def _subtype_refs(tree: ConceptTree) -> SubtypeRefs:
     """The subtypes the card's object filters name, wherever they sit — a lord's
     affected set ("Other Goblin creatures get +1/+1" — Goblin King; "Goblins you
     control have haste" — Goblin Warchief), a count ("for each Elf you
-    control"), a cost ("Sacrifice a Goblin" — Skirk Prospector), a spell filter
-    ("Goblin spells you cast cost {1} less"), a search ("for a Goblin card"), a
-    trigger's watched object, a creature type it adds to an object — and
-    whether a filter asks for a creature that
-    shares a creature type with another (Coat of Arms, Shared Animosity, a
-    kinship trigger's "If it shares a creature type with this creature" —
-    Mudbutton Clanger, Path of Ancestry's commander: a payoff for any tribe).
-    ``yours`` leaves out a filter of an opponent's objects ("creatures your
-    opponents control"), which names their tribe, not yours. A token the card
-    makes names its types on the token, not a filter (``token_maker``'s
-    subject)."""
+    control"), a cost ("Sacrifice a Goblin" — Skirk Prospector; "behold a
+    Goblin" — Champion of the Weird), a spell filter ("Goblin spells you cast
+    cost {1} less"), a search ("for a Goblin card"), a trigger's watched
+    object, a casting condition ("Cast this spell only if you control two or
+    more Vampires" — Feast of Blood), mana spendable only on a type's spells
+    ("Spend this mana only to cast Dragon spells" — Crucible of the Spirit
+    Dragon, CR 106.6), a creature type it adds to an object, a type its mass
+    effects spare (:func:`spared_types`) — and whether a filter asks for a
+    creature that shares a creature type with another (Coat of Arms, Shared
+    Animosity, a kinship trigger's "If it shares a creature type with this
+    creature" — Mudbutton Clanger, Path of Ancestry's commander: a payoff for
+    any tribe). ``yours`` leaves out a filter of an opponent's objects
+    ("creatures your opponents control"), which names their tribe, not yours,
+    and a type the card grants, the tribe's enabler rather than its payoff.
+    A token the card makes names its types on the token, not a filter
+    (``token_maker``'s subject)."""
     # A keyword's own type parameter names its subtype too ("Goblin offering" —
     # Patron of the Akki; "Champion an Elf"), and so does a spell's additional or
     # kicker cost ("sacrifice a Goblin" — Goblin Grenade), which sits beside the
     # units.
     keyword_types = {w for _kw, words in tree.card_keyword_types for w in words}
     keyword_subs = {w for w in keyword_types if w not in _CORE_TYPE_WORDS}
-    any_side: set[str] = set(keyword_subs)
-    yours: set[str] = set(keyword_subs)
+    spared = spared_types(tree).subtypes
+    # Named on every side alike; ``theirs`` only by an opponent's filter.
+    named: set[str] = keyword_subs | spared
+    theirs: set[str] = set()
+    # A type the card hands an object names it too, on the main page only: a
+    # grant is the tribe's enabler, not a payoff for a board of it.
+    granted: set[str] = set()
     cost_nodes = [
         m for unit in tree.units for c in unit.costs for m in iter_typed_nodes(c.node)
     ]
-    for n in (*tree.iter_typed(), *cost_nodes):
+    cast_nodes = [
+        m for cond in tree.card_cast_conditions for m in iter_typed_nodes(cond)
+    ]
+    for n in (*tree.iter_typed(), *cost_nodes, *cast_nodes):
+        tag = tag_of(n)
         # A creature type the card hands an object ("That creature is a black
         # Zombie in addition to its other colors and types" — Rise from the
         # Grave; "this artifact becomes a 4/4 … Dragon artifact creature" — the
         # Monuments; a token copy "except it's a 4/4 black Zombie").
-        if tag_of(n) == "AddSubtype":
+        if tag == "AddSubtype":
             sub_type = getattr(n, "subtype", None)
-            if isinstance(sub_type, str):
-                any_side.add(sub_type)
-                yours.add(sub_type)
-            continue
-        if tag_of(n) != "Typed":
-            continue
-        subs = filter_subtypes(n)
-        if subs:
-            any_side.update(subs)
-            if filter_controller_side(n) != "opponents":
-                yours.update(subs)
+            if isinstance(sub_type, str) and sub_type.lower() in _SUBTYPE_WORDS:
+                granted.add(sub_type)
+        elif tag == "Mana":
+            named.update(
+                w
+                for w in mana_spell_type_restriction(n).split()
+                if w.lower() in CREATURE_TYPES
+            )
+        elif tag == "Typed" and (subs := filter_subtypes(n)):
+            if filter_controller_side(n) == "opponents":
+                theirs.update(subs)
+            else:
+                named.update(subs)
     shares = any(
         (
             tag_of(n) in ("SharesQuality", "ObjectsShareQuality")
@@ -11257,7 +11599,12 @@ def subtype_refs(tree: ConceptTree) -> SubtypeRefs:
         or tag_of(n) == "SharesCreatureTypeWithCommander"
         for n in tree.iter_typed()
     )
-    return SubtypeRefs(frozenset(any_side), frozenset(yours), shares)
+    return SubtypeRefs(frozenset(named | theirs | granted), frozenset(named), shares)
+
+
+def subtype_refs(tree: ConceptTree) -> SubtypeRefs:
+    """:func:`_subtype_refs`, read once per tree."""
+    return memo_on(tree, "_xw_subtype_refs", _subtype_refs)
 
 
 def _watches_creatures(watched: object) -> bool:
@@ -11309,36 +11656,172 @@ def keyword_bodies(tree: ConceptTree) -> frozenset[str]:
     condition or an activation ("{2}: This creature gains flying until end of
     turn" — Afterthought Sentry; "has flying as long as you control an
     artifact" — Aeronaut Tinkerer), what it animates ("It's a 1/1 Spirit
-    creature with flying" — Abuelo's Awakening), a target or a team — a
-    creature token it makes with the keyword (Battle Screech's Birds), and a
-    keyword counter it puts on itself or a creature of yours (CR 122.1b —
-    Agent's Toolkit's flying counter). The bodies a keyword deck counts."""
+    creature with flying" — Abuelo's Awakening), a target or a team — a keyword
+    you choose for it ("choose flying, first strike, trample, or rampage 3.
+    This creature gains that ability" — Gabriel Angelfire; an Alchemy perpetual
+    grant — Second Little Pig), a creature token it makes with the keyword
+    (Battle Screech's Birds; a token copy "except it has flying" — Haunting
+    Imitation; the Thopter Stridehangar Automaton adds to your tokens) or a
+    Vehicle token with it (CR 702.122a: crewed, it becomes an artifact
+    creature — Lita, Mechanical Engineer's Zeppelin), and a keyword counter it
+    puts on itself or a creature of yours, one chosen at random included (CR
+    122.1b — Agent's Toolkit's flying counter, Crystalline Giant) or one a
+    creature enters with (Ascent of the Worthy's returned creature). The bodies
+    a keyword deck counts."""
     out: set[str] = set()
     for unit in tree.units:
         for sdef, mod in iter_mod_sites(unit.node, deep=True):
-            if tag_of(mod) == "AddKeyword" and (
-                filter_controller_side(getattr(sdef, "affected", None)) != "opponents"
-            ):
+            if filter_controller_side(getattr(sdef, "affected", None)) == "opponents":
+                continue
+            if tag_of(mod) == "AddKeyword":
                 out.add(keyword_subject(mod_keyword_name(mod) or ""))
-    for n in tree.iter_typed():
-        tag = tag_of(n)
-        if tag == "Token" and "Creature" in _list_field(n, "types"):
-            out.update(
-                keyword_subject(k)
-                for k in _list_field(n, "keywords")
-                if isinstance(k, str)
-            )
-        elif (
-            tag in ("PutCounter", "PutCounterAll")
-            and filter_controller_side(getattr(n, "target", None)) != "opponents"
-        ):
-            kind = _KEYWORD_COUNTERS.get(
-                normalised_keyword_name(counter_kind(n)).replace("_", "")
-            )
-            if kind:
-                out.add(kind)
+            elif tag_of(mod) == "AddChosenKeyword":
+                out.update(_chosen_keyword_options(unit))
+        for n in unit.iter_typed():
+            out |= _keyword_body_node(unit, n)
     out.discard("")
     return frozenset(out)
+
+
+def _chosen_keyword_options(unit: AbilityUnit) -> set[str]:
+    """The keywords a ``Choose`` of a keyword on ``unit`` offers (Gabriel
+    Angelfire's "flying, first strike, trample, or rampage 3")."""
+    out: set[str] = set()
+    for n in unit.iter_typed():
+        choice = choice_of(n)
+        if choice is not None and choice.kind == "Keyword":
+            out.update(keyword_subject(k) for k in choice.options if k.isalpha())
+    return out
+
+
+def _keyword_counter(kind: object) -> str:
+    """A counter kind's keyword (:data:`_KEYWORD_COUNTERS`), or ``""``."""
+    if not isinstance(kind, str):
+        return ""
+    return _KEYWORD_COUNTERS.get(normalised_keyword_name(kind).replace("_", ""), "")
+
+
+def _keyword_names(node: object, field: str) -> set[str]:
+    """The plain keywords in ``node``'s keyword list ``field``, in
+    :func:`keyword_subject` spelling."""
+    return {keyword_subject(k) for k in list_field(node, field) if isinstance(k, str)}
+
+
+def _keyword_body_node(unit: AbilityUnit, n: TypedMirrorNode) -> set[str]:
+    """The keywords one node of ``unit`` puts on a body of yours
+    (:func:`keyword_bodies`' node-level arms)."""
+    tag = tag_of(n)
+    if tag in ("Token", "CopyTokenOf"):
+        if token_creator_side(unit, n) == "opponents":
+            return set()
+        if tag == "CopyTokenOf":
+            return _keyword_names(n, "extra_keywords")
+        types = list_field(n, "types")
+        if "Creature" in types or "Vehicle" in types:
+            return _keyword_names(n, "keywords")
+        return set()
+    if filter_controller_side(getattr(n, "target", None)) == "opponents":
+        return set()
+    if tag in ("PutCounter", "PutCounterAll"):
+        return {_keyword_counter(counter_kind(n))}
+    if tag == "ChooseCounterKind":
+        domain = getattr(n, "domain", None)
+        return {_keyword_counter(k) for k in list_field(domain, "kinds")}
+    if tag in ("ChangeZone", "ChangeZoneAll"):
+        if getattr(n, "destination", None) != "Battlefield":
+            return set()
+        return {
+            _keyword_counter(entry[0])
+            for entry in list_field(n, "enter_with_counters")
+            if isinstance(entry, list) and entry
+        }
+    if tag == "ApplyPerpetual":
+        return _keyword_names(getattr(n, "modification", None), "keywords")
+    # A replacement adding a creature token to the ones you create (Stridehangar
+    # Automaton's Thopter, CR 614.1a).
+    if getattr(n, "token_owner_scope", None) != "You":
+        return set()
+    return {
+        kw
+        for chars in replacement_token_specs(n)
+        if "Creature" in list_field(chars, "core_types")
+        for kw in _keyword_names(chars, "keywords")
+    }
+
+
+def made_token_subtypes(tree: ConceptTree) -> tuple[tuple[str, str], ...]:
+    """``(subtype, how)`` per creature type a token the card makes gets beside
+    the ones its ``Token`` node types (``token_maker``'s subjects): a token
+    copy you create "except it's a Spirit in addition to its other types"
+    (``"copy"`` — Hofri Ghostforge), the Army of an "amass Goblins N" you
+    perform (``"amass"``, CR 701.47a), and a creature type you choose from a
+    printed list for the tokens it makes ("choose white Citizen, … red Goblin,
+    or green Saproling. {3}, {T}: Create a 1/1 creature token of the chosen
+    color and type" — ``"chosen"``, Sarpadian Empires, Vol. VII). Raw
+    spelling; the caller resolves it against its creature-type vocabulary."""
+    out: list[tuple[str, str]] = []
+    for unit in tree.units:
+        for n in unit.iter_typed():
+            if tag_of(n) != "CopyTokenOf" or token_creator_side(unit, n) == "opponents":
+                continue
+            out.extend(
+                (sub, "copy")
+                for mod in list_field(n, "additional_modifications")
+                if tag_of(mod) == "AddSubtype"
+                and isinstance(sub := getattr(mod, "subtype", None), str)
+            )
+    for event in keyword_action_events(tree):
+        if event.tag == "Amass" and event.yours:
+            out.extend(
+                (sub, "amass")
+                for n in event.unit.iter_typed()
+                if tag_of(n) == "Amass"
+                and isinstance(sub := getattr(n, "subtype", None), str)
+            )
+    # A creature token of yours with no creature type beside a choice from a
+    # printed list ("Red goblin"): the token takes the chosen option's type.
+    # Phase-misparse workaround: phase v0.104.0 types no "of the chosen color and
+    # type" on the token, so the choice and the token are joined card-wide.
+    # Retire when test_chosen_token_type_canary fails RETIRE-READY.
+    labeled = [
+        word
+        for n in tree.iter_typed()
+        if (choice := choice_of(n)) is not None and choice.kind == "Labeled"
+        for option in choice.options
+        for word in option.split()
+        if word.lower() in CREATURE_TYPES
+    ]
+    if labeled and any(
+        tag_of(n) == "Token"
+        and "Creature" in (types := list_field(n, "types"))
+        and not any(t.lower() in CREATURE_TYPES for t in types if isinstance(t, str))
+        and token_creator_side(unit, n) != "opponents"
+        for unit in tree.units
+        for n in unit.iter_typed()
+    ):
+        out.extend((word, "chosen") for word in labeled)
+    return tuple(out)
+
+
+def makes_equipment(tree: ConceptTree, sides: frozenset[str]) -> bool:
+    """Whether the card makes an Equipment (CR 301.5): a token whose types
+    include Equipment, created by a player on one of ``sides``
+    (:func:`token_creator_side` — Iron Hills Blacksmith, U.S.Agent's Sturdy
+    Shield), or a static that adds the Equipment subtype to your artifacts (Dan
+    Lewis, Gemcutter Buccaneer, Arterial Alchemy) — that grant arm reads no
+    side, ``sides`` gates the tokens only."""
+    for unit in tree.units:
+        for n in unit.iter_typed():
+            tag = tag_of(n)
+            if (
+                tag == "Token"
+                and "Equipment" in list_field(n, "types")
+                and token_creator_side(unit, n) in sides
+            ):
+                return True
+            if tag == "AddSubtype" and getattr(n, "subtype", None) == "Equipment":
+                return True
+    return False
 
 
 #: The keyword counters (CR 122.1b: "flying, first strike, double strike,

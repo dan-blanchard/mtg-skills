@@ -23,7 +23,6 @@ from mtg_utils._analysis.tree_synthesis import ETB_TRIGGER_EVENTS
 from mtg_utils._card_ir.crosswalk import (
     AbilityUnit,
     ConceptTree,
-    _list_field,
     aggregate_filter,
     blight_placements,
     cost_reduction_count_filters,
@@ -49,6 +48,7 @@ from mtg_utils._card_ir.crosswalk import (
     iter_typed_nodes,
     keyword_action_events,
     keyword_resource_events,
+    makes_equipment,
     mill_reaches_opponent,
     mod_keyword_name,
     modify_cost_mode,
@@ -1969,7 +1969,7 @@ def _voltron_gear_pump(tree: ConceptTree) -> list[Signal]:
     Equipment token (Iron Hills Blacksmith's Axe, Toggo's Rock) or an artifact
     of yours that becomes one (Dan Lewis, Arterial Alchemy's Blood tokens)."""
     found: dict[str, str] = {}
-    if _makes_equipment(tree):
+    if makes_equipment(tree, TOKEN_YOURS_SIDES):
         found["gear"] = ""
     # An anthem for your suited-up creatures ("Equipped creatures you control get
     # +1/+1" — Stone Haven Outfitter) pumps whatever the gear goes on, and so does a
@@ -2050,26 +2050,6 @@ def _gear_signals(found: dict[str, str], tree: ConceptTree) -> list[Signal]:
         Signal("voltron_makers", "you", subject, raw, tree.name, "high")
         for subject, raw in found.items()
     ]
-
-
-def _makes_equipment(tree: ConceptTree) -> bool:
-    """Whether the card makes an Equipment of yours (CR 301.5): a token whose
-    types include Equipment (Iron Hills Blacksmith, U.S.Agent's Sturdy Shield),
-    or a static that adds the Equipment subtype to your artifacts (Dan Lewis,
-    Gemcutter Buccaneer, Arterial Alchemy). An opponent's token is no gear of
-    yours."""
-    for unit in tree.units:
-        for n in iter_typed_nodes(unit.node):
-            tag = tag_of(n)
-            if (
-                tag == "Token"
-                and "Equipment" in _list_field(n, "types")
-                and token_creator_side(unit, n) in TOKEN_YOURS_SIDES
-            ):
-                return True
-            if tag == "AddSubtype" and getattr(n, "subtype", None) == "Equipment":
-                return True
-    return False
 
 
 def _voltron_equip_style_keyword(mod: TypedMirrorNode) -> bool:

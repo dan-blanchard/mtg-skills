@@ -21,7 +21,6 @@ from mtg_utils._card_ir.crosswalk import (
     AbilityUnit,
     ConceptNode,
     ConceptTree,
-    _list_field,
     change_zone_dirs,
     effect_back_reference,
     effect_filter,
@@ -39,6 +38,7 @@ from mtg_utils._card_ir.crosswalk import (
     iter_search_landings,
     iter_static_grant_sites,
     iter_typed_nodes,
+    list_field,
     memo_on,
     parked_search_puts_onto_battlefield,
     reveal_until_player,
@@ -275,7 +275,7 @@ def _granted_untap_surfaces(
         scope = host if tag_of(affected) == "ParentTarget" else affected
         if filter_controller(scope) == "Opponent":
             continue
-        for mod in _list_field(sdef, "modifications"):
+        for mod in list_field(sdef, "modifications"):
             mtag = tag_of(mod)
             if mtag in ("GrantAbility", "GrantTrigger"):
                 cost = getattr(getattr(mod, "definition", None), "cost", None)

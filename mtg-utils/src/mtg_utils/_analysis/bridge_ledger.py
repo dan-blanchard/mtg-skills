@@ -65,6 +65,7 @@ from mtg_utils._card_ir.crosswalk import (
     TEAM_BUFF_GRANT_KW,
     _filter_type_words,
     aggregate_filter,
+    chosen_type_payoffs,
     counter_kind,
     damage_recipient,
     effect_filter,
@@ -89,7 +90,9 @@ from mtg_utils._card_ir.crosswalk import (
     root_target_filter,
     sacrifice_names_no_player,
     settap_state,
+    spared_types,
     static_mode_field,
+    subtype_refs,
     tag_of,
     trigger_turn_constraint,
     unit_keyword_grants,
@@ -138,8 +141,11 @@ class Bridge:
     subject: str = ""  # the Signal subject, for a key that carries one
 
     def fires(self, tree: ConceptTree) -> bool:
-        """Gap-gated firing — a landed structural read stands the bridge down."""
-        return self.gap(tree) and self.match(tree)
+        """Gap-gated firing — a landed structural read stands the bridge down.
+        The match is asked first: it is mostly one oracle search, and it misses
+        on nearly every card, so the gap's tree reads run only for the few it
+        hits."""
+        return self.match(tree) and self.gap(tree)
 
     def signal(self, tree: ConceptTree) -> Signal:
         """The signal this row serves for ``tree`` (call only when it fires)."""
@@ -6974,6 +6980,415 @@ BRIDGES.update(
                 pins=("Sokrates, Athenian Teacher",),
                 gap=_quoted_grant_read_as_token_replacement,
                 match=_oracle_match(_QUOTED_PREVENT_GRANT_RX),
+            ),
+        )
+    }
+)
+
+
+# ── Tribe references phase drops (backlog (o), the tribe pages' last pass) ─────
+# The tribe pages page by ``subtype_ref`` (the subtypes a card's filters name,
+# ``crosswalk.subtype_refs``) and ``chosen_type_matters`` (a chosen creature
+# type's payoffs, ``crosswalk.chosen_type_payoffs``) with no oracle pattern
+# beside them, so a tribe reference phase parks or drops reaches the page only
+# through a row here. A dropped clause's gap is the read itself coming up empty
+# for the row's tribe; a parked clause's gap is its words still parked (the row's
+# match too), so either way a bump that types the clause retires the row. A type
+# the card grants pages the tribe's main page only (scope ``any``): a grant is
+# the enabler, not a payoff.
+_GOBLINS_DEVOURED_RX = re.compile(r"\bnumber of Goblins it devoured\b", re.IGNORECASE)
+_GOBLIN_COUNT_RX = re.compile(
+    r"\bwhere X is the number of Goblins you control\b", re.IGNORECASE
+)
+_ELF_CARD_TO_HAND_RX = re.compile(
+    r"\bup to one Elf card from among them into your hand\b", re.IGNORECASE
+)
+_ZOMBIE_GRANT_PARKED_RX = re.compile(
+    r"\bthey're (?:black )?Zombies in addition to their other\b", re.IGNORECASE
+)
+_ZOMBIE_REFERENCE_PARKED_RX = re.compile(r"\bZombies you control gain\b", re.IGNORECASE)
+_ZOMBIE_GRANT_DROPPED_RX = re.compile(r"\band is a black Zombie\b", re.IGNORECASE)
+_ZOMBIE_REFERENCE_DROPPED_RX = re.compile(
+    r"\bIf a Zombie you control would deal\b", re.IGNORECASE
+)
+_BLOCKED_BY_ZOMBIE_RX = re.compile(
+    r"\bthat blocked or was blocked by a Zombie\b", re.IGNORECASE
+)
+_PERPETUAL_DRAGON_GRANT_RX = re.compile(
+    r"\bperpetually becomes a Dragon\b", re.IGNORECASE
+)
+_PERPETUAL_DRAGON_RX = re.compile(
+    r"\bDragon cards in your hand perpetually\b", re.IGNORECASE
+)
+_SHARES_A_TYPE_WITH_IT_RX = re.compile(
+    r"\bcreature you control that shares a creature type with it\b", re.IGNORECASE
+)
+_SHARES_A_TYPE_WITH_TAPPED_RX = re.compile(
+    r"\bshares a creature type with each creature tapped this way\b", re.IGNORECASE
+)
+_SEA_MONSTER_MERFOLK_RX = re.compile(
+    r"\bLeviathan, Merfolk, Octopus, or Serpent\b", re.IGNORECASE
+)
+_WIZARD_COUNT_RX = re.compile(r"\bthe number of Wizards you control\b", re.IGNORECASE)
+_WIZARD_ENTERING_RX = re.compile(
+    r"\bIf a Wizard you control entering causes\b", re.IGNORECASE
+)
+_MOST_WIZARDS_RX = re.compile(r"\bcontrols the most Wizards\b", re.IGNORECASE)
+_IS_A_HUMAN_RX = re.compile(r"\bit's a Human\b", re.IGNORECASE)
+_HUMAN_ENTERS_COUNTER_RX = re.compile(
+    r"\beach Human creature you control enters with\b", re.IGNORECASE
+)
+_HUMAN_TOKEN_MODE_RX = re.compile(r"^\d+/\d+ Human \w+ with\b", re.IGNORECASE)
+_CHOSEN_TYPE_MAJORITY_RX = re.compile(
+    r"\bIf you control more creatures of that type than each other player\b",
+    re.IGNORECASE,
+)
+_CHOSEN_TYPE_SWEEP_RX = re.compile(
+    r"\bCreatures that aren't of the chosen type get\b", re.IGNORECASE
+)
+
+
+def _names_yours(tree: ConceptTree, subtype: str) -> bool:
+    return subtype in subtype_refs(tree).yours
+
+
+def _names_any(tree: ConceptTree, subtype: str) -> bool:
+    return subtype in subtype_refs(tree).any_side
+
+
+def _goblins_devoured_parked(tree: ConceptTree) -> bool:
+    return _parked_says(tree, _GOBLINS_DEVOURED_RX)
+
+
+def _no_goblin_reference(tree: ConceptTree) -> bool:
+    return not _names_yours(tree, "Goblin")
+
+
+def _no_elf_reference(tree: ConceptTree) -> bool:
+    return not _names_yours(tree, "Elf")
+
+
+def _zombie_grant_parked(tree: ConceptTree) -> bool:
+    return _parked_says(tree, _ZOMBIE_GRANT_PARKED_RX)
+
+
+def _zombie_reference_parked(tree: ConceptTree) -> bool:
+    return _parked_says(tree, _ZOMBIE_REFERENCE_PARKED_RX)
+
+
+def _no_zombie_reference(tree: ConceptTree) -> bool:
+    return not _names_yours(tree, "Zombie")
+
+
+def _no_zombie_reference_any_side(tree: ConceptTree) -> bool:
+    return not _names_any(tree, "Zombie")
+
+
+def _perpetual_dragon_grant_parked(tree: ConceptTree) -> bool:
+    return _parked_says(tree, _PERPETUAL_DRAGON_GRANT_RX)
+
+
+def _perpetual_dragon_parked(tree: ConceptTree) -> bool:
+    return _parked_says(tree, _PERPETUAL_DRAGON_RX)
+
+
+def _shares_a_type_parked(tree: ConceptTree) -> bool:
+    return _parked_says(tree, _SHARES_A_TYPE_WITH_IT_RX)
+
+
+def _no_shares_a_type_filter(tree: ConceptTree) -> bool:
+    return not subtype_refs(tree).shares_type
+
+
+def _sea_monster_merfolk_parked(tree: ConceptTree) -> bool:
+    return _parked_says(tree, _SEA_MONSTER_MERFOLK_RX)
+
+
+def _wizard_count_parked(tree: ConceptTree) -> bool:
+    return _parked_says(tree, _WIZARD_COUNT_RX)
+
+
+def _no_wizard_reference(tree: ConceptTree) -> bool:
+    return not _names_yours(tree, "Wizard")
+
+
+def _most_wizards_parked(tree: ConceptTree) -> bool:
+    return _parked_says(tree, _MOST_WIZARDS_RX)
+
+
+def _is_a_human_unrecognized(tree: ConceptTree) -> bool:
+    return _unrecognized_says(tree, _IS_A_HUMAN_RX)
+
+
+def _no_human_reference(tree: ConceptTree) -> bool:
+    return not _names_yours(tree, "Human")
+
+
+def _human_token_mode_parked(tree: ConceptTree) -> bool:
+    return _parked_says(tree, _HUMAN_TOKEN_MODE_RX)
+
+
+def _no_chosen_type_payoff(tree: ConceptTree) -> bool:
+    return not chosen_type_payoffs(tree).sites
+
+
+def _no_chosen_type_spared(tree: ConceptTree) -> bool:
+    return not spared_types(tree).chosen
+
+
+def _reference_row(
+    bridge_id: str,
+    subject: str,
+    kind: str,
+    what: str,
+    pins: tuple[str, ...],
+    gap: Callable[[ConceptTree], bool],
+    match: Callable[[ConceptTree], bool] | None = None,
+    *,
+    key: str = "subtype_ref",
+    scope: str = "you",
+) -> Bridge:
+    """One tribe-reference row: ``what`` phase parks, drops or misreads, on
+    ``pins`` (the whole legal corpus's hits). With no ``match`` the gap is the
+    match too (a clause no oracle pattern finds whole)."""
+    return Bridge(
+        bridge_id=bridge_id,
+        key=key,
+        scope=scope,
+        subject=subject,
+        kind=kind,
+        todo=_upstream(
+            f"{what}: no IR read names the reference. Retires on the bump that types it"
+        ),
+        census=_item_o_census(*pins),
+        pins=pins,
+        gap=gap,
+        match=match or gap,
+    )
+
+
+BRIDGES.update(
+    {
+        b.bridge_id: b
+        for b in (
+            # A Goblin sacrifice outlet (CR 702.82a devour) whose payoff counts
+            # the Goblins it devoured.
+            _reference_row(
+                "goblins_devoured_parked",
+                "Goblin",
+                "upstream_parse_failure",
+                "Voracious Dragon's 'twice the number of Goblins it devoured'",
+                ("Voracious Dragon",),
+                _goblins_devoured_parked,
+                _oracle_match(_GOBLINS_DEVOURED_RX),
+            ),
+            _reference_row(
+                "goblin_count_dropped",
+                "Goblin",
+                "dropped_clause",
+                "Taster of Wares's 'where X is the number of Goblins you control'",
+                ("Taster of Wares",),
+                _no_goblin_reference,
+                _oracle_match(_GOBLIN_COUNT_RX),
+            ),
+            _reference_row(
+                "elf_card_to_hand_dropped",
+                "Elf",
+                "dropped_clause",
+                "Bounty of Skemfar's 'up to one Elf card from among them into "
+                "your hand' beside its land dig",
+                ("Bounty of Skemfar",),
+                _no_elf_reference,
+                _oracle_match(_ELF_CARD_TO_HAND_RX),
+            ),
+            # A reanimation that makes its creatures Zombies (a grant), and a
+            # grant to the Zombies you control.
+            _reference_row(
+                "zombie_grant_parked",
+                "Zombie",
+                "upstream_parse_failure",
+                "'They're (black) Zombies in addition to their other types' after "
+                "a mass reanimation",
+                (
+                    "Afterlife from the Loam",
+                    "Ghouls' Night Out",
+                    "Grimoire of the Dead",
+                ),
+                _zombie_grant_parked,
+                _oracle_match(_ZOMBIE_GRANT_PARKED_RX),
+                scope="any",
+            ),
+            _reference_row(
+                "zombie_reference_parked",
+                "Zombie",
+                "upstream_parse_failure",
+                "Wand of Orcus's 'it and Zombies you control gain deathtouch'",
+                ("Wand of Orcus",),
+                _zombie_reference_parked,
+                _oracle_match(_ZOMBIE_REFERENCE_PARKED_RX),
+            ),
+            _reference_row(
+                "zombie_grant_dropped",
+                "Zombie",
+                "dropped_clause",
+                "Nim Deathmantle's 'and is a black Zombie'",
+                ("Nim Deathmantle",),
+                _no_zombie_reference_any_side,
+                _oracle_match(_ZOMBIE_GRANT_DROPPED_RX),
+                scope="any",
+            ),
+            _reference_row(
+                "zombie_reference_dropped",
+                "Zombie",
+                "dropped_clause",
+                "Undead Alchemist's 'If a Zombie you control would deal combat "
+                "damage to a player'",
+                ("Undead Alchemist",),
+                _no_zombie_reference,
+                _oracle_match(_ZOMBIE_REFERENCE_DROPPED_RX),
+            ),
+            _reference_row(
+                "blocked_by_zombie_dropped",
+                "Zombie",
+                "dropped_clause",
+                "Time to Reflect's 'that blocked or was blocked by a Zombie this turn'",
+                ("Time to Reflect",),
+                _no_zombie_reference_any_side,
+                _oracle_match(_BLOCKED_BY_ZOMBIE_RX),
+                scope="any",
+            ),
+            _reference_row(
+                "perpetual_dragon_grant_parked",
+                "Dragon",
+                "upstream_parse_failure",
+                "Heir to Dragonfire's Alchemy 'perpetually becomes a Dragon'",
+                ("Heir to Dragonfire",),
+                _perpetual_dragon_grant_parked,
+                _oracle_match(_PERPETUAL_DRAGON_GRANT_RX),
+                scope="any",
+            ),
+            _reference_row(
+                "perpetual_dragon_parked",
+                "Dragon",
+                "upstream_parse_failure",
+                "Sarkhan, Wanderer to Shiv's Alchemy 'Dragon cards in your hand "
+                "perpetually gain'",
+                ("Sarkhan, Wanderer to Shiv",),
+                _perpetual_dragon_parked,
+                _oracle_match(_PERPETUAL_DRAGON_RX),
+            ),
+            # "Shares a creature type" payoffs for any tribe (Coat of Arms' kin).
+            _reference_row(
+                "shares_a_type_parked",
+                "shared",
+                "upstream_parse_failure",
+                "Holy Frazzle-Cannon's 'each other creature you control that shares "
+                "a creature type with it'",
+                ("Invasion of New Capenna // Holy Frazzle-Cannon",),
+                _shares_a_type_parked,
+                _oracle_match(_SHARES_A_TYPE_WITH_IT_RX),
+            ),
+            _reference_row(
+                "shares_a_type_dropped",
+                "shared",
+                "dropped_clause",
+                "Cryptic Gateway's 'a creature card from your hand that shares a "
+                "creature type with each creature tapped this way'",
+                ("Cryptic Gateway",),
+                _no_shares_a_type_filter,
+                _oracle_match(_SHARES_A_TYPE_WITH_TAPPED_RX),
+            ),
+            _reference_row(
+                "sea_monster_merfolk_parked",
+                "Merfolk",
+                "upstream_parse_failure",
+                "Summon: Leviathan's 'Kraken, Leviathan, Merfolk, Octopus, or "
+                "Serpent' list past its first type",
+                ("Summon: Leviathan",),
+                _sea_monster_merfolk_parked,
+                _oracle_match(_SEA_MONSTER_MERFOLK_RX),
+            ),
+            _reference_row(
+                "wizard_count_parked",
+                "Wizard",
+                "upstream_parse_failure",
+                "Kaza, Roil Chaser's 'where X is the number of Wizards you control'",
+                ("Kaza, Roil Chaser",),
+                _wizard_count_parked,
+                _oracle_match(_WIZARD_COUNT_RX),
+            ),
+            _reference_row(
+                "wizard_entering_dropped",
+                "Wizard",
+                "dropped_clause",
+                "Naban, Dean of Iteration's 'If a Wizard you control entering' (the "
+                "trigger doubler's cause keeps no filter)",
+                ("Naban, Dean of Iteration",),
+                _no_wizard_reference,
+                _oracle_match(_WIZARD_ENTERING_RX),
+            ),
+            _reference_row(
+                "most_wizards_parked",
+                "Wizard",
+                "upstream_parse_failure",
+                "Thoughtbound Primoc's 'the player who controls the most Wizards "
+                "gains control of'",
+                ("Thoughtbound Primoc",),
+                _most_wizards_parked,
+                _oracle_match(_MOST_WIZARDS_RX),
+                scope="any",
+            ),
+            _reference_row(
+                "is_a_human_unrecognized",
+                "Human",
+                "upstream_parse_failure",
+                "Bonds of Faith's 'as long as it's a Human' condition",
+                ("Bonds of Faith",),
+                _is_a_human_unrecognized,
+                _oracle_match(_IS_A_HUMAN_RX),
+            ),
+            _reference_row(
+                "human_enters_counter_misparse",
+                "Human",
+                "upstream_parse_failure",
+                "Dearly Departed's 'each Human creature you control enters with an "
+                "additional +1/+1 counter' (read as a replacement on the card "
+                "itself)",
+                ("Dearly Departed",),
+                _no_human_reference,
+                _oracle_match(_HUMAN_ENTERS_COUNTER_RX),
+            ),
+            _reference_row(
+                "human_token_modes_parked",
+                "Human",
+                "upstream_parse_failure",
+                "Outlaws' Merriment's random Human token modes",
+                ("Outlaws' Merriment",),
+                _human_token_mode_parked,
+                key="token_maker",
+            ),
+            # A chosen creature type's payoffs (any tribe).
+            _reference_row(
+                "chosen_type_majority_dropped",
+                "",
+                "dropped_clause",
+                "Peer Pressure's 'If you control more creatures of that type than "
+                "each other player' (the steal keeps no condition)",
+                ("Peer Pressure",),
+                _no_chosen_type_payoff,
+                _oracle_match(_CHOSEN_TYPE_MAJORITY_RX),
+                key="chosen_type_matters",
+            ),
+            _reference_row(
+                "chosen_type_sweep_misparse",
+                "",
+                "upstream_parse_failure",
+                "Crippling Fear's 'Creatures that aren't of the chosen type get "
+                "-3/-3' (read as a pump of any target)",
+                ("Crippling Fear",),
+                _no_chosen_type_spared,
+                _oracle_match(_CHOSEN_TYPE_SWEEP_RX),
+                key="chosen_type_matters",
             ),
         )
     }
