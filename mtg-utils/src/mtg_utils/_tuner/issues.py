@@ -122,8 +122,9 @@ class Remedy:
     ``spec`` is the candidate search for the add. ``cut_from`` names the cut pool that
     pays for it. ``spine`` marks a Spine fill: ranked efficiency-first (cheapest
     does-the-job) under the ADR-0040 role-fix guard, where every other add ranks
-    synergy-first. ``drain`` marks the one multi-swap remedy — dead weight swaps until
-    its pool or the swap budget runs out."""
+    synergy-first. ``drain`` marks a multi-swap remedy — dead weight and an
+    over-band trim swap until their pool or the swap budget runs out (the upgrade
+    slots, sourced per cut through ``spec_for_cut``, always do)."""
 
     spec: dict
     cut_from: str = CUT_GENERIC
@@ -372,7 +373,11 @@ class Sourcing:
             spec = self.avenue(label or "")
             return Remedy(spec) if spec is not None else None
         if kind == "role_over":
-            # Trim the excess: the cut comes from the over role. The add deepens the
+            # Trim the excess: the cut comes from the over role, and the trim
+            # drains it — the pool holds exactly the excess (``cut_candidates``),
+            # so a row over by fourteen trims fourteen. One trim per issue left
+            # Animated Army's ramp 13 over its band; draining took 13 guide cuts
+            # more, adds flat (25 precons, 2026-10-25). The add deepens the
             # commander's own lane when the deck has one (it is the main theme and
             # the first viable avenue — a polymorph commander's trimmed rock becomes
             # a polymorph piece, not a card for whichever direction is emerging),
@@ -394,7 +399,7 @@ class Sourcing:
                 spec = self.avenue(emerging[0]["label"]) if emerging else None
             if spec is None:
                 spec = self.main_avenue()
-            return Remedy(spec, cut_from=cut_over(role or ""))
+            return Remedy(spec, cut_from=cut_over(role or ""), drain=True)
         if kind in ("near_miss_combo", "meta_core_missing"):
             # One named card: the combo's missing piece, or a core card of the
             # deck's meta archetype. Search for exactly that card. A game-ending

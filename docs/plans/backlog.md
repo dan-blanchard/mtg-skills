@@ -93,11 +93,15 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   (g) **The guide cuts the tuner protects** (2026-10-24, the experiment table in
   `docs/plans/precon-audit-2026-10-18.md`, "The remaining tuner levers"). Shipped:
   popular cards (inside `UPGRADE_RANK`, not premium) off every lane and on none of
-  the deck's viable avenues are the last upgrade tier (`focus.popular_upgrade_cards`,
-  after the deep lane's half; the guides cut 0.28 of them, 27 of 96; beside the
-  fringe tier they spent the lane's theme budget, 51 adds). Left, with no read that
-  separates them: 62 popular cuts (Feed the Swarm is premium, rank 93; the rest
-  serve a viable avenue) and 55 commander-lane doers, 54 of them carers, whose
+  the deck's main avenues are the last upgrade tier (`focus.popular_upgrade_cards`,
+  after the deep lane's half; the guides cut 0.28 of them, 27 of 96, when any viable
+  avenue spared a card; beside the fringe tier they spent the lane's theme budget,
+  51 adds). Since 2026-10-25 only a main shields an off-lane card from the upgrade
+  tiers (a sub's or an emerging or folded theme's carer is a slot, and a popular
+  card on a sub alone; the audit's "The cut pool"); keeping a folded theme's
+  carers shielded lost five guide cuts. Left,
+  with no read that separates them: 44 popular cuts (premium, as Feed the Swarm at
+  rank 93, or on a main) and 57 commander-lane doers, 54 of them carers, whose
   guide-cut rate outside the lane's half is 0.08-0.20 in every carer split by role
   and play-rate holding more than four cards, below the decks' 0.24 — (a) holds,
   don't re-suggest a split of them without a new read; Sliver Swarm's 11 are
@@ -140,17 +144,22 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   resolving the referent changes reads, so it wants a precon rerun.
   (m) **Recall** (`precon-audit/misses.py`, at the largest guide's thirty
   swaps and each precon's own guides' budget, `budgets.json`, Spellbook cached):
-  199 of 408 cuttable guide cuts, 67 of 610 in-scope guide adds, 562 swaps
-  (2026-10-25, the second (o) pass: VelociRampTor adds Ghalta and Mavren for
-  Boros Charm, Virtue and Valor adds Sram, Sliver Swarm cuts Descendants' Fury;
-  197 / 66, 560 swaps at the even share; 195 / 59, 543 swaps before it; 180 / 57 before the
-  near-tie budget rule, 169 / 56 at 9e0026ed). The levers by size at the shipped
-  tune: adds a page held but outranked (287 — the gate reasons fell, since a pick
-  inside the share stops the scan before the gates see the rest), theme adds no
-  search reaches (164, (r)), cuts the popularity threshold still shields (61),
-  commander-lane cards the guides trim (57), and cuts a tune never reaches (26).
-  Most tunes now end on their cut pool, not their budget (Animated Army, Sliver
-  Swarm 15 swaps; Blame Game spends $44 of $169). The outranked adds, by what beat
+  252 of 408 cuttable guide cuts, 75 of 610 in-scope guide adds, 669 swaps
+  (2026-10-25, the cut pool: an over-band trim drains its excess, only a main
+  shields an off-lane card from the upgrade tiers, an off-theme card's theme
+  upgrade need not be more played and may cost one band more — the audit's "The
+  cut pool"; 199 / 67, 562 swaps before it; 197 / 66, 560 swaps at the even share;
+  195 / 59, 543 swaps before it; 180 / 57 before the near-tie budget rule, 169 / 56
+  at 9e0026ed). The levers by size at the shipped tune: adds a page held but
+  outranked (251 — the gate reasons fell, since a pick inside the share stops the
+  scan before the gates see the rest), theme adds no search reaches (164, (r)),
+  commander-lane cards the guides trim (57), cuts the popularity threshold still
+  shields (44: premium, or on a main), cuts a tune never reaches (32, 23 of them in
+  the popular tier past the thirty swaps or the budget) and protected ones (13).
+  Eleven tunes now reach thirty swaps, four end on their budget and ten on their
+  cut pool (Sliver Swarm 15, its lane all Granters; Blood Rites 20, its lane all
+  Vampires); 36 guide adds are gated as fewer played than their cut (a job's, or
+  an on-theme card's) and 35 as a band higher. The outranked adds, by what beat
   them (`find_add` traced, 2026-10-25, before the even share): theme pages 122 (91
   behind a more-played pick, 17 ahead of it but passed over for a cheaper near
   tie, 8 on a page that picked nothing), removal 37, ramp 26, draw 21, protection
@@ -164,20 +173,32 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   share's experiments (the audit's "The budget's even share"): a theme page's near
   tie to the better fit where the budget doesn't bind (58), the even share on the
   guarded Spine fills (one add fewer), and the cheapest card in the window, near
-  tie or not, past the share (adds flat, one cut more).
+  tie or not, past the share (adds flat, one cut more); and, against the cut
+  pool's: a lane feeder's theme upgrade to a less-played payoff of the main lane
+  (one add fewer), an over-band trim's add shared over the mains (flat).
   Six guide summaries don't tag sources per row (`guide_sizes.py` skips them).
   (r) **Theme reach, what's left** (2026-10-25; the experiment table is in
   `docs/plans/precon-audit-2026-10-18.md`, "Theme reach"). 164 theme guide adds
   still have no search. Open:
-  - the guide adds that serve only a lane that isn't viable;
   - the 150-card play-rate page (`swaps._PAGE`), which hid 71 main-avenue guide
     adds at a913f172 ("the most played that fits" never reaches them, nor did
-    payoffs first). Blood Rites' Pyre of Heroes and Lich-Knights' Conquest are
-    this lever: both carry `sacrifice_outlets|you|`, which the Aristocrats serve
-    counts, but the page doesn't hold them; Altar of Dementia, Diabolic Intent,
+    payoffs first; 67 serve the commander's main at the cut pool's tune). Blood
+    Rites' Lich-Knights' Conquest is this lever: it carries
+    `sacrifice_outlets|you|`, which the Aristocrats serve counts, but the page
+    doesn't hold it; Pyre of Heroes, Altar of Dementia, Diabolic Intent,
     Razaketh and Dictate of Erebos are on it, outranked;
   - four guide adds serve only a sub (Living Energy's Arcum Dagsson, Clever
-    Impersonator, Scrap Welder; Deep Clue Sea's Displaced Dinosaurs).
+    Impersonator, Scrap Welder; Deep Clue Sea's Displaced Dinosaurs). Sharing the
+    theme adds over the commander's held subs as well as the mains took Roaming
+    Throne and Praetor's Grasp but lost eight guide adds elsewhere (2026-10-25,
+    the audit's "The cut pool"), as every sub sharing did.
+  The guide adds that serve only a lane that isn't viable — don't re-suggest
+  without a new read (2026-10-25): of those no search reaches, 54 serve only a
+  fed lane (Spellslinger, Artifacts, Cost reduction: incidental keys, mostly
+  staples and protection) and 4 an emerging one; 14 more on an emerging lane are
+  outranked. The guides cut the carers of an emerging or folded theme (22 of 52
+  past `UPGRADE_RANK`) more than they commit to one, so "commit more" is no
+  lever; the tune now trades those carers as upgrade slots.
   An Aura deck's gear apart from Equipment (Ellivere counts enchanted creatures;
   an Aura makes one, CR 303.4b; Equipment an "equipped" one, 301.5a) was
   simulated before building the read: Auras only on Virtue and Valor's suit-up

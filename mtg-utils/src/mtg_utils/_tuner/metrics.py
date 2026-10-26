@@ -11,7 +11,7 @@ ordering the swap engine acts on (deck-forge CONTEXT.md, "Tune").
 from __future__ import annotations
 
 import math
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from typing import TYPE_CHECKING
 
 from mtg_utils._analysis import signal_keys
@@ -581,6 +581,10 @@ def focus(
     def care_count(lbl: str) -> int:
         return len(carers.get(lbl, ()))
 
+    def carers_of(labels: Iterable[str]) -> set[str]:
+        """Every card caring about any of ``labels``."""
+        return set().union(*(carers.get(lbl, set()) for lbl in labels))
+
     def one_theme(lbl: str, k: str) -> bool:
         """``lbl`` is ``k`` read again: ≥80 % its members, or the same cards
         caring about both (``_same_carers``) over largely the same members
@@ -752,9 +756,7 @@ def focus(
     # A card that CARES about a built avenue is building toward it, whatever
     # it serves: Adrix and Nev and Esix serve only "Token doubling" (fed), and
     # double the Clues the deck's main lane makes (Deep Clue Sea, 2026-10-18).
-    built_carers: set[str] = set().union(
-        *(carers.get(lbl, set()) for lbl in built_labels)
-    )
+    built_carers = carers_of(built_labels)
     fed_only_classes = (
         [
             c
@@ -797,9 +799,14 @@ def focus(
     ]
     low_value_cards = [c.name for c in low_value_classes]
     # Cards the upgrade read leaves alone: cut by an earlier tier (fed-only,
-    # low-value), or on a lane (a doer of the commander's, a carer of a built
-    # theme).
-    elsewhere = fed_only_names | set(low_value_cards) | lane_doers | built_carers
+    # low-value), or on a lane (a doer of the commander's, a carer of a main
+    # theme). Only a main shields a carer: a card caring only about a sub, an
+    # emerging theme or one folded into another is an upgrade slot like any
+    # off-lane card. Past ``UPGRADE_RANK`` the guides cut 13 of 24 sub carers
+    # and 22 of 52 of the others, against 0.24 of the decks' cards; built
+    # carers kept them all (25 precons, 2026-10-25: 27 guide cuts more, adds
+    # flat). A built carer is still never dead weight (``fed_only_names``).
+    elsewhere = fed_only_names | set(low_value_cards) | lane_doers | carers_of(mains)
 
     def off_lane_slot(c: CardClass) -> bool:
         """A Spine or Engine card off every lane that the upgrade tiers may trade:
@@ -813,7 +820,7 @@ def focus(
         )
 
     # The upgrade slots: a card off every lane the deck holds — no doer of the
-    # commander's lanes, no carer of a built theme — that few decks play
+    # commander's lanes, no carer of a main theme — that few decks play
     # (``classify.UPGRADE_RANK``). The guides' commonest move (2026-10-19):
     # the precon's off-lane removal, draw, ramp and good-stuff traded for the
     # staple that does the same job. Filler and low-value cards are cut by
@@ -830,14 +837,15 @@ def focus(
     )
     # The last upgrade slots: a card off every lane that many decks play
     # (inside ``UPGRADE_RANK``, never premium) yet serves none of the deck's
-    # viable avenues — popular for its job, not for this deck (Harmonize and
+    # main avenues — popular for its job, not for this deck (Harmonize and
     # Decimate under Animated Army's Animation). Taken only once the other
     # upgrade slots and the deep lane's are spent, each for a card more decks
     # play doing its job. Measured on the 25 precons (2026-10-24): 35 more swaps,
     # 10 of them guide cuts, one guide add more; taken before the deep lane's
     # slots instead, they spent the budget its theme upgrades had (five guide
-    # adds fewer).
-    viable_set = set(viable)
+    # adds fewer). A sub shields none of them, as it shields no carer above
+    # (2026-10-25: five guide cuts and one guide add more).
+    main_set = set(mains)
     popular_upgrade_cards = (
         [
             c.name
@@ -846,7 +854,7 @@ def focus(
             and c.edhrec_rank is not None
             and not is_upgrade_target(c.edhrec_rank, medium=medium)
             and not is_premium(c.edhrec_rank)
-            and not viable_set.intersection(themes(c))
+            and not main_set.intersection(themes(c))
         ]
         if condemns
         else []
@@ -867,7 +875,7 @@ def focus(
     # role): at fourteen swaps that reached nine more guide cuts (139 vs 130 of
     # 404) at the same precision, where taking two-thirds of the engine doers
     # instead of half reached none (2026-10-19).
-    lane_carers = set().union(*(carers.get(lbl, set()) for lbl in held_kept))
+    lane_carers = carers_of(held_kept)
     lane_pool = [
         c
         for c in nonland
@@ -964,7 +972,7 @@ def focus(
         "upgrade_cards": upgrade_cards,
         # The deep lane's least-played half, in cut order (feeders first).
         "lane_upgrade_cards": lane_upgrade_cards,
-        # Popular cards serving no viable avenue, least played first: the
+        # Popular cards serving no main avenue, least played first: the
         # upgrade slots taken last.
         "popular_upgrade_cards": popular_upgrade_cards,
         "stranded_avenues": stranded,

@@ -1430,6 +1430,45 @@ def test_the_upgrade_slots_are_off_lane_little_played_and_the_deep_lanes_half():
     assert run([*classes[:12], staple, *off])["lane_upgrade_cards"] == []
 
 
+def test_only_a_main_theme_shields_an_off_lane_card_from_the_upgrade_slots():
+    """A sub is no shield (25 precons, 2026-10-25). A card past ``UPGRADE_RANK``
+    that cares only about a sub is an upgrade slot like any off-lane card (as is
+    one caring only about an emerging or folded theme): the guides cut 13 of 24
+    sub carers there, against 0.24 of the decks' cards. A popular card serving
+    only a sub is one of the last slots. A card on the main theme keeps its
+    place."""
+    main = spec_for(_sig("suspend_matters")).label
+    art = spec_for(_sig("artifacts_matter")).label
+    classes = [_cc("Doctor", "commander", [main])]
+    classes += [_cc(f"Time {i}", "engine", [main]) for i in range(30)]
+    classes += [
+        replace(_cc(f"Art {i}", "engine", [art]), edhrec_rank=9000) for i in range(22)
+    ]
+    popular = [
+        replace(_cc("Popular Art", "spine", [art], roles=["ramp"]), edhrec_rank=500),
+        replace(_cc("Popular Time", "spine", [main], roles=["ramp"]), edhrec_rank=500),
+    ]
+    fr = focus(
+        [*classes, *popular],
+        deck_size=100,
+        deck_signals=[_sig("suspend_matters"), _sig("artifacts_matter")],
+        emitters={
+            ("suspend_matters", "you", ""): frozenset(
+                {"Doctor"} | {f"Time {i}" for i in range(20)}
+            ),
+            ("artifacts_matter", "you", ""): frozenset({f"Art {i}" for i in range(6)}),
+        },
+        commander_idents=frozenset({("suspend_matters", "you", "")}),
+    )
+    assert {a["label"]: a["tier"] for a in fr["viable_avenues"]} == {
+        main: "main",
+        art: "sub",
+    }
+    # The sub's six carers are upgrade slots beside its sixteen feeders.
+    assert set(fr["upgrade_cards"]) == {f"Art {i}" for i in range(22)}
+    assert fr["popular_upgrade_cards"] == ["Popular Art"]
+
+
 def test_tied_lanes_resolve_by_label_not_by_set_order():
     """Two commander lanes equally deep with as many carers: the label breaks
     the tie, so the main theme is the same on every run (Death Toll's "Your

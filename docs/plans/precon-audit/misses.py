@@ -132,11 +132,11 @@ def run_deck(args):
 
     upgrades, gate_fail = S._upgrades, {}
 
-    def rec_upgrades(candidate, cut, job, *, deck_mana=None, deck=None):
-        ok = upgrades(candidate, cut, job, deck_mana=deck_mana, deck=deck)
+    def rec_upgrades(candidate, cut, job, *, deck_mana=None, deck=None, off_theme=False):
+        ok = upgrades(candidate, cut, job, deck_mana=deck_mana, deck=deck, off_theme=off_theme)
         if not ok:
             key = norm(candidate.get("name") or "")
-            if S.over_band(candidate, cut.record, job):
+            if S.over_band(candidate, cut.record, job, off_theme=off_theme):
                 why = "costs a higher mana-value band than the cut"
             elif job is not None and upgrade_job(role_of(candidate, deck_mana=deck_mana), candidate) != job:
                 why = "does a different job than the cut"

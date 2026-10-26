@@ -36,7 +36,7 @@ _SPINE_ROLES = frozenset({"ramp", "card_draw", "interaction", "board_wipe"})
 FRINGE_RANK = 15000
 
 # The rank past which a card OFF the deck's lanes (no commander-lane doer, no
-# carer of a built theme) is an upgrade's slot: a staple does its job. Measured
+# carer of a main theme) is an upgrade's slot: a staple does its job. Measured
 # on the 25 precons against their upgrade guides (2026-10-19): of the off-lane
 # nonland cards ranked past 3000, 48% are guide cuts (119 of 247, about ten a
 # deck — a guide's cut list), against 14% of the off-lane template-role cards

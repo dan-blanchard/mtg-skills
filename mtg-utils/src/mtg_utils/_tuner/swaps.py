@@ -2,7 +2,7 @@
 
 Cuts: filler → low-value → over-band Spine excess → stranded Engine singletons →
 the upgrade slots (off-lane cards few decks play, then a deep lane's least-played
-half, then popular cards on none of the deck's viable avenues), gated by hard
+half, then popular cards on none of the deck's main avenues), gated by hard
 floors (never the commander, a Spine role at/below floor, lands, or a
 dual-purpose card). Adds: issue-driven calls to the injected
 ``search_fn`` (Spine/protection fills by play-rate within a mana-value band,
@@ -161,15 +161,21 @@ _X_COST_VALUE = 3.0
 #: Winds of Rath for Blasphemous Act, a guide add), a cheap one only to the
 #: middle band. Measured on the 25 precons (2026-10-24): one band higher
 #: for job upgrades took the guide-matching adds from 39 to 43 and cuts from 158 to
-#: 161; for theme upgrades as well, 41 and 161, so a theme upgrade keeps its band.
+#: 161; for theme upgrades as well, 41 and 161, so a theme upgrade of a card already
+#: on the main theme keeps its band. One serving no main theme gets the room too
+#: (``off_theme``, :func:`_upgrades`): three guide adds more and one guide cut
+#: (2026-10-25).
 _JOB_BAND_ROOM = 1
 
 
-def over_band(candidate: Mapping, cut: Mapping, job: str | None) -> bool:
+def over_band(
+    candidate: Mapping, cut: Mapping, job: str | None, *, off_theme: bool = False
+) -> bool:
     """Whether ``candidate`` costs more than an upgrade of ``cut`` for ``job``
     may: a higher mana-value band (:func:`_mv_band`) than the cut's, by more than
-    ``_JOB_BAND_ROOM`` for a job upgrade."""
-    room = _JOB_BAND_ROOM if job is not None else 0
+    ``_JOB_BAND_ROOM`` for a job upgrade or one moving an ``off_theme`` card's
+    slot onto the main theme."""
+    room = _JOB_BAND_ROOM if job is not None or off_theme else 0
     return _mv_band(candidate) > _mv_band(cut) + room
 
 
@@ -249,6 +255,7 @@ def _upgrades(
     *,
     deck_mana: DeckMana | None = None,
     deck: Sequence[dict] | None = None,
+    off_theme: bool = False,
 ) -> bool:
     """Whether ``candidate`` is an upgrade of ``cut``: it costs no higher
     mana-value band, or for a job one band higher at most (:func:`over_band` — a
@@ -263,8 +270,14 @@ def _upgrades(
     cut. The read decides membership, not "better": against the precon guides'
     cuts it found the weaker card less often than play-rate did, for every job,
     and "scores better than the cut" in play-rate's place matched no more guide
-    adds for any job (ADR-0060)."""
-    if over_band(candidate, cut.record, job):
+    adds for any job (ADR-0060).
+
+    ``off_theme`` is a cut serving none of the deck's main avenues. With no job,
+    its add comes off the main theme, and moving the slot onto the main theme is
+    the upgrade: the add need not be more played than the cut (an Energy card is
+    played less than Whirler Rogue, which an Energy deck's sub-theme ran), and it
+    may cost one band higher, as a job upgrade may."""
+    if over_band(candidate, cut.record, job, off_theme=off_theme):
         return False
     if job is not None and (
         upgrade_job(role_of(candidate, deck_mana=deck_mana), candidate) != job
@@ -272,6 +285,8 @@ def _upgrades(
         return False
     if not _does_the_job(candidate, job, deck or (), cut.record):
         return False
+    if job is None and off_theme:
+        return True
     rank = candidate.get("edhrec_rank")
     return rank is not None and (cut.edhrec_rank is None or rank < cut.edhrec_rank)
 
@@ -330,8 +345,9 @@ class CutFocus:
     """The slice of the focus read the cut ranking needs.
 
     ``verdict`` is the focus verdict (``SPREAD-THIN`` trims differently);
-    ``stranded`` / ``viable`` the avenue labels the deck cannot / can build;
-    ``commander_cards`` the cards that do what the commander's lane does;
+    ``stranded`` / ``viable`` the avenue labels the deck cannot / can build, and
+    ``mains`` the viable ones that are main themes; ``commander_cards`` the
+    cards that do what the commander's lane does;
     ``upgrade_cards`` the off-lane cards few decks play; ``lane_upgrade_cards``
     the deep lane's least-played half, in the focus read's order (order matters).
     """
@@ -339,6 +355,7 @@ class CutFocus:
     verdict: str = "FOCUSED"
     stranded: frozenset[str] = frozenset()
     viable: frozenset[str] = frozenset()
+    mains: frozenset[str] = frozenset()
     commander_cards: frozenset[str] = frozenset()
     upgrade_cards: frozenset[str] = frozenset()
     lane_upgrade_cards: tuple[str, ...] = ()
@@ -351,6 +368,7 @@ class CutFocus:
             verdict=focus_result["verdict"],
             stranded=frozenset(focus_result["stranded_avenues"]),
             viable=frozenset(a["label"] for a in focus_result["viable_avenues"]),
+            mains=frozenset(focus_result.get("mains") or ()),
             commander_cards=frozenset(focus_result.get("commander_lane_cards") or ()),
             upgrade_cards=frozenset(focus_result.get("upgrade_cards") or ()),
             lane_upgrade_cards=tuple(focus_result.get("lane_upgrade_cards") or ()),
@@ -403,7 +421,7 @@ def cut_candidates(
     only a Spine fill, a closer, a game-ending piece or an upgrade may take it
     (``Remedy.lane_ok``; the first pass traded Dinosaurs for Human-tribal and
     Landfall "commit more" adds). Last, the popular cards serving none of the
-    deck's viable avenues (``focus.popular_upgrade_cards``), drawn by the
+    deck's main avenues (``focus.popular_upgrade_cards``), drawn by the
     upgrade issue only once both pools above are dry.
     """
     out: list[tuple[str, CardClass]] = []
@@ -523,7 +541,7 @@ def cut_candidates(
         push("lane_upgrade", c)
 
     # 6. The last upgrade slots (``focus``'s ``popular_upgrade_cards``): cards
-    # many decks play that serve none of the deck's viable avenues, least
+    # many decks play that serve none of the deck's main avenues, least
     # played first — drawn only by the upgrade issue once the slots above are
     # spent.
     popular = {name: i for i, name in enumerate(focus.popular_upgrade_cards)}
@@ -1306,6 +1324,10 @@ def propose_swaps(
         if tie_read is not None and not tie_read.orders:
             tie_read = None
         share = ledger.share(ctx.max_swaps - len(swaps))
+        # A cut serving none of the main avenues (``_upgrades``' ``off_theme``).
+        off_theme = upgrade_of is not None and not cut_focus.mains.intersection(
+            upgrade_of.served
+        )
         first: tuple[dict, float] | None = None
         best: tuple[dict, float] | None = None
         looked = 0
@@ -1321,7 +1343,12 @@ def propose_swaps(
             if not game_changers.allows(card):
                 continue  # ADR-0030: never propose an add past the bracket's ceiling
             if upgrade_of is not None and not _upgrades(
-                card, upgrade_of, job, deck_mana=ctx.deck_mana, deck=deck_records
+                card,
+                upgrade_of,
+                job,
+                deck_mana=ctx.deck_mana,
+                deck=deck_records,
+                off_theme=off_theme,
             ):
                 continue
             if upgrade_of is None and not _does_the_job(card, job, deck_records):
@@ -1572,9 +1599,10 @@ def propose_swaps(
                 avenue=avenue,
             )
             swaps_for_issue += 1
-            # One issue → one swap, except the dead-weight DRAIN: a deck can carry
-            # several do-nothing cards, and it ranks first so the genuinely dead cards
-            # go before any role trim churns a functional card.
+            # One issue → one swap, except a DRAIN: the dead-weight drain (a deck
+            # can carry several do-nothing cards, and it ranks first so the
+            # genuinely dead cards go before any role trim churns a functional
+            # card) and an over-band trim, whose pool holds exactly the excess.
             if not remedy.drain:
                 break
 

@@ -424,6 +424,49 @@ def test_role_over_trim_cuts_least_played_excess_not_a_staple():
     assert out["swaps"][0]["cut"]["name"] == "Fringe Rock"
 
 
+def test_role_over_trim_drains_the_whole_excess_and_no_more():
+    """A row over its band by two trims two cards, the two least played, and
+    stops there with swaps to spare: one trim per issue left Animated Army's
+    ramp 13 over (26 against 10-12), six of the cards past the first trim
+    guide cuts (25 precons, 2026-10-25)."""
+    classes = [
+        _cc("Rock A", "spine", roles=["ramp"], cmc=2.0, edhrec_rank=20000),
+        _cc("Rock B", "spine", roles=["ramp"], cmc=2.0, edhrec_rank=30000),
+        _cc("Rock C", "spine", roles=["ramp"], cmc=2.0, edhrec_rank=9000),
+    ]
+    budgets = {"ramp": _band(12, 8, 10)}  # over by 2
+    issue = {"kind": "role_over", "role": "ramp", "severity": 1, "message": "ramp over"}
+    adds = [
+        {
+            "name": f"Theme Card {i}",
+            "type_line": "Creature — Bear",
+            "oracle_text": "",
+            "cmc": 2.0,
+            "prices": {"usd": "1.00"},
+            "color_identity": [],
+        }
+        for i in range(4)
+    ]
+    out = _swaps_for_issue_dicts(
+        classes,
+        [issue],
+        SwapContext(
+            budgets=budgets,
+            focus_result=_focus(viable=[{"label": "Main", "depth": 20, "cards": []}]),
+            deck_signals=[],
+            search_fn=lambda **_: adds,
+            identity="",
+            fmt="commander",
+            paper_only=True,
+            owned={},
+            budget=50.0,
+            max_swaps=5,
+            top_heavy=False,
+        ),
+    )
+    assert [s["cut"]["name"] for s in out["swaps"]] == ["Rock B", "Rock A"]
+
+
 def test_role_search_specs_reference_only_real_presets():
     # Regression: ROLE_SEARCH["ramp"] once named a 'ramp' preset that did not exist,
     # which made card_search raise BadParameter and 500'd /api/tune for any ramp-short
@@ -1979,6 +2022,73 @@ def test_the_main_theme_upgrades_to_a_better_played_card():
     clunker = _real_cc("Murder", "engine", edhrec_rank=8000)
     assert not _upgrades(_played("Doom Blade", 9000), clunker, None)
     assert _upgrades(_played("Doom Blade", 100), clunker, None)
+
+
+def test_an_off_theme_card_moves_onto_the_main_theme_whatever_its_play_rate():
+    """A card serving none of the main avenues (``off_theme``), upgraded on the
+    main theme: moving its slot there is the upgrade, so the add need not be
+    more played than the cut, and it may cost one band more, as a job upgrade
+    may. Living Energy's sub-theme Whirler Rogue (rank 2245) found no Energy
+    card played more; the guides add Gonti's Aether Heart and Aether Refinery
+    (25 precons, 2026-10-25: seven guide adds and seven guide cuts more). A job
+    upgrade keeps both gates."""
+    clunker = _real_cc("Murder", "engine", edhrec_rank=8000)
+    assert _upgrades(_played("Doom Blade", 9000), clunker, None, off_theme=True)
+    pyroclasm = _real_cc("Pyroclasm", "spine", edhrec_rank=9000)
+    assert _upgrades(_played("Wrath of God", 50), pyroclasm, None, off_theme=True)
+    assert not _upgrades(
+        _played("Blasphemous Act", 20), pyroclasm, None, off_theme=True
+    )
+    murder = _real_cc("Murder", "spine", roles=["interaction"], edhrec_rank=8000)
+    assert not _upgrades(
+        _played("Swords to Plowshares", 9000), murder, "interaction", off_theme=True
+    )
+
+
+def test_the_swap_engine_reads_off_theme_against_the_main_avenues():
+    """``propose_swaps`` passes ``off_theme`` for a cut serving none of the
+    focus read's mains: a slot-holder on a sub moves onto the main theme for a
+    less-played payoff, one already on the main theme does not."""
+    sig = _sig_of("proliferate_matters")
+    label = spec_for(sig).label
+    adds = [
+        {
+            "name": "Payoff 0",
+            "type_line": "Creature",
+            "oracle_text": "Proliferate.",
+            "cmc": 2.0,
+            "edhrec_rank": 9000,
+            "prices": {"usd": "1.00"},
+            "color_identity": [],
+        }
+    ]
+
+    def upgrade(served):
+        cut = _cc("Sub Card", "engine", served=served, edhrec_rank=8000)
+        ctx = SwapContext(
+            budgets={},
+            focus_result={
+                **_focus(viable=[{"label": label, "depth": 20, "cards": []}]),
+                "mains": [label],
+                "upgrade_cards": [cut.name],
+            },
+            deck_signals=[sig],
+            search_fn=lambda **_: adds,
+            identity="",
+            fmt="commander",
+            paper_only=True,
+            owned={},
+            budget=50.0,
+            max_swaps=5,
+            top_heavy=False,
+        )
+        swaps = _swaps_for_issue_dicts(
+            [cut], [{"kind": "upgrade", "severity": 1, "count": 1}], ctx
+        )["swaps"]
+        return [s["add"]["name"] for s in swaps]
+
+    assert upgrade(("Some sub",)) == ["Payoff 0"]
+    assert upgrade((label,)) == []
 
 
 def test_a_job_read_gates_out_a_card_that_does_not_do_the_job():

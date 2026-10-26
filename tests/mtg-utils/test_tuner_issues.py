@@ -130,14 +130,17 @@ def test_every_emitted_kind_has_a_decided_remedy():
     assert {k: v for k, v in wincon.spec.items() if k != "_filter"} == WINCON_SEARCH
     assert callable(wincon.spec["_filter"])
     assert wincon.spine is False
-    # A trim cuts from THAT role's excess; dead weight drains the filler pool.
-    assert issues["role_over"].remedy.cut_from == cut_over("interaction")
+    # A trim drains THAT role's excess (the pool holds exactly the excess:
+    # one trim left Animated Army 13 ramp over its band, 2026-10-25); dead
+    # weight drains the filler pool.
+    over = issues["role_over"].remedy
+    assert (over.cut_from, over.drain) == (cut_over("interaction"), True)
     dead = issues["dead_weight"].remedy
     assert (dead.cut_from, dead.drain) == (CUT_FILLER, True)
     assert not any(
         i.remedy.drain
         for k, i in issues.items()
-        if i.remedy and k not in ("dead_weight", "upgrade")
+        if i.remedy and k not in ("dead_weight", "upgrade", "role_over")
     )
     # A curve fix asks for the missing CMC band.
     assert issues["efficiency"].remedy.spec.get("cmc_min") == 6

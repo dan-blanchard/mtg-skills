@@ -1197,6 +1197,89 @@ draw 11, ramp 5 → 8, theme 31 → 34.
   Volatile Hero), never below 0 (CR 107.1b). Chandra's Ignition reads lethal (it
   read 2); no tune moved.
 
+### The cut pool (2026-10-25, later)
+
+Backlog (m)'s cut-side levers: the guide cuts the tune never reaches and the ones the
+popularity threshold and the lanes shield. The bar as in "The tuner-policy leftovers",
+and for a cut-side change: guide-matching cuts rise and guide-matching adds hold. Every
+missed guide cut was traced first (one process, the 25 tunes in sequence, the cut
+ranking and every cut the swap loop took or passed over recorded): 17 of the 26 "never
+reached" sat in an over-band trim's pool, which made one trim per issue whatever the
+excess (Animated Army's ramp, 26 against a band of 10-12, trimmed one); and the cards
+the upgrade tiers spared for caring about a built theme split by which theme. Past
+`UPGRADE_RANK`, off the commander's lanes, the guides cut 13 of the 24 cards caring
+only about a sub, 22 of the 52 caring only about an emerging or folded theme, and 5 of
+the 17 caring about a main, against 0.24 of the decks' cards. Rows marked *run* are
+`misses.py` runs (Spellbook cached); the rest are screens, which reproduce a run's swaps
+exactly but match guide names a little differently (HEAD screens as 562 / 196 / 67).
+Each row is on the row above unless it says otherwise.
+
+| change | swaps / cuts / adds | |
+|---|---|---|
+| HEAD (b91ab000), *run* | 562 / 199 / 67 | |
+| E1 an over-band trim drains its excess | 593 / 209 / 67 | cuts +13, adds flat: **shipped** |
+| E2 only a main theme's carers are spared the upgrade tiers | 645 / 236 / 67 | cuts +27, adds flat: **shipped** |
+| E1 + E2, *run* | 645 / 240 / 67 | |
+| E3 an off-theme card's theme upgrade need not be more played | 654 / 242 / 71 | cuts +6, adds +4: **shipped** |
+| E4 … and may cost one band more | 658 / 243 / 74 | cuts +1, adds +3: **shipped** |
+| E5 the commander's held subs share the theme adds (on E4) | 663 / 243 / 66 | adds -8: rejected |
+| E6 an over-band trim's add shares the theme over the mains (on E4) | 658 / 243 / 74 | flat: not kept |
+| E7 a sub shields no popular card either (on E4) | 669 / 248 / 75 | cuts +5, adds +1: **shipped** |
+| E1-E4 + E7, *run* | **669 / 252 / 75** | **shipped** |
+| E8 a lane feeder may become a less-played payoff of the main (on E7) | 669 / 248 / 74 | adds -1: rejected |
+| E2b a theme folded into a main shields its carers (on E7) | 661 / 243 / 76 | cuts -5, adds +1: rejected |
+
+Against HEAD: 107 more swaps, 53 more guide-matching cuts (precision 0.38, from 0.35),
+8 more guide-matching adds. Gained adds: Bothersome Quasit, Teferi's Protection,
+Cyclonic Rift, Conduit of Ruin, Emrakul, the Promised End, Thought-Knot Seer, Razorkin
+Needlehead, Aether Refinery, Aether Revolt, Gonti's Aether Heart, Ugin, the Spirit
+Dragon; lost Ohran Frostfang, Insidious Roots and Ulamog, the Ceaseless Hunger (the
+budget the new swaps spend). Lost cuts, to the swap cap or the budget the new cuts
+spend first: Dragonlord Dromoka, Rhox Faithmender, Staff of Compleation, Decimate,
+Harmonize, Burnished Hart, Bedevil, Faerie Formation, Sage of the Beyond, Brainsurge,
+Shark Typhoon, Vedalken Humiliator. Eleven tunes now reach the thirty swaps, four end
+on their budget, and ten on their cut pool.
+
+- **The over-band trim (E1).** `cut_candidates` lists exactly a row's excess, the least
+  played first; the trim now drains it (`Remedy.drain`) as dead weight does. Animated
+  Army trims thirteen more ramp cards (Alchemist's Talent, Burnished Hart, Llanowar
+  Loamspeaker, Prosperous Bandit, Rain of Riches and Domri are guide cuts), Eldrazi
+  Unbound its interaction, ramp and draw (Duplicant, Bane of Bala Ged, Unstable
+  Obelisk, Endless Atlas), Squirreled Away and Fae Dominion theirs. Of the 75 cards
+  the trims cut, 33 are guide cuts.
+- **A sub is no shield (E2, E7).** A carer of a built theme was spared every upgrade
+  tier, and a popular card serving any viable avenue the popular tier; now only a
+  main does either. The newly cut guide cuts include Blame Game's emerging themes'
+  carers (Otherworldly Escort, Prisoner's Dilemma, Selfless Squire), Enduring
+  Enchantments' folded themes' (Cunning Rhetoric, The Binding of the Titans, The
+  Mending of Dominaria, Nyx Weaver), Endless Punishment's sub carers (Mask of
+  Griselbrand, Séance Board, Star Athlete, Enchanter's Bane), Living Energy's
+  Artifacts sub (Saheeli, Sublime Artificer, Whirler Rogue, Adaptive Omnitool),
+  Sultai Arisen's Harrow, Springbloom Druid and Noxious Gearhulk. A popular card on a
+  sub alone is a guide cut at the decks' rate (0.24), so E7 rides on E2's statement
+  rather than a read of its own; keeping the carers of a theme folded into a main
+  shielded (E2b) lost five guide cuts, Enduring Enchantments' four among them, for
+  one add.
+- **Off the main theme onto it (E3, E4).** A card with no job is upgraded on the main
+  theme, and had to be out-played by its add at no higher band. For a card serving
+  none of the mains (`swaps._upgrades`' `off_theme`) the swap's point is moving the
+  slot onto the main theme, so the add need not be more played, and it may cost one
+  band more, as a job upgrade may. Living Energy's Energy page held no fitting card
+  played more than its Artifacts sub's Whirler Rogue (rank 2245), so the slots were
+  passed over; now the tune cuts Whirler Rogue, Adaptive Omnitool, Bootleggers' Stash
+  and Triplicate Titan and adds Gonti's Aether Heart, Aether Refinery and Aether
+  Revolt, and Eldrazi Unbound reaches Conduit of Ruin and Emrakul, the Promised End.
+  On a card already on a main (most lane feeders) both gates stand; E8 let a feeder
+  become a less-played payoff of the main lane and lost an add. The rule reads the
+  card, not its tier: 23 deep-lane slots serve only a held sub or a folded lane,
+  and leaving them their gates moved no swap.
+- **What the trace left.** Of the guide cuts still missed: 57 lane doers outside the
+  half and 44 popular cards (premium, or on a main) as before, (a) and (g); 23 in
+  the popular tier past the swap cap or the budget; 13 protected; 8 main carers (5
+  of 17 past `UPGRADE_RANK`). The held subs as theme avenues (E5) took Living
+  Energy's Roaming Throne and Grand Larceny's Praetor's Grasp but spent the adds of
+  six decks on the subs' staples, as every sub sharing did before.
+
 ## What is left
 
 `docs/plans/backlog.md`, "What the polymorph tune and the 25-precon audit still
