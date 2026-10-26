@@ -133,7 +133,6 @@ def main(
     output: str | None,
 ) -> None:
     """Diagnose DECK_JSON and (with --max-swaps) propose swaps."""
-    _ensure_ir()  # build the sidecar before tune()'s first ir_for lookup
     bulk_path = resolve_bulk_path(bulk_data)
     hd = acquire_for_cli(deck_json, bulk_data)
     by_name = hd.by_name
@@ -143,9 +142,13 @@ def main(
             HydratedDeck.from_parsed(deck, by_name=by_name)
         )
 
-    # Commander Spellbook's round-trip overlaps the seeding and attaching below,
-    # not only tune()'s deck reads.
+    # Commander Spellbook's round-trip (its critical path: 0.5-1.3 s measured
+    # 2026-10-26, 1-2 s some days) is asked first, as soon as the deck's names are
+    # known, so it overlaps everything after: the Card IR load, the seeding and
+    # attaching below, the mirror classes the first stored tree imports, tune()'s
+    # deck reads.
     combos_fn = combo_search.asked_early(spellbook, hd.deck)
+    _ensure_ir()  # build the sidecar before tune()'s first ir_for lookup
     fmt = hd.format
     if target_bracket is not None and not fmt.has_commander:
         click.echo(

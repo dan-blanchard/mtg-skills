@@ -24,10 +24,9 @@ from mtg_utils._analysis.lanes.card_advantage import (
 )
 from mtg_utils.card_classify import (
     card_pt_int,
-    classifying_type_line,
-    get_oracle_text,
     type_line_has,
 )
+from mtg_utils.theme_presets import CardView, _signal_idents_for
 
 _IC = re.IGNORECASE
 
@@ -62,42 +61,6 @@ def _wildcard_scopes(idents: frozenset[str]) -> frozenset[str]:
     (one set per serve, cached: a serve is checked against every card a theme
     page scans)."""
     return frozenset(w[:-2] for w in idents if w.endswith("|*"))
-
-
-class CardView:
-    """What :meth:`Serve.matches` reads of a card's record, each read at most once:
-    a caller checking one card against many serves (``ranking.score_candidate``,
-    about a hundred serves a candidate) builds it once. The type line, keywords
-    and idents are read only when a serve asks for them, so a serve that answers
-    from the oracle text alone costs what it did."""
-
-    def __init__(self, card: dict) -> None:
-        self._card = card
-        self.oracle: str = get_oracle_text(card) or ""
-
-    @functools.cached_property
-    def type_line(self) -> str:
-        """The classifying (front-face) type line, lowercased."""
-        return classifying_type_line(self._card).lower()
-
-    @functools.cached_property
-    def keywords(self) -> frozenset[str]:
-        """The record's ``keywords``, lowercased."""
-        return frozenset(k.lower() for k in self._card.get("keywords") or ())
-
-    @functools.cached_property
-    def idents(self) -> frozenset[str]:
-        """The card's "key|scope|subject" signal idents (:func:`_card_idents`)."""
-        return _card_idents(self._card)
-
-
-def _card_idents(card: dict) -> frozenset[str]:
-    """The card's "key|scope|subject" idents. Lazy import: theme_presets imports
-    _analysis.signals lazily for the same cycle reason its own docstring
-    records."""
-    from mtg_utils.theme_presets import _signal_idents_for
-
-    return _signal_idents_for(card)
 
 
 @dataclass(frozen=True)
@@ -306,7 +269,7 @@ class Serve:
         every ``all_of`` sub-serve's, :meth:`_serves_ident`): what ties a
         served card to the abilities that serve (``ident_provenance``)."""
         own = (
-            {i for i in _card_idents(card) if self._serves_ident(i)}
+            {i for i in _signal_idents_for(card) if self._serves_ident(i)}
             if self.signal_idents
             else set()
         )

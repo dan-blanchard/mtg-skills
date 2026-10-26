@@ -32,8 +32,8 @@ import pytest
 from mtg_utils._analysis import bridge_ledger
 from mtg_utils._analysis.bridge_ledger import BRIDGE_KINDS, BRIDGES
 from mtg_utils._card_ir.crosswalk import ConceptTree, build_concept_tree, tag_of
-from mtg_utils._card_ir.mirror import strict_load_card
 from mtg_utils._card_ir.mirror.build import load_committed_schema
+from mtg_utils._card_ir.mirror.loader import strict_load_card
 from mtg_utils._card_ir.mirror.runtime import MirrorVariant
 from mtg_utils._card_ir.trees import _face_names, _text_only_trees
 from mtg_utils.testkit import test_card, test_phase_records, test_signals

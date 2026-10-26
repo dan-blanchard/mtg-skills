@@ -14,6 +14,10 @@ os.environ["MTG_SKILLS_ARENA_CARD_DB"] = "none"
 # would serve trees a test's monkeypatched pipeline never built, and take the run's
 # trees into the user's cache. The store's own tests delete the variable.
 os.environ["MTG_SKILLS_TREE_STORE"] = "none"
+# Nor the Card IR sidecar's span index (``_card_ir.load``) beside the user's
+# sidecar: a test reads that sidecar, never writes beside it. The index's own
+# tests delete the variable.
+os.environ["MTG_SKILLS_CARD_IR_SPANS"] = "none"
 
 
 def pytest_configure(config):

@@ -668,8 +668,13 @@ def test_blood_makers_fires_from_a_create_x_unimplemented_residue():
 def test_folded_dungeon_text_only_tree_serves_lifeloss_makers():
     """ADR-0025 flagship: Tomb of Annihilation is a zero-unit text-only tree
     (phase covers no dungeon), so its "Each player loses N life" rooms ride the
-    folded_object_text_only_each_player_loses bridge — scope "each"."""
-    idents = {(s.key, s.scope) for s in test_signals("Tomb of Annihilation")}
+    folded_object_text_only_each_player_loses bridge — scope "each". Phase has
+    no record of it, so its trees are the folded-object fallback's."""
+    from mtg_utils._analysis.signals import extract_signals
+
+    test_signals("Tomb of Annihilation")  # seeds its trees
+    tomb = extract_signals(test_card("Tomb of Annihilation"), text_only_fallback=True)
+    idents = {(s.key, s.scope) for s in tomb}
     assert ("lifeloss_makers", "each") in idents
 
 

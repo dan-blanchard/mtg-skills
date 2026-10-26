@@ -187,9 +187,9 @@ def scans(monkeypatch):
     calls: list = []
     real = Serve.matches
 
-    def counting(self, card):
+    def counting(self, card, view=None):
         calls.append(card.get("name"))
-        return real(self, card)
+        return real(self, card, view)
 
     monkeypatch.setattr(Serve, "matches", counting)
     return calls

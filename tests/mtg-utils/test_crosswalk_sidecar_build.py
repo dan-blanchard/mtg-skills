@@ -12,6 +12,7 @@ import json
 
 import pytest
 
+from mtg_utils._card_ir import load
 from mtg_utils._card_ir.build import build_crosswalk_sidecar
 from mtg_utils._card_ir.load import (
     CROSSWALK_SIDECAR_VERSION,
@@ -19,6 +20,13 @@ from mtg_utils._card_ir.load import (
 )
 from mtg_utils.card_ir import Card
 from mtg_utils.testkit import test_phase_records
+
+
+@pytest.fixture(autouse=True)
+def _persisted_spans(monkeypatch):
+    """These tests read sidecars under tmp_path: the span index is persisted
+    beside them, as in production (``tests/conftest.py`` keeps it in memory)."""
+    monkeypatch.delenv("MTG_SKILLS_CARD_IR_SPANS", raising=False)
 
 
 @pytest.fixture
@@ -75,3 +83,59 @@ def test_loader_rejects_wrong_version(card_data_file, tmp_path):
 def test_loader_missing_file_raises(tmp_path):
     with pytest.raises(FileNotFoundError, match="build-card-ir-crosswalk"):
         load_crosswalk_card_ir(tmp_path / "absent.json")
+
+
+def _as_dicts(cards) -> dict:
+    return {oid: cards[oid].to_dict() for oid in cards}
+
+
+def _decoded(raw_cards: dict) -> dict:
+    return {oid: Card.from_dict(raw).to_dict() for oid, raw in raw_cards.items()}
+
+
+def test_loader_reads_each_card_from_its_span(card_data_file, tmp_path, monkeypatch):
+    """The loader decodes a card from its span of the sidecar (the span index
+    beside it), never the whole file: every card reads as the whole-file
+    decode does, and a later process reads the stored index."""
+    out = tmp_path / "card-ir-crosswalk.json"
+    build_crosswalk_sidecar(card_data_file, out)
+    whole = json.loads(out.read_text())["cards"]
+    assert _as_dicts(load_crosswalk_card_ir(out)) == _decoded(whole)
+    assert (tmp_path / "card-ir-crosswalk.json.spans.pkl").exists()
+
+    load.clear_memory_cache()
+
+    def no_rebuild(*_args):
+        raise AssertionError("the stored index was rebuilt")
+
+    monkeypatch.setattr(load, "_span_index", no_rebuild)
+    assert _as_dicts(load_crosswalk_card_ir(out)) == _decoded(whole)
+
+
+def test_a_rewritten_sidecar_rebuilds_its_span_index(card_data_file, tmp_path):
+    """The index is keyed by the sidecar's mtime and size: a rewritten sidecar
+    (here: one card fewer, in another layout) reads from a fresh index."""
+    out = tmp_path / "card-ir-crosswalk.json"
+    build_crosswalk_sidecar(card_data_file, out)
+    load_crosswalk_card_ir(out)
+    payload = json.loads(out.read_text())
+    dropped = next(iter(payload["cards"]))
+    del payload["cards"][dropped]
+    out.write_text(json.dumps(payload, separators=(",", ":")))
+    load.clear_memory_cache()
+    cards = load_crosswalk_card_ir(out)
+    assert dropped not in cards
+    assert _as_dicts(cards) == _decoded(payload["cards"])
+
+
+def test_a_non_ascii_sidecar_is_decoded_whole(card_data_file, tmp_path):
+    """Spans are byte offsets only in an ASCII file (what ``json.dump`` writes);
+    a sidecar with raw non-ASCII text is decoded whole instead."""
+    out = tmp_path / "card-ir-crosswalk.json"
+    build_crosswalk_sidecar(card_data_file, out)
+    payload = json.loads(out.read_text())
+    oid = next(iter(payload["cards"]))
+    payload["cards"][oid]["n"] = "Æther — test"
+    out.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
+    load.clear_memory_cache()
+    assert _as_dicts(load_crosswalk_card_ir(out)) == _decoded(payload["cards"])

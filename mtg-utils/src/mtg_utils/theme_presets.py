@@ -102,6 +102,7 @@ public API (``Preset.matches`` / ``get_preset`` / ``matches`` /
 
 from __future__ import annotations
 
+import functools
 import re
 import threading
 from collections.abc import Callable, Iterable
@@ -111,7 +112,7 @@ from types import MappingProxyType
 from typing import TYPE_CHECKING
 
 from mtg_utils import _gc
-from mtg_utils.card_classify import get_oracle_text, is_land
+from mtg_utils.card_classify import classifying_type_line, get_oracle_text, is_land
 
 if TYPE_CHECKING:
     # Type-only: mtg_utils._card_ir.crosswalk has no _deck_forge dependency
@@ -131,6 +132,41 @@ if TYPE_CHECKING:
 # last built-in preset with a raw ``patterns`` arm) — kept for a future
 # genuinely-textual fact.
 _COUNT = r"(?:\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|X)"
+
+
+class CardView:
+    """What a card's matchers read of its record — its oracle text, classifying
+    type line, keywords and signal idents — each read at most once, and only
+    when one asks. A caller checking one card against many matchers builds it
+    once: ``ranking.score_candidate`` (about a hundred serves a candidate),
+    ``card_search``'s pages (one view per card for every page over its gated
+    slice), deck-forge's lane densities. ``Preset.matches`` and
+    ``signal_specs.Serve.matches`` read it."""
+
+    def __init__(self, card: dict) -> None:
+        self.card = card
+
+    @functools.cached_property
+    def oracle(self) -> str:
+        """The oracle text (every face's, joined: ``get_oracle_text``)."""
+        return get_oracle_text(self.card) or ""
+
+    @functools.cached_property
+    def type_line(self) -> str:
+        """The classifying (front-face) type line, lowercased."""
+        return classifying_type_line(self.card).lower()
+
+    @functools.cached_property
+    def keywords(self) -> frozenset[str]:
+        """The record's ``keywords``, lowercased."""
+        return frozenset(k.lower() for k in self.card.get("keywords") or ())
+
+    @property
+    def idents(self) -> frozenset[str]:
+        """The card's "key|scope|subject" signal idents (:func:`_signal_idents_for`),
+        read off their own memo each time (a dict lookup), so a view a search
+        holds across calls never outlives ``forget_signal_keys``."""
+        return _signal_idents_for(self.card)
 
 
 @dataclass(frozen=True)
@@ -188,13 +224,19 @@ class Preset:
     #: NEVER served: ``description`` is the player-facing blurb the UI shows.
     notes: str = ""
 
-    def matches(self, card: dict) -> bool:
-        if self.keywords:
-            card_kws = {k.lower() for k in (card.get("keywords") or [])}
-            if card_kws & {k.lower() for k in self.keywords}:
-                return True
+    @functools.cached_property
+    def _keywords_lower(self) -> frozenset[str]:
+        return frozenset(k.lower() for k in self.keywords)
+
+    def matches(self, card: dict, view: CardView | None = None) -> bool:
+        """Whether CARD matches any arm. ``view`` is the card's :class:`CardView`,
+        when the caller holds it."""
+        if view is None:
+            view = CardView(card)
+        if self.keywords and not view.keywords.isdisjoint(self._keywords_lower):
+            return True
         if self.patterns:
-            oracle = get_oracle_text(card)
+            oracle = view.oracle
             if any(p.search(oracle) for p in self.patterns):
                 return True
         if self.type_patterns:
@@ -203,7 +245,7 @@ class Preset:
                 return True
         if self.layouts and card.get("layout") in self.layouts:
             return True
-        if self.signal_keys and signal_keys_for(card) & set(self.signal_keys):
+        if self.signal_keys and not signal_keys_for(card).isdisjoint(self.signal_keys):
             return True
         return self.concept is not None and _concept_holds(self, card)
 

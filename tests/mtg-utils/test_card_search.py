@@ -13,6 +13,7 @@ from mtg_utils.card_search import (
     _matches_filters,
     _PageQuery,
     _scan,
+    _slice,
     filter_records,
     format_results,
     main,
@@ -1344,7 +1345,7 @@ def test_filter_records_reads_a_cards_filters_once_per_card():
     calls = []
 
     class CountingServe:
-        def matches(self, card: dict) -> bool:
+        def matches(self, card: dict, view=None) -> bool:
             calls.append(card["prices"]["usd"])
             return True
 
@@ -1366,7 +1367,7 @@ def test_a_page_reads_each_card_once_and_keeps_the_slice_order():
     calls = []
 
     class FirstLetterServe:
-        def matches(self, card: dict) -> bool:
+        def matches(self, card: dict, view=None) -> bool:
             calls.append(card["prices"]["usd"])
             return card["name"].startswith("A")
 
@@ -1398,7 +1399,7 @@ def test_a_page_reads_each_card_once_and_keeps_the_slice_order():
         unreleased=frozenset(),
         is_commander_filter=False,
     )
-    kept = _scan(gated, q, fmt=FORMATS["commander"])
+    kept = _scan(_slice(gated), q, fmt=FORMATS["commander"])
     assert [c["prices"]["usd"] for c in kept] == [
         "1.00",
         "3.00",
@@ -1407,6 +1408,30 @@ def test_a_page_reads_each_card_once_and_keeps_the_slice_order():
         "7.00",
     ]
     assert calls == ["1.00", "2.00", "4.00", "6.00"]
+
+
+def test_pages_over_one_slice_share_each_cards_view():
+    """Every page over one gated slice reads a card through the same
+    ``CardView``: its text, type line, keywords and idents are read once per
+    card, not once per page."""
+    views: dict[str, list[int]] = {}
+
+    class ViewServe:
+        def matches(self, card: dict, view=None) -> bool:
+            views.setdefault(card["name"], []).append(id(view))
+            return True
+
+    records = [
+        {**_make_card(name=name), "oracle_id": f"oid-{name}"}
+        for name in ("Alpha", "Beta")
+    ]
+    for _page in range(2):
+        filter_records(records, fmt=FORMATS["commander"], serve=ViewServe())
+    assert {name: len(set(ids)) for name, ids in views.items()} == {
+        "Alpha": 1,
+        "Beta": 1,
+    }
+    assert all(len(ids) == 2 for ids in views.values())
 
 
 @pytest.mark.parametrize(
@@ -1421,6 +1446,7 @@ def test_a_cards_printings_answer_its_card_filters_alike(name):
 
     from mtg_utils._analysis.signal_specs import Serve
     from mtg_utils.card_search import _matches_card, _PageQuery, resolve_presets
+    from mtg_utils.theme_presets import CardView
 
     base = test_card(name)
     printings = [
@@ -1471,4 +1497,4 @@ def test_a_cards_printings_answer_its_card_filters_alike(name):
         query(serve=Serve(keywords=frozenset({"defender"}))),
     ]
     for q in queries:
-        assert len({_matches_card(p, q) for p in printings}) == 1
+        assert len({_matches_card(p, q, CardView(p)) for p in printings}) == 1

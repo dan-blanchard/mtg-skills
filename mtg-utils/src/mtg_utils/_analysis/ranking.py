@@ -26,6 +26,7 @@ own fixing read protect them on the cut side without faking synergy.
 
 from __future__ import annotations
 
+import functools
 import math
 import re
 from collections.abc import Callable, Mapping, Sequence
@@ -37,7 +38,6 @@ from mtg_utils._analysis.rate import RateIndex, rate_for
 from mtg_utils._analysis.roles import DeckMana, role_of
 from mtg_utils._analysis.signal_keys import DOER_SUBJECTS
 from mtg_utils._analysis.signal_specs import (
-    CardView,
     Serve,
     avenue_spec_for,
     serve_from_dict,
@@ -45,12 +45,11 @@ from mtg_utils._analysis.signal_specs import (
 from mtg_utils._analysis.signals import clauses
 from mtg_utils._card_ir.compat_lookup import ir_for
 from mtg_utils.card_classify import (
-    classifying_type_line,
     extract_price,
-    get_oracle_text,
     type_line_has,
 )
 from mtg_utils.card_ir import Ability, Card, Effect, Filter
+from mtg_utils.theme_presets import CardView
 
 # Cluster role weights: a reactive payoff clause is worth more than a bare
 # generative/fodder action, which beats mere type/keyword membership.
@@ -169,6 +168,10 @@ def _ability_is_payoff(ab: Ability) -> bool:
     return False
 
 
+# Memoized: a candidate's clauses are normalized once per hit that reads them,
+# and a card's abilities once per serve that hits them — about three times each
+# in a tune's ranking.
+@functools.lru_cache(maxsize=8192)
 def _norm_raw(text: str) -> str:
     """Normalize a clause / IR ``raw`` for cross-matching: lowercase, fold the
     self-reference (``~`` and a leading card name both collapse), drop reminder
@@ -279,7 +282,9 @@ def _stronger(a: str, b: str) -> str:
     return a if _ROLE_RANK[a] >= _ROLE_RANK[b] else b
 
 
-_AvenuePred = tuple[str, Callable[[dict], bool], re.Pattern[str] | None, Serve | None]
+_AvenuePred = tuple[
+    str, Callable[[dict, CardView], bool], re.Pattern[str] | None, Serve | None
+]
 
 
 def _avenue_predicates(avenues: Sequence[dict]) -> list[_AvenuePred]:
@@ -324,20 +329,17 @@ def _avenue_predicates(avenues: Sequence[dict]) -> list[_AvenuePred]:
 
 def _search_and(
     regex: re.Pattern[str] | None, card_type: str
-) -> Callable[[dict], bool]:
+) -> Callable[[dict, CardView], bool]:
     """A card serves the avenue only if it satisfies BOTH the avenue's oracle
     regex and its card_type token (mirrors how the card_search FIND ANDs
     them)."""
 
-    def predicate(card: dict) -> bool:
-        oracle_ok = (
-            regex is None or regex.search(get_oracle_text(card) or "") is not None
-        )
+    def predicate(_card: dict, view: CardView) -> bool:
+        oracle_ok = regex is None or regex.search(view.oracle) is not None
         # Transform-aware: match card_type against the FRONT face (what you play),
         # so a transform DFC's back-face type can't credit it. Word-boundary
         # token, never a substring ('rat' must not credit a Pirate).
-        type_line = classifying_type_line(card).lower()
-        type_ok = not card_type or type_line_has(type_line, card_type)
+        type_ok = not card_type or type_line_has(view.type_line, card_type)
         return oracle_ok and type_ok
 
     return predicate
@@ -563,8 +565,8 @@ def score_candidate(
     ``_ir_resolved`` is the candidate's Card IR (boxed in a 1-tuple so a resolved
     ``None`` is distinct from "not yet looked up"); when omitted it is resolved
     here by ``oracle_id`` (ADR-0027); with none, every clause is an enabler."""
-    oracle = get_oracle_text(card) or ""
-    clause_list = clauses(oracle)
+    view = CardView(card)
+    clause_list = clauses(view.oracle)
     ir = _ir_resolved[0] if _ir_resolved is not None else ir_for(card)
 
     specs = (
@@ -573,7 +575,6 @@ def score_candidate(
         else [avenue_spec_for(s) for s in active_signals]
     )
     hits: list[tuple[str, tuple[int, ...], Mapping[int, str]]] = []
-    view = CardView(card)
     for spec in specs:
         if spec is not None and spec.serve.matches(card, view):
             hits.append(
@@ -584,7 +585,7 @@ def score_candidate(
             )
     preds = _avenue_preds if _avenue_preds is not None else _avenue_predicates(avenues)
     for label, predicate, oracle_re, serve in preds:
-        if predicate(card):
+        if predicate(card, view):
             hits.append((label, *_hit_clauses(card, oracle_re, serve, clause_list)))
 
     served = list(dict.fromkeys(label for label, _ids, _roles in hits))

@@ -34,6 +34,7 @@ from mtg_utils._analysis.signal_specs import Serve, avenue_spec_for
 from mtg_utils._analysis.signals import extract_signals
 from mtg_utils._sidecar import atomic_write_json, sha_keyed_path
 from mtg_utils.formats import FORMATS
+from mtg_utils.theme_presets import CardView
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -333,6 +334,18 @@ class _Pass:
                 pool.append(rec)
         return self._cache.density_pool_or(pool)
 
+    # One :class:`CardView` per card, shared by every lane's scan in this pass
+    # (and dropped with it: the hub's cache holds the records only).
+    @functools.cached_property
+    def _density_views(self) -> list[CardView]:
+        """One view per density-pool card."""
+        return [CardView(c) for c in self._density_pool()]
+
+    @functools.cached_property
+    def _coll_views(self) -> list[CardView]:
+        """One :class:`CardView` per collection card, shared by every lane's scan."""
+        return [CardView(c) for c in self._coll]
+
     def lane_density(self, key: str, serve: Serve) -> float:
         """Fraction of the whole legal pool that serves a lane, cached per lane-key. A
         broad lane (artifacts ~0.1) yields a low ``-log(p)`` weight; a distinctive one
@@ -342,8 +355,8 @@ class _Pass:
         cached = self._cache.density(key)
         if cached is not None:
             return cached
-        pool = self._density_pool()
-        hits = sum(1 for c in pool if serve.matches(c))
+        pool = self._density_views
+        hits = sum(1 for v in pool if serve.matches(v.card, v))
         self._new_density = True
         return self._cache.density_or(key, max(hits, 1) / (len(pool) or 1))
 
@@ -354,7 +367,9 @@ class _Pass:
         hit = self._cache.served(self._served, key)
         if hit is not None:
             return hit
-        names = frozenset(c["name"] for c in self._coll if serve.matches(c))
+        names = frozenset(
+            v.card["name"] for v in self._coll_views if serve.matches(v.card, v)
+        )
         self._new_served = True
         return self._cache.served_or(self._served, key, names)
 

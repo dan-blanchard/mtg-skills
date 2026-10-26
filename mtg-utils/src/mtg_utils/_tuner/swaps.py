@@ -1155,7 +1155,6 @@ def propose_swaps(
         cached = _pool_memo.get(key)
         if cached is not None:
             return cached
-        found = _search(spec, limit, capped=capped)
         # A theme searched by card type or preset (a tribe, Artifacts, Goad)
         # pages its own members; its serve's broader page adds the support
         # that is not of the type (Urza's Incubator under Dinosaurs), which
@@ -1169,7 +1168,10 @@ def propose_swaps(
             and spec.get("_serve") is not None
             and not pages_by_serve(spec)
         ):
-            members = {c.get("name") for c in _search(spec, sys.maxsize, capped=capped)}
+            # Every member, which the support is told apart from: the page is
+            # their head (one search, not a page and then every member).
+            members_page = _search(spec, sys.maxsize, capped=capped)
+            members = {c.get("name") for c in members_page}
             extra = [
                 c
                 for c in _search(serve_page_search(spec), limit, capped=capped)
@@ -1177,7 +1179,9 @@ def propose_swaps(
             ]
             support = {c.get("name", "") for c in extra}
             support_names.setdefault(avenue, set()).update(support)
-            found = [*found, *extra]
+            found = [*members_page[:limit], *extra]
+        else:
+            found = _search(spec, limit, capped=capped)
         # A card the deck already runs stays in the pool while it may hold another
         # copy (used_adds is applied at pick time, so the memoized order holds).
         pool = [

@@ -179,8 +179,8 @@ def _fixture_tree(name: str) -> ConceptTree:
     """One real card face's RAW ConceptTree from its snapshot phase record — the
     face named *name*, else the front face of an ``"A // B"`` name (CI-safe: no
     phase/network)."""
-    from mtg_utils._card_ir.mirror import strict_load_card
     from mtg_utils._card_ir.mirror.build import load_committed_schema
+    from mtg_utils._card_ir.mirror.loader import strict_load_card
 
     records = test_phase_records(name)
     rec = next(

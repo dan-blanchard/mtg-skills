@@ -6,16 +6,17 @@ phase's Rust source. **Additive:** nothing in production reads this yet — it i
 the de-risking first step of the lossless-IR migration.
 
 Stays self-contained within ``_card_ir`` (no ``_analysis.signals`` import).
+
+The strict loader is imported from ``mirror.loader``, never re-exported here: it
+imports the generated classes (about 1,900 frozen dataclasses, 0.28 s), which a
+process importing only ``runtime`` — every lane, read and crosswalk module —
+needs only when it builds a tree or unpickles a stored one (pickle imports their
+modules itself). A CLI thus pays them after it has asked Commander Spellbook.
 """
 
 from __future__ import annotations
 
 from mtg_utils._card_ir.mirror.infer import infer_schema
-from mtg_utils._card_ir.mirror.loader import (
-    MirrorDriftError,
-    find_ambiguous_fields,
-    strict_load_card,
-)
 from mtg_utils._card_ir.mirror.runtime import (
     MISSING,
     MirrorVariant,
@@ -31,12 +32,9 @@ __all__ = [
     "EFFECT_VARIANTS",
     "MISSING",
     "ZERO_INSTANCE_EFFECTS",
-    "MirrorDriftError",
     "MirrorSchema",
     "MirrorVariant",
     "TypedMirrorNode",
-    "find_ambiguous_fields",
     "infer_schema",
-    "strict_load_card",
     "value_kind",
 ]

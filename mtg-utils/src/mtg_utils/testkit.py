@@ -61,6 +61,7 @@ from mtg_utils._card_ir.mirror.build import load_committed_schema
 from mtg_utils._card_ir.trees import (
     build_trees,
     has_memoized_trees,
+    seed_fallback_trees,
     seed_records,
     seed_trees,
 )
@@ -282,8 +283,14 @@ def _seed_trees(name: str) -> None:
         seed_records(oid, entry["phase_records"])
     if not oid or has_memoized_trees(oid):
         return  # already seeded (building trees is the costly part)
-    trees = build_trees(oid, entry["phase_records"], bulk=entry["scryfall"])
-    seed_trees(oid, trees)
+    # The plain read, as production memoizes it: a bulk-face read builds its own
+    # trees off the seeded records (``trees.reads_bulk_faces``), and a card phase
+    # has no record for (a folded dungeon) reads text-only trees only through the
+    # folded-object fallback.
+    records = entry["phase_records"]
+    seed_trees(oid, build_trees(oid, records))
+    if not records:
+        seed_fallback_trees(oid, build_trees(oid, (), bulk=entry["scryfall"]))
     # Signal keys read before this seed (from no trees) must not outlive it.
     forget_signal_keys(oid)
 

@@ -36,8 +36,8 @@ from mtg_utils._analysis.signals import (
 from mtg_utils._card_ir import compat_lookup as il
 from mtg_utils._card_ir import trees as ct
 from mtg_utils._card_ir.crosswalk import build_concept_tree
-from mtg_utils._card_ir.mirror import strict_load_card
 from mtg_utils._card_ir.mirror.build import load_committed_schema
+from mtg_utils._card_ir.mirror.loader import strict_load_card
 from mtg_utils.card_ir import Card, Face
 from mtg_utils.testkit import test_card, test_phase_records
 

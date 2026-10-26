@@ -40,8 +40,8 @@ from mtg_utils._analysis.lanes import (
 from mtg_utils._analysis.tree_synthesis import apply_tree_synthesis
 from mtg_utils._card_ir import trees as il
 from mtg_utils._card_ir.crosswalk import build_concept_tree
-from mtg_utils._card_ir.mirror import strict_load_card
 from mtg_utils._card_ir.mirror.build import load_committed_schema
+from mtg_utils._card_ir.mirror.loader import strict_load_card
 from mtg_utils._card_ir.overlay_corrections import apply_overlay_corrections
 from mtg_utils.testkit import test_phase_records
 

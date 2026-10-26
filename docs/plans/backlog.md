@@ -357,43 +357,46 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   ``typed_enters_punish`` doesn't hold: 17 cards carry both, but each keeps
   cards the other rightly lacks (a landfall or artifact-entering burn there; a
   drain or a creature-entering burn here), and the ETB-payoff page reads both.
-  (l) **Tune speed, what's left** (2026-10-25, after the second speed pass,
-  which persisted the corrected trees in `_card_ir/tree_store`: a warm Blood
-  Rites `deck-tune` 3.2-3.7 → 2.6-3.1 s; the 25 precons' warm tunes, each a
-  fresh process, 3.8 / 4.3 → 2.4 / 3.1 s wall median / max, most of it the exit
-  collection every deck CLI now skips, `tune()` itself flat at 1.1 / 1.7 s; the
-  precon audit's tunes 5.6 / 9.9 → 5.2 / 9.6 s). By size:
-  Commander Spellbook's latency (1-2 s some days) is the deck phase's critical
-  path: the deck reads finish first even in a warm CLI that starts the request
-  before its seed and attaches; the swap phase (`_ranked_pool`: the page scans,
-  then `rank_candidates`, with `Serve.matches`'s oracle regexes most of its
-  record reads); the compat Card IR's crosswalk JSON
-  (`_card_ir/load.load_crosswalk_card_ir`, 42 MB, 0.1 s) that `ir_for` decodes
-  for `role_of`; imports (0.4 s, 0.28 of it the generated phase-mirror
-  dataclasses); the trees `is_wincon_card` reads for a closer page's ~150 cards;
-  deck-forge's `lane_density`, which checks every lane against the whole pool
-  without a shared `CardView` per card. Open, small: the trees memo keeps
-  whichever of `trees_for(card)` and `trees_for(card, bulk=card)` builds first
-  for a two-face card with a face phase has no record for (aftermath halves,
-  Fast // Furious), so `card_reads` and the trees store each step around it
-  (`trees.reads_bulk_faces`); a memo of phase trees per oracle_id beside one of
-  the bulk-face text-only trees would remove the order and both special cases,
-  but it changes reads for those cards, so it wants a precon rerun. Measured
-  verdicts, don't re-suggest: the per-card reads in `_analysis/card_reads` stay
-  beside the trees store — reading the four light ones (mana, gate, has-trees,
-  self-return) live off stored trees cost a warm tune 0.1 / 0.5 / 0.4 s (Blood
-  Rites / Eldrazi Unbound / Sliver Swarm); the trees store moves a warm tune by
-  nothing measurable (`card_reads` already spared it all but ~250 builds, and
-  Spellbook hides those) but a cold one, with no sidecars attached, by ~0.5 s of
-  its ~1 s of builds (Abzan Armor 6.4 → 6.0 s; a stored card reads in 0.03 ms
-  against 0.4 ms to build, the first read paying the mirror imports a build
-  would); a stored tree carries none of the memos reads leave on its nodes
-  (`crosswalk.reads.MEMO_ATTR_PREFIX`; `_owner_index` is keyed by node ids, so
-  Discovery // Dispersal read `discard_outlet` for `opponent_discard` until they
-  were dropped); a per-serve slice memo (no gain, two serve pages a tune); the
-  collector off for the whole tune (a tune may start the signals index's
-  whole-pool build, which makes ~50 cyclic objects a card — the tune collects at
-  a 100,000 young threshold instead, measured as fast).
+  (l) **Tune speed, what's left** (2026-10-26, after the third speed pass: a
+  warm Blood Rites / Eldrazi Unbound / Sliver Swarm `deck-tune` 2.3-2.6 /
+  2.5-2.9 / 3.1-3.5 → 1.7-2.0 / 2.0 / 2.1 s; the 25 precons' warm tunes, each a
+  fresh process, 2.04 / 2.49 → 1.66 / 2.02 s median / max; the precon audit 23 s
+  warm, 1.25 GB peak, its output identical). Open: the CLI is now Spellbook's:
+  it asks at 0.4 s (after the deck's names: `acquire_for_cli` loads the pool
+  index, 0.3 s) and the answer lands at 1.1-1.7 s, while the deck reads are done
+  by 1.0 s — what's left behind the answer is the swap phase (0.5 s), whose page
+  scans read every card of the gated slice once a page (~32k cards x 16 pages
+  for a five-colour deck: 0.5 s; Blood Rites 0.2 s), each through one shared
+  `CardView`; the per-card cost left is Python's (`_matches_card`, then
+  `Serve.matches`' arms). Measured verdicts, don't re-suggest: **a Spellbook
+  cache** — a cached answer can't equal a live one: 25 of 25 precon answers
+  changed `popularity` / `prices` within 40 h (popularity orders the near-misses
+  and is in the output), `find-my-combos` sends no ETag or version, and the bulk
+  export's ETag dates the export, not the live database; so the CLI asks before
+  it loads anything else (`deck_tune`), which took the wait off the warm CLI.
+  **`is_wincon_card`'s trees** — 2-16 ms a warm tune, no builds (the trees store
+  serves them). **The mirror classes** (0.28 s) — `mirror/__init__` no longer
+  re-exports the loader, so nothing imports them before the first tree is built
+  or unpickled: a CLI pays them inside Spellbook's wait, a tune still pays them;
+  only a codegen emitting plain classes would cut them, and `dataclasses.fields`
+  / `replace` read the nodes. **The crosswalk JSON** — read through a span index
+  (`<sidecar>.spans.pkl`), 0.12 → 0.02 s. **The import-closure walks** used
+  `find_spec`, which imported every parent (0.45 s, the mirror among them); they
+  resolve names off `sys.modules` and the path finder now, once a process. **The
+  two-face trees memo** — bulk-face reads have their own memo
+  (`trees._BULK_TREES_MEMO`), so neither read depends on the order and
+  `card_reads` / the store need no special case; the 25 precon tunes and the
+  audit were unchanged by it. Earlier verdicts: the per-card reads in
+  `_analysis/card_reads` stay beside the trees store — reading the four light
+  ones (mana, gate, has-trees, self-return) live off stored trees cost a warm
+  tune 0.1 / 0.5 / 0.4 s (Blood Rites / Eldrazi Unbound / Sliver Swarm); the
+  trees store moves a warm tune by nothing measurable but a cold one, with no
+  sidecars attached, by ~0.5 s of its ~1 s of builds; a stored tree carries none
+  of the memos reads leave on its nodes (`crosswalk.reads.MEMO_ATTR_PREFIX`;
+  `_owner_index` is keyed by node ids); a per-serve slice memo (no gain, two
+  serve pages a tune); the collector off for the whole tune (a tune may start
+  the signals index's whole-pool build, which makes ~50 cyclic objects a card —
+  the tune collects at a 100,000 young threshold instead, measured as fast).
 
 - **Competitive Brawl's "banned as a commander" reads as `restricted`.** The
   2026-10-12 B&R update introduced the category (mtg.wiki "Competitive Brawl"

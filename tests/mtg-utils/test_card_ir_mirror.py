@@ -29,12 +29,9 @@ from mtg_utils._card_ir.metrics import compute_phase_variant_population
 from mtg_utils._card_ir.mirror import (
     EFFECT_VARIANTS,
     ZERO_INSTANCE_EFFECTS,
-    MirrorDriftError,
     MirrorVariant,
     TypedMirrorNode,
-    find_ambiguous_fields,
     infer_schema,
-    strict_load_card,
 )
 from mtg_utils._card_ir.mirror.build import (
     POPULATION_FIXTURE,
@@ -48,6 +45,11 @@ from mtg_utils._card_ir.mirror.generated import (
     GENERATED_BY_KEY,
     S_Root,
     S_sub_ability,
+)
+from mtg_utils._card_ir.mirror.loader import (
+    MirrorDriftError,
+    find_ambiguous_fields,
+    strict_load_card,
 )
 
 # The pinned roster counts. ``bump-phase-pin`` derives them from the rosters and

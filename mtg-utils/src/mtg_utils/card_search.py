@@ -10,7 +10,7 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Protocol
+from typing import Any, NamedTuple, Protocol
 
 import click
 
@@ -25,7 +25,7 @@ from mtg_utils.card_classify import (
     type_line_has,
 )
 from mtg_utils.formats import FORMATS, LEGAL_STATUSES, Format, get_format
-from mtg_utils.theme_presets import PRESETS, Preset, get_preset
+from mtg_utils.theme_presets import PRESETS, CardView, Preset, get_preset
 
 _extract_price = extract_price
 _get_oracle_text = get_oracle_text
@@ -131,7 +131,7 @@ class ThemeServe(Protocol):
     """A theme's serving predicate (``signal_specs.Serve``), named structurally so
     this module stays out of the signals index's source closure."""
 
-    def matches(self, card: dict) -> bool: ...
+    def matches(self, card: dict, view: CardView | None = None) -> bool: ...
 
 
 def _matches_filters(
@@ -185,7 +185,7 @@ def _matches_filters(
         unreleased=unreleased,
         is_commander_filter=is_commander_filter,
     )
-    return bool(_scan([card] if gated else [], query, fmt=fmt))
+    return bool(_scan(_slice([card] if gated else []), query, fmt=fmt))
 
 
 def _passes_gate(
@@ -259,11 +259,12 @@ class _PageQuery:
     is_commander_filter: bool
 
 
-def _matches_card(card: dict, q: _PageQuery) -> bool:
+def _matches_card(card: dict, q: _PageQuery, view: CardView) -> bool:
     """The page's filters that read the card: its text, type, name, mana value
     and what it does. Every printing of a card answers alike (:func:`_scan` asks
-    once per card)."""
-    if q.oracle_re is not None and not q.oracle_re.search(_get_oracle_text(card)):
+    once per card). ``view`` is the card's :class:`CardView`, which every page
+    over one gated slice shares (:func:`_gated`)."""
+    if q.oracle_re is not None and not q.oracle_re.search(view.oracle):
         return False
 
     if q.type_lower is not None:
@@ -283,14 +284,14 @@ def _matches_card(card: dict, q: _PageQuery) -> bool:
     if q.cmc_max is not None and cmc > q.cmc_max:
         return False
 
-    if q.presets and not all(p.matches(card) for p in q.presets):
+    if q.presets and not all(p.matches(card, view) for p in q.presets):
         return False
-    if q.any_presets and not any(p.matches(card) for p in q.any_presets):
+    if q.any_presets and not any(p.matches(card, view) for p in q.any_presets):
         return False
 
     # A theme's serving predicate (``signal_specs.Serve.matches``): the cards the
     # theme counts as serving it, read off their idents where the serve is IR.
-    if q.serve is not None and not q.serve.matches(card):
+    if q.serve is not None and not q.serve.matches(card, view):
         return False
 
     # A second-commander search (``card_classify.valid_partner_search``): the card
@@ -337,33 +338,62 @@ def _card_index(cards: Sequence[dict]) -> array[int]:
     return out
 
 
-def _scan(
-    gated: Sequence[dict],
-    q: _PageQuery,
-    *,
-    fmt: Format,
-    card_index: array[int] | None = None,
-) -> list[dict]:
-    """The gated records that pass the page's filters, in order. The card's
-    filters run once per card, not per printing (``card_index``, the slice's
-    :func:`_card_index`): a slice holds a few printings of each card, and every
-    field those filters read — text, type line, faces, keywords, mana cost and
-    value, stats, what the card does (its idents and trees, per oracle_id) — is
-    the card's (2026-10-25: no such field differs between two printings of one
-    oracle_id and name in the bulk). The verdicts live for this call only."""
-    if card_index is None:
-        card_index = _card_index(gated)
-    printings = _reads_printings(q)
-    # Per printing, its card's verdict: 0 not read yet, 1 fails, 2 passes.
-    verdicts = bytearray(len(gated))
+class _Slice(NamedTuple):
+    """A search context's gated records; the index of each one's card
+    (:func:`_card_index`); each card's first printing, in slice order; and each
+    card's :class:`CardView` — made when a page first reads the card, then shared
+    by every later page over the slice."""
+
+    records: Sequence[dict]
+    card_index: array[int]
+    firsts: array[int]
+    views: list[CardView | None]
+
+
+def _slice(records: Sequence[dict]) -> _Slice:
+    index = _card_index(records)
+    firsts = array("I", (i for i, first in enumerate(index) if i == first))
+    return _Slice(records, index, firsts, [None] * len(records))
+
+
+def _view(sl: _Slice, first: int) -> CardView:
+    """The slice's view of the card whose first printing is ``first``."""
+    view = sl.views[first]
+    if view is None:
+        view = sl.views[first] = CardView(sl.records[first])
+    return view
+
+
+def _scan(sl: _Slice, q: _PageQuery, *, fmt: Format) -> list[dict]:
+    """The slice's records that pass the page's filters, in order. The card's
+    filters run once per card, not per printing (the slice's ``card_index``): a
+    slice holds a few printings of each card, and every field those filters
+    read — text, type line, faces, keywords, mana cost and value, stats, what
+    the card does (its idents and trees, per oracle_id) — is the card's
+    (2026-10-25: no such field differs between two printings of one oracle_id
+    and name in the bulk). The verdicts live for this call only; the card's
+    view, for the slice's life."""
+    records = sl.records
+    if not _reads_printings(q):
+        # Every printing of a card answers alike: read each card once (a third
+        # of the slice's records), then keep the printings of those that pass.
+        passes = bytearray(len(records))
+        for first in sl.firsts:
+            if _matches_card(records[first], q, _view(sl, first)):
+                passes[first] = 1
+        index = sl.card_index
+        return [r for r, first in zip(records, index, strict=True) if passes[first]]
+    # Per printing, its card's verdict: 0 not read yet, 1 fails, 2 passes. A
+    # card is read on its first printing that passes the printing filters.
+    verdicts = bytearray(len(records))
     matched = []
-    for i, card in enumerate(gated):
-        first = card_index[i]
+    for i, card in enumerate(records):
+        first = sl.card_index[i]
         ok = verdicts[first]
-        if ok == 1 or (printings and not _matches_printing(card, q, fmt=fmt)):
+        if ok == 1 or not _matches_printing(card, q, fmt=fmt):
             continue
         if ok == 0:
-            ok = verdicts[first] = 2 if _matches_card(card, q) else 1
+            ok = verdicts[first] = 2 if _matches_card(card, q, _view(sl, first)) else 1
         if ok == 2:
             matched.append(card)
     return matched
@@ -498,22 +528,18 @@ class _GateKey:
 # be mutated while it is searched (no caller does: the bulk path pages the cached
 # playable pool, a pool-bounded build a fresh list per request). Bounded, the
 # oldest entry first, and locked: the hub's Find and Tune run in a thread pool.
-_GATE_CACHE: dict[
-    tuple[int, int, _GateKey], tuple[Sequence[dict], list[dict], array[int]]
-] = {}
+_GATE_CACHE: dict[tuple[int, int, _GateKey], tuple[Sequence[dict], _Slice]] = {}
 _GATE_CACHE_MAX = 16
 _GATE_LOCK = threading.Lock()
 
 
-def _gated(
-    records: Sequence[dict], gate: _GateKey, *, fmt: Format
-) -> tuple[list[dict], array[int]]:
-    """The records that pass ``gate`` and their grouping by card
-    (:func:`_card_index`), memoized per records list."""
+def _gated(records: Sequence[dict], gate: _GateKey, *, fmt: Format) -> _Slice:
+    """The records that pass ``gate``, as a :class:`_Slice`, memoized per
+    records list."""
     key = (id(records), len(records), gate)
     hit = _GATE_CACHE.get(key)
     if hit is not None and hit[0] is records:
-        return hit[1], hit[2]
+        return hit[1]
     colors = set(gate.colors) if gate.colors is not None else None
     passed = [
         card
@@ -529,12 +555,12 @@ def _gated(
             set_lower=gate.set_lower,
         )
     ]
-    index = _card_index(passed)
+    sl = _slice(passed)
     with _GATE_LOCK:
         while len(_GATE_CACHE) >= _GATE_CACHE_MAX:
             del _GATE_CACHE[next(iter(_GATE_CACHE))]
-        _GATE_CACHE[key] = (records, passed, index)
-    return passed, index
+        _GATE_CACHE[key] = (records, sl)
+    return sl
 
 
 def filter_records(
@@ -614,8 +640,7 @@ def filter_records(
         unreleased=unreleased,
         is_commander_filter=is_commander_filter,
     )
-    gated, index = _gated(records, gate, fmt=fmt)
-    matched = _scan(gated, query, fmt=fmt, card_index=index)
+    matched = _scan(_gated(records, gate, fmt=fmt), query, fmt=fmt)
 
     # Deduplicate by name, keeping the cheapest printing (shared acquisition-cost rule:
     # a priced printing beats a price-less one, cheapest among priced).

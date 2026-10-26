@@ -274,7 +274,9 @@ def test_the_preset_and_the_role_agree_on_every_covered_card():
     snapshot, the preset the tuner SEARCHES by and the role the budgets row COUNTS by
     are the same set — and the text degrade is never consulted for a covered card."""
     preset = get_preset(ROLE_SEARCH["ramp"]["preset_names"][0])
-    records = snapshot_records()
+    # A card phase has no record for (Undercity, a folded dungeon) is no covered
+    # card: the role reads its text degrade.
+    records = [r for r in snapshot_records() if has_signal_coverage(r)]
     matched = {r["name"] for r in records if preset.matches(r)}
     counted = {r["name"] for r in records if "ramp" in role_of(r)}
     assert matched == counted

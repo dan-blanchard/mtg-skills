@@ -16,8 +16,8 @@ this one wrote. Worktrees share one phase cache, so the rows of the
 :data:`KEEP_KEYS` most recently written keys are kept and older ones dropped.
 
 What a row holds is exactly what ``trees_for(card)`` builds (``trees`` stores only
-those: never a card's text-only faces read off its bulk record, which depend on the
-order a process reads the card in — ``trees.reads_bulk_faces``). Writes are
+those: never a card's text-only faces read off its bulk record, which
+``trees_for(card, bulk=card)`` memoizes apart — ``trees.reads_bulk_faces``). Writes are
 batched: a process keeps what it built and writes it at exit, or every
 :data:`FLUSH_EVERY` cards (a ``multiprocessing`` worker never runs ``atexit``).
 Every failure degrades to building: a store that can't be opened, read or written

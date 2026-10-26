@@ -27,8 +27,7 @@ from typing import TYPE_CHECKING, Any, cast
 from mtg_utils._analysis.write_back import MISSING, WriteBackSidecar, content_key
 from mtg_utils._card_ir.trees import (
     has_phase_records,
-    memoized_trees,
-    reads_bulk_faces,
+    read_source,
     trees_for,
 )
 
@@ -69,9 +68,8 @@ def card_read[F: Callable[[Any], object]](
     ``sidecar`` under ``namespace``. A value this process computed is kept with
     the trees it was read from, and read again if they are replaced (the testkit
     seeding real trees over the empty ones a phase-less process memoized); a
-    served value holds without them. A card with no oracle_id, or whose trees
-    depend on the order it is read in (``trees.reads_bulk_faces``: an aftermath
-    card's second half), is read live every time."""
+    served value holds without them. A card with no oracle_id is read live every
+    time."""
 
     def wrap(read: F) -> F:
         memo = sidecar.memo(namespace)
@@ -79,12 +77,12 @@ def card_read[F: Callable[[Any], object]](
         @functools.wraps(read)
         def cached(card: dict) -> object:
             oid = card.get("oracle_id") or ""
-            if not oid or reads_bulk_faces(card):
+            if not oid:
                 return read(card)
             held = cast("tuple[object, object] | None", memo.local.get(oid))
             if held is not None:
                 source, value = held
-                if source is None or source is memoized_trees(oid):
+                if source is None or source is read_source(oid):
                     return value
             else:
                 served = memo.persisted(oid)
@@ -92,7 +90,7 @@ def card_read[F: Callable[[Any], object]](
                     memo.local[oid] = (None, served)
                     return served
             value = read(card)
-            memo.local[oid] = (memoized_trees(oid), value)
+            memo.local[oid] = (read_source(oid), value)
             if has_phase_records(oid):
                 memo.record(oid, value)
             return value

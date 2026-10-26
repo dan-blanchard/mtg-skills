@@ -8,7 +8,7 @@ from mtg_utils._analysis import card_reads, roles, signals
 from mtg_utils._analysis.lanes import card_advantage
 from mtg_utils._analysis.write_back import MISSING
 from mtg_utils._card_ir import trees
-from mtg_utils.testkit import test_card, test_signals
+from mtg_utils.testkit import test_card, test_phase_records, test_signals
 
 
 def _real(name: str) -> dict:
@@ -104,22 +104,42 @@ def test_a_card_read_is_the_live_read(name):
     assert card_reads.has_trees(card) == card_reads.has_trees.__wrapped__(card)
 
 
-def test_a_card_whose_trees_depend_on_the_read_order_is_read_live():
-    """Claim // Fame's Fame half has no phase record: its trees with the bulk
-    faces hold a text-only tree the plain ones don't, and the trees memo keeps
-    whichever is built first. A per-card read of it is never memoized or
-    persisted, so each caller reads what it read before; a one-face card is."""
+@pytest.mark.parametrize("bulk_first", [True, False])
+def test_a_bulk_face_cards_reads_never_depend_on_their_order(bulk_first, monkeypatch):
+    """Claim // Fame's Fame half has no phase record: its trees read with the
+    bulk faces hold a text-only Fame tree the plain ones don't. Each read has its
+    own memo, so either answers the same whichever a process runs first, and a
+    per-card read of the card is memoized like any other's."""
+    claim = _real("Claim // Fame")
+    oid = claim["oracle_id"]
+    assert trees.reads_bulk_faces(claim)
+    # A process that has read neither: both reads build off the card's records.
+    records = {oid: tuple(test_phase_records("Claim // Fame"))}
+    monkeypatch.setattr(trees, "_phase_record_index", lambda: records)
+    monkeypatch.delitem(trees._TREES_MEMO, oid)
+    monkeypatch.delitem(trees._BULK_TREES_MEMO, oid, raising=False)
+    reads = (
+        (lambda: trees.trees_for(claim, bulk=claim), lambda: trees.trees_for(claim))
+        if bulk_first
+        else (
+            lambda: trees.trees_for(claim),
+            lambda: trees.trees_for(claim, bulk=claim),
+        )
+    )
+    first, second = (read() for read in reads)
+    with_faces, plain = (first, second) if bulk_first else (second, first)
+    assert [t.name for t in with_faces] == [*(t.name for t in plain), "Fame"]
+
     calls = []
 
-    @card_reads.card_read("test_live_reads")
-    def name_of(card: dict) -> str:
+    @card_reads.card_read("test_bulk_face_reads")
+    def fame_read(card: dict) -> int:
         calls.append(card["name"])
-        return card["name"]
+        return len(trees.trees_for(card, bulk=card))
 
-    claim, opal = _real("Claim // Fame"), _real("Mox Opal")
-    assert trees.reads_bulk_faces(claim)
-    assert not trees.reads_bulk_faces(opal)
-    for _ in range(2):
-        name_of(claim)
-        name_of(opal)
-    assert calls == ["Claim // Fame", "Mox Opal", "Claim // Fame"]
+    assert fame_read(claim) == fame_read(claim) == len(with_faces)
+    assert calls == ["Claim // Fame"]
+    # Reseeded records drop the bulk-face trees the value was read from: read again.
+    trees.seed_records(oid, records[oid])
+    assert fame_read(claim) == len(with_faces)
+    assert calls == ["Claim // Fame", "Claim // Fame"]

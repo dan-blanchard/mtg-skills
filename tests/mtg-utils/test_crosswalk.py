@@ -54,8 +54,8 @@ from mtg_utils._card_ir.crosswalk import (
     replacement_token_types,
     tag_of,
 )
-from mtg_utils._card_ir.mirror import strict_load_card
 from mtg_utils._card_ir.mirror.build import load_committed_schema
+from mtg_utils._card_ir.mirror.loader import strict_load_card
 from mtg_utils._card_ir.overlay_corrections import (
     SubstratePurityError,
     _assert_substrate_pure,

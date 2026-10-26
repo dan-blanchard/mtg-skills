@@ -87,11 +87,11 @@ def test_a_card_phase_has_no_record_for_is_stored_empty(store, monkeypatch):
     assert not trees.has_phase_records("no-such-oracle-id")
 
 
-def test_an_aftermath_card_reads_its_bulk_faces_live(store, monkeypatch):
+def test_an_aftermath_card_builds_its_bulk_faces(store, monkeypatch):
     """Comply has no phase record, so Failure // Comply read with its bulk faces
     holds a text-only Comply tree that its plain read lacks. The store holds the
-    plain read only: the next process's bulk read builds, as it would with no
-    store (the trees memo keeps whichever read comes first)."""
+    plain read only: the next process's bulk read builds (its own memo,
+    ``trees._BULK_TREES_MEMO``), as it would with no store."""
     cards, _path, new_process = store
     failure = cards["Failure // Comply"]
     plain = trees.trees_for(failure)

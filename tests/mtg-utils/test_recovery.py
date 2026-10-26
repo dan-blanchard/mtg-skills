@@ -22,8 +22,8 @@ from mtg_utils.testkit import test_phase_records
 def _fixture_tree(name: str) -> ConceptTree:
     """Build one real card's RAW ConceptTree from its snapshot phase record
     (CI-safe: no phase/network), mirroring ``test_tree_synthesis._fixture_tree``."""
-    from mtg_utils._card_ir.mirror import strict_load_card
     from mtg_utils._card_ir.mirror.build import load_committed_schema
+    from mtg_utils._card_ir.mirror.loader import strict_load_card
 
     rec = next(r for r in test_phase_records(name) if r["name"] == name)
     root = strict_load_card(rec, load_committed_schema(), name=name)

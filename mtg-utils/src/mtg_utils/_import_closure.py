@@ -11,30 +11,56 @@ from __future__ import annotations
 import ast
 import contextlib
 import hashlib
-import importlib.util
 import json
 import sys
 from collections.abc import Iterable
+from importlib.machinery import ModuleSpec, PathFinder
 from pathlib import Path
 
+import mtg_utils
 from mtg_utils._sidecar import atomic_write_json, sha_keyed_path
 
+#: Each name's resolution (:func:`_module_file`), per package search path: a
+#: process walks its closures several times (the signals index, the per-card
+#: read sidecars, the trees store), and a name resolves alike every time.
+_SPECS: dict[tuple[str, tuple[str, ...]], ModuleSpec | None] = {}
 
-def _find_spec(modname: str):  # noqa: ANN202 — importlib's own private return shape
-    try:
-        return importlib.util.find_spec(modname)
-    except (ModuleNotFoundError, ImportError, ValueError, AttributeError, TypeError):
+
+def _spec(modname: str) -> ModuleSpec | None:
+    """*modname*'s spec without importing anything: an imported module's own,
+    else the import system's path finder's over its parent's search locations
+    (``importlib.util.find_spec`` imports the parent to read them, so a walk by
+    it imported the whole closure, the phase mirror's generated classes among
+    it: 0.45 s a process; backlog (l), 2026-10-26)."""
+    module = sys.modules.get(modname)
+    if module is not None:
+        return getattr(module, "__spec__", None)
+    parent_name, _, _tail = modname.rpartition(".")
+    if not parent_name:
         return None
+    key = (modname, tuple(mtg_utils.__path__))
+    if key not in _SPECS:
+        parent = sys.modules.get(parent_name)
+        if parent is not None:
+            search = getattr(parent, "__path__", None)
+        else:
+            spec = _spec(parent_name)
+            search = spec.submodule_search_locations if spec is not None else None
+        # A module holds no submodules: a ``from`` import's symbol ends here.
+        _SPECS[key] = PathFinder.find_spec(modname, list(search)) if search else None
+    return _SPECS[key]
 
 
 def _module_file(modname: str) -> Path | None:
-    """The ``.py`` file backing *modname*, without executing it (``find_spec``
-    locates; it doesn't import)."""
-    spec = _find_spec(modname)
-    if spec is None or spec.origin is None:
+    """The ``.py`` file backing the ``mtg_utils`` module *modname*, found without
+    importing it (:func:`_spec`). ``None`` for a name that isn't a module file: a
+    symbol a ``from`` import names, a namespace directory, a name outside the
+    package."""
+    if modname != "mtg_utils" and not modname.startswith("mtg_utils."):
         return None
-    path = Path(spec.origin)
-    return path if path.suffix == ".py" else None
+    spec = _spec(modname)
+    origin = spec.origin if spec is not None else None
+    return Path(origin) if origin and origin.endswith(".py") else None
 
 
 def _parse_mtg_imports(source: bytes, filename: str) -> tuple[str, ...]:
@@ -76,9 +102,9 @@ def _parse_mtg_imports(source: bytes, filename: str) -> tuple[str, ...]:
 # job-read and card-read sidecars and the trees store). The parse is a pure
 # function of a file's bytes, so its memo is keyed by the sha256 of those bytes:
 # a cached answer is exactly what a fresh parse would return, with no mtime
-# trusted anywhere. The walk itself (and every ``find_spec`` resolution in it)
-# still runs on every call, so a new import edge, a new module file or a deleted
-# one is seen at once.
+# trusted anywhere. The walk itself still runs on every call, so a new import
+# edge is seen at once; each name's module file resolves once a process
+# (:data:`_SPECS`), as the code the process runs was imported once.
 
 _IMPORTS_CACHE_VERSION = 1
 _IMPORTS_CACHE_PREFIX = "signals-imports"  # its name before the walk moved here

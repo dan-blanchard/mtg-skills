@@ -190,6 +190,11 @@ _TREES_MEMO: dict[str, tuple[ConceptTree, ...]] = {}
 # phase-uncovered objects) — a SEPARATE memo so the fold path and the plain
 # path can't poison each other regardless of call order (2026-07-25 review).
 _TEXT_ONLY_FALLBACK_MEMO: dict[str, tuple[ConceptTree, ...]] = {}
+# oracle_id -> its trees read with its bulk faces, for a card whose bulk faces add
+# a text-only tree (:func:`reads_bulk_faces`) — a memo of its own, so the plain
+# read (``_TREES_MEMO``, the trees store) and the bulk-face read each answer the
+# same whichever runs first.
+_BULK_TREES_MEMO: dict[str, tuple[ConceptTree, ...]] = {}
 # oracle_id -> :func:`reads_bulk_faces`'s answer.
 _BULK_FACES_MEMO: dict[str, bool] = {}
 # oracle_id -> the casefolded names of its phase face records (empty: it has none),
@@ -214,6 +219,7 @@ def clear_caches() -> None:
     _TREES_MEMO.clear()
     _TEXT_ONLY_FALLBACK_MEMO.clear()
     _RECORDS_MEMO.clear()
+    _BULK_TREES_MEMO.clear()
     _BULK_FACES_MEMO.clear()
     _FACE_NAMES.clear()
 
@@ -824,7 +830,7 @@ def face_tree(rec: dict, schema: MirrorSchema, *, oracle_id: str) -> ConceptTree
     from mtg_utils._card_ir.branches import apply_misreads
     from mtg_utils._card_ir.crosswalk import build_concept_tree
     from mtg_utils._card_ir.dropped_keywords import restore_dropped_keywords
-    from mtg_utils._card_ir.mirror import MirrorDriftError, strict_load_card
+    from mtg_utils._card_ir.mirror.loader import MirrorDriftError, strict_load_card
     from mtg_utils._card_ir.overlay_corrections import apply_overlay_corrections
 
     nm = rec.get("name") or ""
@@ -895,6 +901,14 @@ def seed_trees(oid: str, trees: tuple[ConceptTree, ...]) -> None:
     _TREES_MEMO[oid] = trees
 
 
+def seed_fallback_trees(oid: str, trees: tuple[ConceptTree, ...]) -> None:
+    """Pre-populate the folded-object fallback memo for ``oid`` (testkit only): a
+    card phase has no record for reads ``()`` plain, and these text-only trees
+    through ``trees_for(..., text_only_fallback=True)``, as production does with
+    phase data present."""
+    _TEXT_ONLY_FALLBACK_MEMO[oid] = trees
+
+
 _RECORDS_MEMO: dict[str, tuple[dict, ...]] = {}
 
 
@@ -903,6 +917,7 @@ def seed_records(oid: str, recs: Sequence[dict]) -> None:
     (testkit only — production reads ``_phase_record_index``)."""
     _RECORDS_MEMO[oid] = tuple(recs)
     _BULK_FACES_MEMO.pop(oid, None)
+    _BULK_TREES_MEMO.pop(oid, None)
 
 
 def phase_records_for(oid: str) -> tuple[dict, ...]:
@@ -922,6 +937,15 @@ def memoized_trees(oid: str) -> tuple[ConceptTree, ...] | None:
     return _TREES_MEMO.get(oid)
 
 
+def read_source(oid: str) -> tuple[ConceptTree, ...] | None:
+    """The trees a per-card read of ``oid`` was last read from: its bulk-face
+    trees when a read built them (``_BULK_TREES_MEMO``), else its plain ones
+    (:func:`memoized_trees`) — ``None`` when neither is built. A memo over a read
+    holds while this is still the entry it read (``_analysis.card_reads``)."""
+    held = _BULK_TREES_MEMO.get(oid)
+    return held if held is not None else _TREES_MEMO.get(oid)
+
+
 def has_memoized_trees(oid: str) -> bool:
     """Whether the trees memo holds non-empty trees for ``oid`` (testkit only: a
     seed is skipped when real trees are already there; an empty entry, memoized
@@ -932,9 +956,9 @@ def has_memoized_trees(oid: str) -> bool:
 def reads_bulk_faces(card: dict) -> bool:
     """Whether ``trees_for(card, bulk=card)`` holds a text-only tree that
     ``trees_for(card)`` doesn't: a two-face card with a face phase has no record
-    for (:func:`_text_only_trees`). The trees memo keeps whichever call builds
-    first, so such a card's trees depend on the order it is read in; a per-card
-    memo over them (``_analysis.card_reads``) reads it live, as the callers did."""
+    for (:func:`_text_only_trees`) — an aftermath card's second half. Its
+    bulk-face trees have a memo of their own (``_BULK_TREES_MEMO``), never the
+    trees store's."""
     faces = card.get("card_faces") or ()
     if len(faces) != 2 or card.get("layout") in _TEXT_ONLY_EXCLUDED_LAYOUTS:
         return False
@@ -1057,9 +1081,9 @@ def trees_for(
     the bulk record) threads it. When given, a bulk face with no name-matched
     phase record among this oid's group gets one additional zero-unit
     text-only ``ConceptTree`` carrying its bulk oracle text verbatim (the
-    aftermath-second-half gap; see the module comment above). The per-oid
-    memo assumes ``bulk`` is supplied consistently across calls for the same
-    oid within a process, matching every other cache in this module."""
+    aftermath-second-half gap; see the module comment above). Those trees are
+    memoized apart from the plain ones (``_BULK_TREES_MEMO``), so a card's two
+    reads never depend on which a process runs first."""
     oid = card.get("oracle_id") or ""
     if not oid:
         return ()
@@ -1087,13 +1111,21 @@ def trees_for(
         out = build_trees(oid, (), bulk=bulk)
         _TEXT_ONLY_FALLBACK_MEMO[oid] = out
         return out
+    if bulk is not None and reads_bulk_faces(bulk):
+        # The bulk faces add a text-only tree: its own memo, so this read and the
+        # plain one below each answer the same whichever runs first.
+        held = _BULK_TREES_MEMO.get(oid)
+        if held is None:
+            held = _BULK_TREES_MEMO[oid] = build_trees(
+                oid, phase_records_for(oid), bulk=bulk
+            )
+        return held
     if oid in _TREES_MEMO:
         return _TREES_MEMO[oid]
-    # The trees store holds what ``trees_for(card)`` builds: every card's but the
-    # bulk-face read of one whose trees depend on it (:func:`reads_bulk_faces`).
-    # It is read before the records index, which a stored card never needs; the
-    # store exists only beside a card-data file the index is built from.
-    store = None if bulk is not None and reads_bulk_faces(bulk) else _tree_store()
+    # The trees store holds what ``trees_for(card)`` builds. It is read before the
+    # records index, which a stored card never needs; the store exists only
+    # beside a card-data file the index is built from.
+    store = _tree_store()
     row = store.get(oid) if store is not None else None
     if row is not None:
         _FACE_NAMES[oid] = row.face_names

@@ -11,8 +11,9 @@ from __future__ import annotations
 
 from collections.abc import Callable, Sequence
 
-from mtg_utils._analysis.signal_specs import CardView, avenue_spec_for
+from mtg_utils._analysis.signal_specs import avenue_spec_for
 from mtg_utils._tuner.classify import CardClass
+from mtg_utils.theme_presets import CardView
 
 
 def _identity_cost(candidate_ci: set[str], classes: Sequence[CardClass]) -> list[str]:
