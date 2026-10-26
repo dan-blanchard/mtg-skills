@@ -10011,7 +10011,7 @@ def targets_own_creature(effect: object, unit: AbilityUnit | None = None) -> boo
     battlefield — never a mass ``*All`` effect, never a card in a graveyard or
     hand. Given the effect's ``unit``, the overlay-corrected controller reads
     (:func:`filter_controller`)."""
-    if tag_of(effect) is None or (tag_of(effect) or "").endswith("All"):
+    if not _single_effect(effect):
         return False
     chosen = tag_of(getattr(effect, "redirect_to", None)) == "ChosenTarget"
     for field in ("target", "redirect_object_filter") if chosen else ("target",):
@@ -10024,6 +10024,97 @@ def targets_own_creature(effect: object, unit: AbilityUnit | None = None) -> boo
         if set(filter_core_types(filt)) & {"Creature", "Permanent"}:
             return True
     return False
+
+
+class QuantityReferent(NamedTuple):
+    """The object a size quantity (a ``Ref`` of ``Power``, ``Toughness``, …)
+    reads off, resolved from phase's ``scope`` tag by :func:`quantity_referent`.
+
+    ``kind`` is ``"self"`` (the card itself: ``Source``, or an ``Anaphoric``
+    "its" with no earlier object in the ability), ``"target"`` (an object an
+    earlier effect of the ability targets: ``Target``, or an ``Anaphoric`` "it"
+    back to it — Chandra's Ignition, Nibelheim Aflame, Delirium), ``"that"`` (the
+    object an earlier effect acts on: ``Demonstrative``, Rupture's "that
+    creature's power" after its sacrifice), ``"cost"`` (an object paid as a cost
+    — Fling), ``"event"`` (the triggering event's object — Warstorm Surge),
+    ``"batch"`` (each source of a batch — Moonlight Hunt), else ``"other"``.
+    ``scope`` is phase's tag and ``effect`` the earlier effect naming the
+    object, for ``"target"`` and ``"that"`` when the ability holds one."""
+
+    kind: str
+    scope: str | None
+    effect: ConceptNode | None
+
+
+_REFERENT_KINDS: dict[str, str] = {
+    "Source": "self",
+    "CostPaidObject": "cost",
+    "EventSource": "event",
+    "BatchSource": "batch",
+}
+
+
+def _single_effect(node: object) -> bool:
+    """Whether ``node`` is an effect on one object, never a mass ``*All`` one."""
+    tag = tag_of(node)
+    return tag is not None and not tag.endswith("All")
+
+
+def _targets_one(node: object) -> bool:
+    """Whether an effect targets a single object (a ``Typed`` filter)."""
+    return _single_effect(node) and tag_of(getattr(node, "target", None)) == "Typed"
+
+
+def quantity_referent(
+    qty: object, unit: AbilityUnit | None = None, *, holder: object = None
+) -> QuantityReferent:
+    """Which object a size quantity reads off (:class:`QuantityReferent`): its
+    ``scope`` tag, with a ``Target`` / ``Anaphoric`` / ``Demonstrative`` resolved
+    to the earlier effect of ``unit`` that names the object — the first effect
+    before ``holder`` (the effect the quantity sits in; every effect when it is
+    not given) that targets one object, or for a ``Demonstrative`` also one that
+    sacrifices."""
+    scope = tag_of(getattr(qty, "scope", None))
+    kind = _REFERENT_KINDS.get(scope or "")
+    if kind is not None:
+        return QuantityReferent(kind, scope, None)
+    if scope not in ("Target", "Anaphoric", "Demonstrative"):
+        return QuantityReferent("other", scope, None)
+    named = "that" if scope == "Demonstrative" else "target"
+    for c in unit.effects if unit is not None else ():
+        if c.node is holder:
+            break  # only an effect before the quantity's own names its object
+        if _targets_one(c.node) or (
+            scope == "Demonstrative" and c.concept == "sacrifice"
+        ):
+            return QuantityReferent(named, scope, c)
+    return QuantityReferent("self" if scope == "Anaphoric" else named, scope, None)
+
+
+def deals_its_own_power(node: TypedMirrorNode, unit: AbilityUnit | None = None) -> bool:
+    """Whether a damage effect deals damage equal to its dealer's own power ("deals
+    damage equal to its power"): a ``Power``
+    amount, bare or multiplied, read off the object that deals the damage — the
+    card itself when no other object deals it (``damage_source`` unset), a
+    target that deals it (``damage_source`` ``Target`` / ``EachTarget``: Ram
+    Through, Chandra's Ignition), the triggering object (Warstorm Surge), each
+    source of a batch (Moonlight Hunt), or an ``Anaphoric`` "its", the pronoun's
+    own subject (Delirium's "That creature deals damage equal to its power",
+    where phase drops the dealer). Never another object's power: a cost's (Fling)
+    or the one an earlier effect sacrificed (Rupture)."""
+    qty = count_operand_qty(node, fields=("amount",))
+    if tag_of(qty) != "Power":
+        return False
+    ref = quantity_referent(qty, unit, holder=node)
+    dealer = getattr(node, "damage_source", None)
+    dealer = dealer if isinstance(dealer, str) else None
+    if ref.kind == "self":
+        return dealer is None or ref.scope == "Anaphoric"
+    if ref.kind == "target":
+        return ref.scope == "Anaphoric" or dealer in ("Target", "EachTarget")
+    if ref.kind == "event":
+        return dealer in (None, "TriggeringSource")
+    return ref.kind == "batch"
 
 
 def free_own_target_activations(tree: ConceptTree) -> bool:

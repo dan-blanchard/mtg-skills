@@ -21,7 +21,7 @@ from mtg_utils._tuner import commander_fit, grant_coverage, metrics
 from mtg_utils._tuner import swaps as swaps_mod
 from mtg_utils._tuner.bracket import bracket_gate, suggestable_near_misses
 from mtg_utils._tuner.calibration import calibration_for
-from mtg_utils._tuner.classify import CardClass, classify_deck
+from mtg_utils._tuner.classify import CardClass, classify_deck, commander_draws
 from mtg_utils._tuner.issues import Sourcing, top_issues
 from mtg_utils._tuner.shape import infer_shape
 from mtg_utils.card_classify import is_land
@@ -252,8 +252,16 @@ def tune(
         # ADR-0059: the ladder is a digital deck's population, so only a digital
         # build reads its meta archetype.
         meta = params.meta if medium_is_digital(game.medium) else None
+        # The commander as a draw engine grades the deck's Granters and the
+        # swap engine's candidates alike (ADR-0040 §2).
+        draw_engine = commander_draws(hd, commander_names)
         classes = classify_deck(
-            hd, deck_signals, commander_names, deck_mana=deck_mana, meta=meta
+            hd,
+            deck_signals,
+            commander_names,
+            deck_mana=deck_mana,
+            meta=meta,
+            draw_engine=draw_engine,
         )
         combos = combos_job.result()
     combo_count = len((combos or {}).get("combos") or [])
@@ -506,6 +514,9 @@ def tune(
             budget=budget,
             max_swaps=params.max_swaps,
             top_heavy=eff["verdict"] == "top-heavy",
+            protection_target=prot["target"] if prot["wants_protection"] else 0,
+            protection_count=prot["count"],
+            draw_engine_commander=draw_engine,
             fill_slots=fill_slots,
             wildcard_budget=wildcard_budget,
             protected=protected,

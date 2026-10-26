@@ -99,14 +99,18 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   51 adds). Since 2026-10-25 only a main shields an off-lane card from the upgrade
   tiers (a sub's or an emerging or folded theme's carer is a slot, and a popular
   card on a sub alone; the audit's "The cut pool"); keeping a folded theme's
-  carers shielded lost five guide cuts. Left,
-  with no read that separates them: 44 popular cuts (premium, as Feed the Swarm at
-  rank 93, or on a main) and 57 commander-lane doers, 54 of them carers, whose
-  guide-cut rate outside the lane's half is 0.08-0.20 in every carer split by role
-  and play-rate holding more than four cards, below the decks' 0.24 — (a) holds,
-  don't re-suggest a split of them without a new read; Sliver Swarm's 11 are
-  Granters (ADR-0040 §4). Script: `docs/plans/precon-audit/cut_splits.py` (both
-  splits; same ROOT as `misses.py`).
+  carers shielded lost five guide cuts. Since 2026-10-26 (the audit's "The open
+  levers, closed") a main shields only its carers (a popular main feeder is the
+  last slot), a solid Granter is a slot and may go to a better grant (ADR-0040's
+  amendment). Left: 23 popular cuts, all premium (the guides cut 0.10 of premium
+  cards, 22 of 210 — premium stays), and 45 commander-lane doers, whose guide-cut
+  rate outside the lane's half is 0.08-0.20 in every carer split by role and
+  play-rate holding more than four cards, below the decks' 0.24 — (a) holds,
+  don't re-suggest a split of them without a new read; most sit in tunes that
+  reach the thirty swaps. Combo protection stays whole: only a game-ending combo
+  protecting its pieces lost an add, and `proposal-check` gates every infinite.
+  Script: `docs/plans/precon-audit/cut_splits.py` (both splits; same ROOT as
+  `misses.py`).
   (j) **Job-read verdicts — don't re-suggest without a new read** (ADR-0060 and
   its amendments; the experiment tables are the audit's "The tuner-policy
   leftovers" and "The deck-fit wipe read"). The order is the blend (wipes, draw,
@@ -134,37 +138,33 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   ADR-0024 asks for it only from a combo or control deck or a voltron plan; a
   target of 5 or 3 for every shape matched fewer adds. Left narrow, none a guide
   card: a size off a card the caster takes from a graveyard (Volcanic Vision, Too
-  Greedily, Too Deep) or off a random discard (Kindle the Carnage).
-  Open, small: "which object a size reads off" (`Target` / `Anaphoric` /
-  `Demonstrative` / `Source` on a `Ref(Power…)`) is answered in
-  `board_wipe._picked_by_caster` by asking whether the unit targets a creature
-  you control, not by resolving the referent; `lanes/triggers_damage.py` asks
-  a near question by text (`_POWER_ITS_OWN_DOER`, "deals damage equal to its
-  power"). A crosswalk `quantity_referent(qty, unit)` would serve both;
-  resolving the referent changes reads, so it wants a precon rerun.
+  Greedily, Too Deep) or off a random discard (Kindle the Carnage). An on-theme
+  draw or ramp card reading within a tie of its cut passing the play-rate gate
+  gained none of its targets (Insidious Roots, Faerie Mastermind; 2026-10-26).
+  Where the deck holds the most of a job it wants (a row at its max, protection
+  at the Shape's target) the job's upgrade moves onto the theme (2026-10-26); a
+  looser row read or cost bar spent the budget-bound decks' cuts.
   (m) **Recall** (`precon-audit/misses.py`, at the largest guide's thirty
   swaps and each precon's own guides' budget, `budgets.json`, Spellbook cached):
-  256 of 408 cuttable guide cuts, 76 of 610 in-scope guide adds, 680 swaps
-  (unchanged by the fourth and fifth (o) passes, 2026-10-26; 2026-10-25, the
-  third (o) pass: Fae Dominion cuts Faerie Formation and adds
-  Likeness Looter and Spellstutter Sprite, not Faerie Mastermind; Multiverse
-  Reforged cuts Brainsurge, Fact or Fiction and Shark Typhoon and adds Archfiend
-  of Depravity; Graveyard Overdrive no longer adds Six; 252 / 75, 669 swaps
-  before it, the cut pool: an over-band trim drains its excess, only a main
-  shields an off-lane card from the upgrade tiers, an off-theme card's theme
-  upgrade need not be more played and may cost one band more — the audit's "The
-  cut pool"; 199 / 67, 562 swaps before it; 197 / 66, 560 swaps at the even share;
+  271 of 408 cuttable guide cuts, 88 of 610 in-scope guide adds,
+  713 swaps (2026-10-26, the audit's "The open levers, closed": solid
+  Granters and a main's popular feeders are upgrade slots, a Spine fill takes a
+  jobless slot before a lane slot, a full job's upgrade moves onto the theme;
+  256 / 76, 680 swaps before it, unchanged by the fourth and fifth (o)
+  passes; 252 / 75, 669 swaps before the third (o) pass;
+  199 / 67, 562 swaps before the cut pool; 197 / 66, 560 swaps at the even share;
   195 / 59, 543 swaps before it; 180 / 57 before the near-tie budget rule, 169 / 56
-  at 9e0026ed). The levers by size at the cut pool's tune: adds a page held but
-  outranked (251 — the gate reasons fell, since a pick inside the share stops the
-  scan before the gates see the rest), theme adds no search reaches (164, (r)),
-  commander-lane cards the guides trim (57), cuts the popularity threshold still
-  shields (44: premium, or on a main), cuts a tune never reaches (32, 23 of them in
-  the popular tier past the thirty swaps or the budget) and protected ones (13).
-  Eleven tunes now reach thirty swaps, four end on their budget and ten on their
-  cut pool (Sliver Swarm 15, its lane all Granters; Blood Rites 20, its lane all
-  Vampires); 36 guide adds are gated as fewer played than their cut (a job's, or
-  an on-theme card's) and 35 as a band higher. The outranked adds, by what beat
+  at 9e0026ed). The levers by size now: adds a page held but outranked
+  (235, from 251 by the full-job move; no read separates the rest), theme adds no search reaches (164, (r)), guide cuts in a cut pool
+  the tune never reaches (50: seventeen tunes reach thirty swaps, six
+  end on their budget, two on their cut pool — Blood Rites, its lane all Vampires,
+  and Sliver Swarm), commander-lane cards the guides trim (45, (g)), premium cuts
+  (23, (g)) and protected ones (13). 49 guide adds are gated as fewer
+  played than their cut and 31 as a band higher: a theme upgrade of a
+  main card letting a near tie in play-rate through when it fits better lost two
+  adds, and a band more where the curve has room was flat (2026-10-26). Taking
+  the popular tier before the lane's carers cut four more guide cards but lost two
+  adds: the carers' slots bring the lane's theme adds. The outranked adds, by what beat
   them (`find_add` traced, 2026-10-25, before the even share): theme pages 122 (91
   behind a more-played pick, 17 ahead of it but passed over for a cheaper near
   tie, 8 on a page that picked nothing), removal 37, ramp 26, draw 21, protection
@@ -183,7 +183,8 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   (one add fewer), an over-band trim's add shared over the mains (flat).
   Six guide summaries don't tag sources per row (`guide_sizes.py` skips them).
   (r) **Theme reach, what's left** (2026-10-25; the experiment table is in
-  `docs/plans/precon-audit-2026-10-18.md`, "Theme reach"). 164 theme guide adds
+  `docs/plans/precon-audit-2026-10-18.md`, "Theme reach"; unchanged by the
+  2026-10-26 pass, which found no new read for it). 164 theme guide adds
   still have no search. Open:
   - the 150-card play-rate page (`swaps._PAGE`), which hid 71 main-avenue guide
     adds at a913f172 ("the most played that fits" never reaches them, nor did

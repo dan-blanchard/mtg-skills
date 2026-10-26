@@ -1,5 +1,7 @@
 """Swap engine: template-safety, role-over trims, and emerging-theme commits."""
 
+from dataclasses import replace
+
 import pytest
 
 from mtg_utils._analysis.roles import is_reliable_ramp
@@ -23,7 +25,7 @@ from mtg_utils._tuner.swaps import (
     propose_swaps,
     search_key,
 )
-from mtg_utils.testkit import test_card
+from mtg_utils.testkit import test_card, test_card_ir
 from mtg_utils.theme_presets import get_preset
 
 # Issues are built THROUGH the interface: ``Sourcing.issue`` decides each remedy from
@@ -2276,9 +2278,10 @@ def test_a_protection_fill_skips_the_avenue_guard(monkeypatch):
     assert _spine_fill(issue, {}, pool, focus_extra=_ARTIFACTS) == ["Swiftfoot Boots"]
 
 
-def test_only_the_upgrade_issue_draws_an_upgrade_slot():
+def test_only_the_upgrade_issue_draws_an_upgrade_slot_doing_a_job():
     """A protection shortfall (a Spine fill that may take a lane slot) never
-    takes an upgrade slot: the upgrade pool is the upgrade issue's alone."""
+    takes an upgrade slot that does a job: Murder's slot is the upgrade
+    issue's, for a better removal spell."""
     murder = _real_cc("Murder", "spine", roles=["interaction"], edhrec_rank=8000)
     out = _swaps_for_issue_dicts(
         [murder],
@@ -2642,3 +2645,128 @@ def test_specs_that_differ_after_the_search_are_one_search():
         {**page, "cmc_max": 3},
     ]
     assert all(search_key(s) != search_key(page) for s in other)
+
+
+def test_a_spine_fill_takes_a_jobless_upgrade_slot_before_a_lane_slot():
+    """A Spine fill whose own pool is dry takes an off-lane upgrade slot doing
+    no job before a lane slot: the upgrade issue would trade that card for a
+    theme card anyway (25 precons, 2026-10-26: Multiverse Reforged's Swiftfoot
+    Boots, a guide add)."""
+    clunker = _real_cc("Grizzly Bears", "engine", edhrec_rank=8000)
+    lane = [
+        _cc(f"Vamp {i}", "engine", served=("Vampires",), edhrec_rank=9000 + i)
+        for i in range(2)
+    ]
+    ctx = _upgrade_ctx(
+        [clunker],
+        [_played("Heroic Intervention", 50)],
+        focus_extra={
+            "commander_lane_cards": [c.name for c in lane],
+            "lane_upgrade_cards": [c.name for c in lane],
+        },
+    )
+    out = _swaps_for_issue_dicts(
+        [clunker, *lane],
+        [{"kind": "protection_short", "severity": 5, "message": "0 protection"}],
+        replace(ctx, max_swaps=1),
+    )
+    assert [(s["cut"]["name"], s["add"]["name"]) for s in out["swaps"]] == [
+        ("Grizzly Bears", "Heroic Intervention")
+    ]
+
+
+def _full_job_swap(current):
+    """One removal spell off the main theme, its row at ``current`` of 8-10,
+    upgraded: a better-played removal spell and a theme payoff on the page."""
+    sig = _sig_of("proliferate_matters")
+    label = spec_for(sig).label
+    murder = _real_cc("Murder", "spine", roles=["interaction"], edhrec_rank=8000)
+    ctx = SwapContext(
+        budgets={"interaction": _band(current, 8, 10)},
+        focus_result={
+            **_focus(viable=[{"label": label, "depth": 20, "cards": []}]),
+            "mains": [label],
+            "upgrade_cards": [murder.name],
+        },
+        deck_signals=[sig],
+        search_fn=lambda **_: [
+            _played("Swords to Plowshares", 10),
+            _played("Evolution Sage", 9000),
+        ],
+        identity="",
+        fmt="commander",
+        paper_only=True,
+        owned={},
+        budget=50.0,
+        max_swaps=1,
+        top_heavy=False,
+    )
+    swaps = _swaps_for_issue_dicts(
+        [murder], [{"kind": "upgrade", "severity": 1, "count": 1}], ctx
+    )["swaps"]
+    return [s["add"]["name"] for s in swaps]
+
+
+def test_a_full_jobs_upgrade_moves_onto_the_theme():
+    """A removal spell in a deck at its interaction row's max: the template
+    says another removal spell adds nothing, so its slot goes to the theme's
+    add (no dearer than the removal upgrade); below the max it keeps its job
+    (25 precons, 2026-10-26: five guide adds more, a guide cut more)."""
+    assert _full_job_swap(10) == ["Evolution Sage"]
+    assert _full_job_swap(9) == ["Swords to Plowshares"]
+
+
+def test_a_granters_slot_may_go_to_a_better_grant():
+    """A Granter is judged by its grant (ADR-0040 §4): a solid Granter's theme
+    upgrade may be a Granter whose grant grades higher, however few decks play
+    it — Galerider Sliver's flying, premium — but not a weak one, and never on
+    a job upgrade (25 precons, 2026-10-26: two guide cuts more)."""
+    # The grade reads each card's trees: build them from the snapshot first.
+    for name in ("Sentinel Sliver", "Galerider Sliver", "Enduring Sliver"):
+        test_card_ir(name)
+    cut = replace(_real_cc("Sentinel Sliver", "engine"), grant_grade="solid")
+    better = _played("Galerider Sliver", 9000)
+    assert _upgrades(better, cut, None)
+    assert not _upgrades(_played("Enduring Sliver", 9000), cut, None)
+    assert not _upgrades(better, cut, "card_draw")
+
+
+def test_protection_at_the_shapes_target_moves_onto_the_theme():
+    """Protection is full at the Shape's target (ADR-0024), as a row at its
+    max: a protection card's slot goes to the theme's add then, and keeps its
+    job below the target (25 precons, 2026-10-26: Blame Game, two guide adds
+    more)."""
+    sig = _sig_of("proliferate_matters")
+    label = spec_for(sig).label
+    boots = _real_cc("Swiftfoot Boots", "spine", edhrec_rank=8000)
+
+    def upgrade(target):
+        ctx = SwapContext(
+            budgets={},
+            focus_result={
+                **_focus(viable=[{"label": label, "depth": 20, "cards": []}]),
+                "mains": [label],
+                "upgrade_cards": [boots.name],
+            },
+            deck_signals=[sig],
+            search_fn=lambda **_: [
+                _played("Lightning Greaves", 10),
+                _played("Evolution Sage", 9000),
+            ],
+            identity="",
+            fmt="commander",
+            paper_only=True,
+            owned={},
+            budget=50.0,
+            max_swaps=1,
+            top_heavy=False,
+            protection_target=target,
+            protection_count=1,
+        )
+        swaps = _swaps_for_issue_dicts(
+            [boots], [{"kind": "upgrade", "severity": 1, "count": 1}], ctx
+        )["swaps"]
+        return [s["add"]["name"] for s in swaps]
+
+    assert upgrade(1) == ["Evolution Sage"]
+    assert upgrade(2) == ["Lightning Greaves"]

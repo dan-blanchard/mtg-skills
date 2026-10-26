@@ -90,6 +90,14 @@ def _payload_grade(pay: GrantPayload, *, draw_engine_commander: bool) -> str:
     return grade_of(pay.keyword)[0]
 
 
+def outgrades(grade: str | None, other: str | None) -> bool:
+    """Whether a Granter grade ranks above ``other`` (premium > solid > weak; a
+    non-Granter's ``None`` ranks below every grade)."""
+    if grade is None:
+        return False
+    return other is None or _GRADE_RANK[grade] > _GRADE_RANK[other]
+
+
 def has_closer_grant(payloads: Iterable[GrantPayload]) -> bool:
     """ADR-0040 §5 (task #100): True when any payload grants a closer-grade
     keyword — the Granter counts as ONE closer regardless of recipients."""
@@ -107,6 +115,6 @@ def grant_grade(
     best: str | None = None
     for pay in payloads:
         g = _payload_grade(pay, draw_engine_commander=draw_engine_commander)
-        if best is None or _GRADE_RANK[g] > _GRADE_RANK[best]:
+        if outgrades(g, best):
             best = g
     return best

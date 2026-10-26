@@ -132,8 +132,8 @@ def run_deck(args):
 
     upgrades, gate_fail = S._upgrades, {}
 
-    def rec_upgrades(candidate, cut, job, *, deck_mana=None, deck=None, off_theme=False):
-        ok = upgrades(candidate, cut, job, deck_mana=deck_mana, deck=deck, off_theme=off_theme)
+    def rec_upgrades(candidate, cut, job, *, deck_mana=None, deck=None, off_theme=False, draw_engine=False):
+        ok = upgrades(candidate, cut, job, deck_mana=deck_mana, deck=deck, off_theme=off_theme, draw_engine=draw_engine)
         if not ok:
             key = norm(candidate.get("name") or "")
             if S.over_band(candidate, cut.record, job, off_theme=off_theme):

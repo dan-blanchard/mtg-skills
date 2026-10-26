@@ -1393,8 +1393,19 @@ def test_the_upgrade_slots_are_off_lane_little_played_and_the_deep_lanes_half():
             _cc("Clunky Removal", "spine", [], roles=["interaction"]),
             edhrec_rank=9000,
         ),
-        # A Granter is judged by its grant, never by play-rate (ADR-0040 §4).
-        replace(_cc("Granter", "engine", []), edhrec_rank=9000, grant_grade="solid"),
+        # A Granter is judged by its grant first (ADR-0040 §4, amended
+        # 2026-10-26): a premium grant is never a slot; among solid ones
+        # play-rate breaks the tie, as for any slot.
+        replace(
+            _cc("Premium Granter", "engine", [cheat]),
+            edhrec_rank=9000,
+            grant_grade="premium",
+        ),
+        replace(
+            _cc("Solid Granter", "engine", [cheat]),
+            edhrec_rank=9000,
+            grant_grade="solid",
+        ),
     ]
     classes = [_cc("Jace", "commander", [cheat]), *lane, staple, *off]
     emitters = {
@@ -1413,7 +1424,7 @@ def test_the_upgrade_slots_are_off_lane_little_played_and_the_deep_lanes_half():
         )
 
     fr = run(classes)
-    assert fr["upgrade_cards"] == ["Clunky Removal"]
+    assert fr["upgrade_cards"] == ["Clunky Removal", "Solid Granter"]
     assert fr["lane_upgrade_cards"] == [f"Polymorph {i}" for i in range(13, 6, -1)]
     # The last upgrade slots: off every lane, inside UPGRADE_RANK but not
     # premium, serving none of the deck's viable avenues (2026-10-24).
@@ -1466,7 +1477,9 @@ def test_only_a_main_theme_shields_an_off_lane_card_from_the_upgrade_slots():
     }
     # The sub's six carers are upgrade slots beside its sixteen feeders.
     assert set(fr["upgrade_cards"]) == {f"Art {i}" for i in range(22)}
-    assert fr["popular_upgrade_cards"] == ["Popular Art"]
+    # A main shields its carers, not its feeders: a popular card the main
+    # serves without caring about it is the last slot of all (2026-10-26).
+    assert fr["popular_upgrade_cards"] == ["Popular Art", "Popular Time"]
 
 
 def test_tied_lanes_resolve_by_label_not_by_set_order():

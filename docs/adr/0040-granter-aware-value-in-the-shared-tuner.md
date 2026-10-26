@@ -57,3 +57,14 @@ manufacture an emerging flag for every tribe at once — the "Bird tribal" phant
 and at focus verdict FOCUSED, a role-fix swap add must serve ≥1 viable avenue
 whenever any in-budget candidate does, with the zero-avenue fallback allowed but
 labeled in the swap reason (SPREAD-THIN / SPINE-LED behavior unchanged).
+
+**Amendment (2026-10-26): Granters in the upgrade slots.** §4 holds — a Granter is
+judged by its grant first, and play-rate only breaks a tie — but "never condemn"
+had grown into "never an upgrade slot", which left Sliver Swarm's lane, every member
+a Granter, with no cut pool (its tune stopped at fifteen swaps). Now a Granter whose
+grant grades premium is never an upgrade slot; one grading below it is, play-rate ordering it
+among the slots as it orders every slot (a tie in grade). Its slot goes to a
+better-played card on the theme, or to a Granter whose grant grades higher however
+few decks play it. Of the 25 precons' solid Granters ranked past `UPGRADE_RANK` the
+guides cut 0.30, against 0.12 of the premium ones and 0.24 of the decks' cards
+(`docs/plans/precon-audit-2026-10-18.md`, "The open levers, closed").

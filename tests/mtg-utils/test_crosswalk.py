@@ -45,9 +45,11 @@ from mtg_utils._card_ir.crosswalk import (
     AbilityUnit,
     ConceptTree,
     build_concept_tree,
+    deals_its_own_power,
     filter_subtypes,
     iter_granted_triggers,
     lost_pile_count,
+    quantity_referent,
     replacement_event_tag,
     replacement_token_types,
     tag_of,
@@ -12356,8 +12358,9 @@ def test_creature_ping_doer_widening_non_creature_recipient(name):
     deals damage equal to its power to that creature"); Wave of Reckoning's
     is a self-fight ("Each creature deals damage to itself equal to its
     power" — CR 120.3). Neither is a structurally Creature-typed ``target``,
-    so both need the widened raw-text confirmation
-    (:data:`_POWER_SELF_RECIP` / :data:`_POWER_ITS_OWN_DOER`)."""
+    so both need the widened doer read: the "to itself" text confirm
+    (:data:`_POWER_SELF_RECIP`) or the amount's referent
+    (:func:`crosswalk.deals_its_own_power`)."""
     assert ("creature_ping", "you", "") in _idents(name)
 
 
@@ -12412,7 +12415,7 @@ def test_creature_ping_parent_target_recipient_text_confirm():
     your graveyard to your hand. ~ deals damage equal to THAT CARD's power
     to target creature.") sources its power from a DIFFERENT object (the
     returned card, ``qty.scope=Demonstrative``) — the doer-confirm text
-    patterns (:data:`_POWER_ITS_OWN_DOER` "its power", :data:`_POWER_SELF_
+    patterns (:data:`_POWER_OWN_DOER` "its power", :data:`_POWER_SELF_
     RECIP` "to itself") never match "that card's power". The recipient IS
     structurally Creature-typed per CR 120.3, but phase's ``target`` field
     is a bare ``ParentTarget`` back-reference with no Filter to read —
@@ -12431,14 +12434,13 @@ def test_creature_ping_multiply_and_empty_type_filters(name):
     ``EventContextAmount`` anaphoric reference, not a bare ``Power`` ref —
     phase never separately models the un-doubled base clause, so the
     Multiply anchor widens to admit ``EventContextAmount`` too, gated
-    behind the SAME :data:`_POWER_MULT_DOER` "power" text confirm (CR
+    behind the SAME :data:`_POWER_OWN_DOER` "power" text confirm (CR
     120.3). Betrayal at the Vault's DamageAll recipient
     ("each of two other target creatures") carries an EMPTY
     ``type_filters`` list (no Creature core type to read structurally) —
-    it falls through to the SAME :data:`_POWER_SELF_RECIP`/
-    :data:`_POWER_ITS_OWN_DOER` doer-confirm text arm every non-creature-
-    typed recipient already uses ("Target creature you control deals
-    damage equal to ITS POWER" — CR 120.3)."""
+    it falls through to the SAME doer read every non-creature-typed
+    recipient already uses (:func:`crosswalk.deals_its_own_power`: "Target
+    creature you control deals damage equal to ITS POWER" — CR 120.3)."""
     assert ("creature_ping", "you", "") in _idents(name)
 
 
@@ -12454,7 +12456,7 @@ def test_creature_ping_adjudicated_gains_narrow_legacy_fallback(name):
     never matches legacy's ``_CREATURE_PING_ORACLE`` (which requires a bare
     "to (another )?target" tail, not "to each opponent who..."); Storm,
     Queen of Wakanda's "Storm deals damage equal to HER power to that
-    creature" uses a pronoun legacy's ``_POWER_ITS_OWN_DOER``-style regex
+    creature" uses a pronoun legacy's "deals damage equal to its power" regex
     never covers (only literal "its power"); Lukka's ultimate emblem
     ("Whenever a creature you control enters, it deals damage equal to its
     power to ANY TARGET") -- legacy's oracle-fallback regex's "to
@@ -12464,6 +12466,84 @@ def test_creature_ping_adjudicated_gains_narrow_legacy_fallback(name):
     OWN power) the structural read now reaches; corpus-verified as this
     batch's only over-vs-legacy delta alongside Delirium."""
     assert ("creature_ping", "you", "") in _idents(name)
+
+
+@pytest.mark.parametrize(
+    "name", ["Batroc the Leaper", "Meglonoth", "Pandemonium", "Spider-Man 2099"]
+)
+def test_creature_ping_doer_read_off_the_amounts_referent(name):
+    """A doer dealing damage equal to its own power, read off the amount's
+    referent rather than the words "deals damage equal to its power":
+    Batroc's "his power", Meglonoth's "this creature's power",
+    Pandemonium's "have it deal damage equal to its power", Spider-Man 2099's
+    "his power" — each the object that deals the damage."""
+    assert ("creature_ping", "you", "") in _idents(name)
+
+
+@pytest.mark.parametrize("name", ["Bind the Monster", "Form of the Dinosaur"])
+def test_creature_ping_doer_power_dealt_to_you_is_no_ping(name):
+    """A creature dealing its own power to you is a drawback, not a ping: Bind
+    the Monster's enchanted creature ("It deals damage to you equal to its
+    power") and the creature Form of the Dinosaur fights ("that creature deals
+    damage equal to its power to you")."""
+    assert "creature_ping" not in _keys(name)
+
+
+def _power_sites(name: str) -> list[tuple[AbilityUnit, object, object]]:
+    """Every (unit, effect node, Power quantity) of *name*'s damage effects."""
+    out = []
+    for unit in _tree(name).units:
+        for c in unit.effects:
+            amount = getattr(c.node, "amount", None)
+            if tag_of(amount) == "Multiply":
+                amount = getattr(amount, "inner", None)
+            qty = getattr(amount, "qty", None) if tag_of(amount) == "Ref" else None
+            if tag_of(qty) == "Power":
+                out.append((unit, c.node, qty))
+    return out
+
+
+@pytest.mark.parametrize(
+    ("name", "kind", "own_doer"),
+    [
+        ("Abyssal Hunter", "self", True),
+        ("Chandra's Ignition", "target", True),
+        ("Nibelheim Aflame", "target", True),
+        ("Delirium", "target", True),
+        ("Rupture", "that", False),
+        ("Fling", "cost", False),
+        ("Warstorm Surge", "event", True),
+        ("Moonlight Hunt", "batch", True),
+    ],
+)
+def test_quantity_referent_names_the_object_a_size_reads_off(name, kind, own_doer):
+    """The object a power-scaled amount reads off (:func:`quantity_referent`):
+    the card itself (Abyssal Hunter's own power), a target of an earlier effect
+    (Chandra's Ignition's "Target creature you control", Nibelheim Aflame's and
+    Delirium's "it"), the creature an earlier effect sacrificed (Rupture's "that
+    creature's power"), a cost's (Fling), the triggering object (Warstorm
+    Surge), each source of a batch (Moonlight Hunt) — and whether it is the
+    damage's own dealer (:func:`deals_its_own_power`)."""
+    sites = _power_sites(name)
+    assert sites
+    unit, node, qty = sites[0]
+    assert quantity_referent(qty, unit, holder=node).kind == kind
+    assert deals_its_own_power(node, unit) is own_doer
+
+
+def test_quantity_referent_resolves_the_effect_it_names():
+    """The referent of a ``Target`` / ``Demonstrative`` size is the earlier
+    effect that names the object: Chandra's Ignition's own-creature target
+    (CR 115.1), Rupture's sacrifice (CR 701.21a)."""
+    unit, node, qty = _power_sites("Chandra's Ignition")[0]
+    ref = quantity_referent(qty, unit, holder=node)
+    assert ref.effect is not None
+    assert ref.effect.node is not node
+    assert tag_of(getattr(ref.effect.node, "target", None)) == "Typed"
+    unit, node, qty = _power_sites("Rupture")[0]
+    ref = quantity_referent(qty, unit, holder=node)
+    assert ref.effect is not None
+    assert ref.effect.concept == "sacrifice"
 
 
 # ── Batch 11: counter / ETB / cast trigger-event cluster (§C) ────────────────

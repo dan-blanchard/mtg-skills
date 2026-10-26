@@ -131,6 +131,7 @@ from mtg_utils._card_ir.crosswalk import (
     mana_value_of_cost,
     modify_cost_mode,
     overload_sweep,
+    quantity_referent,
     quantity_scope,
     quantity_threshold,
     recipient_tag,
@@ -366,9 +367,13 @@ def _scale(
         return _SCALING if creatures else _NARROW_COUNT
     if tag == "FilteredTrackedSetSize":
         return _SCALING if _tracked_set_fills(node, unit) else _NARROW_COUNT
-    if _own_size(qty, unit) is not None:
+    if _own_size(qty, unit, node) is not None:
         return KILL_SIZE
-    if tag == "Power" and _size_scope(qty) == "Source" and own_power is not None:
+    if (
+        tag == "Power"
+        and quantity_referent(qty, unit).kind == "self"
+        and own_power is not None
+    ):
         return max(own_power, 0)
     return _NARROW_COUNT
 
@@ -392,12 +397,7 @@ _MOVES = frozenset({"change_zone", "destroy", "sacrifice", "discard", "mill"})
 _OBJECT_SIZES = {"Power": "power", "Toughness": "toughness", "ObjectManaValue": "cmc"}
 
 
-def _size_scope(qty: object) -> str | None:
-    """The object a size quantity reads off (phase's ``scope`` tag)."""
-    return tag_of(getattr(qty, "scope", None))
-
-
-def _picked_by_caster(qty: object, unit: AbilityUnit) -> bool:
+def _picked_by_caster(qty: object, unit: AbilityUnit, holder: object) -> bool:
     """Whether the caster picks the object a size quantity reads off: one paid as
     a cost; a target among the creatures they control, or "it" back to one
     (Chandra's Ignition's "Target creature you control deals damage equal to its
@@ -407,21 +407,23 @@ def _picked_by_caster(qty: object, unit: AbilityUnit) -> bool:
     Ignition's ruling); or "that creature" a sacrifice in the sweep's own
     instructions takes (Rupture's "Sacrifice a creature"): the instruction names
     no player, so the spell's controller follows it (CR 608.2c) and sacrifices one
-    they control (CR 701.21a)."""
-    scope = _size_scope(qty)
-    if scope == "CostPaidObject":
+    they control (CR 701.21a). The object is the one the quantity's scope names
+    (:func:`crosswalk.quantity_referent`)."""
+    ref = quantity_referent(qty, unit, holder=holder)
+    if ref.kind == "cost":
         return True
-    if scope in ("Target", "Anaphoric"):
-        return any(targets_own_creature(c.node, unit) for c in unit.effects)
-    if scope == "Demonstrative":
-        return any(
-            c.concept == "sacrifice" and sacrifice_actor_scope(unit, c.node) is None
-            for c in unit.effects
-        )
-    return False
+    if ref.effect is None:
+        return False
+    if ref.kind == "target":
+        return targets_own_creature(ref.effect.node, unit)
+    return (
+        ref.kind == "that"
+        and ref.effect.concept == "sacrifice"
+        and sacrifice_actor_scope(unit, ref.effect.node) is None
+    )
 
 
-def _own_size(qty: object, unit: AbilityUnit) -> str | None:
+def _own_size(qty: object, unit: AbilityUnit, holder: object) -> str | None:
     """The size (``power`` / ``toughness`` / ``cmc``) a quantity reads off the
     caster's own objects, else ``None``: an object the caster picks
     (:func:`_picked_by_caster` — a cost's, Ichor Explosion's sacrificed creature,
@@ -432,7 +434,7 @@ def _own_size(qty: object, unit: AbilityUnit) -> str | None:
     size the reads take a Commander board's creatures at — the read's own call;
     a deck reads it at its own biggest (:func:`_deck_magnitude`)."""
     tag = tag_of(qty)
-    if tag in _OBJECT_SIZES and _picked_by_caster(qty, unit):
+    if tag in _OBJECT_SIZES and _picked_by_caster(qty, unit, holder):
         return _OBJECT_SIZES[tag]
     if tag == "PropertyAggregate" and getattr(qty, "property", None) == "ManaValue":
         filt = getattr(getattr(qty, "source", None), "filter", None)
@@ -464,7 +466,9 @@ def _deck_amount(c: ConceptNode, unit: AbilityUnit) -> object | None:
     if tag_of(qty) in _FILLED and quantity_scope(qty) == "you" and _built_around(qty):
         return qty
     return (
-        qty if tag_of(qty) in _OBJECT_SIZES and _picked_by_caster(qty, unit) else None
+        qty
+        if tag_of(qty) in _OBJECT_SIZES and _picked_by_caster(qty, unit, c.node)
+        else None
     )
 
 

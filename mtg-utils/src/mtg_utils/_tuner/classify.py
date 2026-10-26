@@ -151,7 +151,7 @@ class CardClass:
 _DRAW_ENGINE_KEYS = frozenset({"card_draw_engine", "draw_for_each"})
 
 
-def _commander_draws(hd: HydratedDeck, commander_names: set[str]) -> bool:
+def commander_draws(hd: HydratedDeck, commander_names: set[str]) -> bool:
     from mtg_utils.theme_presets import signal_keys_for
 
     return any(
@@ -169,6 +169,7 @@ def classify_deck(
     zones: tuple[str, ...] = ("commanders", "cards"),
     deck_mana: DeckMana | None = None,
     meta: MetaContext | None = None,
+    draw_engine: bool | None = None,
 ) -> list[CardClass]:
     """Classify every distinct card in ``zones`` (one record per name, quantities
     summed — the counted deck: commanders + main deck, never the sideboard).
@@ -184,7 +185,8 @@ def classify_deck(
     from mtg_utils._analysis.signals import grant_payloads_for
     from mtg_utils._tuner.ability_quality import grant_grade, has_closer_grant
 
-    draw_engine = _commander_draws(hd, commander_names)
+    if draw_engine is None:
+        draw_engine = commander_draws(hd, commander_names)
     out: list[CardClass] = []
     for rec, quantity in hd.deck_quantities(zones=zones):
         name = rec.get("name", "")

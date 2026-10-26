@@ -362,6 +362,19 @@ def _same_carers(a: set[str], b: set[str]) -> bool:
     return len(a & b) / len(a | b) >= _SAME_CARERS_SHARE
 
 
+def _grant_leaves_slot(card: CardClass) -> bool:
+    """Whether a card's grant leaves it an upgrade slot: it grants nothing, or
+    its grant grades below premium (ADR-0040 §4, amended 2026-10-26). A Granter
+    is judged by its grant first — a weak one is low-value whatever its
+    play-rate, a premium one never a slot — and among the solid ones play-rate
+    breaks the tie, as it orders every slot. Of the 25 precons' solid Granters
+    ranked past ``UPGRADE_RANK`` the guides cut 0.30 (14 of 47 in a lane, 6 of 17
+    off it), against 0.12 of the premium ones and 0.24 of the decks' cards;
+    shielding them all left Sliver Swarm's tune at fifteen swaps (2026-10-26:
+    as slots, 19 swaps, six guide cuts and four guide adds more)."""
+    return card.grant_grade != "premium"
+
+
 def focus(
     classes: Sequence[CardClass],
     *,
@@ -811,11 +824,11 @@ def focus(
     def off_lane_slot(c: CardClass) -> bool:
         """A Spine or Engine card off every lane that the upgrade tiers may trade:
         no earlier tier's cut, no meta-read deck's (its share is its read), no
-        Granter (judged by its grant, never by play-rate — ADR-0040 §4)."""
+        Granter whose grant grades premium (:func:`_grant_leaves_slot`)."""
         return (
             c.bucket in ("spine", "engine")
             and c.meta_share is None
-            and c.grant_grade is None
+            and _grant_leaves_slot(c)
             and c.name not in elsewhere
         )
 
@@ -825,7 +838,7 @@ def focus(
     # the precon's off-lane removal, draw, ramp and good-stuff traded for the
     # staple that does the same job. Filler and low-value cards are cut by
     # their own tiers first; a meta-read deck has its own share read; a
-    # Granter is judged by its grant, never by play-rate (ADR-0040 §4).
+    # Granter is judged by its grant first (:func:`_grant_leaves_slot`).
     upgrade_cards = (
         sorted(
             c.name
@@ -836,25 +849,35 @@ def focus(
         else []
     )
     # The last upgrade slots: a card off every lane that many decks play
-    # (inside ``UPGRADE_RANK``, never premium) yet serves none of the deck's
-    # main avenues — popular for its job, not for this deck (Harmonize and
-    # Decimate under Animated Army's Animation). Taken only once the other
-    # upgrade slots and the deep lane's are spent, each for a card more decks
-    # play doing its job. Measured on the 25 precons (2026-10-24): 35 more swaps,
-    # 10 of them guide cuts, one guide add more; taken before the deep lane's
-    # slots instead, they spent the budget its theme upgrades had (five guide
-    # adds fewer). A sub shields none of them, as it shields no carer above
-    # (2026-10-25: five guide cuts and one guide add more).
+    # (inside ``UPGRADE_RANK``, never premium) and no main's carer, those serving
+    # none of the deck's main avenues first — popular for its job, not for this
+    # deck (Harmonize and Decimate under Animated Army's Animation). Taken only
+    # once the other upgrade slots and the deep lane's are spent, each for a card
+    # more decks play doing its job. Measured on the 25 precons (2026-10-24): 35
+    # more swaps, 10 of them guide cuts, one guide add more; taken before the
+    # deep lane's slots instead, they spent the budget its theme upgrades had
+    # (five guide adds fewer). A sub shields none of them, as it shields no
+    # carer above (2026-10-25: five guide cuts and one guide add more). Nor does a main
+    # shield its feeders, only its carers: a popular card a main serves but
+    # that does not itself care is the last slot of all (the guides cut 19 of
+    # 71 there, about the decks' rate; 2026-10-26: six guide cuts more, adds
+    # flat — Quick Draw's Deep Analysis and Finale of Revelation, Virtue and
+    # Valor's Fertile Ground and Utopia Sprawl).
     main_set = set(mains)
     popular_upgrade_cards = (
         [
             c.name
-            for c in sorted(nonland, key=lambda c: c.least_played_key)
+            for c in sorted(
+                nonland,
+                key=lambda c: (
+                    bool(main_set.intersection(themes(c))),
+                    c.least_played_key,
+                ),
+            )
             if off_lane_slot(c)
             and c.edhrec_rank is not None
             and not is_upgrade_target(c.edhrec_rank, medium=medium)
             and not is_premium(c.edhrec_rank)
-            and not main_set.intersection(themes(c))
         ]
         if condemns
         else []
@@ -874,7 +897,8 @@ def focus(
     # that also fills a template role is in the pool too (its upgrade keeps the
     # role): at fourteen swaps that reached nine more guide cuts (139 vs 130 of
     # 404) at the same precision, where taking two-thirds of the engine doers
-    # instead of half reached none (2026-10-19).
+    # instead of half reached none (2026-10-19). A Granter is in it unless its
+    # grant grades premium (:func:`_grant_leaves_slot`).
     lane_carers = carers_of(held_kept)
     lane_pool = [
         c
@@ -882,7 +906,7 @@ def focus(
         if c.bucket in ("engine", "spine")
         and c.name not in fed_only_names
         and c.name in lane_doers
-        and c.grant_grade is None
+        and _grant_leaves_slot(c)
         and not (cal.playrate_meaningful and is_premium(c.edhrec_rank))
     ]
     lane_upgrade_cards: list[str] = []

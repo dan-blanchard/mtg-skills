@@ -44,6 +44,7 @@ from mtg_utils._card_ir.crosswalk import (
     damage_recipient,
     damage_recipient_is_player,
     damage_to_player_trigger_kind,
+    deals_its_own_power,
     detriment_directed_scope,
     double_target_kind,
     double_triggers_cause,
@@ -2982,14 +2983,15 @@ def _damage_trigger_lanes(tree: ConceptTree) -> list[Signal]:
 # matches these phrasings, so it correctly stays out — that shape is
 # damage_equal_power only, already ported separately). CR 120.3.
 _POWER_SELF_RECIP = re.compile(r"to itself|deals damage to itself", re.IGNORECASE)
-_POWER_ITS_OWN_DOER = re.compile(r"deals damage equal to its power", re.IGNORECASE)
-# The power-DOUBLING form ("equal to TWICE its power" — Polliwallop, Cut
-# Propulsion, Animist's Might): phase folds the doubling into
+# A doer's own power ("deals damage equal to its power"), plain or doubled
+# ("equal to TWICE its power" — Polliwallop, Cut Propulsion, Animist's Might):
+# the text confirm of a recovered clause, and of a doubled amount, where phase
+# folds the doubling into
 # ``Multiply(factor, Ref(Power))`` (unwrapped by ``ref_count_qty``),
 # dropping the "power" op the bare anchor reads. Gated by this DOER-confirm
 # so a "twice the NUMBER of <X>" multiply burn (a different scaling
 # quantity — Price of Progress) never enters.
-_POWER_MULT_DOER = re.compile(
+_POWER_OWN_DOER = re.compile(
     r"(?:deals damage (?:to itself )?equal to (?:twice |\w+ times )?its power"
     r"|to itself equal to its power)",
     re.IGNORECASE,
@@ -2998,7 +3000,7 @@ _POWER_MULT_DOER = re.compile(
 # recipient tag (``ParentTarget``/``TriggeringSource``/``SelfRef``/``Any``)
 # whose underlying Filter type phase drops: "power to target creature" (Lie
 # in Wait, Dead Reckoning — the power SOURCE is a graveyard/library CARD's
-# power, "that card's power", not the doer's own, so :data:`_POWER_ITS_OWN_
+# power, "that card's power", not the doer's own, so :data:`_POWER_MULT_
 # DOER` never matches; legacy's OWN structural read fires creature_ping off
 # the RECIPIENT alone when it is Creature-typed, regardless of whose power
 # scales the damage — recipient-is-a-creature is the primary discriminator,
@@ -3022,17 +3024,15 @@ def _recovered_power_damage(c: ConceptNode) -> bool:
     """A recovered "damage" clause scaled by power that ``creature_ping``
     counts (CR 120.3): any power dealt to a creature
     (:data:`_POWER_RECIP_CREATURE_TEXT`), or its own power
-    (:data:`_POWER_ITS_OWN_DOER` / :data:`_POWER_MULT_DOER`) dealt to something
-    other than a player (the seam marks no ``PLAYER`` recipient — Consuming
-    Ferocity's "to its controller", Iron Mastiff's d20 rows). These are the typed
-    path's own doer / recipient confirms; every one names "power", so it stands
-    in for the typed ``Ref(Power)`` amount anchor."""
+    (:data:`_POWER_OWN_DOER`) dealt to something other than a player (the seam
+    marks no ``PLAYER`` recipient — Consuming Ferocity's "to its controller",
+    Iron Mastiff's d20 rows). A recovered clause has no typed amount for
+    :func:`crosswalk.deals_its_own_power` to read, so its text stands in; every
+    confirm names "power", standing in for the typed ``Ref(Power)`` anchor."""
     text = c.raw or ""
     if _POWER_RECIP_CREATURE_TEXT.search(text):
         return True
-    return PLAYER not in c.subject and any(
-        rx.search(text) for rx in (_POWER_ITS_OWN_DOER, _POWER_MULT_DOER)
-    )
+    return PLAYER not in c.subject and _POWER_OWN_DOER.search(text) is not None
 
 
 def _unit_is_repeatable(unit: AbilityUnit) -> bool:
@@ -3052,19 +3052,24 @@ def _unit_is_repeatable(unit: AbilityUnit) -> bool:
     return False
 
 
-def _creature_ping_fires(node: TypedMirrorNode, raw: str, tree: ConceptTree) -> bool:
+def _creature_ping_fires(
+    node: TypedMirrorNode, raw: str, tree: ConceptTree, unit: AbilityUnit
+) -> bool:
     """Whether a DealDamage/DamageAll/DamageEachPlayer ``node`` is
     ``creature_ping``'s exact shape (CR 120.3 — a creature dealing damage
     equal to ITS OWN power, OR any power-scaled damage that connects with a
     creature): a POWER-quantified ``amount`` (or a doubled
-    ``Multiply(Ref(Power))``, confirmed via :data:`_POWER_MULT_DOER``) whose
+    ``Multiply(Ref(Power))``, confirmed via :data:`_POWER_OWN_DOER``) whose
     recipient reaches a Creature (structurally, OR — a back-reference
     recipient tag like ``ParentTarget`` whose Filter type phase drops —
     via :data:`_POWER_RECIP_CREATURE_TEXT`'s "to target creature" text
     confirm, Lie in Wait/Dead Reckoning's "that CARD's power" doer), OR
     whose clause text confirms a self-recip (:data:`_POWER_SELF_RECIP` "to
-    itself") or its-own-power doer (:data:`_POWER_ITS_OWN_DOER` "deals
-    damage equal to its power"). ``raw`` is the per-node text when the
+    itself"), OR whose amount is its doer's own power, dealt to anything but
+    you (:func:`crosswalk.deals_its_own_power`: the quantity's referent is the
+    object dealing the damage — Batroc's "his power", Meglonoth's "this
+    creature's power", Pandemonium's "have it deal damage equal to its
+    power"). ``raw`` is the per-node text when the
     caller has one (a top-level effect); pass ``""`` for a deep-walked node
     with none — the confirm then reads the reminder-stripped whole-face
     oracle, the SAME empty-raw fallback shape every sibling arm in this
@@ -3075,7 +3080,7 @@ def _creature_ping_fires(node: TypedMirrorNode, raw: str, tree: ConceptTree) -> 
     THAT MUCH damage to itself instead" — the doubled quantity anaphorically
     re-references an earlier, phase-uncaptured "equal to its power" clause
     rather than wrapping a bare ``Power`` ref) — gated the SAME as the
-    ``Power``-inner Multiply case behind :data:`_POWER_MULT_DOER`'s literal
+    ``Power``-inner Multiply case behind :data:`_POWER_OWN_DOER`'s literal
     "power" text confirm, so a non-power "twice that much" doubler (a fixed
     burn amount) never enters.
     """
@@ -3096,11 +3101,13 @@ def _creature_ping_fires(node: TypedMirrorNode, raw: str, tree: ConceptTree) -> 
     src = raw if raw.strip() else _kept(tree)
     if not recip_creature and tgt_tag not in ("Typed", "Or", "And"):
         recip_creature = _POWER_RECIP_CREATURE_TEXT.search(src) is not None
-    mult_confirmed = amt_tag == "Power" or _POWER_MULT_DOER.search(src) is not None
+    mult_confirmed = amt_tag == "Power" or _POWER_OWN_DOER.search(src) is not None
     return mult_confirmed and (
         recip_creature
         or _POWER_SELF_RECIP.search(src) is not None
-        or _POWER_ITS_OWN_DOER.search(src) is not None
+        # A doer's own power dealt to you is a drawback (Bind the Monster's
+        # enchanted creature), not a ping.
+        or (deals_its_own_power(node, unit) and tgt_tag != "Controller")
     )
 
 
@@ -3125,10 +3132,11 @@ def _mass_damage_lanes(tree: ConceptTree) -> list[Signal]:
       target fires outright; ADR-0038 W3 batch 4 widens the DOER side —
       the recipient may be ANY other shape (``ParentTarget``/``SelfRef``/
       ``TriggeringSource`` back-references, ``Any``, a player/planeswalker
-      reach) as long as the clause text confirms the DOER deals ITS OWN
-      power (:data:`_POWER_SELF_RECIP` "to itself" — Wave of Reckoning;
-      :data:`_POWER_ITS_OWN_DOER` "deals damage equal to its power" —
-      Abyssal Hunter, Ghitu Fire-Eater, Form of the Dinosaur). Reads the
+      reach) as long as the DOER deals ITS OWN power (the clause text's
+      :data:`_POWER_SELF_RECIP` "to itself" — Wave of Reckoning; or the
+      amount's referent, :func:`crosswalk.deals_its_own_power` — Abyssal
+      Hunter, Ghitu Fire-Eater, Batroc the Leaper; never one dealt to you —
+      Form of the Dinosaur's, Bind the Monster's). Reads the
       per-effect raw when phase carries one; falls back to the
       reminder-stripped whole-face oracle when phase drops it to an empty
       per-effect raw (a Saga chapter / loyalty-ability quote — The Akroan
@@ -3178,7 +3186,7 @@ def _mass_damage_lanes(tree: ConceptTree) -> list[Signal]:
                     fire("aoe_ping", "you", c.raw)
             if t in DAMAGE_EFFECT_TAGS:
                 creature_ping_nodes.append(c.node)
-                if _creature_ping_fires(c.node, c.raw or "", tree):
+                if _creature_ping_fires(c.node, c.raw or "", tree, unit):
                     fire("creature_ping", "you", c.raw or "")
             # phase v0.104.0 fails closed: an intervening-if power-damage
             # trigger (Squall, Syrix) or an Equipment's quoted grant
@@ -3213,7 +3221,7 @@ def _mass_damage_lanes(tree: ConceptTree) -> list[Signal]:
                 if tag_of(n) not in DAMAGE_EFFECT_TAGS:
                     continue
                 seen_ids.add(id(n))
-                if _creature_ping_fires(n, "", tree):
+                if _creature_ping_fires(n, "", tree, unit):
                     fire("creature_ping", "you", "")
                     break
             if "creature_ping" in seen:

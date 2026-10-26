@@ -60,16 +60,22 @@ CUT_FILLER = "filler"  # filler + low-value only — the dead-weight drain
 # the slot a Spine fill, a closer or a game-ending piece may take once the
 # generic pool is dry, never an emerging theme's or a value line's.
 CUT_LANE = "lane"
-# The upgrade slots (``focus``'s ``upgrade_cards``): drawn only by the upgrade
-# issue, each for a better-played card doing the same job.
+# The upgrade slots (``focus``'s ``upgrade_cards``): drawn by the upgrade issue,
+# each for a better-played card doing the same job, and — one doing no job — by
+# a ``lane_ok`` remedy before a lane slot (``swaps.propose_swaps``).
 CUT_UPGRADE = "upgrade"
+# The upgrade slots doing no job (``upgrade_job`` is None): a Spine fill, a
+# closer or a game-ending piece (``Remedy.lane_ok``) whose own pool is dry takes
+# one before a lane slot — the upgrade issue would trade it for a theme card
+# anyway (``swaps.propose_swaps``).
+CUT_UPGRADE_JOBLESS = "upgrade_jobless"
 # The last upgrade slots (``focus``'s ``popular_upgrade_cards``): drawn by the
 # upgrade issue only once ``CUT_UPGRADE`` and ``CUT_LANE`` are dry.
 CUT_UPGRADE_POPULAR = "upgrade_popular"
 
 # The order a Spine card's job is read in when it holds several roles: the
 # scarcer job first (a sweeper that also draws is upgraded as a sweeper).
-_UPGRADE_ROLE_ORDER = ("board_wipe", "interaction", "card_draw", "ramp")
+UPGRADE_ROLE_ORDER = ("board_wipe", "interaction", "card_draw", "ramp")
 
 
 _CUT_OVER_PREFIX = "over:"
@@ -106,10 +112,10 @@ class UpgradeSource(NamedTuple):
 
 def upgrade_job(roles: Collection[str], record: Mapping) -> str | None:
     """The one job an upgrade keeps: a card's scarcest template role
-    (``_UPGRADE_ROLE_ORDER``), else protection, else none. Read the same way for
+    (``UPGRADE_ROLE_ORDER``), else protection, else none. Read the same way for
     the cut and for each candidate, so a counterspell that also draws is never
     a card-draw upgrade."""
-    for role in _UPGRADE_ROLE_ORDER:
+    for role in UPGRADE_ROLE_ORDER:
         if role in roles:
             return role
     return "protection" if protects(dict(record)) else None

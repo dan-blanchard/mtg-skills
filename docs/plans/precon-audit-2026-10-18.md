@@ -1280,6 +1280,122 @@ on their budget, and ten on their cut pool.
   Energy's Roaming Throne and Grand Larceny's Praetor's Grasp but spent the adds of
   six decks on the subs' staples, as every sub sharing did before.
 
+### The open levers, closed (2026-10-26)
+
+Backlog (m)'s levers and the open items of (g), (j) and (r). The bar as in "The
+tuner-policy leftovers": a policy change ships if guide-matching adds rise and
+guide-matching cuts fall by two at most, or cuts rise with adds flat; a read fix ships
+on its correctness, with its delta recorded. Rows marked *run* are `misses.py` runs
+(Spellbook cached); the rest are screens (one process, the 25 tunes in sequence),
+which read HEAD as 680 / 252 / 76. Each row is on the row above unless it says
+otherwise.
+
+| change | swaps / cuts / adds | |
+|---|---|---|
+| HEAD (5fd0a053), *run* | 680 / 256 / 76 | |
+| G1 a solid Granter is an upgrade slot, a premium one never | 699 / 258 / 80 | **shipped** |
+| G2 a main shields its carers, not its feeders: a popular main feeder is the last slot | 711 / 264 / 80 | cuts +6, adds flat: **shipped** |
+| A1 a theme upgrade of a main card may be a near tie in play-rate that fits better (on G2) | 721 / 268 / 78 | adds -2: rejected |
+| S1 a Spine fill or closer takes a jobless upgrade slot before a lane slot (on G2) | 711 / 264 / 81 | **shipped** |
+| B1 a theme upgrade may cost a band more where the curve has room | 713 / 264 / 81 | flat: rejected |
+| P1 only a combo that ends the game protects its pieces | 706 / 264 / 80 | adds -1: rejected |
+| U1 a role card's upgrade moves onto the theme while its row stays above its floor | 667 / 251 / 86 | cuts -13: rejected |
+| U2 … only from a row at its max | 672 / 254 / 84 | cuts -10: rejected |
+| U3 U2, the theme's add held to the even share | 703 / 263 / 85 | clears |
+| U4 U1, the theme's add held to the even share | 698 / 260 / 90 | cuts -4: rejected |
+| U5 U4, a cut on no main only | 704 / 262 / 86 | clears at the edge |
+| U6 U3, a cut on no main only | 712 / 264 / 81 | flat |
+| U7 U3 or U5 | 700 / 261 / 90 | cuts -3: rejected |
+| U8 U1, the theme's add no dearer than the job's | 708 / 263 / 86 | clears |
+| U9 U2, the theme's add no dearer than the job's | 710 / 265 / 86 | **shipped** |
+| J1 an on-theme card reading within a tie of the cut passes the play-rate gate (draw, ramp) | 710 / 264 / 87 | noise, none of its targets: rejected |
+| G3 the lane's feeders, then the popular tier, then the lane's carers | 715 / 269 / 84 | adds -2: rejected |
+| F1 a full role read off the running counts, not the deck's | 694 / 258 / 82 | rejected |
+| G1 + G2 + S1 + U9, *run* | 710 / 269 / 86 | |
+| R the size referent (`crosswalk.quantity_referent`) | 710 / 265 / 86 | **shipped** (read fix, no swap moved) |
+| U10 U9 for protection at the Shape's target | 710 / 265 / 88 | **shipped** |
+| G1-U10, *run* | 710 / 269 / 88 | |
+| G4 a Granter's slot may go to a better grant | 713 / 267 / 88 | cuts +2, adds flat: **shipped** |
+| **shipped**, *run* | **713 / 271 / 88** | |
+
+Against HEAD: 33 more swaps, 15 more guide-matching cuts, 12 more guide-matching adds.
+Gained adds: Baeloth Barrityl, Firemane Commando, Life of the Party, Anguished
+Unmaking, Utopia Sprawl, Wild Growth, Blaster Hulk, Izzet Generatorium, Roil
+Cartographer, The Motherlode, Swiftfoot Boots (Multiverse Reforged), Homing Sliver,
+Boros Charm, Palani's Hatcher; lost Teferi's Protection (Blame Game) and Sram, Senior
+Edificer (Virtue and Valor). Gained cuts: Dragonlord Dromoka, Fact or Fiction (Fae
+Dominion), Stridehangar Automaton, Kaya, Geist Hunter, Curse of the Swine, Deep
+Analysis, Finale of Revelation, Tezzeret's Gambit, Blade, Bonesplitter, Cleaving and
+Megantic Sliver, Icon of Ancestry, Squirrel Sovereign, Skull Prophet, Donna Noble,
+The Girl in the Fireplace, Rhythm of the Wild, Fertile Ground, Syr Armont, Utopia
+Sprawl (Virtue and Valor); lost Wakestone Gargoyle, Viscera Seer, Fact or Fiction
+and Shark Typhoon (Multiverse Reforged), Constricting Sliver and Grasp of Fate.
+
+- **Granters (G1, G4).** ADR-0040 §4's "play-rate never condemns a Granter" had grown
+  into "a Granter is never an upgrade slot", which left Sliver Swarm's lane, every
+  member a Granter, with no cut pool (fifteen swaps). By grade the guides do read
+  them: of the solid Granters past `UPGRADE_RANK` they cut 0.30 (14 of 47 in a lane,
+  6 of 17 off it), of the premium ones 0.12, of the decks' cards 0.24. A premium
+  grant stays shielded; a solid one is a slot, play-rate ordering it as a tie in
+  grade (`metrics._grant_leaves_slot`; ADR-0040's 2026-10-26 amendment). Its slot may go to
+  a Granter whose grant grades higher however few decks play it
+  (`swaps._grants_better`: Megantic Sliver for Pulmonic Sliver). Sliver Swarm cuts
+  Blade, Bonesplitter, Cleaving and Megantic Sliver and Icon of Ancestry and adds
+  Homing Sliver; Timey Wimey's Donna Noble and The Girl in the Fireplace, Squirreled
+  Away's Squirrel Sovereign and Virtue and Valor's Syr Armont are guide cuts too.
+- **A main's feeders (G2).** The popular tier spared every card a main serves; only
+  a main's carers have a read that shields them (the guides cut 5 of 17 past
+  `UPGRADE_RANK`). A popular feeder of a main is now the last slot of all: Quick
+  Draw's Deep Analysis, Finale of Revelation and Tezzeret's Gambit, Virtue and
+  Valor's Fertile Ground and Utopia Sprawl. The 23 popular guide cuts left are all
+  premium (rank 200 or better), where the guides cut 0.10 (22 of 210): premium stays.
+- **A jobless slot for a Spine fill (S1).** A Spine fill, closer or game-ending piece
+  with its own pool dry took a lane slot, never an off-lane upgrade slot. One doing
+  no job is a theme upgrade's slot anyway and a guide cut more often (0.39 against
+  the lane's 0.28): Multiverse Reforged's protection fill now cuts one and adds
+  Swiftfoot Boots. One doing a job stays the upgrade issue's.
+- **A full job moves onto the theme (U9, U10).** An upgrade keeps its cut's job, and
+  the job adds matched badly (interaction 5 of 84, card draw 3 of 80, ramp 2 of 57,
+  wipes 3 of 49 at G2) beside the theme upgrades (47 of 271). Where the deck already
+  holds the most of the job it wants — a template row at its max, protection at the
+  Shape's target — the template says another such card adds nothing, so the slot
+  takes the theme's add, if it costs no more than the job's (`propose_swaps`).
+  Living Energy's off-theme draw becomes Izzet Generatorium, Roil Cartographer,
+  Blaster Hulk and The Motherlode; Enduring Enchantments' ramp Wild Growth and
+  Utopia Sprawl; Blame Game's protection Baeloth Barrityl, Firemane Commando and
+  Life of the Party. Every looser row read (above the floor) or cost bar (the even
+  share, none) spent budget-bound decks' cuts (Graveyard Overdrive, Planeswalker
+  Party); a cut on no main only moved nothing at the max.
+- **The size referent (R, backlog (j)).** `crosswalk.quantity_referent` names the
+  object a size quantity reads off from phase's scope (the card, a target of an
+  earlier effect, the creature an earlier effect sacrificed, a cost's, the
+  triggering object, each source of a batch), resolving the earlier effect.
+  `board_wipe._picked_by_caster` reads it in place of "does any effect target your
+  creature", and `crosswalk.deals_its_own_power` replaces `creature_ping`'s "deals
+  damage equal to its power" text confirm on a typed node (the recovered text-only
+  clauses keep it: no node to read). Over the 3,598 legal cards naming power,
+  toughness or mana value: no wipe read moved; `creature_ping` gains Batroc the
+  Leaper and Spider-Man 2099 ("his power"), Eshki, Meglonoth, River Song, Ukkima and
+  Pandemonium, and loses Form of the Dinosaur — its fought creature's power dealt
+  to you is a drawback, as Bind the Monster's is (neither is a ping). No swap moved.
+- **Rejected.** A1, J1: letting a less-played card past the play-rate gate, by fit
+  or by the job read, gained none of the guide adds it aimed at (Insidious Roots,
+  Faerie Mastermind, the Faerie and Energy pages). B1: the curve's room flat. P1:
+  combo protection is what `proposal-check` gates (`is_game_winning`), and the
+  guide cuts it shields (Kodama of the East Tree, Rampaging Baloths, Peema
+  Aether-Seer) sit in tunes that hit the cap anyway. G3: the lane's carers bring the
+  lane slots' theme adds (26 of 29), so the popular tier ahead of them costs adds.
+  F1: refilled trimmed rows and spent the budget.
+- **What the run leaves.** Seventeen tunes reach thirty swaps, six end on their
+  budget, two on their cut pool (Blood Rites, Sliver Swarm), so "cut pool, not
+  reached" rose to 50 (from 28) and the lane doers (45) and the popular tier wait on the cap.
+  The theme adds no search reaches (164) are unchanged: neither the 150-card page
+  nor the four sub-only adds (backlog (r)) had a new read to try, so their measured
+  verdicts stand. The outranked adds fell from 251 to 235 only through the full-job
+  move, which hands a slot to the theme page rather than reordering any page: no
+  read this pass separated the outranked guide adds from the picks either, and the
+  two that let less-played cards through (A1, J1) lost or gained nothing.
+
 ## What is left
 
 `docs/plans/backlog.md`, "What the polymorph tune and the 25-precon audit still

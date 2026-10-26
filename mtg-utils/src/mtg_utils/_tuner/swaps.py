@@ -25,21 +25,26 @@ from mtg_utils._analysis.budgets import COMMANDER_TEMPLATE, Template
 from mtg_utils._analysis.card_reads import has_trees
 from mtg_utils._analysis.job_quality import JobRead, read_for
 from mtg_utils._analysis.ranking import rank_candidates
-from mtg_utils._analysis.roles import DeckMana, role_of
+from mtg_utils._analysis.roles import DeckMana, protects, role_of
 from mtg_utils._analysis.signal_specs import (
     pages_by_serve,
     serve_page_search,
     theme_page,
 )
+from mtg_utils._analysis.signals import grant_payloads_for
+from mtg_utils._tuner.ability_quality import grant_grade, outgrades
 from mtg_utils._tuner.classify import CardClass, is_premium
 from mtg_utils._tuner.issues import (
     CUT_FILLER,
     CUT_GENERIC,
     CUT_LANE,
     CUT_UPGRADE,
+    CUT_UPGRADE_JOBLESS,
     CUT_UPGRADE_POPULAR,
+    UPGRADE_ROLE_ORDER,
     Issue,
     Sourcing,
+    UpgradeSource,
     cut_over,
     over_role,
     upgrade_job,
@@ -256,6 +261,7 @@ def _upgrades(
     deck_mana: DeckMana | None = None,
     deck: Sequence[dict] | None = None,
     off_theme: bool = False,
+    draw_engine: bool = False,
 ) -> bool:
     """Whether ``candidate`` is an upgrade of ``cut``: it costs no higher
     mana-value band, or for a job one band higher at most (:func:`over_band` — a
@@ -276,7 +282,15 @@ def _upgrades(
     its add comes off the main theme, and moving the slot onto the main theme is
     the upgrade: the add need not be more played than the cut (an Energy card is
     played less than Whirler Rogue, which an Energy deck's sub-theme ran), and it
-    may cost one band higher, as a job upgrade may."""
+    may cost one band higher, as a job upgrade may.
+
+    A Granter is judged by its grant (ADR-0040 §4): with no job, its slot may go
+    to a card whose grant grades higher (:func:`ability_quality.outgrades`;
+    ``draw_engine``: the commander is a repeatable draw engine, as the deck's
+    Granters were graded) at no higher band, however few decks play it (Sliver
+    Swarm's Megantic Sliver, an anthem, for Pulmonic Sliver's flying); play-rate
+    decides between grants of one grade. Measured on the 25 precons (2026-10-26):
+    two guide cuts more, adds flat."""
     if over_band(candidate, cut.record, job, off_theme=off_theme):
         return False
     if job is not None and (
@@ -287,8 +301,32 @@ def _upgrades(
         return False
     if job is None and off_theme:
         return True
+    if (
+        job is None
+        and cut.grant_grade is not None
+        and outgrades(
+            _grant_grade_of(candidate, draw_engine=draw_engine), cut.grant_grade
+        )
+    ):
+        return True
     rank = candidate.get("edhrec_rank")
     return rank is not None and (cut.edhrec_rank is None or rank < cut.edhrec_rank)
+
+
+#: A candidate's Granter grade per (oracle id, draw-engine commander): a pure
+#: function of the card, asked of the same theme pages by every Granter cut.
+_GRANT_GRADES: dict[tuple[str, bool], str | None] = {}
+
+
+def _grant_grade_of(card: dict, *, draw_engine: bool) -> str | None:
+    """``card``'s Granter grade (``None``: no grant), as ``classify`` grades the
+    deck's own."""
+    key = (card.get("oracle_id") or card.get("name", ""), draw_engine)
+    if key not in _GRANT_GRADES:
+        _GRANT_GRADES[key] = grant_grade(
+            grant_payloads_for(card), draw_engine_commander=draw_engine
+        )
+    return _GRANT_GRADES[key]
 
 
 def _fills_short_role(card: CardClass, budgets: dict) -> bool:
@@ -413,7 +451,8 @@ def cut_candidates(
 
     The last two tiers are the upgrade slots the focus read names: the
     off-lane cards few decks play (``focus.upgrade_cards``, least played first),
-    drawn only by the upgrade issue for a better-played card doing the same job; then
+    drawn by the upgrade issue for a better-played card doing the same job (and,
+    one that does no job, by a ``lane_ok`` remedy whose own pool is dry); then
     the deep lane's least-played half (``focus.lane_upgrade_cards``, in the focus
     read's order) — a tribal precon's forty-three Vampires are all carers, so
     with every other tier empty the deck proposed nothing while short on ramp,
@@ -523,8 +562,9 @@ def cut_candidates(
             push("stranded", c)
 
     # 4. The upgrade slots (``focus``'s ``upgrade_cards``): off every lane the
-    # deck holds and played little — least played first. Only the upgrade
-    # issue draws on them, and only for a better-played card doing the same job.
+    # deck holds and played little — least played first. The upgrade issue
+    # draws on them for a better-played card doing the same job; a ``lane_ok``
+    # remedy takes one doing no job before a lane slot (``propose_swaps``).
     for c in sorted(
         (c for c in classes if c.name in focus.upgrade_cards),
         key=lambda c: c.least_played_key,
@@ -817,6 +857,15 @@ class SwapContext:
     budget: float | None
     max_swaps: int
     top_heavy: bool
+    #: The Shape's protection target where it wants protection (ADR-0024), else
+    #: 0 — the most protection the deck wants, as a template row's max is.
+    protection_target: int = 0
+    #: The protection the deck holds (the scorecard's count), against that target.
+    protection_count: int = 0
+    #: Whether the commander is a repeatable draw engine
+    #: (``classify.commander_draws``): a candidate's grant is graded as the
+    #: deck's own Granters are (ADR-0040 §2).
+    draw_engine_commander: bool = False
     fill_slots: int = 0
     wildcard_budget: Mapping[str, int] | None = None
     protected: Collection[str] = ()
@@ -873,7 +922,29 @@ def propose_swaps(
     Copies: a candidate stays addable while the deck's copies plus the copies this
     run already added are under its ``copy_ceiling`` — "go to four" is a swap like
     any other, and the add carries ``copy`` (the copy number it becomes). A cut
-    removes ONE copy; a name may be cut as many times as it holds copies."""
+    removes ONE copy; a name may be cut as many times as it holds copies.
+
+    A full job moves onto the theme: when the deck holds the most of an upgrade's
+    job it wants (a template row at its max, or the Shape's protection target),
+    the cut's slot goes to the theme's add instead, if that costs no more than
+    the job's add (or, with none, fits the even share). The template's ceiling
+    says another card of the role adds nothing, so the slot is better spent on
+    the theme; the row stays in its band. Measured on the 25 precons
+    (2026-10-26, a screen against 711 swaps / 264 guide-matching cuts / 81
+    guide-matching adds): 710 / 265 / 86 for the template rows (Living Energy's
+    Izzet Generatorium, Roil Cartographer, Motherlode and Blaster Hulk for its
+    off-theme draw, Enduring Enchantments' Wild Growth and Utopia Sprawl for
+    its ramp), 88 with protection (Blame Game). Any row still above its floor
+    took 9 adds more but spent the budget's cuts (four fewer); the theme's add
+    held to the even share instead of the job's cost, 4 adds and a cut fewer;
+    with no cost bar, 13 cuts fewer.
+
+    A Spine fill, a closer or a game-ending piece (``Remedy.lane_ok``) whose own
+    pool is dry takes an off-lane upgrade slot that does no job before a lane
+    slot: the upgrade issue would trade that card for a theme card anyway, and
+    the off-lane slots are guide cuts more often than the lane's (0.39 against
+    0.28). Measured on the 25 precons (2026-10-26): one guide add more (Multiverse
+    Reforged's Swiftfoot Boots), cuts flat."""
     in_deck: dict[str, int] = {c.name: c.quantity for c in classes}
     # The deck's records, for a job read's deck fit (an engine's fuel).
     # The counted deck, one record per copy (a 60-card deck's four Lightning
@@ -952,6 +1023,9 @@ def propose_swaps(
             pool = CUT_LANE  # only a ``lane_ok`` remedy, once its own pool is dry
         elif reason == "upgrade":
             pool = CUT_UPGRADE  # only the upgrade issue, for a card doing its job
+            if upgrade_job(card.roles, card.record) is None:
+                # A second view of the jobless slots, for a lane_ok remedy.
+                pools.setdefault(CUT_UPGRADE_JOBLESS, []).append((reason, card))
         elif reason == "popular_upgrade":
             pool = CUT_UPGRADE_POPULAR  # the upgrade issue, once the rest are spent
         else:
@@ -1004,6 +1078,24 @@ def propose_swaps(
     # Roles already at/above their template ceiling — an add filling one would push the
     # deck OFF-template, so fixing one issue must not regress the template.
     full_roles = {r for r, b in ctx.budgets.items() if b["current"] >= b["max"]}
+    # How far each upgrade job is from the most the deck wants of it, as the
+    # swaps land: a template row's max, and the Shape's protection target where
+    # it wants protection (ADR-0024). A job with no room left is full, and a
+    # full job's upgrade moves onto the theme (the docstring).
+    job_room = {
+        job: b["max"] - b["current"]
+        for job, b in ctx.budgets.items()
+        if job in UPGRADE_ROLE_ORDER and not b.get("advisory")
+    }
+    if ctx.protection_target:
+        job_room["protection"] = ctx.protection_target - ctx.protection_count
+
+    def count_jobs(record: dict, roles: Collection[str], step: int) -> None:
+        held = set(roles)
+        if "protection" in job_room and protects(record):
+            held.add("protection")
+        for job in job_room.keys() & held:
+            job_room[job] -= step
 
     # Search + rank a spec ONCE per propose_swaps call, memoized. The ranked ORDER
     # depends only on in_deck (fixed), not on which cards have been used — so the fill
@@ -1349,6 +1441,7 @@ def propose_swaps(
                 deck_mana=ctx.deck_mana,
                 deck=deck_records,
                 off_theme=off_theme,
+                draw_engine=ctx.draw_engine_commander,
             ):
                 continue
             if upgrade_of is None and not _does_the_job(card, job, deck_records):
@@ -1445,6 +1538,9 @@ def propose_swaps(
     ) -> None:
         # Charge only now that the swap is finalized (find_add probed read-only, so an
         # unpaired add never consumed budget — USD dollars or a wildcard, by mode).
+        if cut is not None:
+            count_jobs(cut.record, cut.roles, -1)
+        count_jobs(add_card, role_of(add_card, deck_mana=ctx.deck_mana), 1)
         cover = coverage(add_card)
         if cover.covered_by is None:
             ledger.charge(add_card, cost)
@@ -1496,6 +1592,7 @@ def propose_swaps(
         if ctx.wildcard_budget is not None
         else "set a Budget to allow buys"
     )
+    theme = sourcing.theme()
     for issue in issues:
         if len(swaps) >= ctx.max_swaps:
             break
@@ -1539,6 +1636,24 @@ def propose_swaps(
                     # reaches past popularity.
                     limit=_JOB_READ_PAGE if job_read else _PAGE,
                 )
+                # A full job's slot moves onto the theme (the docstring) when
+                # the theme's add costs no more than the job's would.
+                if theme and source.job in job_room and job_room[source.job] <= 0:
+                    moved, moved_avenue = find_theme_add(
+                        theme,
+                        synergy_first=True,
+                        nonland_only=True,
+                        upgrade_of=cut,
+                        job=None,
+                    )
+                    cap = (
+                        picked[1]
+                        if picked is not None
+                        else ledger.share(ctx.max_swaps - len(swaps))
+                    )
+                    if moved is not None and moved[1] <= cap:
+                        picked, avenue = moved, moved_avenue
+                        source, job_read = UpgradeSource(theme, None), None
                 if picked is None:
                     continue
                 add_card, cost, _off_avenue = picked
@@ -1581,6 +1696,8 @@ def propose_swaps(
                     )
                 break
             cut_entry = take_cut(remedy.cut_from, issue.relies_on)
+            if cut_entry is None and remedy.lane_ok:
+                cut_entry = take_cut(CUT_UPGRADE_JOBLESS, issue.relies_on)
             if cut_entry is None and remedy.lane_ok:
                 cut_entry = take_cut(CUT_LANE, issue.relies_on)
             if cut_entry is None:
