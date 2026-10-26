@@ -79,6 +79,8 @@ from mtg_utils._card_ir.crosswalk import (
     has_nested_damage_reaching,
     is_power_damage,
     keyword_bodies,
+    list_field,
+    made_keyword_bodies,
     mana_restrictions,
     mana_spell_type_restriction,
     mod_keyword_name,
@@ -98,7 +100,6 @@ from mtg_utils._card_ir.crosswalk import (
     trigger_turn_constraint,
     unit_keyword_grants,
 )
-from mtg_utils._card_ir.mirror.runtime import MISSING
 from mtg_utils._card_ir.recovery import ANY_TARGET, TARGET_OBJECT
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -757,10 +758,11 @@ def _base_pt_tk_animate_match(tree: ConceptTree) -> bool:
 # (``base_pt_each_equal_to_dropped``, 2026-07-11 → 2026-09-17).
 
 
-# (7) A ``BecomeCopy`` "except it's N/N" fixed P/T override with NO
-# ``additional_modifications`` field AT ALL (Mindlink Mech's "becomes a
-# copy of target nonlegendary creature ..., except it's 4/3, ..." — CR
-# 707.2/707.9) — ZERO trace anywhere in the tree for the override, same
+# (7) A ``BecomeCopy`` "except it's N/N" fixed P/T override with no P/T set
+# among its ``additional_modifications`` (Mindlink Mech's "becomes a copy of
+# target nonlegendary creature ..., except it's 4/3, ..., and it has flying" —
+# CR 707.2/707.9; the flying is the correction layer's) — ZERO trace anywhere
+# in the tree for the override, same
 # absence-proof shape as the Degavolver/Zuko/keyword-dropped bridges above.
 # The standard clone-SHELL idiom ("becomes a copy of X, except it's 0/0
 # and has this ability" — Mimeoplasm, Revered One) shares the identical
@@ -776,13 +778,17 @@ _BASE_PT_BECOMECOPY_PT_RX = re.compile(
 
 
 def _base_pt_becomecopy_no_mods_gap(tree: ConceptTree) -> bool:
-    for n in tree.iter_typed():
-        if tag_of(n) != "BecomeCopy":
-            continue
-        addl = getattr(n, "additional_modifications", MISSING)
-        if addl is MISSING or addl in (None, []):
-            return True
-    return False
+    """A ``BecomeCopy`` whose exceptions set no power or toughness — none at all,
+    or only the ones phase kept or the correction layer restored ("and it has
+    flying", ``_card_ir.dropped_keywords``) beside the dropped "except it's 4/3"."""
+    return any(
+        tag_of(n) == "BecomeCopy"
+        and not any(
+            tag_of(m) in ("SetPower", "SetToughness")
+            for m in list_field(n, "additional_modifications")
+        )
+        for n in tree.iter_typed()
+    )
 
 
 def _base_pt_becomecopy_no_mods_match(tree: ConceptTree) -> bool:
@@ -4721,11 +4727,13 @@ def _no_x_cost_filter(tree: ConceptTree) -> bool:
 # ``lanes.triggers_damage`` reads off an AddKeyword over your creatures: folded
 # into the card's own SelfRef pump (Moku's "gets +2/+1 and creatures you control
 # gain haste", Wargling's trample — the Moku misparse the creatures_matter row
-# bridges), dropped beside a PumpAll (Tromp the Domains), or on an aftermath half
-# phase has no record for (Appeal // Authority's "Creatures you control gain
-# vigilance"). The lane's own team test (``crosswalk.is_team_buff_filter``)
-# admits only the whole team, so nothing may stand between the clause's start
-# (a sentence, a comma, an "and") and "creatures": "Other red attacking creatures
+# bridges) or on an aftermath half phase has no record for (Appeal // Authority's
+# "Creatures you control gain vigilance"); one dropped beside a PumpAll (Tromp
+# the Domains) the lane reads off the recovery stage's decoration
+# (``crosswalk.pump_keyword_grants``). The lane's own team test
+# (``crosswalk.is_team_buff_filter``) admits only the whole team, so nothing may
+# stand between the clause's start (a sentence, a comma, an "and") and
+# "creatures": "Other red attacking creatures
 # you control gain trample" (Tori D'Avenant) is a subset grant the lane would
 # reject once phase typed it. The keywords are the lane's, in oracle spelling.
 _TEAM_GAIN_KEYWORDS = "|".join(
@@ -4742,21 +4750,6 @@ def _team_grant_on_self(tree: ConceptTree) -> bool:
     """A SelfRef static def whose own text grants your team a keyword (the
     misparse :func:`_moku_haste_grant_gap` reads, any keyword)."""
     return _selfref_def_says(tree, _TEAM_GAIN_KEYWORD_RX)
-
-
-def _team_grant_parked(tree: ConceptTree) -> bool:
-    """A residue or hollow static def carries the team grant."""
-    return _says(_TEAM_GAIN_KEYWORD_RX, [*tree.residues(), *tree.hollow_statics()])
-
-
-def _no_keyword_grant(tree: ConceptTree) -> bool:
-    """A face phase parsed (a face it has no record for is the aftermath row's)
-    where no node grants a keyword and no parked text carries the team grant."""
-    return (
-        not tree.is_text_only
-        and not _team_grant_parked(tree)
-        and all(tag_of(n) != "AddKeyword" for n in tree.iter_typed())
-    )
 
 
 def _text_only_face(tree: ConceptTree) -> bool:
@@ -5025,24 +5018,6 @@ BRIDGES.update(
                 ),
                 pins=("Moku, Meandering Drummer", "Wargling"),
                 gap=_team_grant_on_self,
-                match=_oracle_match(_TEAM_GAIN_KEYWORD_RX),
-            ),
-            Bridge(
-                bridge_id="team_keyword_grant_dropped",
-                key="team_buff",
-                kind="dropped_clause",
-                todo=(
-                    "upstream phase-rs report candidate (Dan posts): Tromp the "
-                    "Domains' 'creatures you control gain trample' leaves no node "
-                    "beside its PumpAll. Retires on the bump that types the grant"
-                ),
-                census=(
-                    "1 hit / 32,046 commander-legal (Tromp the Domains; "
-                    "Praetorhoof Behemoth too, legal nowhere), MTGJSON 2026-10-17 "
-                    "@ phase v0.104.0"
-                ),
-                pins=("Tromp the Domains",),
-                gap=_no_keyword_grant,
                 match=_oracle_match(_TEAM_GAIN_KEYWORD_RX),
             ),
             Bridge(
@@ -7428,6 +7403,34 @@ def _no_vigilance_body(tree: ConceptTree) -> bool:
     return "vigilance" not in keyword_bodies(tree)
 
 
+def _no_first_strike_body(tree: ConceptTree) -> bool:
+    return "first strike" not in keyword_bodies(tree)
+
+
+def _no_shadow_body(tree: ConceptTree) -> bool:
+    return "shadow" not in keyword_bodies(tree)
+
+
+def _no_indestructible_body(tree: ConceptTree) -> bool:
+    return "indestructible" not in keyword_bodies(tree)
+
+
+def _no_ward_body(tree: ConceptTree) -> bool:
+    return "ward" not in keyword_bodies(tree)
+
+
+def _no_flash_body(tree: ConceptTree) -> bool:
+    return "flash" not in keyword_bodies(tree)
+
+
+def _no_defender_body(tree: ConceptTree) -> bool:
+    """A body with defender the card is or makes (``made_keyword_bodies``: the
+    lane reads defender there, a grant of it being a drawback)."""
+    return "defender" not in keyword_bodies(
+        tree
+    ) or "defender" not in made_keyword_bodies(tree)
+
+
 _NO_KEYWORD_BODY: dict[str, Callable[[ConceptTree], bool]] = {
     "flying": _no_flying_body,
     "trample": _no_trample_body,
@@ -7435,6 +7438,12 @@ _NO_KEYWORD_BODY: dict[str, Callable[[ConceptTree], bool]] = {
     "deathtouch": _no_deathtouch_body,
     "haste": _no_haste_body,
     "vigilance": _no_vigilance_body,
+    "first strike": _no_first_strike_body,
+    "shadow": _no_shadow_body,
+    "indestructible": _no_indestructible_body,
+    "ward": _no_ward_body,
+    "flash": _no_flash_body,
+    "defender": _no_defender_body,
 }
 
 
@@ -7464,18 +7473,10 @@ def _keyword_body_row(
     )
 
 
-def _monster_role_token(tree: ConceptTree) -> bool:
-    """Whether the card types a Monster Role ``Token`` node: "Enchanted creature
-    gets +1/+1 and has trample" is the token's own text (CR 303.7: a Role is an
-    Aura subtype), which phase leaves off the node."""
-    return any(
-        tag_of(n) == "Token" and getattr(n, "name", None) == "Monster Role"
-        for n in tree.iter_typed()
-    )
-
-
 def _monster_role_parked(tree: ConceptTree) -> bool:
-    """Whether a residue parks "create a Monster Role token" (Become Brutes)."""
+    """Whether a residue parks "create a Monster Role token" (Become Brutes): a
+    typed Monster Role ``Token`` carries its own "Enchanted creature gets +1/+1 and
+    has trample" (``_card_ir.dropped_keywords``, CR 111.10k), a parked one none."""
     return "Monster Role" in (tree.oracle or "") and any(
         "Monster Role token" in t for t in tree.residues()
     )
@@ -7484,6 +7485,15 @@ def _monster_role_parked(tree: ConceptTree) -> bool:
 _CAST_THIS_WAY_HASTE_RX = re.compile(
     r"\bIf you cast a creature spell this way, it gains haste\b"
 )
+
+
+_SUSPEND_GRANT_RX = re.compile(r"\bIf it doesn't have suspend, it gains suspend\b")
+
+
+def _suspend_grant_parked(tree: ConceptTree) -> bool:
+    """Whether a residue parks "If it doesn't have suspend, it gains suspend" (a
+    typed grant is ``crosswalk.suspends_own_card``'s)."""
+    return _parked_says(tree, _SUSPEND_GRANT_RX)
 
 
 def _cast_this_way_haste_parked(tree: ConceptTree) -> bool:
@@ -7498,7 +7508,7 @@ def _cast_this_way_haste_dropped(tree: ConceptTree) -> bool:
     )
 
 
-def _keyword_tribe_subjects(tree: ConceptTree) -> set[str]:
+def _keyword_tribe_subjects(tree: ConceptTree) -> frozenset[str]:
     """The keywords the ``keyword_tribe`` lane reads a payoff of: the structural
     ``WithKeyword`` filters and the synthesis stage's keyword-tribe nodes."""
     from mtg_utils._analysis.tree_synthesis.types_tribal import (
@@ -7521,6 +7531,10 @@ def _no_trample_payoff(tree: ConceptTree) -> bool:
     return "Trample" not in _keyword_tribe_subjects(tree)
 
 
+def _no_defender_payoff(tree: ConceptTree) -> bool:
+    return "Defender" not in _keyword_tribe_subjects(tree)
+
+
 def _keyword_payoff_row(
     bridge_id: str,
     subject: str,
@@ -7528,6 +7542,7 @@ def _keyword_payoff_row(
     pin: str,
     rx: str,
     gap: Callable[[ConceptTree], bool],
+    kind: str = "dropped_clause",
 ) -> Bridge:
     """One keyword-tribe payoff phase types with no keyword filter: ``what`` on
     ``pin`` (the legal corpus's one hit), served as ``keyword_tribe|you|<subject>``."""
@@ -7535,7 +7550,7 @@ def _keyword_payoff_row(
         bridge_id=bridge_id,
         key="keyword_tribe",
         subject=subject,
-        kind="dropped_clause",
+        kind=kind,
         todo=_upstream(f"{what}. Retires on the bump that types the condition"),
         census=f"1 hit / the legal corpus ({pin}), MTGJSON 2026-10-17 @ phase "
         "v0.104.0, 2026-10-26",
@@ -7546,28 +7561,6 @@ def _keyword_payoff_row(
 
 
 _KEYWORD_BODY_ROWS: tuple[tuple[str, str, str, str, tuple[str, ...], str], ...] = (
-    (
-        "dralnus_pet_kicked_flying",
-        "flying",
-        "upstream_parse_failure",
-        (
-            "Dralnu's Pet's 'it enters with flying and with X +1/+1 counters' read as "
-            "the counter kind 'flying and with x +1/+1'"
-        ),
-        ("Dralnu's Pet",),
-        r"\benters with flying and with X \+1/\+1 counters\b",
-    ),
-    (
-        "printlifter_ooze_token_trample",
-        "trample",
-        "upstream_parse_failure",
-        (
-            "Printlifter Ooze's 'create a 0/0 green Ooze creature token with trample' "
-            "read as the counter kind 'trample. the token enters with x +1/+1'"
-        ),
-        ("Printlifter Ooze",),
-        r"\bOoze creature token with trample\b",
-    ),
     (
         "furygale_flocking_token_flying",
         "flying",
@@ -7696,30 +7689,17 @@ _KEYWORD_BODY_ROWS: tuple[tuple[str, str, str, str, tuple[str, ...], str], ...] 
         r"\byou may exile it and put three time counters on it\b",
     ),
     (
-        "own_card_suspended_haste",
+        "graveyard_card_suspended_owner_dropped",
         "haste",
-        "grammar_straggler",
+        "dropped_clause",
         (
-            "a card of your own (from your hand, library or graveyard, or the spell "
-            "you "
-            "cast) that 'gains suspend' (CR 702.62a: a creature spell cast this way "
-            "gains haste), where no read tells your card from another player's"
+            "Soovril, Patient Antiquarian's 'target nonland card in exile that was "
+            "put there from your graveyard this turn' (typed with no owner, so "
+            "``crosswalk.suspends_own_card`` can't tell it's yours) that 'gains "
+            "suspend' (CR 702.62a: a creature spell cast this way gains haste)"
         ),
-        (
-            "Doom's Time Platform",
-            "Jhoira of the Ghitu",
-            "Kang Prime",
-            "Sibylline Soothsayer",
-            "Soovril, Patient Antiquarian",
-            "Taigam, Master Opportunist",
-            "The Eleventh Doctor",
-            "The Parting of the Ways",
-            "The Tenth Doctor",
-        ),
-        (
-            r"(?:from your hand|of your library|from your graveyard|the spell you cast)"
-            r"[^.]*\.(?:[^.]*\.)?\s*If it doesn't have suspend, it gains suspend\b"
-        ),
+        ("Soovril, Patient Antiquarian",),
+        r"\bput there from your graveyard this turn\. If it doesn't have suspend\b",
     ),
     (
         "each_other_player_dragon_flying",
@@ -7744,13 +7724,91 @@ _KEYWORD_BODY_ROWS: tuple[tuple[str, str, str, str, tuple[str, ...], str], ...] 
         ("Doom Foretold",),
         r"\bcreate a 2/2 white Knight creature token with vigilance\b",
     ),
+    (
+        "ice_counter_defender_swallowed",
+        "defender",
+        "dropped_clause",
+        (
+            "Woolly Razorback's 'As long as this creature has an ice counter on it, "
+            "prevent all combat damage it would deal and it has defender' (the "
+            "prevention kept, the grant swallowed)"
+        ),
+        ("Woolly Razorback",),
+        r"\bprevent all combat damage it would deal and it has defender\b",
+    ),
+    (
+        "untapped_artifacts_indestructible_swallowed",
+        "indestructible",
+        "upstream_parse_failure",
+        (
+            "Guardian Beast's 'As long as this creature is untapped, noncreature "
+            "artifacts you control can't be enchanted, they have indestructible', "
+            "typed as a CantBeEnchanted static on itself"
+        ),
+        ("Guardian Beast",),
+        r"\bcan't be enchanted, they have indestructible\b",
+    ),
+    (
+        "put_attacking_gains_indestructible_swallowed",
+        "indestructible",
+        "dropped_clause",
+        (
+            "Nick Fury, Spymaster's 'It enters tapped and attacking and gains "
+            "indestructible until end of turn', a swallowed clause"
+        ),
+        ("Nick Fury, Spymaster",),
+        r"\bIt enters tapped and attacking and gains indestructible\b",
+    ),
+    (
+        "dig_onto_battlefield_indestructible_counter_dropped",
+        "indestructible",
+        "dropped_clause",
+        (
+            "Wakanda Forever!'s 'You may put a permanent card from among them onto "
+            "the battlefield with an indestructible counter on it' (typed as a Dig "
+            "to the hand alone)"
+        ),
+        ("Wakanda Forever!",),
+        r"\bonto the battlefield with an indestructible counter on it\b",
+    ),
+    (
+        "conditional_self_flash_dropped",
+        "flash",
+        "dropped_clause",
+        "a spell's 'This spell has flash as long as …' line (CR 702.8a), no node",
+        ("Crashing Tide", "Graveyard Shift", "Mutual Destruction", "Take for a Ride"),
+        r"\bhas flash as long as\b",
+    ),
+    (
+        "cloak_parked",
+        "ward",
+        "upstream_parse_failure",
+        (
+            "Become Anonymous's 'shuffle that pile, then cloak those cards' (CR "
+            "701.58a: a cloaked card is a 2/2 creature with ward {2}), an "
+            "Unimplemented residue"
+        ),
+        ("Become Anonymous",),
+        r"\bthen cloak those cards\b",
+    ),
+    (
+        "cloak_dropped",
+        "ward",
+        "dropped_clause",
+        (
+            "Hide in Plain Sight's 'cloak two of them' (CR 701.58a: a cloaked card "
+            "is a 2/2 creature with ward {2}), typed as a Dig with no destination"
+        ),
+        ("Hide in Plain Sight",),
+        r"\bcloak two of them\b",
+    ),
 )
 
 # Phyrexian Splicer moves a chosen keyword to another creature (CR 113.10): one
 # row per keyword it can hand a body of yours that a page names.
 _KEYWORD_BODY_ROWS += tuple(
     (
-        f"chosen_keyword_moved_{kw}",
+        f"chosen_keyword_moved_{kw.replace(' ', '_')}",
         kw,
         "upstream_parse_failure",
         (
@@ -7760,30 +7818,13 @@ _KEYWORD_BODY_ROWS += tuple(
         ("Phyrexian Splicer",),
         r"\bChoose flying, first strike, trample, or shadow\b",
     )
-    for kw in ("flying", "trample")
+    for kw in ("flying", "first strike", "trample", "shadow")
 )
 
 BRIDGES.update(
     {
         b.bridge_id: b
         for b in (
-            _keyword_body_row(
-                "monster_role_trample",
-                "trample",
-                "upstream_parse_failure",
-                "a Monster Role token's 'Enchanted creature gets +1/+1 and has "
-                "trample' (the token's own text; its Token node carries no static)",
-                (
-                    "Curse of the Werefox",
-                    "Faunsbane Troll",
-                    "Ferocious Werefox // Guard Change",
-                    "Giant Inheritance",
-                    "Gylwain, Casting Director",
-                    "Monstrous Rage",
-                    "Syr Armont, the Redeemer",
-                ),
-                _monster_role_token,
-            ),
             _keyword_body_row(
                 "monster_role_trample_parked",
                 "trample",
@@ -7818,6 +7859,16 @@ BRIDGES.update(
                 ("Alaundo the Seer",),
                 _cast_this_way_haste_parked,
             ),
+            _keyword_body_row(
+                "own_card_suspend_grant_parked",
+                "haste",
+                "upstream_parse_failure",
+                "The Eleventh Doctor's 'exile a card from your hand … If it doesn't "
+                "have suspend, it gains suspend' (CR 702.62a: a creature spell cast "
+                "this way gains haste), the grant an Unimplemented residue",
+                ("The Eleventh Doctor",),
+                _suspend_grant_parked,
+            ),
             # Payoffs of one creature having the keyword: Solid Footing's damage
             # assignment, Ram Through's own excess-damage rider for a trampler.
             _keyword_payoff_row(
@@ -7837,6 +7888,17 @@ BRIDGES.update(
                 "Ram Through",
                 r"\bIf the creature you control has trample\b",
                 _no_trample_payoff,
+            ),
+            _keyword_payoff_row(
+                "equipped_defender_attack_misread",
+                "Defender",
+                "Warmonger's Chariot's 'As long as equipped creature has defender, it "
+                "can attack as though it didn't have defender' (typed onto the "
+                "Equipment itself, a SelfRef)",
+                "Warmonger's Chariot",
+                r"\bAs long as equipped creature has defender, it can attack\b",
+                _no_defender_payoff,
+                kind="upstream_parse_failure",
             ),
         )
     }

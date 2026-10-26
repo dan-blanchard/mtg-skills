@@ -8,6 +8,7 @@ that path), so the surviving consumer inherited the proven rules unchanged.
 
 from __future__ import annotations
 
+import itertools
 import re
 from typing import Literal
 
@@ -883,8 +884,10 @@ STATIC_TOKENS = (
 # (``ConceptNode.body_keywords``).
 #
 # The keyword abilities a clause may hand a body (CR 702), by their words: the
-# keyword counters' kinds (CR 122.1b) less decayed, exalted and shadow, which no
-# dropped grant of the corpus names.
+# keyword counters' kinds (CR 122.1b) less decayed and exalted, which no dropped
+# grant of the corpus names, plus the other keywords a keyword tribe pages that
+# one does (banding — Wall of Caltrops; defender — Guardian Zendikon; prowess —
+# Swiftspear's Teachings' boon; ward — Better Offer).
 GRANT_KEYWORDS: tuple[str, ...] = (
     "flying",
     "first strike",
@@ -898,7 +901,30 @@ GRANT_KEYWORDS: tuple[str, ...] = (
     "reach",
     "trample",
     "vigilance",
+    "banding",
+    "defender",
+    "prowess",
+    "shadow",
+    "ward",
 )
+
+
+def ward_generic_cost(text: str) -> int | None:
+    """The generic mana a clause's "ward {N}" costs (CR 702.21a: "Ward [cost]"),
+    or ``None`` for another cost ("ward—Pay 2 life") or none."""
+    words = text.split()
+    for word, after in itertools.pairwise(words):
+        cost = after.rstrip(".,;)")
+        if (
+            comb.norm_word(word) == "ward"
+            and cost.startswith("{")
+            and cost.endswith("}")
+            and cost[1:-1].isdigit()
+        ):
+            return int(cost[1:-1])
+    return None
+
+
 _KEYWORD_ITEM = comb.alt(
     *(comb.value(kw, comb.phrase(*({w} for w in kw.split()))) for kw in GRANT_KEYWORDS)
 )
@@ -949,10 +975,20 @@ def _other_ability_item(s: str) -> tuple[str, str] | None:
     return None
 
 
+# A "protection from <quality>" item of a keyword list ("double strike,
+# protection from red, vigilance, or shadow" — Jodah's Avenger), read as "": a
+# protection ability (CR 702.16a) the vocabulary leaves out.
+_PROTECTION_ITEM = comb.value(
+    "", comb.preceded(comb.phrase({"protection"}, {"from"}), _WORD)
+)
 _LIST_ITEMS = comb.many(
     comb.preceded(
         comb.opt(comb.keyword({"and", "or"})),
-        comb.alt(_KEYWORD, comb.Parser(_other_ability_item)),
+        comb.alt(
+            _KEYWORD,
+            _PROTECTION_ITEM,
+            comb.Parser(_other_ability_item),
+        ),
     )
 )
 
@@ -1075,6 +1111,15 @@ def _keywords_in(span: str) -> list[str]:
     return out
 
 
+def leading_keywords(text: str) -> frozenset[str]:
+    """The vocabulary keywords ``text`` opens on as a list: a counter kind phase
+    read as the rest of its clause ("flying and with x +1/+1" — Dralnu's Pet's "it
+    enters with flying and with X +1/+1 counters"; "trample. the token enters with
+    x +1/+1" — Printlifter Ooze's token)."""
+    r = _KEYWORD_LIST.run(text)
+    return frozenset(r[0]) if r is not None else frozenset()
+
+
 _GATING = _NEGATING | _CONDITIONAL
 # The verbs a grant opens on ("has flying", "gain trample").
 _GRANT_VERBS = frozenset({"has", "have", "gains", "gain"})
@@ -1087,6 +1132,7 @@ def keyword_grants(
     creature_with: Literal["any", "stated"] | None = None,
     tokens: bool = False,
     counters: bool = False,
+    grants: bool = True,
 ) -> frozenset[str]:
     """The keywords (``reads.keyword_subject`` spelling) ``text`` — one node's own
     clause — grants: a "has" / "gain(s)" keyword list or a "choose" one that no
@@ -1098,7 +1144,9 @@ def keyword_grants(
     creature with haste", never "except by creatures with flying"); ``tokens``
     reads a token's "token(s) with …" and a characteristics line ("1/2 blue
     Moonfolk with flying"), ``counters`` the keyword counters a clause places
-    ("put a flying counter on it")."""
+    ("put a flying counter on it"). Without ``grants`` only the bodies the clause
+    makes are read (an animation's, a token's), never a grant onto a body already
+    there."""
     rest = _FAILED_PREFIX.sub("", text if quoted else _unquoted(text))
     if not _KEYWORD_WORDS & {comb.norm_word(w) for w in rest.split()}:
         return frozenset()
@@ -1113,11 +1161,11 @@ def keyword_grants(
             break
         word = comb.norm_word(w[0])
         r = None
-        if word in _GRANT_VERBS and not gated and last not in _FILTERING:
+        if grants and word in _GRANT_VERBS and not gated and last not in _FILTERING:
             r = _GRANT.run(rest)
-        elif word == "choose" and not gated:
+        elif grants and word == "choose" and not gated:
             r = _CHOOSE.run(rest)
-        elif word == "the":
+        elif grants and word == "the":
             same = _SAME_IS_TRUE.run(rest)
             if same is not None:
                 r = (_keywords_in(same[0]), same[1])
@@ -1129,7 +1177,7 @@ def keyword_grants(
             r = _TOKEN_WITH.run(rest)
         elif head and tokens and _pt_word(word):
             r = _CHARACTERISTICS_WITH.run(w[1])
-        if r is None and granted:
+        if r is None and grants and granted and last not in _FILTERING:
             r = _GRANT_CONTINUED.run(rest)
         if r is None and counters and placing and not gated:
             r = _COUNTERS.run(rest)

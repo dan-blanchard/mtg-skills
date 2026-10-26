@@ -87,6 +87,7 @@ from mtg_utils._card_ir.crosswalk import (
     parked_prevention,
     player_filter_tag,
     protective_grant_recipients,
+    pump_keyword_grants,
     punishes_creatures_entering,
     punishes_triggering_caster,
     recipient_tag,
@@ -1356,11 +1357,87 @@ def _keyword_grant_lanes(tree: ConceptTree) -> list[Signal]:
 
     def fire_kw(key: str, scope: str, mod: object, raw: str = "") -> None:
         name = mod_keyword_name(mod) if isinstance(mod, TypedMirrorNode) else None
-        subject = keyword_subject(name or "")
+        fire_subject(key, scope, keyword_subject(name or ""), raw)
+
+    def fire_subject(key: str, scope: str, subject: str, raw: str = "") -> None:
         ident = (key, scope, subject)
         if subject and subject not in _DRAWBACK_GRANT_KW and ident not in seen_kw:
             seen_kw.add(ident)
             out.append(Signal(key, scope, subject, raw, tree.name, "high"))
+
+    def team_site(affected: object, kw: str, subject: str, raw: str) -> None:
+        """A static grant site's team keys: your generic team's evasion, every
+        creature's grant, your Auras' and Equipment's, a protective one."""
+        cores = set(filter_core_types(affected))
+        ctrl = filter_controller(affected)
+        subs = {s.lower() for s in filter_subtypes(affected)}
+        preds = filter_predicates(affected)
+        generic = not subs and not preds
+        team = "Creature" in cores and ctrl == "You" and generic
+        if team and kw in _TEAM_EVASION_KW:
+            fire("team_evasion_grant", "you", raw)
+            fire_subject("team_evasion_grant", "you", subject, raw)
+        if "Creature" in cores and ctrl not in ("You", "Opponent") and generic:
+            fire("all_creatures_kw_grant", "any", raw)
+            fire_subject("all_creatures_kw_grant", "any", subject, raw)
+        if ctrl == "You" and subs & {"aura", "equipment"} and kw in _AURA_EQUIP_KW:
+            fire("aura_equip_kw_grant", "you", raw)
+            fire_subject("aura_equip_kw_grant", "you", subject, raw)
+        your_perms = "Permanent" in cores and ctrl == "You" and generic
+        suit_up = set(preds) & ATTACHED_OBJECT_PREDICATES and cores & {
+            "Creature",
+            "Permanent",
+        }
+        if kw in PROTECTIVE_KEYWORDS and (team or your_perms or suit_up):
+            fire("protection_grant", "you", raw)
+
+    def grantee_site(affected: object, subject: str, raw: str) -> None:
+        """A grant site's subject-only keys by its grantee: your creatures, any
+        subset, and the suit-up recipient."""
+        cores = set(filter_core_types(affected))
+        on_board = not set(filter_inzone_zones(affected)) - {"Battlefield"}
+        ctrl = filter_controller(affected)
+        # Yours, or every player's creatures of a type ("All Sliver creatures
+        # have double strike" — Fury Sliver: your Slivers get it too) or
+        # attacking your opponents (Blast-Furnace Hellkite).
+        yours = ctrl == "You" or (
+            ctrl is None
+            and (bool(filter_subtypes(affected)) or attacks_your_opponents(affected))
+        )
+        if (
+            filter_names_creatures(affected)
+            and yours
+            and on_board  # Sedris's graveyard cards have unearth — no team
+        ):
+            fire_subject("team_buff", "you", subject, raw)
+        # The suit-up recipient, or every creature of yours that has gear on it
+        # ("Equipped creatures you control have haste" — Firion, Wild Rose
+        # Warrior; Zamriel, Seraph of Steel).
+        preds = set(filter_predicates(affected))
+        if (preds & ATTACHED_OBJECT_PREDICATES or "HasAttachment" in preds) and (
+            cores & {"Creature", "Permanent"}
+        ):
+            fire_subject("aura_equip_kw_grant", "you", subject, raw)
+
+    # A pump's grant phase dropped beside it (``crosswalk.pump_keyword_grants``):
+    # the pump's object is the grantee, read as a grant site's — your team
+    # ("creatures you control gain trample and get +1/+1 …" — Tromp the
+    # Domains), a typed part of it ("other Elves you control gain vigilance" —
+    # Haldir, Lórien Lieutenant), every creature — or a target creature.
+    for _unit, pump, subject in pump_keyword_grants(tree):
+        filt = effect_filter(pump.node)
+        kw = normalised_keyword_name(subject)
+        if tag_of(pump.node) == "Pump":
+            if "Creature" in filter_core_types(filt) and (
+                filter_controller(filt) != "Opponent"
+            ):
+                fire("keyword_grant_target", "you", "")
+                fire_subject("keyword_grant_target", "you", subject)
+                if kw in PROTECTIVE_KEYWORDS:
+                    fire("protection_grant", "you", "")
+            continue
+        team_site(filt, kw, subject, pump.raw)
+        grantee_site(filt, subject, pump.raw)
 
     for unit in tree.units:
         # ``unit_keyword_grants``: the DEEP local-target leaf on any unit, plus —
@@ -1409,29 +1486,8 @@ def _keyword_grant_lanes(tree: ConceptTree) -> list[Signal]:
             atag = tag_of(affected)
             if atag in ("SelfRef", "ParentTarget"):
                 continue  # self-grant / the single-target arm above
-            raw = _site_raw(sdef)
-            cores = set(filter_core_types(affected))
-            ctrl = filter_controller(affected)
-            subs = {s.lower() for s in filter_subtypes(affected)}
-            preds = filter_predicates(affected)
-            generic = not subs and not preds
-            team = "Creature" in cores and ctrl == "You" and generic
-            if team and kw in _TEAM_EVASION_KW:
-                fire("team_evasion_grant", "you", raw)
-                fire_kw("team_evasion_grant", "you", mod, raw)
-            if "Creature" in cores and ctrl not in ("You", "Opponent") and generic:
-                fire("all_creatures_kw_grant", "any", raw)
-                fire_kw("all_creatures_kw_grant", "any", mod, raw)
-            if ctrl == "You" and subs & {"aura", "equipment"} and kw in _AURA_EQUIP_KW:
-                fire("aura_equip_kw_grant", "you", raw)
-                fire_kw("aura_equip_kw_grant", "you", mod, raw)
-            your_perms = "Permanent" in cores and ctrl == "You" and generic
-            suit_up = set(preds) & ATTACHED_OBJECT_PREDICATES and cores & {
-                "Creature",
-                "Permanent",
-            }
-            if kw in PROTECTIVE_KEYWORDS and (team or your_perms or suit_up):
-                fire("protection_grant", "you", raw)
+            subject = keyword_subject(mod_keyword_name(mod) or "")
+            team_site(affected, kw, subject, _site_raw(sdef))
         # The subject-only shapes read every grant site the card holds (the deep
         # walk: a modal arm, an emblem, a token's own Equipment static — The
         # Spear of Leonidas, Domri Rade's emblem, Nahiri's Stoneforged Blade).
@@ -1466,32 +1522,7 @@ def _keyword_grant_lanes(tree: ConceptTree) -> list[Signal]:
                 elif trigger_subject_scope(unit.node) == "you":
                     fire_kw("team_buff", "you", mod, raw)
                 continue
-            cores = set(filter_core_types(affected))
-            on_board = not set(filter_inzone_zones(affected)) - {"Battlefield"}
-            ctrl = filter_controller(affected)
-            # Yours, or every player's creatures of a type ("All Sliver
-            # creatures have double strike" — Fury Sliver: your Slivers get it
-            # too) or attacking your opponents (Blast-Furnace Hellkite).
-            yours = ctrl == "You" or (
-                ctrl is None
-                and (
-                    bool(filter_subtypes(affected)) or attacks_your_opponents(affected)
-                )
-            )
-            if (
-                filter_names_creatures(affected)
-                and yours
-                and on_board  # Sedris's graveyard cards have unearth — no team
-            ):
-                fire_kw("team_buff", "you", mod, raw)
-            # The suit-up recipient, or every creature of yours that has gear
-            # on it ("Equipped creatures you control have haste" — Firion,
-            # Wild Rose Warrior; Zamriel, Seraph of Steel).
-            preds = set(filter_predicates(affected))
-            if (preds & ATTACHED_OBJECT_PREDICATES or "HasAttachment" in preds) and (
-                cores & {"Creature", "Permanent"}
-            ):
-                fire_kw("aura_equip_kw_grant", "you", mod, raw)
+            grantee_site(affected, keyword_subject(mod_keyword_name(mod) or ""), raw)
     # A trigger granted to your creatures that hands its bearer a keyword:
     # "Commander creatures you own have 'Whenever this creature attacks, it
     # gains double strike'" (Flaming Fist) — a team grant, by its grantee.

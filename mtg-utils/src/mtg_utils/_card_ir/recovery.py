@@ -34,6 +34,7 @@ from mtg_utils._card_ir.clause_grammar import (
     _SENTENCE_RX,
     _VERB_PRESENT,
     keyword_grants,
+    leading_keywords,
     parse_clause,
     replacement_sentences,
     replacement_token,
@@ -48,6 +49,7 @@ from mtg_utils._card_ir.crosswalk import (
     ConceptTree,
     counter_keyword,
     counter_kind,
+    filter_controller_side,
     iter_mod_sites,
     iter_nested_granted_bodies,
     keyword_subject,
@@ -58,6 +60,7 @@ from mtg_utils._card_ir.crosswalk import (
     walk_effect_chain,
 )
 from mtg_utils._card_ir.crosswalk.core import GRANTED_RECOVERY_ATTR
+from mtg_utils._card_ir.mirror.runtime import TypedMirrorNode
 from mtg_utils._card_ir.text_idioms import _DICE_TRIG
 
 
@@ -1203,18 +1206,25 @@ def recover_concepts(
     return tuple(out) if changed else concepts
 
 
-def residue_body_keywords(raw: str) -> tuple[str, ...]:
+def residue_body_keywords(raw: str, *, made_only: bool = False) -> tuple[str, ...]:
     """The keywords a residue's clause puts on a body of yours, sentence by
     sentence (``clause_grammar.keyword_grants`` with its token, animation and
     counter reads): a grant ("it gains flying until end of turn"), a token's
     ("create X 1/1 black Faerie Rogue creature tokens with flying"), a keyword
     counter placed ("put a flying counter on it"). A sentence acting on another
     player's side — an opponent's creatures (``THEIRS``), a token another player
-    creates (``make_token``'s ``OTHER_PLAYER``, CR 111.2) — puts none on yours."""
+    creates (``make_token``'s ``OTHER_PLAYER``, CR 111.2) — puts none on yours.
+    ``made_only`` reads only the bodies the clause makes (a token's, an
+    animation's), never a grant or a counter."""
     out: set[str] = set()
     for sentence in _SENTENCE_RX.findall(raw):
         kws = keyword_grants(
-            sentence, quoted=True, creature_with="stated", tokens=True, counters=True
+            sentence,
+            quoted=True,
+            creature_with="stated",
+            tokens=True,
+            counters=not made_only,
+            grants=not made_only,
         )
         if not kws:
             continue
@@ -1226,6 +1236,25 @@ def residue_body_keywords(raw: str) -> tuple[str, ...]:
 
 
 _PUMP_TAGS = frozenset({"Pump", "PumpAll"})
+_PUT_COUNTER_TAGS = frozenset({"PutCounter", "PutCounterAll"})
+
+
+def _swallowed_counter_keywords(node: object) -> tuple[str, ...]:
+    """The keywords a counter kind phase read as the rest of its clause opens on
+    — "it enters with flying and with X +1/+1 counters" typed as the kind "flying
+    and with x +1/+1" (Dralnu's Pet), "create a 0/0 green Ooze creature token with
+    trample. The token enters with X +1/+1 counters" as "trample. the token enters
+    with x +1/+1" (Printlifter Ooze): the keyword is the counters' object's. Never
+    a real keyword counter's kind ("first strike", CR 122.1b), nor a counter on an
+    opponent's object."""
+    if not isinstance(node, TypedMirrorNode):
+        return ()
+    kind = counter_kind(node)
+    if not kind or counter_keyword(kind):
+        return ()
+    if filter_controller_side(getattr(node, "target", None)) == "opponents":
+        return ()
+    return tuple(sorted(leading_keywords(kind)))
 
 
 def _unit_typed_keywords(unit: AbilityUnit) -> set[str]:
@@ -1281,15 +1310,22 @@ def _with_body_keywords(
     out: list[ConceptNode] = []
     for c in concepts:
         kws: tuple[str, ...] = ()
+        made: tuple[str, ...] = ()
         if c.raw and tag_of(c.node) == "Unimplemented":
             text = c.raw.replace(self_name, "~") if self_name else c.raw
             kws = residue_body_keywords(text)
-        out.append(replace(c, body_keywords=kws) if kws else c)
+            made = residue_body_keywords(text, made_only=True) if kws else ()
+        elif tag_of(c.node) in _PUT_COUNTER_TAGS:
+            kws = _swallowed_counter_keywords(c.node)
+        out.append(replace(c, body_keywords=kws, made_body_keywords=made) if kws else c)
     extra = _partly_read_grant(unit, tuple(out)) if out else ()
     if extra:
-        head = out[0]
-        out[0] = replace(
-            head, body_keywords=tuple(sorted({*head.body_keywords, *extra}))
+        # On the pump whose grant it is ("creatures you control gain trample and
+        # get +1/+1": the grantee is the pump's object — ``crosswalk.
+        # pump_keyword_grants``), else the unit's first effect.
+        at = next((i for i, c in enumerate(out) if tag_of(c.node) in _PUMP_TAGS), 0)
+        out[at] = replace(
+            out[at], body_keywords=tuple(sorted({*out[at].body_keywords, *extra}))
         )
     changed = any(a is not b for a, b in zip(out, concepts, strict=True))
     return tuple(out) if changed else concepts

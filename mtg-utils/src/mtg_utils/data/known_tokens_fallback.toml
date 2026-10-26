@@ -27,6 +27,10 @@
 # allowlist ever widens, regenerate this file (the bump-session script in
 # git history) so CI / offline dev stays deterministic regardless of who
 # has a live fetch.
+#
+# Beside the wired entries, the Role entries whose text the correction layer
+# reads (_card_ir.dropped_keywords' Role-token grant, 2026-10-26): Monster (CR
+# 111.10k), not wired, so no text-only tree. A regeneration must keep them.
 
 
 [[token]]
@@ -430,4 +434,29 @@ Whenever you cast a noncreature spell, put a +1/+1 counter on this creature.
 display_name = "Spellgorger Weird"
 core_types = ["Creature"]
 subtypes = ["Weird"]
+supertypes = []
+
+# Monster (see the header: read by the correction layer, not wired).
+[[token]]
+id = "246f948c-eea9-5f6a-8d19-f8c11c51de94"
+rules_text = """
+Enchant creature
+Enchanted creature gets +1/+1 and has trample."""
+
+[token.body]
+display_name = "Monster"
+core_types = ["Enchantment"]
+subtypes = ["Aura", "Role"]
+supertypes = []
+
+[[token]]
+id = "fd8b66fa-4958-5fe2-95b2-f6768257b438"
+rules_text = """
+Enchant creature
+Enchanted creature gets +1/+1 and has trample."""
+
+[token.body]
+display_name = "Monster"
+core_types = ["Enchantment"]
+subtypes = ["Aura", "Role"]
 supertypes = []

@@ -420,9 +420,16 @@ def _detect_keyword_implied_tribe(clause: str) -> list[tuple[str, str]]:
     ]
 
 
+#: The ability keywords a keyword tribe pages (``keyword_tribe``'s subjects, CR
+#: 702), in ``crosswalk.keyword_subject`` spelling: first and double strike are
+#: two words, read off a typed ``WithKeyword`` filter (Kwende, Pride of Femeref's
+#: "Creatures you control with first strike") — the one-word text mirror never
+#: captures them.
 _ABILITY_KEYWORDS = frozenset(
     {
         "flying",
+        "first strike",
+        "double strike",
         "deathtouch",
         "vigilance",
         "trample",

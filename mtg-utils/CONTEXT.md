@@ -44,20 +44,27 @@ residue's end, never past a sentence break and never beyond that unit; every
 other row never reads outside the residue. One more decoration rides the stage:
 **body keywords** (`ConceptNode.body_keywords`), the keywords a residue's clause
 puts on a body of yours ("it gains flying until end of turn", a token "with
-flying", "put a flying counter on it"), and — on the unit's first effect — the
-ones the unit's own description grants that phase typed only part of (a bare
-`PumpAll` for "gain trample and get +1/+1", a "The same is true for …" list past
-its first keyword); `keyword_bodies` reads them.
+flying", "put a flying counter on it"), a counter kind phase read as the rest of
+its clause ("flying and with x +1/+1"), and — on the unit's pump, else its first
+effect — the ones the unit's own description grants that phase typed only part
+of (a bare `PumpAll` for "gain trample and get +1/+1", a "The same is true for …"
+list past its first keyword); `keyword_bodies` reads them, and the team-grant
+lanes read a pump's as a grant to the pump's own object
+(`crosswalk.pump_keyword_grants`). `made_body_keywords` keeps the subset whose
+body the clause makes (a token's, an animation's), never a grant onto a body
+already there — the bodies with defender a defender page counts.
 _Avoid_: "supplement" (the old-IR path's envelope around the same grammar),
 "synthesis" (adds nodes; recovery rewrites decoration in place).
 
 **Dropped keyword** (`_card_ir.dropped_keywords`):
 A keyword a phase node's own clause grants but its typed parse leaves out — a
 static def's "has flying" with no `AddKeyword`, a copy's "except it has haste", a
-keyword read as the subtypes `With` and `Flying`. Restored on the raw face record
-before strict load as phase's own `AddKeyword`, so every read sees it (the input
-side of the ADR-0047 amendment, like the branch-misread registry); never added
-where the record types the keyword anywhere.
+keyword read as the subtypes `With` and `Flying`, a Role token's own "Enchanted
+creature … has trample" (its text is phase's known-tokens entry). Restored on the
+raw face record before strict load as phase's own `AddKeyword` (ward with the
+generic cost its clause states), so every read sees it (the input side of the
+ADR-0047 amendment, like the branch-misread registry); never added where the
+record types the keyword anywhere.
 _Avoid_: "synthesized node" (it is phase's own shape, restored on the input).
 
 **Field correction**:

@@ -91,6 +91,7 @@ from mtg_utils._card_ir.crosswalk import (
     produced_contribution,
     pt_mod_signs,
     pump_is_negative,
+    pump_keyword_grants,
     puts_under_your_control,
     recipient_tag,
     ref_count_qty,
@@ -1883,10 +1884,23 @@ def _team_buff(tree: ConceptTree) -> list[Signal]:
         ),
         None,
     )
+    raw = _site_raw(site) if site is not None else None
+    if raw is None:
+        # A pump's grant phase dropped beside it ("creatures you control gain
+        # trample and get +1/+1 …" — Tromp the Domains).
+        raw = next(
+            (
+                pump.raw
+                for _unit, pump, kw in pump_keyword_grants(tree)
+                if normalised_keyword_name(kw) in TEAM_BUFF_GRANT_KW
+                and is_team_buff_filter(effect_filter(pump.node))
+            ),
+            None,
+        )
     out = _team_pump(tree)
-    if site is None:
+    if raw is None:
         return out
-    return [Signal("team_buff", "you", "", _site_raw(site), tree.name, "high"), *out]
+    return [Signal("team_buff", "you", "", raw, tree.name, "high"), *out]
 
 
 def _team_pump(tree: ConceptTree) -> list[Signal]:

@@ -380,6 +380,11 @@ class ConceptNode:
     # typed only part of (``recovery._partly_read_grant``). Written only by the
     # recovery stage.
     body_keywords: tuple[str, ...] = ()
+    # The ``body_keywords`` of a residue's bodies the clause makes — a token's, an
+    # animation's ("it becomes your choice of … a 1/6 Wall artifact creature with
+    # defender" — Primal Clay) — never a grant onto a body already there
+    # (``recovery.residue_body_keywords(made_only=True)``).
+    made_body_keywords: tuple[str, ...] = ()
 
     @property
     def reading(self) -> tuple[str, ...]:

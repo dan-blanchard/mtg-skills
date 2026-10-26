@@ -22834,6 +22834,168 @@
     "type_line": "Artifact"
    }
   },
+  "Aether Web": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Enchantment"
+      ],
+      "subtypes": [
+       "Aura"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Green"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [
+      "Flash",
+      {
+       "Enchant": {
+        "controller": null,
+        "properties": [],
+        "type": "Typed",
+        "type_filters": [
+         "Creature"
+        ]
+       }
+      }
+     ],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pauper": "legal",
+      "paupercommander": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "Green"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "ce9a6af9-1b39-41e1-bd71-210700b7608b"
+      ]
+     },
+     "name": "Aether Web",
+     "non_ability_text": null,
+     "oracle_text": "Flash (You may cast this spell any time you could cast an instant.)\nEnchant creature\nEnchanted creature gets +1/+1, has reach, and can block creatures with shadow as though they didn't have shadow. (Creatures with reach can block creatures with flying.)",
+     "power": null,
+     "printings": [
+      "TSP"
+     ],
+     "rarities": [
+      "common"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2006-09-25",
+       "text": "If the enchanted creature has shadow, it won’t be able to block any creatures (not even those with shadow)."
+      },
+      {
+       "date": "2006-09-25",
+       "text": "The enchanted creature can block creatures with shadow and creatures without shadow."
+      }
+     ],
+     "scryfall_oracle_id": "97e7778f-971c-4425-8f6d-f4ff3fae000f",
+     "static_abilities": [
+      {
+       "active_zones": [],
+       "affected": {
+        "controller": null,
+        "properties": [
+         {
+          "type": "EnchantedBy"
+         }
+        ],
+        "type": "Typed",
+        "type_filters": [
+         "Creature"
+        ]
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": null,
+       "description": "Enchanted creature gets +1/+1, has reach, and can block creatures with shadow as though they didn't have shadow.",
+       "effect_zone": null,
+       "mode": "Continuous",
+       "modifications": [
+        {
+         "type": "AddPower",
+         "value": 1
+        },
+        {
+         "type": "AddToughness",
+         "value": 1
+        },
+        {
+         "keyword": "Reach",
+         "type": "AddKeyword"
+        }
+       ]
+      }
+     ],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 2.0,
+    "color_identity": [
+     "G"
+    ],
+    "colors": [
+     "G"
+    ],
+    "keywords": [
+     "Enchant",
+     "Flash"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "legal",
+     "paupercommander": "legal",
+     "penny": "legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}{G}",
+    "name": "Aether Web",
+    "oracle_id": "97e7778f-971c-4425-8f6d-f4ff3fae000f",
+    "oracle_text": "Flash (You may cast this spell any time you could cast an instant.)\nEnchant creature\nEnchanted creature gets +1/+1, has reach, and can block creatures with shadow as though they didn't have shadow. (Creatures with reach can block creatures with flying.)",
+    "type_line": "Enchantment — Aura"
+   }
+  },
   "Aetherflame Wall": {
    "phase_records": [
     {
@@ -115352,6 +115514,165 @@
     "type_line": "Instant"
    }
   },
+  "Backstreet Bruiser": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Octopus",
+       "Rogue"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Blue"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [
+      "Defender"
+     ],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pauper": "legal",
+      "paupercommander": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "Blue"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "8d3a94c8-a7eb-4f05-8d48-d42e5129b09a"
+      ]
+     },
+     "name": "Backstreet Bruiser",
+     "non_ability_text": null,
+     "oracle_text": "Defender\nAs long as there are two or more counters among creatures you control, this creature can attack as though it didn't have defender.",
+     "power": {
+      "type": "Fixed",
+      "value": 3
+     },
+     "printings": [
+      "SNC"
+     ],
+     "rarities": [
+      "common"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2022-04-29",
+       "text": "Backstreet Bruiser's ability looks for two or more individual counters. It doesn't matter if the counters are the same kind or different kinds or whether they are on the same permanent or different permanents."
+      }
+     ],
+     "scryfall_oracle_id": "354d9db1-18a6-4701-be3c-c4ded900e2ff",
+     "static_abilities": [
+      {
+       "active_zones": [],
+       "affected": {
+        "type": "SelfRef"
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": {
+        "comparator": "GE",
+        "lhs": {
+         "qty": {
+          "filter": {
+           "controller": "You",
+           "properties": [],
+           "type": "Typed",
+           "type_filters": [
+            "Creature"
+           ]
+          },
+          "type": "CountersOnObjects"
+         },
+         "type": "Ref"
+        },
+        "rhs": {
+         "type": "Fixed",
+         "value": 2
+        },
+        "type": "QuantityComparison"
+       },
+       "description": "As long as there are two or more counters among creatures you control, ~ can attack as though it didn't have defender.",
+       "effect_zone": null,
+       "mode": "CanAttackWithDefender",
+       "modifications": []
+      }
+     ],
+     "toughness": {
+      "type": "Fixed",
+      "value": 3
+     },
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 2.0,
+    "color_identity": [
+     "U"
+    ],
+    "colors": [
+     "U"
+    ],
+    "keywords": [
+     "Defender"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "legal",
+     "paupercommander": "legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}{U}",
+    "name": "Backstreet Bruiser",
+    "oracle_id": "354d9db1-18a6-4701-be3c-c4ded900e2ff",
+    "oracle_text": "Defender\nAs long as there are two or more counters among creatures you control, this creature can attack as though it didn't have defender.",
+    "power": "3",
+    "toughness": "3",
+    "type_line": "Creature — Octopus Rogue"
+   }
+  },
   "Bad Moon": {
    "phase_records": [
     {
@@ -127102,6 +127423,253 @@
     ],
     "toughness": "2",
     "type_line": "Creature — Sliver"
+   }
+  },
+  "Basalt Golem": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Artifact",
+       "Creature"
+      ],
+      "subtypes": [
+       "Golem"
+      ],
+      "supertypes": []
+     },
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "premodern": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 5,
+      "shards": [],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "5ff538f9-10b4-4327-aea6-a86759daf488"
+      ]
+     },
+     "name": "Basalt Golem",
+     "non_ability_text": null,
+     "oracle_text": "This creature can't be blocked by artifact creatures.\nWhenever this creature becomes blocked by a creature, that creature's controller sacrifices it at end of combat. If the player does, they create a 0/2 colorless Wall artifact creature token with defender.",
+     "power": {
+      "type": "Fixed",
+      "value": 2
+     },
+     "printings": [
+      "MIR"
+     ],
+     "rarities": [
+      "uncommon"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2005-11-01",
+       "text": "The token creature is put onto the battlefield at the end of combat only if the blocking creature is sacrificed during the resolution of the triggered ability."
+      }
+     ],
+     "scryfall_oracle_id": "9155f78e-0ccc-4e08-ae79-ef5b2db1183f",
+     "static_abilities": [
+      {
+       "active_zones": [],
+       "affected": {
+        "type": "SelfRef"
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": null,
+       "description": "~ can't be blocked by artifact creatures.",
+       "effect_zone": null,
+       "mode": {
+        "CantBeBlockedBy": {
+         "filter": {
+          "controller": null,
+          "properties": [],
+          "type": "Typed",
+          "type_filters": [
+           "Artifact",
+           "Creature"
+          ]
+         }
+        }
+       },
+       "modifications": []
+      }
+     ],
+     "toughness": {
+      "type": "Fixed",
+      "value": 4
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever ~ becomes blocked by a creature, that creature's controller sacrifices it at end of combat. If the player does, they create a 0/2 colorless Wall artifact creature token with defender.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "condition": {
+          "phase": "EndCombat",
+          "type": "AtNextPhase"
+         },
+         "effect": {
+          "condition": null,
+          "cost": null,
+          "description": null,
+          "duration": null,
+          "effect": {
+           "count": {
+            "type": "Fixed",
+            "value": 1
+           },
+           "target": {
+            "type": "SelfRef"
+           },
+           "type": "Sacrifice"
+          },
+          "forward_result": false,
+          "kind": "Spell",
+          "optional": false,
+          "optional_targeting": false,
+          "sub_ability": {
+           "condition": {
+            "signal": "OptionalEffectPerformed",
+            "type": "EffectOutcome"
+           },
+           "cost": null,
+           "description": null,
+           "duration": null,
+           "effect": {
+            "colors": [],
+            "count": {
+             "type": "Fixed",
+             "value": 1
+            },
+            "enters_attacking": false,
+            "keywords": [
+             "Defender"
+            ],
+            "name": "Wall",
+            "owner": {
+             "type": "ParentTarget"
+            },
+            "power": {
+             "type": "Fixed",
+             "value": 0
+            },
+            "tapped": false,
+            "toughness": {
+             "type": "Fixed",
+             "value": 2
+            },
+            "type": "Token",
+            "types": [
+             "Artifact",
+             "Creature",
+             "Wall"
+            ]
+           },
+           "forward_result": false,
+           "kind": "Spell",
+           "optional": false,
+           "optional_targeting": false,
+           "sub_ability": null,
+           "sub_link": "SequentialSibling",
+           "target_prompt": null
+          },
+          "target_prompt": null
+         },
+         "type": "CreateDelayedTrigger",
+         "uses_tracked_set": false
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "BecomesBlocked",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": {
+        "controller": null,
+        "properties": [],
+        "type": "Typed",
+        "type_filters": [
+         "Creature"
+        ]
+       }
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 5.0,
+    "color_identity": [],
+    "colors": [],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{5}",
+    "name": "Basalt Golem",
+    "oracle_id": "9155f78e-0ccc-4e08-ae79-ef5b2db1183f",
+    "oracle_text": "This creature can't be blocked by artifact creatures.\nWhenever this creature becomes blocked by a creature, that creature's controller sacrifices it at end of combat. If the player does, they create a 0/2 colorless Wall artifact creature token with defender.",
+    "power": "2",
+    "toughness": "4",
+    "type_line": "Artifact Creature — Golem"
    }
   },
   "Basandra, Battle Seraph": {
@@ -139326,6 +139894,136 @@
     "oracle_id": "f1dce3f0-30c8-488f-bbeb-b0533886c655",
     "oracle_text": "Target creature you control deals damage equal to its power to each of two other target creatures.",
     "type_line": "Instant"
+   }
+  },
+  "Better Offer": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Put a random creature card with mana value X or less from target opponent's library onto the battlefield under your control. It perpetually has base power and toughness X/X and perpetually gains ward {1}.",
+       "duration": null,
+       "effect": {
+        "destination": "Battlefield",
+        "enter_tapped": false,
+        "enter_transformed": false,
+        "enters_attacking": false,
+        "enters_under": "You",
+        "origin": null,
+        "owner_library": false,
+        "target": {
+         "type": "Any"
+        },
+        "type": "ChangeZone"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "description": "It perpetually has base power and toughness X/X and perpetually gains ward {1}",
+         "name": "unbound_subject",
+         "type": "Unimplemented"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "sub_link": "SequentialSibling",
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Sorcery"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Blue"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "historic": "legal",
+      "timeless": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 0,
+      "shards": [
+       "X",
+       "Blue"
+      ],
+      "type": "Cost"
+     },
+     "name": "Better Offer",
+     "non_ability_text": null,
+     "oracle_text": "Put a random creature card with mana value X or less from target opponent's library onto the battlefield under your control. It perpetually has base power and toughness X/X and perpetually gains ward {1}.",
+     "power": null,
+     "printings": [
+      "YNEO"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "5e2c6c36-4bff-4479-b322-f13434b81ea3",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 1.0,
+    "color_identity": [
+     "U"
+    ],
+    "colors": [
+     "U"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "not_legal",
+     "competitivebrawl": "legal",
+     "duel": "not_legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "not_legal",
+     "modern": "not_legal",
+     "oathbreaker": "not_legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "not_legal"
+    },
+    "mana_cost": "{X}{U}",
+    "name": "Better Offer",
+    "oracle_id": "5e2c6c36-4bff-4479-b322-f13434b81ea3",
+    "oracle_text": "Put a random creature card with mana value X or less from target opponent's library onto the battlefield under your control. It perpetually has base power and toughness X/X and perpetually gains ward {1}.",
+    "type_line": "Sorcery"
    }
   },
   "Beyond the Quiet": {
@@ -457414,6 +458112,279 @@
     "type_line": "Creature — Giant"
    }
   },
+  "Fugitive Codebreaker": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Goblin",
+       "Rogue"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Red"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [
+      "Haste",
+      "Prowess",
+      {
+       "Disguise": {
+        "cost": {
+         "generic": 5,
+         "shards": [
+          "Red"
+         ],
+         "type": "Cost"
+        },
+        "reduction": {
+         "amount_per": 1,
+         "count": {
+          "qty": {
+           "card_types": [
+            "Instant",
+            "Sorcery"
+           ],
+           "scope": "Controller",
+           "type": "ZoneCardCount",
+           "zone": "Graveyard"
+          },
+          "type": "Ref"
+         }
+        }
+       }
+      }
+     ],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "standard": "legal",
+      "standardbrawl": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "Red"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "3cbb3378-291c-4de6-be98-dd09daa3b828",
+       "b682bf8a-06dc-4828-bc46-9e1427bf981f"
+      ]
+     },
+     "name": "Fugitive Codebreaker",
+     "non_ability_text": null,
+     "oracle_text": "Prowess, haste\nDisguise {5}{R}. This cost is reduced by {1} for each instant and sorcery card in your graveyard. (You may cast this card face down for {3} as a 2/2 creature with ward {2}. Turn it face up any time for its disguise cost.)\nWhen this creature is turned face up, discard your hand, then draw three cards.",
+     "power": {
+      "type": "Fixed",
+      "value": 2
+     },
+     "printings": [
+      "MKM",
+      "PMKM"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2024-02-02",
+       "text": "A disguise ability lets you cast a card face down by paying {3} and announcing that you are using a disguise ability. Any time you have priority, you can turn a face-down permanent with disguise face up by paying its disguise cost."
+      },
+      {
+       "date": "2024-02-02",
+       "text": "A permanent that turns face up or face down changes characteristics but is otherwise the same permanent. Spells and abilities that were targeting that permanent and Auras and Equipment that were attached to that permanent aren't affected unless the new characteristics of the object change the legality of those targets or attachments."
+      },
+      {
+       "date": "2024-02-02",
+       "text": "Any time you have priority, you may turn the face-down creature face up by revealing what its disguise cost is and paying that cost. This is a special action. It doesn't use the stack and can't be responded to. Only a face-down permanent can be turned face up this way; a face-down spell cannot."
+      },
+      {
+       "date": "2024-02-02",
+       "text": "At any time, you can look at a face-down spell or permanent you control. You can't look at face-down permanents or spells you don't control unless an effect instructs or allows you to do so."
+      },
+      {
+       "date": "2024-02-02",
+       "text": "Because face-down creatures don't have a name, they can't have the same name as any other creature, even another face-down creature."
+      },
+      {
+       "date": "2024-02-02",
+       "text": "Because the permanent is on the battlefield both before and after it's turned face up, turning a permanent face up doesn't cause any enters-the-battlefield abilities to trigger."
+      },
+      {
+       "date": "2024-02-02",
+       "text": "If a face-down creature loses its abilities, it can't be turned face up with a disguise ability because it will no longer have a disguise ability (or a disguise cost) once face up."
+      },
+      {
+       "date": "2024-02-02",
+       "text": "If a face-down spell leaves the stack and goes to any zone other than the battlefield (if it was countered, for example), you must reveal it. Similarly, if a face-down permanent leaves the battlefield, you must reveal it. You must also reveal all face-down spells and permanents you control if you leave the game or the game ends."
+      },
+      {
+       "date": "2024-02-02",
+       "text": "If you have no cards in hand when Fugitive Codebreaker's last ability resolves, you won't discard any cards, but you'll still draw three cards."
+      },
+      {
+       "date": "2024-02-02",
+       "text": "The creature spell is a 2/2 creature spell with ward {2} that has no name, mana cost, or creature types. The resulting creature is a 2/2 creature with ward {2} that has no name, mana cost, or creature types. Both the spell and the resulting creature are colorless and have a mana value of 0. Other effects that apply to the spell or creature can still grant it any characteristics it doesn't have or change the characteristics it does have."
+      },
+      {
+       "date": "2024-02-02",
+       "text": "The face-down spell has no mana cost and a mana value of 0. When you cast a face-down spell, put it on the stack face down so no other player knows what it is, and pay {3} to cast it. This is an alternative cost."
+      },
+      {
+       "date": "2024-02-02",
+       "text": "Turning a permanent face up or face down doesn't change whether that permanent is tapped or untapped."
+      },
+      {
+       "date": "2024-02-02",
+       "text": "You must ensure that your face-down spells and permanents can be easily differentiated from each other. You're not allowed to mix up the cards that represent them on the battlefield to confuse other players. The order in which they entered the battlefield should remain clear, as well as what ability caused them to be face down. (This includes disguise, cloak, and in games involving older cards, morph and manifest, as well as a few other effects that turn cards face down.) Common methods for doing this include using markers or dice, or simply placing them in order on the battlefield."
+      }
+     ],
+     "scryfall_oracle_id": "af2b36ee-2945-41d3-a186-8fd28f3cde16",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 1
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "When ~ is turned face up, discard your hand, then draw three cards.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "count": {
+          "qty": {
+           "player": {
+            "type": "Controller"
+           },
+           "type": "HandSize"
+          },
+          "type": "Ref"
+         },
+         "target": {
+          "type": "Controller"
+         },
+         "type": "Discard"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "count": {
+           "type": "Fixed",
+           "value": 3
+          },
+          "target": {
+           "type": "Controller"
+          },
+          "type": "Draw"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": null,
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "mode": "TurnFaceUp",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 2.0,
+    "color_identity": [
+     "R"
+    ],
+    "colors": [
+     "R"
+    ],
+    "keywords": [
+     "Disguise",
+     "Haste",
+     "Prowess"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "legal",
+     "standardbrawl": "legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}{R}",
+    "name": "Fugitive Codebreaker",
+    "oracle_id": "af2b36ee-2945-41d3-a186-8fd28f3cde16",
+    "oracle_text": "Prowess, haste\nDisguise {5}{R}. This cost is reduced by {1} for each instant and sorcery card in your graveyard. (You may cast this card face down for {3} as a 2/2 creature with ward {2}. Turn it face up any time for its disguise cost.)\nWhen this creature is turned face up, discard your hand, then draw three cards.",
+    "power": "2",
+    "toughness": "1",
+    "type_line": "Creature — Goblin Rogue"
+   }
+  },
   "Fugitive of the Judoon": {
    "phase_records": [
     {
@@ -464896,6 +465867,316 @@
     "oracle_id": "409e0a43-0e85-47ea-9d40-de0860b12952",
     "oracle_text": "At the beginning of your upkeep, each player reveals the top card of their library. If all cards revealed this way are creature cards, put those cards onto the battlefield under their owners' control.",
     "type_line": "Enchantment"
+   }
+  },
+  "Gandalf of the Secret Fire": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "brawl_commander": true,
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Avatar",
+       "Wizard"
+      ],
+      "supertypes": [
+       "Legendary"
+      ]
+     },
+     "color_identity": [
+      "Red",
+      "Blue",
+      "White"
+     ],
+     "color_override": [
+      "Red",
+      "Blue",
+      "White"
+     ],
+     "defense": null,
+     "flavor_name": null,
+     "is_commander": true,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "Blue",
+       "Red",
+       "White"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "6469efb4-c0c4-4545-a2b3-877b4cfa7683",
+       "bc40e6dd-0aa8-4c37-a2eb-4dc9662e416e"
+      ]
+     },
+     "name": "Gandalf of the Secret Fire",
+     "non_ability_text": null,
+     "oracle_text": "Whenever you cast an instant or sorcery spell from your hand during an opponent's turn, exile that card with three time counters on it instead of putting it into your graveyard as it resolves. Then if the exiled card doesn't have suspend, it gains suspend. (At the beginning of your upkeep, remove a time counter. When the last is removed, you may play it without paying its mana cost.)",
+     "power": {
+      "type": "Fixed",
+      "value": 3
+     },
+     "printings": [
+      "LTC"
+     ],
+     "rarities": [
+      "mythic"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2023-11-03",
+       "text": "When the last time counter is removed from the exiled card, it's cast as a completely new spell. Modes and targets are chosen again. If the spell has any mandatory additional costs, they must be paid again. If they can't be, the spell can't be cast and stays exiled."
+      },
+      {
+       "date": "2024-02-02",
+       "text": "Cards exiled with suspend are exiled face up."
+      },
+      {
+       "date": "2024-02-02",
+       "text": "Due to a recent rules change to suspend, you are no longer required to cast the suspended card as the second triggered ability of suspend resolves. Instead, as the second triggered ability resolves, you may cast the card. Timing permissions based on the card's type are ignored. If you don't cast the card, it remains exiled with no time counters on it, and it's no longer suspended."
+      },
+      {
+       "date": "2024-02-02",
+       "text": "Exiling a card with suspend isn't casting that card. This action doesn't use the stack and can't be responded to."
+      },
+      {
+       "date": "2024-02-02",
+       "text": "If an effect refers to a \"suspended card,\" that means a card that (1) has suspend, (2) is in exile, and (3) has one or more time counters on it."
+      },
+      {
+       "date": "2024-02-02",
+       "text": "If the card has {X} in its mana cost, you must choose 0 as the value of X when casting it without paying its mana cost."
+      },
+      {
+       "date": "2024-02-02",
+       "text": "If the first triggered ability of suspend (the one that removes time counters) is countered, no time counter is removed. The ability will trigger again at the beginning of the card's owner's next upkeep."
+      },
+      {
+       "date": "2024-02-02",
+       "text": "If the second triggered ability is countered, the card can't be cast. It remains exiled with no time counters on it, and it's no longer suspended."
+      },
+      {
+       "date": "2024-02-02",
+       "text": "If the spell requires any targets, those targets are chosen when the spell is finally cast, not when it's exiled."
+      },
+      {
+       "date": "2024-02-02",
+       "text": "If you cast a card \"without paying its mana cost,\" such as with suspend, you can't choose to cast it for any alternative costs. You can, however, pay additional costs. If the card has any mandatory additional costs, you must pay those if you want to cast the card."
+      },
+      {
+       "date": "2024-02-02",
+       "text": "Suspend is a keyword that represents three abilities. The first is a static ability that allows you to exile the card from your hand with the specified number of time counters (the number before the dash) on it by paying its suspend cost (listed after the dash). The second is a triggered ability that removes a time counter from the suspended card at the beginning of each of your upkeeps. The third is a triggered ability that gives you the option to cast the card when the last time counter is removed."
+      },
+      {
+       "date": "2024-02-02",
+       "text": "The mana value of a spell cast without paying its mana cost is determined by its mana cost, even though that cost wasn't paid."
+      },
+      {
+       "date": "2024-02-02",
+       "text": "When the last time counter is removed, the second triggered ability of suspend (the one that lets you cast the card) triggers. It doesn't matter why the last time counter was removed or what effect removed it."
+      },
+      {
+       "date": "2024-02-02",
+       "text": "You can exile a card in your hand using suspend any time you could cast that card. Consider its card type, any effects that modify when you could cast it (such as flash) and any other effects that stop you from casting it (such as from Meddling Mage's ability) to determine if and when you can do this. Whether you could actually complete all steps in casting the card is irrelevant. For example, you can exile a card with suspend that has no mana cost or that requires a target even if no legal targets are available at that time."
+      }
+     ],
+     "scryfall_oracle_id": "cbad35cd-9026-43ea-8333-94f3b34459e3",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 4
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": {
+        "type": "OnlyDuringOpponentsTurn"
+       },
+       "damage_kind": "Any",
+       "description": "Whenever you cast an instant or sorcery spell from your hand during an opponent's turn, exile that card with three time counters on it instead of putting it into your graveyard as it resolves. Then if the exiled card doesn't have suspend, it gains suspend.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "destination": "Exile",
+         "enter_tapped": false,
+         "enter_transformed": false,
+         "enter_with_counters": [
+          [
+           "time",
+           {
+            "type": "Fixed",
+            "value": 3
+           }
+          ]
+         ],
+         "enters_attacking": false,
+         "origin": "Graveyard",
+         "owner_library": false,
+         "target": {
+          "type": "ParentTarget"
+         },
+         "type": "ChangeZone"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": "Permanent",
+         "effect": {
+          "duration": "Permanent",
+          "static_abilities": [
+           {
+            "active_zones": [],
+            "affected": {
+             "type": "TriggeringSource"
+            },
+            "affected_zone": null,
+            "characteristic_defining": false,
+            "condition": null,
+            "description": "gain suspend",
+            "effect_zone": null,
+            "mode": "Continuous",
+            "modifications": [
+             {
+              "keyword": {
+               "Suspend": {
+                "cost": {
+                 "generic": 0,
+                 "shards": [],
+                 "type": "Cost"
+                },
+                "count": 0
+               }
+              },
+              "type": "AddKeyword"
+             }
+            ]
+           }
+          ],
+          "target": null,
+          "type": "GenericEffect"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": null,
+         "sub_link": "SequentialSibling",
+         "target_prompt": null
+        },
+        "target_choice_timing": "Resolution",
+        "target_prompt": null
+       },
+       "mode": "SpellCast",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "spell_cast_origin": {
+        "data": "Hand",
+        "type": "Equals"
+       },
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "filters": [
+         {
+          "controller": null,
+          "properties": [],
+          "type": "Typed",
+          "type_filters": [
+           "Instant"
+          ]
+         },
+         {
+          "controller": null,
+          "properties": [],
+          "type": "Typed",
+          "type_filters": [
+           "Sorcery"
+          ]
+         }
+        ],
+        "type": "Or"
+       },
+       "valid_source": null,
+       "valid_target": {
+        "type": "Controller"
+       }
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 4.0,
+    "color_identity": [
+     "R",
+     "U",
+     "W"
+    ],
+    "colors": [
+     "R",
+     "U",
+     "W"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}{U}{R}{W}",
+    "name": "Gandalf of the Secret Fire",
+    "oracle_id": "cbad35cd-9026-43ea-8333-94f3b34459e3",
+    "oracle_text": "Whenever you cast an instant or sorcery spell from your hand during an opponent's turn, exile that card with three time counters on it instead of putting it into your graveyard as it resolves. Then if the exiled card doesn't have suspend, it gains suspend. (At the beginning of your upkeep, remove a time counter. When the last is removed, you may play it without paying its mana cost.)",
+    "power": "3",
+    "toughness": "4",
+    "type_line": "Legendary Creature — Avatar Wizard"
    }
   },
   "Gandalf the White": {
@@ -519848,6 +521129,150 @@
     "type_line": "Legendary Creature — Human Soldier Warrior"
    }
   },
+  "Guard Duty": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Enchantment"
+      ],
+      "subtypes": [
+       "Aura"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "White"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [
+      {
+       "Enchant": {
+        "controller": null,
+        "properties": [],
+        "type": "Typed",
+        "type_filters": [
+         "Creature"
+        ]
+       }
+      }
+     ],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pauper": "legal",
+      "paupercommander": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 0,
+      "shards": [
+       "White"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "584687fd-59e1-46cb-aca2-3104349407d9",
+       "f77efd36-f9e7-4c34-a6ee-9e1c9b273fb7"
+      ]
+     },
+     "name": "Guard Duty",
+     "non_ability_text": null,
+     "oracle_text": "Enchant creature\nEnchanted creature has defender.",
+     "power": null,
+     "printings": [
+      "IMA",
+      "ROE"
+     ],
+     "rarities": [
+      "common"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "3b20e187-c200-40a0-8db2-481f0bf90168",
+     "static_abilities": [
+      {
+       "active_zones": [],
+       "affected": {
+        "controller": null,
+        "properties": [
+         {
+          "type": "EnchantedBy"
+         }
+        ],
+        "type": "Typed",
+        "type_filters": [
+         "Creature"
+        ]
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": null,
+       "description": "Enchanted creature has defender.",
+       "effect_zone": null,
+       "mode": "Continuous",
+       "modifications": [
+        {
+         "keyword": "Defender",
+         "type": "AddKeyword"
+        }
+       ]
+      }
+     ],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 1.0,
+    "color_identity": [
+     "W"
+    ],
+    "colors": [
+     "W"
+    ],
+    "keywords": [
+     "Enchant"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "legal",
+     "paupercommander": "legal",
+     "penny": "legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{W}",
+    "name": "Guard Duty",
+    "oracle_id": "3b20e187-c200-40a0-8db2-481f0bf90168",
+    "oracle_text": "Enchant creature\nEnchanted creature has defender.",
+    "type_line": "Enchantment — Aura"
+   }
+  },
   "Guardian Archon": {
    "phase_records": [
     {
@@ -520182,6 +521607,241 @@
     "power": "2",
     "toughness": "4",
     "type_line": "Creature — Beast"
+   }
+  },
+  "Guardian Zendikon": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Enchantment"
+      ],
+      "subtypes": [
+       "Aura"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "White"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [
+      {
+       "Enchant": {
+        "controller": null,
+        "properties": [],
+        "type": "Typed",
+        "type_filters": [
+         "Land"
+        ]
+       }
+      }
+     ],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pauper": "legal",
+      "paupercommander": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 2,
+      "shards": [
+       "White"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "7448f2db-97f9-49fd-aa8c-bc337177dd77",
+       "dc20b710-6d09-4080-acd5-e88ad98460a9"
+      ]
+     },
+     "name": "Guardian Zendikon",
+     "non_ability_text": null,
+     "oracle_text": "Enchant land\nEnchanted land is a 2/6 white Wall creature with defender. It's still a land.\nWhen enchanted land dies, return that card to its owner's hand.",
+     "power": null,
+     "printings": [
+      "CNS",
+      "WWK"
+     ],
+     "rarities": [
+      "common"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2010-03-01",
+       "text": "An ability that turns a land into a creature also sets that creature's power and toughness. If the land was already a creature, this will overwrite the previous effect that set its power and toughness. Effects that modify its power or toughness, such as the effects of Disfigure or Glorious Anthem, will continue to apply, no matter when they started to take effect. The same is true for counters that change its power or toughness (such as +1/+1 counters) and effects that switch its power and toughness."
+      },
+      {
+       "date": "2010-03-01",
+       "text": "An attacking or blocking creature that stops being a creature is removed from combat. This can happen if a Zendikon enchanting an attacking or blocking creature leaves the battlefield, for example. The permanent that was removed from combat neither deals nor is dealt combat damage. Any attacking creature that the land creature was blocking remains blocked, however."
+      },
+      {
+       "date": "2010-03-01",
+       "text": "If a Zendikon and the land it's enchanting are destroyed at the same time (due to Akroma's Vengeance, for example), the Zendikon's last ability will still trigger."
+      },
+      {
+       "date": "2010-03-01",
+       "text": "If a Zendikon's last ability triggers, but the land card it refers to leaves the graveyard before it resolves, it will resolve but do nothing."
+      },
+      {
+       "date": "2010-03-01",
+       "text": "The enchanted permanent will be both a land and a creature and can be affected by anything that affects either a land or a creature."
+      },
+      {
+       "date": "2010-03-01",
+       "text": "When a land becomes a creature, that doesn't count as having a creature enter. The permanent was already on the battlefield; it only changed its types. Abilities that trigger whenever a creature enters won't trigger."
+      }
+     ],
+     "scryfall_oracle_id": "44154004-e50e-45d1-bde0-ba6e3354067c",
+     "static_abilities": [
+      {
+       "active_zones": [],
+       "affected": {
+        "controller": null,
+        "properties": [
+         {
+          "type": "EnchantedBy"
+         }
+        ],
+        "type": "Typed",
+        "type_filters": [
+         "Land"
+        ]
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": null,
+       "description": "Enchanted land is a 2/6 white Wall creature with defender. It's still a land.",
+       "effect_zone": null,
+       "mode": "Continuous",
+       "modifications": [
+        {
+         "core_types": [
+          "Creature"
+         ],
+         "type": "SetCardTypes"
+        },
+        {
+         "colors": [
+          "White"
+         ],
+         "type": "SetColor"
+        },
+        {
+         "type": "SetPower",
+         "value": 2
+        },
+        {
+         "type": "SetToughness",
+         "value": 6
+        },
+        {
+         "set": "Creature",
+         "type": "RemoveAllSubtypes"
+        },
+        {
+         "subtype": "Wall",
+         "type": "AddSubtype"
+        }
+       ]
+      }
+     ],
+     "toughness": null,
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "When enchanted land dies, return that card to its owner's hand.",
+       "destination": "Graveyard",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "destination": null,
+         "target": {
+          "type": "ParentTarget"
+         },
+         "type": "Bounce"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "ChangesZone",
+       "optional": false,
+       "origin": "Battlefield",
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "type": "AttachedTo"
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 3.0,
+    "color_identity": [
+     "W"
+    ],
+    "colors": [
+     "W"
+    ],
+    "keywords": [
+     "Enchant"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "legal",
+     "paupercommander": "legal",
+     "penny": "legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}{W}",
+    "name": "Guardian Zendikon",
+    "oracle_id": "44154004-e50e-45d1-bde0-ba6e3354067c",
+    "oracle_text": "Enchant land\nEnchanted land is a 2/6 white Wall creature with defender. It's still a land.\nWhen enchanted land dies, return that card to its owner's hand.",
+    "type_line": "Enchantment — Aura"
    }
   },
   "Guff Rewrites History": {
@@ -551144,6 +552804,203 @@
     "power": "12",
     "toughness": "12",
     "type_line": "Creature — Tyranid"
+   }
+  },
+  "High Alert": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": {
+        "cost": {
+         "generic": 2,
+         "shards": [
+          "White",
+          "Blue"
+         ],
+         "type": "Cost"
+        },
+        "type": "Mana"
+       },
+       "description": "{2}{W}{U}: Untap target creature.",
+       "duration": null,
+       "effect": {
+        "scope": {
+         "type": "Single"
+        },
+        "state": {
+         "type": "Untap"
+        },
+        "target": {
+         "controller": null,
+         "properties": [],
+         "type": "Typed",
+         "type_filters": [
+          "Creature"
+         ]
+        },
+        "type": "SetTapState"
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Enchantment"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Blue",
+      "White"
+     ],
+     "color_override": [
+      "Blue",
+      "White"
+     ],
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "White",
+       "Blue"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "a8e333f4-7679-4f8f-a779-6806d4ffe9b4",
+       "ce124f6e-ef0c-4d01-a876-e34d3e445108"
+      ]
+     },
+     "name": "High Alert",
+     "non_ability_text": null,
+     "oracle_text": "Each creature you control assigns combat damage equal to its toughness rather than its power.\nCreatures you control can attack as though they didn't have defender.\n{2}{W}{U}: Untap target creature.",
+     "power": null,
+     "printings": [
+      "PLST",
+      "RNA"
+     ],
+     "rarities": [
+      "uncommon"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2019-01-25",
+       "text": "High Alert’s first ability doesn’t actually change any creature’s power. It changes only the amount of combat damage it assigns. All other rules and effects that check power or toughness use the real values. For example, Titanic Brawl won’t cause a creature to fight with its toughness under High Alert."
+      }
+     ],
+     "scryfall_oracle_id": "5f657279-cc0f-4431-b517-47bd1c7109b6",
+     "static_abilities": [
+      {
+       "active_zones": [],
+       "affected": {
+        "controller": "You",
+        "properties": [],
+        "type": "Typed",
+        "type_filters": [
+         "Creature"
+        ]
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": null,
+       "description": "Each creature you control assigns combat damage equal to its toughness rather than its power.",
+       "effect_zone": null,
+       "mode": "Continuous",
+       "modifications": [
+        {
+         "type": "AssignDamageFromToughness"
+        }
+       ]
+      },
+      {
+       "active_zones": [],
+       "affected": {
+        "controller": "You",
+        "properties": [],
+        "type": "Typed",
+        "type_filters": [
+         "Creature"
+        ]
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": null,
+       "description": "Creatures you control can attack as though they didn't have defender.",
+       "effect_zone": null,
+       "mode": "CanAttackWithDefender",
+       "modifications": []
+      }
+     ],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 3.0,
+    "color_identity": [
+     "U",
+     "W"
+    ],
+    "colors": [
+     "U",
+     "W"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}{W}{U}",
+    "name": "High Alert",
+    "oracle_id": "5f657279-cc0f-4431-b517-47bd1c7109b6",
+    "oracle_text": "Each creature you control assigns combat damage equal to its toughness rather than its power.\nCreatures you control can attack as though they didn't have defender.\n{2}{W}{U}: Untap target creature.",
+    "type_line": "Enchantment"
    }
   },
   "High Fae Negotiator": {
@@ -604860,6 +606717,178 @@
     "power": "3",
     "toughness": "2",
     "type_line": "Legendary Creature — Human Soldier"
+   }
+  },
+  "Jodah's Avenger": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": {
+        "cost": {
+         "generic": 0,
+         "shards": [],
+         "type": "Cost"
+        },
+        "type": "Mana"
+       },
+       "description": "{0}: Until end of turn, ~ gets -1/-1 and gains your choice of double strike, protection from red, vigilance, or shadow.",
+       "duration": "UntilEndOfTurn",
+       "effect": {
+        "duration": "UntilEndOfTurn",
+        "static_abilities": [
+         {
+          "active_zones": [],
+          "affected": {
+           "type": "SelfRef"
+          },
+          "affected_zone": null,
+          "characteristic_defining": false,
+          "condition": null,
+          "description": "get -1/-1 and gains your choice of double strike, protection from red, vigilance, or shadow",
+          "effect_zone": null,
+          "mode": "Continuous",
+          "modifications": [
+           {
+            "type": "AddPower",
+            "value": -1
+           },
+           {
+            "type": "AddToughness",
+            "value": -1
+           },
+           {
+            "keyword": {
+             "Protection": {
+              "Color": "Red"
+             }
+            },
+            "type": "AddKeyword"
+           },
+           {
+            "keyword": "Vigilance",
+            "type": "AddKeyword"
+           }
+          ]
+         }
+        ],
+        "target": null,
+        "type": "GenericEffect"
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Shapeshifter"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Blue"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 5,
+      "shards": [
+       "Blue"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "4707277a-f0ba-4f35-9274-7a38efbc11e8",
+       "4f8ec787-bc3f-40de-9c6e-de3e0d7d4cf1",
+       "6c92ae75-a209-4cc4-8817-06ff18f3ac02"
+      ]
+     },
+     "name": "Jodah's Avenger",
+     "non_ability_text": null,
+     "oracle_text": "{0}: Until end of turn, this creature gets -1/-1 and gains your choice of double strike, protection from red, vigilance, or shadow. (A creature with shadow can block or be blocked by only creatures with shadow.)",
+     "power": {
+      "type": "Fixed",
+      "value": 4
+     },
+     "printings": [
+      "PLC",
+      "PLST",
+      "TSR"
+     ],
+     "rarities": [
+      "uncommon"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "c1b4a6cf-ac9c-410f-9982-31e371d49aed",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 4
+     },
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 6.0,
+    "color_identity": [
+     "U"
+    ],
+    "colors": [
+     "U"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{5}{U}",
+    "name": "Jodah's Avenger",
+    "oracle_id": "c1b4a6cf-ac9c-410f-9982-31e371d49aed",
+    "oracle_text": "{0}: Until end of turn, this creature gets -1/-1 and gains your choice of double strike, protection from red, vigilance, or shadow. (A creature with shadow can block or be blocked by only creatures with shadow.)",
+    "power": "4",
+    "toughness": "4",
+    "type_line": "Creature — Shapeshifter"
    }
   },
   "Jodah, Archmage Eternal": {
@@ -755207,6 +757236,199 @@
     "type_line": "Sorcery"
    }
   },
+  "Mutual Destruction": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Destroy target creature.",
+       "duration": null,
+       "effect": {
+        "cant_regenerate": false,
+        "target": {
+         "controller": null,
+         "properties": [],
+         "type": "Typed",
+         "type_filters": [
+          "Creature"
+         ]
+        },
+        "type": "Destroy"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "additional_cost": {
+      "data": {
+       "count": 1,
+       "target": {
+        "controller": null,
+        "properties": [],
+        "type": "Typed",
+        "type_filters": [
+         "Creature"
+        ]
+       },
+       "type": "Sacrifice"
+      },
+      "type": "Required"
+     },
+     "card_type": {
+      "core_types": [
+       "Sorcery"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "casting_options": [
+      {
+       "condition": {
+        "comparator": "GE",
+        "lhs": {
+         "qty": {
+          "filter": {
+           "controller": "You",
+           "properties": [
+            {
+             "type": "WithKeyword",
+             "value": "Flash"
+            },
+            {
+             "type": "InZone",
+             "zone": "Battlefield"
+            }
+           ],
+           "type": "Typed",
+           "type_filters": [
+            "Permanent"
+           ]
+          },
+          "type": "ObjectCount"
+         },
+         "type": "Ref"
+        },
+        "rhs": {
+         "type": "Fixed",
+         "value": 1
+        },
+        "type": "QuantityComparison"
+       },
+       "kind": "AsThoughHadFlash"
+      }
+     ],
+     "color_identity": [
+      "Black"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pauper": "legal",
+      "paupercommander": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 0,
+      "shards": [
+       "Black"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "85ac0b25-80bf-4871-a6f6-5cf4d5b9496e"
+      ]
+     },
+     "name": "Mutual Destruction",
+     "non_ability_text": null,
+     "oracle_text": "This spell has flash as long as you control a permanent with flash.\nAs an additional cost to cast this spell, sacrifice a creature.\nDestroy target creature.",
+     "power": null,
+     "printings": [
+      "IKO"
+     ],
+     "rarities": [
+      "common"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2020-04-17",
+       "text": "Once you announce that you’re casting Mutual Destruction, players can’t try to remove your permanents with flash to make it lose flash until you’re done casting it. If it loses flash after it’s been cast, it will still resolve if able."
+      },
+      {
+       "date": "2020-04-17",
+       "text": "The last time that the game checks whether you have permission to cast a spell is before costs are paid. If you sacrifice a creature with flash to cast Mutual Destruction and then have no other permanents with flash, you’ll legally finish casting Mutual Destruction even though it no longer has flash. In this case, abilities that trigger whenever you cast a spell with flash won’t trigger."
+      },
+      {
+       "date": "2020-04-17",
+       "text": "You must sacrifice exactly one creature to cast this spell; you cannot cast it without sacrificing a creature, and you cannot sacrifice additional creatures."
+      }
+     ],
+     "scryfall_oracle_id": "b01cd710-3906-486b-8bb5-8c4efa46e4d9",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 1.0,
+    "color_identity": [
+     "B"
+    ],
+    "colors": [
+     "B"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "legal",
+     "paupercommander": "legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{B}",
+    "name": "Mutual Destruction",
+    "oracle_id": "b01cd710-3906-486b-8bb5-8c4efa46e4d9",
+    "oracle_text": "This spell has flash as long as you control a permanent with flash.\nAs an additional cost to cast this spell, sacrifice a creature.\nDestroy target creature.",
+    "type_line": "Sorcery"
+   }
+  },
   "Mycoid Resurrection": {
    "phase_records": [
     {
@@ -758420,6 +760642,250 @@
     "oracle_id": "8a52f3c0-2552-4425-b2e3-5496eb2232a7",
     "oracle_text": "Cumulative upkeep {1} (At the beginning of your upkeep, put an age counter on this permanent, then sacrifice it unless you pay its upkeep cost for each age counter on it.)\nWhenever an opponent casts a noncreature spell, you may draw a card unless that player pays {4}.",
     "type_line": "Enchantment"
+   }
+  },
+  "Mystical Teachings": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Search your library for an instant card or a card with flash, reveal it, put it into your hand, then shuffle.",
+       "duration": null,
+       "effect": {
+        "count": {
+         "type": "Fixed",
+         "value": 1
+        },
+        "filter": {
+         "filters": [
+          {
+           "controller": null,
+           "properties": [],
+           "type": "Typed",
+           "type_filters": [
+            "Instant"
+           ]
+          },
+          {
+           "controller": null,
+           "properties": [
+            {
+             "type": "WithKeyword",
+             "value": "Flash"
+            }
+           ],
+           "type": "Typed",
+           "type_filters": [
+            "Card"
+           ]
+          }
+         ],
+         "type": "Or"
+        },
+        "reveal": true,
+        "type": "SearchLibrary"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "destination": "Hand",
+         "enter_tapped": false,
+         "enter_transformed": false,
+         "enters_attacking": false,
+         "origin": "Library",
+         "owner_library": false,
+         "target": {
+          "type": "Any"
+         },
+         "type": "ChangeZone"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "target": {
+           "type": "Controller"
+          },
+          "type": "Shuffle"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": null,
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Instant"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Black",
+      "Blue"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [
+      {
+       "Flashback": {
+        "data": {
+         "generic": 5,
+         "shards": [
+          "Black"
+         ],
+         "type": "Cost"
+        },
+        "type": "Mana"
+       }
+      }
+     ],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pauper": "legal",
+      "paupercommander": "legal",
+      "pioneer": "legal",
+      "standard": "legal",
+      "standardbrawl": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 3,
+      "shards": [
+       "Blue"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "3f88eacf-5c7b-4a35-86f0-af3b0516d4c2",
+       "a057e5f3-b6bd-4995-b990-714201f36989",
+       "b9f3a4e2-b3d2-4803-bcaf-5d63bff0feb5",
+       "dcc77acd-5596-43a2-9a3f-452d985ef4a5",
+       "f7cb51cd-8418-43ee-bf4f-6b959cc5b131"
+      ]
+     },
+     "name": "Mystical Teachings",
+     "non_ability_text": null,
+     "oracle_text": "Search your library for an instant card or a card with flash, reveal it, put it into your hand, then shuffle.\nFlashback {5}{B} (You may cast this card from your graveyard for its flashback cost. Then exile it.)",
+     "power": null,
+     "printings": [
+      "FDN",
+      "MM3",
+      "PLST",
+      "TSP",
+      "TSR"
+     ],
+     "rarities": [
+      "common",
+      "uncommon"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2024-11-08",
+       "text": "\"Flashback [cost]\" means \"You may cast this card from your graveyard by paying [cost] rather than paying its mana cost\" and \"If the flashback cost was paid, exile this card instead of putting it anywhere else any time it would leave the stack.\""
+      },
+      {
+       "date": "2024-11-08",
+       "text": "A spell cast using flashback will always be exiled afterward, whether it resolves, is countered, or leaves the stack in some other way."
+      },
+      {
+       "date": "2024-11-08",
+       "text": "If a card with flashback is put into your graveyard during your turn, you can cast it if it's legal to do so before any other player can take any actions."
+      },
+      {
+       "date": "2024-11-08",
+       "text": "To determine the total cost of a spell, start with the mana cost or alternative cost (such as a flashback cost) you're paying, add any cost increases, then apply any cost reductions. The mana value of the spell is determined only by its mana cost, no matter what the total cost to cast the spell was."
+      },
+      {
+       "date": "2024-11-08",
+       "text": "You can cast a spell using flashback even if it was somehow put into your graveyard without having been cast."
+      },
+      {
+       "date": "2024-11-08",
+       "text": "You must still follow any timing restrictions and permissions, including those based on the card's type. For instance, you can cast a sorcery using flashback only when you could normally cast a sorcery."
+      }
+     ],
+     "scryfall_oracle_id": "81d72511-88b4-45ec-a5a9-e722caf55577",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 4.0,
+    "color_identity": [
+     "B",
+     "U"
+    ],
+    "colors": [
+     "U"
+    ],
+    "keywords": [
+     "Flashback"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "legal",
+     "paupercommander": "legal",
+     "penny": "not_legal",
+     "pioneer": "legal",
+     "predh": "legal",
+     "premodern": "not_legal",
+     "standard": "legal",
+     "standardbrawl": "legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{3}{U}",
+    "name": "Mystical Teachings",
+    "oracle_id": "81d72511-88b4-45ec-a5a9-e722caf55577",
+    "oracle_text": "Search your library for an instant card or a card with flash, reveal it, put it into your hand, then shuffle.\nFlashback {5}{B} (You may cast this card from your graveyard for its flashback cost. Then exile it.)",
+    "type_line": "Instant"
    }
   },
   "Naban, Dean of Iteration": {
@@ -782995,6 +785461,141 @@
     "oracle_id": "0639bd82-084f-47d5-b158-05dfc29efa40",
     "oracle_text": "Each player who controls the most creatures investigates. Then destroy all creatures. (To investigate, create a Clue token. It's an artifact with \"{2}, Sacrifice this token: Draw a card.\")",
     "type_line": "Sorcery"
+   }
+  },
+  "Noble Banneret": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Human",
+       "Knight"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "White"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 2,
+      "shards": [
+       "White",
+       "White"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "0a7f0d35-b91e-461a-822c-7ae2798ca51a"
+      ]
+     },
+     "name": "Noble Banneret",
+     "non_ability_text": null,
+     "oracle_text": "Draft this card face up.\nAs you draft a creature card, you may reveal it, note its name, then turn this card face down.\nAs long as you control one or more creatures with a name you noted for cards named Noble Banneret, this creature and those creatures get +1/+1 and have lifelink.",
+     "power": {
+      "type": "Fixed",
+      "value": 3
+     },
+     "printings": [
+      "CN2"
+     ],
+     "rarities": [
+      "uncommon"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2016-08-23",
+       "text": "If you gain control of a Noble Banneret, but you didn't draft one, there will be no applicable noted names. It won't get +1/+1 or have lifelink."
+      },
+      {
+       "date": "2016-08-23",
+       "text": "The creature card you reveal during the draft can be another Noble Banneret. That second Noble Banneret will then be face up for a future creature card to be revealed. If Noble Banneret is one of the names you noted, a Noble Banneret that's the only creature you control will get +1/+1 and have lifelink."
+      }
+     ],
+     "scryfall_oracle_id": "96d88811-d0d8-4c64-b7f2-8304d81c8cfa",
+     "static_abilities": [
+      {
+       "active_zones": [],
+       "affected": {
+        "type": "SelfRef"
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": {
+        "text": "you control one or more creatures with a name you noted for cards named Noble Banneret",
+        "type": "Unrecognized"
+       },
+       "description": "As long as you control one or more creatures with a name you noted for cards named Noble Banneret, ~ and those creatures get +1/+1 and have lifelink.",
+       "effect_zone": null,
+       "mode": "Continuous",
+       "modifications": []
+      }
+     ],
+     "toughness": {
+      "type": "Fixed",
+      "value": 3
+     },
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 4.0,
+    "color_identity": [
+     "W"
+    ],
+    "colors": [
+     "W"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}{W}{W}",
+    "name": "Noble Banneret",
+    "oracle_id": "96d88811-d0d8-4c64-b7f2-8304d81c8cfa",
+    "oracle_text": "Draft this card face up.\nAs you draft a creature card, you may reveal it, note its name, then turn this card face down.\nAs long as you control one or more creatures with a name you noted for cards named Noble Banneret, this creature and those creatures get +1/+1 and have lifelink.",
+    "power": "3",
+    "toughness": "3",
+    "type_line": "Creature — Human Knight"
    }
   },
   "Noble Hierarch": {
@@ -850357,6 +852958,294 @@
     "type_line": "Instant"
    }
   },
+  "Primal Clay": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Artifact",
+       "Creature"
+      ],
+      "subtypes": [
+       "Shapeshifter"
+      ],
+      "supertypes": []
+     },
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pauper": "legal",
+      "paupercommander": "legal",
+      "premodern": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 4,
+      "shards": [],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "036f588d-9ee6-4436-ad75-46a84dd2b168",
+       "152f731f-78a6-444e-9a43-85446fa38f30",
+       "1e51f1b3-d8a3-4746-b0db-67d5ec71fb17",
+       "58b6f98c-b06e-4f69-bcd1-65a1f39ef5f9",
+       "774cece8-39ac-48fe-bfbe-494ec76d80ee",
+       "ab9d0e3f-cf7c-41f8-bcd7-bb08ea8cc2f8",
+       "bfe0dee5-af52-469f-9415-59caacf85637",
+       "cb9fa352-95ca-4185-8cfd-71ed25c0ed7a",
+       "cc49d724-b46d-449b-bd2b-03551e130a06",
+       "d057a91c-d2a7-48ec-aa16-f033499de166",
+       "dc5d2082-7a51-4761-b81c-830defd5269f"
+      ]
+     },
+     "name": "Primal Clay",
+     "non_ability_text": null,
+     "oracle_text": "As this creature enters, it becomes your choice of a 3/3 artifact creature, a 2/2 artifact creature with flying, or a 1/6 Wall artifact creature with defender in addition to its other types. (A creature with defender can't attack.)",
+     "power": {
+      "type": "Variable",
+      "value": "*"
+     },
+     "printings": [
+      "3ED",
+      "4BB",
+      "4ED",
+      "5ED",
+      "6ED",
+      "A25",
+      "ATQ",
+      "FBB",
+      "M13",
+      "ME4",
+      "SUM"
+     ],
+     "rarities": [
+      "common",
+      "uncommon",
+      "rare"
+     ],
+     "replacements": [
+      {
+       "condition": null,
+       "description": "As ~ enters, it becomes your choice of a 3/3 artifact creature, a 2/2 artifact creature with flying, or a 1/6 Wall artifact creature with defender in addition to its other types.",
+       "destination_zone": "Battlefield",
+       "event": "Moved",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "choice_type": {
+          "Labeled": {
+           "options": [
+            "3/3 Artifact",
+            "2/2 Artifact Flying",
+            "1/6 Artifact Wall Defender"
+           ]
+          }
+         },
+         "persist": true,
+         "type": "Choose"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": {
+        "type": "Mandatory"
+       },
+       "valid_card": {
+        "type": "SelfRef"
+       }
+      }
+     ],
+     "rulings": [
+      {
+       "date": "2021-03-19",
+       "text": "If an object enters the battlefield as a copy of Primal Clay, it copies the values determined by its enters-the-battlefield replacement effect, but its power and toughness are determined by the copy's own enters-the-battlefield replacement effect. This can cause you to have a 3/3 creature with flying, or a 1/6 creature with flying and defender, for example."
+      },
+      {
+       "date": "2021-03-19",
+       "text": "If an object on the battlefield becomes a copy of Primal Clay, it copies the values determined by its enters-the-battlefield replacement effect."
+      },
+      {
+       "date": "2021-03-19",
+       "text": "While not on the battlefield, Primal Clay is a 0/0 creature card. It doesn't have flying or defender."
+      }
+     ],
+     "scryfall_oracle_id": "dccf2ca8-8c87-41c9-8373-351859396d05",
+     "static_abilities": [
+      {
+       "active_zones": [],
+       "affected": {
+        "type": "SelfRef"
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": {
+        "label": "3/3 Artifact",
+        "type": "ChosenLabelIs"
+       },
+       "description": null,
+       "effect_zone": null,
+       "mode": "Continuous",
+       "modifications": [
+        {
+         "type": "SetPower",
+         "value": 3
+        },
+        {
+         "type": "SetToughness",
+         "value": 3
+        },
+        {
+         "core_type": "Artifact",
+         "type": "AddType"
+        },
+        {
+         "core_type": "Creature",
+         "type": "AddType"
+        }
+       ]
+      },
+      {
+       "active_zones": [],
+       "affected": {
+        "type": "SelfRef"
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": {
+        "label": "2/2 Artifact Flying",
+        "type": "ChosenLabelIs"
+       },
+       "description": null,
+       "effect_zone": null,
+       "mode": "Continuous",
+       "modifications": [
+        {
+         "type": "SetPower",
+         "value": 2
+        },
+        {
+         "type": "SetToughness",
+         "value": 2
+        },
+        {
+         "keyword": "Flying",
+         "type": "AddKeyword"
+        },
+        {
+         "core_type": "Artifact",
+         "type": "AddType"
+        },
+        {
+         "core_type": "Creature",
+         "type": "AddType"
+        }
+       ]
+      },
+      {
+       "active_zones": [],
+       "affected": {
+        "type": "SelfRef"
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": {
+        "label": "1/6 Artifact Wall Defender",
+        "type": "ChosenLabelIs"
+       },
+       "description": null,
+       "effect_zone": null,
+       "mode": "Continuous",
+       "modifications": [
+        {
+         "type": "SetPower",
+         "value": 1
+        },
+        {
+         "type": "SetToughness",
+         "value": 6
+        },
+        {
+         "keyword": "Defender",
+         "type": "AddKeyword"
+        },
+        {
+         "core_type": "Artifact",
+         "type": "AddType"
+        },
+        {
+         "core_type": "Creature",
+         "type": "AddType"
+        },
+        {
+         "subtype": "Wall",
+         "type": "AddSubtype"
+        }
+       ]
+      }
+     ],
+     "toughness": {
+      "type": "Variable",
+      "value": "*"
+     },
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 4.0,
+    "color_identity": [],
+    "colors": [],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "legal",
+     "paupercommander": "legal",
+     "penny": "legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{4}",
+    "name": "Primal Clay",
+    "oracle_id": "dccf2ca8-8c87-41c9-8373-351859396d05",
+    "oracle_text": "As this creature enters, it becomes your choice of a 3/3 artifact creature, a 2/2 artifact creature with flying, or a 1/6 Wall artifact creature with defender in addition to its other types. (A creature with defender can't attack.)",
+    "power": "*",
+    "toughness": "*",
+    "type_line": "Artifact Creature — Shapeshifter"
+   }
+  },
   "Primal Forcemage": {
    "phase_records": [
     {
@@ -908862,6 +911751,132 @@
     "oracle_id": "73eaf40a-abc6-486a-958d-374ed6111173",
     "oracle_text": "Converge — Creatures your opponents control get -X/-0 until end of turn, where X is the number of colors of mana spent to cast this spell.\nDraw a card.",
     "type_line": "Instant"
+   }
+  },
+  "Rolling Stones": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Enchantment"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "White"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "premodern": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "White"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "0dcb50bf-7e77-4b8e-a030-e575d0418a00",
+       "9993e9c6-2e30-4bf4-838d-751cbd153390",
+       "a931d691-3efc-4043-9e23-677f8bd949e1",
+       "c66582c6-2eaa-43a8-a0cd-43dab0abc656",
+       "dd27e9c9-0a47-4fa3-9da5-1993f20305c2"
+      ]
+     },
+     "name": "Rolling Stones",
+     "non_ability_text": null,
+     "oracle_text": "Wall creatures can attack as though they didn't have defender.",
+     "power": null,
+     "printings": [
+      "7ED",
+      "8ED",
+      "STH"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "7ce533d0-8b6e-46d8-b21e-a2932bdffb67",
+     "static_abilities": [
+      {
+       "active_zones": [],
+       "affected": {
+        "controller": null,
+        "properties": [],
+        "type": "Typed",
+        "type_filters": [
+         "Creature",
+         {
+          "Subtype": "Wall"
+         }
+        ]
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": null,
+       "description": "Wall creatures can attack as though they didn't have defender.",
+       "effect_zone": null,
+       "mode": "CanAttackWithDefender",
+       "modifications": []
+      }
+     ],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 2.0,
+    "color_identity": [
+     "W"
+    ],
+    "colors": [
+     "W"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}{W}",
+    "name": "Rolling Stones",
+    "oracle_id": "7ce533d0-8b6e-46d8-b21e-a2932bdffb67",
+    "oracle_text": "Wall creatures can attack as though they didn't have defender.",
+    "type_line": "Enchantment"
    }
   },
   "Rona, Sheoldred's Faithful": {
@@ -1014423,6 +1017438,177 @@
     "type_line": "Enchantment"
    }
   },
+  "Stasis Field": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Enchantment"
+      ],
+      "subtypes": [
+       "Aura"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Blue"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [
+      {
+       "Enchant": {
+        "controller": null,
+        "properties": [],
+        "type": "Typed",
+        "type_filters": [
+         "Creature"
+        ]
+       }
+      }
+     ],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pauper": "legal",
+      "paupercommander": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "Blue"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "38211d78-ebac-4150-ac11-7613a0e9e1bc"
+      ]
+     },
+     "name": "Stasis Field",
+     "non_ability_text": null,
+     "oracle_text": "Enchant creature\nEnchanted creature has base power and toughness 0/2, has defender, and loses all other abilities.",
+     "power": null,
+     "printings": [
+      "MOM"
+     ],
+     "rarities": [
+      "common"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2023-04-14",
+       "text": "Effects that modify a creature’s power and/or toughness, such as the effect of Titanic Growth, will apply to the creature no matter when they started to take effect. The same is true for any counters that change its power and/or toughness and effects that switch its power and toughness."
+      },
+      {
+       "date": "2023-04-14",
+       "text": "If the enchanted creature has an ability that grants abilities to other objects, Stasis Field’s effect will stop it from doing so. If the enchanted creature gains an ability after Stasis Field resolves, it will keep that ability."
+      },
+      {
+       "date": "2023-04-14",
+       "text": "Stasis Field overwrites all previous effects that set the creature’s base power and toughness to specific values. Any power- or toughness-setting effects that start to apply after the ability resolves will overwrite this effect."
+      }
+     ],
+     "scryfall_oracle_id": "83633ea1-a8d5-4351-9047-625d6905386d",
+     "static_abilities": [
+      {
+       "active_zones": [],
+       "affected": {
+        "controller": null,
+        "properties": [
+         {
+          "type": "EnchantedBy"
+         }
+        ],
+        "type": "Typed",
+        "type_filters": [
+         "Creature"
+        ]
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": null,
+       "description": "Enchanted creature has base power and toughness 0/2, has defender, and loses all other abilities.",
+       "effect_zone": null,
+       "mode": "Continuous",
+       "modifications": [
+        {
+         "type": "RemoveAllAbilities"
+        },
+        {
+         "type": "SetPower",
+         "value": 0
+        },
+        {
+         "type": "SetToughness",
+         "value": 2
+        },
+        {
+         "keyword": "Defender",
+         "type": "AddKeyword"
+        }
+       ]
+      }
+     ],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 2.0,
+    "color_identity": [
+     "U"
+    ],
+    "colors": [
+     "U"
+    ],
+    "keywords": [
+     "Enchant"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "legal",
+     "paupercommander": "legal",
+     "penny": "not_legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}{U}",
+    "name": "Stasis Field",
+    "oracle_id": "83633ea1-a8d5-4351-9047-625d6905386d",
+    "oracle_text": "Enchant creature\nEnchanted creature has base power and toughness 0/2, has defender, and loses all other abilities.",
+    "type_line": "Enchantment — Aura"
+   }
+  },
   "Static Orb": {
    "phase_records": [
     {
@@ -1042941,6 +1046127,245 @@
     "power": "2",
     "toughness": "1",
     "type_line": "Creature — Elf Shaman"
+   }
+  },
+  "Take for a Ride": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Gain control of target creature until end of turn. Untap that creature. It gains haste until end of turn.",
+       "duration": "UntilEndOfTurn",
+       "effect": {
+        "target": {
+         "controller": null,
+         "properties": [],
+         "type": "Typed",
+         "type_filters": [
+          "Creature"
+         ]
+        },
+        "type": "GainControl"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "scope": {
+          "type": "Single"
+         },
+         "state": {
+          "type": "Untap"
+         },
+         "target": {
+          "type": "ParentTarget"
+         },
+         "type": "SetTapState"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": "UntilEndOfTurn",
+         "effect": {
+          "duration": "UntilEndOfTurn",
+          "static_abilities": [
+           {
+            "active_zones": [],
+            "affected": {
+             "type": "ParentTarget"
+            },
+            "affected_zone": null,
+            "characteristic_defining": false,
+            "condition": null,
+            "description": "gain haste",
+            "effect_zone": null,
+            "mode": "Continuous",
+            "modifications": [
+             {
+              "keyword": "Haste",
+              "type": "AddKeyword"
+             }
+            ]
+           }
+          ],
+          "target": {
+           "type": "ParentTarget"
+          },
+          "type": "GenericEffect"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": null,
+         "sub_link": "SequentialSibling",
+         "target_prompt": null
+        },
+        "sub_link": "SequentialSibling",
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Sorcery"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "casting_options": [
+      {
+       "condition": {
+        "comparator": "GE",
+        "lhs": {
+         "qty": {
+          "type": "CrimesCommittedThisTurn"
+         },
+         "type": "Ref"
+        },
+        "rhs": {
+         "type": "Fixed",
+         "value": 1
+        },
+        "type": "QuantityComparison"
+       },
+       "kind": "AsThoughHadFlash"
+      }
+     ],
+     "color_identity": [
+      "Red"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "standard": "legal",
+      "standardbrawl": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 2,
+      "shards": [
+       "Red"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "c8e2ff9c-0e98-46f9-a33c-739388c5f3d0"
+      ]
+     },
+     "name": "Take for a Ride",
+     "non_ability_text": null,
+     "oracle_text": "Take for a Ride has flash as long as you've committed a crime this turn. (Targeting opponents, anything they control, and/or cards in their graveyards is a crime.)\nGain control of target creature until end of turn. Untap that creature. It gains haste until end of turn.",
+     "power": null,
+     "printings": [
+      "OTJ"
+     ],
+     "rarities": [
+      "uncommon"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2024-04-12",
+       "text": "A player can commit only one crime per spell or ability they control. Targeting multiple opponents, permanents, spells, abilities, and/or cards with the same spell or ability doesn’t constitute committing multiple crimes."
+      },
+      {
+       "date": "2024-04-12",
+       "text": "A player commits a crime as they cast a spell, activate an ability, or put a triggered ability on the stack that targets at least one opponent, at least one permanent, spell, or ability an opponent controls, and/or at least one card in an opponent’s graveyard."
+      },
+      {
+       "date": "2024-04-12",
+       "text": "Changing the target or targets of a spell or ability won’t affect whether or not the controller of that spell or ability has committed a crime. Only the initial targets chosen for that spell or ability are used to determine whether or not its controller committed a crime."
+      },
+      {
+       "date": "2024-04-12",
+       "text": "For example, an ability that triggers when you cast a spell that targets an opponent will trigger at the same time as an ability that triggers whenever you commit a crime. Those abilities can be put on the stack in either order (if you control them both), and they’ll both resolve before the spell that caused them to trigger."
+      },
+      {
+       "date": "2024-04-12",
+       "text": "Gaining control of a creature doesn’t cause you to gain control of any Auras or Equipment attached to it."
+      },
+      {
+       "date": "2024-04-12",
+       "text": "Take for a Ride can target any creature, even one that’s untapped or one you already control."
+      },
+      {
+       "date": "2024-04-12",
+       "text": "The spell or ability that constituted a crime doesn’t have to have resolved yet or at all. As soon as you’re finished casting the spell, activating the ability, or putting the triggered ability on the stack, you’ve committed a crime."
+      }
+     ],
+     "scryfall_oracle_id": "4f815ca4-0197-48c7-bfa2-5eb937c615e6",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 3.0,
+    "color_identity": [
+     "R"
+    ],
+    "colors": [
+     "R"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "legal",
+     "standardbrawl": "legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}{R}",
+    "name": "Take for a Ride",
+    "oracle_id": "4f815ca4-0197-48c7-bfa2-5eb937c615e6",
+    "oracle_text": "Take for a Ride has flash as long as you've committed a crime this turn. (Targeting opponents, anything they control, and/or cards in their graveyards is a crime.)\nGain control of target creature until end of turn. Untap that creature. It gains haste until end of turn.",
+    "type_line": "Sorcery"
    }
   },
   "Take the Bait": {
@@ -1115718,6 +1119143,242 @@
     "type_line": "Creature — Ape"
    }
   },
+  "Towering Titan": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": {
+        "count": 1,
+        "target": {
+         "controller": null,
+         "properties": [
+          {
+           "type": "WithKeyword",
+           "value": "Defender"
+          }
+         ],
+         "type": "Typed",
+         "type_filters": [
+          "Creature"
+         ]
+        },
+        "type": "Sacrifice"
+       },
+       "description": "Sacrifice a creature with defender: All creatures gain trample until end of turn.",
+       "duration": "UntilEndOfTurn",
+       "effect": {
+        "duration": "UntilEndOfTurn",
+        "static_abilities": [
+         {
+          "active_zones": [],
+          "affected": {
+           "controller": null,
+           "properties": [],
+           "type": "Typed",
+           "type_filters": [
+            "Creature"
+           ]
+          },
+          "affected_zone": null,
+          "characteristic_defining": false,
+          "condition": null,
+          "description": "gain trample",
+          "effect_zone": null,
+          "mode": "Continuous",
+          "modifications": [
+           {
+            "keyword": "Trample",
+            "type": "AddKeyword"
+           }
+          ]
+         }
+        ],
+        "target": null,
+        "type": "GenericEffect"
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Giant"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Green"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 4,
+      "shards": [
+       "Green",
+       "Green"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "2f75be32-0e5a-4d4f-93b4-149892df381c",
+       "a2c3eac5-3354-44ce-97c2-bafce78433ca"
+      ]
+     },
+     "name": "Towering Titan",
+     "non_ability_text": null,
+     "oracle_text": "This creature enters with X +1/+1 counters on it, where X is the total toughness of other creatures you control.\nSacrifice a creature with defender: All creatures gain trample until end of turn.",
+     "power": {
+      "type": "Fixed",
+      "value": 0
+     },
+     "printings": [
+      "JMP",
+      "TDC"
+     ],
+     "rarities": [
+      "mythic"
+     ],
+     "replacements": [
+      {
+       "condition": null,
+       "description": "~ enters with X +1/+1 counters on it, where X is the total toughness of other creatures you control.",
+       "destination_zone": "Battlefield",
+       "event": "Moved",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "count": {
+          "qty": {
+           "function": "Sum",
+           "property": "Toughness",
+           "source": {
+            "filter": {
+             "controller": "You",
+             "properties": [
+              {
+               "type": "Another"
+              }
+             ],
+             "type": "Typed",
+             "type_filters": [
+              "Creature"
+             ]
+            },
+            "type": "Objects"
+           },
+           "type": "PropertyAggregate"
+          },
+          "type": "Ref"
+         },
+         "counter_type": "P1P1",
+         "target": {
+          "type": "SelfRef"
+         },
+         "type": "PutCounter"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": {
+        "type": "Mandatory"
+       },
+       "valid_card": {
+        "type": "SelfRef"
+       }
+      }
+     ],
+     "rulings": [
+      {
+       "date": "2020-06-23",
+       "text": "If another creature is entering the battlefield at the same time as Towering Titan, its toughness won’t contribute to the +1/+1 counters on Towering Titan."
+      },
+      {
+       "date": "2020-06-23",
+       "text": "Once Towering Titan has entered the battlefield, it doesn’t gain or lose counters as the total toughness of other creatures you control changes."
+      }
+     ],
+     "scryfall_oracle_id": "a95309ac-f920-474d-81b5-0f68c8a54f34",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 0
+     },
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 6.0,
+    "color_identity": [
+     "G"
+    ],
+    "colors": [
+     "G"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{4}{G}{G}",
+    "name": "Towering Titan",
+    "oracle_id": "a95309ac-f920-474d-81b5-0f68c8a54f34",
+    "oracle_text": "This creature enters with X +1/+1 counters on it, where X is the total toughness of other creatures you control.\nSacrifice a creature with defender: All creatures gain trample until end of turn.",
+    "power": "0",
+    "toughness": "0",
+    "type_line": "Creature — Giant"
+   }
+  },
   "Town-Razer Tyrant": {
    "phase_records": [
     {
@@ -1149589,6 +1153250,328 @@
     "type_line": "Legendary Creature — Human Cleric"
    }
   },
+  "Vannifar, Evolved Enigma": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "brawl_commander": true,
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Elf",
+       "Ooze",
+       "Wizard"
+      ],
+      "supertypes": [
+       "Legendary"
+      ]
+     },
+     "color_identity": [
+      "Green",
+      "Blue"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "is_commander": true,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "standard": "legal",
+      "standardbrawl": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 2,
+      "shards": [
+       "Green",
+       "Blue"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "3e1b9d5f-fb88-49ea-ab56-ea6e78ea2077",
+       "4c0df81e-1700-41f0-bede-f3eb594351b6",
+       "62fa5a00-34d3-4ca4-afb9-62ab1c7afb14",
+       "9ea7381c-c745-458c-bf55-457242781a09",
+       "f6d381eb-6cb6-4505-aebe-995c1ddc8527"
+      ]
+     },
+     "name": "Vannifar, Evolved Enigma",
+     "non_ability_text": null,
+     "oracle_text": "At the beginning of combat on your turn, choose one —\n• Cloak a card from your hand. (Put it onto the battlefield face down as a 2/2 creature with ward {2}. Turn it face up any time for its mana cost if it's a creature card.)\n• Put a +1/+1 counter on each colorless creature you control.",
+     "power": {
+      "type": "Fixed",
+      "value": 3
+     },
+     "printings": [
+      "MKM",
+      "PMKM"
+     ],
+     "rarities": [
+      "mythic"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2024-02-02",
+       "text": "A permanent that turns face up or face down changes characteristics but is otherwise the same permanent. Spells and abilities that were targeting that permanent and Auras and Equipment that were attached to that permanent aren't affected unless the new characteristics of the object change the legality of those targets or attachments."
+      },
+      {
+       "date": "2024-02-02",
+       "text": "Any time you have priority, you can turn a cloaked permanent you control face-up by revealing that it's a creature card (ignoring any copy effects or type-changing effects that might be applying to it) and paying its mana cost. This is a special action. It doesn't use the stack and can't be responded to."
+      },
+      {
+       "date": "2024-02-02",
+       "text": "At any time, you can look at a face-down spell or permanent you control. You can't look at face-down permanents or spells you don't control unless an effect instructs or allows you to do so."
+      },
+      {
+       "date": "2024-02-02",
+       "text": "Because face-down creatures don't have a name, they can't have the same name as any other creature, even another face-down creature."
+      },
+      {
+       "date": "2024-02-02",
+       "text": "Because the permanent is on the battlefield both before and after it's turned face up, turning a permanent face up doesn't cause any enters-the-battlefield abilities to trigger."
+      },
+      {
+       "date": "2024-02-02",
+       "text": "If a cloaked creature would have disguise (or morph) if it were face up, you may also turn it face up by paying its disguise (or morph) cost."
+      },
+      {
+       "date": "2024-02-02",
+       "text": "If a double-faced card is cloaked, it will be put onto the battlefield face down. While face down, it can't transform. If the front face of the card is a creature card, you can turn it face up by paying its mana cost. If you do, its front face will be up."
+      },
+      {
+       "date": "2024-02-02",
+       "text": "If a face-down creature loses its abilities, it can't be turned face up with a disguise ability because it will no longer have a disguise ability (or a disguise cost) once face up."
+      },
+      {
+       "date": "2024-02-02",
+       "text": "If a face-down spell leaves the stack and goes to any zone other than the battlefield (if it was countered, for example), you must reveal it. Similarly, if a face-down permanent leaves the battlefield, you must reveal it. You must also reveal all face-down spells and permanents you control if you leave the game or the game ends."
+      },
+      {
+       "date": "2024-02-02",
+       "text": "If something tries to turn a face-down instant or sorcery card on the battlefield face up, reveal that card to show all players it's an instant or sorcery card. The permanent remains on the battlefield face down. Abilities that trigger when a permanent turns face up won't trigger, because even though you revealed the card, it never turned face up."
+      },
+      {
+       "date": "2024-02-02",
+       "text": "To cloak a card, put it onto the battlefield face down. It becomes a 2/2 face-down creature card with ward {2} and no name, mana cost, or creature types. It's colorless and has a mana value of 0. Other effects that apply to the permanent can still grant it any characteristics it doesn't have or change the characteristics it does have."
+      },
+      {
+       "date": "2024-02-02",
+       "text": "Turning a permanent face up or face down doesn't change whether that permanent is tapped or untapped."
+      },
+      {
+       "date": "2024-02-02",
+       "text": "Unlike a face-down creature that was cast using a disguise or morph ability, a cloaked creature may still be turned face up after it loses its abilities if it's a creature card."
+      },
+      {
+       "date": "2024-02-02",
+       "text": "You must ensure that your face-down spells and permanents can be easily differentiated from each other. You're not allowed to mix up the cards that represent them on the battlefield to confuse other players. The order in which they entered the battlefield should remain clear, as well as what ability caused them to be face down. (This includes disguise, cloak, and in games involving older cards, morph and manifest, as well as a few other effects that turn cards face down.) Common methods for doing this include using markers or dice, or simply placing them in order on the battlefield."
+      }
+     ],
+     "scryfall_oracle_id": "e8aa0d7d-e5f6-4d66-bdc1-315483e1b256",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 4
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": {
+        "type": "OnlyDuringYourTurn"
+       },
+       "damage_kind": "Any",
+       "description": "At the beginning of combat on your turn",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "duration": null,
+         "static_abilities": [],
+         "target": null,
+         "type": "GenericEffect"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "modal": {
+         "allow_repeat_modes": false,
+         "chooser": {
+          "type": "Controller"
+         },
+         "max_choices": 1,
+         "min_choices": 1,
+         "mode_count": 2,
+         "mode_descriptions": [
+          "Cloak a card from your hand.",
+          "Put a +1/+1 counter on each colorless creature you control."
+         ]
+        },
+        "mode_abilities": [
+         {
+          "condition": null,
+          "cost": null,
+          "description": null,
+          "duration": null,
+          "effect": {
+           "chooser": "Controller",
+           "count": 1,
+           "type": "ChooseFromZone",
+           "up_to": false,
+           "zone": "Hand",
+           "zone_owner": "Controller"
+          },
+          "forward_result": false,
+          "kind": "Spell",
+          "optional": false,
+          "optional_targeting": false,
+          "sub_ability": {
+           "condition": null,
+           "cost": null,
+           "description": null,
+           "duration": null,
+           "effect": {
+            "count": {
+             "type": "Fixed",
+             "value": 1
+            },
+            "enters_under": "You",
+            "object_source": {
+             "type": "ParentTarget"
+            },
+            "target": {
+             "type": "Controller"
+            },
+            "type": "Cloak"
+           },
+           "forward_result": false,
+           "kind": "Spell",
+           "optional": false,
+           "optional_targeting": false,
+           "sub_ability": null,
+           "target_prompt": null
+          },
+          "target_prompt": null
+         },
+         {
+          "condition": null,
+          "cost": null,
+          "description": null,
+          "duration": null,
+          "effect": {
+           "count": {
+            "type": "Fixed",
+            "value": 1
+           },
+           "counter_type": "P1P1",
+           "target": {
+            "controller": "You",
+            "properties": [
+             {
+              "comparator": "EQ",
+              "count": 0,
+              "type": "ColorCount"
+             }
+            ],
+            "type": "Typed",
+            "type_filters": [
+             "Creature"
+            ]
+           },
+           "type": "PutCounterAll"
+          },
+          "forward_result": false,
+          "kind": "Spell",
+          "optional": false,
+          "optional_targeting": false,
+          "sub_ability": null,
+          "target_prompt": null
+         }
+        ],
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "Phase",
+       "optional": false,
+       "origin": null,
+       "phase": "BeginCombat",
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": null,
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 4.0,
+    "color_identity": [
+     "G",
+     "U"
+    ],
+    "colors": [
+     "G",
+     "U"
+    ],
+    "keywords": [
+     "Cloak"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "legal",
+     "standardbrawl": "legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}{G}{U}",
+    "name": "Vannifar, Evolved Enigma",
+    "oracle_id": "e8aa0d7d-e5f6-4d66-bdc1-315483e1b256",
+    "oracle_text": "At the beginning of combat on your turn, choose one —\n• Cloak a card from your hand. (Put it onto the battlefield face down as a 2/2 creature with ward {2}. Turn it face up any time for its mana cost if it's a creature card.)\n• Put a +1/+1 counter on each colorless creature you control.",
+    "power": "3",
+    "toughness": "4",
+    "type_line": "Legendary Creature — Elf Ooze Wizard"
+   }
+  },
   "Vanquish the Horde": {
    "phase_records": [
     {
@@ -1176665,6 +1180648,170 @@
     "type_line": "Creature — Sponge"
    }
   },
+  "Wall of Caltrops": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Wall"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "White"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [
+      "Defender"
+     ],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "pauper": "legal",
+      "paupercommander": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "White"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "664ad588-3002-4f63-93bd-38663171018f"
+      ]
+     },
+     "name": "Wall of Caltrops",
+     "non_ability_text": null,
+     "oracle_text": "Defender (This creature can't attack.)\nWhenever this creature blocks a creature, if at least one other Wall creature is blocking that creature and no non-Wall creatures are blocking that creature, this creature gains banding until end of turn. (If any creatures with banding you control are blocking a creature, you divide that creature's combat damage, not its controller, among any of the creatures it's being blocked by.)",
+     "power": {
+      "type": "Fixed",
+      "value": 2
+     },
+     "printings": [
+      "LEG"
+     ],
+     "rarities": [
+      "common"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2004-10-04",
+       "text": "Banding is gained when the trigger resolves in the declare blockers step of the combat phase if the criterion is met."
+      }
+     ],
+     "scryfall_oracle_id": "20fa17d4-9c3e-470b-9993-a4a2799e33d1",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 1
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever ~ blocks a creature, if at least one other Wall creature is blocking that creature and no non-Wall creatures are blocking that creature, ~ gains banding until end of turn.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "description": "if at least one other Wall creature is blocking that creature and no non-Wall creatures are blocking that creature, ~ gains banding until end of turn",
+         "name": "unparsed_condition",
+         "type": "Unimplemented"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "Blocks",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": {
+        "controller": null,
+        "properties": [],
+        "type": "Typed",
+        "type_filters": [
+         "Creature"
+        ]
+       }
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 2.0,
+    "color_identity": [
+     "W"
+    ],
+    "colors": [
+     "W"
+    ],
+    "keywords": [
+     "Defender"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "legal",
+     "paupercommander": "legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}{W}",
+    "name": "Wall of Caltrops",
+    "oracle_id": "20fa17d4-9c3e-470b-9993-a4a2799e33d1",
+    "oracle_text": "Defender (This creature can't attack.)\nWhenever this creature blocks a creature, if at least one other Wall creature is blocking that creature and no non-Wall creatures are blocking that creature, this creature gains banding until end of turn. (If any creatures with banding you control are blocking a creature, you divide that creature's combat damage, not its controller, among any of the creatures it's being blocked by.)",
+    "power": "2",
+    "toughness": "1",
+    "type_line": "Creature — Wall"
+   }
+  },
   "Wall of Denial": {
    "phase_records": [
     {
@@ -1180890,6 +1185037,220 @@
     "power": "5",
     "toughness": "5",
     "type_line": "Creature — Dragon"
+   }
+  },
+  "Warmonger's Chariot": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "ability_tag": {
+        "type": "Equip"
+       },
+       "activation_restrictions": [
+        {
+         "type": "AsSorcery"
+        }
+       ],
+       "condition": null,
+       "cost": {
+        "cost": {
+         "generic": 3,
+         "shards": [],
+         "type": "Cost"
+        },
+        "type": "Mana"
+       },
+       "description": "Equip {3}",
+       "duration": null,
+       "effect": {
+        "selection": {
+         "at_resolution": {}
+        },
+        "target": {
+         "controller": "You",
+         "properties": [],
+         "type": "Typed",
+         "type_filters": [
+          "Creature"
+         ]
+        },
+        "type": "Attach"
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Artifact"
+      ],
+      "subtypes": [
+       "Equipment"
+      ],
+      "supertypes": []
+     },
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 2,
+      "shards": [],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "273f4cb1-5c0b-411f-b747-f03bff6e0c76",
+       "44da7915-98bd-4f4e-9bcc-801eb10c8a18",
+       "f7321473-5747-4430-86b2-b5029d9f6486"
+      ]
+     },
+     "name": "Warmonger's Chariot",
+     "non_ability_text": null,
+     "oracle_text": "Equipped creature gets +2/+2.\nAs long as equipped creature has defender, it can attack as though it didn't have defender.\nEquip {3} ({3}: Attach to target creature you control. Equip only as a sorcery.)",
+     "power": null,
+     "printings": [
+      "CNS",
+      "JMP",
+      "ROE"
+     ],
+     "rarities": [
+      "uncommon"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2010-06-15",
+       "text": "If the equipped creature doesn’t have defender, the second ability simply doesn’t affect it."
+      },
+      {
+       "date": "2010-06-15",
+       "text": "The second ability doesn’t cause the equipped creature to lose defender. It just lets it attack."
+      }
+     ],
+     "scryfall_oracle_id": "90f4ec87-d33d-46c1-8cc7-3e7ad3f8ad70",
+     "static_abilities": [
+      {
+       "active_zones": [],
+       "affected": {
+        "controller": null,
+        "properties": [
+         {
+          "type": "EquippedBy"
+         }
+        ],
+        "type": "Typed",
+        "type_filters": [
+         "Creature"
+        ]
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": null,
+       "description": "Equipped creature gets +2/+2.",
+       "effect_zone": null,
+       "mode": "Continuous",
+       "modifications": [
+        {
+         "type": "AddPower",
+         "value": 2
+        },
+        {
+         "type": "AddToughness",
+         "value": 2
+        }
+       ]
+      },
+      {
+       "active_zones": [],
+       "affected": {
+        "type": "SelfRef"
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": {
+        "filter": {
+         "controller": null,
+         "properties": [
+          {
+           "type": "EquippedBy"
+          },
+          {
+           "type": "WithKeyword",
+           "value": "Defender"
+          }
+         ],
+         "type": "Typed",
+         "type_filters": [
+          "Creature"
+         ]
+        },
+        "type": "IsPresent"
+       },
+       "description": "As long as equipped creature has defender, it can attack as though it didn't have defender.",
+       "effect_zone": null,
+       "mode": "CanAttackWithDefender",
+       "modifications": []
+      }
+     ],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 2.0,
+    "color_identity": [],
+    "colors": [],
+    "keywords": [
+     "Equip"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}",
+    "name": "Warmonger's Chariot",
+    "oracle_id": "90f4ec87-d33d-46c1-8cc7-3e7ad3f8ad70",
+    "oracle_text": "Equipped creature gets +2/+2.\nAs long as equipped creature has defender, it can attack as though it didn't have defender.\nEquip {3} ({3}: Attach to target creature you control. Equip only as a sorcery.)",
+    "type_line": "Artifact — Equipment"
    }
   },
   "Warp World": {
@@ -1205588,6 +1209949,248 @@
     "power": "2",
     "toughness": "1",
     "type_line": "Creature — Shapeshifter"
+   }
+  },
+  "Woolly Razorback": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Boar",
+       "Beast"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "White"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 2,
+      "shards": [
+       "White",
+       "White"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "95ed6354-161e-496e-9ac7-74432f9b0818"
+      ]
+     },
+     "name": "Woolly Razorback",
+     "non_ability_text": null,
+     "oracle_text": "This creature enters with three ice counters on it.\nAs long as this creature has an ice counter on it, prevent all combat damage it would deal and it has defender.\nWhenever this creature blocks, remove an ice counter from it.",
+     "parse_warnings": [
+      {
+       "description": "As long as this creature has an ice counter on it, prevent all combat damage it would deal and it has defender.",
+       "detector": "Condition_AsLongAs",
+       "gap": {
+        "guard": "this creature has an ice counter on it",
+        "kind": "unparsed_condition"
+       },
+       "items": [
+        1
+       ],
+       "line_index": 1,
+       "type": "SwallowedClause",
+       "unit_span": {
+        "end_byte": 163,
+        "first_line": 1,
+        "last_line": 1,
+        "ordinal_within_span": 0,
+        "precision": "Exact",
+        "start_byte": 52
+       }
+      }
+     ],
+     "power": {
+      "type": "Fixed",
+      "value": 7
+     },
+     "printings": [
+      "CSP"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [
+      {
+       "condition": null,
+       "description": "~ enters with three ice counters on it.",
+       "destination_zone": "Battlefield",
+       "event": "Moved",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "count": {
+          "type": "Fixed",
+          "value": 3
+         },
+         "counter_type": "ice",
+         "target": {
+          "type": "SelfRef"
+         },
+         "type": "PutCounter"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": {
+        "type": "Mandatory"
+       },
+       "valid_card": {
+        "type": "SelfRef"
+       }
+      },
+      {
+       "combat_scope": "CombatOnly",
+       "condition": null,
+       "damage_source_filter": {
+        "type": "SelfRef"
+       },
+       "description": "As long as ~ has an ice counter on it, prevent all combat damage it would deal and it has defender.",
+       "event": "DamageDone",
+       "execute": null,
+       "mode": {
+        "type": "Mandatory"
+       },
+       "shield_kind": {
+        "Prevention": {
+         "amount": "All"
+        }
+       },
+       "valid_card": null
+      }
+     ],
+     "rulings": [
+      {
+       "date": "2006-07-15",
+       "text": "Having an ice counter on Woolly Razorback doesn’t prevent combat damage that would be dealt to it."
+      },
+      {
+       "date": "2006-07-15",
+       "text": "The third time Woolly Razorback blocks, its last ice counter will be removed, meaning the combat damage it deals that combat won’t be prevented."
+      }
+     ],
+     "scryfall_oracle_id": "c5d27469-96e1-44ec-a887-2fc26f9e10d3",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 7
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever ~ blocks, remove an ice counter from it.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "counter_type": "ice",
+         "target": {
+          "type": "SelfRef"
+         },
+         "type": "RemoveCounter"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "Blocks",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 4.0,
+    "color_identity": [
+     "W"
+    ],
+    "colors": [
+     "W"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}{W}{W}",
+    "name": "Woolly Razorback",
+    "oracle_id": "c5d27469-96e1-44ec-a887-2fc26f9e10d3",
+    "oracle_text": "This creature enters with three ice counters on it.\nAs long as this creature has an ice counter on it, prevent all combat damage it would deal and it has defender.\nWhenever this creature blocks, remove an ice counter from it.",
+    "power": "7",
+    "toughness": "7",
+    "type_line": "Creature — Boar Beast"
    }
   },
   "Words of Waste": {

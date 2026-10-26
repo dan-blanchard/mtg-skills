@@ -59,6 +59,7 @@ from mtg_utils._card_ir.crosswalk import (
     iter_mod_sites,
     iter_typed_nodes,
     keyword_bodies,
+    made_keyword_bodies,
     makes_lands_type,
     mod_keyword_name,
     modify_cost_mode,
@@ -2238,12 +2239,19 @@ def _keyword_bodies(tree: ConceptTree) -> list[Signal]:
     """keyword_bodies — the keywords the card puts on bodies of yours
     (:func:`crosswalk.keyword_bodies`: a self-grant, a creature token with the
     keyword, a keyword counter; CR 702). Subject: the keyword; a drawback
-    (:data:`_DRAWBACK_GRANT_KW` — Mana Chains' cumulative upkeep) names none. A
-    keyword deck's page counts them beside the cards that print it; it opens no
-    avenue. HIGH."""
+    (:data:`_DRAWBACK_GRANT_KW` — Mana Chains' cumulative upkeep) names none,
+    but a body with defender the card is or makes does
+    (:func:`crosswalk.made_keyword_bodies` — a Wall token, Primal Clay's 1/6
+    Wall, Guardian Zendikon's land), where "Enchanted creature has defender"
+    (Guard Duty) stays a drawback. A keyword deck's page counts them beside the
+    cards that print it; it opens no avenue. HIGH."""
+    every = keyword_bodies(tree)
+    kws = every - _DRAWBACK_GRANT_KW
+    # made_keyword_bodies is a subset of keyword_bodies: walk it only when needed
+    if "defender" in every and "defender" in made_keyword_bodies(tree):
+        kws |= {"defender"}
     return [
-        Signal("keyword_bodies", "you", kw, "", tree.name, "high")
-        for kw in sorted(keyword_bodies(tree) - _DRAWBACK_GRANT_KW)
+        Signal("keyword_bodies", "you", kw, "", tree.name, "high") for kw in sorted(kws)
     ]
 
 

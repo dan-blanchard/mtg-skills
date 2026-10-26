@@ -3406,7 +3406,13 @@ def mod_keyword_name(mod: TypedMirrorNode) -> str | None:
     is the keyword name (``{Flashback: <cost>}`` — Snapcaster Mage's targeted
     flashback grant, CR 702.34). ``None`` when absent / not a keyword node.
     """
-    kw = getattr(mod, "keyword", MISSING)
+    return _keyword_entry_name(getattr(mod, "keyword", MISSING))
+
+
+def _keyword_entry_name(kw: object) -> str | None:
+    """The keyword NAME of one keyword entry: a bare string (``"Flying"``) or a
+    parameterized variant's key (``{Ward: <cost>}``); ``None`` for anything
+    else."""
     if isinstance(kw, str):
         return kw
     if isinstance(kw, MirrorVariant):
@@ -3435,14 +3441,9 @@ def token_profile_keywords(node: object) -> tuple[str, ...]:
         return ()
     out: list[str] = []
     for kw in kws:
-        if isinstance(kw, str):
-            out.append(kw)
-        elif isinstance(kw, MirrorVariant):
-            out.append(kw.key)
-        elif isinstance(kw, TypedMirrorNode):
-            t = tag_of(kw)
-            if t is not None:
-                out.append(t)
+        name = _keyword_entry_name(kw)
+        if name is not None:
+            out.append(name)
     return tuple(out)
 
 
@@ -7028,6 +7029,23 @@ def team_buff_sites(
                 continue
             if is_team_buff_filter(getattr(sdef, "affected", None)):
                 yield unit, sdef
+
+
+def pump_keyword_grants(
+    tree: ConceptTree,
+) -> Iterator[tuple[AbilityUnit, ConceptNode, str]]:
+    """``(unit, pump concept, keyword)`` per keyword a pump's own description
+    grants that phase dropped beside it — the recovery stage's partly-read grant
+    on a ``Pump`` / ``PumpAll`` (``ConceptNode.body_keywords``): "creatures you
+    control gain trample and get +1/+1 for each basic land type" typed as a bare
+    ``PumpAll`` (Tromp the Domains), "other Elves you control gain vigilance and
+    get +1/+1" (Haldir, Lórien Lieutenant). The grantee is the pump's own object
+    (:func:`effect_filter`); the keyword is in :func:`keyword_subject` spelling."""
+    for unit in tree.units:
+        for c in unit.effects:
+            if tag_of(c.node) in ("Pump", "PumpAll"):
+                for kw in c.body_keywords:
+                    yield unit, c, kw
 
 
 def static_def_adds_power(sdef: object) -> bool:
@@ -11691,11 +11709,26 @@ def keyword_bodies(tree: ConceptTree) -> frozenset[str]:
     return memo_on(tree, "_xw_keyword_bodies", _keyword_bodies)
 
 
-def _keyword_bodies(tree: ConceptTree) -> frozenset[str]:
+def made_keyword_bodies(tree: ConceptTree) -> frozenset[str]:
+    """The :func:`keyword_bodies` of the bodies the card is or makes — itself
+    (a self-grant, its printed keyword abilities' conferred keyword, its
+    animation), a creature token, a copy, a permanent it animates or cloaks —
+    without its grants onto another permanent (an Aura's "Enchanted creature
+    has defender", a target's counter). A body with defender of yours (CR
+    702.3b) where a grant of defender is a drawback ("Enchanted creature has
+    defender" — Guard Duty)."""
+    return memo_on(
+        tree, "_xw_made_keyword_bodies", partial(_keyword_bodies, made_only=True)
+    )
+
+
+def _keyword_bodies(tree: ConceptTree, *, made_only: bool = False) -> frozenset[str]:
     out: set[str] = set()
     creature = "Creature" in tree.card_types
     printed = {normalised_keyword_name(k) for k in tree.card_keywords}
-    if "suspend" in printed and creature:
+    if ("suspend" in printed and creature) or any(
+        suspends_own_card(u) for u in tree.units
+    ):
         out.add("haste")  # CR 702.62a: a creature spell cast this way gains haste
     out.update(
         KEYWORD_ABILITY_KEYWORDS[k] for k in printed & KEYWORD_ABILITY_KEYWORDS.keys()
@@ -11704,6 +11737,8 @@ def _keyword_bodies(tree: ConceptTree) -> frozenset[str]:
         for sdef, mod in iter_mod_sites(unit.node, deep=True):
             affected = getattr(sdef, "affected", None)
             if filter_controller_side(affected) == "opponents":
+                continue
+            if made_only and not _makes_body(unit, sdef):
                 continue
             if tag_of(mod) == "AddKeyword":
                 kw = mod_keyword_name(mod) or ""
@@ -11725,11 +11760,129 @@ def _keyword_bodies(tree: ConceptTree) -> frozenset[str]:
                     or {k for u in tree.units for k in _chosen_keyword_options(u)}
                 )
         for n in unit.iter_typed():
-            out |= _keyword_body_node(unit, n)
+            if not made_only or not _grants_or_unowned(unit, n):
+                out |= _keyword_body_node(unit, n)
         for c in unit.effects:
-            out.update(c.body_keywords)
+            out.update(c.made_body_keywords if made_only else c.body_keywords)
     out.discard("")
     return frozenset(out)
+
+
+#: The :func:`_keyword_body_node` arms that grant a keyword to a body already
+#: there — a spell the mana is spent on, a creature suspected, a keyword counter
+#: on a target, a perpetual grant. Every other arm's body is one the card makes:
+#: a token, a copy, an animation, a cloaked card, a creature entering with a
+#: counter.
+_GRANT_BODY_TAGS = frozenset(
+    {
+        "Mana",
+        "Suspect",
+        "PutCounter",
+        "PutCounterAll",
+        "ChooseCounterKind",
+        "ApplyPerpetual",
+    }
+)
+
+
+def _grants_or_unowned(unit: AbilityUnit, n: TypedMirrorNode) -> bool:
+    """Whether a :func:`_keyword_body_node` arm puts its keyword on no body the
+    card makes for you: a grant arm (:data:`_GRANT_BODY_TAGS`), or a token whose
+    creator could be anyone ("its controller creates" — Basalt Golem's blocker's
+    controller, CR 111.2)."""
+    tag = tag_of(n)
+    if tag in _GRANT_BODY_TAGS:
+        return True
+    return tag in ("Token", "CopyTokenOf") and token_creator_side(unit, n) == "any"
+
+
+def _makes_body(unit: AbilityUnit, sdef: object) -> bool:
+    """Whether a static def of ``unit`` is the card's own body (``SelfRef``) or
+    one it makes: its modifications make its object a creature ("Enchanted land is
+    a 2/6 white Wall creature with defender" — Guardian Zendikon), a target of
+    yours when the object is the chain's target (never "target noncreature
+    artifact they control becomes a 0/4 Wall artifact creature with defender" —
+    Welcome to . . .)."""
+    affected = getattr(sdef, "affected", None)
+    if tag_of(affected) == "SelfRef":
+        return True
+    if not adds_creature_type(sdef):
+        return False
+    if tag_of(affected) == "ParentTarget":
+        return filter_controller_side(root_target_filter(unit)) == "you"
+    return True
+
+
+def suspends_own_card(unit: AbilityUnit) -> bool:
+    """Whether ``unit`` gives suspend to a card of yours it exiles, one that may be
+    a creature card: from your hand (Jhoira of the Ghitu's cost), the top of your
+    library (The Tenth Doctor, Sibylline Soothsayer), your graveyard (Doom's Time
+    Platform) or the spell you cast (Taigam, Master Opportunist). CR 702.62a: you
+    may cast it as its last time counter is removed, and a creature spell cast
+    this way gains haste. The card the chain exiles is read by the first effect
+    that picks it: a library exile by whose library it takes
+    (:func:`exiled_library_side`), an exile by whether it may take another
+    player's card (:func:`_exiles_other_players_card` — never Delay's countered
+    spell or Suspend's target creature), a counter on the card a cost exiled by
+    that cost's filter. A watched spell that can't be a creature (Gandalf of the
+    Secret Fire's instants and sorceries) gains no haste."""
+    if not any(
+        tag_of(mod) == "AddKeyword"
+        and normalised_keyword_name(mod_keyword_name(mod) or "") == "suspend"
+        and tag_of(getattr(sdef, "affected", None))
+        in ("ParentTarget", "TriggeringSource")
+        for sdef, mod in iter_mod_sites(unit.node, deep=True)
+    ):
+        return False
+    watched = getattr(unit.node, "valid_card", None)
+    cores = set(filter_core_types(watched))
+    if cores and "Creature" not in cores:
+        return False
+    for c in unit.effects:
+        n = c.node
+        tag = tag_of(n)
+        if tag in LIBRARY_EXILE_TAGS:
+            return exiled_library_side(unit.node, n, unit) == "you"
+        if tag in ("ChangeZone", "ChangeZoneAll") and change_zone_dirs(n)[1] == "Exile":
+            return not _exiles_other_players_card(unit, n)
+        target = getattr(n, "target", None)
+        if tag == "PutCounter" and tag_of(target) == "CostPaidObject":
+            return any(
+                tag_of(leaf) == "Exile"
+                and filter_controller_side(getattr(leaf, "filter", None)) == "you"
+                for leaf in iter_cost_leaves(getattr(unit.node, "cost", None))
+            )
+    return False
+
+
+def lets_defenders_attack(unit: AbilityUnit) -> bool:
+    """Whether ``unit`` lets creatures that aren't an opponent's attack as though
+    they didn't have defender — a payoff for creatures with defender (CR 702.3b:
+    "A creature with defender can't attack"): a ``CanAttackWithDefender`` static
+    (High Alert's team, Rolling Stones' Walls, Warmonger's Chariot's equipped
+    creature) or the mode a grant adds (``AddStaticMode`` — Assault Formation's
+    target, Teyo, Aegis Adept's perpetual one). A creature letting only itself
+    attack (Backstreet Bruiser, "as long as it's enchanted or equipped")
+    rewards no population."""
+
+    def others(sdef: object) -> bool:
+        affected = getattr(sdef, "affected", None)
+        return (
+            tag_of(affected) != "SelfRef"
+            and filter_controller_side(affected) != "opponents"
+        )
+
+    if any(
+        static_mode_tag(sdef) == "CanAttackWithDefender" and others(sdef)
+        for sdef in iter_static_defs(unit.node, granted=True)
+    ):
+        return True
+    return any(
+        tag_of(mod) == "AddStaticMode"
+        and getattr(mod, "mode", None) == "CanAttackWithDefender"
+        and others(sdef)
+        for sdef, mod in iter_mod_sites(unit.node, deep=True)
+    )
 
 
 #: The keyword a keyword ability confers on the permanent it puts onto the
@@ -11739,9 +11892,10 @@ def _keyword_bodies(tree: ConceptTree) -> frozenset[str]:
 #: "gains haste" (702.84a), awaken's land "becomes a 0/0 Elemental creature with
 #: haste" (702.113a), riot's "If you don't, it gains haste" (702.136a — a
 #: granted riot, Domri, Chaos Bringer's), afterlife's "Spirit creature tokens
-#: with flying" (702.135a — a granted afterlife, Afterlife Insurance's).
-#: Suspend's haste is a creature spell's only (702.62a), read off a creature
-#: card's own suspend.
+#: with flying" (702.135a — a granted afterlife, Afterlife Insurance's),
+#: disguise's "2/2 face-down creature with ward {2}" (702.168a — Fugitive
+#: Codebreaker). Suspend's haste is a creature spell's only (702.62a), read off a
+#: creature card's own suspend.
 KEYWORD_ABILITY_KEYWORDS: dict[str, str] = {
     "dash": "haste",
     "blitz": "haste",
@@ -11750,6 +11904,7 @@ KEYWORD_ABILITY_KEYWORDS: dict[str, str] = {
     "awaken": "haste",
     "riot": "haste",
     "afterlife": "flying",
+    "disguise": "ward",
 }
 
 
@@ -11790,9 +11945,17 @@ def counter_keyword(kind: object) -> str:
 
 
 def _keyword_names(node: object, field: str) -> set[str]:
-    """The plain keywords in ``node``'s keyword list ``field``, in
-    :func:`keyword_subject` spelling."""
-    return {keyword_subject(k) for k in list_field(node, field) if isinstance(k, str)}
+    """The keywords in ``node``'s keyword list ``field``, in
+    :func:`keyword_subject` spelling: a plain one (``"Flying"``) or a
+    parameterized one by its name (a token's ``{Ward: {2}}`` — Fugitive of the
+    Judoon), each with what it confers (:func:`_keyword_with_conferred`)."""
+    out: set[str] = set()
+    for k in list_field(node, field):
+        name = _keyword_entry_name(k)
+        if name is not None:
+            out |= _keyword_with_conferred(name)
+    out.discard("")
+    return out
 
 
 def _copy_keywords(n: TypedMirrorNode) -> set[str]:
@@ -11842,6 +12005,10 @@ def _keyword_body_node(unit: AbilityUnit, n: TypedMirrorNode) -> set[str]:
     # creature with haste" (CR 701.66a — Toph, the Blind Bandit).
     if tag == "Animate":
         return _keyword_names(n, "keywords")
+    # A card you cloak "becomes a 2/2 face-down creature card with ward {2}" (CR
+    # 701.58a — Vannifar, Evolved Enigma).
+    if tag == "Cloak":
+        return {"ward"} if getattr(n, "enters_under", None) == "You" else set()
     if tag in ("PutCounter", "PutCounterAll"):
         return {counter_keyword(counter_kind(n))}
     if tag == "ChooseCounterKind":

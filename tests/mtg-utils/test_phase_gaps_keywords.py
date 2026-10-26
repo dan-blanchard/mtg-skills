@@ -40,14 +40,22 @@ def _raw_nodes(name: str) -> list[dict]:
     return [n for rec in test_phase_records(name) for n in _walk(rec)]
 
 
+def _spells(raw: object, spelled: str) -> bool:
+    """Whether a raw keyword is ``spelled`` — bare, or a parameterized one's
+    variant key (``{"Ward": <cost>}``)."""
+    return raw == spelled or (isinstance(raw, dict) and spelled in raw)
+
+
 def _types_keyword(name: str, kw: str) -> bool:
     """Whether phase's own records type ``kw`` anywhere: an ``AddKeyword``, a
     token's keywords, a keyword counter."""
-    spelled = PHASE_KEYWORDS[kw]
+    spelled = PHASE_KEYWORDS.get(kw) or kw.title().replace(" ", "")
     for n in _raw_nodes(name):
-        if n.get("type") == "AddKeyword" and n.get("keyword") == spelled:
+        if n.get("type") == "AddKeyword" and _spells(n.get("keyword"), spelled):
             return True
-        if spelled in (n.get("keywords") or ()) and n.get("type") == "Token":
+        if n.get("type") == "Token" and any(
+            _spells(k, spelled) for k in n.get("keywords") or ()
+        ):
             return True
         if n.get("type") == "PutCounter" and n.get("counter_type") in (spelled, kw):
             return True
@@ -71,6 +79,8 @@ _STATIC_DROPS = [
     ("Tribal Golem", "haste"),  # "has trample as long as …, haste as long as …"
     ("Harmonious Emergence", "vigilance"),  # "a 4/5 … creature with vigilance"
     ("Argivian Avenger", "flying"),  # "your choice of flying, vigilance, …"
+    ("Guardian Zendikon", "defender"),  # "is a 2/6 white Wall creature with defender"
+    ("Jodah's Avenger", "shadow"),  # "double strike, protection from red, …, shadow"
 ]
 
 
@@ -159,6 +169,8 @@ _RESIDUES = [
     ("Mardu Thunderkite", "lifelink"),  # "your choice of menace, lifelink, or haste"
     ("Rushblade Commander", "haste"),  # a failed static "… have haste"
     ("Blitzwing, Cruel Tormentor // Blitzwing, Adaptive Assailant", "flying"),
+    ("Wall of Caltrops", "banding"),  # "this creature gains banding until …"
+    ("Better Offer", "ward"),  # "perpetually gains ward {1}"
 ]
 
 
@@ -203,6 +215,88 @@ def test_partly_read_grant_read(name, kw):
     assert f"keyword_bodies|you|{kw}" in _idents(name)
 
 
+@pytest.mark.parametrize(
+    ("name", "ident"),
+    [
+        ("Tromp the Domains", "team_buff|you|trample"),  # your whole team
+        ("Tromp the Domains", "team_buff|you|"),
+        ("Haldir, Lórien Lieutenant", "team_buff|you|vigilance"),  # your Elves
+        ("Stolen Vitality", "keyword_grant_target|you|first strike"),  # a target
+    ],
+)
+def test_partly_read_grant_feeds_the_grant_lanes(name, ident):
+    # the pump's own object is the grantee (crosswalk.pump_keyword_grants)
+    assert ident in _idents(name)
+
+
+# ── a Role token's own ability ───────────────────────────────────────────────
+
+_ROLE_DROPS = [
+    ("Monstrous Rage", "trample"),  # Monster Role, CR 111.10k
+    ("Royal Treatment", "ward"),  # Royal Role, CR 111.10m: "has ward {1}"
+]
+
+
+@pytest.mark.retirement_canary
+@pytest.mark.parametrize(("name", "kw"), _ROLE_DROPS)
+def test_role_token_ability_dropped_canary(name, kw):
+    roles = [
+        n
+        for n in _raw_nodes(name)
+        if n.get("type") == "Token" and "Role" in (n.get("types") or ())
+    ]
+    assert roles, f"{name}: no Role Token node — re-check the shape"
+    assert not any(n.get("static_abilities") for n in roles), _retire(
+        name, kw, "dropped_keywords._role_grants"
+    )
+
+
+@pytest.mark.parametrize(("name", "kw"), _ROLE_DROPS)
+def test_role_token_ability_restored(name, kw):
+    idents = _idents(name)
+    assert f"keyword_bodies|you|{kw}" in idents
+    # an Aura's grant to the creature it enchants
+    assert f"aura_equip_kw_grant|you|{kw}" in idents
+
+
+def test_restored_ward_keeps_its_cost():
+    (rec,) = test_phase_records("Royal Treatment")
+    wards = [
+        n["keyword"]["Ward"]
+        for n in _walk(restore_dropped_keywords(rec))
+        if n.get("type") == "AddKeyword" and isinstance(n.get("keyword"), dict)
+    ]
+    assert wards == [
+        {"type": "Mana", "data": {"type": "Cost", "shards": [], "generic": 1}}
+    ]
+
+
+# ── a counter kind that swallows its clause ──────────────────────────────────
+
+_COUNTER_KIND_DROPS = [
+    ("Dralnu's Pet", "flying"),  # "enters with flying and with X +1/+1 counters"
+    ("Printlifter Ooze", "trample"),  # "token with trample. The token enters with"
+]
+
+
+@pytest.mark.retirement_canary
+@pytest.mark.parametrize(("name", "kw"), _COUNTER_KIND_DROPS)
+def test_counter_kind_swallows_clause_canary(name, kw):
+    kinds = [
+        n["counter_type"]
+        for n in _raw_nodes(name)
+        if n.get("type") == "PutCounter" and isinstance(n.get("counter_type"), str)
+    ]
+    assert any(k.startswith((f"{kw} ", f"{kw}.")) for k in kinds), _retire(
+        name, kw, "recovery._swallowed_counter_keywords"
+    )
+
+
+@pytest.mark.parametrize(("name", "kw"), _COUNTER_KIND_DROPS)
+def test_counter_kind_keyword_read(name, kw):
+    assert f"keyword_bodies|you|{kw}" in _idents(name)
+
+
 # ── our reads: what phase types and keyword_bodies didn't read ──────────────
 
 
@@ -221,6 +315,15 @@ def test_partly_read_grant_read(name, kw):
         ("Frantic Scapegoat", "menace"),  # suspect, CR 701.60c
         ("Greymond, Avacyn's Stalwart", "lifelink"),  # a choice made as it enters
         ("Dragonfire Blade", "hexproof"),  # hexproof from, CR 702.11d
+        ("Fugitive of the Judoon", "ward"),  # a token's "ward {2}"
+        ("Fugitive Codebreaker", "ward"),  # disguise, CR 702.168a
+        ("Vannifar, Evolved Enigma", "ward"),  # cloak, CR 701.58a
+        ("Jhoira of the Ghitu", "haste"),  # suspends a card from your hand
+        ("The Tenth Doctor", "haste"),  # … from the top of your library
+        ("Doom's Time Platform", "haste"),  # … from your graveyard
+        ("Taigam, Master Opportunist", "haste"),  # … the spell you cast
+        ("Guardian Zendikon", "defender"),  # a body it makes (CR 702.3b)
+        ("Primal Clay", "defender"),  # itself, a 1/6 Wall
     ],
 )
 def test_keyword_bodies_reads(name, kw):
@@ -236,10 +339,53 @@ def test_keyword_bodies_reads(name, kw):
         ("Siani, Eye of the Storm", "flying"),  # "X is the number of … with flying"
         ("Hunted Troll", "flying"),  # target opponent creates the Faeries
         ("Walking Sponge", "flying"),  # "loses your choice of flying, …"
+        ("Gandalf of the Secret Fire", "haste"),  # suspends instants and sorceries
+        ("Unexplained Absence", "ward"),  # the exiled permanent's controller cloaks
+        ("Guard Duty", "defender"),  # a grant of defender is a drawback
+        ("Stasis Field", "defender"),
+        ("Welcome to . . . // Jurassic Park", "defender"),  # opponents' artifacts
+        ("Basalt Golem", "defender"),  # the blocker's controller creates the Wall
+        ("Aether Web", "shadow"),  # "block creatures with shadow as though …"
     ],
 )
 def test_no_false_keyword(name, kw):
     assert f"keyword_bodies|you|{kw}" not in _idents(name)
+
+
+@pytest.mark.parametrize(
+    ("name", "subject"),
+    [
+        ("Kwende, Pride of Femeref", "First strike"),  # two words, CR 702.7
+        ("High Alert", "Defender"),  # "can attack as though they didn't have"
+        ("Rolling Stones", "Defender"),
+        ("Teyo, Aegis Adept", "Defender"),  # a perpetual AddStaticMode
+        ("Towering Titan", "Defender"),  # "Sacrifice a creature with defender"
+        ("Mystical Teachings", "Flash"),  # a tutor of your library
+    ],
+)
+def test_keyword_tribe_payoffs(name, subject):
+    assert f"keyword_tribe|you|{subject}" in _idents(name)
+
+
+def test_a_creature_letting_itself_attack_is_no_defender_payoff():
+    assert "keyword_tribe|you|Defender" not in _idents("Backstreet Bruiser")
+
+
+def test_copy_pt_override_reads_beside_a_restored_keyword():
+    # Mindlink Mech's "except it's 4/3, …, and it has flying": the restored
+    # flying sits in the copy's exceptions; the dropped 4/3 is still read
+    idents = _idents("Mindlink Mech")
+    assert {"keyword_bodies|you|flying", "base_pt_set|any|"} <= idents
+
+
+def test_conditional_lifelink_is_a_lifegain_plan():
+    # Noble Banneret's "this creature and those creatures get +1/+1 and have
+    # lifelink", restored, makes it a lifegain source like any lifelink body
+    # (CR 702.15b) — which silences the commander-damage carrier fallback, as it
+    # does for Vampire Nighthawk
+    idents = _idents("Noble Banneret")
+    assert {"keyword_bodies|you|lifelink", "lifegain_makers|you|"} <= idents
+    assert "voltron_matters|you|carrier" not in idents
 
 
 # ── the grammar over one node's clause ───────────────────────────────────────
@@ -251,9 +397,41 @@ def test_no_false_keyword(name, kw):
         ("gain flying and has base toughness 1", {"flying"}, {}),
         (
             "gains your choice of banding, first strike, or trample",
+            {"banding", "first strike", "trample"},
+            {},
+        ),
+        (
+            "gains your choice of first strike, trample, or rampage 3",
             {"first strike", "trample"},
             {},
         ),
+        (
+            (
+                "gains your choice of double strike, protection from red, "
+                "vigilance, or shadow"
+            ),
+            {"double strike", "vigilance", "shadow"},
+            {},
+        ),
+        (
+            (
+                "has reach, and can block creatures with shadow as though they "
+                "didn't have shadow"
+            ),
+            {"reach"},
+            {},
+        ),
+        (
+            "is a 2/6 white Wall creature with defender",
+            {"defender"},
+            {"creature_with": "any"},
+        ),
+        (
+            "it becomes your choice of a 3/3 creature or a 1/6 creature with defender",
+            {"defender"},
+            {"creature_with": "stated", "grants": False},
+        ),
+        ("enchanted creature has defender", set(), {"grants": False}),
         (
             (
                 "~ has trample as long as you control a Beast, haste as long as you "

@@ -1238,11 +1238,15 @@ def _keyword_pairs(name):
             {"Flying"},
         ),  # "creatures you control with flying get +1/+1"
         ("Winged Portent", {"Flying"}),  # "for each creature you control with flying"
+        # a keyword TUTOR: the search of your own library is yours
+        ("Isperia the Inscrutable", {"Flying"}),
         # keyword-sharing anthem (Odric grants keywords your board already has)
         (
             "Odric, Lunarch Marshal",
             {
                 "Deathtouch",
+                "Double strike",
+                "First strike",
                 "Flying",
                 "Haste",
                 "Hexproof",
@@ -1272,12 +1276,15 @@ def test_keyword_tribe_arm_b_structural(name, subjects):
 @pytest.mark.parametrize(
     "name",
     [
-        "Isperia the Inscrutable",  # keyword TUTOR (search for a creature with flying)
+        # a play-from-top engine gated on a keyword ("cast spells with flash or
+        # flying from the top of your library")
+        "Errant and Giada",
     ],
 )
 def test_keyword_tribe_bucket_b_synth(name):
     """The SUBJECT-carrying synth recovers a keyword phase leaves keyword-less (a
-    tutor), gap-gated against Arm B (which carries none of these), scope "you"."""
+    play-from-top engine), gap-gated against Arm B (which carries none of these),
+    scope "you"."""
     from mtg_utils._analysis.tree_synthesis import (
         _arm_keyword_tribe,
         structural_keyword_subjects,

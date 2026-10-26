@@ -325,13 +325,6 @@ _MISPARSE_ROWS = {
     "chosen_type_sweep_misparse": (
         "the one-sided -3/-3 parsed as a Pump of any target"
     ),
-    "monster_role_trample": "the Monster Role parsed as a Token with no static",
-    "dralnus_pet_kicked_flying": (
-        "'enters with flying and with X +1/+1 counters' parsed as one counter kind"
-    ),
-    "printlifter_ooze_token_trample": (
-        "the trample token parsed into a PutCounter's counter kind"
-    ),
     "conjured_creature_deathtouch_counter_parked": (
         "the boon's counters parsed as one quoted counter kind"
     ),
@@ -342,6 +335,12 @@ _MISPARSE_ROWS = {
         "the keyword choice parsed as an activation cost, its grant dropped"
     ),
     "chosen_keyword_moved_trample": (
+        "the keyword choice parsed as an activation cost, its grant dropped"
+    ),
+    "chosen_keyword_moved_first_strike": (
+        "the keyword choice parsed as an activation cost, its grant dropped"
+    ),
+    "chosen_keyword_moved_shadow": (
         "the keyword choice parsed as an activation cost, its grant dropped"
     ),
 }
@@ -364,7 +363,6 @@ _STRUCTURE_MATCHED_ROWS = {
     "keyword_dropped_paylife": (
         "the match reads the keyword rows crosswalk.core recovers from the residue"
     ),
-    "monster_role_trample": "a misparse (see _MISPARSE_ROWS)",
 }
 
 

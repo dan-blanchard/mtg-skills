@@ -54,12 +54,16 @@ from mtg_utils._card_ir.crosswalk import (
     iter_mod_sites,
     iter_static_defs,
     iter_typed_nodes,
+    keyword_subject,
+    lets_defenders_attack,
     mana_restricted_to_multicolored,
+    memo_on,
     modify_cost_spell_filter,
     protection_cardtype,
     ref_count_filter,
     tag_of,
     trigger_scope,
+    unit_is_self_tutor,
 )
 from mtg_utils._card_ir.mirror.runtime import TypedMirrorNode
 
@@ -324,7 +328,7 @@ def _arm_type_matters(tree: ConceptTree) -> ConceptNode | None:
 # drift, never double-counting a keyword phase structuralizes.
 
 
-def structural_keyword_subjects(tree: ConceptTree) -> set[str]:
+def structural_keyword_subjects(tree: ConceptTree) -> frozenset[str]:
     """Ability keywords of every controller-``You`` ``WithKeyword`` filter phase
     carries at a read site the ``_keyword_tribe`` lane fires on (CR 109.3 — Arm B).
 
@@ -337,24 +341,50 @@ def structural_keyword_subjects(tree: ConceptTree) -> set[str]:
     phase tags an EDICT ("each opponent sacrifices a creature with flying" — Clip
     Wings, Pick Your Poison) with a spurious controller-``You`` target, but the
     sacrificed creature is the opponent's — anti-flyer removal, not a your-tribe
-    payoff (the ``make_token`` carve-out precedent). Each keyword is vocab-gated
-    through ``_ABILITY_KEYWORDS`` (the precision gate — a non-keyword word yields no
-    subject) and returned capitalized.
+    payoff (the ``make_token`` carve-out precedent). Two filters are yours
+    without naming a controller: a search of your own library
+    (:func:`~mtg_utils._card_ir.crosswalk.unit_is_self_tutor` — Mystical
+    Teachings' "an instant card or a card with flash") and a sacrifice cost (CR
+    701.21a: a player sacrifices only a permanent they control — Towering Titan's
+    "Sacrifice a creature with defender"). A static letting creatures attack as
+    though they didn't have defender rewards defender bodies
+    (:func:`~mtg_utils._card_ir.crosswalk.lets_defenders_attack` — High Alert).
+    Each keyword is vocab-gated through ``_ABILITY_KEYWORDS`` (the precision gate
+    — a non-keyword word yields no subject; two words for first and double strike,
+    :func:`~mtg_utils._card_ir.crosswalk.keyword_subject`) and returned
+    capitalized ("First strike"). Memoized on the tree (the lane, the synthesis
+    gap gate and the ledger each ask).
     """
+    return memo_on(
+        tree, "_xw_structural_keyword_subjects", _structural_keyword_subjects
+    )
+
+
+def _structural_keyword_subjects(tree: ConceptTree) -> frozenset[str]:
     out: set[str] = set()
 
-    def add_filter(filt: object) -> None:
-        if filt is None or filter_controller(filt) != "You":
+    def add_filter(filt: object, *, yours: bool = False) -> None:
+        if filt is None or (not yours and filter_controller(filt) != "You"):
             return
         for k in filter_keywords(filt):
-            if k.lower() in _ABILITY_KEYWORDS:
-                out.add(k.lower().capitalize())
+            subject = keyword_subject(k)
+            if subject in _ABILITY_KEYWORDS:
+                out.add(subject.capitalize())
 
     for unit in tree.units:
         for c in unit.effects:
             add_filter(count_operand_filter(c.node))
             if c.concept not in ("make_token", "sacrifice"):
-                add_filter(effect_filter(c.node))
+                add_filter(
+                    effect_filter(c.node),
+                    yours=tag_of(c.node) == "SearchLibrary"
+                    and bool(unit_is_self_tutor(unit)),
+                )
+        for c in unit.costs:
+            if tag_of(c.node) == "Sacrifice":
+                add_filter(effect_filter(c.node), yours=True)
+        if lets_defenders_attack(unit):
+            out.add("Defender")
         if unit.origin == "trigger":
             add_filter(getattr(unit.node, "valid_card", None))
         if unit.origin == "static":
@@ -363,7 +393,7 @@ def structural_keyword_subjects(tree: ConceptTree) -> set[str]:
             for q in iter_typed_nodes(cond):
                 if tag_of(q) == "Typed":
                     add_filter(q)
-    return out
+    return frozenset(out)
 
 
 # ── arm: keyword_tribe bucket-B (ADR-0036 fold — SUBJECT-carrying, per-scope) ──

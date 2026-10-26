@@ -145,7 +145,8 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   (m) **Recall** (`precon-audit/misses.py`, at the largest guide's thirty
   swaps and each precon's own guides' budget, `budgets.json`, Spellbook cached):
   256 of 408 cuttable guide cuts, 76 of 610 in-scope guide adds, 680 swaps
-  (2026-10-25, the third (o) pass: Fae Dominion cuts Faerie Formation and adds
+  (unchanged by the fourth and fifth (o) passes, 2026-10-26; 2026-10-25, the
+  third (o) pass: Fae Dominion cuts Faerie Formation and adds
   Likeness Looter and Spellstutter Sprite, not Faerie Mastermind; Multiverse
   Reforged cuts Brainsurge, Fact or Fiction and Shark Typhoon and adds Archfiend
   of Depravity; Graveyard Overdrive no longer adds Six; 252 / 75, 669 swaps
@@ -235,40 +236,29 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   creature, a damage source, a land tapped for mana).
   (o) **Theme matching off the IR, what's left** (2026-10-25, after the third
   pass: the tribe spec and its payoff sub-avenue page off the IR too; the
-  fourth (2026-10-26) took the pattern off eight keyword tribes, so only the
-  unchecked keyword subjects OR one; the class of every card the tribe pages lost
-  is in ``~/mtg/tuner-work/w16/classification-tribes.tsv``, the second pass's in
-  ``~/mtg/tuner-work/w13/classification-final.tsv``). A theme pages by its
-  serve (``signal_specs.theme_page``); no search carries an oracle pattern
-  (``test_a_theme_pages_by_its_serve_not_a_pattern``). Open:
-  - the keyword tribe pages flying, trample, menace, deathtouch, lifelink,
-    haste, vigilance and hexproof off the IR (2026-10-26:
-    ``signal_specs.core._KEYWORD_PAGES_OFF_THE_IR``; the class of every card
-    they lost is in ``~/mtg/tuner-work/w18/classification-keywords.tsv``: 445
-    cards, all naming the keyword to fight it — 142 removal or block riders, 125
-    reach reminders, 92 "without", 30 "loses" — or classed by hand: 11 player
-    hexproof (CR 702.11c), 5 with no phase record for the granting face, 4
-    opponents' tokens, keyword tutors and variety payoffs (Selective
-    Adaptation, Mwonvuli Beast Tracker, Odric, Blood-Cursed), "as though it had
-    haste" (no ability added); Kwende, Pride of Femeref and Phyrexian Splicer's
-    first strike name no page). The
-    other keyword subjects (defender, reach, indestructible, ward, double
-    strike, flash, infect, …) keep the pattern: not checked. Reach's 105
-    pattern-only cards are mostly flying's reminder on reach bodies, so
-    checking it is mostly a triage pass. First and double strike never become
-    a page: ``keyword_tribe``'s vocabulary is one-word keywords
-    (``text_reads._ABILITY_KEYWORDS``). Restoring a static's grant moved two
-    text reads keyed on the static being hollow: Noble Banneret loses
-    ``voltron_matters|you|carrier``, and Mindlink Mech loses
-    ``base_pt_set|any|`` (its "except it's 4/3"). Still general shapes left
-    to ledger rows or a narrow decoration: a pump's dropped grant (Tromp the
-    Domains, Haldir) is a ``body_keywords`` decoration only ``keyword_bodies``
-    reads, not an ``AddKeyword`` def the team lanes read; the counter kinds
-    that swallow a clause (Dralnu's Pet, Printlifter Ooze, March Toward
-    Perfection) could be split into a ``P1P1`` counter and a grant before
-    load; the Monster Role rows retire if a Role's known-token text becomes a
-    typed static; ``own_card_suspended_haste`` (9 pins) wants a read of "your
-    card gains suspend" by the exiled card's zone owner;
+  fourth and fifth (2026-10-26) took the pattern off every keyword tribe —
+  ``text_reads._ABILITY_KEYWORDS``, first and double strike now among them; the
+  class of every card the tribe pages lost is in
+  ``~/mtg/tuner-work/w16/classification-tribes.tsv``, the keyword pages' in
+  ``~/mtg/tuner-work/w18/classification-keywords.tsv`` (flying … hexproof, 445
+  cards) and ``~/mtg/tuner-work/w19/classification-keywords2.tsv`` (the rest,
+  281 cards), the second pass's in ``~/mtg/tuner-work/w13/classification-final.tsv``).
+  A theme pages by its serve (``signal_specs.theme_page``); no search carries an
+  oracle pattern (``test_a_theme_pages_by_its_serve_not_a_pattern``). Open:
+  - Noble Banneret lost ``voltron_matters|you|carrier`` when its lifelink was
+    restored (2026-10-26). No text read keyed on the hollow static: the restored
+    lifelink makes it a lifegain source (CR 702.15b), and
+    ``membership_floor``'s ``has_other_plan`` silences the commander-damage
+    fallback for it exactly as for every printed-lifelink creature (Vampire
+    Nighthawk), though ``_VOLTRON_KEYWORDS`` lists lifelink as a carrier trait.
+    Giving it the carrier back means treating a lifelink body's own lifegain as
+    no other plan for every lifelink creature — Dan's call (pinned as is by
+    ``test_conditional_lifelink_is_a_lifegain_plan``; its condition is a
+    draft-time note, so outside a draft the lifelink never applies). The same
+    fallback silencing took the carrier from Jodah's Avenger (its restored
+    shadow: ``evasion_self|you|shadow``) and Urza's Avenger (``has_banding``),
+    though the floor's own comment says an evasion tell must not silence it —
+    ``evasion_self`` is missing from ``_VOLTRON_HAS_OTHER_PLAN_COMPAT``;
   - the tribe pages were checked on Goblin, Elf, Zombie, Dragon and Sliver
     (and Angel, Vampire, Merfolk, Wizard, Human): every real member they
     lost has an IR ident or a ledger row (the 21 ``_reference_row`` rows). The
@@ -302,6 +292,26 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   and would give a role to the hits no single ability emits (a keyword's
   lifelink, Crucible of Worlds' whole-card ident, a modal spell's text-less
   mode), which still score structural.
+  What the keyword pages dropped (2026-10-26, each class rules-checked): a card
+  naming the keyword to fight it (a removal or block rider, "without", "loses",
+  flying's reminder "except by creatures with flying or reach" on the reach page,
+  CR 702.9b); "as though it had flash" or "… didn't have defender" adds no
+  ability (CR 113.10: an added ability "gains" or "has" it — 74 flash enablers),
+  though a static letting other creatures attack as though they didn't have
+  defender is a defender payoff (``crosswalk.lets_defenders_attack``, CR
+  702.3b — High Alert; a creature letting only itself attack, Backstreet
+  Bruiser, is not); shroud or hexproof on a player (CR 702.18a / 702.11c); a
+  grant of defender onto another creature, yours or not (Guard Duty, Stasis
+  Field; Peregrine Mask, Dormant Sliver) is the drawback ``_DRAWBACK_GRANT_KW``
+  names, where a body with defender the card is or makes counts
+  (``crosswalk.made_keyword_bodies``: a Wall token, Primal Clay, Guardian
+  Zendikon's land); a Vibranium token is a noncreature artifact (no body); a
+  keyword-variety payoff (Akroma, Vision of Ixidor; Odric, Blood-Cursed) or a
+  keyword-sorting dig (Selective Adaptation) is no one keyword's; a card or
+  ability name (Fear Ray, Shadow the Hedgehog, Undying Flames). A keyword tutor
+  of your own library pages its keyword (Mystical Teachings, Isperia,
+  Mwonvuli Beast Tracker). A token any player may create is no body the card
+  makes for you (Basalt Golem's Wall is the blocker's controller's, CR 111.2).
   Don't re-suggest: an enters drawback (Phage, the sacrifice-unless lands), an
   Equipment's auto-attach, a token or search another player gets (the Hunted
   cycle, gift, Path to Exile) and a card putting only itself are no
@@ -697,7 +707,10 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
     Elemental creature with reach and haste" (the animation's mods have no
     keyword), and Argivian Avenger's "your choice of flying, vigilance,
     deathtouch, or haste" (``AddKeyword`` for vigilance and deathtouch only); 32
-    defs on the legal corpus.
+    defs on the legal corpus. Also Guardian Zendikon's "is a 2/6 white Wall
+    creature with defender", Jodah's Avenger's "your choice of double strike,
+    protection from red, vigilance, or shadow" (the list past "protection from
+    red" dropped) and Urza's Avenger's banding.
   - *A grant parked in an ``Unrecognized`` condition.* Tek: "~ gets +0/+2 as long
     as you control a Plains, has flying as long as you control an Island, …"
     types ``AddPower 0 / AddToughness 2`` with the rest of the line as the
@@ -719,9 +732,11 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   - *A pump's grant dropped.* Tromp the Domains: "creatures you control gain
     trample and get +1/+1 for each basic land type" types a bare ``PumpAll``. It
     should add a ``GenericEffect`` with ``AddKeyword(Trample)`` (Haldir, Lórien
-    Lieutenant likewise). Stolen Vitality's "Otherwise, it gains first strike"
-    drops the else branch. Indominus Rex, Alpha's and Priest of Possibility's
-    "The same is true for …" lists keep only their first keyword.
+    Lieutenant likewise; the team-grant lanes read the decoration as the pump's
+    own grant, ``crosswalk.pump_keyword_grants``). Stolen Vitality's
+    "Otherwise, it gains first strike" drops the else branch. Indominus Rex,
+    Alpha's and Priest of Possibility's "The same is true for …" lists keep only
+    their first keyword.
   - *A grant, token or keyword counter parked as an ``Unimplemented`` residue.*
     Notorious Throng: "Create X 1/1 black Faerie Rogue creature tokens with
     flying" should be a ``Token`` with ``keywords: [Flying]``. Reaper of Night's
@@ -732,12 +747,40 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
     and with X +1/+1 counters" types ``PutCounter{counter_type: "flying and
     with x +1/+1"}``. It should grant flying and put ``P1P1`` counters.
     Printlifter Ooze's "create a 0/0 green Ooze creature token with trample. The
-    token enters with X +1/+1 counters" and March Toward Perfection's boon are
-    the same (ledger rows).
+    token enters with X +1/+1 counters" is the same (both read in recovery,
+    ``_swallowed_counter_keywords``). March Toward Perfection's whole boon is
+    one quoted counter kind (a ledger row).
   - *A Role token's own ability.* Monstrous Rage: "Create a Monster Role token
     attached to it" types the ``Token`` with no static. It should carry the
-    Role's "Enchanted creature gets +1/+1 and has trample" (known-tokens has it;
-    ledger rows over 8 cards).
+    Role's "Enchanted creature gets +1/+1 and has trample" (CR 111.10k; Royal's
+    "has ward {1}", 111.10m), which known-tokens has: restored before load, 11
+    cards. Become Brutes parks the creation itself (a ledger row).
+  - *A spell's conditional flash dropped.* Crashing Tide: "This spell has flash
+    as long as you control a Merfolk" leaves no node; phase types the same line
+    on Supernatural Rescue. Graveyard Shift, Mutual Destruction (whose
+    condition is also a flash payoff) and Take for a Ride likewise (one ledger
+    row).
+  - *A grant swallowed beside the effect phase types.* Woolly Razorback's "it
+    has defender" (the prevention kept), Nick Fury, Spymaster's "and gains
+    indestructible until end of turn" (a ``SwallowedClause``), Guardian Beast's
+    "they have indestructible" (folded into a ``CantBeEnchanted`` static on
+    itself), Wakanda Forever!'s "put a permanent card … onto the battlefield
+    with an indestructible counter" (a ``Dig`` to the hand alone) — ledger rows.
+  - *A cloak dropped or parked* (CR 701.58a: a 2/2 with ward {2}). Hide in Plain
+    Sight's "cloak two of them" is a ``Dig`` with no destination; Become
+    Anonymous parks "then cloak those cards" as a residue (ledger rows).
+  - *A static bound to the Equipment.* Warmonger's Chariot's "As long as
+    equipped creature has defender, it can attack as though it didn't have
+    defender" types ``CanAttackWithDefender`` with ``affected: SelfRef`` and the
+    equipped creature only in its condition; it should affect the equipped
+    creature (a ledger row).
+  - *A zone's owner dropped.* Soovril, Patient Antiquarian's "nonland card in
+    exile that was put there from your graveyard" types
+    ``ZoneChangedThisTurn{from: Graveyard}`` with no owner, so its "gains
+    suspend" can't be told yours (a ledger row; the typed grants are
+    ``crosswalk.suspends_own_card``'s). The Eleventh Doctor's "If it doesn't
+    have suspend, it gains suspend" is a ``keyword_anaphor_resolution_time_pick``
+    residue (a ledger row).
   - Single cards, as ledger rows (card: phase emits → should emit):
     Furygale Flocking: "create two 3/3 … Elemental creature tokens with flying"
     → a ``SwallowedClause`` warning, no ``Token`` → a ``Token`` with
