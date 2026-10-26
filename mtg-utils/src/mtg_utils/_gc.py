@@ -12,6 +12,7 @@ the reference cycles the work makes later.
 
 from __future__ import annotations
 
+import atexit
 import contextlib
 import gc
 import threading
@@ -66,8 +67,14 @@ def relaxed() -> Generator[None]:
                 gc.set_threshold(*_relaxed_saved)
 
 
-def skip_exit_collection() -> None:
-    """Freeze every object alive now, so the interpreter's final collection at
-    exit skips them. For a CLI about to exit: the heap dies with the process, and
-    the collection would only walk it (``gc.freeze``)."""
-    gc.freeze()
+_freezing_at_exit: list[bool] = []
+
+
+def freeze_at_exit() -> None:
+    """Freeze the heap at interpreter exit (once per process, however often
+    called), so the final collection skips it: it would only walk the card pool
+    and the trees, about 1 s, and the heap dies with the process (``gc.freeze``).
+    The deck CLIs call it as they acquire their deck (``deck_cli.acquire_for_cli``)."""
+    if not _freezing_at_exit:
+        _freezing_at_exit.append(True)
+        atexit.register(gc.freeze)

@@ -1218,8 +1218,8 @@ _RemovalAnswers = tuple[tuple[ConceptNode, frozenset[str]], ...]
 #: ``soft`` value (the :data:`_EDICT_CACHE_ATTR` precedent: a frozen tree, so its
 #: answers never change, and a re-seeded tree is a new object).
 _REMOVAL_CACHE_ATTRS: dict[bool, str] = {
-    False: "_removal_answers_cache",
-    True: "_removal_answers_soft_cache",
+    False: "_xw_removal_answers",
+    True: "_xw_removal_answers_soft",
 }
 
 
@@ -1408,7 +1408,7 @@ _EdictAnswers = tuple[tuple[ConceptNode, frozenset[str]], ...]
 #: Where :func:`_tree_edict_answers` caches its walk on a tree (the owner-index
 #: precedent: a frozen tree, so its answers never change, and a re-seeded tree is
 #: a new object).
-_EDICT_CACHE_ATTR = "_edict_answers_cache"
+_EDICT_CACHE_ATTR = "_xw_edict_answers"
 
 
 def _tree_edict_answers(tree: ConceptTree) -> tuple[_EdictAnswers, _EdictAnswers]:

@@ -868,9 +868,10 @@ def iter_nested_granted_effect_concepts(node: object) -> Iterator[ConceptNode]:
 #: Where the recovery stage (an overlay stage built on this module) leaves a
 #: granted body's effect concepts with its residues re-decorated (Shackles of
 #: Treachery's granted "destroy target Equipment attached to it"), for
-#: :func:`iter_nested_granted_effect_concepts` to serve. A memo attribute beside
-#: the node's fields, like :func:`iter_mod_sites`'s, never a field of the mirror.
-GRANTED_RECOVERY_ATTR = "_xw_granted_recovered"
+#: :func:`iter_nested_granted_effect_concepts` to serve. An attribute beside the
+#: node's fields, never a field of the mirror; data the build leaves, not a read's
+#: memo, so it is outside ``reads.MEMO_ATTR_PREFIX`` and a stored tree keeps it.
+GRANTED_RECOVERY_ATTR = "_ir_granted_recovered"
 
 
 # ── Batch-9 typed accessors (death / library-top / grant cluster) ────────────

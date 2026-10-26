@@ -18,7 +18,7 @@ import time
 import pytest
 
 import mtg_utils
-from mtg_utils import theme_presets
+from mtg_utils import _import_closure, theme_presets
 from mtg_utils._analysis import signals_index
 from mtg_utils._analysis.signals import Signal
 from mtg_utils._sidecar import exclusive_lock
@@ -178,8 +178,8 @@ def fake_closure(tmp_path, monkeypatch):
     importlib.invalidate_caches()
 
     def new_process() -> None:
-        monkeypatch.setattr(signals_index, "_IMPORTS_BY_DIGEST", {})
-        monkeypatch.setattr(signals_index, "_IMPORTS_LOADED", [False])
+        monkeypatch.setattr(_import_closure, "_IMPORTS_BY_DIGEST", {})
+        monkeypatch.setattr(_import_closure, "_IMPORTS_LOADED", [False])
 
     new_process()
     return pkg, new_process
@@ -200,7 +200,7 @@ class TestImportMemo:
         def boom(*_args):
             raise AssertionError("re-parsed a file whose bytes the memo holds")
 
-        monkeypatch.setattr(signals_index, "_parse_mtg_imports", boom)
+        monkeypatch.setattr(_import_closure, "_parse_mtg_imports", boom)
         assert signals_index.signal_source_files() == cold
 
     def test_an_edit_adding_an_import_reaches_the_new_module(self, fake_closure):

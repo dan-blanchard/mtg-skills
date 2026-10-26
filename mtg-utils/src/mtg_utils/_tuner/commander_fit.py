@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from collections.abc import Callable, Sequence
 
-from mtg_utils._analysis.signal_specs import avenue_spec_for
+from mtg_utils._analysis.signal_specs import CardView, avenue_spec_for
 from mtg_utils._tuner.classify import CardClass
 
 
@@ -73,7 +73,8 @@ def suggest_commanders(
         name = cand.get("name", "")
         if name in in_deck:
             continue
-        served = {spec.label for spec in specs if spec.serve.matches(cand)}
+        view = CardView(cand)
+        served = {spec.label for spec in specs if spec.serve.matches(cand, view)}
         fit = served & wanted
         if not fit:
             continue

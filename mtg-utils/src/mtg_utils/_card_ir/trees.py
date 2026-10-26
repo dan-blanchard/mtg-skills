@@ -41,6 +41,7 @@ if TYPE_CHECKING:
     from mtg_utils._card_ir.crosswalk import ConceptTree
     from mtg_utils._card_ir.crosswalk.reads import FactsZone, ObjectFacts
     from mtg_utils._card_ir.mirror.schema import MirrorSchema
+    from mtg_utils._card_ir.tree_store import TreeStore
 
 
 class PhaseRecordIndex:
@@ -191,6 +192,9 @@ _TREES_MEMO: dict[str, tuple[ConceptTree, ...]] = {}
 _TEXT_ONLY_FALLBACK_MEMO: dict[str, tuple[ConceptTree, ...]] = {}
 # oracle_id -> :func:`reads_bulk_faces`'s answer.
 _BULK_FACES_MEMO: dict[str, bool] = {}
+# oracle_id -> the casefolded names of its phase face records (empty: it has none),
+# as :func:`trees_for` read them off its records or its stored row.
+_FACE_NAMES: dict[str, frozenset[str]] = {}
 
 
 def clear_caches() -> None:
@@ -198,7 +202,12 @@ def clear_caches() -> None:
 
     Defensive: a test may ``monkeypatch`` any of the memoized loaders with a plain
     lambda (no ``cache_clear``), so skip anything that is not an active cache."""
-    for fn in (_phase_record_index, _committed_schema, _known_tokens_index):
+    for fn in (
+        _phase_record_index,
+        _committed_schema,
+        _known_tokens_index,
+        _tree_store,
+    ):
         clear = getattr(fn, "cache_clear", None)
         if clear is not None:
             clear()
@@ -206,6 +215,7 @@ def clear_caches() -> None:
     _TEXT_ONLY_FALLBACK_MEMO.clear()
     _RECORDS_MEMO.clear()
     _BULK_FACES_MEMO.clear()
+    _FACE_NAMES.clear()
 
 
 # ── ADR-0038 W2c — text-only face trees ────────────────────────────────────
@@ -279,7 +289,7 @@ def _text_only_tree(face: dict, bulk: dict, *, oracle_id: str) -> ConceptTree | 
     since there are no ``other``-concept nodes) apply to a text-only tree
     exactly as they would to a phase-built one."""
     from mtg_utils._card_ir.crosswalk import ConceptTree, mana_value_of_cost
-    from mtg_utils.deck import CARD_TYPE_WORDS, split_type_line
+    from mtg_utils.type_line import CARD_TYPE_WORDS, split_type_line
 
     oracle = (face.get("oracle_text") or "").strip()
     if not oracle:
@@ -313,12 +323,17 @@ def _text_only_tree(face: dict, bulk: dict, *, oracle_id: str) -> ConceptTree | 
     )
 
 
+def _face_names(recs: Sequence[dict]) -> frozenset[str]:
+    """The casefolded names of an oracle_id's phase face records (:func:`_face_key`)."""
+    return frozenset(_face_key(r.get("name")) for r in recs)
+
+
 def _text_only_trees(
-    bulk: dict, phase_recs: tuple[dict, ...], *, oracle_id: str
+    bulk: dict, phase_names: frozenset[str], *, oracle_id: str
 ) -> list[ConceptTree]:
-    """Text-only trees for every ``bulk`` face with no name-matched phase
-    record among ``phase_recs`` — scoped to real two-face gameplay layouts
-    (see the module comment above the exclusion set).
+    """Text-only trees for every ``bulk`` face with no phase record of its name
+    among ``phase_names`` (:func:`_face_names`) — scoped to real two-face gameplay
+    layouts (see the module comment above the exclusion set).
 
     With NO phase records at all (a wholly phase-uncovered object — a folded
     dungeon or the Ring emblem, ADR-0025; reachable only through
@@ -326,7 +341,7 @@ def _text_only_trees(
     two-face/layout scoping has no job: every face (or the faceless record
     itself) gets a text-only tree."""
     faces = bulk.get("card_faces") or []
-    if not phase_recs:
+    if not phase_names:
         out: list[ConceptTree] = []
         for face in faces or [bulk]:
             tree = _text_only_tree(face, bulk, oracle_id=oracle_id)
@@ -335,7 +350,6 @@ def _text_only_trees(
         return out
     if bulk.get("layout") in _TEXT_ONLY_EXCLUDED_LAYOUTS or len(faces) != 2:
         return []
-    phase_names = frozenset(_face_key(r.get("name")) for r in phase_recs)
     out: list[ConceptTree] = []
     for face in faces:
         if _face_key(face.get("name")) in phase_names:
@@ -860,7 +874,7 @@ def build_trees(
     if bulk is not None:
         trees.extend(
             apply_overlay_corrections(t)
-            for t in _text_only_trees(bulk, tuple(recs), oracle_id=oid)
+            for t in _text_only_trees(bulk, _face_names(recs), oracle_id=oid)
         )
     return tuple(trees)
 
@@ -923,21 +937,75 @@ def reads_bulk_faces(card: dict) -> bool:
     oid = card.get("oracle_id") or ""
     held = _BULK_FACES_MEMO.get(oid)
     if held is None:
-        recs = phase_records_for(oid)
-        held = bool(recs) and bool(_text_only_trees(card, recs, oracle_id=oid))
+        names = _phase_face_names(oid)
+        held = bool(names) and bool(_text_only_trees(card, names, oracle_id=oid))
         _BULK_FACES_MEMO[oid] = held
     return held
+
+
+def _phase_face_names(oid: str) -> frozenset[str]:
+    """The casefolded names of ``oid``'s phase face records (:func:`_face_names`;
+    empty when it has none), read off its stored row when the trees store holds
+    one, so a warm process never loads the records index for them."""
+    names = _known_face_names(oid)
+    if names is None:
+        names = _face_names(phase_records_for(oid))
+        _FACE_NAMES[oid] = names
+    return names
+
+
+def _known_face_names(oid: str) -> frozenset[str] | None:
+    """:func:`_phase_face_names` without the records index: the testkit's seeded
+    records, the names this process read, else the stored row's; ``None`` when
+    none of them holds ``oid``."""
+    recs = _RECORDS_MEMO.get(oid)
+    if recs is not None:
+        return _face_names(recs)
+    names = _FACE_NAMES.get(oid)
+    if names is None:
+        store = _tree_store()
+        names = store.face_names(oid) if store is not None else None
+        if names is not None:
+            _FACE_NAMES[oid] = names
+    return names
 
 
 def has_phase_records(oid: str) -> bool:
     """Whether :func:`phase_records_for` has records for ``oid``, without decoding
     them: the gate a persisted per-card read keeps, so a process with no phase
     data never stores its empty answers (``_analysis.card_reads``)."""
-    recs = _RECORDS_MEMO.get(oid)
-    if recs is not None:
-        return bool(recs)
+    names = _known_face_names(oid)
+    if names is not None:
+        return bool(names)
     index = _phase_record_index()
     return index is not None and oid in index
+
+
+@functools.cache
+def _tree_store() -> TreeStore | None:
+    """The trees store beside phase's card-data (``_card_ir.tree_store``), opened
+    once per process; ``None`` with no card-data or known-tokens file, or with
+    ``MTG_SKILLS_TREE_STORE=none`` (every test but the store's own:
+    ``tests/conftest.py``)."""
+    import os
+
+    from mtg_utils import _phase
+    from mtg_utils._card_ir.mirror.build import SCHEMA_FIXTURE, fixtures_dir
+    from mtg_utils._card_ir.tree_store import TreeStore, store_key
+
+    if os.environ.get("MTG_SKILLS_TREE_STORE") == "none":
+        return None
+    card_data = _phase._card_data_path()  # noqa: SLF001 — ensure_card_data's own path
+    if not card_data.is_file():
+        return None
+    known_tokens = _phase.ensure_known_tokens()
+    if known_tokens is None:
+        return None
+    try:
+        key = store_key(card_data, fixtures_dir() / SCHEMA_FIXTURE, known_tokens)
+    except OSError:
+        return None
+    return TreeStore(card_data.with_name(card_data.name + ".trees.sqlite"), key)
 
 
 def trees_for(
@@ -1017,6 +1085,16 @@ def trees_for(
         return out
     if oid in _TREES_MEMO:
         return _TREES_MEMO[oid]
+    # The trees store holds what ``trees_for(card)`` builds: every card's but the
+    # bulk-face read of one whose trees depend on it (:func:`reads_bulk_faces`).
+    # It is read before the records index, which a stored card never needs; the
+    # store exists only beside a card-data file the index is built from.
+    store = None if bulk is not None and reads_bulk_faces(bulk) else _tree_store()
+    row = store.get(oid) if store is not None else None
+    if row is not None:
+        _FACE_NAMES[oid] = row.face_names
+        _TREES_MEMO[oid] = row.trees
+        return row.trees
     index = _phase_record_index()
     if index is None:
         # No phase data AT ALL (a no-sidecar deployment): empty, never
@@ -1024,17 +1102,17 @@ def trees_for(
         # degradation path applies here too.
         _TREES_MEMO[oid] = ()
         return ()
-    recs = index.get(oid)
-    if not recs:
-        # Phase covers no face of this card and the caller did not opt into
-        # the ADR-0025 folded-object fallback: empty, never text-guessing.
-        # (Post-PHASE_TAG new-set cards land here after a routine
-        # download-mtgjson refresh — they must degrade to no signals, not to
-        # partial text serving; the review of 2026-07-25 confirmed this live.)
-        _TREES_MEMO[oid] = ()
-        return ()
-    out = build_trees(oid, recs, bulk=bulk)
+    recs = index.get(oid) or ()
+    # Phase covering no face of this card (the caller did not opt into the
+    # ADR-0025 folded-object fallback) is empty, never text-guessing.
+    # (Post-PHASE_TAG new-set cards land here after a routine
+    # download-mtgjson refresh — they must degrade to no signals, not to
+    # partial text serving; the review of 2026-07-25 confirmed this live.)
+    out = build_trees(oid, recs, bulk=bulk) if recs else ()
+    names = _FACE_NAMES[oid] = _face_names(recs)
     _TREES_MEMO[oid] = out
+    if store is not None:
+        store.put(oid, names, out)
     return out
 
 

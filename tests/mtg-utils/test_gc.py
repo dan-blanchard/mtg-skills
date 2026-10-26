@@ -23,6 +23,15 @@ def test_paused_restores_the_collector_as_it_found_it():
         gc.enable()
 
 
+def test_freeze_at_exit_registers_one_freeze(monkeypatch):
+    registered: list[object] = []
+    monkeypatch.setattr(_gc.atexit, "register", registered.append)
+    monkeypatch.setattr(_gc, "_freezing_at_exit", [])
+    _gc.freeze_at_exit()
+    _gc.freeze_at_exit()
+    assert registered == [gc.freeze]
+
+
 def test_relaxed_raises_the_threshold_until_the_last_block_leaves():
     before = gc.get_threshold()
     with _gc.relaxed():

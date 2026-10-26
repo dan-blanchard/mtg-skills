@@ -22,7 +22,7 @@ from pathlib import Path
 
 import click
 
-from mtg_utils import _gc, card_search, combo_search
+from mtg_utils import card_search, combo_search
 from mtg_utils._analysis.card_reads import attach_card_read_sidecar
 from mtg_utils._analysis.ident_provenance import attach_provenance_sidecar
 from mtg_utils._analysis.job_quality import attach_job_read_sidecar
@@ -136,6 +136,16 @@ def main(
     _ensure_ir()  # build the sidecar before tune()'s first ir_for lookup
     bulk_path = resolve_bulk_path(bulk_data)
     hd = acquire_for_cli(deck_json, bulk_data)
+    by_name = hd.by_name
+
+    def spellbook(deck: dict) -> dict:
+        return combo_search.combo_search(
+            HydratedDeck.from_parsed(deck, by_name=by_name)
+        )
+
+    # Commander Spellbook's round-trip overlaps the seeding and attaching below,
+    # not only tune()'s deck reads.
+    combos_fn = combo_search.asked_early(spellbook, hd.deck)
     fmt = hd.format
     if target_bracket is not None and not fmt.has_commander:
         click.echo(
@@ -192,12 +202,6 @@ def main(
         attach_provenance_sidecar(bulk_path)
         attach_job_read_sidecar(bulk_path)
         attach_card_read_sidecar(bulk_path)
-    by_name = hd.by_name
-
-    def combos_fn(deck: dict) -> dict:
-        return combo_search.combo_search(
-            HydratedDeck.from_parsed(deck, by_name=by_name)
-        )
 
     meta_ctx = cli_meta_context(hd, effective_medium, meta)
     params = TuneParams(
@@ -221,6 +225,3 @@ def main(
         click.echo(f"deck-tune: wrote {output}")
     else:
         click.echo(text)
-    # The process exits next: the interpreter's final collection would only walk
-    # the pool and the trees (about 1 s), which die with it.
-    _gc.skip_exit_collection()

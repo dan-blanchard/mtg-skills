@@ -1837,7 +1837,7 @@ def named_filter_subtypes(root: object) -> frozenset[str]:
     return out
 
 
-_NAMED_FILTER_SUBTYPES_ATTR = "_named_filter_subtypes"
+_NAMED_FILTER_SUBTYPES_ATTR = "_xw_named_filter_subtypes"
 
 
 def counter_pred_kinds(filt: object) -> tuple[str, ...]:
@@ -7533,12 +7533,22 @@ KEYWORD_ACTION_TAGS: frozenset[str] = frozenset(
 
 _UNSET = object()
 
+#: Every attribute a read memoizes on a node or tree beside its fields
+#: (:func:`memo_on` and the walks that cache the same way) is named with this
+#: prefix: a memo is a pure function of its object, recomputed on demand, so the
+#: trees store pickles a tree without them (``_card_ir.tree_store``) — some are
+#: keyed by the ``id()`` of the nodes they index, which a loaded copy doesn't share.
+MEMO_ATTR_PREFIX = "_xw_"
+
 
 def memo_on[T](obj: object, attr: str, fn: Callable[[Any], T]) -> T:
     """``fn(obj)``, computed once and kept on ``obj`` under ``attr`` (set through
     ``object.__setattr__``, so a frozen tree or node takes it too). A re-seeded
     tree is a new object, so a memo never goes stale. THE per-tree cache: a
     lane walk that several readers share keeps its result here."""
+    if not attr.startswith(MEMO_ATTR_PREFIX):
+        msg = f"memo attribute {attr!r} must start with {MEMO_ATTR_PREFIX!r}"
+        raise ValueError(msg)
     cached = obj.__dict__.get(attr, _UNSET)
     if cached is _UNSET:
         cached = fn(obj)

@@ -2,7 +2,9 @@
 
 import re
 import sys
+import threading
 from collections.abc import Callable, Mapping, Sequence
+from concurrent.futures import Future
 from pathlib import Path
 
 import click
@@ -332,6 +334,29 @@ def search_combos(
         combos.append(combo)
 
     return combos
+
+
+def asked_early[T](combos_fn: Callable[[T], dict], deck: T) -> Callable[[T], dict]:
+    """``combos_fn`` with its answer for ``deck`` already on the way: the request
+    starts now, on its own thread, and the returned function hands that answer
+    back (or raises its failure) when asked for that same deck object; any other
+    deck is asked afresh. A CLI starts Commander Spellbook's round-trip (0.5-1.2
+    s) before its slow local work, so the two overlap."""
+    answer: Future[dict] = Future()
+
+    def request() -> None:
+        try:
+            answer.set_result(combos_fn(deck))
+        except Exception as exc:  # noqa: BLE001 — handed to whoever asks
+            answer.set_exception(exc)
+
+    # A daemon: a CLI that fails before asking exits without waiting on it.
+    threading.Thread(target=request, daemon=True).start()
+
+    def ask(asked: T) -> dict:
+        return answer.result() if asked is deck else combos_fn(asked)
+
+    return ask
 
 
 def combos_or_none[T](combos_fn: Callable[[T], dict] | None, deck: T) -> dict | None:

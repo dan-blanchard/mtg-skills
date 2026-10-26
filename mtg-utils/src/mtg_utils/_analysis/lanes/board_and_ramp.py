@@ -1637,7 +1637,7 @@ def _type_payoff_lanes(filt: object) -> list[str]:
     return _subtype_lanes(filt, you_only=True)
 
 
-_CONDITION_FILTERS_CACHE_ATTR = "_condition_population_filters_cache"
+_CONDITION_FILTERS_CACHE_ATTR = "_xw_condition_population_filters"
 
 
 def _condition_population_filters(tree: ConceptTree) -> tuple[object, ...]:

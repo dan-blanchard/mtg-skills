@@ -35,7 +35,7 @@ from mtg_utils._card_ir.crosswalk import ConceptTree, build_concept_tree, tag_of
 from mtg_utils._card_ir.mirror import strict_load_card
 from mtg_utils._card_ir.mirror.build import load_committed_schema
 from mtg_utils._card_ir.mirror.runtime import MirrorVariant
-from mtg_utils._card_ir.trees import _text_only_trees
+from mtg_utils._card_ir.trees import _face_names, _text_only_trees
 from mtg_utils.testkit import test_card, test_phase_records, test_signals
 
 # ADR-0039 W7: the pins whose face has NO phase record at all (the missing_face
@@ -70,7 +70,9 @@ def _tree(name: str) -> ConceptTree:
     record = test_card(name)
     records = test_phase_records(name)
     if name in _MISSING_FACE_PINS:
-        trees = _text_only_trees(record, tuple(records), oracle_id=record["oracle_id"])
+        trees = _text_only_trees(
+            record, _face_names(records), oracle_id=record["oracle_id"]
+        )
         (tree,) = (t for t in trees if t.name == _MISSING_FACE_PINS[name])
         return tree
     if name in _BACK_FACE_PINS:

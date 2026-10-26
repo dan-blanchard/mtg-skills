@@ -41,6 +41,17 @@ class _Attached(NamedTuple):
     key: _Key
 
 
+def _stamp(path: Path) -> tuple[int, int, int] | None:
+    """The sidecar file's identity (inode, size, mtime), ``None`` when it is
+    missing: a write by any process replaces the file, so a stamp unchanged since
+    this process read it means the file holds what it read."""
+    try:
+        st = path.stat()
+    except OSError:
+        return None
+    return (st.st_ino, st.st_size, st.st_mtime_ns)
+
+
 class WriteBackSidecar:
     """One owner's persisted memos. ``content_key`` is the owner's code identity
     (a content hash of what its values are computed by), read once per attach."""
@@ -53,6 +64,9 @@ class WriteBackSidecar:
         self._persisted: dict[str, dict[Hashable, object]] = {}
         #: namespace -> the entries this process computed since (:meth:`flush`).
         self._fresh: dict[str, dict[Hashable, object]] = {}
+        #: The attached file's :func:`_stamp` when ``_persisted`` was read from it
+        #: (or written to it).
+        self._read_stamp: tuple[int, int, int] | None = None
         self._memos: list[WriteBackMemo] = []
         self._lock = threading.Lock()
         _ALL.append(self)
@@ -93,14 +107,17 @@ class WriteBackSidecar:
             self.detach()
             key = (self._content_key(), identity, WRITE_BACK_VERSION)
             sidecar = path.with_name(path.name + self._suffix)
+            self._read_stamp = _stamp(sidecar)
             self._persisted.update(_read(sidecar, key))
             self._attached.append(_Attached(sidecar, key))
         return True
 
     def flush(self) -> None:
         """Write this process's fresh entries into the attached sidecar, merged
-        with what is on disk now (another process may have added its own). Best
-        effort: a failure leaves them for the next process to recompute."""
+        with what is on disk now (another process may have added its own): the
+        entries it served when no process has written the file since, else the
+        file read again. Best effort: a failure leaves them for the next process
+        to recompute."""
         from mtg_utils._sidecar import atomic_write_bytes, exclusive_lock
 
         fresh = {ns: dict(entries) for ns, entries in self._fresh.items() if entries}
@@ -108,7 +125,8 @@ class WriteBackSidecar:
             return
         sidecar, key = self._attached[0]
         with exclusive_lock(sidecar.with_name(sidecar.name + ".lock")):
-            entries = _read(sidecar, key)
+            unchanged = _stamp(sidecar) == self._read_stamp
+            entries = self._persisted if unchanged else _read(sidecar, key)
             for ns, values in fresh.items():
                 entries.setdefault(ns, {}).update(values)
             payload = {"key": key, "entries": entries}
@@ -118,6 +136,9 @@ class WriteBackSidecar:
                 )
             except OSError:
                 return
+            # What the file holds now, for the next flush to merge into.
+            self._persisted = entries
+            self._read_stamp = _stamp(sidecar)
         for ns, values in fresh.items():
             for k in values:
                 self._fresh[ns].pop(k, None)
@@ -128,6 +149,7 @@ class WriteBackSidecar:
         self._attached.clear()
         self._persisted.clear()
         self._fresh.clear()
+        self._read_stamp = None
         for memo in self._memos:
             memo.local.clear()
 

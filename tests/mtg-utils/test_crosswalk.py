@@ -62,7 +62,7 @@ from mtg_utils._card_ir.overlay_corrections import (
     apply_overlay_corrections,
     l1_bytes,
 )
-from mtg_utils._card_ir.trees import _text_only_trees, trees_for
+from mtg_utils._card_ir.trees import _face_names, _text_only_trees, trees_for
 from mtg_utils.testkit import snapshot_records, test_card, test_phase_records
 
 
@@ -139,7 +139,7 @@ def _text_only_face_tree(name: str, face: str) -> ConceptTree:
     the face text, mana cost and oracle_id are the card's, never typed in."""
     record = test_card(name)
     trees = _text_only_trees(
-        record, tuple(test_phase_records(name)), oracle_id=record["oracle_id"]
+        record, _face_names(test_phase_records(name)), oracle_id=record["oracle_id"]
     )
     (tree,) = (t for t in trees if t.name == face)
     return tree

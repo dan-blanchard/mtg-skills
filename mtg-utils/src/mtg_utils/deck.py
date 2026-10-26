@@ -20,7 +20,6 @@ themselves may be missing.
 
 from __future__ import annotations
 
-import re
 from collections import Counter
 from collections.abc import Mapping
 from pathlib import Path
@@ -37,45 +36,13 @@ from mtg_utils.card_pool import CardPool
 from mtg_utils.names import normalize_card_name
 from mtg_utils.names import slug as slug  # noqa: PLC0414 (re-export; home is names.py)
 
+# Re-exports; their home is type_line.py.
+from mtg_utils.type_line import CARD_TYPE_WORDS, split_type_line  # noqa: F401
+
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterable
 
     from mtg_utils._analysis.roles import DeckMana
-
-
-# Card-type words used as fallback art keys after subtypes miss; also
-# part of the keyword filter that decides which asciiart.website tags
-# to fetch.
-CARD_TYPE_WORDS: frozenset[str] = frozenset(
-    {
-        "creature",
-        "artifact",
-        "enchantment",
-        "land",
-        "sorcery",
-        "instant",
-        "planeswalker",
-        "battle",
-    }
-)
-
-
-def split_type_line(type_line: str) -> tuple[list[str], list[str]]:
-    """Return ``(card_types, subtypes)`` split on em-dash.
-
-    >>> split_type_line("Legendary Creature — Vampire Knight")
-    (['legendary', 'creature'], ['vampire', 'knight'])
-    >>> split_type_line("Sorcery")
-    (['sorcery'], [])
-    """
-    if not type_line:
-        return [], []
-    parts = re.split(r"\s+[—\-]\s+", type_line, maxsplit=1)
-    types_part = parts[0].strip()
-    subs_part = parts[1].strip() if len(parts) > 1 else ""
-    types = [w.lower() for w in types_part.split() if w]
-    subs = [w.lower() for w in subs_part.split() if w]
-    return types, subs
 
 
 def hydrate(card: dict) -> dict:

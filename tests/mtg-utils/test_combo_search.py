@@ -9,7 +9,9 @@ from mtg_utils.combo_search import (
     _card_matches_query,
     _is_format_legal,
     _unmet_templates,
+    asked_early,
     combo_search,
+    combos_or_none,
     discover_main,
     main,
     search_combos,
@@ -953,3 +955,29 @@ class TestPoolBoundedDeck:
             combo_search(_cs_hd(deck))
         payload = mock_session.post.call_args.kwargs["json"]
         assert payload["main"] == [{"card": "Viscera Seer"}]
+
+
+def test_asked_early_hands_back_the_answer_already_on_the_way():
+    """The deck it was started for gets the one early answer (or its failure);
+    any other deck is asked afresh."""
+    import threading
+
+    started = threading.Event()
+    asked: list[dict] = []
+
+    def combos_fn(deck: dict) -> dict:
+        asked.append(deck)
+        started.set()
+        if deck.get("fail"):
+            raise RuntimeError("Spellbook is down")
+        return {"combos": [deck["name"]]}
+
+    deck, other = {"name": "early"}, {"name": "later"}
+    ask = asked_early(combos_fn, deck)
+    assert started.wait(5)  # running before anyone asks
+    assert ask(deck) == {"combos": ["early"]}
+    assert ask(other) == {"combos": ["later"]}
+    assert asked == [deck, other]
+
+    failing = {"name": "x", "fail": True}
+    assert combos_or_none(asked_early(combos_fn, failing), failing) is None

@@ -64,6 +64,33 @@ def _wildcard_scopes(idents: frozenset[str]) -> frozenset[str]:
     return frozenset(w[:-2] for w in idents if w.endswith("|*"))
 
 
+class CardView:
+    """What :meth:`Serve.matches` reads of a card's record, each read at most once:
+    a caller checking one card against many serves (``ranking.score_candidate``,
+    about a hundred serves a candidate) builds it once. The type line, keywords
+    and idents are read only when a serve asks for them, so a serve that answers
+    from the oracle text alone costs what it did."""
+
+    def __init__(self, card: dict) -> None:
+        self._card = card
+        self.oracle: str = get_oracle_text(card) or ""
+
+    @functools.cached_property
+    def type_line(self) -> str:
+        """The classifying (front-face) type line, lowercased."""
+        return classifying_type_line(self._card).lower()
+
+    @functools.cached_property
+    def keywords(self) -> frozenset[str]:
+        """The record's ``keywords``, lowercased."""
+        return frozenset(k.lower() for k in self._card.get("keywords") or ())
+
+    @functools.cached_property
+    def idents(self) -> frozenset[str]:
+        """The card's "key|scope|subject" signal idents (:func:`_card_idents`)."""
+        return _card_idents(self._card)
+
+
 def _card_idents(card: dict) -> frozenset[str]:
     """The card's "key|scope|subject" idents. Lazy import: theme_presets imports
     _analysis.signals lazily for the same cycle reason its own docstring
@@ -157,14 +184,17 @@ class Serve:
         """Back-compat: raw oracle-regex search over a string (legacy call sites)."""
         return self.oracle.search(text) if self.oracle is not None else None
 
-    def matches(self, card: dict) -> bool:
+    def matches(self, card: dict, view: CardView | None = None) -> bool:
         """True if the card feeds this signal on ANY structured/oracle dimension (or,
-        when ``all_of`` is set, EVERY sub-serve) and isn't vetoed by ``not_oracle``."""
-        oracle_text = get_oracle_text(card) or ""
+        when ``all_of`` is set, EVERY sub-serve) and isn't vetoed by ``not_oracle``.
+        ``view`` is the card's :class:`CardView`, when the caller holds it."""
+        if view is None:
+            view = CardView(card)
+        oracle_text = view.oracle
         if self.not_oracle is not None and self.not_oracle.search(oracle_text):
             return False
         if self.all_of:
-            return all(sub.matches(card) for sub in self.all_of)
+            return all(sub.matches(card, view) for sub in self.all_of)
         if self.names and (card.get("name") or "").lower() in self.names:
             return True
         if self.oracle is not None and self.oracle.search(oracle_text):
@@ -174,7 +204,7 @@ class Serve:
         # leak that surfaced a Saga-front // Land-back card as a creature-land.
         # Word-boundary tokens, never substrings: a 'rat' tribal serve must not
         # match every Pirate ("pi[rat]e"), nor 'orc' every Sorcery.
-        type_line = classifying_type_line(card).lower()
+        type_line = view.type_line
         if (
             self.types
             and any(type_line_has(type_line, t) for t in self.types)
@@ -186,10 +216,8 @@ class Serve:
             and (not self.types_colorless or _is_colorless(card))
         ):
             return True
-        if self.keywords:
-            card_kw = {k.lower() for k in (card.get("keywords") or [])}
-            if card_kw & self.keywords:
-                return True
+        if self.keywords and not view.keywords.isdisjoint(self.keywords):
+            return True
         if self.mana_cost is not None and self.mana_cost.search(_printed_costs(card)):
             return True
         if self.cmc_min is not None and (card.get("cmc") or 0) >= self.cmc_min:
@@ -220,8 +248,7 @@ class Serve:
         if (
             self.keyword_count_min is not None
             and "creature" in type_line
-            and len(_EVERGREEN_KW & {k.lower() for k in (card.get("keywords") or [])})
-            >= self.keyword_count_min
+            and len(_EVERGREEN_KW & view.keywords) >= self.keyword_count_min
         ):
             return True
         if (
@@ -243,7 +270,7 @@ class Serve:
         # only after every record-shape dimension has missed.
         if not self.signal_idents:
             return False
-        card_idents = _card_idents(card)
+        card_idents = view.idents
         if not self.signal_idents.isdisjoint(card_idents):
             return True
         return bool(_wildcard_scopes(self.signal_idents)) and any(

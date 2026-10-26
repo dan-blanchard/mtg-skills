@@ -36,7 +36,12 @@ from mtg_utils._analysis.pair_reads import PairContext, pair_score
 from mtg_utils._analysis.rate import RateIndex, rate_for
 from mtg_utils._analysis.roles import DeckMana, role_of
 from mtg_utils._analysis.signal_keys import DOER_SUBJECTS
-from mtg_utils._analysis.signal_specs import Serve, avenue_spec_for, serve_from_dict
+from mtg_utils._analysis.signal_specs import (
+    CardView,
+    Serve,
+    avenue_spec_for,
+    serve_from_dict,
+)
 from mtg_utils._analysis.signals import clauses
 from mtg_utils._card_ir.compat_lookup import ir_for
 from mtg_utils.card_classify import (
@@ -568,8 +573,9 @@ def score_candidate(
         else [avenue_spec_for(s) for s in active_signals]
     )
     hits: list[tuple[str, tuple[int, ...], Mapping[int, str]]] = []
+    view = CardView(card)
     for spec in specs:
-        if spec is not None and spec.serve.matches(card):
+        if spec is not None and spec.serve.matches(card, view):
             hits.append(
                 (
                     spec.label,

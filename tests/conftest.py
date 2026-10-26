@@ -10,6 +10,10 @@ import pytest
 # wildcard rarities (``mtg_utils.arena_card_db``). A test that wants one points
 # ``MTG_SKILLS_ARENA_CARD_DB`` at a fixture database with ``monkeypatch.setenv``.
 os.environ["MTG_SKILLS_ARENA_CARD_DB"] = "none"
+# Nor may a trees store (``_card_ir.tree_store``): one beside the user's card-data
+# would serve trees a test's monkeypatched pipeline never built, and take the run's
+# trees into the user's cache. The store's own tests delete the variable.
+os.environ["MTG_SKILLS_TREE_STORE"] = "none"
 
 
 def pytest_configure(config):

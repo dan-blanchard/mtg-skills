@@ -17,6 +17,7 @@ from typing import TYPE_CHECKING
 
 import click
 
+from mtg_utils import _gc
 from mtg_utils.card_pool import CardPool, NoBulkError
 from mtg_utils.hydrated_deck import HydratedDeck
 
@@ -119,6 +120,9 @@ def acquire_for_cli(
         raise click.ClickException(str(exc)) from exc
     if hd.has_records or require_records:
         warn_missing(hd)
+    # The CLI exits after its one deck: skip the final collection's walk of the
+    # pool it loaded.
+    _gc.freeze_at_exit()
     return hd
 
 
