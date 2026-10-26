@@ -812,7 +812,9 @@ def _known_token_trees(rec: dict, *, oracle_id: str) -> list[ConceptTree]:
 
 
 def face_tree(rec: dict, schema: MirrorSchema, *, oracle_id: str) -> ConceptTree | None:
-    """ONE phase face record as its corrected concept tree: strict-load against the
+    """ONE phase face record as its corrected concept tree: drop the branches phase
+    misreads and restore the keywords it drops (``branches.apply_misreads``,
+    ``dropped_keywords``), strict-load against the
     committed mirror schema, overlay it (``build_concept_tree``, which runs the
     ADR-0038 recovery stage at its tail), then run the named overlay-correction
     stage (ADR-0035 Stage-3b (b)). ``None`` when the record drifts from the schema
@@ -821,11 +823,13 @@ def face_tree(rec: dict, schema: MirrorSchema, *, oracle_id: str) -> ConceptTree
     """
     from mtg_utils._card_ir.branches import apply_misreads
     from mtg_utils._card_ir.crosswalk import build_concept_tree
+    from mtg_utils._card_ir.dropped_keywords import restore_dropped_keywords
     from mtg_utils._card_ir.mirror import MirrorDriftError, strict_load_card
     from mtg_utils._card_ir.overlay_corrections import apply_overlay_corrections
 
     nm = rec.get("name") or ""
     rec = apply_misreads(rec)  # drop the branches phase misparses (registry rows)
+    rec = restore_dropped_keywords(rec)  # the keywords phase drops (shape rows)
     try:
         root = strict_load_card(rec, schema, name=nm)
     except MirrorDriftError:

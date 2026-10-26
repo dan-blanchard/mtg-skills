@@ -334,8 +334,11 @@ def test_chosen_type_payoffs_and_tokens(name, ident, has):
     ("Second Little Pig", "keyword_bodies|you|flying", True),
     # a crewed Vehicle token becomes a creature (CR 702.122a)
     ("Lita, Mechanical Engineer", "keyword_bodies|you|flying", True),
+    # "each player other than target player" includes its caster (its ruling:
+    # the targeted player is the only one who gets no Dragon) — a ledger row
+    ("Death by Dragons", "keyword_bodies|you|flying", True),
     # another player's token
-    ("Death by Dragons", "keyword_bodies|you|flying", False),
+    ("Hunted Troll", "keyword_bodies|you|flying", False),
 )
 def test_keyword_bodies_followed(name, ident, has):
     assert (ident in _idents(name)) is has
@@ -395,7 +398,8 @@ def test_stray_grant_subtype_canary():
     subs = {n.get("subtype") for n in _effect_nodes("Will of the Temur", "AddSubtype")}
     assert "Flying" in subs, (
         "_SUBTYPE_WORDS: RETIRE-READY for Will of the Temur — phase no longer "
-        "reads its keyword as a subtype. Check the keyword_bodies flying it drops "
-        "(backlog (o)) and whether the gate still guards a card."
+        "reads its keyword as a subtype. Retire dropped_keywords."
+        "_misread_subtype_lists once no card is left, and check whether the gate "
+        "still guards a card."
     )
     assert "subtype_ref|any|Flying" not in _idents("Will of the Temur")

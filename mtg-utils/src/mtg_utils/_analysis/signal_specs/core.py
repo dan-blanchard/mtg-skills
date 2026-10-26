@@ -315,6 +315,29 @@ _TYPED_SUBJECT_SPECS = {
 _EMPTY_SUBJECT_IS_VALUE = _TYPE_CHANGER_KEYS | {signal_keys.ANIMATE_MAKERS}
 
 
+# The keyword tribes whose page needs no oracle pattern (backlog (o), 2026-10-26):
+# every real body or payoff the pattern alone paged now carries an IR ident — the
+# keywords phase drops restored (``_card_ir.dropped_keywords``, the residues'
+# ``body_keywords``), the keywords a keyword ability confers read
+# (``crosswalk.reads.KEYWORD_ABILITY_KEYWORDS``) — or a ``keyword_bodies``
+# ledger row; what's left names the keyword to fight it ("destroy target creature
+# with flying", reach's reminder, "You have hexproof"; backlog (o) records the
+# classes). The other keywords keep the pattern: they weren't checked. (First
+# strike was checked too, but ``keyword_tribe`` never names a two-word keyword.)
+_KEYWORD_PAGES_OFF_THE_IR = frozenset(
+    {
+        "flying",
+        "trample",
+        "menace",
+        "deathtouch",
+        "lifelink",
+        "haste",
+        "vigilance",
+        "hexproof",
+    }
+)
+
+
 def _subject_spec(signal: Signal) -> SignalSpec:
     """Build a spec for a subject-bearing signal by interpolating the subject."""
     subj = signal.subject
@@ -322,21 +345,18 @@ def _subject_spec(signal: Signal) -> SignalSpec:
     # find creatures that HAVE the keyword, not a type-line match.
     # The bodies by their keyword (CR 702) and the cards that put it on bodies
     # (keyword_bodies), the payoffs that count or pump them (keyword_tribe
-    # itself), and the grants that hand the keyword out. The pattern stays beside
-    # them (backlog (o)): most of what it alone pages names the keyword to fight
-    # it (reach's reminder, "destroy target creature with flying", "creatures
-    # without flying"), but phase drops the keyword from too many real bodies to
-    # ledger one by one — a grant left out of a static's modifications (Valkyrie's
-    # Call, Chariot of the Sun), a parked token maker (Notorious Throng), an
-    # Unrecognized condition (Tek), a keyword misread as a subtype (Will of the
-    # Temur): about twenty for flying, more for trample.
+    # itself), and the grants that hand the keyword out. A keyword of
+    # :data:`_KEYWORD_PAGES_OFF_THE_IR` pages off those alone; any other keeps
+    # its oracle pattern beside them (backlog (o)).
     if signal.key == signal_keys.KEYWORD_TRIBE:
         kw = subj.lower()
         return SignalSpec(
             label=f"{subj} matters",
             avenue=f"creatures with {subj} plus anthems and payoffs that reward them",
             serve=Serve(
-                oracle=re.compile(rf"\b{re.escape(subj)}\b", _IC),
+                oracle=None
+                if kw in _KEYWORD_PAGES_OFF_THE_IR
+                else re.compile(rf"\b{re.escape(subj)}\b", _IC),
                 keywords=frozenset({kw}),
                 signal_idents=frozenset(
                     {

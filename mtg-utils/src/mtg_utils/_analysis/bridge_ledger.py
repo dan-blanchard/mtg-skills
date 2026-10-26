@@ -78,6 +78,7 @@ from mtg_utils._card_ir.crosswalk import (
     graveyard_recursion,
     has_nested_damage_reaching,
     is_power_damage,
+    keyword_bodies,
     mana_restrictions,
     mana_spell_type_restriction,
     mod_keyword_name,
@@ -7389,6 +7390,453 @@ BRIDGES.update(
                 _no_chosen_type_spared,
                 _oracle_match(_CHOSEN_TYPE_SWEEP_RX),
                 key="chosen_type_matters",
+            ),
+        )
+    }
+)
+
+
+# ── keyword_bodies: one card's dropped keyword (backlog (o), the keyword tribe) ──
+# The keyword a card puts on a body of yours where phase keeps no node that
+# carries it and the correction layer has no general shape to read
+# (``_card_ir.dropped_keywords`` and the recovery stage's ``body_keywords`` read
+# the shapes). Each row gates on ``keyword_bodies`` still lacking the keyword, so
+# a phase bump that types it retires the row. The rows serve what the keyword
+# tribe's oracle pattern paged before backlog (o)'s fourth pass dropped it — the
+# prior serving they restore is that page's, not an ident the card had.
+def _no_flying_body(tree: ConceptTree) -> bool:
+    return "flying" not in keyword_bodies(tree)
+
+
+def _no_trample_body(tree: ConceptTree) -> bool:
+    return "trample" not in keyword_bodies(tree)
+
+
+def _no_menace_body(tree: ConceptTree) -> bool:
+    return "menace" not in keyword_bodies(tree)
+
+
+def _no_deathtouch_body(tree: ConceptTree) -> bool:
+    return "deathtouch" not in keyword_bodies(tree)
+
+
+def _no_haste_body(tree: ConceptTree) -> bool:
+    return "haste" not in keyword_bodies(tree)
+
+
+def _no_vigilance_body(tree: ConceptTree) -> bool:
+    return "vigilance" not in keyword_bodies(tree)
+
+
+_NO_KEYWORD_BODY: dict[str, Callable[[ConceptTree], bool]] = {
+    "flying": _no_flying_body,
+    "trample": _no_trample_body,
+    "menace": _no_menace_body,
+    "deathtouch": _no_deathtouch_body,
+    "haste": _no_haste_body,
+    "vigilance": _no_vigilance_body,
+}
+
+
+def _keyword_body_row(
+    bridge_id: str,
+    subject: str,
+    kind: str,
+    what: str,
+    pins: tuple[str, ...],
+    match: Callable[[ConceptTree], bool],
+) -> Bridge:
+    """One dropped-keyword row: ``what`` phase drops on ``pins`` (the whole legal
+    corpus's hits), served as ``keyword_bodies|you|<subject>``."""
+    return Bridge(
+        bridge_id=bridge_id,
+        key="keyword_bodies",
+        subject=subject,
+        kind=kind,
+        todo=_upstream(f"{what}. Retires on the bump that types the {subject}"),
+        census=(
+            f"{len(pins)} hit{'s' if len(pins) != 1 else ''} / the legal corpus "
+            f"({', '.join(pins)}), MTGJSON 2026-10-17 @ phase v0.104.0, 2026-10-26"
+        ),
+        pins=pins,
+        gap=_NO_KEYWORD_BODY[subject],
+        match=match,
+    )
+
+
+def _monster_role_token(tree: ConceptTree) -> bool:
+    """Whether the card types a Monster Role ``Token`` node: "Enchanted creature
+    gets +1/+1 and has trample" is the token's own text (CR 303.7: a Role is an
+    Aura subtype), which phase leaves off the node."""
+    return any(
+        tag_of(n) == "Token" and getattr(n, "name", None) == "Monster Role"
+        for n in tree.iter_typed()
+    )
+
+
+def _monster_role_parked(tree: ConceptTree) -> bool:
+    """Whether a residue parks "create a Monster Role token" (Become Brutes)."""
+    return "Monster Role" in (tree.oracle or "") and any(
+        "Monster Role token" in t for t in tree.residues()
+    )
+
+
+_CAST_THIS_WAY_HASTE_RX = re.compile(
+    r"\bIf you cast a creature spell this way, it gains haste\b"
+)
+
+
+def _cast_this_way_haste_parked(tree: ConceptTree) -> bool:
+    return _oracle_says(tree, _CAST_THIS_WAY_HASTE_RX) and _parked_says(
+        tree, _CAST_THIS_WAY_HASTE_RX
+    )
+
+
+def _cast_this_way_haste_dropped(tree: ConceptTree) -> bool:
+    return _oracle_says(tree, _CAST_THIS_WAY_HASTE_RX) and not _parked_says(
+        tree, _CAST_THIS_WAY_HASTE_RX
+    )
+
+
+def _keyword_tribe_subjects(tree: ConceptTree) -> set[str]:
+    """The keywords the ``keyword_tribe`` lane reads a payoff of: the structural
+    ``WithKeyword`` filters and the synthesis stage's keyword-tribe nodes."""
+    from mtg_utils._analysis.tree_synthesis.types_tribal import (
+        structural_keyword_subjects,
+    )
+
+    return structural_keyword_subjects(tree) | {
+        s
+        for c in tree.iter_concepts()
+        if c.concept == "synth_keyword_tribe"
+        for s in c.subject
+    }
+
+
+def _no_vigilance_payoff(tree: ConceptTree) -> bool:
+    return "Vigilance" not in _keyword_tribe_subjects(tree)
+
+
+def _no_trample_payoff(tree: ConceptTree) -> bool:
+    return "Trample" not in _keyword_tribe_subjects(tree)
+
+
+def _keyword_payoff_row(
+    bridge_id: str,
+    subject: str,
+    what: str,
+    pin: str,
+    rx: str,
+    gap: Callable[[ConceptTree], bool],
+) -> Bridge:
+    """One keyword-tribe payoff phase types with no keyword filter: ``what`` on
+    ``pin`` (the legal corpus's one hit), served as ``keyword_tribe|you|<subject>``."""
+    return Bridge(
+        bridge_id=bridge_id,
+        key="keyword_tribe",
+        subject=subject,
+        kind="dropped_clause",
+        todo=_upstream(f"{what}. Retires on the bump that types the condition"),
+        census=f"1 hit / the legal corpus ({pin}), MTGJSON 2026-10-17 @ phase "
+        "v0.104.0, 2026-10-26",
+        pins=(pin,),
+        gap=gap,
+        match=_oracle_match(re.compile(rx)),
+    )
+
+
+_KEYWORD_BODY_ROWS: tuple[tuple[str, str, str, str, tuple[str, ...], str], ...] = (
+    (
+        "dralnus_pet_kicked_flying",
+        "flying",
+        "upstream_parse_failure",
+        (
+            "Dralnu's Pet's 'it enters with flying and with X +1/+1 counters' read as "
+            "the counter kind 'flying and with x +1/+1'"
+        ),
+        ("Dralnu's Pet",),
+        r"\benters with flying and with X \+1/\+1 counters\b",
+    ),
+    (
+        "printlifter_ooze_token_trample",
+        "trample",
+        "upstream_parse_failure",
+        (
+            "Printlifter Ooze's 'create a 0/0 green Ooze creature token with trample' "
+            "read as the counter kind 'trample. the token enters with x +1/+1'"
+        ),
+        ("Printlifter Ooze",),
+        r"\bOoze creature token with trample\b",
+    ),
+    (
+        "furygale_flocking_token_flying",
+        "flying",
+        "dropped_clause",
+        (
+            "Furygale Flocking's 'create two 3/3 blue and red Elemental creature "
+            "tokens "
+            "with flying', a swallowed clause"
+        ),
+        ("Furygale Flocking",),
+        r"\bElemental creature tokens with flying that attack\b",
+    ),
+    (
+        "welcome_the_darkness_token_flying",
+        "flying",
+        "upstream_parse_failure",
+        (
+            "Welcome the Darkness's 'Create an X/X black Demon creature token with "
+            "flying', parked in a CantGainLife static's description"
+        ),
+        ("Welcome the Darkness",),
+        r"\bCreate an X/X black Demon creature token with flying\b",
+    ),
+    (
+        "chosen_creatures_gain_trample_dropped",
+        "trample",
+        "dropped_clause",
+        (
+            "Spry and Mighty's 'the chosen creatures get +X/+X and gain trample' (only "
+            "the 'where X is' binding is kept)"
+        ),
+        ("Spry and Mighty",),
+        r"\bthe chosen creatures get \+X/\+X and gain trample\b",
+    ),
+    (
+        "skeleton_token_suspected_dropped",
+        "menace",
+        "dropped_clause",
+        (
+            "Case of the Stashed Skeleton's 'create a 2/1 black Skeleton creature "
+            "token "
+            "and suspect it' (CR 701.60c: a suspected creature has menace)"
+        ),
+        ("Case of the Stashed Skeleton",),
+        r"\bSkeleton creature token and suspect it\b",
+    ),
+    (
+        "conjured_creature_deathtouch_counter_parked",
+        "deathtouch",
+        "upstream_parse_failure",
+        (
+            "March Toward Perfection's granted 'that creature enters with an "
+            "additional "
+            "+1/+1 counter and deathtouch counter on it' read as a counter kind"
+        ),
+        ("March Toward Perfection",),
+        r"\badditional \+1/\+1 counter and deathtouch counter\b",
+    ),
+    (
+        "devil_tokens_gain_haste_dropped",
+        "haste",
+        "dropped_clause",
+        (
+            "Burn Down the House's 'They gain haste until end of turn' after its Devil "
+            "tokens"
+        ),
+        ("Burn Down the House",),
+        r"\bDevil creature tokens\b[^.]*\.\"?\s*They gain haste\b",
+    ),
+    (
+        "stolen_creature_gains_haste_dropped",
+        "haste",
+        "dropped_clause",
+        (
+            "Yasova Dragonclaw's 'untap that creature, and it gains haste until end of "
+            "turn' after its gain control"
+        ),
+        ("Yasova Dragonclaw",),
+        r"\buntap that creature, and it gains haste\b",
+    ),
+    (
+        "encore_grant_parked",
+        "haste",
+        "upstream_parse_failure",
+        (
+            "Araumi of the Dead Tide's 'Target creature card in your graveyard gains "
+            "encore' (CR 702.141a: the encore tokens gain haste), an Unimplemented "
+            "residue"
+        ),
+        ("Araumi of the Dead Tide",),
+        r"\bgains? encore\b",
+    ),
+    (
+        "energy_unearth_parked",
+        "haste",
+        "upstream_parse_failure",
+        (
+            "Salvation Colossus's 'Unearth—Pay eight {E}' (CR 702.84a: the returned "
+            "card gains haste), an Unimplemented residue"
+        ),
+        ("Salvation Colossus",),
+        r"\bUnearth—Pay\b",
+    ),
+    (
+        "gingerbrute_token_parked",
+        "haste",
+        "upstream_parse_failure",
+        (
+            "Ginger, Queen of Sweets's 'create a Gingerbrute token' (a 1/1 artifact "
+            "creature with haste), an Unimplemented residue"
+        ),
+        ("Ginger, Queen of Sweets",),
+        r"\bcreate a Gingerbrute token\b",
+    ),
+    (
+        "self_suspend_haste_dropped",
+        "haste",
+        "grammar_straggler",
+        (
+            "Sinister Concierge's 'you may exile it and put three time counters on it. "
+            "… Each card exiled this way that doesn't have suspend gains suspend' (CR "
+            "702.62a: a creature spell cast this way gains haste), typed onto the "
+            "exiled cards, whose owner no read tells"
+        ),
+        ("Sinister Concierge",),
+        r"\byou may exile it and put three time counters on it\b",
+    ),
+    (
+        "own_card_suspended_haste",
+        "haste",
+        "grammar_straggler",
+        (
+            "a card of your own (from your hand, library or graveyard, or the spell "
+            "you "
+            "cast) that 'gains suspend' (CR 702.62a: a creature spell cast this way "
+            "gains haste), where no read tells your card from another player's"
+        ),
+        (
+            "Doom's Time Platform",
+            "Jhoira of the Ghitu",
+            "Kang Prime",
+            "Sibylline Soothsayer",
+            "Soovril, Patient Antiquarian",
+            "Taigam, Master Opportunist",
+            "The Eleventh Doctor",
+            "The Parting of the Ways",
+            "The Tenth Doctor",
+        ),
+        (
+            r"(?:from your hand|of your library|from your graveyard|the spell you cast)"
+            r"[^.]*\.(?:[^.]*\.)?\s*If it doesn't have suspend, it gains suspend\b"
+        ),
+    ),
+    (
+        "each_other_player_dragon_flying",
+        "flying",
+        "grammar_straggler",
+        (
+            "Death by Dragons's 'Each player other than target player creates a 5/5 "
+            "red Dragon creature token with flying' (you, unless you target "
+            "yourself), read as another player's token"
+        ),
+        ("Death by Dragons",),
+        r"\bEach player other than target player creates a 5/5 red Dragon\b",
+    ),
+    (
+        "knight_token_vigilance_swallowed",
+        "vigilance",
+        "dropped_clause",
+        (
+            "Doom Foretold's 'you create a 2/2 white Knight creature token with "
+            "vigilance', a swallowed clause"
+        ),
+        ("Doom Foretold",),
+        r"\bcreate a 2/2 white Knight creature token with vigilance\b",
+    ),
+)
+
+# Phyrexian Splicer moves a chosen keyword to another creature (CR 113.10): one
+# row per keyword it can hand a body of yours that a page names.
+_KEYWORD_BODY_ROWS += tuple(
+    (
+        f"chosen_keyword_moved_{kw}",
+        kw,
+        "upstream_parse_failure",
+        (
+            "Phyrexian Splicer's 'Choose flying, first strike, trample, or shadow: … "
+            "another target creature gains it', the choice parked as a cost residue"
+        ),
+        ("Phyrexian Splicer",),
+        r"\bChoose flying, first strike, trample, or shadow\b",
+    )
+    for kw in ("flying", "trample")
+)
+
+BRIDGES.update(
+    {
+        b.bridge_id: b
+        for b in (
+            _keyword_body_row(
+                "monster_role_trample",
+                "trample",
+                "upstream_parse_failure",
+                "a Monster Role token's 'Enchanted creature gets +1/+1 and has "
+                "trample' (the token's own text; its Token node carries no static)",
+                (
+                    "Curse of the Werefox",
+                    "Faunsbane Troll",
+                    "Ferocious Werefox // Guard Change",
+                    "Giant Inheritance",
+                    "Gylwain, Casting Director",
+                    "Monstrous Rage",
+                    "Syr Armont, the Redeemer",
+                ),
+                _monster_role_token,
+            ),
+            _keyword_body_row(
+                "monster_role_trample_parked",
+                "trample",
+                "upstream_parse_failure",
+                "Become Brutes's 'For each of those creatures, create a Monster Role "
+                "token attached to it', an Unimplemented residue (the Role's "
+                "'has trample' with it)",
+                ("Become Brutes",),
+                _monster_role_parked,
+            ),
+            *(
+                _keyword_body_row(
+                    bid, subject, kind, what, pins, _oracle_match(re.compile(rx))
+                )
+                for bid, subject, kind, what, pins, rx in _KEYWORD_BODY_ROWS
+            ),
+            _keyword_body_row(
+                "cast_this_way_gains_haste_dropped",
+                "haste",
+                "dropped_clause",
+                "Thundermane Dragon's 'If you cast a creature spell this way, it "
+                "gains haste until end of turn' after its cast from the library top",
+                ("Thundermane Dragon",),
+                _cast_this_way_haste_dropped,
+            ),
+            _keyword_body_row(
+                "cast_this_way_gains_haste_parked",
+                "haste",
+                "upstream_parse_failure",
+                "Alaundo the Seer's granted 'If you cast a creature spell this way, "
+                "it gains haste until end of turn', an Unimplemented residue",
+                ("Alaundo the Seer",),
+                _cast_this_way_haste_parked,
+            ),
+            # Payoffs of one creature having the keyword: Solid Footing's damage
+            # assignment, Ram Through's own excess-damage rider for a trampler.
+            _keyword_payoff_row(
+                "enchanted_vigilance_payoff_dropped",
+                "Vigilance",
+                "Solid Footing's 'As long as enchanted creature has vigilance, it "
+                "assigns combat damage equal to its toughness'",
+                "Solid Footing",
+                r"\bAs long as enchanted creature has vigilance\b",
+                _no_vigilance_payoff,
+            ),
+            _keyword_payoff_row(
+                "trampler_excess_damage_payoff_dropped",
+                "Trample",
+                "Ram Through's 'If the creature you control has trample, excess "
+                "damage is dealt to that creature's controller instead'",
+                "Ram Through",
+                r"\bIf the creature you control has trample\b",
+                _no_trample_payoff,
             ),
         )
     }

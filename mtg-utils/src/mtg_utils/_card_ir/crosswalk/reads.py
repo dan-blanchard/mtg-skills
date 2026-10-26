@@ -10527,7 +10527,11 @@ def choice_of(node: object) -> Choice | None:
         return Choice(choice)
     if not isinstance(choice, MirrorVariant):
         return None
+    # a bare option list, or one beside a count ("choose two abilities from
+    # among first strike, vigilance, and lifelink" — Greymond, Avacyn's Stalwart)
     listed = getattr(choice.inner, "inner", None)
+    if not isinstance(listed, list):
+        listed = getattr(choice.inner, "options", None)
     options = tuple(str(t) for t in listed) if isinstance(listed, list) else ()
     return Choice(str(choice.key), options)
 
@@ -11676,21 +11680,95 @@ def keyword_bodies(tree: ConceptTree) -> frozenset[str]:
     creature — Lita, Mechanical Engineer's Zeppelin), and a keyword counter it
     puts on itself or a creature of yours, one chosen at random included (CR
     122.1b — Agent's Toolkit's flying counter, Crystalline Giant) or one a
-    creature enters with (Ascent of the Worthy's returned creature). The bodies
-    a keyword deck counts."""
+    creature enters with (Ascent of the Worthy's returned creature). Also a copy
+    "except it has haste" (Dack's Duplicate, a copied creature spell —
+    Choreographed Sparks), the creature spell a mana ability's mana is spent on
+    (Generator Servant's haste), a creature it suspects (menace, CR 701.60c),
+    the keyword a printed or granted keyword ability confers
+    (:data:`KEYWORD_ABILITY_KEYWORDS`: dash's haste), and what a residue phase
+    parked puts on a body (``ConceptNode.body_keywords``). The bodies a keyword
+    deck counts."""
+    return memo_on(tree, "_xw_keyword_bodies", _keyword_bodies)
+
+
+def _keyword_bodies(tree: ConceptTree) -> frozenset[str]:
     out: set[str] = set()
+    creature = "Creature" in tree.card_types
+    printed = {normalised_keyword_name(k) for k in tree.card_keywords}
+    if "suspend" in printed and creature:
+        out.add("haste")  # CR 702.62a: a creature spell cast this way gains haste
+    out.update(
+        KEYWORD_ABILITY_KEYWORDS[k] for k in printed & KEYWORD_ABILITY_KEYWORDS.keys()
+    )
     for unit in tree.units:
         for sdef, mod in iter_mod_sites(unit.node, deep=True):
-            if filter_controller_side(getattr(sdef, "affected", None)) == "opponents":
+            affected = getattr(sdef, "affected", None)
+            if filter_controller_side(affected) == "opponents":
                 continue
             if tag_of(mod) == "AddKeyword":
-                out.add(keyword_subject(mod_keyword_name(mod) or ""))
+                kw = mod_keyword_name(mod) or ""
+                out |= _keyword_with_conferred(kw)
+                # a creature card suspending itself (Epochrasite) is cast with
+                # haste (CR 702.62a)
+                if (
+                    creature
+                    and normalised_keyword_name(kw) == "suspend"
+                    and (tag_of(affected) == "SelfRef")
+                ):
+                    out.add("haste")
             elif tag_of(mod) == "AddChosenKeyword":
-                out.update(_chosen_keyword_options(unit))
+                # the choice is the unit's own, or one the card makes as it
+                # enters ("As ~ enters, choose two abilities from among first
+                # strike, vigilance, and lifelink" — Greymond, Avacyn's Stalwart)
+                out.update(
+                    _chosen_keyword_options(unit)
+                    or {k for u in tree.units for k in _chosen_keyword_options(u)}
+                )
         for n in unit.iter_typed():
             out |= _keyword_body_node(unit, n)
+        for c in unit.effects:
+            out.update(c.body_keywords)
     out.discard("")
     return frozenset(out)
+
+
+#: The keyword a keyword ability confers on the permanent it puts onto the
+#: battlefield (folded, :func:`normalised_keyword_name`): dash "As long as this
+#: permanent's dash cost was paid, it has haste" (CR 702.109a), blitz likewise
+#: (702.152a), encore's tokens "gain haste" (702.141a), unearth's returned card
+#: "gains haste" (702.84a), awaken's land "becomes a 0/0 Elemental creature with
+#: haste" (702.113a), riot's "If you don't, it gains haste" (702.136a — a
+#: granted riot, Domri, Chaos Bringer's), afterlife's "Spirit creature tokens
+#: with flying" (702.135a — a granted afterlife, Afterlife Insurance's).
+#: Suspend's haste is a creature spell's only (702.62a), read off a creature
+#: card's own suspend.
+KEYWORD_ABILITY_KEYWORDS: dict[str, str] = {
+    "dash": "haste",
+    "blitz": "haste",
+    "encore": "haste",
+    "unearth": "haste",
+    "awaken": "haste",
+    "riot": "haste",
+    "afterlife": "flying",
+}
+
+
+#: A keyword variant that is the keyword itself (folded): "A 'hexproof from
+#: [quality]' ability is a hexproof ability" (CR 702.11d).
+KEYWORD_VARIANTS: dict[str, str] = {"hexprooffrom": "hexproof"}
+
+
+def _keyword_with_conferred(kw: str) -> set[str]:
+    """A granted keyword (:func:`keyword_subject` spelling), the keyword it
+    confers (:data:`KEYWORD_ABILITY_KEYWORDS`: a granted encore's haste —
+    Araumi of the Dead Tide) and the keyword it is a variant of
+    (:data:`KEYWORD_VARIANTS`: hexproof from blue is hexproof)."""
+    folded = normalised_keyword_name(kw)
+    return {
+        keyword_subject(kw),
+        KEYWORD_ABILITY_KEYWORDS.get(folded, ""),
+        KEYWORD_VARIANTS.get(folded, ""),
+    }
 
 
 def _chosen_keyword_options(unit: AbilityUnit) -> set[str]:
@@ -11704,7 +11782,7 @@ def _chosen_keyword_options(unit: AbilityUnit) -> set[str]:
     return out
 
 
-def _keyword_counter(kind: object) -> str:
+def counter_keyword(kind: object) -> str:
     """A counter kind's keyword (:data:`_KEYWORD_COUNTERS`), or ``""``."""
     if not isinstance(kind, str):
         return ""
@@ -11717,6 +11795,16 @@ def _keyword_names(node: object, field: str) -> set[str]:
     return {keyword_subject(k) for k in list_field(node, field) if isinstance(k, str)}
 
 
+def _copy_keywords(n: TypedMirrorNode) -> set[str]:
+    """The keywords a copy effect's exceptions add (``additional_modifications``'
+    ``AddKeyword``\\ s — "except it has haste")."""
+    return {
+        keyword_subject(mod_keyword_name(m) or "")
+        for m in list_field(n, "additional_modifications")
+        if tag_of(m) == "AddKeyword"
+    }
+
+
 def _keyword_body_node(unit: AbilityUnit, n: TypedMirrorNode) -> set[str]:
     """The keywords one node of ``unit`` puts on a body of yours
     (:func:`keyword_bodies`' node-level arms)."""
@@ -11725,23 +11813,45 @@ def _keyword_body_node(unit: AbilityUnit, n: TypedMirrorNode) -> set[str]:
         if token_creator_side(unit, n) == "opponents":
             return set()
         if tag == "CopyTokenOf":
-            return _keyword_names(n, "extra_keywords")
+            return _keyword_names(n, "extra_keywords") | _copy_keywords(n)
         types = list_field(n, "types")
         if "Creature" in types or "Vehicle" in types:
             return _keyword_names(n, "keywords")
         return set()
+    # A copy "except it has haste" (CR 707.9b): the copy is what the effect makes
+    # yours — a clone entering (Dack's Duplicate), a copied spell (Choreographed
+    # Sparks), a creature becoming a copy (Oko, the Ringleader).
+    if tag in ("BecomeCopy", "CopySpell"):
+        return _copy_keywords(n)
+    # The creature spell a mana ability's mana is spent on "gains haste until end
+    # of turn" (Generator Servant).
+    if tag == "Mana":
+        return {
+            conferred
+            for g in list_field(n, "grants")
+            if isinstance(g, MirrorVariant) and g.key == "AddKeywordUntilEndOfTurn"
+            for kw in (getattr(g.inner, "keyword", None),)
+            if isinstance(kw, str)
+            for conferred in _keyword_with_conferred(kw)
+        }
     if filter_controller_side(getattr(n, "target", None)) == "opponents":
         return set()
+    if tag == "Suspect":
+        return {"menace"}  # CR 701.60c: a suspected permanent has menace
+    # What an animation makes the permanent: earthbend's "becomes a 0/0 land
+    # creature with haste" (CR 701.66a — Toph, the Blind Bandit).
+    if tag == "Animate":
+        return _keyword_names(n, "keywords")
     if tag in ("PutCounter", "PutCounterAll"):
-        return {_keyword_counter(counter_kind(n))}
+        return {counter_keyword(counter_kind(n))}
     if tag == "ChooseCounterKind":
         domain = getattr(n, "domain", None)
-        return {_keyword_counter(k) for k in list_field(domain, "kinds")}
+        return {counter_keyword(k) for k in list_field(domain, "kinds")}
     if tag in ("ChangeZone", "ChangeZoneAll"):
         if getattr(n, "destination", None) != "Battlefield":
             return set()
         return {
-            _keyword_counter(entry[0])
+            counter_keyword(entry[0])
             for entry in list_field(n, "enter_with_counters")
             if isinstance(entry, list) and entry
         }

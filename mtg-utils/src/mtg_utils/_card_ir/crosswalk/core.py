@@ -372,6 +372,14 @@ class ConceptNode:
     # own meaning (``TokenRule.into_clause`` — a token's ``subject`` is the
     # token's types). Written only by the recovery stage.
     clause: tuple[str, ...] = ()
+    # The keywords a residue's clause puts on a body of yours that phase parsed
+    # nowhere (``recovery.residue_body_keywords``: "it gains flying until end of
+    # turn", "create X 1/1 black Faerie Rogue creature tokens with flying", "put a
+    # flying counter on it"), in ``reads.keyword_subject`` spelling — and, on an
+    # ability's first effect, the keywords its description grants that phase
+    # typed only part of (``recovery._partly_read_grant``). Written only by the
+    # recovery stage.
+    body_keywords: tuple[str, ...] = ()
 
     @property
     def reading(self) -> tuple[str, ...]:

@@ -41,9 +41,24 @@ served by the shared granted walk. A `where_x_binding` residue ("where X is
 amass, investigate, debuff) reads the sentence — or colon-delimited clause — of
 the unit's own description that contains the residue verbatim, up to the
 residue's end, never past a sentence break and never beyond that unit; every
-other row never reads outside the residue.
+other row never reads outside the residue. One more decoration rides the stage:
+**body keywords** (`ConceptNode.body_keywords`), the keywords a residue's clause
+puts on a body of yours ("it gains flying until end of turn", a token "with
+flying", "put a flying counter on it"), and — on the unit's first effect — the
+ones the unit's own description grants that phase typed only part of (a bare
+`PumpAll` for "gain trample and get +1/+1", a "The same is true for …" list past
+its first keyword); `keyword_bodies` reads them.
 _Avoid_: "supplement" (the old-IR path's envelope around the same grammar),
 "synthesis" (adds nodes; recovery rewrites decoration in place).
+
+**Dropped keyword** (`_card_ir.dropped_keywords`):
+A keyword a phase node's own clause grants but its typed parse leaves out — a
+static def's "has flying" with no `AddKeyword`, a copy's "except it has haste", a
+keyword read as the subtypes `With` and `Flying`. Restored on the raw face record
+before strict load as phase's own `AddKeyword`, so every read sees it (the input
+side of the ADR-0047 amendment, like the branch-misread registry); never added
+where the record types the keyword anywhere.
+_Avoid_: "synthesized node" (it is phase's own shape, restored on the input).
 
 **Field correction**:
 A unit-level sibling of re-decoration for a node that has NO `ConceptNode` to

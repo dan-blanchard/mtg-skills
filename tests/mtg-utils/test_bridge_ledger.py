@@ -51,6 +51,7 @@ _MISSING_FACE_PINS = {
 # Pins whose row reads a back face phase does record: the face to build.
 _BACK_FACE_PINS = {
     "Invasion of New Capenna // Holy Frazzle-Cannon": "Holy Frazzle-Cannon",
+    "Ferocious Werefox // Guard Change": "Guard Change",
 }
 
 
@@ -324,6 +325,25 @@ _MISPARSE_ROWS = {
     "chosen_type_sweep_misparse": (
         "the one-sided -3/-3 parsed as a Pump of any target"
     ),
+    "monster_role_trample": "the Monster Role parsed as a Token with no static",
+    "dralnus_pet_kicked_flying": (
+        "'enters with flying and with X +1/+1 counters' parsed as one counter kind"
+    ),
+    "printlifter_ooze_token_trample": (
+        "the trample token parsed into a PutCounter's counter kind"
+    ),
+    "conjured_creature_deathtouch_counter_parked": (
+        "the boon's counters parsed as one quoted counter kind"
+    ),
+    "welcome_the_darkness_token_flying": (
+        "the spell's Demon token parsed into a CantGainLife static's description"
+    ),
+    "chosen_keyword_moved_flying": (
+        "the keyword choice parsed as an activation cost, its grant dropped"
+    ),
+    "chosen_keyword_moved_trample": (
+        "the keyword choice parsed as an activation cost, its grant dropped"
+    ),
 }
 
 # Rows whose match reads structure, not the clause's words: text can't locate
@@ -344,6 +364,7 @@ _STRUCTURE_MATCHED_ROWS = {
     "keyword_dropped_paylife": (
         "the match reads the keyword rows crosswalk.core recovers from the residue"
     ),
+    "monster_role_trample": "a misparse (see _MISPARSE_ROWS)",
 }
 
 

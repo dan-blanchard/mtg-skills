@@ -31,7 +31,9 @@ from dataclasses import dataclass, replace
 
 from mtg_utils._card_ir._substrate_purity import assert_substrate_pure, l1_identity
 from mtg_utils._card_ir.clause_grammar import (
+    _SENTENCE_RX,
     _VERB_PRESENT,
+    keyword_grants,
     parse_clause,
     replacement_sentences,
     replacement_token,
@@ -44,7 +46,12 @@ from mtg_utils._card_ir.crosswalk import (
     AbilityUnit,
     ConceptNode,
     ConceptTree,
+    counter_keyword,
+    counter_kind,
+    iter_mod_sites,
     iter_nested_granted_bodies,
+    keyword_subject,
+    mod_keyword_name,
     residue_is,
     tag_of,
     unit_zones,
@@ -1196,6 +1203,98 @@ def recover_concepts(
     return tuple(out) if changed else concepts
 
 
+def residue_body_keywords(raw: str) -> tuple[str, ...]:
+    """The keywords a residue's clause puts on a body of yours, sentence by
+    sentence (``clause_grammar.keyword_grants`` with its token, animation and
+    counter reads): a grant ("it gains flying until end of turn"), a token's
+    ("create X 1/1 black Faerie Rogue creature tokens with flying"), a keyword
+    counter placed ("put a flying counter on it"). A sentence acting on another
+    player's side — an opponent's creatures (``THEIRS``), a token another player
+    creates (``make_token``'s ``OTHER_PLAYER``, CR 111.2) — puts none on yours."""
+    out: set[str] = set()
+    for sentence in _SENTENCE_RX.findall(raw):
+        kws = keyword_grants(
+            sentence, quoted=True, creature_with="stated", tokens=True, counters=True
+        )
+        if not kws:
+            continue
+        _scope, marks, _zones = read_clause(sentence, None, ALLOWLIST["make_token"])
+        if THEIRS in marks or OTHER_PLAYER in marks:
+            continue
+        out |= kws
+    return tuple(sorted(out))
+
+
+_PUMP_TAGS = frozenset({"Pump", "PumpAll"})
+
+
+def _unit_typed_keywords(unit: AbilityUnit) -> set[str]:
+    """The keywords ``unit`` types: an ``AddKeyword`` and a keyword counter
+    placed (``reads.keyword_subject`` spelling)."""
+    out = {
+        keyword_subject(mod_keyword_name(m) or "")
+        for _sdef, m in iter_mod_sites(unit.node, deep=True)
+        if tag_of(m) == "AddKeyword"
+    }
+    out.update(
+        counter_keyword(counter_kind(n))
+        for n in unit.iter_typed()
+        if tag_of(n) in ("PutCounter", "PutCounterAll")
+    )
+    out.discard("")
+    return out
+
+
+def _partly_read_grant(
+    unit: AbilityUnit, concepts: tuple[ConceptNode, ...]
+) -> tuple[str, ...]:
+    """The keywords an ability's own description grants that phase read only
+    part of: a pump that keeps its +X/+X and drops the grant beside it ("creatures
+    you control gain trample and get +1/+1 for each basic land type" as a bare
+    ``PumpAll`` — Tromp the Domains), or a grant whose other keywords it drops —
+    an "Otherwise, it gains first strike" branch (Stolen Vitality), a "The same
+    is true for first strike, double strike, …" list after the one keyword it
+    reads (Indominus Rex, Alpha's flying counter; Priest of Possibility). None
+    when the ability acts on an opponent's creatures."""
+    desc = getattr(unit.node, "description", None)
+    if not isinstance(desc, str) or not desc:
+        return ()
+    said = keyword_grants(desc, counters=True)
+    if not said:
+        return ()
+    typed = _unit_typed_keywords(unit)
+    typed.update(k for c in concepts for k in c.body_keywords)
+    missing = said - typed
+    pump = any(tag_of(c.node) in _PUMP_TAGS for c in concepts)
+    if not missing or not (pump or said & typed) or THEIRS in read_clause(desc)[1]:
+        return ()
+    return tuple(sorted(missing))
+
+
+def _with_body_keywords(
+    concepts: tuple[ConceptNode, ...], self_name: str, unit: AbilityUnit
+) -> tuple[ConceptNode, ...]:
+    """``concepts`` with each ``Unimplemented`` residue's
+    :func:`residue_body_keywords` recorded (``ConceptNode.body_keywords``), then
+    the unit's :func:`_partly_read_grant` keywords on its first concept;
+    ``concepts`` itself when none has any."""
+    out: list[ConceptNode] = []
+    for c in concepts:
+        kws: tuple[str, ...] = ()
+        if c.raw and tag_of(c.node) == "Unimplemented":
+            text = c.raw.replace(self_name, "~") if self_name else c.raw
+            kws = residue_body_keywords(text)
+        out.append(replace(c, body_keywords=kws) if kws else c)
+    extra = _partly_read_grant(unit, tuple(out)) if out else ()
+    if extra:
+        head = out[0]
+        out[0] = replace(
+            head, body_keywords=tuple(sorted({*head.body_keywords, *extra}))
+        )
+    changed = any(a is not b for a, b in zip(out, concepts, strict=True))
+    return tuple(out) if changed else concepts
+
+
 def apply_unimplemented_recovery(
     tree: ConceptTree, allowlist: dict[str, TokenRule] | None = None
 ) -> ConceptTree:
@@ -1230,7 +1329,9 @@ def apply_unimplemented_recovery(
             recovered = recover_concepts(granted, None, table, tree.name)
             if recovered is not granted:
                 object.__setattr__(body, GRANTED_RECOVERY_ATTR, recovered)
-        new_effects = recover_concepts(unit.effects, unit, table, tree.name)
+        new_effects = _with_body_keywords(
+            recover_concepts(unit.effects, unit, table, tree.name), tree.name, unit
+        )
         if new_effects is not unit.effects:
             changed = True
             new_units.append(replace(unit, effects=new_effects))

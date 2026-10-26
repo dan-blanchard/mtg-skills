@@ -84,4 +84,8 @@ card's full trees already fire, so a text tail can't stand in for a pruned branc
 The kept idents are memoized per oracle_id beside `_SIGNAL_TREES_MEMO`. The same
 module holds the branch-misread registry (`BRANCH_MISREADS`): record paths dropped
 from every tree (`"always"`) or only from the certain records (`"certain"`), each row
-naming its `retirement_canary`.
+naming its `retirement_canary`. The same input-side seam restores what phase drops
+(`_card_ir.dropped_keywords`, 2026-10-26): a keyword a node's own clause grants
+but phase left out of its modifications is added as an `AddKeyword` before strict
+load, keyed on the node's structure, so every read sees it as phase's own shape;
+each shape has a `retirement_canary`.

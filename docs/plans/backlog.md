@@ -234,26 +234,41 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   back-references on cards that fire return an event object — a blocked
   creature, a damage source, a land tapped for mana).
   (o) **Theme matching off the IR, what's left** (2026-10-25, after the third
-  pass: the tribe spec and its payoff sub-avenue page off the IR too, so only
-  the keyword tribe ORs a pattern; the class of every card the tribe pages lost
+  pass: the tribe spec and its payoff sub-avenue page off the IR too; the
+  fourth (2026-10-26) took the pattern off eight keyword tribes, so only the
+  unchecked keyword subjects OR one; the class of every card the tribe pages lost
   is in ``~/mtg/tuner-work/w16/classification-tribes.tsv``, the second pass's in
   ``~/mtg/tuner-work/w13/classification-final.tsv``). A theme pages by its
   serve (``signal_specs.theme_page``); no search carries an oracle pattern
   (``test_a_theme_pages_by_its_serve_not_a_pattern``). Open:
-  - the keyword tribe ("Flying matters") keeps its pattern: of the 431 cards
-    it alone pages nearly all name the keyword to fight it, but phase drops
-    the keyword from about twenty real flying bodies (more for trample) in
-    unrelated shapes — a grant left out of a static's or a pump's
-    modifications (Valkyrie's Call, Chariot of the Sun, Tromp the Domains), a
-    parked token maker (Notorious Throng, Welcome the Darkness), an
-    Unrecognized condition (Tek, Tribal Golem), a keyword misread as a subtype
-    (Will of the Temur), a Role token's reminder (Monstrous Rage). That is a
-    regex lane's worth of ledger rows, so the pattern stays until phase types
-    them; ``keyword_bodies`` now follows the shapes phase does type (keyword
-    counters a creature enters with or gets at random, a token copy's extra
-    keywords, a replacement's added token, a keyword chosen for itself,
-    perpetual grants, a Vehicle token); Flowstone Sculpture's keyword choice
-    (phase leaves it ``Unimplemented``) is one the pattern alone still pages;
+  - the keyword tribe pages flying, trample, menace, deathtouch, lifelink,
+    haste, vigilance and hexproof off the IR (2026-10-26:
+    ``signal_specs.core._KEYWORD_PAGES_OFF_THE_IR``; the class of every card
+    they lost is in ``~/mtg/tuner-work/w18/classification-keywords.tsv``: 445
+    cards, all naming the keyword to fight it — 142 removal or block riders, 125
+    reach reminders, 92 "without", 30 "loses" — or classed by hand: 11 player
+    hexproof (CR 702.11c), 5 with no phase record for the granting face, 4
+    opponents' tokens, keyword tutors and variety payoffs (Selective
+    Adaptation, Mwonvuli Beast Tracker, Odric, Blood-Cursed), "as though it had
+    haste" (no ability added); Kwende, Pride of Femeref and Phyrexian Splicer's
+    first strike name no page). The
+    other keyword subjects (defender, reach, indestructible, ward, double
+    strike, flash, infect, …) keep the pattern: not checked. Reach's 105
+    pattern-only cards are mostly flying's reminder on reach bodies, so
+    checking it is mostly a triage pass. First and double strike never become
+    a page: ``keyword_tribe``'s vocabulary is one-word keywords
+    (``text_reads._ABILITY_KEYWORDS``). Restoring a static's grant moved two
+    text reads keyed on the static being hollow: Noble Banneret loses
+    ``voltron_matters|you|carrier``, and Mindlink Mech loses
+    ``base_pt_set|any|`` (its "except it's 4/3"). Still general shapes left
+    to ledger rows or a narrow decoration: a pump's dropped grant (Tromp the
+    Domains, Haldir) is a ``body_keywords`` decoration only ``keyword_bodies``
+    reads, not an ``AddKeyword`` def the team lanes read; the counter kinds
+    that swallow a clause (Dralnu's Pet, Printlifter Ooze, March Toward
+    Perfection) could be split into a ``P1P1`` counter and a grant before
+    load; the Monster Role rows retire if a Role's known-token text becomes a
+    typed static; ``own_card_suspended_haste`` (9 pins) wants a read of "your
+    card gains suspend" by the exiled card's zone owner;
   - the tribe pages were checked on Goblin, Elf, Zombie, Dragon and Sliver
     (and Angel, Vampire, Merfolk, Wizard, Human): every real member they
     lost has an IR ident or a ledger row (the 21 ``_reference_row`` rows). The
@@ -666,6 +681,88 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   `_RECOVERED_DRAW_REPLACEMENT_RE` (a replacement diagnostic the seam could refuse).
   Move each onto a `read_clause` mark the same way draw, discard, damage reach and
   make_token's kinds moved (2026-10-09), population unchanged.
+
+**From the keyword tribe's dropped keywords (2026-10-26, phase v0.104.0)**
+
+- **Phase drops a keyword from a body it otherwise types** (report upstream by
+  shape, Dan posts). Each is read in our correction layer
+  (``_card_ir.dropped_keywords`` before strict load, the recovery stage's
+  ``ConceptNode.body_keywords``), with a ``retirement_canary`` in
+  ``test_phase_gaps_keywords.py``, or by a ``keyword_bodies`` ledger row:
+  - *A static def's grant left out of its modifications.* Chariot of the Sun:
+    "{2}, {T}: Until end of turn, target creature you control gains flying and
+    has base toughness 1" types a ``Continuous`` def with ``SetToughness`` alone.
+    It should add ``AddKeyword(Flying)``. Likewise Valkyrie's Call's "It has
+    flying and is an Angel" (``AddSubtype`` alone), the Zendikons' "is a 4/4
+    Elemental creature with reach and haste" (the animation's mods have no
+    keyword), and Argivian Avenger's "your choice of flying, vigilance,
+    deathtouch, or haste" (``AddKeyword`` for vigilance and deathtouch only); 32
+    defs on the legal corpus.
+  - *A grant parked in an ``Unrecognized`` condition.* Tek: "~ gets +0/+2 as long
+    as you control a Plains, has flying as long as you control an Island, …"
+    types ``AddPower 0 / AddToughness 2`` with the rest of the line as the
+    condition's ``text``. It should be one def per clause, each with its own
+    condition and ``AddKeyword``. Tribal Golem, Altar of the
+    Wretched's "The same is true for first strike, …", and Evolved Spinoderm's
+    "Otherwise, it has hexproof" are the same.
+  - *A copy's keyword dropped from its exceptions.* Irenicus's Vile
+    Duplication: "Create a token that's a copy of target creature you control,
+    except the token has flying and it isn't legendary" types ``CopyTokenOf``
+    whose ``additional_modifications`` hold only ``RemoveSupertype(Legendary)``.
+    It should also hold ``AddKeyword(Flying)``. March from Velis Vel's
+    "becomes a copy … and gains haste" is the same.
+  - *A keyword misread as a subtype.* Will of the Temur: "except it's a 4/4
+    Dragon creature with flying" types ``AddSubtype("With")`` and
+    ``AddSubtype("Flying")``. It should type ``AddKeyword(Flying)``. Leonardo da
+    Vinci, Sauron, the Necromancer, Kaya, Intangible Slayer and Dino DNA are the
+    same.
+  - *A pump's grant dropped.* Tromp the Domains: "creatures you control gain
+    trample and get +1/+1 for each basic land type" types a bare ``PumpAll``. It
+    should add a ``GenericEffect`` with ``AddKeyword(Trample)`` (Haldir, Lórien
+    Lieutenant likewise). Stolen Vitality's "Otherwise, it gains first strike"
+    drops the else branch. Indominus Rex, Alpha's and Priest of Possibility's
+    "The same is true for …" lists keep only their first keyword.
+  - *A grant, token or keyword counter parked as an ``Unimplemented`` residue.*
+    Notorious Throng: "Create X 1/1 black Faerie Rogue creature tokens with
+    flying" should be a ``Token`` with ``keywords: [Flying]``. Reaper of Night's
+    "it gains flying until end of turn", Inventive Wingsmith's "put a flying
+    counter on it" and Genku, Future Shaper's mode "1/2 blue Moonfolk with
+    flying" are the same.
+  - *Counter kinds swallowing a clause.* Dralnu's Pet: "it enters with flying
+    and with X +1/+1 counters" types ``PutCounter{counter_type: "flying and
+    with x +1/+1"}``. It should grant flying and put ``P1P1`` counters.
+    Printlifter Ooze's "create a 0/0 green Ooze creature token with trample. The
+    token enters with X +1/+1 counters" and March Toward Perfection's boon are
+    the same (ledger rows).
+  - *A Role token's own ability.* Monstrous Rage: "Create a Monster Role token
+    attached to it" types the ``Token`` with no static. It should carry the
+    Role's "Enchanted creature gets +1/+1 and has trample" (known-tokens has it;
+    ledger rows over 8 cards).
+  - Single cards, as ledger rows (card: phase emits → should emit):
+    Furygale Flocking: "create two 3/3 … Elemental creature tokens with flying"
+    → a ``SwallowedClause`` warning, no ``Token`` → a ``Token`` with
+    ``keywords: [Flying]``; Doom Foretold: "you create a 2/2 white Knight
+    creature token with vigilance" → swallowed → a ``Token`` with Vigilance;
+    Welcome the Darkness: "Create an X/X black Demon creature token with flying"
+    → only a ``CantGainLife`` static carrying the whole text → a ``Token``;
+    Spry and Mighty: "the chosen creatures get +X/+X and gain trample" → only
+    the ``where_x_binding`` residue → a pump with ``AddKeyword(Trample)``; Case
+    of the Stashed Skeleton: "create a 2/1 black Skeleton … and suspect it" →
+    ``Token`` alone → plus ``Suspect``; Burn Down the House: "They gain haste
+    until end of turn" → ``Token`` alone → plus a haste grant; Yasova
+    Dragonclaw: "untap that creature, and it gains haste" → ``GainControl``
+    alone → plus untap and haste; Thundermane Dragon: "If you cast a creature
+    spell this way, it gains haste" → swallowed → a haste grant on the cast;
+    Alaundo the Seer: the same clause in its granted trigger → an
+    ``Unimplemented`` residue; Araumi of the Dead Tide: "gains encore" → a
+    residue → ``AddKeyword(Encore)``; Salvation Colossus: "Unearth—Pay eight
+    {E}" → a residue → the ``Unearth`` keyword with an energy cost; Ginger,
+    Queen of Sweets: "create a Gingerbrute token" → a residue → a ``Token``;
+    Phyrexian Splicer: "Choose flying, first strike, trample, or shadow: …
+    another target creature gains it" → the choice parked as a cost residue → a
+    ``Choose`` of a keyword and its grant; Solid Footing: "As long as enchanted
+    creature has vigilance" and Ram Through: "If the creature you control has
+    trample" → no ``WithKeyword`` condition → one.
 
 **From the 2026-09-17 architecture review (worth exploring, not started)**
 

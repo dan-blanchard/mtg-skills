@@ -9,6 +9,7 @@ that path), so the surviving consumer inherited the proven rules unchanged.
 from __future__ import annotations
 
 import re
+from typing import Literal
 
 from mtg_utils._card_ir import _combinators as comb
 
@@ -869,3 +870,283 @@ STATIC_TOKENS = (
     *STATIC_TOKENS,
     (re.compile(r"\b(?:pay|paid)\b[^.]*?\{E\}", re.IGNORECASE), "energy_payment"),
 )
+
+
+# ── Keyword grants: the keywords a clause puts on a body ───────────────────────
+# Where phase drops a keyword from a node it otherwise types — a static def whose
+# ``modifications`` leave out a "has flying" its own description states, a residue
+# parking "create X 1/1 black Faerie Rogue creature tokens with flying" or "it gains
+# flying until end of turn" — the keyword survives only in that node's clause.
+# :func:`keyword_grants` reads it there, word by word over the node's own text
+# (never the card's whole oracle): ``dropped_keywords`` restores a static def's
+# grant before strict load, and the recovery stage records a residue's
+# (``ConceptNode.body_keywords``).
+#
+# The keyword abilities a clause may hand a body (CR 702), by their words: the
+# keyword counters' kinds (CR 122.1b) less decayed, exalted and shadow, which no
+# dropped grant of the corpus names.
+GRANT_KEYWORDS: tuple[str, ...] = (
+    "flying",
+    "first strike",
+    "double strike",
+    "deathtouch",
+    "haste",
+    "hexproof",
+    "indestructible",
+    "lifelink",
+    "menace",
+    "reach",
+    "trample",
+    "vigilance",
+)
+_KEYWORD_ITEM = comb.alt(
+    *(comb.value(kw, comb.phrase(*({w} for w in kw.split()))) for kw in GRANT_KEYWORDS)
+)
+
+
+_WORD = comb.word()
+# The words a keyword grant can't be read without (``keyword_grants``' cheap
+# exit): each vocabulary keyword's last word.
+_KEYWORD_WORDS = frozenset(kw.split()[-1] for kw in GRANT_KEYWORDS)
+
+
+def _keyword_item(*, counter: bool) -> comb.Parser[str]:
+    """One keyword of a list; with ``counter``, only one naming a counter's kind
+    ("a flying counter", CR 122.1b), else only one naming the keyword itself —
+    never "hexproof from blue": that is a hexproof ability (CR 702.11d), but a
+    restored ``AddKeyword(Hexproof)`` would drop its quality, and phase types it
+    (``HexproofFrom``) wherever the corpus grants it."""
+
+    def go(s: str) -> tuple[str, str] | None:
+        r = _KEYWORD_ITEM.run(s)
+        if r is None:
+            return None
+        nxt = _WORD.run(r[1])
+        after = comb.norm_word(nxt[0]) if nxt is not None else ""
+        if after == "from" or (after in ("counter", "counters")) is not counter:
+            return None
+        return r
+
+    return comb.Parser(go)
+
+
+_KEYWORD = _keyword_item(counter=False)
+_KEYWORD_COUNTER = _keyword_item(counter=True)
+
+
+def _other_ability_item(s: str) -> tuple[str, str] | None:
+    """An item of a keyword list outside the vocabulary — one word followed by a
+    comma or by the list's "and" / "or" ("banding, first strike, or trample",
+    "prowess or haste") — read as ``""``."""
+    w = _WORD.run(s)
+    if w is None or not w[0].rstrip(",").isalpha():
+        return None
+    nxt = _WORD.run(w[1])
+    if w[0].endswith(",") or (
+        nxt is not None and comb.norm_word(nxt[0]) in ("and", "or")
+    ):
+        return ("", w[1])
+    return None
+
+
+_LIST_ITEMS = comb.many(
+    comb.preceded(
+        comb.opt(comb.keyword({"and", "or"})),
+        comb.alt(_KEYWORD, comb.Parser(_other_ability_item)),
+    )
+)
+
+
+def _keyword_list(s: str) -> tuple[list[str], str] | None:
+    """A keyword list naming at least one vocabulary keyword: "flying,
+    vigilance, deathtouch, or haste" (the word reader strips the commas), "banding,
+    first strike, or trample" (one ability outside the vocabulary)."""
+    items, rest = _LIST_ITEMS.run(s) or ([], s)  # many never fails
+    kws = [k for k in items if k]
+    return (kws, rest) if kws else None
+
+
+_KEYWORD_LIST = comb.Parser(_keyword_list)
+# "has flying", "gain trample", "gains your choice of flying, vigilance, …".
+_GRANT = comb.preceded(
+    comb.seq2(
+        comb.keyword({"has", "have", "gains", "gain"}),
+        comb.opt(comb.phrase({"your"}, {"choice"}, {"of"})),
+    ),
+    _KEYWORD_LIST,
+)
+# A keyword chosen for a body: "choose flying or indestructible at random.
+# Blitzwing gains that ability" (each option read, as ``reads.keyword_bodies``
+# reads a typed keyword choice — Gabriel Angelfire).
+_CHOOSE = comb.preceded(comb.keyword({"choose"}), _KEYWORD_LIST)
+# A later keyword of a grant whose items each carry their own condition: "has
+# trample as long as you control a Beast, haste as long as you control a Goblin, …"
+# (Tribal Golem), "gain trample if you control a Dwarf and hexproof if you control
+# an Elf" (Doors of Durin).
+_GRANT_CONTINUED = comb.seq3(
+    comb.opt(comb.keyword({"and"})), _KEYWORD, comb.keyword({"as", "if"})
+).map(lambda r: [r[1]])
+# "The same is true for first strike, double strike, …, and vigilance": a list that
+# may name abilities outside the vocabulary ("protection", "landwalk").
+_SAME_IS_TRUE = comb.preceded(
+    comb.phrase({"the"}, {"same"}, {"is"}, {"true"}, {"for"}),
+    comb.take_until_clause(delims="."),
+)
+# "is a 4/4 Elemental creature with reach and haste" (an animation's keywords).
+_CREATURE_WITH = comb.preceded(
+    comb.seq2(comb.keyword({"creature", "creatures"}), comb.keyword({"with"})),
+    _KEYWORD_LIST,
+)
+# "create X 1/1 black Faerie Rogue creature tokens with flying".
+_TOKEN_WITH = comb.preceded(
+    comb.seq2(comb.keyword({"token", "tokens"}), comb.keyword({"with"})),
+    _KEYWORD_LIST,
+)
+# A token's characteristics line, from its power/toughness on: "1/2 blue Moonfolk
+# with flying" (a mode of Genku, Future Shaper's "create a creature token with
+# those characteristics").
+_CHARACTERISTICS_WITH = comb.bounded_scan(
+    comb.preceded(comb.keyword({"with"}), _KEYWORD_LIST), delims='.;"•'
+)
+# "put a +1/+1 counter and a lifelink counter on that creature", "enters with an
+# additional +1/+1 counter, trample counter, and vigilance counter on it".
+_COUNTERS = comb.seq2(
+    _KEYWORD_COUNTER,
+    comb.many(
+        comb.preceded(
+            comb.seq2(
+                comb.opt(comb.keyword({"and", "or"})), comb.opt(comb.keyword({"a"}))
+            ),
+            _KEYWORD_COUNTER,
+        )
+    ),
+).map(lambda r: [r[0], *r[1]])
+
+# A word of the clause before a grant that makes it no grant: a negation ("doesn't
+# have flying", "can't have or gain flying", "remove a flying counter") or a
+# condition ("if it has flying", "as long as enchanted creature has vigilance").
+_NEGATING = frozenset(
+    {"doesnt", "dont", "cant", "cannot", "not", "no", "never", "isnt"}
+    | {"remove", "removes"}
+)
+_CONDITIONAL = frozenset({"if", "as", "unless", "while", "when", "whenever"})
+# The word right before the verb when it's a filter's: "creatures that have
+# flying", "a creature card with flying".
+_FILTERING = frozenset({"that", "which", "who", "with"})
+# What ends the clause a grant's preceding words are read over.
+_CLAUSE_BREAKS = ",.;:—•"
+# A word of the sentence before a keyword counter that places it ("put a flying
+# counter on it", "enters with an additional … trample counter").
+_PLACING = frozenset({"put", "puts", "enters", "enter"})
+# A word of the clause before "creature with …" that makes it the object's own
+# characteristics ("becomes a 3/3 Illusion creature with flying", "enters as a 5/2
+# creature with haste", "it's a 1/1 Spirit creature with flying"); never "X is the
+# number of attacking creatures with flying".
+_BECOMING = frozenset({"become", "becomes", "enters", "its"})
+
+
+def _pt_word(w: str) -> bool:
+    """Whether a normalized word is a power/toughness ("1/2", "x/x")."""
+    parts = w.split("/")
+    return len(parts) == 2 and all(p.isdigit() or p in ("x", "*") for p in parts)
+
+
+def _unquoted(text: str) -> str:
+    """``text`` without its quoted spans: a granted ability's own words ('has
+    "{1}: ~ gains flying until end of turn"' grants that ability, not flying)."""
+    return " ".join(text.replace("“", '"').replace("”", '"').split('"')[::2])
+
+
+def _keywords_in(span: str) -> list[str]:
+    """Every vocabulary keyword a list span names, past the words it doesn't
+    know ("protection", "landwalk")."""
+    out: list[str] = []
+    rest = span
+    while rest.strip():
+        r = _KEYWORD.run(rest)
+        if r is not None:
+            out.append(r[0])
+            rest = r[1]
+            continue
+        w = _WORD.run(rest)
+        if w is None:
+            break
+        rest = w[1]
+    return out
+
+
+_GATING = _NEGATING | _CONDITIONAL
+# The verbs a grant opens on ("has flying", "gain trample").
+_GRANT_VERBS = frozenset({"has", "have", "gains", "gain"})
+
+
+def keyword_grants(
+    text: str,
+    *,
+    quoted: bool = False,
+    creature_with: Literal["any", "stated"] | None = None,
+    tokens: bool = False,
+    counters: bool = False,
+) -> frozenset[str]:
+    """The keywords (``reads.keyword_subject`` spelling) ``text`` — one node's own
+    clause — grants: a "has" / "gain(s)" keyword list or a "choose" one that no
+    earlier word of its clause negates, conditions or makes a filter's, the
+    list's conditioned continuations, and a "The same is true for …" list.
+    ``quoted`` keeps a quoted ability's words; ``creature_with`` reads an
+    animation's "creature with …" too — ``"any"`` where the caller knows the node
+    animates, ``"stated"`` only where its clause says so ("becomes a 3/3 …
+    creature with haste", never "except by creatures with flying"); ``tokens``
+    reads a token's "token(s) with …" and a characteristics line ("1/2 blue
+    Moonfolk with flying"), ``counters`` the keyword counters a clause places
+    ("put a flying counter on it")."""
+    rest = _FAILED_PREFIX.sub("", text if quoted else _unquoted(text))
+    if not _KEYWORD_WORDS & {comb.norm_word(w) for w in rest.split()}:
+        return frozenset()
+    out: set[str] = set()
+    last = ""  # the clause's previous word
+    gated = becoming = False  # a gating / becoming word earlier in the clause
+    granted = placing = False  # a grant / a placing word earlier in the sentence
+    head = True  # at the clause's first word
+    while rest.strip():
+        w = _WORD.run(rest)
+        if w is None:
+            break
+        word = comb.norm_word(w[0])
+        r = None
+        if word in _GRANT_VERBS and not gated and last not in _FILTERING:
+            r = _GRANT.run(rest)
+        elif word == "choose" and not gated:
+            r = _CHOOSE.run(rest)
+        elif word == "the":
+            same = _SAME_IS_TRUE.run(rest)
+            if same is not None:
+                r = (_keywords_in(same[0]), same[1])
+        elif word in ("creature", "creatures") and (
+            creature_with == "any" or (creature_with == "stated" and becoming)
+        ):
+            r = _CREATURE_WITH.run(rest)
+        elif word in ("token", "tokens") and tokens:
+            r = _TOKEN_WITH.run(rest)
+        elif head and tokens and _pt_word(word):
+            r = _CHARACTERISTICS_WITH.run(w[1])
+        if r is None and granted:
+            r = _GRANT_CONTINUED.run(rest)
+        if r is None and counters and placing and not gated:
+            r = _COUNTERS.run(rest)
+        if r is not None:
+            out.update(r[0])
+            granted, head, rest = True, False, r[1]
+            continue
+        head = False
+        placing = placing or word in _PLACING
+        if any(ch in _CLAUSE_BREAKS for ch in w[0]):
+            last, gated, becoming = "", False, False
+            head = w[0].strip() == "•"
+            if "." in w[0]:
+                granted = placing = False
+        else:
+            last = word
+            gated = gated or word in _GATING
+            becoming = becoming or word in _BECOMING
+        rest = w[1]
+    return frozenset(out)
