@@ -29,10 +29,10 @@ Jeskai (URW) superfriends. Guff is himself a planeswalker, adds loyalty counters
 | Jace Beleren | Replaced by Dack Fayden | 3, 4 |
 | Guff Rewrites History | Seems weak | 4 |
 | Myriad Landscape | Poor in three colors | 1 |
-| Wall of Denial, Semester's End, Honor-Worn Shauku | No reason given | 2 |
+| Wall of Denial; Semester's End; Honor-Worn Shaku | No reason given | 2 |
 | The Wanderer | Replaced by The Eternal Wanderer | 3 |
-| Nevinyrral's Disk, Urza's Ruinous Blast | Weaker versions | 3 |
-| Chandra, Awakened Inferno; Sparkshaper Visionary; Talismans of Conviction/Creativity/Progress | Swapped for stronger walkers | 4 |
+| Nevinyrral's Disk; Urza's Ruinous Blast | Weaker versions | 3 |
+| Chandra, Awakened Inferno; Sparkshaper Visionary; Talisman of Conviction; Creativity; Progress | Swapped for stronger walkers | 4 |
 ## Recommended adds
 | Card | Why (article's reason, short) | Source # |
 |---|---|---|
@@ -50,15 +50,15 @@ Jeskai (URW) superfriends. Guff is himself a planeswalker, adds loyalty counters
 | Pramikon, Sky Rampart | Limits attacks to one opponent | 4 |
 | Teferi, Master of Time; Teferi, Temporal Pilgrim | Loyalty gain; synergy with Guff | 3, 4 |
 | Ugin, the Spirit Dragon | Wipe | 1, 3 |
-| Will Kenrith, Rowan Kenrith | Control, draw, wipe | 1 |
+| Will Kenrith; Rowan Kenrith | Control, draw, wipe | 1 |
 | Dovin Baan | Neutralize creatures or draw | 1 |
-| Bothersome Quasit, Flumph | Goad / blocker and draw | 1 |
+| Bothersome Quasit; Flumph | Goad / blocker and draw | 1 |
 | Court of Ire | Monarch card advantage | 1 |
 | Kasmina, Enigmatic Mentor | Protects walkers | 2 |
 | Oath of Chandra | Cheap removal and damage | 2 |
 | Urza Assembles the Titans | Draws walkers, double activation | 2 |
-| Dack Fayden, Dovin Hand of Control, Comet Stellar Pup, Kykar, Third Path Iconoclast, The Peregrine Dynamo | Stronger swaps | 4 |
+| Dack Fayden; Dovin, Hand of Control; Comet, Stellar Pup; Kykar; Third Path Iconoclast; The Peregrine Dynamo | Stronger swaps | 4 |
 | Raugrin Triome | Three-color fixing | 4 |
-| Evacuation, Fierce Guardianship, Call the Gatewatch, Farewell, Supreme Verdict, Cyclonic Rift, Counterspell | Control / interaction | 3 |
+| Evacuation; Fierce Guardianship; Call the Gatewatch; Farewell; Supreme Verdict; Cyclonic Rift; Counterspell | Control / interaction | 3 |
 ## Consensus one-liner
 Replace the weak originals and conditional ramp with stronger planeswalkers, proliferate/loyalty payoffs (Elspeth's Talent, All Will Be One, Mila) and better ways to protect them and close out games.

@@ -24,15 +24,15 @@ Temur artifact tokens. Gimbal's power scales with differently named artifact tok
 | Hellkite Igniter | Expensive, easy to interact with | 1, 3 |
 | Aid from the Cowl | Clunky card advantage | 1, 3 |
 | Ichor Elixir | Cut for ramp | 1, 3 |
-| Workshop Elders, Dance with Calamity | Too expensive; smooths curve | 1 |
-| Weirding Wood, Hedron Detonator, Pain Distributor, Spell Swindle, Struggle // Survive | Niche or no reason | 1 |
+| Workshop Elders; Dance with Calamity | Too expensive; smooths curve | 1 |
+| Weirding Wood; Hedron Detonator; Pain Distributor; Spell Swindle; Struggle // Survive | Niche or no reason | 1 |
 | Replicating Ring | Too slow | 3 |
 | Imprisoned in the Moon | Mid-tier removal | 3 |
 | Thoughtcast | Pure card draw | 3 |
 | Reverse Engineer | Less flexible than Big Score | 3 |
 | Vedalken Humiliator | Mediocre | 3 |
 | Master of Etherium | Little impact | 3 |
-| Cutthroat Negotiator, Spine of Ish Sah, Junk Winder, Rise and Shine, Myriad Landscape, Terramorphic Expanse | Cut to make space, no reasons | 2 |
+| Cutthroat Negotiator; Spine of Ish Sah; Junk Winder; Rise and Shine; Myriad Landscape; Terramorphic Expanse | Cut to make space, no reasons | 2 |
 ## Recommended adds
 | Card | Why (article's reason, short) | Source # |
 |---|---|---|
@@ -43,18 +43,18 @@ Temur artifact tokens. Gimbal's power scales with differently named artifact tok
 | Fae Offering | Extra token for Gimbal | 1, 3 |
 | Kibo, Uktabi Prince | Banana tokens, artifact removal | 2, 3 |
 | Liquimetal Torque | Favorite mana rock, trample or copies | 1 |
-| Cursed Mirror, Mind Stone | Mana rocks | 1 |
+| Cursed Mirror; Mind Stone | Mana rocks | 1 |
 | Rose Room Treasurer | Treasure, triggers on token creation | 1 |
-| Cathartic Pyre, Chart a Course | Card draw | 1 |
+| Cathartic Pyre; Chart a Course | Card draw | 1 |
 | Thought Monitor | Copyable artifact creature | 1 |
-| Arterial Alchemy, Olivia's Attendants | Blood tokens for smoothing and tokens | 1 |
-| March of Progress, Skitterbeam Battalion | Make copies | 1 |
+| Arterial Alchemy; Olivia's Attendants | Blood tokens for smoothing and tokens | 1 |
+| March of Progress; Skitterbeam Battalion | Make copies | 1 |
 | Urza's Saga | Makes Constructs, tutors Sol Ring | 2 |
 | Mirrex | Fixing plus Mite artifact tokens | 2 |
-| Brainstorm, Second Harvest | Cheap card advantage; mass tokens | 2 |
-| Prosperous Innkeeper, Lonis Cryptozoologist, Third Path Iconoclast | Treasure, Clues, Soldier artifact tokens | 2 |
-| Saheeli, Filigree Master, Brudiclad, Telchor Engineer | Planeswalker/token engines | 2 |
-| Doubling Season, Parallel Lives | Optional token doublers | 2 |
+| Brainstorm; Second Harvest | Cheap card advantage; mass tokens | 2 |
+| Prosperous Innkeeper; Lonis, Cryptozoologist; Third Path Iconoclast | Treasure, Clues, Soldier artifact tokens | 2 |
+| Saheeli, Filigree Master; Brudiclad, Telchor Engineer | Planeswalker/token engines | 2 |
+| Doubling Season; Parallel Lives | Optional token doublers | 2 |
 | Cyberdrive Awakener | Artifact finisher | 3 |
 | Glistening Dawn | Giant creatures, differently named Incubators | 3 |
 | Jaheira, Friend of the Forest | Steady mana | 3 |

@@ -16,7 +16,7 @@ def parse_table(md, header):
         if len(cells) < 3: continue
         src = cells[2]
         n_src = len(re.findall(r"\d", src))
-        for name in re.split(r"\s*(?:;|/(?!/))\s*", cells[0]):
+        for name in re.split(r"\s*(?:;|(?<!/)/(?!/))\s*", cells[0]):
             name = name.strip()
             if name: rows[norm(name)] = (name, cells[1], n_src)
     return rows

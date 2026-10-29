@@ -46,6 +46,6 @@ Dimir Faeries: Tegwyll is a Faerie lord for go-wide sacrifice/card-draw value; t
 | Skullclamp; Talion's Messenger; Faerie Mastermind; Likeness Looter; Stolen by the Fae; Faerie Dreamthief; Bident of Thassa; Feywild Visitor; Faerie Slumber Party; Kindred Discovery; High Market | Faerie draw/value/sac outlet | 3 |
 | Leyline of Anticipation; Deadly Dispute; Plumb the Forbidden; Ghostly Flicker; Cunning Nightbonder; Aboleth Spawn | Alela package | 1 |
 | Lobelia Sackville-Baggins; Grim Hireling | Acceleration | 1 |
-| Sword of the Animist; Alexi's Cloak; Ertai, Resurrected; Saiba Cryptomancer | Equipment / protection | 1 |
+| Sword of the Animist; Alexi's Cloak; Ertai Resurrected; Saiba Cryptomancer | Equipment / protection | 1 |
 ## Consensus one-liner
 Pick one direction and commit, adding Faerie staples (Bitterblossom, Spellstutter Sprite, Mistbind Clique, Notorious Throng) while cutting clunky high-cost cards like Hullbreaker Horror and trimming basics.

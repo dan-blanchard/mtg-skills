@@ -34,7 +34,7 @@ Boros goad deck: Nelly Borca rewards opponents (and you) for damage dealt by the
 | Prisoner's Dilemma | Better for noncombat-damage decks | 3 |
 | Stalking Leonin | Tracking chosen player annoying; weak after use | 3 |
 | Selfless Squire | Needs large enough attack | 3 |
-| Castle Ardenvale / Slayers' Stronghold | No token focus; replace with fixing lands | 3 |
+| Castle Ardenvale; Slayers' Stronghold | No token focus; replace with fixing lands | 3 |
 ## Recommended adds
 | Card | Why (article's reason, short) | Source # |
 |---|---|---|
@@ -50,11 +50,11 @@ Boros goad deck: Nelly Borca rewards opponents (and you) for damage dealt by the
 | Blasphemous Act | Damage-based wrath | 1 |
 | Chain Reaction | Damage-based wrath | 1 |
 | Sunforger | Finds tricks and Gideon's Sacrifice | 1 |
-| Olorin's Searing Light | Removal suited to damage plan | 1 |
+| Olórin's Searing Light | Removal suited to damage plan | 1 |
 | Serra Paragon | Recursion for Auras and lands | 1 |
 | Descent into Avernus | Consistency | 1 |
 | Professional Face-Breaker | Consistency | 1 |
-| Swords to Plowshares / Path to Exile | Cheap interaction | 2 |
+| Swords to Plowshares; Path to Exile | Cheap interaction | 2 |
 | Winds of Abandon | Emergency reset keeping your board | 2 |
 | Fight to the Death | Interactive, works with goad | 2 |
 | Rip Apart | Kills creatures | 2 |
@@ -65,6 +65,6 @@ Boros goad deck: Nelly Borca rewards opponents (and you) for damage dealt by the
 | Crawlspace | Replaces Windborn Muse; harder to destroy | 3 |
 | Farewell | Better than Winds of Rath | 3 |
 | Baeloth Barrityl, Entertainer; Bothersome Quasit | Goad cheaply | 3 |
-| Arid Mesa, Fabled Passage, Spectator Seating | Fixing replacing basics | 3 |
+| Arid Mesa; Fabled Passage; Spectator Seating | Fixing replacing basics | 3 |
 ## Consensus one-liner
 Add more goad/deterrent payoffs and cheap interaction plus a real finisher (Aurelia, Agrus Kos, Taunt from the Rampart), and cut the weak or off-plan cards like Feather, Sun Titan and Ransom Note.

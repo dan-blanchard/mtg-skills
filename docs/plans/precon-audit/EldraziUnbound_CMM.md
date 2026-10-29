@@ -21,8 +21,8 @@ Colorless Eldrazi ramp deck. Zhulodok gives colorless spells of mana value 7+ ca
 | Wastes | Replace with scry lands / utility lands | 1, 2, 4 |
 | Omarthis, Ghostfire Initiate | Backup commander needs a revamp | 1 |
 | Endless One | X spell; not impressive | 1, 2 |
-| Hangarback Walker, Stonecoil Serpent | X spells poor in Cascade | 1 |
-| Calamity of the Titans, Perilous Vault | Exiling everything is unfun | 1 |
+| Hangarback Walker; Stonecoil Serpent | X spells poor in Cascade | 1 |
+| Calamity of the Titans; Perilous Vault | Exiling everything is unfun | 1 |
 | Duplicant | Removal suite overstuffed | 1 |
 | One Wastes | Make room for Sanctum of Ugin | 1 |
 | Crashing Drawbridge | Weak | 2 |
@@ -48,17 +48,17 @@ Colorless Eldrazi ramp deck. Zhulodok gives colorless spells of mana value 7+ ca
 | Wondrous Crucible | Protection and graveyard value | 1 |
 | Spectrum Sentinel | Life gain, blocker | 1 |
 | Moonsilver Key | Fetches Sol Ring etc. | 4 |
-| Zhalfirin Void, Crystal Grotto, The Grey Havens | Scry lands replacing Wastes | 4 |
+| Zhalfirin Void; Crystal Grotto; The Grey Havens | Scry lands replacing Wastes | 4 |
 | Conduit of Ruin | Cheap creature that tutors a 7+ colorless creature | 4 |
-| Manifold Key, Planar Atlas, Basalt Monolith, Treasure Map | Ramp and fixing | 2 |
+| Manifold Key; Planar Atlas; Basalt Monolith; Treasure Map | Ramp and fixing | 2 |
 | Karn, Scion of Urza | Phenomenal planeswalker | 2 |
 | Thought-Knot Seer | Value body | 2 |
 | Sandstone Oracle | Refills hand, 7-drop trigger | 2 |
 | Spine of Ish Sah | Adds removal | 2 |
 | Ugin, the Spirit Dragon | Wipe that spares your cards | 2 |
 | Portal to Phyrexia | Powerful in multiplayer | 2 |
-| Cloudpost, Glimmerpost, Urza's Workshop, Vesuva, Thespian's Stage | Utility mana lands | 2 |
-| Ancient Tomb, Field of the Dead, Inventors' Fair, Sensei's Divining Top, Scroll Rack, Commander's Plate, Mycosynth Golem, Metalworker | Big-spender options | 1 |
-| Ulamog, the Ceaseless Hunger / Infinite Gyre; Emrakul, the Promised End | Honorable mentions | 2 |
+| Cloudpost; Glimmerpost; Urza's Workshop; Vesuva; Thespian's Stage | Utility mana lands | 2 |
+| Ancient Tomb; Field of the Dead; Inventors' Fair; Sensei's Divining Top; Scroll Rack; Commander's Plate; Mycosynth Golem; Metalworker | Big-spender options | 1 |
+| Ulamog, the Ceaseless Hunger; Infinite Gyre; Emrakul, the Promised End | Honorable mentions | 2 |
 ## Consensus one-liner
 Cut the X spells and weak filler, add cheap rocks, utility lands and card draw so the deck reaches its 7+ drops and cascades more reliably.

@@ -1453,3 +1453,22 @@ ranked another first (186), then theme cards no search reaches (127).
 From now on a policy change ships only if, on the 25, guide-matching adds rise
 and cuts fall by at most 2, and, on the held-out set, adds don't fall and cuts
 fall by at most 1. Read fixes ship on correctness with both deltas recorded.
+
+## The guide-row fix (2026-10-29)
+
+108 guide-table rows named their cards in a form the audit couldn't read: several
+cards joined by commas ("Austere Command, Agent of Treachery, Rune-Scarred Demon,
+Nezahal" read as one name), or a misspelling ("Niv-Mizzet, Ghost Council"). Each
+row now lists real card names separated by semicolons, every name checked against
+the card pool (a name that itself holds a comma stays whole). The audit scripts
+also split "Dusk // Dawn" at its second slash; the split no longer breaks a `//`.
+About 25 entries stay unmatched on purpose: generic text ("fetch lands", "basic
+lands") and three ambiguous names (Sting, Lonis, Kykar). More guide adds are now
+priced, so 14 precons' budgets rose (Eldrazi Unbound $168 → $641, Sliver Swarm
+$221 → $587). New baseline, same code (main 9e049c66 + the fix):
+
+| set | swaps | guide cuts matching | guide adds matching |
+|---|---|---|---|
+| the 25 (before the fix) | 713 | 271 of 408 | 88 of 610 |
+| the 25 | 721 | 330 of 505 | 109 of 793 |
+| held-out 10 | 297 | 139 of 216 | 34 of 407 |

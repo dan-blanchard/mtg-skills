@@ -28,8 +28,8 @@ Naya Dinosaur ramp: get big Dinosaurs out and trigger Pantlaza's discover every 
 | Rampaging Brontodon | No reason given | 2 |
 | Bellowing Aegisaur | No reason given | 2 |
 | Temple Altisaur | No reason given | 2 |
-| Apex Altisaur, Earthshaker Dreadmaw, Itzquinth, Quartzwood Crasher, Shifting Ceratops, Xenagos, God of Revels | Lower average MV (budget cuts) | 1 |
-| Fiery Confluence, Migration Path, Savage Stomp, Thriving Bluff | Lower average MV (budget cuts) | 1 |
+| Apex Altisaur; Earthshaker Dreadmaw; Itzquinth, Firstborn of Gishath; Quartzwood Crasher; Shifting Ceratops; Xenagos, God of Revels | Lower average MV (budget cuts) | 1 |
+| Fiery Confluence; Migration Path; Savage Stomp; Thriving Bluff | Lower average MV (budget cuts) | 1 |
 | Otepec Huntmaster; Drover of the Mighty; Dinosaur Egg; Progenitor's Icon; Lifecrafter's Bestiary; Etali, Primal Storm | Replaced by stronger equivalents | 3 |
 ## Recommended adds
 | Card | Why (article's reason, short) | Source # |
@@ -38,7 +38,7 @@ Naya Dinosaur ramp: get big Dinosaurs out and trigger Pantlaza's discover every 
 | Gishath, Sun's Avatar | Strong Dinosaur, proactive | 1, 3 |
 | Hunting Velociraptor | Cheaper Dinosaur casting | 1, 2 |
 | The Great Henge | Ramp and card advantage | 1, 2 |
-| Fellwar Stone, Nature's Lore, Kodama's Reach | Cheap ramp | 1 |
+| Fellwar Stone; Nature's Lore; Kodama's Reach | Cheap ramp | 1 |
 | Reinforcements; Revivify | Recursion/stack library top; wipe insurance | 1 |
 | Lightning Greaves; Heroic Intervention; Flawless Maneuver | Protection | 1 |
 | Swords to Plowshares; Boros Charm | Cheap removal/flexible | 1 |

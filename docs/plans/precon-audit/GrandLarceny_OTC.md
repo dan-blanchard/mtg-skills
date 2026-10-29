@@ -24,9 +24,9 @@ Sultai theft. Gonti's trigger exiles and lets you play cards from an opponent's 
 | Chaos Wand | Expensive to use; deck needs mana | 1, 3 |
 | Plasm Capture | Counterspell is cheaper | 1, 3 |
 | The Mimeoplasm | Deck does nothing with it | 1, 3 |
-| Culling Ritual, Cunning Rhetoric, Baleful Mastery | Cut to make room | 2 |
+| Culling Ritual; Cunning Rhetoric; Baleful Mastery | Cut to make room | 2 |
 | Dream-Thief's Bandana | Win-more; cut possibly a mistake | 3 |
-| Baleful Strix, Thieving Skydiver, Tower Winder, Arcane Heist, Gonti Lord of Luxury, Stolen Goods, Whirler Rogue, Smirking Spelljacker, Diluvian Primordial, Silent-Blade Oni | Cut to make room (budget tier), no reasons | 1 |
+| Baleful Strix; Thieving Skydiver; Tower Winder; Arcane Heist; Gonti, Lord of Luxury; Stolen Goods; Whirler Rogue; Smirking Spelljacker; Diluvian Primordial; Silent-Blade Oni | Cut to make room (budget tier), no reasons | 1 |
 ## Recommended adds
 | Card | Why (article's reason, short) | Source # |
 |---|---|---|
@@ -38,25 +38,25 @@ Sultai theft. Gonti's trigger exiles and lets you play cards from an opponent's 
 | Thada Adel, Acquisitor | Islandwalk, steals an artifact on damage | 1, 2 |
 | Agent of Treachery | Steals a permanent, card draw | 1, 2 |
 | Tasha, the Witch Queen | Exiles and casts cards, makes 3/3 tokens | 1, 2 |
-| Druid's Repository | Charge counters from attackers become mana | 1 |
+| Druids' Repository | Charge counters from attackers become mana | 1 |
 | Nature's Will | Untaps lands on combat damage | 1 |
-| Outrageous Robbery, Nightveil Specter | More exile effects | 1 |
-| Invisible Stalker, Cephalid Facetaker, Tormented Soul | Cheap unblockable creatures | 1 |
-| Krydle of Baldur's Gate, Aqueous Form | Make a creature unblockable | 1 |
+| Outrageous Robbery; Nightveil Specter | More exile effects | 1 |
+| Invisible Stalker; Cephalid Facetaker; Tormented Soul | Cheap unblockable creatures | 1 |
+| Krydle of Baldur's Gate; Aqueous Form | Make a creature unblockable | 1 |
 | Azusa, Lost but Seeking | Extra mana from exiled lands | 1 |
 | Surge of Brilliance | Draw after casting from exile | 1 |
 | Vorpal Sword | Invisible Stalker one-shot finisher | 1 |
 | Mirri, Cat Warrior | First strike, forestwalk | 1 |
 | Bitterblossom | Flying Rogue each turn | 1 |
-| Kindred Discovery, Roaming Throne | Fill hand with Rogues; double Rogue triggers | 1 |
+| Kindred Discovery; Roaming Throne | Fill hand with Rogues; double Rogue triggers | 1 |
 | Exploration | Cheaper, sturdier than Azusa | 1 |
 | Gix, Yawgmoth Praetor | Damage trigger and fitting activation | 1 |
 | Praetor's Grasp | Take any card from a library | 1 |
 | Rassilon, the War President | Extra card, conspire on stolen spells | 2 |
 | Ashiok, Nightmare Muse | Exile engine | 2 |
-| Wasteland Strangler, Blight Herder | Turn useless exiled cards into value | 2 |
-| Helm of Obedience, Opposition Agent | Steal milled creatures; exploit tutors | 2 |
-| Farseek, Worn Powerstone, Talisman of Curiosity, Talisman of Dominance, Talisman of Resilience | Cheap ramp | 3 |
-| Counterspell, Part the Waterveil | Cheaper counter; extra turns | 3 |
+| Wasteland Strangler; Blight Herder | Turn useless exiled cards into value | 2 |
+| Helm of Obedience; Opposition Agent | Steal milled creatures; exploit tutors | 2 |
+| Farseek; Worn Powerstone; Talisman of Curiosity; Talisman of Dominance; Talisman of Resilience | Cheap ramp | 3 |
+| Counterspell; Part the Waterveil | Cheaper counter; extra turns | 3 |
 ## Consensus one-liner
 Add cheap unblockable creatures and cheap ramp, cut the slow filler, and lean on Court of Locthwain and exile effects to keep Gonti's theft flowing.

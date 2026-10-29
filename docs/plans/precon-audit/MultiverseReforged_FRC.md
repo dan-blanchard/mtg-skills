@@ -21,7 +21,7 @@ A four-color (no green) polymorph deck: cheap noncreature token makers feed Jace
 | Omnath, Locus of the Void | Build-around; does little early | 1, 2, 3 |
 | Dack Fayden, Helping Hand | Giving away cards hurts you | 1, 2, 3 |
 | Akroma, Angel of Fury | Does not fit; outdated big body | 1, 2, 3 |
-| Niv-Mizzet, Ghost Council | Lifegain irrelevant; redundant | 1, 2, 3 |
+| Niv-Mizzet, Ghost Counsel | Lifegain irrelevant; redundant | 1, 2, 3 |
 | Ginger, Queen of Sweets | Does not fit; steal-monarch plan disliked | 1, 3 |
 | Tamiyo, Upriser Crowned | Does not fit | 1, 3 |
 | Teferi's Reproach | Over-costed fog | 2, 3 |
@@ -37,7 +37,7 @@ A four-color (no green) polymorph deck: cheap noncreature token makers feed Jace
 | Venser, Fervent Forger | Dead when polymorphed into | 2 |
 | Lingering Souls | Prefers repeatable tokens | 2 |
 | The Ur-Sphinx | Under-supported | 3 |
-| Whirlwind of Thought / Brainstorm / Brainsurge / Stroke of Midnight | Wrong deck / replaced by bodies | 3 |
+| Whirlwind of Thought; Brainstorm; Brainsurge; Stroke of Midnight | Wrong deck / replaced by bodies | 3 |
 ## Recommended adds
 | Card | Why (article's reason, short) | Source # |
 |---|---|---|
@@ -58,13 +58,13 @@ A four-color (no green) polymorph deck: cheap noncreature token makers feed Jace
 | Archfiend of Depravity | Repeatable removal | 2 |
 | Toxrill, the Corrosive | Board control | 2 |
 | Loyal Apprentice | Token each turn | 2 |
-| Magister Sphinx / Torgaar, Famine Incarnate | Sets life totals | 2 |
+| Magister Sphinx; Torgaar, Famine Incarnate | Sets life totals | 2 |
 | Brainstealer Dragon | Steals spells/lands | 2 |
 | Marang River Regent | Removes two permanents | 2 |
 | Summon: Bahamut | Game-ending threat | 2 |
-| Bitterthorn, Nissa's Animist | Token plus ramp | 2 |
-| Raise the Alarm / Shadow Summoning / Tempt with Bunnies | Cheap bodies for polymorph | 3 |
+| Bitterthorn, Nissa's Animus | Token plus ramp | 2 |
+| Raise the Alarm; Shadow Summoning; Tempt with Bunnies | Cheap bodies for polymorph | 3 |
 | Fable of the Mirror-Breaker | Tokens, digs | 3 |
-| Austere Command, Agent of Treachery, Rune-Scarred Demon, Nezahal | Better top-end/sweepers | 3 |
+| Austere Command; Agent of Treachery; Rune-Scarred Demon; Nezahal, Primal Tide | Better top-end/sweepers | 3 |
 ## Consensus one-liner
 Cut the off-plan bombs (Omnath, Akroma, Niv-Mizzet, Dack) for cheap token makers, repeatable polymorph (Identity Echo) and Jace protection or blink support.

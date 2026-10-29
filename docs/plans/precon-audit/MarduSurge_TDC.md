@@ -48,7 +48,7 @@ Zurgo Stormrender drives a Warriors/token deck built on mobilize and myriad: dra
 | Rabble Rousing | Sweeper-resilient tokens | 1 |
 | Battle Screech | Tokens with flashback | 1 |
 | Basri Ket | Stronger planeswalker | 1 |
-| Mother of Runes / Giver of Runes | Protection, low drops | 1 |
+| Mother of Runes; Giver of Runes | Protection, low drops | 1 |
 | Dark Confidant | Curve and card advantage | 1 |
 | Generous Plunderer | Performs well | 1 |
 | Dawn's Truce | Sweeper protection | 1 |
@@ -62,6 +62,6 @@ Zurgo Stormrender drives a Warriors/token deck built on mobilize and myriad: dra
 | Eiganjo Uprising | Token generation | 2 |
 | Attrition | Draw and removal | 2 |
 | Mercadia's Downfall | Discourages blocking tokens | 2 |
-| Sundial of the Infinite, Iroas, Elspeth Storm Slayer | Beyond-budget extras | 2 |
+| Sundial of the Infinite; Iroas, God of Victory; Elspeth, Storm Slayer | Beyond-budget extras | 2 |
 ## Consensus one-liner
 Cut the clunky top-end and sacrifice filler for cheaper token makers, anthems/reach, and protection so Zurgo keeps attacking.

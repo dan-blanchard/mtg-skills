@@ -31,7 +31,7 @@ Selesnya Enchantress/auras: Ellivere makes Virtuous Roles, draws cards and pumps
 | Generous Gift | Rarely hits a land | 2 |
 | Careful Cultivation; Indomitable Might | Weaker than Rancor / stronger payoff | 2 |
 | Basic lands | Replace with duals | 2 |
-| Starfield Mystic, Liberated Livestock, Setessan Champion, Shalai Voice of Plenty, Tanglespan Lookout, Timber Paladin, Tithe Taker; Angelic Destiny, Daybreak Coronet, Enchantress's Presence, Pollenbright Wings, Timely Ward, Verdant Embrace, Warbriar Blessing | In 27-card cut list, no reasons | 3 |
+| Starfield Mystic; Liberated Livestock; Setessan Champion; Shalai, Voice of Plenty; Tanglespan Lookout; Timber Paladin; Tithe Taker; Angelic Destiny; Daybreak Coronet; Enchantress's Presence; Pollenbright Wings; Timely Ward; Verdant Embrace; Warbriar Blessing | In 27-card cut list, no reasons | 3 |
 ## Recommended adds
 | Card | Why (article's reason, short) | Source # |
 |---|---|---|
@@ -44,7 +44,7 @@ Selesnya Enchantress/auras: Ellivere makes Virtuous Roles, draws cards and pumps
 | Rancor | Strong aura | 2 |
 | Light-Paws, Emperor's Voice | Doubles aura value | 2, 3 |
 | Unflinching Courage; Armadillo Cloak | Trample, lifelink, buff | 1 |
-| Thrun, Breaker of Silence; Alseid, Lifecreed's Bounty | Protection | 1 |
+| Thrun, Breaker of Silence; Alseid of Life's Bounty | Protection | 1 |
 | Primeval Herald; Mark of Sakiko; Overgrowth; One with Nature | Ramp | 1 |
 | Satyr Enchanter; Verduran Enchantress | Enchantress draw | 1 |
 | Clever Concealment; Robe of Stars | Protection | 1 |

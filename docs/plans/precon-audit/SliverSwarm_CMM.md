@@ -50,25 +50,25 @@ Five-color Sliver typal aggro. Sliver Gravemother removes the legend rule for Sl
 | Elven Chorus | Card advantage and fixing | 1, 3 |
 | Chromatic Lantern | Fixing and ramp | 1, 3 |
 | Heroic Intervention | Protection from wipes | 1, 3 |
-| Shock/pain/fetch lands (Temple Garden, Overgrown Tomb, Steam Vents, Hallowed Fountain, Blood Crypt, Bloodstained Mire, Misty Rainforest) | First priority for fixing | 1, 2, 3 |
+| Shock; Pain; fetch lands (Temple Garden, Overgrown Tomb, Steam Vents, Hallowed Fountain, Blood Crypt, Bloodstained Mire, Misty Rainforest) | First priority for fixing | 1, 2, 3 |
 | Sliver Hive | Slivers and fixing | 2, 3 |
 | Indatha Triome | Fetchable three-color fixing | 2, 3 |
 | Teferi's Protection | Beats common board wipes | 2 |
-| Entomb / Buried Alive | Tutor Slivers to graveyard | 2 |
+| Entomb; Buried Alive | Tutor Slivers to graveyard | 2 |
 | Basal Sliver | Cheap Sliver | 2 |
 | Leeching Sliver | Drains in multiples | 2 |
 | Mindlash Sliver | Discuss at rule 0 | 2 |
 | Dormant Sliver | Draws on entry and each encore | 2 |
 | Thorncaster Sliver | Hits creatures; team attack trigger | 2 |
 | Hunter Sliver | Attacking Slivers become removal | 2 |
-| Faithless Looting, Frantic Search | Fill graveyard efficiently | 2 |
+| Faithless Looting; Frantic Search | Fill graveyard efficiently | 2 |
 | Mana Echoes | Replaces Pillar of Origins | 2 |
 | Sundial of the Infinite | Can stop encore sacrifice | 2 |
 | Cavern of Souls | Counter protection, fixing | 2 |
-| Chart a Course, Painful Truths, Shamanic Revelation | Consistent draw | 1 |
-| Horn of the Mark, Rhythm of the Wild, Pir's Whim | Aggro reward / haste+pump / ramp+removal | 1 |
+| Chart a Course; Painful Truths; Shamanic Revelation | Consistent draw | 1 |
+| Horn of the Mark; Rhythm of the Wild; Pir's Whim | Aggro reward / haste+pump / ramp+removal | 1 |
 | Flawless Maneuver | Protection | 1 |
-| Reflections of Littjara, Sliver Overlord, Sliver Queen (Reserved List, pricey), Heart Sliver, Shadow Sliver | Extra Sliver power | 3 |
-| Cryptolith Rite, Utopia Sprawl, Grow from the Ashes, Edge of Autumn | Mana redundancy / budget ramp | 3 |
+| Reflections of Littjara; Sliver Overlord; Sliver Queen; Heart Sliver; Shadow Sliver | Extra Sliver power | 3 |
+| Cryptolith Rite; Utopia Sprawl; Grow from the Ashes; Edge of Autumn | Mana redundancy / budget ramp | 3 |
 ## Consensus one-liner
 Fix the five-color mana base and add draw, protection and cheap encore-friendly Slivers while cutting the clunky wipes and redundant Slivers.

@@ -32,9 +32,9 @@ Saheeli gets an energy counter whenever you cast an artifact or Artificer spell,
 | Cultivator's Caravan | Replaced by Conversion Apparatus | 2 |
 | Mountain | Replaced by HELIOS One | 2 |
 | Soul-Guide Lantern | Explicit cut | 1 |
-| Sai, Reckless Fireweaver | Cut in example list | 1 |
-| Peema Aether-Seer / Peema Trailblazer | Cut for energy/recursion adds | 3 |
-| Servant of the Conduit / Territorial Aetherkite | Cut for energy/recursion adds | 3 |
+| Sai, Master Thopterist; Reckless Fireweaver | Cut in example list | 1 |
+| Peema Aether-Seer; Peema Trailblazer | Cut for energy/recursion adds | 3 |
+| Servant of the Conduit; Territorial Aetherkite | Cut for energy/recursion adds | 3 |
 ## Recommended adds
 | Card | Why (article's reason, short) | Source # |
 |---|---|---|
@@ -58,8 +58,8 @@ Saheeli gets an energy counter whenever you cast an artifact or Artificer spell,
 | Primal Prayers | Green energy value | 2 |
 | Conversion Apparatus | Fixing plus energy | 2 |
 | Aether Revolt | Key energy payoff | 2 |
-| Arcbound Crusher / Kappa Cannoneer | Grow with artifacts entering | 3 |
-| Scrap Welder / Daretti, Scrap Savant | Recursion by sacrificing tokens | 3 |
+| Arcbound Crusher; Kappa Cannoneer | Grow with artifacts entering | 3 |
+| Scrap Welder; Daretti, Scrap Savant | Recursion by sacrificing tokens | 3 |
 | Simulacrum Synthesizer | Constructs when MV3+ artifacts enter | 3 |
 | Copperline Gorge, Botanical Sanctum, Spirebluff Canal, signets | Mana base | 1 |
 ## Consensus one-liner

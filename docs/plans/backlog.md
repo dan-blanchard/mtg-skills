@@ -146,7 +146,12 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   looser row read or cost bar spent the budget-bound decks' cuts.
   (m) **Recall** (`precon-audit/misses.py`, at the largest guide's thirty
   swaps and each precon's own guides' budget, `budgets.json`, Spellbook cached):
-  271 of 408 cuttable guide cuts, 88 of 610 in-scope guide adds,
+  330 of 505 cuttable guide cuts, 109 of 793 in-scope guide adds, 721 swaps;
+  held-out 139 of 216 / 34 of 407, 297 swaps (2026-10-29, after the guide-row
+  fix: 108 rows that joined cards with commas or misspelled them now name real
+  cards, and the audit scripts no longer split "Dusk // Dawn" at its second
+  slash; the larger add counts raise 14 precons' budgets. Before it, on the old
+  rows: 271 of 408 cuttable guide cuts, 88 of 610 in-scope guide adds,
   713 swaps (2026-10-26, the audit's "The open levers, closed": solid
   Granters and a main's popular feeders are upgrade slots, a Spine fill takes a
   jobless slot before a lane slot, a full job's upgrade moves onto the theme;

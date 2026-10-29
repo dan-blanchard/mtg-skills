@@ -36,7 +36,7 @@ Golgari self-mill and reanimation. Winter's attack mill and delirium ability (fo
 | Binding the Old Gods | Deck already has enchantments and interaction | 1 |
 | Grisly Salvage | Only mills | 1 |
 | Mulch | Overlord of the Balemurk does the same and more | 1 |
-| Demonic Covenant, Deathreap Ritual, Convert to Slime, Harmonize, Burnished Hart, Giant Adephage, Gnarlwood Dryad, Old Stickfingers, Rendmaw Creaking Nest, Sakura-Tribe Elder, Solemn Simulacrum, Ursine Monstrosity | Cut as bad or off-plan; no individual reasons | 2 |
+| Demonic Covenant; Deathreap Ritual; Convert to Slime; Harmonize; Burnished Hart; Giant Adephage; Gnarlwood Dryad; Old Stickfingers; Rendmaw, Creaking Nest; Sakura-Tribe Elder; Solemn Simulacrum; Ursine Monstrosity | Cut as bad or off-plan; no individual reasons | 2 |
 ## Recommended adds
 | Card | Why (article's reason, short) | Source # |
 |---|---|---|
@@ -62,12 +62,12 @@ Golgari self-mill and reanimation. Winter's attack mill and delirium ability (fo
 | Revitalizing Repast | MDFC land that can fill the graveyard | 1 |
 | Destined // Lead | Two types, replaces Skola Grovedancer | 1 |
 | Sheoldred, Whispering One | Expensive pick: edict pressure and reanimation | 3 |
-| Chain of Smog, Witherbloom Apprentice | Combo with Professor Onyx, infinite triggers | 2 |
+| Chain of Smog; Witherbloom Apprentice | Combo with Professor Onyx, infinite triggers | 2 |
 | Trazyn the Infinite | One-card combo with enough artifacts in the graveyard | 2 |
-| Basalt Monolith, Cradle Clearcutter, Pili-Pala | Infinite mana loop with Trazyn; untaps Staff of Nin | 2 |
-| Invasion of Fiora, Shandalar, Innistrad | Delirium types plus utility or interaction | 2 |
-| The Gitrog Monster, Patchwork Gnomes, Dakmor Salvage | Repeated dredging to set up combos | 2 |
+| Basalt Monolith; Cradle Clearcutter; Pili-Pala | Infinite mana loop with Trazyn; untaps Staff of Nin | 2 |
+| Invasion of Fiora // Marchesa, Resolute Monarch; Invasion of Shandalar // Leyline Surge; Invasion of Innistrad // Deluge of the Dead | Delirium types plus utility or interaction | 2 |
+| The Gitrog Monster; Patchwork Gnomes; Dakmor Salvage | Repeated dredging to set up combos | 2 |
 | Syr Konrad, the Grim | Self-mill win condition | 2 |
-| Crop Sigil, Sinister Concoction, Buried Alive, Traverse the Ulvenwald, Nyx Lotus, The Celestus | Cheaper graveyard fillers; no individual reasons | 2 |
+| Crop Sigil; Sinister Concoction; Buried Alive; Traverse the Ulvenwald; Nyx Lotus; The Celestus | Cheaper graveyard fillers; no individual reasons | 2 |
 ## Consensus one-liner
 Swap the weak one-type creatures and one-shot mill spells for two-type permanents and repeatable mill or reanimation that keeps delirium on.

@@ -27,7 +27,7 @@ def rows(md, header):
             continue
         cells = [c.strip() for c in line.strip("|").split("|")]
         if len(cells) >= 3:
-            names = [n.strip() for n in re.split(r"\s*(?:;|/(?!/))\s*", cells[0]) if n.strip()]
+            names = [n.strip() for n in re.split(r"\s*(?:;|(?<!/)/(?!/))\s*", cells[0]) if n.strip()]
             srcs = {int(x) for x in re.findall(r"\b(\d)\b", cells[2].split("(")[0])}
             out.append((names, srcs))
     return out

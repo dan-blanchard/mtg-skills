@@ -27,7 +27,7 @@ def parse_table(md, header):
         if not line.startswith("|") or "---" in line or line.lower().startswith("| card"): continue
         cells = [c.strip() for c in line.strip("|").split("|")]
         if len(cells) < 3: continue
-        for name in re.split(r"\s*(?:;|/(?!/))\s*", cells[0]):
+        for name in re.split(r"\s*(?:;|(?<!/)/(?!/))\s*", cells[0]):
             name = name.strip()
             if name: rows[norm(name)] = (name, cells[1], len(re.findall(r"\d", cells[2])))
     return rows

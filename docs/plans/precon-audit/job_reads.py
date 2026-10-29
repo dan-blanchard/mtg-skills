@@ -35,7 +35,7 @@ def parse_table(md, header):
             continue
         cells = [c.strip() for c in line.strip("|").split("|")]
         if len(cells) >= 3:
-            for name in re.split(r"\s*(?:;|/(?!/))\s*", cells[0]):
+            for name in re.split(r"\s*(?:;|(?<!/)/(?!/))\s*", cells[0]):
                 if name.strip():
                     rows[norm(name.strip())] = name.strip()
     return rows

@@ -41,12 +41,12 @@ A graveyard deck that pays off cards leaving the graveyard: self-mill, land and 
 |---|---|---|
 | Nurturing Peatland | Fixing, sacrifice to draw | 1 |
 | Waterlogged Grove | Fixing, sacrifice to draw | 1 |
-| Ghost Quarter / Blast Zone / Tyrite Sanctum | Recurrable sacrifice lands | 1 |
+| Ghost Quarter; Blast Zone; Tyrite Sanctum | Recurrable sacrifice lands | 1 |
 | Blossoming Tortoise | Triggers on graveyard exits | 1 |
 | Ramunap Excavator | Play lands from graveyard | 1 |
 | Walk-In Closet | Lands/spells from graveyard | 1 |
 | Field of the Dead, fetch lands | Higher-budget land value | 1 |
-| Wasteland / Strip Mine | Recurrable (table-unfriendly) | 1 |
+| Wasteland; Strip Mine | Recurrable (table-unfriendly) | 1 |
 | Muldrotha, the Gravetide | Engine without extra mana | 2 |
 | Syr Konrad, the Grim | Damage on recursion | 2 |
 | Havengul Lich | Flexible, steals | 2 |

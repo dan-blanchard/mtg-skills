@@ -57,9 +57,9 @@ Felothar lets high-toughness creatures and defenders attack, assign combat damag
 | Crystal Barricade | Protection from red wipes, hexproof | 2 |
 | Flumph | Card draw | 2 |
 | Ohran Frostfang | Deathtouch and draw | 2 |
-| Ramma Echor, Ancient Shield | Draw and Walls | 2 |
+| Rammas Echor, Ancient Shield | Draw and Walls | 2 |
 | Psychosis Crawler | Reach with Felothar | 2 |
 | Nethroi, Apex of Death | One-sided wipe plus recursion | 2 |
-| Birds of Paradise, Sting, Last March of the Ents | Beyond-budget extras | 2 |
+| Birds of Paradise; Sting; Last March of the Ents | Beyond-budget extras | 2 |
 ## Consensus one-liner
 Drop the lifegain/Betor package and Seedborn Muse for cheaper toughness bodies, protection, and one-sided sweepers like Dusk // Dawn.

@@ -29,9 +29,9 @@ Bant Clue deck. Morska has no max hand size, investigates each upkeep and gets t
 | Confirm Suspicions | Five-mana counter too expensive | 1, 4 |
 | Organic Extinction | Few artifact creatures; hurts you | 1, 4 |
 | Krosan Verge | Dead end | 1 |
-| Innocuous Researcher, Thought Monitor, Follow the Bodies, Farewell | Dead ends | 1 |
-| Killer Service, Shimmer Dragon | Tangential / excess draw | 3 |
-| Talisman of Progress, Talisman of Unity | Prefer land ramp (artifact removal) | 4 |
+| Innocuous Researcher; Thought Monitor; Follow the Bodies; Farewell | Dead ends | 1 |
+| Killer Service; Shimmer Dragon | Tangential / excess draw | 3 |
+| Talisman of Progress; Talisman of Unity | Prefer land ramp (artifact removal) | 4 |
 ## Recommended adds
 | Card | Why (article's reason, short) | Source # |
 |---|---|---|
@@ -47,17 +47,17 @@ Bant Clue deck. Morska has no max hand size, investigates each upkeep and gets t
 | Alquist Proft, Master Sleuth | Draw and life | 2, 4 |
 | Jaheira, Friend of the Forest | Mana from Clues / ramp | 1, 3 |
 | Consecrated Sphinx | Draws on opponent turns | 1, 4 |
-| Disallow, Counterspell, Dovin's Veto | More counters | 3, 4 |
+| Disallow; Counterspell; Dovin's Veto | More counters | 3, 4 |
 | Teferi, Temporal Pilgrim | Loyalty on draw | 4 |
-| Primal Vigor, Parallel Lives, Anointed Procession | Cheaper doublers | 4 |
-| Farseek, Burgeoning, Exploration, They Went This Way | Land ramp | 4 |
-| Spell Swindle, Pact of Negation, Force of Will | Interaction | 4 |
+| Primal Vigor; Parallel Lives; Anointed Procession | Cheaper doublers | 4 |
+| Farseek; Burgeoning; Exploration; They Went This Way | Land ramp | 4 |
+| Spell Swindle; Pact of Negation; Force of Will | Interaction | 4 |
 | Cyclonic Rift | One-sided reset | 4 |
-| Bountiful Promenade, Sea of Clouds, Rejuvenating Springs, fetches/shocks/duals | Mana base | 4 |
+| Bountiful Promenade, Sea of Clouds, Rejuvenating Springs, fetches; shocks; duals | Mana base | 4 |
 | Spara's Headquarters | Replaces Seaside Citadel | 4 |
-| Avenger of Zendikar, Thorough Investigation, Peregrin Took, Revive the Shire, Martha Jones, The Council of Four, Dispatch, Swiftfoot Boots, Yotian Dissident, Sarinth Steelseeker, Hardened Scales, Rise and Shine, Rogue's Passage, Simic Ascendancy | Budget picks | 1 |
-| Krark-Clan Ironworks, Karn, Legacy Reforged, Smothering Tithe, Grand Crescendo | Higher-cost picks | 1 |
-| Wojek Investigator, Ezrim, Briarbridge Patrol, Lonis | Clue payoffs | 2 |
-| Fabricate, Nyssa of Traken | Tutor / Clue payoff | 3 |
+| Avenger of Zendikar; Thorough Investigation; Peregrin Took; Revive the Shire; Martha Jones; The Council of Four; Dispatch; Swiftfoot Boots; Yotian Dissident; Sarinth Steelseeker; Hardened Scales; Rise and Shine; Rogue's Passage; Simic Ascendancy | Budget picks | 1 |
+| Krark-Clan Ironworks; Karn, Legacy Reforged; Smothering Tithe; Grand Crescendo | Higher-cost picks | 1 |
+| Wojek Investigator; Ezrim, Agency Chief; Briarbridge Patrol; Lonis | Clue payoffs | 2 |
+| Fabricate; Nyssa of Traken | Tutor / Clue payoff | 3 |
 ## Consensus one-liner
 Cut the off-plan creatures and dead-end spells, then add Clue doublers and mana sinks plus counterspells and better lands to fix the slow mana and light interaction.

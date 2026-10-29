@@ -19,8 +19,8 @@ A Naya landfall and lands-matter deck. Yuma gets cheaper per land in the graveya
 | Harrow | Not enough basics to support it (3). Cut (2) | 2, 3 |
 | Electric Revelation | Not a favorite effect (3). Cut (2) | 2, 3 |
 | Scaretiller | Too slow and fragile (3). Cut (2) | 2, 3 |
-| Sunscorched Divide, Painted Bluffs, Mirage Mesa, Conduit Pylons | Cut to make room | 2 |
-| Vengeful Regrowth, Unholy Heat, Skullwinder, Map the Frontier, Return of the Wildspeaker | Cut to make room | 2 |
+| Sunscorched Divide; Painted Bluffs; Mirage Mesa; Conduit Pylons | Cut to make room | 2 |
+| Vengeful Regrowth; Unholy Heat; Skullwinder; Map the Frontier; Return of the Wildspeaker | Cut to make room | 2 |
 | Bovine Intervention | Weak | 3 |
 | Perpetual Timepiece | Does not do enough | 3 |
 | Marshal's Anthem | Mana-intensive recursion not worth it | 3 |
@@ -44,25 +44,25 @@ A Naya landfall and lands-matter deck. Yuma gets cheaper per land in the graveya
 | Field of the Dead | Real payoff for the lands deck | 2, 3 |
 | Jetmir's Garden | Triome fixing | 2, 3 |
 | Glacial Chasm | Lockout; recurring it prevents dying | 2, 3 |
-| Exploration / Burgeoning | Cheap extra land drops | 2 |
+| Exploration; Burgeoning | Cheap extra land drops | 2 |
 | Seismic Assault | Recursion engine and clears small creatures | 2 |
 | Molten Vortex | Same role as Seismic Assault | 2 |
 | Borborygmos Enraged | More expensive damage upgrade | 2 |
 | Living Twister | ETB-land upside | 2 |
 | Surly Badgersaur | Treasure on land discard | 2 |
-| Horizon Canopy / Sunbaked Canyon | Recursive cycling lands | 2 |
+| Horizon Canopy; Sunbaked Canyon | Recursive cycling lands | 2 |
 | Riftstone Portal | Fixes from graveyard | 2 |
 | Ghost Quarter | Fixing and thinning | 2 |
 | Heroic Intervention | Protects key cards | 2 |
 | Sylvan Safekeeper | Shroud for key creatures | 2 |
-| Wooded Foothills, Windswept Heath, Arid Mesa | Fetchlands feeding themes | 2 |
+| Wooded Foothills; Windswept Heath; Arid Mesa | Fetchlands feeding themes | 2 |
 | Teferi's Protection | Protects against mass land destruction | 2 |
-| Cradle of the Accursed, Endless Sands, Dryad Arbor | Recursion-friendly lands | 3 |
+| Cradle of the Accursed; Endless Sands; Dryad Arbor | Recursion-friendly lands | 3 |
 | Ashaya, Soul of the Wild | Triggers off everything, protects nonland permanents | 3 |
 | Aftermath Analyst | Value with Splendid Reclamation | 3 |
-| Crop Rotation, Expedition Map, Elvish Reclaimer | Find Field of the Dead | 3 |
+| Crop Rotation; Expedition Map; Elvish Reclaimer | Find Field of the Dead | 3 |
 | Scapeshift | "Does it all" | 3 |
 | Felidar Retreat | Grows powerful in this deck | 1, 3 |
-| Conduit of Worlds, Tireless Provisioner, Tireless Tracker, Spelunking | Land-based value and draw | 3 |
+| Conduit of Worlds; Tireless Provisioner; Tireless Tracker; Spelunking | Land-based value and draw | 3 |
 ## Consensus one-liner
 The deck's biggest gain is land recursion (Life from the Loam, Crucible of Worlds) with better lands and protection against its fragility.
