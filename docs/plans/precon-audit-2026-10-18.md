@@ -1426,3 +1426,30 @@ than once per worker (backlog (l), 2026-10-23). To take the wait before the
 workers start instead, run `uv run build-signals-index` first. With a warm index a
 precon tune takes 11–17 s (20–60 s before): its ramp, card-draw and board-wipe
 pages no longer build trees for every card in the pool.
+
+## The held-out set (2026-10-29)
+
+Ten more Commander precons, never used to design a rule, only to check one:
+Avengers Assemble (MSC), Cavalry Charge (MOC), Creative Energy (M3C), Lorehold
+Spirit, Prismari Artistry, Silverquill Influence and Witherbloom Pestilence (SOC),
+Peace Offering (BLC), Revenant Recon (MKC) and World Shaper (EOC). Guides were
+collected and summarized the same way (2–3 per precon); they live outside the
+repo, with the audit ROOT, in `~/mtg/tuner-work/heldout/` (`INDEX.md`, `guides/`,
+`root/`). Budgets from `guide_sizes.py` as for the 25 (median $221).
+
+Scored once at the code from before the 2026-10-25 work (33ca5243, 546 / 195 / 60
+on the 25) and once at main (d14aea55, 713 / 271 / 88 on the 25):
+
+| held-out, 10 precons | swaps | guide cuts matching (of 216 cuttable) | guide adds matching (of 406 in scope) |
+|---|---|---|---|
+| before (33ca5243) | 234 | 111 | 24 |
+| main (d14aea55) | 297 | 139 (+25%) | 34 (+42%) |
+
+The gains mostly carry over: on the 25 the same code went +39% cuts and +47%
+adds. Cut precision held (matching cuts per swap 0.47 both times). The held-out
+adds' biggest miss is the same as the 25's: a page held the guide card but
+ranked another first (186), then theme cards no search reaches (127).
+
+From now on a policy change ships only if, on the 25, guide-matching adds rise
+and cuts fall by at most 2, and, on the held-out set, adds don't fall and cuts
+fall by at most 1. Read fixes ship on correctness with both deltas recorded.
