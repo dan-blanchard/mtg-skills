@@ -170,6 +170,195 @@ These are evidence only; no code changed.
    band interaction; Plan's and Fatehold Charm's empower Jace is not read as
    fodder.
 
-## Fynn
+## Fynn, the Fangbearer
 
-*Placeholder: another agent adds this section (Competitive Brawl, Fynn v6).*
+A mono-green Competitive Brawl deck on Arena: 100-card singleton, 1v1, 25 life,
+no free mulligan. Fynn wins by poison. Each time a creature with deathtouch
+deals combat damage to a player, that player gets two poison counters, and ten
+poison counters lose the game (CR 704.5c). The deck runs about 30 cheap
+deathtouch bodies plus pump and hexproof instants. v4 (2026-08-27) is the start
+list, and v6 is Dan's live list after two rounds of play-testing. The diff, from
+`lists/RECOMMENDED-fynn-v{4,6}.txt`, is 13 swaps:
+
+- **Out:** Toxic Scorpion, Thornweald Archer, Venomsac Lagac, Underdark Basilisk, Heir of the Wilds; Ranger's Guile, Saved by the Shell, Bombadil's Song, Swiftfoot Boots; Tenderize, Warg Tactics; Heritage Reclamation, Glimpse of Nature.
+- **In:** Super-Adaptoid, Allosaurus Shepherd, Venerated Rotpriest; Piercing Exhale, Horrific Assault, Meltstrider's Resolve, Natural State; Audacity, Lightning Greaves, Vexing Bauble, Chrome Mox; Inkmoth Nexus and a Forest (36 lands).
+
+The brief summarised v5 slightly differently from the files: Frog Butler is
+already in v4, and Escape Tunnel is in neither list. The files were taken as
+ground truth.
+
+Dan's settled verdicts (memory notes `fynn-deck-philosophy`, `competitive-brawl-project`):
+
+- Judge every card as "a cheap printed-deathtouch body, or a protection or pump instant of mana value 2 or less".
+- Dead weight is any creature without deathtouch, any spell that grants deathtouch, and anything at mana value 3 or more.
+- The ~10 bites are the deck's removal, so keep them all. A creature dealt damage by a deathtouch source is destroyed (CR 702.2b, 704.5h), so a bite from a 1/1 deathtouch body kills anything.
+- Cavern of Souls and Key to the Side-Door are untouchable. Super-Adaptoid is not a vanilla body.
+
+### Method
+
+1. `parse-deck --format competitive_brawl` on v4 (it has no section headers),
+   then `set-commander`. `mark-owned --bulk-data` marked ownership against
+   `~/mtg/radagast-brawl/collection2.json` (mtga-import, 2026-08-24): 47 of 69
+   cards owned. Files are in `~/mtg/tuner-work/w24/fynn/`.
+2. The 16:46 commit (the Competitive Brawl legality fix) touched
+   `membership_floor.py`, `lanes/` and `crosswalk/reads.py`, which are inside the
+   signals index's hash. So the 16:34 sidecar was stale, and the tunes ran
+   against a private `MTG_SKILLS_CACHE_DIR` (`w24/cache`), where the index
+   rebuilt once. The real cache was left alone.
+3. Tunes, one at a time, with the wildcards Dan had when he built v5 (2 M / 0 R / 33 U / 27 C):
+   - `deck-tune deck.json --medium digital --wildcards mythic=2,rare=0,uncommon=33,common=27 --max-swaps 13` → `tune-13.json` (v4→v6's swap count)
+   - the same at `--max-swaps 30` → `tune-30.json`
+   - `deck-tune` has no collection flag (below), so a third run, `tune_owned.py`, wraps the CLI's `tune` with the whole collection as `owned=`, which is deck-forge's path → `tune-owned-30.json`
+   - `--max-swaps 30` on v6 itself → `v6/tune-v6.json`
+4. Scoring followed `precon-audit/compare.py`, with v6 in place of a guide
+   (`w24/fynn/score.py`).
+5. Card text came from `scryfall-lookup --batch`. Legality and Arena rarity came
+   from `Format` and `CardPool.rarity_index(arena_only=True)` (`cbcheck.py`).
+   Rulings came from `rulings-lookup` and rules from `rules-lookup` (CR 2026-09-25).
+6. The per-card table is `~/mtg/tuner-work/w24/fynn/report.json`.
+
+### Score
+
+| run | swaps | wildcards spent | cuts matching v6 | adds matching v6 | v6 cuts the tuner protects |
+|---|---|---|---|---|---|
+| max-swaps 13 | 6 (stops early: out of safe cuts) | 2 M / 1 U / 3 C | 2 / 6 (Tenderize, Warg Tactics) | 0 / 6 | none |
+| max-swaps 30 | the same 6 | 2 M / 1 U / 3 C | 2 / 6 | 0 / 6 | none |
+| max-swaps 30, collection passed | the same 6 | 2 M / 1 U / 1 C | 2 / 6 | 0 / 6 | none |
+
+- **v6 cuts the tuner keeps:** all 11 others. Five are printed-deathtouch bodies, four are protection, and two are cantrips.
+- **v6 adds the tuner never proposes:** all 13.
+
+The tuner reads the deck as FOCUSED. The main avenue is Deathtouch matters (32
+cards, with Fynn its one carer). The subs are Grant protection, Targeted keyword
+grant and Cantrips. All six swaps answer a single issue, "interaction over by 6
+(16/8-10)", and each one cuts a bite.
+
+The two matches are the right cards for the wrong reason. v5 swapped Tenderize
+for another bite (Piercing Exhale), and v6 swapped Warg Tactics for another
+answer (Natural State). The tuner trims both as excess interaction.
+
+### Disagreements
+
+**Cuts**
+
+| card | tuner says | v6 says | class | reason |
+|---|---|---|---|---|
+| Sylvan Smite, Hard-Hitting Question, Master's Rebuke, Rocky Rebuke | cut: "interaction over template band" (16 against 8-10) | keep | (c) | The bites are the deck's removal, a settled verdict. The Deathtouch matters lane counts only the bodies, so the 16-card interaction row isn't read as the lane: `lane_row` (`tune.py`) needs half the row's members in the lane, and only Kappa Tech-Wrecker is. The band is the Commander family's 8-10 for a 1v1 aggro deck. |
+| Toxic Scorpion, Thornweald Archer, Venomsac Lagac, Underdark Basilisk, Heir of the Wilds | kept: printed-deathtouch lane members | cut | (b) | These are the bodies the philosophy wants, and v6 cut the weakest of them to make room. The tuner can't rank one body against another. In a 1v1 game play rate never condemns (`calibration.playrate_condemns`), and the lane-upgrade pool holds only the lane's doers (Fynn, Infectious Bite, Kappa Tech-Wrecker). |
+| Ranger's Guile, Saved by the Shell, Bombadil's Song | kept: Grant protection carers | cut | (b) | Dan trimmed redundancy among about 18 protection cards. The tuner has no protection-over row (its protection target is 0 here). |
+| Swiftfoot Boots | kept | cut | (b) | A like-for-like swap for Lightning Greaves, which Dan owns. |
+| Heritage Reclamation, Glimpse of Nature | kept: Cantrips carers | cut | (b) | Slot choices for Chrome Mox and Venerated Rotpriest. |
+
+**Adds**
+
+| card | tuner says | v6 says | class | reason |
+|---|---|---|---|---|
+| Wurmcoil Engine, Hornet Queen | add for the interaction trim, a mythic wildcard each | not added | (c) | Mana value 6 and 7, against Dan's rule of under 3. A trim's add deepens the commander's lane (`issues.py`, `role_over`) and is ranked by fit, then play rate. Nothing gates mana value for an aggro deck at average 1.56. The scorecard even raises "curve: thin top-end" as an issue. |
+| Gift of the Viper, Horrid Vigor | add for the interaction trim | not added | (c) | Spells that grant deathtouch, which the philosophy calls dead weight. Gift (a deathtouch counter, CR 122.1b) was a v3 add that v4's play-testing removed. |
+| Poison Dart Frog | add for the interaction trim | not added | (c) | A creature without printed deathtouch: it pays {2} to gain it. |
+| Cryptolith Fragment // Aurora of Emrakul | add for the interaction trim | not added | (a) | Read as a deathtouch body, but the deathtouch is on the back face. That face transforms only if each player is at 10 or less life at upkeep (ruling 2025-01-24), which a poison deck rarely arranges. The front is a mana value 3 rock that enters tapped. Lane membership counts a back-face keyword as if the card had it. |
+| Piercing Exhale, Horrific Assault, Meltstrider's Resolve | never proposed | add | (c) | Bites, or a fight Aura. While the row reads as over, the trim never adds the role it trims, so a bite can never come in. Same cause as the cuts. |
+| Natural State | never proposed | add | (c) | It destroys an enchantment of mana value 3 or less: the answer to the ability-stripping Auras (Unable to Scream, Witness Protection) that Dan names as his real pain. The band reads it as one more removal spell over the row. |
+| Super-Adaptoid | never proposed | add | (b) | Not a printed-deathtouch body: it copies keywords as counters off a target creature. Dan values it from play, and the tuner has no read for it. |
+| Audacity | never proposed | add | (b) | The scorecard flags "Combat tricks / pump (9) under-supported — commit more", which points the right way. But no cut pool pays for it (no filler, no low-value cards, no upgrade slots). |
+| Lightning Greaves | never proposed | add | (b) | The Boots swap above. |
+| Allosaurus Shepherd, Vexing Bauble | never proposed | add | (b) | Meta calls (no counterspells; no free spells). The meta read is skipped: Untapped has 4 Fynn lists and 121 matches, under the 250-match floor. |
+| Inkmoth Nexus, Forest | never proposed | add | (b) | Tune adds no lands by design (the land tooling's job). 34 lands passes the band (34-41). Dan found 35 light for the four-mana recast. |
+| Chrome Mox, Venerated Rotpriest | never proposed | add | (b) | Both rare, and the v5-time budget has 0 rare wildcards. v6's last three swaps used September's budget (3 M / 3 R). |
+
+Count, one card at a time as in `report.json`: 2 matches, then 1 (a), 20 (b) and
+13 (c) disagreements. Every (c) row comes from one read: the deck's ~10 bites,
+and the answers beside them, count as generic interaction against a Commander
+band of 8-10.
+
+### What the tuner would do to v6
+
+Tuned on v6 (30 swaps, 10 made, 2 M / 3 U / 5 C), it reads interaction as
+"over by 8 (18/8-10)" and trims eight cards. Four are v6's own adds: Piercing
+Exhale, Horrific Assault, Meltstrider's Resolve and Natural State. Four are bites
+v6 kept. Their replacements are Wurmcoil Engine, Hornet Queen, Gift of the Viper,
+Poison Dart Frog, Cryptolith Fragment, Horrid Vigor, Oakhame Adversary (mana
+value 4) and Hunter's Blowgun (an Equipment that grants deathtouch).
+
+It also cuts two more cards as "feeds only avenues nobody built toward":
+
+- Allosaurus Shepherd, for Arcane Signet (ramp short).
+- Venerated Rotpriest, for Inspiring Call (card draw short, mana value 3).
+
+The Rotpriest cut is a bug (class (a)). The same scorecard lists Rotpriest in
+`commander_lane_cards` and `commander_lane_carers`, and also in `fed_only_cards`
+and `filler_cards`. It poisons an opponent whenever one of the deck's ~18
+targeted instants targets a creature, so the lane read is right. The filler
+re-bucket is what's wrong. In `metrics.py`, the low-value tier exempts
+`lane_doers`, but `fed_only_classes` does not. So a commander-lane carer whose
+only avenue is fed (Proliferate) is turned into filler and cut first, before any
+lane protection applies.
+
+### Then and now
+
+**Then (2026-09-22, on v5, `2026-09/fynn/tune.json`):** the tuner read the deck
+as SPREAD-THIN and made 3 swaps:
+
+- Attercop → Marketback Walker
+- Sylvan Smite → Lost Jitte ("interaction over by 8")
+- Serpent Specialist → Spider-Slayer ("≈0 closers")
+
+The August runs in `wizard-v5/` made none.
+
+**Now:** it reads FOCUSED on Deathtouch matters, the commander's own lane. The
+Commander lane correctly holds Fynn, Infectious Bite and Kappa Tech-Wrecker (and
+Rotpriest on v6). Its adds are now deathtouch cards rather than off-plan
+equipment.
+
+**What hasn't moved:** the bites are still trimmed as excess interaction, and
+the deck still counts zero closers.
+
+### What's specific to Competitive Brawl
+
+- **Legality is right.** No proposed add is banned or illegal (`Format.legality`
+  is "legal" for all of them). Probes show the 2026-10-12 list working:
+  - Lutri is banned outright.
+  - Oko, Spider-Man 2099 and Nadu are `banned_as_commander`: legal in the 99, refused as commander.
+  - Fynn is an eligible commander.
+- **Rarity costs are right.** Each add was charged its Arena rarity, which can
+  differ from paper:
+  - Hornet Queen and Wurmcoil Engine charge mythic (paper's lowest printings are uncommon and rare).
+  - On v6's side, Inkmoth Nexus is mythic on Arena (Dan spent a mythic on it), and Natural State is uncommon on Arena but common on paper. That matches v6's recorded "1 R / 1 U / 1 C".
+- **Owned cards are free only when the tuner is told about them.**
+  - `deck-tune` has no `--collection` flag, and `deck_tune.py` calls `tune()` without `owned=`. `mark-owned` writes `owned_cards` for the deck's own cards, which the swap purse never reads.
+  - So the CLI charged a common wildcard each for Gift of the Viper and Poison Dart Frog, both of which Dan owns.
+  - With the collection passed as `owned=` (deck-forge's `engine.owned_collection`), both read `covered_by: owned` at cost 0, and commons spent fell from 3 to 1.
+- **The game is read right; the template isn't.**
+  - The life total (25) and 1v1 come through (`wincons.life`, `multiplayer: false`), and play rate rightly never condemns a card in a 1v1 game.
+  - But the bands are the Commander family's (interaction 8-10, ramp 8-10, card draw 10-12, board wipes 1-2), built for 4-player paper.
+  - A 1v1 aggro deck with average mana value 1.56 reads as short on ramp, card draw and board wipes, and over on interaction.
+- **No meta read.** The Untapped Brawl ladder cache (2026-10-14) has too few Fynn
+  matches, so `--meta auto` skipped it. Nothing stood in for Dan's meta-driven
+  adds (Shepherd, Bauble, Natural State).
+- **The swaps note is misleading.** It reads "set a wildcard budget to allow
+  crafting" even when one is set and mostly unspent (`swaps.py`, `allow_buys`
+  keys only on the mode).
+
+### Candidate fixes, for Dan to choose
+
+These are evidence only; no code changed.
+
+1. **The bites aren't part of the deathtouch lane.** A "target creature you
+   control deals damage equal to its power" spell is removal only because the
+   lane's bodies have deathtouch (CR 702.2b). If the lane counted them as members,
+   `lane_row` would make the interaction row a fact to report rather than a trim.
+   This one read accounts for all 13 (c) rows.
+2. **The closer read has no poison.** `is_wincon_card` (`metrics.py`) checks for
+   game-ending effects, extra combats, team pumps, reach and big evasive bodies.
+   It never reads Fynn's two poison counters (CR 704.5c; Fynn's ruling: Fynn
+   needn't be on the battlefield for the tenth), toxic (CR 702.164c) or infect.
+   So the deck has "≈0 closers" at severity 5.
+3. **A trim's add has no mana-value gate.** An aggro deck at average 1.56 gets
+   mana value 6 and 7 bombs, and "thin top-end" is raised as an issue.
+4. **The fed-only re-bucket ignores lane doers.** `fed_only_classes`
+   (`metrics.py`) should exempt `lane_doers`, as the low-value tier does. On v6
+   it cuts Venerated Rotpriest, a lane carer.
+5. **Lane membership reads a back face** (Cryptolith Fragment's Aurora) and an
+   activated grant (Poison Dart Frog) as deathtouch bodies.
+6. **The CLI can't see a collection.** A `--collection` flag passing `owned=`
+   would make the CLI price adds the way deck-forge does.
