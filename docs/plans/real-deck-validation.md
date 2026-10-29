@@ -170,6 +170,39 @@ These are evidence only; no code changed.
    band interaction; Plan's and Fatehold Charm's empower Jace is not read as
    fodder.
 
+### Against the guides (2026-10-29, the reference from now on)
+
+Dan's correction: v2 is not a gold standard. It came from an older version of
+this tuner plus AI agents, not from play-testing, and the three "settled
+verdicts" above (Dack cut on purpose, Plan for All Outcomes and Cursed Mirror
+kept) were agent suggestions too. The reference is the precon's published
+upgrade guides (`precon-audit/MultiverseReforged_FRC.md`: two Flipside Gaming,
+one Draftsim). Scored by the precon audit after the guide-row fix, at the guides'
+budget ($111.70) and 30 swaps (29 made):
+
+| | matching the guides |
+|---|---|
+| cuts | 14 of 22 |
+| adds | 3 of 30 (Swiftfoot Boots, Archfiend of Depravity, Nezahal, Primal Tide) |
+
+What the guides show the tuner missing, by cause:
+
+1. **No search for polymorph fodder** (10 adds): Raise the Alarm, Search for
+   Glory, Shadow Summoning, Loyal Apprentice, Felidar Guardian and others.
+2. **The mana-value gate blocks flip targets** (7): Austere Command, Rune-Scarred
+   Demon, Toxrill, Brainstealer Dragon, Marang River Regent, Summon: Bahamut. A
+   polymorph deck never casts its flip targets, so their cost shouldn't gate them.
+3. **Ranked too low** (7): Identity Echo, Deification, Agent of Treachery, Terror
+   of the Peaks, Sanctuary Warden, Tempt with Bunnies, Fable.
+4. **Combo protection over the guides**: Dack, Venser and Brainstorm are
+   protected as an infinite; the guides cut all three.
+
+The card-read errors in the tuner's own picks stand whatever the reference:
+Heliod, Thassa (Deep-Dwelling) and Purphoros are flip targets that aren't
+creatures without devotion 5; Dreamtide Whale's vanishing; fodder makers
+(Currency Converter, Occult Epiphany, Staff of the Storyteller) traded by
+job-only upgrades. The review page's Jace tab shows this view.
+
 ## Fynn, the Fangbearer
 
 A mono-green Competitive Brawl deck on Arena: 100-card singleton, 1v1, 25 life,
