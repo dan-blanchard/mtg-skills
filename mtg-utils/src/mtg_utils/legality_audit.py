@@ -2,8 +2,10 @@
 
 Runs three independent checks against a parsed deck + hydrated card data:
 
-1. **Format legality**: every card's ``Format.legality`` status must be ``legal``
-   or ``restricted`` (the one legality read — ``mtg_utils.formats``, ADR-0045).
+1. **Format legality**: every card's ``Format.legality`` status must be playable
+   (``formats.LEGAL_STATUSES`` — the one legality read, ``mtg_utils.formats``,
+   ADR-0045), and a commander must not be ``banned_as_commander`` (the commander
+   zone check).
 2. **Color identity**: every card's ``color_identity`` must be a subset of
    the commander(s)' combined color identity. Brawl/Historic Brawl grant a
    colorless-commander exemption allowing any number of basic lands of one
@@ -104,9 +106,9 @@ def check_format_legality(
     *,
     deck_card_names: set[str] | None = None,
 ) -> list[dict]:
-    """Return a list of cards whose ``fmt.legality`` is not ``legal`` or ``restricted``
-    (the status is the violation's ``legality``; the legality key and the Arena-pool
-    gate are the Format's business).
+    """Return a list of cards whose ``fmt.legality`` is not playable
+    (``formats.LEGAL_STATUSES``; the status is the violation's ``legality``; the
+    legality key and the Arena-pool gate are the Format's business).
 
     When *deck_card_names* is provided, only cards whose name appears in the
     set are checked. This allows callers to pass a combined main+sideboard
@@ -134,6 +136,11 @@ def _commander_color_identity(
         if card is not None:
             ci.update(card.get("color_identity") or [])
     return ci
+
+
+#: The commander-zone failures that leave the deck with no commander identity, so
+#: the color-identity check would blame every colored card.
+_EMPTY_ZONE_REASONS = frozenset({"no_commander_selected", "commander_not_in_hydrated"})
 
 
 def check_commander_zone(
@@ -169,6 +176,11 @@ def check_commander_zone(
     ``hydrated_by_name`` with empty ``color_identity``, so it is NOT
     flagged here — the distinction is "name resolves" vs "name doesn't
     resolve", not "identity is empty".
+
+    A third failure, once every commander resolves: ``banned_as_commander``,
+    one violation per commander the format bars from the command zone though
+    it is legal in the 99 (``Format.legality``). Its identity is real, so it
+    doesn't cascade (:data:`_EMPTY_ZONE_REASONS`).
     """
     if not fmt.has_commander:
         return []
@@ -188,6 +200,14 @@ def check_commander_zone(
                     "unresolved_names": unresolved,
                 }
             ]
+        # A card legal in the 99 but banned as a commander (Competitive Brawl) passes
+        # the format-legality check, so the zone check is where it fails.
+        cards = [hydrated_by_name[entry["name"]] for entry in commanders]
+        return [
+            {"reason": "banned_as_commander", "name": card["name"]}
+            for card in cards
+            if fmt.commander_eligibility(card).get("reason") == "banned_as_commander"
+        ]
     return []
 
 
@@ -525,7 +545,7 @@ def legality_audit(hd: HydratedDeck) -> dict:
     # Suppress color-identity cascade when the commander zone is unset:
     # the would-be commander identity is empty, so every non-colorless
     # card would be flagged spuriously, drowning the real error.
-    if commander_zone_violations:
+    if any(v["reason"] in _EMPTY_ZONE_REASONS for v in commander_zone_violations):
         ci_violations: list[dict] = []
     else:
         ci_violations = check_color_identity(deck_json, hd.records, fmt)
@@ -590,6 +610,8 @@ def _format_violation_line(
                 names.append(
                     f"invalid commander selected (check for typos): {unresolved}"
                 )
+            elif v_reason == "banned_as_commander":
+                names.append(f"{v['name']} (banned as a commander)")
             else:
                 names.append(
                     "no commander selected — run set-commander to populate "

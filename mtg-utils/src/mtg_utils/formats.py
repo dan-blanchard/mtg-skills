@@ -17,11 +17,13 @@ Record contract (the MTGJSON adapter emits both; see ``_mtgjson.adapter``):
     that lacks the key carries no availability evidence and is not gated (hand-built
     fixtures, Scryfall-API fallback records).
 
-Legality statuses are Scryfall's four plus ``unreleased``: a card whose blanket
-``not_legal`` is a release-date artifact (see ``card_search.unreleased_oracle_ids``).
-The module cannot tell that from one record — the oracle-level set is an input — so
-``unreleased`` is reported only when the caller passes the set; without it the status
-is ``not_legal``, which is the default gate everywhere.
+Legality statuses are Scryfall's four plus ``unreleased`` and ``banned_as_commander``.
+``unreleased`` is a card whose blanket ``not_legal`` is a release-date artifact (see
+``card_search.unreleased_oracle_ids``). The module cannot tell that from one record —
+the oracle-level set is an input — so ``unreleased`` is reported only when the caller
+passes the set; without it the status is ``not_legal``, which is the default gate
+everywhere. ``banned_as_commander`` is a card legal in the 99 that can't lead a deck
+(``Format.restricted_bans_commander``).
 """
 
 from __future__ import annotations
@@ -32,7 +34,9 @@ from typing import Literal
 
 from mtg_utils.card_classify import BASIC_LAND_NAMES, is_commander
 
-Legality = Literal["legal", "restricted", "banned", "not_legal", "unreleased"]
+Legality = Literal[
+    "legal", "restricted", "banned_as_commander", "banned", "not_legal", "unreleased"
+]
 Medium = Literal["paper", "digital"]
 CostMode = Literal["usd", "wildcards"]
 #: The format families. A family is what a deck's SHAPE rules follow — a command zone
@@ -45,8 +49,13 @@ CostMode = Literal["usd", "wildcards"]
 Family = Literal["commander", "constructed", "limited"]
 
 #: The statuses under which a card may be played (Vintage's restricted list is a copy
-#: limit, not a ban).
-LEGAL_STATUSES: frozenset[str] = frozenset({"legal", "restricted"})
+#: limit, not a ban; a card banned as a commander is legal in the 99).
+LEGAL_STATUSES: frozenset[str] = frozenset(
+    {"legal", "restricted", "banned_as_commander"}
+)
+#: The statuses under which a card may lead a deck: a pre-release legend counts, so
+#: brewing around a spoiled commander works.
+_COMMANDER_STATUSES: frozenset[str] = frozenset({"legal", "restricted", "unreleased"})
 
 #: How the browser names each medium.
 MEDIUM_LABELS: dict[str, str] = {"digital": "Arena", "paper": "Paper"}
@@ -228,6 +237,11 @@ class Format:
     #: meta under (ADR-0059); ``None`` for a format with no Arena queue Untapped
     #: tracks. The Bo3 queue is :meth:`arena_event_for`'s.
     arena_event: str | None = None
+    #: MTGJSON's ``restricted`` under this format's key means "legal in the 99,
+    #: banned as a commander" (Competitive Brawl, 2026-10-12 B&R), not Vintage's
+    #: one-copy rule: :meth:`legality` reports it as ``banned_as_commander``, so
+    #: ``restricted`` means the one-copy rule wherever a caller reads it.
+    restricted_bans_commander: bool = False
 
     def __post_init__(self) -> None:
         # The medium flags must agree: Arena-only is a kind of Arena, and a primary
@@ -470,6 +484,8 @@ class Format:
         if status in LEGAL_STATUSES:
             if self.arena_pool and record.get("arena_available") is False:
                 return "not_legal"
+            if status == "restricted" and self.restricted_bans_commander:
+                return "banned_as_commander"
             return status  # type: ignore[return-value]
         if status == "banned":
             return "banned"
@@ -480,29 +496,36 @@ class Format:
     def is_legal(
         self, record: dict, *, unreleased: frozenset[str] | bool = False
     ) -> bool:
-        """Playable here: ``legal`` or ``restricted``. Never true for ``unreleased``;
-        callers that widen for pre-release cards test the status themselves."""
+        """Playable here: ``legal``, ``restricted`` or ``banned_as_commander`` (legal
+        in the 99). Never true for ``unreleased``; callers that widen for pre-release
+        cards test the status themselves."""
         return self.legality(record, unreleased=unreleased) in LEGAL_STATUSES
 
     def commander_eligibility(
         self, record: dict, *, unreleased: frozenset[str] | bool = False
     ) -> dict:
-        """``{"eligible", "requires_partner"}`` for this format: legality (a pre-release
-        legend counts, so brewing around a spoiled commander works) composed with the
-        type-line / phase-tree rules in ``card_classify.is_commander``, under this
-        format's planeswalker rule (the Brawl family admits any legendary
-        planeswalker, CR 903.12c; Commander needs "can be your commander"). A format
-        with no command zone has no commanders: nothing is eligible, however
-        legendary."""
+        """``{"eligible", "requires_partner"}`` for this format, plus a ``reason`` when
+        the card is ineligible: legality (a pre-release legend counts, so brewing
+        around a spoiled commander works) composed with the type-line / phase-tree
+        rules in ``card_classify.is_commander``, under this format's planeswalker rule
+        (the Brawl family admits any legendary planeswalker, CR 903.12c; Commander
+        needs "can be your commander").
+
+        The reasons: ``no_command_zone`` (a format with no command zone has no
+        commanders, however legendary); the status that bars the card (``banned``,
+        ``not_legal``); ``banned_as_commander`` (legal in the 99 but on the format's
+        banned-as-commander list); ``not_a_commander`` (the card itself can't be
+        one)."""
         if not self.has_commander:
-            return {"eligible": False, "requires_partner": False}
+            return _ineligible("no_command_zone")
         status = self.legality(record, unreleased=unreleased)
-        if status not in LEGAL_STATUSES and status != "unreleased":
-            return {"eligible": False, "requires_partner": False}
-        return is_commander(
+        if status not in _COMMANDER_STATUSES:
+            return _ineligible(status)
+        verdict = is_commander(
             record,
             planeswalker_commander_requires_text=self.planeswalker_commander_requires_text,
         )
+        return verdict if verdict["eligible"] else _ineligible("not_a_commander")
 
     # --- deck ---------------------------------------------------------------------
 
@@ -547,6 +570,11 @@ class Format:
             "deck_size": self.deck_size,
             "size_choices": {m: list(self.size_choices(m)) for m in self.media},
         }
+
+
+def _ineligible(reason: str) -> dict:
+    """A ``Format.commander_eligibility`` verdict for a card that can't lead a deck."""
+    return {"eligible": False, "requires_partner": False, "reason": reason}
 
 
 def _commander_variant(name: str, label: str, **kw: object) -> Format:
@@ -671,6 +699,10 @@ _ALL: tuple[Format, ...] = (
         # Arena is 1v1 only; there is no multiplayer Competitive Brawl.
         multiplayer_life_total=None,
         legality_key="competitivebrawl",
+        # MTGJSON's `restricted` under this key is the "banned as a commander" list
+        # (mtg.wiki "Competitive Brawl", checked 2026-10-29; Lutri, the Spellchaser
+        # is the one outright ban).
+        restricted_bans_commander=True,
         # Unlike ordinary Brawl, Competitive Brawl has no free mulligan.
         free_mulligan=False,
         is_arena=True,

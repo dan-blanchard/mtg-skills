@@ -396,7 +396,8 @@ def test_voltron_commander_damage_tell_silenced_by_mass_removal_plan(
     [
         # "Creatures blocking or blocked by this creature have lifelink" now
         # parses (a granted-keyword static over the combat pair) → lifegain
-        # value engine (CR 702.15).
+        # value engine (CR 702.15). The lifelink is on the other creatures, not
+        # its own body, so unlike a lifelink carrier its lifegain stays a plan.
         ("Alms Beast", "6", "6", [], "lifegain_makers"),
         # "put a commander you own from the command zone onto the
         # battlefield" now parses → command-zone interaction (CR 903.10).

@@ -11813,7 +11813,21 @@ def made_keyword_bodies(tree: ConceptTree) -> frozenset[str]:
     )
 
 
-def _keyword_bodies(tree: ConceptTree, *, made_only: bool = False) -> frozenset[str]:
+def own_keyword_bodies(tree: ConceptTree) -> frozenset[str]:
+    """The :func:`made_keyword_bodies` of the card's own body alone: a grant to
+    itself, always, on a condition or by an activation (Noble Banneret's "this
+    creature and those creatures … have lifelink"), and its printed keyword
+    abilities' conferred keyword — never a token, copy or other permanent it
+    makes. Like the rest of the family it leaves the printed keywords themselves
+    to the record's ``keywords``."""
+    return memo_on(
+        tree, "_xw_own_keyword_bodies", partial(_keyword_bodies, own_only=True)
+    )
+
+
+def _keyword_bodies(
+    tree: ConceptTree, *, made_only: bool = False, own_only: bool = False
+) -> frozenset[str]:
     out: set[str] = set()
     creature = "Creature" in tree.card_types
     printed = {normalised_keyword_name(k) for k in tree.card_keywords}
@@ -11830,6 +11844,8 @@ def _keyword_bodies(tree: ConceptTree, *, made_only: bool = False) -> frozenset[
             if filter_controller_side(affected) == "opponents":
                 continue
             if made_only and not _makes_body(unit, sdef):
+                continue
+            if own_only and tag_of(affected) != "SelfRef":
                 continue
             if tag_of(mod) == "AddKeyword":
                 kw = mod_keyword_name(mod) or ""
@@ -11850,6 +11866,8 @@ def _keyword_bodies(tree: ConceptTree, *, made_only: bool = False) -> frozenset[
                     _chosen_keyword_options(unit)
                     or {k for u in tree.units for k in _chosen_keyword_options(u)}
                 )
+        if own_only:
+            continue  # the node and effect arms are bodies the card makes
         for n in unit.iter_typed():
             if not made_only or not _grants_or_unowned(unit, n):
                 out |= _keyword_body_node(unit, n)

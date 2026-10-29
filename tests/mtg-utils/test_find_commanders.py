@@ -145,6 +145,22 @@ class TestFormatEligibility:
         result = find_commanders(parsed_collection, bulk_index, format="brawl")
         assert result == []
 
+    def test_competitive_brawl_leaves_out_a_card_banned_as_a_commander(self):
+        # Ragavan is legal in Competitive Brawl's 99 but on its banned-as-commander
+        # list; Historic Brawl lets it lead.
+        names = ("Ragavan, Nimble Pilferer", "Thranduil, the Elvenking")
+        index = {n.lower(): test_card(n) for n in names}
+        parsed = {"commanders": [], "cards": [{"name": n} for n in names]}
+
+        def found(fmt: str) -> list[str]:
+            return [c["name"] for c in find_commanders(parsed, index, format=fmt)]
+
+        assert found("competitive_brawl") == ["Thranduil, the Elvenking"]
+        assert found("historic_brawl") == [
+            "Ragavan, Nimble Pilferer",
+            "Thranduil, the Elvenking",
+        ]
+
 
 class TestColorIdentityFilter:
     def test_subset_match_returns_subset_only(self, bulk_index, parsed_collection):

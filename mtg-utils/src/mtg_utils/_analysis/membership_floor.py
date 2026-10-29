@@ -1652,6 +1652,7 @@ def _apply_membership_floor(
     is_big_mana: bool,
     is_kill_engine: bool,
     token_maker_subjects: frozenset[str],
+    own_lifelink: bool,
 ) -> None:
     """The card-type / own-subtype MEMBERSHIP floor (what the card IS).
 
@@ -1672,7 +1673,8 @@ def _apply_membership_floor(
     caller off the old ``Card``, the crosswalk caller off the ``ConceptTree``),
     so this shared function never touches ``old_ir_for`` / the old ``Card`` type
     at all. Keeps the floor's SEMANTICS identical (a re-plumbing, not a
-    redesign) — only the read SOURCE moves.
+    redesign) — only the read SOURCE moves. ``own_lifelink`` is one more: the
+    card grants itself lifelink (``crosswalk.own_keyword_bodies``).
     """
     type_line = (card.get("type_line") or "").lower()
     if "artifact" in type_line:
@@ -1968,12 +1970,20 @@ def _apply_membership_floor(
     # Power/Evasion legs of the triad). The voltron LOW adds above are LOW (so are
     # skipped); an exalted body's voltron HIGH from the keyword map counts but fired
     # voltron (moot). Background / conditional self-protection stay compat.
+    #
+    # Nor is a lifelink body's own lifegain (lifegain voltron): lifelink gains life
+    # "in addition to any other results that damage causes" (CR 702.15b), so the
+    # carrier's combat damage still counts as commander damage (CR 903.10a).
+    # Printed (Vampire Nighthawk) or a grant to itself (Noble Banneret), never a
+    # grant onto others or tokens; a lifegain payoff is still a plan.
+    own_lifelink = own_lifelink or "lifelink" in kws
     has_other_plan = any(
         s.confidence == "high"
         and s.key not in _GENERIC_KEYS
         and s.key not in _VOLTRON_COMPAT_KEYS
         and s.key not in _VOLTRON_HAS_OTHER_PLAN_COMPAT
         and s.key not in _VOLTRON_PLAN_BROADENED
+        and not (own_lifelink and s.key == "lifegain_makers")
         # a page-only doer opens no avenue, so it is no plan either
         and not signal_keys.is_page_only(s.key, s.subject)
         for s in out

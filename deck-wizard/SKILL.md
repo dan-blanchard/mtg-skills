@@ -179,26 +179,36 @@ legal as commanders without explicit permission text.
 
 Two things to know about its card pool:
 
-1. **Its ban list is not ordinary Brawl's.** It bans ten cards, as commander and in the
-   99, and legalizes every other Arena card, including most of the cards ordinary Brawl
+1. **Its ban list is not ordinary Brawl's.** It bans one card outright, Lutri, the
+   Spellchaser, and since the 2026-10-12 B&R update it has a second list, **banned as a
+   commander**: twelve cards legal in the 99 that can't lead a deck — Ajani, Nacatl
+   Pariah; Light-Paws, Emperor's Voice; Nadu, Winged Wisdom; Oko, Thief of Crowns; Old
+   Stickfingers; Ragavan, Nimble Pilferer; Rusko, Clockmaker; Spider-Man 2099; Tamiyo,
+   Inquisitive Student; Tajic, Legion's Valor; Wrenn and Six; Yuriko, the Tiger's
+   Shadow. Every other Arena card is legal, including most of the cards ordinary Brawl
    bans (Mana Drain, Demonic Tutor, Fierce Guardianship, Ancient Tomb, Chrome Mox…).
    The tools read MTGJSON's own `competitivebrawl` legality key, so a `banned` under
-   `brawl` means nothing here; `not_legal` means the card isn't on Arena at all. A card
-   bulk downloaded before 2026-10-10 lacks that key, so every card reads `not_legal`;
-   the loader warns when it builds the index from such a bulk. Run `download-mtgjson`.
+   `brawl` means nothing here; `not_legal` means the card isn't on Arena at all.
+   MTGJSON spells "banned as a commander" `restricted`; the tools read it as
+   `banned_as_commander` (legal in the 99, never a one-copy limit), so `find-commanders`
+   and deck-forge leave those cards out of the commander pick and `legality-audit`
+   fails one in the command zone (`commander_zone`: `banned_as_commander`). A card bulk
+   downloaded before 2026-10-10 lacks the key, so every card reads `not_legal`; the
+   loader warns when it builds the index from such a bulk. Run `download-mtgjson`.
 2. **Rebalanced cards were reverted on 2026-09-22.** Arena turned every Alchemy `A-`
    rebalance back into the paper printing, in every format, and the card data has caught
-   up: the `A-` records are gone and the paper cards carry the real legality (paper Nadu
-   is banned under `competitivebrawl`; Harald, King of Skemfar is legal). Treat any
-   leftover `A-` result as stale data.
+   up: the `A-` records are gone and the paper cards carry the real legality (paper
+   Nadu is banned as a commander under `competitivebrawl`; Harald, King of Skemfar
+   is legal). Treat any leftover `A-` result as stale data.
 
 **Determining Arena availability generally:** a card is craftable iff its MTGJSON record
 has `arena` in `games`. Checking the legality key alone is not sufficient — `banned` and
 `not_legal` both mean "not legal in ordinary Brawl" but only the latter means "not on
 Arena."
 
-The ban list is a point-in-time snapshot (source: https://mtg.wiki/page/Competitive_Brawl).
-Re-verify it after each B&R announcement.
+The ban list is a point-in-time snapshot (source: https://mtg.wiki/page/Competitive_Brawl,
+§Banned list and §Banned as a commander, checked 2026-10-29). Re-verify it after each
+B&R announcement.
 
 ### Arena Rarity Warning
 

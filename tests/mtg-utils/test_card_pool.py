@@ -336,7 +336,8 @@ class TestRarityIndex:
 
 class TestRarityIndexCompetitiveBrawlKey:
     """Competitive Brawl reads its own ``competitivebrawl`` key, which legalizes
-    cards ordinary Brawl bans (Force of Will, Mana Drain, ...) and bans its own ten.
+    cards ordinary Brawl bans (Force of Will, Mana Drain, ...), bans one of its own
+    (Lutri) and bars others only from the command zone.
     The rarity index must honor the same answer ``check_format_legality`` does, or
     ``price-check`` reports owned, legal staples as "illegal or not on Arena"."""
 
@@ -348,6 +349,7 @@ class TestRarityIndexCompetitiveBrawlKey:
             for name, rarity, games in (
                 ("Force of Will", "mythic", ["arena"]),
                 ("Oko, Thief of Crowns", "mythic", ["arena"]),
+                ("Lutri, the Spellchaser", "rare", ["arena"]),
                 ("Counterspell", "uncommon", ["arena"]),
                 ("Black Lotus", "mythic", ["paper"]),
             )
@@ -373,12 +375,14 @@ class TestRarityIndexCompetitiveBrawlKey:
         assert "black lotus" not in index
 
     def test_competitive_brawl_own_bans_are_excluded(self, tmp_path):
-        # Oko is on Competitive Brawl's own ten-card list.
+        # Lutri is Competitive Brawl's one outright ban; Oko is banned only as a
+        # commander, so a deck's 99 may craft it.
         index = CardPool.load(self._bulk(tmp_path)).rarity_index(
             FORMATS["competitive_brawl"], arena_only=True
         )
         assert "force of will" in index
-        assert "oko, thief of crowns" not in index
+        assert "lutri, the spellchaser" not in index
+        assert index["oko, thief of crowns"]["rarity"] == "mythic"
 
 
 def test_set_records_is_one_per_oracle_in_collector_order():

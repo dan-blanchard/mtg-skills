@@ -120,6 +120,7 @@ class TestTable:
             assert fmt.commander_eligibility(test_card("Thranduil, the Elvenking")) == {
                 "eligible": False,
                 "requires_partner": False,
+                "reason": "no_command_zone",
             }
         assert Format.for_deck({"format": "sealed", "deck_size": 45}).deck_size == 45
         # A build's size is its TARGET; the 40-card floor is the audit's
@@ -176,20 +177,32 @@ class TestLegality:
         assert CB.is_legal(drain) is True
 
     def test_competitive_brawl_bans_come_from_its_own_key(self):
-        # Ragavan is legal in ordinary Brawl but on Competitive Brawl's own list.
-        ragavan = test_card("Ragavan, Nimble Pilferer")
-        assert HB.legality(ragavan) == "legal"
-        assert CB.legality(ragavan) == "banned"
-        # A DFC banned by its front face — the by-name list this key replaced matched
-        # the record's "Front // Back" name and missed it.
-        assert CB.legality(test_card("Ajani, Nacatl Pariah")) == "banned"
-        assert CMD.legality(test_card("Oko, Thief of Crowns")) == "legal"
-        assert CB.legality(test_card("Oko, Thief of Crowns")) == "banned"
+        # Lutri is the format's one outright ban (mtg.wiki "Competitive Brawl",
+        # checked 2026-10-29); Commander allows it.
+        lutri = test_card("Lutri, the Spellchaser")
+        assert CB.legality(lutri) == "banned"
+        assert CB.is_legal(lutri) is False
+        assert CMD.legality(lutri) == "legal"
 
-    def test_paper_nadu_is_banned_after_the_rebalance_reversion(self):
-        # Arena reverted every rebalanced card on 2026-09-22; the paper Nadu took
-        # the A- card's place on Competitive Brawl's list, and the key says so.
-        assert CB.legality(test_card("Nadu, Winged Wisdom")) == "banned"
+    def test_banned_as_a_commander_is_legal_in_the_99(self):
+        # The 2026-10-12 B&R list: legal in the 99, can't lead a deck. MTGJSON
+        # spells it `restricted`; Competitive Brawl reads it as its own status.
+        oko = test_card("Oko, Thief of Crowns")
+        assert oko["legalities"]["competitivebrawl"] == "restricted"
+        assert CB.legality(oko) == "banned_as_commander"
+        assert CB.is_legal(oko) is True
+        assert CMD.legality(oko) == "legal"
+        # Ragavan is on the list though ordinary Brawl allows it; a DFC is on it by
+        # its front face (the by-name list this key replaced matched the record's
+        # "Front // Back" name and missed it); Nadu kept its place after Arena
+        # reverted the rebalanced cards (2026-09-22).
+        for name in (
+            "Ragavan, Nimble Pilferer",
+            "Ajani, Nacatl Pariah",
+            "Nadu, Winged Wisdom",
+        ):
+            assert CB.legality(test_card(name)) == "banned_as_commander", name
+        assert HB.legality(test_card("Ragavan, Nimble Pilferer")) == "legal"
 
     def test_restricted_and_banned_are_distinct_statuses(self):
         lotus = test_card("Black Lotus")
@@ -270,12 +283,35 @@ class TestCommanderEligibility:
         # Brawl deck. (Chandra, Torch of Defiance served here until a reprint made her
         # Standard-legal.)
         ashiok = test_card("Ashiok, Dream Render")
-        assert FORMATS["brawl"].commander_eligibility(ashiok)["eligible"] is False
+        assert FORMATS["brawl"].commander_eligibility(ashiok) == {
+            "eligible": False,
+            "requires_partner": False,
+            "reason": "not_legal",
+        }
         # A banned legend is never eligible, however legendary.
-        assert (
-            CB.commander_eligibility(test_card("Oko, Thief of Crowns"))["eligible"]
-            is False
-        )
+        lutri = test_card("Lutri, the Spellchaser")
+        assert CB.commander_eligibility(lutri)["reason"] == "banned"
+        assert CMD.commander_eligibility(lutri)["eligible"] is True
+
+    def test_banned_as_a_commander_is_ineligible(self):
+        # Legal in Competitive Brawl's 99, but on its banned-as-commander list; any
+        # legendary planeswalker could otherwise lead a Brawl deck (CR 903.12c).
+        oko = test_card("Oko, Thief of Crowns")
+        assert CB.commander_eligibility(oko) == {
+            "eligible": False,
+            "requires_partner": False,
+            "reason": "banned_as_commander",
+        }
+        # Historic Brawl bans Oko outright; Ragavan leads a Historic Brawl deck.
+        assert HB.commander_eligibility(oko)["reason"] == "banned"
+        ragavan = test_card("Ragavan, Nimble Pilferer")
+        assert HB.commander_eligibility(ragavan)["eligible"] is True
+        assert CB.commander_eligibility(ragavan)["reason"] == "banned_as_commander"
+
+    def test_a_card_that_cannot_be_a_commander_says_so(self):
+        drain = test_card("Mana Drain")
+        assert CB.is_legal(drain) is True
+        assert CB.commander_eligibility(drain)["reason"] == "not_a_commander"
 
     def test_no_command_zone_means_nothing_is_eligible(self):
         # Ragavan is Modern-legal and legendary; Modern has no commanders.
@@ -284,6 +320,7 @@ class TestCommanderEligibility:
         assert FORMATS["modern"].commander_eligibility(ragavan) == {
             "eligible": False,
             "requires_partner": False,
+            "reason": "no_command_zone",
         }
 
     def test_unreleased_legend_is_eligible_with_the_set(self):

@@ -50,13 +50,14 @@ matrix, which is a different shape and is already produced by
 | commander | 100 | Full eternal | Yes (4P typical) | 40 life, commander damage rule |
 | brawl | 60 | Standard | 1v1 on Arena, multiplayer in paper | 25/30 life, no commander damage |
 | historic_brawl | 100 | Arena (broader than Standard) | 1v1 on Arena, multiplayer in paper | 25/30 life, no commander damage |
-| competitive_brawl | 100 | Arena, minus 10 banned cards | Always 1v1 | 25 life, no commander damage, **no free mulligan** |
+| competitive_brawl | 100 | Arena, minus 1 banned card (12 more can't be the commander) | Always 1v1 | 25 life, no commander damage, **no free mulligan** |
 
 **Competitive Brawl** (`competitive_brawl`) is supported and is its own format —
 not a variant to audit as `historic_brawl`. It is always 1v1, 25 life, and has
 **no free mulligan**, so do not cite CR 903.12g's free-first-mulligan rule for it;
-that rule governs ordinary Brawl. Its ban list differs from ordinary Brawl's (ten
-cards, while most of the cards ordinary Brawl bans are legal here); legality reads
+that rule governs ordinary Brawl. Its ban list differs from ordinary Brawl's (one
+card outright, plus twelve banned only as a commander since 2026-10-12 — legal in
+the 99 — while most of the cards ordinary Brawl bans are legal here); legality reads
 MTGJSON's own `competitivebrawl` key. Guides for this format should skip
 multiplayer/politics sections entirely.
 

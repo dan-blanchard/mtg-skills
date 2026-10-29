@@ -280,11 +280,14 @@ paper-defined format Arena also hosts (Standard, Pioneer), digital otherwise (th
 Brawl queues). A `Format` field, ordered first in `media`; never a UI default.
 
 **Legality status**:
-A `Format`'s answer for one record: `legal`, `restricted`, `banned`, `not_legal`, or
-`unreleased` — Scryfall's four plus the pre-release case, which the `Format` can only
-report when the caller passes the oracle-level unreleased set (a single record cannot
-tell a spoiled card from an Un-card). `restricted` is playable; `unreleased` is a
-widening callers opt into, never `is_legal`.
+A `Format`'s answer for one record: `legal`, `restricted`, `banned_as_commander`,
+`banned`, `not_legal`, or `unreleased` — Scryfall's four, the pre-release case, which
+the `Format` can only report when the caller passes the oracle-level unreleased set (a
+single record cannot tell a spoiled card from an Un-card), and Competitive Brawl's
+"banned as a commander" list, which MTGJSON spells `restricted`. `restricted` is
+playable and means Vintage's one-copy rule; `banned_as_commander` is playable in the
+99 and makes the card commander-ineligible; `unreleased` is a widening callers opt
+into, never `is_legal`.
 _Avoid_: a bare `legalities[...]` read (the raw MTGJSON key, before the override and
 the gate).
 

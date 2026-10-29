@@ -17,7 +17,8 @@ deepening candidate.
 
 - **Legality** — `Format.legality(record, *, unreleased=frozenset())` returns one status
   (`legal` / `restricted` / `banned` / `not_legal` / `unreleased`) with the
-  Arena-pool gate folded in;
+  Arena-pool gate folded in (2026-10-29: and `banned_as_commander`, Competitive
+  Brawl's "banned as a commander" list, which MTGJSON spells `restricted`);
   `is_legal` is the strict bool. The pre-release widening stays a caller-side control
   (the Find surface's *include unreleased*), expressed as the caller passing the
   oracle-level set and reading `unreleased` back — never re-reading `legalities`.

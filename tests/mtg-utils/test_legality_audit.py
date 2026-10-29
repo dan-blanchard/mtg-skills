@@ -12,11 +12,13 @@ from conftest import json_from_cli_output
 from mtg_utils.formats import FORMATS
 from mtg_utils.hydrated_deck import HydratedDeck
 from mtg_utils.legality_audit import (
+    card_copy_limit,
     check_color_identity,
     check_copy_limits,
     check_format_legality,
     legality_audit,
     main,
+    render_text_report,
 )
 from mtg_utils.testkit import test_card
 
@@ -452,8 +454,6 @@ class TestCopyLimits:
         assert check_copy_limits(d, self._hyd_index([nazgul]), _SINGLETON_CONFIG) == []
 
     def test_card_copy_limit_is_the_one_ladder(self):
-        from mtg_utils.legality_audit import card_copy_limit
-
         plains = _real("Plains")
         rats = _real("Relentless Rats")
         bolt = _real("Lightning Bolt")
@@ -989,7 +989,8 @@ class TestCompanionCiteRules:
 class TestCompetitiveBrawl:
     """Competitive Brawl reads its own `competitivebrawl` legality key, whose ban
     list is not ordinary Brawl's: most cards the `brawl` key bans are legal here,
-    and it bans ten of its own. `not_legal` means absent from Arena."""
+    it bans one card outright (Lutri) and bars others from the command zone (legal
+    in the 99). `not_legal` means absent from Arena."""
 
     def test_brawl_banned_card_is_legal(self):
         # Mana Drain is banned in ordinary Historic Brawl, legal here.
@@ -1005,12 +1006,52 @@ class TestCompetitiveBrawl:
         assert violations[0]["legality"] == "not_legal"
 
     def test_card_banned_under_the_competitive_brawl_key_fails(self):
-        # Oko is `banned` under the `competitivebrawl` key (one of its ten).
-        hydrated = [_real("Oko, Thief of Crowns")]
+        # Lutri is `banned` under the `competitivebrawl` key, the format's one
+        # outright ban.
+        hydrated = [_real("Lutri, the Spellchaser")]
         violations = check_format_legality(hydrated, FORMATS["competitive_brawl"])
-        assert len(violations) == 1
-        assert violations[0]["name"] == "Oko, Thief of Crowns"
-        assert violations[0]["legality"] == "banned"
+        assert violations == [{"name": "Lutri, the Spellchaser", "legality": "banned"}]
+
+    def test_a_card_banned_as_a_commander_is_legal_in_the_99(self):
+        deck = {
+            "format": "competitive_brawl",
+            "commanders": [{"name": "Thranduil, the Elvenking", "quantity": 1}],
+            "cards": [{"name": "Oko, Thief of Crowns", "quantity": 1}],
+            "total_cards": 2,
+        }
+        hydrated = [_real("Thranduil, the Elvenking"), _real("Oko, Thief of Crowns")]
+        result = legality_audit(_hd(deck, hydrated))
+        assert result["violations"]["format_legality"] == []
+        assert result["violations"]["commander_zone"] == []
+        # Singleton anyway: `restricted` here is no Vintage one-copy reason.
+        assert card_copy_limit(hydrated[1], FORMATS["competitive_brawl"]) == 1
+        assert result["violations"]["copy_limits"] == []
+
+    def test_a_card_banned_as_a_commander_cannot_lead(self):
+        # Ragavan is on the banned-as-commander list: the zone check fails it, and
+        # its identity is real, so the color-identity check still runs.
+        deck = {
+            "format": "competitive_brawl",
+            "commanders": [{"name": "Ragavan, Nimble Pilferer", "quantity": 1}],
+            "cards": [{"name": "Mana Drain", "quantity": 1}],
+            "total_cards": 2,
+        }
+        hydrated = [_real("Ragavan, Nimble Pilferer"), _real("Mana Drain")]
+        result = legality_audit(_hd(deck, hydrated))
+        assert result["overall_status"] == "FAIL"
+        assert result["violations"]["format_legality"] == []
+        assert result["violations"]["commander_zone"] == [
+            {"reason": "banned_as_commander", "name": "Ragavan, Nimble Pilferer"}
+        ]
+        assert [v["name"] for v in result["violations"]["color_identity"]] == [
+            "Mana Drain"
+        ]
+        assert "Ragavan, Nimble Pilferer (banned as a commander)" in (
+            render_text_report(result)
+        )
+        # Historic Brawl has no such list: Ragavan leads there.
+        hb = legality_audit(_hd({**deck, "format": "historic_brawl"}, hydrated))
+        assert hb["violations"]["commander_zone"] == []
 
     def test_end_to_end_audit_passes_with_a_brawl_banned_card(self):
         cmd = _real("Thranduil, the Elvenking")

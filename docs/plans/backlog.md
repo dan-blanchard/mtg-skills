@@ -150,8 +150,11 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   713 swaps (2026-10-26, the audit's "The open levers, closed": solid
   Granters and a main's popular feeders are upgrade slots, a Spine fill takes a
   jobless slot before a lane slot, a full job's upgrade moves onto the theme;
-  256 / 76, 680 swaps before it, unchanged by the fourth and fifth (o)
-  passes; 252 / 75, 669 swaps before the third (o) pass;
+  271 / 88, 713 swaps again, every swap of the 25 precons the same, once a
+  lifelink body kept the voltron carrier, 2026-10-29: 66 cards gained it, none
+  legendary — the held-out ten likewise, 139 / 34, 297 swaps, every swap the
+  same; 256 / 76, 680 swaps before the open levers, unchanged by the
+  fourth and fifth (o) passes; 252 / 75, 669 swaps before the third (o) pass;
   199 / 67, 562 swaps before the cut pool; 197 / 66, 560 swaps at the even share;
   195 / 59, 543 swaps before it; 180 / 57 before the near-tie budget rule, 169 / 56
   at 9e0026ed). The levers by size now: adds a page held but outranked
@@ -246,20 +249,14 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   281 cards), the second pass's in ``~/mtg/tuner-work/w13/classification-final.tsv``).
   A theme pages by its serve (``signal_specs.theme_page``); no search carries an
   oracle pattern (``test_a_theme_pages_by_its_serve_not_a_pattern``). Open:
-  - Noble Banneret lost ``voltron_matters|you|carrier`` when its lifelink was
-    restored (2026-10-26). No text read keyed on the hollow static: the restored
-    lifelink makes it a lifegain source (CR 702.15b), and
-    ``membership_floor``'s ``has_other_plan`` silences the commander-damage
-    fallback for it exactly as for every printed-lifelink creature (Vampire
-    Nighthawk), though ``_VOLTRON_KEYWORDS`` lists lifelink as a carrier trait.
-    Giving it the carrier back means treating a lifelink body's own lifegain as
-    no other plan for every lifelink creature — Dan's call (pinned as is by
-    ``test_conditional_lifelink_is_a_lifegain_plan``; its condition is a
-    draft-time note, so outside a draft the lifelink never applies). The same
-    fallback silencing took the carrier from Jodah's Avenger (its restored
-    shadow: ``evasion_self|you|shadow``) and Urza's Avenger (``has_banding``),
-    though the floor's own comment says an evasion tell must not silence it —
-    ``evasion_self`` is missing from ``_VOLTRON_HAS_OTHER_PLAN_COMPAT``;
+  - the commander-damage fallback's silencing took the carrier from Jodah's
+    Avenger (its restored shadow: ``evasion_self|you|shadow``) and Urza's
+    Avenger (``has_banding``), though the floor's own comment says an evasion
+    tell must not silence it — ``evasion_self`` is missing from
+    ``_VOLTRON_HAS_OTHER_PLAN_COMPAT`` (a lifelink body's own lifegain no longer
+    silences it, Dan's call 2026-10-29: Noble Banneret and Vampire Nighthawk
+    are lifegain plans and carriers both — ``membership_floor``'s
+    ``own_lifelink``);
   - the tribe pages were checked on Goblin, Elf, Zombie, Dragon and Sliver
     (and Angel, Vampire, Merfolk, Wizard, Human): every real member they
     lost has an IR ident or a ledger row (the 21 ``_reference_row`` rows). The
@@ -398,23 +395,13 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   the signals index's whole-pool build, which makes ~50 cyclic objects a card —
   the tune collects at a 100,000 young threshold instead, measured as fast).
 
-- **Competitive Brawl's "banned as a commander" reads as `restricted`.** The
-  2026-10-12 B&R update introduced the category (mtg.wiki "Competitive Brawl"
-  §Banned as a commander; Draftsim 2026-10-12): Oko, Thief of Crowns, Ragavan,
-  Nimble Pilferer, Nadu, Winged Wisdom and Wrenn and Six are legal in the 99 but
-  can't lead a deck; Yuriko, the Tiger's Shadow, Spider-Man 2099 and Light-Paws,
-  Emperor's Voice joined them; Lutri is the only outright ban. The 2026-10-17
-  AllPrintings encodes the category as `competitivebrawl: "restricted"` (the
-  2026-10-14 bulk said `banned`). `Format.legality` therefore reads these as
-  playable — right for the 99, wrong for `commander_eligibility` — and six tests
-  that pin the old outright bans (`test_formats`, `test_legality_audit`,
-  `test_price_check`) fail on a regenerated snapshot. Teach `formats.py`'s
-  Competitive Brawl read that `restricted` means legal in the 99 and ineligible
-  as commander (a new eligibility reason), re-pin the tests on Lutri for the
-  outright ban and Oko for the commander ban, then regen the snapshot. The
-  deck-wizard SKILL.md's "bans ten cards, as commander and in the 99" is stale
-  the same way. Until then a bare `build-card-snapshot` run drags the drift in —
-  the 2026-10-17 regen spliced only its two new cards.
+- **`legality-audit` never asks whether a commander can be one** (2026-10-29).
+  `check_commander_zone` fails only a card `Format.commander_eligibility` calls
+  `banned_as_commander` (Competitive Brawl's list); a `not_a_commander` card (a
+  nonlegendary creature, a Commander-format planeswalker without "can be your
+  commander") in the command zone passes the audit. Failing every ineligible
+  reason there (format legality already reports `banned` / `not_legal`) is the
+  general fix; check the synthetic commander fixtures first.
 
 - **Pass D: the serves still on a regex** (2026-10-23;
   `docs/plans/serve-idents-and-avenue-support.md` "Pass D"; each spec's comment

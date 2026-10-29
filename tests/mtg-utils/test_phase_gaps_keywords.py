@@ -18,8 +18,10 @@ from collections.abc import Iterator
 import pytest
 
 from mtg_utils._card_ir.clause_grammar import keyword_grants
+from mtg_utils._card_ir.crosswalk import made_keyword_bodies, own_keyword_bodies
 from mtg_utils._card_ir.dropped_keywords import PHASE_KEYWORDS, restore_dropped_keywords
-from mtg_utils.testkit import test_phase_records, test_signals
+from mtg_utils._card_ir.trees import trees_for
+from mtg_utils.testkit import test_card, test_card_ir, test_phase_records, test_signals
 
 
 def _idents(name: str) -> set[str]:
@@ -381,10 +383,42 @@ def test_copy_pt_override_reads_beside_a_restored_keyword():
 def test_conditional_lifelink_is_a_lifegain_plan():
     # Noble Banneret's "this creature and those creatures get +1/+1 and have
     # lifelink", restored, makes it a lifegain source like any lifelink body
-    # (CR 702.15b) — which silences the commander-damage carrier fallback, as it
-    # does for Vampire Nighthawk
+    # (CR 702.15b)
     idents = _idents("Noble Banneret")
     assert {"keyword_bodies|you|lifelink", "lifegain_makers|you|"} <= idents
+
+
+@pytest.mark.parametrize("name", ["Noble Banneret", "Vampire Nighthawk"])
+def test_a_lifelink_body_is_a_lifegain_plan_and_a_carrier(name):
+    # Lifelink gains life "in addition to the damage's other results" (CR 120.3f),
+    # so the body's combat damage still counts toward commander damage (CR
+    # 903.10a): its own lifegain doesn't silence the commander-damage fallback.
+    # Restored (Banneret) or printed (Nighthawk) alike.
+    idents = _idents(name)
+    assert {"lifegain_makers|you|", "voltron_matters|you|carrier"} <= idents
+
+
+def _own_and_made_bodies(name: str) -> tuple[set[str], set[str]]:
+    test_card_ir(name)  # seeds the tree memo from the snapshot's phase records
+    trees = trees_for(test_card(name))
+    own = set().union(*(own_keyword_bodies(t) for t in trees))
+    made = set().union(*(made_keyword_bodies(t) for t in trees))
+    return own, made
+
+
+def test_own_keyword_bodies_are_the_cards_own_body():
+    # A self-grant is the card's own (Noble Banneret); the lifelink Soldier
+    # tokens Emmara makes are bodies it makes, not its own.
+    assert "lifelink" in _own_and_made_bodies("Noble Banneret")[0]
+    own, made = _own_and_made_bodies("Emmara, Soul of the Accord")
+    assert "lifelink" in made
+    assert "lifelink" not in own
+
+
+def test_lifegain_that_is_no_lifelink_body_is_no_carrier():
+    # A noncreature lifegain card is no body to suit up.
+    idents = _idents("Healing Salve")
+    assert "lifegain_makers|you|" in idents
     assert "voltron_matters|you|carrier" not in idents
 
 

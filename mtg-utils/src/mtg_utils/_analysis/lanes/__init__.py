@@ -763,6 +763,7 @@ from mtg_utils._analysis.tree_synthesis import (
 )
 from mtg_utils._card_ir.crosswalk import (
     ConceptTree,
+    own_keyword_bodies,
     recipient_tag,
 )
 from mtg_utils.card_classify import get_oracle_text
@@ -1720,4 +1721,5 @@ def apply_membership_floor(
         is_big_mana=is_big_mana,
         is_kill_engine=is_kill_engine,
         token_maker_subjects=token_maker_subjects,
+        own_lifelink=any("lifelink" in own_keyword_bodies(t) for t in trees),
     )

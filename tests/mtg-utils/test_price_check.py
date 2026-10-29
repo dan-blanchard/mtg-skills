@@ -550,13 +550,16 @@ class TestCompetitiveBrawlBanList:
     """``competitive_brawl`` reads its own ``competitivebrawl`` key, whose ban list
     differs from ordinary Brawl's. ``price-check`` must cost a brawl-banned staple
     as a normal craft, not report it under ``illegal_or_missing`` — and must still
-    reject the format's own bans."""
+    reject the format's own bans — and cost a card banned only as a commander,
+    which is legal in the 99."""
 
     def _bulk(self, tmp_path):
-        # Both are banned under the ``brawl`` key and printed on Arena; only Oko
-        # is banned under ``competitivebrawl``.
+        # All three are banned under the ``brawl`` key and printed on Arena; only
+        # Lutri is banned under ``competitivebrawl``, and Oko is banned there only
+        # as a commander.
         cards = [
             _arena_printing("Tainted Pact", "mythic"),
+            _arena_printing("Lutri, the Spellchaser", "rare"),
             _arena_printing("Oko, Thief of Crowns", "mythic"),
         ]
         bulk_path = tmp_path / "bulk.json"
@@ -589,14 +592,25 @@ class TestCompetitiveBrawlBanList:
         deck = {
             "format": "competitive_brawl",
             "commanders": [],
-            "cards": [{"name": "Oko, Thief of Crowns", "quantity": 1}],
+            "cards": [{"name": "Lutri, the Spellchaser", "quantity": 1}],
             "owned_cards": [],
         }
         result = check_prices(deck, bulk_path=self._bulk(tmp_path))
         assert [e["name"] for e in result["illegal_or_missing"]] == [
-            "Oko, Thief of Crowns"
+            "Lutri, the Spellchaser"
         ]
-        assert result["wildcard_cost"]["mythic"] == 0
+        assert result["wildcard_cost"]["rare"] == 0
+
+    def test_banned_as_a_commander_card_is_costed_in_the_99(self, tmp_path):
+        deck = {
+            "format": "competitive_brawl",
+            "commanders": [],
+            "cards": [{"name": "Oko, Thief of Crowns", "quantity": 1}],
+            "owned_cards": [],
+        }
+        result = check_prices(deck, bulk_path=self._bulk(tmp_path))
+        assert result["illegal_or_missing"] == []
+        assert result["wildcard_cost"]["mythic"] == 1
 
 
 class TestCLI:
