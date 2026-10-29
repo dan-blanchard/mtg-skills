@@ -55,10 +55,11 @@ matrix, which is a different shape and is already produced by
 **Competitive Brawl** (`competitive_brawl`) is supported and is its own format —
 not a variant to audit as `historic_brawl`. It is always 1v1, 25 life, and has
 **no free mulligan**, so do not cite CR 903.12g's free-first-mulligan rule for it;
-that rule governs ordinary Brawl. Its ban list differs from ordinary Brawl's (one
-card outright, plus twelve banned only as a commander since 2026-10-12 — legal in
-the 99 — while most of the cards ordinary Brawl bans are legal here); legality reads
-MTGJSON's own `competitivebrawl` key. Guides for this format should skip
+that rule governs ordinary Brawl. Its ban list differs from ordinary Brawl's (an
+outright list, plus a "banned as a commander" list since 2026-10-12 — legal in the
+99 — while most of the cards ordinary Brawl bans are legal here); legality reads
+MTGJSON's own `competitivebrawl` key, where `restricted` means banned as a
+commander, never a one-copy limit. Guides for this format should skip
 multiplayer/politics sections entirely.
 
 If the user invokes deck-strat on a 60-card constructed deck, decline

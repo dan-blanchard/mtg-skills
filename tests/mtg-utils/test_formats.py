@@ -177,8 +177,8 @@ class TestLegality:
         assert CB.is_legal(drain) is True
 
     def test_competitive_brawl_bans_come_from_its_own_key(self):
-        # Lutri is the format's one outright ban (mtg.wiki "Competitive Brawl",
-        # checked 2026-10-29); Commander allows it.
+        # Lutri is on the format's outright ban list (MTGJSON's `competitivebrawl`
+        # key); Commander allows it.
         lutri = test_card("Lutri, the Spellchaser")
         assert CB.legality(lutri) == "banned"
         assert CB.is_legal(lutri) is False

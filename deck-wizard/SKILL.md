@@ -179,13 +179,13 @@ legal as commanders without explicit permission text.
 
 Two things to know about its card pool:
 
-1. **Its ban list is not ordinary Brawl's.** It bans one card outright, Lutri, the
-   Spellchaser, and since the 2026-10-12 B&R update it has a second list, **banned as a
-   commander**: twelve cards legal in the 99 that can't lead a deck — Ajani, Nacatl
-   Pariah; Light-Paws, Emperor's Voice; Nadu, Winged Wisdom; Oko, Thief of Crowns; Old
-   Stickfingers; Ragavan, Nimble Pilferer; Rusko, Clockmaker; Spider-Man 2099; Tamiyo,
-   Inquisitive Student; Tajic, Legion's Valor; Wrenn and Six; Yuriko, the Tiger's
-   Shadow. Every other Arena card is legal, including most of the cards ordinary Brawl
+1. **Its ban list is not ordinary Brawl's.** Wizards publishes it in the MTG Arena
+   announcements (the 2026-10-12 update created a second list, **banned as a
+   commander**: cards legal in the 99 that can't lead a deck — Oko, Ragavan, Nadu,
+   Wrenn and Six and others), and MTGJSON carries both lists in its
+   `competitivebrawl` legality key, which is what the tools read. Don't keep or trust a
+   hand-copied list: after a B&R update, run `download-mtgjson` and the tools follow.
+   Every other Arena card is legal, including most of the cards ordinary Brawl
    bans (Mana Drain, Demonic Tutor, Fierce Guardianship, Ancient Tomb, Chrome Mox…).
    The tools read MTGJSON's own `competitivebrawl` legality key, so a `banned` under
    `brawl` means nothing here; `not_legal` means the card isn't on Arena at all.
@@ -206,9 +206,9 @@ has `arena` in `games`. Checking the legality key alone is not sufficient — `b
 `not_legal` both mean "not legal in ordinary Brawl" but only the latter means "not on
 Arena."
 
-The ban list is a point-in-time snapshot (source: https://mtg.wiki/page/Competitive_Brawl,
-§Banned list and §Banned as a commander, checked 2026-10-29). Re-verify it after each
-B&R announcement.
+Source of truth for the ban lists: Wizards' MTG Arena announcements
+(https://magic.wizards.com/en/news/mtg-arena/announcements-october-12-2026 for the
+2026-10-12 update), as captured in MTGJSON's `competitivebrawl` key.
 
 ### Arena Rarity Warning
 

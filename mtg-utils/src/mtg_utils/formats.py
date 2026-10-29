@@ -699,9 +699,8 @@ _ALL: tuple[Format, ...] = (
         # Arena is 1v1 only; there is no multiplayer Competitive Brawl.
         multiplayer_life_total=None,
         legality_key="competitivebrawl",
-        # MTGJSON's `restricted` under this key is the "banned as a commander" list
-        # (mtg.wiki "Competitive Brawl", checked 2026-10-29; Lutri, the Spellchaser
-        # is the one outright ban).
+        # MTGJSON's `restricted` under this key is Wizards' "banned as a commander"
+        # list (MTG Arena announcements, 2026-10-12); `banned` is the outright list.
         restricted_bans_commander=True,
         # Unlike ordinary Brawl, Competitive Brawl has no free mulligan.
         free_mulligan=False,
