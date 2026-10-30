@@ -7401,6 +7401,88 @@ BRIDGES.update(
 )
 
 
+# Sower of Discord's "As this creature enters, choose two players. Whenever damage
+# is dealt to one of the chosen players, the other chosen player also loses that
+# much life." Phase parks the choice and types the trigger's event as an
+# ``Unknown`` mode, so the LoseLife names no player and the lifeloss lane reads it
+# as yours. Its rulings: the two players are different, you can be one of them,
+# and the second player's loss isn't damage, only a life-total change (CR 119.3).
+# Chosen as two opponents, it drains them.
+_CHOSEN_PLAYER_DAMAGE_RX = re.compile(
+    r"\bwhenever damage is dealt to one of the chosen players\b", re.IGNORECASE
+)
+
+
+def _chosen_player_trigger_parked(tree: ConceptTree) -> bool:
+    return _says(_CHOSEN_PLAYER_DAMAGE_RX, tree.unknown_trigger_modes())
+
+
+# Helm of Obedience's "Target opponent mills a card, then repeats this process until
+# a creature card or X cards have been put into their graveyard this way … put one
+# of them onto the battlefield under your control" parks the repeated mill as an
+# ``unparsed_verb_arguments`` residue, so the ChangeZone after it names a parent
+# target nothing chose and the theft lane sees no card of theirs: a permanent's
+# controller is the player under whose control it entered (CR 110.2).
+_MILL_UNTIL_CREATURE_RX = re.compile(
+    r"\bmills? a card, then repeats this process until a creature card\b",
+    re.IGNORECASE,
+)
+
+
+def _mill_until_creature_parked(tree: ConceptTree) -> bool:
+    return _says(
+        _MILL_UNTIL_CREATURE_RX, tree.residues("unparsed_verb_arguments")
+    ) and any(
+        getattr(c.node, "enters_under", None) == "You"
+        for c in tree.effect_concepts("change_zone")
+    )
+
+
+BRIDGES.update(
+    {
+        b.bridge_id: b
+        for b in (
+            Bridge(
+                bridge_id="chosen_players_drain_trigger_parked",
+                key="lifeloss_makers",
+                kind="upstream_parse_failure",
+                todo=_upstream(
+                    "Sower of Discord's 'choose two players' parks and its 'Whenever "
+                    "damage is dealt to one of the chosen players' trigger is an "
+                    "Unknown mode. Retires on the bump that types the chosen players"
+                ),
+                census=(
+                    "1 hit / the legal corpus (Sower of Discord), MTGJSON 2026-10-17 "
+                    "@ phase v0.118.0, 2026-10-30"
+                ),
+                pins=("Sower of Discord",),
+                gap=_chosen_player_trigger_parked,
+                match=_oracle_match(_CHOSEN_PLAYER_DAMAGE_RX),
+                scope="opponents",
+            ),
+            Bridge(
+                bridge_id="mill_until_creature_steal_parked",
+                key="gain_control",
+                kind="upstream_parse_failure",
+                todo=_upstream(
+                    "Helm of Obedience's 'mills a card, then repeats this process "
+                    "until a creature card …' parks as an unparsed_verb_arguments "
+                    "residue, leaving the steal's ChangeZone with an unbound "
+                    "ParentTarget. Retires on the bump that types the repeated mill"
+                ),
+                census=(
+                    "1 hit / the legal corpus (Helm of Obedience), MTGJSON "
+                    "2026-10-17 @ phase v0.118.0, 2026-10-30"
+                ),
+                pins=("Helm of Obedience",),
+                gap=_mill_until_creature_parked,
+                match=_oracle_match(_MILL_UNTIL_CREATURE_RX),
+            ),
+        )
+    }
+)
+
+
 def bridge_fires(bridge_id: str, tree: ConceptTree) -> bool:
     """Whether the registered bridge fires for this tree (gap AND match)."""
     return BRIDGES[bridge_id].fires(tree)

@@ -1,5 +1,8 @@
 """Real-card pins for the reads the phase v0.118.0 pin bump taught (renamed shapes,
-fail-closed residues), and the retirement canary of the peeled-subject read."""
+fail-closed residues), and the retirement canaries of the peeled-subject read and
+the recovered graveyard land play. Sower of Discord's and Helm of Obedience's
+parked clauses are bridge-ledger rows, retired by ``test_bridge_ledger``'s gap
+check; here only the idents they serve are pinned."""
 
 from __future__ import annotations
 
@@ -104,3 +107,54 @@ def test_reveal_cards_from_their_hand():
 
 def test_parked_energy_payment():
     assert ("energy_matters", "you", "") in _idents("Pia Nalaar, Chief Mechanic")
+
+
+@pytest.mark.retirement_canary
+def test_graveyard_land_play_is_still_a_residue_canary():
+    """``crosswalk.plays_lands_from_graveyard``'s recovered arm: phase's static
+    parser fails on Serra Paragon's "Once during each of your turns, you may play a
+    land from your graveyard or cast a permanent spell with mana value 3 or less
+    from your graveyard" and parks it whole; the seam recovers it as a
+    ``cast_from_zone`` naming a land and your graveyard."""
+    parked = [
+        ab["effect"].get("description") or ""
+        for rec in test_phase_records("Serra Paragon")
+        for ab in rec.get("abilities") or ()
+        if ab["effect"].get("name") == "static_structure"
+    ]
+    assert any("play a land from your graveyard" in d for d in parked), (
+        "plays_lands_from_graveyard's recovered arm: RETIRE-READY — phase types "
+        "Serra Paragon's graveyard permission. Once no parked clause plays a land "
+        "from your graveyard, delete the recovered arm and this canary."
+    )
+
+
+@pytest.mark.parametrize("name", ["Serra Paragon", "Eye of Duskmantle"])
+def test_recovered_graveyard_land_play_recurs_lands(name):
+    """Playing a land puts it onto the battlefield from the zone it was in (CR
+    116.2a), here your graveyard: what keeps a lands deck's lands, as Crucible of
+    Worlds does."""
+    idents = _idents(name)
+    assert ("permanent_recast", "you", "land") in idents
+    assert ("landfall", "you", "") in idents
+
+
+def test_graveyard_land_prohibition_recurs_nothing():
+    """Tomik's "Your opponents can't play land cards from graveyards" names no
+    graveyard of yours."""
+    assert ("permanent_recast", "you", "land") not in _idents(
+        "Tomik, Distinguished Advokist"
+    )
+
+
+def test_chosen_players_drain():
+    """Sower of Discord: of two chosen players, the other loses the life when one
+    is dealt damage (its rulings: that loss isn't damage, only a life-total change,
+    CR 119.3), so two chosen opponents drain each other."""
+    assert ("lifeloss_makers", "opponents", "") in _idents("Sower of Discord")
+
+
+def test_mill_until_creature_steals_it():
+    """Helm of Obedience puts a milled creature card of the opponent's onto the
+    battlefield under your control (CR 110.2: you control it)."""
+    assert ("gain_control", "you", "") in _idents("Helm of Obedience")

@@ -3750,7 +3750,16 @@ def plays_lands_from_graveyard(unit: AbilityUnit) -> bool:
     playing a land puts it onto the battlefield "from the zone it was in" —
     Crucible of Worlds, Ramunap Excavator): a ``GraveyardCastPermission``
     naming lands, on the static unit itself or a concept node it holds (a
-    granted or chapter permission)."""
+    granted or chapter permission).
+
+    Or the same permission phase's static parser failed on, parked whole and
+    recovered as a ``cast_from_zone`` residue whose clause names a land and your
+    graveyard, not the card itself (Serra Paragon's "Once during each of your
+    turns, you may play a land from your graveyard or cast a permanent spell with
+    mana value 3 or less from your graveyard"; Eye of Duskmantle).
+    ``test_graveyard_land_play_is_still_a_residue_canary`` retires it."""
+    from mtg_utils._card_ir.recovery import SELF, YOURS
+
     nodes = [c.node for c in unit.iter_concepts()]
     if unit.origin == "static":
         nodes.append(unit.node)
@@ -3758,6 +3767,12 @@ def plays_lands_from_graveyard(unit: AbilityUnit) -> bool:
         static_mode_tag(n) == "GraveyardCastPermission"
         and "Land" in filter_core_types(getattr(n, "affected", None))
         for n in nodes
+    ) or any(
+        c.recovered_by == "cast_from_zone"
+        and "Graveyard" in c.zones
+        and {"Land", YOURS} <= set(c.subject)
+        and SELF not in c.subject
+        for c in unit.iter_concepts()
     )
 
 
