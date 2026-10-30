@@ -75,14 +75,6 @@ def _quality(card: dict, *, playrate: bool) -> int:
 _MV_BANDS: tuple[float, ...] = (3.0, 5.0)
 
 
-#: The share of a page's best synergy score a candidate needs to count as
-#: fitting the deck, before play-rate picks among the fitting ones. Measured on
-#: the 25 precons' candidate pages against their upgrade guides' adds
-#: (2026-10-19, 187 pages): synergy-first put 41 guide adds in a page's top
-#: ten (median rank 36); a fifth of the best then play-rate, 72 (median 14);
-#: play-rate alone 69; floors of 0.3-0.5 fell back toward synergy-first (63-49).
-_FIT_FLOOR = 0.2
-
 #: The share of a card's job its deck must fuel for the card to count as doing
 #: the job there (``JobRead.deck_fit``; card draw's engines). On the 25 precons
 #: (2026-10-19) Skullclamp's fit split at 0.39 (Abzan Armor) and below versus
@@ -1207,35 +1199,38 @@ def propose_swaps(
             pool = [c for c in pool if spec_filter(c, deck_mana=ctx.deck_mana)]
         if synergy_first and job is not None and ctx.playrate:
             ranked = _job_order(pool, job)
-        elif synergy_first:
-            # A candidate must FIT — a synergy score at least ``_FIT_FLOOR`` of
-            # the page's best (deck-relative depth, so a box-ticker grazing many
-            # incidental lanes doesn't count as fit by breadth alone) — and among
-            # those that fit, the most played wins where play-rate means
-            # something (the Commander family; the one EDHREC-popularity lean,
-            # user-directed), then the better fit, then price. Elsewhere
-            # synergy alone orders the page, then price.
-            scored = rank(pool)
-            # The floor is the theme's own members' (a support card scoring
-            # higher must not push a member below it): support only joins.
-            floor = _FIT_FLOOR * max(
-                (
-                    r["score"]["synergy_score"]
-                    for r in scored
-                    if r["card"].get("name") not in support
+        elif synergy_first and ctx.playrate:
+            # A theme page where play-rate means something (the Commander
+            # family; the one EDHREC-popularity lean, user-directed): the most
+            # played first, then price. The page's search already holds only the
+            # theme's cards, so no synergy floor on top. The floor this replaced
+            # (a fifth of the page's best synergy score, then play-rate; 72 guide
+            # adds in the pages' top ten against play-rate alone's 69, 2026-10-19)
+            # lost the tune adds: measured on the phase v0.118.0 pin (2026-10-30)
+            # against the floor's 722 swaps / 332 guide cuts / 115 guide adds
+            # (held-out 297 / 139 / 36, Jace 29 / 14 / 3), play-rate alone
+            # scored 718 / 333 / 118 (held-out 290 / 139 / 37, Jace unchanged).
+            # Card reads leading the order (commander fit, deck depth, blends in
+            # log play-rate) all scored below both (backlog (t)).
+            ranked = sorted(
+                pool,
+                key=lambda c: (
+                    _quality(c, playrate=True),
+                    extract_price(c) or 1e9,
                 ),
-                default=0.0,
             )
-
-            def fit_key(r: dict) -> tuple:
-                score = r["score"]["synergy_score"]
-                price = extract_price(r["card"]) or 1e9
-                if not ctx.playrate:
-                    return (-score, price)
-                played = _quality(r["card"], playrate=True)
-                return (score < floor, played, -score, price)
-
-            ranked = [r["card"] for r in sorted(scored, key=fit_key)]
+        elif synergy_first:
+            # Elsewhere synergy alone orders the page, then price.
+            ranked = [
+                r["card"]
+                for r in sorted(
+                    rank(pool),
+                    key=lambda r: (
+                        -r["score"]["synergy_score"],
+                        extract_price(r["card"]) or 1e9,
+                    ),
+                )
+            ]
         else:
             # Spine fills: the cheapest mana-value BAND that does the job first
             # (efficiency), then play-rate within it, then price. Exact mana value

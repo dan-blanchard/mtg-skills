@@ -202,10 +202,14 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   fell to 1 add (it lost Archfiend of Depravity and Nezahal). No variant passed
   all three bars. Inside a play-rate band, fit (2-3×) and 31+ deck sharers (2-5×)
   do raise the guide-add rate on the whole match sets, but play-rate separates
-  more: rank ≤ 1000 runs 5.4% against 0.07% past 15,000. Found on the way, not
-  shipped: dropping the theme page's 0.2 synergy fit floor, with play-rate alone
-  and no read, scored 720 / 331 / 118, held-out 290 / 139 / 36, Jace 29 / 14 / 3.
-  It reads less of the card, which is the opposite of the plan's direction.
+  more: rank ≤ 1000 runs 5.4% against 0.07% past 15,000. Found on the way:
+  dropping the theme page's 0.2 synergy fit floor, with play-rate alone and no
+  read, scored 720 / 331 / 118, held-out 290 / 139 / 36, Jace 29 / 14 / 3. By
+  the user's decision it was tested again after the phase v0.118.0 bump, on top
+  of the token doublers ((u)), and shipped (the audit's "Dropping the theme
+  page's fit floor"): 718 / 333 / 118 against 722 / 332 / 115, held-out 290 /
+  139 / 37 against 36, Jace unchanged. A Commander-family theme page is now
+  play-rate, then price; don't re-suggest a synergy floor on it.
   (u) **The other side of a maker lane, the commander's own mechanics — don't
   re-suggest the rejected forms** (2026-10-30; patches and runs in
   `~/mtg/tuner-work/w34/`, the audit's "The other side of a maker lane, and the
@@ -225,8 +229,13 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   only), so `crosswalk.token_doubler_kinds` can't keep it from a Clue commander.
   (m) **Recall** (`precon-audit/misses.py`, at the largest guide's thirty
   swaps and each precon's own guides' budget, `budgets.json`, Spellbook cached):
-  332 of 505 cuttable guide cuts, 115 of 793 in-scope guide adds, 722 swaps;
-  held-out 139 of 216 / 36 of 407, 297 swaps (2026-10-30, the token doublers
+  333 of 505 cuttable guide cuts, 118 of 793 in-scope guide adds, 718 swaps;
+  held-out 139 of 216 / 37 of 407, 290 swaps (2026-10-30, the theme page's fit
+  floor dropped, (t): Animated Army's Chimil, Death Toll's and Graveyard
+  Overdrive's Buried Alive, Living Energy's Conversion Apparatus, Virtue and
+  Valor's Sram; Lorehold Spirit's Crucible of Worlds and Underworld Breach;
+  near-misses 61 / 30, consensus adds 39 / 6, Jace 29 / 14 / 3. Before it 332 /
+  115, 722 swaps; held-out 139 / 36, 297 swaps, the token doublers
   under a token-making commander, (u): Deep Clue Sea's and Squirreled Away's
   Primal Vigor, Lorehold Spirit's Anointed Procession, Tinker Time's Liquimetal
   Torque becomes Big Score, Planeswalker Party's Supreme Verdict lost to Bard,
@@ -243,10 +252,10 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   (`precon-audit/scoreboard.py`, the audit's "The scoreboard", 2026-10-30) adds
   two reported numbers, not gates: near-misses (a tuner add standing in for a
   missed guide add by job subtype or shared deck signal; 13 of 20 sampled pairs
-  held up by the rules) 71 on the 25 (70 before the token doublers), 29
+  held up by the rules) 61 on the 25 (71 before the fit floor was dropped), 30
   held-out, 2 on Jace; consensus guide cards (named by 2+ guides) matched, adds
-  40 of 137 / cuts 121 of 169 on the 25 (39 adds before the token doublers), 6 of 52 / 37 of 53
-  held-out, Jace 0 of 2 / 7 of 10. (The baseline is
+  39 of 137 / cuts 121 of 169 on the 25 (40 adds before the fit floor was
+  dropped), 6 of 52 / 37 of 53 held-out, Jace 0 of 2 / 7 of 10. (The baseline is
   from 2026-10-29, after the guide-row fix: 108 rows that joined cards with commas or misspelled them now name real
   cards, and the audit scripts no longer split "Dusk // Dawn" at its second
   slash; the larger add counts raise 14 precons' budgets. Before it, on the old

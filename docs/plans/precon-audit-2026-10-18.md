@@ -1708,7 +1708,8 @@ these reasons:
 - **The fit floor costs four adds.** With no fit floor and play-rate alone, the
   tune scored 118 / 331 on the 25, 36 adds on the held-out ten and 3 on Jace.
   That passes the bar, but it reads less of the card than today, which runs
-  against this plan. It is left for a separate decision.
+  against this plan. It is left for a separate decision. (Re-tested on the
+  phase v0.118.0 pin and shipped: "Dropping the theme page's fit floor".)
 
 The /rules-lawyer spot-check took ten new theme adds that match no guide card:
 five from Order B and five from Order A (`rulings-lookup --card`, `rules-lookup
@@ -1876,3 +1877,43 @@ Found on the way, not fixed: phase reads Parallel Lives' doubling as every
 token, but it doubles creature tokens only ("one or more creature tokens"), so
 `token_doubler_kinds` can't keep it from a Clue commander. Xorn's extra Treasure
 carries no count change, so it is no doubler to the read.
+
+## Dropping the theme page's fit floor (2026-10-30, shipped)
+
+"Card reads leading the theme adds" found that the theme page's 0.2 synergy fit
+floor, with play-rate picking among the cards above it, cost adds against
+play-rate alone, and left the call for a separate decision. The decision was
+to test it again after the phase v0.118.0 bump and ship it only if it still
+clears all three bars. A theme page where play-rate means something (the
+Commander family) is now ordered by play-rate, then price
+(`_tuner/swaps.py`, `_ranked_pool`); the page's search already holds only the
+theme's cards. Without play-rate, synergy still orders the page. Measured on
+top of the token doublers (`~/mtg/tuner-work/w36/`):
+
+| | swaps / cuts / adds | near-misses | consensus adds / cuts |
+|---|---|---|---|
+| the 25, the floor | 722 / 332 / 115 | 71 | 40 / 121 |
+| the 25, play-rate alone | 718 / 333 / 118 | 61 | 39 / 121 |
+| held-out, the floor | 297 / 139 / 36 | 29 | 6 / 37 |
+| held-out, play-rate alone | 290 / 139 / 37 | 30 | 6 / 37 |
+| Jace (Multiverse Reforged) | 29 / 14 / 3, unchanged | 2 | 0 / 7 |
+
+It clears the bar: adds rise by three on the 25 and one on the held-out ten,
+cuts rise by one on the 25, and Jace is unchanged.
+
+- **The 25.** Animated Army takes Chimil, the Inner Sun; Death Toll Buried
+  Alive and cuts Burnished Hart; Living Energy Conversion Apparatus, cutting
+  Reckless Fireweaver; Virtue and Valor Sram, Senior Edificer; Graveyard
+  Overdrive Buried Alive for Six; Timey-Wimey Delay for Jhoira's Timebug; Tinker
+  Time Liquimetal Torque for Big Score. Desert Bloom loses Life from the Loam,
+  and Abzan Armor makes two fewer swaps and loses the Rhox Faithmender cut.
+- **The held-out ten.** Lorehold Spirit takes Crucible of Worlds and Underworld
+  Breach, Avengers Assemble SP//dr, Piloted by Peni, and it cuts Tome of Legends
+  where it cut Captain America, Living Legend. Witherbloom Pestilence loses Sanguine
+  Bond and Vito, Thorn of the Dusk Rose. Prismari Artistry and Revenant Recon
+  make seven fewer swaps between them.
+- **Near-misses fall by ten on the 25.** Some were stand-ins for a guide card
+  the order now takes (Virtue and Valor's Puresteel Paladin for Sram, Living
+  Energy's Fellwar Stone for Conversion Apparatus). Near-misses are reported,
+  not a gate.
+

@@ -2291,12 +2291,11 @@ def test_only_the_upgrade_issue_draws_an_upgrade_slot_doing_a_job():
     assert out["swaps"] == []
 
 
-def test_a_theme_add_is_the_most_played_card_that_fits(monkeypatch):
-    """Among candidates fitting the deck — a synergy score at least a fifth of
-    the page's best — the most played wins, where play-rate means something
-    (25-precon audit, 2026-10-19: 72 guide adds in a page's top ten against
-    synergy-first's 41). A card below the floor never does, however played;
-    without play-rate the best fit leads."""
+def test_a_theme_add_is_the_most_played_card_on_its_page(monkeypatch):
+    """Where play-rate means something, the theme page's most played card wins,
+    however low its synergy score: the page's search already holds only the
+    theme's cards, and a synergy floor on top cost guide adds (backlog (t),
+    2026-10-30). Without play-rate the best fit leads."""
     from mtg_utils._tuner import swaps as swaps_mod
 
     scores = {"Box Ticker": 5.0, "Played Fit": 1.5, "Unfit Staple": 0.5}
@@ -2337,7 +2336,7 @@ def test_a_theme_add_is_the_most_played_card_that_fits(monkeypatch):
         )
         return out["swaps"][0]["add"]["name"]
 
-    assert run(playrate=True) == "Played Fit"
+    assert run(playrate=True) == "Unfit Staple"
     assert run(playrate=False) == "Box Ticker"
 
 
@@ -2706,6 +2705,19 @@ def test_a_spine_fill_takes_a_jobless_upgrade_slot_before_a_lane_slot():
     ]
 
 
+def _job_and_theme_search(job_card: dict, theme_card: dict):
+    """A fake search whose job pages hold both cards and whose pages of the
+    Proliferate theme (its preset, or its serve's page) hold only the theme's:
+    a real theme page is the theme's own cards, and its most played card wins
+    it."""
+
+    def search(**kw):
+        theme = kw.get("serve") is not None or "proliferate" in kw["preset_names"]
+        return [theme_card] if theme else [job_card, theme_card]
+
+    return search
+
+
 def _full_job_swap(current):
     """One removal spell off the main theme, its row at ``current`` of 8-10,
     upgraded: a better-played removal spell and a theme payoff on the page."""
@@ -2720,10 +2732,9 @@ def _full_job_swap(current):
             "upgrade_cards": [murder.name],
         },
         deck_signals=[sig],
-        search_fn=lambda **_: [
-            _played("Swords to Plowshares", 10),
-            _played("Evolution Sage", 9000),
-        ],
+        search_fn=_job_and_theme_search(
+            _played("Swords to Plowshares", 10), _played("Evolution Sage", 9000)
+        ),
         identity="",
         fmt="commander",
         paper_only=True,
@@ -2780,10 +2791,9 @@ def test_protection_at_the_shapes_target_moves_onto_the_theme():
                 "upgrade_cards": [boots.name],
             },
             deck_signals=[sig],
-            search_fn=lambda **_: [
-                _played("Lightning Greaves", 10),
-                _played("Evolution Sage", 9000),
-            ],
+            search_fn=_job_and_theme_search(
+                _played("Lightning Greaves", 10), _played("Evolution Sage", 9000)
+            ),
             identity="",
             fmt="commander",
             paper_only=True,
