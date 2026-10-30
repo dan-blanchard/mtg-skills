@@ -41,6 +41,7 @@ from __future__ import annotations
 
 from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence
 from dataclasses import dataclass, field
+from typing import TYPE_CHECKING
 
 from mtg_utils._analysis.signal_keys import TOKEN_MAKER
 from mtg_utils._card_ir.crosswalk.reads import (
@@ -48,7 +49,6 @@ from mtg_utils._card_ir.crosswalk.reads import (
     filter_core_types,
     filter_predicates,
     filter_subtypes,
-    named_filter_subtypes,
     tag_of,
     trigger_def_event,
     trigger_scope,
@@ -56,6 +56,9 @@ from mtg_utils._card_ir.crosswalk.reads import (
 from mtg_utils._card_ir.mirror.runtime import TypedMirrorNode
 from mtg_utils._card_ir.trees import trees_for
 from mtg_utils.type_line import split_type_line
+
+if TYPE_CHECKING:
+    from mtg_utils._analysis.signal_specs import Serve
 
 # ── vocabulary ──────────────────────────────────────────────────────────────
 
@@ -196,7 +199,8 @@ class Need:
 def _card_idents(card: Mapping, *, membership: bool = True) -> frozenset[str]:
     from mtg_utils.theme_presets import _signal_idents_for
 
-    return _signal_idents_for(dict(card), include_membership=membership)
+    record = card if isinstance(card, dict) else dict(card)
+    return _signal_idents_for(record, include_membership=membership)
 
 
 def _type_words(card: Mapping) -> frozenset[str]:
@@ -400,13 +404,17 @@ def _event_need(node: TypedMirrorNode, desc: str) -> Need | None:
         # "creatures enchanted by an Aura you control attack" (Killian): the
         # attachment is the need; a bare attack trigger is fed by every creature.
         if "HasAttachment" in preds or "EnchantedBy" in preds:
-            words = {"aura"} if "aura" in desc.lower() else {"aura", "equipment"}
+            # "enchanted by an Aura you control" names Auras alone (CR 303.4a:
+            # an Aura enchants; Equipment is attached, CR 301.5); a bare
+            # attachment filter admits both.
+            aura_only = "aura" in desc.lower()
+            words = {"aura"} if aura_only else {"aura", "equipment"}
             return Need(
                 "event",
                 "attachments",
                 desc,
                 types=frozenset({frozenset({w}) for w in words}),
-                keys=frozenset({"voltron_makers"}),
+                keys=frozenset() if aura_only else frozenset({"voltron_makers"}),
             )
         return None
     if event in ("dies", "leaves", "sacrificed", "exploited"):
@@ -500,8 +508,14 @@ def _resource_needs(idents: Iterable[str], desc: str) -> Iterator[Need]:
     from mtg_utils._tuner.metrics import _cares_keys
 
     seen: set[str] = set()
+    idents = tuple(idents)
+    # A commander that grows itself (Mirko's "+1/+1 counter on ~") makes no
+    # counters the deck's counter payoffs could use.
+    self_grow = any(i.startswith("self_counter_grow|") for i in idents)
     for ident in idents:
         key, _scope, subject = ident.split("|", 2)
+        if key == "plus_one_makers" and self_grow:
+            continue
         if key == TOKEN_MAKER or key.endswith("_makers"):
             consumers = {k for k in _cares_keys(key) if k != key}
             if key == TOKEN_MAKER:
@@ -546,16 +560,14 @@ def _redundancy_needs(idents: Iterable[str], desc: str) -> Iterator[Need]:
             )
 
 
-def _payoff_needs(
-    idents: Iterable[str], desc: str, named_subtypes: frozenset[str] = frozenset()
-) -> Iterator[Need]:
-    """A commander payoff with no trigger of its own → what feeds it. A tribal
-    payoff counts only for a subtype the commander's own filters name
-    (``named_subtypes``): a Vampire Detective is a Vampire, it doesn't ask for
-    them."""
+def _payoff_needs(idents: Iterable[str], desc: str) -> Iterator[Need]:
+    """A commander payoff with no trigger of its own → what feeds it."""
     for ident in idents:
         key, _scope, subject = ident.split("|", 2)
-        if key == "type_matters" and subject and subject.lower() not in named_subtypes:
+        if key == "type_matters":
+            # A tribe the commander pays off is the tribal avenue's page already
+            # (its members, plus changelings); a need page of it would add the
+            # same cards twice over.
             continue
         if key in _TYPE_PAYOFF_KEYS:
             words = _TYPE_PAYOFF_KEYS[key]
@@ -569,15 +581,6 @@ def _payoff_needs(
                 desc,
                 types=types,
                 keys=frozenset(keys),
-            )
-        elif key == "type_matters" and subject:
-            yield Need(
-                "payoff",
-                f"{subject} tribe",
-                desc,
-                types=frozenset({frozenset({subject.lower()})}),
-                keys=frozenset({"has_changeling"}),
-                idents=frozenset({f"{TOKEN_MAKER}|you|{subject}"}),
             )
         elif key == "keyword_tribe" and subject:
             kw = subject.lower()
@@ -697,11 +700,9 @@ def commander_needs(commanders: Sequence[Mapping]) -> tuple[Need, ...]:
         # Without the membership floor: a commander's own creature types and
         # card types are what it IS, not what it asks for.
         idents = _card_idents(rec, membership=False)
-        named: set[str] = set()
         for tree in trees_for(dict(rec)):
             for unit in tree.units:
                 node = unit.node
-                named.update(named_filter_subtypes(node))
                 desc = str(getattr(node, "description", "") or "")
                 if unit.origin == "trigger" and isinstance(node, TypedMirrorNode):
                     add(_event_need(node, desc))
@@ -711,6 +712,17 @@ def commander_needs(commanders: Sequence[Mapping]) -> tuple[Need, ...]:
             add(need)
         for need in _redundancy_needs(idents, rec.get("name", "")):
             add(need)
-        for need in _payoff_needs(idents, rec.get("name", ""), frozenset(named)):
+        for need in _payoff_needs(idents, rec.get("name", "")):
             add(need)
     return tuple(out)
+
+
+def need_serve(need: Need) -> Serve:
+    """The ``Serve`` that pages ``need`` (``signal_specs.Serve``'s predicate arm):
+    the cards that supply it, for the tune's need pages."""
+    from mtg_utils._analysis.signal_specs import Serve
+
+    return Serve(
+        predicate=lambda card: satisfies(card, need),
+        predicate_id=f"need:{need.kind}:{need.label}",
+    )

@@ -148,6 +148,16 @@ def run_deck(args):
         cut_rank[:] = [(reason, c.name) for reason, c in out]
         return out
 
+    need_avenues = S.need_avenues
+
+    def rec_need_avenues(*a, **kw):
+        # A need page never goes through _run_search (its ``_page`` is prebuilt),
+        # so record it here as a theme page.
+        out = need_avenues(*a, **kw)
+        for label, _depth, spec in out:
+            pages.append(({"_avenue": label}, [c.get("name") for c in spec["_page"]], "theme"))
+        return out
+
     upgrades, gate_fail = S._upgrades, {}
 
     def rec_upgrades(candidate, cut, job, *, deck_mana=None, deck=None, off_theme=False, draw_engine=False):
@@ -166,6 +176,7 @@ def run_deck(args):
         return ok
 
     S._run_search, S.cut_candidates, S._upgrades = rec_search, rec_cuts, rec_upgrades
+    S.need_avenues = rec_need_avenues
     spellbook_down = cache_spellbook(root / "spellbook-cache", combo_search)
     pool = CardPool.load(None)
     # A guide may name a card by its back face (Agadeem, the Undercrypt); key it

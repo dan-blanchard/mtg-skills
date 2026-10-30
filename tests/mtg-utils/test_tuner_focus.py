@@ -1641,3 +1641,35 @@ def test_a_folded_held_lanes_doers_are_not_the_commanders_lane_cards():
     assert fr["commander_avenues"] == [lane]  # poison folded into it
     assert "Bite" not in fr["commander_lane_cards"]
     assert "Stray" not in fr["commander_lane_cards"]
+
+
+def test_specificity_picks_the_commanders_distinctive_lane_as_primary():
+    """ADR-0061: with the pool's base rates, the primary lane is the held lane
+    whose rarest ident is the most distinctive per card the deck holds — Killian's
+    Auras (0.7% of the pool, 31 deep) over his attack trigger (6%, 21 deep) —
+    and the broad held lane stays a main beside it whatever share of its feeders
+    care."""
+    combat = spec_for(_sig("attack_matters")).label
+    auras = spec_for(_sig("voltron_matters")).label
+    classes = [_cc("Killian", "commander", [combat, auras])]
+    classes += [_cc(f"Aura {i}", "engine", [auras]) for i in range(30)]
+    classes += [_cc(f"Attacker {i}", "engine", [combat]) for i in range(20)]
+    aura_carers = frozenset({"Killian", *(f"Aura {i}" for i in range(9))})
+    combat_carers = frozenset({"Killian", *(f"Attacker {i}" for i in range(14))})
+    kwargs = {
+        "deck_size": 100,
+        "deck_signals": [_sig("attack_matters"), _sig("voltron_matters")],
+        "commander_idents": frozenset(
+            {("attack_matters", "you", ""), ("voltron_matters", "you", "")}
+        ),
+        "emitters": {
+            ("attack_matters", "you", ""): combat_carers,
+            ("voltron_matters", "you", ""): aura_carers,
+        },
+    }
+    # Without rates the carer count decides: Combat (15 carers) leads.
+    assert focus(classes, **kwargs)["mains"][0] == combat
+    rates = {"attack_matters|you|": 0.063, "voltron_matters|you|": 0.007}
+    fr = focus(classes, base_rates=rates, **kwargs)
+    assert fr["mains"][0] == auras
+    assert combat in fr["mains"]

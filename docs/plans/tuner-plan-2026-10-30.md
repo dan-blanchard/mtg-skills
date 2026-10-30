@@ -5,6 +5,17 @@ Decided with Dan on 2026-10-30 (grilling), from the findings in
 plan. Supporting data: `~/mtg/tuner-work/w40/` (guide quality, frameworks, the
 miss taxonomy, the held-out candidates).
 
+## Progress
+
+- 2026-10-30: Phase A shipped (464d93e8, ADR-0061) and baselined (A1: the 25
+  732 / 335 / 121, held-out 20 571 / 253 / 80). Phase B shipped the same day:
+  need pages reached by routing a need-supplying cut (not by sharing the theme
+  adds — measured and rejected, 3 and 1 shared adds) and the specificity-first
+  primary with a builders floor (the held-lane share waiver measured and
+  rejected). Phase B baseline: the 25 735 / 337 / 122, held-out 577 / 253 / 97;
+  page recall@30 159 and 161; plan-consistent 288 and 174. Details in the audit
+  report's "Phase B" section and ADR-0061's amendment.
+
 ## Target
 
 Every tune aims at **bracket 3 or higher**; nobody tunes a bracket-2 deck. The

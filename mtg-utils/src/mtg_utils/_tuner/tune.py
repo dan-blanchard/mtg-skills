@@ -15,8 +15,10 @@ from typing import TYPE_CHECKING
 
 from mtg_utils import _gc
 from mtg_utils._analysis.budgets import banded_slot_budgets, template_for
+from mtg_utils._analysis.commander_need import commander_needs
 from mtg_utils._analysis.multipliers import commander_multipliers
 from mtg_utils._analysis.signals import read_deck_signals
+from mtg_utils._analysis.signals_index import ident_base_rates
 from mtg_utils._tuner import commander_fit, grant_coverage, metrics
 from mtg_utils._tuner import swaps as swaps_mod
 from mtg_utils._tuner.bracket import bracket_gate, suggestable_near_misses
@@ -306,8 +308,8 @@ def tune(
     # body (the Sliver Weftwinder shape)? The band NUMBER is untouched — this only
     # annotates the short role's row; ``issues.Sourcing`` reads it and downgrades the
     # shortfall to advisory (sourcing nothing for it) without suppressing it.
+    commander_records = [c.record for c in classes if c.bucket == "commander"]
     if cal.commander_axes:
-        commander_records = [c.record for c in classes if c.bucket == "commander"]
         for role, name in grant_coverage.covered_roles(commander_records).items():
             band = budgets.get(role)
             if band is not None and band["deviation"] < 0:
@@ -328,6 +330,7 @@ def tune(
         tribal_payoff_subjects=payoff_subjects,
         cal=cal,
         playrate_condemns=condemns,
+        base_rates=ident_base_rates() if cal.playrate_meaningful else None,
     )
     # Focus now knows which avenues are built: an Engine card feeding only fed
     # ones is dead weight here (classification ran before focus could tell), so
@@ -372,6 +375,20 @@ def tune(
     # Commander fit only means something with a commander to fit (None otherwise —
     # the scorecard says so, the SPA renders nothing).
     cfit = metrics.commander_fit(classes, foc) if cal.commander_axes else None
+    # The commander's need pages (ADR-0061): built once here so the upgrade
+    # remedy (a need-supplying cut goes to its need's page) and the swap engine's
+    # shared theme adds read the same pages. Only where play-rate orders a page
+    # (the Commander family) and a tune will propose swaps.
+    need_avenues: list[tuple[str, int, dict]] = []
+    if params.max_swaps > 0 and cal.commander_axes and cal.playrate_meaningful:
+        need_avenues = swaps_mod.need_pages(
+            commander_needs(commander_records),
+            [c.record for c in classes for _ in range(max(1, c.quantity))],
+            search_fn=search_fn,
+            identity=identity,
+            fmt=fmt,
+            paper_only=paper_only,
+        )
     issues = top_issues(
         efficiency_r=eff,
         focus_r=foc,
@@ -387,6 +404,7 @@ def tune(
             keep=keep_search(commander_records) if cal.commander_axes else None,
             commander_idents=read.commander_idents,
             poisons=wins["poisons"],
+            need_avenues=need_avenues,
         ),
         near_misses=suggestable_near_misses(combos, params.target_bracket),
         meta_missing=[c for c in meta_missing if not c["land"]][:META_CORE_ISSUES],
@@ -539,6 +557,7 @@ def tune(
             playrate_condemns=condemns,
             exclude=params.exclude,
             deck_mana=deck_mana,
+            need_avenues=need_avenues,
         )
         swaps_out = swaps_mod.propose_swaps(classes, issues, swap_ctx)
         # The fill pass deliberately skips lands; flag any mana-base shortfall so the

@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import functools
 import re
+from collections.abc import Callable
 from dataclasses import dataclass, field
 
 from mtg_utils._analysis._sweep_detectors import (
@@ -142,6 +143,15 @@ class Serve:
     # ``not_oracle`` still vetoes at the top. When set, the OR dimensions on THIS serve
     # are not consulted — put every condition into the sub-serves.
     all_of: tuple[Serve, ...] = ()
+    # A record predicate arm (ADR-0061): the card serves when ``predicate(card)``
+    # holds — a commander need's test (``commander_need.need_serve``), which
+    # composes idents, type words and record facts no single arm above spells.
+    # ``predicate_id`` names it for equality and hashing (two needs with the
+    # same label are the same serve); the callable itself is left out of both.
+    predicate: Callable[[dict], bool] | None = field(
+        default=None, compare=False, hash=False
+    )
+    predicate_id: str = ""
 
     def search(self, text: str) -> re.Match[str] | None:
         """Back-compat: raw oracle-regex search over a string (legacy call sites)."""
@@ -158,6 +168,8 @@ class Serve:
             return False
         if self.all_of:
             return all(sub.matches(card, view) for sub in self.all_of)
+        if self.predicate is not None and self.predicate(card):
+            return True
         if self.names and (card.get("name") or "").lower() in self.names:
             return True
         if self.oracle is not None and self.oracle.search(oracle_text):

@@ -19,6 +19,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, NamedTuple
 
 from mtg_utils._analysis import signal_keys
+from mtg_utils._analysis.commander_need import satisfies
 from mtg_utils._analysis.lanes import TOKEN_SUBTYPE_PAYOFF_KEYS
 from mtg_utils._analysis.multipliers import Commander, multiplier_reasons
 from mtg_utils._analysis.roles import ROLE_SEARCH, protects
@@ -297,8 +298,12 @@ class Sourcing:
         commander_idents: Collection[tuple[str, str, str]] = (),
         emitters: Mapping[tuple[str, str, str], Collection[str]] | None = None,
         poisons: bool = False,
+        need_avenues: Sequence[tuple[str, int, dict]] = (),
     ) -> None:
         self._focus = focus_result
+        #: The commander's need pages (ADR-0061; ``swaps.need_avenues``): label,
+        #: depth and spec, shared with the mains by :meth:`theme_avenues`.
+        self._need_avenues = tuple(need_avenues)
         self._signals = deck_signals
         self._budgets = budgets
         self._game = game
@@ -386,6 +391,9 @@ class Sourcing:
             self._multiplier_read = True
         if self._multiplier is not None:
             out.append(self._multiplier)
+        # The commander's needs (ADR-0061): a page per specific need, beside the
+        # mains, each asking by its depth as the mains do.
+        out.extend(self._need_avenues)
         return out
 
     def fodder_spec(self) -> dict | None:
@@ -514,6 +522,15 @@ class Sourcing:
         else the main theme. None when neither is sourceable here."""
         job = upgrade_job(card.roles, card.record)
         if job is None:
+            # A theme cut that supplies one of the commander's needs is upgraded
+            # off that need's page (ADR-0061): the slot keeps doing what the
+            # commander asks, with a better card — never the shared cap.
+            for _label, _depth, nspec in self._need_avenues:
+                need = nspec.get("_need")
+                if need is not None and satisfies(card.record, need):
+                    return UpgradeSource(
+                        {k: v for k, v in nspec.items() if k != "_cap"}, None
+                    )
             spec = None
         elif job == "protection":
             spec = PROTECTION_SEARCH

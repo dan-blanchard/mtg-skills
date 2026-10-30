@@ -341,6 +341,9 @@ _LANE_DOER_IDENTS: Mapping[tuple[str, str, str], tuple[tuple[str, str, str], ...
 # The carer-set overlap at which two avenues are one theme read twice. A Jaccard
 # share, not containment: a two-carer sub whose carers also care about a 20-carer
 # main is a narrower direction of its own, not the main read again.
+#: A commander-held lane this many times as specific (rarer in the pool) as a
+#: kept held lane is a distinct mechanic and never folds into it (ADR-0061).
+_FOLD_SPECIFICITY = 5.0
 _SAME_CARERS_SHARE = 0.9
 # ...and the share of the SMALLER avenue's members the two must also have in
 # common. One carer set can reward two pools no card feeds both of: subject-less
@@ -386,7 +389,12 @@ def focus(
     tribal_payoff_subjects: frozenset[str] | None = None,
     cal: Calibration = COMMANDER,
     playrate_condemns: bool | None = None,
+    base_rates: Mapping[str, float] | None = None,
 ) -> dict:
+    # ``base_rates``: each ident's share of the pool (``signals_index
+    # .ident_base_rates``), the specificity read picking the commander's primary
+    # lane (ADR-0061); ``None`` (no bulk, the older tests) keeps the carer-count
+    # order.
     # Each deck signal's avenue, resolved once (``avenue_spec_for``: a per-subject
     # spec for a subject key's signal, and no avenue for a subject the key's own
     # serve leaves out; four passes below read it).
@@ -425,6 +433,8 @@ def focus(
     # main, so it gets a lower floor — not the same bar as the main).
     main_floor = max(1, cal.scaled(cal.focus_main, deck_size))
     sub_floor = max(1, cal.scaled(cal.focus_sub, deck_size))
+    emerging_floor = max(1, cal.scaled(cal.focus_emerging, deck_size))
+    carer_floor = max(1, cal.scaled(cal.focus_carers, deck_size))
     # The cards that CARE about each avenue (its "carers"): those emitting its key,
     # read off the payoff side of the lane (a ``<x>_makers`` avenue is fed by the
     # makers, but the cards that care about it are the ``<x>_matters`` emitters —
@@ -509,15 +519,52 @@ def focus(
         )
     )
 
+    # A held lane's specificity: the pool share of the rarest held ident it
+    # holds (ADR-0061; ``None`` rates without a bulk keep the carer-count order).
+    rates = base_rates
+
+    def specificity(lbl: str) -> float:
+        held = [
+            (rates or {}).get("|".join(ident), 1.0)
+            for ident, label in held_idents.items()
+            if label == lbl
+        ]
+        return min(held) if held else 1.0
+
+    def held_emitters(lbl: str) -> int:
+        """How many deck cards emit one of the held idents ``lbl`` holds — the
+        lane's builders before the carers are known."""
+        names: set[str] = set()
+        for ident, label in held_idents.items():
+            if label == lbl and emitters is not None:
+                names.update(emitters.get(ident, ()))
+        return len(names - land_names)
+
+    def distinctive_enough(lbl: str) -> bool:
+        """A held lane that may stand apart on specificity: emerging-deep with
+        at least the carer floor of builders. Saheeli's two-emitter Artificer
+        lane is not one (the audit folded it into her artifacts on purpose)."""
+        return depth.get(lbl, 0) >= emerging_floor and held_emitters(lbl) >= max(
+            2, carer_floor
+        )
+
     def folds(lbl: str, kept: Sequence[str], same: Callable[[str, str], bool]) -> bool:
         """``lbl`` is a kept avenue read again (``same``): against any kept
         avenue for an ordinary one, only the commander's other lanes for a lane
         the commander holds (never a tribe, for one as deep as a main —
         ``tribes`` — and only another tribe for a tribe a deck card pays off,
-        ``paid_tribes``), and only another suit-up read for the suit-up avenue
-        under a creature commander (``suit_up``)."""
+        ``paid_tribes``; never a lane five times as specific as the kept one —
+        Mirko's surveil beside his graveyard, a distinct mechanic, not a
+        re-read), and only another suit-up read for the suit-up avenue under a
+        creature commander (``suit_up``)."""
         if lbl in commander_held:
             kept = [k for k in kept if k in commander_held]
+            if rates is not None and distinctive_enough(lbl):
+                kept = [
+                    k
+                    for k in kept
+                    if specificity(lbl) >= _FOLD_SPECIFICITY * specificity(k)
+                ]
             if lbl in paid_tribes:
                 kept = [k for k in kept if k in tribes]
             elif lbl not in tribes and depth.get(lbl, 0) >= main_floor:
@@ -620,7 +667,6 @@ def focus(
         }
 
     carers = {lbl: own_carers(lbl) for lbl in cares}
-    carer_floor = max(1, cal.scaled(cal.focus_carers, deck_size))
     main_carer_floor = max(carer_floor, cal.scaled(cal.focus_main_carers, deck_size))
 
     def care_count(lbl: str) -> int:
@@ -661,6 +707,22 @@ def focus(
         if held_kept
         else None
     )
+    # Specificity first (ADR-0061): of the commander's lanes at least emerging-deep
+    # with two or more carers, the one its rarest ident makes the most distinctive
+    # — Killian's Auras and goad (0.4-0.7% of the pool) over his attack trigger
+    # (6%), Mirko's surveil over his graveyard. Carer count broke the tie the
+    # other way in 7 of 35 audited precons (the review's §5 table), and the
+    # umbrella lane stays a main beside it (``is_main``).
+    distinctive = [lbl for lbl in held_kept if distinctive_enough(lbl)]
+    forced_primary: str | None = None
+    if rates is not None and distinctive:
+        # Rarity per card the deck holds: a 31-card Aura lane at 0.7% outranks a
+        # 9-card goad lane at 0.4%; a 6-card surveil lane at 0.1% outranks a
+        # 23-card graveyard lane at 10%.
+        primary = forced_primary = min(
+            distinctive,
+            key=lambda lbl: (specificity(lbl) / depth.get(lbl, 1), lbl),
+        )
 
     def built(lbl: str, floor: int, *, in_proportion: bool = False) -> bool:
         """Deep in feeders AND enough cards care (or the commander does). On the
@@ -689,7 +751,9 @@ def focus(
     candidates: list[str] = []
     fed: list[str] = []
     for lbl, d in depth.items():
-        if d >= sub_floor:
+        # A specificity-chosen primary is viable whatever its depth (a main by
+        # definition, below).
+        if d >= sub_floor or lbl == forced_primary:
             (candidates if built(lbl, carer_floor) else fed).append(lbl)
     candidates.sort(key=rank_key, reverse=True)
     # Every avenue somebody built toward, collapsed near-duplicates included (a
@@ -761,7 +825,6 @@ def focus(
             if sig.key == signal_keys.TYPE_MATTERS and sig.subject:
                 tribal_subject_of_label[spec.label] = sig.subject
 
-    emerging_floor = max(1, cal.scaled(cal.focus_emerging, deck_size))
     # An emerging direction needs builders the way a main does, at its own
     # scale: at least two carers (half the sub's carer floor, never one card)
     # AND carers a ``focus_main_carer_share`` of its depth. One card caring

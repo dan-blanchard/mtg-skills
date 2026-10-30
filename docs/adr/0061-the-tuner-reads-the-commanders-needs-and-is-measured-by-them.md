@@ -69,3 +69,26 @@ doesn't yet (a reanimation target's power under Mirko; a cost reduction's
 subject) score nothing rather than something wrong. The baselines before and
 after the read were measured on both sets (`~/mtg/tuner-work/w41/`), and the
 audit report records them.
+
+**Amendment (2026-10-30, Phase B shipped).** How a need page is reached decided
+everything. Sharing the theme adds with the need pages by depth cost the mains'
+guide hits for cards the guides never named (three shared adds per page: the 25
+121 → 109 guide adds, the held-out 20 80 → 76; one: 114 and 78). What ships is
+**routing**: a theme cut that itself supplies a commander need is upgraded off
+that need's page (`Sourcing.upgrade_spec`; `swaps._NEED_CAP = 0`), so a weak
+Aura's slot goes to a better Aura and a cut surveil card's to a better surveil
+outlet, and no main loses a slot — 123 and 86 guide adds, consensus +2 and +6,
+page recall@30 +20 and +29. Two guards on the read: a tribe the commander pays
+off opens no need page (the tribal avenue is that page), and a self-growing
+commander (Mirko's counter on himself) makes no counters for counter payoffs.
+The pages are built once in `tune` (`swaps.need_pages`) because the upgrade
+remedy's `Sourcing` lives there. The **specificity-first primary** shipped on top
+(`metrics.focus`, `base_rates` from `signals_index.ident_base_rates`): among the
+held lanes at least emerging-deep with the carer floor of builders, the rarest
+ident per card the deck holds leads; it is viable whatever its depth; a held lane
+five times as specific as a kept one does not fold into it. Held-out 86 → 97
+guide adds, the 25 123 → 122 with cuts +2. Rejected: a commander-held lane at
+main depth as a main whatever share of its feeders care (Living Energy's
+Artifacts umbrella took the Energy adds); the fold guard without the builders
+floor (Saheeli's Artificers became protected lane doers). The audit report's
+"Phase B" section holds every run.

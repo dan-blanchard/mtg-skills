@@ -23,6 +23,7 @@ from typing import Protocol
 
 from mtg_utils._analysis.budgets import COMMANDER_TEMPLATE, Template
 from mtg_utils._analysis.card_reads import has_trees
+from mtg_utils._analysis.commander_need import BROAD_SHARE, Need, need_serve, satisfies
 from mtg_utils._analysis.job_quality import JobRead, read_for
 from mtg_utils._analysis.ranking import rank_candidates
 from mtg_utils._analysis.roles import DeckMana, protects, role_of
@@ -832,6 +833,98 @@ def _run_search(
     )
 
 
+#: How many cards a commander need wants in the deck: the frameworks' redundancy
+#: of the commander's key effect (about eight to twelve). A need page's depth is
+#: what is still owed toward it, so a thin need asks before a well-stocked one.
+_NEED_TARGET = 12
+#: The most adds one need page takes from the SHARED theme adds in a tune. Zero:
+#: a need page is reached through a cut that itself supplies the need
+#: (``Sourcing.upgrade_spec``: a weak Aura's slot goes to a better Aura, a cut
+#: surveil card's to a better surveil outlet), never by taking a main's slot.
+#: Measured on the 2026-10-30 Phase A baseline (the 25: 732 swaps / 335 guide
+#: cuts / 121 guide adds; held-out 20: 571 / 253 / 80): routing alone 731 / 335 /
+#: 123 and 570 / 252 / 86, consensus adds +2 and +6, page recall@30 +20 and
+#: +29; one shared add per need page 738 / 334 / 114 and 568 / 252 / 78; three
+#: 739 / 331 / 109 and 573 / 253 / 76 — the shared adds displaced the mains'
+#: guide hits.
+_NEED_CAP = 0
+
+
+def need_avenues(
+    needs: Sequence[Need],
+    deck_records: Sequence[dict],
+    identity_pool: Sequence[dict],
+) -> list[tuple[str, int, dict]]:
+    """The commander's need pages (ADR-0061): for each need at most
+    ``BROAD_SHARE`` of the identity's nonland pool supplies, an avenue — its
+    label, its depth (what the deck still owes toward ``_NEED_TARGET``) and a
+    spec carrying the page (``_page``: the pool's suppliers in the pool's own
+    order, play-rate) and the need's serve. A broad need (every instant under a
+    spellslinger) opens no page: the mains hold those."""
+    # The pool's idents from the persisted signals index (a no-op without a
+    # bulk: a small test pool reads them live).
+    try:
+        from mtg_utils.bulk_loader import default_bulk_path
+        from mtg_utils.theme_presets import seed_signal_key_index
+
+        seed_signal_key_index(default_bulk_path())
+    except Exception:  # noqa: BLE001 - no bulk configured
+        pass
+    nonland_pool = [c for c in identity_pool if not is_land(c)]
+    deck_nonland = [r for r in deck_records if not is_land(r)]
+    # One pass over the pool, every need per card (the idents and type words
+    # are read once per card inside ``satisfies``' memos).
+    pages: list[list[dict]] = [[] for _ in needs]
+    for card in nonland_pool:
+        for i, need in enumerate(needs):
+            if satisfies(card, need):
+                pages[i].append(card)
+    out: list[tuple[str, int, dict]] = []
+    for need, page in zip(needs, pages, strict=True):
+        if not page or len(page) > BROAD_SHARE * max(1, len(nonland_pool)):
+            continue
+        have = sum(satisfies(r, need) for r in deck_nonland)
+        label = f"{need.label} (commander need)"
+        spec = {
+            "_serve": need_serve(need),
+            "_avenue": label,
+            "_page": page,
+            "_need": need,
+            "_cap": _NEED_CAP,
+        }
+        # Deep as a main is deep (the deck's commitment to the need), and never
+        # shallower than what the deck still owes toward the target: a thin
+        # need asks early, a built one keeps asking.
+        out.append((label, max(have, _NEED_TARGET - have, 1), spec))
+    return out
+
+
+def need_pages(
+    needs: Sequence[Need],
+    deck_records: Sequence[dict],
+    *,
+    search_fn: Callable[..., list[dict]],
+    identity: str,
+    fmt: str,
+    paper_only: bool,
+) -> list[tuple[str, int, dict]]:
+    """The commander's need pages for a tune (:func:`need_avenues` over one
+    identity-wide search in its play-rate order); empty with no needs."""
+    if not needs:
+        return []
+    identity_pool = _run_search(
+        search_fn,
+        {},
+        identity=identity,
+        fmt=fmt,
+        paper_only=paper_only,
+        cmc_cap=None,
+        limit=sys.maxsize,
+        playrate=True,
+    )
+    return need_avenues(needs, deck_records, identity_pool)
+
+
 @dataclass(frozen=True)
 class SwapContext:
     """Everything ``propose_swaps`` needs beyond the classes and the issues — the deck
@@ -899,6 +992,9 @@ class SwapContext:
     #: reads the commander's token output from.
     commander_idents: Collection[tuple[str, str, str]] = ()
     emitters: Mapping[tuple[str, str, str], Collection[str]] | None = None
+    #: The commander's need pages (:func:`need_pages`, ADR-0061), built once by
+    #: ``tune`` so the issue remedies and the swap engine read the same pages.
+    need_avenues: Sequence[tuple[str, int, dict]] = ()
 
     def copy_ceiling(self, record: dict) -> int | None:
         """How many copies of this card the build may run: the copy limit, bounded
@@ -977,6 +1073,7 @@ def propose_swaps(
         ctx.budgets,
         commander_idents=ctx.commander_idents,
         emitters=ctx.emitters,
+        need_avenues=ctx.need_avenues,
     )
     cut_focus = CutFocus.from_focus(ctx.focus_result)
     # What a polymorph commander's fodder is (``find_add``'s job upgrades).
@@ -1134,6 +1231,9 @@ def propose_swaps(
         """The spec's search, its first ``limit`` cards. One search per spec at
         the deepest page asked so far: the search sorts before it pages, so a
         shorter page is the deeper one's head."""
+        prebuilt = spec.get("_page")
+        if prebuilt is not None:  # a need page: already the pool's suppliers, in order
+            return list(prebuilt)[:limit]
         skey = (search_key(spec), capped)
         deep = _search_memo.get(skey)
         if deep is None or deep[0] < limit:
@@ -1162,8 +1262,11 @@ def propose_swaps(
         job: str | None = None,
         capped: bool = True,
     ) -> list[dict]:
+        # A need page rides in ``_page`` (a list, keyed by identity: one list per
+        # need per call).
         key = (
-            tuple(sorted(spec.items())),
+            tuple(sorted((k, v) for k, v in spec.items() if k != "_page")),
+            id(spec.get("_page")),
             synergy_first,
             nonland_only,
             limit,

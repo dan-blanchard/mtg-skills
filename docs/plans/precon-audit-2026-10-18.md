@@ -2149,3 +2149,97 @@ no recent card and doesn't justify a permanent index and a new `tune` argument, 
 isn't shipped; it is recorded for a decision.
 
 The scoreboard's fair line and `--since` ship as tooling.
+
+## The 2026-10-30 plan, Phase A: measurement (2026-10-30)
+
+The plan (`tuner-plan-2026-10-30.md`, from `tuner-holistic-review-2026-10-30.md`)
+puts measurement before policy. Shipped in 464d93e8 (ADR-0061), after the four
+parse corrections of 3542f862:
+
+- `_analysis/commander_need.py`: the commander's needs read off its trees
+  (events, conditions, resources, redundancy, trigger-less payoffs), and
+  `satisfies(card, need)`. Over the 35 audited precons the guides' in-scope adds
+  supply a specific need (one at most 10% of the commander-legal nonland pool
+  supplies) 43% of the time, the tune's 38%; on the needs at most 2% of the pool
+  supplies, 19% and 16%; the gap sits where the review found it (Silverquill
+  54% / 17%, Revenant Recon's surveil 38% / 0%, Grand Larceny 15% / 0%) and the
+  tune leads where its adds are on-plan job cards (Deep Clue Sea's Clue
+  consumers 83% / 55%).
+- The scoreboard's `PLAN` line (plan-consistent adds, tune and guides), the
+  page-level recall (`misses.py` records each in-scope guide add's best position
+  on the search pages of its kind), the job-equivalent line (the near-miss job
+  half) and the mana-base line (the guides' land rows, exact or same colour pair
+  untapped; zero until the tune proposes lands).
+- `misses.py` tunes with `target_bracket=3`: no precon moved (none holds more
+  than three Game Changers).
+- Ten more held-out precons (Temur Roar, Counter Intelligence, Ahoy Mateys,
+  Quandrix Unlimited, Dance of the Elements, Jeskai Striker, Eternal Might,
+  Deadly Disguise, Most Wanted, Blight Curse; `~/mtg/tuner-work/heldout/`).
+
+**Baseline A1** (`~/mtg/tuner-work/w41/misses-{25,ho}-A1.json`, `sb-*-A1.json`;
+the parse corrections moved no tune count, only the guides' plan line by +2):
+
+| set | swaps | guide cuts | guide adds | plan-consistent: tune / guides | page recall @10 / @30 (of guide adds with a page of their kind) | near-misses (job) | consensus adds |
+|---|---|---|---|---|---|---|---|
+| the 25 | 732 | 335 of 505 | 121 of 793 | 279 of 732 / 339 of 793 | 77 / 135 of 566 | 63 (30) | 38 of 137 |
+| held-out 20 | 571 | 253 of 401 | 80 of 807 | 212 of 571 / 332 of 807 | 54 / 124 of 595 | 66 (37) | 21 of 111 |
+
+The ship bar from here: page recall@30 rises on the 25 and does not fall
+held-out; plan-consistency (tune) does not fall on either; held-out guide adds
+do not fall; guide cuts fall ≤2 on the 25 and ≤1 held-out; consensus adds do
+not fall.
+
+## Phase B: need pages and the specificity-first primary (2026-10-30, shipped)
+
+Two levers, measured one at a time against baseline A1 (`~/mtg/tuner-work/w41/`),
+each on the bar above.
+
+**B1, the commander's need pages** (`swaps.need_pages` / `need_avenues`, read by
+`issues.Sourcing`): for each specific need of the commander
+(`commander_need.commander_needs`, at most 10% of the identity's nonland pool
+supplies it) the pool's suppliers in play-rate order. How the page is reached
+decided everything:
+
+| variant | the 25: swaps / cuts / adds | 25 page@30 | held-out 20: swaps / cuts / adds | held-out page@30 |
+|---|---|---|---|---|
+| A1 baseline | 732 / 335 / 121 | 135 | 571 / 253 / 80 | 124 |
+| B1b: a need page shares the theme adds by depth, three adds each | 739 / 331 / 109 | 158 | 573 / 253 / 76 | 165 |
+| B1c: one shared add each, plus a need-supplying cut routed to its page | 738 / 334 / 114 | 158 | 568 / 252 / 78 | 165 |
+| **B1h: routing only — a cut that supplies a need is upgraded off that need's page, no shared adds** | **731 / 335 / 123** | **155** | **570 / 252 / 86** | **153** |
+
+The shared adds displaced the mains' guide hits (Six, Spellstutter Sprite,
+Crucible of Worlds, Bitterblossom) for cards the guides did not name (Walking
+Ballista, Blood Artist, Mindcrank); routing keeps every slot on what the
+commander asks and only changes the card it gets (a weak Aura → All That
+Glitters, Ethereal Armor, Kaya's Ghostform under Killian; the precon's surveil
+cards → Umbral Collar Zealot, Ripples of Undeath under Mirko). Consensus adds
++2 on the 25 and +6 held-out; plan-consistent adds +40 and +28. Two guards were
+needed on the read: a tribe the commander pays off opens no need page (the tribal
+avenue already does), and a commander that grows itself makes no counters for the
+deck's counter payoffs. The first routing runs changed nothing because the
+upgrade remedy's `Sourcing` is built in `tune`, not in `propose_swaps`; the pages
+are built once in `tune` now and both read them.
+
+**B2, the specificity-first primary** (`metrics.focus`, on top of B1h): among
+the commander's held lanes at least emerging-deep with the carer floor of
+builders, the primary is the one whose rarest ident is the most distinctive per
+card the deck holds (pool share / depth); it is viable whatever its depth; a held
+lane five times as specific as a kept one no longer folds into it.
+
+| | the 25: swaps / cuts / adds | page@30 | plan-consistent (tune) | consensus adds | held-out: swaps / cuts / adds | page@30 | consensus adds |
+|---|---|---|---|---|---|---|---|
+| B1h | 731 / 335 / 123 | 155 | 284 | 40 | 570 / 252 / 86 | 153 | 27 |
+| **B2 (shipped)** | **735 / 337 / 122** | **159** | **288** | **41** | **577 / 253 / 97** | **161** | **34** |
+
+Quandrix Unlimited +7 adds, Counter Intelligence, Temur Roar, Peace Offering,
+World Shaper, Cavalry Charge +1 each; Living Energy −2 adds / −3 cuts (Saheeli's
+artifacts-cast lane still edges in). Rejected on the way: letting every
+commander-held lane at main depth be a main whatever share of its feeders care
+(Living Energy's 39-card Artifacts lane became a second main and took the
+Energy adds: 15 → 9 guide cuts, 8 → 3 adds); a 5× fold guard without the
+builders floor (Saheeli's two-emitter Artificer lane stood apart and its
+Artificers became protected lane doers).
+
+**Phase B baseline:** the 25 = 735 / 337 / 122, page recall @10 85 / @30 159,
+plan-consistent 288 of 735; held-out 20 = 577 / 253 / 97, page recall @10 77 /
+@30 161, plan-consistent 174 of 577 (`w41/misses-{25,ho}-B2.json`, `sb-*-B2.json`).

@@ -425,3 +425,30 @@ def load_signals_sidecar(
         )
         _write_sidecar(sidecar, built, content_hash, bulk_path)
     return built
+
+
+_BASE_RATES: dict[tuple, dict[str, float] | None] = {}
+
+
+def ident_base_rates(bulk_path: Path | None = None) -> dict[str, float] | None:
+    """The share of the indexed pool carrying each ``key|scope|subject`` ident
+    (ADR-0061: a lane's specificity — Combat's ``attack_matters|you|`` on 6% of
+    the pool, surveil's ``scry_surveil_matters|you|`` on 0.1%), from the
+    persisted sidecar, memoized per process; ``None`` when there is no bulk to
+    read (CI, a no-sidecar deployment), so a caller keeps its no-rate order."""
+    from mtg_utils.bulk_loader import default_bulk_path
+
+    try:
+        path = bulk_path or default_bulk_path()
+    except Exception:  # noqa: BLE001 - no bulk configured: no rates
+        return None
+    key = (str(path),)
+    if key not in _BASE_RATES:
+        idx = load_signals_index(path) or {}
+        n = len(idx)
+        counts: dict[str, int] = {}
+        for idents in idx.values():
+            for ident in idents:
+                counts[ident] = counts.get(ident, 0) + 1
+        _BASE_RATES[key] = {i: c / n for i, c in counts.items()} if n else None
+    return _BASE_RATES[key]
