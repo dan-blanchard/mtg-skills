@@ -249,7 +249,10 @@ _NONPERMANENT_CORES = frozenset({"Instant", "Sorcery"})
 # graveyard exiled to pay a cost — Redemptor Dreadnought — is no recast).
 _RECOVERED_GY_PERMANENT_CAST_RE = re.compile(
     r"\bcast\s+(?:(?P<self>this\s+card|~)|[^.]*?\b(?<!non-)"
-    r"(?:artifact|creature|enchantment|planeswalker|battle|permanent)\b[^.]*?\bspells?)"
+    r"(?:artifact|creature|enchantment|planeswalker|battle|permanent)\b[^.]*?\bspells?"
+    # A mana-value cap between the spell and its zone (Serra Paragon's "a
+    # permanent spell with mana value 3 or less from your graveyard").
+    r"(?:\s+with\s+mana\s+value\s+\d+\s+or\s+less)?)"
     r"\s+from\s+your\s+graveyard\b",
     re.IGNORECASE,
 )

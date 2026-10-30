@@ -401419,6 +401419,209 @@
     "type_line": "Creature — Human Shaman"
    }
   },
+  "Ethereal Armor": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Enchantment"
+      ],
+      "subtypes": [
+       "Aura"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "White"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [
+      {
+       "Enchant": {
+        "controller": null,
+        "properties": [],
+        "type": "Typed",
+        "type_filters": [
+         "Creature"
+        ]
+       }
+      }
+     ],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pauper": "legal",
+      "paupercommander": "legal",
+      "pioneer": "legal",
+      "standard": "legal",
+      "standardbrawl": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 0,
+      "shards": [
+       "White"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "19557197-521d-4900-a260-1a21e49113f5",
+       "2167e245-dbdc-4a4b-b475-05b23f84a98b",
+       "483d144b-c20b-41c2-8e8d-97ac24c24558",
+       "76960e65-e5c7-4414-b9a5-37d7b2ded4a0",
+       "d4cc231e-7b86-4b64-a1d6-75aea64b85a0",
+       "fd0e8a82-0201-483e-a976-5f29764b35a4"
+      ]
+     },
+     "name": "Ethereal Armor",
+     "non_ability_text": null,
+     "oracle_text": "Enchant creature\nEnchanted creature gets +1/+1 for each enchantment you control and has first strike.",
+     "power": null,
+     "printings": [
+      "DSK",
+      "EA2",
+      "PL23",
+      "PLST",
+      "Q06",
+      "RTR",
+      "TSR",
+      "WOC"
+     ],
+     "rarities": [
+      "common",
+      "uncommon",
+      "rare",
+      "special"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2021-03-19",
+       "text": "Ethereal Armor counts each enchantment you control, including itself and any Auras you control that are attached to an opponent or to permanents controlled by an opponent."
+      }
+     ],
+     "scryfall_oracle_id": "dbba75f5-2404-4bd5-982b-f6c4effa5316",
+     "static_abilities": [
+      {
+       "active_zones": [],
+       "affected": {
+        "controller": null,
+        "properties": [
+         {
+          "type": "EnchantedBy"
+         }
+        ],
+        "type": "Typed",
+        "type_filters": [
+         "Creature"
+        ]
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": null,
+       "description": "Enchanted creature gets +1/+1 for each enchantment you control and has first strike.",
+       "effect_zone": null,
+       "mode": "Continuous",
+       "modifications": [
+        {
+         "type": "AddDynamicPower",
+         "value": {
+          "qty": {
+           "filter": {
+            "controller": "You",
+            "properties": [],
+            "type": "Typed",
+            "type_filters": [
+             "Enchantment"
+            ]
+           },
+           "type": "ObjectCount"
+          },
+          "type": "Ref"
+         }
+        },
+        {
+         "type": "AddDynamicToughness",
+         "value": {
+          "qty": {
+           "filter": {
+            "controller": "You",
+            "properties": [],
+            "type": "Typed",
+            "type_filters": [
+             "Enchantment"
+            ]
+           },
+           "type": "ObjectCount"
+          },
+          "type": "Ref"
+         }
+        },
+        {
+         "keyword": "FirstStrike",
+         "type": "AddKeyword"
+        }
+       ]
+      }
+     ],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 1.0,
+    "color_identity": [
+     "W"
+    ],
+    "colors": [
+     "W"
+    ],
+    "keywords": [
+     "Enchant"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "legal",
+     "paupercommander": "legal",
+     "penny": "not_legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "legal",
+     "standardbrawl": "legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{W}",
+    "name": "Ethereal Armor",
+    "oracle_id": "dbba75f5-2404-4bd5-982b-f6c4effa5316",
+    "oracle_text": "Enchant creature\nEnchanted creature gets +1/+1 for each enchantment you control and has first strike.",
+    "type_line": "Enchantment — Aura"
+   }
+  },
   "Ethereal Valkyrie": {
    "phase_records": [
     {
@@ -588618,6 +588821,492 @@
     "type_line": "Battle — Siege // Legendary Creature — Dinosaur"
    }
   },
+  "Invasion of Ixalan // Belligerent Regisaur": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Dinosaur"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Green"
+     ],
+     "color_override": [
+      "Green"
+     ],
+     "defense": null,
+     "face_index": 1,
+     "flavor_name": null,
+     "keywords": [
+      "Trample"
+     ],
+     "layout": "transform",
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "type": "NoCost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "fa20fc16-e106-4953-ace4-5ac9c7fec97b"
+      ]
+     },
+     "name": "Belligerent Regisaur",
+     "non_ability_text": null,
+     "oracle_text": "Trample\nWhenever you cast a spell, this creature gains indestructible until end of turn.",
+     "power": {
+      "type": "Fixed",
+      "value": 4
+     },
+     "printings": [
+      "MOM",
+      "PMOM"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "1e5a5a7d-2c34-4e56-96e9-ebcf7745a03c",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 3
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever you cast a spell, ~ gains indestructible until end of turn.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": "UntilEndOfTurn",
+        "effect": {
+         "duration": "UntilEndOfTurn",
+         "static_abilities": [
+          {
+           "active_zones": [],
+           "affected": {
+            "type": "SelfRef"
+           },
+           "affected_zone": null,
+           "characteristic_defining": false,
+           "condition": null,
+           "description": "gain indestructible",
+           "effect_zone": null,
+           "mode": "Continuous",
+           "modifications": [
+            {
+             "keyword": "Indestructible",
+             "type": "AddKeyword"
+            }
+           ]
+          }
+         ],
+         "target": null,
+         "type": "GenericEffect"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "SpellCast",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": null,
+       "valid_source": null,
+       "valid_target": {
+        "type": "Controller"
+       }
+      }
+     ]
+    },
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Battle"
+      ],
+      "subtypes": [
+       "Siege"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Green"
+     ],
+     "color_override": null,
+     "defense": "4",
+     "face_index": 0,
+     "flavor_name": null,
+     "keywords": [],
+     "layout": "transform",
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "Green"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "fa20fc16-e106-4953-ace4-5ac9c7fec97b"
+      ]
+     },
+     "name": "Invasion of Ixalan",
+     "non_ability_text": null,
+     "oracle_text": "(As a Siege enters, choose an opponent to protect it. You and others can attack it. When it's defeated, exile it, then cast it transformed.)\nWhen this Siege enters, look at the top five cards of your library. You may reveal a permanent card from among them and put it into your hand. Put the rest on the bottom of your library in a random order.",
+     "power": null,
+     "printings": [
+      "MOM",
+      "PMOM"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [
+      {
+       "condition": null,
+       "description": "CR 310.12a: As a Siege enters, its controller chooses an opponent as its protector.",
+       "destination_zone": "Battlefield",
+       "event": "Moved",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "choice_type": "Opponent",
+         "persist": true,
+         "type": "Choose"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": {
+        "type": "Mandatory"
+       },
+       "valid_card": {
+        "type": "SelfRef"
+       }
+      }
+     ],
+     "rulings": [
+      {
+       "date": "2023-04-14",
+       "text": "A Siege’s controller can’t be its protector. If a Siege’s protector ever gains control of it, they choose a new player to be its protector. This is a state-based action."
+      },
+      {
+       "date": "2023-04-14",
+       "text": "A battle can be attacked by all players other than its protector. Notably, this means a Siege’s controller can attack it."
+      },
+      {
+       "date": "2023-04-14",
+       "text": "A battle can be dealt damage and be target of spells and/or abilities that target “any target.”"
+      },
+      {
+       "date": "2023-04-14",
+       "text": "A battle’s “defense” is displayed in the bottom right corner of the card. A battle enters the battlefield with that number of defense counters. If another permanent enters the battlefield as a copy of a battle, it also enters with that number of defense counters."
+      },
+      {
+       "date": "2023-04-14",
+       "text": "As a Siege enters the battlefield, its controller chooses an opponent to be its protector."
+      },
+      {
+       "date": "2023-04-14",
+       "text": "Battles can’t attack or block, even if one also becomes a creature. If an attacking or blocking creature somehow becomes a battle in addition to being a creature, it is removed from combat."
+      },
+      {
+       "date": "2023-04-14",
+       "text": "Damage dealt to a battle causes that many defense counters to be removed from it."
+      },
+      {
+       "date": "2023-04-14",
+       "text": "If a Siege never had defense counters on it (perhaps because a permanent became a copy of one), it can’t have its last defense counter removed. It will be put into its owner’s graveyard. You won’t exile it or cast the other face."
+      },
+      {
+       "date": "2023-04-14",
+       "text": "If a battle has no defense counters, and it isn’t the source of a triggered ability that has triggered but not yet left the stack, that battle is put into its owner’s graveyard. This is a state-based action. This doesn’t cause a Siege’s intrinsic triggered ability to trigger."
+      },
+      {
+       "date": "2023-04-14",
+       "text": "If a battle that’s being attacked somehow stops being a battle, it is removed from combat. Similarly, if its controller changes in the middle of combat, it is removed from combat."
+      },
+      {
+       "date": "2023-04-14",
+       "text": "If a non-battle permanent that is already on the battlefield become a copy of a Siege, its controller chooses one of their opponents to be that battle’s protector. However, it will most likely be put into its owner’s graveyard because it has no defense counters (see below)."
+      },
+      {
+       "date": "2023-04-14",
+       "text": "If a permanent that is represented by a transforming double-faced card becomes a copy of a Siege, it will be exiled as that Siege’s triggered ability resolves, then it will be cast transformed. Note that this applies only to transforming double-faced cards, not to modal double-faced cards that can normally be played using either face."
+      },
+      {
+       "date": "2023-04-14",
+       "text": "If a token or a card that isn’t represented by a transforming double-faced card becomes a copy of a Siege, it can’t be cast as its triggered ability resolves. It will remain in exile. If it’s a token, it will cease to exist the next time state-based actions are performed."
+      },
+      {
+       "date": "2023-04-14",
+       "text": "In a multiplayer game, if the protector of a battle leaves the game and that battle is not currently being attacked, its controller chooses a new protector for it as a state-based action. If it is being attacked, its controller chooses a new protector for it once no creatures are attacking it. This means that it continues to be attacked and can be dealt combat damage as normal."
+      },
+      {
+       "date": "2023-04-14",
+       "text": "Only creatures controlled by a battle’s protector can block creatures that are attacking that battle. This means a Siege’s controller can never assign creatures to block for it."
+      },
+      {
+       "date": "2023-04-14",
+       "text": "Sieges each have an intrinsic triggered ability. That ability is “When the last defense counter is removed from this permanent, exile it, then you may cast it transformed without paying its mana cost.”"
+      }
+     ],
+     "scryfall_oracle_id": "1e5a5a7d-2c34-4e56-96e9-ebcf7745a03c",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "When this Siege enters, look at the top five cards of your library. You may reveal a permanent card from among them and put it into your hand. Put the rest on the bottom of your library in a random order.",
+       "destination": "Battlefield",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "count": {
+          "type": "Fixed",
+          "value": 5
+         },
+         "destination": "Hand",
+         "enter_tapped": false,
+         "enters_attacking": false,
+         "filter": {
+          "controller": null,
+          "properties": [],
+          "type": "Typed",
+          "type_filters": [
+           "Permanent"
+          ]
+         },
+         "keep_count": 1,
+         "player": {
+          "type": "Controller"
+         },
+         "rest_destination": "Library",
+         "rest_order": "random",
+         "reveal": true,
+         "type": "Dig",
+         "up_to": true
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "ChangesZone",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": null
+      },
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "counter_filter": {
+        "counter_type": "defense",
+        "threshold": 0
+       },
+       "damage_kind": "Any",
+       "description": "CR 310.12b: When the last defense counter is removed from this Siege, exile it, then you may cast it transformed without paying its mana cost.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "destination": "Exile",
+         "enter_tapped": false,
+         "enter_transformed": false,
+         "enters_attacking": false,
+         "origin": "Battlefield",
+         "owner_library": false,
+         "target": {
+          "type": "SelfRef"
+         },
+         "type": "ChangeZone"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "cast_transformed": true,
+          "driver": "DuringResolution",
+          "mode": "Cast",
+          "target": {
+           "type": "SelfRef"
+          },
+          "type": "CastFromZone",
+          "without_paying_mana_cost": true
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": true,
+         "optional_targeting": false,
+         "sub_ability": null,
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "mode": "CounterRemoved",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [],
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "card_faces": [
+     {
+      "colors": [
+       "G"
+      ],
+      "defense": "4",
+      "keywords": [
+       "Trample",
+       "Transform"
+      ],
+      "mana_cost": "{1}{G}",
+      "name": "Invasion of Ixalan",
+      "oracle_text": "(As a Siege enters, choose an opponent to protect it. You and others can attack it. When it's defeated, exile it, then cast it transformed.)\nWhen this Siege enters, look at the top five cards of your library. You may reveal a permanent card from among them and put it into your hand. Put the rest on the bottom of your library in a random order.",
+      "type_line": "Battle — Siege"
+     },
+     {
+      "colors": [
+       "G"
+      ],
+      "keywords": [
+       "Trample",
+       "Transform"
+      ],
+      "mana_cost": "",
+      "name": "Belligerent Regisaur",
+      "oracle_text": "Trample\nWhenever you cast a spell, this creature gains indestructible until end of turn.",
+      "power": "4",
+      "toughness": "3",
+      "type_line": "Creature — Dinosaur"
+     }
+    ],
+    "cmc": 2.0,
+    "color_identity": [
+     "G"
+    ],
+    "keywords": [
+     "Trample",
+     "Transform"
+    ],
+    "layout": "transform",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "name": "Invasion of Ixalan // Belligerent Regisaur",
+    "oracle_id": "1e5a5a7d-2c34-4e56-96e9-ebcf7745a03c",
+    "type_line": "Battle — Siege // Creature — Dinosaur"
+   }
+  },
   "Invasion of New Capenna // Holy Frazzle-Cannon": {
    "phase_records": [
     {
@@ -639582,6 +640271,287 @@
     "oracle_id": "c17f0e65-e5a3-4113-b782-0b192ab52046",
     "oracle_text": "Target creature gets +1/+1 until end of turn. Draw a card.\nWhenever one or more creatures you control deal combat damage to a player, you may pay {W/B}. If you do, return this card from your graveyard to your hand.",
     "type_line": "Sorcery"
+   }
+  },
+  "Killian, Decisive Mentor": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "brawl_commander": true,
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Human",
+       "Warlock"
+      ],
+      "supertypes": [
+       "Legendary"
+      ]
+     },
+     "color_identity": [
+      "Black",
+      "White"
+     ],
+     "color_override": [
+      "Black",
+      "White"
+     ],
+     "defense": null,
+     "flavor_name": null,
+     "is_commander": true,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "White",
+       "Black"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "76b6c35a-bb92-4ad3-8f85-88b9bafc6266"
+      ]
+     },
+     "name": "Killian, Decisive Mentor",
+     "non_ability_text": null,
+     "oracle_text": "Whenever an enchantment you control enters, tap up to one target creature and goad it. (Until your next turn, that creature attacks each combat if able and attacks a player other than you if able.)\nWhenever one or more creatures that are enchanted by an Aura you control attack, draw a card.",
+     "power": {
+      "type": "Fixed",
+      "value": 2
+     },
+     "printings": [
+      "SOC"
+     ],
+     "rarities": [
+      "mythic"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2026-03-20",
+       "text": "Attacking with a goaded creature doesn't cause it to stop being goaded. If there is an additional combat phase that turn, or if another player gains control of it before it stops being goaded, it must attack again if able."
+      },
+      {
+       "date": "2026-03-20",
+       "text": "Being goaded isn't an ability the creature has. Once it's been goaded, it must attack as detailed above even if it loses all abilities."
+      },
+      {
+       "date": "2026-03-20",
+       "text": "If a creature you control has been goaded by multiple opponents, it must attack one of your opponents that hasn't goaded it, as that fulfills the maximum number of goad requirements. If a creature you control has been goaded by each of your opponents, the creature must attack an opponent (rather than a planeswalker or battle), but you choose which opponent it attacks."
+      },
+      {
+       "date": "2026-03-20",
+       "text": "If the creature doesn't meet any of the above exceptions and can attack, it must attack a player other than the controller of the spell or ability that goaded it if able. If the creature can't attack any of those players but could otherwise attack, it must attack a planeswalker an opponent controls, a battle an opponent protects, or the player that goaded it."
+      },
+      {
+       "date": "2026-03-20",
+       "text": "If, during a player's declare attackers step, a creature that player controls that's been goaded is tapped, is affected by a spell or ability that says it can't attack, or hasn't been under that player's control continuously since the turn began (and doesn't have haste), then it doesn't attack. If there's a cost associated with having a creature attack a player, its controller isn't forced to pay that cost, so it doesn't have to attack that player."
+      }
+     ],
+     "scryfall_oracle_id": "9c54bd34-667d-415c-ad26-82e0eb0ff409",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 3
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever an enchantment you control enters, tap up to one target creature and goad it.",
+       "destination": "Battlefield",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "scope": {
+          "type": "Single"
+         },
+         "state": {
+          "type": "Tap"
+         },
+         "target": {
+          "controller": null,
+          "properties": [],
+          "type": "Typed",
+          "type_filters": [
+           "Creature"
+          ]
+         },
+         "type": "SetTapState"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "multi_target": {
+         "max": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "min": 0
+        },
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "target": {
+           "type": "ParentTarget"
+          },
+          "type": "Goad"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": null,
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "mode": "ChangesZone",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "controller": "You",
+        "properties": [],
+        "type": "Typed",
+        "type_filters": [
+         "Enchantment"
+        ]
+       },
+       "valid_source": null,
+       "valid_target": null
+      },
+      {
+       "batched": true,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever one or more creatures that are enchanted by an Aura you control attack, draw a card.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "target": {
+          "type": "Controller"
+         },
+         "type": "Draw"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "YouAttack",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "controller": null,
+        "properties": [
+         {
+          "controller": "You",
+          "kind": "Aura",
+          "type": "HasAttachment"
+         }
+        ],
+        "type": "Typed",
+        "type_filters": [
+         "Creature"
+        ]
+       },
+       "valid_source": null,
+       "valid_target": {
+        "type": "Player"
+       }
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 3.0,
+    "color_identity": [
+     "B",
+     "W"
+    ],
+    "colors": [
+     "B",
+     "W"
+    ],
+    "keywords": [
+     "Goad"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}{W}{B}",
+    "name": "Killian, Decisive Mentor",
+    "oracle_id": "9c54bd34-667d-415c-ad26-82e0eb0ff409",
+    "oracle_text": "Whenever an enchantment you control enters, tap up to one target creature and goad it. (Until your next turn, that creature attacks each combat if able and attacks a player other than you if able.)\nWhenever one or more creatures that are enchanted by an Aura you control attack, draw a card.",
+    "power": "2",
+    "toughness": "3",
+    "type_line": "Legendary Creature — Human Warlock"
    }
   },
   "Killing Wave": {

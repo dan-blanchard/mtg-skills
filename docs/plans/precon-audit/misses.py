@@ -19,6 +19,11 @@ Commander Spellbook answers are cached per request under ROOT/spellbook-cache: a
 rerun reads the same combos, and a deck whose request is neither cached nor
 answerable (a 429) stops the run rather than tuning without combos.
 
+The run also records, per in-scope guide add, its best position on the search
+pages of its kind (``page_pos``: a template job's row search, else the theme
+pages) for the scoreboard's page-level recall, and tunes with
+``target_bracket=TARGET_BRACKET``.
+
 ADD reasons: added (a hit); out of scope (in the deck, a land, out of identity or
 format); no search for it (no candidate page this run held a card of its kind —
 its template job, protection, or the main theme); page held it — over budget /
@@ -31,6 +36,9 @@ import collections, fcntl, functools, json, multiprocessing, pathlib, re, sys, t
 #: never caps recall below what a guide does; the budget is the precon's own
 #: (ROOT/budgets.json), else the largest guide's spend.
 MAX_SWAPS, BUDGET = 30, 440
+#: Every tune aims at bracket 3 or higher (the 2026-10-30 plan): the tune's
+#: bracket gate applies (at most three Game Changers, no mass land denial).
+TARGET_BRACKET = 3
 
 
 def budget_for(root, name):
@@ -119,10 +127,20 @@ def run_deck(args):
     g_cuts, g_adds = parse_table(md, "Recommended cuts"), parse_table(md, "Recommended adds")
     pages, cut_rank = [], []
     run_search, cut_candidates = S._run_search, S.cut_candidates
+    from mtg_utils._tuner.issues import PROTECTION_SEARCH, ROW_SEARCH
+
+    def page_kind(spec):
+        """What a search page is for: a template job (its ROW_SEARCH / protection
+        spec), a theme avenue (a spec credited to one), else other."""
+        public = {k: v for k, v in spec.items() if not k.startswith("_")}
+        for job, row in (*ROW_SEARCH.items(), ("protection", PROTECTION_SEARCH)):
+            if public == dict(row):
+                return job
+        return "theme" if spec.get("_avenue") or spec.get("_share") else "other"
 
     def rec_search(fn, spec, **kw):
         out = run_search(fn, spec, **kw)
-        pages.append(({k: v for k, v in spec.items() if not k.startswith("_")}, [c.get("name") for c in out]))
+        pages.append(({k: v for k, v in spec.items() if not k.startswith("_")}, [c.get("name") for c in out], page_kind(spec)))
         return out
 
     def rec_cuts(*a, **kw):
@@ -157,7 +175,7 @@ def run_deck(args):
     hd = acquire_for_cli(d / "deck.json", None)
     started = time.perf_counter()
     res = tune(hd, search_fn=functools.partial(card_search.search_cards, default_bulk_path()),
-               params=TuneParams(budget=budget_for(root, name), max_swaps=MAX_SWAPS),
+               params=TuneParams(budget=budget_for(root, name), max_swaps=MAX_SWAPS, target_bracket=TARGET_BRACKET),
                combos_fn=lambda deck: combo_search.combo_search(HydratedDeck.from_parsed(deck, by_name=hd.by_name)))
     seconds = round(time.perf_counter() - started, 1)
     if spellbook_down:
@@ -194,11 +212,16 @@ def run_deck(args):
         else: why = "other"
         out["cuts"].append((gname, why))
     ident = set().union(*(set(pool.by_name[c["name"]].get("color_identity") or []) for c in deck["commanders"]))
-    page_names = {}
-    for spec, names in pages:
+    page_names, page_pos = {}, {}
+    kinds_searched = collections.Counter(kind for _s, _n, kind in pages)
+    for spec, names, kind in pages:
         for i, n in enumerate(names):
             page_names.setdefault(norm(n), []).append((json.dumps(spec, sort_keys=True), i, len(names)))
-    searched = [json.dumps(s, sort_keys=True) for s, _ in pages]
+            best = page_pos.get((norm(n), kind))
+            if best is None or i < best:
+                page_pos[(norm(n), kind)] = i
+    searched = [json.dumps(s, sort_keys=True) for s, _n, _k in pages]
+    out_pages = {}
     for key, gname in g_adds.items():
         rec = pool.by_name.get(gname) or pool.by_name.get(gname.split(" // ")[0])
         if key in add_made: why = "added"
@@ -219,6 +242,13 @@ def run_deck(args):
             why = ("not on any page (a page of its job was searched)" if asked
                    else f"no search for its kind ({job or 'theme card'})")
         out["adds"].append((gname, why))
+        # The page-level read (the 2026-10-30 plan): where the guide card sits on
+        # the pages of its kind (its template job, else the theme pages), by the
+        # search's own order, or None when no page of that kind held it.
+        if why != "out of scope" and rec is not None:
+            kind = upgrade_job(role_of(rec), rec) or "theme"
+            out_pages[gname] = {"kind": kind, "pos": page_pos.get((key, kind)), "pages": kinds_searched.get(kind, 0)}
+    out["page_pos"] = out_pages
     return name, out
 
 

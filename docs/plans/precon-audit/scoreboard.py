@@ -46,6 +46,19 @@ The columns:
   day) is left out: no guide could name it. Each missed guide add pairs with at
   most one tuner add and each tuner add with at most one guide add (a maximum
   matching, so the count doesn't depend on order).
+- plan-consistent adds (PLAN under TOTAL; the 2026-10-30 plan's gate): the tune's
+  nonland adds, and the in-scope guide adds, that supply one of the commander's
+  specific needs (``_analysis.commander_need``: read off the commander's trees —
+  the events it triggers on, the quantities its conditions compare, what it
+  produces — kept to needs at most ``BROAD_SHARE`` of the pool supplies). The
+  guides' share is the ceiling the tune's is read against.
+- page recall: of the in-scope guide adds, those a search page of their kind
+  (a template job's row search; the theme pages otherwise) held in its top 10 /
+  top 30 by the search's own order (misses.py records ``page_pos``) — ranking and
+  reach, apart from the swap cascade and the budget.
+- job-equivalent adds: the near-misses' job half, named as the generic guide rows'
+  job-level score; the mana base: the guides' land rows the tune matched exactly or
+  with an untapped land making the same colours (the tune proposes no land today).
 - consensus adds / cuts: the guide cards two or more of the precon's guides name
   (the rows' "Source #"), and how many of those the tuner matched — of the
   in-scope adds and the cuttable cuts.
@@ -146,6 +159,10 @@ class Cards:
 
         self.pool = CardPool.load(None)
         self.idx = load_signals_index(default_bulk_path()) or {}
+        #: The commander-legal nonland pool, for a need's base rate (``commander_need``).
+        self.sample = [r for r in self.pool.by_name.values()
+                       if (r.get("legalities") or {}).get("commander") == "legal"
+                       and "Land" not in (r.get("type_line") or "").split("//")[0]]
         #: How many of the pool's cards carry each ident: a deck signal's base rate.
         self.freq = collections.Counter(i for ids in self.idx.values() for i in ids)
         self._jobs = {}
@@ -376,6 +393,43 @@ def score_deck(cards, root, name, entry, tight=True):
         if hits:
             edges[rec["name"]] = sorted(hits)
     pairs = matching(edges)
+    # Plan-consistency (the 2026-10-30 plan): the share of the tune's nonland adds,
+    # and of the in-scope guide adds, supplying one of the commander's SPECIFIC
+    # needs (``commander_need``: at most BROAD_SHARE of the pool supplies it).
+    from mtg_utils._analysis.commander_need import commander_needs, need_predicate, specific_needs
+
+    cmds = [r for c in deck.get("commanders") or [] if (r := cards.rec(c["name"]))]
+    needs = commander_needs(cmds)
+    fits = need_predicate(specific_needs(needs, cards.sample))
+    row["needs"] = [n.label for n in needs]
+    tune_recs = [r for add in tuner_adds if (r := cards.rec(add)) and "Land" not in (r.get("type_line") or "").split("//")[0]]
+    guide_recs = [r for g, _w in in_scope if (r := cards.rec(g))]
+    row["plan_tune"], row["plan_tune_n"] = sum(fits(r) for r in tune_recs), len(tune_recs)
+    row["plan_guide"], row["plan_guide_n"] = sum(fits(r) for r in guide_recs), len(guide_recs)
+    # Page-level recall: of the in-scope guide adds with a page of their kind
+    # searched, how many sit in that page's top 10 / top 30 (misses.py's page_pos).
+    pos = entry.get("page_pos") or {}
+    paged = [p for g, p in pos.items() if p.get("pages")]
+    row["paged"] = len(paged)
+    row["page10"] = sum(p["pos"] is not None and p["pos"] < 10 for p in paged)
+    row["page30"] = sum(p["pos"] is not None and p["pos"] < 30 for p in paged)
+    # The mana-base line: the guides' land rows (out of scope for the card adds)
+    # the tune matched exactly or with an untapped land of the same colour pair.
+    land_rows = [g for g, w in entry["adds"] if w == "out of scope" and (r := cards.rec(g))
+                 and "Land" in (r.get("type_line") or "").split("//")[0]
+                 and set(r.get("color_identity") or []) <= set().union(*(set(c.get("color_identity") or []) for c in cmds))]
+    tune_lands = [r for add in tuner_adds if (r := cards.rec(add)) and "Land" in (r.get("type_line") or "").split("//")[0]]
+    tune_land_names = {r["name"] for r in tune_lands}
+    def land_equiv(g):
+        gr = cards.rec(g)
+        if gr["name"] in tune_land_names:
+            return True
+        colours = set(gr.get("produced_mana") or [])
+        tapped = "enters tapped" in (gr.get("oracle_text") or "").lower()
+        return any(set(t.get("produced_mana") or []) == colours and len(colours) >= 2
+                   and ("enters tapped" in (t.get("oracle_text") or "").lower()) == tapped for t in tune_lands)
+    row["land_rows"] = len(land_rows)
+    row["land_hits"] = sum(land_equiv(g) for g in land_rows)
     row["near"] = len(pairs)
     row["near_job"] = sum(why[(a, g)].startswith("job") for a, g in pairs.items())
     row["near_theme"] = row["near"] - row["near_job"]
@@ -385,7 +439,7 @@ def score_deck(cards, root, name, entry, tight=True):
 
 
 FIELDS = ("swaps", "cuts", "adds", "near", "near_job", "near_theme", "cons_cuts", "cons_adds",
-          "fair_swaps", "fair_adds", "printed_after")
+          "fair_swaps", "fair_adds", "printed_after", "plan_tune", "plan_guide", "page10", "page30", "land_hits")
 
 
 def line(r):
@@ -394,13 +448,21 @@ def line(r):
             f" | consensus adds {r['cons_adds']} of {r['cons_in_scope']} | consensus cuts {r['cons_cuts']} of {r['cons_cuttable']}")
 
 
+def plan_line(r):
+    return (f"plan-consistent adds: tune {r['plan_tune']} of {r['plan_tune_n']} | guides {r['plan_guide']} of {r['plan_guide_n']}"
+            f" | page recall @10 {r['page10']} / @30 {r['page30']} of {r['paged']} guide adds with a page of their kind"
+            f" | job-equivalent adds (near-miss job) {r['near_job']}"
+            f" | mana base: guide land rows matched {r['land_hits']} of {r['land_rows']}")
+
+
 def fair_line(r):
     return (f"swaps {r['fair_swaps']} | guide adds {r['fair_adds']} of {r['fair_in_scope']}"
             f" | swaps printed after the guide {r['printed_after']}")
 
 
 def total(rows):
-    keys = FIELDS + ("cuttable", "in_scope", "cons_cuttable", "cons_in_scope", "fair_in_scope")
+    keys = FIELDS + ("cuttable", "in_scope", "cons_cuttable", "cons_in_scope", "fair_in_scope",
+                     "plan_tune_n", "plan_guide_n", "paged", "land_rows")
     return {k: sum(r[k] for r in rows.values()) for k in keys}
 
 
@@ -449,6 +511,7 @@ def main():
         print(f"| {n} | {' | '.join(str(r[k]) for k in FIELDS)} | {len(r['late'])} |")
     tot = total(rows)
     print("\nTOTAL", line(tot))
+    print("PLAN ", plan_line(tot))
     print("FAIR ", fair_line(tot))
     if a.pairs:
         for n, r in rows.items():

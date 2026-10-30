@@ -139,6 +139,14 @@ def test_recovered_graveyard_land_play_recurs_lands(name):
     assert ("landfall", "you", "") in idents
 
 
+def test_serra_paragon_is_a_recast_engine():
+    """Serra Paragon's "cast a permanent spell with mana value 3 or less from your
+    graveyard" is the repeatable permanent-recast engine
+    (``has_permanent_recast``): the mana-value cap sits between the spell and its
+    zone, which the recovered-arm regex admits."""
+    assert ("permanent_recast", "you", "") in _idents("Serra Paragon")
+
+
 def test_graveyard_land_prohibition_recurs_nothing():
     """Tomik's "Your opponents can't play land cards from graveyards" names no
     graveyard of yours."""
