@@ -1760,3 +1760,119 @@ where it was Thought Vessel. No other deck moved, and the held-out ten are swap
 for swap the same. The new baseline is `w32/misses-25.json` /
 `w32/misses-ho.json` (`~/mtg/tuner-work/w32/`).
 
+## The other side of a maker lane, and the commander's own mechanics (2026-10-30)
+
+Backlog (r) and (t) closed the levers that reorder a theme page. These two add
+reach instead: a page no search held. The w27 analysis
+(`~/mtg/tuner-work/w27/nosearch_buckets.tsv`) found guide adds that tie to the
+deck only through a maker / payoff pair (Doubling Season and Parallel Lives
+beside Tinker Time's token makers, Panharmonicon beside ETB makers, The Ozolith
+beside +1/+1 counter makers), and others that fit a mechanic only the commander
+has (Impact Tremors in Mardu Surge, Entomb and Buried Alive in Sliver Swarm). The
+repo already pairs the two sides twice: a spec's sub-avenues (`SubAvenue`, such
+as "Token doublers" on every token lane) and focus's carers (`metrics._cares_keys`:
+a `<x>_makers` lane is cared about by `<x>_matters`, and every token doer by
+`tokens_matter` and `token_doubling`). Each lever adds a theme avenue beside the
+mains (`Sourcing.theme_avenues`) that takes one add (`_cap`), asked by its depth
+as the mains are. The bar is the one in "Card reads leading the theme adds". The
+phase-rs v0.118.0 bump had not landed, so the table's runs are against the
+v0.104.0 baselines; the shipped lever was measured again on top of the bump
+(below the table). Patches and runs are in `~/mtg/tuner-work/w34/`.
+
+| variant | the 25: swaps / cuts / adds | near-misses | consensus adds | held-out | Jace | |
+|---|---|---|---|---|---|---|
+| baseline | 715 / 329 / 114 | 70 | 39 | 297 / 139 / 35 (29, 6) | 29 / 14 / 3 | |
+| **4b** every multiplier sub-avenue (token, counter, ETB-trigger doublers, trigger copiers, damage and mana amplifiers), 5+ deck makers | 715 / 327 / 105 | 71 | 32 | | 21 / 11 / 1 | rejected |
+| token doublers, 5+ deck makers | 710 / 327 / 109 | 72 | 37 | | 21 / 11 / 1 | rejected |
+| token doublers, the commander's or 12+ deck makers | 712 / 326 / 114 | 73 | 40 | | 21 / 11 / 1 | rejected |
+| token doublers, a maker lane the commander holds | 720 / 329 / 115 | 71 | 40 | | 29 / 14 / 3 | |
+| every multiplier, a lane the commander holds | 720 / 329 / 115 | 71 | 39 | | 29 / 14 / 3 | |
+| **token doublers, the commander's maker lane or its Clue / Treasure / Food / Blood maker** | **720 / 329 / 116** | **71** | **40** | **297 / 139 / 36 (29, 6)** | **29 / 14 / 3** | **shipped** |
+| … and counter doublers | 720 / 329 / 117 | 71 | 40 | 296 / 140 / 31 (29, 6) | 29 / 14 / 3 | rejected |
+| … and every multiplier | 720 / 329 / 116 | 71 | 39 | 296 / 140 / 31 (29, 6) | 29 / 14 / 3 | rejected |
+| … two adds off the page | 720 / 329 / 115 | 71 | 38 | | 29 / 14 / 3 | rejected |
+| every sub-avenue all of whose idents are a held doer's payoff keys | 715 / 329 / 114 | 71 | 39 | 297 / 139 / 33 (26, 6) | 29 / 14 / 3 | rejected |
+| **4c** the commander's every non-generic ident whose lane isn't viable, its exact-ident page | 723 / 328 / 112 | 69 | 38 | | 22 / 11 / 1 | rejected |
+| … only an ident 3 or fewer deck cards emit | 727 / 331 / 112 | 70 | 37 | | 29 / 14 / 3 | rejected |
+| … and no emerging lane | 727 / 331 / 111 | 70 | 37 | | 29 / 14 / 3 | rejected |
+| … one per deck, the deepest | 722 / 330 / 116 | 70 | 39 | 297 / 139 / 34 (29, 6) | 29 / 14 / 3 | rejected |
+
+Held-out near-misses and consensus adds are in brackets.
+
+**Measured again on the phase v0.118.0 pin** (`~/mtg/tuner-work/w36/`), against
+its baseline (717 / 332 / 114, near-misses 70, consensus adds 39; held-out 297 /
+139 / 35 (29, 6); Jace 29 / 14 / 3), the shipped lever scores **722 / 332 /
+115**, near-misses 71, consensus adds 40; held-out **297 / 139 / 36 (29, 6)**;
+Jace **29 / 14 / 3**, unchanged. It clears the bar. Deep Clue Sea and Squirreled
+Away take Primal Vigor, Lorehold Spirit (held-out) Anointed Procession, and
+Tinker Time's Liquimetal Torque becomes Big Score, as before the bump. One add
+less than before the bump: in Planeswalker Party, Bard, King of Dale takes the
+swap Supreme Verdict had. Squirreled Away makes five more swaps, none of them a
+guide card; Desert Bloom takes Primal Vigor, and
+Sultai Arisen Doubling Season, neither a guide add.
+
+- **4b shipped: the token doublers, once, under a token-making commander.**
+  `Sourcing.multiplier_avenue` opens the "Token doublers" sub-avenue
+  (`signal_specs._TOKEN_DOUBLER_EXTRA`, CR 614.1a) when the commander itself
+  holds a lane whose spec carries it (a token maker's, a token copier's, a
+  tokens payoff's) or a Clue, Treasure, Food or Blood maker, whose payoff keys
+  name `token_doubling`. Its depth is the deck's makers of that kind. A doubler
+  limited to a kind the commander doesn't make is filtered out
+  (`crosswalk.token_doubler_kinds`): Ojer Taq triples creature tokens only, and
+  a Clue is an artifact token (CR 111.10f). It reached Primal Vigor in Deep Clue
+  Sea and Squirreled Away and Anointed Procession in Lorehold Spirit (held-out).
+  Tinker Time's tune took Primal Vigor, not the guides' Doubling Season or
+  Parallel Lives: on its $100 budget both ($28-30) are past the even share, so
+  the cheaper Primal Vigor ($6) is the add. Its Liquimetal Torque became Big Score, both guide adds.
+- **Density alone pairs the wrong decks.** Five or more deck makers opened the
+  page in Jace's polymorph deck (its Spirit fodder), which took Kaya, Geist
+  Hunter and lost Archfiend of Depravity and Nezahal, and in Death Toll, which
+  lost Ripples of Undeath and Six. Under the commander, the guides add a token
+  doubler in 8 of the 12 decks whose page fires, and in 4 of 16 by density alone.
+- **The other multipliers cost held-out adds.** Counter doublers reached Deep
+  Clue Sea's Hardened Scales on the 25, but in World Shaper (held-out) Hardened
+  Scales displaced three guide adds through the budget. The ETB-trigger page
+  served Traveling Chocobo, which doubles only the triggers a land or a Bird
+  entering causes, to three decks holding one Bird between them (Gilded Goose).
+- **4c differs from (r)'s rejected rule in page and purse, and still fails.**
+  (r) gave each commander-paid lane below the viable floor one swap of its own,
+  off the lane's serve page and cut from the upgrade pool. Here the lane shares
+  the theme adds and its page is the cards emitting the commander's exact ident.
+  The pages reach the targets: Faithless Looting and Frantic Search in Sliver
+  Swarm, Professional Face-Breaker, Sylvan Safekeeper, Gix, Brudiclad, Hardened
+  Scales and Stalwart Shield-Bearers. But a commander holds five to eight such
+  lanes (Partner, Top-deck selection, Dig-until), and each takes an add the mains
+  would have made. Held to one per deck, it passed on the 25 (116 / 330) but lost
+  Cavalry Charge's Black Market Connections to a Discard outlets page's Frantic
+  Search on the held-out ten.
+
+The /rules-lawyer spot-check took the ten new adds of the shipped lever that
+match no guide card (all on the 25; the held-out ten gained only a guide card),
+using `rulings-lookup --card` and `rules-lookup --rule` (CR 2026-09-25). Nine
+held up and one only partly.
+
+- **The six token doublers all double what their commander makes** (CR
+  614.1a; each doubler's ruling: the extra tokens copy what the effect
+  specifies).
+  - Primal Vigor doubles Yuma's Plant Warriors (Desert Bloom) and Gimbal's
+    Gremlins, with their +1/+1 counters (Tinker Time). By its ruling it doubles
+    every player's tokens too.
+  - Kaya, Geist Hunter's -2 doubles Anikthea's token copy (Enduring
+    Enchantments) the turn it is used.
+  - Exalted Sunborn doubles Zurgo's mobilize Warriors (CR 702.181a), which
+    enter tapped and attacking (Mardu Surge).
+  - Bard, King of Dale doubles Commodore Guff's +1 Wizard (Planeswalker Party).
+  - Doubling Season doubles Teval's Zombie Druids (Sultai Arisen).
+- **Three of the four cascade adds held up.** Bastion Protector makes Zurgo
+  indestructible (its ruling: a commander creature you control). Osteomancer
+  Adept forages Squirreled Away's Food (Food is an artifact type, its ruling).
+  Rise of the Dark Realms is a mass reanimation that also fires Teval's
+  leave-the-graveyard trigger.
+- **One held up only partly.** Shiny Impetus makes its controller a Treasure
+  (its ruling), but its goad is for an opponent's creature, which Mardu Surge
+  doesn't build toward.
+
+Found on the way, not fixed: phase reads Parallel Lives' doubling as every
+token, but it doubles creature tokens only ("one or more creature tokens"), so
+`token_doubler_kinds` can't keep it from a Clue commander. Xorn's extra Treasure
+carries no count change, so it is no doubler to the read.

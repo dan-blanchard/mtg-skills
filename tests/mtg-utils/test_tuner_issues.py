@@ -450,3 +450,83 @@ def test_a_tribe_the_commander_holds_shares_the_theme_whatever_its_tier():
         {},
     )
     assert [label for label, _d, _s in src.theme_avenues()] == [main, tribe]
+
+
+def _held_sig(key, subject=""):
+    from mtg_utils._analysis.signals import Signal
+
+    return Signal(key=key, scope="you", subject=subject, text="", source="x")
+
+
+def test_a_token_making_commander_also_searches_the_token_doublers_once():
+    # Gimbal makes a Gremlin token each end step (Tinker Time): the token
+    # doublers are the other side of that lane (CR 614.1a), one theme add,
+    # asked by the depth of the deck's creature-token makers.
+    from mtg_utils._analysis.signal_specs import _TOKEN_DOUBLER_EXTRA, spec_for
+
+    main, gremlins = _held_sig("artifacts_matter"), _held_sig("token_maker", "Gremlin")
+    focus = _focus(
+        viable=[{"label": spec_for(main).label, "tier": "main", "depth": 49}]
+    )
+    emitters = {
+        ("token_maker", "you", "Gremlin"): frozenset({"Gimbal", "Gremlin Maker"}),
+        ("token_maker", "you", "Thopter"): frozenset({"Thopter Maker"}),
+    }
+    held = Sourcing(
+        focus,
+        [main, gremlins],
+        {},
+        commander_idents={("token_maker", "you", "Gremlin")},
+        emitters=emitters,
+    )
+    label, depth, spec = held.theme_avenues()[-1]
+    assert (label, depth) == (_TOKEN_DOUBLER_EXTRA.label, 3)
+    assert (spec["_serve"], spec["_avenue"], spec["_cap"]) == (
+        _TOKEN_DOUBLER_EXTRA.serve,
+        label,
+        1,
+    )
+    # Creature tokens: a doubler of every token or of creature tokens doubles them.
+    assert spec["_filter"](test_card("Doubling Season"))
+    assert spec["_filter"](
+        test_card("Ojer Taq, Deepest Foundation // Temple of Civilization")
+    )
+    # The same lane, not the commander's own: no page.
+    unheld = Sourcing(focus, [main, gremlins], {}, emitters=emitters)
+    assert unheld.multiplier_avenue() is None
+    assert [lbl for lbl, _d, _s in unheld.theme_avenues()] == [spec_for(main).label]
+
+
+def test_a_clue_making_commander_gets_the_doublers_that_double_a_clue():
+    # Morska investigates (Deep Clue Sea): a Clue maker's payoff side names the
+    # token doublers (``metrics._cares_keys``), and a Clue is an artifact token
+    # (CR 111.10f), so a creature-token doubler doubles none of it.
+    src = Sourcing(
+        _focus(),
+        [_held_sig("clue_makers")],
+        {},
+        commander_idents={("clue_makers", "you", "")},
+        emitters={("clue_makers", "you", ""): frozenset({"Morska", "Clue Maker"})},
+    )
+    _label, depth, spec = src.multiplier_avenue()
+    assert depth == 2
+    assert spec["_filter"](test_card("Doubling Season"))
+    assert spec["_filter"](test_card("Primal Vigor"))
+    assert not spec["_filter"](
+        test_card("Ojer Taq, Deepest Foundation // Temple of Civilization")
+    )
+
+
+def test_a_token_copier_commander_takes_any_token_doubler():
+    # Hazel copies a token each end step (Squirreled Away): whatever it copies,
+    # a doubler of tokens doubles it, so the page is not filtered.
+    src = Sourcing(
+        _focus(),
+        [_held_sig("token_copy_makers")],
+        {},
+        commander_idents={("token_copy_makers", "you", "")},
+        emitters={("token_copy_makers", "you", ""): frozenset({"Hazel"})},
+    )
+    _label, depth, spec = src.multiplier_avenue()
+    assert depth == 1
+    assert "_filter" not in spec

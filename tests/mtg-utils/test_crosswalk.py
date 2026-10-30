@@ -53,6 +53,7 @@ from mtg_utils._card_ir.crosswalk import (
     replacement_event_tag,
     replacement_token_types,
     tag_of,
+    token_doubler_kinds,
 )
 from mtg_utils._card_ir.mirror.build import load_committed_schema
 from mtg_utils._card_ir.mirror.loader import strict_load_card
@@ -11913,6 +11914,35 @@ def test_replacement_token_types(name, expected):
         if u.origin == "replacement" and replacement_event_tag(u.node) == "CreateToken"
     }
     assert reads == expected
+
+
+@pytest.mark.parametrize(
+    ("name", "expected"),
+    [
+        ("Doubling Season", ((), ())),  # every token
+        ("Primal Vigor", ((), ())),  # every player's tokens, yours among them
+        (  # "three times that many" creature tokens
+            "Ojer Taq, Deepest Foundation // Temple of Civilization",
+            ((), ("Creature",)),
+        ),
+    ],
+)
+def test_token_doubler_kinds(name, expected):
+    """CR 614.1a: a CreateToken replacement that raises the count is restricted
+    to the kinds its condition names (``replacement_token_types``)."""
+    assert token_doubler_kinds(_tree(name)) == (expected,)
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Kaya, Geist Hunter",  # its -2 sets a doubler up: an effect, no kind
+        "Xorn",  # one more Treasure, a rider phase gives no count change
+        "Llanowar Elves",
+    ],
+)
+def test_token_doubler_kinds_none(name):
+    assert token_doubler_kinds(_tree(name)) == ()
 
 
 @pytest.mark.parametrize(

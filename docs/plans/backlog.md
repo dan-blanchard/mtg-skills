@@ -206,11 +206,33 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   shipped: dropping the theme page's 0.2 synergy fit floor, with play-rate alone
   and no read, scored 720 / 331 / 118, held-out 290 / 139 / 36, Jace 29 / 14 / 3.
   It reads less of the card, which is the opposite of the plan's direction.
+  (u) **The other side of a maker lane, the commander's own mechanics — don't
+  re-suggest the rejected forms** (2026-10-30; patches and runs in
+  `~/mtg/tuner-work/w34/`, the audit's "The other side of a maker lane, and the
+  commander's own mechanics"). Shipped: the token doublers page, one theme add,
+  under a commander that makes tokens or Clues, Treasures, Food or Blood
+  (`Sourcing.multiplier_avenue`; on the phase v0.118.0 pin 722 / 332 / 115,
+  held-out 297 / 139 / 36, Jace unchanged; 720 / 329 / 116 on v0.104.0).
+  Rejected: opening it by deck density (5+ makers: 109 adds, Jace 1;
+  the commander's or 12+: 114, Jace 1); two adds off it (115); the other
+  multiplier sub-avenues (counter and ETB-trigger doublers, trigger copiers,
+  damage and mana amplifiers) on the same terms (116-117 on the 25, held-out 31);
+  every sub-avenue made only of a held doer's payoff keys (114, held-out 33). 4c,
+  the commander's own non-viable lanes sharing the theme adds off its exact-ident
+  page, differs from (r)'s rule in page and purse and still fails: 112 adds, or
+  116 held to one lane per deck but held-out 34. Found on the way, not fixed:
+  phase reads Parallel Lives as doubling every token (it doubles creature tokens
+  only), so `crosswalk.token_doubler_kinds` can't keep it from a Clue commander.
   (m) **Recall** (`precon-audit/misses.py`, at the largest guide's thirty
   swaps and each precon's own guides' budget, `budgets.json`, Spellbook cached):
-  332 of 505 cuttable guide cuts, 114 of 793 in-scope guide adds, 717 swaps;
-  held-out 139 of 216 / 35 of 407, 297 swaps (2026-10-30, the phase v0.118.0 pin
-  bump: Planeswalker Party one guide cut more, Sliver Swarm two more swaps and
+  332 of 505 cuttable guide cuts, 115 of 793 in-scope guide adds, 722 swaps;
+  held-out 139 of 216 / 36 of 407, 297 swaps (2026-10-30, the token doublers
+  under a token-making commander, (u): Deep Clue Sea's and Squirreled Away's
+  Primal Vigor, Lorehold Spirit's Anointed Procession, Tinker Time's Liquimetal
+  Torque becomes Big Score, Planeswalker Party's Supreme Verdict lost to Bard,
+  King of Dale; near-misses 71 / 29, consensus adds 40 / 6, Jace 29 / 14 / 3.
+  Before it 332 / 114, 717 swaps; held-out 139 / 35, 297 swaps, the phase
+  v0.118.0 pin bump, same day: Planeswalker Party one guide cut more, Sliver Swarm two more swaps and
   two guide cuts more; near-misses 70 / 29, consensus 39 / 121 and 6 / 37, Jace
   29 / 14 / 3, all as before. Before it 329 / 114, 715 swaps; held-out 139 /
   35, 297 swaps (2026-10-30, the signal-gap pass:
@@ -221,9 +243,9 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   (`precon-audit/scoreboard.py`, the audit's "The scoreboard", 2026-10-30) adds
   two reported numbers, not gates: near-misses (a tuner add standing in for a
   missed guide add by job subtype or shared deck signal; 13 of 20 sampled pairs
-  held up by the rules) 70 on the 25 (71 before the signal-gap pass), 29
+  held up by the rules) 71 on the 25 (70 before the token doublers), 29
   held-out, 2 on Jace; consensus guide cards (named by 2+ guides) matched, adds
-  39 of 137 / cuts 121 of 169 on the 25 (122 before), 6 of 52 / 37 of 53
+  40 of 137 / cuts 121 of 169 on the 25 (39 adds before the token doublers), 6 of 52 / 37 of 53
   held-out, Jace 0 of 2 / 7 of 10. (The baseline is
   from 2026-10-29, after the guide-row fix: 108 rows that joined cards with commas or misspelled them now name real
   cards, and the audit scripts no longer split "Dusk // Dawn" at its second

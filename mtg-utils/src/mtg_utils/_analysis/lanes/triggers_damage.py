@@ -31,6 +31,7 @@ from mtg_utils._card_ir.crosswalk import (
     ABILITY_GRANT_MOD_TAGS,
     ATTACHED_OBJECT_PREDICATES,
     DAMAGE_EFFECT_TAGS,
+    INCREASE_QTY_MODS,
     OTHER,
     PERMANENT_CARD_TYPES,
     PROTECTIVE_KEYWORDS,
@@ -2646,7 +2647,7 @@ def _damage_equal_power(tree: ConceptTree) -> list[Signal]:
 # measured live set fires BOTH counter_doubling and counter_replace_bonus on
 # Times AND Plus (Hardened Scales carries counter_doubling live), so both arms
 # read the same increase set; Minus (Vizier of Remedies) / Prevent never fire.
-_INCREASE_QTY_MODS: frozenset[str] = frozenset({"Times", "Plus"})
+_INCREASE_QTY_MODS: frozenset[str] = INCREASE_QTY_MODS
 # DamageDone replacement damage-modification kinds that AMPLIFY (CR 614.1a +
 # 120.3): Double (Furnace of Rath), Triple (Fiery Emancipation), Plus (Torbran
 # — live's damage_doubling category includes the +N amplifiers, measured).

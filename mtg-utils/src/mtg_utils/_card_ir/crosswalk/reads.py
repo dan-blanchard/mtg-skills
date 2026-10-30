@@ -4817,6 +4817,40 @@ def replacement_token_owner_scope(node: TypedMirrorNode) -> str:
     return s if isinstance(s, str) else ""
 
 
+#: The ``quantity_modification`` kinds that raise a replacement's count (CR
+#: 614.1a): Doubling Season's ``Times 2``, Hardened Scales' ``Plus 1``. A
+#: ``Minus`` reducer (Vizier of Remedies, Halving Season) is none.
+INCREASE_QTY_MODS: frozenset[str] = frozenset({"Times", "Plus"})
+
+
+def token_doubler_kinds(
+    tree: ConceptTree,
+) -> tuple[tuple[tuple[str, ...], tuple[str, ...]], ...]:
+    """The token kinds each of a card's token-count increases is restricted to
+    (:func:`replacement_token_types`): one entry per ``CreateToken`` replacement
+    with an increase (:data:`INCREASE_QTY_MODS`) that no opponent alone gets
+    (CR 111.2: the creator owns the token). ``((), ())`` doubles every token
+    (Doubling Season, Primal Vigor), ``((), ("Creature",))`` creature tokens only
+    (Ojer Taq), ``(("Treasure",), ())`` one subtype. Empty for a card with none:
+    a doubler an effect sets up for a turn (Kaya, Geist Hunter's -2) is an
+    effect, not a static replacement, and names no kind; Xorn's extra Treasure
+    carries no count change."""
+    out: list[tuple[tuple[str, ...], tuple[str, ...]]] = []
+    for unit in tree.units:
+        if unit.origin != "replacement":
+            continue
+        node = unit.node
+        if (
+            replacement_event_tag(node) != "CreateToken"
+            or replacement_token_owner_scope(node) == "Opponent"
+        ):
+            continue
+        qm = replacement_qty_mod(node)
+        if qm is not None and qm[0] in INCREASE_QTY_MODS:
+            out.append(replacement_token_types(node))
+    return tuple(out)
+
+
 def replacement_token_types(
     node: TypedMirrorNode,
 ) -> tuple[tuple[str, ...], tuple[str, ...]]:

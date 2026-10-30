@@ -799473,6 +799473,379 @@
     "type_line": "Legendary Creature — God // Land"
    }
   },
+  "Ojer Taq, Deepest Foundation // Temple of Civilization": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "brawl_commander": true,
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "God"
+      ],
+      "supertypes": [
+       "Legendary"
+      ]
+     },
+     "color_identity": [
+      "White"
+     ],
+     "color_override": null,
+     "defense": null,
+     "face_index": 0,
+     "flavor_name": null,
+     "is_commander": true,
+     "keywords": [
+      "Vigilance"
+     ],
+     "layout": "transform",
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "standard": "legal",
+      "standardbrawl": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 4,
+      "shards": [
+       "White",
+       "White"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "1ca79dd4-67fc-496c-96fc-489b039c4932",
+       "e87dff94-71ed-469e-a10e-3ddfbd4a8bec"
+      ]
+     },
+     "name": "Ojer Taq, Deepest Foundation",
+     "non_ability_text": null,
+     "oracle_text": "Vigilance\nIf one or more creature tokens would be created under your control, three times that many of those tokens are created instead.\nWhen Ojer Taq dies, return it to the battlefield tapped and transformed under its owner's control.",
+     "power": {
+      "type": "Fixed",
+      "value": 6
+     },
+     "printings": [
+      "LCI"
+     ],
+     "rarities": [
+      "mythic"
+     ],
+     "replacements": [
+      {
+       "condition": {
+        "core_types": [
+         "Creature"
+        ],
+        "type": "TokenCoreTypeMatches"
+       },
+       "description": "If one or more creature tokens would be created under your control, three times that many of those tokens are created instead.",
+       "event": "CreateToken",
+       "execute": null,
+       "mode": {
+        "type": "Mandatory"
+       },
+       "quantity_modification": {
+        "factor": 3,
+        "type": "Times"
+       },
+       "token_owner_scope": "You",
+       "valid_card": null
+      }
+     ],
+     "rulings": [
+      {
+       "date": "2023-11-10",
+       "text": "Everything that is specified by the effect creating the original token or tokens will also be true about the additional tokens created by Ojer Taq, Deepest Foundation's replacement effect. For example, if an effect tells you to create a token \"tapped and attacking,\" the additional tokens will also be tapped and attacking. Similarly, if an effect creates a token and puts counters on it, the additional tokens will also get those counters."
+      },
+      {
+       "date": "2023-11-10",
+       "text": "If a card that isn't a transforming double-faced card is a copy of Ojer Taq, Deepest Foundation, it won't return to the battlefield when it dies."
+      }
+     ],
+     "scryfall_oracle_id": "486bb9a5-73f1-4cec-b097-fb07ac80b72e",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 6
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "When ~ dies, return it to the battlefield tapped and transformed under its owner's control.",
+       "destination": "Graveyard",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "destination": "Battlefield",
+         "enter_tapped": true,
+         "enter_transformed": true,
+         "enters_attacking": false,
+         "origin": null,
+         "owner_library": false,
+         "target": {
+          "type": "TriggeringSource"
+         },
+         "type": "ChangeZone"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "ChangesZone",
+       "optional": false,
+       "origin": "Battlefield",
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Graveyard"
+       ],
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    },
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": {
+        "type": "Tap"
+       },
+       "description": "{T}: Add {W}.",
+       "duration": null,
+       "effect": {
+        "produced": {
+         "colors": [
+          "White"
+         ],
+         "type": "Fixed"
+        },
+        "type": "Mana"
+       },
+       "forward_result": false,
+       "is_mana_ability": true,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      },
+      {
+       "activation_restrictions": [
+        {
+         "type": "AsSorcery"
+        },
+        {
+         "data": {
+          "condition": {
+           "comparator": "GE",
+           "lhs": {
+            "qty": {
+             "scope": "Controller",
+             "type": "AttackedThisTurn"
+            },
+            "type": "Ref"
+           },
+           "rhs": {
+            "type": "Fixed",
+            "value": 3
+           },
+           "type": "QuantityComparison"
+          }
+         },
+         "type": "RequiresCondition"
+        }
+       ],
+       "condition": null,
+       "cost": {
+        "costs": [
+         {
+          "cost": {
+           "generic": 2,
+           "shards": [
+            "White"
+           ],
+           "type": "Cost"
+          },
+          "type": "Mana"
+         },
+         {
+          "type": "Tap"
+         }
+        ],
+        "type": "Composite"
+       },
+       "description": "{2}{W}, {T}: Transform ~. Activate only if you attacked with three or more creatures this turn and only as a sorcery.",
+       "duration": null,
+       "effect": {
+        "scope": {
+         "type": "Single"
+        },
+        "target": {
+         "type": "SelfRef"
+        },
+        "type": "Transform"
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Land"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "White"
+     ],
+     "color_override": null,
+     "defense": null,
+     "face_index": 1,
+     "flavor_name": null,
+     "keywords": [],
+     "layout": "transform",
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "standard": "legal",
+      "standardbrawl": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "type": "NoCost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "1ca79dd4-67fc-496c-96fc-489b039c4932",
+       "e87dff94-71ed-469e-a10e-3ddfbd4a8bec"
+      ]
+     },
+     "name": "Temple of Civilization",
+     "non_ability_text": null,
+     "oracle_text": "(Transforms from Ojer Taq, Deepest Foundation.)\n{T}: Add {W}.\n{2}{W}, {T}: Transform this land. Activate only if you attacked with three or more creatures this turn and only as a sorcery.",
+     "power": null,
+     "printings": [
+      "LCI"
+     ],
+     "rarities": [
+      "mythic"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "486bb9a5-73f1-4cec-b097-fb07ac80b72e",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "card_faces": [
+     {
+      "colors": [
+       "W"
+      ],
+      "keywords": [
+       "Transform",
+       "Vigilance"
+      ],
+      "mana_cost": "{4}{W}{W}",
+      "name": "Ojer Taq, Deepest Foundation",
+      "oracle_text": "Vigilance\nIf one or more creature tokens would be created under your control, three times that many of those tokens are created instead.\nWhen Ojer Taq dies, return it to the battlefield tapped and transformed under its owner's control.",
+      "power": "6",
+      "toughness": "6",
+      "type_line": "Legendary Creature — God"
+     },
+     {
+      "colors": [],
+      "keywords": [
+       "Transform",
+       "Vigilance"
+      ],
+      "mana_cost": "",
+      "name": "Temple of Civilization",
+      "oracle_text": "(Transforms from Ojer Taq, Deepest Foundation.)\n{T}: Add {W}.\n{2}{W}, {T}: Transform this land. Activate only if you attacked with three or more creatures this turn and only as a sorcery.",
+      "type_line": "Land"
+     }
+    ],
+    "cmc": 6.0,
+    "color_identity": [
+     "W"
+    ],
+    "keywords": [
+     "Transform",
+     "Vigilance"
+    ],
+    "layout": "transform",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "legal",
+     "standardbrawl": "legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "name": "Ojer Taq, Deepest Foundation // Temple of Civilization",
+    "oracle_id": "486bb9a5-73f1-4cec-b097-fb07ac80b72e",
+    "produced_mana": [
+     "W"
+    ],
+    "type_line": "Legendary Creature — God // Land"
+   }
+  },
   "Ojutai Exemplars": {
    "phase_records": [
     {

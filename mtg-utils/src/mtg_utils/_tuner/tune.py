@@ -512,6 +512,8 @@ def tune(
             budgets=budgets,
             focus_result=foc,
             deck_signals=deck_signals,
+            commander_idents=read.commander_idents,
+            emitters=read.emitters,
             search_fn=search_fn,
             identity=identity,
             fmt=fmt,

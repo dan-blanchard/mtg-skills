@@ -890,6 +890,11 @@ class SwapContext:
     #: The deck context ramp is judged in (``hd.deck_mana``): a rock whose mana
     #: is dead under this commander is never sourced as ramp.
     deck_mana: DeckMana | None = None
+    #: The commander's own idents and the deck cards emitting each ident
+    #: (``read_deck_signals``): what :meth:`issues.Sourcing.multiplier_avenue`
+    #: reads the commander's token output from.
+    commander_idents: Collection[tuple[str, str, str]] = ()
+    emitters: Mapping[tuple[str, str, str], Collection[str]] | None = None
 
     def copy_ceiling(self, record: dict) -> int | None:
         """How many copies of this card the build may run: the copy limit, bounded
@@ -962,7 +967,13 @@ def propose_swaps(
             return False  # rejected by the builder: the next-ranked candidate instead
         return ctx.under_ceiling(card, in_deck.get(name, 0) + used_adds[name])
 
-    sourcing = Sourcing(ctx.focus_result, ctx.deck_signals, ctx.budgets)
+    sourcing = Sourcing(
+        ctx.focus_result,
+        ctx.deck_signals,
+        ctx.budgets,
+        commander_idents=ctx.commander_idents,
+        emitters=ctx.emitters,
+    )
     cut_focus = CutFocus.from_focus(ctx.focus_result)
     # The deck's own avenue prominence, so the candidate ranker scores DEPTH in
     # the deck's real themes (a death payoff) over BREADTH across incidental lanes
@@ -1516,6 +1527,10 @@ def propose_swaps(
         )
         for i in order:
             label, _depth, aspec = avenues[i]
+            # An avenue holding to a number of adds (the multiplier page's one).
+            cap = aspec.get("_cap")
+            if cap is not None and theme_taken[label or ""] >= cap:
+                continue
             picked = find_add(
                 aspec,
                 synergy_first=synergy_first,

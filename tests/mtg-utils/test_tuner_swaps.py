@@ -2517,10 +2517,11 @@ def _plain(name, rank):
     }
 
 
-def _dead_weight_ctx(viable, signals, search, fillers):
+def _dead_weight_ctx(viable, signals, search, fillers, **ctx_extra):
     classes = [_cc(f"Junk {i}", "filler", cmc=3.0) for i in range(fillers)]
     issue = {"kind": "dead_weight", "severity": 7, "count": fillers, "message": "x"}
     ctx = SwapContext(
+        **ctx_extra,
         budgets={},
         focus_result=_focus(viable=viable),
         deck_signals=signals,
@@ -2585,6 +2586,36 @@ def test_the_theme_is_shared_by_depth_over_two_mains():
         fillers=3,
     )
     assert adds == ["Deep 0", "Deep 1", "Shallow 0"]
+
+
+def test_the_commanders_token_doublers_take_one_theme_add():
+    # A main 30 deep and a commander that copies tokens, ten deck cards doing
+    # so: the token doublers page (``Sourcing.multiplier_avenue``, depth 10) is
+    # asked once the main has taken three adds, and takes one add only.
+    from mtg_utils._analysis.signal_specs import _TOKEN_DOUBLER_EXTRA
+
+    deep, copies = _type_sig("artifacts_matter"), _type_sig("token_copy_makers")
+    members = [_plain(f"Deep {i}", 100 + i) for i in range(6)]
+    doublers = [_plain(f"Doubler {i}", 50 + i) for i in range(3)]
+
+    def search(**kw):
+        if kw.get("serve") == _TOKEN_DOUBLER_EXTRA.serve:
+            return doublers
+        return members if kw.get("card_type") == "Artifact" else []
+
+    adds = _dead_weight_ctx(
+        [{"label": spec_for(deep).label, "tier": "main", "depth": 30}],
+        [deep, copies],
+        search,
+        fillers=5,
+        commander_idents={("token_copy_makers", "you", "")},
+        emitters={
+            ("token_copy_makers", "you", ""): frozenset(
+                f"Copier {i}" for i in range(10)
+            )
+        },
+    )
+    assert adds == ["Deep 0", "Deep 1", "Deep 2", "Doubler 0", "Deep 3"]
 
 
 def _murder_upgrade(path_rank, path_usd, budget):

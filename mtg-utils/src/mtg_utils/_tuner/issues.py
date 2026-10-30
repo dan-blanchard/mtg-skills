@@ -18,10 +18,18 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, NamedTuple
 
+from mtg_utils._analysis import signal_keys
+from mtg_utils._analysis.lanes import TOKEN_SUBTYPE_PAYOFF_KEYS
 from mtg_utils._analysis.multipliers import Commander, multiplier_reasons
 from mtg_utils._analysis.roles import ROLE_SEARCH, protects
-from mtg_utils._analysis.signal_specs import Serve, avenue_spec_for
-from mtg_utils._tuner.metrics import CALIBRATION_GAME, is_wincon_card
+from mtg_utils._analysis.signal_specs import (
+    _TOKEN_DOUBLER_EXTRA,
+    Serve,
+    avenue_spec_for,
+)
+from mtg_utils._card_ir.crosswalk import token_doubler_kinds
+from mtg_utils._card_ir.trees import trees_for
+from mtg_utils._tuner.metrics import CALIBRATION_GAME, _cares_keys, is_wincon_card
 from mtg_utils.combo_search import ends_the_game
 
 if TYPE_CHECKING:
@@ -70,6 +78,32 @@ def keep_search(commanders: Sequence[Mapping]) -> dict | None:
         )
 
     return {"_serve": _KEEP_SERVE, "_filter": keeps}
+
+
+#: The key the token doublers emit (``_TOKEN_DOUBLER_EXTRA``'s serve).
+_DOUBLER_KEY = "token_doubling"
+#: The predefined-token makers (CR 111.10) and the token each makes, an
+#: artifact with that subtype: ``treasure_makers`` → Treasure.
+_PREDEFINED_TOKEN_KINDS = {
+    f"{kind}_makers": kind.title() for kind in TOKEN_SUBTYPE_PAYOFF_KEYS
+}
+
+
+def _doubles_a_kind(card: Mapping, kinds: Collection[tuple[str, str]]) -> bool:
+    """Whether ``card``'s token doubling reaches one of ``kinds`` — ``(subtype,
+    card type)`` pairs, a Clue's ``("Clue", "Artifact")``, a Gremlin token's
+    ``("Gremlin", "Creature")``: a doubler of every token, of that subtype or of
+    that card type (``crosswalk.token_doubler_kinds``). Ojer Taq triples only
+    creature tokens, so it doubles no Clue. A card whose doubling names no kind
+    (a doubler an effect sets up, Kaya, Geist Hunter's -2) passes."""
+    found = [k for tree in trees_for(dict(card)) for k in token_doubler_kinds(tree)]
+    if not found:
+        return True
+    return any(
+        (not subtypes and not cores) or sub in subtypes or core in cores
+        for subtypes, cores in found
+        for sub, core in kinds
+    )
 
 
 # Efficiency curve issues → a CMC band to add into, scoped to the deck's main theme.
@@ -237,6 +271,8 @@ class Sourcing:
         *,
         game: Game = CALIBRATION_GAME,
         keep: dict | None = None,
+        commander_idents: Collection[tuple[str, str, str]] = (),
+        emitters: Mapping[tuple[str, str, str], Collection[str]] | None = None,
     ) -> None:
         self._focus = focus_result
         self._signals = deck_signals
@@ -244,6 +280,14 @@ class Sourcing:
         self._game = game
         #: The ``commander_keeps`` search (:func:`keep_search`), or None.
         self.keep = keep
+        #: The idents the commander itself emits, and the deck cards emitting
+        #: each ident (``read_deck_signals``): :meth:`multiplier_avenue`'s read.
+        self._commander_idents = frozenset(commander_idents)
+        self._emitters = emitters or {}
+        # Read once (its page filter is one object, so the swap engine's page
+        # memo holds it).
+        self._multiplier: tuple[str, int, dict] | None = None
+        self._multiplier_read = False
 
     # ── Spine roles ─────────────────────────────────────────────────────────────
 
@@ -299,7 +343,9 @@ class Sourcing:
         Voltron) adds for both. A tribe the commander holds shares them too,
         whatever its tier (``focus``'s ``commander_tribes``): its page is the
         tribe's own members, which no other page holds (Disa the Restless's
-        Lhurgoyfs and changelings beside her graveyard main)."""
+        Lhurgoyfs and changelings beside her graveyard main). The token
+        doublers join them under a token-making commander
+        (:meth:`multiplier_avenue`)."""
         tribes = set(self._focus.get("commander_tribes") or ())
         out = []
         for a in self._focus["viable_avenues"]:
@@ -308,7 +354,80 @@ class Sourcing:
             spec = self.avenue(a["label"])
             if spec is not None:
                 out.append((a["label"], a["depth"], spec))
+        if not self._multiplier_read:
+            self._multiplier = self.multiplier_avenue()
+            self._multiplier_read = True
+        if self._multiplier is not None:
+            out.append(self._multiplier)
         return out
+
+    def multiplier_avenue(self) -> tuple[str, int, dict] | None:
+        """The other side of the commander's token output: the token doublers
+        (``signal_specs._TOKEN_DOUBLER_EXTRA``, CR 614.1a — Doubling Season,
+        Parallel Lives, Anointed Procession), one theme add, when the commander
+        itself makes tokens. It holds a lane whose spec pairs the doublers with
+        it (a token maker's, a token copier's, a tokens payoff's sub-avenues) or a
+        predefined-token maker whose payoff side names them (``metrics``'
+        ``_cares_keys``: Morska's Clues, a Treasure maker's). No search reached
+        them: the deck's token makers open their own lanes, often below the
+        viable floor, and a doubler serves no main (Tinker Time's Doubling
+        Season and Parallel Lives, Squirreled Away's Primal Vigor).
+
+        Its depth is the deck's makers of what the commander makes, so it is
+        asked once the mains have taken that many adds each; ``_cap`` holds it
+        to one add. A doubler limited to a token kind the commander does not make
+        is filtered out (:func:`_doubles_a_kind`: Ojer Taq's creature tokens
+        under a Clue maker, CR 111.10).
+
+        Measured on the 25 precons (2026-10-30, against 715 / 329 / 114 swaps /
+        guide cuts / guide adds): 720 / 329 / 116, held-out 297 / 139 / 36
+        (35), Jace unchanged; the commander's maker lanes alone, without the
+        Clue / Treasure link, 115. Opened by DENSITY instead (five or more deck
+        makers, the commander's or not) it lost, 710 / 327 / 109: Jace's
+        polymorph fodder took Kaya, Geist Hunter over Archfiend of Depravity
+        and Nezahal; the commander's or twelve deck makers, 712 / 326 / 114.
+        The other multipliers on the same terms lost held-out adds: with the
+        counter doublers 117 adds but held-out 31 (World Shaper's Hardened
+        Scales cost three), with the ETB-trigger doublers, trigger copiers and
+        damage / mana amplifiers too 116 and 31; two adds off the page, 115."""
+        depth = 0
+        kinds: set[tuple[str, str]] = set()
+        any_kind = False
+        for sig in self._signals:
+            if (sig.key, sig.scope, sig.subject) not in self._commander_idents:
+                continue
+            spec = avenue_spec_for(sig)
+            paired = spec is not None and _TOKEN_DOUBLER_EXTRA in spec.extras
+            kind = _PREDEFINED_TOKEN_KINDS.get(sig.key)
+            if not paired and not (kind and _DOUBLER_KEY in _cares_keys(sig.key)):
+                continue
+            makers = set().union(
+                *(
+                    names
+                    for (key, scope, _subject), names in self._emitters.items()
+                    if key == sig.key and scope == sig.scope
+                )
+            )
+            depth = max(depth, len(makers))
+            if kind is not None:
+                kinds.add((kind, "Artifact"))
+            elif sig.key == signal_keys.TOKEN_MAKER:
+                kinds.add((sig.subject, "Creature"))
+            else:
+                any_kind = True
+        if not depth:
+            return None
+        label = _TOKEN_DOUBLER_EXTRA.label
+        spec = {
+            **_TOKEN_DOUBLER_EXTRA.search,
+            "_serve": _TOKEN_DOUBLER_EXTRA.serve,
+            "_avenue": label,
+            "_cap": 1,
+        }
+        if not any_kind:
+            wanted = frozenset(kinds)
+            spec["_filter"] = lambda card, **_kw: _doubles_a_kind(card, wanted)
+        return label, depth, spec
 
     def theme(self) -> dict:
         """The deck's theme add search: the main avenue's, marked (``_share``)
