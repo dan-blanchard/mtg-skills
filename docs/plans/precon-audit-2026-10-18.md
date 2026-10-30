@@ -1645,3 +1645,96 @@ motivating cuts 3a protects.
   activation open. Chittering Witch's Rats, and Zurgo's mobilized Warriors when
   she sacrifices them, are creature tokens leaving the battlefield (CR
   701.21a), which is what Zurgo Stormrender draws or drains on.
+
+## Card reads leading the theme adds (2026-10-30, measured and rejected)
+
+Theme adds are ordered by play-rate today: of the candidates whose synergy reaches a
+fifth of the page's best (`_FIT_FLOOR`), the most played comes first, over a
+150-card page (`swaps._PAGE`). The guides' theme adds include many cards that few
+decks play. The plan was to let card reads lead, with play-rate breaking ties, and
+to search past the page. Two orders were built:
+
+- **Order A** puts fit to the commander first (the card shares a non-generic
+  signal ident with it; `metrics.generic_ident` is the scoreboard's `GENERIC` in
+  the tuner's terms). Then `rank_candidates`' synergy score, then play-rate.
+- **Order B** also puts commander fit first. Then depth (how many of the deck's
+  cards emit one of the candidate's non-generic idents, `DeckSignals.emitters`),
+  then play-rate.
+
+Both were run over the 150-card page and over the serve's whole match set. Then
+came tiered and blended forms. The bar was guide adds up with cuts down by two at
+most on the 25, held-out adds flat with cuts down by one at most, and Jace
+(Multiverse Reforged) at 3 adds or more with cuts down by one at most from 14.
+The phase-rs v0.118.0 bump had not landed, so these runs are against the v0.104.0
+baselines. Wall time is for a whole run, six tunes at a time.
+
+| variant | the 25: swaps / cuts / adds | near-misses | consensus adds | held-out: swaps / cuts / adds | Jace | time (25) |
+|---|---|---|---|---|---|---|
+| baseline | 715 / 329 / 114 | 70 | 39 | 297 / 139 / 35 | 29 / 14 / 3 | 22 s |
+| A, whole match set | 723 / 331 / 82 | 94 | 29 | 297 / 140 / 30 | 30 / 14 / 3 | 50 s |
+| A, 150-card page | 724 / 333 / 81 | | | | | 22 s |
+| A, synergy rounded to whole points | 729 / 335 / 87 | | | | | 49 s |
+| A tiered: fit, then the fit floor, then play-rate | 725 / 329 / 109 | 87 | 38 | 297 / 140 / 38 | 30 / 14 / 2 | 22 s |
+| B, whole match set | 740 / 335 / 80 | 97 | 26 | 297 / 139 / 30 | 30 / 14 / 2 | 17 s |
+| B, 150-card page | 739 / 335 / 82 | | | | | 17 s |
+| B, log2 depth | 732 / 334 / 103 | | | | | 17 s |
+| B tiered: fit, then 15+ deck sharers, then play-rate | 735 / 335 / 110 | 85 | 40 | 295 / 139 / 38 | 30 / 14 / 2 | 18 s |
+| blend: log10 rank − 0.25·fit | 725 / 332 / 116 | 66 | 38 | 295 / 139 / 38 | 30 / 14 / 1 | 19 s |
+| blend: log10 rank − 0.5·fit − 0.2·log2(depth+1) | 714 / 329 / 109 | | | | | 19 s |
+| blend, logistic weights (fit 0.45, depth 0.12, synergy share 0.47) | 723 / 334 / 114 | 84 | 37 | 297 / 139 / 37 | 30 / 14 / 2 | 47 s |
+| control: play-rate alone, no fit floor | 720 / 331 / 118 | 61 | 40 | 290 / 139 / 36 | 29 / 14 / 3 | 21 s |
+
+Other blends scored between these: fit 0.1-0.5 with depth 0-0.2 gave 111-116
+adds, and a 1000-card page gave the same as the whole set. Nothing shipped, for
+these reasons:
+
+- **The strict orders reach unpopular guide adds but lose more popular ones.**
+  Order A gained 22 guide adds on the 25, including Gix, Krydle, Djeru, Teferi,
+  Temporal Pilgrim, Kasmina, Bitterblossom and Chronozoa. Order B gained 23,
+  including Conduit of Ruin, Senator Peacock, Delay and Hunting Velociraptor.
+  Each lost about 55 guide adds. Their near-miss counts rise to 94-97 only
+  because the theme near-miss rule reads the same shared idents these orders
+  sort by.
+- **Play-rate separates the guide adds better than any read here.** Each deck's
+  theme match sets were dumped with every read (`w33/probe/`). Across them the
+  guide-add rate is 5.4% at rank 1000 or better and 0.07% past 15,000. Within a
+  rank band, commander fit doubles or triples the rate, and 31+ deck cards
+  sharing an ident multiplies it by 2-5. A logistic fit prices fit at 0.45
+  decades of play-rate, a depth doubling at 0.12 and the page's best synergy at
+  0.47. Ordered by fit at 0.5 and depth at 0.15, close to those weights, the
+  whole match sets hold 82 guide adds in their top ten, against 71 today. The tune doesn't keep that gain, because the
+  upgrade gate, the even share and the full-job move change what each pick
+  costs, and Jace loses Archfiend of Depravity and Nezahal under every read.
+- **The fit floor costs four adds.** With no fit floor and play-rate alone, the
+  tune scored 118 / 331 on the 25, 36 adds on the held-out ten and 3 on Jace.
+  That passes the bar, but it reads less of the card than today, which runs
+  against this plan. It is left for a separate decision.
+
+The /rules-lawyer spot-check took ten new theme adds that match no guide card:
+five from Order B and five from Order A (`rulings-lookup --card`, `rules-lookup
+--rule`, CR 2026-09-25). Seven held up, one only partly, two failed.
+
+- **Seven held up.**
+  - Zopandrel under Felothar doubles toughness (CR 701.10b), and Felothar's
+    creatures assign combat damage equal to toughness.
+  - Taunting Kobold's goad (CR 701.15b) sends a creature at another opponent,
+    which feeds Nelly Borca's draw.
+  - Hotshot Investigators returning your own creature investigates (CR
+    701.16a), feeding Morska's second draw.
+  - Sleep-Cursed Faerie is a Faerie for Tegwyll's anthem and death draw, though
+    it enters with stun counters (CR 122.1d).
+  - Wharf Infiltrator's skulk (CR 702.118b) helps it deal combat damage, which
+    is Gonti's trigger.
+  - Longshot's cost reduction (CR 601.2f) and its 2 damage per noncreature
+    spell help Stella Lee reach her second spell.
+  - Gleaming Geardrake's Clue is another differently named artifact token for
+    Gimbal and grows the Geardrake when sacrificed.
+- **One held up only partly.** Giggling Skitterspike's damage is life loss (CR
+  120.3a), but Valgavoth only counts an opponent's first loss on that opponent's
+  own turn. On that turn the Skitterspike deals damage only when it blocks or is
+  targeted.
+- **Two failed.**
+  - Cauldron Familiar can't return in Death Toll, which makes no Food (a
+    sacrifice needs a permanent you control, CR 701.21a).
+  - Alibou in Mardu Surge counts tapped artifacts and triggers off artifact
+    creatures. Zurgo's Warriors are neither (by its ruling, X can be 0).

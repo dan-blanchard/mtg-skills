@@ -184,6 +184,28 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   emits `toughness_combat|you|` (its life gain is the destroyed creature's
   toughness, per its ruling) and Myr Battlesphere reads as interaction (it hits
   only the player or planeswalker it attacks, by its own text).
+  (t) **Card reads leading the theme adds — don't re-suggest** (2026-10-30;
+  patch and runs in `~/mtg/tuner-work/w33/`, the audit's "Card reads leading the
+  theme adds"). Measured against 715 / 329 / 114 (held-out 297 / 139 / 35, Jace
+  29 / 14 / 3). Order A (fit to the commander, a non-generic ident shared with
+  it; then `rank_candidates`' synergy; then play-rate) over the whole match set:
+  723 / 331 / 82, held-out 30 adds, 2.3× the tune time. Order B (commander fit,
+  then how many deck cards emit one of the candidate's non-generic idents, then
+  play-rate) over the whole match set: 740 / 335 / 80, held-out 30. Each reaches
+  about 22 unpopular guide adds (Gix, Krydle, Djeru, Teferi, Temporal Pilgrim,
+  Conduit of Ruin) and loses about 55 popular ones. The 150-card page, the
+  synergy rounded to whole points, a log-depth, a 5% pool-share cap and tiered
+  forms (fit, then the 0.2 fit floor; fit, then 15+ deck sharers) scored 87-111.
+  Blends in log10 play-rate (fit worth 0.1-0.5 decades, a depth doubling up to
+  0.2, synergy share 0.47, weights from a logistic fit) scored 109-116 adds. The
+  best, fit worth 0.25 decades, scored 725 / 332 / 116 with held-out 38, but Jace
+  fell to 1 add (it lost Archfiend of Depravity and Nezahal). No variant passed
+  all three bars. Inside a play-rate band, fit (2-3×) and 31+ deck sharers (2-5×)
+  do raise the guide-add rate on the whole match sets, but play-rate separates
+  more: rank ≤ 1000 runs 5.4% against 0.07% past 15,000. Found on the way, not
+  shipped: dropping the theme page's 0.2 synergy fit floor, with play-rate alone
+  and no read, scored 720 / 331 / 118, held-out 290 / 139 / 36, Jace 29 / 14 / 3.
+  It reads less of the card, which is the opposite of the plan's direction.
   (m) **Recall** (`precon-audit/misses.py`, at the largest guide's thirty
   swaps and each precon's own guides' budget, `budgets.json`, Spellbook cached):
   329 of 505 cuttable guide cuts, 114 of 793 in-scope guide adds, 715 swaps;
