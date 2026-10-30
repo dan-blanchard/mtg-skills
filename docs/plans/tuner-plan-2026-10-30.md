@@ -19,7 +19,10 @@ miss taxonomy, the held-out candidates).
   Phase B's need routing (a cut that supplies a need is upgraded off that
   need's page); item 10 (incidental jobs) was tried as "route a need-supplying
   job cut to its need page" and rejected (held-out 17 swaps, 4 cuts and 3 adds
-  lost) — still open for a read that tells an incidental job from a real one;
+  lost), then as specified — a job carried only by a non-self-ETB trigger is a
+  rider — and rejected too (held-out adds −1, page recall −3, consensus −1;
+  Rhystic Study reads as incidental): open for a read that tells a payoff rider
+  from an engine;
   item 11 (land swaps) is built (`_tuner/mana_base.py`, `--land-swaps`) and
   ships opt-in: measured on the recipe it costs the plan's issues their swaps
   (the 25 lose 7 guide adds and 4 consensus adds; the held-out 20 hold their

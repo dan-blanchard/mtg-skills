@@ -2312,3 +2312,14 @@ with their runs recorded: shared need adds, the held-lane share waiver, C1, D1,
 D2. Current baseline = the Phase B baseline: the 25 735 / 337 / 122 (page
 recall @30 159, plan-consistent 288 of 735), held-out 20 577 / 253 / 97 (161,
 174 of 577) — from Phase A's 732 / 335 / 121 and 571 / 253 / 80.
+
+**C10, the incidental-job read (item 10) — rejected.** `upgrade_job` gave no job
+to a card whose job effect sits only on a trigger watching something other than
+its own entering (Terror of the Peaks' damage when another creature enters; a
+self-ETB like Ravenous Chupacabra or Shriekmaw kept its job). Against B2: the 25
+735 / 337 / 122 → 733 / 338 / 126 (page recall@30 +7, plan-consistent +10,
+consensus adds −1); the held-out 20 577 / 253 / 97 → 577 / 252 / 96 (page
+recall −3, consensus −1). The read also calls Rhystic Study and Esper Sentinel
+incidental — a draw engine IS a trigger watching other events — so the job pages
+lose their best draw. Not shipped; item 10 needs a read that tells a payoff rider
+from an engine, which "trigger origin" doesn't.
