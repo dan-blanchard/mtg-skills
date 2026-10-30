@@ -2361,3 +2361,53 @@ and fails the old one only on the 25's consensus −1.
 
 **Baseline after E2:** the 25 735 / 337 / 122 (page@30 159, plan 303 of 735);
 held-out 20 575 / 253 / 101 (page@30 161, plan 188 of 575) — `w41/sb-*-E2.json`.
+
+**The rejected levers in concert (2026-10-30, Dan's question).** Every rejected
+lever at once — E1's wide near tie in place of E2's, the incidental-job read (C10),
+the marquee (D1), the removal-MV slots (D2) — with land swaps on (F1) and off (F2),
+against the E2 baseline (the 25 735 / 337 / 122, plan-consistent 303; held-out 20
+575 / 253 / 101, plan 188):
+
+| bundle | the 25: swaps / cuts / adds | plan-consistent | consensus adds | job-equiv. | held-out: swaps / cuts / adds | plan-consistent | consensus | job-equiv. |
+|---|---|---|---|---|---|---|---|---|
+| F1 (with land swaps) | 724 / 322 / 116 | +18 | −2 | −4 | 582 / 256 / 95 | +29 | −3 | −13 |
+| F2 (no land swaps) | 731 / 334 / 121 | +34 | 0 | −4 | 572 / 251 / 98 | +37 | 0 | −14 |
+
+They don't compound into exact-name gains: F2 is E1's result with a little more
+plan-consistency (+37 vs E1's +33 held-out) at the same exact-add cost (−3), and
+the job-equivalent line falls by 14 — mostly C10 taking the job off trigger-only
+cards, so their near-misses no longer pair as jobs. Land swaps still cost the
+25 fifteen guide cuts. The one lever that moves plan-consistency is the wide
+near tie (E1); the others add a few points each. So the pieces are not hiding a
+combined win on the guide yardsticks; what they show, together and alone, is
+that plan-consistency and exact-name matching pull in different directions, and
+the gate has to say which one it serves.
+
+**The taxonomy's lane fixes (2026-10-30, merged: 955f286e).** Three read fixes
+from `w40/miss-taxonomy.md`, built by an agent and shipped on correctness:
+`aura_matters|any|` (a payoff watching creatures enchanted by an Aura whoever
+controls them — Killian, Eriette, Hateful Eidolon; its maker side
+`aura_matters|any|aura` is every Aura that can go on a creature, the control
+Auras included), `artifacts_matter|you|etb` / `enchantments_matter|you|etb` (typed
+enters payoffs, 146 cards, admitted by the Clue and Treasure serves), Clue engines
+as `card_draw` (`card_draw_engine|you|clue`, 65 cards) and Dispatch's metalcraft
+exile as removal (`crosswalk.earlier_spell_target`).
+
+Measured as merged they cost the held-out set six guide adds, all in Lorehold
+Spirit, and the 25 three — two side effects of the tune's own reads, both fixed
+in the same commit: Killian's new `enchantments_matter|you|etb` (0.2% of the
+pool) rode on the "Enchantments" label and made the umbrella the most specific
+lane, so Enchantments took the primary from Auras (`metrics.focus`'s specificity
+now reads a lane's BROADEST held ident); and Quintorius's "graveyard consumers"
+need page (1,193 cards, a hair under the 10% cutoff, topped by Faithless Looting
+and Farewell) took his theme cuts (`commander_need` keeps the umbrella keys —
+`graveyard_matters`, `graveyard_makers`, `permanent_etb`, `enchantments_matter`,
+`artifacts_matter`, `creatures_matter`, `attack_matters` — out of every need's
+tests). With those: against E2, the 25 735 / 337 / 122 → 734 / 339 / 120
+(consensus −1), the held-out 20 575 / 253 / 101 → 581 / 255 / 100 (consensus 0);
+the plan-consistency line re-bases (fewer, narrower needs: tune 274 / guides 270
+on the 25, 180 / 254 held-out).
+
+**Baseline after the lane fixes (L2):** the 25 734 / 339 / 120 (page@30 156,
+plan 274 of 734); held-out 20 581 / 255 / 100 (page@30 161, plan 180 of 581) —
+`w41/sb-*-L2.json`.
