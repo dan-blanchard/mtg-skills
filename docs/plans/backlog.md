@@ -14,6 +14,13 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   traceback instead of landing in the envelope's `missing`. Catch the per-name
   network failure in `lookup_single`'s batch loop and report it as missing; keep
   the hard exit for a bulk that can't be read at all.
+- **The tuner plan of 2026-10-30** (`docs/plans/tuner-plan-2026-10-30.md`, from
+  the review in `docs/plans/tuner-holistic-review-2026-10-30.md`): measurement
+  first (commander-need predicate as the plan-consistency metric, page-level
+  recall@k, scoreboard rescoring, ten more held-out precons, bracket-3 recipe),
+  then need pages and a specificity-first primary, then lane adds / incidental
+  jobs / land swaps in the tune, then a marquee purse and removal MV thresholds.
+  Its ship bar replaces the ±1-2 add gates below.
 - **What the polymorph tune and the 25-precon audit still get wrong** (third
   pass, 2026-10-18 — `docs/plans/precon-audit-2026-10-18.md` has the method,
   the three before / after tables and the per-precon reads; the first two
