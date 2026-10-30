@@ -11,6 +11,7 @@ from mtg_utils._analysis.lanes.card_advantage import REANIMATED_SELF_RETURNS
 from mtg_utils._analysis.signal_keys import STEP_TRIGGER_KEYS
 
 from ._shared import (
+    _ARTIFACT_ETB_PAYOFF,
     _BOARD_PROTECTION_EXTRA,
     _BOARD_WIPE_EXTRA,
     _CAST_FROM_GY_EXTRA,
@@ -108,8 +109,11 @@ _OPPONENT_GRAVEYARD_IDENTS = frozenset(
 # symmetric locks.
 _STAX_IDENTS = frozenset({"stax_taxes|opponents|", "symmetric_stax|each|"})
 
-# The Treasure serve (treasure_makers / treasure_matters, you): both lanes.
-_TREASURE_IDENTS = frozenset({"treasure_makers|you|", "treasure_matters|you|"})
+# The Treasure serve (treasure_makers / treasure_matters, you): both lanes and the
+# artifact-enters payoffs.
+_TREASURE_IDENTS = frozenset(
+    {"treasure_makers|you|", "treasure_matters|you|", _ARTIFACT_ETB_PAYOFF}
+)
 
 # Creatures entering your battlefield, as the lanes read them: the creature-token
 # makers, a creature cheat, a creature that reanimates (damage_for_each,

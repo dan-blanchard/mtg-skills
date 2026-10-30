@@ -52,6 +52,7 @@ from mtg_utils._card_ir.crosswalk import (
     discard_is_random,
     discard_recipient_scope,
     double_target_kind,
+    earlier_spell_target,
     effect_actor_scope,
     effect_filter,
     effect_owner_player_scope,
@@ -1481,7 +1482,11 @@ def _exile_removal(tree: ConceptTree) -> list[Signal]:
             origin, dest = change_zone_dirs(c.node)
             if dest != "Exile":
                 continue
-            sub = effect_filter(c.node)
+            # "Tap target creature. Metalcraft — If you control three or more
+            # artifacts, exile that creature." (Dispatch): phase writes the
+            # ability-word sentence as a Spell ability of its own, its "that
+            # creature" a back-reference to the earlier ability's target.
+            sub = earlier_spell_target(tree, unit, c.node) or effect_filter(c.node)
             if not (set(filter_core_types(sub)) & _PERMANENT_TYPES):
                 continue
             if filter_controller(sub) == "You" or (

@@ -75515,6 +75515,256 @@
     "type_line": "Instant"
    }
   },
+  "Arcbound Crusher": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Artifact",
+       "Creature"
+      ],
+      "subtypes": [
+       "Juggernaut"
+      ],
+      "supertypes": []
+     },
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [
+      "Trample",
+      {
+       "Modular": 1
+      }
+     ],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 4,
+      "shards": [],
+      "type": "Cost"
+     },
+     "name": "Arcbound Crusher",
+     "non_ability_text": null,
+     "oracle_text": "Trample\nWhenever another artifact enters, put a +1/+1 counter on this creature.\nModular 1 (This creature enters with a +1/+1 counter on it. When it dies, you may put its +1/+1 counters on target artifact creature.)",
+     "power": {
+      "type": "Fixed",
+      "value": 0
+     },
+     "printings": [
+      "DST",
+      "HOP"
+     ],
+     "replacements": [
+      {
+       "condition": null,
+       "description": "CR 702.43a: Modular 1 — this permanent enters with 1 +1/+1 counter on it.",
+       "destination_zone": "Battlefield",
+       "event": "Moved",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": "This permanent enters with 1 +1/+1 counter on it",
+        "duration": null,
+        "effect": {
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "counter_type": "P1P1",
+         "target": {
+          "type": "SelfRef"
+         },
+         "type": "PutCounter"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": {
+        "type": "Mandatory"
+       },
+       "valid_card": {
+        "type": "SelfRef"
+       }
+      }
+     ],
+     "rulings": [
+      {
+       "date": "2006-09-25",
+       "text": "If this creature gets enough -1/-1 counters put on it to cause its toughness to be 0 or less (or the damage marked on it to be lethal), modular will put a number of +1/+1 counters on the target artifact creature equal to the number of +1/+1 counters on this creature before it left the battlefield."
+      }
+     ],
+     "scryfall_oracle_id": "ee496b34-d8e0-482a-a2c2-3122ea376da0",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 0
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever another artifact enters, put a +1/+1 counter on ~.",
+       "destination": "Battlefield",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "counter_type": "P1P1",
+         "target": {
+          "type": "SelfRef"
+         },
+         "type": "PutCounter"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "ChangesZone",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "controller": null,
+        "properties": [
+         {
+          "type": "Another"
+         }
+        ],
+        "type": "Typed",
+        "type_filters": [
+         "Artifact"
+        ]
+       },
+       "valid_source": null,
+       "valid_target": null
+      },
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "CR 702.43a: Modular — when this creature dies, you may put a +1/+1 counter on target artifact creature for each +1/+1 counter on it.",
+       "destination": "Graveyard",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": "Put a +1/+1 counter on target artifact creature for each +1/+1 counter on this permanent",
+        "duration": null,
+        "effect": {
+         "count": {
+          "qty": {
+           "counter_type": "P1P1",
+           "scope": {
+            "type": "Source"
+           },
+           "type": "CountersOn"
+          },
+          "type": "Ref"
+         },
+         "counter_type": "P1P1",
+         "target": {
+          "controller": null,
+          "properties": [],
+          "type": "Typed",
+          "type_filters": [
+           "Creature",
+           "Artifact"
+          ]
+         },
+         "type": "PutCounter"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": true,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "ChangesZone",
+       "optional": false,
+       "origin": "Battlefield",
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [],
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 4.0,
+    "color_identity": [],
+    "colors": [],
+    "keywords": [
+     "Modular",
+     "Trample"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{4}",
+    "name": "Arcbound Crusher",
+    "oracle_id": "ee496b34-d8e0-482a-a2c2-3122ea376da0",
+    "oracle_text": "Trample\nWhenever another artifact enters, put a +1/+1 counter on this creature.\nModular 1 (This creature enters with a +1/+1 counter on it. When it dies, you may put its +1/+1 counters on target artifact creature.)",
+    "power": "0",
+    "toughness": "0",
+    "type_line": "Artifact Creature — Juggernaut"
+   }
+  },
   "Arcbound Javelineer": {
    "phase_records": [
     {
@@ -226536,6 +226786,245 @@
     "type_line": "Enchantment"
    }
   },
+  "Chalk Outline": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Enchantment"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Green"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "standard": "legal",
+      "standardbrawl": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 3,
+      "shards": [
+       "Green"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "related_token_ids": [
+       "4c84fc07-0117-5360-9426-02f030e51f75",
+       "9a9827e0-4bbe-56ff-8e04-064bd0c5cfa1"
+      ],
+      "source_printing_ids": [
+       "b3ff56c1-4153-4e15-9ac6-06d93fa2ae50"
+      ]
+     },
+     "name": "Chalk Outline",
+     "non_ability_text": null,
+     "oracle_text": "Whenever one or more creature cards leave your graveyard, create a 2/2 white and blue Detective creature token, then investigate. (Create a Clue token. It's an artifact with \"{2}, Sacrifice this token: Draw a card.\")",
+     "power": null,
+     "printings": [
+      "MKM"
+     ],
+     "rarities": [
+      "uncommon"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2024-02-02",
+       "text": "Clue is an artifact type. Even though it appears on some cards with other permanent types, it's never a creature type, a land type, or anything but an artifact type."
+      },
+      {
+       "date": "2024-02-02",
+       "text": "If an effect refers to a Clue, it means any Clue artifact, not just a Clue artifact token. For example, you can sacrifice Wrench to pay for Alquist Proft, Master Sleuth's activated ability."
+      },
+      {
+       "date": "2024-02-02",
+       "text": "If multiple creature cards leave your graveyard at the same time, Chalk Outline's ability will trigger only once."
+      },
+      {
+       "date": "2024-02-02",
+       "text": "Some abilities trigger \"whenever you sacrifice a Clue\". Those abilities trigger whenever you sacrifice a Clue for any reason, not just to activate a Clue's activated ability."
+      },
+      {
+       "date": "2024-02-02",
+       "text": "Some spells and abilities that investigate may require targets. If each target chosen is an illegal target as that spell or ability tries to resolve, it won't resolve. You won't create any Clue tokens."
+      },
+      {
+       "date": "2024-02-02",
+       "text": "You can't sacrifice a Clue to pay multiple costs. For example, you can't sacrifice a Clue token to activate its own ability and also to activate Alquist Proft, Master Sleuth's ability."
+      }
+     ],
+     "scryfall_oracle_id": "af335eb3-f60a-44b3-a1ed-1e165f3e3605",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": [
+      {
+       "batched": true,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever one or more creature cards leave your graveyard, create a 2/2 white and blue Detective creature token, then investigate.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "colors": [
+          "White",
+          "Blue"
+         ],
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "enters_attacking": false,
+         "keywords": [],
+         "name": "Detective",
+         "owner": {
+          "type": "Controller"
+         },
+         "power": {
+          "type": "Fixed",
+          "value": 2
+         },
+         "tapped": false,
+         "toughness": {
+          "type": "Fixed",
+          "value": 2
+         },
+         "type": "Token",
+         "types": [
+          "Creature",
+          "Detective"
+         ]
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "type": "Investigate"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": null,
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "mode": "ChangesZoneAll",
+       "optional": false,
+       "origin": "Graveyard",
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "controller": null,
+        "properties": [
+         {
+          "controller": "You",
+          "type": "Owned"
+         }
+        ],
+        "type": "Typed",
+        "type_filters": [
+         "Creature"
+        ]
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "all_parts": [
+     {
+      "component": "token",
+      "id": "30a109aa-99d4-4cfe-a9b1-1b40db5b7885",
+      "name": "Detective",
+      "oracle_id": "44f63ae4-6605-49e2-a862-99c1feb3017a",
+      "type_line": "Token Creature — Detective"
+     },
+     {
+      "component": "token",
+      "id": "d1dfd9b9-8214-4e20-b1c9-48c9f7276883",
+      "name": "Clue",
+      "oracle_id": "496e1083-c792-40a4-adf4-fec1d559cd5e",
+      "type_line": "Token Artifact — Clue"
+     }
+    ],
+    "arena_available": true,
+    "cmc": 4.0,
+    "color_identity": [
+     "G"
+    ],
+    "colors": [
+     "G"
+    ],
+    "keywords": [
+     "Investigate"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "legal",
+     "standardbrawl": "legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{3}{G}",
+    "name": "Chalk Outline",
+    "oracle_id": "af335eb3-f60a-44b3-a1ed-1e165f3e3605",
+    "oracle_text": "Whenever one or more creature cards leave your graveyard, create a 2/2 white and blue Detective creature token, then investigate. (Create a Clue token. It's an artifact with \"{2}, Sacrifice this token: Draw a card.\")",
+    "type_line": "Enchantment"
+   }
+  },
   "Challenger Troll": {
    "phase_records": [
     {
@@ -295699,6 +296188,273 @@
     "type_line": "Enchantment — Aura Curse"
    }
   },
+  "Curse of Opulence": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Enchantment"
+      ],
+      "subtypes": [
+       "Aura",
+       "Curse"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Red"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [
+      {
+       "Enchant": {
+        "type": "Player"
+       }
+      }
+     ],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 0,
+      "shards": [
+       "Red"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "related_token_ids": [
+       "214f0959-71fa-59ba-8efb-080cbc3e5b99",
+       "603d6f2b-313f-5453-a3f1-55f5154ec9f6",
+       "66cd1235-f092-5483-b517-bd0398621a94",
+       "6c3f3f0f-cfa8-5ae3-ac32-eadcaf33f275",
+       "6c4de848-5258-50e6-9a57-ceccc81aefce"
+      ],
+      "source_printing_ids": [
+       "32cc103e-949d-42d4-aadd-490a261c9ad9",
+       "3dccadfc-458f-4696-bfb4-4bfc80379df2",
+       "440acae3-aadb-40f0-a608-d1d93578c6b0",
+       "494a6f50-9cd3-4bfc-9382-dce4f7047a81",
+       "6615d7f1-1ed6-43af-a916-6caa4bd35ca3",
+       "e23db9d3-d11f-4b2c-8349-687bc0e9d4c2"
+      ]
+     },
+     "name": "Curse of Opulence",
+     "non_ability_text": null,
+     "oracle_text": "Enchant player\nWhenever enchanted player is attacked, create a Gold token. Each opponent attacking that player does the same. (A Gold token is an artifact with \"Sacrifice this token: Add one mana of any color.\")",
+     "power": null,
+     "printings": [
+      "C17",
+      "CLB",
+      "MKC",
+      "MOC",
+      "PLST",
+      "PZ2",
+      "TDC"
+     ],
+     "rarities": [
+      "uncommon"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2017-08-25",
+       "text": "A player is attacking another player if they control a creature that's attacking that player. If no creatures are attacking the enchanted player as a Curse's ability resolves (most likely because they've left the battlefield), only the Curse's controller performs its actions."
+      },
+      {
+       "date": "2017-08-25",
+       "text": "Curse of Opulence's triggered ability resolves after attackers have been declared. Any costs to attack must have already been paid before the attacking player creates the Gold."
+      },
+      {
+       "date": "2017-08-25",
+       "text": "Each Curse's ability triggers only once, no matter how many creatures are attacking the enchanted player."
+      },
+      {
+       "date": "2017-08-25",
+       "text": "If you enchant yourself with one of these Curses, you'll get its effects whenever another player attacks you."
+      },
+      {
+       "date": "2017-08-25",
+       "text": "The triggered ability of these Curses won't trigger if only a planeswalker controlled by the enchanted player is attacked."
+      }
+     ],
+     "scryfall_oracle_id": "ba0d3df2-3acf-46d7-8d64-8d67d1579adc",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": [
+      {
+       "attack_target_filter": "Player",
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever enchanted player is attacked, create a Gold token. Each opponent attacking that player does the same.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "colors": [],
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "enters_attacking": false,
+         "keywords": [],
+         "name": "Gold",
+         "owner": {
+          "type": "Controller"
+         },
+         "power": {
+          "type": "Fixed",
+          "value": 0
+         },
+         "tapped": false,
+         "toughness": {
+          "type": "Fixed",
+          "value": 0
+         },
+         "type": "Token",
+         "types": [
+          "Artifact",
+          "Gold"
+         ]
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "colors": [],
+          "count": {
+           "type": "Fixed",
+           "value": 1
+          },
+          "enters_attacking": false,
+          "keywords": [],
+          "name": "Gold",
+          "owner": {
+           "type": "Controller"
+          },
+          "power": {
+           "type": "Fixed",
+           "value": 0
+          },
+          "tapped": false,
+          "toughness": {
+           "type": "Fixed",
+           "value": 0
+          },
+          "type": "Token",
+          "types": [
+           "Artifact",
+           "Gold"
+          ]
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "player_scope": {
+          "type": "OpponentAttackingEnchantedPlayer"
+         },
+         "sub_ability": null,
+         "sub_link": "SequentialSibling",
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "mode": "Attacks",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": null,
+       "valid_source": null,
+       "valid_target": {
+        "type": "AttachedTo"
+       }
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "all_parts": [
+     {
+      "component": "token",
+      "id": "f8b8298e-5ce6-4ff6-9563-fcd158ce841e",
+      "name": "Gold",
+      "oracle_id": "5aa757d8-db7a-4a60-b63e-c9777c141953",
+      "type_line": "Token Artifact — Gold"
+     }
+    ],
+    "arena_available": false,
+    "cmc": 1.0,
+    "color_identity": [
+     "R"
+    ],
+    "colors": [
+     "R"
+    ],
+    "keywords": [
+     "Enchant"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{R}",
+    "name": "Curse of Opulence",
+    "oracle_id": "ba0d3df2-3acf-46d7-8d64-8d67d1579adc",
+    "oracle_text": "Enchant player\nWhenever enchanted player is attacked, create a Gold token. Each opponent attacking that player does the same. (A Gold token is an artifact with \"Sacrifice this token: Add one mana of any color.\")",
+    "produced_mana": [
+     "B",
+     "G",
+     "R",
+     "U",
+     "W"
+    ],
+    "type_line": "Enchantment — Aura Curse"
+   }
+  },
   "Curse of Shaken Faith": {
    "phase_records": [
     {
@@ -338249,6 +339005,240 @@
     "type_line": "Creature — Spirit Warrior"
    }
   },
+  "Dispatch": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Tap target creature.",
+       "duration": null,
+       "effect": {
+        "scope": {
+         "type": "Single"
+        },
+        "state": {
+         "type": "Tap"
+        },
+        "target": {
+         "controller": null,
+         "properties": [],
+         "type": "Typed",
+         "type_filters": [
+          "Creature"
+         ]
+        },
+        "type": "SetTapState"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      },
+      {
+       "condition": {
+        "conditions": [
+         {
+          "comparator": "GE",
+          "lhs": {
+           "qty": {
+            "filter": {
+             "controller": "You",
+             "properties": [],
+             "type": "Typed",
+             "type_filters": [
+              "Artifact"
+             ]
+            },
+            "type": "ObjectCount"
+           },
+           "type": "Ref"
+          },
+          "rhs": {
+           "type": "Fixed",
+           "value": 3
+          },
+          "type": "QuantityCheck"
+         },
+         {
+          "comparator": "GE",
+          "lhs": {
+           "qty": {
+            "filter": {
+             "controller": "You",
+             "properties": [
+              {
+               "type": "InZone",
+               "zone": "Battlefield"
+              }
+             ],
+             "type": "Typed",
+             "type_filters": [
+              "Artifact"
+             ]
+            },
+            "type": "ObjectCount"
+           },
+           "type": "Ref"
+          },
+          "rhs": {
+           "type": "Fixed",
+           "value": 3
+          },
+          "type": "QuantityCheck"
+         }
+        ],
+        "type": "And"
+       },
+       "cost": null,
+       "description": "Metalcraft — If you control three or more artifacts, exile that creature.",
+       "duration": null,
+       "effect": {
+        "destination": "Exile",
+        "enter_tapped": false,
+        "enter_transformed": false,
+        "enters_attacking": false,
+        "origin": null,
+        "owner_library": false,
+        "target": {
+         "type": "ParentTarget"
+        },
+        "type": "ChangeZone"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Instant"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "White"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pauper": "legal",
+      "paupercommander": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 0,
+      "shards": [
+       "White"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "06bafa7d-1915-487a-96c8-b8aeafed20d4",
+       "1da39a64-e8d9-4dc3-85f1-ac633b33330c",
+       "242aeb96-0163-4d3d-9cc1-43c37a9278f5",
+       "27554761-8d6e-4de4-8ce3-f31b2c03708c",
+       "2ecc0fcb-9141-465c-90b1-7652d3c9a4ab",
+       "496634f9-1271-4be7-bad5-364bb87a6962",
+       "4cfcc2a8-ab59-47b5-88a9-0692e6091334",
+       "6e5caadb-9438-460a-852b-123719635550",
+       "99d30a21-b003-4a17-a4c5-97811f230896",
+       "f71ace1e-c2af-4701-a56d-9d249c0724e5"
+      ]
+     },
+     "name": "Dispatch",
+     "non_ability_text": null,
+     "oracle_text": "Tap target creature.\nMetalcraft — If you control three or more artifacts, exile that creature.",
+     "power": null,
+     "printings": [
+      "C21",
+      "EOC",
+      "FIC",
+      "MM2",
+      "MSC",
+      "NEC",
+      "NPH",
+      "PIP",
+      "PLST",
+      "SLZ",
+      "TD2",
+      "TRC"
+     ],
+     "rarities": [
+      "uncommon"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2011-06-01",
+       "text": "If you control three or more artifacts when Dispatch resolves, you'll tap the creature, then exile it."
+      }
+     ],
+     "scryfall_oracle_id": "133c99c0-3652-410f-8100-68015a47af9f",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 1.0,
+    "color_identity": [
+     "W"
+    ],
+    "colors": [
+     "W"
+    ],
+    "keywords": [
+     "Metalcraft"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "legal",
+     "paupercommander": "legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{W}",
+    "name": "Dispatch",
+    "oracle_id": "133c99c0-3652-410f-8100-68015a47af9f",
+    "oracle_text": "Tap target creature.\nMetalcraft — If you control three or more artifacts, exile that creature.",
+    "type_line": "Instant"
+   }
+  },
   "Displaced Dinosaurs": {
    "phase_records": [
     {
@@ -351616,6 +352606,329 @@
     "type_line": "Creature — Shapeshifter"
    }
   },
+  "Drag the Canal": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Create a 2/2 white and blue Detective creature token. If a creature died this turn, you gain 2 life, surveil 2, then investigate.",
+       "duration": null,
+       "effect": {
+        "colors": [
+         "White",
+         "Blue"
+        ],
+        "count": {
+         "type": "Fixed",
+         "value": 1
+        },
+        "enters_attacking": false,
+        "keywords": [],
+        "name": "Detective",
+        "owner": {
+         "type": "Controller"
+        },
+        "power": {
+         "type": "Fixed",
+         "value": 2
+        },
+        "tapped": false,
+        "toughness": {
+         "type": "Fixed",
+         "value": 2
+        },
+        "type": "Token",
+        "types": [
+         "Creature",
+         "Detective"
+        ]
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": {
+         "comparator": "GE",
+         "lhs": {
+          "qty": {
+           "filter": {
+            "controller": null,
+            "properties": [],
+            "type": "Typed",
+            "type_filters": [
+             "Creature"
+            ]
+           },
+           "from": "Battlefield",
+           "to": "Graveyard",
+           "type": "ZoneChangeCountThisTurn"
+          },
+          "type": "Ref"
+         },
+         "rhs": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "type": "QuantityCheck"
+        },
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "amount": {
+          "type": "Fixed",
+          "value": 2
+         },
+         "type": "GainLife"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": {
+          "comparator": "GE",
+          "lhs": {
+           "qty": {
+            "filter": {
+             "controller": null,
+             "properties": [],
+             "type": "Typed",
+             "type_filters": [
+              "Creature"
+             ]
+            },
+            "from": "Battlefield",
+            "to": "Graveyard",
+            "type": "ZoneChangeCountThisTurn"
+           },
+           "type": "Ref"
+          },
+          "rhs": {
+           "type": "Fixed",
+           "value": 1
+          },
+          "type": "QuantityCheck"
+         },
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "count": {
+           "type": "Fixed",
+           "value": 2
+          },
+          "target": {
+           "type": "Controller"
+          },
+          "type": "Surveil"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": {
+          "condition": {
+           "comparator": "GE",
+           "lhs": {
+            "qty": {
+             "filter": {
+              "controller": null,
+              "properties": [],
+              "type": "Typed",
+              "type_filters": [
+               "Creature"
+              ]
+             },
+             "from": "Battlefield",
+             "to": "Graveyard",
+             "type": "ZoneChangeCountThisTurn"
+            },
+            "type": "Ref"
+           },
+           "rhs": {
+            "type": "Fixed",
+            "value": 1
+           },
+           "type": "QuantityCheck"
+          },
+          "cost": null,
+          "description": null,
+          "duration": null,
+          "effect": {
+           "type": "Investigate"
+          },
+          "forward_result": false,
+          "kind": "Spell",
+          "optional": false,
+          "optional_targeting": false,
+          "sub_ability": null,
+          "target_prompt": null
+         },
+         "target_prompt": null
+        },
+        "sub_link": "SequentialSibling",
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Instant"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Black",
+      "Blue"
+     ],
+     "color_override": [
+      "Black",
+      "Blue"
+     ],
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "standard": "legal",
+      "standardbrawl": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 0,
+      "shards": [
+       "Blue",
+       "Black"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "related_token_ids": [
+       "4c84fc07-0117-5360-9426-02f030e51f75",
+       "9a9827e0-4bbe-56ff-8e04-064bd0c5cfa1"
+      ],
+      "source_printing_ids": [
+       "066fed99-5aa5-42db-9472-240cfc2f4f42",
+       "508d7096-2be3-4d4b-a55c-d4dbd3c9019c"
+      ]
+     },
+     "name": "Drag the Canal",
+     "non_ability_text": null,
+     "oracle_text": "Create a 2/2 white and blue Detective creature token. If a creature died this turn, you gain 2 life, surveil 2, then investigate. (Create a Clue token. It's an artifact with \"{2}, Sacrifice this token: Draw a card.\")",
+     "power": null,
+     "printings": [
+      "MKM",
+      "PMKM"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2024-02-02",
+       "text": "Clue is an artifact type. Even though it appears on some cards with other permanent types, it's never a creature type, a land type, or anything but an artifact type."
+      },
+      {
+       "date": "2024-02-02",
+       "text": "If an effect refers to a Clue, it means any Clue artifact, not just a Clue artifact token. For example, you can sacrifice Wrench to pay for Alquist Proft, Master Sleuth's activated ability."
+      },
+      {
+       "date": "2024-02-02",
+       "text": "Some abilities trigger \"whenever you sacrifice a Clue\". Those abilities trigger whenever you sacrifice a Clue for any reason, not just to activate a Clue's activated ability."
+      },
+      {
+       "date": "2024-02-02",
+       "text": "Some spells and abilities that investigate may require targets. If each target chosen is an illegal target as that spell or ability tries to resolve, it won't resolve. You won't create any Clue tokens."
+      },
+      {
+       "date": "2024-02-02",
+       "text": "You can't sacrifice a Clue to pay multiple costs. For example, you can't sacrifice a Clue token to activate its own ability and also to activate Alquist Proft, Master Sleuth's ability."
+      }
+     ],
+     "scryfall_oracle_id": "0c0ffb66-94db-4ba9-afde-c5b4fbf09578",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "all_parts": [
+     {
+      "component": "token",
+      "id": "30a109aa-99d4-4cfe-a9b1-1b40db5b7885",
+      "name": "Detective",
+      "oracle_id": "44f63ae4-6605-49e2-a862-99c1feb3017a",
+      "type_line": "Token Creature — Detective"
+     },
+     {
+      "component": "token",
+      "id": "d1dfd9b9-8214-4e20-b1c9-48c9f7276883",
+      "name": "Clue",
+      "oracle_id": "496e1083-c792-40a4-adf4-fec1d559cd5e",
+      "type_line": "Token Artifact — Clue"
+     }
+    ],
+    "arena_available": true,
+    "cmc": 2.0,
+    "color_identity": [
+     "B",
+     "U"
+    ],
+    "colors": [
+     "B",
+     "U"
+    ],
+    "keywords": [
+     "Investigate",
+     "Surveil"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "legal",
+     "standardbrawl": "legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{U}{B}",
+    "name": "Drag the Canal",
+    "oracle_id": "0c0ffb66-94db-4ba9-afde-c5b4fbf09578",
+    "oracle_text": "Create a 2/2 white and blue Detective creature token. If a creature died this turn, you gain 2 life, surveil 2, then investigate. (Create a Clue token. It's an artifact with \"{2}, Sacrifice this token: Draw a card.\")",
+    "type_line": "Instant"
+   }
+  },
   "Dragon Broodmother": {
    "phase_records": [
     {
@@ -357711,6 +359024,214 @@
     "power": "1",
     "toughness": "5",
     "type_line": "Creature — Illusion"
+   }
+  },
+  "Dreampod Druid": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Human",
+       "Druid"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Green"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "Green"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "related_token_ids": [
+       "ba1d8604-e466-5949-a156-abf0d3bbb33e",
+       "dc6b409b-79e0-5103-9e78-2bf1c9a3deac"
+      ],
+      "source_printing_ids": [
+       "6ef36eb5-b9a9-4c8d-92d4-847a8ed8933f",
+       "94ccb098-f016-454b-a8ba-8f429eb77632"
+      ]
+     },
+     "name": "Dreampod Druid",
+     "non_ability_text": null,
+     "oracle_text": "At the beginning of each upkeep, if this creature is enchanted, create a 1/1 green Saproling creature token.",
+     "power": {
+      "type": "Fixed",
+      "value": 2
+     },
+     "printings": [
+      "PC2",
+      "PCA",
+      "PLST",
+      "VMA"
+     ],
+     "rarities": [
+      "uncommon"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2012-06-01",
+       "text": "Dreampod Druid’s ability checks to see if it’s enchanted at the beginning of each upkeep. If it’s not, the ability won’t trigger. If the ability triggers but Dreampod Druid isn’t enchanted when that ability resolves, the ability will do nothing."
+      },
+      {
+       "date": "2012-06-01",
+       "text": "Notably, if Dreampod Druid leaves the battlefield while its ability is on the stack, that ability will use Dreampod Druid’s last known information to determine whether or not it was enchanted. If it was enchanted when it left the battlefield, the ability will resolve and create a Saproling."
+      }
+     ],
+     "scryfall_oracle_id": "db2af2b0-a5aa-4e4a-b5bc-52a5ac3968fc",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 2
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": {
+        "filter": {
+         "controller": null,
+         "properties": [
+          {
+           "kind": "Aura",
+           "type": "HasAttachment"
+          }
+         ],
+         "type": "Typed",
+         "type_filters": []
+        },
+        "type": "SourceMatchesFilter"
+       },
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "At the beginning of each upkeep, if ~ is enchanted, create a 1/1 green Saproling creature token.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "colors": [
+          "Green"
+         ],
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "enters_attacking": false,
+         "keywords": [],
+         "name": "Saproling",
+         "owner": {
+          "type": "Controller"
+         },
+         "power": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "tapped": false,
+         "toughness": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "type": "Token",
+         "types": [
+          "Creature",
+          "Saproling"
+         ]
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "Phase",
+       "optional": false,
+       "origin": null,
+       "phase": "Upkeep",
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": null,
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "all_parts": [
+     {
+      "component": "token",
+      "id": "698d48fa-d6c1-44b9-8aa2-bb03e0e53788",
+      "name": "Saproling",
+      "oracle_id": "2b7dba01-b08c-4218-9fc1-da55559d9155",
+      "type_line": "Token Creature — Saproling"
+     }
+    ],
+    "arena_available": false,
+    "cmc": 2.0,
+    "color_identity": [
+     "G"
+    ],
+    "colors": [
+     "G"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}{G}",
+    "name": "Dreampod Druid",
+    "oracle_id": "db2af2b0-a5aa-4e4a-b5bc-52a5ac3968fc",
+    "oracle_text": "At the beginning of each upkeep, if this creature is enchanted, create a 1/1 green Saproling creature token.",
+    "power": "2",
+    "toughness": "2",
+    "type_line": "Creature — Human Druid"
    }
   },
   "Dredge the Mire": {
@@ -379079,6 +380600,251 @@
     "power": "4",
     "toughness": "4",
     "type_line": "Legendary Creature — Human Knight"
+   }
+  },
+  "Eloise, Nephalia Sleuth": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "brawl_commander": true,
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Human",
+       "Rogue"
+      ],
+      "supertypes": [
+       "Legendary"
+      ]
+     },
+     "color_identity": [
+      "Black",
+      "Blue"
+     ],
+     "color_override": [
+      "Black",
+      "Blue"
+     ],
+     "defense": null,
+     "flavor_name": null,
+     "is_commander": true,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 3,
+      "shards": [
+       "Blue",
+       "Black"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "related_token_ids": [
+       "4109db31-6037-50fc-a8ba-07c1a21b59f4"
+      ],
+      "source_printing_ids": [
+       "54348047-bee4-47e5-b405-cfa41ef8da3a",
+       "bf81da34-4c2b-4e54-a60b-46ab41f72431"
+      ]
+     },
+     "name": "Eloise, Nephalia Sleuth",
+     "non_ability_text": null,
+     "oracle_text": "Whenever another creature you control dies, investigate. (Create a Clue token. It's an artifact with \"{2}, Sacrifice this token: Draw a card.\")\nWhenever you sacrifice a token, surveil 1. (Look at the top card of your library. You may put that card into your graveyard.)",
+     "power": {
+      "type": "Fixed",
+      "value": 4
+     },
+     "printings": [
+      "MIC",
+      "PRM"
+     ],
+     "rarities": [
+      "mythic"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2021-09-24",
+       "text": "Eloise's last ability triggers whenever you sacrifice any token for any reason, not just whenever you sacrifice Clue tokens."
+      },
+      {
+       "date": "2021-09-24",
+       "text": "If you create a token that's a copy of Eloise and both are legendary, you will choose either the token or the original Eloise to keep and put the other into the graveyard. This is not the same as sacrificing it. Putting the token into the graveyard won't cause nontoken Eloise's last ability to trigger."
+      },
+      {
+       "date": "2021-09-24",
+       "text": "If you sacrifice a Clue token, Eloise's last ability will trigger in response. You'll surveil before drawing the card."
+      }
+     ],
+     "scryfall_oracle_id": "65e65eab-bc3f-4eae-8361-7f0a65fc1673",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 4
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever another creature you control dies, investigate.",
+       "destination": "Graveyard",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "type": "Investigate"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "ChangesZone",
+       "optional": false,
+       "origin": "Battlefield",
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "controller": "You",
+        "properties": [
+         {
+          "type": "Another"
+         }
+        ],
+        "type": "Typed",
+        "type_filters": [
+         "Creature"
+        ]
+       },
+       "valid_source": null,
+       "valid_target": null
+      },
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever you sacrifice a token, surveil 1.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "target": {
+          "type": "Controller"
+         },
+         "type": "Surveil"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "Sacrificed",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "controller": "You",
+        "properties": [
+         {
+          "type": "Token"
+         }
+        ],
+        "type": "Typed",
+        "type_filters": []
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "all_parts": [
+     {
+      "component": "token",
+      "id": "d1dfd9b9-8214-4e20-b1c9-48c9f7276883",
+      "name": "Clue",
+      "oracle_id": "496e1083-c792-40a4-adf4-fec1d559cd5e",
+      "type_line": "Token Artifact — Clue"
+     }
+    ],
+    "arena_available": false,
+    "cmc": 5.0,
+    "color_identity": [
+     "B",
+     "U"
+    ],
+    "colors": [
+     "B",
+     "U"
+    ],
+    "keywords": [
+     "Investigate",
+     "Surveil"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{3}{U}{B}",
+    "name": "Eloise, Nephalia Sleuth",
+    "oracle_id": "65e65eab-bc3f-4eae-8361-7f0a65fc1673",
+    "oracle_text": "Whenever another creature you control dies, investigate. (Create a Clue token. It's an artifact with \"{2}, Sacrifice this token: Draw a card.\")\nWhenever you sacrifice a token, surveil 1. (Look at the top card of your library. You may put that card into your graveyard.)",
+    "power": "4",
+    "toughness": "4",
+    "type_line": "Legendary Creature — Human Rogue"
    }
   },
   "Elspeth Resplendent": {
@@ -517343,6 +519109,194 @@
     "type_line": "Creature — Human Warrior"
    }
   },
+  "Grim Guardian": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Enchantment",
+       "Creature"
+      ],
+      "subtypes": [
+       "Zombie"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Black"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pauper": "legal",
+      "paupercommander": "legal",
+      "pioneer": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 2,
+      "shards": [
+       "Black"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "732b5444-0410-430b-87ca-cf2d9f165bd7"
+      ]
+     },
+     "name": "Grim Guardian",
+     "non_ability_text": null,
+     "oracle_text": "Constellation — Whenever this creature or another enchantment you control enters, each opponent loses 1 life.",
+     "power": {
+      "type": "Fixed",
+      "value": 1
+     },
+     "printings": [
+      "JOU"
+     ],
+     "rarities": [
+      "common"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2014-04-26",
+       "text": "A constellation ability triggers whenever an enchantment enters the battlefield under your control for any reason. Enchantments with other card types, such as enchantment creatures, will also cause constellation abilities to trigger."
+      },
+      {
+       "date": "2014-04-26",
+       "text": "An Aura spell without bestow that has an illegal target when it tries to resolve won't resolve and will be put into its owner's graveyard. It won't enter the battlefield and constellation abilities won't trigger. An Aura spell with bestow won't be countered this way. It will revert to being an enchantment creature and resolve, entering the battlefield and triggering constellation abilities."
+      },
+      {
+       "date": "2014-04-26",
+       "text": "When an enchantment enters the battlefield under your control, each constellation ability of permanents you control will trigger. You can put these abilities on the stack in any order. The last ability you put on the stack will be the first one that resolves."
+      }
+     ],
+     "scryfall_oracle_id": "c1f1babf-13d0-4fc4-b192-127d2d5db7f1",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 4
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever ~ or another enchantment you control enters, each opponent loses 1 life.",
+       "destination": "Battlefield",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "amount": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "type": "LoseLife"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "player_scope": {
+         "type": "Opponent"
+        },
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "ChangesZone",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "filters": [
+         {
+          "type": "SelfRef"
+         },
+         {
+          "controller": "You",
+          "properties": [
+           {
+            "type": "Another"
+           }
+          ],
+          "type": "Typed",
+          "type_filters": [
+           "Enchantment"
+          ]
+         }
+        ],
+        "type": "Or"
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 3.0,
+    "color_identity": [
+     "B"
+    ],
+    "colors": [
+     "B"
+    ],
+    "keywords": [
+     "Constellation"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "legal",
+     "paupercommander": "legal",
+     "penny": "not_legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}{B}",
+    "name": "Grim Guardian",
+    "oracle_id": "c1f1babf-13d0-4fc4-b192-127d2d5db7f1",
+    "oracle_text": "Constellation — Whenever this creature or another enchantment you control enters, each opponent loses 1 life.",
+    "power": "1",
+    "toughness": "4",
+    "type_line": "Enchantment Creature — Zombie"
+   }
+  },
   "Grim Hireling": {
    "phase_records": [
     {
@@ -538358,6 +540312,182 @@
     "oracle_id": "2db23ceb-448b-45d6-a931-d72e8ccdb541",
     "oracle_text": "Choose up to two target creatures you don't control. For each of those creatures, create a token that's a copy of that creature. Those tokens gain haste. Exile them at the beginning of the next end step.",
     "type_line": "Sorcery"
+   }
+  },
+  "Hateful Eidolon": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Enchantment",
+       "Creature"
+      ],
+      "subtypes": [
+       "Spirit"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Black"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [
+      "Lifelink"
+     ],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 0,
+      "shards": [
+       "Black"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "812d0f15-f738-4644-9d29-2589d7e66915",
+       "ff028d0b-066a-4769-89bc-f267d15eb707"
+      ]
+     },
+     "name": "Hateful Eidolon",
+     "non_ability_text": null,
+     "oracle_text": "Lifelink\nWhenever an enchanted creature dies, draw a card for each Aura you controlled that was attached to it.",
+     "power": {
+      "type": "Fixed",
+      "value": 1
+     },
+     "printings": [
+      "SOC",
+      "THB"
+     ],
+     "rarities": [
+      "uncommon"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2020-01-24",
+       "text": "If Hateful Eidolon dies at the same time as one or more enchanted creatures, its last ability triggers for each of those creatures. This includes Hateful Eidolon itself if it's enchanted."
+      },
+      {
+       "date": "2020-01-24",
+       "text": "If an Aura you control is destroyed at the same time as the creature it enchants, Hateful Eidolon's triggered ability counts that Aura to determine whether it triggers and how many cards you'll draw."
+      }
+     ],
+     "scryfall_oracle_id": "a3b39590-34b7-4fd0-877f-748e6df30e88",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 2
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever an enchanted creature dies, draw a card for each Aura you controlled that was attached to it.",
+       "destination": "Graveyard",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "description": "",
+         "name": "departure_attachment_relation",
+         "type": "Unimplemented"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "ChangesZone",
+       "optional": false,
+       "origin": "Battlefield",
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "controller": null,
+        "properties": [
+         {
+          "type": "EnchantedBy"
+         }
+        ],
+        "type": "Typed",
+        "type_filters": [
+         "Creature"
+        ]
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 1.0,
+    "color_identity": [
+     "B"
+    ],
+    "colors": [
+     "B"
+    ],
+    "keywords": [
+     "Lifelink"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{B}",
+    "name": "Hateful Eidolon",
+    "oracle_id": "a3b39590-34b7-4fd0-877f-748e6df30e88",
+    "oracle_text": "Lifelink\nWhenever an enchanted creature dies, draw a card for each Aura you controlled that was attached to it.",
+    "power": "1",
+    "toughness": "2",
+    "type_line": "Enchantment Creature — Spirit"
    }
   },
   "Haunted Crossroads": {
@@ -619378,6 +621508,215 @@
     "power": "0",
     "toughness": "3",
     "type_line": "Creature — Spirit"
+   }
+  },
+  "Kaima, the Fractured Calm": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "brawl_commander": true,
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Spirit"
+      ],
+      "supertypes": [
+       "Legendary"
+      ]
+     },
+     "color_identity": [
+      "Green",
+      "Red"
+     ],
+     "color_override": [
+      "Green",
+      "Red"
+     ],
+     "defense": null,
+     "flavor_name": null,
+     "is_commander": true,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 2,
+      "shards": [
+       "Red",
+       "Green"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "467033f7-8d59-4b80-8c2e-c36f3ad93438",
+       "c4deb32e-6890-4f93-a580-cf1758ffcd20"
+      ]
+     },
+     "name": "Kaima, the Fractured Calm",
+     "non_ability_text": null,
+     "oracle_text": "At the beginning of your end step, goad each creature your opponents control that's enchanted by an Aura you control. Put a +1/+1 counter on Kaima for each creature goaded this way. (Until your next turn, the goaded creatures attack each combat if able and attack a player other than you if able.)",
+     "power": {
+      "type": "Fixed",
+      "value": 3
+     },
+     "printings": [
+      "NEC"
+     ],
+     "rarities": [
+      "mythic"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2022-02-18",
+       "text": "The set of creatures that are goaded by this ability are locked in when it resolves. A creature becoming enchanted later or an Aura being removed from a creature later won't change whether it is goaded."
+      }
+     ],
+     "scryfall_oracle_id": "3d8f9b58-d011-4ed2-99ae-c626243fab26",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 3
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": {
+        "type": "OnlyDuringYourTurn"
+       },
+       "damage_kind": "Any",
+       "description": "At the beginning of your end step, goad each creature your opponents control that's enchanted by an Aura you control. Put a +1/+1 counter on ~ for each creature goaded this way.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "target": {
+          "controller": "Opponent",
+          "properties": [
+           {
+            "kind": "Aura",
+            "type": "HasAttachment"
+           }
+          ],
+          "type": "Typed",
+          "type_filters": [
+           "Creature"
+          ]
+         },
+         "type": "GoadAll"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "count": {
+           "qty": {
+            "filter": {
+             "controller": null,
+             "properties": [],
+             "type": "Typed",
+             "type_filters": [
+              "Creature"
+             ]
+            },
+            "type": "FilteredTrackedSetSize"
+           },
+           "type": "Ref"
+          },
+          "counter_type": "P1P1",
+          "target": {
+           "type": "SelfRef"
+          },
+          "type": "PutCounter"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": null,
+         "sub_link": "SequentialSibling",
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "mode": "Phase",
+       "optional": false,
+       "origin": null,
+       "phase": "End",
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": null,
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 4.0,
+    "color_identity": [
+     "G",
+     "R"
+    ],
+    "colors": [
+     "G",
+     "R"
+    ],
+    "keywords": [
+     "Goad"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}{R}{G}",
+    "name": "Kaima, the Fractured Calm",
+    "oracle_id": "3d8f9b58-d011-4ed2-99ae-c626243fab26",
+    "oracle_text": "At the beginning of your end step, goad each creature your opponents control that's enchanted by an Aura you control. Put a +1/+1 counter on Kaima for each creature goaded this way. (Until your next turn, the goaded creatures attack each combat if able and attack a player other than you if able.)",
+    "power": "3",
+    "toughness": "3",
+    "type_line": "Legendary Creature — Spirit"
    }
   },
   "Kain, Traitorous Dragoon": {
@@ -794831,6 +797170,211 @@
     "type_line": "Legendary Creature — Dragon"
    }
   },
+  "Nurgle's Rot": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Enchantment"
+      ],
+      "subtypes": [
+       "Aura"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Black"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [
+      {
+       "Enchant": {
+        "controller": "Opponent",
+        "properties": [],
+        "type": "Typed",
+        "type_filters": [
+         "Creature"
+        ]
+       }
+      }
+     ],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 0,
+      "shards": [
+       "Black"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "related_token_ids": [
+       "cfce7c69-c5d6-565d-8661-efa842b3147d"
+      ],
+      "source_printing_ids": [
+       "3dc5e53f-20fe-43c3-a173-d54aa5397de8",
+       "9116138a-679d-4169-a4a9-c76460bbb3fd"
+      ]
+     },
+     "name": "Nurgle's Rot",
+     "non_ability_text": null,
+     "oracle_text": "Enchant creature an opponent controls\nWhen enchanted creature dies, return this card to its owner's hand and you create a 1/3 black Demon creature token named Plaguebearer of Nurgle.",
+     "power": null,
+     "printings": [
+      "40K"
+     ],
+     "rarities": [
+      "uncommon"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "1b01dcff-0639-4ed0-bd9e-f28429cb803d",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "When enchanted creature dies, return this card to its owner's hand and you create a 1/3 black Demon creature token named Plaguebearer of Nurgle.",
+       "destination": "Graveyard",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "destination": null,
+         "target": {
+          "type": "SelfRef"
+         },
+         "type": "Bounce"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "colors": [
+           "Black"
+          ],
+          "count": {
+           "type": "Fixed",
+           "value": 1
+          },
+          "enters_attacking": false,
+          "keywords": [],
+          "name": "Plaguebearer of Nurgle",
+          "owner": {
+           "type": "Controller"
+          },
+          "power": {
+           "type": "Fixed",
+           "value": 1
+          },
+          "tapped": false,
+          "toughness": {
+           "type": "Fixed",
+           "value": 3
+          },
+          "type": "Token",
+          "types": [
+           "Creature",
+           "Demon"
+          ]
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": null,
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "mode": "ChangesZone",
+       "optional": false,
+       "origin": "Battlefield",
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "type": "AttachedTo"
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "all_parts": [
+     {
+      "component": "token",
+      "id": "b19d2866-87e7-40ab-9684-0593caeb223e",
+      "name": "Plaguebearer of Nurgle",
+      "oracle_id": "b29268ce-f1c5-40f6-8c9d-5a1db3356e96",
+      "type_line": "Token Creature — Demon"
+     }
+    ],
+    "arena_available": false,
+    "cmc": 1.0,
+    "color_identity": [
+     "B"
+    ],
+    "colors": [
+     "B"
+    ],
+    "keywords": [
+     "Enchant"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{B}",
+    "name": "Nurgle's Rot",
+    "oracle_id": "1b01dcff-0639-4ed0-bd9e-f28429cb803d",
+    "oracle_text": "Enchant creature an opponent controls\nWhen enchanted creature dies, return this card to its owner's hand and you create a 1/3 black Demon creature token named Plaguebearer of Nurgle.",
+    "type_line": "Enchantment — Aura"
+   }
+  },
   "Nurturing Presence": {
    "phase_records": [
     {
@@ -795853,6 +798397,186 @@
     "power": "5",
     "toughness": "5",
     "type_line": "Enchantment Creature — Elemental"
+   }
+  },
+  "Nyxborn Wolf": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Enchantment",
+       "Creature"
+      ],
+      "subtypes": [
+       "Wolf"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Green"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [
+      {
+       "Bestow": {
+        "data": {
+         "generic": 4,
+         "shards": [
+          "Green"
+         ],
+         "type": "Cost"
+        },
+        "type": "Mana"
+       }
+      }
+     ],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pauper": "legal",
+      "paupercommander": "legal",
+      "pioneer": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 2,
+      "shards": [
+       "Green"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "91a78895-5e09-46a5-8a74-a07f0befc4e5"
+      ]
+     },
+     "name": "Nyxborn Wolf",
+     "non_ability_text": null,
+     "oracle_text": "Bestow {4}{G} (If you cast this card for its bestow cost, it's an Aura spell with enchant creature. It becomes a creature again if it's not attached.)\nEnchanted creature gets +3/+1.",
+     "power": {
+      "type": "Fixed",
+      "value": 3
+     },
+     "printings": [
+      "BNG"
+     ],
+     "rarities": [
+      "common"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2013-09-15",
+       "text": "Auras attached to a creature don't become tapped when the creature becomes tapped. Except in some rare cases, an Aura with bestow remains untapped when it becomes unattached and becomes a creature."
+      },
+      {
+       "date": "2013-09-15",
+       "text": "If a permanent with bestow enters the battlefield by any method other than being cast, it will be an enchantment creature. You can't choose to pay the bestow cost and have it become an Aura."
+      },
+      {
+       "date": "2013-09-15",
+       "text": "On the stack, a spell with bestow is either a creature spell or an Aura spell. It's never both, although it's an enchantment spell in either case."
+      },
+      {
+       "date": "2013-09-15",
+       "text": "Unlike other Aura spells, an Aura spell with bestow isn't countered if its target is illegal as it begins to resolve. Rather, the effect making it an Aura spell ends, it loses enchant creature, it returns to being an enchantment creature spell, and it resolves and enters the battlefield as an enchantment creature."
+      },
+      {
+       "date": "2013-09-15",
+       "text": "Unlike other Auras, an Aura with bestow isn't put into its owner's graveyard if it becomes unattached. Rather, the effect making it an Aura ends, it loses enchant creature, and it remains on the battlefield as an enchantment creature. It can attack (and its {T} abilities can be activated, if it has any) on the turn it becomes unattached if it's been under your control continuously, even as an Aura, since your most recent turn began."
+      }
+     ],
+     "scryfall_oracle_id": "3fa11a6a-a760-45db-8341-f83a0f69c17f",
+     "static_abilities": [
+      {
+       "active_zones": [],
+       "affected": {
+        "controller": null,
+        "properties": [
+         {
+          "type": "EnchantedBy"
+         }
+        ],
+        "type": "Typed",
+        "type_filters": [
+         "Creature"
+        ]
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": null,
+       "description": "Enchanted creature gets +3/+1.",
+       "effect_zone": null,
+       "mode": "Continuous",
+       "modifications": [
+        {
+         "type": "AddPower",
+         "value": 3
+        },
+        {
+         "type": "AddToughness",
+         "value": 1
+        }
+       ]
+      }
+     ],
+     "toughness": {
+      "type": "Fixed",
+      "value": 1
+     },
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 3.0,
+    "color_identity": [
+     "G"
+    ],
+    "colors": [
+     "G"
+    ],
+    "keywords": [
+     "Bestow"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "legal",
+     "paupercommander": "legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}{G}",
+    "name": "Nyxborn Wolf",
+    "oracle_id": "3fa11a6a-a760-45db-8341-f83a0f69c17f",
+    "oracle_text": "Bestow {4}{G} (If you cast this card for its bestow cost, it's an Aura spell with enchant creature. It becomes a creature again if it's not attached.)\nEnchanted creature gets +3/+1.",
+    "power": "3",
+    "toughness": "1",
+    "type_line": "Enchantment Creature — Wolf"
    }
   },
   "O-Kagachi, Vengeful Kami": {
@@ -811321,6 +814045,219 @@
     "power": "0",
     "toughness": "4",
     "type_line": "Creature — Ogre Spirit"
+   }
+  },
+  "Ondu Spiritdancer": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Kor",
+       "Cleric"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "White"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 4,
+      "shards": [
+       "White"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "related_token_ids": [
+       "3bbbe9b2-6a32-575f-90af-6b419debf932",
+       "5a9097cb-1a78-558b-90d2-217688ef45d1"
+      ],
+      "source_printing_ids": [
+       "0a30e4bf-ac1a-4670-ad73-84ba70e48a72",
+       "71991921-a860-44fe-9005-bf604c723167",
+       "ee1c6432-54d7-4b57-a554-f7194d74e03c"
+      ]
+     },
+     "name": "Ondu Spiritdancer",
+     "non_ability_text": null,
+     "oracle_text": "Whenever an enchantment you control enters, you may create a token that's a copy of it. Do this only once each turn.",
+     "power": {
+      "type": "Fixed",
+      "value": 3
+     },
+     "printings": [
+      "CMM",
+      "DSC"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2023-07-28",
+       "text": "Any enters-the-battlefield abilities of the copied enchantment will trigger when the token enters the battlefield. Any \"as [this enchantment] enters the battlefield\" or \"[this enchantment] enters the battlefield with\" abilities of the enchantment will also work."
+      },
+      {
+       "date": "2023-07-28",
+       "text": "Each token copies exactly what was printed on the original enchantment and nothing else (unless that enchantment is copying something else or is a token; see below). It doesn't copy whether that enchantment is tapped or untapped, whether it has any counters on it or Auras and Equipment attached to it, or any non-copy effects that have changed its power, toughness, types, color, or so on."
+      },
+      {
+       "date": "2023-07-28",
+       "text": "If an Aura is put onto the battlefield without being cast, such as by being created as a token, the Aura's controller-to-be chooses what it will enchant as it enters the battlefield. An Aura put onto the battlefield this way doesn't target anything (so it could be attached to an opponent's permanent with hexproof, for example), but the Aura's enchant ability restricts what it can be attached to. If an Aura token can't legally be attached to anything, it isn't created."
+      },
+      {
+       "date": "2023-07-28",
+       "text": "If multiple instances of the ability are on the stack (perhaps because multiple enchantments entered the battlefield under your control at the same time), you will be able to create a token copy of an enchantment for only one of those instances. Once you do that, other instances will do nothing as they resolve."
+      },
+      {
+       "date": "2023-07-28",
+       "text": "If the copied enchantment has {X} in its mana cost, X is 0."
+      },
+      {
+       "date": "2023-07-28",
+       "text": "If the copied enchantment is a token, the token that's created copies the original characteristics of that token as stated by the effect that created the token."
+      },
+      {
+       "date": "2023-07-28",
+       "text": "If the copied enchantment is copying something else, then the token enters the battlefield as whatever that enchantment copied."
+      },
+      {
+       "date": "2023-07-28",
+       "text": "Once you choose to create a token copy of an enchantment during the resolution of Ondu Spiritdancer's ability, that ability won't trigger again that turn, no matter how many more enchantments enter the battlefield under your control."
+      }
+     ],
+     "scryfall_oracle_id": "d2ae893f-52af-4645-8712-d62fb78f901e",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 3
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": {
+        "type": "OncePerTurn"
+       },
+       "damage_kind": "Any",
+       "description": "Whenever an enchantment you control enters, you may create a token that's a copy of it. Do this only once each turn.",
+       "destination": "Battlefield",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "enters_attacking": false,
+         "owner": {
+          "type": "Controller"
+         },
+         "tapped": false,
+         "target": {
+          "type": "TriggeringSource"
+         },
+         "type": "CopyTokenOf"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": true,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "ChangesZone",
+       "optional": true,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "controller": "You",
+        "properties": [],
+        "type": "Typed",
+        "type_filters": [
+         "Enchantment"
+        ]
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "all_parts": [
+     {
+      "component": "token",
+      "id": "6870a2af-80e1-4813-a332-2b1bd789f1c1",
+      "name": "Copy",
+      "oracle_id": "88c78601-87f0-45e7-b2e0-e7ffcfb1cb70",
+      "type_line": "Token"
+     }
+    ],
+    "arena_available": false,
+    "cmc": 5.0,
+    "color_identity": [
+     "W"
+    ],
+    "colors": [
+     "W"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{4}{W}",
+    "name": "Ondu Spiritdancer",
+    "oracle_id": "d2ae893f-52af-4645-8712-d62fb78f901e",
+    "oracle_text": "Whenever an enchantment you control enters, you may create a token that's a copy of it. Do this only once each turn.",
+    "power": "3",
+    "toughness": "3",
+    "type_line": "Creature — Kor Cleric"
    }
   },
   "One Last Job": {
@@ -926486,6 +929423,262 @@
     "type_line": "Legendary Creature — Cat Shaman"
    }
   },
+  "Rune of Mortality": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Enchantment"
+      ],
+      "subtypes": [
+       "Aura",
+       "Rune"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Black"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [
+      {
+       "Enchant": {
+        "controller": null,
+        "properties": [],
+        "type": "Typed",
+        "type_filters": [
+         "Permanent"
+        ]
+       }
+      }
+     ],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "Black"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "6f75a5e5-70df-49c3-abe1-8cc6975f5171"
+      ]
+     },
+     "name": "Rune of Mortality",
+     "non_ability_text": null,
+     "oracle_text": "Enchant permanent\nWhen this Aura enters, draw a card.\nAs long as enchanted permanent is a creature, it has deathtouch.\nAs long as enchanted permanent is an Equipment, it has \"Equipped creature has deathtouch.\"",
+     "power": null,
+     "printings": [
+      "KHM"
+     ],
+     "rarities": [
+      "uncommon"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2021-02-05",
+       "text": "If the target of an Aura spell is an illegal target as that spell tries to resolve, it won't resolve, it won't enter the battlefield, and none of its enters-the-battlefield triggered abilities will trigger."
+      },
+      {
+       "date": "2021-02-05",
+       "text": "Runes can target and be attached to any permanent, even one that isn't currently a creature or an Equipment. You can cast a Rune choosing a Vehicle as the target, for example. The Rune's enters-the-battlefield ability will trigger, and you'll draw a card. The Rune won't do anything while the Vehicle isn't a creature, but if it becomes one later, the appropriate ability will start applying."
+      }
+     ],
+     "scryfall_oracle_id": "b827f8d2-07da-4358-9496-a68f8ccdbfe5",
+     "static_abilities": [
+      {
+       "active_zones": [],
+       "affected": {
+        "controller": null,
+        "properties": [
+         {
+          "type": "EnchantedBy"
+         }
+        ],
+        "type": "Typed",
+        "type_filters": [
+         "Permanent",
+         "Creature"
+        ]
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": null,
+       "description": "As long as enchanted permanent is a creature, it has deathtouch.",
+       "effect_zone": null,
+       "mode": "Continuous",
+       "modifications": [
+        {
+         "keyword": "Deathtouch",
+         "type": "AddKeyword"
+        }
+       ]
+      },
+      {
+       "active_zones": [],
+       "affected": {
+        "controller": null,
+        "properties": [
+         {
+          "type": "EnchantedBy"
+         }
+        ],
+        "type": "Typed",
+        "type_filters": [
+         "Permanent",
+         {
+          "Subtype": "Equipment"
+         }
+        ]
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": null,
+       "description": "As long as enchanted permanent is an Equipment, it has \"Equipped creature has deathtouch.\"",
+       "effect_zone": null,
+       "mode": "Continuous",
+       "modifications": [
+        {
+         "definition": {
+          "active_zones": [],
+          "affected": {
+           "controller": null,
+           "properties": [
+            {
+             "type": "EquippedBy"
+            }
+           ],
+           "type": "Typed",
+           "type_filters": [
+            "Creature"
+           ]
+          },
+          "affected_zone": null,
+          "characteristic_defining": false,
+          "condition": null,
+          "description": "Equipped creature has deathtouch",
+          "effect_zone": null,
+          "mode": "Continuous",
+          "modifications": [
+           {
+            "keyword": "Deathtouch",
+            "type": "AddKeyword"
+           }
+          ]
+         },
+         "type": "GrantStaticAbility"
+        }
+       ]
+      }
+     ],
+     "toughness": null,
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "When ~ enters, draw a card.",
+       "destination": "Battlefield",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "target": {
+          "type": "Controller"
+         },
+         "type": "Draw"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "ChangesZone",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 2.0,
+    "color_identity": [
+     "B"
+    ],
+    "colors": [
+     "B"
+    ],
+    "keywords": [
+     "Enchant"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}{B}",
+    "name": "Rune of Mortality",
+    "oracle_id": "b827f8d2-07da-4358-9496-a68f8ccdbfe5",
+    "oracle_text": "Enchant permanent\nWhen this Aura enters, draw a card.\nAs long as enchanted permanent is a creature, it has deathtouch.\nAs long as enchanted permanent is an Equipment, it has \"Equipped creature has deathtouch.\"",
+    "type_line": "Enchantment — Aura Rune"
+   }
+  },
   "Runed Halo": {
    "phase_records": [
     {
@@ -935454,6 +938647,261 @@
     "power": "2",
     "toughness": "1",
     "type_line": "Legendary Creature — Human Detective"
+   }
+  },
+  "Sarinth Steelseeker": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Human",
+       "Artificer",
+       "Scout"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Green"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "Green"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "d96761b2-eb9c-4963-a496-ba53a01f4b17"
+      ]
+     },
+     "name": "Sarinth Steelseeker",
+     "non_ability_text": null,
+     "oracle_text": "Whenever an artifact you control enters, look at the top card of your library. If it's a land card, you may reveal it and put it into your hand. If you don't put the card into your hand, you may put it into your graveyard.",
+     "power": {
+      "type": "Fixed",
+      "value": 1
+     },
+     "printings": [
+      "BRO"
+     ],
+     "rarities": [
+      "uncommon"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2022-10-14",
+       "text": "You don't have to reveal the card if it's a land card. You may choose not to reveal it and instead put it into your graveyard."
+      }
+     ],
+     "scryfall_oracle_id": "dacf7f0d-9ce2-4e28-98a5-e7ec270a4c83",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 2
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever an artifact you control enters, look at the top card of your library. If it's a land card, you may reveal it and put it into your hand. If you don't put the card into your hand, you may put it into your graveyard.",
+       "destination": "Battlefield",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "destination": null,
+         "enter_tapped": false,
+         "enters_attacking": false,
+         "filter": {
+          "type": "Any"
+         },
+         "keep_count": 0,
+         "player": {
+          "type": "Controller"
+         },
+         "rest_destination": null,
+         "reveal": false,
+         "type": "Dig",
+         "up_to": false
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": {
+          "card_types": [
+           "Land"
+          ],
+          "type": "RevealedHasCardType"
+         },
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "count": 1,
+          "player": {
+           "type": "Controller"
+          },
+          "type": "RevealTop"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": true,
+         "optional_targeting": false,
+         "sub_ability": {
+          "condition": null,
+          "cost": null,
+          "description": null,
+          "duration": null,
+          "effect": {
+           "destination": "Hand",
+           "enter_tapped": false,
+           "enter_transformed": false,
+           "enters_attacking": false,
+           "origin": null,
+           "owner_library": false,
+           "target": {
+            "type": "ParentTarget"
+           },
+           "type": "ChangeZone"
+          },
+          "forward_result": false,
+          "kind": "Spell",
+          "optional": false,
+          "optional_targeting": false,
+          "sub_ability": {
+           "condition": {
+            "condition": {
+             "signal": "OptionalEffectPerformed",
+             "type": "EffectOutcome"
+            },
+            "type": "Not"
+           },
+           "cost": null,
+           "description": null,
+           "duration": null,
+           "effect": {
+            "destination": "Graveyard",
+            "enter_tapped": false,
+            "enter_transformed": false,
+            "enters_attacking": false,
+            "origin": null,
+            "owner_library": false,
+            "target": {
+             "type": "ParentTarget"
+            },
+            "type": "ChangeZone"
+           },
+           "forward_result": false,
+           "kind": "Spell",
+           "optional": true,
+           "optional_targeting": false,
+           "sub_ability": null,
+           "sub_link": "SequentialSibling",
+           "target_prompt": null
+          },
+          "target_prompt": null
+         },
+         "sub_link": "SequentialSibling",
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "mode": "ChangesZone",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "controller": "You",
+        "properties": [],
+        "type": "Typed",
+        "type_filters": [
+         "Artifact"
+        ]
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 2.0,
+    "color_identity": [
+     "G"
+    ],
+    "colors": [
+     "G"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}{G}",
+    "name": "Sarinth Steelseeker",
+    "oracle_id": "dacf7f0d-9ce2-4e28-98a5-e7ec270a4c83",
+    "oracle_text": "Whenever an artifact you control enters, look at the top card of your library. If it's a land card, you may reveal it and put it into your hand. If you don't put the card into your hand, you may put it into your graveyard.",
+    "power": "1",
+    "toughness": "2",
+    "type_line": "Creature — Human Artificer Scout"
    }
   },
   "Sarkhan the Mad": {
@@ -993959,6 +997407,235 @@
     "type_line": "Creature — Dragon"
    }
   },
+  "Slumbering Keepguard": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": {
+        "cost": {
+         "generic": 2,
+         "shards": [
+          "White"
+         ],
+         "type": "Cost"
+        },
+        "type": "Mana"
+       },
+       "description": "{2}{W}: ~ gets +1/+1 until end of turn for each enchantment you control.",
+       "duration": "UntilEndOfTurn",
+       "effect": {
+        "power": {
+         "type": "Quantity",
+         "value": {
+          "qty": {
+           "filter": {
+            "controller": "You",
+            "properties": [],
+            "type": "Typed",
+            "type_filters": [
+             "Enchantment"
+            ]
+           },
+           "type": "ObjectCount"
+          },
+          "type": "Ref"
+         }
+        },
+        "target": {
+         "type": "SelfRef"
+        },
+        "toughness": {
+         "type": "Quantity",
+         "value": {
+          "qty": {
+           "filter": {
+            "controller": "You",
+            "properties": [],
+            "type": "Typed",
+            "type_filters": [
+             "Enchantment"
+            ]
+           },
+           "type": "ObjectCount"
+          },
+          "type": "Ref"
+         }
+        },
+        "type": "Pump"
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Human",
+       "Knight"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "White"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pauper": "legal",
+      "paupercommander": "legal",
+      "pioneer": "legal",
+      "standard": "legal",
+      "standardbrawl": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 0,
+      "shards": [
+       "White"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "d7f41ae2-ebc6-439f-95af-c34818a3f4e6"
+      ]
+     },
+     "name": "Slumbering Keepguard",
+     "non_ability_text": null,
+     "oracle_text": "Whenever an enchantment you control enters, scry 1.\n{2}{W}: This creature gets +1/+1 until end of turn for each enchantment you control.",
+     "power": {
+      "type": "Fixed",
+      "value": 1
+     },
+     "printings": [
+      "WOE"
+     ],
+     "rarities": [
+      "common"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "89078485-c438-4035-95dc-dbe37fb13e50",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 1
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever an enchantment you control enters, scry 1.",
+       "destination": "Battlefield",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "target": {
+          "type": "Controller"
+         },
+         "type": "Scry"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "ChangesZone",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "controller": "You",
+        "properties": [],
+        "type": "Typed",
+        "type_filters": [
+         "Enchantment"
+        ]
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 1.0,
+    "color_identity": [
+     "W"
+    ],
+    "colors": [
+     "W"
+    ],
+    "keywords": [
+     "Scry"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "legal",
+     "paupercommander": "legal",
+     "penny": "not_legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "legal",
+     "standardbrawl": "legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{W}",
+    "name": "Slumbering Keepguard",
+    "oracle_id": "89078485-c438-4035-95dc-dbe37fb13e50",
+    "oracle_text": "Whenever an enchantment you control enters, scry 1.\n{2}{W}: This creature gets +1/+1 until end of turn for each enchantment you control.",
+    "power": "1",
+    "toughness": "1",
+    "type_line": "Creature — Human Knight"
+   }
+  },
   "Smallpox": {
    "phase_records": [
     {
@@ -1016217,6 +1019894,193 @@
     "oracle_id": "ae896d87-59c7-4d8d-a137-9e471d3e174e",
     "oracle_text": "Whenever a player discards a card, you may pay {W}. If you do, create a 1/1 white Spirit creature token with flying.",
     "type_line": "Enchantment"
+   }
+  },
+  "Spirit Loop": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Enchantment"
+      ],
+      "subtypes": [
+       "Aura"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "White"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [
+      {
+       "Enchant": {
+        "controller": "You",
+        "properties": [],
+        "type": "Typed",
+        "type_filters": [
+         "Creature"
+        ]
+       }
+      }
+     ],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "White"
+      ],
+      "type": "Cost"
+     },
+     "name": "Spirit Loop",
+     "non_ability_text": null,
+     "oracle_text": "Enchant creature you control\nWhenever enchanted creature deals damage, you gain that much life.\nWhen this Aura is put into a graveyard from the battlefield, return it to its owner's hand.",
+     "power": null,
+     "printings": [
+      "TSP"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "6edf5767-10d3-40b0-bfce-daa8633888f6",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever enchanted creature deals damage, you gain that much life.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "amount": {
+          "qty": {
+           "type": "EventContextAmount"
+          },
+          "type": "Ref"
+         },
+         "type": "GainLife"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "DamageDone",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": null,
+       "valid_source": {
+        "type": "AttachedTo"
+       },
+       "valid_target": null
+      },
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "When ~ is put into a graveyard from the battlefield, return it to its owner's hand.",
+       "destination": "Graveyard",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "destination": null,
+         "target": {
+          "type": "ParentTarget"
+         },
+         "type": "Bounce"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "ChangesZone",
+       "optional": false,
+       "origin": "Battlefield",
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Graveyard"
+       ],
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 2.0,
+    "color_identity": [
+     "W"
+    ],
+    "colors": [
+     "W"
+    ],
+    "keywords": [
+     "Enchant"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}{W}",
+    "name": "Spirit Loop",
+    "oracle_id": "6edf5767-10d3-40b0-bfce-daa8633888f6",
+    "oracle_text": "Enchant creature you control\nWhenever enchanted creature deals damage, you gain that much life.\nWhen this Aura is put into a graveyard from the battlefield, return it to its owner's hand.",
+    "type_line": "Enchantment — Aura"
    }
   },
   "Spirit Water Revival": {
@@ -1159109,6 +1162973,234 @@
     "type_line": "Creature — Jellyfish Scientist"
    }
   },
+  "Utopia Sprawl": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Enchantment"
+      ],
+      "subtypes": [
+       "Aura"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Green"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [
+      {
+       "Enchant": {
+        "controller": null,
+        "properties": [],
+        "type": "Typed",
+        "type_filters": [
+         {
+          "Subtype": "Forest"
+         }
+        ]
+       }
+      }
+     ],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pauper": "legal",
+      "paupercommander": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 0,
+      "shards": [
+       "Green"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "0fc7bf24-381f-459c-b6b5-8bd4d3b5cd3f",
+       "15625580-3cbd-459c-a667-87efdcdaf2b2",
+       "299236c6-e9a1-4ddb-bbfb-f8530b025391",
+       "29b4050e-8b73-4f16-85e4-ec2a8faacf48",
+       "44d14297-f84b-40bd-bd0a-b67d13787ca0",
+       "5ea568df-04a1-4012-98ec-ba75e189e0ca",
+       "5f04c8a2-dcdd-4e87-85d3-9841561cdcdf",
+       "612c2a10-b978-4000-894b-12d5f14afc97",
+       "6c982397-2d72-4d0e-8aa0-acedde0a0849"
+      ]
+     },
+     "name": "Utopia Sprawl",
+     "non_ability_text": null,
+     "oracle_text": "Enchant Forest\nAs this Aura enters, choose a color.\nWhenever enchanted Forest is tapped for mana, its controller adds an additional one mana of the chosen color.",
+     "power": null,
+     "printings": [
+      "A25",
+      "AFC",
+      "DIS",
+      "PF26",
+      "PLST",
+      "RVR",
+      "SLD",
+      "WOC",
+      "WOT"
+     ],
+     "rarities": [
+      "common",
+      "uncommon",
+      "rare"
+     ],
+     "replacements": [
+      {
+       "condition": null,
+       "description": "As ~ enters, choose a color.",
+       "destination_zone": "Battlefield",
+       "event": "Moved",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "choice_type": "Color",
+         "persist": true,
+         "type": "Choose"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": {
+        "type": "Mandatory"
+       },
+       "valid_card": {
+        "type": "SelfRef"
+       }
+      }
+     ],
+     "scryfall_oracle_id": "00d8efa6-a2d9-4249-8da7-b45173675329",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever enchanted Forest is tapped for mana, its controller adds an additional one mana of the chosen color.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "produced": {
+          "contribution": "Additional",
+          "count": {
+           "type": "Fixed",
+           "value": 1
+          },
+          "type": "ChosenColor"
+         },
+         "target": {
+          "recipient": {
+           "type": "ParentTargetController"
+          },
+          "role": "Recipient"
+         },
+         "type": "Mana"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "player_scope": {
+         "type": "TriggeringPlayer"
+        },
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "TapsForMana",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "type": "AttachedTo"
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 1.0,
+    "color_identity": [
+     "G"
+    ],
+    "colors": [
+     "G"
+    ],
+    "keywords": [
+     "Enchant"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "legal",
+     "paupercommander": "legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{G}",
+    "name": "Utopia Sprawl",
+    "oracle_id": "00d8efa6-a2d9-4249-8da7-b45173675329",
+    "oracle_text": "Enchant Forest\nAs this Aura enters, choose a color.\nWhenever enchanted Forest is tapped for mana, its controller adds an additional one mana of the chosen color.",
+    "produced_mana": [
+     "B",
+     "G",
+     "R",
+     "U",
+     "W"
+    ],
+    "type_line": "Enchantment — Aura"
+   }
+  },
   "Vadmir, New Blood": {
    "phase_records": [
     {
@@ -1176064,6 +1180156,391 @@
     "oracle_id": "240e85d3-e495-4877-8609-4b4056c402f7",
     "oracle_text": "Choose two target creature cards in your graveyard. Sacrifice a creature. If you do, return the chosen cards to the battlefield tapped.",
     "type_line": "Sorcery"
+   }
+  },
+  "Victor, Valgavoth's Seneschal": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "brawl_commander": true,
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Human",
+       "Warlock"
+      ],
+      "supertypes": [
+       "Legendary"
+      ]
+     },
+     "color_identity": [
+      "Black",
+      "White"
+     ],
+     "color_override": [
+      "Black",
+      "White"
+     ],
+     "defense": null,
+     "flavor_name": null,
+     "is_commander": true,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "standard": "legal",
+      "standardbrawl": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "White",
+       "Black"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "1db4440e-0107-434d-9d8e-77a11bc0245a",
+       "51392ece-c9f5-46b0-9dce-0a1a0343a536"
+      ]
+     },
+     "name": "Victor, Valgavoth's Seneschal",
+     "non_ability_text": null,
+     "oracle_text": "Eerie — Whenever an enchantment you control enters and whenever you fully unlock a Room, surveil 2 if this is the first time this ability has resolved this turn. If it's the second time, each opponent discards a card. If it's the third time, put a creature card from a graveyard onto the battlefield under your control.",
+     "power": {
+      "type": "Fixed",
+      "value": 3
+     },
+     "printings": [
+      "DSK",
+      "PDSK"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2024-09-20",
+       "text": "An ability that triggers \"whenever you fully unlock a Room\" triggers when a door becomes unlocked and the other door of that Room is already unlocked, or when both doors of that Room become unlocked simultaneously."
+      },
+      {
+       "date": "2024-09-20",
+       "text": "If a permanent with an eerie ability enters at the same time as one or more enchantments, its ability will trigger for each of those enchantments."
+      },
+      {
+       "date": "2024-09-20",
+       "text": "Victor's ability has no effect beyond the third time it resolves in a turn."
+      }
+     ],
+     "scryfall_oracle_id": "92bf8f05-cbfd-42d8-8bc1-d7f2e46f9872",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 3
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever an enchantment you control enters, surveil 2 if this is the first time this ability has resolved this turn. If it's the second time, each opponent discards a card. If it's the third time, put a creature card from a graveyard onto the battlefield under your control.",
+       "destination": "Battlefield",
+       "execute": {
+        "condition": {
+         "n": 1,
+         "type": "AbilityUseCountThisTurn"
+        },
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "count": {
+          "type": "Fixed",
+          "value": 2
+         },
+         "target": {
+          "type": "Controller"
+         },
+         "type": "Surveil"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": {
+          "n": 2,
+          "type": "AbilityUseCountThisTurn"
+         },
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "count": {
+           "type": "Fixed",
+           "value": 1
+          },
+          "target": {
+           "type": "Controller"
+          },
+          "type": "Discard"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "player_scope": {
+          "type": "Opponent"
+         },
+         "sub_ability": {
+          "condition": {
+           "n": 3,
+           "type": "AbilityUseCountThisTurn"
+          },
+          "cost": null,
+          "description": null,
+          "duration": null,
+          "effect": {
+           "destination": "Battlefield",
+           "enter_tapped": false,
+           "enter_transformed": false,
+           "enters_attacking": false,
+           "enters_under": "You",
+           "origin": "Graveyard",
+           "owner_library": false,
+           "target": {
+            "controller": null,
+            "properties": [
+             {
+              "type": "InZone",
+              "zone": "Graveyard"
+             }
+            ],
+            "type": "Typed",
+            "type_filters": [
+             "Creature"
+            ]
+           },
+           "type": "ChangeZone"
+          },
+          "forward_result": false,
+          "kind": "Spell",
+          "optional": false,
+          "optional_targeting": false,
+          "sub_ability": null,
+          "sub_link": "SequentialSibling",
+          "target_choice_timing": "Resolution",
+          "target_prompt": null
+         },
+         "sub_link": "SequentialSibling",
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "mode": "ChangesZone",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "controller": "You",
+        "properties": [],
+        "type": "Typed",
+        "type_filters": [
+         "Enchantment"
+        ]
+       },
+       "valid_source": null,
+       "valid_target": null
+      },
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever you fully unlock a Room, surveil 2 if this is the first time this ability has resolved this turn. If it's the second time, each opponent discards a card. If it's the third time, put a creature card from a graveyard onto the battlefield under your control.",
+       "destination": null,
+       "execute": {
+        "condition": {
+         "n": 1,
+         "type": "AbilityUseCountThisTurn"
+        },
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "count": {
+          "type": "Fixed",
+          "value": 2
+         },
+         "target": {
+          "type": "Controller"
+         },
+         "type": "Surveil"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": {
+          "n": 2,
+          "type": "AbilityUseCountThisTurn"
+         },
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "count": {
+           "type": "Fixed",
+           "value": 1
+          },
+          "target": {
+           "type": "Controller"
+          },
+          "type": "Discard"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "player_scope": {
+          "type": "Opponent"
+         },
+         "sub_ability": {
+          "condition": {
+           "n": 3,
+           "type": "AbilityUseCountThisTurn"
+          },
+          "cost": null,
+          "description": null,
+          "duration": null,
+          "effect": {
+           "destination": "Battlefield",
+           "enter_tapped": false,
+           "enter_transformed": false,
+           "enters_attacking": false,
+           "enters_under": "You",
+           "origin": "Graveyard",
+           "owner_library": false,
+           "target": {
+            "controller": null,
+            "properties": [
+             {
+              "type": "InZone",
+              "zone": "Graveyard"
+             }
+            ],
+            "type": "Typed",
+            "type_filters": [
+             "Creature"
+            ]
+           },
+           "type": "ChangeZone"
+          },
+          "forward_result": false,
+          "kind": "Spell",
+          "optional": false,
+          "optional_targeting": false,
+          "sub_ability": null,
+          "sub_link": "SequentialSibling",
+          "target_choice_timing": "Resolution",
+          "target_prompt": null
+         },
+         "sub_link": "SequentialSibling",
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "mode": "FullyUnlock",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "controller": null,
+        "properties": [],
+        "type": "Typed",
+        "type_filters": [
+         {
+          "Subtype": "Room"
+         }
+        ]
+       },
+       "valid_source": null,
+       "valid_target": {
+        "type": "Controller"
+       }
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 3.0,
+    "color_identity": [
+     "B",
+     "W"
+    ],
+    "colors": [
+     "B",
+     "W"
+    ],
+    "keywords": [
+     "Eerie",
+     "Surveil"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "legal",
+     "standardbrawl": "legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}{W}{B}",
+    "name": "Victor, Valgavoth's Seneschal",
+    "oracle_id": "92bf8f05-cbfd-42d8-8bc1-d7f2e46f9872",
+    "oracle_text": "Eerie — Whenever an enchantment you control enters and whenever you fully unlock a Room, surveil 2 if this is the first time this ability has resolved this turn. If it's the second time, each opponent discards a card. If it's the third time, put a creature card from a graveyard onto the battlefield under your control.",
+    "power": "3",
+    "toughness": "3",
+    "type_line": "Legendary Creature — Human Warlock"
    }
   },
   "Victual Sliver": {
@@ -1229118,6 +1233595,177 @@
     "oracle_id": "4ce785b9-aee0-4ac6-ab20-ee20d0551be4",
     "oracle_text": "Read ahead (Choose a chapter and start with that many lore counters. Add one after your draw step. Skipped chapters don't trigger. Sacrifice after III.)\nI — Create a 0/2 colorless Thopter artifact creature token with flying named Ornithopter.\nII — Tap any number of untapped artifacts you control. When you do, this Saga deals that much damage to target creature or planeswalker.\nIII — Up to one target artifact you control becomes an artifact creature with base power and toughness 4/4 until end of turn.",
     "type_line": "Enchantment — Saga"
+   }
+  },
+  "Yotian Dissident": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Human",
+       "Artificer"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Green",
+      "White"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 0,
+      "shards": [
+       "Green",
+       "White"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "1eb02f00-c188-4193-a049-d26f7643e5da"
+      ]
+     },
+     "name": "Yotian Dissident",
+     "non_ability_text": null,
+     "oracle_text": "Whenever an artifact you control enters, put a +1/+1 counter on target creature you control.",
+     "power": {
+      "type": "Fixed",
+      "value": 1
+     },
+     "printings": [
+      "BRO"
+     ],
+     "rarities": [
+      "uncommon"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "6ad61622-a70f-423c-99e3-b1ef6ead0b31",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 1
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever an artifact you control enters, put a +1/+1 counter on target creature you control.",
+       "destination": "Battlefield",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "counter_type": "P1P1",
+         "target": {
+          "controller": "You",
+          "properties": [],
+          "type": "Typed",
+          "type_filters": [
+           "Creature"
+          ]
+         },
+         "type": "PutCounter"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "ChangesZone",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "controller": "You",
+        "properties": [],
+        "type": "Typed",
+        "type_filters": [
+         "Artifact"
+        ]
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 2.0,
+    "color_identity": [
+     "G",
+     "W"
+    ],
+    "colors": [
+     "G",
+     "W"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{G}{W}",
+    "name": "Yotian Dissident",
+    "oracle_id": "6ad61622-a70f-423c-99e3-b1ef6ead0b31",
+    "oracle_text": "Whenever an artifact you control enters, put a +1/+1 counter on target creature you control.",
+    "power": "1",
+    "toughness": "1",
+    "type_line": "Creature — Human Artificer"
    }
   },
   "You Find a Cursed Idol": {
