@@ -1559,3 +1559,89 @@ Baseline, same runs as the guide-row fix (`misses-r-guidefix.json`):
 held-out ten and 18 (10 / 8) on Jace. The tuner matches consensus adds at 28%
 on the 25 against 14% for all in-scope adds, and consensus cuts at 72% against
 65%; on the held-out ten consensus adds are 12%, against 8%.
+
+## Deck fit for the job upgrades (2026-10-30, measured and rejected)
+
+On the 25 the tuner adds Path to Exile, Feed the Swarm, Beast Within or Chaos Warp
+to 8-13 decks each, where the guides add each to 0-2, and the w27 read found that
+the outranked guide job adds share a non-generic signal with the commander far
+more often than the tuner's picks. Two levers, each alone against the baseline,
+then together. The bar was guide adds up and cuts down by two at most on the 25,
+held-out adds flat and cuts down by one at most, and Jace with at least 3 adds.
+
+- **3a, the cut side.** A job upgrade never cuts a card serving the main theme or
+  the commander: a main's member or carer, a doer of the commander's lanes, or a
+  card sharing a signal with the commander that isn't generic
+  (`metrics.generic_ident`: the Spine keys, `creatures_matter`, the page-only
+  idents, own ETB, own activated ability, board protection, bare artifact or
+  enchantment). Of the five trades that prompted it, focus's sets make only Vona,
+  Butcher of Magan (a Vampire under Clavileño, `type_matters|you|Vampire`) and
+  Chittering Witch (a member of Mardu Surge's Combat main) theme cards. Stalking
+  Leonin, Siege-Gang Lieutenant and Will of the Abzan share only generic idents
+  with their commanders.
+- **3b, the add side.** Among a job's candidates (the upgrade's match set, a Spine
+  fill's page), a card sharing a non-generic ident with the commander or counted
+  by a main avenue's serve ranks first, with play-rate or the job's blend
+  ordering each group. Path still comes in when nothing fits. This differs from
+  backlog (j)'s rejected theme tie, which let fit decide only between cards
+  within 0.1 on the job read and read fit as serving a viable avenue. Here fit
+  goes first over the whole match set.
+
+| variant | the 25: swaps / cuts / adds | near-misses | consensus adds | held-out: swaps / cuts / adds | Jace |
+|---|---|---|---|---|---|
+| baseline | 721 / 330 / 109 | 71 | 39 | 297 / 139 / 34 | 29 / 14 / 3 |
+| 3a | 611 / 281 / 97 | 61 | 35 | 239 / 112 / 25 | 16 / 10 / 1 |
+| 3a, commander-shared ident only | 672 / 314 / 103 | | | | |
+| 3a, main carers and lane doers only | 684 / 317 / 101 | | | | |
+| 3a, main members only | 634 / 292 / 98 | | | | |
+| 3b, every job | 710 / 324 / 91 | 72 | 32 | 297 / 140 / 34 | 19 / 11 / 0 |
+| 3b, removal only | 717 / 326 / 104 | 73 | 40 | | 29 / 14 / 3 |
+| 3b, wipes only | 727 / 330 / 108 | 66 | 39 | | 30 / 14 / 3 |
+| 3b, card draw only | 711 / 327 / 107 | 71 | 38 | | 17 / 11 / 1 |
+| 3b, ramp only | 722 / 330 / 104 | 75 | 38 | | 29 / 14 / 3 |
+| 3b, protection only | 722 / 330 / 107 | 69 | 38 | | 30 / 14 / 2 |
+| 3b, commander ident only, no ident on 5%+ of the pool | 696 / 320 / 102 | | | | |
+| 3b, fit first only within tenfold of the top card's play-rate | 714 / 327 / 102 | | | | |
+| 3a + 3b | 625 / 282 / 93 | 65 | 34 | 243 / 114 / 29 | 20 / 10 / 0 |
+
+Nothing shipped, for these reasons:
+
+- **The guides cut theme cards that do a job.** Of the 146 job-upgrade cuts that 3a
+  protects, 57 are guide cuts (0.39, against 0.24 across the decks' cards), and 12
+  of their adds are guide adds: Sorin, Lord of Innistrad for Anguished Unmaking,
+  Confirm Suspicions for Counterspell, Whirlwind of Thought for Nezahal. With
+  those slots closed, the tune runs out of cuts: 110 fewer swaps, 49 fewer guide
+  cuts.
+- **The fit read is too loose, and the guides add the staples.** By job, 3b loses
+  every one: removal by 5, ramp by 5, card draw and protection by 2 each, wipes
+  by 1. The adds it loses are the staples the guides do add: Swords to Plowshares
+  and Path to Exile in Blame Game, Counterspell in two decks, Swiftfoot Boots in
+  two, Heroic Intervention, Cyclonic Rift, Supreme Verdict, Fellwar Stone, Nature's
+  Lore. Few of its gains are guide adds: Living Death, Crop Rotation, Faerie
+  Mastermind, Sram. The guides' deck-fit removal (Abzan Armor's Wall of Souls,
+  rank 16278, against cuts near 2500; Soul Shatter; Grasp of Fate) is less played
+  than the cuts it would replace, so the upgrade gate holds it out under any
+  order.
+
+The /rules-lawyer spot-check covered ten cases: eight of 3b's new picks
+(`rulings-lookup --card`, `rules-lookup --rule`, CR 2026-09-25) and the two
+motivating cuts 3a protects.
+
+- **One add held up.** Accursed Marauder in Blood Rites is an edict (CR 701.21a)
+  in an Aristocrats deck.
+- **Two did the job only partly.** Sword of Fire and Ice in Blame Game deals 2
+  damage on a combat hit. Braids, Arisen Nightmare in Blood Rites lets each
+  opponent choose to sacrifice or take 2 and give you a card, so it removes
+  nothing reliably.
+- **Five failed.** Myr Battlesphere deals its damage only to the player or
+  planeswalker it attacks (its own text), so it is no removal. Alibou's X counts
+  tapped artifacts, which Blame Game hardly has. Kozilek's Command needs {C}{C}
+  (CR 107.4c) in a Boros deck, and its fit is Nelly Borca's symmetric draw. Bow
+  of Nylea hits only a flyer. Noxious Gearhulk's fit to Felothar is its
+  `toughness_combat` ident, but its life gain uses the destroyed creature's
+  toughness (its 2016-09-20 ruling), so it is no toughness payoff.
+- **Both protected cuts serve the deck.** Vona is a Vampire that Clavileño's
+  attack trigger can target, and her vigilance (CR 702.20b) keeps her {T}
+  activation open. Chittering Witch's Rats, and Zurgo's mobilized Warriors when
+  she sacrifices them, are creature tokens leaving the battlefield (CR
+  701.21a), which is what Zurgo Stormrender draws or drains on.

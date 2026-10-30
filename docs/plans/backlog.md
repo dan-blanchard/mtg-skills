@@ -156,6 +156,34 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   Real rank lag is limited to 2025-26 cards, which mostly postdate the guides. A
   card's first printing is its earliest printing not flagged `reprint`
   (`precon-audit/scoreboard.py`).
+  (s) **Deck fit for job upgrades — don't re-suggest** (2026-10-30; patch and runs
+  in `~/mtg/tuner-work/w31/`, the audit's "Deck fit for the job upgrades"). Two
+  levers, each measured alone, then together; none raised guide adds on the 25.
+  (3a) a job upgrade never cuts a card serving the main theme or the commander (a
+  main's member or carer, a commander-lane doer, or a card sharing a non-generic
+  ident with the commander): 611 / 281 / 97, every split of the set lost (shared
+  ident only 672 / 314 / 103, carers and lane doers 684 / 317 / 101, main members
+  634 / 292 / 98), because the guides cut those cards at 0.39 (57 of the 146
+  protected job-upgrade cuts), above the decks' 0.24. Only two of the five
+  motivating trades are theme cards by focus's sets (Vona, Chittering Witch);
+  Stalking Leonin, Siege-Gang Lieutenant and Will of the Abzan share no
+  non-generic ident with their commander and serve no main. (3b) a job's
+  candidates (upgrade, Spine fill) that share a non-generic ident with the
+  commander or a main's serve rank first, play-rate or the blend within each
+  group: 710 / 324 / 91; per job removal 104, wipes 108, draw 107, ramp 104,
+  protection 107 adds (109 base). Unlike (j)'s theme tie (fit breaks a 0.1
+  job-read tie over the viable avenues) it reorders the whole match set, and the
+  fit read is too loose: `attack_matters`, `combat_damage_to_opp` and
+  `target_player_draws` tie Myr Battlesphere, Sword of Fire and Ice and
+  Kozilek's Command to Nelly Borca, and the guides add the staples it pushes out
+  (Swords and Path in Blame Game, Counterspell, Swiftfoot Boots, Heroic
+  Intervention). A 5% pool-share cap on the shared idents (102) or fit only
+  within tenfold of the top card's play-rate (102) lost too. The guides' deck-fit
+  removal (Wall of Souls, Soul Shatter, Grasp of Fate) is played less than its
+  cuts, so no order reaches it. Found on the way, not fixed: Noxious Gearhulk
+  emits `toughness_combat|you|` (its life gain is the destroyed creature's
+  toughness, per its ruling) and Myr Battlesphere reads as interaction (it hits
+  only the player or planeswalker it attacks, by its own text).
   (m) **Recall** (`precon-audit/misses.py`, at the largest guide's thirty
   swaps and each precon's own guides' budget, `budgets.json`, Spellbook cached):
   330 of 505 cuttable guide cuts, 109 of 793 in-scope guide adds, 721 swaps;
