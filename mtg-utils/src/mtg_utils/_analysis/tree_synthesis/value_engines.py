@@ -1045,7 +1045,7 @@ def _arm_connive_makers(tree: ConceptTree) -> ConceptNode | None:
 
 
 def has_structural_fight_makers(tree: ConceptTree) -> bool:
-    """The fight_makers TYPED gate (CR 701.12): a flat top-level ``Fight``
+    """The fight_makers TYPED gate (CR 701.14a): a flat top-level ``Fight``
     effect OR a ``Fight`` tag :func:`has_nested_fight` reaches inside a
     GRANTED-ability construct (a trigger grant, an activated-ability
     grant, a ``CreateEmblem``, a token-copy exception clause). Shared
@@ -1075,7 +1075,7 @@ def _arm_fight_makers(tree: ConceptTree) -> ConceptNode | None:
     typed/nested card never doubles. A genuine SPLIT-card second half
     (the "Fight" face itself) still needs task #74's face union --
     ``tree.oracle`` is single-face, so it never reaches this card at
-    all. CR 701.12."""
+    all. CR 701.14a."""
     if has_structural_fight_makers(tree):
         return None
     if not _FIGHT_RAW.search(_REMINDER.sub(" ", tree.oracle or "")):

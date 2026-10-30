@@ -1287,8 +1287,8 @@ def _graveyard_matters(tree: ConceptTree) -> list[Signal]:
 
 
 def _fight_makers(tree: ConceptTree) -> list[Signal]:
-    """fight_makers — a fight DOER (CR 701.12 -- the shared 701.14a "each
-    other" wording is the OLD number). Three structural arms, then a
+    """fight_makers — a fight DOER (CR 701.14a: each creature deals
+    damage equal to its power to the other). Three structural arms, then a
     whole-card residue fallback:
 
     * **typed (flat)** — a top-level ``Fight`` effect (Prey Upon, Ulvenwald

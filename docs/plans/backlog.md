@@ -593,8 +593,6 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
 - **The deathtouch lane serves every fight, whoever fights.** `fight_makers`
   doesn't record whose creatures fight. Dissension in the Ranks (two blocking
   creatures) counts the same as Prey Upon.
-- **`_fight_makers` cites CR 701.12 for fight.** The 2026-09-25 rules number
-  fight 701.14a. 701.12a is exchange.
 
 **From the Omnath Competitive Brawl build (2026-10-04)**
 
