@@ -497,6 +497,40 @@ def test_a_token_making_commander_also_searches_the_token_doublers_once():
     assert [lbl for lbl, _d, _s in unheld.theme_avenues()] == [spec_for(main).label]
 
 
+def test_a_polymorph_commanders_trim_is_a_cheap_token_spell():
+    # Jace's -3 exiles a creature you control: two tokens for two mana are two
+    # bodies. The lane's serve holds them, but as a sub it pages no theme add.
+    from mtg_utils._analysis.signal_specs import spec_for
+
+    cheat, fodder = _held_sig("cheat_into_play"), _held_sig("wants_fodder")
+    focus = _focus(
+        viable=[{"label": spec_for(cheat).label, "tier": "main", "depth": 19}],
+        commander_avenues=[spec_for(cheat).label],
+    )
+    held = Sourcing(
+        focus,
+        [cheat, fodder],
+        {},
+        commander_idents={("wants_fodder", "you", "")},
+    )
+    spec = held.remedy_for("role_over", role="ramp").spec
+    assert spec["_avenue"] == spec_for(fodder).label
+    assert spec["_serve"].matches(test_card("Raise the Alarm"))
+    # One body at a time, and three mana.
+    assert not spec["_serve"].matches(test_card("Loyal Apprentice"))
+    assert not spec["_serve"].matches(test_card("Hordeling Outburst"))
+    # A printed mana value counts X as 0 (CR 202.3e).
+    assert spec["_serve"].matches(test_card("Secure the Wastes"))
+    assert not spec["_filter"](test_card("Secure the Wastes"))
+    assert spec["_filter"](test_card("Raise the Alarm"))
+    # The same lane on a deck card, not the commander's: its lane, as before.
+    unheld = Sourcing(focus, [cheat, fodder], {})
+    assert unheld.fodder_spec() is None
+    assert unheld.remedy_for("role_over", role="ramp").spec["_avenue"] == (
+        spec_for(cheat).label
+    )
+
+
 def test_a_clue_making_commander_gets_the_doublers_that_double_a_clue():
     # Morska investigates (Deep Clue Sea): a Clue maker's payoff side names the
     # token doublers (``metrics._cares_keys``), and a Clue is an artifact token

@@ -385,6 +385,7 @@ def tune(
             budgets,
             game=game,
             keep=keep_search(commander_records) if cal.commander_axes else None,
+            commander_idents=read.commander_idents,
             poisons=wins["poisons"],
         ),
         near_misses=suggestable_near_misses(combos, params.target_bracket),

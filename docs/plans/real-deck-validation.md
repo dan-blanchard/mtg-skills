@@ -198,6 +198,12 @@ What the guides show the tuner missing, by cause:
 4. **Combo protection over the guides**: Dack, Venser and Brainstorm are
    protected as an infinite; the guides cut all three.
 
+Since 2026-10-30 (the audit's "Polymorph fodder and the purse cap") the deck scores
+15 of 22 cuts and 4 of 30 adds at 30 swaps, Raise the Alarm the new add: cause 1 was
+a page no tune asked, and a trim now adds a cheap token spell. Occult Epiphany and
+Staff of the Storyteller go only to cards that make fodder; Currency Converter still
+goes as a ramp trim.
+
 The card-read errors in the tuner's own picks stand whatever the reference:
 Heliod, Thassa (Deep-Dwelling) and Purphoros are flip targets that aren't
 creatures without devotion 5; Dreamtide Whale's vanishing; fodder makers

@@ -252,10 +252,26 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   Play-rate fills the opened slots with the big creatures the band held back
   (Grave Titan, Artisan of Kozilek, Scourge of the Throne, Gisela, Blade of
   Goldnight, Combustible Gearhulk), and Nezahal is outranked on its page.
+  (w) **Polymorph fodder — don't re-suggest the rejected forms** (2026-10-30;
+  runs and `experiment.patch` in `~/mtg/tuner-work/w37/`, the audit's "Polymorph
+  fodder and the purse cap"). Shipped: a polymorph commander's trim adds a cheap
+  token spell (`Sourcing.fodder_trim_spec`); its fodder maker's job upgrade must
+  make fodder too; past the even share, no upgrade's add takes more than 0.6 of
+  what is left (`swaps._PURSE_CAP`, every deck). Jace 30 / 15 / 4. The fodder lane
+  was unreached because it is a sub and only mains share the theme adds; its
+  serve already admits the makers. Rejected: the lane sharing the theme adds as a
+  sub (Loyal Apprentice or Raise the Alarm, but Archfiend of Depravity lost every
+  time); the lane's whole page for the trims (30 / 15 / 3). Left: the rest of the
+  guides' fodder (Loyal Apprentice, Shadow Summoning, Tempt with Bunnies, Fable)
+  stays outranked or unasked; Currency Converter still goes as a ramp trim, since
+  the rest of that row is fixing; the Gods (Heliod, Purphoros) still take $45 of its
+  $111.70 as flip targets that aren't creatures below devotion 5.
   (m) **Recall** (`precon-audit/misses.py`, at the largest guide's thirty
   swaps and each precon's own guides' budget, `budgets.json`, Spellbook cached):
-  332 of 505 cuttable guide cuts, 117 of 793 in-scope guide adds, 720 swaps;
-  held-out 139 of 216 / 37 of 407, 290 swaps (2026-10-30, Fynn's fixes,
+  335 of 505 cuttable guide cuts, 121 of 793 in-scope guide adds, 732 swaps;
+  held-out 139 of 216 / 37 of 407, 297 swaps (2026-10-30, polymorph fodder and the
+  purse cap, (w): near-misses 63 / 30, consensus adds 38 / 6, Jace 30 / 15 / 4.
+  Before it 332 / 117, 720 swaps; held-out 139 / 37, 290 swaps, Fynn's fixes,
   `real-deck-validation.md`: poison closers, the fed-only lane exemption,
   front-face keywords, the attacked defender as no removal, the trim's band;
   Mardu Surge lost Professional Face-Breaker, Virtue and Valor a guide cut;

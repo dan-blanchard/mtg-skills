@@ -2680,6 +2680,37 @@ def test_the_commanders_token_doublers_take_one_theme_add():
     assert adds == ["Deep 0", "Deep 1", "Deep 2", "Doubler 0", "Deep 3"]
 
 
+def test_a_fodder_makers_job_upgrade_makes_fodder_under_a_polymorph_commander():
+    # Occult Epiphany's Spirits are bodies for Jace's -3 to exile: its draw slot
+    # goes to a card that makes fodder too, however much more played the other is.
+    from dataclasses import replace
+
+    from mtg_utils._analysis.signals import Signal
+
+    wants = Signal(key="wants_fodder", scope="you", subject="", text="", source="x")
+    epiphany = _real_cc(
+        "Occult Epiphany", "spine", roles=["card_draw"], edhrec_rank=8000
+    )
+    arena, shop = _played("Phyrexian Arena", 10), _played("Thopter Shop", 7000)
+    issues = [{"kind": "upgrade", "severity": 1, "count": 1}]
+    held = {("wants_fodder", "you", "")}
+
+    def add(pool, idents=()):
+        ctx = replace(
+            _upgrade_ctx([epiphany], pool),
+            deck_signals=[wants],
+            commander_idents=idents,
+        )
+        return [
+            s["add"]["name"]
+            for s in _swaps_for_issue_dicts([epiphany], issues, ctx)["swaps"]
+        ]
+
+    assert add([arena]) == ["Phyrexian Arena"]
+    assert add([arena], held) == []
+    assert add([arena, shop], held) == ["Thopter Shop"]
+
+
 def _murder_upgrade(path_rank, path_usd, budget):
     """The add trading Murder (rank 8000) up to five swaps on ``budget``: Swords
     to Plowshares at rank 10 and $5, or Path to Exile."""
@@ -2709,6 +2740,15 @@ def test_past_the_share_the_first_card_that_fits_it_is_the_add():
     to Exile at $1, a near tie of Swords at rank 14 or not at rank 40."""
     assert _murder_upgrade(14, "1.00", 20.0) == ["Path to Exile"]
     assert _murder_upgrade(40, "1.00", 20.0) == ["Path to Exile"]
+
+
+def test_past_the_share_no_upgrade_takes_most_of_what_is_left():
+    """$8 over five swaps: Swords to Plowshares at $5 is past the share and more
+    than ``_PURSE_CAP`` of the purse, so Path to Exile at $3, no near tie at rank
+    40, is the add; at $10 of budget Swords is within the cap and keeps the slot
+    (no cheaper card in the window fits the share)."""
+    assert _murder_upgrade(40, "3.00", 8.0) == ["Path to Exile"]
+    assert _murder_upgrade(40, "3.00", 10.0) == ["Swords to Plowshares"]
 
 
 def test_past_the_share_with_nothing_inside_it_a_near_tie_goes_to_the_cheaper_card():

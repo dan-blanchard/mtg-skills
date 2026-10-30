@@ -1396,6 +1396,77 @@ and Shark Typhoon (Multiverse Reforged), Constricting Sliver and Grasp of Fate.
   read this pass separated the outranked guide adds from the picks either, and the
   two that let less-played cards through (A1, J1) lost or gained nothing.
 
+## Polymorph fodder and the purse cap (2026-10-30, shipped)
+
+Against its guides, Jace matched 3 of 30 adds, and the audit filed the cheap token
+makers under "no search for its kind". The serve was never the problem: Raise the
+Alarm, Loyal Apprentice and the rest emit `token_maker|you|<subject>` at mana value
+3 or less, which the "Polymorph fodder" serve admits. The avenue is a commander-held
+sub, 11 deep under a main floor of 20, and only mains share the theme adds
+(`Sourcing.theme_avenues`), so no tune ever asked its page.
+
+Three changes, each measured (`~/mtg/tuner-work/w37/`, `experiment.patch` holds the
+switches):
+
+1. **A polymorph commander's trim adds a cheap token spell**
+   (`Sourcing.fodder_trim_spec`): an instant or sorcery of mana value 2 or less
+   carrying `mass_token_makers`, with no X in its cost (CR 202.3e counts X as 0 off
+   the stack). Jace's -3 exiles "another target planeswalker or creature you
+   control" and Mass Polymorph exiles "all creatures you control", so a creature
+   token is a body for both; a token that leaves the battlefield ceases to exist (CR
+   111.7). The spell and mana-value line is this page's own decision, no rule's.
+   The trim's add used to be the cheat page, which spent about $68 of Jace's $111.70
+   on three Gods.
+2. **A fodder maker's job upgrade must make fodder too**, under a commander that
+   wants it. Occult Epiphany goes to Thopter Shop, Staff of the Storyteller to Dawn
+   of Hope; both activate for a creature token. Theme upgrades are untouched
+   ((s) 3a: the guides cut theme cards often).
+3. **The purse cap** (`swaps._PURSE_CAP`, every deck): past the even share, an
+   upgrade's add may take at most 0.6 of what is left. Change 1 freed the budget
+   and then lost it: Solphim at $29.03 of the $29.60 left ended the tune at 25
+   swaps. Change 3 is why the rest of this table holds, and it moves other decks
+   on its own, so it is a general budget rule, not a Jace one.
+
+| | swaps / cuts / adds | near-misses | consensus adds / cuts |
+|---|---|---|---|
+| the 25, base | 720 / 332 / 117 | 62 | 39 / 120 |
+| the 25, the cap alone | 732 / 334 / 119 | 64 | 38 / 121 |
+| the 25, all three | 732 / 335 / 121 | 63 | 38 / 122 |
+| held-out, base | 290 / 139 / 37 | 31 | 6 / 37 |
+| held-out, the cap alone or all three | 297 / 139 / 37 | 30 | 6 / 37 |
+
+| Jace | swaps / cuts / adds |
+|---|---|
+| base | 29 / 14 / 3 |
+| the cap alone | 30 / 14 / 2 (Nezahal lost) |
+| the cap, then the job-upgrade rule | 30 / 15 / 2 |
+| the cap, then the trim page | 30 / 14 / 4 (Raise the Alarm, Nezahal back) |
+| all three | 30 / 15 / 4 (Fact or Fiction cut as well) |
+| the trim page and the upgrade rule, no cap | 29 / 14 / 2 (Solphim's budget) |
+| the upgrade rule alone, no cap | 26 / 14 / 3 |
+| the lane's whole page for the trims, no cap, with the rule | 30 / 15 / 3 |
+| the lane sharing the theme adds as a sub, no trim page | 22 / 11 / 2 |
+| the lane sharing, with the trim page and the rule, cap or not | 30 / 15 / 3 (Archfiend lost) |
+
+Caps: 0.5 scored 736 / 336 / 123 on the 25 and lost a held-out add (Cavalry Charge's
+Black Market Connections); 0.75 scored 726 / 334 / 120, held-out 297 / 139 / 37. The
+choice of 0.6 was read off the held-out set as well, so that set is a little less
+clean as a gate on this one number.
+
+Against the bars: the 25's adds rise by four and cuts by three, held-out adds and
+cuts hold, Jace clears 4 adds. Elsewhere the cap gained Faerie Dreamthief and Consider
+(Fae Dominion, 21 to 25 swaps), Six (Graveyard Overdrive), Professional Face-Breaker
+and Legion Loyalty (Mardu Surge), Gamble (Quick Draw) and two Abzan Armor cuts for
+one, and it lost Ripples of Undeath and Burnished Hart (Death Toll). Consensus adds
+fell by one on the 25.
+
+Jace's adds beside the guide matches: Dragon Fodder, Krenko's Command, Frontline Rush
+(its first mode), Thopter Shop and Dawn of Hope. /rules-lawyer spot-check, on
+`rulings-lookup --card` and each card's text: all five make creature tokens, so each
+token is a legal target of Jace's -3 and counts for Mass Polymorph. Frontline Rush
+chooses one mode, so it makes no bodies when used as a pump. Thopter Shop ({2}{W},
+{T}) and Dawn of Hope ({3}{W}) pay per body. No card has a ruling against the read.
+
 ## What is left
 
 `docs/plans/backlog.md`, "What the polymorph tune and the 25-precon audit still

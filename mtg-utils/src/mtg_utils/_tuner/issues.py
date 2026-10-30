@@ -55,6 +55,27 @@ ROW_SEARCH: dict[str, dict] = {
 PROTECTION_SEARCH = {"preset_names": ("protects-board",)}
 WINCON_SEARCH = {"oracle": r"wins the game|an additional combat phase|deals damage"}
 
+#: A polymorph commander's trim page (:meth:`Sourcing.fodder_trim_spec`): a spell
+#: of mana value 2 or less making two or more creature tokens at once
+#: (``crosswalk.makes_creature_tokens_at_once``). Each token is a separate creature
+#: for Jace's -3 to exile; Mass Polymorph counts all of them. The spell-and-mana-value
+#: line is this page's own decision, no rule's.
+_CHEAP_FODDER_SERVE = Serve(
+    all_of=(
+        Serve(signal_idents=frozenset({"mass_token_makers|you|"})),
+        Serve(types=frozenset({"instant", "sorcery"})),
+        Serve(cmc_max=2),
+    )
+)
+
+
+def _fixed_cost(card: Mapping, **_kw: object) -> bool:
+    """Whether the card's cost has no X. A printed mana value counts X as 0 (CR
+    202.3e), so Secure the Wastes' {X}{W} reads as one mana and makes no bodies
+    at that price."""
+    return "{X}" not in (card.get("mana_cost") or "")
+
+
 #: The ``commander_keeps`` page: the cards that end the turn at instant speed
 #: (``end_the_turn|you|instant``), each then read against the commander
 #: (:func:`keep_search`).
@@ -367,6 +388,45 @@ class Sourcing:
             out.append(self._multiplier)
         return out
 
+    def fodder_spec(self) -> dict | None:
+        """The fodder avenue of a commander that wants it (``wants_fodder``, the
+        polymorph shape: ``lanes.mana_and_wipes._polymorph_fodder``), whatever its
+        tier; None under any other commander."""
+        for sig in self._signals:
+            if (
+                sig.key == "wants_fodder"
+                and (sig.key, sig.scope, sig.subject) in self._commander_idents
+                and (spec := avenue_spec_for(sig)) is not None
+            ):
+                return self.avenue(spec.label)
+        return None
+
+    def fodder_trim_spec(self) -> dict | None:
+        """Where a polymorph commander's trimmed slot goes: the cheap token spells
+        (:data:`_CHEAP_FODDER_SERVE`). The fodder lane is a sub, and only mains
+        share the theme adds (:meth:`theme_avenues`), so no tune ever asked its
+        page: its serve admits Raise the Alarm and Loyal Apprentice alike, and
+        "no search for its kind" was the page, not the read.
+
+        Measured on the 25 precons with the purse cap (``swaps._PURSE_CAP``;
+        2026-10-30; only Multiverse Reforged moves, from the cap's own 30 / 14 / 2):
+        this page 30 / 14 / 4 (Raise the Alarm, and the budget the Gods took keeps
+        Nezahal, Primal Tide). Without the cap 25 / 13 / 2: a $29 Solphim ends
+        the tune. The lane's whole page for the trims scored 30 / 15 / 3 with the
+        job-upgrade rule, since play-rate reaches Bastion of Remembrance, Adeline,
+        Marionette Apprentice and Ophiomancer first. Sharing the theme adds over the
+        lane as well, a sub joining the mains, won Loyal Apprentice or Raise the
+        Alarm and lost Archfiend of Depravity every time (30 / 15 / 3)."""
+        fodder = self.fodder_spec()
+        if fodder is None:
+            return None
+        return {
+            **fodder,
+            "cmc_max": 2,
+            "_serve": _CHEAP_FODDER_SERVE,
+            "_filter": _fixed_cost,
+        }
+
     def multiplier_avenue(self) -> tuple[str, int, dict] | None:
         """The other side of the commander's token output: the token doublers
         (``signal_specs._TOKEN_DOUBLER_EXTRA``, CR 614.1a — Doubling Season,
@@ -550,16 +610,17 @@ class Sourcing:
             # a polymorph piece, not a card for whichever direction is emerging),
             # else an under-supported emerging theme if any (commit while trimming),
             # else the main theme. The engine's full-role filter keeps it from
-            # re-filling the role being trimmed. A row that IS the commander's
-            # lane (``lane_row``: most of its members are cards a held avenue
-            # serves — Gimbal's rocks, Morska's Clues, Bello's animated rocks)
-            # is a fact to read, never a trim: no remedy, as for a Grant-covered
+            # re-filling the role being trimmed. Under a polymorph commander the
+            # add is a cheap token spell (:meth:`fodder_trim_spec`). A row that IS
+            # the commander's lane (``lane_row``: most of its members are cards a
+            # held avenue serves — Gimbal's rocks, Morska's Clues, Bello's animated
+            # rocks) is a fact to read, never a trim: no remedy, as for a Grant-covered
             # short row.
             if (self._budgets.get(role) or {}).get("lane_row"):
                 return None
-            spec: dict | None = None
+            spec = self.fodder_trim_spec()
             held = self._focus.get("commander_avenues") or []
-            if held:
+            if spec is None and held:
                 spec = self.avenue(held[0])
             if spec is None:
                 emerging = self._focus.get("emerging", [])

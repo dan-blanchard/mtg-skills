@@ -118,6 +118,18 @@ _THEME_TIE = 0.1
 #: on these cards only, and a pick rarely reaches past them.
 _THEME_TIE_WINDOW = 300
 
+#: The most of what is left of the budget one upgrade's add may take, past the
+#: even share (``find_add``): Multiverse Reforged's $29 Solphim for Skrelv's Hive,
+#: with $29.60 left and nine swaps open, ended its tune at 25 swaps. Measured on
+#: the 25 precons (2026-10-30, against 720 swaps / 332 guide cuts / 117 guide adds,
+#: held-out 290 / 139 / 37), alone: 732 / 334 / 119, held-out 297 / 139 / 37,
+#: Multiverse Reforged 30 / 14 / 2 (it lost Nezahal, which its fodder trims win
+#: back). With them: 0.5 736 / 336 / 123 but held-out adds 36 (Cavalry Charge's
+#: Black Market Connections); 0.6 732 / 335 / 121, held-out 297 / 139 / 37; 0.75
+#: 726 / 334 / 120, held-out 297 / 139 / 37. An Arena deck's even share is
+#: unbounded, so no wildcard add is past it.
+_PURSE_CAP = 0.6
+
 #: How close a later candidate's play-rate (log10 EDHREC rank, the job reads'
 #: unit) must be to the first pick's for the cheaper of them to be the add
 #: (``find_add``, :func:`_near_tie`): within a factor of two in rank. A near
@@ -967,6 +979,9 @@ def propose_swaps(
         emitters=ctx.emitters,
     )
     cut_focus = CutFocus.from_focus(ctx.focus_result)
+    # What a polymorph commander's fodder is (``find_add``'s job upgrades).
+    fodder = sourcing.fodder_spec()
+    fodder_serve = fodder["_serve"] if fodder else None
     # The deck's own avenue prominence, so the candidate ranker scores DEPTH in
     # the deck's real themes (a death payoff) over BREADTH across incidental lanes
     # (a token equipment that grazes ten). Without this the count rewards splashy
@@ -1399,7 +1414,17 @@ def propose_swaps(
         still open (``_Purse.share``). Past that share the budget binds: the
         next ``_CHEAPER_WINDOW`` candidates are weighed, and the first that fits
         the share is the add, else the cheapest near tie (:func:`_near_tie`), so
-        the budget reaches more issues.
+        the budget reaches more issues. An upgrade's add past the share takes at
+        most ``_PURSE_CAP`` of what is left.
+
+        Under a polymorph commander a job upgrade of a card that makes fodder
+        (``Sourcing.fodder_spec``'s serve) must make fodder too, or the card is
+        not a slot: Occult Epiphany's Spirits are bodies for Jace's -3 to exile.
+        Measured with the rest of the change (2026-10-30): Multiverse Reforged
+        30 / 15 / 4 against 30 / 14 / 4 (one guide cut, Fact or Fiction; Occult
+        Epiphany goes to Thopter Shop, Staff of the Storyteller to Dawn of Hope).
+        A theme upgrade is untouched: the guides cut theme cards often (backlog
+        (s), 3a).
         """
         ranked = _ranked_pool(
             spec,
@@ -1447,6 +1472,14 @@ def propose_swaps(
                 continue
             if not game_changers.allows(card):
                 continue  # ADR-0030: never propose an add past the bracket's ceiling
+            if (
+                job is not None
+                and upgrade_of is not None
+                and fodder_serve is not None
+                and fodder_serve.matches(upgrade_of.record)
+                and not fodder_serve.matches(card)
+            ):
+                continue  # the docstring: a maker's job upgrade makes fodder too
             if upgrade_of is not None and not _upgrades(
                 card,
                 upgrade_of,
@@ -1465,6 +1498,12 @@ def propose_swaps(
                 continue  # a trim's add keeps its cut's band
             cost = acquire_cost(card)
             if cost is None:
+                continue
+            if (
+                upgrade_of is not None
+                and cost > share
+                and cost > _PURSE_CAP * share * max(1, ctx.max_swaps - len(swaps))
+            ):
                 continue
             overshoot = role_of(card, deck_mana=ctx.deck_mana) & full_roles
             if upgrade_of is not None:
