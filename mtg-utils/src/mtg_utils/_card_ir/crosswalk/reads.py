@@ -10117,6 +10117,37 @@ def deals_its_own_power(node: TypedMirrorNode, unit: AbilityUnit | None = None) 
     return ref.kind == "batch"
 
 
+def is_bite(node: TypedMirrorNode, unit: AbilityUnit) -> bool:
+    """Whether a power-sized damage effect (:func:`iter_power_damage`) is a bite:
+    a creature of yours deals damage equal to its own power to another object
+    ("Target creature you control deals damage equal to its power to target
+    creature you don't control" — Bite Down, Rocky Rebuke, Sylvan Smite's "that
+    creature", Polliwallop's twice its power; Band Together's two biters; Abyssal
+    Hunter, the card itself). The dealer is the creature, not the spell (Bite
+    Down's ruling: "the creature you control won't deal damage"), so whatever
+    the dealer has — deathtouch above all (CR 702.2b) — applies to the damage.
+
+    Never a dealer an opponent controls (Mutiny), one dealing damage to itself
+    (Repentance, Solar Blaze: a ``ParentTarget`` recipient of the targeted
+    dealer), another object's power (Fling's cost, Dead Reckoning's card), nor a
+    triggering or batch dealer, whose side this read doesn't place. The caller
+    judges the recipient (a creature, not a player)."""
+    if tag_of(node) in POWER_DAMAGE_TAGS:
+        return filter_controller_side(getattr(node, "sources", None)) == "you"
+    if not deals_its_own_power(node, unit):
+        return False
+    qty = count_operand_qty(node, fields=("amount",))
+    ref = quantity_referent(qty, unit, holder=node)
+    if ref.kind == "self":
+        return True
+    if ref.kind != "target" or ref.effect is None:
+        return False
+    if tag_of(damage_recipient(node)) == "ParentTarget":
+        return False
+    dealer = getattr(ref.effect.node, "target", None)
+    return filter_controller_side(dealer) == "you"
+
+
 def free_own_target_activations(tree: ConceptTree) -> bool:
     """Whether the card has (or grants) an activated ability that costs {0} and
     targets a creature or permanent you control — a free, repeatable way to

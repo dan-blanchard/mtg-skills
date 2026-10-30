@@ -3,8 +3,9 @@
 The 25-precon audit (`precon-audit-2026-10-18.md`) compares the deterministic
 tuner (`deck-tune`) with published upgrade guides. This doc compares it with
 decks Dan tuned himself and played, where the verdicts are his own and settled.
-It records measurements only. No tuner code changed. A finding marked (a) below
-is a candidate fix for Dan to choose, not a decision.
+It records measurements. A finding marked (a) below is a candidate fix for Dan
+to choose, not a decision. One has shipped since: Fynn's bites count as
+deathtouch-lane members ("After the bite fix").
 
 Each disagreement gets one of three classes:
 
@@ -372,11 +373,55 @@ the deck still counts zero closers.
   crafting" even when one is set and mostly unspent (`swaps.py`, `allow_buys`
   keys only on the mode).
 
+### After the bite fix (2026-10-29)
+
+Fix 1 below shipped. A bite now carries its own ident,
+`damage_equal_power|you|bite` (`crosswalk.is_bite`: a creature of yours deals
+damage equal to its own power to another creature). A keyword lane on deathtouch
+counts it as a member, and counts every fight (`fight_makers|you|`) too
+(`signal_specs/core.py`, `_KEYWORD_LANE_IDENTS`). The rules behind it: a
+creature dealt damage by a source with deathtouch is destroyed (CR 702.2b,
+704.5h), and in a fight each creature deals damage equal to its power to the
+other (CR 701.14a). The bite's dealer is the creature, not the spell (Bite
+Down's and Rabid Bite's rulings: "the creature you control won't deal
+damage"). Repentance (the creature hits itself), Mutiny (an opponent's creature
+deals the damage), and Corpse Explosion and Dead Reckoning (the spell deals the
+damage) are not bites.
+
+Deathtouch matters went from 32 deep to 41 on v4. Interaction is still "over by 6
+(16/8-10)", but the row is now the lane's (`lane_row`). The issue reads "mostly
+the commander's own lane, not a trim" and is advisory, so nothing trims it.
+
+| run | before: swaps | after: swaps | after: cuts / adds matching v6 |
+|---|---|---|---|
+| v4, max-swaps 13 | 6, all bites or Warg Tactics for the interaction trim | 0 | 0 / 0 |
+| v4, max-swaps 30 | the same 6 | 0 | 0 / 0 |
+| v6, max-swaps 30 | 10: 8 interaction trims (four of them v6's own adds) and 2 fed-only cuts | 2: Allosaurus Shepherd → Kura, the Boundless Sky and Venerated Rotpriest → Sword of Feast and Famine (fed-only cuts, fix 4) | 0 / 0 |
+
+No bite is cut on any run, and no Wurmcoil Engine, Hornet Queen, Gift of the
+Viper or Cryptolith Fragment is added. With the trim gone, v4 has no cut pool
+left (no filler, no low-value or upgrade slots in a 1v1 game), so the tuner now
+leaves the deck alone. The two "matches" in the Score table were Tenderize and
+Warg Tactics trimmed as surplus interaction (right card, wrong reason), so losing
+them is the fix working.
+
+Side effect on v4: Infectious Bite drops out of `commander_lane_cards`. It is a
+bite now, so the poison lane's members are almost all Deathtouch matters
+members, and the poison lane folds into Deathtouch matters (`metrics.focus`,
+`same_members`). Its doers then stop counting as the lane's. Nothing on these
+runs cuts it (v6 keeps it as a doer, because Rotpriest keeps the poison lane
+apart). See the backlog.
+
+Both precon sets are unchanged. The 25 precons give 721 swaps, 330 guide cuts
+and 109 guide adds; the held-out ten give 297 / 139 / 34. `cmp.py` shows no
+difference against either `misses-r-guidefix.json`, because none of those
+commanders holds a deathtouch lane.
+
 ### Candidate fixes, for Dan to choose
 
-These are evidence only; no code changed.
+These are evidence only; no code changed, except fix 1 (above).
 
-1. **The bites aren't part of the deathtouch lane.** A "target creature you
+1. **Shipped 2026-10-29: the bites aren't part of the deathtouch lane.** A "target creature you
    control deals damage equal to its power" spell is removal only because the
    lane's bodies have deathtouch (CR 702.2b). If the lane counted them as members,
    `lane_row` would make the interaction row a fact to report rather than a trim.

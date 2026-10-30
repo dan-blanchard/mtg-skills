@@ -565,6 +565,37 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   Warrens' token clause 8 → 6 lanes); attributing an ident hit to the clause
   its signal came from belongs in the ranking module.
 
+**From the Fynn, the Fangbearer real-deck validation (2026-10-29; `real-deck-validation.md`)**
+
+- **Fynn's candidate fixes 2-6 are open.** These are: poison and toxic as closers;
+  a mana-value gate on a trim's add; the fed-only re-bucket exempting lane doers
+  (it cuts Venerated Rotpriest on v6); back-face and activated-grant deathtouch
+  read as bodies; and a `deck-tune --collection` flag. Fix 1 (the bites as
+  deathtouch-lane members) shipped. The doc's "Candidate fixes" section has the
+  evidence for each.
+- **A held lane that folds takes its doers with it.** Once the bites joined
+  Deathtouch matters, Fynn v4's poison lane ("Poison / infect": the members are
+  mostly the same cards) folded into it (`metrics.focus`, `same_members`). Its
+  doer, Infectious Bite, dropped out of `commander_lane_cards`, which is the cut
+  ranking's lane protection. No Fynn run cuts it, but a folded held lane could
+  keep its doers (union the doers over every held ident, folded or not).
+- **`damage_equal_power|you|creature` still carries cards that aren't bites.**
+  Repentance and Solar Blaze (a creature damages itself), Mutiny (an opponent's
+  creature deals the damage), and Corpse Explosion and Dead Reckoning (the spell
+  deals the damage) all serve the "Power-as-damage payoffs" page. Mage Slayer
+  reads as `creature` too, though it hits the player or planeswalker being
+  attacked. The new `bite` subject leaves all of these out. The page could read
+  `bite` where it means a creature's own power.
+- **`is_bite` skips triggering and batch dealers**, by construction:
+  "it deals damage equal to its power" off a trigger, or Moonlight Hunt's "each
+  creature you control". The read can't say whose creature those are, so they
+  aren't deathtouch-lane members.
+- **The deathtouch lane serves every fight, whoever fights.** `fight_makers`
+  doesn't record whose creatures fight. Dissension in the Ranks (two blocking
+  creatures) counts the same as Prey Upon.
+- **`_fight_makers` cites CR 701.12 for fight.** The 2026-09-25 rules number
+  fight 701.14a. 701.12a is exchange.
+
 **From the Omnath Competitive Brawl build (2026-10-04)**
 
 - **Phase gaps behind the closer, alternative-cost and mass-land-denial reads**

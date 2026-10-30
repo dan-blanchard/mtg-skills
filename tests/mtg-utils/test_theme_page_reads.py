@@ -222,6 +222,18 @@ def test_bodies_tokens_and_symmetry(name, ident, has):
     ("Fiery Emancipation", "damage_doubling|you|repeat", False),  # a doubler
     # a fight-shaped bite: damage equal to power to a creature (CR 208.1)
     ("Ambuscade", "damage_equal_power|you|creature", True),
+    # the bite: a creature of yours is the dealer, of its own power
+    # (crosswalk.is_bite), never itself or an opponent's creature
+    ("Ambuscade", "damage_equal_power|you|bite", True),
+    ("Sylvan Smite", "damage_equal_power|you|bite", True),
+    ("Polliwallop", "damage_equal_power|you|bite", True),  # twice its power
+    ("Band Together", "damage_equal_power|you|bite", True),
+    ("Abyssal Hunter", "damage_equal_power|you|bite", True),  # the card itself
+    ("Repentance", "damage_equal_power|you|bite", False),  # to itself
+    ("Solar Blaze", "damage_equal_power|you|bite", False),
+    ("Mutiny", "damage_equal_power|you|bite", False),  # an opponent's dealer
+    ("Corpse Explosion", "damage_equal_power|you|bite", False),  # the spell
+    ("Dead Reckoning", "damage_equal_power|you|bite", False),
     # a creature of yours entering burns or drains
     ("Impact Tremors", "creature_etb|you|punish", True),
     ("Trespasser's Curse", "creature_etb|you|punish", False),  # theirs entering

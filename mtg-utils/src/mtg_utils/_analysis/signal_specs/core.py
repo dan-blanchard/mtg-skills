@@ -307,6 +307,16 @@ _TYPED_SUBJECT_SPECS = {
     signal_keys.ANIMATE_MAKERS: _animate_subject_spec,
     signal_keys.LAND_TYPE_MATTERS: _land_type_subject_spec,
 }
+# The cards a keyword lane counts beyond its bodies, grants and payoffs, keyed by
+# the keyword: what the keyword turns into something else. A creature dealt
+# damage by a source with deathtouch is destroyed (CR 702.2b, 704.5h), so a
+# bite — your creature deals damage equal to its power to another
+# (``damage_equal_power|you|bite``) — and a fight, where each creature deals
+# damage equal to its power to the other (CR 701.14a), are the deathtouch
+# lane's removal (Fynn, the Fangbearer's ten bites, 2026-10-29).
+_KEYWORD_LANE_IDENTS: dict[str, frozenset[str]] = {
+    "deathtouch": frozenset({"damage_equal_power|you|bite", "fight_makers|you|"}),
+}
 # Subject keys whose "" subject is a VALUE, not subject-absence, so they dispatch
 # dynamic even when empty: type_changers' "the chosen type" (Xenograft), an
 # animation of "a permanent".
@@ -346,6 +356,7 @@ def _subject_spec(signal: Signal) -> SignalSpec:
                         f"aura_equip_kw_grant|you|{kw}",
                         f"keyword_grant_target|you|{kw}",
                         f"all_creatures_kw_grant|any|{kw}",
+                        *_KEYWORD_LANE_IDENTS.get(kw, ()),
                     }
                 ),
             ),

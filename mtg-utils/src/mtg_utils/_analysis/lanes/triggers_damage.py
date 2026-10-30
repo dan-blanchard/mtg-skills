@@ -62,6 +62,7 @@ from mtg_utils._card_ir.crosswalk import (
     filter_predicates,
     filter_subtypes,
     granted_next_spell_keyword,
+    is_bite,
     is_creature_cast_trigger_def,
     is_creature_etb_trigger_def,
     is_damage_reflect_trigger_def,
@@ -2598,6 +2599,12 @@ def _damage_equal_power(tree: ConceptTree) -> list[Signal]:
     its power, Band Together's two biters, Mega Flare's greatest power, Abyssal
     Hunter's tap-and-bite). The power-as-damage page reads both; the player half
     stays the subject-less ident.
+
+    Subject ``bite`` beside ``creature`` when the dealer is a creature of yours
+    dealing its own power (:func:`crosswalk.is_bite`) — not Repentance's
+    self-damage, Mutiny's opposing dealer or Corpse Explosion's spell. The
+    creature is the source, so its deathtouch makes the bite removal (CR
+    702.2b): a deathtouch lane's serve reads this subject.
     """
     found: dict[str, str] = {}
     for unit in tree.units:
@@ -2623,6 +2630,8 @@ def _damage_equal_power(tree: ConceptTree) -> list[Signal]:
                 or effect_reaches_player(node, unit.node)
             )
             found.setdefault("" if player else "creature", _site_raw(unit.node))
+            if not player and is_bite(node, unit):
+                found.setdefault("bite", _site_raw(unit.node))
         if (
             unit.origin == "replacement"
             and replacement_damage_mod(unit.node) == "SetToSourcePower"

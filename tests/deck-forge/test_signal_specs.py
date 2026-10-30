@@ -1317,6 +1317,35 @@ def test_subject_spec_serve_matches_subject_reference():
     assert serves(off, sig) is False
 
 
+@pytest.mark.parametrize(
+    ("name", "served"),
+    [
+        ("Ambush Viper", True),  # a printed-deathtouch body
+        ("Rocky Rebuke", True),  # a bite: your creature deals its power
+        ("Sylvan Smite", True),  # "that creature" after a counter
+        ("Band Together", True),  # two creatures of yours each bite
+        ("Prey Upon", True),  # a fight (CR 701.14a)
+        ("Meltstrider's Resolve", True),  # a fight Aura
+        ("Repentance", False),  # the creature hits itself
+        ("Mutiny", False),  # an opponent's creature is the dealer
+        ("Dead Reckoning", False),  # the spell deals a graveyard card's power
+        ("Fling", False),  # the spell deals a sacrificed creature's power
+    ],
+)
+def test_deathtouch_lane_serves_bites_and_fights(name, served):
+    """A creature dealt damage by a deathtouch source is destroyed (CR 702.2b),
+    so a bite or fight by a creature of yours is the deathtouch lane's removal:
+    Fynn's bites are lane members, not surplus interaction (2026-10-29)."""
+    sig = _sig_sub("keyword_tribe", "Deathtouch")
+    assert spec_for(sig).label == "Deathtouch matters"
+    assert serves(_card(name), sig) is served
+
+
+def test_only_the_deathtouch_lane_serves_bites():
+    """The bite is a deathtouch fact: a Flying lane leaves it out."""
+    assert serves(_card("Rocky Rebuke"), _sig_sub("keyword_tribe", "Flying")) is False
+
+
 def test_token_maker_subject_spec_and_generic_fallback():
     sub = spec_for(_sig_sub("token_maker", "Construct"))
     assert sub is not None

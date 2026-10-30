@@ -120447,6 +120447,173 @@
     "type_line": "Legendary Creature — Zombie Dwarf"
    }
   },
+  "Band Together": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Up to two target creatures you control each deal damage equal to their power to another target creature.",
+       "duration": null,
+       "effect": {
+        "recipient": {
+         "controller": null,
+         "properties": [
+          {
+           "type": "Another"
+          }
+         ],
+         "type": "Typed",
+         "type_filters": [
+          "Creature"
+         ]
+        },
+        "sources": {
+         "controller": "You",
+         "properties": [],
+         "type": "Typed",
+         "type_filters": [
+          "Creature"
+         ]
+        },
+        "type": "EachDealsDamageEqualToPower"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "multi_target": {
+        "max": {
+         "type": "Fixed",
+         "value": 2
+        },
+        "min": 0
+       },
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Instant"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Green"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pauper": "legal",
+      "paupercommander": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 2,
+      "shards": [
+       "Green"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "42c06c8c-4009-48fd-b5ad-b0397cb5a654",
+       "4d1d8aa1-d742-477c-819a-0113912d5011",
+       "500d4158-a29c-425e-a492-001061e5d286",
+       "7e35b793-1b2c-4194-8186-c907197ff89c",
+       "c454312c-ba0d-4b93-a3f5-e7764fcfbe20",
+       "d8e243d6-c888-410f-8de0-51761c925a59"
+      ]
+     },
+     "name": "Band Together",
+     "non_ability_text": null,
+     "oracle_text": "Up to two target creatures you control each deal damage equal to their power to another target creature.",
+     "power": null,
+     "printings": [
+      "CLB",
+      "CLU",
+      "HBG",
+      "J22",
+      "J25",
+      "RVR",
+      "WAR"
+     ],
+     "rarities": [
+      "common"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2019-05-03",
+       "text": "If one of the two target creatures you control is an illegal target as Band Together resolves, the other will still deal damage equal to its power."
+      },
+      {
+       "date": "2019-05-03",
+       "text": "If the last target creature is an illegal target as Band Together resolves, or if both of the first targets are illegal targets, no creature deals or is dealt damage."
+      }
+     ],
+     "scryfall_oracle_id": "a8631e87-bfc3-463b-bdd1-974ea1d79ae4",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 3.0,
+    "color_identity": [
+     "G"
+    ],
+    "colors": [
+     "G"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "legal",
+     "paupercommander": "legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}{G}",
+    "name": "Band Together",
+    "oracle_id": "a8631e87-bfc3-463b-bdd1-974ea1d79ae4",
+    "oracle_text": "Up to two target creatures you control each deal damage equal to their power to another target creature.",
+    "type_line": "Instant"
+   }
+  },
   "Bane, Lord of Darkness": {
    "phase_records": [
     {
@@ -311299,6 +311466,190 @@
     "power": "4",
     "toughness": "5",
     "type_line": "Creature — Sphinx"
+   }
+  },
+  "Dead Reckoning": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "You may put target creature card from your graveyard on top of your library. If you do, ~ deals damage equal to that card's power to target creature.",
+       "duration": null,
+       "effect": {
+        "count": {
+         "type": "Fixed",
+         "value": 1
+        },
+        "position": {
+         "type": "Top"
+        },
+        "target": {
+         "controller": "You",
+         "properties": [
+          {
+           "type": "InZone",
+           "zone": "Graveyard"
+          }
+         ],
+         "type": "Typed",
+         "type_filters": [
+          "Creature"
+         ]
+        },
+        "type": "PutAtLibraryPosition"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": true,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": {
+         "signal": "OptionalEffectPerformed",
+         "type": "EffectOutcome"
+        },
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "amount": {
+          "qty": {
+           "scope": {
+            "type": "Demonstrative"
+           },
+           "type": "Power"
+          },
+          "type": "Ref"
+         },
+         "target": {
+          "type": "ParentTarget"
+         },
+         "type": "DealDamage"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "sub_link": "SequentialSibling",
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Sorcery"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Black"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pauper": "legal",
+      "paupercommander": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "Black",
+       "Black"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "ad16a3b8-e99e-47ed-92ce-ef42310f9f46"
+      ]
+     },
+     "name": "Dead Reckoning",
+     "non_ability_text": null,
+     "oracle_text": "You may put target creature card from your graveyard on top of your library. If you do, Dead Reckoning deals damage equal to that card's power to target creature.",
+     "power": null,
+     "printings": [
+      "WWK"
+     ],
+     "rarities": [
+      "common"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2010-03-01",
+       "text": "Dead Reckoning deals damage equal to the power the creature card had while it was in your graveyard. This could matter if that card is something like Lord of Extinction or Tarmogoyf whose power is determined by a characteristic-defining ability that checks the contents of your graveyard."
+      },
+      {
+       "date": "2010-03-01",
+       "text": "If the targeted creature card is an illegal target as Dead Reckoning resolves (because it’s no longer in your graveyard, perhaps), you can’t choose to put it on top of your library. No damage will be dealt."
+      },
+      {
+       "date": "2010-03-01",
+       "text": "If the targeted creature is an illegal target as Dead Reckoning resolves (because it’s no longer on the battlefield, perhaps), you may still put the targeted creature card from your graveyard on top of your library. No damage will be dealt."
+      },
+      {
+       "date": "2010-03-01",
+       "text": "You must choose two targets as you cast Dead Reckoning: a creature card in your graveyard and a creature on the battlefield. If you can’t, then you can’t cast the spell."
+      }
+     ],
+     "scryfall_oracle_id": "2a4b77f0-81ac-48a6-961b-bd63e99f74cf",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 3.0,
+    "color_identity": [
+     "B"
+    ],
+    "colors": [
+     "B"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "legal",
+     "paupercommander": "legal",
+     "penny": "legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}{B}{B}",
+    "name": "Dead Reckoning",
+    "oracle_id": "2a4b77f0-81ac-48a6-961b-bd63e99f74cf",
+    "oracle_text": "You may put target creature card from your graveyard on top of your library. If you do, Dead Reckoning deals damage equal to that card's power to target creature.",
+    "type_line": "Sorcery"
    }
   },
   "Dead Weight": {
@@ -532555,6 +532906,179 @@
     "type_line": "Enchantment — Aura"
    }
   },
+  "Hard-Hitting Question": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "declares_chosen_group": 0,
+       "description": "Target creature you control deals damage equal to its power to target creature or planeswalker you don't control.",
+       "duration": null,
+       "effect": {
+        "target": {
+         "controller": "You",
+         "properties": [],
+         "type": "Typed",
+         "type_filters": [
+          "Creature"
+         ]
+        },
+        "type": "TargetOnly"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "amount": {
+          "qty": {
+           "scope": {
+            "type": "Target"
+           },
+           "type": "Power"
+          },
+          "type": "Ref"
+         },
+         "damage_source": "Target",
+         "target": {
+          "filters": [
+           {
+            "controller": "Opponent",
+            "properties": [],
+            "type": "Typed",
+            "type_filters": [
+             "Creature"
+            ]
+           },
+           {
+            "controller": "Opponent",
+            "properties": [],
+            "type": "Typed",
+            "type_filters": [
+             "Planeswalker"
+            ]
+           }
+          ],
+          "type": "Or"
+         },
+         "type": "DealDamage"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Sorcery"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Green"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "standard": "legal",
+      "standardbrawl": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 0,
+      "shards": [
+       "Green"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "8ad807c2-14a7-4464-bf57-c323fb3c0bd0"
+      ]
+     },
+     "name": "Hard-Hitting Question",
+     "non_ability_text": null,
+     "oracle_text": "Target creature you control deals damage equal to its power to target creature or planeswalker you don't control.",
+     "power": null,
+     "printings": [
+      "MKM"
+     ],
+     "rarities": [
+      "uncommon"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "05fdefb4-2be7-4d9a-9ab9-14bbbe72aef7",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 1.0,
+    "color_identity": [
+     "G"
+    ],
+    "colors": [
+     "G"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "legal",
+     "standardbrawl": "legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{G}",
+    "name": "Hard-Hitting Question",
+    "oracle_id": "05fdefb4-2be7-4d9a-9ab9-14bbbe72aef7",
+    "oracle_text": "Target creature you control deals damage equal to its power to target creature or planeswalker you don't control.",
+    "type_line": "Sorcery"
+   }
+  },
   "Hardened Scales": {
    "phase_records": [
     {
@@ -561131,6 +561655,231 @@
     "type_line": "Creature — Insect"
    }
   },
+  "Horrific Assault": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "declares_chosen_group": 0,
+       "description": "Target creature you control deals damage equal to its power to target creature or planeswalker you don't control. If you control an Eldrazi, you gain 3 life.",
+       "duration": null,
+       "effect": {
+        "target": {
+         "controller": "You",
+         "properties": [],
+         "type": "Typed",
+         "type_filters": [
+          "Creature"
+         ]
+        },
+        "type": "TargetOnly"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "amount": {
+          "qty": {
+           "scope": {
+            "type": "Target"
+           },
+           "type": "Power"
+          },
+          "type": "Ref"
+         },
+         "damage_source": "Target",
+         "target": {
+          "filters": [
+           {
+            "controller": "Opponent",
+            "properties": [],
+            "type": "Typed",
+            "type_filters": [
+             "Creature"
+            ]
+           },
+           {
+            "controller": "Opponent",
+            "properties": [],
+            "type": "Typed",
+            "type_filters": [
+             "Planeswalker"
+            ]
+           }
+          ],
+          "type": "Or"
+         },
+         "type": "DealDamage"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": {
+          "comparator": "GE",
+          "lhs": {
+           "qty": {
+            "filter": {
+             "controller": "You",
+             "properties": [
+              {
+               "type": "InZone",
+               "zone": "Battlefield"
+              }
+             ],
+             "type": "Typed",
+             "type_filters": [
+              {
+               "Subtype": "Eldrazi"
+              }
+             ]
+            },
+            "type": "ObjectCount"
+           },
+           "type": "Ref"
+          },
+          "rhs": {
+           "type": "Fixed",
+           "value": 1
+          },
+          "type": "QuantityCheck"
+         },
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "amount": {
+           "type": "Fixed",
+           "value": 3
+          },
+          "type": "GainLife"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": null,
+         "sub_link": "SequentialSibling",
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Sorcery"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Green"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pauper": "legal",
+      "paupercommander": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 0,
+      "shards": [
+       "Green"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "cfa6ed13-7bba-40c0-8e0e-4ffd3cea6241"
+      ]
+     },
+     "name": "Horrific Assault",
+     "non_ability_text": null,
+     "oracle_text": "Target creature you control deals damage equal to its power to target creature or planeswalker you don't control. If you control an Eldrazi, you gain 3 life.",
+     "power": null,
+     "printings": [
+      "MH3"
+     ],
+     "rarities": [
+      "common"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2024-06-07",
+       "text": "If either target is an illegal target as Horrific Assault tries to resolve, the creature you control won't deal damage. As long as either target is still legal and you control an Eldrazi, you'll still gain 3 life."
+      }
+     ],
+     "scryfall_oracle_id": "4c7e091e-e3c1-446d-a442-4aacb3cdd575",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 1.0,
+    "color_identity": [
+     "G"
+    ],
+    "colors": [
+     "G"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "legal",
+     "paupercommander": "legal",
+     "penny": "legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{G}",
+    "name": "Horrific Assault",
+    "oracle_id": "4c7e091e-e3c1-446d-a442-4aacb3cdd575",
+    "oracle_text": "Target creature you control deals damage equal to its power to target creature or planeswalker you don't control. If you control an Eldrazi, you gain 3 life.",
+    "type_line": "Sorcery"
+   }
+  },
   "Hostage Taker": {
    "phase_records": [
     {
@@ -577627,6 +578376,190 @@
     "power": "1",
     "toughness": "1",
     "type_line": "Creature — Rat"
+   }
+  },
+  "Infectious Bite": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "declares_chosen_group": 0,
+       "description": "Target creature you control deals damage equal to its power to target creature you don't control. Each opponent gets a poison counter.",
+       "duration": null,
+       "effect": {
+        "target": {
+         "controller": "You",
+         "properties": [],
+         "type": "Typed",
+         "type_filters": [
+          "Creature"
+         ]
+        },
+        "type": "TargetOnly"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "amount": {
+          "qty": {
+           "scope": {
+            "type": "Target"
+           },
+           "type": "Power"
+          },
+          "type": "Ref"
+         },
+         "damage_source": "Target",
+         "target": {
+          "controller": "Opponent",
+          "properties": [],
+          "type": "Typed",
+          "type_filters": [
+           "Creature"
+          ]
+         },
+         "type": "DealDamage"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "count": {
+           "type": "Fixed",
+           "value": 1
+          },
+          "counter_kind": "Poison",
+          "target": {
+           "type": "Controller"
+          },
+          "type": "GivePlayerCounter"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "player_scope": {
+          "type": "Opponent"
+         },
+         "sub_ability": null,
+         "sub_link": "SequentialSibling",
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Instant"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Green"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "Green"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "83dfb2a5-cd5c-46c6-9bb8-7c5d00f3e003"
+      ]
+     },
+     "name": "Infectious Bite",
+     "non_ability_text": null,
+     "oracle_text": "Target creature you control deals damage equal to its power to target creature you don't control. Each opponent gets a poison counter.",
+     "power": null,
+     "printings": [
+      "ONE"
+     ],
+     "rarities": [
+      "uncommon"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "7b740cd6-e07d-4273-8a7f-e084bdaf0f1c",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 2.0,
+    "color_identity": [
+     "G"
+    ],
+    "colors": [
+     "G"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}{G}",
+    "name": "Infectious Bite",
+    "oracle_id": "7b740cd6-e07d-4273-8a7f-e084bdaf0f1c",
+    "oracle_text": "Target creature you control deals damage equal to its power to target creature you don't control. Each opponent gets a poison counter.",
+    "type_line": "Instant"
    }
   },
   "Infectious Rage": {
@@ -620989,6 +621922,287 @@
     "power": "4",
     "toughness": "4",
     "type_line": "Artifact Creature — Turtle Warrior"
+   }
+  },
+  "Kappa Tech-Wrecker": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": {
+        "mana_cost": {
+         "generic": 1,
+         "shards": [
+          "Green"
+         ],
+         "type": "Cost"
+        },
+        "type": "NinjutsuFamily",
+        "variant": "Ninjutsu"
+       },
+       "description": null,
+       "duration": null,
+       "effect": {
+        "handler": "NinjutsuFamily",
+        "type": "RuntimeHandled"
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Turtle",
+       "Ninja"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Green"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [
+      {
+       "Ninjutsu": {
+        "generic": 1,
+        "shards": [
+         "Green"
+        ],
+        "type": "Cost"
+       }
+      }
+     ],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "Green"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "7339054a-f347-4396-bfb6-672db8a04be8",
+       "b9017ff4-d63f-4dd2-9157-c93fe4866bef",
+       "d3a7bc69-4500-4e7e-94e4-67b85597bd82"
+      ]
+     },
+     "name": "Kappa Tech-Wrecker",
+     "non_ability_text": null,
+     "oracle_text": "Ninjutsu {1}{G}\nThis creature enters with a deathtouch counter on it.\nWhenever this creature deals combat damage to a player, you may remove a deathtouch counter from it. When you do, exile target artifact or enchantment that player controls.",
+     "power": {
+      "type": "Fixed",
+      "value": 1
+     },
+     "printings": [
+      "NEO",
+      "PLST"
+     ],
+     "rarities": [
+      "uncommon"
+     ],
+     "replacements": [
+      {
+       "condition": null,
+       "description": "~ enters with a deathtouch counter on it.",
+       "destination_zone": "Battlefield",
+       "event": "Moved",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "counter_type": "deathtouch",
+         "target": {
+          "type": "SelfRef"
+         },
+         "type": "PutCounter"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": {
+        "type": "Mandatory"
+       },
+       "valid_card": {
+        "type": "SelfRef"
+       }
+      }
+     ],
+     "scryfall_oracle_id": "2bc92c16-cd1e-4c32-9102-4593d77a9a9f",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 3
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "CombatOnly",
+       "description": "Whenever ~ deals combat damage to a player, you may remove a deathtouch counter from it. When you do, exile target artifact or enchantment that player controls.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "counter_type": "deathtouch",
+         "target": {
+          "type": "SelfRef"
+         },
+         "type": "RemoveCounter"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": true,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": {
+          "type": "WhenYouDo"
+         },
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "destination": "Exile",
+          "enter_tapped": false,
+          "enter_transformed": false,
+          "enters_attacking": false,
+          "origin": null,
+          "owner_library": false,
+          "target": {
+           "filters": [
+            {
+             "controller": "TriggeringPlayer",
+             "properties": [],
+             "type": "Typed",
+             "type_filters": [
+              "Artifact"
+             ]
+            },
+            {
+             "controller": "TriggeringPlayer",
+             "properties": [],
+             "type": "Typed",
+             "type_filters": [
+              "Enchantment"
+             ]
+            }
+           ],
+           "type": "Or"
+          },
+          "type": "ChangeZone"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": null,
+         "sub_link": "SequentialSibling",
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "mode": "DamageDone",
+       "optional": true,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": null,
+       "valid_source": {
+        "type": "SelfRef"
+       },
+       "valid_target": {
+        "type": "Player"
+       }
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 2.0,
+    "color_identity": [
+     "G"
+    ],
+    "colors": [
+     "G"
+    ],
+    "keywords": [
+     "Ninjutsu"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}{G}",
+    "name": "Kappa Tech-Wrecker",
+    "oracle_id": "2bc92c16-cd1e-4c32-9102-4593d77a9a9f",
+    "oracle_text": "Ninjutsu {1}{G}\nThis creature enters with a deathtouch counter on it.\nWhenever this creature deals combat damage to a player, you may remove a deathtouch counter from it. When you do, exile target artifact or enchantment that player controls.",
+    "power": "1",
+    "toughness": "3",
+    "type_line": "Creature — Turtle Ninja"
    }
   },
   "Karador, Ghost Chieftain": {
@@ -715491,6 +716705,183 @@
     "type_line": "Creature — Human Shaman"
    }
   },
+  "Master's Rebuke": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "declares_chosen_group": 0,
+       "description": "Target creature you control deals damage equal to its power to target creature or planeswalker you don't control.",
+       "duration": null,
+       "effect": {
+        "target": {
+         "controller": "You",
+         "properties": [],
+         "type": "Typed",
+         "type_filters": [
+          "Creature"
+         ]
+        },
+        "type": "TargetOnly"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "amount": {
+          "qty": {
+           "scope": {
+            "type": "Target"
+           },
+           "type": "Power"
+          },
+          "type": "Ref"
+         },
+         "damage_source": "Target",
+         "target": {
+          "filters": [
+           {
+            "controller": "Opponent",
+            "properties": [],
+            "type": "Typed",
+            "type_filters": [
+             "Creature"
+            ]
+           },
+           {
+            "controller": "Opponent",
+            "properties": [],
+            "type": "Typed",
+            "type_filters": [
+             "Planeswalker"
+            ]
+           }
+          ],
+          "type": "Or"
+         },
+         "type": "DealDamage"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Instant"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Green"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pauper": "legal",
+      "paupercommander": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "Green"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "7d42ca7c-5b36-45a9-b235-4f90e66f4377",
+       "a9a93af9-1527-4b27-aa22-4c9317e9940e",
+       "db0fef06-aaf8-4476-a321-199a466f8400"
+      ]
+     },
+     "name": "Master's Rebuke",
+     "non_ability_text": null,
+     "oracle_text": "Target creature you control deals damage equal to its power to target creature or planeswalker you don't control.",
+     "power": null,
+     "printings": [
+      "J22",
+      "NEO",
+      "PLST"
+     ],
+     "rarities": [
+      "common"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "e68ff836-6e51-4c3a-91e5-f0d649297245",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 2.0,
+    "color_identity": [
+     "G"
+    ],
+    "colors": [
+     "G"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "legal",
+     "paupercommander": "legal",
+     "penny": "not_legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}{G}",
+    "name": "Master's Rebuke",
+    "oracle_id": "e68ff836-6e51-4c3a-91e5-f0d649297245",
+    "oracle_text": "Target creature you control deals damage equal to its power to target creature or planeswalker you don't control.",
+    "type_line": "Instant"
+   }
+  },
   "Masterpiece Vault": {
    "phase_records": [
     {
@@ -720461,6 +721852,247 @@
     "power": "2",
     "toughness": "4",
     "type_line": "Legendary Creature — Moonfolk Wizard"
+   }
+  },
+  "Meltstrider's Resolve": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Enchantment"
+      ],
+      "subtypes": [
+       "Aura"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Green"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [
+      {
+       "Enchant": {
+        "controller": "You",
+        "properties": [],
+        "type": "Typed",
+        "type_filters": [
+         "Creature"
+        ]
+       }
+      }
+     ],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "standard": "legal",
+      "standardbrawl": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 0,
+      "shards": [
+       "Green"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "53c08af4-b975-4d9d-baba-73e6727f2778"
+      ]
+     },
+     "name": "Meltstrider's Resolve",
+     "non_ability_text": null,
+     "oracle_text": "Enchant creature you control\nWhen this Aura enters, enchanted creature fights up to one target creature an opponent controls. (Each deals damage equal to its power to the other.)\nEnchanted creature gets +0/+2 and can't be blocked by more than one creature.",
+     "power": null,
+     "printings": [
+      "EOE"
+     ],
+     "rarities": [
+      "uncommon"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "6f9bc0c6-1792-4771-a839-95a22d9c699a",
+     "static_abilities": [
+      {
+       "active_zones": [],
+       "affected": {
+        "controller": null,
+        "properties": [
+         {
+          "type": "EnchantedBy"
+         }
+        ],
+        "type": "Typed",
+        "type_filters": [
+         "Creature"
+        ]
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": null,
+       "description": "Enchanted creature gets +0/+2 and can't be blocked by more than one creature.",
+       "effect_zone": null,
+       "mode": "Continuous",
+       "modifications": [
+        {
+         "type": "AddPower",
+         "value": 0
+        },
+        {
+         "type": "AddToughness",
+         "value": 2
+        }
+       ]
+      },
+      {
+       "active_zones": [],
+       "affected": {
+        "controller": null,
+        "properties": [
+         {
+          "type": "EnchantedBy"
+         }
+        ],
+        "type": "Typed",
+        "type_filters": [
+         "Creature"
+        ]
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": null,
+       "description": "Enchanted creature gets +0/+2 and can't be blocked by more than one creature.",
+       "effect_zone": null,
+       "mode": {
+        "CantBeBlockedByMoreThan": {
+         "max": 1
+        }
+       },
+       "modifications": []
+      }
+     ],
+     "toughness": null,
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "When ~ enters, enchanted creature fights up to one target creature an opponent controls.",
+       "destination": "Battlefield",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "subject": {
+          "controller": null,
+          "properties": [
+           {
+            "type": "EnchantedBy"
+           }
+          ],
+          "type": "Typed",
+          "type_filters": [
+           "Creature"
+          ]
+         },
+         "target": {
+          "controller": "Opponent",
+          "properties": [],
+          "type": "Typed",
+          "type_filters": [
+           "Creature"
+          ]
+         },
+         "type": "Fight"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "multi_target": {
+         "max": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "min": 0
+        },
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "ChangesZone",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 1.0,
+    "color_identity": [
+     "G"
+    ],
+    "colors": [
+     "G"
+    ],
+    "keywords": [
+     "Enchant",
+     "Fight"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "legal",
+     "standardbrawl": "legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{G}",
+    "name": "Meltstrider's Resolve",
+    "oracle_id": "6f9bc0c6-1792-4771-a839-95a22d9c699a",
+    "oracle_text": "Enchant creature you control\nWhen this Aura enters, enchanted creature fights up to one target creature an opponent controls. (Each deals damage equal to its power to the other.)\nEnchanted creature gets +0/+2 and can't be blocked by more than one creature.",
+    "type_line": "Enchantment — Aura"
    }
   },
   "Memnarch": {
@@ -758129,6 +759761,178 @@
     "name": "Mutilate",
     "oracle_id": "698e79ec-c2bc-4973-a095-f3c57b50e39c",
     "oracle_text": "All creatures get -1/-1 until end of turn for each Swamp you control.",
+    "type_line": "Sorcery"
+   }
+  },
+  "Mutiny": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "declares_chosen_group": 0,
+       "description": "Target creature an opponent controls deals damage equal to its power to another target creature that player controls.",
+       "duration": null,
+       "effect": {
+        "target": {
+         "controller": "Opponent",
+         "properties": [],
+         "type": "Typed",
+         "type_filters": [
+          "Creature"
+         ]
+        },
+        "type": "TargetOnly"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "amount": {
+          "qty": {
+           "scope": {
+            "type": "Target"
+           },
+           "type": "Power"
+          },
+          "type": "Ref"
+         },
+         "damage_source": "Target",
+         "target": {
+          "controller": "You",
+          "properties": [
+           {
+            "type": "Another"
+           }
+          ],
+          "type": "Typed",
+          "type_filters": [
+           "Creature"
+          ]
+         },
+         "type": "DealDamage"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Sorcery"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Red"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pauper": "legal",
+      "paupercommander": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 0,
+      "shards": [
+       "Red"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "010711a0-5e95-4a8c-816f-e314f2a909ef",
+       "ef5c5531-4bb6-404d-b0cf-a3733a375d45"
+      ]
+     },
+     "name": "Mutiny",
+     "non_ability_text": null,
+     "oracle_text": "Target creature an opponent controls deals damage equal to its power to another target creature that player controls.",
+     "power": null,
+     "printings": [
+      "PLST",
+      "RIX"
+     ],
+     "rarities": [
+      "common"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2018-01-19",
+       "text": "If either or both targets are illegal when Mutiny resolves, no creature will deal or be dealt damage."
+      }
+     ],
+     "scryfall_oracle_id": "647b4cb4-569d-4938-b56c-31a70e68ee41",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 1.0,
+    "color_identity": [
+     "R"
+    ],
+    "colors": [
+     "R"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "legal",
+     "paupercommander": "legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{R}",
+    "name": "Mutiny",
+    "oracle_id": "647b4cb4-569d-4938-b56c-31a70e68ee41",
+    "oracle_text": "Target creature an opponent controls deals damage equal to its power to another target creature that player controls.",
     "type_line": "Sorcery"
    }
   },
@@ -845458,6 +847262,192 @@
     "type_line": "Sorcery"
    }
   },
+  "Polliwallop": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "declares_chosen_group": 0,
+       "description": "Target creature you control deals damage equal to twice its power to target creature you don't control.",
+       "duration": null,
+       "effect": {
+        "target": {
+         "controller": "You",
+         "properties": [],
+         "type": "Typed",
+         "type_filters": [
+          "Creature"
+         ]
+        },
+        "type": "TargetOnly"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "amount": {
+          "factor": 2,
+          "inner": {
+           "qty": {
+            "scope": {
+             "type": "Target"
+            },
+            "type": "Power"
+           },
+           "type": "Ref"
+          },
+          "type": "Multiply"
+         },
+         "damage_source": "Target",
+         "target": {
+          "controller": "Opponent",
+          "properties": [],
+          "type": "Typed",
+          "type_filters": [
+           "Creature"
+          ]
+         },
+         "type": "DealDamage"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Instant"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Green"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [
+      {
+       "Affinity": {
+        "controller": null,
+        "properties": [],
+        "type_filters": [
+         {
+          "Subtype": "Frog"
+         }
+        ]
+       }
+      }
+     ],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pauper": "legal",
+      "paupercommander": "legal",
+      "pioneer": "legal",
+      "standard": "legal",
+      "standardbrawl": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 3,
+      "shards": [
+       "Green"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "6bc4963c-d90b-4588-bdb7-85956e42a623"
+      ]
+     },
+     "name": "Polliwallop",
+     "non_ability_text": null,
+     "oracle_text": "Affinity for Frogs (This spell costs {1} less to cast for each Frog you control.)\nTarget creature you control deals damage equal to twice its power to target creature you don't control.",
+     "power": null,
+     "printings": [
+      "BLB"
+     ],
+     "rarities": [
+      "common"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2024-07-26",
+       "text": "If either creature is an illegal target as Polliwallop resolves, the creature you control won't deal damage."
+      }
+     ],
+     "scryfall_oracle_id": "efd2a4ca-1bd0-4762-a997-f099326b1746",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 4.0,
+    "color_identity": [
+     "G"
+    ],
+    "colors": [
+     "G"
+    ],
+    "keywords": [
+     "Affinity"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "legal",
+     "paupercommander": "legal",
+     "penny": "not_legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "legal",
+     "standardbrawl": "legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{3}{G}",
+    "name": "Polliwallop",
+    "oracle_id": "efd2a4ca-1bd0-4762-a997-f099326b1746",
+    "oracle_text": "Affinity for Frogs (This spell costs {1} less to cast for each Frog you control.)\nTarget creature you control deals damage equal to twice its power to target creature you don't control.",
+    "type_line": "Instant"
+   }
+  },
   "Polluted Delta": {
    "phase_records": [
     {
@@ -895981,6 +897971,157 @@
     "type_line": "Sorcery"
    }
   },
+  "Repentance": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "declares_chosen_group": 0,
+       "description": "Target creature deals damage to itself equal to its power.",
+       "duration": null,
+       "effect": {
+        "target": {
+         "controller": null,
+         "properties": [],
+         "type": "Typed",
+         "type_filters": [
+          "Creature"
+         ]
+        },
+        "type": "TargetOnly"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "amount": {
+          "qty": {
+           "scope": {
+            "type": "Target"
+           },
+           "type": "Power"
+          },
+          "type": "Ref"
+         },
+         "damage_source": "Target",
+         "target": {
+          "type": "ParentTarget"
+         },
+         "type": "DealDamage"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Sorcery"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "White"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "premodern": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 2,
+      "shards": [
+       "White"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "3e28ac76-c671-4be1-bcfc-17f2d7bbe08f",
+       "7d02c74a-8bc7-4a4d-830b-e59a7aed5722"
+      ]
+     },
+     "name": "Repentance",
+     "non_ability_text": null,
+     "oracle_text": "Target creature deals damage to itself equal to its power.",
+     "power": null,
+     "printings": [
+      "TMP",
+      "TPR"
+     ],
+     "rarities": [
+      "uncommon"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "9a345a67-0c6c-4f6f-b3c9-d525199cdbfa",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 3.0,
+    "color_identity": [
+     "W"
+    ],
+    "colors": [
+     "W"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}{W}",
+    "name": "Repentance",
+    "oracle_id": "9a345a67-0c6c-4f6f-b3c9-d525199cdbfa",
+    "oracle_text": "Target creature deals damage to itself equal to its power.",
+    "type_line": "Sorcery"
+   }
+  },
   "Repercussion": {
    "phase_records": [
     {
@@ -911359,6 +913500,168 @@
     "power": "7",
     "toughness": "7",
     "type_line": "Legendary Creature — Rhino Mutant"
+   }
+  },
+  "Rocky Rebuke": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "declares_chosen_group": 0,
+       "description": "Target creature you control deals damage equal to its power to target creature an opponent controls.",
+       "duration": null,
+       "effect": {
+        "target": {
+         "controller": "You",
+         "properties": [],
+         "type": "Typed",
+         "type_filters": [
+          "Creature"
+         ]
+        },
+        "type": "TargetOnly"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "amount": {
+          "qty": {
+           "scope": {
+            "type": "Target"
+           },
+           "type": "Power"
+          },
+          "type": "Ref"
+         },
+         "damage_source": "Target",
+         "target": {
+          "controller": "Opponent",
+          "properties": [],
+          "type": "Typed",
+          "type_filters": [
+           "Creature"
+          ]
+         },
+         "type": "DealDamage"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Instant"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Green"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pauper": "legal",
+      "paupercommander": "legal",
+      "pioneer": "legal",
+      "standard": "legal",
+      "standardbrawl": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "Green"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "52fd910f-6d42-41f5-a4be-f375aa254ea2"
+      ]
+     },
+     "name": "Rocky Rebuke",
+     "non_ability_text": null,
+     "oracle_text": "Target creature you control deals damage equal to its power to target creature an opponent controls.",
+     "power": null,
+     "printings": [
+      "TLA"
+     ],
+     "rarities": [
+      "common"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "fd85db70-8616-42df-9dac-bad7923f88d7",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 2.0,
+    "color_identity": [
+     "G"
+    ],
+    "colors": [
+     "G"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "legal",
+     "paupercommander": "legal",
+     "penny": "not_legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "legal",
+     "standardbrawl": "legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}{G}",
+    "name": "Rocky Rebuke",
+    "oracle_id": "fd85db70-8616-42df-9dac-bad7923f88d7",
+    "oracle_text": "Target creature you control deals damage equal to its power to target creature an opponent controls.",
+    "type_line": "Instant"
    }
   },
   "Rogue Kavu": {
@@ -993687,6 +995990,141 @@
     "type_line": "Artifact"
    }
   },
+  "Solar Blaze": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Each creature deals damage to itself equal to its power.",
+       "duration": null,
+       "effect": {
+        "amount": {
+         "qty": {
+          "scope": {
+           "type": "Target"
+          },
+          "type": "Power"
+         },
+         "type": "Ref"
+        },
+        "damage_source": "Target",
+        "target": {
+         "type": "ParentTarget"
+        },
+        "type": "DealDamage"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Sorcery"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Red",
+      "White"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 2,
+      "shards": [
+       "Red",
+       "White"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "eb72ba0f-ab3a-41e6-906d-a84039efa0af"
+      ]
+     },
+     "name": "Solar Blaze",
+     "non_ability_text": null,
+     "oracle_text": "Each creature deals damage to itself equal to its power.",
+     "power": null,
+     "printings": [
+      "PWAR",
+      "WAR"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "424f3d53-47e7-4212-8267-53279ea8900a",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 4.0,
+    "color_identity": [
+     "R",
+     "W"
+    ],
+    "colors": [
+     "R",
+     "W"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}{R}{W}",
+    "name": "Solar Blaze",
+    "oracle_id": "424f3d53-47e7-4212-8267-53279ea8900a",
+    "oracle_text": "Each creature deals damage to itself equal to its power.",
+    "type_line": "Sorcery"
+   }
+  },
   "Solarium Sentry": {
    "phase_records": [
     {
@@ -1042359,6 +1044797,160 @@
     "oracle_id": "ee24bf27-484d-4e1c-998e-6a74e3d3f6c4",
     "oracle_text": "Search your library for a land card, reveal it, put it into your hand, then shuffle.",
     "type_line": "Sorcery"
+   }
+  },
+  "Sylvan Smite": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": {
+        "condition": {
+         "controller": "You",
+         "type": "WasStartingPlayer"
+        },
+        "type": "Not"
+       },
+       "cost": null,
+       "description": "Put a +1/+1 counter on target creature you control if you weren't the starting player. Then that creature deals damage equal to its power to target creature you don't control.",
+       "duration": null,
+       "effect": {
+        "count": {
+         "type": "Fixed",
+         "value": 1
+        },
+        "counter_type": "P1P1",
+        "target": {
+         "controller": "You",
+         "properties": [],
+         "type": "Typed",
+         "type_filters": [
+          "Creature"
+         ]
+        },
+        "type": "PutCounter"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "amount": {
+          "qty": {
+           "scope": {
+            "type": "Anaphoric"
+           },
+           "type": "Power"
+          },
+          "type": "Ref"
+         },
+         "damage_source": "Target",
+         "target": {
+          "controller": "Opponent",
+          "properties": [],
+          "type": "Typed",
+          "type_filters": [
+           "Creature"
+          ]
+         },
+         "type": "DealDamage"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "sub_link": "SequentialSibling",
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Instant"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Green"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "historic": "legal",
+      "timeless": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "Green"
+      ],
+      "type": "Cost"
+     },
+     "name": "Sylvan Smite",
+     "non_ability_text": null,
+     "oracle_text": "Put a +1/+1 counter on target creature you control if you weren't the starting player. Then that creature deals damage equal to its power to target creature you don't control.",
+     "power": null,
+     "printings": [
+      "YBRO"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "ebcd03ea-04b2-415f-a2d1-afe442e4d014",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 2.0,
+    "color_identity": [
+     "G"
+    ],
+    "colors": [
+     "G"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "not_legal",
+     "competitivebrawl": "legal",
+     "duel": "not_legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "not_legal",
+     "modern": "not_legal",
+     "oathbreaker": "not_legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "not_legal"
+    },
+    "mana_cost": "{1}{G}",
+    "name": "Sylvan Smite",
+    "oracle_id": "ebcd03ea-04b2-415f-a2d1-afe442e4d014",
+    "oracle_text": "Put a +1/+1 counter on target creature you control if you weren't the starting player. Then that creature deals damage equal to its power to target creature you don't control.",
+    "type_line": "Instant"
    }
   },
   "Sylvia Brightspear": {
