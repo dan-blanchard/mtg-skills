@@ -1917,3 +1917,22 @@ cuts rise by one on the 25, and Jace is unchanged.
   Energy's Fellwar Stone for Conversion Apparatus). Near-misses are reported,
   not a gate.
 
+## A polymorph's flip targets and the mana-value band (2026-10-30, rejected)
+
+Under a commander that `wants_fodder`, a creature or planeswalker card its
+`cheat_into_play` reveals for skipped the upgrade's mana-value band
+(`over_band`): Jace, Multiverse Architect's -3 reveals "until you reveal a
+creature or planeswalker card" and puts it onto the battlefield, so the card's
+mana cost is never paid (CR 601.2f-h: a spell's total cost is determined and
+paid as it is cast). The patch is `~/mtg/tuner-work/w26/flip-band.patch`.
+Jace's deck is the only polymorph deck in either set, so only it moves. The
+bar needs Jace at 4 adds or more for the 25's adds to rise.
+
+Measured on top of the token doublers and the dropped fit floor
+(`~/mtg/tuner-work/w36/`): Jace 30 / 14 / 2 against 29 / 14 / 3, the 25 719 /
+333 / 117 against 718 / 333 / 118. It fails, as it did before the bump. The
+band's room went to the big creatures play-rate ranks first (Grave Titan,
+Artisan of Kozilek, Scourge of the Throne, Gisela, Blade of Goldnight,
+Combustible Gearhulk), and Nezahal, Primal Tide, a guide add, was outranked
+on its page. Archfiend of Depravity and Swiftfoot Boots stayed.
+

@@ -227,6 +227,20 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   116 held to one lane per deck but held-out 34. Found on the way, not fixed:
   phase reads Parallel Lives as doubling every token (it doubles creature tokens
   only), so `crosswalk.token_doubler_kinds` can't keep it from a Clue commander.
+  (v) **A polymorph's flip targets skip the mana-value band — don't
+  re-suggest without a new order** (2026-10-30; patch
+  `~/mtg/tuner-work/w26/flip-band.patch`, runs in `~/mtg/tuner-work/w36/`).
+  Under a commander that `wants_fodder`, a creature or planeswalker card its
+  `cheat_into_play` reveals for (Jace, Multiverse Architect's -3) skipped
+  `over_band`: the commander puts it onto the battlefield, so its mana cost is
+  never paid (CR 601.2f-h pay a spell's cost as it is cast). Jace is the only
+  polymorph deck, so the 25 move only through Jace. Before the phase v0.118.0
+  bump it lost Nezahal, Primal Tide (Jace adds 3 → 2). Re-tested on top of the
+  token doublers and the dropped fit floor, it lost Nezahal again: Jace 30 / 14
+  / 2 against 29 / 14 / 3, the 25 719 / 333 / 117 against 718 / 333 / 118.
+  Play-rate fills the opened slots with the big creatures the band held back
+  (Grave Titan, Artisan of Kozilek, Scourge of the Throne, Gisela, Blade of
+  Goldnight, Combustible Gearhulk), and Nezahal is outranked on its page.
   (m) **Recall** (`precon-audit/misses.py`, at the largest guide's thirty
   swaps and each precon's own guides' budget, `budgets.json`, Spellbook cached):
   333 of 505 cuttable guide cuts, 118 of 793 in-scope guide adds, 718 swaps;
