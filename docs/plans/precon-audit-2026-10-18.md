@@ -1416,7 +1416,14 @@ uv run python ../docs/plans/precon-audit/guide_sizes.py ROOT  # writes ROOT/budg
 uv run deck-tune deck.json --max-swaps 30 --budget <budgets.json[Name]> --output tune.json
 # compare: decks/<Name>/tune.json beside precon-audit/<Name>.md
 python3 -I docs/plans/precon-audit/compare.py
+# recall: the misses run, then its scoreboard ("The scoreboard" below)
+uv run python ../docs/plans/precon-audit/misses.py ROOT              # writes ROOT/misses.json
+uv run python ../docs/plans/precon-audit/scoreboard.py ROOT/misses.json ROOT --json board.json
+uv run python ../docs/plans/precon-audit/scoreboard.py ROOT/misses.json ROOT --diff OLD-board.json --pairs
 ```
+
+The scoreboard is post-processing: it reads the run's JSON and the card data
+(run it under the cache the run used) and never tunes, so it takes seconds.
 
 The tunes (and `misses.py`'s six workers) can start in parallel with no warm-up
 step. An edit to a lane or a preset stales the signals index beside the bulk; the
@@ -1472,3 +1479,83 @@ $221 → $587). New baseline, same code (main 9e049c66 + the fix):
 | the 25 (before the fix) | 713 | 271 of 408 | 88 of 610 |
 | the 25 | 721 | 330 of 505 | 109 of 793 |
 | held-out 10 | 297 | 139 of 216 | 34 of 407 |
+
+## The scoreboard (2026-10-30)
+
+`precon-audit/scoreboard.py MISSES ROOT` reads a `misses.py` run and prints the
+whole scoreboard: swaps, guide cuts and adds matched (as before), and two numbers
+that are reported, not gated.
+
+**Near-misses** are tuner adds no guide names that stand in for a guide add the
+tuner missed in the same deck. Each missed guide add pairs with at most one tuner
+add (a maximum matching), and a tuner add first printed after the precon's
+newest guide date (its Sources section, updates included) is left out, since no
+guide could name it (37 such adds on the 25, 12 on the held-out ten). A pair
+holds when:
+
+- **Job:** both cards do the same template job by the tuner's own read
+  (`upgrade_job(role_of(card, deck_mana=...))`), the same subtype of it, and,
+  when both carry non-generic signal idents, they share one. The subtype is the
+  kind of card (instant or sorcery, creature, planeswalker, other permanent)
+  plus what the job reads report: a removal answer's mode and reach (exile,
+  destroy, edict, damage, bounce; creatures, noncreatures, both), a wipe's
+  shape (creatures, bounce, too small to kill all, one-sided, sparing a class,
+  repeating), ramp's kind (lands put onto the battlefield, extra land drops, a
+  mana creature, a rock, another permanent's mana, one-shot), a draw card's
+  kind (wheel, engine by what fires it, one-shot), protection's cover and
+  grant.
+- **Theme:** neither does a job, and the two share a strongest deck signal and
+  one more non-generic ident. A card's strongest deck signals are those of its
+  non-generic idents (w27's generic list, plus any ident more than 5% of the
+  pool carries, like `graveyard_matters|you|`) that at least three of the
+  deck's nonland cards carry, ranked by how far the deck carries them above
+  their base rate in the pool.
+
+The definition was checked by the rules. In each round, 20 pairs (10 job, 10
+theme) were drawn at random and each was judged with `rulings-lookup --card`
+and `rules-lookup --rule` (CR 2026-09-25): does the add do what the guide card
+does in that deck?
+
+| definition | near-misses, the 25 | pairs that hold |
+|---|---|---|
+| as first specified: job alone; theme = the guide card's ident the most deck cards carry (`--loose`) | 329 | 5 of 20 (job 2, theme 3) |
+| plus the job subtype, card kind included; theme signals by lift, on both cards, no ident on 5%+ of the pool | 104 | 10 of 20 (job 4, theme 6) |
+| final: plus a shared ident for job pairs, two for theme pairs; land fetch vs extra land drop | 71 | 13 of 20 (job 7, theme 6) |
+
+The loose rule paired 54% of the unmatched adds, in line with w27's finding.
+Its failures were mostly different effects under one job: Fellwar Stone for
+Birgi (Birgi's mana comes from a cast trigger, not a mana ability, CR 605.1b,
+so it pays only for spells cast), Whispersilk Cloak for Alseid of Life's Bounty
+in an Aura deck (shroud, CR 702.18a, also stops the deck's own Aura spells,
+which target, CR 303.4a), Swords to Plowshares for Portal to Phyrexia (exile
+one, CR 406.1, against an edict of three, CR 701.21a). The seven final-rule
+failures: Cultivate for Scapeshift (Scapeshift sacrifices the lands it
+replaces, CR 701.21a, so it adds none), Wave Goodbye for Raise the Palisade
+(the Faerie deck carries no +1/+1 counters, so Wave Goodbye returns its own
+creatures; Palisade spares the chosen type), Flusterstorm for Fierce
+Guardianship (a soft counter of instants and sorceries against a hard counter
+of any noncreature spell, CR 701.6a), Reality Acid for Chronozoa (both vanishing,
+CR 702.63a; one removal, one a body), Virulent Sliver for Dormant Sliver
+(poisonous, CR 702.70a, needs combat damage, which Dormant's defender, CR
+702.3b, stops), Gray Merchant for MacCready and Eldrazi Mimic for Conduit of
+Ruin (a shared trigger or condition, different effects). The theme half is
+the weaker one: its pairs share a deck signal, which can be a condition rather
+than an effect. Read near-misses as a trend between runs, not a count of right
+cards. The judged pairs are in `~/mtg/tuner-work/w28/judgments.md`.
+
+**Consensus** is the guide cards two or more of a precon's guides name (the
+rows' "Source #"): how many of the in-scope ones the tuner added and of the
+cuttable ones it cut.
+
+Baseline, same runs as the guide-row fix (`misses-r-guidefix.json`):
+
+| set | swaps | guide cuts | guide adds | near-misses (job / theme) | consensus adds | consensus cuts |
+|---|---|---|---|---|---|---|
+| the 25 | 721 | 330 of 505 | 109 of 793 | 71 (34 / 37) | 39 of 137 | 122 of 169 |
+| held-out 10 | 297 | 139 of 216 | 34 of 407 | 29 (13 / 16) | 6 of 52 | 37 of 53 |
+| Multiverse Reforged (Jace, a gate deck) | 29 | 14 of 22 | 3 of 30 | 2 (1 / 1) | 0 of 2 | 7 of 10 |
+
+`--loose` gives 329 (208 / 121) near-misses on the 25, 162 (101 / 61) on the
+held-out ten and 18 (10 / 8) on Jace. The tuner matches consensus adds at 28%
+on the 25 against 14% for all in-scope adds, and consensus cuts at 72% against
+65%; on the held-out ten consensus adds are 12%, against 8%.

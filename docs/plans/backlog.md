@@ -147,8 +147,14 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   (m) **Recall** (`precon-audit/misses.py`, at the largest guide's thirty
   swaps and each precon's own guides' budget, `budgets.json`, Spellbook cached):
   330 of 505 cuttable guide cuts, 109 of 793 in-scope guide adds, 721 swaps;
-  held-out 139 of 216 / 34 of 407, 297 swaps (2026-10-29, after the guide-row
-  fix: 108 rows that joined cards with commas or misspelled them now name real
+  held-out 139 of 216 / 34 of 407, 297 swaps. The scoreboard
+  (`precon-audit/scoreboard.py`, the audit's "The scoreboard", 2026-10-30) adds
+  two reported numbers, not gates: near-misses (a tuner add standing in for a
+  missed guide add by job subtype or shared deck signal; 13 of 20 sampled pairs
+  held up by the rules) 71 on the 25, 29 held-out, 2 on Jace; consensus guide
+  cards (named by 2+ guides) matched, adds 39 of 137 / cuts 122 of 169 on the
+  25, 6 of 52 / 37 of 53 held-out, Jace 0 of 2 / 7 of 10. (The baseline is
+  from 2026-10-29, after the guide-row fix: 108 rows that joined cards with commas or misspelled them now name real
   cards, and the audit scripts no longer split "Dusk // Dawn" at its second
   slash; the larger add counts raise 14 precons' budgets. Before it, on the old
   rows: 271 of 408 cuttable guide cuts, 88 of 610 in-scope guide adds,
@@ -162,7 +168,7 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   fourth and fifth (o) passes; 252 / 75, 669 swaps before the third (o) pass;
   199 / 67, 562 swaps before the cut pool; 197 / 66, 560 swaps at the even share;
   195 / 59, 543 swaps before it; 180 / 57 before the near-tie budget rule, 169 / 56
-  at 9e0026ed). The levers by size now: adds a page held but outranked
+  at 9e0026ed.) The levers by size now: adds a page held but outranked
   (235, from 251 by the full-job move; no read separates the rest), theme adds no search reaches (164, (r)), guide cuts in a cut pool
   the tune never reaches (50: seventeen tunes reach thirty swaps, six
   end on their budget, two on their cut pool — Blood Rites, its lane all Vampires,
