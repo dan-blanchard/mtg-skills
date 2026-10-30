@@ -13,8 +13,8 @@ effect at the overload cost (``crosswalk.overload_sweep``, the lanes' own read).
 A sweep of only your own permanents, or of your own cards (Glimpse of
 Tomorrow), is not one; nor is "and all other permanents with the same name"
 trailing a targeted kill (Maelstrom Pulse); nor an exile the same ability
-returns to the battlefield (Planar Guide, Sudden Disappearance, Golden Argosy:
-the shared tree's blink return); nor one on a transform back face (Jin-Gitaxias's
+returns to the battlefield (Planar Guide, Sudden Disappearance: the shared
+tree's blink return); nor one on a transform back face (Jin-Gitaxias's
 Great Synthesis). A spree mode costs its own additional cost (Final Showdown), and an
 enters trigger the X paid to cast its permanent (The Meathook Massacre). A clean
 sweep is one the card is cast or activated for, never one an event fires
@@ -39,7 +39,7 @@ chains (Massacre Girl, CR 603.7a); a choice the sweep's filter never reads limit
 it (Harsh Mercy, Sudden Demise, Void); a draw "each player who controls" a
 creature gets is no rider for the caster (Shatter the Sky, Depopulate); and the
 clauses phase drops whole are read by name (``_CLAUSE_DROPPED``: Extinction,
-Swarmyard Massacre, Do or Die), each retired by its canary. An X the card
+Do or Die), each retired by its canary. An X the card
 defines (CR 107.3) scales when the deck fills what it counts (Mutilate's Swamps,
 Terror Tide's permanent cards in your graveyard) and is narrow when the count
 is bounded (Deluge of Doom's card types, Essence Pulse's life gained,
@@ -282,7 +282,6 @@ _CARD_MANA = 1.0
 #: limit.
 _CLAUSE_DROPPED: dict[str, str] = {
     "Extinction": "narrow",
-    "Swarmyard Massacre": "spares",
     "Do or Die": "pile",
 }
 
@@ -724,8 +723,7 @@ def _tree_sweeps(tree: ConceptTree, *, walker: bool) -> list[_Sweep]:
                 continue
             # An exile the unit returns to the battlefield is a flicker, never a
             # wipe: the shared tree's blink return (``ConceptNode.returns_to``)
-            # marks it (Golden Argosy, whose "each creature that crewed it"
-            # phase reads as every creature).
+            # marks it (Planar Guide).
             if c.returns_to == "battlefield":
                 continue
             tag = tag_of(c.node)

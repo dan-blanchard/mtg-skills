@@ -428,14 +428,14 @@ def _clause_text(tree: ConceptTree, unit: AbilityUnit, node: object) -> str:
 # "X doesn't untap during …" (CR 502.3: effects can keep a permanent from
 # untapping). Phase stamps ``affected: SelfRef`` on every such static; the
 # subject before "doesn't untap" says whose it is. "~" (or "~ enters tapped and")
-# is the card; any other subject — "that creature" (Mesmerizing Benthid's token,
-# Code of Constraint), "each land with an activated ability" (Tsabo's Web),
-# "enchanted creature … it" (Stunning Strike) — is another object. A def with no
-# subject ("doesn't untap during its controller's next untap step") is the
-# object an earlier clause of its unit chose (Scion of Stygia, Wall of Stolen
-# Identity, Telekinesis, Triton Tactics) unless the unit names no object but the
-# card (Apes of Rath's "whenever ~ attacks, it doesn't untap"); "your untap
-# step" is always the card's own drawback (the depletion lands).
+# is the card; any other subject — "that creature" (Mesmerizing Benthid's token),
+# "each land with an activated ability" (Tsabo's Web), "enchanted creature … it"
+# (Stunning Strike) — is another object. A def with no subject ("doesn't untap
+# during its controller's next untap step") is the object an earlier clause of
+# its unit chose (Wall of Stolen Identity, Telekinesis, Triton Tactics) unless
+# the unit names no object but the card (Apes of Rath's "whenever ~ attacks, it
+# doesn't untap"); "your untap step" is always the card's own drawback (the
+# depletion lands).
 _UNTAP_SUBJECT = re.compile(r"^(.*?)\s*\bdoesn't untap\b")
 _SELF_SUBJECT = re.compile(r"(?:^|,\s*)~(?: enters tapped and)?$")
 _OBJECT_TARGET_TAGS = frozenset({"Typed", "Or", "And", "Any", "ParentTarget"})
@@ -474,8 +474,7 @@ def _arm_cant_untap_object(
     return out
 
 
-# "Tap target creature that player controls" (Delirium), "tap up to five target
-# permanents that player controls" (Yosei, the Morning Star), "tap all lands that
+# "Tap target creature that player controls" (Delirium), "tap all lands that
 # player controls" (Mana Web, Nature's Will): phase stamps the tapped filter
 # ``controller: You``, the same stamp as "tap any number of untapped creatures you
 # control" (Jaddi Lifestrider). "That player" is the player an earlier clause
@@ -610,14 +609,13 @@ def _arm_player_counter_kind(
 # "Tap up to one target creature an opponent controls and put a stun counter on
 # it" (Stunning Shot), "When you do, tap target creature an opponent controls"
 # (Snaremaster Sprite), "If the gift was promised, tap target creature …" (Mind
-# Spiral), "tap up to that many target creatures" (Seasoned Cryomancer): the
-# clause picks its own target (CR 115.1), but phase stamps the ``SetTapState``
-# ``target: ParentTarget`` — the bare back-reference a "tap it" carries, with the
-# filter lost. The clause read is the tap's own wrapper description only, never
-# the unit's or the card's, so a later "tap it" never borrows an earlier
-# sentence's target. The decoration is the seam's ``TARGET_OBJECT`` subject mark
-# — the mark a recovered "tap target creature" carries — which the tapper lane
-# reads.
+# Spiral): the clause picks its own target (CR 115.1), but phase stamps the
+# ``SetTapState`` ``target: ParentTarget`` — the bare back-reference a "tap it"
+# carries, with the filter lost. The clause read is the tap's own wrapper
+# description only, never the unit's or the card's, so a later "tap it" never
+# borrows an earlier sentence's target. The decoration is the seam's
+# ``TARGET_OBJECT`` subject mark — the mark a recovered "tap target creature"
+# carries — which the tapper lane reads.
 _FRESH_TAP_TARGET = re.compile(
     r"(?:^|, )tap (?:up to (?:\w+|that many) )?(?:other )?target\b"
 )
@@ -647,8 +645,8 @@ _FIELD_ARMS = (
 # ── effect decorations: a wrong field on an effect's own ConceptNode ──────────
 
 
-# "Until your next turn, whenever a creature an opponent controls attacks, it
-# gets -1/-0" (Jace, Architect of Thought): phase stamps the delayed trigger's
+# "it gets -N/-0" in a delayed trigger or a spell's own chain (Blood Lust,
+# Six-Sided Die): phase stamps the delayed trigger's
 # pump ``target: SelfRef``; the arm reads "it" as the creature the delayed
 # trigger watched (a ``Typed`` watched object, never the card). An instant's or
 # sorcery's ``SelfRef`` pump is an object an earlier clause chose (Blood Lust's

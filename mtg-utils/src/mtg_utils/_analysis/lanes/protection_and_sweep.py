@@ -55,6 +55,7 @@ from mtg_utils._card_ir.crosswalk import (
     filter_subtypes,
     free_own_target_activations,
     has_filter_property,
+    is_flip_coin,
     iter_cost_leaves,
     iter_mod_sites,
     iter_typed_nodes,
@@ -1030,10 +1031,10 @@ def _flip_self(tree: ConceptTree) -> list[Signal]:
     fallback arm (nothing emits it at the current pin; it self-retires if a
     future corpus regen proves it dead). Gate: a coin-flip card's "flip
     again" was the residue read's collision (Game of Chaos) — a card
-    carrying a ``FlipCoin`` node is coin-flip recursion, not a
+    carrying a ``FlipCoins`` node is coin-flip recursion, not a
     creature-flip, and is excluded (CR 705). Scope "you", HIGH.
     """
-    if any(tag_of(n) == "FlipCoin" for n in tree.iter_typed()):
+    if any(is_flip_coin(n) for n in tree.iter_typed()):
         return []
     for n in tree.iter_typed():
         if tag_of(n) == "FlipPermanent" or residue_is(n, "flip"):

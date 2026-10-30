@@ -28,6 +28,7 @@ from mtg_utils._analysis.tree_synthesis import (
 from mtg_utils._analysis.tree_synthesis.combat import ATTACK_TRIGGER_KEYWORDS
 from mtg_utils._card_ir.crosswalk import (
     LIBRARY_EXILE_TAGS,
+    TARGETED_PLAYER_TAGS,
     AbilityUnit,
     ConceptNode,
     ConceptTree,
@@ -64,6 +65,7 @@ from mtg_utils._card_ir.crosswalk import (
     graveyard_exile_kind,
     graveyard_exile_replacement_side,
     has_nested_flip_coin,
+    is_flip_coin,
     is_own_drawback,
     iter_condition_sites,
     iter_cost_leaves,
@@ -96,6 +98,7 @@ from mtg_utils._card_ir.crosswalk import (
 from mtg_utils._card_ir.mirror.runtime import (
     TypedMirrorNode,
 )
+from mtg_utils._card_ir.recovery import done_by_another
 from mtg_utils._card_ir.text_idioms import _CAST_FROM_EXILE_P
 
 _RING_BEARER_REF = re.compile(r"\bring-bearer\b", re.IGNORECASE)
@@ -241,7 +244,7 @@ def _phasing_makers(tree: ConceptTree) -> list[Signal]:
 
     ADR-0038 deferral sweep unit 2: a coin-flip MODAL branch (Frenetic
     Efreet: "Flip a coin. If you win the flip, ~ phases out.") carries its
-    PhaseOut effect NESTED inside the ``FlipCoin`` node's own ``win_effect``/
+    PhaseOut effect NESTED inside the ``FlipCoins`` node's own ``win_effect``/
     ``lose_effect`` sub-ability — never a top-level unit effect, so
     ``tree.effect_concepts`` (a per-unit walk) never reaches it.
     :func:`iter_typed_nodes`'s generic deep walk does (the same descent
@@ -254,7 +257,7 @@ def _phasing_makers(tree: ConceptTree) -> list[Signal]:
         if unit.origin == "trigger" and unit.trigger_event in ("phaseout", "phasein"):
             return [Signal("phasing_makers", "you", "", "", tree.name, "high")]
         for c in unit.iter_concepts():
-            if c.role != "effect" or tag_of(c.node) != "FlipCoin":
+            if c.role != "effect" or not is_flip_coin(c.node):
                 continue
             for n in iter_typed_nodes(c.node):
                 if tag_of(n) in ("PhaseOut", "PhaseIn"):
@@ -1334,7 +1337,7 @@ def _predicate_build_around(tree: ConceptTree) -> list[Signal]:
 
 
 def _coin_flip(tree: ConceptTree) -> list[Signal]:
-    """coin_flip — a ``FlipCoin`` / ``FlipCoins`` / ``FlipCoinUntilLose`` DOER (CR
+    """coin_flip — a ``FlipCoins`` DOER (CR
     705.1), OR a flip-FIXING static (CR 705.3 — "the first time you flip ...,
     those coins come up heads and you win those flips", Edgar, King of
     Figaro's "Two-Headed Coin"; both land as an Unimplemented node the ADR-
@@ -1347,7 +1350,7 @@ def _coin_flip(tree: ConceptTree) -> list[Signal]:
     win/lose-a-flip PAYOFF trigger phase flattens to ``event='other'`` is a
     separate no-residue class covered by
     ``tree_synthesis._arm_coin_flip_payoff``, ALSO emitting the real
-    "flip_coin" concept. A ``FlipCoin`` buried inside a GRANTED activated
+    "flip_coin" concept. A ``FlipCoins`` buried inside a GRANTED activated
     ability's definition (Frenetic Sliver's "All Slivers have '{0}: ... flip
     a coin ...'") is never its own concept node — the structural fallback
     below (:func:`has_nested_flip_coin`) reaches it. A die roll (``RollDie``
@@ -1833,6 +1836,25 @@ def _opponent_discard(tree: ConceptTree) -> list[Signal]:
         choose_opp_bound = _choose_opponent_bound_discard(unit)
         for c in unit.effect_concepts("discard"):
             seen_ids.add(id(c.node))
+            if (
+                c.recovered_by == "discard"
+                and done_by_another(c)
+                and "opponents" not in seen
+                # a wrapper's actor, or a vote's labels, decides who discards
+                # (Khorvath's Fury's friends — you among them)
+                and effect_owner_player_scope(unit.node, c.node) is None
+                and not unit.has_effect("vote")
+            ):
+                # A parked discard the seam reads as another player's ("target
+                # player discards a card for each creature it devoured" — Tar
+                # Fiend, its subject read back by ``recovery.read_clause``).
+                seen.add("opponents")
+                out.append(
+                    Signal(
+                        "opponent_discard", "opponents", "", c.raw, tree.name, "high"
+                    )
+                )
+                continue
             fire(c.node, c.raw, unit, choose_opp_bound)
         if getattr(unit, "node", None) is not None:
             for n in iter_typed_nodes(unit.node):
@@ -1922,10 +1944,6 @@ def _unless_pay_opponent_discard(unit: AbilityUnit) -> bool:
     )
 
 
-# Recipient tags naming a SINGLE targeted player (not an explicit opponent / each).
-_TARGETED_PLAYER_TAGS: frozenset[str] = frozenset({"ParentTarget", "Player", "Target"})
-
-
 def _is_target_player_loot(unit: AbilityUnit, discard: TypedMirrorNode) -> bool:
     """Whether a discard is a "target player draws, then discards" LOOT, not a hand
     attack (CR 701.9 / 701.8a).
@@ -1945,10 +1963,10 @@ def _is_target_player_loot(unit: AbilityUnit, discard: TypedMirrorNode) -> bool:
     :class:`ConceptNode` wrapper at all, so this reads the raw node
     directly, not ``.node``).
     """
-    if recipient_tag(discard) not in _TARGETED_PLAYER_TAGS:
+    if recipient_tag(discard) not in TARGETED_PLAYER_TAGS:
         return False
     return any(
-        recipient_tag(d.node) in _TARGETED_PLAYER_TAGS
+        recipient_tag(d.node) in TARGETED_PLAYER_TAGS
         for d in unit.effect_concepts("draw")
     )
 

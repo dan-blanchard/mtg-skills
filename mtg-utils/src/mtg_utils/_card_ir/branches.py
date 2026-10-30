@@ -173,27 +173,6 @@ BRANCH_MISREADS: tuple[BranchMisread, ...] = (
         drop=(("triggers", 1, "execute", "sub_ability", "else_ability"),),
         when="certain",
     ),
-    BranchMisread(
-        card="Osseous Sticktwister",
-        misread=(
-            "\"Then ~ deals damage … to each opponent who didn't sacrifice a "
-            'permanent or discard a card this way" parses as a second choice whose '
-            "second branch is a discard nobody is told to make"
-        ),
-        canary="test_phantom_choice_discard_canary",
-        drop=(("triggers", 0, "execute", "sub_ability", "effect", "branches", 1),),
-        when="always",
-    ),
-    BranchMisread(
-        card="Spitting Slug",
-        misread=(
-            '"Otherwise, each creature blocking or blocked by this creature gains '
-            'first strike" loses its narrowing: the grant reaches every creature'
-        ),
-        canary="test_unnarrowed_grant_branch_canary",
-        drop=(("triggers", 0, "execute", "sub_ability", "else_ability"),),
-        when="always",
-    ),
 )
 
 

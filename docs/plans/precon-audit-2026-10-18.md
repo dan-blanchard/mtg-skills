@@ -1738,3 +1738,25 @@ five from Order B and five from Order A (`rulings-lookup --card`, `rules-lookup
     sacrifice needs a permanent you control, CR 701.21a).
   - Alibou in Mardu Surge counts tapped artifacts and triggers off artifact
     creatures. Zurgo's Warriors are neither (by its ruling, X can be 0).
+
+## The phase v0.118.0 pin bump (2026-10-30)
+
+A read change: it ships on correctness, the deltas recorded. The bump learns the
+renamed shapes (the triage guide's v0.118.0 entry) and retires 18 ledger rows and
+the canaries phase's parse made unnecessary. Measured against the signal-gap
+baseline (`misses-r-gaps.json`):
+
+| | swaps / cuts / adds | near-misses | consensus adds / cuts |
+|---|---|---|---|
+| the 25, before | 715 / 329 / 114 | 70 | 39 / 121 |
+| the 25, v0.118.0 | 717 / 332 / 114 | 70 | 39 / 121 |
+| held-out, before | 297 / 139 / 35 | 29 | 6 / 37 |
+| held-out, v0.118.0 | 297 / 139 / 35 | 29 | 6 / 37 |
+| Jace (Multiverse Reforged) | 29 / 14 / 3, unchanged | 2 | 0 / 7 |
+
+Planeswalker Party cuts one more guide card; Sliver Swarm makes two more swaps,
+both guide cuts, and its near-miss for Chromatic Lantern is Patchwork Banner
+where it was Thought Vessel. No other deck moved, and the held-out ten are swap
+for swap the same. The new baseline is `w32/misses-25.json` /
+`w32/misses-ho.json` (`~/mtg/tuner-work/w32/`).
+

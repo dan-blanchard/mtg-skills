@@ -48,6 +48,7 @@ from mtg_utils._card_ir.crosswalk import (
     OBJECT_FILTER_TAGS,
     OPPONENT_ACTOR_TAGS,
     SELF_REFERENCE_TARGETS,
+    YOUR_CHOSEN_CONTROLLERS,
     AbilityUnit,
     ConceptTree,
     adds_creature_type,
@@ -60,6 +61,7 @@ from mtg_utils._card_ir.crosswalk import (
     creature_type_change_kinds,
     effect_actor_scope,
     effect_facing_player,
+    effect_filter,
     effect_owner_player_scope,
     effect_owner_rebinds_kind,
     effect_reaches_player,
@@ -81,6 +83,7 @@ from mtg_utils._card_ir.crosswalk import (
     is_self_discard_cost,
     iter_granted_triggers,
     iter_mod_sites,
+    iter_nested_granted_effect_concepts,
     iter_nested_token_effects,
     iter_nested_trigger_defs,
     iter_static_defs,
@@ -100,6 +103,7 @@ from mtg_utils._card_ir.crosswalk import (
     player_filter_tag,
     plays_lands_from_graveyard,
     recipient_tag,
+    recursion_card_types,
     redirects_stack_object,
     ref_count_filter,
     static_mode_tag,
@@ -566,9 +570,17 @@ def _is_your_draw_step_draw(unit: AbilityUnit, trig: TypedMirrorNode) -> bool:
         return False
     if trig is unit.node:
         return any(c.concept == "draw" and c.scope == "you" for c in unit.effects)
+    body = list(iter_typed_nodes(getattr(trig, "execute", None)))
+    if any(
+        tag_of(n) == "Draw" and recipient_tag(n) in ("Controller", None) for n in body
+    ):
+        return True
+    # A granted draw phase parks (Sarkhan, the Dragonspeaker's emblem),
+    # recovered where the shared granted walk reads it.
+    ids = {id(n) for n in body}
     return any(
-        tag_of(n) == "Draw" and recipient_tag(n) in ("Controller", None)
-        for n in iter_typed_nodes(getattr(trig, "execute", None))
+        c.concept == "draw" and c.scope == "you" and id(c.node) in ids
+        for c in iter_nested_granted_effect_concepts(unit.node)
     )
 
 
@@ -886,7 +898,7 @@ def _land_creatures_matter(tree: ConceptTree) -> list[Signal]:
             # sole commander-legal TargetPlayer-controller AddType-Creature
             # mass static): the "any"/symmetric case (Natural Affinity,
             # Living Plane — affected controller None) stays excluded below.
-            if filter_controller(aff) not in ("You", "TargetPlayer"):
+            if filter_controller(aff) not in YOUR_CHOSEN_CONTROLLERS:
                 continue
             landish = "Land" in filter_core_types(aff) or (
                 {t.lower() for t in filter_subtypes(aff)} & _LAND_SUBTYPE_WORDS
@@ -1101,7 +1113,7 @@ def _extra_turns(tree: ConceptTree) -> list[Signal]:
     :func:`has_nested_extra_turn` reaching one buried inside a GRANTED
     construct the narrow ``_EFFECT_CHILD_FIELDS`` walk never surfaces —
     a ``Vote``'s ``per_choice_effect`` branch (Expropriate, Plea for
-    Power), a ``FlipCoin``/``FlipCoins`` ``win_effect`` (Stitch in Time,
+    Power), a ``FlipCoins`` ``win_effect`` (Stitch in Time,
     Ral Zarek's -7), or a static ability's ``GrantAbility.definition``
     (Ichormoon Gauntlet's granted planeswalker loyalty ability).
     """
@@ -1258,10 +1270,17 @@ def _reanimator(tree: ConceptTree) -> list[Signal]:
     """
     if not tree.is_type("Creature"):
         return []
-    for c in tree.effect_concepts("change_zone"):
-        origin, dest = change_zone_dirs(c.node)
-        if origin == "Graveyard" and dest == "Battlefield" and "Creature" in c.subject:
-            return [Signal("reanimator", "you", "", c.raw, tree.name, "high")]
+    for unit in tree.units:
+        for c in unit.effect_concepts("change_zone"):
+            origin, dest = change_zone_dirs(c.node)
+            if origin != "Graveyard" or dest != "Battlefield":
+                continue
+            # the moved cards' types, a chosen pile's included (Technomancer's
+            # ``ChooseFromZone`` → ``ChangeZone{ParentTarget}``)
+            if "Creature" in c.subject or "Creature" in recursion_card_types(
+                tree, c.node, effect_filter(c.node), unit
+            ):
+                return [Signal("reanimator", "you", "", c.raw, tree.name, "high")]
     return []
 
 
@@ -1910,7 +1929,7 @@ def _damage_for_each(tree: ConceptTree) -> list[Signal]:
     player`` — the finisher read), ``"any"`` for a creature-only bite
     (board-scaled removal, Outnumber). A "that player controls" text guard
     kills phase's two mis-parsed opponent-board counts (Jovial Evil, Wing
-    Storm). Goblin Lyre's count sits inside FlipCoin's ``win_effect``, which
+    Storm). Goblin Lyre's count sits inside FlipCoins' ``win_effect``, which
     the effect walk descends."""
     out: list[Signal] = []
     seen: set[tuple[str, str]] = set()

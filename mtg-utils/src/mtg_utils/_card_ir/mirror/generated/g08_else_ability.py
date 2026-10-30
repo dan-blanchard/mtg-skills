@@ -5,7 +5,7 @@ Codegen'd from ``tests/fixtures/phase_mirror_schema.json`` by
 
 Part of the generated typed-mirror package (see this directory's
 ``__init__.py``). This module holds content keys ``else_ability`` ..
-``iteration_kind_binding`` (32 keys).
+``illegal_targets_disposition`` (31 keys).
 
 Class naming: ``S_<ckey>`` for a struct shape, ``T_<ckey>__<tag>`` for a tagged
 shape, ``U_<ckey>`` for the union of all tagged shapes at one content_key.
@@ -29,12 +29,11 @@ if TYPE_CHECKING:
     from mtg_utils._card_ir.mirror.generated.g03_additional_modificat import (
         U_attr,
     )
-    from mtg_utils._card_ir.mirror.generated.g04_characteristics import (
+    from mtg_utils._card_ir.mirror.generated.g04_casting_restrictions import (
         S_characteristics,
         U_condition,
     )
     from mtg_utils._card_ir.mirror.generated.g05_conditional_enter_wi import (
-        U_conditions,
         U_cost,
     )
     from mtg_utils._card_ir.mirror.generated.g06_costs import (
@@ -45,38 +44,40 @@ if TYPE_CHECKING:
     from mtg_utils._card_ir.mirror.generated.g07_dynamic_count import (
         U_effect,
     )
-    from mtg_utils._card_ir.mirror.generated.g09_journal import (
+    from mtg_utils._card_ir.mirror.generated.g09_inner import (
         S_modal,
         S_mode_abilities,
-        S_multi_target,
-        U_lhs,
+        U_inner,
     )
-    from mtg_utils._card_ir.mirror.generated.g10_optional_player import (
+    from mtg_utils._card_ir.mirror.generated.g10_modifications import (
+        S_multi_target,
         U_optional_player,
+    )
+    from mtg_utils._card_ir.mirror.generated.g11_player import (
         U_player,
         U_player_scope,
     )
-    from mtg_utils._card_ir.mirror.generated.g11_prop import (
+    from mtg_utils._card_ir.mirror.generated.g12_properties import (
         U_properties,
     )
-    from mtg_utils._card_ir.mirror.generated.g12_qty import (
+    from mtg_utils._card_ir.mirror.generated.g13_qty import (
         U_qty,
     )
-    from mtg_utils._card_ir.mirror.generated.g13_redirect_to import (
+    from mtg_utils._card_ir.mirror.generated.g14_redirect_target import (
         U_relation,
         U_repeat_for,
         U_repeat_until,
-        U_rhs,
         U_source,
     )
-    from mtg_utils._card_ir.mirror.generated.g14_static_abilities import (
+    from mtg_utils._card_ir.mirror.generated.g15_spell_filter import (
         S_static_abilities,
         S_sub_ability,
-        S_unless_pay,
-        U_subtype_filter,
         U_target_chooser,
         U_target_constraints,
         U_target_selection_mode,
+    )
+    from mtg_utils._card_ir.mirror.generated.g16_triggers import (
+        S_unless_pay,
         U_valid_card,
         U_value,
     )
@@ -155,6 +156,7 @@ class S_execute(TypedMirrorNode):
     declares_chosen_group: int = MISSING
     distribute: U_distribute = MISSING
     else_ability: S_else_ability = MISSING
+    entry_onset: str = MISSING
     illegal_targets_disposition: U_illegal_targets_disposition = MISSING
     is_mana_ability: bool = MISSING
     modal: S_modal = MISSING
@@ -236,13 +238,6 @@ class T_enter_with_counters__Fixed(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
-class T_enter_with_counters__Offset(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "Offset"
-    inner: U_inner
-    offset: int
-
-
-@dataclass(frozen=True)
 class T_enter_with_counters__Ref(TypedMirrorNode):
     _tag: ClassVar[str | None] = "Ref"
     qty: U_qty
@@ -268,6 +263,12 @@ class T_entry__TappedAndAttacking(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_entry_payment_max__Sum(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "Sum"
+    exprs: list[U_exprs]
+
+
+@dataclass(frozen=True)
 class T_entwine_cost__Cost(TypedMirrorNode):
     _tag: ClassVar[str | None] = "Cost"
     generic: int
@@ -283,6 +284,17 @@ class T_excess__TargetController(TypedMirrorNode):
 @dataclass(frozen=True)
 class T_exclude__CreatureTypes(TypedMirrorNode):
     _tag: ClassVar[str | None] = "CreatureTypes"
+
+
+@dataclass(frozen=True)
+class T_exclude__None(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "None"
+
+
+@dataclass(frozen=True)
+class T_exclude__ParentObjectTarget(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "ParentObjectTarget"
+    possession: str
 
 
 @dataclass(frozen=True)
@@ -509,6 +521,11 @@ class T_filter__TrackedSetPossessor(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_filter__TriggeringSource(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "TriggeringSource"
+
+
+@dataclass(frozen=True)
 class T_filter__Typed(TypedMirrorNode):
     _tag: ClassVar[str | None] = "Typed"
     controller: str | MirrorVariant | None
@@ -530,6 +547,12 @@ class T_filters__AttachedTo(TypedMirrorNode):
 @dataclass(frozen=True)
 class T_filters__ChosenCard(TypedMirrorNode):
     _tag: ClassVar[str | None] = "ChosenCard"
+
+
+@dataclass(frozen=True)
+class T_filters__ChosenPlayer(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "ChosenPlayer"
+    index: int
 
 
 @dataclass(frozen=True)
@@ -559,9 +582,21 @@ class T_filters__Not(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_filters__OpponentAttacked(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "OpponentAttacked"
+    scope: str
+    subject: str
+
+
+@dataclass(frozen=True)
 class T_filters__Or(TypedMirrorNode):
     _tag: ClassVar[str | None] = "Or"
     filters: list[U_filters]
+
+
+@dataclass(frozen=True)
+class T_filters__ParentObjectTargetController(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "ParentObjectTargetController"
 
 
 @dataclass(frozen=True)
@@ -610,6 +645,11 @@ class T_filters__StackSpell(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_filters__TargetPlayer(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "TargetPlayer"
+
+
+@dataclass(frozen=True)
 class T_filters__TrackedSet(TypedMirrorNode):
     _tag: ClassVar[str | None] = "TrackedSet"
     id: int
@@ -636,6 +676,17 @@ class T_filters__Typed(TypedMirrorNode):
 @dataclass(frozen=True)
 class T_flipper__TriggeringPlayer(TypedMirrorNode):
     _tag: ClassVar[str | None] = "TriggeringPlayer"
+
+
+@dataclass(frozen=True)
+class T_flips__Exactly(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "Exactly"
+    count: U_count
+
+
+@dataclass(frozen=True)
+class T_flips__UntilLoss(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "UntilLoss"
 
 
 @dataclass(frozen=True)
@@ -667,6 +718,11 @@ class T_grantee__ObjectOwner(TypedMirrorNode):
 @dataclass(frozen=True)
 class T_grantee__ParentTargetController(TypedMirrorNode):
     _tag: ClassVar[str | None] = "ParentTargetController"
+
+
+@dataclass(frozen=True)
+class T_grantee__TriggeringSourceController(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "TriggeringSourceController"
 
 
 @dataclass(frozen=True)
@@ -709,182 +765,6 @@ class T_illegal_targets_disposition__StillResolves(TypedMirrorNode):
     _tag: ClassVar[str | None] = "StillResolves"
 
 
-@dataclass(frozen=True)
-class T_inner__AbilityUseCountThisTurn(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "AbilityUseCountThisTurn"
-    n: int
-
-
-@dataclass(frozen=True)
-class T_inner__AdditionalCostPaid(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "AdditionalCostPaid"
-    origin: str
-
-
-@dataclass(frozen=True)
-class T_inner__And(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "And"
-    conditions: list[U_conditions]
-
-
-@dataclass(frozen=True)
-class T_inner__CastDuringPhase(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "CastDuringPhase"
-    phases: list[object]
-
-
-@dataclass(frozen=True)
-class T_inner__CastVariantPaid(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "CastVariantPaid"
-    variant: str
-
-
-@dataclass(frozen=True)
-class T_inner__ClampMin(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "ClampMin"
-    inner: U_inner
-    minimum: int
-
-
-@dataclass(frozen=True)
-class T_inner__CompletedDungeon(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "CompletedDungeon"
-
-
-@dataclass(frozen=True)
-class T_inner__ControllerControlledMatchingAsCast(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "ControllerControlledMatchingAsCast"
-    filter: U_filter
-
-
-@dataclass(frozen=True)
-class T_inner__CostPaidObjectMatchesFilter(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "CostPaidObjectMatchesFilter"
-    filter: U_filter
-
-
-@dataclass(frozen=True)
-class T_inner__DayNightIs(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "DayNightIs"
-    state: str
-
-
-@dataclass(frozen=True)
-class T_inner__EventOutcomeWon(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "EventOutcomeWon"
-
-
-@dataclass(frozen=True)
-class T_inner__Fixed(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "Fixed"
-    value: int
-
-
-@dataclass(frozen=True)
-class T_inner__HasCityBlessing(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "HasCityBlessing"
-
-
-@dataclass(frozen=True)
-class T_inner__IsMonarch(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "IsMonarch"
-
-
-@dataclass(frozen=True)
-class T_inner__Multiply(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "Multiply"
-    factor: int
-    inner: U_inner
-
-
-@dataclass(frozen=True)
-class T_inner__Not(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "Not"
-    condition: U_condition
-
-
-@dataclass(frozen=True)
-class T_inner__Offset(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "Offset"
-    inner: U_inner
-    offset: int
-
-
-@dataclass(frozen=True)
-class T_inner__Or(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "Or"
-    conditions: list[U_conditions]
-
-
-@dataclass(frozen=True)
-class T_inner__QuantityCheck(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "QuantityCheck"
-    comparator: str
-    lhs: U_lhs
-    rhs: U_rhs
-
-
-@dataclass(frozen=True)
-class T_inner__Ref(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "Ref"
-    qty: U_qty
-
-
-@dataclass(frozen=True)
-class T_inner__RevealedHasCardType(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "RevealedHasCardType"
-    card_types: list[MirrorVariant]
-    subtype_filter: U_subtype_filter
-
-
-@dataclass(frozen=True)
-class T_inner__SourceMatchesFilter(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "SourceMatchesFilter"
-    filter: U_filter
-
-
-@dataclass(frozen=True)
-class T_inner__Sum(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "Sum"
-    exprs: list[U_exprs]
-
-
-@dataclass(frozen=True)
-class T_inner__TargetMatchesFilter(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "TargetMatchesFilter"
-    filter: U_filter
-    use_lki: bool
-
-
-@dataclass(frozen=True)
-class T_inner__WasCast(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "WasCast"
-    zone: str
-
-
-@dataclass(frozen=True)
-class T_inner__ZoneChangeObjectMatchesFilter(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "ZoneChangeObjectMatchesFilter"
-    destination: str
-    filter: U_filter
-
-
-@dataclass(frozen=True)
-class T_inner__ZoneChangedThisWay(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "ZoneChangedThisWay"
-    filter: U_filter
-
-
-@dataclass(frozen=True)
-class T_invalidation__UntilNextGrantFromSameSource(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "UntilNextGrantFromSameSource"
-
-
-@dataclass(frozen=True)
-class T_iteration_kind_binding__RebindToIteratedKind(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "RebindToIteratedKind"
-
-
 # --- discriminated-union aliases (one per tagged content_key) ---
 
 type U_enchant_filter = T_enchant_filter__Typed
@@ -892,15 +772,17 @@ type U_end_cost = T_end_cost__Cost
 type U_enter_with_counters = (
     T_enter_with_counters__ClampMin
     | T_enter_with_counters__Fixed
-    | T_enter_with_counters__Offset
     | T_enter_with_counters__Ref
 )
 type U_enters_modified_if = T_enters_modified_if__Typed
 type U_entry = T_entry__Normal | T_entry__TappedAndAttacking
+type U_entry_payment_max = T_entry_payment_max__Sum
 type U_entwine_cost = T_entwine_cost__Cost
 type U_excess = T_excess__TargetController
 type U_exclude = (
     T_exclude__CreatureTypes
+    | T_exclude__None
+    | T_exclude__ParentObjectTarget
     | T_exclude__ParentObjectTargetController
     | T_exclude__ParentObjectTargetOwner
     | T_exclude__TriggeringPlayer
@@ -938,18 +820,22 @@ type U_filter = (
     | T_filter__TrackedSet
     | T_filter__TrackedSetFiltered
     | T_filter__TrackedSetPossessor
+    | T_filter__TriggeringSource
     | T_filter__Typed
 )
 type U_filters = (
     T_filters__And
     | T_filters__AttachedTo
     | T_filters__ChosenCard
+    | T_filters__ChosenPlayer
     | T_filters__Controller
     | T_filters__ExiledBySource
     | T_filters__HasChosenName
     | T_filters__LastCreated
     | T_filters__Not
+    | T_filters__OpponentAttacked
     | T_filters__Or
+    | T_filters__ParentObjectTargetController
     | T_filters__ParentTarget
     | T_filters__ParentTargetSlot
     | T_filters__Player
@@ -958,18 +844,21 @@ type U_filters = (
     | T_filters__SpecificObject
     | T_filters__StackAbility
     | T_filters__StackSpell
+    | T_filters__TargetPlayer
     | T_filters__TrackedSet
     | T_filters__TriggeringPlayer
     | T_filters__TriggeringSource
     | T_filters__Typed
 )
 type U_flipper = T_flipper__TriggeringPlayer
+type U_flips = T_flips__Exactly | T_flips__UntilLoss
 type U_followed_by = T_followed_by__Phase
 type U_forced_to = T_forced_to__ParentTarget | T_forced_to__SelfRef
 type U_grantee = (
     T_grantee__AbilityController
     | T_grantee__ObjectOwner
     | T_grantee__ParentTargetController
+    | T_grantee__TriggeringSourceController
 )
 type U_grants = (
     T_grants__GrantAbility | T_grants__GrantStaticAbility | T_grants__RemoveAllAbilities
@@ -977,34 +866,3 @@ type U_grants = (
 type U_graveyard_replacement = T_graveyard_replacement__Exile
 type U_host = T_host__TriggeringSource | T_host__Typed
 type U_illegal_targets_disposition = T_illegal_targets_disposition__StillResolves
-type U_inner = (
-    T_inner__AbilityUseCountThisTurn
-    | T_inner__AdditionalCostPaid
-    | T_inner__And
-    | T_inner__CastDuringPhase
-    | T_inner__CastVariantPaid
-    | T_inner__ClampMin
-    | T_inner__CompletedDungeon
-    | T_inner__ControllerControlledMatchingAsCast
-    | T_inner__CostPaidObjectMatchesFilter
-    | T_inner__DayNightIs
-    | T_inner__EventOutcomeWon
-    | T_inner__Fixed
-    | T_inner__HasCityBlessing
-    | T_inner__IsMonarch
-    | T_inner__Multiply
-    | T_inner__Not
-    | T_inner__Offset
-    | T_inner__Or
-    | T_inner__QuantityCheck
-    | T_inner__Ref
-    | T_inner__RevealedHasCardType
-    | T_inner__SourceMatchesFilter
-    | T_inner__Sum
-    | T_inner__TargetMatchesFilter
-    | T_inner__WasCast
-    | T_inner__ZoneChangeObjectMatchesFilter
-    | T_inner__ZoneChangedThisWay
-)
-type U_invalidation = T_invalidation__UntilNextGrantFromSameSource
-type U_iteration_kind_binding = T_iteration_kind_binding__RebindToIteratedKind

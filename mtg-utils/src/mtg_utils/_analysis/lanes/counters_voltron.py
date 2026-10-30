@@ -25,6 +25,7 @@ from mtg_utils._card_ir.crosswalk import (
     ConceptTree,
     aggregate_filter,
     blight_placements,
+    controller_paid_cost_leaves,
     cost_reduction_count_filters,
     count_operand_filter,
     count_operand_qty,
@@ -41,7 +42,6 @@ from mtg_utils._card_ir.crosswalk import (
     granted_keyword_names,
     has_filter_property,
     iter_condition_sites,
-    iter_cost_leaves,
     iter_mod_sites,
     iter_nested_granted_effect_concepts,
     iter_static_defs,
@@ -598,12 +598,11 @@ def _plus_one_matters(tree: ConceptTree) -> list[Signal]:
     * **1 card — EQ-0 "no counters" predicate** (Hindervines): the inverse of
       a counter-caring payoff; :func:`counter_pred_kinds` deliberately
       excludes it corpus-wide (shared by every counter lane).
-    * **2 cards — served by ledgered bridges, ADR-0039 W8**: Rock Hydra
+    * **1 card — served by a ledgered bridge, ADR-0039 W8**: Rock Hydra
       (``upstream_parse_failure`` — the WHOLE damage-prevention-replacement
-      line fails phase's static parser); Hierophant Bio-Titan
-      (``dropped_clause`` — a ``ModifyCost.dynamic_count=
-      PreviousEffectAmount`` scaler carries NO counter-kind field in
-      phase's own encoding).
+      line fails phase's static parser). A cost you pay that removes +1/+1
+      counters (Hierophant Bio-Titan's additional cost) is read off
+      :func:`controller_paid_cost_leaves` below.
     * **3 cards — served structurally, grammar sprint task #82**: Rumbling
       Ruin / Deepwood Denizen — ``clause_grammar``'s ``count_operand`` /
       ``counter_cost_reduction`` verbs + ``recovery.ALLOWLIST`` re-decorate
@@ -876,7 +875,11 @@ def _plus_one_matters(tree: ConceptTree) -> list[Signal]:
                         return [
                             Signal("plus_one_matters", "you", "", "", tree.name, "high")
                         ]
-        for leaf in iter_cost_leaves(getattr(unit.node, "cost", None)):
+        # Any cost you pay, a spell's additional cost included (CR 601.2b —
+        # Hierophant Bio-Titan's "you may remove any number of +1/+1 counters
+        # from among creatures you control").
+        for paid in controller_paid_cost_leaves(unit):
+            leaf = paid.leaf
             if tag_of(leaf) == "RemoveCounter" and counter_kind_any(leaf) == "P1P1":
                 return [Signal("plus_one_matters", "you", "", "", tree.name, "high")]
         # A cost reduction counting your creatures with +1/+1 counters (CR

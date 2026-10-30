@@ -1358,7 +1358,7 @@ SERVED_SIGNAL_KEYS: frozenset[str] = frozenset(
 # (:func:`_creatures_matter_formidable_condition`, 4 members:
 # Atarka Beastbreaker, Circle of Elders, Dragon-Scarred Bear,
 # Glade Watcher); two tiny typed container-descent reads — a
-# FlipCoin win-branch DealDamage count operand
+# FlipCoins win-branch DealDamage count operand
 # (:func:`_creatures_matter_flip_coin_win_filter`, Goblin Lyre)
 # and a reanimation target filter's nested Cmc-property count
 # operand (:func:`_creatures_matter_cmc_property_count_filter`,
@@ -1543,10 +1543,8 @@ SERVED_SIGNAL_KEYS: frozenset[str] = frozenset(
 # ``count_operand`` / ``counter_cost_reduction`` tokens +
 # ``recovery.ALLOWLIST``) and Tetravus off a fully-typed
 # RemoveCounter/Token pairing arm — all inline in
-# :func:`_plus_one_matters` now, no bridge lookup. Rock Hydra and
-# Hierophant Bio-Titan stay bridges (both need an upstream phase
-# bump). See :func:`_plus_one_matters`'s own docstring for the full
-# history.
+# :func:`_plus_one_matters` now, no bridge lookup. Rock Hydra stays a
+# bridge. See :func:`_plus_one_matters`'s own docstring.
 # ramp PROMOTED (ADR-0039 W7, 2026-07-12): both 1636 -> 1668,
 # live_only 32 -> 0, cw_only=3 unchanged (pre-existing "additional
 # cost: sacrifice a land" cast-cost gains). Four structural closers

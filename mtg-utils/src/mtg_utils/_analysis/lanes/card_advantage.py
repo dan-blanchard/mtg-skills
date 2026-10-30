@@ -32,6 +32,9 @@ from mtg_utils._analysis.tree_synthesis import (
 from mtg_utils._card_ir.crosswalk import (
     OTHER,
     SELF_REFERENCE_TARGETS,
+    TARGETED_PLAYER_TAGS,
+    YOU_AND_OPPONENT_SCOPE,
+    YOUR_ACTORS,
     AbilityUnit,
     ConceptNode,
     ConceptTree,
@@ -47,6 +50,7 @@ from mtg_utils._card_ir.crosswalk import (
     effect_filter,
     effect_owner_player_scope,
     exiled_library_side,
+    explicit_recipient_scope,
     filter_controller,
     filter_core_types,
     filter_inzone_zones,
@@ -361,9 +365,11 @@ def _counter_manipulation(tree: ConceptTree) -> list[Signal]:
 # Brawler; The River Warlock) as a ``Draw`` per player, the second recipient
 # ``DefendingPlayer`` — a player other than you by definition, so unconditional.
 # (The tap and reveal lanes keep their own recipient sets; they differ by verb.)
-_TARGETED_DRAW_TAGS: frozenset[str] = frozenset(
-    {"Player", "ParentTarget", "Target", "Any", "ParentTargetOwner", "DefendingPlayer"}
-)
+_TARGETED_DRAW_TAGS: frozenset[str] = TARGETED_PLAYER_TAGS | {
+    "Any",
+    "ParentTargetOwner",
+    "DefendingPlayer",
+}
 # ADR-0038 W3 batch 6 — the THREE widened tags above (``Typed``,
 # ``ParentTargetController``, ``TriggeringPlayer``) are NOT unconditional
 # like the original ones: a phase templating quirk bleeds a PRECEDING
@@ -1475,7 +1481,7 @@ def _creature_recursion(tree: ConceptTree) -> list[Signal]:
             if hit is None:
                 continue
             dest, sub = hit
-            if "Creature" in recursion_card_types(tree, c.node, sub):
+            if "Creature" in recursion_card_types(tree, c.node, sub, unit):
                 dests.setdefault(dest, c.raw)
     return [
         Signal("creature_recursion", "you", d, raw, tree.name, "high")
@@ -1501,6 +1507,8 @@ def draw_engine_scope(unit: AbilityUnit, c: ConceptNode) -> str:
     Thief's "that player skips that draw and you draw a card"), nor for an
     ``OriginalController`` draw an opponent merely chooses (Palantír of
     Orthanc's "target opponent may have you draw a card"); else "you"."""
+    if effect_owner_player_scope(unit.node, c.node) == YOU_AND_OPPONENT_SCOPE:
+        return "you"  # you and one opponent draw: yours, never every player's
     if recipient_tag(c.node) == "ScopedPlayer":
         return "each"
     if recipient_tag(c.node) in _EACH_DRAW_RECIPIENTS:
@@ -1516,6 +1524,10 @@ def draw_engine_scope(unit: AbilityUnit, c: ConceptNode) -> str:
         and recipient_tag(c.node) != "OriginalController"
         and effect_actor_scope(unit, c.node) == "opponents"
     ):
+        return "opponents"
+    # "Target opponent may draw four cards" (Kuroki, Thief of Talents): the
+    # drawer is a typed opponent recipient.
+    if explicit_recipient_scope(c.node) == "opponents":
         return "opponents"
     return "you"
 
@@ -1593,9 +1605,10 @@ def _you_draw(unit: AbilityUnit, c: ConceptNode) -> bool:
     triggering player — Glademuse; the controller of a creature that dealt
     damage — Edric), no opponent wrapper (Bounty Board's "each of its
     controller's opponents draws")."""
-    return (
-        recipient_tag(c.node) in (None, "Controller")
-        and effect_owner_player_scope(unit.node, c.node) is None
+    return recipient_tag(c.node) in (None, "Controller", "ScopedPlayer") and (
+        # you draw, alone or beside an opponent ("you and that player each draw
+        # two cards" — Black Widow, Intel Expert)
+        effect_owner_player_scope(unit.node, c.node) in YOUR_ACTORS
     )
 
 
@@ -2024,7 +2037,13 @@ def _target_player_draws(tree: ConceptTree) -> list[Signal]:
                 continue
             rt = recipient_tag(c.node)
             if rt == "ScopedPlayer":
-                if _unit_has_originalcontroller_draw(unit):
+                # "you and X each draw": a self-tagged sibling Draw, or one Draw
+                # whose owner names you and that player.
+                paired = (
+                    effect_owner_player_scope(unit.node, c.node)
+                    == YOU_AND_OPPONENT_SCOPE
+                )
+                if paired or _unit_has_originalcontroller_draw(unit):
                     return [
                         Signal(
                             "target_player_draws", "any", "", c.raw, tree.name, "high"

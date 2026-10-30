@@ -293,6 +293,7 @@ def test_spell_selfref_misbinding_canary(name):
         ("Resistance Fighter", "prevent_damage_recipient_target_role"),
         ("Safeguard", "prevent_damage_dealt_by_target"),
         ("Dovin, Hand of Control", "bidirectional_prevent_declared_target"),
+        ("Wall of Shadows", "prevention_source_scope"),
     ],
 )
 def test_parked_prevention_residues_canary(name, residue):

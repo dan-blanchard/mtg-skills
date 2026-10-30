@@ -542,6 +542,13 @@ def _held_phased_out(root: object) -> bool:
     return any(static_mode_tag(n) == "CantPhaseIn" for n in iter_typed_nodes(root))
 
 
+#: The recovery seam's mark (``recovery.read_clause``) for damage dealt to the
+#: card itself ("Prevent all damage that would be dealt to ~ by creatures it's
+#: blocking" — Wall of Shadows): a shield of the card alone. Defined here, read
+#: there — the seam imports this package.
+TO_SELF = "ToSelf"
+
+
 def protective_saves(tree: ConceptTree) -> Iterator[tuple[str, ProtectionRecipient]]:
     """``(kind, recipient)`` for every save the card performs or grants for
     something other than itself: ``"regenerate"`` (CR 701.19a — Regenerate,
@@ -569,6 +576,12 @@ def protective_saves(tree: ConceptTree) -> Iterator[tuple[str, ProtectionRecipie
     Last Troll; Frenetic Efreet's coin-flip phase-out), and a pacifying
     prevention (:func:`_prevention_shield_recipient`)."""
     for unit in tree.units:
+        # the parked preventions' readings, decorated by the recovery seam
+        parked_reading = {
+            id(c.node): c.subject
+            for c in unit.iter_concepts()
+            if parked_prevention(c.node) and c.recovered_by
+        }
         granted = _granted_recipients(tree, unit)
         in_token, _ = _token_nodes(unit.node)
         held: bool | None = None
@@ -584,7 +597,9 @@ def protective_saves(tree: ConceptTree) -> Iterator[tuple[str, ProtectionRecipie
             if who is not None:
                 yield "prevent_damage", who
             parked = parked_prevention(n)
-            if parked is not None:
+            # a shield of the card alone ("dealt to ~ by creatures it's blocking"
+            # — Wall of Shadows) is a save of itself
+            if parked is not None and TO_SELF not in parked_reading.get(id(n), ()):
                 # Read off the residue's name (reads.PARKED_PREVENTION_RESIDUES):
                 # a two-way shield names an opponent's permanent (Dovin, Kiora),
                 # the source-role preventions neutralise an attacker or blocker.

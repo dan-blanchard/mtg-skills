@@ -32,7 +32,7 @@ if TYPE_CHECKING:
         U_amount,
         U_candidate_filter,
     )
-    from mtg_utils._card_ir.mirror.generated.g04_characteristics import (
+    from mtg_utils._card_ir.mirror.generated.g04_casting_restrictions import (
         U_condition,
     )
     from mtg_utils._card_ir.mirror.generated.g05_conditional_enter_wi import (
@@ -47,35 +47,39 @@ if TYPE_CHECKING:
         U_exprs,
         U_filter,
         U_filters,
-        U_inner,
     )
-    from mtg_utils._card_ir.mirror.generated.g09_journal import (
-        S_multi_target,
+    from mtg_utils._card_ir.mirror.generated.g09_inner import (
+        U_inner,
         U_left,
         U_materials,
         U_max,
+    )
+    from mtg_utils._card_ir.mirror.generated.g10_modifications import (
+        S_multi_target,
+        S_outcome_template,
         U_modifications,
     )
-    from mtg_utils._card_ir.mirror.generated.g10_optional_player import (
-        S_outcome_template,
+    from mtg_utils._card_ir.mirror.generated.g11_player import (
         U_player_scope,
         U_position,
     )
-    from mtg_utils._card_ir.mirror.generated.g11_prop import (
+    from mtg_utils._card_ir.mirror.generated.g12_properties import (
         U_properties,
     )
-    from mtg_utils._card_ir.mirror.generated.g12_qty import (
+    from mtg_utils._card_ir.mirror.generated.g13_qty import (
         U_qty,
     )
-    from mtg_utils._card_ir.mirror.generated.g13_redirect_to import (
+    from mtg_utils._card_ir.mirror.generated.g14_redirect_target import (
         S_requirement,
         U_right,
     )
-    from mtg_utils._card_ir.mirror.generated.g14_static_abilities import (
+    from mtg_utils._card_ir.mirror.generated.g15_spell_filter import (
         S_sub_ability,
+        U_target,
+    )
+    from mtg_utils._card_ir.mirror.generated.g16_triggers import (
         S_unless_pay,
         S_value,
-        U_target,
         U_value,
     )
 
@@ -106,12 +110,13 @@ class S_data(TypedMirrorNode):
     count: int = MISSING
     counter_kind: str = MISSING
     counters: U_counters = MISSING
-    filter: U_filter = MISSING
+    filter: U_filter | None = MISSING
     max_iterations: int = MISSING
     maximum: int = MISSING
     minimum: int = MISSING
     outcome_template: S_outcome_template = MISSING
     repeatable: bool = MISSING
+    selection: str = MISSING
     stop_on_duplicate_exiled_names: bool = MISSING
     stop_on_put_to_hand: bool = MISSING
     value: U_value = MISSING
@@ -145,9 +150,11 @@ class S_definition(TypedMirrorNode):
     characteristic_defining: bool = MISSING
     cost: U_cost | None = MISSING
     cost_reduction: S_cost_reduction = MISSING
+    declares_chosen_group: int = MISSING
     duration: str | None = MISSING
     effect: U_effect = MISSING
     effect_zone: None = MISSING
+    entry_onset: str = MISSING
     forward_result: bool = MISSING
     is_mana_ability: bool = MISSING
     kind: str = MISSING
@@ -283,7 +290,7 @@ class T_costs__ReturnToHand(TypedMirrorNode):
 @dataclass(frozen=True)
 class T_costs__Reveal(TypedMirrorNode):
     _tag: ClassVar[str | None] = "Reveal"
-    count: int
+    count: U_count
     filter: U_filter = MISSING
 
 
@@ -606,11 +613,6 @@ class T_data__Discard(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
-class T_data__DiscardCard(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "DiscardCard"
-
-
-@dataclass(frozen=True)
 class T_data__EffectCost(TypedMirrorNode):
     _tag: ClassVar[str | None] = "EffectCost"
     effect: U_effect
@@ -665,7 +667,7 @@ class T_data__ReturnToHand(TypedMirrorNode):
 @dataclass(frozen=True)
 class T_data__Reveal(TypedMirrorNode):
     _tag: ClassVar[str | None] = "Reveal"
-    count: int
+    count: U_count
     filter: U_filter
 
 
@@ -899,7 +901,6 @@ type U_data = (
     | T_data__Composite
     | T_data__Cost
     | T_data__Discard
-    | T_data__DiscardCard
     | T_data__EffectCost
     | T_data__Exile
     | T_data__Mana

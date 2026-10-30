@@ -32,10 +32,10 @@ if TYPE_CHECKING:
         S_card_type,
         S_casting_options,
         U_amount,
-        U_casting_restrictions,
     )
-    from mtg_utils._card_ir.mirror.generated.g04_characteristics import (
+    from mtg_utils._card_ir.mirror.generated.g04_casting_restrictions import (
         S_cleave_variant,
+        U_casting_restrictions,
     )
     from mtg_utils._card_ir.mirror.generated.g05_conditional_enter_wi import (
         U_cost,
@@ -54,7 +54,7 @@ if TYPE_CHECKING:
         U_filter,
         U_filters,
     )
-    from mtg_utils._card_ir.mirror.generated.g09_journal import (
+    from mtg_utils._card_ir.mirror.generated.g09_inner import (
         S_legalities,
         S_metadata,
         S_modal,
@@ -62,19 +62,21 @@ if TYPE_CHECKING:
         U_mana_cost,
         U_mana_reduction,
         U_materials,
-        U_once_per_turn,
     )
-    from mtg_utils._card_ir.mirror.generated.g10_optional_player import (
+    from mtg_utils._card_ir.mirror.generated.g10_modifications import (
+        U_once_per_turn,
         U_parse_warnings,
+    )
+    from mtg_utils._card_ir.mirror.generated.g11_player import (
         U_power,
     )
-    from mtg_utils._card_ir.mirror.generated.g11_prop import (
+    from mtg_utils._card_ir.mirror.generated.g12_properties import (
         U_properties,
     )
-    from mtg_utils._card_ir.mirror.generated.g12_qty import (
+    from mtg_utils._card_ir.mirror.generated.g13_qty import (
         U_qty,
     )
-    from mtg_utils._card_ir.mirror.generated.g13_redirect_to import (
+    from mtg_utils._card_ir.mirror.generated.g14_redirect_target import (
         S_reduction,
         S_replacements,
         S_requirement,
@@ -82,14 +84,16 @@ if TYPE_CHECKING:
         U_sacrifice_filter,
         U_solve_condition,
         U_source_filter,
-        U_spell_filter,
     )
-    from mtg_utils._card_ir.mirror.generated.g14_static_abilities import (
+    from mtg_utils._card_ir.mirror.generated.g15_spell_filter import (
         S_static_abilities,
-        S_triggers,
+        U_spell_filter,
         U_strive_cost,
         U_target,
         U_toughness,
+    )
+    from mtg_utils._card_ir.mirror.generated.g16_triggers import (
+        S_triggers,
     )
 
 

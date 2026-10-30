@@ -278,7 +278,8 @@ _FRESH_TAPS = [
     "Stunning Shot",
     "Mind Spiral",
     "Snaremaster Sprite",
-    "Seasoned Cryomancer",
+    # Seasoned Cryomancer left at phase v0.118.0: its reflexive tap is parked
+    # whole (zone_change_reflexive_unbound_referent).
 ]
 
 

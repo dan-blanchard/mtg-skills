@@ -34,7 +34,6 @@ from mtg_utils._card_ir.clause_grammar import (
     _SENTENCE_RX,
     _VERB_PRESENT,
     keyword_grants,
-    leading_keywords,
     parse_clause,
     replacement_sentences,
     replacement_token,
@@ -49,18 +48,18 @@ from mtg_utils._card_ir.crosswalk import (
     ConceptTree,
     counter_keyword,
     counter_kind,
-    filter_controller_side,
     iter_mod_sites,
     iter_nested_granted_bodies,
     keyword_subject,
     mod_keyword_name,
+    parked_prevention,
     residue_is,
     tag_of,
     unit_zones,
     walk_effect_chain,
 )
 from mtg_utils._card_ir.crosswalk.core import GRANTED_RECOVERY_ATTR
-from mtg_utils._card_ir.mirror.runtime import TypedMirrorNode
+from mtg_utils._card_ir.crosswalk.protection import TO_SELF
 from mtg_utils._card_ir.text_idioms import _DICE_TRIG
 
 
@@ -147,7 +146,7 @@ ALLOWLIST: dict[str, TokenRule] = {
     # STATIC_TOKENS table, mirroring the OLD-IR ``_COIN`` regex), not the
     # imperative-verb grammar (a flip-fixing static never itself instructs
     # a plain "flip" the way SIMPLE_VERB's other rows do). Maps to the
-    # native FlipCoin/FlipCoins tags' own concept ("flip_coin") so the
+    # concept a typed coin flip carries ("flip_coin") so the
     # coin_flip lane's ordinary ``effect_concepts("flip_coin")`` read
     # covers the recovered node with no special-case.
     "coin_flip": TokenRule(
@@ -592,6 +591,10 @@ ALLOWLIST.update(
         # stays out: it rewards the makers rather than being one.
         "gain_energy": TokenRule(concept="gain_energy", category="energy"),
         "energy_payment": TokenRule(concept="pay_energy", category="pay_cost"),
+        # A spell's discount of itself, a second sentence phase parks as its own
+        # residue (Geistlight Snare's "It also costs {1} less to cast if you
+        # control an enchantment"): no class reducer (CR 601.2f).
+        "self_discount": TokenRule(concept="self_discount", category="self_discount"),
         # CR 702.143a foretell: decorated as the ``cast_from_zone`` row decorates
         # (the grammar's foretell row fed that token until it had its own name);
         # the foretell lanes read the token itself.
@@ -683,8 +686,11 @@ _REPLACEMENT_SENSE = re.compile(
 #: (:func:`_it_names_self`). Not a mention as the doer or a possessive ("~ deals",
 #: "~'s power").
 SELF = "Self"
+#: The ``recovered_by`` of a prevention phase parks by shape
+#: (``reads.PARKED_PREVENTION_RESIDUES``): no verb to recover, only its reading.
+PARKED_PREVENTION = "parked_prevention"
 #: Counters put on the card itself ("put a +1/+1 counter on ~", "put … counters on
-#: itself").
+#: itself"), or that it enters with ("~ enters with X +1/+1 counters on it").
 ON_SELF = "OnSelf"
 #: The clause opens on its instruction or on you as its doer ("sacrifice another
 #: creature", "you lose 1 life"; after an "if …," condition or "you may"), so it
@@ -719,6 +725,9 @@ CARD = "Card"
 POWER_SCALED = "PowerScaled"
 #: More than one ("two or more", "X", "that many", "cards equal to").
 MANY = "Many"
+#: A count kept per object or player ("draw a card for each player who was dealt
+#: combat damage" — Vivien's Stampede; "… equal to the number of …").
+FOR_EACH = "ForEach"
 #: A chooser other than you ("of defending player's choice").
 OTHER_CHOOSER = "OtherChooser"
 #: A player other than you does the verb, takes it, or owns the cards it acts on,
@@ -730,6 +739,7 @@ OTHER_PLAYER = "OtherPlayer"
 CLAUSE_MARKS: tuple[str, ...] = (
     SELF,
     ON_SELF,
+    TO_SELF,
     IMPERATIVE,
     YOURS,
     THEIRS,
@@ -743,9 +753,24 @@ CLAUSE_MARKS: tuple[str, ...] = (
     CARD,
     POWER_SCALED,
     MANY,
+    FOR_EACH,
     OTHER_CHOOSER,
     OTHER_PLAYER,
 )
+
+
+def recovered_on(unit: AbilityUnit, node: object) -> ConceptNode | None:
+    """The concept the recovery stage made of ``node`` (a parked residue of
+    ``unit``), or ``None``."""
+    return next((c for c in unit.effects if c.node is node and c.recovered_by), None)
+
+
+def done_by_another(c: ConceptNode) -> bool:
+    """Whether a recovered clause is another player's to perform: it acts on
+    their side (:func:`is_theirs`) and doesn't open on its own instruction — an
+    imperative clause is yours, whoever else it names ("discard a card, then heist
+    target opponent's library" — Impetuous Lootmonger)."""
+    return is_theirs(c) and IMPERATIVE not in c.reading
 
 
 def is_theirs(c: ConceptNode) -> bool:
@@ -816,7 +841,36 @@ _SELF_WORDS = (
 _SELF_NAMED_RX = re.compile(
     r"\b(?:return|put|cast|exile|sacrifice|copy of)\s+" + _SELF_WORDS, re.IGNORECASE
 )
-_ON_SELF_RX = re.compile(r"\bput\b[^.]*?\bcounters? on\s+" + _SELF_WORDS, re.IGNORECASE)
+_TO_SELF_RX = re.compile(r"\bdealt to\s+" + _SELF_WORDS, re.IGNORECASE)
+# Counters the card itself gets (``ON_SELF``), each form its own read:
+_COUNTERS_PUT_ON_SELF_RX = re.compile(
+    r"\bput\b[^.]*?\bcounters? on\s+" + _SELF_WORDS, re.IGNORECASE
+)
+# "~ enters with X +1/+1 counters on it" (Apocalypse Hydra), "~ escapes with …"
+# (CR 702.138c): a counter the named card enters with, a clause phase parks as
+# an ``enters_with_clause`` residue.
+_SELF_ENTERS_WITH_COUNTERS_RX = re.compile(
+    _SELF_WORDS
+    + r"\s+(?:enters|escapes)(?: the battlefield)? with\b[^.]*?\bcounters?\b",
+    re.IGNORECASE,
+)
+# A bare "it" enters with counters as the card only after "As ~ enters" (in the
+# clause, or as the sentence the split clause opens with: "It enters with …" —
+# Neverwinter Hydra). Jade Orb of Dragonkind's "cast a Dragon creature spell, it
+# enters with …" and The First Tyrannic War's "If its mana cost contains {X}, it
+# enters with …" are other objects.
+_IT_ENTERS_WITH_COUNTERS_RX = re.compile(
+    r"(?:\bas\s+"
+    + _SELF_WORDS
+    + r"\s+enters\b.*?\bit|^(?-i:It))\s+enters(?: the battlefield)? with\b"
+    + r"[^.]*?\bcounters?\b",
+    re.IGNORECASE,
+)
+_ON_SELF_RXS = (
+    _COUNTERS_PUT_ON_SELF_RX,
+    _SELF_ENTERS_WITH_COUNTERS_RX,
+    _IT_ENTERS_WITH_COUNTERS_RX,
+)
 # "it" after a verb ("return it", "a copy of it"), never "on it": a counter "on
 # it" refers back to whatever the clause just named.
 _BACKREF_RX = re.compile(
@@ -847,6 +901,7 @@ _MANY_RX = re.compile(
     r"|\bcards equal to\b",
     re.IGNORECASE,
 )
+_FOR_EACH_RX = re.compile(r"\bfor each\b|\bequal to the number of\b", re.IGNORECASE)
 _OPPONENT_SIDE_RX = re.compile(
     r"\b(?:each|an|target) opponent\b(?! controls)|\bdefending player\b(?!'s choice)"
     r"|\bopponent gains control\b",
@@ -856,7 +911,9 @@ _OTHER_CHOOSER_RX = re.compile(
     r"\bof (?:defending player|an opponent|target opponent|that player)'s choice\b",
     re.IGNORECASE,
 )
-_EACH_PLAYER_RX = re.compile(r"\beach player\b", re.IGNORECASE)
+# Not a count's "for each player" ("draw a card for each player who was dealt
+# combat damage" — Vivien's Stampede: you draw).
+_EACH_PLAYER_RX = re.compile(r"(?<!for )\beach player\b", re.IGNORECASE)
 _ZONE_RX = {
     "Graveyard": re.compile(r"\bgraveyards?\b", re.IGNORECASE),
     "Hand": re.compile(r"\bhands?\b", re.IGNORECASE),
@@ -864,6 +921,38 @@ _ZONE_RX = {
     # The exile zone itself, not a linked pile ("cards exiled with ~", CR 607.2a).
     "Exile": re.compile(r"\b(?:in|from|into) exile\b", re.IGNORECASE),
 }
+
+
+# The player a clause's verb belongs to, at the end of the words before it.
+_PEELED_SUBJECT_RX = re.compile(
+    r"\b(target player|target opponent|that player|each opponent|each player"
+    r"|defending player|its controller|they)\s+\w+\s*$",
+    re.IGNORECASE,
+)
+
+
+_CLAUSE_BREAK_RX = re.compile(r"[.;:,]")
+
+
+def _peeled_subject(text: str, unit: AbilityUnit | None) -> str:
+    """The player phase peeled off a parked clause, read back from the unit's own
+    description ("discard a card for each creature it devoured" in "When ~ enters,
+    target player discards a card for each creature it devoured" — Tar Fiend: phase
+    parks such a clause with its subject cut), or ``""``. "They" names a
+    player an earlier clause did ("that player")."""
+    desc = getattr(getattr(unit, "node", None), "description", None)
+    rest = text.partition(" ")[2]
+    if not isinstance(desc, str) or not rest:
+        return ""
+    at = desc.lower().find(rest[:40].lower())
+    if at <= 0:
+        return ""
+    before = _CLAUSE_BREAK_RX.split(desc[:at])[-1]
+    m = _PEELED_SUBJECT_RX.search(before)
+    if m is None:
+        return ""
+    who = m.group(1).lower()
+    return "that player" if who == "they" else who
 
 
 def _it_names_self(unit: AbilityUnit) -> bool:
@@ -901,6 +990,8 @@ def read_clause(
     object-bound marks, ``other_player`` names another player, ``token_types``
     reads a token's own types."""
     text = raw or ""
+    if peeled := _peeled_subject(text, unit):
+        text = f"{peeled} {text}"
     object_verb, other_player = rule.object_verb, rule.other_player
     subject: list[str] = []
     words, type_rx = (
@@ -918,8 +1009,10 @@ def read_clause(
         unit is not None and _it_names_self(unit) and _BACKREF_RX.search(text)
     ):
         subject.append(SELF)
-    if _ON_SELF_RX.search(text):
+    if any(rx.search(text) for rx in _ON_SELF_RXS):
         subject.append(ON_SELF)
+    if _TO_SELF_RX.search(text):
+        subject.append(TO_SELF)
     if _opens_imperatively(text):
         subject.append(IMPERATIVE)
     for mark, rx in (
@@ -928,6 +1021,7 @@ def read_clause(
         (PLAYER, _PLAYER_RECIPIENT_RX),
         (POWER_SCALED, _POWER_RX),
         (MANY, _MANY_RX),
+        (FOR_EACH, _FOR_EACH_RX),
         (OTHER_CHOOSER, _OTHER_CHOOSER_RX),
     ):
         if rx.search(text):
@@ -979,6 +1073,12 @@ def _recover(
     raw = c.raw if text is None else text
     if not raw:
         return None
+    if parked_prevention(c.node):
+        # A prevention phase parks whole (``reads.PARKED_PREVENTION_RESIDUES``):
+        # its clause's reading, read once here — whose damage it prevents
+        # (:data:`TO_SELF`: the card's own).
+        _scope, subject, _zones = read_clause(raw, unit)
+        return replace(c, recovered_by=PARKED_PREVENTION, subject=subject)
     # A clause opening on a replacement idiom reads as the idiom over its own
     # sentence (the verb inside it names the replaced event); any other clause
     # reads its verb without the idiom sentences, each a later instruction
@@ -1236,25 +1336,6 @@ def residue_body_keywords(raw: str, *, made_only: bool = False) -> tuple[str, ..
 
 
 _PUMP_TAGS = frozenset({"Pump", "PumpAll"})
-_PUT_COUNTER_TAGS = frozenset({"PutCounter", "PutCounterAll"})
-
-
-def _swallowed_counter_keywords(node: object) -> tuple[str, ...]:
-    """The keywords a counter kind phase read as the rest of its clause opens on
-    — "it enters with flying and with X +1/+1 counters" typed as the kind "flying
-    and with x +1/+1" (Dralnu's Pet), "create a 0/0 green Ooze creature token with
-    trample. The token enters with X +1/+1 counters" as "trample. the token enters
-    with x +1/+1" (Printlifter Ooze): the keyword is the counters' object's. Never
-    a real keyword counter's kind ("first strike", CR 122.1b), nor a counter on an
-    opponent's object."""
-    if not isinstance(node, TypedMirrorNode):
-        return ()
-    kind = counter_kind(node)
-    if not kind or counter_keyword(kind):
-        return ()
-    if filter_controller_side(getattr(node, "target", None)) == "opponents":
-        return ()
-    return tuple(sorted(leading_keywords(kind)))
 
 
 def _unit_typed_keywords(unit: AbilityUnit) -> set[str]:
@@ -1315,8 +1396,6 @@ def _with_body_keywords(
             text = c.raw.replace(self_name, "~") if self_name else c.raw
             kws = residue_body_keywords(text)
             made = residue_body_keywords(text, made_only=True) if kws else ()
-        elif tag_of(c.node) in _PUT_COUNTER_TAGS:
-            kws = _swallowed_counter_keywords(c.node)
         out.append(replace(c, body_keywords=kws, made_body_keywords=made) if kws else c)
     extra = _partly_read_grant(unit, tuple(out)) if out else ()
     if extra:
@@ -1388,24 +1467,29 @@ __all__ = [
     "CARD",
     "CLAUSE_MARKS",
     "EACH_OBJECT",
+    "FOR_EACH",
     "IMPERATIVE",
     "MANY",
     "MASS",
     "ON_SELF",
     "OTHER_CHOOSER",
     "OTHER_PLAYER",
+    "PARKED_PREVENTION",
     "PLAYER",
     "POWER_SCALED",
     "SELF",
     "TARGETED",
     "TARGET_OBJECT",
     "THEIRS",
+    "TO_SELF",
     "YOURS",
     "YOUR_TARGET",
     "TokenRule",
     "apply_unimplemented_recovery",
+    "done_by_another",
     "is_theirs",
     "is_yours",
     "read_clause",
     "recover_concepts",
+    "recovered_on",
 ]

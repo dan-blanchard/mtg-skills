@@ -4,8 +4,8 @@ Codegen'd from ``tests/fixtures/phase_mirror_schema.json`` by
 ``mtg_utils._card_ir.mirror.codegen`` (run via ``build-card-ir-substrate``).
 
 Part of the generated typed-mirror package (see this directory's
-``__init__.py``). This module holds content keys ``journal`` .. ``op`` (47
-keys).
+``__init__.py``). This module holds content keys ``inner`` .. ``modification``
+(39 keys).
 
 Class naming: ``S_<ckey>`` for a struct shape, ``T_<ckey>__<tag>`` for a tagged
 shape, ``U_<ckey>`` for the union of all tagged shapes at one content_key.
@@ -25,20 +25,18 @@ from mtg_utils._card_ir.mirror.runtime import (
 if TYPE_CHECKING:
     from mtg_utils._card_ir.mirror.generated.g03_additional_modificat import (
         U_amount,
-        U_cap,
     )
-    from mtg_utils._card_ir.mirror.generated.g04_characteristics import (
+    from mtg_utils._card_ir.mirror.generated.g04_casting_restrictions import (
         U_chooser,
-        U_colors,
         U_condition,
     )
     from mtg_utils._card_ir.mirror.generated.g05_conditional_enter_wi import (
+        U_conditions,
         U_constraints,
         U_cost,
     )
     from mtg_utils._card_ir.mirror.generated.g06_costs import (
         S_decline,
-        S_definition,
         U_count,
     )
     from mtg_utils._card_ir.mirror.generated.g07_dynamic_count import (
@@ -48,33 +46,39 @@ if TYPE_CHECKING:
     from mtg_utils._card_ir.mirror.generated.g08_else_ability import (
         U_entwine_cost,
         U_exprs,
+        U_filter,
         U_filters,
-        U_inner,
     )
-    from mtg_utils._card_ir.mirror.generated.g10_optional_player import (
+    from mtg_utils._card_ir.mirror.generated.g10_modifications import (
+        S_multi_target,
+        U_modifications,
+        U_n,
+    )
+    from mtg_utils._card_ir.mirror.generated.g11_player import (
         U_player_scope,
+        U_power,
     )
-    from mtg_utils._card_ir.mirror.generated.g11_prop import (
+    from mtg_utils._card_ir.mirror.generated.g12_properties import (
         U_properties,
     )
-    from mtg_utils._card_ir.mirror.generated.g12_qty import (
+    from mtg_utils._card_ir.mirror.generated.g13_qty import (
         U_qty,
     )
-    from mtg_utils._card_ir.mirror.generated.g13_redirect_to import (
-        S_replacement,
+    from mtg_utils._card_ir.mirror.generated.g14_redirect_target import (
         U_repeat_for,
+        U_rhs,
         U_right,
         U_selection,
-        U_source,
         U_source_filter,
     )
-    from mtg_utils._card_ir.mirror.generated.g14_static_abilities import (
+    from mtg_utils._card_ir.mirror.generated.g15_spell_filter import (
         S_sub_ability,
-        S_trigger,
-        S_unless_pay,
-        U_substitution,
+        U_subtype_filter,
         U_target_constraints,
-        U_value,
+        U_toughness,
+    )
+    from mtg_utils._card_ir.mirror.generated.g16_triggers import (
+        S_unless_pay,
     )
 
 
@@ -159,6 +163,7 @@ class S_mode_abilities(TypedMirrorNode):
     sub_ability: S_sub_ability | None
     target_prompt: None
     declares_chosen_group: int = MISSING
+    entry_onset: str = MISSING
     is_mana_ability: bool = MISSING
     multi_target: S_multi_target = MISSING
     player_scope: U_player_scope = MISSING
@@ -176,34 +181,187 @@ class S_modification(TypedMirrorNode):
     keywords: list[MirrorVariant] = MISSING
     mode: str = MISSING
     modifications: list[U_modifications] = MISSING
-    power: int = MISSING
-    power_delta: int = MISSING
-    toughness: int = MISSING
-    toughness_delta: int = MISSING
-
-
-@dataclass(frozen=True)
-class S_multi_target(TypedMirrorNode):
-    max: U_max | None
-    min: int | U_min
-
-
-@dataclass(frozen=True)
-class S_on_decline(TypedMirrorNode):
-    condition: U_condition | None
-    cost: None
-    description: None
-    duration: None
-    effect: U_effect
-    forward_result: bool
-    kind: str
-    optional: bool
-    optional_targeting: bool
-    sub_ability: None
-    target_prompt: None
+    power: int | U_power = MISSING
+    toughness: int | U_toughness = MISSING
 
 
 # --- tagged shapes (discriminated enum nodes) ---
+
+
+@dataclass(frozen=True)
+class T_inner__AbilityUseCountThisTurn(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "AbilityUseCountThisTurn"
+    n: int
+
+
+@dataclass(frozen=True)
+class T_inner__AdditionalCostPaid(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "AdditionalCostPaid"
+    origin: str
+
+
+@dataclass(frozen=True)
+class T_inner__And(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "And"
+    conditions: list[U_conditions]
+
+
+@dataclass(frozen=True)
+class T_inner__CastDuringPhase(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "CastDuringPhase"
+    phases: list[object]
+
+
+@dataclass(frozen=True)
+class T_inner__CastVariantPaid(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "CastVariantPaid"
+    variant: str
+
+
+@dataclass(frozen=True)
+class T_inner__ClampMin(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "ClampMin"
+    inner: U_inner
+    minimum: int
+
+
+@dataclass(frozen=True)
+class T_inner__CompletedDungeon(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "CompletedDungeon"
+
+
+@dataclass(frozen=True)
+class T_inner__ControllerControlledMatchingAsCast(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "ControllerControlledMatchingAsCast"
+    filter: U_filter
+
+
+@dataclass(frozen=True)
+class T_inner__CostPaidObjectMatchesFilter(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "CostPaidObjectMatchesFilter"
+    filter: U_filter
+
+
+@dataclass(frozen=True)
+class T_inner__DayNightIs(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "DayNightIs"
+    state: str
+
+
+@dataclass(frozen=True)
+class T_inner__EventOutcomeWon(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "EventOutcomeWon"
+
+
+@dataclass(frozen=True)
+class T_inner__Fixed(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "Fixed"
+    value: int
+
+
+@dataclass(frozen=True)
+class T_inner__HasCityBlessing(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "HasCityBlessing"
+
+
+@dataclass(frozen=True)
+class T_inner__IsMonarch(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "IsMonarch"
+
+
+@dataclass(frozen=True)
+class T_inner__Multiply(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "Multiply"
+    factor: int
+    inner: U_inner
+
+
+@dataclass(frozen=True)
+class T_inner__Not(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "Not"
+    condition: U_condition
+
+
+@dataclass(frozen=True)
+class T_inner__Offset(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "Offset"
+    inner: U_inner
+    offset: int
+
+
+@dataclass(frozen=True)
+class T_inner__Or(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "Or"
+    conditions: list[U_conditions]
+
+
+@dataclass(frozen=True)
+class T_inner__QuantityCheck(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "QuantityCheck"
+    comparator: str
+    lhs: U_lhs
+    rhs: U_rhs
+
+
+@dataclass(frozen=True)
+class T_inner__Ref(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "Ref"
+    qty: U_qty
+
+
+@dataclass(frozen=True)
+class T_inner__RevealedHasCardType(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "RevealedHasCardType"
+    card_types: list[MirrorVariant]
+    subtype_filter: U_subtype_filter
+
+
+@dataclass(frozen=True)
+class T_inner__SourceMatchesFilter(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "SourceMatchesFilter"
+    filter: U_filter
+
+
+@dataclass(frozen=True)
+class T_inner__Sum(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "Sum"
+    exprs: list[U_exprs]
+
+
+@dataclass(frozen=True)
+class T_inner__TargetMatchesFilter(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "TargetMatchesFilter"
+    filter: U_filter
+    use_lki: bool
+
+
+@dataclass(frozen=True)
+class T_inner__WasCast(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "WasCast"
+    zone: str
+
+
+@dataclass(frozen=True)
+class T_inner__ZoneChangeObjectMatchesFilter(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "ZoneChangeObjectMatchesFilter"
+    destination: str
+    filter: U_filter
+
+
+@dataclass(frozen=True)
+class T_inner__ZoneChangedThisWay(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "ZoneChangedThisWay"
+    filter: U_filter
+
+
+@dataclass(frozen=True)
+class T_invalidation__UntilNextGrantFromSameSource(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "UntilNextGrantFromSameSource"
+
+
+@dataclass(frozen=True)
+class T_iteration_kind_binding__RebindToIteratedKind(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "RebindToIteratedKind"
 
 
 @dataclass(frozen=True)
@@ -520,364 +678,44 @@ class T_modification__Double(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
-class T_modifications__AddAllBasicLandTypes(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "AddAllBasicLandTypes"
-
-
-@dataclass(frozen=True)
-class T_modifications__AddAllCreatureTypes(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "AddAllCreatureTypes"
-
-
-@dataclass(frozen=True)
-class T_modifications__AddAllLandTypes(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "AddAllLandTypes"
-
-
-@dataclass(frozen=True)
-class T_modifications__AddChosenColor(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "AddChosenColor"
-    mode: str
-
-
-@dataclass(frozen=True)
-class T_modifications__AddChosenKeyword(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "AddChosenKeyword"
-
-
-@dataclass(frozen=True)
-class T_modifications__AddChosenSubtype(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "AddChosenSubtype"
-    kind: str
-
-
-@dataclass(frozen=True)
-class T_modifications__AddColor(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "AddColor"
-    color: str
-
-
-@dataclass(frozen=True)
-class T_modifications__AddDynamicKeyword(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "AddDynamicKeyword"
-    kind: str
-    value: U_value
-
-
-@dataclass(frozen=True)
-class T_modifications__AddDynamicPower(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "AddDynamicPower"
-    value: U_value
-
-
-@dataclass(frozen=True)
-class T_modifications__AddDynamicToughness(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "AddDynamicToughness"
-    value: U_value
-
-
-@dataclass(frozen=True)
-class T_modifications__AddKeyword(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "AddKeyword"
-    keyword: str | MirrorVariant
-
-
-@dataclass(frozen=True)
-class T_modifications__AddPower(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "AddPower"
-    value: int
-
-
-@dataclass(frozen=True)
-class T_modifications__AddStaticMode(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "AddStaticMode"
-    mode: str | MirrorVariant
-
-
-@dataclass(frozen=True)
-class T_modifications__AddSubtype(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "AddSubtype"
-    subtype: str
-
-
-@dataclass(frozen=True)
-class T_modifications__AddSupertype(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "AddSupertype"
-    supertype: str
-
-
-@dataclass(frozen=True)
-class T_modifications__AddToughness(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "AddToughness"
-    value: int
-
-
-@dataclass(frozen=True)
-class T_modifications__AddType(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "AddType"
-    core_type: str
-
-
-@dataclass(frozen=True)
-class T_modifications__AssignDamageAsThoughUnblocked(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "AssignDamageAsThoughUnblocked"
-
-
-@dataclass(frozen=True)
-class T_modifications__AssignDamageFromToughness(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "AssignDamageFromToughness"
-
-
-@dataclass(frozen=True)
-class T_modifications__AssignNoCombatDamage(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "AssignNoCombatDamage"
-
-
-@dataclass(frozen=True)
-class T_modifications__ChangeController(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "ChangeController"
-
-
-@dataclass(frozen=True)
-class T_modifications__CopyChosen(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "CopyChosen"
-
-
-@dataclass(frozen=True)
-class T_modifications__GrantAbility(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "GrantAbility"
-    definition: S_definition
-
-
-@dataclass(frozen=True)
-class T_modifications__GrantAllActivatedAbilitiesOf(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "GrantAllActivatedAbilitiesOf"
-    source: U_source
-    cap: U_cap = MISSING
-
-
-@dataclass(frozen=True)
-class T_modifications__GrantAllTriggeredAbilitiesOf(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "GrantAllTriggeredAbilitiesOf"
-    source: U_source
-
-
-@dataclass(frozen=True)
-class T_modifications__GrantReplacement(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "GrantReplacement"
-    replacement: S_replacement
-
-
-@dataclass(frozen=True)
-class T_modifications__GrantStaticAbility(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "GrantStaticAbility"
-    definition: S_definition
-
-
-@dataclass(frozen=True)
-class T_modifications__GrantTrigger(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "GrantTrigger"
-    trigger: S_trigger
-
-
-@dataclass(frozen=True)
-class T_modifications__RemoveAllAbilities(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "RemoveAllAbilities"
-
-
-@dataclass(frozen=True)
-class T_modifications__RemoveAllSubtypes(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "RemoveAllSubtypes"
-    set: str
-
-
-@dataclass(frozen=True)
-class T_modifications__RemoveKeyword(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "RemoveKeyword"
-    keyword: str | MirrorVariant
-
-
-@dataclass(frozen=True)
-class T_modifications__RemoveSupertype(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "RemoveSupertype"
-    supertype: str
-
-
-@dataclass(frozen=True)
-class T_modifications__RemoveType(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "RemoveType"
-    core_type: str
-
-
-@dataclass(frozen=True)
-class T_modifications__SetBasicLandType(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "SetBasicLandType"
-    land_type: str
-
-
-@dataclass(frozen=True)
-class T_modifications__SetCardTypes(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "SetCardTypes"
-    core_types: list[object]
-
-
-@dataclass(frozen=True)
-class T_modifications__SetChosenBasicLandType(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "SetChosenBasicLandType"
-
-
-@dataclass(frozen=True)
-class T_modifications__SetChosenName(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "SetChosenName"
-
-
-@dataclass(frozen=True)
-class T_modifications__SetColor(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "SetColor"
-    colors: list[U_colors]
-
-
-@dataclass(frozen=True)
-class T_modifications__SetDynamicPower(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "SetDynamicPower"
-    value: U_value
-
-
-@dataclass(frozen=True)
-class T_modifications__SetDynamicToughness(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "SetDynamicToughness"
-    value: U_value
-
-
-@dataclass(frozen=True)
-class T_modifications__SetPower(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "SetPower"
-    value: int
-
-
-@dataclass(frozen=True)
-class T_modifications__SetPowerDynamic(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "SetPowerDynamic"
-    value: U_value
-
-
-@dataclass(frozen=True)
-class T_modifications__SetTextName(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "SetTextName"
-    name: str
-
-
-@dataclass(frozen=True)
-class T_modifications__SetToughness(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "SetToughness"
-    value: int
-
-
-@dataclass(frozen=True)
-class T_modifications__SetToughnessDynamic(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "SetToughnessDynamic"
-    value: U_value
-
-
-@dataclass(frozen=True)
-class T_modifications__SubstituteTextWord(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "SubstituteTextWord"
-    substitution: U_substitution
-
-
-@dataclass(frozen=True)
-class T_modifier__Add(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "Add"
-    value: U_value
-
-
-@dataclass(frozen=True)
-class T_modifier__CantBeCountered(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "CantBeCountered"
-
-
-@dataclass(frozen=True)
-class T_modifier__CastAsThoughFlash(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "CastAsThoughFlash"
-
-
-@dataclass(frozen=True)
-class T_modifier__HasKeyword(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "HasKeyword"
-    keyword: str | MirrorVariant
-
-
-@dataclass(frozen=True)
-class T_modifier__Subtract(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "Subtract"
-    value: U_value
-
-
-@dataclass(frozen=True)
-class T_modifier__WithoutPayingManaCost(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "WithoutPayingManaCost"
-
-
-@dataclass(frozen=True)
-class T_n__Fixed(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "Fixed"
-    value: int
-
-
-@dataclass(frozen=True)
-class T_noun__Typed(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "Typed"
-    controller: None
-    properties: list[U_properties]
-    type_filters: list[MirrorVariant]
-
-
-@dataclass(frozen=True)
-class T_object_filter__Any(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "Any"
-
-
-@dataclass(frozen=True)
-class T_object_filter__Typed(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "Typed"
-    controller: None
-    properties: list[U_properties]
-    type_filters: list[MirrorVariant]
-
-
-@dataclass(frozen=True)
-class T_object_source__ParentTarget(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "ParentTarget"
-
-
-@dataclass(frozen=True)
-class T_object_source__TrackedSet(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "TrackedSet"
-    id: int
-
-
-@dataclass(frozen=True)
-class T_once_per_turn__OnlyOnceEachTurn(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "OnlyOnceEachTurn"
-
-
-@dataclass(frozen=True)
-class T_only_tag__PowerUp(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "PowerUp"
-
-
-@dataclass(frozen=True)
-class T_op__LockOrUnlock(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "LockOrUnlock"
-
-
-@dataclass(frozen=True)
-class T_op__Unlock(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "Unlock"
+class T_modification__Times(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "Times"
+    factor: int
 
 
 # --- discriminated-union aliases (one per tagged content_key) ---
 
+type U_inner = (
+    T_inner__AbilityUseCountThisTurn
+    | T_inner__AdditionalCostPaid
+    | T_inner__And
+    | T_inner__CastDuringPhase
+    | T_inner__CastVariantPaid
+    | T_inner__ClampMin
+    | T_inner__CompletedDungeon
+    | T_inner__ControllerControlledMatchingAsCast
+    | T_inner__CostPaidObjectMatchesFilter
+    | T_inner__DayNightIs
+    | T_inner__EventOutcomeWon
+    | T_inner__Fixed
+    | T_inner__HasCityBlessing
+    | T_inner__IsMonarch
+    | T_inner__Multiply
+    | T_inner__Not
+    | T_inner__Offset
+    | T_inner__Or
+    | T_inner__QuantityCheck
+    | T_inner__Ref
+    | T_inner__RevealedHasCardType
+    | T_inner__SourceMatchesFilter
+    | T_inner__Sum
+    | T_inner__TargetMatchesFilter
+    | T_inner__WasCast
+    | T_inner__ZoneChangeObjectMatchesFilter
+    | T_inner__ZoneChangedThisWay
+)
+type U_invalidation = T_invalidation__UntilNextGrantFromSameSource
+type U_iteration_kind_binding = T_iteration_kind_binding__RebindToIteratedKind
 type U_journal = T_journal__SpellsCast
 type U_keep_count_expr = T_keep_count_expr__Ref
 type U_keep_on_top = T_keep_on_top__Fixed
@@ -926,67 +764,4 @@ type U_metric = (
 type U_min = T_min__Ref
 type U_mode = T_mode__Mandatory | T_mode__MayCost | T_mode__Optional
 type U_mode_costs = T_mode_costs__Cost
-type U_modification = T_modification__Double
-type U_modifications = (
-    T_modifications__AddAllBasicLandTypes
-    | T_modifications__AddAllCreatureTypes
-    | T_modifications__AddAllLandTypes
-    | T_modifications__AddChosenColor
-    | T_modifications__AddChosenKeyword
-    | T_modifications__AddChosenSubtype
-    | T_modifications__AddColor
-    | T_modifications__AddDynamicKeyword
-    | T_modifications__AddDynamicPower
-    | T_modifications__AddDynamicToughness
-    | T_modifications__AddKeyword
-    | T_modifications__AddPower
-    | T_modifications__AddStaticMode
-    | T_modifications__AddSubtype
-    | T_modifications__AddSupertype
-    | T_modifications__AddToughness
-    | T_modifications__AddType
-    | T_modifications__AssignDamageAsThoughUnblocked
-    | T_modifications__AssignDamageFromToughness
-    | T_modifications__AssignNoCombatDamage
-    | T_modifications__ChangeController
-    | T_modifications__CopyChosen
-    | T_modifications__GrantAbility
-    | T_modifications__GrantAllActivatedAbilitiesOf
-    | T_modifications__GrantAllTriggeredAbilitiesOf
-    | T_modifications__GrantReplacement
-    | T_modifications__GrantStaticAbility
-    | T_modifications__GrantTrigger
-    | T_modifications__RemoveAllAbilities
-    | T_modifications__RemoveAllSubtypes
-    | T_modifications__RemoveKeyword
-    | T_modifications__RemoveSupertype
-    | T_modifications__RemoveType
-    | T_modifications__SetBasicLandType
-    | T_modifications__SetCardTypes
-    | T_modifications__SetChosenBasicLandType
-    | T_modifications__SetChosenName
-    | T_modifications__SetColor
-    | T_modifications__SetDynamicPower
-    | T_modifications__SetDynamicToughness
-    | T_modifications__SetPower
-    | T_modifications__SetPowerDynamic
-    | T_modifications__SetTextName
-    | T_modifications__SetToughness
-    | T_modifications__SetToughnessDynamic
-    | T_modifications__SubstituteTextWord
-)
-type U_modifier = (
-    T_modifier__Add
-    | T_modifier__CantBeCountered
-    | T_modifier__CastAsThoughFlash
-    | T_modifier__HasKeyword
-    | T_modifier__Subtract
-    | T_modifier__WithoutPayingManaCost
-)
-type U_n = T_n__Fixed
-type U_noun = T_noun__Typed
-type U_object_filter = T_object_filter__Any | T_object_filter__Typed
-type U_object_source = T_object_source__ParentTarget | T_object_source__TrackedSet
-type U_once_per_turn = T_once_per_turn__OnlyOnceEachTurn
-type U_only_tag = T_only_tag__PowerUp
-type U_op = T_op__LockOrUnlock | T_op__Unlock
+type U_modification = T_modification__Double | T_modification__Times

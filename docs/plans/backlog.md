@@ -208,8 +208,12 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   It reads less of the card, which is the opposite of the plan's direction.
   (m) **Recall** (`precon-audit/misses.py`, at the largest guide's thirty
   swaps and each precon's own guides' budget, `budgets.json`, Spellbook cached):
-  329 of 505 cuttable guide cuts, 114 of 793 in-scope guide adds, 715 swaps;
-  held-out 139 of 216 / 35 of 407, 297 swaps (2026-10-30, the signal-gap pass:
+  332 of 505 cuttable guide cuts, 114 of 793 in-scope guide adds, 717 swaps;
+  held-out 139 of 216 / 35 of 407, 297 swaps (2026-10-30, the phase v0.118.0 pin
+  bump: Planeswalker Party one guide cut more, Sliver Swarm two more swaps and
+  two guide cuts more; near-misses 70 / 29, consensus 39 / 121 and 6 / 37, Jace
+  29 / 14 / 3, all as before. Before it 329 / 114, 715 swaps; held-out 139 /
+  35, 297 swaps (2026-10-30, the signal-gap pass:
   Sundial of the Infinite in all four guide decks, Graveyard Overdrive's Six,
   Tarmogoyf and Terravore; Mardu Surge's Sundial spends the budget its last five
   upgrades had, one guide cut fewer; Jace unchanged. Before it 330 / 109, 721
@@ -352,8 +356,8 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   placers, the same Oko, Flourishing Forces and Quintorius; Rootha, Ardent
   Artisan (sacrifice outlets); Change the Narrative (cost reducers); Nylea's
   Oracle (go-wide anthems); Avoided Stairwurm (Enlist fodder, Ability-strip
-  targets). The ledger rows that gate on a node's absence (Sanwell, Avenger
-  Ace; Estrid's Invocation, both rows; Venture Forth; Hide in Plain Sight; the
+  targets). The ledger rows that gate on a node's absence (Estrid's
+  Invocation, both rows; Venture Forth; Hide in Plain Sight; the
   typeless reanimations; the dropped return costs; Catastrophe's creature
   branch; the where-X player burns; Commence the Endgame's amass; Widespread
   Brutality's Army bite; Jin Sakai's modes) retire only through
@@ -524,7 +528,7 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   conjure-of-choice as DraftFromSpellbook; Ojutai Exemplars' "Return it" as
   TriggeringSource (a canary); Fatespinner's skip (a canary); Leonin Arbiter,
   Shadow of Doubt, Pale Moon, Cephalid Shrine, Hallowed Moonlight, Mistcaller,
-  Juxtapose, Cultural Exchange, Legerdemain, Teferi's Time Twist, Desolation,
+  Juxtapose, Cultural Exchange, Legerdemain, Desolation,
   Cleanse, Crusade, Artificial Evolution, Tomik; Champion of Stray Souls'
   graveyard zone; Sinister Gnarlbark's blight; Become Brutes' Role; Gemcutter
   Buccaneer's Equipment subtype; Krydle's mill; One Ring to Rule Them All's mill
@@ -537,7 +541,7 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   Invocation's copy, Mortarion, fourteen damage clauses left Unimplemented
   (Power Surge, Urborg Stalker …), Curse of the Pierced Heart's controller,
   Masako, Lander / Map token abilities, Collision Course's AnyOf, the optional
-  wheel's draw scope (Snort — a canary), Can't Stay Away, Vigor Mortis, Custodi
+  wheel's draw scope (Snort — a canary), Can't Stay Away, Custodi
   Soulcaller, Lich-Knights' Conquest, Balthor, Omen Machine, Blightwing Bandit,
   Abduction's ChangeController, "as though it had flash" dropped (Rootwater
   Shaman, Arlinn), Radagast, Aluren, Jin Sakai, Nether Void's unless-pay, Mana
@@ -574,10 +578,11 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   Elspeth Resplendent / Undercover Operative (shield counters), Nicanzil,
   Dream Devourer, The Fourth Doctor, You Find a Cursed Idol (Unknown or
   dropped trigger modes); field corrections for the `SelfRef` untap locks
-  (Mesmerizing Benthid, Scion of Stygia, Wall of Stolen Identity, Tsabo's Web,
-  Code of Constraint), the anaphoric "it gets -N/-0" pumps (the two Jaces,
-  Tamiyo, Blood Lust, Six-Sided Die), "that player controls" taps (Delirium,
-  Yosei, Mana Web — and 22 self-tap cards such as Jaddi Lifestrider left
+  (Mesmerizing Benthid, Wall of Stolen Identity, Tsabo's Web; Scion of Stygia and
+  Code of Constraint fixed at v0.118.0), the anaphoric "it gets -N/-0" pumps
+  (the other Jace, Tamiyo, Blood Lust, Six-Sided Die; Jace, Architect of
+  Thought fixed at v0.118.0), "that player controls" taps (Delirium, Mana Web;
+  Yosei fixed at v0.118.0 — and 22 self-tap cards such as Jaddi Lifestrider left
   `tapper_engine`), the Hidden / Opal / Veiled / Lurking self-animation cycle,
   Alacrian Armory and Animate Artifact, Athreos's exile, the graveyard owner
   (Skullsnatcher, Zombie Cannibal, Grime Gorger — opponents; Savior of
@@ -711,7 +716,8 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   upstream, Dan posts). Each is a card the old regexes read and the trees don't:
   - Reach: `unparsed_quantity` residues park "loses life / deals damage equal to …"
     (Within Range, Soulblast, Final Punishment, Mjölnir; ~28 such residues name
-    damage or life loss). Underbridge Warlock's boon reads as a self loss. (The
+    damage or life loss). (Underbridge Warlock's boon, once a self loss, is a
+    typed ``CreateBoon`` since v0.118.0.) (The
     `where_x_binding` X effects — Insatiable Hemophage, Zenith Flare — are read by
     `reads.unbound_x_reach`, canary `test_unbound_x_reach_canary`.)
   - Game wins: Frodo, Sauron's Bane's Rogue clause is dropped (its second ability
@@ -726,9 +732,8 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   - Mass land denial, each with a canary or a ledger row: Eye of Singularity and
     Herald of Vengeance lose their narrowing clause and read as "all permanents"
     (vetoed by `reads.NARROWED_PERMANENT_SWEEPS`; End Hostilities is an
-    `attached_to_qualifier` residue since v0.104.0); Exhaustion's and
-    Mana Vapors' one-untap-step effect parses as a lasting static
-    (`_lasting_static_defs`); Burning of Xinye's "destroys four lands" is a residue
+    `attached_to_qualifier` residue since v0.104.0); Burning of Xinye's "destroys
+    four lands" is a residue
     and Global Ruin's sacrifice a tracked set (both ledger bridges).
 - **Phase gap behind the tuner's ramp sourcing** (found 2026-10-08, phase v0.94.0;
   report upstream, Dan posts). Boxing Ring's "Activate only if you control a
@@ -778,11 +783,12 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
 - **Phase drops the player behind edicts** (found 2026-10-09, phase v0.104.0;
   report upstream, Dan posts). Each is read with a workaround that retires itself:
   a chained "…, then sacrifices" loses its subject (Undercity Plague, Priest of
-  Forgotten Gods, Din of the Fireherd's land half, Nicol Bolas, Planeswalker's −9),
-  and Davriel, Soul Broker's +1 hangs "they sacrifice an attacking creature" beside
-  its delayed trigger, not in it (`test_chained_sacrifice_actor_dropped_canary`);
-  "each opponent [who …] sacrifices" parses with no player at all (Papalymo
-  Totolymo, Variable Solutions — ledger row `opponent_sacrifice_actor_dropped`).
+  Forgotten Gods, Din of the Fireherd's land half, Nicol Bolas, Planeswalker's −9 —
+  `test_chained_sacrifice_actor_dropped_canary`); "each opponent [who …]
+  sacrifices" parses with no player at all (Variable Solutions — ledger row
+  `opponent_sacrifice_actor_dropped`). Fixed at v0.118.0: Davriel, Soul Broker's
+  sacrifice now sits in its delayed trigger; Papalymo Totolymo's clause is parked
+  whole as an `unbound_subject` residue instead.
 - **phase tags "each other player" as `Opponent`.** Grave Pact and Syphon Mind carry
   `player_scope: Opponent`, which only differs from "each opponent" in team formats
   (it includes your teammate). phase doesn't support team formats yet, so this isn't
@@ -801,10 +807,9 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   BRANCH_MISREADS`, each row with its `retirement_canary`; report upstream, Dan
   posts). Fraying Line's "that player may pay {2}" is a `PayCost` with `payer:
   Controller`, so its "Otherwise" branch reads as yours (pruned from the certain
-  records: LOW); Osseous Sticktwister's "each opponent who didn't sacrifice … or
-  discard a card this way" parses as a second choice with a discard branch; Spitting
-  Slug's "each creature blocking or blocked by this creature" loses its narrowing
-  (both dropped from every tree). Also unreported, no workaround: Worms of the
+  records: LOW). (Osseous Sticktwister's phantom discard choice and Spitting Slug's
+  dropped blocking-or-blocked narrowing are fixed at v0.118.0; their rows retired.)
+  Also unreported, no workaround: Worms of the
   Earth's "any player may" choice is `chooser: Controller` (read off the wrapper's
   `optional_for`), and Ensnared by the Mara's villainous branch carries
   `player_scope: All`, so its (LOW) impulse_top_play scopes "each".
@@ -826,6 +831,82 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   `_RECOVERED_DRAW_REPLACEMENT_RE` (a replacement diagnostic the seam could refuse).
   Move each onto a `read_clause` mark the same way draw, discard, damage reach and
   make_token's kinds moved (2026-10-09), population unchanged.
+
+**From the phase v0.118.0 bump (2026-10-30)**
+
+- **Phase misparses new at v0.118.0** (report upstream by shape, Dan posts):
+  - *Subject peeled from a parked clause.* "Target player discards a card for each
+    creature it devoured" (Tar Fiend) parks as `unparsed_quantity` "discard a card
+    for each …"; likewise Whispering Specter, Doom Foretold, Brain Pry, Cabal
+    Shrine, Thoughtcutter Agent ("lose 1 life and reveals their hand"). Read back
+    by `recovery._peeled_subject`; Thoughtcutter's second verb is ledger row
+    `second_verb_reveal_hand_parked`.
+  - Geistlight Snare's "It also costs {1} less to cast" parks as its own
+    `unbound_subject` residue in the spell's chain (canary
+    `test_self_discount_continuation_parked_canary`).
+  - "Reveal N cards from their hand and you choose one" (Blackmail, Hollow
+    Specter, Cabal Interrogator, Pulse of the Dross) and "pay one or more {E}"
+    (Pia Nalaar, Chief Mechanic; Rampaging Aetherhood) park as
+    `unparsed_verb_arguments`; recovered by new grammar rows.
+  - Mana Clash's and Rakdos, the Showstopper's per-flip outcome park as
+    `per_object_coin_flip_outcome` (direct_damage / mass_removal lost).
+  - Bestial Fury's "it gets +4/+0 and gains trample" binds `ParentTarget`, not
+    the enchanted creature (aura_equip_kw_grant lost).
+  - Seasoned Cryomancer's reflexive tap and Summon: Kujata's, Vivien's
+    Invocation's and Adaptive Armorer's reflexive effects park as
+    `zone_change_reflexive_*`.
+  - Parked whole, each an accepted loss with no workaround (one line each to
+    report): Legion's Chant (`unenforced_aggregate_resolution_selection`), Rune
+    Snag (`unless_payment`), Lich Lord of Unx's loss per Zombie, Helm of
+    Obedience's repeat mill, Turtles Forever (`search_zone_list`), Nazahn's
+    search (`search_result_condition`), Even the Odds (`casting_restriction`),
+    Smogbelcher Chariot (`perpetual_gain_choice`), Divine Purge's perpetual
+    grant, Ursine Monstrosity's mill, Soulgorger Orgg's and Glimmer Hoarder's
+    life loss, Absolving Lammasu's and Marrow Chomper's life gain, Tar Fiend's
+    enters payload, Hateful Eidolon and Stone Haven Outfitter
+    (`departure_attachment_relation`), Ludevic (`unparsed_condition`), Consuming
+    Tide, Sudden Salvation and Biomantic Mastery (`unparsed_quantity` draws),
+    Wheel of Potential's draw count, Pharika's Spawn's escape counters, Dark
+    Intimations' +1/+1-counter tail, Brokers' Safeguard's perpetual shield
+    counter, Rakdos Augermage's and Impetuous Lootmonger's own discard, Indominus
+    Rex's keyword counters, Invasion of Arcavios's search.
+- **Our reads still missing a v0.118.0 shape** (open):
+  - "Destroy target creature … and all Equipment attached to that creature" is a
+    `TargetOnly` + `DestroyAll{Or[ParentTarget, AttachedTo{Host}]}` (Eaten by
+    Spiders removal, Silence the Believers and Soul Nova exile_removal, Portal of
+    Sanctuary permanent_etb, Word of Undoing bounce_tempo lost); the removal
+    lanes would resolve the `ParentTarget` arm to the chain's root target.
+  - A recovered `blocked_attacker_damage_source` damage ("it deals 1 damage to
+    defending player" — Simian Sling, Tormentor's Helm; "… to each creature
+    blocking it" — Ib Halfheart, Trailblazer's Torch) is read by direct_damage
+    but not lifeloss_makers / mass_removal.
+  - Underbridge Warlock's enters trigger is a `CreateBoon`; no lane reads a boon
+    as an enters payload (self_etb_payload lost).
+  - Ral, Izzet Viceroy's emblem trigger ("whenever you cast an instant or sorcery
+    spell, … you draw two cards") is typed now; card_draw_engine doesn't read an
+    emblem's draw.
+  - Tasha, Unholy Archmage's "+1: … put a -1/-1 counter on that creature" names
+    the attacker as `TriggeringSource`; debuff_makers doesn't take it.
+  - King Narfi's Betrayal's "exile a creature or planeswalker card from each
+    graveyard" is a `ChooseFromZone` into a `TrackedSet`; graveyard_matters
+    doesn't read the pick.
+  - Recovery marks that misfire: Biomantic Mastery ("another target player
+    controls" sets `OtherPlayer`), Souls of the Faultless ("attacking player
+    loses" not another player), Ursine Monstrosity ("choose an opponent" scopes
+    your own mill), Val, Marooned Surveyor (a parked trigger condition recovers as
+    a clue maker), Ingenious Mastery ("they scry 2" read as yours).
+- `mana_and_wipes._chooses_at_most_one` vetoes a sweep whose tracked set the
+  controller fills with at most one object (Light of Judgment) without resolving
+  which `TrackedSet` the sweep destroys: it holds for any one-object choice in
+  the unit. Resolve the set the `DestroyAll` names (open, low priority).
+- **Policy questions from the bump's gains** (decide; fixing would drop cards
+  v0.104.0 already had): lifegain_matters on "whenever an opponent gains life"
+  (Punishing Fire new; Kavu Predator, Wedding Ring already); Cinder Wall /
+  Ceremonial Guard gain voltron_matters|carrier from the membership floor once
+  blocked_matters left; keyword_bodies|enchant on Aura tokens (Scriv); Word of
+  Undoing's color_change payoff; Messenger Jays' self_drawback; Council's
+  Deliberation's card_draw_engine (it exiles itself, so fires once); Swarmyard
+  Massacre's scaling_pump from a shrink.
 
 **From the keyword tribe's dropped keywords (2026-10-26, phase v0.104.0)**
 
@@ -878,13 +959,9 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
     "it gains flying until end of turn", Inventive Wingsmith's "put a flying
     counter on it" and Genku, Future Shaper's mode "1/2 blue Moonfolk with
     flying" are the same.
-  - *Counter kinds swallowing a clause.* Dralnu's Pet: "it enters with flying
-    and with X +1/+1 counters" types ``PutCounter{counter_type: "flying and
-    with x +1/+1"}``. It should grant flying and put ``P1P1`` counters.
-    Printlifter Ooze's "create a 0/0 green Ooze creature token with trample. The
-    token enters with X +1/+1 counters" is the same (both read in recovery,
-    ``_swallowed_counter_keywords``). March Toward Perfection's whole boon is
-    one quoted counter kind (a ledger row).
+  - *Counter kinds swallowing a clause* (Dralnu's Pet, Printlifter Ooze, March
+    Toward Perfection's boon): fixed at v0.118.0; the recovery read and the
+    ledger row retired.
   - *A Role token's own ability.* Monstrous Rage: "Create a Monster Role token
     attached to it" types the ``Token`` with no static. It should carry the
     Role's "Enchanted creature gets +1/+1 and has trample" (CR 111.10k; Royal's
@@ -919,12 +996,10 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   - Single cards, as ledger rows (card: phase emits → should emit):
     Furygale Flocking: "create two 3/3 … Elemental creature tokens with flying"
     → a ``SwallowedClause`` warning, no ``Token`` → a ``Token`` with
-    ``keywords: [Flying]``; Doom Foretold: "you create a 2/2 white Knight
-    creature token with vigilance" → swallowed → a ``Token`` with Vigilance;
-    Welcome the Darkness: "Create an X/X black Demon creature token with flying"
-    → only a ``CantGainLife`` static carrying the whole text → a ``Token``;
-    Spry and Mighty: "the chosen creatures get +X/+X and gain trample" → only
-    the ``where_x_binding`` residue → a pump with ``AddKeyword(Trample)``; Case
+    ``keywords: [Flying]``; Welcome the Darkness: "Create an X/X black Demon
+    creature token with flying" → only a ``CantGainLife`` static carrying the
+    whole text → a ``Token``; (Doom Foretold's Knight token and Spry and
+    Mighty's trample are fixed at v0.118.0, their rows retired); Case
     of the Stashed Skeleton: "create a 2/1 black Skeleton … and suspect it" →
     ``Token`` alone → plus ``Suspect``; Burn Down the House: "They gain haste
     until end of turn" → ``Token`` alone → plus a haste grant; Yasova

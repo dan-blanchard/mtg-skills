@@ -384,8 +384,24 @@ _SIMPLE_VERB = comb.alt(
             comb.keyword({"hand", "hands"}),
         ),
     ),
+    # "reveals three cards from their hand and you choose one of them" (Blackmail,
+    # Hollow Specter): part of a hand reveal, which phase parks as an
+    # ``unparsed_verb_arguments`` residue. One sentence, third person only.
+    comb.value(
+        "reveal_hand",
+        comb.seq2(
+            comb.keyword({"reveal", "reveals"}),
+            comb.take_until("from their hand", within=".;"),
+        ),
+    ),
     comb.value("reveal", comb.keyword({"reveal", "reveals"})),
     comb.value("roll_die", comb.keyword({"roll", "rolls"})),  # "roll a d20", dice
+    # "you may pay one or more {E}" (Pia Nalaar, Chief Mechanic): an energy
+    # payment (CR 107.14), which phase parks as unparsed_verb_arguments.
+    comb.value(
+        "energy_payment",
+        comb.seq2(comb.keyword({"pay"}), comb.take_until("{e}", within=".;")),
+    ),
     comb.value("pay_cost", comb.keyword({"pay"})),  # "Pay 3 life", "pay {2}{R}" (cost)
     comb.value("fight", comb.keyword({"fight", "fights"})),  # "fights target creature"
     # Manifest = card face down as a 2/2 (CR 701.40), not a token — own category.
@@ -870,6 +886,17 @@ def replacement_token(text: str) -> str | None:
 STATIC_TOKENS = (
     *STATIC_TOKENS,
     (re.compile(r"\b(?:pay|paid)\b[^.]*?\{E\}", re.IGNORECASE), "energy_payment"),
+)
+
+
+# ── A self-discount's later sentence ───────────────────────────────────────────
+# "This spell costs {1} less to cast if you control a Spirit. It also costs {1}
+# less to cast if you control an enchantment." (Geistlight Snare): phase parks the
+# second sentence as its own residue, "It also costs {1} less to cast", whose "it"
+# is the spell.
+STATIC_TOKENS = (
+    *STATIC_TOKENS,
+    (re.compile(r"^it also costs\b[^.]*\bless\b", re.IGNORECASE), "self_discount"),
 )
 
 

@@ -1842,18 +1842,15 @@ def test_fight_makers_nested_grant_no_double():
         assert _arm_fight_makers(tree) is None, name
 
 
-def test_fight_makers_dropped_clause_synth():
+def test_fight_makers_dropped_clause_graduated():
     """Tolsimir, Friend to Wolves' "that creature fights up to one target
-    creature you don't control" -- the trigger's own ``execute`` is a bare
-    ``GainLife``, no ``sub_ability`` chain at all, so phase drops the
-    fight clause WHOLLY (no node of any kind, unlike Tunnel of Love's
-    buried-but-real Fight node) -- the genuine gap the synth arm covers."""
+    creature you don't control" was dropped wholly through phase v0.104.0 (a
+    bare ``GainLife`` execute) and read by the synth arm; v0.118.0 types the
+    Fight, so the structural gate covers it and the gap-gated arm stands down
+    (it still reads Mythos of Illuna's token-copy exception)."""
     tree = _fixture_tree("Tolsimir, Friend to Wolves")
-    assert has_structural_fight_makers(tree) is False  # genuine gap
-    node = _arm_fight_makers(tree)
-    assert node is not None
-    assert node.concept == "fight"  # the REAL concept, no synth_* marker
-    assert node.scope == "you"
+    assert has_structural_fight_makers(tree) is True
+    assert _arm_fight_makers(tree) is None
 
 
 def test_fight_makers_synth_registered():
@@ -2159,8 +2156,6 @@ def test_creature_cast_trigger_nested_token_grant_no_double():
 @pytest.mark.parametrize(
     "name",
     [
-        "Boreal Outrider",
-        "Kozilek's Return",
         "Volo, Itinerant Scholar",
         "Glimpse of Nature",
     ],
@@ -2181,13 +2176,16 @@ def test_creature_cast_trigger_no_residue_synth(name):
         "Communal Brewing",
         "Runadi, Behemoth Caller",
         "Wildgrowth Archaic",
+        "Boreal Outrider",
+        "Kozilek's Return",
     ],
 )
 def test_creature_cast_trigger_graduated_structural_no_double(name):
     """Graduated at the v0.45.0 pin bump: phase now parses these cards'
     creature-cast trigger structurally (Runadi via upstream #6735, the other
-    two alongside), so the structural gate covers them and the gap-gated
-    synthesis arm stands down — same no-double contract as Garruk/Blink."""
+    two alongside; Boreal Outrider and Kozilek's Return at v0.118.0), so the
+    structural gate covers them and the gap-gated synthesis arm stands down —
+    same no-double contract as Garruk/Blink."""
     tree = _fixture_tree(name)
     assert has_structural_creature_cast_trigger(tree) is True
     assert _arm_creature_cast_trigger(tree) is None
@@ -2560,6 +2558,10 @@ def _superfriends_fires(name):
         "Carth the Lion",  # battlefield dies-trigger naming Planeswalker
         "Onakke Oathkeeper",  # UnlessPay defending planeswalkers ALONE
         "Oath of Kaya",  # attack trigger on planeswalkers ALONE
+        # "activate the loyalty abilities of planeswalkers you control twice
+        # each turn": a bucket-B synth gap through phase v0.104.0, typed since
+        # v0.118.0.
+        "Oath of Teferi",
     ],
 )
 def test_superfriends_bucket_a_structural(name):
@@ -2569,10 +2571,11 @@ def test_superfriends_bucket_a_structural(name):
 
 
 def test_superfriends_bucket_b_synth():
-    """Oath of Teferi's "activate the loyalty abilities of planeswalkers you
-    control twice each turn" is a permission ability phase leaves with no
-    typed carrier — a genuine bucket-B gap the synth idiom recovers."""
-    tree = _fixture_tree("Oath of Teferi")
+    """Jace's Machinations' "you may activate loyalty abilities of Jace
+    planeswalkers you control … any time you could cast an instant" is a
+    permission phase leaves with no typed carrier — a bucket-B gap the synth
+    idiom recovers (Oath of Teferi was this pin until phase v0.118.0 typed it)."""
+    tree = _fixture_tree("Jace's Machinations")
     assert has_structural_superfriends(tree) is False  # genuine gap
     from mtg_utils._analysis.tree_synthesis import _arm_superfriends_matters
 
@@ -2580,7 +2583,7 @@ def test_superfriends_bucket_b_synth():
     assert node is not None
     assert node.concept == "synth_superfriends_matters"
     assert node.scope == "you"
-    assert _superfriends_fires("Oath of Teferi") is True
+    assert _superfriends_fires("Jace's Machinations") is True
 
 
 @pytest.mark.parametrize(

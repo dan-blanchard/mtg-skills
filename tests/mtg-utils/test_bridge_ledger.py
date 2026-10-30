@@ -309,24 +309,12 @@ _MISPARSE_ROWS = {
     "creature_spell_discount_filter_dropped": (
         "a creature-spell discount parsed as a ModifyCost with no spell filter"
     ),
-    "etb_drain_boon_misparse": (
-        "the one-time drain boon parsed as the controller losing life"
-    ),
     "target_players_drain_target_dropped": (
         "the targeted players' life loss parsed as a LoseLife with no target"
     ),
     "team_indestructible_misbound": (
         "a team indestructible grant parsed onto the player (Controller) or with "
         "its 'you control' dropped"
-    ),
-    "human_enters_counter_misparse": (
-        "the Humans' extra counter parsed as a replacement on the card itself"
-    ),
-    "chosen_type_sweep_misparse": (
-        "the one-sided -3/-3 parsed as a Pump of any target"
-    ),
-    "conjured_creature_deathtouch_counter_parked": (
-        "the boon's counters parsed as one quoted counter kind"
     ),
     "welcome_the_darkness_token_flying": (
         "the spell's Demon token parsed into a CantGainLife static's description"
@@ -356,9 +344,6 @@ _STRUCTURE_MATCHED_ROWS = {
         "the emblem's CastFromZone lost its in-exile filter"
     ),
     "warchanter_skald_condition_dropped": ("the Taps trigger has no condition at all"),
-    "plus_one_hierophant_previouseffectamount_dropped_kind": (
-        "the ModifyCost's counted kind is missing from its operand"
-    ),
     "moku_haste_grant_misscoped_selfref": "a misparse (see _MISPARSE_ROWS)",
     "keyword_dropped_paylife": (
         "the match reads the keyword rows crosswalk.core recovers from the residue"

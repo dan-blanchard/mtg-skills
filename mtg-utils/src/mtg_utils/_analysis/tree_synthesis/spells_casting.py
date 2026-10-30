@@ -1114,9 +1114,14 @@ def _arm_cost_reduction(tree: ConceptTree) -> ConceptNode | None:
             subject=(),
             desc="bucket-B static spell/ability-cost reducer (CR 601.2f/118.7)",
         )
+    # a self-discount's later sentence the recovery seam reads off its residue
+    # (``self_discount`` — Geistlight Snare's "It also costs {1} less to cast")
+    self_discounts = {
+        id(c.node) for c in tree.iter_concepts() if c.recovered_by == "self_discount"
+    }
     for node in tree.iter_typed():
         desc = getattr(node, "description", None)
-        if not isinstance(desc, str):
+        if not isinstance(desc, str) or id(node) in self_discounts:
             continue
         if _cost_reducer_node_ok(desc):
             return _synthetic_concept(

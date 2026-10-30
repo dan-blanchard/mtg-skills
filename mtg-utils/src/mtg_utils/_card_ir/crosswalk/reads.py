@@ -103,6 +103,22 @@ OPPONENT_ACTOR_TAGS: frozenset[str] = frozenset(
     {"Opponent", "Opponents", "EachOpponent"}
 )
 _EACH_ACTOR_TAGS: frozenset[str] = frozenset({"Each", "AllPlayers", "EachPlayer"})
+#: "That player": the player an earlier clause of the ability named ("Target
+#: player discards a card. ~ deals damage to that player …" — Hellhole Rats).
+#: A player slot (a sub-ability's ``target`` / ``player`` / ``owner`` /
+#: ``optional_player``) carries ``DeclaredPlayer{group}``, the group pointing at
+#: the clause's ``declares_chosen_group``; other slots keep ``ParentTarget``. A
+#: player set that holds the one holds the other.
+PLAYER_BACK_REFERENCES: frozenset[str] = frozenset({"ParentTarget", "DeclaredPlayer"})
+#: A group's controller whose effect you direct: yours, or the target player's
+#: (you choose the target, CR 601.2c — Early Harvest's "Target player untaps all
+#: basic lands they control").
+YOUR_CHOSEN_CONTROLLERS: frozenset[str] = frozenset({"You", "TargetPlayer"})
+#: A player the card picks out on a player slot: a target player (``Player`` /
+#: ``Target``) or a back-reference to one (:data:`PLAYER_BACK_REFERENCES`). Not
+#: ``TargetPlayer``, the tag a filter's ``controller`` takes for "target player's
+#: creatures" — a set reading filter controllers adds it itself.
+TARGETED_PLAYER_TAGS: frozenset[str] = PLAYER_BACK_REFERENCES | {"Player", "Target"}
 
 
 def _unwrap_role_target(sub: object) -> object:
@@ -144,7 +160,7 @@ def _scope_from_player_tag(t: object) -> str | None:
     # self resource — "target player draws, then discards" is a targeted effect,
     # not a self-loot outlet; the live self-loot lane scopes it out. Map to "any"
     # so a maker lane gated to you/each does not over-fire on it.
-    if t in ("ParentTarget", "Player", "Any", "Target"):
+    if t in TARGETED_PLAYER_TAGS or t == "Any":
         return "any"
     return None
 
@@ -203,17 +219,12 @@ def explicit_recipient_scope(node: TypedMirrorNode) -> str | None:
 # (``TriggeringPlayer``), or a chosen/targeted player (``ParentTarget`` / ``Player``
 # / ``Target`` / ``Any``). A loss aimed at one of these is a DIRECTED loss at
 # another player (CR 119.3), never a self-loss.
-_DIRECTED_PLAYER_TAGS: frozenset[str] = frozenset(
-    {
-        "ParentTargetController",
-        "EventTargetController",
-        "TriggeringPlayer",
-        "ParentTarget",
-        "Player",
-        "Target",
-        "Any",
-    }
-)
+_DIRECTED_PLAYER_TAGS: frozenset[str] = TARGETED_PLAYER_TAGS | {
+    "ParentTargetController",
+    "EventTargetController",
+    "TriggeringPlayer",
+    "Any",
+}
 
 
 def lifeloss_recipient_scope(node: TypedMirrorNode) -> str | None:
@@ -1144,6 +1155,10 @@ def _damage_target_reaches(
         return player or getattr(tgt, "controller", None) is None
     if tt in ("Any", "Target"):
         return True
+    if tt == "AttackedPlayerOrPlaneswalker":
+        # "the player or planeswalker it's attacking" (Hellrider): a player or a
+        # planeswalker, whichever it attacks (CR 508.1b).
+        return True
     if tt in _CHOSEN_PLAYER_TARGETS or tt in (
         "ScopedPlayer",
         "ParentTargetController",
@@ -1156,7 +1171,7 @@ def _damage_target_reaches(
             _damage_target_reaches(f, root, recipient)
             for f in (getattr(tgt, "filters", None) or ())
         )
-    if tt == "ParentTarget":
+    if tt in PLAYER_BACK_REFERENCES:
         # Deliberately excluded from the generic ``_scope_from_player_node``
         # fallback: that helper maps bare ``ParentTarget`` to scope "any"
         # for OTHER lanes' purposes (a chosen/targeted-object read), which
@@ -1224,7 +1239,7 @@ def _unit_has_target(root: object, recipient: DamageRecipient) -> bool:
             sub = getattr(n, fname, MISSING)
             if (
                 _present(sub)
-                and tag_of(sub) != "ParentTarget"
+                and tag_of(sub) not in PLAYER_BACK_REFERENCES
                 and _damage_target_reaches(sub, None, recipient)
             ):
                 return True
@@ -1523,6 +1538,13 @@ def filter_predicates(filt: object) -> tuple[str, ...]:
     if t == "Typed":
         for prop in getattr(filt, "properties", ()) or ():
             pt = tag_of(prop)
+            if pt == "AttachedTo":
+                # ``AttachedTo{to}`` names what the object is attached to
+                # (Champion of the Flame's
+                # "each Aura and Equipment attached to it"): the predicate keeps
+                # its per-object name — ``AttachedTo`` + the ``to`` tag (new
+                # objects: ``Host``, ``DeclaredTarget``).
+                pt = "AttachedTo" + (tag_of(getattr(prop, "to", None)) or "")
             if pt is not None:
                 out.append(pt)
     elif t in ("Or", "And"):
@@ -2091,16 +2113,10 @@ def quantity_scope(qty: object) -> str | None:
 # player ("target player / opponent discards" — Mind Rot, Stupor), or an explicit
 # opponent. A you/controller recipient is a self-loot (the ported ``discard_makers``
 # lane), not this hand-attack.
-_DISCARD_OPP_TAGS: frozenset[str] = OPPONENT_ACTOR_TAGS | frozenset(
-    {
-        "Player",
-        "Target",
-        "ParentTarget",
-        "Any",
-        "TargetPlayer",
-        "TriggeringPlayer",
-        "ParentTargetController",
-    }
+_DISCARD_OPP_TAGS: frozenset[str] = (
+    TARGETED_PLAYER_TAGS
+    | OPPONENT_ACTOR_TAGS
+    | {"Any", "TargetPlayer", "TriggeringPlayer", "ParentTargetController"}
 )
 
 
@@ -2392,19 +2408,21 @@ def recursion_card_types(
     own decision; and, given its ``unit``, for a typeless filter that names the
     card an earlier clause chose ("Choose up to one target artifact or creature
     card in your graveyard … return it" — Jolted Awake; "Return those cards" —
-    Revivify: an ``And`` holding a ``ParentTarget`` / ``TrackedSet``), the
-    types of the graveyard card that clause chose."""
+    Revivify: an ``And`` holding a ``ParentTarget`` / ``TrackedSet``, or one
+    alone), the types of the graveyard card that clause chose."""
     types = filter_core_types(sub)
     if types:
         return types
     if tag_of(node) in ("ChangeZone", "ChangeZoneAll") and tag_of(sub) == "AttachedTo":
         return tuple(tree.card_enchant_core_types)
-    if unit is None or tag_of(sub) != "And":
+    if unit is None:
         return types
-    if not any(
-        tag_of(arm) in ("ParentTarget", "TrackedSet")
-        for arm in getattr(sub, "filters", None) or ()
-    ):
+    # "Return any number of artifact creature cards with total mana value 6 or
+    # less from your graveyard to the battlefield" (Technomancer): a
+    # ``ChooseFromZone`` picks the cards and the ``ChangeZone`` moves its bare
+    # ``ParentTarget``.
+    arms = getattr(sub, "filters", None) or () if tag_of(sub) == "And" else (sub,)
+    if not any(tag_of(arm) in ("ParentTarget", "TrackedSet") for arm in arms):
         return types
     for other in unit.iter_typed():
         if other is node:
@@ -3090,7 +3108,7 @@ def ref_count_filter(node: object, field: str) -> object | None:
 # (Bogardan Phoenix's "Otherwise, return it to the battlefield"; Sphinx
 # Sovereign's "Otherwise, each opponent loses 3 life") — one of the two
 # outcomes the ability can have, so a faithful unit aggregates it too.
-# ``win_effect`` / ``lose_effect``: a ``FlipCoin`` / ``FlipCoins`` outcome — The
+# ``win_effect`` / ``lose_effect``: a ``FlipCoins`` outcome — The
 # Gold Saucer's Treasure, Invert Polarity's theft or counter, Winter Sky's sweep.
 # Like a die-roll row, each is one possible outcome; the walk skips an outcome
 # that is the card's own drawback (:func:`is_own_drawback`).
@@ -4027,8 +4045,19 @@ def has_nested_roll_die(node: object) -> bool:
     return any(tag_of(n) == "RollDie" for n in _iter_typed_nodes(node))
 
 
+#: The effect tags phase types a coin flip with (CR 705.1):
+#: ``FlipCoins{flips: Exactly{count} | UntilLoss}``. The concept map
+#: (``core.EFFECT_CONCEPTS``) maps each to ``flip_coin``.
+FLIP_COIN_TAGS: frozenset[str] = frozenset({"FlipCoins"})
+
+
+def is_flip_coin(node: object) -> bool:
+    """Whether ``node`` is a coin flip (:data:`FLIP_COIN_TAGS`)."""
+    return tag_of(node) in FLIP_COIN_TAGS
+
+
 def has_nested_flip_coin(node: object) -> bool:
-    """Whether a ``FlipCoin`` tag (CR 705.1) is reachable ANYWHERE under
+    """Whether a ``FlipCoins`` tag (CR 705.1) is reachable ANYWHERE under
     ``node`` — a coin flip buried inside a granted activated ability's
     ``GrantAbility.definition`` (Frenetic Sliver's "All Slivers have
     '{0}: ... flip a coin ...'") that the flat per-unit concept-node walk
@@ -4037,17 +4066,17 @@ def has_nested_flip_coin(node: object) -> bool:
     The ``coin_flip`` lane's structural fallback, the
     :func:`has_nested_roll_die` sibling.
     """
-    return any(tag_of(n) == "FlipCoin" for n in _iter_typed_nodes(node))
+    return any(is_flip_coin(n) for n in _iter_typed_nodes(node))
 
 
 def iter_flip_outcomes(node: object) -> Iterator[TypedMirrorNode]:
-    """Each outcome of every coin flip under ``node`` (a ``FlipCoin`` /
+    """Each outcome of every coin flip under ``node`` (a
     ``FlipCoins`` ``win_effect`` / ``lose_effect``, CR 705.2), granted bodies
     included — the drawback outcomes too, which the effect walk leaves out
     (:func:`is_own_drawback`: Frenetic Sliver's "If you win the flip, exile ~
     and return it to the battlefield")."""
     for n in _iter_typed_nodes(node):
-        if tag_of(n) not in ("FlipCoin", "FlipCoins"):
+        if not is_flip_coin(n):
             continue
         for field in _FLIP_OUTCOME_FIELDS:
             outcome = getattr(n, field, None)
@@ -4075,7 +4104,7 @@ def has_nested_extra_turn(node: object) -> bool:
     """Whether an ``ExtraTurn`` tag (CR 500.7) is reachable ANYWHERE under
     ``node`` — an extra-turn grant buried inside a ``Vote``'s
     ``per_choice_effect`` branch (Expropriate, Plea for Power's "time"
-    vote outcome), a ``FlipCoin``/``FlipCoins`` ``win_effect`` (Stitch in
+    vote outcome), a ``FlipCoins`` ``win_effect`` (Stitch in
     Time, Ral Zarek's -7), or a static ability's ``GrantAbility.
     definition`` (Ichormoon Gauntlet's granted planeswalker loyalty
     ability) — a modification's ``definition`` is past the reach of
@@ -4999,6 +5028,15 @@ _SELF_EXCLUDE_TAGS: frozenset[str] = frozenset({"Controller", "You"})
 #: each read decides what it means (reach: ``"each"``).
 OTHERS_SCOPE = "Others"
 
+#: "You and that player each …": a ``player_scope`` naming you and one other
+#: player (``AnyOf[Controller, X]``; the other is an opponent on every card that
+#: prints it — "you and target opponent", "you and that player" off combat
+#: damage to a player, "an opponent" — Farsight Adept, Black Widow, Intel
+#: Expert, Infernal Offering). Two players act, never every player: its reach
+#: (:func:`effect_player_reach`) is an opponent's, and you act too
+#: (:data:`YOUR_ACTORS`).
+YOU_AND_OPPONENT_SCOPE = "YouAndOpponent"
+
 #: every player's option ("any player may …"): reach reads it as ``"each"``; no
 #: one is forced, so it is no edict actor.
 ANY_PLAYER_SCOPE = "AnyPlayer"
@@ -5008,6 +5046,17 @@ ANY_PLAYER_SCOPE = "AnyPlayer"
 #: player" (Damocles Base). Nobody is targeted; reach reads it as ``"target"`` (a
 #: player the card chooses) and an edict as opponents.
 CHOSEN_PLAYER_SCOPE = "ChosenPlayer"
+
+
+def _any_of_members(ps: object) -> tuple[str, ...]:
+    """The players an ``AnyOf`` ``player_scope`` names, each as its tag ("you and
+    target opponent each draw a card" — Farsight Adept: one effect on
+    ``ScopedPlayer`` under ``AnyOf[Controller, TargetPlayer]``), else ``()``."""
+    if tag_of(ps) != "AnyOf":
+        return ()
+    return tuple(
+        t for f in getattr(ps, "filters", None) or () if (t := _player_scope_tag(f))
+    )
 
 
 def _owner_scope_tag(ps: object, root: object) -> str | None:
@@ -5020,6 +5069,9 @@ def _owner_scope_tag(ps: object, root: object) -> str | None:
     (Fractured Identity), so it stays ``AllExcept``."""
     if isinstance(ps, str):  # an actor the owner walk resolved (a choice, a label)
         return None if ps == "You" else ps
+    members = _any_of_members(ps)
+    if len(members) == 2 and any(m in _SELF_EXCLUDE_TAGS for m in members):
+        return YOU_AND_OPPONENT_SCOPE  # "you and that player each draw two cards"
     tag = _player_scope_tag(ps)
     if tag == "VotedFor":
         # the players who chose a vote's outcome, outside friend-or-foe (whose
@@ -5277,6 +5329,9 @@ def effect_owner_player_scope(root: object, effect_node: object) -> str | None:
 OPPONENT_WRAPPER_ACTORS: frozenset[str] = frozenset(
     {*OPPONENT_ACTOR_TAGS, OTHERS_SCOPE}
 )
+#: Wrapper actors (:func:`effect_owner_player_scope`) under which you act: none
+#: named (the controller), or you beside an opponent.
+YOUR_ACTORS: frozenset[str | None] = frozenset({None, YOU_AND_OPPONENT_SCOPE})
 
 #: An Aura's enchanted player. CR 303.4: an Aura enters the battlefield attached
 #: to an object or player, so it names no side; each read decides what it means.
@@ -5552,8 +5607,8 @@ def effect_player_reach(root: object, effect_node: TypedMirrorNode) -> str | Non
         return "target"
     if actor == ANY_PLAYER_SCOPE:
         return "each"
-    if actor in OPPONENT_ACTOR_TAGS:
-        return "opponents"
+    if actor in OPPONENT_ACTOR_TAGS or actor == YOU_AND_OPPONENT_SCOPE:
+        return "opponents"  # (beside you, for the pair)
     # "each other player" (``Others``) reaches your teammate too (CR 102.3), the
     # same call as twohg_scan's veto on phase's ``Opponent`` reading of it.
     if actor in _EACH_ACTOR_TAGS or actor in ("All", OTHERS_SCOPE):
@@ -5846,20 +5901,15 @@ def hand_size_scopes(root: object) -> tuple[str, ...]:
 # (``tree_synthesis.mana_ramp_lands``) and card_classify's land-search reads both
 # go through them.
 
-_TUTOR_DIRECTED_PLAYER_TAGS = frozenset(
-    {
-        "ParentTarget",
-        "Player",
-        "Target",
-        "Opponent",
-        "Opponents",
-        "EachOpponent",
-        "TriggeringPlayer",
-        "ScopedPlayer",
-        "ParentTargetController",
-        "ParentObjectTargetController",
-    }
-)
+_TUTOR_DIRECTED_PLAYER_TAGS = TARGETED_PLAYER_TAGS | {
+    "Opponent",
+    "Opponents",
+    "EachOpponent",
+    "TriggeringPlayer",
+    "ScopedPlayer",
+    "ParentTargetController",
+    "ParentObjectTargetController",
+}
 _TUTOR_NON_SELF_ABILITY_SCOPE = frozenset(
     {
         "All",
@@ -6498,7 +6548,10 @@ def _own_mana_effects(tree: ConceptTree) -> Iterator[TypedMirrorNode]:
 #: deal" (``prevent_damage_recipient_target_role``), Safeguard's "… dealt by
 #: target creature" (``prevent_damage_dealt_by_target``), Dovin, Hand of
 #: Control's "… dealt to and dealt by target permanent an opponent controls"
-#: (``bidirectional_prevent_declared_target``). Each is still a prevention effect
+#: (``bidirectional_prevent_declared_target``), and one whose damage source is
+#: scoped to a relation (``prevention_source_scope``: Wall of Shadows'
+#: "… dealt to ~ by creatures it's blocking", Chromatic Armor's "… by sources of
+#: the last chosen color"). Each is still a prevention effect
 #: (CR 615.1a: effects that use the word "prevent"), so the ``damage_prevention``
 #: lane and ``protection.protective_saves`` read the residue's name. Guarded by
 #: ``test_parked_prevention_residues_canary``.
@@ -6507,6 +6560,7 @@ PARKED_PREVENTION_RESIDUES: frozenset[str] = frozenset(
         "prevent_damage_recipient_target_role",
         "prevent_damage_dealt_by_target",
         "bidirectional_prevent_declared_target",
+        "prevention_source_scope",
     }
 )
 
@@ -6726,11 +6780,10 @@ def _lasting_static_defs(
 ) -> Iterator[TypedMirrorNode]:
     """The static defs of ``unit`` that last: a permanent's own statics, and a
     resolving effect's statics unless its duration ends by the next turn
-    (:data:`_SHORT_DURATIONS`). An instant's or sorcery's top-level static is its
-    one-shot effect (CR 113.6: its abilities function on the stack) — phase
-    v0.94.0 parses Exhaustion's and Mana Vapors' "don't untap during their next
-    untap step" that way, without the duration; guarded by
-    ``test_one_shot_untap_statics_canary``."""
+    (:data:`_SHORT_DURATIONS`). An instant's or sorcery's top-level static never
+    lasts: an instant or sorcery spell's abilities usually function only while it
+    is on the stack (CR 113.6), so a static one prints is a one-shot effect it
+    applies as it resolves (Ethereal Grasp's perpetual "doesn't untap" grant)."""
     if unit.origin == "static":
         if permanent_card:
             yield from unit.static_defs()
@@ -8448,9 +8501,8 @@ def forages(unit: AbilityUnit) -> bool:
 #: skips: back-references to an earlier object (``ParentTarget``, a tracked
 #: set, the triggering source), the card itself, and player references — none
 #: is the chain's own single-object choice.
-TARGET_BACKREF_TAGS: frozenset[str] = frozenset(
+TARGET_BACKREF_TAGS: frozenset[str] = PLAYER_BACK_REFERENCES | frozenset(
     {
-        "ParentTarget",
         "ParentTargetOwner",
         "ParentTargetController",
         "SelfRef",
@@ -8501,9 +8553,10 @@ def root_target_filter(unit: AbilityUnit) -> object | None:
 TokenCreatorSide = Literal["you", "opponents", "each", "chosen", "any"]
 #: Token ``owner`` back-references to the object the chain targets: "its
 #: controller / its owner / they create".
-_TARGET_OWNER_REFS: frozenset[str] = frozenset(
-    {"ParentTarget", "ParentTargetController", "ParentTargetOwner"}
-)
+_TARGET_OWNER_REFS: frozenset[str] = PLAYER_BACK_REFERENCES | {
+    "ParentTargetController",
+    "ParentTargetOwner",
+}
 
 
 def token_creator_side(unit: AbilityUnit, node: object) -> TokenCreatorSide | None:
@@ -8544,6 +8597,11 @@ def token_creator_side(unit: AbilityUnit, node: object) -> TokenCreatorSide | No
     tag = tag_of(owner)
     if tag in ("Controller", "OriginalController"):
         return "you"
+    if (
+        tag == "ScopedPlayer"
+        and effect_owner_player_scope(unit.node, node) == YOU_AND_OPPONENT_SCOPE
+    ):
+        return "you"  # "you and target opponent each create" (Thran Spider)
     if tag == "TriggeringPlayer":
         return "opponents" if triggering_player_side(unit) == "opponents" else "you"
     if tag in ("Player", "TargetPlayer"):
@@ -8656,6 +8714,8 @@ def damage_drains_opponent(unit: AbilityUnit, node: TypedMirrorNode) -> bool:
         return scoped_player_scope(unit) is not None
     if t == "ParentTarget":
         return not effect_reaches_permanent(node, unit.node)
+    if t == "DeclaredPlayer":  # "that player" — a player, never a permanent
+        return True
     if t in ("ParentTargetController", "EventTargetController"):
         return not _rides_a_targeted_object_effect(unit, node)
     if t in ("Typed", "Or", "And"):
@@ -9141,9 +9201,7 @@ def attacks_your_opponents(filt: object) -> bool:
 LIBRARY_EXILE_TAGS: frozenset[str] = frozenset({"ExileTop", "Dig", "ExileFromTopUntil"})
 #: ``player`` tags naming a player the card picks out, who may be you: a target
 #: player, a back-reference to a target or its controller.
-_PICKED_PLAYER_TAGS: frozenset[str] = frozenset(
-    {"ParentTarget", "ParentTargetController", "Player", "Target"}
-)
+_PICKED_PLAYER_TAGS: frozenset[str] = TARGETED_PLAYER_TAGS | {"ParentTargetController"}
 #: A ``GrantCastingPermission`` grantee that is not the controller: "its owner
 #: may cast it" (Release to the Wind, Elite Spellbinder) returns the card.
 _OTHER_PLAYER_GRANTEES: frozenset[str] = frozenset(
@@ -9431,7 +9489,7 @@ _ONE_CREATURE_AFFECTED: frozenset[str] = frozenset(
 #: be blocked" (Bilbo's Ring) is unconditional evasion.
 _ATTACK_TURN_CONDITIONS: frozenset[str] = frozenset({"DuringYourTurn"})
 #: Random-outcome nodes: evasion granted in one branch is chance, not a plan.
-_CHANCE_TAGS: frozenset[str] = frozenset({"FlipCoin", "FlipCoins", "RollDie"})
+_CHANCE_TAGS: frozenset[str] = FLIP_COIN_TAGS | {"RollDie"}
 
 
 class EvasionSite(NamedTuple):
@@ -10541,9 +10599,11 @@ def library_search_restriction_side(static_def: object) -> str | None:
 #: Countermand; Grisly Spectacle), a target player (Millstone, Glimpse the
 #: Unthinkable) and a back-reference to one (Demogorgon's Clutches' "Target
 #: opponent discards two cards, mills two cards").
-_OTHER_PLAYER_MILL_RECIPIENTS: frozenset[str] = frozenset(
-    {"DefendingPlayer", "ParentTargetController", "ParentTarget", "Player"}
-)
+_OTHER_PLAYER_MILL_RECIPIENTS: frozenset[str] = PLAYER_BACK_REFERENCES | {
+    "DefendingPlayer",
+    "ParentTargetController",
+    "Player",
+}
 #: :func:`effect_player_reach` answers that take in another player's library:
 #: each opponent, each player (Extract from Darkness), a target player, a
 #: per-player loop ("At the beginning of each player's upkeep, that player
@@ -11302,7 +11362,7 @@ def _hand_player_side(
             for n in tree.iter_typed()
         )
         return "opponents" if chooses_opponent else None
-    if tag in ("TargetPlayer", "ParentTarget", "Player"):
+    if tag in TARGETED_PLAYER_TAGS or tag == "TargetPlayer":
         return filter_controller_side(root_target_filter(unit))
     return None
 

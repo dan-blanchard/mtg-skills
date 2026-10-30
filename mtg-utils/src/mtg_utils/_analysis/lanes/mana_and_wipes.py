@@ -39,6 +39,7 @@ from mtg_utils._card_ir.crosswalk import (
     CREATURE_OR_PERMANENT,
     DYNAMIC_PT_SET_MODS,
     SWEPT_PERMANENT_TYPES,
+    TARGETED_PLAYER_TAGS,
     TEAM_BUFF_GRANT_KW,
     AbilityUnit,
     ConceptNode,
@@ -111,6 +112,7 @@ from mtg_utils._card_ir.mirror.runtime import (
 )
 from mtg_utils._card_ir.recovery import (
     CARD,
+    FOR_EACH,
     ON_SELF,
     OTHER_PLAYER,
     SELF,
@@ -187,21 +189,16 @@ _BARE_X_QTY_TAGS: frozenset[str] = frozenset(
 # group_mana direction: "whenever a player taps … THAT PLAYER adds" (Mana
 # Flare — TriggeringPlayer), "each player's upkeep, that player adds" (Magus
 # of the Vineyard — ScopedPlayer), "target player adds" (Player/Target).
-_GROUP_MANA_RECIPIENTS: frozenset[str] = frozenset(
-    {
-        "TriggeringPlayer",
-        "ScopedPlayer",
-        "Player",
-        "Target",
-        "ParentTarget",
-        "Each",
-        "AllPlayers",
-        "EachPlayer",
-        "Opponent",
-        "Opponents",
-        "EachOpponent",
-    }
-)
+_GROUP_MANA_RECIPIENTS: frozenset[str] = TARGETED_PLAYER_TAGS | {
+    "TriggeringPlayer",
+    "ScopedPlayer",
+    "Each",
+    "AllPlayers",
+    "EachPlayer",
+    "Opponent",
+    "Opponents",
+    "EachOpponent",
+}
 # Counted-population controllers naming an OPPONENT-directed count (checklist
 # #6): an explicit opponent, a targeted/defending player, or the ETB-chosen
 # opponent (Pallimud / Skyshroud War Beast's ``SourceChosenPlayer``).
@@ -225,18 +222,13 @@ _OPP_COUNT_CONTROLLERS: frozenset[str] = frozenset(
 # (Settle the Wreckage's wiped-player compensation). The conditional veto in
 # :func:`_directed_search_sibling` splits the two on the unit's player-target
 # marker.
-_DIRECTED_SEARCHERS: frozenset[str] = frozenset(
-    {
-        "ParentTarget",
-        "Player",
-        "Target",
-        "Opponent",
-        "Opponents",
-        "EachOpponent",
-        "TriggeringPlayer",
-        "ScopedPlayer",
-    }
-)
+_DIRECTED_SEARCHERS: frozenset[str] = TARGETED_PLAYER_TAGS | {
+    "Opponent",
+    "Opponents",
+    "EachOpponent",
+    "TriggeringPlayer",
+    "ScopedPlayer",
+}
 
 
 def _sum_expr_qty(expr: object) -> str | None:
@@ -711,7 +703,10 @@ def _draw_for_each(tree: ConceptTree) -> list[Signal]:
 
     for unit in tree.units:
         for c in unit.effect_concepts("draw"):
-            if scaling(c.node, unit.node):
+            if scaling(c.node, unit.node) or (
+                # a parked draw whose count the seam reads as kept per object
+                c.recovered_by == "draw" and FOR_EACH in c.reading
+            ):
                 # task #91 — Deadly Cover-Up's scaling draw recipient is the
                 # OWNER of the earlier-exiled opponent-graveyard card
                 # (:func:`_target_owner_beneficiary_scope`, CR 108.3): the
@@ -1265,6 +1260,17 @@ def _walk_mass_removal(tree: ConceptTree) -> SweepEffects:
 _DAMAGE_SWEPT_TYPES: frozenset[str] = CREATURE_OR_PERMANENT | {"Planeswalker"}
 
 
+def _chooses_at_most_one(unit: AbilityUnit) -> bool:
+    """Whether the unit fills its tracked set by one choice of at most one object
+    (a ``ChooseObjectsIntoTrackedSet`` whose ``max`` is 1)."""
+    return any(
+        tag_of(n) == "ChooseObjectsIntoTrackedSet"
+        and isinstance(most := getattr(n, "max", None), int)
+        and most <= 1
+        for n in iter_typed_nodes(unit.node)
+    )
+
+
 def _is_mass_removal(tree: ConceptTree, unit: AbilityUnit, c: ConceptNode) -> bool:
     """Whether ``c`` is a board wipe by one of :func:`_mass_removal`'s arms."""
     t = tag_of(c.node)
@@ -1288,7 +1294,14 @@ def _is_mass_removal(tree: ConceptTree, unit: AbilityUnit, c: ConceptNode) -> bo
     # the Void, Druid of Purification, Grenzo's Rebuttal, and The
     # Horus Heresy's chapter III, the four members the population
     # fix would otherwise shed.
-    if t == "DestroyAll" and tag_of(getattr(c.node, "target", None)) == ("TrackedSet"):
+    # A set the controller fills with at most one object is no sweep: Light of
+    # Judgment's "Destroy up to one Equipment attached to that creature" is a
+    # ``ChooseObjectsIntoTrackedSet{max: 1}`` the ``DestroyAll`` then destroys.
+    if (
+        t == "DestroyAll"
+        and tag_of(getattr(c.node, "target", None)) == ("TrackedSet")
+        and not _chooses_at_most_one(unit)
+    ):
         return True
     if t == "ChangeZoneAll" and ctrl != "You":
         origin, dest = change_zone_dirs(c.node)

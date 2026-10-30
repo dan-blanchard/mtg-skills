@@ -4,7 +4,7 @@ Codegen'd from ``tests/fixtures/phase_mirror_schema.json`` by
 ``mtg_utils._card_ir.mirror.codegen`` (run via ``build-card-ir-substrate``).
 
 Part of the generated typed-mirror package (see this directory's
-``__init__.py``). This module holds content keys ``prop`` .. ``props`` (3
+``__init__.py``). This module holds content keys ``properties`` .. ``props`` (2
 keys).
 
 Class naming: ``S_<ckey>`` for a struct shape, ``T_<ckey>__<tag>`` for a tagged
@@ -31,85 +31,29 @@ if TYPE_CHECKING:
     from mtg_utils._card_ir.mirror.generated.g08_else_ability import (
         U_filter,
     )
-    from mtg_utils._card_ir.mirror.generated.g10_optional_player import (
+    from mtg_utils._card_ir.mirror.generated.g10_modifications import (
         U_parity,
-        U_player,
     )
-    from mtg_utils._card_ir.mirror.generated.g12_qty import (
+    from mtg_utils._card_ir.mirror.generated.g11_player import (
+        U_player,
+        U_prop,
+    )
+    from mtg_utils._card_ir.mirror.generated.g13_qty import (
         U_recipient,
     )
-    from mtg_utils._card_ir.mirror.generated.g13_redirect_to import (
+    from mtg_utils._card_ir.mirror.generated.g14_redirect_target import (
         U_reference,
     )
-    from mtg_utils._card_ir.mirror.generated.g14_static_abilities import (
+    from mtg_utils._card_ir.mirror.generated.g15_spell_filter import (
         U_target,
+        U_to,
+    )
+    from mtg_utils._card_ir.mirror.generated.g16_triggers import (
         U_value,
     )
 
 
 # --- tagged shapes (discriminated enum nodes) ---
-
-
-@dataclass(frozen=True)
-class T_prop__Another(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "Another"
-
-
-@dataclass(frozen=True)
-class T_prop__AttackedThisTurn(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "AttackedThisTurn"
-
-
-@dataclass(frozen=True)
-class T_prop__EnchantedBy(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "EnchantedBy"
-
-
-@dataclass(frozen=True)
-class T_prop__EnteredThisTurn(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "EnteredThisTurn"
-
-
-@dataclass(frozen=True)
-class T_prop__HasAttachment(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "HasAttachment"
-    kind: str
-
-
-@dataclass(frozen=True)
-class T_prop__InTrackedSet(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "InTrackedSet"
-    id: int
-
-
-@dataclass(frozen=True)
-class T_prop__Named(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "Named"
-    name: str
-
-
-@dataclass(frozen=True)
-class T_prop__SameName(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "SameName"
-
-
-@dataclass(frozen=True)
-class T_prop__SharesQuality(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "SharesQuality"
-    quality: str
-    reference: U_reference
-
-
-@dataclass(frozen=True)
-class T_prop__WasPlayed(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "WasPlayed"
-
-
-@dataclass(frozen=True)
-class T_prop__ZoneChangedThisTurn(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "ZoneChangedThisTurn"
-    from_: str = field(metadata={"json": "from"})
-    to: str
 
 
 @dataclass(frozen=True)
@@ -124,19 +68,9 @@ class T_properties__AnyOf(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
-class T_properties__AttachedToPlayer(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "AttachedToPlayer"
-    player: str
-
-
-@dataclass(frozen=True)
-class T_properties__AttachedToRecipient(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "AttachedToRecipient"
-
-
-@dataclass(frozen=True)
-class T_properties__AttachedToSource(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "AttachedToSource"
+class T_properties__AttachedTo(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "AttachedTo"
+    to: U_to
 
 
 @dataclass(frozen=True)
@@ -205,7 +139,7 @@ class T_properties__ColorCount(TypedMirrorNode):
 @dataclass(frozen=True)
 class T_properties__CombatRelation(TypedMirrorNode):
     _tag: ClassVar[str | None] = "CombatRelation"
-    relation: str
+    relation: str | MirrorVariant
     subject: str
 
 
@@ -251,6 +185,12 @@ class T_properties__CountersPutOnThisTurn(TypedMirrorNode):
     comparator: str
     count: int
     counters: U_counters
+
+
+@dataclass(frozen=True)
+class T_properties__CrewedThisTurn(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "CrewedThisTurn"
+    relation: str
 
 
 @dataclass(frozen=True)
@@ -510,6 +450,16 @@ class T_properties__PowerGTSource(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_properties__PrepareSpell(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "PrepareSpell"
+
+
+@dataclass(frozen=True)
+class T_properties__Prepared(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "Prepared"
+
+
+@dataclass(frozen=True)
 class T_properties__ProtectorMatches(TypedMirrorNode):
     _tag: ClassVar[str | None] = "ProtectorMatches"
     controller: str
@@ -688,25 +638,10 @@ class T_props__PtComparison(TypedMirrorNode):
 
 # --- discriminated-union aliases (one per tagged content_key) ---
 
-type U_prop = (
-    T_prop__Another
-    | T_prop__AttackedThisTurn
-    | T_prop__EnchantedBy
-    | T_prop__EnteredThisTurn
-    | T_prop__HasAttachment
-    | T_prop__InTrackedSet
-    | T_prop__Named
-    | T_prop__SameName
-    | T_prop__SharesQuality
-    | T_prop__WasPlayed
-    | T_prop__ZoneChangedThisTurn
-)
 type U_properties = (
     T_properties__Another
     | T_properties__AnyOf
-    | T_properties__AttachedToPlayer
-    | T_properties__AttachedToRecipient
-    | T_properties__AttachedToSource
+    | T_properties__AttachedTo
     | T_properties__AttackedOrBlockedThisTurn
     | T_properties__AttackedThisTurn
     | T_properties__Attacking
@@ -726,6 +661,7 @@ type U_properties = (
     | T_properties__CouldBeTargetedByTriggeringSpell
     | T_properties__Counters
     | T_properties__CountersPutOnThisTurn
+    | T_properties__CrewedThisTurn
     | T_properties__DealtDamageThisTurn
     | T_properties__DifferentNameFrom
     | T_properties__DistinctFrom
@@ -772,6 +708,8 @@ type U_properties = (
     | T_properties__Owned
     | T_properties__PowerExceedsBase
     | T_properties__PowerGTSource
+    | T_properties__PrepareSpell
+    | T_properties__Prepared
     | T_properties__ProtectorMatches
     | T_properties__PtComparison
     | T_properties__Renowned

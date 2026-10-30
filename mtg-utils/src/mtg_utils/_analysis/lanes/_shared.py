@@ -13,6 +13,8 @@ from mtg_utils._card_ir.crosswalk import (
     LAND_SUBTYPE_WORDS,
     OPPONENT_ACTOR_TAGS,
     TARGET_BACKREF_TAGS,
+    TARGETED_PLAYER_TAGS,
+    YOU_AND_OPPONENT_SCOPE,
     AbilityUnit,
     ConceptNode,
     ConceptTree,
@@ -41,7 +43,15 @@ from mtg_utils._card_ir.mirror.runtime import (
     MirrorVariant,
     TypedMirrorNode,
 )
-from mtg_utils._card_ir.recovery import CARD, SELF, TARGETED, THEIRS, YOURS
+from mtg_utils._card_ir.recovery import (
+    CARD,
+    SELF,
+    TARGETED,
+    THEIRS,
+    YOURS,
+    done_by_another,
+    recovered_on,
+)
 
 # The b13 conferred-grant / condition-payoff raw anchors (soulbond / undying /
 # changeling / cascade / the Stage-3b madness/affinity/mutate re-categorizers)
@@ -371,7 +381,14 @@ def _attack_compulsion_hit(kept: str, *patterns: re.Pattern[str]) -> bool:
 # opponent like a "target player sacrifices" filter. (Friend-or-foe's foes read
 # ``Opponent``, its friends you.)
 _EDICT_ACTORS: frozenset[str] = frozenset(
-    {*OPPONENT_ACTOR_TAGS, "All", "EachPlayer", "Each", CHOSEN_PLAYER_SCOPE}
+    {
+        *OPPONENT_ACTOR_TAGS,
+        "All",
+        "EachPlayer",
+        "Each",
+        CHOSEN_PLAYER_SCOPE,
+        YOU_AND_OPPONENT_SCOPE,
+    }
 )
 
 
@@ -379,7 +396,10 @@ def _edict_scope(owner_tag: str | None) -> str:
     """An edict actor tag → lane scope (CR 701.21a). An opponent actor → opponents; a
     symmetric each-player actor → each (mirrors ``_ir_scope`` opp/each); a player
     the card picks out → opponents, like a ``TargetPlayer`` controller."""
-    if owner_tag in OPPONENT_ACTOR_TAGS or owner_tag == CHOSEN_PLAYER_SCOPE:
+    if owner_tag in OPPONENT_ACTOR_TAGS or owner_tag in (
+        CHOSEN_PLAYER_SCOPE,
+        YOU_AND_OPPONENT_SCOPE,  # "You and that player each sacrifice"
+    ):
         return "opponents"
     return "each"
 
@@ -457,6 +477,16 @@ def sacrifice_actor_scope(unit: AbilityUnit, node: TypedMirrorNode) -> str | Non
     (:func:`_sac_actor_scope`). The one actor read ``edict_makers`` scopes by and
     the forced-only edict walk (``removal_tutors.removal_edict_answers``) gates on.
     """
+    # A sacrifice phase parks, recovered by the seam, is another player's when its
+    # clause names them ("Each opponent who lost life this turn sacrifices a
+    # creature …" — Papalymo Totolymo); any other reads as below.
+    recovered = recovered_on(unit, node) if tag_of(node) == "Unimplemented" else None
+    if (
+        recovered is not None
+        and recovered.concept == "sacrifice"
+        and done_by_another(recovered)
+    ):
+        return "opponents"
     owner = effect_owner_player_scope(getattr(unit, "node", None), node)
     if owner in _EDICT_ACTORS:
         return _edict_scope(owner)
@@ -492,8 +522,6 @@ def _chained_sacrifice_actor(unit: AbilityUnit, node: TypedMirrorNode) -> str | 
             return actor
         if tag_of(c.node) == "Sacrifice":
             actor = sacrifice_actor_scope(unit, c.node)
-        elif _watches_an_opponent(c.node):
-            actor = "opponents"
         else:
             direction = detriment_directed_scope(c.node)
             if direction == "you":
@@ -511,17 +539,6 @@ def _chained_sacrifice_actor(unit: AbilityUnit, node: TypedMirrorNode) -> str | 
 #: target creature or planeswalker. … you sacrifice a land"), and a zone move on
 #: a card the chain found (Variable Solutions' sought land) names no player.
 _PLAYER_DETRIMENTS: frozenset[str] = frozenset({"discard", "lose_life"})
-
-
-def _watches_an_opponent(node: TypedMirrorNode) -> bool:
-    """A delayed trigger watching an opponent's objects hands the sentence to that
-    opponent: Davriel, Soul Broker's "whenever an opponent attacks you …, they
-    discard a card. If they can't, they sacrifice an attacking creature" (phase
-    v0.104.0 hangs the sacrifice beside the delayed trigger, not in it)."""
-    if tag_of(node) != "CreateDelayedTrigger":
-        return False
-    trigger = getattr(getattr(node, "condition", None), "trigger", None)
-    return filter_controller(getattr(trigger, "valid_source", None)) == "Opponent"
 
 
 def _sac_is_edict(unit: AbilityUnit, sac_node: TypedMirrorNode) -> bool:
@@ -777,19 +794,14 @@ _RETURN_TARGET_TAGS: frozenset[str] = frozenset(
 _OPP_TOP_WRAPPER_SCOPES: frozenset[str] = frozenset(
     {"Opponent", "Opponents", "EachOpponent", "TargetOpponent", "TargetPlayer"}
 )
-_OPP_TOP_OWNERS: frozenset[str] = frozenset(
-    {
-        "ParentTarget",
-        "ParentTargetController",
-        "Player",
-        "Target",
-        "Opponent",
-        "Opponents",
-        "EachOpponent",
-        "TriggeringPlayer",
-        "ScopedPlayer",
-    }
-)
+_OPP_TOP_OWNERS: frozenset[str] = TARGETED_PLAYER_TAGS | {
+    "ParentTargetController",
+    "Opponent",
+    "Opponents",
+    "EachOpponent",
+    "TriggeringPlayer",
+    "ScopedPlayer",
+}
 # +1/+1 / -1/-1 counter kinds (upper) — the counter_manipulation discriminator
 # vs charge/oil/loyalty/fade (split-lane #4, CR 122.1 / 122.6).
 _PT_COUNTER_KINDS: frozenset[str] = frozenset({"P1P1", "M1M1"})

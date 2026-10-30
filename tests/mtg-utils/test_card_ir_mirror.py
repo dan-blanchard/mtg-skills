@@ -56,12 +56,12 @@ from mtg_utils._card_ir.mirror.loader import (
 # the substrate fixtures and rewrites this block (step 4), so a bump never edits
 # them by hand; a drifted count between bumps still fails here.
 # BEGIN GENERATED ROSTER COUNTS
-# v0.104.0: written by bump-phase-pin (step 4); never edit by hand
-EFFECT_ROSTER_SIZE = 234
+# v0.118.0: written by bump-phase-pin (step 4); never edit by hand
+EFFECT_ROSTER_SIZE = 237
 ZERO_INSTANCE_SIZE = 20
-DISTINCT_VARIANTS_OBSERVED = 214
-MIRROR_TAGGED_CLASSES = 1793
-MIRROR_STRUCT_CLASSES = 126
+DISTINCT_VARIANTS_OBSERVED = 217
+MIRROR_TAGGED_CLASSES = 1832
+MIRROR_STRUCT_CLASSES = 128
 # END GENERATED ROSTER COUNTS
 
 # ---------------------------------------------------------------------------

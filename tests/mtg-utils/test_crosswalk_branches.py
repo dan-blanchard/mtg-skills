@@ -303,38 +303,19 @@ def test_other_player_branch_misreads_canary():
     assert _confidence("Fraying Line", "mass_removal", "you") == "low"
 
 
-@pytest.mark.retirement_canary
-def test_phantom_choice_discard_canary():
-    """Retirement canary for Osseous Sticktwister's registry row: phase v0.104.0
-    parses "Then ~ deals damage … to each opponent who didn't sacrifice a
-    permanent or discard a card this way" as a second choice whose branch is a
-    discard."""
-    (branch,) = _dropped("Osseous Sticktwister")
-    assert isinstance(branch, dict)
-    assert (branch.get("effect") or {}).get("type") == "Discard", (
-        "branches.BRANCH_MISREADS (Osseous Sticktwister): RETIRE-READY — phase no "
-        "longer reads the damage clause as a discard choice. Drop its registry row "
-        "(and this canary)."
-    )
+def test_no_phantom_discard_choice():
+    """Osseous Sticktwister's "Then ~ deals damage … to each opponent who didn't
+    sacrifice a permanent or discard a card this way" is no discard of yours. Phase
+    v0.104.0 parsed it as a second choice with a discard branch (a registry row,
+    retired at v0.118.0, which types it as damage to each opponent)."""
     assert "discard_outlet" not in _keys("Osseous Sticktwister")
 
 
-@pytest.mark.retirement_canary
-def test_unnarrowed_grant_branch_canary():
-    """Retirement canary for Spitting Slug's registry row: phase v0.104.0 reads
-    "Otherwise, each creature blocking or blocked by this creature gains first
-    strike" as every creature gaining it."""
-    (else_branch,) = _dropped("Spitting Slug")
-    assert isinstance(else_branch, dict)
-    affected = [
-        sdef.get("affected") or {}
-        for sdef in (else_branch.get("effect") or {}).get("static_abilities") or ()
-    ]
-    assert affected
-    assert any(not a.get("properties") for a in affected), (
-        "branches.BRANCH_MISREADS (Spitting Slug): RETIRE-READY — phase keeps the "
-        "blocking-or-blocked narrowing now. Drop its registry row (and this canary)."
-    )
+def test_blocking_or_blocked_grant_stays_narrow():
+    """Spitting Slug's "Otherwise, each creature blocking or blocked by this
+    creature gains first strike" reaches only those creatures. Phase v0.104.0
+    dropped the narrowing (a registry row, retired at v0.118.0, which keeps
+    it)."""
     assert "all_creatures_kw_grant" not in _keys("Spitting Slug")
 
 

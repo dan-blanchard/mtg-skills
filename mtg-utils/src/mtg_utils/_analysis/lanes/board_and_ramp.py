@@ -80,6 +80,7 @@ from mtg_utils._card_ir.crosswalk import (
     granted_card_types,
     granted_keyword_names,
     in_uncertain_branch,
+    is_flip_coin,
     iter_condition_sites,
     iter_cost_leaves,
     iter_deep_target_grants,
@@ -2988,25 +2989,25 @@ def _mass_untap_creature_filter(unit: object) -> object | None:
 
 
 def _creatures_matter_flip_coin_win_filter(node: object) -> object | None:
-    """A generic-creature count operand nested inside a ``FlipCoin`` node's
+    """A generic-creature count operand nested inside a ``FlipCoins`` node's
     OWN win/lose branch (ADR-0039 W8 finisher) — Goblin Lyre's "If you win
     the flip, ~ deals damage to target opponent or planeswalker equal to
     the number of creatures you control": the branch's own
     ``DealDamage.amount`` is a fully typed ``Ref(qty=ObjectCount(filter=
     Typed[You, Creature]))`` (CR 107.3), but :meth:`ConceptTree.
-    iter_concepts` decorates only the OUTER ``FlipCoin`` node as a concept
+    iter_concepts` decorates only the OUTER ``FlipCoins`` node as a concept
     — the win/lose sub-effects never get their own concept entry — so the
-    main loop's :func:`count_operand_filter` check (called on the FlipCoin
+    main loop's :func:`count_operand_filter` check (called on the FlipCoins
     node itself, which has no ``amount``/``count``/``value`` field of its
     own) never reaches it. A tiny container descent, not a bridge: the
     data is already fully typed, the crosswalk just wasn't looking one
     field deeper. Corpus-verified sole hit (phase v0.20.0, 2026-07-12):
-    the ONLY ``FlipCoin`` card corpus-wide whose win OR lose branch
+    the ONLY ``FlipCoins`` card corpus-wide whose win OR lose branch
     carries a generic creature-count operand — this function has exactly
     ONE caller (creatures_matter's own arm), so widening it needs no
     sibling corpus check (the ADR-0038 landmine).
     """
-    if tag_of(node) != "FlipCoin":
+    if not is_flip_coin(node):
         return None
     for branch_name in ("win_effect", "lose_effect"):
         branch = getattr(node, branch_name, None)
@@ -3202,7 +3203,7 @@ def _creatures_matter(tree: ConceptTree) -> list[Signal]:
       player can't begin to activate an ability that's prohibited from
       being activated"); "Formidable" itself is an ability word with no
       independent rules meaning (CR 207.2c);
-    * a **FlipCoin win-branch count operand**
+    * a **FlipCoins win-branch count operand**
       (:func:`_creatures_matter_flip_coin_win_filter`) — a fully typed
       ``DealDamage.amount`` one field deeper than
       :meth:`ConceptTree.iter_concepts` decorates (Goblin Lyre, CR

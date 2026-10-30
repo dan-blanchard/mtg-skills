@@ -4,8 +4,8 @@ Codegen'd from ``tests/fixtures/phase_mirror_schema.json`` by
 ``mtg_utils._card_ir.mirror.codegen`` (run via ``build-card-ir-substrate``).
 
 Part of the generated typed-mirror package (see this directory's
-``__init__.py``). This module holds content keys ``redirect_to`` .. ``state``
-(36 keys).
+``__init__.py``). This module holds content keys ``redirect_target`` ..
+``spell_cast_origin`` (35 keys).
 
 Class naming: ``S_<ckey>`` for a struct shape, ``T_<ckey>__<tag>`` for a tagged
 shape, ``U_<ckey>`` for the union of all tagged shapes at one content_key.
@@ -31,8 +31,9 @@ if TYPE_CHECKING:
         U_affected_players,
         U_amount,
         U_attr,
+        U_cast_filter,
     )
-    from mtg_utils._card_ir.mirror.generated.g04_characteristics import (
+    from mtg_utils._card_ir.mirror.generated.g04_casting_restrictions import (
         U_colors,
         U_condition,
     )
@@ -50,34 +51,39 @@ if TYPE_CHECKING:
     from mtg_utils._card_ir.mirror.generated.g08_else_ability import (
         S_ensure_token_specs,
         S_execute,
+        U_entry_payment_max,
         U_expiry,
         U_filter,
         U_filters,
-        U_inner,
     )
-    from mtg_utils._card_ir.mirror.generated.g09_journal import (
+    from mtg_utils._card_ir.mirror.generated.g09_inner import (
+        U_inner,
         U_journal,
         U_left,
         U_mana_modification,
         U_mana_replacement_scope,
         U_mode,
     )
-    from mtg_utils._card_ir.mirror.generated.g10_optional_player import (
+    from mtg_utils._card_ir.mirror.generated.g10_modifications import (
+        U_modifications,
         U_owner,
+    )
+    from mtg_utils._card_ir.mirror.generated.g11_player import (
         U_power,
     )
-    from mtg_utils._card_ir.mirror.generated.g11_prop import (
+    from mtg_utils._card_ir.mirror.generated.g12_properties import (
         U_properties,
     )
-    from mtg_utils._card_ir.mirror.generated.g12_qty import (
+    from mtg_utils._card_ir.mirror.generated.g13_qty import (
         U_qty,
         U_quantity_modification,
-        U_redirect_target,
     )
-    from mtg_utils._card_ir.mirror.generated.g14_static_abilities import (
+    from mtg_utils._card_ir.mirror.generated.g15_spell_filter import (
         S_static_def,
         U_target,
         U_toughness,
+    )
+    from mtg_utils._card_ir.mirror.generated.g16_triggers import (
         U_valid_card,
         U_value,
     )
@@ -135,6 +141,7 @@ class S_replacements(TypedMirrorNode):
     draw_scope: str = MISSING
     ensure_token_specs: list[S_ensure_token_specs] = MISSING
     enters_under: str = MISSING
+    entry_payment_max: U_entry_payment_max = MISSING
     expiry: U_expiry = MISSING
     mana_modification: U_mana_modification = MISSING
     mana_replacement_scope: U_mana_replacement_scope = MISSING
@@ -162,6 +169,12 @@ class S_results(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class S_rider(TypedMirrorNode):
+    cast_filter: U_cast_filter
+    modifications: list[U_modifications]
+
+
+@dataclass(frozen=True)
 class S_rulings(TypedMirrorNode):
     date: str
     text: str
@@ -173,15 +186,17 @@ class S_scale(TypedMirrorNode):
     scale_property: str
 
 
-@dataclass(frozen=True)
-class S_split(TypedMirrorNode):
-    primary_count: int
-    primary_destination: str
-    rest_destination: str
-    primary_enter_tapped: bool = MISSING
-
-
 # --- tagged shapes (discriminated enum nodes) ---
+
+
+@dataclass(frozen=True)
+class T_redirect_target__AttachedTo(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "AttachedTo"
+
+
+@dataclass(frozen=True)
+class T_redirect_target__SelfRef(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "SelfRef"
 
 
 @dataclass(frozen=True)
@@ -275,10 +290,25 @@ class T_relation__Opponent(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_repeat_for__ClampMin(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "ClampMin"
+    inner: U_inner
+    minimum: int
+
+
+@dataclass(frozen=True)
 class T_repeat_for__Difference(TypedMirrorNode):
     _tag: ClassVar[str | None] = "Difference"
     left: U_left
     right: U_right
+
+
+@dataclass(frozen=True)
+class T_repeat_for__DivideRounded(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "DivideRounded"
+    divisor: int
+    inner: U_inner
+    rounding: str
 
 
 @dataclass(frozen=True)
@@ -806,6 +836,7 @@ class T_source_rider__Destroy(TypedMirrorNode):
 class T_source_rider__LosesAbilities(TypedMirrorNode):
     _tag: ClassVar[str | None] = "LosesAbilities"
     duration: str
+    source_filter: U_source_filter
     static_def: S_static_def
 
 
@@ -847,43 +878,9 @@ class T_spell_cast_origin__NotEquals(TypedMirrorNode):
     data: str
 
 
-@dataclass(frozen=True)
-class T_spell_filter__And(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "And"
-    filters: list[U_filters]
-
-
-@dataclass(frozen=True)
-class T_spell_filter__HasChosenName(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "HasChosenName"
-
-
-@dataclass(frozen=True)
-class T_spell_filter__Or(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "Or"
-    filters: list[U_filters]
-
-
-@dataclass(frozen=True)
-class T_spell_filter__Typed(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "Typed"
-    controller: str | None
-    properties: list[U_properties]
-    type_filters: list[MirrorVariant]
-
-
-@dataclass(frozen=True)
-class T_state__Tap(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "Tap"
-
-
-@dataclass(frozen=True)
-class T_state__Untap(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "Untap"
-
-
 # --- discriminated-union aliases (one per tagged content_key) ---
 
+type U_redirect_target = T_redirect_target__AttachedTo | T_redirect_target__SelfRef
 type U_redirect_to = (
     T_redirect_to__AttachedToSource
     | T_redirect_to__ChosenTarget
@@ -905,7 +902,9 @@ type U_reference = (
 )
 type U_relation = T_relation__All | T_relation__Opponent
 type U_repeat_for = (
-    T_repeat_for__Difference
+    T_repeat_for__ClampMin
+    | T_repeat_for__Difference
+    | T_repeat_for__DivideRounded
     | T_repeat_for__Fixed
     | T_repeat_for__Multiply
     | T_repeat_for__Offset
@@ -1016,10 +1015,3 @@ type U_sources = (
     | T_sources__Typed
 )
 type U_spell_cast_origin = T_spell_cast_origin__Equals | T_spell_cast_origin__NotEquals
-type U_spell_filter = (
-    T_spell_filter__And
-    | T_spell_filter__HasChosenName
-    | T_spell_filter__Or
-    | T_spell_filter__Typed
-)
-type U_state = T_state__Tap | T_state__Untap

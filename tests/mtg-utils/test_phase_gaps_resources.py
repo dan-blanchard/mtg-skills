@@ -146,12 +146,17 @@ def test_officious_interrogation_investigates():
 
 def test_binding_sentence_reads_only_flagged_tokens():
     """The binding's sentence recovers only a ``from_binding_sentence`` row:
-    Erestor of the Council's "You scry X, where X is …" names an allowlisted verb
-    (scry) without the flag, so its binding stays a residue."""
+    "You scry X, where X is …" names an allowlisted verb (scry) without the flag.
+    Erestor of the Council's binding was such a ``where_x_binding`` residue
+    through phase v0.104.0; v0.118.0 parks the whole "scry X, where X is …" clause
+    as its own residue, which the scry row reads like any parked verb."""
     sentence = "You scry X, where X is the number of opponents"
     assert (parse_clause(sentence) or scan_clause(sentence)) == "scry"
     assert not ALLOWLIST["scry"].from_binding_sentence
-    assert "scry" not in _recovered("Erestor of the Council")
+    assert not any(
+        n == "where_x_binding" for n, _ in _residues("Erestor of the Council")
+    )
+    assert "scry" in _recovered("Erestor of the Council")
 
 
 def test_foul_renewal_binding_recovers_as_a_debuff():

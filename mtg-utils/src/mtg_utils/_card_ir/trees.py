@@ -832,10 +832,12 @@ def face_tree(rec: dict, schema: MirrorSchema, *, oracle_id: str) -> ConceptTree
     from mtg_utils._card_ir.dropped_keywords import restore_dropped_keywords
     from mtg_utils._card_ir.mirror.loader import MirrorDriftError, strict_load_card
     from mtg_utils._card_ir.overlay_corrections import apply_overlay_corrections
+    from mtg_utils._card_ir.shape_compat import restore_renamed_shapes
 
     nm = rec.get("name") or ""
     rec = apply_misreads(rec)  # drop the branches phase misparses (registry rows)
     rec = restore_dropped_keywords(rec)  # the keywords phase drops (shape rows)
+    rec = restore_renamed_shapes(rec)  # shapes phase renamed, in their old form
     try:
         root = strict_load_card(rec, schema, name=nm)
     except MirrorDriftError:

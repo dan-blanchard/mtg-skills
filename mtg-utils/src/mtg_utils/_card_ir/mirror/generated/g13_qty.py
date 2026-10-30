@@ -4,8 +4,8 @@ Codegen'd from ``tests/fixtures/phase_mirror_schema.json`` by
 ``mtg_utils._card_ir.mirror.codegen`` (run via ``build-card-ir-substrate``).
 
 Part of the generated typed-mirror package (see this directory's
-``__init__.py``). This module holds content keys ``qty`` .. ``redirect_target``
-(10 keys).
+``__init__.py``). This module holds content keys ``qty`` ..
+``redirect_object_filter`` (10 keys).
 
 Class naming: ``S_<ckey>`` for a struct shape, ``T_<ckey>__<tag>`` for a tagged
 shape, ``U_<ckey>`` for the union of all tagged shapes at one content_key.
@@ -23,7 +23,7 @@ from mtg_utils._card_ir.mirror.runtime import (
 )
 
 if TYPE_CHECKING:
-    from mtg_utils._card_ir.mirror.generated.g04_characteristics import (
+    from mtg_utils._card_ir.mirror.generated.g04_casting_restrictions import (
         U_colors,
     )
     from mtg_utils._card_ir.mirror.generated.g06_costs import (
@@ -36,24 +36,27 @@ if TYPE_CHECKING:
         U_exprs,
         U_filter,
         U_filters,
-        U_inner,
     )
-    from mtg_utils._card_ir.mirror.generated.g09_journal import (
+    from mtg_utils._card_ir.mirror.generated.g09_inner import (
+        U_inner,
         U_letters,
         U_metric,
+    )
+    from mtg_utils._card_ir.mirror.generated.g10_modifications import (
         U_noun,
     )
-    from mtg_utils._card_ir.mirror.generated.g10_optional_player import (
+    from mtg_utils._card_ir.mirror.generated.g11_player import (
         U_player,
     )
-    from mtg_utils._card_ir.mirror.generated.g11_prop import (
+    from mtg_utils._card_ir.mirror.generated.g12_properties import (
         U_properties,
     )
-    from mtg_utils._card_ir.mirror.generated.g13_redirect_to import (
+    from mtg_utils._card_ir.mirror.generated.g14_redirect_target import (
+        U_relation,
         U_scope,
         U_source,
     )
-    from mtg_utils._card_ir.mirror.generated.g14_static_abilities import (
+    from mtg_utils._card_ir.mirror.generated.g15_spell_filter import (
         U_stickers,
         U_target,
     )
@@ -77,13 +80,6 @@ class T_qty__AdditionalCostPaymentCountFor(TypedMirrorNode):
     _tag: ClassVar[str | None] = "AdditionalCostPaymentCountFor"
     origin: str
     origin_ordinal: int
-
-
-@dataclass(frozen=True)
-class T_qty__AttachmentsOnLeavingObject(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "AttachmentsOnLeavingObject"
-    controller: str
-    kind: str
 
 
 @dataclass(frozen=True)
@@ -160,6 +156,7 @@ class T_qty__ControlledByEachPlayer(TypedMirrorNode):
     _tag: ClassVar[str | None] = "ControlledByEachPlayer"
     aggregate: str
     filter: U_filter
+    relation: U_relation = MISSING
 
 
 @dataclass(frozen=True)
@@ -244,6 +241,7 @@ class T_qty__DistinctSubtypes(TypedMirrorNode):
     _tag: ClassVar[str | None] = "DistinctSubtypes"
     exclude: U_exclude
     source: U_source
+    restrict: str = MISSING
 
 
 @dataclass(frozen=True)
@@ -364,6 +362,11 @@ class T_qty__NameStickerLetterCount(TypedMirrorNode):
     _tag: ClassVar[str | None] = "NameStickerLetterCount"
     letters: U_letters
     stickers: U_stickers
+
+
+@dataclass(frozen=True)
+class T_qty__NotedNumber(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "NotedNumber"
 
 
 @dataclass(frozen=True)
@@ -628,6 +631,11 @@ class T_qty__ZoneChangeCountThisTurn(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_quality__Prime(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "Prime"
+
+
+@dataclass(frozen=True)
 class T_quantity__BasicLandTypeCount(TypedMirrorNode):
     _tag: ClassVar[str | None] = "BasicLandTypeCount"
     controller: str
@@ -792,6 +800,11 @@ class T_recipient__TriggeringSourceController(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_recipient__TriggeringSpellController(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "TriggeringSpellController"
+
+
+@dataclass(frozen=True)
 class T_recipient__Typed(TypedMirrorNode):
     _tag: ClassVar[str | None] = "Typed"
     controller: str | MirrorVariant | None
@@ -852,21 +865,10 @@ class T_redirect_object_filter__Typed(TypedMirrorNode):
     type_filters: list[MirrorVariant]
 
 
-@dataclass(frozen=True)
-class T_redirect_target__AttachedTo(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "AttachedTo"
-
-
-@dataclass(frozen=True)
-class T_redirect_target__SelfRef(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "SelfRef"
-
-
 # --- discriminated-union aliases (one per tagged content_key) ---
 
 type U_qty = (
     T_qty__AdditionalCostPaymentCountFor
-    | T_qty__AttachmentsOnLeavingObject
     | T_qty__AttackedThisTurn
     | T_qty__BasePower
     | T_qty__BasicLandTypeCount
@@ -913,6 +915,7 @@ type U_qty = (
     | T_qty__ManaSpentToCast
     | T_qty__ManaSymbolsInManaCost
     | T_qty__NameStickerLetterCount
+    | T_qty__NotedNumber
     | T_qty__ObjectColorCount
     | T_qty__ObjectCount
     | T_qty__ObjectCountBySharedQuality
@@ -955,6 +958,7 @@ type U_qty = (
     | T_qty__ZoneChangeAggregateThisTurn
     | T_qty__ZoneChangeCountThisTurn
 )
+type U_quality = T_quality__Prime
 type U_quantity = (
     T_quantity__BasicLandTypeCount
     | T_quantity__CountersOn
@@ -989,6 +993,7 @@ type U_recipient = (
     | T_recipient__Target
     | T_recipient__TriggeringPlayer
     | T_recipient__TriggeringSourceController
+    | T_recipient__TriggeringSpellController
     | T_recipient__Typed
     | T_recipient__Untargeted
 )
@@ -1002,4 +1007,3 @@ type U_redirect_lifetime = T_redirect_lifetime__Continuous
 type U_redirect_object_filter = (
     T_redirect_object_filter__Any | T_redirect_object_filter__Typed
 )
-type U_redirect_target = T_redirect_target__AttachedTo | T_redirect_target__SelfRef

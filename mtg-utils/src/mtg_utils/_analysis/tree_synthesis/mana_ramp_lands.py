@@ -18,6 +18,7 @@ from mtg_utils._analysis.tree_synthesis._shared import (
 from mtg_utils._card_ir.crosswalk import (
     SELF_REFERENCE_TARGETS,
     TUTOR_EFFECT_TAGS,
+    YOUR_CHOSEN_CONTROLLERS,
     AbilityUnit,
     ConceptNode,
     ConceptTree,
@@ -300,7 +301,7 @@ def untaps_your_lands(tree: ConceptTree) -> bool:
     permanents you control" — Seedborn Muse): each land taps for mana again."""
     return any(
         mass
-        and filter_controller(scope_filter) == "You"
+        and filter_controller(scope_filter) in YOUR_CHOSEN_CONTROLLERS
         and {"Land", "Permanent"} & set(filter_core_types(scope_filter))
         for _unit, scope_filter, mass in _engine_untap_surfaces(tree)
     )
@@ -340,7 +341,11 @@ def structural_untap_scope(tree: ConceptTree) -> str:
     for _unit, scope_filter, mass in _engine_untap_surfaces(tree):
         saw = True
         group = tag_of(scope_filter) in ("Typed", "Or", "And")
-        if not mass or not group or filter_controller(scope_filter) == "You":
+        if (
+            not mass
+            or not group
+            or filter_controller(scope_filter) in YOUR_CHOSEN_CONTROLLERS
+        ):
             return "you"
     return "each" if saw else "you"
 

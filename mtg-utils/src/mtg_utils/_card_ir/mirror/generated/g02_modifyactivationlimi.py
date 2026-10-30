@@ -28,7 +28,7 @@ if TYPE_CHECKING:
         U_amount,
         U_announced_x,
     )
-    from mtg_utils._card_ir.mirror.generated.g04_characteristics import (
+    from mtg_utils._card_ir.mirror.generated.g04_casting_restrictions import (
         U_condition,
     )
     from mtg_utils._card_ir.mirror.generated.g05_conditional_enter_wi import (
@@ -50,30 +50,31 @@ if TYPE_CHECKING:
         U_filter,
         U_filters,
     )
-    from mtg_utils._card_ir.mirror.generated.g09_journal import (
+    from mtg_utils._card_ir.mirror.generated.g09_inner import (
         S_modal,
         S_mode_abilities,
-        S_multi_target,
         U_land_filter,
+    )
+    from mtg_utils._card_ir.mirror.generated.g10_modifications import (
+        S_multi_target,
         U_only_tag,
     )
-    from mtg_utils._card_ir.mirror.generated.g10_optional_player import (
+    from mtg_utils._card_ir.mirror.generated.g11_player import (
         U_player,
         U_player_scope,
     )
-    from mtg_utils._card_ir.mirror.generated.g11_prop import (
+    from mtg_utils._card_ir.mirror.generated.g12_properties import (
         U_properties,
     )
-    from mtg_utils._card_ir.mirror.generated.g13_redirect_to import (
+    from mtg_utils._card_ir.mirror.generated.g14_redirect_target import (
         U_reference,
         U_repeat_for,
         U_repeat_until,
         U_source_filter,
-        U_spell_filter,
     )
-    from mtg_utils._card_ir.mirror.generated.g14_static_abilities import (
+    from mtg_utils._card_ir.mirror.generated.g15_spell_filter import (
         S_sub_ability,
-        S_unless_pay,
+        U_spell_filter,
         U_target,
         U_target_chooser,
         U_target_constraints,
@@ -81,6 +82,9 @@ if TYPE_CHECKING:
         U_targets,
         U_timing,
         U_trigger_source_filter,
+    )
+    from mtg_utils._card_ir.mirror.generated.g16_triggers import (
+        S_unless_pay,
         U_value,
     )
 
@@ -297,6 +301,7 @@ class S_abilities(TypedMirrorNode):
     declares_chosen_group: int = MISSING
     distribute: U_distribute = MISSING
     else_ability: S_else_ability = MISSING
+    entry_onset: str = MISSING
     is_mana_ability: bool = MISSING
     min_x_value: int = MISSING
     modal: S_modal = MISSING
@@ -547,8 +552,9 @@ class T_Ward__Compound(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
-class T_Ward__DiscardCard(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "DiscardCard"
+class T_Ward__Discard(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "Discard"
+    data: S_data
 
 
 @dataclass(frozen=True)
@@ -904,7 +910,7 @@ type U_Transmute = T_Transmute__Cost
 type U_Unearth = T_Unearth__Cost
 type U_Ward = (
     T_Ward__Compound
-    | T_Ward__DiscardCard
+    | T_Ward__Discard
     | T_Ward__GetPlayerCounters
     | T_Ward__Mana
     | T_Ward__PayLife

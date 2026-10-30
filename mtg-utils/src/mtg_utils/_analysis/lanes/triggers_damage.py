@@ -34,6 +34,7 @@ from mtg_utils._card_ir.crosswalk import (
     OTHER,
     PERMANENT_CARD_TYPES,
     PROTECTIVE_KEYWORDS,
+    TARGETED_PLAYER_TAGS,
     AbilityUnit,
     ConceptNode,
     ConceptTree,
@@ -390,22 +391,17 @@ def _hand_disruption(tree: ConceptTree) -> list[Signal]:
 # ``unit_node`` arm). ``DefendingPlayer`` (Port Inspector, Zara) is
 # opponent-directed BY RULE (CR 506.2 — the b11 tap_down precedent), same as
 # ``EachOpponent``.
-_REVEAL_PLAYER_TAGS: frozenset[str] = frozenset(
-    {
-        "Player",
-        "ParentTarget",
-        "Target",
-        "Opponent",
-        "Opponents",
-        "EachOpponent",
-        "TriggeringPlayer",
-        "ParentTargetController",
-        "Each",
-        "AllPlayers",
-        "EachPlayer",
-        "DefendingPlayer",
-    }
-)
+_REVEAL_PLAYER_TAGS: frozenset[str] = TARGETED_PLAYER_TAGS | {
+    "Opponent",
+    "Opponents",
+    "EachOpponent",
+    "TriggeringPlayer",
+    "ParentTargetController",
+    "Each",
+    "AllPlayers",
+    "EachPlayer",
+    "DefendingPlayer",
+}
 # player_scope tags on the OWNING wrapper that make an ambiguous ``Any``/
 # ``ScopedPlayer`` RevealHand recipient count as opponent-directed — a
 # symmetric "each player reveals" wrapper scope (Kamahl's Summons, Noxious

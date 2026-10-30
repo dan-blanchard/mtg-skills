@@ -3969,7 +3969,7 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
     # turns`` bucket-B idiom scan, gap-gated on
     # ``crosswalk.has_nested_extra_turn`` finding nothing); Expropriate /
     # Plea for Power (``Vote.per_choice_effect``), Stitch in Time / Ral
-    # Zarek (``FlipCoin``/``FlipCoins.win_effect``), and Ichormoon
+    # Zarek (``FlipCoins.win_effect``), and Ichormoon
     # Gauntlet (a static ability's ``GrantAbility.definition``) all carry
     # a REAL typed ``ExtraTurn`` node the narrow per-unit effect-chain
     # walk never reached — ``has_nested_extra_turn``'s generic deep-field

@@ -64,6 +64,7 @@ from mtg_utils._card_ir.overlay_corrections import (
     apply_overlay_corrections,
     l1_bytes,
 )
+from mtg_utils._card_ir.shape_compat import restore_renamed_shapes
 from mtg_utils._card_ir.trees import _face_names, _text_only_trees, trees_for
 from mtg_utils.testkit import snapshot_records, test_card, test_phase_records
 
@@ -100,7 +101,8 @@ def _schema():
 def _raw_tree(name: str, face: str | None = None) -> ConceptTree:
     """The RAW overlay tree (no corrections, no synthesis) — for the tests OF the
     correction stage itself."""
-    rec = apply_misreads(_record(name, face))  # as ``trees.face_tree`` loads it
+    # as ``trees.face_tree`` loads it
+    rec = restore_renamed_shapes(apply_misreads(_record(name, face)))
     root = strict_load_card(rec, _schema(), name=rec["name"])
     return build_concept_tree(root, name=rec["name"])
 
@@ -766,7 +768,9 @@ def test_granted_trigger_resolves_its_chosen_target():
         # takes an extra turn" (its rulings: each cast creates an extra turn,
         # CR 500.7).
         "Emrakul, the Promised End",
-        "Timesifter",  # the timesifter_unbound_extra_turn ledger bridge
+        # A typed ExtraTurn since phase v0.118.0 (the
+        # timesifter_unbound_extra_turn ledger bridge before).
+        "Timesifter",
     ],
 )
 def test_extra_turns_fires(name):
@@ -1241,7 +1245,7 @@ def test_keyword_effect_unit_origin_braid_of_fire():
         ("Aboroth", "PutCounter", "place_counter"),
         ("Braid of Fire", "Mana", "ramp"),
         ("Infernal Darkness", "PayCost", OTHER),
-        ("Karplusan Minotaur", "FlipCoin", "flip_coin"),
+        ("Karplusan Minotaur", "FlipCoins", "flip_coin"),
         ("Psychic Vortex", "Draw", "draw"),
         ("Sheltering Ancient", "PutCounter", "place_counter"),
     ],
@@ -2680,17 +2684,13 @@ def test_plus_one_matters_deepwood_denizen_cost_reduction_recovered():
     assert ("plus_one_matters", "you", "") in _idents("Deepwood Denizen")
 
 
-def test_plus_one_matters_hierophant_previouseffectamount_dropped_kind_bridge():
-    """Hierophant Bio-Titan (ADR-0039 W8, CR 601.2f): "As an additional
-    cost to cast this spell, you may remove any number of +1/+1 counters
-    from among creatures you control. This spell costs {2} less to cast
-    for each counter removed this way" structures as a ``ModifyCost``
-    static with ``dynamic_count=PreviousEffectAmount`` — a scaler keyed
-    to however much the ADDITIONAL-COST removal did — but that node
-    carries NO counter-kind field at all; phase's own encoding of "the
-    preceding effect's amount" has nowhere to put which kind it removed.
-    Ledgered bridge
-    ``plus_one_hierophant_previouseffectamount_dropped_kind``."""
+def test_plus_one_matters_reads_a_spells_additional_counter_cost():
+    """Hierophant Bio-Titan (CR 601.2b): "As an additional cost to cast this
+    spell, you may remove any number of +1/+1 counters from among creatures you
+    control" is a typed P1P1 ``RemoveCounter`` in the spell's
+    ``additional_cost`` since phase v0.118.0, read off the unit's cost concepts.
+    Formerly the ``plus_one_hierophant_previouseffectamount_dropped_kind``
+    bridge (the kind was lost in a ``PreviousEffectAmount`` scaler)."""
     assert ("plus_one_matters", "you", "") in _idents("Hierophant Bio-Titan")
 
 
@@ -3639,8 +3639,6 @@ def test_edict_makers_excludes_you_sac(name):
         "Undercity Plague",
         "Din of the Fireherd",
         "Nicol Bolas, Planeswalker",
-        # The sacrifice hangs beside the delayed trigger, not inside it.
-        "Davriel, Soul Broker",
     ],
 )
 def test_chained_sacrifice_actor_dropped_canary(name):
@@ -4090,8 +4088,12 @@ def test_lifeloss_makers_scriv_token_attach_opponent_bleed_excluded():
     misattribute this to Scriv's controller; ``_token_attach_opponent_
     bleed_ids`` distrusts this exact shape (Token + target-less-LoseLife-
     sibling + ``attach_to.controller == "Opponent"``, corpus-verified
-    singleton) instead."""
-    assert "lifeloss_makers" not in _keys("Scriv, the Obligator")
+    singleton) instead. Since phase v0.118.0 the quote is typed where it
+    belongs — a ``GrantTrigger`` on the token (``affected: LastCreated``) — so
+    the loss reads as the enchanted creature's controller's: an opponent's."""
+    idents = {(k, s) for k, s, _su in _idents("Scriv, the Obligator")}
+    assert ("lifeloss_makers", "you") not in idents
+    assert ("lifeloss_makers", "opponents") in idents
 
 
 @pytest.mark.parametrize("name", ["Braids, Cabal Minion", "Smokestack"])
@@ -6237,14 +6239,12 @@ def test_opponent_discard_excludes_self_discard_then_unrelated_count():
 # ── ADR-0039 W7 BRIDGES wave: opponent_discard residual closers ─────────────
 
 
-def test_opponent_discard_unless_clause_bridge():
-    """The ``opp_discard_unless_clause`` ledgered bridge (bridge_ledger.py,
-    shared with lifeloss_makers' ``withercrown_unless_lose_life`` bridge
-    via :func:`~mtg_utils._analysis.bridge_ledger.
-    _unless_clause_failure_descs`): a discard-payoff "unless" clause
-    phase's parser fails wholesale — Tainted Specter's "Target player
-    discards a card unless they put a card ... on top of their library".
-    CR 119.4 / 701.9."""
+def test_opponent_discard_unless_clause_recovered():
+    """A discard-payoff "unless" clause phase's parser fails wholesale —
+    Tainted Specter's "Target player discards a card unless they put a card
+    ... on top of their library". GRADUATED off the ``opp_discard_unless_clause``
+    bridge at the v0.118.0 bump: the recovered discard's ``OTHER_PLAYER`` mark
+    reads the direction (``_opponent_discard``). CR 118.12a / 701.9a."""
     assert ("opponent_discard", "opponents", "") in _idents("Tainted Specter")
 
 
@@ -6374,11 +6374,9 @@ def test_opponent_discard_unless_pay_graduated_structural():
     ``keyword_mechanics._unless_pay_opponent_discard`` reads it
     structurally. Membership preserved, mechanism graduated. CR 608.2c /
     701.9a (the targeted opponent's own hand-to-graveyard discard)."""
-    from mtg_utils._analysis.bridge_ledger import bridge_fires
     from mtg_utils._card_ir.crosswalk import iter_cost_leaves, tag_of
 
     tree = _tree("Remorseless Punishment")
-    assert not bridge_fires("opp_discard_unless_clause", tree)
     leaves = [
         tag_of(leaf)
         for u in tree.units
@@ -6413,13 +6411,13 @@ def test_opponent_discard_for_scaling_promoted_structural():
     assert ("opponent_discard", "opponents", "") in _idents("Bladecoil Serpent")
 
 
-def test_opponent_discard_tk_sticker_parse_failure_bridge():
-    """The ``opp_discard_tk_sticker_parse_failure`` ledgered bridge:
-    Yawgmoth Merfolk Soul's Unfinity Stickers "{TK}{TK} — When ~ leaves
-    the battlefield, target player discards a card." parks WHOLESALE as
-    an ``Unimplemented('unknown')`` residue — the SAME {TK}-cost-grammar
-    frontier ``base_pt_set``'s ``base_pt_tk_sticker_parse_failure`` bridge
-    (Cool Fluffy Loxodon) closes. CR 123.1 / 603.6c."""
+def test_opponent_discard_tk_sticker_recovered():
+    """Yawgmoth Merfolk Soul's Unfinity Stickers "{TK}{TK} — When ~ leaves
+    the battlefield, target player discards a card." parks WHOLESALE as an
+    ``Unimplemented('unknown')`` residue. GRADUATED off the
+    ``opp_discard_tk_sticker_parse_failure`` bridge at the v0.118.0 bump: the
+    recovered discard's ``OTHER_PLAYER`` mark reads the direction. CR 123.1 /
+    603.6c."""
     assert ("opponent_discard", "opponents", "") in _idents("Yawgmoth Merfolk Soul")
 
 
@@ -6449,13 +6447,11 @@ def test_opponent_discard_fungal_shambler_dropped_conjunct_bridge():
     assert ("opponent_discard", "opponents", "") in _idents("Fungal Shambler")
 
 
-def test_opponent_discard_mindculling_dropped_conjunct_bridge():
-    """The ``opp_discard_mindculling_dropped_conjunct`` ledgered bridge:
-    Mindculling's "You draw two cards and target opponent discards two
-    cards." — the SAME zero-residue dropped-second-conjunct shape as
-    Fungal Shambler, sharing :func:`~mtg_utils._analysis.bridge_ledger.
-    _no_typed_discard_node`'s broad absence-proof gap
-    (the ``sacrifice_outlets`` ``_no_typed_sacrifice_node`` precedent)."""
+def test_opponent_discard_mindculling_second_conjunct():
+    """Mindculling's "You draw two cards and target opponent discards two
+    cards." (CR 701.9): phase v0.118.0 types the second conjunct's Discard,
+    which it dropped through v0.104.0 (the retired
+    ``opp_discard_mindculling_dropped_conjunct`` ledger bridge)."""
     assert ("opponent_discard", "opponents", "") in _idents("Mindculling")
 
 
@@ -6598,6 +6594,24 @@ def test_cost_reduction_excludes_multi_sentence_self_discount():
     false-fire (ADR-0038 W3 batch 4; the structural arm ALSO independently
     excludes it via ``affected=SelfRef``)."""
     assert "cost_reduction" not in _keys("Geistlight Snare")
+
+
+@pytest.mark.retirement_canary
+def test_self_discount_continuation_parked_canary():
+    """Retirement canary for the recovery seam's ``self_discount`` token (the
+    clause grammar's "It also costs … less" row): phase parks Geistlight Snare's
+    second self-discount sentence, "It also costs {1} less to cast", as a residue
+    of its own (``unbound_subject``) that names no "this spell"."""
+    import json
+
+    from mtg_utils.testkit import test_phase_records
+
+    raw = json.dumps(test_phase_records("Geistlight Snare"))
+    assert '"description": "It also costs {1} less to cast"' in raw, (
+        "recovery self_discount: RETIRE-READY — phase no longer parks Geistlight "
+        "Snare's second self-discount sentence as a residue. Drop the grammar "
+        "row, the ALLOWLIST token, the cost_reduction skip and this canary."
+    )
 
 
 def test_cost_reduction_named_keyword_cost_beyond_legacy_gain():
@@ -10124,10 +10138,6 @@ def test_cheat_into_play_bridge_player_prefix(name, subjects):
         ),  # SearchLibrary filter emptied (self-ref "Curse")
         ("Empty the Laboratory", {""}),  # RevealUntil filter/count emptied (dynamic X)
         (
-            "Turntimber Symbiosis // Turntimber, Serpentine Wood",
-            {""},
-        ),  # reveal mechanism absent
-        (
             "Wakanda Forever!",
             {""},
         ),  # Dig collapses the battlefield/hand modal to Hand only
@@ -13108,7 +13118,8 @@ def test_damage_prevention_shield_excludes_offensive_curse():
         # structured through v0.86.0 as Prevention replacements; the ledger
         # rows damage_prevention_replacement_parse_failure (the four
         # replacement_structure residues + Silhouette's unparsed_replacement)
-        # and camel_attacking_prevention_empty_static (a hollow static) keep
+        # and gated_prevention_parked (Camel's line, an as_long_as_gate
+        # residue since v0.118.0, a hollow static before) keep
         # them served until phase restores the structure. The MEMBERSHIP pin:
         # test_bridge_ledger pins the rows' mechanism, and when they graduate
         # that goes while this stays (the graduation rule).
@@ -14106,9 +14117,9 @@ def test_convoke_matters_cast_trigger_anchor_only():
 
 def test_curse_matters_subtype_reads_and_mirror():
     """CR 205.3h: the Curse trigger-subject read (Lynde), the Curse
-    effect-subject read (Witchbane Orb — the
-    ``witchbane_orb_curses_attached_parked`` ledger bridge since phase v0.104.0
-    parks the effect) and the kept mirror (Curse of
+    effect-subject read (Witchbane Orb — typed again since phase v0.118.0;
+    the retired ``witchbane_orb_curses_attached_parked`` ledger bridge served
+    it while v0.104.0 parked the effect) and the kept mirror (Curse of
     Misfortunes — search filter still dropped in v0.9.0, [P11] family)
     fire; MEMBERSHIP stays out — Cruel Reality (an Aura Curse CARD)
     never fires."""

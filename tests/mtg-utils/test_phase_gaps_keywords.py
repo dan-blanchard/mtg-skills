@@ -273,28 +273,19 @@ def test_restored_ward_keeps_its_cost():
     ]
 
 
-# ── a counter kind that swallows its clause ──────────────────────────────────
-
-_COUNTER_KIND_DROPS = [
-    ("Dralnu's Pet", "flying"),  # "enters with flying and with X +1/+1 counters"
-    ("Printlifter Ooze", "trample"),  # "token with trample. The token enters with"
-]
+# ── a keyword phase once swallowed into a counter kind ───────────────────────
+# Through phase v0.104.0 these typed the keyword as part of a counter kind
+# ("flying and with x +1/+1"), read by recovery's ``_swallowed_counter_keywords``;
+# v0.118.0 types the keyword, and the read retired. The membership pin stays.
 
 
-@pytest.mark.retirement_canary
-@pytest.mark.parametrize(("name", "kw"), _COUNTER_KIND_DROPS)
-def test_counter_kind_swallows_clause_canary(name, kw):
-    kinds = [
-        n["counter_type"]
-        for n in _raw_nodes(name)
-        if n.get("type") == "PutCounter" and isinstance(n.get("counter_type"), str)
-    ]
-    assert any(k.startswith((f"{kw} ", f"{kw}.")) for k in kinds), _retire(
-        name, kw, "recovery._swallowed_counter_keywords"
-    )
-
-
-@pytest.mark.parametrize(("name", "kw"), _COUNTER_KIND_DROPS)
+@pytest.mark.parametrize(
+    ("name", "kw"),
+    [
+        ("Dralnu's Pet", "flying"),  # "enters with flying and with X +1/+1 counters"
+        ("Printlifter Ooze", "trample"),  # "token with trample. The token enters"
+    ],
+)
 def test_counter_kind_keyword_read(name, kw):
     assert f"keyword_bodies|you|{kw}" in _idents(name)
 

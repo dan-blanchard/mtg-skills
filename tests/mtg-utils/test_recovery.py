@@ -471,6 +471,27 @@ def test_on_self_is_counters_put_on_the_card():
     assert ON_SELF not in _subject("equal to the number of +1/+1 counters on ~")
 
 
+@pytest.mark.parametrize(
+    ("raw", "on_self"),
+    [
+        ("~ enters with X +1/+1 counters on it.", True),
+        ("~ escapes with two +1/+1 counters on it.", True),
+        ("As ~ enters, roll a six-sided die. It enters with that many counters", True),
+        ("It enters with three +1/+1 counters on it for each creature card", True),
+        # another object's counters (Jade Orb of Dragonkind, The First Tyrannic War,
+        # Muzzio's Preparations)
+        (
+            "When you cast a Dragon creature spell, it enters with a +1/+1 counter",
+            False,
+        ),
+        ("If its mana cost contains {X}, it enters with X +1/+1 counters", False),
+        ("Each creature you control enters with an additional +1/+1 counter", False),
+    ],
+)
+def test_on_self_is_counters_the_card_enters_with(raw, on_self):
+    assert (ON_SELF in _subject(raw)) is on_self
+
+
 def test_imperative_is_a_clause_opening_on_its_verb():
     assert IMPERATIVE in _subject("if it's a creature, sacrifice that many permanents")
     assert IMPERATIVE in _subject("you may sacrifice another creature")

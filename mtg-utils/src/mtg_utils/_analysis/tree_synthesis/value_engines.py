@@ -948,7 +948,7 @@ def _arm_dice_makers(tree: ConceptTree) -> ConceptNode | None:
 # a coin flip, ..." (Chance Encounter, Karplusan Minotaur). phase flattens
 # this trigger CONDITION to event='other', keeping only the consequence
 # effect (place_counter / deal_damage) — the coin-flip reference survives
-# ONLY in the whole-card oracle, never as a FlipCoin node (no player
+# ONLY in the whole-card oracle, never as a coin-flip effect (no player
 # instructs a flip; the card just cares when ONE happens). NO-residue class
 # (ADR-0038 amendment class 2). Mirrors the OLD-IR ``_COIN_FLIP_TRIG``
 # marker regex byte-for-byte (verbatim extraction discipline) — both the
@@ -963,7 +963,7 @@ _COIN_FLIP_PAYOFF_RE = re.compile(
 
 def has_structural_coin_flip(tree: ConceptTree) -> bool:
     """The coin_flip TYPED gate: a native ``flip_coin`` concept-node
-    (flat OR ADR-0038-recovered) anywhere, OR a ``FlipCoin`` tag nested
+    (flat OR ADR-0038-recovered) anywhere, OR a ``FlipCoins`` tag nested
     inside a unit's granted-ability substructure the flat per-unit
     concept walk never surfaces (Frenetic Sliver). Shared verbatim with
     the ``_coin_flip`` lane and this arm's gap gate below."""
@@ -1103,7 +1103,7 @@ _EXTRA_TURN_GRANT_RX = re.compile(r"take an (?:extra|additional) turn", re.IGNOR
 def has_structural_extra_turns(tree: ConceptTree) -> bool:
     """The extra_turns TYPED gate: a flat top-level ``ExtraTurn`` effect OR
     :func:`has_nested_extra_turn` reaching one buried inside a GRANTED
-    construct (a ``Vote`` branch, a ``FlipCoin``/``FlipCoins`` win_effect,
+    construct (a ``Vote`` branch, a ``FlipCoins`` win_effect,
     a static ability's ``GrantAbility.definition``). Shared verbatim with
     the ``_extra_turns`` lane and this arm's gap gate below."""
     if tree.has_effect("extra_turn"):

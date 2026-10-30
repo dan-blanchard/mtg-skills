@@ -42,7 +42,7 @@ if TYPE_CHECKING:
         U_attacker_restriction,
         U_card_filter,
     )
-    from mtg_utils._card_ir.mirror.generated.g04_characteristics import (
+    from mtg_utils._card_ir.mirror.generated.g04_casting_restrictions import (
         S_chosen_pile_effect,
         U_choose_filter,
         U_choose_scope,
@@ -53,6 +53,7 @@ if TYPE_CHECKING:
     from mtg_utils._card_ir.mirror.generated.g05_conditional_enter_wi import (
         U_conditional_enter_with_counters,
         U_constraint,
+        U_contestant,
         U_copy_modifications,
         U_cost,
     )
@@ -74,6 +75,7 @@ if TYPE_CHECKING:
         U_extra_source,
         U_filter,
         U_flipper,
+        U_flips,
         U_followed_by,
         U_forced_to,
         U_grantee,
@@ -81,12 +83,10 @@ if TYPE_CHECKING:
         U_graveyard_replacement,
         U_host,
     )
-    from mtg_utils._card_ir.mirror.generated.g09_journal import (
+    from mtg_utils._card_ir.mirror.generated.g09_inner import (
         S_keeper_counter,
         S_lose_effect,
         S_modification,
-        S_multi_target,
-        S_on_decline,
         U_keep_count_expr,
         U_keep_on_top,
         U_keeper_constraint,
@@ -100,15 +100,15 @@ if TYPE_CHECKING:
         U_matched_disposition,
         U_max_ticket_cost,
         U_modification,
-        U_modifications,
+    )
+    from mtg_utils._card_ir.mirror.generated.g10_modifications import (
+        S_multi_target,
+        S_on_decline,
+        S_per_choice_effect,
         U_modifier,
         U_object_filter,
         U_object_source,
         U_op,
-    )
-    from mtg_utils._card_ir.mirror.generated.g10_optional_player import (
-        S_per_choice_effect,
-        S_profile,
         U_optional_player,
         U_owner,
         U_partition_subject,
@@ -116,6 +116,9 @@ if TYPE_CHECKING:
         U_payer,
         U_permission,
         U_pile_source,
+    )
+    from mtg_utils._card_ir.mirror.generated.g11_player import (
+        S_profile,
         U_player,
         U_player_a,
         U_player_b,
@@ -126,7 +129,7 @@ if TYPE_CHECKING:
         U_power,
         U_produced,
     )
-    from mtg_utils._card_ir.mirror.generated.g12_qty import (
+    from mtg_utils._card_ir.mirror.generated.g13_qty import (
         U_qty,
         U_recipient,
         U_recipient_object_filter,
@@ -134,11 +137,11 @@ if TYPE_CHECKING:
         U_redirect_lifetime,
         U_redirect_object_filter,
     )
-    from mtg_utils._card_ir.mirror.generated.g13_redirect_to import (
+    from mtg_utils._card_ir.mirror.generated.g14_redirect_target import (
         S_replacement,
         S_results,
+        S_rider,
         S_scale,
-        S_split,
         U_redirect_to,
         U_relation,
         U_repeat_for,
@@ -158,19 +161,17 @@ if TYPE_CHECKING:
         U_source_pool,
         U_source_rider,
         U_sources,
-        U_spell_filter,
-        U_state,
     )
-    from mtg_utils._card_ir.mirror.generated.g14_static_abilities import (
+    from mtg_utils._card_ir.mirror.generated.g15_spell_filter import (
+        S_split,
         S_static_abilities,
         S_statics,
         S_sub_ability,
         S_target,
         S_target_condition,
-        S_triggers,
-        S_unchosen_pile_effect,
-        S_unless_pay,
-        S_win_effect,
+        S_trigger,
+        U_spell_filter,
+        U_state,
         U_step,
         U_subject,
         U_tally_mode,
@@ -182,8 +183,16 @@ if TYPE_CHECKING:
         U_target_selection_mode,
         U_total_power_cap,
         U_toughness,
+    )
+    from mtg_utils._card_ir.mirror.generated.g16_triggers import (
+        S_triggers,
+        S_unchosen_pile_effect,
+        S_unless_pay,
+        S_win_effect,
+        S_winner_effect,
         U_unless_filter,
         U_until,
+        U_value,
         U_visibility,
         U_voter_scope,
     )
@@ -347,11 +356,6 @@ class T_dynamic_count__Power(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
-class T_dynamic_count__PreviousEffectAmount(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "PreviousEffectAmount"
-
-
-@dataclass(frozen=True)
 class T_dynamic_count__PropertyAggregate(TypedMirrorNode):
     _tag: ClassVar[str | None] = "PropertyAggregate"
     function: str
@@ -422,7 +426,7 @@ class T_effect__AddPendingETBCounters(TypedMirrorNode):
 @dataclass(frozen=True)
 class T_effect__AddPendingEntersModifications(TypedMirrorNode):
     _tag: ClassVar[str | None] = "AddPendingEntersModifications"
-    modifications: list[U_modifications]
+    rider: S_rider | MirrorVariant
 
 
 @dataclass(frozen=True)
@@ -521,6 +525,7 @@ class T_effect__BecomeMonarch(TypedMirrorNode):
 @dataclass(frozen=True)
 class T_effect__BecomePrepared(TypedMirrorNode):
     _tag: ClassVar[str | None] = "BecomePrepared"
+    scope: U_scope
     target: U_target
 
 
@@ -533,6 +538,7 @@ class T_effect__BecomeSaddled(TypedMirrorNode):
 @dataclass(frozen=True)
 class T_effect__BecomeUnprepared(TypedMirrorNode):
     _tag: ClassVar[str | None] = "BecomeUnprepared"
+    scope: U_scope
     target: U_target
 
 
@@ -732,6 +738,7 @@ class T_effect__ChooseOneOf(TypedMirrorNode):
     _tag: ClassVar[str | None] = "ChooseOneOf"
     branches: list[S_branches]
     chooser: U_chooser
+    kind: str = MISSING
 
 
 @dataclass(frozen=True)
@@ -834,6 +841,13 @@ class T_effect__Counter(TypedMirrorNode):
 class T_effect__CounterAll(TypedMirrorNode):
     _tag: ClassVar[str | None] = "CounterAll"
     target: U_target
+
+
+@dataclass(frozen=True)
+class T_effect__CreateBoon(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "CreateBoon"
+    recipient: U_recipient
+    trigger: S_trigger
 
 
 @dataclass(frozen=True)
@@ -1109,6 +1123,12 @@ class T_effect__ExileTop(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_effect__ExileTopCardContest(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "ExileTopCardContest"
+    winner_effect: S_winner_effect
+
+
+@dataclass(frozen=True)
 class T_effect__Explore(TypedMirrorNode):
     _tag: ClassVar[str | None] = "Explore"
 
@@ -1134,25 +1154,12 @@ class T_effect__Fight(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
-class T_effect__FlipCoin(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "FlipCoin"
+class T_effect__FlipCoins(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "FlipCoins"
+    flips: U_flips
     lose_effect: S_lose_effect | None
     win_effect: S_win_effect | None
     flipper: U_flipper = MISSING
-
-
-@dataclass(frozen=True)
-class T_effect__FlipCoinUntilLose(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "FlipCoinUntilLose"
-    win_effect: S_win_effect
-
-
-@dataclass(frozen=True)
-class T_effect__FlipCoins(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "FlipCoins"
-    count: U_count
-    lose_effect: None
-    win_effect: S_win_effect | None
 
 
 @dataclass(frozen=True)
@@ -1412,6 +1419,12 @@ class T_effect__Mill(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_effect__ModifyAnnouncedX(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "ModifyAnnouncedX"
+    modification: U_modification
+
+
+@dataclass(frozen=True)
 class T_effect__Monstrosity(TypedMirrorNode):
     _tag: ClassVar[str | None] = "Monstrosity"
     count: U_count
@@ -1449,6 +1462,12 @@ class T_effect__NoOp(TypedMirrorNode):
 @dataclass(frozen=True)
 class T_effect__NoteManaSpent(TypedMirrorNode):
     _tag: ClassVar[str | None] = "NoteManaSpent"
+
+
+@dataclass(frozen=True)
+class T_effect__NoteNumber(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "NoteNumber"
+    value: U_value
 
 
 @dataclass(frozen=True)
@@ -1497,6 +1516,13 @@ class T_effect__PhaseIn(TypedMirrorNode):
 class T_effect__PhaseOut(TypedMirrorNode):
     _tag: ClassVar[str | None] = "PhaseOut"
     target: U_target
+
+
+@dataclass(frozen=True)
+class T_effect__PhysicalContest(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "PhysicalContest"
+    contestant: U_contestant
+    kind: str
 
 
 @dataclass(frozen=True)
@@ -2043,7 +2069,6 @@ type U_dynamic_count = (
     | T_dynamic_count__PlayerCount
     | T_dynamic_count__PlayerCounter
     | T_dynamic_count__Power
-    | T_dynamic_count__PreviousEffectAmount
     | T_dynamic_count__PropertyAggregate
     | T_dynamic_count__SharedCardTypes
     | T_dynamic_count__Speed
@@ -2106,6 +2131,7 @@ type U_effect = (
     | T_effect__CopyTokenOf
     | T_effect__Counter
     | T_effect__CounterAll
+    | T_effect__CreateBoon
     | T_effect__CreateDamageReplacement
     | T_effect__CreateDelayedTrigger
     | T_effect__CreateDrawReplacement
@@ -2141,12 +2167,11 @@ type U_effect = (
     | T_effect__ExileHaunting
     | T_effect__ExileResolvingSpellInsteadOfGraveyard
     | T_effect__ExileTop
+    | T_effect__ExileTopCardContest
     | T_effect__Explore
     | T_effect__ExploreAll
     | T_effect__ExtraTurn
     | T_effect__Fight
-    | T_effect__FlipCoin
-    | T_effect__FlipCoinUntilLose
     | T_effect__FlipCoins
     | T_effect__FlipPermanent
     | T_effect__ForEachCategory
@@ -2184,12 +2209,14 @@ type U_effect = (
     | T_effect__ManifestDread
     | T_effect__Meld
     | T_effect__Mill
+    | T_effect__ModifyAnnouncedX
     | T_effect__Monstrosity
     | T_effect__MoveCounters
     | T_effect__MultiplyCounter
     | T_effect__Myriad
     | T_effect__NoOp
     | T_effect__NoteManaSpent
+    | T_effect__NoteNumber
     | T_effect__OpenAttractions
     | T_effect__OpenBoosterPack
     | T_effect__OpponentGuess
@@ -2197,6 +2224,7 @@ type U_effect = (
     | T_effect__PayCost
     | T_effect__PhaseIn
     | T_effect__PhaseOut
+    | T_effect__PhysicalContest
     | T_effect__Planeswalk
     | T_effect__Populate
     | T_effect__PreventDamage

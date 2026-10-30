@@ -5,7 +5,7 @@ Codegen'd from ``tests/fixtures/phase_mirror_schema.json`` by
 
 Part of the generated typed-mirror package (see this directory's
 ``__init__.py``). This module holds content keys ``additional_modifications``
-.. ``casting_restrictions`` (30 keys).
+.. ``casting_options`` (31 keys).
 
 Class naming: ``S_<ckey>`` for a struct shape, ``T_<ckey>__<tag>`` for a tagged
 shape, ``U_<ckey>`` for the union of all tagged shapes at one content_key.
@@ -23,7 +23,7 @@ from mtg_utils._card_ir.mirror.runtime import (
 )
 
 if TYPE_CHECKING:
-    from mtg_utils._card_ir.mirror.generated.g04_characteristics import (
+    from mtg_utils._card_ir.mirror.generated.g04_casting_restrictions import (
         S_characteristics,
         U_colors,
         U_condition,
@@ -45,30 +45,32 @@ if TYPE_CHECKING:
         U_exprs,
         U_filter,
         U_filters,
+    )
+    from mtg_utils._card_ir.mirror.generated.g09_inner import (
         U_inner,
         U_iteration_kind_binding,
-    )
-    from mtg_utils._card_ir.mirror.generated.g09_journal import (
         U_left,
     )
-    from mtg_utils._card_ir.mirror.generated.g10_optional_player import (
+    from mtg_utils._card_ir.mirror.generated.g11_player import (
         U_player,
         U_player_scope,
     )
-    from mtg_utils._card_ir.mirror.generated.g11_prop import (
+    from mtg_utils._card_ir.mirror.generated.g12_properties import (
         U_properties,
     )
-    from mtg_utils._card_ir.mirror.generated.g12_qty import (
+    from mtg_utils._card_ir.mirror.generated.g13_qty import (
         U_qty,
     )
-    from mtg_utils._card_ir.mirror.generated.g13_redirect_to import (
+    from mtg_utils._card_ir.mirror.generated.g14_redirect_target import (
         U_right,
     )
-    from mtg_utils._card_ir.mirror.generated.g14_static_abilities import (
+    from mtg_utils._card_ir.mirror.generated.g15_spell_filter import (
         S_static_abilities,
         S_sub_ability,
         S_trigger,
         U_target,
+    )
+    from mtg_utils._card_ir.mirror.generated.g16_triggers import (
         U_value,
     )
 
@@ -625,6 +627,12 @@ class T_attachment__Typed(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_attack_cost_condition__Not(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "Not"
+    condition: U_condition
+
+
+@dataclass(frozen=True)
 class T_attacker__EventSource(TypedMirrorNode):
     _tag: ClassVar[str | None] = "EventSource"
 
@@ -791,6 +799,11 @@ class T_card_filter__Or(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_card_filter__ParentTarget(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "ParentTarget"
+
+
+@dataclass(frozen=True)
 class T_card_filter__Typed(TypedMirrorNode):
     _tag: ClassVar[str | None] = "Typed"
     controller: None
@@ -799,80 +812,11 @@ class T_card_filter__Typed(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
-class T_casting_restrictions__AfterBlockersDeclared(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "AfterBlockersDeclared"
-
-
-@dataclass(frozen=True)
-class T_casting_restrictions__AfterCombat(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "AfterCombat"
-
-
-@dataclass(frozen=True)
-class T_casting_restrictions__BeforeAttackersDeclared(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "BeforeAttackersDeclared"
-
-
-@dataclass(frozen=True)
-class T_casting_restrictions__BeforeBlockersDeclared(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "BeforeBlockersDeclared"
-
-
-@dataclass(frozen=True)
-class T_casting_restrictions__BeforeCombatDamage(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "BeforeCombatDamage"
-
-
-@dataclass(frozen=True)
-class T_casting_restrictions__CantSpendMana(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "CantSpendMana"
-
-
-@dataclass(frozen=True)
-class T_casting_restrictions__DeclareAttackersStep(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "DeclareAttackersStep"
-
-
-@dataclass(frozen=True)
-class T_casting_restrictions__DeclareBlockersStep(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "DeclareBlockersStep"
-
-
-@dataclass(frozen=True)
-class T_casting_restrictions__DuringCombat(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "DuringCombat"
-
-
-@dataclass(frozen=True)
-class T_casting_restrictions__DuringOpponentsTurn(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "DuringOpponentsTurn"
-
-
-@dataclass(frozen=True)
-class T_casting_restrictions__DuringOpponentsUpkeep(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "DuringOpponentsUpkeep"
-
-
-@dataclass(frozen=True)
-class T_casting_restrictions__DuringYourEndStep(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "DuringYourEndStep"
-
-
-@dataclass(frozen=True)
-class T_casting_restrictions__DuringYourTurn(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "DuringYourTurn"
-
-
-@dataclass(frozen=True)
-class T_casting_restrictions__RequiresCondition(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "RequiresCondition"
-    data: MirrorVariant
-
-
-@dataclass(frozen=True)
-class T_casting_restrictions__SpendOnlyOnX(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "SpendOnlyOnX"
-    data: MirrorVariant
+class T_cast_filter__Typed(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "Typed"
+    controller: None
+    properties: list[U_properties]
+    type_filters: list[MirrorVariant]
 
 
 # --- discriminated-union aliases (one per tagged content_key) ---
@@ -965,6 +909,7 @@ type U_attachment = (
     | T_attachment__TriggeringSource
     | T_attachment__Typed
 )
+type U_attack_cost_condition = T_attack_cost_condition__Not
 type U_attacker = T_attacker__EventSource | T_attacker__Source
 type U_attacker_restriction = (
     T_attacker_restriction__ParentTarget | T_attacker_restriction__Typed
@@ -993,22 +938,10 @@ type U_by = T_by__Typed
 type U_candidate_filter = T_candidate_filter__Typed
 type U_cap = T_cap__OnlyOnceEachTurn
 type U_card_filter = (
-    T_card_filter__Any | T_card_filter__None | T_card_filter__Or | T_card_filter__Typed
+    T_card_filter__Any
+    | T_card_filter__None
+    | T_card_filter__Or
+    | T_card_filter__ParentTarget
+    | T_card_filter__Typed
 )
-type U_casting_restrictions = (
-    T_casting_restrictions__AfterBlockersDeclared
-    | T_casting_restrictions__AfterCombat
-    | T_casting_restrictions__BeforeAttackersDeclared
-    | T_casting_restrictions__BeforeBlockersDeclared
-    | T_casting_restrictions__BeforeCombatDamage
-    | T_casting_restrictions__CantSpendMana
-    | T_casting_restrictions__DeclareAttackersStep
-    | T_casting_restrictions__DeclareBlockersStep
-    | T_casting_restrictions__DuringCombat
-    | T_casting_restrictions__DuringOpponentsTurn
-    | T_casting_restrictions__DuringOpponentsUpkeep
-    | T_casting_restrictions__DuringYourEndStep
-    | T_casting_restrictions__DuringYourTurn
-    | T_casting_restrictions__RequiresCondition
-    | T_casting_restrictions__SpendOnlyOnX
-)
+type U_cast_filter = T_cast_filter__Typed

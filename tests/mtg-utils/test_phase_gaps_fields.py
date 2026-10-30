@@ -82,12 +82,24 @@ def _retire(name: str, arm: str, field: str) -> str:
 
 _CANT_UNTAP_OBJECTS = [
     "Mesmerizing Benthid",  # its token's "that creature doesn't untap"
-    "Scion of Stygia",  # "Tap that creature. It doesn't untap …"
     "Wall of Stolen Identity",  # "tap the copied creature and it doesn't untap"
     "Tsabo's Web",  # "Each land with an activated ability … doesn't untap"
-    "Code of Constraint",  # "tap that creature and it doesn't untap"
     "Telekinesis",  # "Tap target creature. … It doesn't untap"
 ]
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Scion of Stygia",  # "Tap that creature. It doesn't untap …"
+        "Code of Constraint",  # "tap that creature and it doesn't untap"
+    ],
+)
+def test_a_typed_cant_untap_object_is_a_tapper(name):
+    """Phase v0.118.0 stamps these untap locks' affected object itself (they
+    left the canary): no correction, and still a tapper (CR 502.3)."""
+    assert not _corrections(name, "cant_untap_object")
+    assert "tapper_engine|any|" in _idents(name)
 
 
 @pytest.mark.retirement_canary
@@ -131,9 +143,7 @@ def test_a_self_untap_drawback_stays_no_tapper(name):
 
 
 @pytest.mark.retirement_canary
-@pytest.mark.parametrize(
-    "name", ["Jace, Architect of Thought", "Blood Lust", "Six-Sided Die"]
-)
+@pytest.mark.parametrize("name", ["Blood Lust", "Six-Sided Die"])
 def test_anaphoric_pump_canary(name):
     pumps = [n for n in _raw_nodes(name) if _type(n) == "Pump"]
     assert any(_type(p.get("target")) == "SelfRef" for p in pumps), _retire(
@@ -143,10 +153,10 @@ def test_anaphoric_pump_canary(name):
 
 def test_a_delayed_triggers_it_is_the_watched_creature():
     # "Until your next turn, whenever a creature an opponent controls attacks,
-    # it gets -1/-0" — the attacker, not Jace.
+    # it gets -1/-0" — the attacker, not Jace. Phase v0.118.0 stamps the pump's
+    # target itself (Jace left the canary), so no correction applies.
     (pump,) = _effects("Jace, Architect of Thought", "Pump")
-    assert ANAPHORIC in pump.subject
-    assert pump.node.target.to_dict()["type"] == "SelfRef"  # phase's own stamp
+    assert ANAPHORIC not in pump.subject
     idents = _idents("Jace, Architect of Thought")
     assert "self_pump|you|" not in idents
     assert "debuff_makers|any|" in idents
@@ -169,10 +179,17 @@ def test_a_creature_pumping_itself_stays_a_self_pump():
 
 _TAPS_ANOTHER_PLAYERS = [
     "Delirium",  # "Tap target creature that player controls"
-    "Yosei, the Morning Star",  # "Tap up to five target permanents that player …"
     "Mana Web",  # "tap all lands that player controls"
     "Arena",  # "target creature of an opponent's choice they control"
 ]
+
+
+def test_a_typed_that_players_permanent_is_a_tapper():
+    """Yosei, the Morning Star's "Tap up to five target permanents that player
+    controls": phase v0.118.0 types the controller itself (Yosei left the
+    canary), so no correction applies, and it's still a tapper."""
+    assert not _corrections("Yosei, the Morning Star", "tap_other_player")
+    assert "tapper_engine|any|" in _idents("Yosei, the Morning Star")
 
 
 @pytest.mark.retirement_canary

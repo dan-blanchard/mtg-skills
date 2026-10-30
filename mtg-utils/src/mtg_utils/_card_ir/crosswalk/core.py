@@ -53,6 +53,7 @@ from mtg_utils._card_ir.crosswalk.cost_text import (
 from mtg_utils._card_ir.crosswalk.reads import (
     _PAYLIFE_COST_TAGS,
     CURVE_COST_KEYWORDS,
+    FLIP_COIN_TAGS,
     _effect_scope,
     _effect_subject,
     _filter_type_words,
@@ -191,9 +192,7 @@ EFFECT_CONCEPTS: dict[str, str] = {
     # lossy IR reached via a kind-split effect category; the crosswalk reads them
     # off the first-class typed node.
     "GivePlayerCounter": "give_player_counter",  # rad / experience makers (CR 122.1)
-    "FlipCoin": "flip_coin",  # coin_flip (CR 705.1)
-    "FlipCoins": "flip_coin",
-    "FlipCoinUntilLose": "flip_coin",
+    **dict.fromkeys(FLIP_COIN_TAGS, "flip_coin"),  # coin_flip (CR 705.1)
     # Batch 7 (ADR-0035 Stage 2) — the phase / control / terminal-effect cluster.
     # An additional combat phase, a card conjure (Alchemy), and an end-the-turn
     # the OLD lossy IR reached via a kind-split effect category / word-mirror; the
@@ -1294,7 +1293,7 @@ def _keyword_effect_units(root: TypedMirrorNode) -> list[AbilityUnit]:
     keyword variant, all under ``CumulativeUpkeep`` — Aboroth (PutCounter),
     Braid of Fire (Mana), Herald of Leshrac (GainControl), Infernal
     Darkness (PayCost), Jötun Grunt (PutAtLibraryPosition), Karplusan
-    Minotaur (FlipCoin), Psychic Vortex (Draw), Sheltering Ancient
+    Minotaur (FlipCoins), Psychic Vortex (Draw), Sheltering Ancient
     (PutCounter), Varchild's War-Riders (Token) — this origin decorates all
     9 the same structural way; only Braid of Fire's ``Mana`` tag maps to a
     ported concept (``ramp``) today, the rest surface as ``other`` until a

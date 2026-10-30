@@ -6,13 +6,7 @@ from dataclasses import replace
 import pytest
 
 from mtg_utils._analysis.job_quality import board_wipe, job_score
-from mtg_utils._analysis.lanes.mana_and_wipes import mass_removal_effects
 from mtg_utils._analysis.signal_trees import signal_trees_for
-from mtg_utils._card_ir.crosswalk import (
-    effect_filter,
-    filter_core_types,
-    filter_predicates,
-)
 from mtg_utils.testkit import test_card, test_phase_records, test_signals
 
 
@@ -122,9 +116,6 @@ def test_an_event_triggered_sweep_is_not_clean():
         # "Exile all creatures", then the next end step returns them: a mass
         # flicker (the shared tree's blink return, ``ConceptNode.returns_to``).
         "Planar Guide",
-        # "Exile each creature that crewed it", read by phase as every creature,
-        # comes back at the next end step: a flicker.
-        "Golden Argosy",
         # The Great Synthesis's bounce is on a transform back face, reached by
         # transforming (its mana value is only the front's, CR 712.8e): the
         # read's own decision is that it is no wipe on demand.
@@ -133,26 +124,6 @@ def test_an_event_triggered_sweep_is_not_clean():
 )
 def test_a_returning_or_transformed_sweep_is_no_wipe(name):
     assert job_score(_real(name), "board_wipe") is None
-
-
-@pytest.mark.retirement_canary
-def test_golden_argosy_crew_exile_reads_as_every_creature():
-    """Phase reads Golden Argosy's "exile each creature that crewed it this turn"
-    as every creature (a bare ``Creature`` filter), which is the only reason it
-    reads as a sweep for the flicker veto to stop. Once phase parses the crew
-    filter this fails: the veto's Argosy case above pins nothing any more
-    (Planar Guide still pins the veto), so drop the case."""
-    card = _real("Golden Argosy")
-    filters = [
-        (filter_core_types(f), filter_predicates(f))
-        for tree in signal_trees_for(card, bulk=card)
-        for _u, c in mass_removal_effects(tree)
-        if (f := effect_filter(c.node)) is not None
-    ]
-    assert filters == [(("Creature",), ())], (
-        "Golden Argosy: RETIRE-READY — phase reads the crew filter now; drop "
-        "test_a_returning_or_transformed_sweep_is_no_wipe's Argosy case."
-    )
 
 
 def test_the_wipe_calibration_order():
@@ -255,15 +226,16 @@ def test_harsh_mercy_chosen_type_dropped_canary():
         ("Do or Die", "one_sided"),
     ],
 )
-def test_a_dropped_limiting_clause_is_read_by_name(name, feature):
-    """``board_wipe._CLAUSE_DROPPED``: Extinction reaches one creature type,
-    Swarmyard Massacre spares four, Do or Die destroys one pile of a target
-    player's creatures (CR 700.3)."""
+def test_a_limiting_clause_is_read(name, feature):
+    """Extinction reaches one creature type and Do or Die destroys one pile of a
+    target player's creatures (CR 700.3), both read by name
+    (``board_wipe._CLAUSE_DROPPED``); Swarmyard Massacre spares four types, typed
+    since phase v0.118.0 (the membership pin of its retired row)."""
     assert board_wipe.features(_real(name))[feature] == 1.0
 
 
 @pytest.mark.retirement_canary
-@pytest.mark.parametrize("name", ["Extinction", "Swarmyard Massacre", "Do or Die"])
+@pytest.mark.parametrize("name", ["Extinction", "Do or Die"])
 def test_clause_dropped_canary(name):
     """Phase (v0.104.0) leaves these sweeps' limiting clause out: the sweep's
     filter is a bare ``Creature`` with no predicate, and nothing chooses.

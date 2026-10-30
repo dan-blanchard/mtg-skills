@@ -421,19 +421,6 @@ def test_narrowed_permanent_sweeps_canary(name):
     assert any(p in test_card(name)["oracle_text"] for p in NARROWED_PERMANENT_SWEEPS)
 
 
-@pytest.mark.retirement_canary
-@pytest.mark.parametrize("name", ["Exhaustion", "Mana Vapors"])
-def test_one_shot_untap_statics_canary(name):
-    """Retirement canary for ``reads._lasting_static_defs``' instant/sorcery rule:
-    phase v0.94.0 parses "don't untap during their next untap step" as a top-level
-    static, with no duration."""
-    statics = [rec.get("static_abilities") for rec in test_phase_records(name)]
-    assert any(statics), (
-        f"reads._lasting_static_defs: RETIRE-READY — phase reads {name} as a "
-        "resolving effect with a duration now."
-    )
-
-
 # ── Unbound X reach ───────────────────────────────────────────────────────────
 
 

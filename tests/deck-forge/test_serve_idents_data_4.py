@@ -274,15 +274,18 @@ def test_island_makers_serves_attack_restriction_bodies():
     serve = _spec_serve("island_makers")
     assert serve.matches(_card("Armored Galleon"))
     assert serve.matches(_card("Stormtide Leviathan"))
-    # Counting your own Islands is no way to make the opponent's lands Islands.
-    assert not serve.matches(_card("Carpet of Flowers"))
+    # Carpet of Flowers' "X is the number of Islands target opponent controls" is
+    # a payoff for opponents' Islands (typed since phase v0.118.0; a residue
+    # before), the want the Island makers feed — the page shows it.
+    assert serve.matches(_card("Carpet of Flowers"))
 
 
 def test_island_matters_serves_island_effects():
     serve = _spec_serve("island_matters")
     assert serve.matches(_card("Armored Galleon"))
     assert serve.matches(_card("Stormtide Leviathan"))
-    assert not serve.matches(_card("Carpet of Flowers"))
+    # Opponents' Islands fuel its mana (counts_opponents_land_type).
+    assert serve.matches(_card("Carpet of Flowers"))
 
 
 def _served(key, name, *, scope="you"):

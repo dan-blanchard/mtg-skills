@@ -4,8 +4,8 @@ Codegen'd from ``tests/fixtures/phase_mirror_schema.json`` by
 ``mtg_utils._card_ir.mirror.codegen`` (run via ``build-card-ir-substrate``).
 
 Part of the generated typed-mirror package (see this directory's
-``__init__.py``). This module holds content keys ``characteristics`` ..
-``condition`` (9 keys).
+``__init__.py``). This module holds content keys ``casting_restrictions`` ..
+``condition`` (10 keys).
 
 Class naming: ``S_<ckey>`` for a struct shape, ``T_<ckey>__<tag>`` for a tagged
 shape, ``U_<ckey>`` for the union of all tagged shapes at one content_key.
@@ -44,21 +44,23 @@ if TYPE_CHECKING:
     from mtg_utils._card_ir.mirror.generated.g08_else_ability import (
         S_filter,
         U_filter,
-        U_inner,
     )
-    from mtg_utils._card_ir.mirror.generated.g09_journal import (
+    from mtg_utils._card_ir.mirror.generated.g09_inner import (
+        U_inner,
         U_lhs,
     )
-    from mtg_utils._card_ir.mirror.generated.g10_optional_player import (
+    from mtg_utils._card_ir.mirror.generated.g10_modifications import (
         S_or_trigger,
         U_origin_constraint,
+    )
+    from mtg_utils._card_ir.mirror.generated.g11_player import (
         U_player,
         U_player_scope,
     )
-    from mtg_utils._card_ir.mirror.generated.g11_prop import (
+    from mtg_utils._card_ir.mirror.generated.g12_properties import (
         U_properties,
     )
-    from mtg_utils._card_ir.mirror.generated.g13_redirect_to import (
+    from mtg_utils._card_ir.mirror.generated.g14_redirect_target import (
         S_replacements,
         U_reference,
         U_relation,
@@ -67,14 +69,16 @@ if TYPE_CHECKING:
         U_scope,
         U_source,
     )
-    from mtg_utils._card_ir.mirror.generated.g14_static_abilities import (
+    from mtg_utils._card_ir.mirror.generated.g15_spell_filter import (
         S_static_abilities,
         S_trigger,
-        S_triggers,
-        S_value,
         U_subject,
         U_subtype_filter,
         U_target,
+    )
+    from mtg_utils._card_ir.mirror.generated.g16_triggers import (
+        S_triggers,
+        S_value,
         U_value,
     )
 
@@ -119,6 +123,83 @@ class S_cleave_variant(TypedMirrorNode):
 
 
 # --- tagged shapes (discriminated enum nodes) ---
+
+
+@dataclass(frozen=True)
+class T_casting_restrictions__AfterBlockersDeclared(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "AfterBlockersDeclared"
+
+
+@dataclass(frozen=True)
+class T_casting_restrictions__AfterCombat(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "AfterCombat"
+
+
+@dataclass(frozen=True)
+class T_casting_restrictions__BeforeAttackersDeclared(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "BeforeAttackersDeclared"
+
+
+@dataclass(frozen=True)
+class T_casting_restrictions__BeforeBlockersDeclared(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "BeforeBlockersDeclared"
+
+
+@dataclass(frozen=True)
+class T_casting_restrictions__BeforeCombatDamage(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "BeforeCombatDamage"
+
+
+@dataclass(frozen=True)
+class T_casting_restrictions__CantSpendMana(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "CantSpendMana"
+
+
+@dataclass(frozen=True)
+class T_casting_restrictions__DeclareAttackersStep(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "DeclareAttackersStep"
+
+
+@dataclass(frozen=True)
+class T_casting_restrictions__DeclareBlockersStep(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "DeclareBlockersStep"
+
+
+@dataclass(frozen=True)
+class T_casting_restrictions__DuringCombat(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "DuringCombat"
+
+
+@dataclass(frozen=True)
+class T_casting_restrictions__DuringOpponentsTurn(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "DuringOpponentsTurn"
+
+
+@dataclass(frozen=True)
+class T_casting_restrictions__DuringOpponentsUpkeep(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "DuringOpponentsUpkeep"
+
+
+@dataclass(frozen=True)
+class T_casting_restrictions__DuringYourEndStep(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "DuringYourEndStep"
+
+
+@dataclass(frozen=True)
+class T_casting_restrictions__DuringYourTurn(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "DuringYourTurn"
+
+
+@dataclass(frozen=True)
+class T_casting_restrictions__RequiresCondition(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "RequiresCondition"
+    data: MirrorVariant
+
+
+@dataclass(frozen=True)
+class T_casting_restrictions__SpendOnlyOnX(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "SpendOnlyOnX"
+    data: MirrorVariant
 
 
 @dataclass(frozen=True)
@@ -218,6 +299,11 @@ class T_condition__AbilityUseCountThisTurn(TypedMirrorNode):
 @dataclass(frozen=True)
 class T_condition__ActivatedAbilityIsNonMana(TypedMirrorNode):
     _tag: ClassVar[str | None] = "ActivatedAbilityIsNonMana"
+
+
+@dataclass(frozen=True)
+class T_condition__AddedManaWithThisAbilityThisTurn(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "AddedManaWithThisAbilityThisTurn"
 
 
 @dataclass(frozen=True)
@@ -423,6 +509,12 @@ class T_condition__CostPaidObjectMatchesFilter(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_condition__CurrentPhaseIs(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "CurrentPhaseIs"
+    phases: list[object]
+
+
+@dataclass(frozen=True)
 class T_condition__DamagedPlayerIsEventSourceOwner(TypedMirrorNode):
     _tag: ClassVar[str | None] = "DamagedPlayerIsEventSourceOwner"
 
@@ -585,6 +677,11 @@ class T_condition__HadCounters(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_condition__HasBoon(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "HasBoon"
+
+
+@dataclass(frozen=True)
 class T_condition__HasCityBlessing(TypedMirrorNode):
     _tag: ClassVar[str | None] = "HasCityBlessing"
 
@@ -617,11 +714,6 @@ class T_condition__IfControlsMatching(TypedMirrorNode):
     _tag: ClassVar[str | None] = "IfControlsMatching"
     filter: U_filter
     minimum: int
-
-
-@dataclass(frozen=True)
-class T_condition__IsDuringUpkeep(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "IsDuringUpkeep"
 
 
 @dataclass(frozen=True)
@@ -839,6 +931,11 @@ class T_condition__SourceAttackingAlone(TypedMirrorNode):
 @dataclass(frozen=True)
 class T_condition__SourceEnteredThisTurn(TypedMirrorNode):
     _tag: ClassVar[str | None] = "SourceEnteredThisTurn"
+
+
+@dataclass(frozen=True)
+class T_condition__SourceExertedThisTurn(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "SourceExertedThisTurn"
 
 
 @dataclass(frozen=True)
@@ -1180,6 +1277,23 @@ class T_condition__ZoneCoreTypeCardCountAtLeast(TypedMirrorNode):
 
 # --- discriminated-union aliases (one per tagged content_key) ---
 
+type U_casting_restrictions = (
+    T_casting_restrictions__AfterBlockersDeclared
+    | T_casting_restrictions__AfterCombat
+    | T_casting_restrictions__BeforeAttackersDeclared
+    | T_casting_restrictions__BeforeBlockersDeclared
+    | T_casting_restrictions__BeforeCombatDamage
+    | T_casting_restrictions__CantSpendMana
+    | T_casting_restrictions__DeclareAttackersStep
+    | T_casting_restrictions__DeclareBlockersStep
+    | T_casting_restrictions__DuringCombat
+    | T_casting_restrictions__DuringOpponentsTurn
+    | T_casting_restrictions__DuringOpponentsUpkeep
+    | T_casting_restrictions__DuringYourEndStep
+    | T_casting_restrictions__DuringYourTurn
+    | T_casting_restrictions__RequiresCondition
+    | T_casting_restrictions__SpendOnlyOnX
+)
 type U_choose_filter = T_choose_filter__Typed
 type U_choose_scope = T_choose_scope__Chooser | T_choose_scope__Neighbor
 type U_chooser = (
@@ -1198,6 +1312,7 @@ type U_colors = T_colors__ChosenColor | T_colors__Fixed
 type U_condition = (
     T_condition__AbilityUseCountThisTurn
     | T_condition__ActivatedAbilityIsNonMana
+    | T_condition__AddedManaWithThisAbilityThisTurn
     | T_condition__AdditionalCostPaid
     | T_condition__AdditionalCostPaidInstead
     | T_condition__AlternativeManaCostPaid
@@ -1231,6 +1346,7 @@ type U_condition = (
     | T_condition__ControlsNone
     | T_condition__ControlsType
     | T_condition__CostPaidObjectMatchesFilter
+    | T_condition__CurrentPhaseIs
     | T_condition__DamagedPlayerIsEventSourceOwner
     | T_condition__DayNightIs
     | T_condition__DayNightIsNeither
@@ -1260,13 +1376,13 @@ type U_condition = (
     | T_condition__FirstTimeObjectTappedThisTurn
     | T_condition__FirstTokenCreationEachTurn
     | T_condition__HadCounters
+    | T_condition__HasBoon
     | T_condition__HasCityBlessing
     | T_condition__HasCounters
     | T_condition__HasEnduringStory
     | T_condition__HasMaxSpeed
     | T_condition__HasObjectTarget
     | T_condition__IfControlsMatching
-    | T_condition__IsDuringUpkeep
     | T_condition__IsInitiative
     | T_condition__IsMonarch
     | T_condition__IsOpponentsTurn
@@ -1303,6 +1419,7 @@ type U_condition = (
     | T_condition__SourceAttackedThisTurn
     | T_condition__SourceAttackingAlone
     | T_condition__SourceEnteredThisTurn
+    | T_condition__SourceExertedThisTurn
     | T_condition__SourceHasDealtDamage
     | T_condition__SourceInZone
     | T_condition__SourceIsAttacking

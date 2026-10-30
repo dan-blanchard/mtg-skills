@@ -5,7 +5,7 @@ Codegen'd from ``tests/fixtures/phase_mirror_schema.json`` by
 
 Part of the generated typed-mirror package (see this directory's
 ``__init__.py``). This module holds content keys
-``conditional_enter_with_counters`` .. ``cost_reduction`` (7 keys).
+``conditional_enter_with_counters`` .. ``cost_reduction`` (8 keys).
 
 Class naming: ``S_<ckey>`` for a struct shape, ``T_<ckey>__<tag>`` for a tagged
 shape, ``U_<ckey>`` for the union of all tagged shapes at one content_key.
@@ -27,7 +27,7 @@ if TYPE_CHECKING:
         U_amount,
         U_base,
     )
-    from mtg_utils._card_ir.mirror.generated.g04_characteristics import (
+    from mtg_utils._card_ir.mirror.generated.g04_casting_restrictions import (
         U_color,
         U_condition,
     )
@@ -44,25 +44,26 @@ if TYPE_CHECKING:
     from mtg_utils._card_ir.mirror.generated.g08_else_ability import (
         U_filter,
     )
-    from mtg_utils._card_ir.mirror.generated.g09_journal import (
+    from mtg_utils._card_ir.mirror.generated.g09_inner import (
         U_lhs,
         U_mana_cost,
     )
-    from mtg_utils._card_ir.mirror.generated.g10_optional_player import (
+    from mtg_utils._card_ir.mirror.generated.g11_player import (
         U_player,
     )
-    from mtg_utils._card_ir.mirror.generated.g11_prop import (
+    from mtg_utils._card_ir.mirror.generated.g12_properties import (
         U_properties,
     )
-    from mtg_utils._card_ir.mirror.generated.g12_qty import (
+    from mtg_utils._card_ir.mirror.generated.g13_qty import (
+        U_quality,
         U_quantity,
     )
-    from mtg_utils._card_ir.mirror.generated.g13_redirect_to import (
+    from mtg_utils._card_ir.mirror.generated.g14_redirect_target import (
         S_requirement,
         U_rhs,
         U_scaling,
     )
-    from mtg_utils._card_ir.mirror.generated.g14_static_abilities import (
+    from mtg_utils._card_ir.mirror.generated.g15_spell_filter import (
         U_subject,
         U_target,
     )
@@ -222,11 +223,6 @@ class T_conditions__HasObjectTarget(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
-class T_conditions__IsDuringUpkeep(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "IsDuringUpkeep"
-
-
-@dataclass(frozen=True)
 class T_conditions__IsOpponentsTurn(TypedMirrorNode):
     _tag: ClassVar[str | None] = "IsOpponentsTurn"
 
@@ -294,6 +290,13 @@ class T_conditions__QuantityComparison(TypedMirrorNode):
     comparator: str
     lhs: U_lhs
     rhs: U_rhs
+
+
+@dataclass(frozen=True)
+class T_conditions__QuantityQuality(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "QuantityQuality"
+    quality: U_quality
+    quantity: U_quantity
 
 
 @dataclass(frozen=True)
@@ -415,6 +418,7 @@ class T_conditions__ZoneChangeObjectMatchesFilter(TypedMirrorNode):
 class T_conditions__ZoneChangedThisWay(TypedMirrorNode):
     _tag: ClassVar[str | None] = "ZoneChangedThisWay"
     filter: U_filter
+    destination: str = MISSING
 
 
 @dataclass(frozen=True)
@@ -492,6 +496,13 @@ class T_constraint__OnlyDuringYourTurn(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_constraint__TotalManaValue(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "TotalManaValue"
+    comparator: str
+    value: int
+
+
+@dataclass(frozen=True)
 class T_constraints__ConditionalMaxChoices(TypedMirrorNode):
     _tag: ClassVar[str | None] = "ConditionalMaxChoices"
     condition: U_condition
@@ -512,6 +523,11 @@ class T_constraints__NoRepeatThisGame(TypedMirrorNode):
 @dataclass(frozen=True)
 class T_constraints__NoRepeatThisTurn(TypedMirrorNode):
     _tag: ClassVar[str | None] = "NoRepeatThisTurn"
+
+
+@dataclass(frozen=True)
+class T_contestant__ParentTargetController(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "ParentTargetController"
 
 
 @dataclass(frozen=True)
@@ -677,7 +693,7 @@ class T_cost__ReturnToHand(TypedMirrorNode):
 @dataclass(frozen=True)
 class T_cost__Reveal(TypedMirrorNode):
     _tag: ClassVar[str | None] = "Reveal"
-    count: int
+    count: U_count
     filter: U_filter = MISSING
 
 
@@ -756,7 +772,6 @@ type U_conditions = (
     | T_conditions__HasCounters
     | T_conditions__HasEnduringStory
     | T_conditions__HasObjectTarget
-    | T_conditions__IsDuringUpkeep
     | T_conditions__IsOpponentsTurn
     | T_conditions__IsPresent
     | T_conditions__IsYourTurn
@@ -768,6 +783,7 @@ type U_conditions = (
     | T_conditions__PreviousEffectAmount
     | T_conditions__QuantityCheck
     | T_conditions__QuantityComparison
+    | T_conditions__QuantityQuality
     | T_conditions__ScopedPlayerMatches
     | T_conditions__SourceEnteredThisTurn
     | T_conditions__SourceInZone
@@ -803,6 +819,7 @@ type U_constraint = (
     | T_constraint__OnlyDuringOpponentsTurn
     | T_constraint__OnlyDuringYourMainPhase
     | T_constraint__OnlyDuringYourTurn
+    | T_constraint__TotalManaValue
 )
 type U_constraints = (
     T_constraints__ConditionalMaxChoices
@@ -810,6 +827,7 @@ type U_constraints = (
     | T_constraints__NoRepeatThisGame
     | T_constraints__NoRepeatThisTurn
 )
+type U_contestant = T_contestant__ParentTargetController
 type U_copy_modifications = (
     T_copy_modifications__AddKeyword | T_copy_modifications__RemoveSupertype
 )

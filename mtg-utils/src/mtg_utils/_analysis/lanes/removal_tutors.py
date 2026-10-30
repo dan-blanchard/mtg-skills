@@ -124,6 +124,7 @@ from mtg_utils._card_ir.recovery import (
     ON_SELF,
     TARGET_OBJECT,
     YOUR_TARGET,
+    done_by_another,
 )
 from mtg_utils._card_ir.text_idioms import _LIB_SEARCH_PLAYER_ACTIONS
 
@@ -1434,7 +1435,15 @@ def _tree_edict_answers(tree: ConceptTree) -> tuple[_EdictAnswers, _EdictAnswers
             if c.concept != "sacrifice":
                 continue
             filt = effect_filter(c.node)
-            types = _perm_answer_types(filt)
+            if c.recovered_by:  # a parked sacrifice: the types its clause names
+                if not done_by_another(c):
+                    # a symmetric parked one ("Each player who tapped a land for
+                    # mana this turn sacrifices a land" — Desolation) is a tax,
+                    # not an answer
+                    continue
+                types = frozenset(c.reading) & PERMANENT_CARD_TYPES
+            else:
+                types = _perm_answer_types(filt)
             if "SharesQuality" in filter_predicates(filt) and previous:
                 types = previous
             previous = types

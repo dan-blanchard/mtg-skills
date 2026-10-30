@@ -147,3 +147,29 @@ Each has a comment at the read that learned it.
   listed in the bump's commit message. The `ChooseOneOf` walk gap
   (backlog) also surfaced here.
 
+- **v0.118.0:** `FlipCoin` / `FlipCoinUntilLose` → `FlipCoins{flips: Exactly{count} |
+  UntilLoss}` (`reads.FLIP_COIN_TAGS`); a graveyard trigger's "put into your
+  graveyard" `controller` → an `Owned{controller}` property (the new
+  `_card_ir/shape_compat.py` copies the owner onto `controller` on the raw record,
+  per zone-change clause — a rename too many reads key on; canary
+  `test_graveyard_owner_controller_canary` fails once phase writes the controller
+  again); "that player" `ParentTarget` in a player slot → `DeclaredPlayer{group}`
+  (`reads.PLAYER_BACK_REFERENCES`, under `TARGETED_PLAYER_TAGS` and every
+  player-tag set); "you and that player each …" → one effect on `ScopedPlayer`
+  under `player_scope: AnyOf[Controller, X]` (the owner walk answers
+  `YOU_AND_OPPONENT_SCOPE`: its reach is an opponent's, and you act too —
+  `YOUR_ACTORS`; never every player); the attacked player or planeswalker →
+  `AttackedPlayerOrPlaneswalker`; "and all Equipment attached to it" →
+  `AttachedTo{to: Host{…}}` (`filter_predicates` maps it to the old predicate
+  names); a graveyard pick → `ChooseFromZone` feeding a `ChangeZone{ParentTarget}`
+  (`reads.recursion_card_types` reads the pick). New fail-closed residues:
+  `enters_with_clause` / `enters_with_gate` (the seam's `OnSelf` mark reads "~
+  enters with … counters"), `prevention_source_scope`
+  (`reads.PARKED_PREVENTION_RESIDUES`; the seam decorates it, a `ToSelf` mark for a
+  shield of the card alone), `as_long_as_gate`, `blocked_attacker_damage_source`,
+  `zone_change_reflexive_*`, `per_object_coin_flip_outcome`. Phase also parks
+  clauses with their subject peeled ("discard a card for each creature it
+  devoured"): `recovery.read_clause` reads the player back off the unit's own
+  description (canary `test_peeled_subject_canary`). The seam gained the `ForEach`
+  mark and grammar rows for "reveal N cards from their hand", "pay … {E}" and a
+  self-discount's "It also costs … less" (`self_discount`).
