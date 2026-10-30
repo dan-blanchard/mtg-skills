@@ -15,11 +15,11 @@ from typing import TYPE_CHECKING
 
 from mtg_utils import _gc
 from mtg_utils._analysis.budgets import banded_slot_budgets, template_for
-from mtg_utils._analysis.commander_need import commander_needs
+from mtg_utils._analysis.commander_need import commander_needs, need_predicate
 from mtg_utils._analysis.multipliers import commander_multipliers
 from mtg_utils._analysis.signals import read_deck_signals
 from mtg_utils._analysis.signals_index import ident_base_rates
-from mtg_utils._tuner import commander_fit, grant_coverage, metrics
+from mtg_utils._tuner import commander_fit, grant_coverage, mana_base, metrics
 from mtg_utils._tuner import swaps as swaps_mod
 from mtg_utils._tuner.bracket import bracket_gate, suggestable_near_misses
 from mtg_utils._tuner.calibration import calibration_for
@@ -76,6 +76,14 @@ class TuneParams:
     # it: its cut ranking replaces EDHREC play rate, and the core cards the deck
     # lacks become add issues. ``None`` tunes exactly as without it.
     meta: MetaContext | None = None
+    # Phase C of the 2026-10-30 plan: swap tapped mana-only lands and surplus
+    # basics for untapped lands in their colours, first in the tune, within the
+    # land purse (``_tuner.mana_base``). Opt-in: measured on the recipe it costs
+    # the plan's issues their swaps (the 25: 735 / 337 / 122 → 737 / 330 / 115
+    # guide cuts / adds; held-out 20: adds flat, consensus adds -4) for 3 of 73
+    # and 3 of 58 guide land rows matched, so a tune that wants its mana base
+    # fixed asks for it (``deck-tune --land-swaps``).
+    land_swaps: bool = False
 
 
 def _deck_identity(hd: HydratedDeck) -> str:
@@ -389,6 +397,35 @@ def tune(
             fmt=fmt,
             paper_only=paper_only,
         )
+    # The mana-base plan (Phase C): the lands the tune may swap, read once here
+    # for the issue list and the swap engine. A land on the plan — one a main
+    # lane serves or a commander need counts — stays.
+    land_plan = None
+    land_pool: list[dict] = []
+    if (
+        params.land_swaps
+        and params.max_swaps > 0
+        and cal.commander_axes
+        and cal.playrate_meaningful
+    ):
+        needs = commander_needs(commander_records)
+        fits_need = need_predicate(needs)
+        mains = set(foc.get("mains") or ())
+        on_plan = {
+            c.name
+            for c in classes
+            if c.bucket == "land"
+            and (mains.intersection(c.served) or fits_need(c.record))
+        }
+        land_plan = mana_base.land_plan(
+            [c.record for c in classes if c.bucket == "land"],
+            mana,
+            keep=lambda r: r.get("name", "") in on_plan,
+        )
+        if land_plan.cuts:
+            land_pool = swaps_mod.land_pool(
+                search_fn=search_fn, identity=identity, fmt=fmt, paper_only=paper_only
+            )
     issues = top_issues(
         efficiency_r=eff,
         focus_r=foc,
@@ -408,6 +445,7 @@ def tune(
         ),
         near_misses=suggestable_near_misses(combos, params.target_bracket),
         meta_missing=[c for c in meta_missing if not c["land"]][:META_CORE_ISSUES],
+        land_cuts=len(land_plan.cuts) if land_plan is not None and land_pool else 0,
     )
 
     # ADR-0030: a target-bracket constraint gate, only when a target was chosen —
@@ -558,6 +596,8 @@ def tune(
             exclude=params.exclude,
             deck_mana=deck_mana,
             need_avenues=need_avenues,
+            land_plan=land_plan,
+            land_pool=land_pool,
         )
         swaps_out = swaps_mod.propose_swaps(classes, issues, swap_ctx)
         # The fill pass deliberately skips lands; flag any mana-base shortfall so the

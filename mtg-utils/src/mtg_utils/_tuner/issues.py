@@ -524,7 +524,10 @@ class Sourcing:
         if job is None:
             # A theme cut that supplies one of the commander's needs is upgraded
             # off that need's page (ADR-0061): the slot keeps doing what the
-            # commander asks, with a better card — never the shared cap.
+            # commander asks, with a better card — never the shared cap. A cut
+            # with a job keeps its job page: routed to the need page first, the
+            # held-out 20 lost 3 guide adds, 4 cuts and 17 swaps (2026-10-30, C1),
+            # the need page holding no better-played card for many job cuts.
             for _label, _depth, nspec in self._need_avenues:
                 need = nspec.get("_need")
                 if need is not None and satisfies(card.record, need):
@@ -717,6 +720,7 @@ def top_issues(
     sourcing: Sourcing,
     near_misses: Sequence[Mapping] = (),
     meta_missing: Sequence[Mapping] = (),
+    land_cuts: int = 0,
 ) -> list[Issue]:
     """Rank the scorecard's findings by severity, each with its remedy decided.
     ``commander_r`` is None outside the Commander family (no commander to misfit).
@@ -725,6 +729,22 @@ def top_issues(
     ``meta_missing`` are core cards of the deck's meta archetype it lacks
     (``{name, share}``, ADR-0059)."""
     issues: list[Issue] = []
+
+    if land_cuts:
+        # The mana base first (Phase C of the 2026-10-30 plan): tapped mana-only
+        # lands and surplus basics the swap engine's own pass trades for untapped
+        # lands in their colours (``swaps.propose_swaps``), before any plan issue.
+        # No remedy here: the pass reads the land plan directly.
+        issues.append(
+            sourcing.issue(
+                "mana_base",
+                severity=12,
+                count=land_cuts,
+                message=f"{land_cuts} lands enter tapped and only make mana (or are "
+                "basics beyond the colour demand) — swap for untapped lands in "
+                "their colours",
+            )
+        )
 
     def row_name(role: str, b: dict) -> str:
         return (b.get("label") or role.replace("_", " ")).lower()

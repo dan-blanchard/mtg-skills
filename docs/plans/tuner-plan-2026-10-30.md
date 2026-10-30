@@ -15,6 +15,16 @@ miss taxonomy, the held-out candidates).
   rejected). Phase B baseline: the 25 735 / 337 / 122, held-out 577 / 253 / 97;
   page recall@30 159 and 161; plan-consistent 288 and 174. Details in the audit
   report's "Phase B" section and ADR-0061's amendment.
+- 2026-10-30, Phase C: item 9 (a lane cut's add from its own lane) is covered by
+  Phase B's need routing (a cut that supplies a need is upgraded off that
+  need's page); item 10 (incidental jobs) was tried as "route a need-supplying
+  job cut to its need page" and rejected (held-out 17 swaps, 4 cuts and 3 adds
+  lost) — still open for a read that tells an incidental job from a real one;
+  item 11 (land swaps) is built (`_tuner/mana_base.py`, `--land-swaps`) and
+  ships opt-in: measured on the recipe it costs the plan's issues their swaps
+  (the 25 lose 7 guide adds and 4 consensus adds; the held-out 20 hold their
+  adds, lose 4 consensus adds) for 3 of 73 and 3 of 58 guide land rows. Details
+  in the audit report's "Phase C" section.
 
 ## Target
 

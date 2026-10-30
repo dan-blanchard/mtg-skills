@@ -6,7 +6,8 @@ A thin adapter over ``_tuner.tune`` — the SAME skill-agnostic core deck-forge 
 emits the scorecard + budgeted swaps as JSON.
 
     deck-tune <deck.json> [--bulk-data <path>] \
-        [--budget N] [--max-swaps N] [--shape ...] [--bracket 1-5] [--paper-only] \
+        [--budget N] [--max-swaps N] [--shape ...] [--bracket 1-5] [--land-swaps] \
+        [--paper-only] \
         [--exclude <name>]... [--meta auto|off|<archetype>] [--collection <file>]
 
 Every format family: the template and every floor are the deck's family's
@@ -81,6 +82,15 @@ def _ensure_ir() -> None:
     help="Target Commander bracket — runs the constraint gate (ADR-0030).",
 )
 @click.option(
+    "--land-swaps",
+    "land_swaps",
+    is_flag=True,
+    default=False,
+    help="Fix the mana base first: swap tapped mana-only lands and surplus basics "
+    "for untapped lands in their colours, within a quarter of the budget "
+    "(ADR-0061's plan, Phase C). Counts against --max-swaps.",
+)
+@click.option(
     "--medium",
     "medium",
     type=click.Choice(["paper", "digital"]),
@@ -134,6 +144,7 @@ def main(
     max_swaps: int,
     shape_override: str | None,
     target_bracket: int | None,
+    land_swaps: bool,
     medium: str | None,
     wildcards: dict[str, int] | None,
     paper_only: bool | None,
@@ -227,6 +238,7 @@ def main(
         medium=medium if medium is not None else hd.deck.get("medium"),
         wildcard_budget=wildcards,
         target_bracket=target_bracket,
+        land_swaps=land_swaps,
         exclude=frozenset(exclude),
         meta=meta_ctx,
     )

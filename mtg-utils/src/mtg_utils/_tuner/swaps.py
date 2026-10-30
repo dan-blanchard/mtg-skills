@@ -33,6 +33,7 @@ from mtg_utils._analysis.signal_specs import (
     theme_page,
 )
 from mtg_utils._analysis.signals import grant_payloads_for
+from mtg_utils._tuner import mana_base
 from mtg_utils._tuner.ability_quality import grant_grade, outgrades
 from mtg_utils._tuner.classify import CardClass, is_premium
 from mtg_utils._tuner.issues import (
@@ -50,6 +51,7 @@ from mtg_utils._tuner.issues import (
     over_role,
     upgrade_job,
 )
+from mtg_utils._tuner.mana_base import LandPlan
 from mtg_utils.card_classify import (
     extract_price,
     is_basic_land,
@@ -925,6 +927,27 @@ def need_pages(
     return need_avenues(needs, deck_records, identity_pool)
 
 
+def land_pool(
+    *,
+    search_fn: Callable[..., list[dict]],
+    identity: str,
+    fmt: str,
+    paper_only: bool,
+) -> list[dict]:
+    """Every land in the deck's identity, in play-rate order (the mana-base
+    pass's candidates, ``mana_base.land_candidates``)."""
+    return _run_search(
+        search_fn,
+        {"card_type": "Land"},
+        identity=identity,
+        fmt=fmt,
+        paper_only=paper_only,
+        cmc_cap=None,
+        limit=sys.maxsize,
+        playrate=True,
+    )
+
+
 @dataclass(frozen=True)
 class SwapContext:
     """Everything ``propose_swaps`` needs beyond the classes and the issues — the deck
@@ -995,6 +1018,11 @@ class SwapContext:
     #: The commander's need pages (:func:`need_pages`, ADR-0061), built once by
     #: ``tune`` so the issue remedies and the swap engine read the same pages.
     need_avenues: Sequence[tuple[str, int, dict]] = ()
+    #: The mana-base plan (``mana_base.land_plan``, Phase C of the 2026-10-30
+    #: plan) and the identity's lands in play-rate order: the land swaps made
+    #: first, within their own purse. ``None``: no land swaps.
+    land_plan: LandPlan | None = None
+    land_pool: Sequence[dict] = ()
 
     def copy_ceiling(self, record: dict) -> int | None:
         """How many copies of this card the build may run: the copy limit, bounded
@@ -1757,6 +1785,67 @@ def propose_swaps(
         if ctx.wildcard_budget is not None
         else "set a Budget to allow buys"
     )
+    # The mana base first (Phase C): a tapped mana-only land, or a surplus basic,
+    # for an untapped land in its colours, within the land purse
+    # (``mana_base.LAND_BUDGET_SHARE`` of the budget in all, ``LAND_PRICE_SHARE``
+    # of the even share per land). Fixing the mana is usually the biggest buff a
+    # precon gets, so these take their swaps before the plan's issues do.
+    if ctx.land_plan is not None and ctx.land_plan.cuts and ctx.land_pool:
+        land_budget = (
+            ctx.budget * mana_base.LAND_BUDGET_SHARE if ctx.budget is not None else None
+        )
+        price_cap = (
+            mana_base.LAND_PRICE_SHARE * ctx.budget / max(1, ctx.max_swaps)
+            if ctx.budget is not None
+            else math.inf
+        )
+        land_spent = 0.0
+        land_classes = {c.name: c for c in classes if c.bucket == "land"}
+        candidates = mana_base.land_candidates(
+            ctx.land_pool, needed=ctx.land_plan.needed, exclude=set(in_deck)
+        )
+
+        def land_cost(card: dict) -> float | None:
+            cost = acquire_cost(card)
+            if cost is None:
+                return None
+            if land_budget is not None and land_spent + cost > land_budget:
+                return None
+            return cost
+
+        land_swaps_cap = max(1, int(mana_base.LAND_SWAP_SHARE * ctx.max_swaps))
+        for record, must in ctx.land_plan.cuts:
+            if len(swaps) >= min(ctx.max_swaps, land_swaps_cap):
+                break
+            cut = land_classes.get(record.get("name", ""))
+            if cut is None or cut.name in ctx.protected or used_cuts[cut.name]:
+                continue
+            pick = mana_base.pick_add(
+                candidates,
+                must=must,
+                used=set(used_adds) | set(in_deck),
+                price_cap=price_cap,
+                affordable=land_cost,
+            )
+            if pick is None:
+                continue
+            add_card, cost = pick
+            land_spent += cost
+            why = (
+                "a basic beyond the colour demand"
+                if is_basic_land(cut.record)
+                else "enters tapped and only makes mana"
+            )
+            commit(
+                "mana_base",
+                f"mana base: {cut.name} {why} — {add_card.get('name', '')} enters "
+                "untapped in the deck's colours",
+                "mana_base",
+                cut,
+                add_card,
+                cost,
+            )
+
     theme = sourcing.theme()
     for issue in issues:
         if len(swaps) >= ctx.max_swaps:
@@ -2038,4 +2127,8 @@ def _cut_why(reason: str, card: CardClass | None = None) -> str:
         return "off the deck's lanes and few decks play it — a staple does its job"
     if reason == "popular_upgrade":
         return "serves none of the deck's themes — a better-played card does its job"
+    if reason == "mana_base":
+        return (
+            "a land the mana base does better without — an untapped land in its colours"
+        )
     return reason

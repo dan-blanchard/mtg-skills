@@ -30,7 +30,7 @@ its template job, protection, or the main theme); page held it — over budget /
 failed the job gate / higher mana-value band / outranked; not on any page (a page
 of its kind was searched, but its spec or page depth missed the card).
 """
-import collections, fcntl, functools, json, multiprocessing, pathlib, re, sys, tempfile, time
+import collections, fcntl, functools, json, multiprocessing, os, pathlib, re, sys, tempfile, time
 
 #: The largest upgrade guide's swaps (guide_sizes.py, 2026-10-19), so the recipe
 #: never caps recall below what a guide does; the budget is the precon's own
@@ -39,6 +39,9 @@ MAX_SWAPS, BUDGET = 30, 440
 #: Every tune aims at bracket 3 or higher (the 2026-10-30 plan): the tune's
 #: bracket gate applies (at most three Game Changers, no mass land denial).
 TARGET_BRACKET = 3
+#: Land swaps (Phase C, opt-in in the tune): on with PRECON_LAND_SWAPS=1, so the
+#: default recipe stays comparable with the Phase A/B baselines.
+LAND_SWAPS = os.environ.get("PRECON_LAND_SWAPS") == "1"
 
 
 def budget_for(root, name):
@@ -186,7 +189,7 @@ def run_deck(args):
     hd = acquire_for_cli(d / "deck.json", None)
     started = time.perf_counter()
     res = tune(hd, search_fn=functools.partial(card_search.search_cards, default_bulk_path()),
-               params=TuneParams(budget=budget_for(root, name), max_swaps=MAX_SWAPS, target_bracket=TARGET_BRACKET),
+               params=TuneParams(budget=budget_for(root, name), max_swaps=MAX_SWAPS, target_bracket=TARGET_BRACKET, land_swaps=LAND_SWAPS),
                combos_fn=lambda deck: combo_search.combo_search(HydratedDeck.from_parsed(deck, by_name=hd.by_name)))
     seconds = round(time.perf_counter() - started, 1)
     if spellbook_down:

@@ -490145,6 +490145,232 @@
     "type_line": "Artifact Creature — Phyrexian Horror"
    }
   },
+  "Glacial Fortress": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": {
+        "type": "Tap"
+       },
+       "description": "{T}: Add {W} or {U}.",
+       "duration": null,
+       "effect": {
+        "produced": {
+         "color_options": [
+          "White",
+          "Blue"
+         ],
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "type": "AnyOneColor"
+        },
+        "type": "Mana"
+       },
+       "forward_result": false,
+       "is_mana_ability": true,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Land"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Blue",
+      "White"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "type": "NoCost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "11bee1bf-bc75-4d4f-8f41-a9a3c0cdd19e",
+       "205cd322-db6c-455a-b2ab-f196a64e08c9",
+       "2ed2dd5e-f59a-4ce3-a50e-968a1e94f59c",
+       "318e5c8d-6cb4-4683-9fdb-c487f98a73f7",
+       "381dee46-94c0-4b56-a752-fc0a1e651143",
+       "3b73ef22-e219-4b4c-8ff3-c0cfce8e6fd9",
+       "3c726a60-8de7-4d5e-8ad5-8405e6ac36b5",
+       "3ff751c7-34c9-498a-bd9f-c6b0c8a194f4",
+       "65e28187-fece-4f78-b8fe-43ee6df4d338",
+       "805ce12b-58eb-4584-a02e-d55ce3e527ce",
+       "8b3601d4-4091-465e-8c18-0cd717258211",
+       "9f303a30-e3d9-4b31-aa67-608a627fc6ff",
+       "a1fc8d86-b118-46e3-92a5-8cbf2ca282f7",
+       "b9d18532-2247-4e33-a760-bc42a727e9f5",
+       "bc9d29ee-1a21-4c3e-99c1-f815d40e8f19",
+       "c0f367f4-7389-438f-8abe-43ccb824c968",
+       "cef133d9-26d2-4a1e-8d6a-829f1067c169",
+       "d3ed4714-ed3d-45b6-a427-f0dcbf7e48c9",
+       "d673a2d5-0c61-48dc-8c8d-06f0c7b6b8bf",
+       "d75d748f-38c3-4a7f-8211-db62d5314180",
+       "e59cd65b-f86f-4b13-b89e-000768c80cfe",
+       "e9759472-1f44-4c2b-9afb-8507f3168840",
+       "ee834e27-595d-4d12-8e69-e94e84ef337a",
+       "ff07df55-dadf-45ac-bd21-41aa58909c22"
+      ]
+     },
+     "name": "Glacial Fortress",
+     "non_ability_text": null,
+     "oracle_text": "This land enters tapped unless you control a Plains or an Island.\n{T}: Add {W} or {U}.",
+     "power": null,
+     "printings": [
+      "BLC",
+      "DRC",
+      "EOC",
+      "FIC",
+      "FRC",
+      "LTC",
+      "M10",
+      "M11",
+      "M12",
+      "M13",
+      "MSC",
+      "PIP",
+      "PLST",
+      "PXLN",
+      "SLD",
+      "TDC",
+      "TRC",
+      "WHO",
+      "XLN",
+      "YEOE"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [
+      {
+       "condition": {
+        "subtypes": [
+         "Plains",
+         "Island"
+        ],
+        "type": "UnlessControlsSubtype"
+       },
+       "description": "~ enters tapped unless you control a Plains or an Island.",
+       "destination_zone": "Battlefield",
+       "event": "Moved",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "scope": {
+          "type": "Single"
+         },
+         "state": {
+          "type": "Tap"
+         },
+         "target": {
+          "type": "SelfRef"
+         },
+         "type": "SetTapState"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": {
+        "type": "Mandatory"
+       },
+       "valid_card": {
+        "type": "SelfRef"
+       }
+      }
+     ],
+     "rulings": [
+      {
+       "date": "2009-10-01",
+       "text": "As this is entering, it checks for lands that are already on the battlefield. It won't see lands that are entering at the same time (due to Warp World, for example)."
+      },
+      {
+       "date": "2009-10-01",
+       "text": "This checks for lands you control with the land type Plains or Island, not for lands named Plains or Island. The lands it checks for don't have to be basic lands. For example, if you control Watery Grave (a nonbasic land with the land types Island and Swamp), Glacial Fortress will enter untapped."
+      }
+     ],
+     "scryfall_oracle_id": "027dd013-baa7-4111-b3c9-f4d1414e9c45",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 0.0,
+    "color_identity": [
+     "U",
+     "W"
+    ],
+    "colors": [],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "",
+    "name": "Glacial Fortress",
+    "oracle_id": "027dd013-baa7-4111-b3c9-f4d1414e9c45",
+    "oracle_text": "This land enters tapped unless you control a Plains or an Island.\n{T}: Add {W} or {U}.",
+    "produced_mana": [
+     "U",
+     "W"
+    ],
+    "type_line": "Land"
+   }
+  },
   "Glacial Ray": {
    "phase_records": [
     {
@@ -529369,6 +529595,245 @@
     "oracle_id": "716632dd-2947-4641-a1db-50e0a2b0b4e8",
     "oracle_text": "As Hall of Triumph enters, choose a color.\nCreatures you control of the chosen color get +1/+1.",
     "type_line": "Legendary Artifact"
+   }
+  },
+  "Hallowed Fountain": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": {
+        "type": "Tap"
+       },
+       "description": null,
+       "duration": null,
+       "effect": {
+        "produced": {
+         "colors": [
+          "White"
+         ],
+         "type": "Fixed"
+        },
+        "type": "Mana"
+       },
+       "forward_result": false,
+       "is_mana_ability": true,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      },
+      {
+       "condition": null,
+       "cost": {
+        "type": "Tap"
+       },
+       "description": null,
+       "duration": null,
+       "effect": {
+        "produced": {
+         "colors": [
+          "Blue"
+         ],
+         "type": "Fixed"
+        },
+        "type": "Mana"
+       },
+       "forward_result": false,
+       "is_mana_ability": true,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Land"
+      ],
+      "subtypes": [
+       "Plains",
+       "Island"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Blue",
+      "White"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "standard": "legal",
+      "standardbrawl": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "type": "NoCost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "029eaaa9-e45e-4c50-a03d-ad67e3dfcc3e",
+       "184aa475-ef9f-4510-b724-3fdcfa99f2c2",
+       "19cba6be-7291-4788-9241-87dad3b68363",
+       "438fb324-2c51-4763-a32a-6e315e9f769c",
+       "45bf2038-aaa5-418b-8d2f-46e1c492f778",
+       "4a3a4070-18e8-4f5e-bf64-a191ddf3210e",
+       "8868a343-2e57-45a8-9e53-971211fe5cc9",
+       "af7091c9-5f98-4078-a42b-c9e057346d9b",
+       "b7285986-7e08-4969-86ef-452dc5bfdd9f",
+       "bbdbd348-49ab-4830-a5db-0e92b2f01b52",
+       "cd70adab-39db-4cc9-ae37-a342f9109bec",
+       "e056b55f-82ed-4fe0-ab0c-bb20fa4a218a",
+       "f321aa38-7aaf-48fd-b516-18e702fbddef",
+       "f97a6d34-03ab-49f1-b02e-405b733f8843"
+      ]
+     },
+     "name": "Hallowed Fountain",
+     "non_ability_text": null,
+     "oracle_text": "({T}: Add {W} or {U}.)\nAs this land enters, you may pay 2 life. If you don't, it enters tapped.",
+     "power": null,
+     "printings": [
+      "CLU",
+      "DIS",
+      "ECL",
+      "EXP",
+      "PECL",
+      "PRM",
+      "PRNA",
+      "RNA",
+      "RTR",
+      "RVR",
+      "SLD",
+      "TRK",
+      "UNF"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [
+      {
+       "condition": null,
+       "description": "As ~ enters, you may pay 2 life. If you don't, it enters tapped.",
+       "destination_zone": "Battlefield",
+       "event": "Moved",
+       "execute": null,
+       "mode": {
+        "cost": {
+         "amount": {
+          "type": "Fixed",
+          "value": 2
+         },
+         "type": "PayLife"
+        },
+        "decline": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "scope": {
+           "type": "Single"
+          },
+          "state": {
+           "type": "Tap"
+          },
+          "target": {
+           "type": "SelfRef"
+          },
+          "type": "SetTapState"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": null,
+         "target_prompt": null
+        },
+        "type": "MayCost"
+       },
+       "valid_card": {
+        "type": "SelfRef"
+       }
+      }
+     ],
+     "rulings": [
+      {
+       "date": "2018-10-05",
+       "text": "Unlike most dual lands, this land has two basic land types. It's not basic, so cards such as District Guide can't find it, but it does have the appropriate land types for effects such as that of Drowned Catacomb (from the Ixalan set)."
+      },
+      {
+       "date": "2025-11-17",
+       "text": "If an effect puts this land onto the battlefield tapped, you may pay 2 life, but it still enters tapped."
+      },
+      {
+       "date": "2025-11-17",
+       "text": "This land has two basic land types. It's not basic, so cards such as Tend the Sprigs can't find it, but it does have the appropriate land types for effects such as that of Kishla Village (from the Tarkir: Dragonstorm release)."
+      }
+     ],
+     "scryfall_oracle_id": "f1750962-a87c-49f6-b731-02ae971ac6ea",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 0.0,
+    "color_identity": [
+     "U",
+     "W"
+    ],
+    "colors": [],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "legal",
+     "predh": "legal",
+     "premodern": "not_legal",
+     "standard": "legal",
+     "standardbrawl": "legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "",
+    "name": "Hallowed Fountain",
+    "oracle_id": "f1750962-a87c-49f6-b731-02ae971ac6ea",
+    "oracle_text": "({T}: Add {W} or {U}.)\nAs this land enters, you may pay 2 life. If you don't, it enters tapped.",
+    "produced_mana": [
+     "U",
+     "W"
+    ],
+    "type_line": "Land — Plains Island"
    }
   },
   "Halo Fountain": {
@@ -1067056,6 +1067521,285 @@
     "type_line": "Artifact"
    }
   },
+  "Temple of Enlightenment": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": {
+        "type": "Tap"
+       },
+       "description": "{T}: Add {W} or {U}.",
+       "duration": null,
+       "effect": {
+        "produced": {
+         "color_options": [
+          "White",
+          "Blue"
+         ],
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "type": "AnyOneColor"
+        },
+        "type": "Mana"
+       },
+       "forward_result": false,
+       "is_mana_ability": true,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Land"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Blue",
+      "White"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "standard": "legal",
+      "standardbrawl": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "type": "NoCost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "01f23c1a-a0fe-4520-88ed-045aa4044567",
+       "029a10c0-f589-4f56-8704-1de1bd2cb163",
+       "0b4cd8dc-9ea0-48d6-8723-0cfd43eca60d",
+       "20d3434d-d88e-4d00-84a7-ed027faac70f",
+       "27b78fc3-bfe8-4b92-bda9-fb9bffc2a93b",
+       "30da3c97-e9ef-4344-b814-adf7471a3d78",
+       "38c055c1-a81a-4d6e-9776-95fd0d4b0f0c",
+       "3dbee324-5df0-470e-96fb-1f87f377cdfc",
+       "658fec13-a62d-4701-ad8b-9cb08d960253",
+       "6ef1c3e3-f038-4ec3-84a1-756c52b5dbe1",
+       "6fc87136-b602-4b96-830e-3262998959f0",
+       "7a77ecc1-76e1-414f-a472-937eb9b734cc",
+       "7b705a44-b1b6-491b-aaab-53e0577fdde3",
+       "931f17f4-3fd4-45c4-b6e1-c9dee7e8f4b1",
+       "999538db-d65c-481b-82c8-ff7f71736c82",
+       "a4cb2ae7-da72-4396-9ffc-686d6cd16803",
+       "adad8390-66d8-4022-a059-c68e44e718fe",
+       "be15d793-4706-4c68-9938-a1f8bfeb5674",
+       "c345eb1f-3a44-432c-8bee-39099e1947e6",
+       "c657a645-f454-4eaf-be0d-15c9989fa4ef",
+       "cd3b17ec-662e-4c84-bd35-dfa00944ff32",
+       "dd139d4d-3a40-4015-93de-c838c64156c6",
+       "e41a5a3d-5fbb-4dbb-b70d-2a480f18df9f",
+       "f108131c-9a63-4217-bcaa-ea994260b517",
+       "f68f08ae-f560-4310-89f9-d38986903bd6",
+       "fc99e7b0-0f2c-4a2b-938b-abd31b71cd4f"
+      ]
+     },
+     "name": "Temple of Enlightenment",
+     "non_ability_text": null,
+     "oracle_text": "This land enters tapped.\nWhen this land enters, scry 1. (Look at the top card of your library. You may put that card on the bottom.)\n{T}: Add {W} or {U}.",
+     "power": null,
+     "printings": [
+      "BLC",
+      "BNG",
+      "BRC",
+      "CMM",
+      "DSC",
+      "EOC",
+      "FDN",
+      "FIC",
+      "M3C",
+      "MKC",
+      "MOC",
+      "NEC",
+      "PIP",
+      "PLST",
+      "PRM",
+      "PTHB",
+      "SCD",
+      "TDC",
+      "THB",
+      "VOC",
+      "WHO"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [
+      {
+       "condition": null,
+       "description": "~ enters tapped.",
+       "destination_zone": "Battlefield",
+       "event": "Moved",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "scope": {
+          "type": "Single"
+         },
+         "state": {
+          "type": "Tap"
+         },
+         "target": {
+          "type": "SelfRef"
+         },
+         "type": "SetTapState"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": {
+        "type": "Mandatory"
+       },
+       "valid_card": {
+        "type": "SelfRef"
+       }
+      }
+     ],
+     "rulings": [
+      {
+       "date": "2013-09-15",
+       "text": "Scry appears on some spells and abilities with one or more targets. If all of the spell or ability's targets are illegal when it tries to resolve, it won't resolve and none of its effects will happen. You won't scry."
+      },
+      {
+       "date": "2013-09-15",
+       "text": "When you scry, you may put all the cards you look at back on top of your library, you may put all of those cards on the bottom of your library, or you may put some of those cards on top and the rest of them on the bottom."
+      },
+      {
+       "date": "2013-09-15",
+       "text": "You choose how to order cards returned to your library after scrying no matter where you put them."
+      },
+      {
+       "date": "2013-09-15",
+       "text": "You perform the actions stated on a card in sequence. For some spells and abilities, that means you'll scry last. For others, that means you'll scry and then perform other actions."
+      }
+     ],
+     "scryfall_oracle_id": "89f43e27-790b-4ca1-8ba7-0882b31e0783",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "When ~ enters, scry 1.",
+       "destination": "Battlefield",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "target": {
+          "type": "Controller"
+         },
+         "type": "Scry"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "ChangesZone",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 0.0,
+    "color_identity": [
+     "U",
+     "W"
+    ],
+    "colors": [],
+    "keywords": [
+     "Scry"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "legal",
+     "standardbrawl": "legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "",
+    "name": "Temple of Enlightenment",
+    "oracle_id": "89f43e27-790b-4ca1-8ba7-0882b31e0783",
+    "oracle_text": "This land enters tapped.\nWhen this land enters, scry 1. (Look at the top card of your library. You may put that card on the bottom.)\n{T}: Add {W} or {U}.",
+    "produced_mana": [
+     "U",
+     "W"
+    ],
+    "type_line": "Land"
+   }
+  },
   "Temporal Isolation": {
    "phase_records": [
     {
@@ -1108309,6 +1109053,232 @@
     "oracle_id": "2a114ff8-fa7d-41b8-b412-6232fbb68efc",
     "oracle_text": "Put onto the battlefield under your control all creature cards in all graveyards that were put there from the battlefield this turn.",
     "type_line": "Instant"
+   }
+  },
+  "Thriving Heath": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": {
+        "type": "Tap"
+       },
+       "description": "{T}: Add {W} or one mana of the chosen color.",
+       "duration": null,
+       "effect": {
+        "produced": {
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "fixed_alternative": "White",
+         "type": "ChosenColor"
+        },
+        "type": "Mana"
+       },
+       "forward_result": false,
+       "is_mana_ability": true,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Land"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "White"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "pauper": "legal",
+      "paupercommander": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "type": "NoCost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "06329ca8-75b0-409d-bb80-6b9164f4e22a",
+       "0c6f9b70-998c-4ecd-9094-f505692070de",
+       "13348735-d12e-4858-989f-a74c031ed518",
+       "202ae1e5-df13-4a6f-9202-6a2573809f73",
+       "20336c7d-efff-44ef-942b-24672cbb0c48",
+       "227d230b-43ac-4980-80b8-ae7b9aa63e6d",
+       "29658d96-279a-402a-abe1-8ef097a556b7",
+       "3c37fe18-fee8-4826-9cfa-781eec696f2d",
+       "5677c5a9-e63f-4d13-91dc-beeb6875f675",
+       "84edcf5a-9622-4c9d-885a-f2403b436069",
+       "98bea150-fc4b-4ee9-9563-d52abd9ca848",
+       "bb089097-1eed-4e72-a715-579ddd8307a0"
+      ]
+     },
+     "name": "Thriving Heath",
+     "non_ability_text": null,
+     "oracle_text": "This land enters tapped. As it enters, choose a color other than white.\n{T}: Add {W} or one mana of the chosen color.",
+     "power": null,
+     "printings": [
+      "AFC",
+      "BLC",
+      "CLU",
+      "CMM",
+      "DSC",
+      "ECC",
+      "J22",
+      "J25",
+      "JMP",
+      "LCC",
+      "MOC",
+      "MSC",
+      "NCC",
+      "TLE",
+      "WHO"
+     ],
+     "rarities": [
+      "common"
+     ],
+     "replacements": [
+      {
+       "condition": null,
+       "description": "~ enters tapped.",
+       "destination_zone": "Battlefield",
+       "event": "Moved",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "scope": {
+          "type": "Single"
+         },
+         "state": {
+          "type": "Tap"
+         },
+         "target": {
+          "type": "SelfRef"
+         },
+         "type": "SetTapState"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": {
+        "type": "Mandatory"
+       },
+       "valid_card": {
+        "type": "SelfRef"
+       }
+      },
+      {
+       "condition": null,
+       "description": "As it enters, choose a color other than white.",
+       "destination_zone": "Battlefield",
+       "event": "Moved",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "choice_type": {
+          "Color": {
+           "excluded": [
+            "White"
+           ]
+          }
+         },
+         "persist": true,
+         "type": "Choose"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": {
+        "type": "Mandatory"
+       },
+       "valid_card": {
+        "type": "SelfRef"
+       }
+      }
+     ],
+     "scryfall_oracle_id": "d1946630-e224-40db-8f0d-388b09622288",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 0.0,
+    "color_identity": [
+     "W"
+    ],
+    "colors": [],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "legal",
+     "paupercommander": "legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "",
+    "name": "Thriving Heath",
+    "oracle_id": "d1946630-e224-40db-8f0d-388b09622288",
+    "oracle_text": "This land enters tapped. As it enters, choose a color other than white.\n{T}: Add {W} or one mana of the chosen color.",
+    "produced_mana": [
+     "B",
+     "G",
+     "R",
+     "U",
+     "W"
+    ],
+    "type_line": "Land"
    }
   },
   "Throatseeker": {

@@ -2243,3 +2243,45 @@ Artificers became protected lane doers).
 **Phase B baseline:** the 25 = 735 / 337 / 122, page recall @10 85 / @30 159,
 plan-consistent 288 of 735; held-out 20 = 577 / 253 / 97, page recall @10 77 /
 @30 161, plan-consistent 174 of 577 (`w41/misses-{25,ho}-B2.json`, `sb-*-B2.json`).
+
+## Phase C (2026-10-30)
+
+**C1, a need-supplying cut routed to its need page whatever its job — rejected.**
+Phase B routes only a theme cut (no template job) to the need page; C1 routed a
+job cut too (Curate draws, but under Mirko it is a surveil outlet first). Against
+B2: the 25 735 / 337 / 122 → 733 / 337 / 126 (plan-consistent adds +52), but the
+held-out 20 577 / 253 / 97 → 560 / 249 / 94 — 17 swaps fewer, 4 cuts and 3 adds
+lost: a need page often holds no card more played than a job cut, so the slot
+goes unfilled where the job page would have filled it. The job page keeps a job
+cut; the plan's "incidental job" read (item 10) stays open for a read that tells
+Terror of the Peaks from Swords to Plowshares without routing every job cut.
+
+**C2, land swaps in the tune — built, shipped opt-in.** `_tuner/mana_base.py`:
+the lands a tune may swap (a land that enters tapped unconditionally and only
+makes mana, read off its trees — a Guildgate, a Thriving land, a gain-land; then a
+basic beyond the colour demand), never a land a main lane serves or a commander
+need counts, nor one whose colour the deck would otherwise lack; the adds are the
+identity's untapped lands making the needed colours with a plain {T} and no
+strings (Unclaimed Territory's creature type, Spire of Industry's artifact and
+Aysen Abbey's {1} are out; so are the Lairs and bounce lands), ranked by colours
+covered, then the fewest colours beyond the deck's (the pair's dual over City of
+Brass), then play-rate, then price; at most a quarter of the budget in all and
+twice the even share per land, the swaps ranked first in the tune and counted
+against max-swaps. Measured on the recipe against B2 (`w41/sb-*-C2*.json`):
+
+| variant | the 25: swaps / cuts / adds | consensus adds | land rows matched | held-out 20: swaps / cuts / adds | consensus adds | land rows |
+|---|---|---|---|---|---|---|
+| B2 | 735 / 337 / 122 | 41 | 0 of 73 | 577 / 253 / 97 | 34 | 0 of 58 |
+| C2: every tapped mana-only land, rainbow lands ranked first | 738 / 327 / 115 | 35 | 3 | 587 / 257 / 94 | 30 | 4 |
+| C2c: three land swaps at most, unrestricted colours only | 738 / 329 / 116 | 36 | 2 | 588 / 258 / 96 | 30 | 6 |
+| C2e: two at most, the pair's dual preferred, no Lairs | 737 / 330 / 115 | 37 | 3 | 588 / 258 / 97 | 30 | 3 |
+
+Every land swap is a card swap the plan's issues don't get, and the budget it
+takes is theirs too: the 25 lose 7 guide adds and 4-6 consensus adds, the
+held-out set holds its adds but loses 4 consensus adds, and the land line gains
+3-6 of 58-73 rows — the guides name specific duals (a Pathway, a shock, a bond
+land) where play-rate names City of Brass and Reflecting Pool. That fails the
+bar on consensus adds either way, so the pass ships **opt-in**:
+`TuneParams.land_swaps` / `deck-tune --land-swaps`, off in the recipe
+(`PRECON_LAND_SWAPS=1` turns it on). A tune that wants its mana base fixed asks
+for it; the default keeps the plan's slots.
