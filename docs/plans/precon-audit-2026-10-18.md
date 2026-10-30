@@ -2323,3 +2323,21 @@ recall −3, consensus −1). The read also calls Rhystic Study and Esper Sentin
 incidental — a draw engine IS a trigger watching other events — so the job pages
 lose their best draw. Not shipped; item 10 needs a read that tells a payoff rider
 from an engine, which "trigger origin" doesn't.
+
+## The next round (2026-10-30, after the plan)
+
+**E1, need-fitting near ties on the job pages — rejected.** On every job page, a
+card that supplies one of the commander's needs took the place of one that
+doesn't when the two were within a factor of two in play-rate (the guides' job
+adds are permanents that also serve the plan). Against B2: the 25 735 / 337 / 122
+→ 740 / 340 / 119, the held-out 20 577 / 253 / 97 → 575 / 254 / 94; consensus
+adds flat and −1; plan-consistent adds **+43 and +33**; the job-equivalent line
++1 and −1. The picks moved onto the plan — by the need read, a third more of the
+tune's adds now serve the commander — but onto cards the guides did not name,
+and no more onto job-equivalents of theirs. Three variants in a row now show
+the same shape (B1b, C10, E1): plan-consistency up by tens, exact guide adds
+down by a few. Either the guides' two-purpose picks are more specific than "any
+card supplying a need" (likely: they name the one Treasure payoff, not any), or
+the exact-name yardstick is reaching its limit. The next read should be the
+narrower one: a job card that supplies the commander's need *and* the deck's
+main lane, measured on the job-equivalent line as well as exact adds.
