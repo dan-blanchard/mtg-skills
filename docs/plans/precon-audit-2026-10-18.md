@@ -1936,3 +1936,83 @@ Artisan of Kozilek, Scourge of the Throne, Gisela, Blade of Goldnight,
 Combustible Gearhulk), and Nezahal, Primal Tide, a guide add, was outranked
 on its page. Archfiend of Depravity and Swiftfoot Boots stayed.
 
+
+## A strong fit skipping the play-rate gate (2026-10-30, rejected)
+
+Backlog (s) found the guides' deck-fit removal less played than its cuts, so the
+idea was a gate change: a job candidate with a strong fit to the commander skips
+`_upgrades`' "more decks play it than the cut" test. The job read, the mana-value
+band, the same-job test and the play-rate order all stay. Patch and runs:
+`~/mtg/tuner-work/w38/` (`strong-fit-gate.patch`, `b1.txt`-`b4.txt`, `cmp-*.txt`).
+The bar was guide adds up and cuts down by two at most on the 25, held-out adds
+flat and cuts down by one at most, and Jace with at least 3 adds and cuts down by
+one at most. Baselines at 97581b71 reproduced exactly.
+
+The count before building, over the pool in the deck's identity by `upgrade_job`
+(guide adds the tuner misses as gated by play-rate + as outranked, against
+non-guide cards the read admits):
+
+| strong fit | the 25 | held-out |
+|---|---|---|
+| shared non-generic ident, on 5% of the pool or less | 11 + 57 / 7758 | 13 + 45 / 4680 |
+| the same, 2% | 11 + 47 / 4667 | 9 + 26 / 1391 |
+| the same, 1% | 11 + 36 / 2767 | 3 + 23 / 896 |
+| the same, 0.5% | 6 + 27 / 1006 | 3 + 13 / 351 |
+| the commander's payoff of the card's lane, 5% | 8 + 42 / 4907 | 10 + 16 / 1927 |
+| shared, 5%, and 8+ deck cards emit it | 11 + 31 / 1605 | 11 + 30 / 1795 |
+
+The counts looked workable, but they ignore the order: most of those guide adds
+sit behind hundreds of job cards the deck's colours can play (a median of 307 for
+the 2% read's outranked adds).
+
+| variant | the 25: swaps / cuts / adds | held-out | Jace |
+|---|---|---|---|
+| baseline | 720 / 332 / 117 | 290 / 139 / 37 | 29 / 14 / 3 |
+| shared, 5% | 722 / 330 / 117 | 291 / 139 / 37 | 29 / 14 / 3 |
+| shared, 2% | 721 / 330 / 117 | | 29 / 14 / 3 |
+| shared, 0.5% | 721 / 331 / 117 | 290 / 139 / 37 | 29 / 14 / 3 |
+| the commander's payoff, 5% | 722 / 330 / 117 | 291 / 139 / 37 | 29 / 14 / 3 |
+| shared, 5%, 8+ deck cards | 722 / 331 / 117 | 291 / 139 / 37 | 29 / 14 / 3 |
+| any ident, 5%, 8+ deck cards, no commander | 722 / 331 / 117 | 292 / 139 / 37 | 29 / 14 / 3 |
+| probe: gate off for every job candidate | 727 / 333 / 117 | 292 / 138 / 37 | 30 / 14 / 3 |
+| probe: gate off for this deck's guide adds only | 720 / 332 / 119 | 290 / 139 / 38 | 29 / 14 / 3 |
+| probe, an order change: shared, 2%, first | 714 / 328 / 107 | | 20 / 11 / 1 |
+| probe, an order change: shared, 0.5%, first | 724 / 333 / 117 | | 30 / 14 / 3 |
+
+Nothing shipped, for these reasons:
+
+- **The gate binds on almost nothing.** Under a play-rate order the skip fires only
+  on a cut where no more-played card passes the other gates, so it fills a cut the
+  tune would have passed over. `misses.py`'s 47 "gated: fewer decks play it" rows
+  overstate the gate: the label records the card's first failed gate, and a card
+  blocked there is usually also behind better-played picks at every later cut. With
+  the gate off only for guide cards, which no fit read can beat, the 25 gain two adds
+  and the held-out ten one.
+- **No commander-fit read names those three.** Elemental Bond (Pantlaza), Overgrowth
+  (Ellivere) and Brass's Bounty (Rootha) share no non-generic ident with their
+  commanders. Neither do Wall of Souls, Soul Shatter, Grasp of Fate, Rip Apart or
+  Blazing Sunsteel. Rise of the Witch-king and Finale of Eternity share
+  `graveyard_makers` and `graveyard_matters` with Winter, but they are outranked, not
+  gated.
+- **The order change is (s) again.** A tight read leading the order still loses the
+  guides' staples (Swords to Plowshares, Counterspell, Nature's Lore) for what it
+  gains (Crop Rotation, Scapeshift, Teferi, Temporal Pilgrim): 117 at 0.5%, 107 at 2%.
+
+The spot-check covered ten adds new under "shared, 5%", none a guide add
+(`rulings-lookup --card`, and oracle text against each commander).
+
+- **Four held up.** Case of the Ransacked Lab and Alphinaud Leveilleur under Stella
+  Lee (Alphinaud's trigger is her own second spell), Khalni Heart Expedition under
+  Teval (its land return is a landfall), Vaultborn Tyrant under Pantlaza (a Dinosaur
+  with 5 toughness to discover off).
+- **Four did the job only partly.** Liliana, Death's Majesty feeds Winter, but her
+  sweep is the -7 and it spares Zombies. Robot Domination draws off creature cards
+  reaching the graveyard, not off Tegwyll's Faeries in particular, and its fit is its
+  life loss. Secrets of the Dead draws only off spells cast from the graveyard,
+  which a handful of Quick Draw's cards allow, and it took the slot of one of them,
+  Deep Analysis. Peema Trailblazer needs six energy, which only its own combat damage
+  makes.
+- **Two failed.** Gorbag of Minas Morgul triggers only on a Goblin or Orc, and
+  Graveyard Overdrive runs two (Ignoble Hierarch, Siege-Gang Lieutenant). Vulshok
+  Replica hits only a player or planeswalker, and it replaced Bitter Triumph, which
+  destroys a creature or planeswalker.

@@ -182,7 +182,19 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   removal (Wall of Souls, Soul Shatter, Grasp of Fate) is played less than its
   cuts, so no order reaches it. The two misreads found on the way (Noxious
   Gearhulk's `toughness_combat`, Myr Battlesphere as removal) were fixed
-  2026-10-30.
+  2026-10-30. A strong fit skipping the play-rate gate, with the order kept, also
+  failed (2026-10-30; patch and runs in `~/mtg/tuner-work/w38/`, the audit's "A
+  strong fit skipping the play-rate gate"): the gate isn't what holds these adds
+  out. Under a play-rate order a less-played candidate is reached only when nothing
+  more played passes the other gates. With the gate off for every job candidate:
+  727 / 333 / 117, no guide add gained. With it off for the deck's guide cards
+  alone, the ceiling for any fit read: 119 adds on the 25 (Elemental Bond,
+  Overgrowth), 38 held-out (Brass's Bounty), and none of the three shares a
+  non-generic ident with its commander beyond `permanent_etb`. Every fit read
+  scored 117 adds and 37 held-out. Wall of Souls, Soul Shatter, Grasp of Fate, Rip
+  Apart and Blazing Sunsteel share none either, so no commander-fit read names
+  them. Don't re-suggest a gate change for job adds without a new order, which (s)
+  and (t) already lost on.
   (t) **Card reads leading the theme adds — don't re-suggest** (2026-10-30;
   patch and runs in `~/mtg/tuner-work/w33/`, the audit's "Card reads leading the
   theme adds"). Measured against 715 / 329 / 114 (held-out 297 / 139 / 35, Jace
