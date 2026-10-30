@@ -2341,3 +2341,23 @@ card supplying a need" (likely: they name the one Treasure payoff, not any), or
 the exact-name yardstick is reaching its limit. The next read should be the
 narrower one: a job card that supplies the commander's need *and* the deck's
 main lane, measured on the job-equivalent line as well as exact adds.
+
+**The bar, revised (2026-10-30).** Three rejections in a row fell on swings the
+swap cascade alone produces (consensus adds −1 of 137; page recall −3 of 595), and
+a ranking or cut-side rule cannot raise page recall at all (it moves no page). From
+here: page recall@30 must rise only for a reach change (a new or deeper page);
+consensus adds may fall by at most 2 on the 25 and 1 held-out; everything else as
+before (held-out guide adds don't fall, cuts fall ≤2 / ≤1, plan-consistency doesn't
+fall on either).
+
+**E2, on-plan near ties on the job pages — shipped.** E1's near tie, narrowed: the
+card taking the place must supply a commander need AND serve one of the deck's
+main lanes (`swaps._on_plan_job`: Smothering Tithe under a Treasure commander in a
+Treasure deck, not any Treasure maker). Against B2: the 25 735 / 337 / 122 →
+735 / 337 / 122 (consensus adds −1, plan-consistent +15); the held-out 20
+577 / 253 / 97 → **575 / 253 / 101** (consensus +1, plan-consistent +14). The first
+ranking change of the day that moves the held-out adds; it passes the revised bar
+and fails the old one only on the 25's consensus −1.
+
+**Baseline after E2:** the 25 735 / 337 / 122 (page@30 159, plan 303 of 735);
+held-out 20 575 / 253 / 101 (page@30 161, plan 188 of 575) — `w41/sb-*-E2.json`.

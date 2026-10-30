@@ -1125,6 +1125,15 @@ def propose_swaps(
         if "creature" in (c.record.get("type_line") or "").lower()
         for st in split_type_line(c.record.get("type_line", ""))[1]
     )
+    # The commander's specific needs (``commander_need``, ADR-0061), for the
+    # job pages' near ties (:func:`_need_ties`).
+    needs_here = [
+        spec["_need"] for _l, _d, spec in ctx.need_avenues if spec.get("_need")
+    ]
+
+    def supplies_need(card: dict) -> bool:
+        return any(satisfies(card, need) for need in needs_here)
+
     # Every ranking below scores in this one context, so each candidate's
     # readout is computed once (``rank_candidates``' ``scores``) however many
     # pages, ties and theme ties hold it. Lives for this call only.
@@ -1458,7 +1467,40 @@ def propose_swaps(
         )
         if read is not None and read.theme_ties:
             out = _theme_ties(out, read)
+        if needs_here and cut_focus.mains:
+            out = _need_ties(out)
         return out
+
+    def _on_plan_job(card: dict) -> bool:
+        """A job card the guides' kind: it supplies one of the commander's needs
+        AND serves one of the deck's main lanes (Smothering Tithe under a Treasure
+        commander in a Treasure deck; not any Treasure maker anywhere)."""
+        if not supplies_need(card):
+            return False
+        served = rank([card])[0]["score"]["served"]
+        return bool(cut_focus.mains.intersection(served))
+
+    def _need_ties(ranked: list[dict]) -> list[dict]:
+        """``ranked`` with an on-plan job card (:func:`_on_plan_job`) taking the
+        place of one that isn't when the two are a near tie in play-rate (within
+        ``_CHEAPER_TIE``, a factor of two in rank). A near tie, never a hold: a
+        clearly better-played staple keeps its place. Only the head of the order
+        (``_THEME_TIE_WINDOW``) is walked."""
+        head = list(ranked[:_THEME_TIE_WINDOW])
+        out: list[dict] = []
+        while head:
+            pick = head[0]
+            if not _on_plan_job(pick):
+                top = math.log10(edhrec_popularity(pick))
+                for later in head[1:]:
+                    if math.log10(
+                        edhrec_popularity(later)
+                    ) - top <= _CHEAPER_TIE and _on_plan_job(later):
+                        pick = later
+                        break
+            out.append(pick)
+            head.remove(pick)
+        return out + ranked[_THEME_TIE_WINDOW:]
 
     def _theme_ties(ranked: list[dict], read: JobRead) -> list[dict]:
         """``ranked`` with an on-theme card taking the place of an off-theme one

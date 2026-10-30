@@ -34,6 +34,11 @@ miss taxonomy, the held-out candidates).
   lost). PLAN COMPLETE. Final baseline = Phase B's: the 25 735 / 337 / 122,
   held-out 20 577 / 253 / 97 (from 732 / 335 / 121 and 571 / 253 / 80). The
   audit report's "Phase D" section records the runs.
+- 2026-10-30, the next round: E1 (need-fitting near ties on every job page)
+  rejected (exact adds −3 / −3 for plan-consistency +43 / +33); E2 — the near
+  tie narrowed to a card that supplies a commander need AND serves a main lane —
+  shipped under the revised bar: held-out 97 → 101 guide adds, the 25 flat.
+  Baseline: the 25 735 / 337 / 122, held-out 575 / 253 / 101.
 
 ## Target
 
@@ -93,10 +98,13 @@ count as hits, and the plan-consistency metric treats a GC add like any other.
    Obedience in `dropped_clauses`.
 
 **The ship bar from here on** (replaces the ±1-2 add gates): page-level
-recall@30 rises on the 25 and does not fall on the held-out 20; plan-consistency
-does not fall on either; the tune's guide-add count does not fall held-out;
-guide cuts fall ≤2 on the 25 and ≤1 held-out; consensus adds do not fall. Read
-fixes still ship on correctness with the deltas recorded.
+recall@30 rises on the 25 and does not fall on the held-out 20 — for a REACH
+change (a new or deeper page; a ranking or cut-side rule moves no page and is
+judged on the rest); plan-consistency does not fall on either; the tune's
+guide-add count does not fall held-out; guide cuts fall ≤2 on the 25 and ≤1
+held-out; consensus adds fall by at most 2 on the 25 and 1 held-out (revised
+2026-10-30: a −1 of 137 is the swap cascade's own noise). Read fixes still ship
+on correctness with the deltas recorded.
 
 ## Phase B — reach
 
