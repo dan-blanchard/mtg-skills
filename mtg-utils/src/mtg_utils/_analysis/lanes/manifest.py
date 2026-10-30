@@ -82,8 +82,10 @@ SERVED_SIGNAL_KEYS: frozenset[str] = frozenset(
         # anthem, a tutor or recursion). Subject ``cast`` on a cast-trigger
         # payoff ("Whenever you cast an enchantment spell" — Sythis, Sram's
         # Aura / Equipment / Vehicle), which never fires on a permanent put onto
-        # the battlefield uncast (CR 601.2i); empty otherwise. Not a per-subject
-        # spec: both subjects serve the one Artifacts / Enchantments avenue. A
+        # the battlefield uncast (CR 601.2i); ``etb`` on an enters-trigger payoff
+        # ("Whenever an artifact you control enters" — Yotian Dissident), beside
+        # the empty subject; empty otherwise. Not a per-subject spec: every
+        # subject serves the one Artifacts / Enchantments avenue. A
         # card that MAKES the permanents (a Treasure, Clue or Role token) or
         # animates them (``animate_makers``) fires neither.
         "artifacts_matter",
@@ -113,6 +115,11 @@ SERVED_SIGNAL_KEYS: frozenset[str] = frozenset(
         "energy_makers",
         "voltron_makers",
         "voltron_matters",
+        # aura_matters (scope any): Auras on creatures whoever controls them —
+        # the payoff counts creatures enchanted by an Aura (Killian, Decisive
+        # Mentor; Kaima), the ``aura`` subject is an Aura that can go on a
+        # creature, negative ones included (``counters_voltron._aura_matters``).
+        "aura_matters",
         # Batch 4 (ADR-0035 Stage 2, this increment):
         "graveyard_makers",
         "graveyard_matters",

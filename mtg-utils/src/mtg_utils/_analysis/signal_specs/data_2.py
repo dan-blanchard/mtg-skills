@@ -9,6 +9,7 @@ from mtg_utils._analysis._sweep_detectors import (
 )
 
 from ._shared import (
+    _ARTIFACT_ETB_PAYOFF,
     _CAST_FROM_EXILE_EXTRA,
     _COMBAT_SUPPORT_EXTRA,
     _COST_REDUCER_EXTRA,
@@ -671,6 +672,19 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
         extras=(_VOLTRON_PROTECT_EXTRA, _EXTRA_COMBAT_EXTRA),
         search={"preset_names": ("equip",)},
     ),
+    # The Aura plan that is not Voltron: a payoff that counts creatures enchanted by
+    # an Aura whoever controls them (Killian, Decisive Mentor draws when they
+    # attack; Kaima goads them), fed by every Aura that can go on a creature —
+    # the negative and control Auras Voltron's serve vetoes included (Darksteel
+    # Mutation, Spirit Loop on a goaded opponent's creature).
+    ("aura_matters", "any"): _spec(
+        "Auras on any creature",
+        "Auras for any creature, yours or an opponent's (negative and control Auras "
+        "included), and the payoffs that count enchanted creatures",
+        # Serve rides the lane: the payoffs and the Auras (``aura`` subject).
+        None,
+        serve_idents=frozenset({"aura_matters|any|*"}),
+    ),
     # An extreme power-for-cost beater (Lord of Tresserhorn 10/4, Yargle 18/6) wins by
     # connecting ONCE for lethal — serve the damage amplifiers that convert raw power
     # into a kill: grant infect (power -> poison) and grant double strike (2x). Distinct
@@ -1155,9 +1169,12 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
         "Clues / investigate",
         "investigate enablers and artifact/draw payoffs for Clues",
         # Serve on the lanes' idents (2026-10-18): the regex missed a Clue payoff that
-        # names Clues only in the plural (Tangletrove Kelp).
+        # names Clues only in the plural (Tangletrove Kelp). A Clue is an artifact
+        # token, so the artifact-enters payoffs ride along (Yotian Dissident).
         None,
-        serve_idents=frozenset({"clue_matters|you|", "clue_makers|you|"}),
+        serve_idents=frozenset(
+            {"clue_matters|you|", "clue_makers|you|", _ARTIFACT_ETB_PAYOFF}
+        ),
     ),
     # _matters sweep (ADR-0034): clue split. The make_token MAKER arm (clue_makers,
     # cards that create Clue tokens / investigate) and the sacrifice/ref/
@@ -1168,9 +1185,12 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
         "Clue makers / investigate",
         "Clue makers plus artifact/draw payoffs for Clues",
         # Serve on the lanes' idents (2026-10-18): the regex missed a Clue payoff that
-        # names Clues only in the plural (Tangletrove Kelp).
+        # names Clues only in the plural (Tangletrove Kelp). A Clue is an artifact
+        # token, so the artifact-enters payoffs ride along (Yotian Dissident).
         None,
-        serve_idents=frozenset({"clue_makers|you|", "clue_matters|you|"}),
+        serve_idents=frozenset(
+            {"clue_makers|you|", "clue_matters|you|", _ARTIFACT_ETB_PAYOFF}
+        ),
     ),
     # _matters sweep (ADR-0034): blood split. The make_token MAKER arm
     # (blood_makers, cards that create Blood tokens) and the sacrifice/ref/

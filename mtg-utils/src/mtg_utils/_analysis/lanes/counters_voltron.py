@@ -24,6 +24,7 @@ from mtg_utils._card_ir.crosswalk import (
     AbilityUnit,
     ConceptTree,
     aggregate_filter,
+    attachment_kinds,
     blight_placements,
     controller_paid_cost_leaves,
     cost_reduction_count_filters,
@@ -44,6 +45,7 @@ from mtg_utils._card_ir.crosswalk import (
     iter_condition_sites,
     iter_mod_sites,
     iter_nested_granted_effect_concepts,
+    iter_node_filters,
     iter_static_defs,
     iter_typed_nodes,
     keyword_action_events,
@@ -2385,6 +2387,139 @@ def _gear_you_control_payoff(tree: ConceptTree, self_subtypes: frozenset[str]) -
     return False
 
 
+#: The subject of ``aura_matters`` on an Aura that can go on a creature
+#: (:func:`_aura_matters`): the doer side, which the payoff counts.
+AURA_ON_CREATURE = "aura"
+
+# The condition nodes that test one object against a filter ("if this creature
+# is enchanted" — Dreampod Druid; "as long as that creature is enchanted" —
+# Rootwater Matriarch; "if it's enchanted or equipped" — Karametra's Blessing's
+# target), and an Aura token's own text (Monstrous Rage's Monster Role): no
+# population of enchanted creatures.
+_NOT_A_POPULATION_TAGS = frozenset(
+    {
+        "SourceMatchesFilter",
+        "ZoneChangeObjectMatchesFilter",
+        "RecipientMatchesFilter",
+        "TargetMatchesFilter",
+        "Token",
+    }
+)
+_CREATURE_OR_PERMANENT = frozenset({"Creature", "Permanent"})
+
+
+def _is_aura(tree: ConceptTree) -> bool:
+    """Whether the card is an Aura, or one when cast for its bestow cost (CR
+    702.103b: a bestowed spell "becomes an Aura enchantment and gains enchant
+    creature"), or becomes one: a Licid's "becomes an Aura enchantment", a
+    creature that returns as an Aura (Bronzehide Lion)."""
+    return (
+        "aura" in {s.lower() for s in tree.card_subtypes}
+        or any(k.lower() == "bestow" for k in tree.card_keywords)
+        or any(
+            (tag_of(n) == "AddSubtype" and getattr(n, "subtype", None) == "Aura")
+            or tag_of(n) == "ReturnAsAura"
+            for n in tree.iter_typed()
+        )
+    )
+
+
+def _enchants_a_creature(tree: ConceptTree) -> bool:
+    """An Aura that can go on a creature, whoever controls it: its enchant
+    ability (CR 702.5a: it "restricts what an Aura spell can target and what an
+    Aura can enchant") names a creature or a permanent ("Enchant creature" —
+    Pacifism, Spirit Link; "Enchant creature an opponent controls" — Nurgle's
+    Rot; "Enchant permanent" — Rune of Mortality); a bestow creature (CR
+    702.103b); a creature that returns as an Aura on a creature (Bronzehide
+    Lion); or a Role token you create attached to a creature, an opponent's
+    included (CR 303.7: a Role is an Aura)."""
+    enchant_filters = [tree.card_enchant_filter] + [
+        getattr(n, "enchant_filter", None)
+        for n in tree.iter_typed()
+        if tag_of(n) == "ReturnAsAura"
+    ]
+    if any(
+        set(filter_core_types(arm)) & _CREATURE_OR_PERMANENT
+        for filt in enchant_filters
+        for arm in or_arms(filt)
+    ):
+        return True
+    if any(k.lower() == "bestow" for k in tree.card_keywords):
+        return True
+    return any(role_tokens_attached(u, opponents_too=True) for u in tree.units)
+
+
+def _counts_enchanted_creatures(tree: ConceptTree) -> str | None:
+    """The raw text of a payoff for creatures enchanted by an Aura, whoever
+    controls the creature, or ``None``: a filter anywhere in the card (a watched
+    trigger, a static's affected set, an effect's target) over creatures that
+    carry an Aura (:func:`crosswalk.attachment_kinds`) not limited to yours —
+    "Whenever one or more creatures that are enchanted by an Aura you control
+    attack, draw a card" (Killian, Decisive Mentor), "goad each creature your
+    opponents control that's enchanted by an Aura you control" (Kaima, the
+    Fractured Calm), "Whenever an enchanted creature dies" (Hateful Eidolon),
+    "Each creature that's enchanted by an Aura you control can't attack you"
+    (Eriette of the Charmed Apple). An Aura enchants its object whoever
+    controls it (CR 303.4b: "The object or player an Aura is attached to is
+    called enchanted"), and a goaded creature attacks a player other than the
+    goader (CR 701.15b), so an Aura on an opponent's creature pays these off.
+
+    The card itself an Aura is left out (its "enchanted creature" is the one it
+    is attached to — :func:`crosswalk.names_attached_object`), and so are a
+    check on one object and an Aura token's own text
+    (:data:`_NOT_A_POPULATION_TAGS`), and damage prevention keyed on enchanted
+    sources (Wall of Putrid Flesh), which pays off nothing."""
+    if _is_aura(tree):
+        return None
+    for unit in tree.units:
+        nodes = list(unit.iter_typed())
+        skipped = {
+            id(inner)
+            for n in nodes
+            if tag_of(n) in _NOT_A_POPULATION_TAGS
+            for inner in iter_typed_nodes(n)
+        }
+        for n in nodes:
+            if id(n) in skipped:
+                continue
+            for field, filt in iter_node_filters(n):
+                if field == "damage_source_filter":
+                    continue
+                for arm in or_arms(filt):
+                    if (
+                        "Aura" in attachment_kinds(arm)
+                        and filter_controller(arm) != "You"
+                        and set(filter_core_types(arm)) & _CREATURE_OR_PERMANENT
+                    ):
+                        return _site_raw(unit.node)
+    return None
+
+
+def _aura_matters(tree: ConceptTree) -> list[Signal]:
+    """aura_matters — Auras put on creatures, yours or an opponent's (CR 303.4).
+    Scope ``any``: the creature an Aura you control enchants may be anyone's.
+
+    * ``aura_matters|any|`` — the payoff: a card that counts or watches
+      creatures enchanted by an Aura, whoever controls them
+      (:func:`_counts_enchanted_creatures` — Killian, Kaima, Hateful Eidolon).
+      ``voltron_matters`` reads only your own suited-up creatures, so the
+      Auras a goad deck puts on opponents' creatures were nobody's payoff.
+    * ``aura_matters|any|aura`` — the doer: an Aura that can go on a creature,
+      a negative or control Aura included (Darksteel Mutation, Pacifism,
+      Spirit Loop; :func:`_enchants_a_creature`). Each is what the payoff
+      counts, never a payoff itself (``signal_keys.DOER_SUBJECTS``)."""
+    found: dict[str, str] = {}
+    if _enchants_a_creature(tree):
+        found[AURA_ON_CREATURE] = ""
+    raw = _counts_enchanted_creatures(tree)
+    if raw is not None:
+        found[""] = raw
+    return [
+        Signal("aura_matters", "any", subject, raw, tree.name, "high")
+        for subject, raw in found.items()
+    ]
+
+
 def _voltron_count_filters(node: TypedMirrorNode) -> list[object]:
     """Every ``ObjectCount`` FILTER an effect's damage/count operand scales on,
     including a top-level ``Sum`` of two Refs (Slash of Light: "the number of
@@ -2427,6 +2562,7 @@ LANES = (
     _energy_makers,
     _voltron_makers,
     _voltron_matters,
+    _aura_matters,
     _mill_opponents,
     _token_board_payoffs,
     _voltron_gear_pump,
