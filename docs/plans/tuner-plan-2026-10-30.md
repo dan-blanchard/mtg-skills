@@ -25,6 +25,12 @@ miss taxonomy, the held-out candidates).
   (the 25 lose 7 guide adds and 4 consensus adds; the held-out 20 hold their
   adds, lose 4 consensus adds) for 3 of 73 and 3 of 58 guide land rows. Details
   in the audit report's "Phase C" section.
+- 2026-10-30, Phase D: both levers measured and rejected — the marquee allowance
+  (flat: the even share wasn't what kept the guides' marquee cards out) and the
+  removal-MV upgrade slots (two guide cuts for one add on the 25, a consensus add
+  lost). PLAN COMPLETE. Final baseline = Phase B's: the 25 735 / 337 / 122,
+  held-out 20 577 / 253 / 97 (from 732 / 335 / 121 and 571 / 253 / 80). The
+  audit report's "Phase D" section records the runs.
 
 ## Target
 

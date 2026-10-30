@@ -2285,3 +2285,30 @@ bar on consensus adds either way, so the pass ships **opt-in**:
 `TuneParams.land_swaps` / `deck-tune --land-swaps`, off in the recipe
 (`PRECON_LAND_SWAPS=1` turns it on). A tune that wants its mana base fixed asks
 for it; the default keeps the plan's slots.
+
+## Phase D (2026-10-30)
+
+**D1, the marquee allowance — rejected.** Once per tune, the first add that
+supplies a commander need could cost up to 40% of the budget past the even share
+and the purse cap. Against B2: the 25 735 / 337 / 122 → 730 / 337 / 122 (consensus
+adds −1, page recall flat), the held-out 20 unchanged. The even share is not what
+keeps the guides' marquee cards out: at the recipe's budgets (median $126-221) a
+$30 Smothering Tithe is already within a quarter of the budget, and the cards it
+would buy sit behind better-played ones on the same page. Nothing to ship.
+
+**D2, costly single-target removal as an upgrade slot — rejected.** An off-lane
+removal spell at four mana or more (not a sweeper, not premium) joined the upgrade
+slots whatever its play-rate, and its upgrade had to cost three or less. Against
+B2: the 25 735 / 337 / 122 → 738 / 335 / 123 (consensus adds −1, plan-consistent
+adds −4), the held-out 20 577 / 253 / 97 unchanged (plan +4). A cut-side rule
+moves no page, so page recall cannot rise; on the counts it trades two guide cuts
+for one add and loses a consensus add. Nothing to ship; the frameworks' rule
+is recorded in the review's §6 for a later read that scores the removal itself.
+
+**Where the plan ends (2026-10-30).** Shipped: Phase A (the need read, the
+measurement, bracket 3, twenty held-out precons), Phase B (need pages by cut
+routing, the specificity-first primary), Phase C's land swaps opt-in. Rejected
+with their runs recorded: shared need adds, the held-lane share waiver, C1, D1,
+D2. Current baseline = the Phase B baseline: the 25 735 / 337 / 122 (page
+recall @30 159, plan-consistent 288 of 735), held-out 20 577 / 253 / 97 (161,
+174 of 577) — from Phase A's 732 / 335 / 121 and 571 / 253 / 80.
