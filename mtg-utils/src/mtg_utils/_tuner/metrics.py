@@ -524,12 +524,16 @@ def focus(
     rates = base_rates
 
     def specificity(lbl: str) -> float:
+        """The lane's pool share: that of the BROADEST held ident it holds — a
+        lane's page is its broad key's, so a rare subject riding on an umbrella
+        label (Killian's ``enchantments_matter|you|etb`` on "Enchantments")
+        doesn't make the umbrella distinctive."""
         held = [
             (rates or {}).get("|".join(ident), 1.0)
             for ident, label in held_idents.items()
             if label == lbl
         ]
-        return min(held) if held else 1.0
+        return max(held) if held else 1.0
 
     def held_emitters(lbl: str) -> int:
         """How many deck cards emit one of the held idents ``lbl`` holds — the

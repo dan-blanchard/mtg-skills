@@ -38,7 +38,14 @@ miss taxonomy, the held-out candidates).
   rejected (exact adds −3 / −3 for plan-consistency +43 / +33); E2 — the near
   tie narrowed to a card that supplies a commander need AND serves a main lane —
   shipped under the revised bar: held-out 97 → 101 guide adds, the 25 flat.
-  Baseline: the 25 735 / 337 / 122, held-out 575 / 253 / 101.
+  Baseline: the 25 735 / 337 / 122, held-out 575 / 253 / 101. The taxonomy's
+  lane fixes (aura_matters, typed enters payoffs, Clue engines as draw,
+  Dispatch) merged with two tuner fixes they exposed (a lane's specificity is
+  its broadest held ident; umbrella keys never test a need): the 25
+  734 / 339 / 120, held-out 581 / 255 / 100. The bundle of every rejected lever
+  (F1 / F2) was measured at Dan's request: they don't compound on the guide
+  yardsticks (plan-consistency +34 / +37, exact adds −1 / −3, job-equivalents
+  −14); the gate's exact-name anchor, not interaction effects, is the question.
 
 ## Target
 

@@ -89,7 +89,21 @@ _GRAVEYARD_LEAVE_KEYS: frozenset[str] = frozenset(
         "creature_recursion",
         "reanimator",
         "permanent_recast",
+    }
+)
+#: Umbrella keys a tenth of the pool carries: never a need's test on their own
+#: (``graveyard_matters`` under Quintorius made "cards leaving your graveyard"
+#: a 1,240-card page topped by Faithless Looting and Farewell, a hair under the
+#: broad cutoff, so a graveyard commander's theme cuts went to it).
+_UMBRELLA_KEYS: frozenset[str] = frozenset(
+    {
         "graveyard_matters",
+        "graveyard_makers",
+        "permanent_etb",
+        "enchantments_matter",
+        "artifacts_matter",
+        "creatures_matter",
+        "attack_matters",
     }
 )
 #: Keys whose emitters make a creature of yours die or leave (fodder and the
@@ -516,8 +530,11 @@ def _resource_needs(idents: Iterable[str], desc: str) -> Iterator[Need]:
         key, _scope, subject = ident.split("|", 2)
         if key == "plus_one_makers" and self_grow:
             continue
+        if key in _UMBRELLA_KEYS:
+            continue  # the umbrella's consumers are the umbrella
         if key == TOKEN_MAKER or key.endswith("_makers"):
             consumers = {k for k in _cares_keys(key) if k != key}
+            consumers -= _UMBRELLA_KEYS
             if key == TOKEN_MAKER:
                 consumers |= {"sacrifice_outlets", "death_matters"}
                 if subject:
@@ -550,6 +567,8 @@ def _redundancy_needs(idents: Iterable[str], desc: str) -> Iterator[Need]:
     keeps a generic doer (an attack trigger) from becoming a need."""
     for ident in idents:
         key, _scope, subject = ident.split("|", 2)
+        if key in _UMBRELLA_KEYS:
+            continue
         if key == TOKEN_MAKER or key.endswith("_makers"):
             yield Need(
                 "redundancy",
@@ -656,7 +675,7 @@ def _payoff_needs(idents: Iterable[str], desc: str) -> Iterator[Need]:
         elif key.endswith("_matters") and key != "tokens_matter":
             base = key[: -len("_matters")]
             maker = f"{base}_makers"
-            if maker in _served_keys():
+            if maker in _served_keys() and maker not in _UMBRELLA_KEYS:
                 yield Need("payoff", f"{base} makers", desc, keys=frozenset({maker}))
 
 
