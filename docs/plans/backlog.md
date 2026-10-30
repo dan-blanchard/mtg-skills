@@ -144,6 +144,18 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   Where the deck holds the most of a job it wants (a row at its max, protection
   at the Shape's target) the job's upgrade moves onto the theme (2026-10-26); a
   looser row read or cost bar spent the budget-bound decks' cuts.
+  (k) **Age-adjusted play-rate — don't re-suggest** (2026-10-30; patch and runs in
+  `~/mtg/tuner-work/w29/`). A card's rank as a percentile among cards first printed
+  within ±6/12/24 months, the better of that and the raw rank, and a recent-only lag
+  boost, each through the add order, fills, near-tie, play-rate gate, page sort or
+  cut side: no variant raised guide adds on the 25 (best 108 against 109; the
+  ordering variants lost 13-19, mostly old staples: Swiftfoot Boots, Counterspell,
+  Nature's Lore). The "newer and less played" misses were mostly a dating error
+  (MTGO's promo set dates every card 2002-06-24; The List and Secret Lair likewise);
+  with reprint-aware dates a ±6-month cohort puts the guide card first in 5 of 151.
+  Real rank lag is limited to 2025-26 cards, which mostly postdate the guides. A
+  card's first printing is its earliest printing not flagged `reprint`
+  (`precon-audit/scoreboard.py`).
   (m) **Recall** (`precon-audit/misses.py`, at the largest guide's thirty
   swaps and each precon's own guides' budget, `budgets.json`, Spellbook cached):
   330 of 505 cuttable guide cuts, 109 of 793 in-scope guide adds, 721 swaps;

@@ -142,7 +142,10 @@ class Cards:
         return norm(rec["name"] if rec else name)
 
     def first(self, rec):
+        # A reprint printing carries its set's date (MTGO's promo set dates every
+        # card 2002-06-24), so only originals date a card, unless all are reprints.
         prs = self.pool.printings_by_oracle.get(rec.get("oracle_id") or "") or [rec]
+        prs = [p for p in prs if not p.get("reprint")] or prs
         return min((p.get("released_at") or "9999") for p in prs)
 
     def idents(self, rec):
