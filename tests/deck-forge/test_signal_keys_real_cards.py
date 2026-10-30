@@ -45,6 +45,7 @@ _REAL_CASES: dict[str, str] = {
     "attack_matters": "Relentless Assault",
     "attractions_matter": "Rad Rascal",
     "aura_equip_kw_grant": "Rashel, Fist of Torm",
+    "aura_matters": "Killian, Decisive Mentor",
     "has_banding": "Timber Wolves",
     "base_pt_set": "Lignify",
     "base_power_matters": "Bess, Soul Nourisher",

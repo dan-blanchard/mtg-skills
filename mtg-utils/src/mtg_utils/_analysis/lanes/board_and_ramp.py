@@ -1953,11 +1953,19 @@ def _artifacts_enchantments_matter(tree: ConceptTree) -> list[Signal]:
     Sythis; Sram's "an Aura, Equipment, or Vehicle spell", read through the
     subtypes' card types, CR 205.3g/h), which triggers as the spell becomes cast
     (CR 601.2i) and so never on a permanent put onto the battlefield without
-    casting it; empty for every other arm (an enters trigger — CR 603.6a, a
-    count, a static, a sacrifice).
+    casting it; ``etb`` on an enters-trigger payoff ("Whenever an artifact you
+    control enters" — Yotian Dissident, Sarinth Steelseeker; "Whenever an
+    enchantment you control enters" — Ondu Spiritdancer, Grim Guardian's
+    constellation), which triggers on every one entering (CR 603.6a), a
+    created token included (CR 111.1: "Some effects put tokens onto the
+    battlefield") — so the Clue / Treasure / Thopter makers feed it, which the
+    Clue and Treasure serves read. An enters payoff keeps the empty subject
+    too, beside ``etb``: it is the broad artifacts / enchantments payoff as
+    well. Empty for every other arm (a count, a static, a sacrifice).
     """
     out: list[str] = []
     cast_out: list[str] = []
+    etb_out: list[str] = []
     # Every reference to artifacts / enchantments you control (or own, in your
     # graveyard), wherever it sits: a count ("~ gets +X/+0, where X is the
     # number of artifacts you control" — Aerid Konstrari; Tolarian Academy's
@@ -2446,9 +2454,10 @@ def _artifacts_enchantments_matter(tree: ConceptTree) -> list[Signal]:
     # Equipment you control enters" — Barret, Chishiro; "an Aura or Equipment
     # you control is put into a graveyard" — Tiana) reads through
     # :func:`_type_payoff_lanes`.
+    # Each enters watcher also carries the ``etb`` subject (see the docstring).
     for unit in tree.units:
         if unit.trigger_event == "enters":
-            out.extend(_type_payoff_lanes(getattr(unit.node, "valid_card", None)))
+            etb_out.extend(_type_payoff_lanes(getattr(unit.node, "valid_card", None)))
         elif unit.trigger_event == "dies":
             vc = getattr(unit.node, "valid_card", None)
             if filter_controller(vc) == "You":
@@ -2458,7 +2467,8 @@ def _artifacts_enchantments_matter(tree: ConceptTree) -> list[Signal]:
         # control enters this turn, draw a card"), CR 603.7a.
         for trig in iter_delayed_trigger_condition_defs(unit.node):
             if trigger_def_event(trig) == "enters":
-                out.extend(_type_payoff_lanes(getattr(trig, "valid_card", None)))
+                etb_out.extend(_type_payoff_lanes(getattr(trig, "valid_card", None)))
+    out.extend(etb_out)
     # KEYWORD payoffs, read off the card's printed keywords rather than its text:
     # "Affinity for [text]" (CR 702.41a: "costs {1} less to cast for each [text]
     # you control") over an artifact kind — artifacts, Equipment (CR 301.5),
@@ -2482,6 +2492,7 @@ def _artifacts_enchantments_matter(tree: ConceptTree) -> list[Signal]:
     idents = (
         [(lane, "") for lane in out]
         + [(lane, "cast") for lane in cast_out]
+        + [(lane, "etb") for lane in etb_out]
         + [(lane, "token") for lane in _token_type_lanes(tree)]
     )
     sigs: list[Signal] = [

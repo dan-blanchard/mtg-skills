@@ -80,6 +80,7 @@ from mtg_utils._card_ir.crosswalk import (
     reveal_until_player,
     static_mode_tag,
     tag_of,
+    token_creator_side,
     trigger_phase,
     trigger_scope,
     trigger_subject,
@@ -1633,7 +1634,9 @@ def _card_draw_engine(tree: ConceptTree) -> list[Signal]:
     * ANY ``Draw`` in a trigger that repeats (:func:`_repeats` — Rhystic
       Study, Esper Sentinel, Kindred Discovery, Bident of Thassa) when you
       are the one drawing (:func:`_you_draw`): a single draw each time the
-      event recurs is the Commander draw engine.
+      event recurs is the Commander draw engine;
+    * a trigger that repeats and makes you a Clue each time (:func:`_clue_engine`
+      — Tireless Tracker), subject :data:`CLUE_ENGINE`.
 
     Expected shadow posture: recall gains over the mirror are the desired
     structural improvement — adjudicated via the harness, not drift.
@@ -1670,7 +1673,41 @@ def _card_draw_engine(tree: ConceptTree) -> list[Signal]:
                 out.append(
                     Signal("card_draw_engine", scope, "", c.raw, tree.name, "high")
                 )
+    raw = _clue_engine(tree)
+    if raw is not None:
+        out.append(
+            Signal("card_draw_engine", "you", CLUE_ENGINE, raw, tree.name, "high")
+        )
     return out
+
+
+#: The subject of ``card_draw_engine`` on a Clue engine (:func:`_clue_engine`).
+CLUE_ENGINE = "clue"
+
+
+def _clue_engine(tree: ConceptTree) -> str | None:
+    """The raw text of a repeating trigger that makes you Clues, or ``None``:
+    "Whenever a land you control enters, investigate" (Tireless Tracker),
+    "Whenever another creature you control dies, investigate" (Eloise,
+    Nephalia Sleuth). Investigate is "create a Clue token" (CR 701.16a), and a
+    Clue is an artifact token with "{2}, Sacrifice this token: Draw a card"
+    (CR 111.10f), so each firing is a card drawn later — the draw engine the
+    trigger arm above reads, one mana payment removed. A one-shot Clue (an
+    enters trigger watching only the card — Thraben Inspector; a spell) is no
+    engine (:func:`_repeats`), nor is a Clue another player creates
+    (:func:`crosswalk.token_creator_side`). Subject :data:`CLUE_ENGINE`: the
+    ``card-draw`` preset counts it, the draw-engine avenue's page does not."""
+    for unit in tree.units:
+        if not _repeats(unit):
+            continue
+        for c in unit.effects:
+            if (c.concept == "investigate" and c.scope == "you") or (
+                c.concept == "make_token"
+                and "Clue" in c.subject
+                and token_creator_side(unit, c.node) == "you"
+            ):
+                return c.raw
+    return None
 
 
 def etb_bulk_draw(tree: ConceptTree) -> bool:

@@ -559,6 +559,11 @@ _SLINGER_KEYWORDS = ("prowess",)
 # ("pillowfort", "you") spec and ``roles.protects`` read. One ident, shared with
 # that spec (data_4), so the two serves can't drift.
 _PILLOWFORT_IDENTS = frozenset({"pillowfort|you|"})
+# An artifact-enters payoff ("Whenever an artifact you control enters" — Yotian
+# Dissident): every Treasure, Clue or other artifact token entering triggers it
+# (CR 603.6a; CR 111.1: a token is put onto the battlefield), so the Treasure and
+# Clue serves (data_1 / data_2) hold it beside their own lanes.
+_ARTIFACT_ETB_PAYOFF = "artifacts_matter|you|etb"
 _PILLOWFORT_EXTRA = SubAvenue(
     "Pillowfort",
     "taxes and limits that make attacking you costly (Ghostly Prison, Propaganda, "

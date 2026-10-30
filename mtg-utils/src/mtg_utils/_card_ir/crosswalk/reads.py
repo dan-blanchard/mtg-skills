@@ -1716,6 +1716,41 @@ def names_attached_object(filt: object) -> bool:
     return not ATTACHED_OBJECT_PREDICATES.isdisjoint(filter_predicates(filt))
 
 
+#: The attachment kind each "the object it's attached to" predicate names.
+_ATTACHED_OBJECT_KIND: dict[str, str] = {
+    "EnchantedBy": "Aura",
+    "EquippedBy": "Equipment",
+}
+
+
+def attachment_kinds(filt: object) -> frozenset[str]:
+    """The kinds of attachment (``Aura`` / ``Equipment``) one typed filter asks its
+    object to carry, read off its attachment predicates: ``HasAttachment``
+    ("creatures that are enchanted by an Aura you control" — Killian, Decisive
+    Mentor), ``HasAnyAttachmentOf`` ("enchanted or equipped" — Koll, the
+    Forgemaster: each kind it lists) and ``EnchantedBy`` / ``EquippedBy`` ("an
+    enchanted creature" — Hateful Eidolon). An attachment an opponent controls is
+    left out. One filter: the caller walks an ``Or`` / ``And``. On an Aura's or an
+    Equipment's own text ``EnchantedBy`` / ``EquippedBy`` is the one object it is
+    attached to (:func:`names_attached_object`), which the caller tells apart."""
+    out: set[str] = set()
+    for prop in getattr(filt, "properties", None) or ():
+        tag = tag_of(prop) or ""
+        if tag in _ATTACHED_OBJECT_KIND:
+            out.add(_ATTACHED_OBJECT_KIND[tag])
+        elif tag == "HasAttachment":
+            kind = getattr(prop, "kind", None)
+            if isinstance(kind, str) and getattr(prop, "controller", None) != (
+                "Opponent"
+            ):
+                out.add(kind)
+        elif tag == "HasAnyAttachmentOf":
+            out.update(
+                k for k in getattr(prop, "kinds", None) or () if isinstance(k, str)
+            )
+    return frozenset(out)
+
+
 def static_affected(sdef: object, unit: AbilityUnit | None = None) -> object:
     """A static def's ``affected`` set — the one the overlay corrections re-read
     when its ``unit`` carries one (Tsabo's Web's "each land …" phase stamps
@@ -9887,6 +9922,37 @@ def effect_back_reference(
     return "self", None
 
 
+def earlier_spell_target(
+    tree: ConceptTree, unit: AbilityUnit, node: TypedMirrorNode
+) -> object | None:
+    """The object filter a spell's back-reference names when the ability holding
+    it chose nothing (:func:`effect_back_reference` finds no thread): the target
+    of the spell's nearest earlier ability. Phase writes an ability-word
+    sentence of a spell as a ``Spell`` ability of its own ("Tap target creature.
+    Metalcraft — If you control three or more artifacts, exile that creature." —
+    Dispatch: the exile's ``ParentTarget`` is the tap's target), and the spell's
+    instructions are followed in order and read as a whole (CR 608.2c). A mass
+    effect or a token producer in between ends the thread
+    (:func:`ends_target_thread`). ``None`` for any other unit or node."""
+    if unit.origin != "ability" or unit.kind != "Spell":
+        return None
+    if tag_of(getattr(node, "target", None)) != "ParentTarget":
+        return None
+    back = effect_back_reference(unit, node)
+    if back is not None and back[0] == "chosen":
+        return None
+    spells = [u for u in tree.units if u.origin == "ability" and u.kind == "Spell"]
+    index = next((i for i, u in enumerate(spells) if u is unit), 0)
+    for prev in reversed(spells[:index]):
+        for c in reversed(prev.effects):
+            if ends_target_thread(c.node):
+                return None
+            target = getattr(c.node, "target", None)
+            if tag_of(target) in OBJECT_FILTER_TAGS:
+                return target
+    return None
+
+
 # ── Board-keyword reads ──
 
 #: The aggregate functions a board-power threshold compares: the total power
@@ -10749,21 +10815,27 @@ def blight_placements(unit: AbilityUnit) -> tuple[TypedMirrorNode, ...]:
     return tuple(out.values())
 
 
-def role_tokens_attached(unit: AbilityUnit) -> tuple[TypedMirrorNode, ...]:
+def role_tokens_attached(
+    unit: AbilityUnit, *, opponents_too: bool = False
+) -> tuple[TypedMirrorNode, ...]:
     """The Role tokens one unit makes you create attached to a creature (CR
     303.7: "Some Aura enchantments also have the subtype 'Role'"; CR 111.10j-r
     define the predefined Role tokens): a ``Token`` effect whose types name
     ``Role``, with an ``attach_to``, created by you (:func:`token_creator_side`
     — Monstrous Rage, Royal Treatment, Ellivere of the Wild Court). A Role put
     on a creature an opponent controls (a ``Typed`` opponent ``attach_to``) is
-    left out. Which Role it is stays the caller's read: the token's ``name``."""
+    left out unless ``opponents_too``: the Aura is yours either way. Which Role
+    it is stays the caller's read: the token's ``name``."""
     return tuple(
         n
         for n in unit.iter_typed()
         if tag_of(n) == "Token"
         and "Role" in (getattr(n, "types", None) or ())
         and _present(getattr(n, "attach_to", None))
-        and filter_controller(getattr(n, "attach_to", None)) != "Opponent"
+        and (
+            opponents_too
+            or filter_controller(getattr(n, "attach_to", None)) != "Opponent"
+        )
         and token_creator_side(unit, n) == "you"
     )
 

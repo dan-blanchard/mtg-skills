@@ -231,6 +231,8 @@ DOER_SUBJECTS: Final = frozenset(
         ("artifacts_matter", "token"),
         # an enchantment-token maker (Roles, Shards)
         ("enchantments_matter", "token"),
+        # an Aura that can go on a creature, yours or an opponent's
+        ("aura_matters", "aura"),
         # a variable-target spell
         ("per_target_payoff", "variable"),
         # a can't-lose card
