@@ -156,6 +156,18 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   Real rank lag is limited to 2025-26 cards, which mostly postdate the guides. A
   card's first printing is its earliest printing not flagged `reprint`
   (`precon-audit/scoreboard.py`).
+  A recent-only boost also failed, scored fairly (2026-10-30; patch and runs in
+  `~/mtg/tuner-work/w39/`, the audit's "A play-rate boost for recently printed
+  cards"), against 732 / 335 / 121 (held-out 297 / 139 / 37, Jace 30 / 15 / 4). Cards
+  first printed in the last 24 months, sized by how far their cohort's top 5% trails
+  mature years: gate only 737 / 338 / 118, order only 734 / 335 / 112, both 738 / 338 /
+  110, held-out adds 36 each. The fair line (cards a guide could name; `scoreboard.py`'s
+  `FAIR`) falls too, 119 to 116 / 112 / 110, so the scoring wasn't hiding a win. On the
+  19 decks with a guide dated since 2024-11, the boost matches at most 5 of the 55
+  recent guide adds against the baseline's 4, while those decks' guide adds fall from 69
+  to 65-67. Near tie only scored 122 and passes every gate, but through one reshuffle
+  in one deck (Supreme Verdict, a 2012 card, for Flawless Maneuver) and no recent card;
+  not shipped.
   (s) **Deck fit for job upgrades — don't re-suggest** (2026-10-30; patch and runs
   in `~/mtg/tuner-work/w31/`, the audit's "Deck fit for the job upgrades"). Two
   levers, each measured alone, then together; none raised guide adds on the 25.

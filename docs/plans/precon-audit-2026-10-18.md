@@ -1557,6 +1557,14 @@ $221 → $587). New baseline, same code (main 9e049c66 + the fix):
 whole scoreboard: swaps, guide cuts and adds matched (as before), and two numbers
 that are reported, not gated.
 
+It also prints a **fair line** (`FAIR`, reported, never a gate): swaps and guide
+adds restricted to cards the deck's guides could have named (first printed on or
+before the newest guide date), plus how many swaps add a card printed after the
+guide, which can't match and say nothing about accuracy. `--since DATE` reports the
+decks with a guide on or after `DATE` and, with `--diff`, the guide adds each gained
+and lost. Baseline at 514d63d5: 690 swaps, 119 of 790 guide adds, 42 printed after
+on the 25; 279, 33 of 383, 18 held-out.
+
 **Near-misses** are tuner adds no guide names that stand in for a guide add the
 tuner missed in the same deck. Each missed guide add pairs with at most one tuner
 add (a maximum matching), and a tuner add first printed after the precon's
@@ -2087,3 +2095,57 @@ The spot-check covered ten adds new under "shared, 5%", none a guide add
   Graveyard Overdrive runs two (Ignoble Hierarch, Siege-Gang Lieutenant). Vulshok
   Replica hits only a player or planeswalker, and it replaced Bitter Triumph, which
   destroys a creature or planeswalker.
+
+## A play-rate boost for recently printed cards (2026-10-30, rejected)
+
+Backlog (k)'s age-adjusted play-rate failed partly because most of the rank lag it
+chased was a dating error. The real lag sits in the newest cards (the tenth-best card
+of 2026 ranks 2076; 2019-24 run 167-403), and those mostly postdate the guides, so
+this retry asked whether (k) had been scored unfairly. Patch and runs:
+`~/mtg/tuner-work/w39/` (`recent-boost.patch`, `misses-*.json`, `sb-*.txt`,
+`subset.py`). Measured on 514d63d5, whose baselines reproduced exactly.
+
+**The boost.** Only cards first printed in the last 24 months (the earliest printing
+not flagged `reprint`), by the newest month with at least 20 ranked cards. A card's
+rank is divided by 10^(level − reference), where level is the log10 rank of the top
+5% of cards first printed within two months of it, and reference is the median level
+over the months 36-96 back. Both sides of the gate read the same key.
+
+| variant | the 25: swaps / cuts / adds | fair swaps / adds / printed after | held-out | fair | Jace |
+|---|---|---|---|---|---|
+| baseline | 732 / 335 / 121 | 690 / 119 / 42 | 297 / 139 / 37 | 279 / 33 / 18 | 30 / 15 / 4 |
+| gate only | 737 / 338 / 118 | 682 / 116 / 55 | 297 / 139 / 36 | 276 / 32 / 21 | 30 / 15 / 4 |
+| order only | 734 / 335 / 112 | 665 / 112 / 69 | 297 / 139 / 36 | 272 / 32 / 25 | 30 / 15 / 4 |
+| both (gate, order, near tie) | 738 / 338 / 110 | 657 / 110 / 81 | 297 / 139 / 36 | 267 / 32 / 30 | 30 / 15 / 4 |
+| near tie only | 732 / 335 / 122 | 690 / 120 / 42 | 297 / 139 / 37 | 279 / 33 / 18 | 30 / 15 / 4 |
+| gate, half the boost | 732 / 335 / 121 | 686 / 119 / 46 | 297 / 139 / 36 | 278 / 32 / 19 | 30 / 15 / 4 |
+| order, half the boost | 734 / 335 / 112 | 680 / 112 / 54 | 297 / 140 / 35 | 277 / 31 / 20 | 30 / 15 / 4 |
+| both, half the boost | 733 / 335 / 113 | 677 / 113 / 56 | 297 / 139 / 36 | 276 / 32 / 21 | 30 / 15 / 4 |
+
+Gate only with a 12-month window scored 737 / 338 / 119 (held-out adds 36); with the
+top 1% as the level, 738 / 336 / 117 (36); both with the page sorted by the boost,
+738 / 338 / 109 (32).
+
+**The scoring wasn't what hid it.** The fair line falls too: every full
+boost lost guide adds a guide could name (119 to 116, 112, 110), because the boosted
+cards took slots from older guide cards (Spellstutter Sprite, Counterspell, Boros
+Charm). The swaps adding cards printed after the guide rose by 13 to 39; those can't
+be scored either way.
+
+**The fairest test.** 19 decks have a guide dated on or after 2024-11-01 (13 of the
+25 and 6 held-out; 69 of 659 guide adds at baseline), with 55 in-scope guide adds
+first printed in that window and on or before the guide. The baseline matches 4:
+Araña, King T'Challa, SP//dr and Spectacular Spider-Man. Gate only: 67 adds, 3
+recent (lost SP//dr). Order only: 65, 4 (gained Sabotender, lost SP//dr). Both: 65,
+5 (gained Agent Phil Coulson, Captain America, Super-Soldier and Sabotender, lost
+Araña and SP//dr). So where guides could name these cards, the boost nets at most one
+of 55, and the decks lose up to four guide adds overall.
+
+**Near tie only clears the numbers, by accident.** One deck of 35 changes. In
+Planeswalker Party, Elspeth, Storm Slayer's key goes from 662 to 444, so Jace, Wielder
+of Mysteries (1083) is no longer within the factor of two the cheaper tie allows. The
+swaps reshuffle and Supreme Verdict, a 2012 card, replaces Flawless Maneuver. It finds
+no recent card and doesn't justify a permanent index and a new `tune` argument, so it
+isn't shipped; it is recorded for a decision.
+
+The scoreboard's fair line and `--since` ship as tooling.

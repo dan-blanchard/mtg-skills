@@ -3,7 +3,8 @@ near-misses, and the consensus cards matched (docs/plans/precon-audit-2026-10-18
 "The scoreboard"). Post-processing only: it reads the run's JSON, never tunes.
 
     cd mtg-utils && uv run python ../docs/plans/precon-audit/scoreboard.py MISSES ROOT
-        [--json OUT.json] [--diff BASE.json] [--pairs] [--loose] [Name ...]
+        [--json OUT.json] [--diff BASE.json] [--pairs] [--loose] [--since YYYY-MM-DD]
+        [Name ...]
 
 MISSES is the misses.json a misses.py run wrote; ROOT is the root that run read
 (decks/<Name>/deck.json, articles/<Name>.md). Run it under the cache the run used
@@ -11,7 +12,9 @@ MISSES is the misses.json a misses.py run wrote; ROOT is the root that run read
 reads. Prints one row per precon and the TOTAL line; ``--json`` also writes the
 numbers (and every near-miss pair) for a later ``--diff``; ``--diff BASE.json``
 prints each precon's change from that earlier ``--json``; ``--pairs`` lists the
-near-miss pairs; ``--loose`` scores the first, looser definition (below).
+near-miss pairs; ``--loose`` scores the first, looser definition (below);
+``--since`` reports the decks whose guides could name cards first printed since that
+date (below).
 
 The columns:
 
@@ -46,6 +49,19 @@ The columns:
 - consensus adds / cuts: the guide cards two or more of the precon's guides name
   (the rows' "Source #"), and how many of those the tuner matched — of the
   in-scope adds and the cuttable cuts.
+- the fair line (FAIR under TOTAL; a reported line, never a gate): the same matches
+  restricted to the cards the deck's guides could have named, those first printed
+  on or before its latest guide date: swaps whose add is one, and guide adds matched
+  of the in-scope ones. A swap whose add was printed after the guide can't match it,
+  so it says nothing about accuracy either way (``printed after``, per run). A guide
+  written from a set's previews may name a card dated after it (World Shaper's
+  Ouroboroid); by this rule that card counts on neither side.
+- ``--since DATE``: the decks whose latest guide date is on or after ``DATE`` (a guide
+  written after cards of that age were printed), with their guide adds matched, those
+  first printed since ``DATE`` and on or before the guide (the "recent" columns: in
+  scope, matched, by name); with ``--diff``, the guide adds each gained and lost. The
+  fairest test of a change for recently printed cards: on these decks a guide could
+  have named them, and the other decks' guides couldn't.
 """
 import argparse, calendar, collections, json, pathlib, re, sys
 
@@ -287,7 +303,23 @@ def score_deck(cards, root, name, entry, tight=True):
         "cons_adds": sum(w == "added" for g, w in in_scope if n_adds.get(norm(g), 0) >= 2),
         "cons_in_scope": sum(n_adds.get(norm(g), 0) >= 2 for g, _w in in_scope),
         "guide_date": gdate,
+        "matched": sorted(g for g, w in in_scope if w == "added"),
     }
+
+    def nameable(card_name):
+        """Whether the deck's guides could have named it: first printed on or before
+        the latest guide date (an unknown card or no stated date: yes)."""
+        rec = cards.rec(card_name)
+        return gdate is None or rec is None or cards.first(rec) <= gdate
+
+    tuner_adds = [add for _issue, _cut, add, _reason in entry["swaps"]]
+    named = [(g, w) for g, w in in_scope if nameable(g)]
+    row["fair_swaps"] = sum(nameable(add) for add in tuner_adds)
+    row["printed_after"] = len(tuner_adds) - row["fair_swaps"]
+    row["fair_adds"] = sum(w == "added" for _g, w in named)
+    row["fair_in_scope"] = len(named)
+    # When each nameable in-scope guide add was first printed, for ``--since``.
+    row["guide_add_first"] = {g: cards.first(rec) for g, _w in named if (rec := cards.rec(g))}
 
     # The deck's own nonland cards' idents, for each signal's share.
     share = collections.Counter()
@@ -352,7 +384,8 @@ def score_deck(cards, root, name, entry, tight=True):
     return row
 
 
-FIELDS = ("swaps", "cuts", "adds", "near", "near_job", "near_theme", "cons_cuts", "cons_adds")
+FIELDS = ("swaps", "cuts", "adds", "near", "near_job", "near_theme", "cons_cuts", "cons_adds",
+          "fair_swaps", "fair_adds", "printed_after")
 
 
 def line(r):
@@ -361,15 +394,45 @@ def line(r):
             f" | consensus adds {r['cons_adds']} of {r['cons_in_scope']} | consensus cuts {r['cons_cuts']} of {r['cons_cuttable']}")
 
 
+def fair_line(r):
+    return (f"swaps {r['fair_swaps']} | guide adds {r['fair_adds']} of {r['fair_in_scope']}"
+            f" | swaps printed after the guide {r['printed_after']}")
+
+
 def total(rows):
-    keys = FIELDS + ("cuttable", "in_scope", "cons_cuttable", "cons_in_scope")
+    keys = FIELDS + ("cuttable", "in_scope", "cons_cuttable", "cons_in_scope", "fair_in_scope")
     return {k: sum(r[k] for r in rows.values()) for k in keys}
+
+
+def since_report(rows, since, base=None):
+    """The decks a guide written since ``since`` could name its cards on: their guide
+    adds matched, overall and among the cards first printed since then."""
+    decks = {n: r for n, r in rows.items() if r["guide_date"] and r["guide_date"] >= since}
+    print(f"\nguides written on or after {since}: {len(decks)} decks")
+    print("| precon | guide date | guide adds | recent in scope | recent matched | which |")
+    print("|---" * 6 + "|")
+    for n, r in decks.items():
+        recent = {g for g, first in r["guide_add_first"].items() if first >= since}
+        hit = sorted(recent & set(r["matched"]))
+        print(f"| {n} | {r['guide_date']} | {r['adds']} of {r['in_scope']} | {len(recent)} | {len(hit)} | {', '.join(hit)} |")
+    print(f"TOTAL guide adds {sum(r['adds'] for r in decks.values())} of {sum(r['in_scope'] for r in decks.values())}")
+    if base is None:
+        return
+    gained, lost = 0, 0
+    for n, r in decks.items():
+        before = set((base["decks"].get(n) or {}).get("matched") or ())
+        new, gone = sorted(set(r["matched"]) - before), sorted(before - set(r["matched"]))
+        gained, lost = gained + len(new), lost + len(gone)
+        if new or gone:
+            print(f"  {n}: + {', '.join(new) or '-'}; - {', '.join(gone) or '-'}")
+    print(f"  changes: {gained} gained, {lost} lost")
 
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("misses", type=pathlib.Path)
     ap.add_argument("root", type=pathlib.Path)
+    ap.add_argument("--since", help="report the decks whose guides are on or after this date (YYYY-MM-DD)")
     ap.add_argument("names", nargs="*")
     ap.add_argument("--json", type=pathlib.Path, help="write the scoreboard here")
     ap.add_argument("--diff", type=pathlib.Path, help="an earlier --json to diff against")
@@ -386,20 +449,23 @@ def main():
         print(f"| {n} | {' | '.join(str(r[k]) for k in FIELDS)} | {len(r['late'])} |")
     tot = total(rows)
     print("\nTOTAL", line(tot))
+    print("FAIR ", fair_line(tot))
     if a.pairs:
         for n, r in rows.items():
             for add, g, why in r["pairs"]:
                 print(f"  {n}: {add}  ~  {g}  ({why})")
+    base = json.loads(a.diff.read_text()) if a.diff else None
+    if a.since:
+        since_report(rows, a.since, base)
     if a.json:
         a.json.write_text(json.dumps({"total": tot, "decks": rows}, indent=1))
     if a.diff:
-        base = json.loads(a.diff.read_text())
         print(f"\nchanges from {a.diff}:")
         for n, r in rows.items():
             b = base["decks"].get(n)
             if b is None:
                 print(f"  {n}: new"); continue
-            d = {k: r[k] - b[k] for k in FIELDS if r[k] != b[k]}
+            d = {k: r[k] - b.get(k, 0) for k in FIELDS if r[k] != b.get(k, 0)}
             if d:
                 print(f"  {n}: " + ", ".join(f"{k} {v:+d}" for k, v in d.items()))
             gone = {(x[0], x[1]) for x in b["pairs"]} - {(x[0], x[1]) for x in r["pairs"]}
@@ -408,7 +474,7 @@ def main():
                 print(f"      + {p[0]} ~ {p[1]}")
             for p in sorted(gone):
                 print(f"      - {p[0]} ~ {p[1]}")
-        print("  TOTAL: " + ", ".join(f"{k} {tot[k] - base['total'][k]:+d}" for k in FIELDS))
+        print("  TOTAL: " + ", ".join(f"{k} {tot[k] - base['total'].get(k, 0):+d}" for k in FIELDS))
 
 
 if __name__ == "__main__":
