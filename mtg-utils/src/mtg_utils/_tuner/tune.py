@@ -22,7 +22,7 @@ from mtg_utils._tuner import swaps as swaps_mod
 from mtg_utils._tuner.bracket import bracket_gate, suggestable_near_misses
 from mtg_utils._tuner.calibration import calibration_for
 from mtg_utils._tuner.classify import CardClass, classify_deck, commander_draws
-from mtg_utils._tuner.issues import Sourcing, top_issues
+from mtg_utils._tuner.issues import Sourcing, keep_search, top_issues
 from mtg_utils._tuner.shape import infer_shape
 from mtg_utils.card_classify import is_land
 from mtg_utils.combo_search import combos_or_none
@@ -379,7 +379,13 @@ def tune(
         wincons_r=wins,
         protection_r=prot,
         commander_r=cfit,
-        sourcing=Sourcing(foc, deck_signals, budgets, game=game),
+        sourcing=Sourcing(
+            foc,
+            deck_signals,
+            budgets,
+            game=game,
+            keep=keep_search(commander_records) if cal.commander_axes else None,
+        ),
         near_misses=suggestable_near_misses(combos, params.target_bracket),
         meta_missing=[c for c in meta_missing if not c["land"]][:META_CORE_ISSUES],
     )

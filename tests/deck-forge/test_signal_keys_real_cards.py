@@ -147,6 +147,8 @@ _REAL_CASES: dict[str, str] = {
     "enchantments_matter": "Tuvasa the Sunlit",
     "end_step_triggers": "Chimil, the Inner Sun",
     "end_the_turn": "Obeka, Brute Chronologist",
+    # "Sacrifice it at the beginning of the next end step" (CR 603.7b).
+    "end_step_sacrifice": "Saheeli, Radiant Creator",
     "energy_makers": "Aether Hub",
     "energy_matters": "Whirler Virtuoso",
     "has_enlist": "Benalish Faithbonder",

@@ -411,6 +411,20 @@ class TestDetectCommanderMultiplication:
         assert [c["type"] for c in result["commander_copy"]] == ["becomes_copy"]
         assert result["legend_bypass"] is True
 
+    def test_sundial_keeps_the_end_step_sacrifices(self):
+        # Saheeli, Radiant Creator's copy goes at the next end step; Sundial of
+        # the Infinite ends the turn with that trigger on the stack (CR 724.1b).
+        saheeli = commander_profile(test_card("Saheeli, Radiant Creator"))
+        result = detect_commander_multiplication(
+            test_card("Sundial of the Infinite"), saheeli
+        )
+        assert [c["type"] for c in result["keeps"]] == ["keeps_end_step_sacrifices"]
+        assert result["ability_copy"] == []
+        krenko = detect_commander_multiplication(
+            test_card("Sundial of the Infinite"), self._KRENKO
+        )
+        assert krenko["keeps"] == []
+
     def test_strionic_resonator_copies_a_triggered_ability(self):
         result = detect_commander_multiplication(
             test_card("Strionic Resonator"), self._OBEKA

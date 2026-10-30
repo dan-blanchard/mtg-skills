@@ -946,7 +946,9 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
         # gaps: empower Jace (Hexhaven Battalion), "put loyalty counters" (Inspired
         # Tethermage).
         None,
-        serve_idents=frozenset({"superfriends_matters|you|"}),
+        # A planeswalker tutor finds the walkers (``tutor|you|Planeswalker`` — Call
+        # the Gatewatch, Arena Rector; CR 701.23a).
+        serve_idents=frozenset({"superfriends_matters|you|", "tutor|you|Planeswalker"}),
         serve_types=("planeswalker",),
         serve_keywords=("proliferate",),
         extras=(_PILLOWFORT_EXTRA, _LOYALTY_DOUBLER_EXTRA),  # protect the walkers

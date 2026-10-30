@@ -908,6 +908,27 @@ def copied_ability_kind(node: object) -> str | None:
     return kind if isinstance(kind, str) else "Any"
 
 
+#: The trigger events of an ability being activated (CR 602.2): a copy of
+#: "that ability" in such a trigger copies the activated ability (Rings of
+#: Brighthearth, Illusionist's Bracers; Rowan's Talent's loyalty ability).
+ACTIVATION_TRIGGER_EVENTS = frozenset({"abilityactivated", "loyaltyabilityactivated"})
+
+
+def unit_copied_ability_kind(unit: AbilityUnit, node: object) -> str | None:
+    """:func:`copied_ability_kind`, and ``"Activated"`` for a ``CopySpell`` in a
+    trigger on an ability being activated (:data:`ACTIVATION_TRIGGER_EVENTS`),
+    whose "copy that ability" names the ability that triggered it — Rings of
+    Brighthearth's "Whenever you activate an ability, if it isn't a mana
+    ability, … copy that ability" (CR 707.10: a copy of an ability is an
+    ability, never a spell). ``None`` for a spell copy (Twincast)."""
+    kind = copied_ability_kind(node)
+    if kind is not None:
+        return kind
+    if tag_of(node) == "CopySpell" and unit.trigger_event in ACTIVATION_TRIGGER_EVENTS:
+        return "Activated"
+    return None
+
+
 def double_triggers_cause(node: object) -> tuple[str, tuple[str, ...]] | None:
     """The cause a ``DoubleTriggers`` static scopes its doubling to, or ``None``.
 
@@ -3691,6 +3712,18 @@ def cast_keyword_type_words(node: object) -> tuple[str | None, tuple[str, ...]]:
     return name, tuple(_type_filter_words(getattr(param, "type_filters", None)))
 
 
+def yours_cast_keywords(tree: ConceptTree) -> frozenset[str]:
+    """The keywords the card's always-on ``CastWithKeyword`` statics give spells
+    that aren't an opponent's (:func:`cast_with_keyword_name`), normalised
+    (:func:`normalised_keyword_name`) — Zhulodok, Void Gorger's ``cascade``."""
+    return frozenset(
+        normalised_keyword_name(name)
+        for unit in tree.iter_units("static")
+        if (name := cast_with_keyword_name(unit.node))
+        and filter_controller(getattr(unit.node, "affected", None)) != "Opponent"
+    )
+
+
 def plays_lands_from_graveyard(unit: AbilityUnit) -> bool:
     """Whether a unit lets you play land cards from your graveyard (CR 116.2a:
     playing a land puts it onto the battlefield "from the zone it was in" —
@@ -5934,6 +5967,28 @@ def unit_is_self_tutor(unit: AbilityUnit) -> bool | None:
     return saw_self or None
 
 
+def self_tutor_found_types(tree: ConceptTree) -> tuple[str, ...]:
+    """The card types the card's own-library searches find, sorted: in a self
+    tutor's unit (:func:`unit_is_self_tutor`), each search of your library
+    (:func:`_self_searches`) by its filter's card types (CR 205.2a; CR 701.23a:
+    a search finds "a card that matches the given description") — Fabricate
+    ``("Artifact",)``, Enlightened Tutor ``("Artifact", "Enchantment")``, Call
+    the Gatewatch ``("Planeswalker",)``. A search for any card (Demonic Tutor)
+    names none."""
+    card_types = PERMANENT_CARD_TYPES | {"Instant", "Sorcery"}
+    found: set[str] = set()
+    for unit in tree.units:
+        if unit_is_self_tutor(unit) is not True:
+            continue
+        for search in _self_searches(unit):
+            found.update(
+                t
+                for t in filter_core_types(getattr(search, "filter", None))
+                if t in card_types
+            )
+    return tuple(sorted(found))
+
+
 #: CR 205.3i's full land-type list, lowercased. The one copy: the land-animate
 #: lanes' narrower set (``lanes/_shared._LAND_SUBTYPE_WORDS``) is derived from it.
 LAND_SUBTYPE_WORDS: frozenset[str] = frozenset(
@@ -7638,25 +7693,142 @@ def keyword_token_creations(
         if e.tag in KEYWORD_ACTION_TOKEN_SUBTYPES and e.yours
     ]
     if granted:
-        for unit in tree.units:
-            for sdef, mod in iter_mod_sites(unit.node, deep=True):
-                tag = tag_of(mod)
-                if tag == "AddKeyword":
-                    name = mod_keyword_name(mod) or ""
-                elif tag == "AddDynamicKeyword":
-                    name = getattr(mod, "kind", None) or ""
-                else:
-                    continue
-                subtype = GRANTED_KEYWORD_TOKEN_SUBTYPES.get(name)
-                if subtype is None:
-                    continue
-                if filter_controller(getattr(sdef, "affected", None)) == "Opponent":
-                    continue
+        for name in yours_granted_keywords(tree):
+            subtype = GRANTED_KEYWORD_TOKEN_SUBTYPES.get(name)
+            if subtype is not None:
                 out.append((name, subtype))
     return tuple(out)
 
 
+def yours_granted_keywords(tree: ConceptTree) -> Iterator[str]:
+    """The name of each keyword the card grants to a permanent or card that isn't
+    an opponent's, in phase's spelling (``"Mobilize"``, ``"Encore"``), one per
+    ``AddKeyword`` / ``AddDynamicKeyword`` modification, wherever it sits (a
+    spell's one-shot ``GenericEffect`` static, a static, a granted body)."""
+    for unit in tree.units:
+        for sdef, mod in iter_mod_sites(unit.node, deep=True):
+            tag = tag_of(mod)
+            if tag == "AddKeyword":
+                name = mod_keyword_name(mod) or ""
+            elif tag == "AddDynamicKeyword":
+                name = getattr(mod, "kind", None) or ""
+            else:
+                continue
+            if (
+                name
+                and filter_controller(getattr(sdef, "affected", None)) != "Opponent"
+            ):
+                yield name
+
+
 # ── end keyword action events ────────────────────────────────────────────────
+
+
+# ── end-step sacrifices and ending the turn (CR 603.7, 724.1) ────────────────
+
+#: The keyword abilities whose definition sets up a one-shot "at the beginning of
+#: the next end step" sacrifice or exile of what the keyword puts onto the
+#: battlefield (normalised, :func:`normalised_keyword_name`): mobilize (CR
+#: 702.181a), encore (702.141a), blitz (702.152a), unearth (702.84a). phase
+#: expands a printed mobilize or unearth into its own delayed trigger; a granted
+#: one, an encore and a blitz stay the keyword. Dash returns its permanent to
+#: hand (702.109a) and myriad exiles its tokens at end of combat (702.116a):
+#: neither is one.
+END_STEP_SACRIFICE_KEYWORDS = frozenset({"mobilize", "encore", "blitz", "unearth"})
+
+
+def _end_step_sacrifice_node(node: object) -> bool:
+    """A ``CreateDelayedTrigger`` that fires at the beginning of the next end step
+    (``AtNextPhase`` ``End``) and sacrifices or exiles a permanent, its own
+    controller doing it: Saheeli, Radiant Creator's and Kiki-Jiki's token copies,
+    Sneak Attack's creature, an unearthed card."""
+    if tag_of(node) != "CreateDelayedTrigger":
+        return False
+    cond = getattr(node, "condition", None)
+    if tag_of(cond) != "AtNextPhase" or getattr(cond, "phase", None) != "End":
+        return False
+    ability = getattr(node, "effect", None)
+    if tag_of(getattr(ability, "player_scope", None)) in ("Opponent", "All"):
+        return False
+    for n in iter_typed_nodes(ability):
+        tag = tag_of(n)
+        if tag == "Sacrifice" or (
+            tag == "ChangeZone"
+            and getattr(n, "origin", None) == "Battlefield"
+            and getattr(n, "destination", None) == "Exile"
+        ):
+            return True
+    return False
+
+
+def end_step_sacrifices(tree: ConceptTree) -> bool:
+    """Whether the card makes or returns permanents of yours that a one-shot
+    delayed trigger sacrifices or exiles at the beginning of the next end step
+    (CR 603.7: an effect creates it; 603.7b: it triggers only once): its own
+    delayed trigger (:func:`_end_step_sacrifice_node`), or a printed or granted
+    keyword whose definition holds one (:data:`END_STEP_SACRIFICE_KEYWORDS` —
+    Sliver Gravemother's encore, Infantry Shield's mobilize). Ending the turn
+    while that trigger waits on the stack exiles it (CR 724.1b) and the
+    permanent stays (Sundial of the Infinite). A trigger printed on the
+    permanent ("At the beginning of the end step, sacrifice ~" — Ball
+    Lightning) fires again every turn, so it is not one. Memoized on the tree."""
+    return memo_on(tree, "_xw_end_step_sacrifices", _end_step_sacrifices)
+
+
+def _end_step_sacrifices(tree: ConceptTree) -> bool:
+    if any(
+        normalised_keyword_name(k) in END_STEP_SACRIFICE_KEYWORDS
+        for k in tree.card_keywords
+    ):
+        return True
+    if tree.has_typed("CreateDelayedTrigger") and any(
+        _end_step_sacrifice_node(n) for n in tree.iter_typed()
+    ):
+        return True
+    return any(
+        normalised_keyword_name(k) in END_STEP_SACRIFICE_KEYWORDS
+        for k in yours_granted_keywords(tree)
+    )
+
+
+def instant_end_turn_unit(
+    tree: ConceptTree, *, repeatable: bool = False
+) -> AbilityUnit | None:
+    """The ability that lets the card end the turn (CR 724.1) while an ability
+    waits on the stack, or ``None``: an ``end_the_turn`` effect in an activated
+    ability that isn't sorcery-timed (CR 117.1b, 602.5d — Sundial of the
+    Infinite) or in an instant or flash spell (CR 117.1a, 702.8a — Time Stop). A
+    sorcery (Day's Undoing) can only be cast with the stack empty (CR 307.1).
+    ``repeatable`` keeps the activated abilities only, usable again each turn: a
+    spell is gone once it resolves (CR 608.2n) or the turn it ends exiles it (CR
+    724.1b). An activation limited to your own turn (Sundial's "Activate only
+    during your turn") still counts: the end step it acts in is yours, where your
+    own next-end-step triggers wait — on the stack (exiled, CR 724.1b) or not yet
+    put there (they cease to exist, 724.1a)."""
+    for unit in tree.units:
+        if not any(c.concept == "end_the_turn" for c in unit.effects):
+            continue
+        if unit.kind == "Activated":
+            restrictions = getattr(unit.node, "activation_restrictions", None)
+            if not isinstance(restrictions, list) or not any(
+                tag_of(r) == "AsSorcery" for r in restrictions
+            ):
+                return unit
+        elif (
+            not repeatable
+            and unit.kind == "Spell"
+            and (
+                tree.is_type("Instant")
+                or "flash" in {normalised_keyword_name(k) for k in tree.card_keywords}
+            )
+        ):
+            return unit
+    return None
+
+
+def ends_turn_at_instant_speed(tree: ConceptTree, *, repeatable: bool = False) -> bool:
+    """Whether the card has an :func:`instant_end_turn_unit`."""
+    return instant_end_turn_unit(tree, repeatable=repeatable) is not None
 
 
 # ── keyword_resource_events (the energy / venture / foretell serve slice) ──────

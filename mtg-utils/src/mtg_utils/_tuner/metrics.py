@@ -27,7 +27,7 @@ from mtg_utils._card_ir.crosswalk import (
     team_buff_sites,
     unbound_x_reach,
 )
-from mtg_utils._card_ir.trees import trees_for
+from mtg_utils._card_ir.trees import object_facts, trees_for
 from mtg_utils._tuner.calibration import COMMANDER, Calibration
 from mtg_utils._tuner.classify import CardClass, is_premium, is_upgrade_target
 from mtg_utils.card_classify import card_pt_int, has_evasion, is_creature
@@ -479,19 +479,48 @@ def focus(
     # granted dies trigger reads as a death payoff) folded into Vampire tribal,
     # and no search held the guide's sacrifice package (Altar of Dementia, Pyre
     # of Heroes, Victimize).
-    tribes = labels_where(
-        lambda sig: sig.key == signal_keys.TYPE_MATTERS and bool(sig.subject)
+    # Nor does a tribe the commander pays off fold into a lane that isn't a
+    # tribe, for the same reason the other way round: the lane's page never
+    # holds the tribe's members beyond it — its changelings (every creature
+    # type, CR 702.73a) and the type-changers that make your creatures the
+    # tribe (Conspiracy). Disa the Restless's Lhurgoyfs (11
+    # deep) folded into "Your graveyard", and no search held the guides'
+    # Changeling Outcast, Conspiracy, Tarmogoyf or Terravore (Graveyard
+    # Overdrive). The commander pays it off when it is no member itself (a
+    # body's own creature types read as ``type_matters`` membership, Zurgo
+    # Stormrender's Orc) and another deck card pays it off too
+    # (``tribal_payoff_subjects``). Saheeli, Radiant Creator's Artificers stay
+    # folded into her artifacts: she is one, and kept apart they read as lane
+    # cards the guides cut (Living Energy, 2026-10-30: two guide cuts fewer).
+    def is_tribe(sig: Signal) -> bool:
+        return sig.key == signal_keys.TYPE_MATTERS and bool(sig.subject)
+
+    tribes = labels_where(is_tribe)
+    commander_facts = [
+        object_facts(c.record) for c in classes if c.bucket == "commander"
+    ]
+    paid_tribes = labels_where(
+        lambda sig: (
+            is_tribe(sig)
+            and (
+                tribal_payoff_subjects is None or sig.subject in tribal_payoff_subjects
+            )
+            and not any(f.has_subtype(sig.subject) for f in commander_facts)
+        )
     )
 
     def folds(lbl: str, kept: Sequence[str], same: Callable[[str, str], bool]) -> bool:
         """``lbl`` is a kept avenue read again (``same``): against any kept
         avenue for an ordinary one, only the commander's other lanes for a lane
         the commander holds (never a tribe, for one as deep as a main —
-        ``tribes``), and only another suit-up read for the suit-up avenue under
-        a creature commander (``suit_up``)."""
+        ``tribes`` — and only another tribe for a tribe a deck card pays off,
+        ``paid_tribes``), and only another suit-up read for the suit-up avenue
+        under a creature commander (``suit_up``)."""
         if lbl in commander_held:
             kept = [k for k in kept if k in commander_held]
-            if lbl not in tribes and depth.get(lbl, 0) >= main_floor:
+            if lbl in paid_tribes:
+                kept = [k for k in kept if k in tribes]
+            elif lbl not in tribes and depth.get(lbl, 0) >= main_floor:
                 kept = [k for k in kept if k not in tribes]
         if lbl in suit_up:
             kept = [k for k in kept if k in suit_up]
@@ -968,6 +997,11 @@ def focus(
         # The viable avenues the commander itself holds (its own lanes), in rank
         # order: the issue remedies deepen these before any emerging direction.
         "commander_avenues": [lbl for lbl in viable if lbl in commander_held],
+        # The tribes among them: a sub that shares the theme adds as a main does
+        # (``issues.Sourcing.theme_avenues``).
+        "commander_tribes": [
+            lbl for lbl in viable if lbl in commander_held and lbl in tribes
+        ],
         # Engine cards that feed only fed / stranded avenues — dead weight here;
         # ``tune`` re-buckets them as filler so the cut ranking sees them.
         "fed_only_cards": sorted(fed_only_names),

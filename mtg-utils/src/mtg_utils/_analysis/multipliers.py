@@ -16,9 +16,18 @@ A card multiplies a commander when it:
   word alone means a permanent);
 - **copies such an ability** (CR 707.10) — a ``CopySpell`` of a stack ability of the
   kind the commander has (Strionic Resonator: triggered; Rings of Brighthearth:
-  non-mana activated, as it's activated);
+  non-mana activated, as it's activated). A triggered keyword the commander gives
+  your spells counts: Zhulodok, Void Gorger's cascade (CR 702.85a: a triggered
+  ability) triggers from a spell you control, so you control it (CR 603.3a) and
+  "Copy target triggered ability you control" reaches it;
 - **lends the commander its activated abilities from another zone** (Thranduil, the
-  Elvenking "has all activated abilities of all Elf cards in your graveyard").
+  Elvenking "has all activated abilities of all Elf cards in your graveyard");
+- **keeps what the commander makes** — an instant-speed end of the turn
+  (``crosswalk.ends_turn_at_instant_speed``: Sundial of the Infinite) under a
+  commander whose permanents a one-shot delayed trigger sacrifices or exiles at the
+  next end step (``crosswalk.end_step_sacrifices``: Saheeli, Radiant Creator's
+  copies, Zurgo Stormrender's mobilize). Ending the turn with that trigger on the
+  stack exiles it (CR 724.1b) and it triggers only once (CR 603.7b), so they stay.
 
 A doubler's cause is matched to the commander's trigger by card TYPE, so Panharmonicon
 ("an artifact or creature entering") doesn't count for a landfall commander even
@@ -48,22 +57,26 @@ from mtg_utils._card_ir.crosswalk import (
 )
 from mtg_utils._card_ir.crosswalk.describe import unit_text
 from mtg_utils._card_ir.crosswalk.reads import (
+    ACTIVATION_TRIGGER_EVENTS,
     ObjectFacts,
     activated_ability_units,
     bypasses_legend_rule,
-    copied_ability_kind,
     double_triggers_cause,
+    end_step_sacrifices,
     filter_admits,
     filter_controller,
     filter_core_types,
     filter_inzone_zones,
     filter_subtypes,
     has_filter_property,
+    instant_end_turn_unit,
     iter_typed_nodes,
     tag_of,
     trigger_caster_scope,
     trigger_subject,
     trigger_zone_changes,
+    unit_copied_ability_kind,
+    yours_cast_keywords,
 )
 from mtg_utils._card_ir.mirror.runtime import TypedMirrorNode
 from mtg_utils._card_ir.trees import object_facts, trees_for
@@ -83,9 +96,15 @@ _STACK_ABILITY_KINDS = {
 }
 
 
+#: The triggered keywords a ``CastWithKeyword`` static can give your spells, whose
+#: triggers you control (CR 603.3a): cascade (CR 702.85a) and storm (702.40a), each
+#: "a triggered ability" by its definition.
+_SPELL_TRIGGER_KEYWORDS = frozenset({"cascade", "storm"})
+
 #: Each :attr:`Multiplication.kind` → its family: ``"copy"`` (a copy of the
-#: commander), ``"ability"`` (copies or extra triggers of its abilities) or
-#: ``"zone_grant"``. The one place a kind's family is decided.
+#: commander), ``"ability"`` (copies or extra triggers of its abilities),
+#: ``"zone_grant"`` or ``"keep"`` (what it makes stays). The one place a kind's
+#: family is decided.
 KIND_FAMILY: dict[str, str] = {
     "create_token_copy": "copy",
     "becomes_copy": "copy",
@@ -95,6 +114,7 @@ KIND_FAMILY: dict[str, str] = {
     "copy_activated_or_triggered": "ability",
     "trigger_doubler": "ability",
     "zone_grant": "zone_grant",
+    "keeps_end_step_sacrifices": "keep",
 }
 
 
@@ -179,6 +199,16 @@ class Commander:
             ability_texts(self.trees, include_mana=False)
         )
         self.activated = bool(self.activated_texts)
+        #: Whether it has a triggered ability a copier can copy: its own, or a
+        #: triggered keyword it gives your spells (:data:`_SPELL_TRIGGER_KEYWORDS`
+        #: — Zhulodok, Void Gorger's cascade).
+        self.copyable_triggers = bool(self.triggers) or any(
+            not _SPELL_TRIGGER_KEYWORDS.isdisjoint(yours_cast_keywords(tree))
+            for tree in self.trees
+        )
+        #: Whether a one-shot delayed trigger sacrifices or exiles what it makes
+        #: at the next end step (``crosswalk.end_step_sacrifices``).
+        self.sacrifices_at_end_step = any(end_step_sacrifices(t) for t in self.trees)
 
     def doubled_by(
         self, affected: object, cause: str, cause_types: tuple[str, ...]
@@ -364,7 +394,8 @@ def _copy_reason(
         return kind, f"copies {cmd.name}"
     if tag != "CopySpell":
         return None
-    if unit.trigger_event in ("abilityactivated", "loyaltyabilityactivated"):
+    kind = unit_copied_ability_kind(unit, node)
+    if unit.trigger_event in ACTIVATION_TRIGGER_EVENTS:
         # Rings of Brighthearth / Illusionist's Bracers copy an activated ability as
         # it's activated — an ability of whatever the trigger watches; Rowan's
         # Talent a loyalty ability of the planeswalker it enchants (CR 606.1).
@@ -372,7 +403,6 @@ def _copy_reason(
         if cmd.activated and (watched is None or _can_be(watched, unit, tree, cmd)):
             return "copy_activated_ability", f"copies {cmd.name}'s activated abilities"
         return None
-    kind = copied_ability_kind(node)
     if kind is None:  # a spell copy: Double Major, Echoes of Eternity's cast copy
         if any(tag_of(n) == "CastFromZone" for n in unit.iter_typed()):
             # Copying a card to cast the copy (CR 707.12) — Zethi's exiled
@@ -389,11 +419,33 @@ def _copy_reason(
             # colorless Eldrazi commander does), Verazol's kicked spell.
             return None
         return "copy_commander_spell", f"copies {cmd.name} as it's cast"
-    if (kind in ("Triggered", "Any") and cmd.triggers) or (
+    if (kind in ("Triggered", "Any") and cmd.copyable_triggers) or (
         kind in ("Activated", "Any") and cmd.activated
     ):
         return _STACK_ABILITY_KINDS[kind], f"copies {cmd.name}'s abilities"
     return None
+
+
+def _keep_reason(tree: ConceptTree, cmd: Commander) -> Multiplication | None:
+    """The card ends the turn at instant speed, again each turn, under a commander
+    whose permanents a one-shot delayed trigger sacrifices or exiles at the next
+    end step: ended with that trigger on the stack, the turn exiles it (CR
+    724.1b) and it never triggers again (CR 603.7b; Obeka, Brute Chronologist's
+    ruling) — Sundial of the Infinite under Saheeli, Radiant Creator. The
+    commander's trigger comes back every turn, so a one-shot spell (Time Stop)
+    keeps one turn's worth and is no multiplier
+    (``instant_end_turn_unit(repeatable=True)``)."""
+    if not cmd.sacrifices_at_end_step:
+        return None
+    unit = instant_end_turn_unit(tree, repeatable=True)
+    if unit is None:
+        return None
+    return Multiplication(
+        "keeps_end_step_sacrifices",
+        unit_text(unit, tree.name),
+        f"ends the turn with {cmd.name}'s end-step sacrifice on the stack, "
+        "so what it made stays",
+    )
 
 
 def _reasons(card_trees: Sequence[ConceptTree], cmd: Commander) -> list[Multiplication]:
@@ -419,6 +471,9 @@ def _reasons(card_trees: Sequence[ConceptTree], cmd: Commander) -> list[Multipli
                         f"doubles {cmd.name}'s triggered abilities",
                     )
                 )
+        keep = _keep_reason(tree, cmd)
+        if keep is not None:
+            out.append(keep)
     return out
 
 

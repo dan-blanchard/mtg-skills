@@ -471,6 +471,19 @@ SPECS_3: dict[tuple[str, str], SignalSpec] = {
         None,
         serve_idents=frozenset({"end_the_turn|you|"}),
     ),
+    # The pair of end_the_turn: permanents a one-shot "at the beginning of the next
+    # end step" delayed trigger sacrifices or exiles (CR 603.7b — mobilize, encore,
+    # Saheeli's and Kiki-Jiki's copies). Ending the turn while that trigger waits on
+    # the stack exiles it (CR 724.1b) and they stay; only an instant-speed ending
+    # can (CR 117.1a / 117.1b — Sundial of the Infinite, Time Stop; never Day's
+    # Undoing, a sorcery, CR 307.1).
+    ("end_step_sacrifice", "you"): _spec(
+        "End-step sacrifices",
+        "tokens and creatures your effects sacrifice or exile at the next end step, "
+        "plus instant-speed end-the-turn effects that keep them",
+        None,
+        serve_idents=frozenset({"end_step_sacrifice|you|", "end_the_turn|you|instant"}),
+    ),
     ("trigger_doubling", "you"): _spec(
         *SWEEP_LABELS["trigger_doubling"],
         # Serve idents (2026-10-18): the regex matched exactly the lane's own cards; the

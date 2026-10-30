@@ -51,6 +51,8 @@ from mtg_utils._card_ir.crosswalk import (
     effect_filter,
     effect_owner_player_scope,
     effects_exclusive,
+    end_step_sacrifices,
+    ends_turn_at_instant_speed,
     exiled_library_side,
     filter_controller,
     filter_core_types,
@@ -2349,9 +2351,31 @@ def _end_the_turn(tree: ConceptTree) -> list[Signal]:
     covers both. Distinct from ``ExtraTurn`` (``extra_turns`` — Time Warp) and an
     ``EndCombatPhase`` fog: different effect tags, never read here. Scope "you"
     (the build-around marker the live forces).
+
+    Subject ``instant`` beside it: the card can end the turn while an ability
+    waits on the stack (``crosswalk.ends_turn_at_instant_speed`` — an activated
+    ability that isn't sorcery-timed, an instant or flash spell), the
+    ``end_step_sacrifice`` pair's payoff.
     """
     for c in tree.effect_concepts("end_the_turn"):
-        return [Signal("end_the_turn", "you", "", c.raw, tree.name, "high")]
+        out = [Signal("end_the_turn", "you", "", c.raw, tree.name, "high")]
+        if ends_turn_at_instant_speed(tree):
+            out.append(Signal("end_the_turn", "you", "instant", "", tree.name, "high"))
+        return out
+    return []
+
+
+def _end_step_sacrifice(tree: ConceptTree) -> list[Signal]:
+    """end_step_sacrifice — the card puts permanents onto your battlefield that a
+    one-shot delayed trigger sacrifices or exiles at the beginning of the next end
+    step (``crosswalk.end_step_sacrifices``, CR 603.7 / 603.7b): Saheeli, Radiant
+    Creator's and Kiki-Jiki's token copies, Zurgo Stormrender's mobilize Warriors
+    (CR 702.181a), Sliver Gravemother's encore (702.141a), Sneak Attack's creature.
+    The payoff is ``end_the_turn`` at instant speed: ending the turn while the
+    trigger waits on the stack exiles it (CR 724.1b), so what it would sacrifice
+    stays (Sundial of the Infinite's rulings). Scope "you"."""
+    if end_step_sacrifices(tree):
+        return [Signal("end_step_sacrifice", "you", "", "", tree.name, "high")]
     return []
 
 
@@ -2593,6 +2617,7 @@ LANES = (
     _blocked_matters,
     _initiative,
     _end_the_turn,
+    _end_step_sacrifice,
     _opponent_exile_makers,
     _spellcast_subjects,
     _domain_enablers,

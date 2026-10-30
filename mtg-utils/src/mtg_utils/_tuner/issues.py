@@ -18,8 +18,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, NamedTuple
 
+from mtg_utils._analysis.multipliers import Commander, multiplier_reasons
 from mtg_utils._analysis.roles import ROLE_SEARCH, protects
-from mtg_utils._analysis.signal_specs import avenue_spec_for
+from mtg_utils._analysis.signal_specs import Serve, avenue_spec_for
 from mtg_utils._tuner.metrics import CALIBRATION_GAME, is_wincon_card
 from mtg_utils.combo_search import ends_the_game
 
@@ -45,6 +46,31 @@ ROW_SEARCH: dict[str, dict] = {
 # a self-hexproof creature fills no protection slot, so it isn't suggested for one.
 PROTECTION_SEARCH = {"preset_names": ("protects-board",)}
 WINCON_SEARCH = {"oracle": r"wins the game|an additional combat phase|deals damage"}
+
+#: The ``commander_keeps`` page: the cards that end the turn at instant speed
+#: (``end_the_turn|you|instant``), each then read against the commander
+#: (:func:`keep_search`).
+_KEEP_SERVE = Serve(signal_idents=frozenset({"end_the_turn|you|instant"}))
+
+
+def keep_search(commanders: Sequence[Mapping]) -> dict | None:
+    """The ``commander_keeps`` issue's search, or ``None`` when no commander's
+    permanents go at the next end step (``multipliers.Commander``'s
+    ``sacrifices_at_end_step``): the end-the-turn page held to the cards that keep
+    them every turn (``multipliers``' ``"keep"`` family — Sundial of the
+    Infinite under Saheeli, Radiant Creator; CR 724.1b). Every guide whose
+    commander makes such tokens adds Sundial (four precons, 2026-10-30)."""
+    cmds = [cmd for cmd in map(Commander, commanders) if cmd.sacrifices_at_end_step]
+    if not cmds:
+        return None
+
+    def keeps(card: Mapping, **_kw: object) -> bool:
+        return any(
+            r.family == "keep" for cmd in cmds for r in multiplier_reasons(card, cmd)
+        )
+
+    return {"_serve": _KEEP_SERVE, "_filter": keeps}
+
 
 # Efficiency curve issues → a CMC band to add into, scoped to the deck's main theme.
 _EFFICIENCY_BANDS: dict[str, dict] = {
@@ -210,11 +236,14 @@ class Sourcing:
         budgets: Mapping[str, dict],
         *,
         game: Game = CALIBRATION_GAME,
+        keep: dict | None = None,
     ) -> None:
         self._focus = focus_result
         self._signals = deck_signals
         self._budgets = budgets
         self._game = game
+        #: The ``commander_keeps`` search (:func:`keep_search`), or None.
+        self.keep = keep
 
     # ── Spine roles ─────────────────────────────────────────────────────────────
 
@@ -267,10 +296,14 @@ class Sourcing:
         Artifacts) took the adds (2026-10-24, the 25 precons: 35 guide-matching
         adds against 50); over the mains, a deck reading two (Squirreled
         Away's Squirrels and Sacrifice, Virtue and Valor's Enchantments and
-        Voltron) adds for both."""
+        Voltron) adds for both. A tribe the commander holds shares them too,
+        whatever its tier (``focus``'s ``commander_tribes``): its page is the
+        tribe's own members, which no other page holds (Disa the Restless's
+        Lhurgoyfs and changelings beside her graveyard main)."""
+        tribes = set(self._focus.get("commander_tribes") or ())
         out = []
         for a in self._focus["viable_avenues"]:
-            if a.get("tier") != "main":
+            if a.get("tier") != "main" and a["label"] not in tribes:
                 continue
             spec = self.avenue(a["label"])
             if spec is not None:
@@ -406,6 +439,11 @@ class Sourcing:
             if spec is None:
                 spec = self.main_avenue()
             return Remedy(spec, cut_from=cut_over(role or ""), drain=True)
+        if kind == "commander_keeps":
+            # One card that keeps what the commander makes: one swap, which may
+            # take a jobless upgrade slot or a lane slot as a closer does — by
+            # then the dead-weight drain has emptied the generic pool.
+            return Remedy(self.keep, lane_ok=True) if self.keep is not None else None
         if kind in ("near_miss_combo", "meta_core_missing"):
             # One named card: the combo's missing piece, or a core card of the
             # deck's meta archetype. Search for exactly that card. A game-ending
@@ -650,6 +688,19 @@ def top_issues(
                 message=f"{missing} completes {' + '.join(others)} → {result}",
                 terminal=terminal,
                 relies_on=tuple(others),
+            )
+        )
+
+    if sourcing.keep is not None:
+        # The commander's tokens kept every turn: Sundial of the Infinite under
+        # Saheeli, Radiant Creator (her copies stay). A nudge (2), as a value
+        # near-miss is.
+        issues.append(
+            sourcing.issue(
+                "commander_keeps",
+                severity=2,
+                message="the commander's end-step sacrifices go — an "
+                "instant-speed end of the turn keeps them",
             )
         )
 

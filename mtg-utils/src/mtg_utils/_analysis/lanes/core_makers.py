@@ -110,6 +110,7 @@ from mtg_utils._card_ir.crosswalk import (
     trigger_scope,
     trigger_subject,
     trigger_subject_scope,
+    unit_copied_ability_kind,
     walk_effect_chain,
     watches_itself,
 )
@@ -235,8 +236,18 @@ def _spell_copy_makers(tree: ConceptTree) -> list[Signal]:
     Mirrors the deleted ``_signals_ir``'s line ~8684: a ``copy_spell`` effect →
     spell_copy_makers
     you. Distinct from clone (creatures-on-battlefield) and token-copy.
+
+    phase's ``CopySpell`` also copies abilities on the stack, and a copy of an
+    ability is an ability, never a spell (CR 707.10): an ability copier
+    (``crosswalk.unit_copied_ability_kind`` — Strionic Resonator, Rings of
+    Brighthearth, Illusionist's Bracers) is ``ability_copy``'s, not this lane's.
     """
-    hits = tree.effect_concepts("copy_spell")
+    hits = [
+        c
+        for unit in tree.units
+        for c in unit.effects
+        if c.concept == "copy_spell" and unit_copied_ability_kind(unit, c.node) is None
+    ]
     if not hits:
         return []
     out = [Signal("spell_copy_makers", "you", "", hits[0].raw, tree.name, "high")]

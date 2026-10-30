@@ -12,8 +12,10 @@ from mtg_utils._tuner.issues import (
     WINCON_SEARCH,
     Sourcing,
     cut_over,
+    keep_search,
     top_issues,
 )
+from mtg_utils.testkit import test_card
 
 
 def _band(current, lo, hi, **extra):
@@ -72,7 +74,7 @@ def _every_issue():
         },
         protection_r={"status": "low", "count": 0, "target": 3},
         commander_r={"misfit": True, "serves_viable": [], "viable_count": 1},
-        sourcing=Sourcing(focus_r, [], budgets),
+        sourcing=Sourcing(focus_r, [], budgets, keep={"_serve": None}),
         near_misses=[_NEAR_MISS],
     )
 
@@ -107,6 +109,7 @@ def test_every_emitted_kind_has_a_decided_remedy():
         "efficiency",
         "commander_misfit",
         "near_miss_combo",
+        "commander_keeps",
         "upgrade",
     }
     # No swap fixes a commander or a plan — and nothing else is silently unsourced
@@ -405,3 +408,45 @@ def test_the_interaction_search_finds_any_of_its_presets():
         "Counterspell",
     }
     assert found(preset_names=_INTERACTION_PRESETS) == set()
+
+
+def test_the_keep_is_sourced_only_under_a_commander_whose_tokens_go():
+    """Saheeli, Radiant Creator's copies are sacrificed at the next end step: the
+    keep page holds the instant-speed ends of the turn, held to the ones that keep
+    them every turn (Sundial of the Infinite, not Time Stop — CR 724.1b, 608.2n).
+    Krenko, Mob Boss's Goblins stay: nothing to keep."""
+    assert keep_search([test_card("Krenko, Mob Boss")]) is None
+    spec = keep_search([test_card("Saheeli, Radiant Creator")])
+    assert spec is not None
+    assert spec["_serve"].matches(test_card("Time Stop"))
+    assert spec["_filter"](test_card("Sundial of the Infinite"))
+    assert not spec["_filter"](test_card("Time Stop"))
+    keep = Sourcing(_focus(), [], {}, keep=spec).remedy_for("commander_keeps")
+    # One swap, which may take a jobless upgrade slot or a lane slot.
+    assert (keep.spec, keep.lane_ok, keep.drain) == (spec, True, False)
+    assert Sourcing(_focus(), [], {}).remedy_for("commander_keeps") is None
+
+
+def test_a_tribe_the_commander_holds_shares_the_theme_whatever_its_tier():
+    from mtg_utils._analysis.signal_specs import spec_for
+    from mtg_utils._analysis.signals import Signal
+
+    sigs = [
+        Signal(key="graveyard_matters", scope="you", subject="", text="", source="x"),
+        Signal(
+            key="type_matters", scope="you", subject="Lhurgoyf", text="", source="x"
+        ),
+    ]
+    main, tribe = (spec_for(s).label for s in sigs)
+    src = Sourcing(
+        _focus(
+            viable=[
+                {"label": main, "tier": "main", "depth": 28},
+                {"label": tribe, "tier": "sub", "depth": 11},
+            ],
+            commander_tribes=[tribe],
+        ),
+        sigs,
+        {},
+    )
+    assert [label for label, _d, _s in src.theme_avenues()] == [main, tribe]

@@ -325,3 +325,43 @@ def test_a_dies_doubler_reaches_a_folded_zone_change_commander():
     konrad = test_card("Syr Konrad, the Grim")
     assert set(commander_multipliers([teysa], [konrad])) == {"Teysa Karlov"}
     assert commander_multipliers([teysa], [EDGAR]) == {}
+
+
+def test_a_trigger_copier_copies_a_cascade_the_commander_grants():
+    """Zhulodok, Void Gorger has no trigger of its own: it gives your colorless
+    spells cascade, a triggered ability (CR 702.85a) you control, since you control
+    its source (CR 603.3a) — what Strionic Resonator's "Copy target triggered
+    ability you control" targets (its ruling: the copy's source is the original's)."""
+    zhulodok = test_card("Zhulodok, Void Gorger")
+    strionic = test_card("Strionic Resonator")
+    rings = test_card("Rings of Brighthearth")
+    assert set(commander_multipliers([strionic, rings], [zhulodok])) == {
+        "Strionic Resonator"
+    }
+
+
+def test_an_activation_copier_multiplies_an_activated_commander():
+    # Illusionist's Bracers copies the equipped creature's non-mana activated
+    # ability as it's activated: Dina, Essence Brewer's sacrifice ability.
+    bracers = test_card("Illusionist's Bracers")
+    reasons = multiplier_reasons(bracers, Commander(test_card("Dina, Essence Brewer")))
+    assert [r.kind for r in reasons] == ["copy_activated_ability"]
+
+
+def test_a_repeatable_end_of_the_turn_keeps_a_commanders_end_step_sacrifices():
+    """Saheeli, Radiant Creator's copy is sacrificed by a one-shot delayed trigger
+    at the next end step (CR 603.7b). Sundial of the Infinite ends the turn with it
+    on the stack: the turn exiles it (CR 724.1b) and it won't trigger again (Obeka,
+    Brute Chronologist's ruling). Time Stop does the same once and is gone (CR
+    608.2n); Day's Undoing is a sorcery (CR 307.1)."""
+    saheeli = Commander(test_card("Saheeli, Radiant Creator"))
+    assert saheeli.sacrifices_at_end_step
+    sundial = multiplier_reasons(test_card("Sundial of the Infinite"), saheeli)
+    assert [(r.kind, r.family) for r in sundial] == [
+        ("keeps_end_step_sacrifices", "keep")
+    ]
+    assert multiplier_reasons(test_card("Time Stop"), saheeli) == []
+    assert multiplier_reasons(test_card("Day's Undoing"), saheeli) == []
+    # A commander whose tokens stay keeps nothing by it.
+    krenko = Commander(KRENKO)
+    assert multiplier_reasons(test_card("Sundial of the Infinite"), krenko) == []

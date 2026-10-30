@@ -733,6 +733,58 @@ def test_a_shallower_held_lane_still_folds_into_a_held_tribe():
     assert fr["commander_avenues"] == [tribe]
 
 
+def _held_tribe_in_a_lane(commander: str, subject: str, payoffs: frozenset[str]):
+    """Graveyard Overdrive's shape in miniature: the commander holds a tribe and a
+    graveyard lane, and every member of the tribe also feeds the lane."""
+    tribe = spec_for(_sig("type_matters", subject=subject)).label
+    lane = spec_for(_sig("graveyard_matters")).label
+    lead = replace(
+        _cc(commander, "commander", [tribe, lane]), record=test_card(commander)
+    )
+    classes = [lead]
+    classes += [_cc(f"{subject} {i}", "engine", [tribe, lane]) for i in range(11)]
+    classes += [_cc(f"Mill {i}", "engine", [lane]) for i in range(20)]
+    fr = focus(
+        classes,
+        deck_size=100,
+        deck_signals=[
+            _sig("type_matters", subject=subject),
+            _sig("graveyard_matters"),
+        ],
+        commander_idents=frozenset(
+            {("type_matters", "you", subject), ("graveyard_matters", "you", "")}
+        ),
+        tribal_payoff_subjects=payoffs,
+    )
+    return fr, tribe, lane
+
+
+def test_a_tribe_the_commander_pays_off_never_folds_into_a_lane():
+    """Disa the Restless (a Human Scout) pays off Lhurgoyfs, and another deck card
+    does too: the tribe's page holds its changelings and type-changers (CR
+    702.73a), which the graveyard lane's page never does, so the two stay apart
+    and the tribe shares the theme adds."""
+    fr, tribe, lane = _held_tribe_in_a_lane(
+        "Disa the Restless", "Lhurgoyf", frozenset({"Lhurgoyf"})
+    )
+    assert fr["commander_avenues"] == [lane, tribe]
+    assert fr["commander_tribes"] == [tribe]
+
+
+def test_a_tribe_still_folds_when_the_commander_is_a_member_or_no_card_pays_it():
+    # Saheeli, Radiant Creator is an Artificer: her own creature type reads as
+    # membership. And a tribe no other deck card pays off is the commander's alone.
+    fr, _tribe, lane = _held_tribe_in_a_lane(
+        "Saheeli, Radiant Creator", "Artificer", frozenset({"Artificer"})
+    )
+    assert fr["commander_avenues"] == [lane]
+    assert fr["commander_tribes"] == []
+    fr, _tribe, lane = _held_tribe_in_a_lane(
+        "Disa the Restless", "Lhurgoyf", frozenset()
+    )
+    assert fr["commander_avenues"] == [lane]
+
+
 def _suit_up_deck(commander: str):
     """Virtue and Valor's shape in miniature: 27 Auras serve both Enchantments
     and Voltron, four creatures serve Voltron alone and ten enchantments

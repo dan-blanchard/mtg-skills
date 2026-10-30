@@ -190,13 +190,15 @@ def detect_commander_multiplication(card: dict, cmd: CommanderProfile) -> dict:
     Returns a dict with:
         - commander_copy: ``{"type", "clause"}`` per way it copies the commander
         - ability_copy: the same per way it copies or doubles its abilities
+        - keeps: the same per way it keeps what the commander makes (an
+          instant-speed end of the turn over its end-step sacrifice)
         - legend_bypass: whether the card gets around the legend rule
         - commander_triggers_affected: the commander's trigger types
         - commander_activated_abilities: the commander's non-mana activated
           abilities (both only when the card copies or multiplies)
     """
     reasons = multiplier_reasons(card, cmd)
-    by_family: dict[str, list[dict]] = {"copy": [], "ability": []}
+    by_family: dict[str, list[dict]] = {"copy": [], "ability": [], "keep": []}
     for r in reasons:
         if r.family in by_family:
             by_family[r.family].append({"type": r.kind, "clause": r.clause})
@@ -204,6 +206,7 @@ def detect_commander_multiplication(card: dict, cmd: CommanderProfile) -> dict:
     return {
         "commander_copy": by_family["copy"],
         "ability_copy": by_family["ability"],
+        "keeps": by_family["keep"],
         "legend_bypass": _any_tree(card, bypasses_legend_rule),
         "commander_triggers_affected": list(cmd.trigger_types) if multiplies else [],
         "commander_activated_abilities": (
@@ -323,6 +326,8 @@ def _summarize_multiplication(mult: dict) -> str:
         reasons.append("commander_copy")
     if mult.get("ability_copy"):
         reasons.append("ability_copy")
+    if mult.get("keeps"):
+        reasons.append("keeps")
     if mult.get("legend_bypass"):
         reasons.append("legend_bypass")
     if not reasons:

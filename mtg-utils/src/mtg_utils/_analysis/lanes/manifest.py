@@ -189,6 +189,9 @@ SERVED_SIGNAL_KEYS: frozenset[str] = frozenset(
         "initiative_makers",
         "initiative_matters",
         "end_the_turn",
+        # its pair: the permanents a one-shot next-end-step delayed trigger
+        # sacrifices or exiles, which ending the turn keeps (CR 724.1b)
+        "end_step_sacrifice",
         "opponent_exile_makers",
         "boast_makers",
         "exhaust_makers",

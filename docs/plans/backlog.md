@@ -186,14 +186,19 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   only the player or planeswalker it attacks, by its own text).
   (m) **Recall** (`precon-audit/misses.py`, at the largest guide's thirty
   swaps and each precon's own guides' budget, `budgets.json`, Spellbook cached):
-  330 of 505 cuttable guide cuts, 109 of 793 in-scope guide adds, 721 swaps;
-  held-out 139 of 216 / 34 of 407, 297 swaps. The scoreboard
+  329 of 505 cuttable guide cuts, 114 of 793 in-scope guide adds, 715 swaps;
+  held-out 139 of 216 / 35 of 407, 297 swaps (2026-10-30, the signal-gap pass:
+  Sundial of the Infinite in all four guide decks, Graveyard Overdrive's Six,
+  Tarmogoyf and Terravore; Mardu Surge's Sundial spends the budget its last five
+  upgrades had, one guide cut fewer; Jace unchanged. Before it 330 / 109, 721
+  swaps; held-out 139 / 34). The scoreboard
   (`precon-audit/scoreboard.py`, the audit's "The scoreboard", 2026-10-30) adds
   two reported numbers, not gates: near-misses (a tuner add standing in for a
   missed guide add by job subtype or shared deck signal; 13 of 20 sampled pairs
-  held up by the rules) 71 on the 25, 29 held-out, 2 on Jace; consensus guide
-  cards (named by 2+ guides) matched, adds 39 of 137 / cuts 122 of 169 on the
-  25, 6 of 52 / 37 of 53 held-out, Jace 0 of 2 / 7 of 10. (The baseline is
+  held up by the rules) 70 on the 25 (71 before the signal-gap pass), 29
+  held-out, 2 on Jace; consensus guide cards (named by 2+ guides) matched, adds
+  39 of 137 / cuts 121 of 169 on the 25 (122 before), 6 of 52 / 37 of 53
+  held-out, Jace 0 of 2 / 7 of 10. (The baseline is
   from 2026-10-29, after the guide-row fix: 108 rows that joined cards with commas or misspelled them now name real
   cards, and the audit scripts no longer split "Dusk // Dawn" at its second
   slash; the larger add counts raise 14 precons' budgets. Before it, on the old
@@ -610,6 +615,43 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   hits, so every regex → ident conversion thins clause breadth (Empty the
   Warrens' token clause 8 → 6 lanes); attributing an ident hit to the clause
   its signal came from belongs in the ranking module.
+
+**From the no-search guide adds' signal gaps (2026-10-30; bucket D of
+`~/mtg/tuner-work/w27/nosearch_buckets.tsv`)**
+
+- **What the four gaps' fixes still don't page.** Shipped: `end_step_sacrifice`
+  and `end_the_turn|you|instant`, the `commander_keeps` issue (Sundial in all four
+  guide decks), tutor subjects (`tutor|you|<card type>`), ability copiers no longer
+  read as spell copiers, multipliers seeing a granted cascade, and a paid tribe the
+  commander isn't in kept apart from its lane. Still unpaged: Fabricate (Deep Clue
+  Sea's Artifacts is a sub), Enlightened Tutor (Lorehold Spirit), Expedition Map
+  (Desert Bloom's Deserts is a sub; Eldrazi Unbound has no land page) and Moonsilver
+  Key. Call the Gatewatch and Firemind's Foresight are on their theme's serve but
+  below the 150-card play-rate page, which is lever (r). Arena Rector, Changeling
+  Outcast and Conspiracy are on a page now and get outranked. A subject's serve
+  for the land-type and Artifacts avenues was not tried.
+- **Measured negative, so don't re-suggest without a new read: a commander
+  ability-multiplier page** (2026-10-30). This is a `commander_keeps`-style issue
+  for the ability copiers and trigger doublers that `multiplier_reasons` says
+  reach the commander. It added the guides' Strionic Resonator (Eldrazi Unbound)
+  and Weaver of Harmony (Enduring Enchantments), and cost four held-out guide adds
+  (34 → 31 with it, 35 without). Its one swap takes the first upgrade cut, so
+  World Shaper's theme upgrades shift down a slot and Tannuk, Valakut Exploration
+  and World Shaper fall off the end. Strionic Resonator, Lithoform Engine and
+  Illusionist's Bracers stay unpaged, though `commander_multipliers` protects
+  them once they're in a deck.
+- **Two reads to fold into one (review, 2026-10-30).** (a) Three versions of
+  "at instant speed" exist and disagree:
+  `crosswalk.instant_end_turn_unit` (an instant or flash spell, or an
+  activation without `AsSorcery`), `job_quality/protection._timely`, and
+  `job_quality/removal`, which counts every activation as instant speed. One
+  unit-level crosswalk read should replace all three, with the job reads
+  re-measured. (b) phase's `CopySpell` maps to the `copy_spell` concept for
+  ability copies too (`crosswalk/core.py`). `_spell_copy_makers` filters them
+  out with `unit_copied_ability_kind`, but the value-engine synthesis
+  (`tree_synthesis/value_engines.py`) and the ledger's copy-spell gap check
+  (`bridge_ledger.py`) still count Strionic Resonator as a spell copy. The fix
+  is to split the concept where it is assigned.
 
 **From the Fynn, the Fangbearer real-deck validation (2026-10-29; `real-deck-validation.md`)**
 

@@ -101,6 +101,7 @@ from mtg_utils._card_ir.crosswalk import (
     recursion_card_types,
     replays_own_permanent,
     sacrifice_names_no_player,
+    self_tutor_found_types,
     settap_state,
     static_mode_field,
     static_mode_tag,
@@ -1583,6 +1584,11 @@ def _tutor_lane(tree: ConceptTree) -> list[Signal]:
       pre-reroute behavior verbatim.
 
     Scope "you", HIGH.
+
+    Subject: beside the subject-less ident, one per card type the search finds
+    (``crosswalk.self_tutor_found_types``, CR 701.23a) — ``tutor|you|Planeswalker``
+    for Call the Gatewatch, ``Artifact`` and ``Enchantment`` for Enlightened Tutor
+    — so a theme of that type pages its tutors.
     """
     if any(c.concept == "synth_tutor_directed" for c in tree.iter_concepts()):
         return []
@@ -1591,7 +1597,13 @@ def _tutor_lane(tree: ConceptTree) -> list[Signal]:
             land_fetch, other = structural_land_fetch_split(tree)
             if land_fetch and not other:
                 return []  # pure land fetch: the ramp lane serves it
-        return [Signal("tutor", "you", "", "", tree.name, "high")]
+        return [
+            Signal("tutor", "you", "", "", tree.name, "high"),
+            *(
+                Signal("tutor", "you", found, "", tree.name, "high")
+                for found in self_tutor_found_types(tree)
+            ),
+        ]
     for c in tree.iter_concepts():
         if c.concept == "synth_tutor":
             return [Signal("tutor", "you", "", "", tree.name, "high")]
