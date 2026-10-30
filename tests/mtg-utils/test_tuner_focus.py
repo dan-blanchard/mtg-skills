@@ -1580,3 +1580,64 @@ def test_the_gear_a_voltron_commander_attaches_is_its_lanes_own():
     )
     assert {c.name for c in gear} <= set(fr["commander_lane_cards"])
     assert fr["upgrade_cards"] == ["Clunky Removal"]
+
+
+def test_a_commander_lane_doer_is_never_fed_only():
+    # Fynn v6: Venerated Rotpriest poisons (the commander's own lane) and
+    # serves only a fed avenue (Proliferate); it was cut as filler. A card
+    # serving the commander's lane is never dead weight, however shallow the
+    # lane, as the low-value tier already holds.
+    clues = spec_for(_sig("clue_makers")).label
+    poison = spec_for(_sig("poison_makers", "opponents")).label
+    proliferate = spec_for(_sig("proliferate_makers")).label
+    classes = [_cc("Fynn", "commander", [poison])]
+    classes += [_cc(f"Clue {i}", "engine", [clues]) for i in range(20)]
+    classes += [_cc("Rotpriest", "engine", [proliferate])]
+    classes += [_cc(f"Other {i}", "engine", [proliferate]) for i in range(10)]
+    fr = focus(
+        classes,
+        deck_size=100,
+        deck_signals=[
+            _sig("clue_makers"),
+            _sig("poison_makers", "opponents"),
+            _sig("proliferate_makers"),
+        ],
+        commander_idents=frozenset({("poison_makers", "opponents", "")}),
+        emitters={
+            ("clue_matters", "you", ""): frozenset(f"Clue {i}" for i in range(8)),
+            ("poison_makers", "opponents", ""): frozenset({"Fynn", "Rotpriest"}),
+        },
+    )
+    assert "Rotpriest" in fr["commander_lane_cards"]
+    assert "Rotpriest" not in fr["fed_only_cards"]
+    assert "Other 0" in fr["fed_only_cards"]
+
+
+def test_a_folded_held_lanes_doers_are_not_the_commanders_lane_cards():
+    # Fynn v4: the poison lane's members are mostly Deathtouch matters members,
+    # so it folds into it, and its doers stop counting as the lane's. Keeping
+    # them, even only those inside the kept lane's members (Infectious Bite,
+    # a bite that poisons), cost four to six guide cuts on the 25 precons
+    # (2026-10-30): the guides cut a folded lane's doers (Quick Draw's spell
+    # copies and top-deck selection).
+    lane = spec_for(_sig("death_matters")).label
+    poison = spec_for(_sig("poison_makers", "opponents")).label
+    classes = [_cc("Fynn", "commander", [lane, poison])]
+    classes += [_cc(f"Body {i}", "engine", [lane]) for i in range(25)]
+    classes += [_cc("Bite", "engine", [lane, poison])]
+    classes += [_cc("Stray", "engine", [])]
+    fr = focus(
+        classes,
+        deck_size=100,
+        deck_signals=[_sig("death_matters"), _sig("poison_makers", "opponents")],
+        commander_idents=frozenset(
+            {("death_matters", "you", ""), ("poison_makers", "opponents", "")}
+        ),
+        emitters={
+            ("death_matters", "you", ""): frozenset({"Fynn", "Body 0"}),
+            ("poison_makers", "opponents", ""): frozenset({"Fynn", "Bite", "Stray"}),
+        },
+    )
+    assert fr["commander_avenues"] == [lane]  # poison folded into it
+    assert "Bite" not in fr["commander_lane_cards"]
+    assert "Stray" not in fr["commander_lane_cards"]

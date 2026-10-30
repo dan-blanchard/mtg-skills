@@ -32,7 +32,7 @@ from mtg_utils._tuner.calibration import COMMANDER, Calibration
 from mtg_utils._tuner.classify import CardClass, is_premium, is_upgrade_target
 from mtg_utils.card_classify import card_pt_int, has_evasion, is_creature
 from mtg_utils.formats import Game
-from mtg_utils.theme_presets import get_preset
+from mtg_utils.theme_presets import get_preset, signal_keys_for
 
 if TYPE_CHECKING:
     from mtg_utils._analysis.signals import Signal
@@ -550,7 +550,10 @@ def focus(
     # The cards that DO what the commander's lanes do (emit an ident of a lane
     # that survived the collapse) — the polymorphs beside Jace, not the bombs
     # the serve credits as their payoffs, and not the scry cards a collapsed
-    # sibling read (topdeck_selection) would have swept in.
+    # sibling read (topdeck_selection) would have swept in. A folded lane's
+    # doers stay out even where they are the kept lane's members: the folded
+    # lane is a narrower read of the kept one, and its doers are that read's
+    # cards, not the commander's (backlog: "A folded held lane keeps its doers").
     lane_doers: set[str] = set()
     for ident, lbl in held_idents.items():
         if lbl in held_kept and emitters is not None:
@@ -798,12 +801,19 @@ def focus(
     # A card that CARES about a built avenue is building toward it, whatever
     # it serves: Adrix and Nev and Esix serve only "Token doubling" (fed), and
     # double the Clues the deck's main lane makes (Deep Clue Sea, 2026-10-18).
+    # Nor is a card on the commander's own lanes (``lane_cards``: a doer, or a
+    # carer of a held lane), however shallow the lane: it does or wants what
+    # the commander does (Venerated Rotpriest's poison beside Fynn's).
+    lane_carers = carers_of(held_kept)
+    lane_cards = lane_doers | lane_carers
     built_carers = carers_of(built_labels)
     fed_only_classes = (
         [
             c
             for c in engine
-            if not built_labels.intersection(themes(c)) and c.name not in built_carers
+            if not built_labels.intersection(themes(c))
+            and c.name not in built_carers
+            and c.name not in lane_cards
         ]
         if viable
         else []
@@ -836,7 +846,7 @@ def focus(
         c
         for c in nonland
         if c.name not in fed_only_names
-        and c.name not in lane_doers
+        and c.name not in lane_cards
         and c.low_value(medium=medium, playrate=condemns)
     ]
     low_value_cards = [c.name for c in low_value_classes]
@@ -928,7 +938,6 @@ def focus(
     # 404) at the same precision, where taking two-thirds of the engine doers
     # instead of half reached none (2026-10-19). A Granter is in it unless its
     # grant grades premium (:func:`_grant_leaves_slot`).
-    lane_carers = carers_of(held_kept)
     lane_pool = [
         c
         for c in nonland
@@ -1066,15 +1075,37 @@ def template_deviation(budgets: dict) -> dict:
 # ── Tier-2 advisory flags ──────────────────────────────────────────────────────
 
 
-def is_wincon_card(card: dict, *, game: Game = CALIBRATION_GAME) -> bool:
+# Poison is a clock of its own: ten poison counters lose the game whatever the
+# life total (CR 704.5c, 122.1f). Its givers are the ``poison_makers`` lane:
+# infect turns a source's damage to a player into poison counters (702.90b),
+# toxic adds them beside combat damage (702.164c), poisonous is a combat-damage
+# trigger (702.70a), and a direct "gets N poison counters" (Fynn, Venerated
+# Rotpriest). Proliferate adds a counter of each kind a player already has
+# (701.34a), so it closes only in a deck that poisons.
+_POISON_KEY = "poison_makers"
+_PROLIFERATE_KEY = "proliferate_makers"
+
+
+def gives_poison(card: dict) -> bool:
+    """Whether ``card`` gives a player poison counters (the ``poison_makers``
+    lane, read off its trees and keywords)."""
+    return _POISON_KEY in signal_keys_for(card)
+
+
+def is_wincon_card(
+    card: dict, *, game: Game = CALIBRATION_GAME, poisons: bool = False
+) -> bool:
     """Heuristic finisher read over the card's trees (every face), relative to
     ``game``: its starting life sets the evasive-body and fixed-reach thresholds,
     and one opponent admits single-target reach (the same finisher "each opponent"
     is at a pod). A closer is a card that wins or makes another player lose
     (``reads.ends_the_game`` — not Pact of Negation's self-loss), an extra combat
-    (the ``extra_combats`` key), a one-shot team pump, reach that closes, or a big
+    (the ``extra_combats`` key), a one-shot team pump, reach that closes, a big
     evasive body (an evasion keyword, landwalk among them — CR 702.14c — or a
-    blocking restriction on itself, CR 509.1b)."""
+    blocking restriction on itself, CR 509.1b), a poison giver (ten counters
+    lose, CR 704.5c), or, in a deck that ``poisons``, a proliferator (701.34a)."""
+    if gives_poison(card) or (poisons and _PROLIFERATE_KEY in signal_keys_for(card)):
+        return True
     trees = trees_for(card)
     if any(ends_the_game(tree) for tree in trees):
         return True
@@ -1108,10 +1139,11 @@ def win_conditions(
     # (team double strike) is ONE closer — the record heuristic alone missed
     # keyword grants, reading the benchmark deck "2 closers" while it held
     # team double strike twice.
+    poisons = any(gives_poison(c.record) for c in classes)
     closers = {
         c.name: c
         for c in classes
-        if is_wincon_card(c.record, game=game) or c.grant_closer
+        if is_wincon_card(c.record, game=game, poisons=poisons) or c.grant_closer
     }
     cards = sorted(closers)
     pieces = _voltron_pieces(classes)
@@ -1131,6 +1163,9 @@ def win_conditions(
         "status": "low" if count < lo else "ok",
         "life": game.life,
         "multiplayer": game.multiplayer,
+        # The deck gives poison counters, so its proliferators close too: the
+        # one read, which the closer search reads too (``Sourcing``).
+        "poisons": poisons,
         # The one voltron read (equip/aura density); ``protection`` takes it from here
         # rather than walking the pieces again.
         "voltron": voltron,

@@ -180,10 +180,9 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   Intervention). A 5% pool-share cap on the shared idents (102) or fit only
   within tenfold of the top card's play-rate (102) lost too. The guides' deck-fit
   removal (Wall of Souls, Soul Shatter, Grasp of Fate) is played less than its
-  cuts, so no order reaches it. Found on the way, not fixed: Noxious Gearhulk
-  emits `toughness_combat|you|` (its life gain is the destroyed creature's
-  toughness, per its ruling) and Myr Battlesphere reads as interaction (it hits
-  only the player or planeswalker it attacks, by its own text).
+  cuts, so no order reaches it. The two misreads found on the way (Noxious
+  Gearhulk's `toughness_combat`, Myr Battlesphere as removal) were fixed
+  2026-10-30.
   (t) **Card reads leading the theme adds — don't re-suggest** (2026-10-30;
   patch and runs in `~/mtg/tuner-work/w33/`, the audit's "Card reads leading the
   theme adds"). Measured against 715 / 329 / 114 (held-out 297 / 139 / 35, Jace
@@ -243,9 +242,13 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   Goldnight, Combustible Gearhulk), and Nezahal is outranked on its page.
   (m) **Recall** (`precon-audit/misses.py`, at the largest guide's thirty
   swaps and each precon's own guides' budget, `budgets.json`, Spellbook cached):
-  333 of 505 cuttable guide cuts, 118 of 793 in-scope guide adds, 718 swaps;
-  held-out 139 of 216 / 37 of 407, 290 swaps (2026-10-30, the theme page's fit
-  floor dropped, (t): Animated Army's Chimil, Death Toll's and Graveyard
+  332 of 505 cuttable guide cuts, 117 of 793 in-scope guide adds, 720 swaps;
+  held-out 139 of 216 / 37 of 407, 290 swaps (2026-10-30, Fynn's fixes,
+  `real-deck-validation.md`: poison closers, the fed-only lane exemption,
+  front-face keywords, the attacked defender as no removal, the trim's band;
+  Mardu Surge lost Professional Face-Breaker, Virtue and Valor a guide cut;
+  Jace 29 / 14 / 3. Before it 333 / 118, 718 swaps; held-out 139 / 37, 290
+  swaps, the theme page's fit floor dropped, (t): Animated Army's Chimil, Death Toll's and Graveyard
   Overdrive's Buried Alive, Living Energy's Conversion Apparatus, Virtue and
   Valor's Sram; Lorehold Spirit's Crucible of Worlds and Underworld Breach;
   near-misses 61 / 30, consensus adds 39 / 6, Jace 29 / 14 / 3. Before it 332 /
@@ -727,18 +730,18 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
 
 **From the Fynn, the Fangbearer real-deck validation (2026-10-29; `real-deck-validation.md`)**
 
-- **Fynn's candidate fixes 2-6 are open.** These are: poison and toxic as closers;
-  a mana-value gate on a trim's add; the fed-only re-bucket exempting lane doers
-  (it cuts Venerated Rotpriest on v6); back-face and activated-grant deathtouch
-  read as bodies; and a `deck-tune --collection` flag. Fix 1 (the bites as
-  deathtouch-lane members) shipped. The doc's "Candidate fixes" section has the
-  evidence for each.
-- **A held lane that folds takes its doers with it.** Once the bites joined
-  Deathtouch matters, Fynn v4's poison lane ("Poison / infect": the members are
-  mostly the same cards) folded into it (`metrics.focus`, `same_members`). Its
-  doer, Infectious Bite, dropped out of `commander_lane_cards`, which is the cut
-  ranking's lane protection. No Fynn run cuts it, but a folded held lane could
-  keep its doers (union the doers over every held ident, folded or not).
+- **The front-face keyword rule reaches three reads only.**
+  `card_classify.classifying_keywords` (CR 712.8a/712.8d, 710.2, 715.4) feeds
+  the serve and preset keyword arms, `has_evasion` and the signal extractor's
+  keyword field. Other reads of a card's own keywords still read every face's,
+  and could follow on the same rules reason: `set_scan`'s evasion count (a
+  creature card's evasion, so the face it is played by), `_analysis.rate`'s
+  copy keywords, `text_reads._voltron_double_strike_beater`, the
+  `membership_floor` voltron tells, `lanes.card_advantage`'s self-recurring
+  keywords, and the job reads' Flash / Undaunted / cost-reducer checks (a
+  transforming card is cast by its front face, 712.11). Companion conditions
+  stay as they are: they are deckbuilding checks over the card itself, not a
+  body on the battlefield, so every face's keywords count there.
 - **`damage_equal_power|you|creature` still carries cards that aren't bites.**
   Repentance and Solar Blaze (a creature damages itself), Mutiny (an opponent's
   creature deals the damage), and Corpse Explosion and Dead Reckoning (the spell
@@ -1076,6 +1079,14 @@ headroom and parked items.
 
 ## Settled: don't re-suggest
 
+- **A folded held lane keeps its doers — don't re-suggest** (2026-10-30;
+  `real-deck-validation.md`, Fynn). When Fynn v4's poison lane folds into
+  Deathtouch matters (`metrics.focus`, `same_members`), Infectious Bite stops
+  counting as a commander-lane doer. Unioning the doers over every held ident
+  cost 4 guide cuts on the 25 precons (712 / 325 / 114); keeping only those
+  inside the kept lane's members cost 6 (711 / 323 / 114). The guides cut a
+  folded lane's doers: Quick Draw's spell copies and top-deck selection,
+  Sultai Arisen's self-mill. No Fynn run cuts Infectious Bite.
 - **A spell's casting-cost discard is a discard outlet** (Dan, 2026-10-10). The
   optional keyword costs count: escalate (Collective Brutality, CR 702.120a),
   buyback (Forbid, Demonic Collusion, CR 702.27a), flashback (Conflagrate, Twinned

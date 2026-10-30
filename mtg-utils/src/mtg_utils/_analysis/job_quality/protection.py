@@ -64,6 +64,7 @@ from mtg_utils._card_ir.crosswalk import (
     tag_of,
     unit_keyword_grants,
 )
+from mtg_utils.card_classify import FRONT_FACE_LAYOUTS
 
 if TYPE_CHECKING:
     from mtg_utils._card_ir.crosswalk import AbilityUnit, ConceptTree
@@ -103,7 +104,7 @@ _LONG = frozenset(
     {"UntilNextTurnOf", "UntilYourNextTurn", "Permanent", "UntilHostLeavesPlay"}
 )
 #: Layouts whose back face is not cast on its own: only the front protects.
-_BACK_HIDDEN = frozenset({"transform", "flip", "meld"})
+_BACK_HIDDEN = FRONT_FACE_LAYOUTS
 #: Layouts whose halves are cast separately, each at its own cost.
 _HALF_COST = frozenset({"split", "adventure", "modal_dfc"})
 #: Keywords that charge rent for keeping the permanent.

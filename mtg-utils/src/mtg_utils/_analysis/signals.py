@@ -52,7 +52,7 @@ from mtg_utils._analysis.text_reads import (
     _voltron_self_recurs,
     _voltron_self_unblockable,
 )
-from mtg_utils.card_classify import get_oracle_text
+from mtg_utils.card_classify import classifying_keywords, get_oracle_text
 from mtg_utils.card_ir import Card
 
 # Public surface re-exported by this facade. Listed here so the re-export
@@ -153,9 +153,7 @@ def extract_signals(
         seen.add(ident)
         out.append(sig)
 
-    keywords = frozenset(
-        k for k in (record.get("keywords") or []) if isinstance(k, str)
-    )
+    keywords = frozenset(k for k in classifying_keywords(record) if isinstance(k, str))
     lane_sigs = [
         sig
         for tree in trees

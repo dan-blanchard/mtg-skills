@@ -187,6 +187,41 @@ def owned_quantity(
     return qty if qty >= 1 else None
 
 
+def owned_names(
+    entries: dict[str, tuple[str, int]],
+    resolve: Callable[[str], Mapping | None] | None = None,
+) -> dict[str, int]:
+    """Every owned card in an :func:`owned_lookup` ``entries`` index (name ->
+    summed copies; quantity-0 wishlist rows are not owned), by the collection's
+    own spelling and, given ``resolve`` (a card pool's alias-aware ``by_name``),
+    by the canonical name it resolves to too: an Arena or Untapped row names a
+    crossover card by its Arena name ("Skittering Kitten") or a double-faced
+    card by one face, and the tuner prices a candidate add by its canonical name
+    ("Masked Meower"). Strictly additive: a canonical name the collection
+    already lists keeps its own count. The whole-pile map ``tune(owned=...)``
+    reads: deck-forge's Collection slot and ``deck-tune --collection`` both pass
+    it."""
+    owned: dict[str, int] = {}
+    for name, qty in entries.values():
+        if qty >= 1:
+            owned[name] = owned.get(name, 0) + qty
+    canonical: dict[str, int] = {}
+    for name, qty in list(owned.items()):
+        record = resolve(name) if resolve is not None else None
+        canon = record.get("name") if record else None
+        if canon and canon not in owned:
+            canonical[canon] = canonical.get(canon, 0) + qty
+    return {**owned, **canonical}
+
+
+def collection_owned_names(
+    collection: dict, resolve: Callable[[str], Mapping | None] | None = None
+) -> dict[str, int]:
+    """:func:`owned_names` over a parsed collection pile (every zone, rows of one
+    card summed across printings)."""
+    return owned_names(_collect_entries(collection, sum_duplicates=True), resolve)
+
+
 def load_collection(path: Path) -> dict:
     """A collection file as a parsed deck: parsed-deck JSON, or a CSV export
     (Untapped.gg, Moxfield) when the file isn't JSON."""

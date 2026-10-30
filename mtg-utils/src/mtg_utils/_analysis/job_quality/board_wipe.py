@@ -131,6 +131,7 @@ from mtg_utils._card_ir.crosswalk import (
     mana_value_of_cost,
     modify_cost_mode,
     overload_sweep,
+    picked_by_caster,
     quantity_referent,
     quantity_scope,
     quantity_threshold,
@@ -138,7 +139,6 @@ from mtg_utils._card_ir.crosswalk import (
     static_affected,
     static_mode_tag,
     tag_of,
-    targets_own_creature,
 )
 from mtg_utils._card_ir.trees import fixed_stat, object_facts, phase_records_for
 
@@ -397,29 +397,8 @@ _OBJECT_SIZES = {"Power": "power", "Toughness": "toughness", "ObjectManaValue": 
 
 
 def _picked_by_caster(qty: object, unit: AbilityUnit, holder: object) -> bool:
-    """Whether the caster picks the object a size quantity reads off: one paid as
-    a cost; a target among the creatures they control, or "it" back to one
-    (Chandra's Ignition's "Target creature you control deals damage equal to its
-    power", Nibelheim Aflame's "Choose target creature you control. It deals
-    damage equal to its power", Nova Flame) — the target is chosen as the spell
-    is put on the stack (CR 115.1) and its power read as it resolves (Chandra's
-    Ignition's ruling); or "that creature" a sacrifice in the sweep's own
-    instructions takes (Rupture's "Sacrifice a creature"): the instruction names
-    no player, so the spell's controller follows it (CR 608.2c) and sacrifices one
-    they control (CR 701.21a). The object is the one the quantity's scope names
-    (:func:`crosswalk.quantity_referent`)."""
-    ref = quantity_referent(qty, unit, holder=holder)
-    if ref.kind == "cost":
-        return True
-    if ref.effect is None:
-        return False
-    if ref.kind == "target":
-        return targets_own_creature(ref.effect.node, unit)
-    return (
-        ref.kind == "that"
-        and ref.effect.concept == "sacrifice"
-        and sacrifice_actor_scope(unit, ref.effect.node) is None
-    )
+    """:func:`crosswalk.picked_by_caster` with the lanes' sacrifice-actor read."""
+    return picked_by_caster(qty, unit, holder, sacrifice_actor=sacrifice_actor_scope)
 
 
 def _own_size(qty: object, unit: AbilityUnit, holder: object) -> str | None:

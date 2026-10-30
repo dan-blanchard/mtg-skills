@@ -9,9 +9,11 @@ from mtg_utils.card_classify import (
     build_card_lookup,
     can_partner,
     classify_cube_category,
+    classifying_keywords,
     color_sources,
     get_oracle_text,
     has_any_number_exemption,
+    has_evasion,
     is_commander,
     is_creature,
     is_fixing_land,
@@ -814,3 +816,34 @@ class TestPartnerAbility:
         # Legal partners aren't restricted by color identity (CR 702.124c union).
         for name in ("Ishai, Ojutai Dragonspeaker", "Krav, the Unredeemed"):
             assert valid_partner_search(test_card(name))["color_identity"] == "WUBRG"
+
+
+class TestClassifyingKeywords:
+    """A transforming or flip card has only its front face's characteristics
+    until it turns over (CR 712.8a, 712.8d, 710.2), unless its back face is a
+    face it is cast or returned by; an adventurer card has only its normal
+    characteristics off the stack (715.4)."""
+
+    def test_a_transforming_cards_back_face_keyword_is_not_its_own(self):
+        delver = test_card("Delver of Secrets // Insectile Aberration")
+        assert "Flying" in delver["keywords"]  # the record joins the faces'
+        assert "Flying" not in classifying_keywords(delver)
+        assert has_evasion(delver) is False
+
+    def test_a_flip_card_keeps_its_unflipped_keywords_only(self):
+        akki = test_card("Akki Lavarunner")
+        assert "Haste" in classifying_keywords(akki)
+        assert "Protection" not in classifying_keywords(akki)  # Tok-Tok's
+
+    @pytest.mark.parametrize(
+        "name",
+        [
+            "Typhoid Rats",  # one face
+            "Brazen Borrower",  # the creature half's Flash and Flying (715.4)
+            "Beloved Beggar",  # disturb casts it transformed (702.146a, 712.8c)
+            "Invasion of Ikoria",  # a Siege's defeat casts it transformed (310.12b)
+        ],
+    )
+    def test_a_face_the_card_is_played_by_keeps_its_keywords(self, name):
+        card = test_card(name)
+        assert classifying_keywords(card) == tuple(card.get("keywords") or ())

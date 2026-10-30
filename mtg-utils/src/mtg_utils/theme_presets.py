@@ -112,7 +112,12 @@ from types import MappingProxyType
 from typing import TYPE_CHECKING
 
 from mtg_utils import _gc
-from mtg_utils.card_classify import classifying_type_line, get_oracle_text, is_land
+from mtg_utils.card_classify import (
+    classifying_keywords,
+    classifying_type_line,
+    get_oracle_text,
+    is_land,
+)
 
 if TYPE_CHECKING:
     # Type-only: mtg_utils._card_ir.crosswalk has no _deck_forge dependency
@@ -158,8 +163,9 @@ class CardView:
 
     @functools.cached_property
     def keywords(self) -> frozenset[str]:
-        """The record's ``keywords``, lowercased."""
-        return frozenset(k.lower() for k in self.card.get("keywords") or ())
+        """The record's ``keywords``, lowercased: the classifying face's, as
+        :attr:`type_line` is (:func:`classifying_keywords`)."""
+        return frozenset(k.lower() for k in classifying_keywords(self.card))
 
     @property
     def idents(self) -> frozenset[str]:

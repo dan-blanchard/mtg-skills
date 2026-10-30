@@ -1156,9 +1156,12 @@ def _damage_target_reaches(
     if tt in ("Any", "Target"):
         return True
     if tt == "AttackedPlayerOrPlaneswalker":
-        # "the player or planeswalker it's attacking" (Hellrider): a player or a
-        # planeswalker, whichever it attacks (CR 508.1b).
-        return True
+        # "the player or planeswalker it's attacking" (Hellrider, Myr
+        # Battlesphere): whichever the creature attacks (CR 508.1b), the
+        # recipient its combat damage has anyway. It reaches a player; as the
+        # removal half (``effect_reaches_permanent``) it reaches no permanent:
+        # the card picks none, it hits what the attack already does.
+        return player
     if tt in _CHOSEN_PLAYER_TARGETS or tt in (
         "ScopedPlayer",
         "ParentTargetController",
@@ -10355,6 +10358,38 @@ def quantity_referent(
     return QuantityReferent("self" if scope == "Anaphoric" else named, scope, None)
 
 
+def picked_by_caster(
+    qty: object,
+    unit: AbilityUnit,
+    holder: object,
+    *,
+    sacrifice_actor: Callable[[AbilityUnit, TypedMirrorNode], str | None],
+) -> bool:
+    """Whether the caster picks the object a size quantity reads off
+    (:func:`quantity_referent`): one paid as a cost; a target among the creatures
+    they control, or "it" back to one (:func:`targets_own_creature` — Chandra's
+    Ignition's "Target creature you control deals damage equal to its power",
+    Nibelheim Aflame, Nova Flame): the target is chosen as the spell is put on
+    the stack (CR 115.1) and its size read as it resolves (Chandra's Ignition's
+    ruling); or "that creature" a sacrifice in the ability's own instructions
+    takes (Rupture's "Sacrifice a creature"), when you are the one sacrificing:
+    a player sacrifices only a permanent they control (CR 701.21a), and an
+    instruction that names no player is the controller's to follow (CR 608.2c).
+    ``sacrifice_actor`` is the lanes' actor read
+    (``lanes._shared.sacrifice_actor_scope``, ``None`` for you), which every
+    caller passes, so one card gets one answer."""
+    ref = quantity_referent(qty, unit, holder=holder)
+    if ref.kind == "cost":
+        return True
+    if ref.effect is None:
+        return False
+    if ref.kind == "target":
+        return targets_own_creature(ref.effect.node, unit)
+    if ref.kind != "that" or ref.effect.concept != "sacrifice":
+        return False
+    return sacrifice_actor(unit, ref.effect.node) is None
+
+
 def deals_its_own_power(node: TypedMirrorNode, unit: AbilityUnit | None = None) -> bool:
     """Whether a damage effect deals damage equal to its dealer's own power ("deals
     damage equal to its power"): a ``Power``
@@ -12073,9 +12108,11 @@ def punishes_creatures_entering(unit: AbilityUnit) -> bool:
 def keyword_bodies(tree: ConceptTree) -> frozenset[str]:
     """The keywords (:func:`keyword_subject` spelling) the card puts on bodies of
     yours: a grant to anything not an opponent's — itself, always or on a
-    condition or an activation ("{2}: This creature gains flying until end of
-    turn" — Afterthought Sentry; "has flying as long as you control an
-    artifact" — Aeronaut Tinkerer), what it animates ("It's a 1/1 Spirit
+    condition ("has flying as long as you control an artifact" — Aeronaut
+    Tinkerer), but never by its own activated ability ("{2}: This creature
+    gains deathtouch until end of turn" — Poison Dart Frog: an effect grants it,
+    CR 113.1a, and counting a body only by a keyword it carries without paying
+    is the lane's own call), what it animates ("It's a 1/1 Spirit
     creature with flying" — Abuelo's Awakening), a target or a team — a keyword
     you choose for it ("choose flying, first strike, trample, or rampage 3.
     This creature gains that ability" — Gabriel Angelfire; an Alchemy perpetual
@@ -12112,8 +12149,9 @@ def made_keyword_bodies(tree: ConceptTree) -> frozenset[str]:
 
 def own_keyword_bodies(tree: ConceptTree) -> frozenset[str]:
     """The :func:`made_keyword_bodies` of the card's own body alone: a grant to
-    itself, always, on a condition or by an activation (Noble Banneret's "this
-    creature and those creatures … have lifelink"), and its printed keyword
+    itself, always or on a condition (Noble Banneret's "this creature and those
+    creatures … have lifelink"; never by its own activated ability, as
+    :func:`keyword_bodies` reads it), and its printed keyword
     abilities' conferred keyword — never a token, copy or other permanent it
     makes. Like the rest of the family it leaves the printed keywords themselves
     to the record's ``keywords``."""
@@ -12144,6 +12182,8 @@ def _keyword_bodies(
                 continue
             if own_only and tag_of(affected) != "SelfRef":
                 continue
+            if unit.kind == "Activated" and tag_of(affected) == "SelfRef":
+                continue  # an activated self-grant (Poison Dart Frog's {2})
             if tag_of(mod) == "AddKeyword":
                 kw = mod_keyword_name(mod) or ""
                 out |= _keyword_with_conferred(kw)

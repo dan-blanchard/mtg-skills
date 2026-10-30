@@ -1366,6 +1366,7 @@ def propose_swaps(
         role_fix: bool = False,
         upgrade_of: CardClass | None = None,
         job: str | None = None,
+        trim_of: CardClass | None = None,
     ) -> tuple[dict, float, bool] | None:
         """The best affordable, not-yet-used add for this spec — does NOT commit spend
         (the caller commits once a cut is secured, so an unpaired add can't inflate the
@@ -1390,7 +1391,8 @@ def propose_swaps(
 
         ``upgrade_of`` is the card an upgrade replaces and ``job`` the
         job it keeps: a candidate must be an upgrade (:func:`_upgrades`), and
-        the roles the cut frees are no overshoot.
+        the roles the cut frees are no overshoot. ``trim_of`` is the card a trim
+        cuts: a candidate keeps its mana-value band (:func:`over_band`, job-less).
 
         Where play-rate means something, the first eligible candidate is the add
         when it costs no more than an even share of what is left over the swaps
@@ -1427,8 +1429,9 @@ def propose_swaps(
             tie_read = None
         share = ledger.share(ctx.max_swaps - len(swaps))
         # A cut serving none of the main avenues (``_upgrades``' ``off_theme``).
-        off_theme = upgrade_of is not None and not cut_focus.mains.intersection(
-            upgrade_of.served
+        band_cut = upgrade_of or trim_of
+        off_theme = band_cut is not None and not cut_focus.mains.intersection(
+            band_cut.served
         )
         first: tuple[dict, float] | None = None
         best: tuple[dict, float] | None = None
@@ -1456,6 +1459,10 @@ def propose_swaps(
                 continue
             if upgrade_of is None and not _does_the_job(card, job, deck_records):
                 continue
+            if trim_of is not None and over_band(
+                card, trim_of.record, None, off_theme=off_theme
+            ):
+                continue  # a trim's add keeps its cut's band
             cost = acquire_cost(card)
             if cost is None:
                 continue
@@ -1507,6 +1514,7 @@ def propose_swaps(
         role_fix: bool = False,
         upgrade_of: CardClass | None = None,
         job: str | None = None,
+        trim_of: CardClass | None = None,
     ) -> tuple[tuple[dict, float, bool] | None, str | None]:
         """``find_add``, and the theme avenue the add serves (``None`` off a
         theme). The deck's theme (a spec marked ``_share``, ``Sourcing.theme``)
@@ -1534,6 +1542,7 @@ def propose_swaps(
                 role_fix=role_fix,
                 upgrade_of=upgrade_of,
                 job=job,
+                trim_of=trim_of,
             )
             if picked is not None:
                 return picked, label
@@ -1619,72 +1628,98 @@ def propose_swaps(
         # nonland too — else a theme swap silently adds a value land (e.g. Fountainport
         # on the Aristocrats lane), shifting the land count a swap is meant to
         # preserve. The mana base is the land tooling's job, not Tune's.
-        if remedy.spec_for_cut is not None:
-            # Cut first, then the add the cut names (the upgrade drain: its own
-            # job), ranked as any theme add is — fit, then play-rate, or for a
-            # job whose read orders, the read blended with play-rate (a Spine
-            # fill's cheapest-band order gave every deck the same Fellwar Stone
-            # and Brainstorm); a cut nothing does the job of better is passed
-            # over.
+        trim = over_role(remedy.cut_from) is not None
+        if remedy.spec_for_cut is not None or trim:
+            # Cut first, then the add the cut allows. An upgrade's add is the
+            # one the cut names (its own job), ranked as any theme add is — fit,
+            # then play-rate, or for a job whose read orders, the read blended
+            # with play-rate; a cut nothing does the job of better is passed
+            # over. A trim's add deepens the remedy's avenue at no higher a
+            # mana-value band than its cut's (``over_band``, as an upgrade's): a
+            # one-mana card trimmed from an over row is no slot for a seven-drop.
+            # A trim with no add stops there, as an add-first issue does.
+            trims = 0
             while len(swaps) < ctx.max_swaps:
-                cut_entry = take_cut(remedy.cut_from)
+                cut_entry = take_cut(remedy.cut_from, issue.relies_on)
                 if cut_entry is None and remedy.lane_ok:
-                    cut_entry = take_cut(CUT_LANE)
+                    cut_entry = take_cut(CUT_LANE, issue.relies_on)
                 if cut_entry is None and remedy.cut_from == CUT_UPGRADE:
-                    cut_entry = take_cut(CUT_UPGRADE_POPULAR)
+                    cut_entry = take_cut(CUT_UPGRADE_POPULAR, issue.relies_on)
                 if cut_entry is None:
                     break
                 reason, cut = cut_entry
-                source = remedy.spec_for_cut(cut)
-                if source is None:
-                    continue
-                job_read = read_for(source.job)
-                picked, avenue = find_theme_add(
-                    source.spec,
-                    synergy_first=True,
-                    nonland_only=True,
-                    upgrade_of=cut,
-                    job=source.job,
-                    # A job with a card read reads its whole match set, so
-                    # the read's gate (and, for an ordering job, its blend)
-                    # reaches past popularity.
-                    limit=_JOB_READ_PAGE if job_read else _PAGE,
-                )
-                # A full job's slot moves onto the theme (the docstring) when
-                # the theme's add costs no more than the job's would.
-                if theme and source.job in job_room and job_room[source.job] <= 0:
-                    moved, moved_avenue = find_theme_add(
-                        theme,
+                message = issue.message
+                if remedy.spec_for_cut is None:
+                    picked, avenue = find_theme_add(
+                        remedy.spec, synergy_first=True, nonland_only=True, trim_of=cut
+                    )
+                else:
+                    source = remedy.spec_for_cut(cut)
+                    if source is None:
+                        continue
+                    job_read = read_for(source.job)
+                    picked, avenue = find_theme_add(
+                        source.spec,
                         synergy_first=True,
                         nonland_only=True,
                         upgrade_of=cut,
-                        job=None,
+                        job=source.job,
+                        # A job with a card read reads its whole match set, so
+                        # the read's gate (and, for an ordering job, its blend)
+                        # reaches past popularity.
+                        limit=_JOB_READ_PAGE if job_read else _PAGE,
                     )
-                    cap = (
-                        picked[1]
-                        if picked is not None
-                        else ledger.share(ctx.max_swaps - len(swaps))
-                    )
-                    if moved is not None and moved[1] <= cap:
-                        picked, avenue = moved, moved_avenue
-                        source, job_read = UpgradeSource(theme, None), None
+                    # A full job's slot moves onto the theme (the docstring) when
+                    # the theme's add costs no more than the job's would.
+                    if theme and source.job in job_room and job_room[source.job] <= 0:
+                        moved, moved_avenue = find_theme_add(
+                            theme,
+                            synergy_first=True,
+                            nonland_only=True,
+                            upgrade_of=cut,
+                            job=None,
+                        )
+                        cap = (
+                            picked[1]
+                            if picked is not None
+                            else ledger.share(ctx.max_swaps - len(swaps))
+                        )
+                        if moved is not None and moved[1] <= cap:
+                            picked, avenue = moved, moved_avenue
+                            source, job_read = UpgradeSource(theme, None), None
+                    if picked is not None:
+                        why = (
+                            "reads better at the job and more decks play it"
+                            if job_read is not None and job_read.orders
+                            else "more decks play it"
+                        )
+                        message = (
+                            f"upgrade {source.label}: "
+                            f"{picked[0].get('name', '')} — {why}"
+                        )
+                if picked is None and trim:
+                    if rejected_hits and not trims:
+                        names = ", ".join(dict.fromkeys(rejected_hits))
+                        blocked_notes.append(
+                            f'No alternative to {names} for "{issue.message}" — '
+                            f"{allow_buys}, or allow it again."
+                        )
+                    break
                 if picked is None:
                     continue
-                add_card, cost, _off_avenue = picked
-                why = (
-                    "reads better at the job and more decks play it"
-                    if job_read is not None and job_read.orders
-                    else "more decks play it"
-                )
+                add_card, cost, off_avenue = picked
+                relied_on.update(issue.relies_on)
                 commit(
                     issue.kind,
-                    f"upgrade {source.label}: {add_card.get('name', '')} — {why}",
+                    message,
                     reason,
                     cut,
                     add_card,
                     cost,
+                    off_avenue=off_avenue,
                     avenue=avenue,
                 )
+                trims += 1
             continue
         swaps_for_issue = 0
         while len(swaps) < ctx.max_swaps:

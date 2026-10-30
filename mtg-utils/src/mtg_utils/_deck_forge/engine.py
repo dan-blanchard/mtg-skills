@@ -257,7 +257,7 @@ def owned_collection(state: ForgeState) -> dict[str, int]:
     if not idx:
         return {}
     entries, _lookup = idx
-    return {name: qty for name, qty in entries.values() if qty >= 1}
+    return mark_owned.owned_names(entries, state.by_name.get)
 
 
 def owned_of(state: ForgeState, name: str) -> int | None:

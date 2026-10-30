@@ -221,3 +221,26 @@ def test_load_collections_restores_and_precomputes_index(tmp_path):
     assert "paper" in index  # precomputed, not lazily on first snapshot
     entries, lookup = index["paper"]
     assert owned_quantity("Sol Ring", entries, lookup) == 2
+
+
+def test_owned_collection_adds_the_canonical_name_of_an_alias_row():
+    # An Arena row names a crossover card by its Arena name; the tuner prices
+    # the candidate by its canonical one. Strictly additive: the row's own key
+    # and every other key keep their counts.
+    state = _state()
+    state.by_name = {**BY_NAME, "Skittering Kitten": _rec("Masked Meower")}
+    engine.set_collection(
+        state,
+        "paper",
+        {
+            "cards": [
+                {"name": "Skittering Kitten", "quantity": 2},
+                {"name": "Cultivate", "quantity": 1},
+            ]
+        },
+    )
+    assert engine.owned_collection(state) == {
+        "Skittering Kitten": 2,
+        "Cultivate": 1,
+        "Masked Meower": 2,
+    }

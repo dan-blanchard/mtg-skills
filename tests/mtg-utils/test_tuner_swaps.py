@@ -469,6 +469,69 @@ def test_role_over_trim_drains_the_whole_excess_and_no_more():
     assert [s["cut"]["name"] for s in out["swaps"]] == ["Rock B", "Rock A"]
 
 
+@pytest.mark.parametrize(
+    ("served", "add"),
+    [
+        ((), "Four Drop"),  # off every main: the slot moves onto it, one band up
+        (("Main",), "Two Drop"),  # on the main already: the cut's own band
+    ],
+)
+def test_a_trims_add_keeps_its_cuts_mana_value_band(served, add):
+    """Fynn v6 trimmed one-mana bites for Wurmcoil Engine and Hornet Queen: the
+    trim's add came first, whatever it cost. Now the cut comes first and the add
+    keeps its band (``over_band``), as an upgrade's does."""
+    classes = [
+        _cc("Cheap Bite", "spine", roles=["interaction"], served=served, cmc=1.0),
+    ]
+    budgets = {"interaction": _band(11, 8, 10)}  # over by 1
+    issue = {
+        "kind": "role_over",
+        "role": "interaction",
+        "severity": 1,
+        "message": "interaction over",
+    }
+
+    def candidate(name, cmc, rank):
+        return {
+            "name": name,
+            "type_line": "Creature — Bear",
+            "oracle_text": "",
+            "cmc": cmc,
+            "edhrec_rank": rank,
+            "prices": {"usd": "1.00"},
+            "color_identity": [],
+        }
+
+    adds = [
+        candidate("Seven Drop", 7.0, 10),
+        candidate("Four Drop", 4.0, 20),
+        candidate("Two Drop", 2.0, 30),
+    ]
+    out = _swaps_for_issue_dicts(
+        classes,
+        [issue],
+        SwapContext(
+            budgets=budgets,
+            focus_result={
+                **_focus(viable=[{"label": "Main", "depth": 20, "cards": []}]),
+                "mains": ["Main"],
+            },
+            deck_signals=[],
+            search_fn=lambda **_: adds,
+            identity="",
+            fmt="commander",
+            paper_only=True,
+            owned={},
+            budget=50.0,
+            max_swaps=1,
+            top_heavy=False,
+        ),
+    )
+    assert [(s["cut"]["name"], s["add"]["name"]) for s in out["swaps"]] == [
+        ("Cheap Bite", add)
+    ]
+
+
 def test_role_search_specs_reference_only_real_presets():
     # Regression: ROLE_SEARCH["ramp"] once named a 'ramp' preset that did not exist,
     # which made card_search raise BadParameter and 500'd /api/tune for any ramp-short

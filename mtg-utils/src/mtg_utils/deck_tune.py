@@ -7,7 +7,7 @@ emits the scorecard + budgeted swaps as JSON.
 
     deck-tune <deck.json> [--bulk-data <path>] \
         [--budget N] [--max-swaps N] [--shape ...] [--bracket 1-5] [--paper-only] \
-        [--exclude <name>]... [--meta auto|off|<archetype>]
+        [--exclude <name>]... [--meta auto|off|<archetype>] [--collection <file>]
 
 Every format family: the template and every floor are the deck's family's
 (``Format.family``), and the Commander-only axes — commander fit, the bracket gate —
@@ -22,11 +22,12 @@ from pathlib import Path
 
 import click
 
-from mtg_utils import card_search, combo_search
+from mtg_utils import card_search, combo_search, mark_owned
 from mtg_utils._analysis.card_reads import attach_card_read_sidecar
 from mtg_utils._analysis.ident_provenance import attach_provenance_sidecar
 from mtg_utils._analysis.job_quality import attach_job_read_sidecar
 from mtg_utils._tuner.tune import TuneParams, tune
+from mtg_utils.card_pool import CardPool
 from mtg_utils.deck_cli import (
     acquire_for_cli,
     bulk_data_option,
@@ -111,6 +112,14 @@ def _ensure_ir() -> None:
 )
 @meta_option("The tuner reads its card shares and core.")
 @click.option(
+    "--collection",
+    "collection_path",
+    type=click.Path(exists=True, path_type=Path),
+    default=None,
+    help="Collection (parsed JSON or Untapped/Moxfield CSV): a candidate add you "
+    "own costs nothing, as in deck-forge with a Collection loaded.",
+)
+@click.option(
     "--output",
     "output",
     type=click.Path(),
@@ -130,6 +139,7 @@ def main(
     paper_only: bool | None,
     exclude: tuple[str, ...],
     meta: str,
+    collection_path: Path | None,
     output: str | None,
 ) -> None:
     """Diagnose DECK_JSON and (with --max-swaps) propose swaps."""
@@ -220,7 +230,24 @@ def main(
         exclude=frozenset(exclude),
         meta=meta_ctx,
     )
-    result = tune(hd, search_fn=search, params=params, combos_fn=combos_fn, pool=pool)
+    # The owned map deck-forge's Collection slot gives the tuner, an alias row
+    # credited to its canonical name too (``mark_owned.owned_names``).
+    owned = (
+        mark_owned.collection_owned_names(
+            mark_owned.load_collection(collection_path),
+            CardPool.load(bulk_path).by_name.get,
+        )
+        if collection_path is not None
+        else None
+    )
+    result = tune(
+        hd,
+        search_fn=search,
+        params=params,
+        owned=owned,
+        combos_fn=combos_fn,
+        pool=pool,
+    )
 
     text = json.dumps(result, indent=2)
     if output:

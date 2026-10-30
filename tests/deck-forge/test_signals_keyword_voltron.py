@@ -63,7 +63,40 @@ def test_plain_flying_keyword_is_not_a_buildaround_signal():
 # Isperia/Flying, and the subtype-vs-keyword-tribe distinction (Goblin King,
 # Whirlwind never fire) — by
 # tests/mtg-utils/test_crosswalk.py::test_keyword_tribe_subject_carrying_mirror.
-# No duplicate kept here.
+# No duplicate kept here. What follows is the lane's BODIES: a creature that
+# prints the keyword on the face it is played with.
+
+
+def _deathtouch_lane():
+    from mtg_utils._analysis.signal_specs import spec_for
+    from mtg_utils._analysis.signals import Signal
+
+    return spec_for(Signal("keyword_tribe", "you", "Deathtouch", "", "x", "high"))
+
+
+def test_a_printed_deathtouch_body_is_in_the_lane():
+    assert _deathtouch_lane().serve.matches(test_card("Typhoid Rats"))
+
+
+def test_a_back_face_keyword_is_no_body():
+    # Cryptolith Fragment is cast front face up (CR 712.11) and enters so
+    # (712.13), and has only its
+    # front face's characteristics (712.8d): an artifact, no deathtouch until
+    # Aurora of Emrakul transforms (only at 10 or less life, its ruling).
+    from mtg_utils.card_classify import classifying_keywords
+
+    card = test_card("Cryptolith Fragment // Aurora of Emrakul")
+    assert "Deathtouch" in card["keywords"]  # the record joins the faces'
+    assert "Deathtouch" not in classifying_keywords(card)
+    assert not _deathtouch_lane().serve.matches(card)
+
+
+def test_an_activated_self_grant_is_no_body():
+    # Poison Dart Frog's deathtouch is granted by its {2} ability's effect (CR
+    # 113.1a); a body counts only by a keyword it has without paying (the
+    # lane's own call).
+    assert "keyword_bodies" not in _keys("Poison Dart Frog")
+    assert not _deathtouch_lane().serve.matches(test_card("Poison Dart Frog"))
 
 
 # ── 3. voltron fallback (commander damage, CR 903.10a) ─────────────────────────

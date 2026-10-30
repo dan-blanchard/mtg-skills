@@ -6337,7 +6337,17 @@ def test_v066_tapper_engine_sheds_self_tap_cost():
     stay."""
     keys = _keys("Myr Battlesphere")
     assert "tapper_engine" not in keys
-    assert {"removal", "combat_buff_engine", "token_maker"} <= keys
+    assert {"direct_damage", "combat_buff_engine", "token_maker"} <= keys
+
+
+@pytest.mark.parametrize("name", ["Myr Battlesphere", "Hellrider"])
+def test_damage_to_the_attacked_defender_is_not_removal(name):
+    """ "The player or planeswalker it's attacking" (phase v0.118.0's
+    ``AttackedPlayerOrPlaneswalker``) is what the creature attacks (CR 508.1b):
+    the card picks no permanent, so it is direct damage, never removal."""
+    keys = _keys(name)
+    assert "direct_damage" in keys
+    assert "removal" not in keys
 
 
 def test_v066_damage_prevention_sheds_redirection():
@@ -15513,6 +15523,15 @@ def test_toughness_combat_structural_and_value_residue():
     assert ("toughness_combat", "you", "") in _idents("Angelic Chorus")
     assert ("toughness_combat", "you", "") in _idents("Assault Formation")
     assert "toughness_combat" not in _keys("Master of Cruelties")
+
+
+def test_another_players_toughness_is_no_toughness_payoff():
+    """Noxious Gearhulk gains life equal to the toughness of the creature it
+    destroyed (its ruling: "the toughness of the creature as it last existed on
+    the battlefield"), a target nobody restricts to you: no toughness of yours
+    pays off. The value-residue arm stays out too (the typed ref is read)."""
+    assert "toughness_combat" not in _keys("Noxious Gearhulk")
+    assert ("lifegain_makers", "you", "") in _idents("Noxious Gearhulk")
 
 
 @pytest.mark.parametrize(

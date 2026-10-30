@@ -390,3 +390,43 @@ def test_an_activated_ability_is_a_payoff_target_not_a_builder():
     from mtg_utils._tuner.metrics import _cares_keys
 
     assert _cares_keys("activated_ability") == ("untap_engine",)
+
+
+class TestPoisonClosers:
+    """Ten poison counters lose the game whatever the life total (CR 704.5c,
+    122.1f), so a poison giver is a closer: infect (702.90b), toxic (702.164c),
+    poisonous (702.70a) and a direct "gets N poison counters". Proliferate adds a
+    counter of each kind a player has (701.34a): a closer only where the deck
+    poisons."""
+
+    @pytest.mark.parametrize(
+        "name",
+        [
+            "Fynn, the Fangbearer",  # "that player gets two poison counters"
+            "Venerated Rotpriest",  # a target trigger gives a poison counter
+            "Glistener Elf",  # infect
+            "Bilious Skulldweller",  # toxic
+            "Marsh Viper",  # damage to a player gives two poison counters
+            "Inkmoth Nexus",  # a land that becomes an infect creature
+        ],
+    )
+    def test_a_poison_giver_is_a_closer(self, name):
+        assert is_wincon_card(test_card(name)) is True
+        assert is_wincon_card(test_card(name), game=DUEL_25) is True
+
+    def test_proliferate_closes_only_where_the_deck_poisons(self):
+        clasp = test_card("Contagion Clasp")
+        assert is_wincon_card(clasp) is False
+        assert is_wincon_card(clasp, poisons=True) is True
+
+    def test_win_conditions_reads_the_deck_for_poison(self):
+        from mtg_utils._tuner.metrics import win_conditions
+
+        fynn = _cc("Fynn, the Fangbearer", test_card("Fynn, the Fangbearer"))
+        clasp = _cc("Contagion Clasp", test_card("Contagion Clasp"))
+        wins = win_conditions([fynn, clasp], shape="aggro", combo_count=0)
+        assert wins["poisons"] is True
+        assert wins["cards"] == ["Contagion Clasp", "Fynn, the Fangbearer"]
+        alone = win_conditions([clasp], shape="aggro", combo_count=0)
+        assert alone["poisons"] is False
+        assert alone["cards"] == []

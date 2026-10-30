@@ -419,7 +419,7 @@ commanders holds a deathtouch lane.
 
 ### Candidate fixes, for Dan to choose
 
-These are evidence only; no code changed, except fix 1 (above).
+Fix 1 shipped first (above); "The rest of the fixes" below records what became of 2-6.
 
 1. **Shipped 2026-10-29: the bites aren't part of the deathtouch lane.** A "target creature you
    control deals damage equal to its power" spell is removal only because the
@@ -440,3 +440,101 @@ These are evidence only; no code changed, except fix 1 (above).
    activated grant (Poison Dart Frog) as deathtouch bodies.
 6. **The CLI can't see a collection.** A `--collection` flag passing `owned=`
    would make the CLI price adds the way deck-forge does.
+
+### The rest of the fixes (2026-10-30)
+
+- **Poison closes (shipped).** A poison giver is a closer: ten poison counters
+  lose the game whatever the life total (CR 704.5c, 122.1f; Fynn's ruling: Fynn
+  needn't be on the battlefield for the tenth). The read is the `poison_makers`
+  lane: infect (702.90b), toxic (702.164c), poisonous (702.70a) and a direct
+  "gets N poison counters". Proliferate (701.34a) counts only in a deck that
+  poisons (`metrics.is_wincon_card`, `win_conditions`' `poisons`). v4 now counts
+  3 closers (Fynn, Ichorspit Basilisk, Infectious Bite) and v6 counts 5
+  (adding Inkmoth Nexus and Venerated Rotpriest), so "≈0 closers" is gone.
+- **A commander-lane card is never fed-only (shipped).** `fed_only_classes`
+  now exempts the commander's lane cards: its lane doers and the carers of its
+  held lanes. The low-value tier exempted the doers alone before; it now
+  exempts the same lane cards (measured alone, it moved neither precon set).
+  On v6 Venerated Rotpriest is no longer cut as filler. On the 25 it costs
+  Virtue and Valor one guide cut.
+- **A keyword lane's bodies print the keyword (shipped).**
+  `card_classify.classifying_keywords` drops the keywords only another face
+  prints (phase's per-face `card_keywords`) where that face isn't the card's:
+  - a transforming or flip card has only its front face's characteristics
+    until it turns over (CR 712.8a, 712.8d, 710.2): Cryptolith Fragment is no
+    deathtouch or flying body, Delver of Secrets no flier. A back face the card
+    is cast or returned by keeps its keywords: disturb (702.146a, 712.8c), More
+    Than Meets the Eye (702.162a), craft (702.167a, 712.14a), a Siege's defeat
+    (310.12b);
+  - an adventurer card has only its normal characteristics except on the
+    stack as an Adventure (715.4): the creature's keywords.
+  A modal double-faced card is cast or played as either face (712.11b,
+  712.12), a split card as either half (709.3), and a meld card's record is
+  its front face, so all keep their keywords. It feeds the reads the brief
+  named: the serves' and presets' keyword arms (`CardView`), `has_evasion`
+  (the closer read) and the signal extractor's keyword field. An activated self-grant is an effect granting the keyword (CR
+  113.1a: "gains"); counting a body only by a keyword it has without paying is
+  the lane's own call, so `crosswalk.keyword_bodies` no longer counts one
+  (Poison Dart Frog's {2}; Argivian Avenger's and Jodah's Avenger's restored
+  grants); a static self-grant ("has flying as long as …") still counts. Both
+  leave the Deathtouch matters lane on v6 (39 deep). Grants to other creatures
+  (Gift of the Viper, Horrid Vigor, Hunter's Blowgun) stay lane members: they
+  are the lane's grants, and Dan's "a spell that grants deathtouch is dead
+  weight" is Fynn's philosophy, not a lane rule.
+- **`deck-tune --collection` (shipped).** The flag loads a collection file
+  (parsed JSON or an Untapped / Moxfield CSV, as `proposal-check` takes) and
+  passes every owned card as `tune(owned=...)`, the map deck-forge builds from
+  its Collection slot (`mark_owned.owned_names`, now shared by both).
+- **Two misreads from the precon audit (shipped).** Noxious Gearhulk no longer
+  emits `toughness_combat|you|`: it gains life equal to the destroyed
+  creature's toughness (its ruling: "the toughness of the creature as it last
+  existed on the battlefield"), and a toughness read off a target nobody
+  restricts to you pays off no toughness of yours (`tree_synthesis.combat`,
+  `_toughness_refs`). Myr Battlesphere is no longer removal: "the player or
+  planeswalker it's attacking" is what the creature attacks (CR 508.1b), the
+  recipient its combat damage has anyway, so the card picks no permanent.
+  Phase v0.118.0 parses it as `AttackedPlayerOrPlaneswalker` (v0.104.0 read
+  any planeswalker), and the reach read's removal half
+  (`effect_reaches_permanent`) now reads that as a player only. Hellrider,
+  Scorch Spitter, Raid Bombardment and kin leave removal too.
+- **A trim's add keeps its cut's mana-value band (shipped).** A trim now takes
+  its cut first, then the add (`swaps`, the `role_over` loop), held to the
+  upgrade's band rule (`over_band`, job-less): the cut's band, or one higher
+  when the cut serves no main avenue and its slot moves onto the theme. A
+  one-mana bite can no longer become Wurmcoil Engine or Hornet Queen. Fynn no
+  longer trims at all (the bite fix made the interaction row the lane's), so
+  this shows only in the unit test. On the precons no trim reaches past the
+  band, so nothing moved (both sets, at v0.104.0, at v0.118.0 and after the
+  theme page dropped its fit floor). The same band
+  for every cut, the off-theme room taken away, lost 3 guide adds and 3 guide
+  cuts on the 25 (705 / 327 / 111 at v0.104.0), Jace 2 adds and 3 cuts: it
+  fails the bar and was dropped.
+- **A folded held lane keeps its doers: measured, not shipped.** Infectious
+  Bite drops out of `commander_lane_cards` on v4 when the poison lane folds
+  into Deathtouch matters. Keeping a folded lane's doers cost guide cuts on the
+  25 precons: the plain union lost 4 (712 / 325 / 114), and keeping only those
+  inside the kept lane's members lost 6 (711 / 323 / 114). The guides cut
+  exactly those cards: Quick Draw's spell copies and top-deck selection
+  (Finale of Promise, Galvanic Iteration, Serum Visions, Treasure Cruise) and
+  Sultai Arisen's self-mill. No Fynn run cuts Infectious Bite.
+
+Measured at the phase v0.118.0 pin, on main 4304f910 (the token doublers and
+the theme page without its fit floor; the baselines its backlog item (m)
+records), runs as in the Method above with a private cache
+(`~/mtg/tuner-work/w35/`):
+
+| run | before | after |
+|---|---|---|
+| v4, max-swaps 13 and 30 | 0 swaps; 0 closers (wincon issue) | 0 swaps; 3 closers, band 2-4 ok |
+| v6, max-swaps 30 | 2: Allosaurus Shepherd → Kura, Venerated Rotpriest → Sword of Feast and Famine (both fed-only) | 1: Allosaurus Shepherd → Sword of Feast and Famine; 5 closers |
+| v4, max-swaps 30, collection | 0 swaps (`tune_owned.py`) | 0 swaps (`--collection`) |
+
+No run matches a v6 cut or add: v4 has no cut pool left, as before. The
+precons: the 25 went from 718 / 333 / 118 to 720 / 332 / 117, the held-out ten
+stayed at 290 / 139 / 37, and Jace stayed at 29 / 14 / 3. Each loss, found by
+switching one fix off: the attacked-defender read costs Mardu Surge
+Professional Face-Breaker (its slot goes elsewhere once Hellrider-type damage
+is no longer removal), and the fed-only lane exemption costs Virtue and Valor
+one guide cut. Both are read fixes, inside the 1-2 a misread fix may lose. The
+trim's band moved neither set, and Myr Battlesphere, no longer removal, is a
+theme add in Abzan Armor and Animated Army.

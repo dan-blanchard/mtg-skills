@@ -190,7 +190,9 @@ class Remedy:
     does-the-job) under the ADR-0040 role-fix guard, where every other add ranks
     synergy-first. ``drain`` marks a multi-swap remedy — dead weight and an
     over-band trim swap until their pool or the swap budget runs out (the upgrade
-    slots, sourced per cut through ``spec_for_cut``, always do)."""
+    slots, sourced per cut through ``spec_for_cut``, always do). The upgrade
+    drain and an over-band trim (``cut_from`` an over pool) take each cut
+    before its add, which keeps the cut's mana-value band (``swaps.over_band``)."""
 
     spec: dict
     cut_from: str = CUT_GENERIC
@@ -273,6 +275,7 @@ class Sourcing:
         keep: dict | None = None,
         commander_idents: Collection[tuple[str, str, str]] = (),
         emitters: Mapping[tuple[str, str, str], Collection[str]] | None = None,
+        poisons: bool = False,
     ) -> None:
         self._focus = focus_result
         self._signals = deck_signals
@@ -288,6 +291,9 @@ class Sourcing:
         # memo holds it).
         self._multiplier: tuple[str, int, dict] | None = None
         self._multiplier_read = False
+        #: The deck gives poison counters (``metrics.win_conditions``), so a
+        #: proliferator is a closer (``is_wincon_card``).
+        self._poisons = poisons
 
     # ── Spine roles ─────────────────────────────────────────────────────────────
 
@@ -502,10 +508,13 @@ class Sourcing:
             # shortfall stays reported (Sliver Swarm); only with no main theme
             # at all does the closer regex page the search.
             game = self._game
+            poisons = self._poisons
             return Remedy(
                 {
                     **(self.main_avenue() or WINCON_SEARCH),
-                    "_filter": lambda c, **_kw: is_wincon_card(c, game=game),
+                    "_filter": lambda c, **_kw: is_wincon_card(
+                        c, game=game, poisons=poisons
+                    ),
                 },
                 lane_ok=True,
             )

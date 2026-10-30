@@ -167,9 +167,10 @@ def _spy_tune(monkeypatch):
 
     captured: dict = {}
 
-    def spy(_hd, *, params, **_kw):
+    def spy(_hd, *, params, **kw):
         captured["hd"] = _hd
         captured["params"] = params
+        captured["owned"] = kw.get("owned")
         return _STUB_RESULT
 
     monkeypatch.setattr(deck_tune_mod, "tune", spy)
@@ -313,3 +314,53 @@ def test_the_deck_jsons_own_medium_is_the_default(tmp_path, monkeypatch):
     assert res.exit_code == 0, res.output
     assert captured["params"].medium == "paper"
     assert "--medium not given" not in res.output
+
+
+def test_collection_prices_owned_candidates_free(tmp_path, monkeypatch):
+    # deck-forge's path passes the whole Collection as ``owned``; without the flag
+    # the CLI charged wildcards for adds the user owns (Fynn, 2026-10-29). Every
+    # owned card counts, summed over rows; quantity-0 wishlist rows don't.
+    captured = _spy_tune(monkeypatch)
+    deck = _write(tmp_path, "deck.json", COMMANDER_DECK)
+    hyd = _write(tmp_path, "hyd.json", HYDRATED)
+    coll = _write(
+        tmp_path,
+        "collection.json",
+        {
+            "cards": [
+                {"name": "Sol Ring", "quantity": 1},
+                {"name": "Skullclamp", "quantity": 0},
+                {"name": "Goblin Bombardment", "quantity": 2},
+                {"name": "Goblin Bombardment", "quantity": 1},
+            ]
+        },
+    )
+    res = CliRunner().invoke(
+        deck_tune_main, [deck, "--bulk-data", hyd, "--collection", coll]
+    )
+    assert res.exit_code == 0, res.output
+    assert captured["owned"] == {"Sol Ring": 1, "Goblin Bombardment": 3}
+    res = CliRunner().invoke(deck_tune_main, [deck, "--bulk-data", hyd])
+    assert res.exit_code == 0, res.output
+    assert captured["owned"] is None
+
+
+def test_an_alias_row_is_owned_by_its_canonical_name_too():
+    # An Arena / Untapped row names a crossover card by its Arena name; the
+    # tuner prices the candidate by its canonical one (``mark_owned.owned_names``
+    # over the pool's alias-aware index, as deck-forge's Collection does). Strictly
+    # additive: a canonical name the collection lists keeps its own count.
+    from mtg_utils.mark_owned import collection_owned_names
+
+    canon = {"Skittering Kitten": {"name": "Masked Meower"}}
+    owned = collection_owned_names(
+        {
+            "cards": [
+                {"name": "Skittering Kitten", "quantity": 2},
+                {"name": "Masked Meower", "quantity": 1},
+                {"name": "Sol Ring", "quantity": 1},
+            ]
+        },
+        canon.get,
+    )
+    assert owned == {"Skittering Kitten": 2, "Masked Meower": 1, "Sol Ring": 1}

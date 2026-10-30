@@ -10,6 +10,7 @@ from mtg_utils._card_ir.crosswalk import (
     BASIC_LAND_TYPE_COLORS,
     land_searches,
     mana_colors,
+    normalised_keyword_name,
 )
 from mtg_utils._card_ir.trees import trees_for
 from mtg_utils._name_index import NameIndex, build_name_index
@@ -55,6 +56,13 @@ def get_oracle_text(card: dict) -> str:
     return oracle
 
 
+#: The layouts a card is cast and enters by its front face alone, whose back
+#: face is reached only by turning over: a nonmodal double-faced card (CR
+#: 712.8a, 712.11, 712.14), a flip card (710.2), a meld card (712.4a; its
+#: record is the front face).
+FRONT_FACE_LAYOUTS = frozenset({"transform", "flip", "meld"})
+
+
 def get_colors(card: dict) -> set[str]:
     """The card's CASTABLE colors (its ``colors`` — the mana cost's, plus a color
     indicator), folding ``card_faces`` when the top level carries none: a transform
@@ -67,7 +75,7 @@ def get_colors(card: dict) -> set[str]:
     if colors:
         return set(colors)
     faces = card.get("card_faces") or []
-    if card.get("layout") in ("transform", "flip"):
+    if card.get("layout") in FRONT_FACE_LAYOUTS:
         faces = faces[:1]
     out: set[str] = set()
     for face in faces:
@@ -150,11 +158,71 @@ def classifying_type_line(card: dict) -> str:
     Use this anywhere a card's type is matched by substring (``card_type`` filters,
     serve/score classification) so a transform DFC's back-face type can't leak in —
     e.g. a Saga-front // Land-back card must not read as 'Land' for a manland search."""
-    if card.get("layout") in ("transform", "flip"):
+    if card.get("layout") in FRONT_FACE_LAYOUTS:
         faces = card.get("card_faces")
         if faces:
             return faces[0].get("type_line", "") or card.get("type_line", "")
     return card.get("type_line", "")
+
+
+#: The front-face keywords that play a nonmodal double-faced card back face up
+#: (normalised): disturb casts it transformed (CR 702.146a, 712.8c), More Than
+#: Meets the Eye casts it converted (702.162a), craft returns it to the
+#: battlefield transformed (702.167a, 712.14a).
+_BACK_FACE_PLAYED_BY = frozenset({"disturb", "morethanmeetstheeye", "craft"})
+
+
+def _back_face_played(front: object) -> bool:
+    """Whether a nonmodal double-faced card's back face is a face it is played
+    by: its front face has a keyword that casts or returns it back face up
+    (:data:`_BACK_FACE_PLAYED_BY`), or it is a Siege, which its defeat lets you
+    cast transformed (CR 310.12b). A back face reached by a condition while on
+    the battlefield (a Werewolf's, Cryptolith Fragment's) is not."""
+    printed = {normalised_keyword_name(k) for k in getattr(front, "card_keywords", ())}
+    return bool(printed & _BACK_FACE_PLAYED_BY) or "Siege" in getattr(
+        front, "card_subtypes", ()
+    )
+
+
+def classifying_keywords(card: dict) -> tuple[str, ...]:
+    """The record's ``keywords`` a card's body is classified by, as
+    :func:`classifying_type_line` is its type line. The record's ``keywords``
+    join the faces', so the keywords only another face prints (phase's per-face
+    ``card_keywords``, compared by ``normalised_keyword_name``) come off where
+    that face isn't the card's:
+
+    - a transforming or flip card has only its front face's characteristics
+      until it turns over (CR 712.8a, 712.8d, 710.2): Cryptolith Fragment, an
+      artifact, is no deathtouch or flying body because Aurora of Emrakul has
+      both; Delver of Secrets doesn't fly. A back face it is cast or returned
+      by (disturb, More Than Meets the Eye, craft, a Siege's defeat —
+      :func:`_back_face_played`) keeps its keywords;
+    - an adventurer card has only its normal characteristics except on the
+      stack as an Adventure (715.4): the creature's keywords, not the
+      Adventure's.
+
+    A modal double-faced card is cast or played as either face (712.11b,
+    712.12) and a split card as either half (709.3), so all their keywords are
+    their own. A meld card's record is its front face already. A card with no
+    trees keeps the record's."""
+    keywords = tuple(card.get("keywords") or ())
+    faces = card.get("card_faces") or ()
+    layout = card.get("layout")
+    if not keywords or not faces or layout not in (*FRONT_FACE_LAYOUTS, "adventure"):
+        return keywords
+    front_name = faces[0].get("name")
+    trees = trees_for(card)
+    front = next((t for t in trees if t.name == front_name), None)
+    if front is None or (layout != "adventure" and _back_face_played(front)):
+        return keywords
+    printed = {
+        t.name: {normalised_keyword_name(k) for k in t.card_keywords} for t in trees
+    }
+    other_only = set().union(
+        *(kws for name, kws in printed.items() if name != front_name)
+    )
+    other_only -= printed[front_name]
+    return tuple(k for k in keywords if normalised_keyword_name(k) not in other_only)
 
 
 def _type_token_re(token: str) -> re.Pattern[str]:
@@ -232,8 +300,9 @@ EVASION_KEYWORDS: frozenset[str] = frozenset(
 
 
 def has_evasion(card: dict) -> bool:
-    """Whether a card carries one of ``EVASION_KEYWORDS``."""
-    return any(k in EVASION_KEYWORDS for k in card.get("keywords") or [])
+    """Whether a card carries one of ``EVASION_KEYWORDS`` (its classifying
+    face's, :func:`classifying_keywords`)."""
+    return any(k in EVASION_KEYWORDS for k in classifying_keywords(card))
 
 
 def card_pt_int(card: dict, field: str = "power") -> int:

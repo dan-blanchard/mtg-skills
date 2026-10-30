@@ -136730,6 +136730,302 @@
     "type_line": "Creature — Elemental Incarnation"
    }
   },
+  "Beloved Beggar": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Human",
+       "Peasant"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "White"
+     ],
+     "color_override": null,
+     "defense": null,
+     "face_index": 0,
+     "flavor_name": null,
+     "keywords": [
+      {
+       "Disturb": {
+        "generic": 4,
+        "shards": [
+         "White",
+         "White"
+        ],
+        "type": "Cost"
+       }
+      }
+     ],
+     "layout": "transform",
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "White"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "6109b54e-56c5-4014-9f6d-d5f7a0fd725d"
+      ]
+     },
+     "name": "Beloved Beggar",
+     "non_ability_text": null,
+     "oracle_text": "Disturb {4}{W}{W} (You may cast this card from your graveyard transformed for its disturb cost.)",
+     "power": {
+      "type": "Fixed",
+      "value": 0
+     },
+     "printings": [
+      "DBL",
+      "MID"
+     ],
+     "rarities": [
+      "uncommon"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2021-09-24",
+       "text": "\"Disturb [cost]\" means \"You may cast this card transformed from your graveyard by paying [cost] rather than its mana cost.\""
+      },
+      {
+       "date": "2021-09-24",
+       "text": "A spell cast this way enters the battlefield with its back face up."
+      },
+      {
+       "date": "2021-09-24",
+       "text": "Disturb is found only on the front faces of some double-faced cards."
+      },
+      {
+       "date": "2021-09-24",
+       "text": "If you copy a permanent spell cast this way (perhaps with a card like Double Major), the copy becomes a token that's a copy of the card's back face, even though it isn't itself a double-faced card."
+      },
+      {
+       "date": "2021-09-24",
+       "text": "The back face of each card with disturb has an ability that instructs its controller to exile if it would be put into a graveyard from anywhere. This includes going to the graveyard from the stack, so if the spell is countered after you cast it using the disturb ability, it will be put into exile."
+      },
+      {
+       "date": "2021-09-24",
+       "text": "To determine the total cost of a spell, start with the mana cost or alternative cost (such as a disturb cost) you're paying, add any cost increases, then apply any cost reductions. The mana value of a spell cast using disturb is determined by the mana cost on the front face of the card, no matter what the total cost to cast the spell was. (This is a special rule that applies only to nonmodal double faced-cards, including ones with disturb.)"
+      },
+      {
+       "date": "2021-09-24",
+       "text": "When you cast a spell using a card's disturb ability, the card is put onto the stack with its back face up. The resulting spell has all the characteristics of that face."
+      }
+     ],
+     "scryfall_oracle_id": "74c9cc13-c03f-4322-82af-b7bce1f2a0d8",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 4
+     },
+     "triggers": []
+    },
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Spirit"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "White"
+     ],
+     "color_override": [
+      "White"
+     ],
+     "defense": null,
+     "face_index": 1,
+     "flavor_name": null,
+     "keywords": [
+      "Flying",
+      "Vigilance"
+     ],
+     "layout": "transform",
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "type": "NoCost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "6109b54e-56c5-4014-9f6d-d5f7a0fd725d"
+      ]
+     },
+     "name": "Generous Soul",
+     "non_ability_text": null,
+     "oracle_text": "Flying, vigilance\nIf Generous Soul would be put into a graveyard from anywhere, exile it instead.",
+     "power": {
+      "type": "Fixed",
+      "value": 4
+     },
+     "printings": [
+      "DBL",
+      "MID"
+     ],
+     "rarities": [
+      "uncommon"
+     ],
+     "replacements": [
+      {
+       "condition": null,
+       "description": "If ~ would be put into a graveyard from anywhere, exile it instead.",
+       "destination_zone": "Graveyard",
+       "event": "Moved",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "destination": "Exile",
+         "enter_tapped": false,
+         "enter_transformed": false,
+         "enters_attacking": false,
+         "origin": null,
+         "owner_library": false,
+         "target": {
+          "type": "SelfRef"
+         },
+         "type": "ChangeZone"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": {
+        "type": "Mandatory"
+       },
+       "valid_card": {
+        "type": "SelfRef"
+       }
+      }
+     ],
+     "scryfall_oracle_id": "74c9cc13-c03f-4322-82af-b7bce1f2a0d8",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 4
+     },
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "card_faces": [
+     {
+      "colors": [
+       "W"
+      ],
+      "keywords": [
+       "Disturb",
+       "Flying",
+       "Transform",
+       "Vigilance"
+      ],
+      "mana_cost": "{1}{W}",
+      "name": "Beloved Beggar",
+      "oracle_text": "Disturb {4}{W}{W} (You may cast this card from your graveyard transformed for its disturb cost.)",
+      "power": "0",
+      "toughness": "4",
+      "type_line": "Creature — Human Peasant"
+     },
+     {
+      "colors": [
+       "W"
+      ],
+      "keywords": [
+       "Disturb",
+       "Flying",
+       "Transform",
+       "Vigilance"
+      ],
+      "mana_cost": "",
+      "name": "Generous Soul",
+      "oracle_text": "Flying, vigilance\nIf Generous Soul would be put into a graveyard from anywhere, exile it instead.",
+      "power": "4",
+      "toughness": "4",
+      "type_line": "Creature — Spirit"
+     }
+    ],
+    "cmc": 2.0,
+    "color_identity": [
+     "W"
+    ],
+    "keywords": [
+     "Disturb",
+     "Flying",
+     "Transform",
+     "Vigilance"
+    ],
+    "layout": "transform",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "name": "Beloved Beggar // Generous Soul",
+    "oracle_id": "74c9cc13-c03f-4322-82af-b7bce1f2a0d8",
+    "type_line": "Creature — Human Peasant // Creature — Spirit"
+   }
+  },
   "Benalish Faithbonder": {
    "phase_records": [
     {
@@ -290686,6 +290982,426 @@
     "type_line": "Creature — Trilobite"
    }
   },
+  "Cryptolith Fragment // Aurora of Emrakul": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Eldrazi",
+       "Reflection"
+      ],
+      "supertypes": []
+     },
+     "color_override": null,
+     "defense": null,
+     "face_index": 1,
+     "flavor_name": null,
+     "keywords": [
+      "Flying",
+      "Deathtouch"
+     ],
+     "layout": "transform",
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "type": "NoCost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "078b2103-15ce-456d-b092-352fa7222935",
+       "262b7b55-0b32-4c4f-a2ca-02f0b83fa7a2",
+       "67e10819-c594-4f0a-9f5a-dbb29fd35f8e"
+      ]
+     },
+     "name": "Aurora of Emrakul",
+     "non_ability_text": null,
+     "oracle_text": "Flying, deathtouch\nWhenever this creature attacks, each opponent loses 3 life.",
+     "power": {
+      "type": "Fixed",
+      "value": 1
+     },
+     "printings": [
+      "EMN",
+      "INR",
+      "SIR"
+     ],
+     "rarities": [
+      "uncommon"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "60c8a1d4-8d0a-4906-bcaf-d3a09d57c452",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 4
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever ~ attacks, each opponent loses 3 life.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "amount": {
+          "type": "Fixed",
+          "value": 3
+         },
+         "type": "LoseLife"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "player_scope": {
+         "type": "Opponent"
+        },
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "Attacks",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    },
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": {
+        "type": "Tap"
+       },
+       "description": "{T}: Add one mana of any color. Each player loses 1 life.",
+       "duration": null,
+       "effect": {
+        "produced": {
+         "color_options": [
+          "White",
+          "Blue",
+          "Black",
+          "Red",
+          "Green"
+         ],
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "type": "AnyOneColor"
+        },
+        "type": "Mana"
+       },
+       "forward_result": false,
+       "is_mana_ability": true,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "amount": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "type": "LoseLife"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "player_scope": {
+         "type": "All"
+        },
+        "sub_ability": null,
+        "sub_link": "SequentialSibling",
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Artifact"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_override": null,
+     "defense": null,
+     "face_index": 0,
+     "flavor_name": null,
+     "keywords": [],
+     "layout": "transform",
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 3,
+      "shards": [],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "078b2103-15ce-456d-b092-352fa7222935",
+       "262b7b55-0b32-4c4f-a2ca-02f0b83fa7a2",
+       "67e10819-c594-4f0a-9f5a-dbb29fd35f8e"
+      ]
+     },
+     "name": "Cryptolith Fragment",
+     "non_ability_text": null,
+     "oracle_text": "This artifact enters tapped.\n{T}: Add one mana of any color. Each player loses 1 life.\nAt the beginning of your upkeep, if each player has 10 or less life, transform this artifact.",
+     "power": null,
+     "printings": [
+      "EMN",
+      "INR",
+      "SIR"
+     ],
+     "rarities": [
+      "uncommon"
+     ],
+     "replacements": [
+      {
+       "condition": null,
+       "description": "~ enters tapped.",
+       "destination_zone": "Battlefield",
+       "event": "Moved",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "scope": {
+          "type": "Single"
+         },
+         "state": {
+          "type": "Tap"
+         },
+         "target": {
+          "type": "SelfRef"
+         },
+         "type": "SetTapState"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": {
+        "type": "Mandatory"
+       },
+       "valid_card": {
+        "type": "SelfRef"
+       }
+      }
+     ],
+     "rulings": [
+      {
+       "date": "2025-01-24",
+       "text": "Cryptolith Fragment’s second ability is a mana ability. Players can’t respond to it or to the loss of life it causes."
+      },
+      {
+       "date": "2025-01-24",
+       "text": "If any player has 11 or more life as your upkeep begins, Cryptolith Fragment’s last ability doesn’t trigger. If any player has 11 or more life as the ability resolves, the ability has no effect."
+      },
+      {
+       "date": "2025-01-24",
+       "text": "In a Two-Headed Giant game, Aurora of Emrakul’s last ability causes each opponent to lose 3 life, so the opposing team loses a total of 6 life."
+      },
+      {
+       "date": "2025-01-24",
+       "text": "In a Two-Headed Giant game, Cryptolith Fragment’s last ability checks whether each team’s life total is 10 or less."
+      },
+      {
+       "date": "2025-01-24",
+       "text": "In a Two-Headed Giant game, Cryptolith Fragment’s mana ability causes each player to lose 1 life, so each team loses 2 life."
+      }
+     ],
+     "scryfall_oracle_id": "60c8a1d4-8d0a-4906-bcaf-d3a09d57c452",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": [
+      {
+       "batched": false,
+       "condition": {
+        "comparator": "LE",
+        "lhs": {
+         "qty": {
+          "player": {
+           "aggregate": "Max",
+           "type": "AllPlayers"
+          },
+          "type": "LifeTotal"
+         },
+         "type": "Ref"
+        },
+        "rhs": {
+         "type": "Fixed",
+         "value": 10
+        },
+        "type": "QuantityComparison"
+       },
+       "constraint": {
+        "type": "OnlyDuringYourTurn"
+       },
+       "damage_kind": "Any",
+       "description": "At the beginning of your upkeep, if each player has 10 or less life, transform ~.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "scope": {
+          "type": "Single"
+         },
+         "target": {
+          "type": "SelfRef"
+         },
+         "type": "Transform"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "Phase",
+       "optional": false,
+       "origin": null,
+       "phase": "Upkeep",
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": null,
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "card_faces": [
+     {
+      "colors": [],
+      "keywords": [
+       "Deathtouch",
+       "Flying",
+       "Transform"
+      ],
+      "mana_cost": "{3}",
+      "name": "Cryptolith Fragment",
+      "oracle_text": "This artifact enters tapped.\n{T}: Add one mana of any color. Each player loses 1 life.\nAt the beginning of your upkeep, if each player has 10 or less life, transform this artifact.",
+      "type_line": "Artifact"
+     },
+     {
+      "colors": [],
+      "keywords": [
+       "Deathtouch",
+       "Flying",
+       "Transform"
+      ],
+      "mana_cost": "",
+      "name": "Aurora of Emrakul",
+      "oracle_text": "Flying, deathtouch\nWhenever this creature attacks, each opponent loses 3 life.",
+      "power": "1",
+      "toughness": "4",
+      "type_line": "Creature — Eldrazi Reflection"
+     }
+    ],
+    "cmc": 3.0,
+    "color_identity": [],
+    "keywords": [
+     "Deathtouch",
+     "Flying",
+     "Transform"
+    ],
+    "layout": "transform",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "name": "Cryptolith Fragment // Aurora of Emrakul",
+    "oracle_id": "60c8a1d4-8d0a-4906-bcaf-d3a09d57c452",
+    "produced_mana": [
+     "B",
+     "G",
+     "R",
+     "U",
+     "W"
+    ],
+    "type_line": "Artifact // Creature — Eldrazi Reflection"
+   }
+  },
   "Cryptolith Rite": {
    "phase_records": [
     {
@@ -321491,6 +322207,349 @@
     "oracle_id": "a81fcdf8-59e7-471d-96ce-f87e656572b1",
     "oracle_text": "All creatures get -X/-X until end of turn, where X is the number of card types among cards in your graveyard.",
     "type_line": "Sorcery"
+   }
+  },
+  "Delver of Secrets // Insectile Aberration": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Human",
+       "Wizard"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Blue"
+     ],
+     "color_override": null,
+     "defense": null,
+     "face_index": 0,
+     "flavor_name": null,
+     "keywords": [],
+     "layout": "transform",
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pauper": "legal",
+      "paupercommander": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 0,
+      "shards": [
+       "Blue"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "11bf83bb-c95b-4b4f-9a56-ce7a1816307a",
+       "6904ea20-e504-47da-95a0-08739fdde260",
+       "871c4ccc-5a14-4583-b4c7-6f2d2aeb8253",
+       "888fbfaf-dbf9-4045-a79e-d436ef75b3cf",
+       "a808459c-f086-4cb6-a53e-4b9e196c1000",
+       "abff6c81-65a4-48fa-ba8f-580f87b0344a"
+      ]
+     },
+     "name": "Delver of Secrets",
+     "non_ability_text": null,
+     "oracle_text": "At the beginning of your upkeep, look at the top card of your library. You may reveal that card. If an instant or sorcery card is revealed this way, transform this creature.",
+     "power": {
+      "type": "Fixed",
+      "value": 1
+     },
+     "printings": [
+      "DBL",
+      "INR",
+      "ISD",
+      "MID",
+      "SLD",
+      "V17"
+     ],
+     "rarities": [
+      "common",
+      "uncommon",
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2011-09-22",
+       "text": "You may reveal the card even if it's not an instant or sorcery. Whether or not you reveal it, the card stays on top of your library."
+      }
+     ],
+     "scryfall_oracle_id": "edd531b9-f615-4399-8c8c-1c5e18c4acbf",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 1
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": {
+        "type": "OnlyDuringYourTurn"
+       },
+       "damage_kind": "Any",
+       "description": "At the beginning of your upkeep, look at the top card of your library. You may reveal that card. If an instant or sorcery card is revealed this way, transform ~.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "destination": null,
+         "enter_tapped": false,
+         "enters_attacking": false,
+         "filter": {
+          "type": "Any"
+         },
+         "keep_count": 0,
+         "player": {
+          "type": "Controller"
+         },
+         "rest_destination": null,
+         "reveal": false,
+         "type": "Dig",
+         "up_to": false
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "target": {
+           "type": "ParentTarget"
+          },
+          "type": "Reveal"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": true,
+         "optional_targeting": false,
+         "sub_ability": {
+          "condition": {
+           "card_types": [
+            "Instant",
+            "Sorcery"
+           ],
+           "type": "RevealedHasCardType"
+          },
+          "cost": null,
+          "description": null,
+          "duration": null,
+          "effect": {
+           "scope": {
+            "type": "Single"
+           },
+           "target": {
+            "type": "SelfRef"
+           },
+           "type": "Transform"
+          },
+          "forward_result": false,
+          "kind": "Spell",
+          "optional": false,
+          "optional_targeting": false,
+          "sub_ability": null,
+          "sub_link": "SequentialSibling",
+          "target_prompt": null
+         },
+         "sub_link": "SequentialSibling",
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "mode": "Phase",
+       "optional": false,
+       "origin": null,
+       "phase": "Upkeep",
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": null,
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    },
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Human",
+       "Insect"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Blue"
+     ],
+     "color_override": [
+      "Blue"
+     ],
+     "defense": null,
+     "face_index": 1,
+     "flavor_name": null,
+     "keywords": [
+      "Flying"
+     ],
+     "layout": "transform",
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pauper": "legal",
+      "paupercommander": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "type": "NoCost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "11bf83bb-c95b-4b4f-9a56-ce7a1816307a",
+       "6904ea20-e504-47da-95a0-08739fdde260",
+       "871c4ccc-5a14-4583-b4c7-6f2d2aeb8253",
+       "888fbfaf-dbf9-4045-a79e-d436ef75b3cf",
+       "a808459c-f086-4cb6-a53e-4b9e196c1000",
+       "abff6c81-65a4-48fa-ba8f-580f87b0344a"
+      ]
+     },
+     "name": "Insectile Aberration",
+     "non_ability_text": null,
+     "oracle_text": "Flying",
+     "power": {
+      "type": "Fixed",
+      "value": 3
+     },
+     "printings": [
+      "DBL",
+      "INR",
+      "ISD",
+      "MID",
+      "SLD",
+      "V17"
+     ],
+     "rarities": [
+      "common",
+      "uncommon",
+      "rare"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "edd531b9-f615-4399-8c8c-1c5e18c4acbf",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 2
+     },
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "card_faces": [
+     {
+      "colors": [
+       "U"
+      ],
+      "keywords": [
+       "Flying",
+       "Transform"
+      ],
+      "mana_cost": "{U}",
+      "name": "Delver of Secrets",
+      "oracle_text": "At the beginning of your upkeep, look at the top card of your library. You may reveal that card. If an instant or sorcery card is revealed this way, transform this creature.",
+      "power": "1",
+      "toughness": "1",
+      "type_line": "Creature — Human Wizard"
+     },
+     {
+      "colors": [
+       "U"
+      ],
+      "keywords": [
+       "Flying",
+       "Transform"
+      ],
+      "mana_cost": "",
+      "name": "Insectile Aberration",
+      "oracle_text": "Flying",
+      "power": "3",
+      "toughness": "2",
+      "type_line": "Creature — Human Insect"
+     }
+    ],
+    "cmc": 1.0,
+    "color_identity": [
+     "U"
+    ],
+    "keywords": [
+     "Flying",
+     "Transform"
+    ],
+    "layout": "transform",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "legal",
+     "paupercommander": "legal",
+     "penny": "not_legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "name": "Delver of Secrets // Insectile Aberration",
+    "oracle_id": "edd531b9-f615-4399-8c8c-1c5e18c4acbf",
+    "type_line": "Creature — Human Wizard // Creature — Human Insect"
    }
   },
   "Dementia Sliver": {
@@ -580462,6 +581521,253 @@
     "type_line": "Creature — Nephilim"
    }
   },
+  "Inkmoth Nexus": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": {
+        "type": "Tap"
+       },
+       "description": "{T}: Add {C}.",
+       "duration": null,
+       "effect": {
+        "produced": {
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "type": "Colorless"
+        },
+        "type": "Mana"
+       },
+       "forward_result": false,
+       "is_mana_ability": true,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      },
+      {
+       "condition": null,
+       "cost": {
+        "cost": {
+         "generic": 1,
+         "shards": [],
+         "type": "Cost"
+        },
+        "type": "Mana"
+       },
+       "description": "{1}: ~ becomes a 1/1 Phyrexian Blinkmoth artifact creature with flying and infect until end of turn. It's still a land.",
+       "duration": "UntilEndOfTurn",
+       "effect": {
+        "duration": "UntilEndOfTurn",
+        "static_abilities": [
+         {
+          "active_zones": [],
+          "affected": {
+           "type": "SelfRef"
+          },
+          "affected_zone": null,
+          "characteristic_defining": false,
+          "condition": null,
+          "description": "become a 1/1 Phyrexian Blinkmoth artifact creature with flying and infect",
+          "effect_zone": null,
+          "mode": "Continuous",
+          "modifications": [
+           {
+            "type": "SetPower",
+            "value": 1
+           },
+           {
+            "type": "SetToughness",
+            "value": 1
+           },
+           {
+            "keyword": "Flying",
+            "type": "AddKeyword"
+           },
+           {
+            "keyword": "Infect",
+            "type": "AddKeyword"
+           },
+           {
+            "core_type": "Artifact",
+            "type": "AddType"
+           },
+           {
+            "core_type": "Creature",
+            "type": "AddType"
+           },
+           {
+            "set": "Creature",
+            "type": "RemoveAllSubtypes"
+           },
+           {
+            "subtype": "Phyrexian",
+            "type": "AddSubtype"
+           },
+           {
+            "subtype": "Blinkmoth",
+            "type": "AddSubtype"
+           }
+          ]
+         }
+        ],
+        "target": null,
+        "type": "GenericEffect"
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": "UntilEndOfTurn",
+        "effect": {
+         "duration": "UntilEndOfTurn",
+         "static_abilities": [
+          {
+           "active_zones": [],
+           "affected": {
+            "type": "SelfRef"
+           },
+           "affected_zone": null,
+           "characteristic_defining": false,
+           "condition": null,
+           "description": "It's still a land",
+           "effect_zone": null,
+           "mode": "Continuous",
+           "modifications": [
+            {
+             "core_type": "Land",
+             "type": "AddType"
+            }
+           ]
+          }
+         ],
+         "target": null,
+         "type": "GenericEffect"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "sub_link": "SequentialSibling",
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Land"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "type": "NoCost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "38c41b06-407e-497a-adb9-a19687fad1e8",
+       "ec50c1c3-885e-47d3-ada7-cc0edbf09df1",
+       "f928d19f-a88e-4558-878e-af49c50c70ee"
+      ]
+     },
+     "name": "Inkmoth Nexus",
+     "non_ability_text": null,
+     "oracle_text": "{T}: Add {C}.\n{1}: This land becomes a 1/1 Phyrexian Blinkmoth artifact creature with flying and infect until end of turn. It's still a land. (It deals damage to creatures in the form of -1/-1 counters and to players in the form of poison counters.)",
+     "power": null,
+     "printings": [
+      "EOS",
+      "MBS",
+      "PRM",
+      "SLD",
+      "WMC"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2011-06-01",
+       "text": "If Inkmoth Nexus entered this turn and it's not a creature, it can be tapped for mana. If it becomes a creature that turn, it can't attack or be tapped for mana."
+      },
+      {
+       "date": "2011-06-01",
+       "text": "If you've controlled Inkmoth Nexus continuously since your most recent turn began and it becomes a creature, it can attack or be tapped for mana."
+      }
+     ],
+     "scryfall_oracle_id": "675281ff-b81f-4e5e-9f85-9f8cd202b50b",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 0.0,
+    "color_identity": [],
+    "colors": [],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "",
+    "name": "Inkmoth Nexus",
+    "oracle_id": "675281ff-b81f-4e5e-9f85-9f8cd202b50b",
+    "oracle_text": "{T}: Add {C}.\n{1}: This land becomes a 1/1 Phyrexian Blinkmoth artifact creature with flying and infect until end of turn. It's still a land. (It deals damage to creatures in the form of -1/-1 counters and to players in the form of poison counters.)",
+    "produced_mana": [
+     "C"
+    ],
+    "type_line": "Land"
+   }
+  },
   "Inner Fire": {
    "phase_records": [
     {
@@ -586200,6 +587506,531 @@
     "name": "Invasion of Gobakhan // Lightshield Array",
     "oracle_id": "86c32a56-3272-4738-b0b3-a8aa49a17ce4",
     "type_line": "Battle — Siege // Enchantment"
+   }
+  },
+  "Invasion of Ikoria": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Battle"
+      ],
+      "subtypes": [
+       "Siege"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Green"
+     ],
+     "color_override": null,
+     "defense": "6",
+     "face_index": 0,
+     "flavor_name": null,
+     "keywords": [],
+     "layout": "transform",
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 0,
+      "shards": [
+       "X",
+       "Green",
+       "Green"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "5d59c8f2-f6af-40a6-8dfe-8cc45bf231ce"
+      ]
+     },
+     "name": "Invasion of Ikoria",
+     "non_ability_text": null,
+     "oracle_text": "(As a Siege enters, choose an opponent to protect it. You and others can attack it. When it's defeated, exile it, then cast it transformed.)\nWhen this Siege enters, search your library and/or graveyard for a non-Human creature card with mana value X or less and put it onto the battlefield. If you search your library this way, shuffle.",
+     "power": null,
+     "printings": [
+      "MOM",
+      "PMOM"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [
+      {
+       "condition": null,
+       "description": "CR 310.12a: As a Siege enters, its controller chooses an opponent as its protector.",
+       "destination_zone": "Battlefield",
+       "event": "Moved",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "choice_type": "Opponent",
+         "persist": true,
+         "type": "Choose"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": {
+        "type": "Mandatory"
+       },
+       "valid_card": {
+        "type": "SelfRef"
+       }
+      }
+     ],
+     "rulings": [
+      {
+       "date": "2023-04-14",
+       "text": "A Siege’s controller can’t be its protector. If a Siege’s protector ever gains control of it, they choose a new player to be its protector. This is a state-based action."
+      },
+      {
+       "date": "2023-04-14",
+       "text": "A battle can be attacked by all players other than its protector. Notably, this means a Siege’s controller can attack it."
+      },
+      {
+       "date": "2023-04-14",
+       "text": "A battle can be dealt damage and be target of spells and/or abilities that target “any target.”"
+      },
+      {
+       "date": "2023-04-14",
+       "text": "A battle’s “defense” is displayed in the bottom right corner of the card. A battle enters the battlefield with that number of defense counters. If another permanent enters the battlefield as a copy of a battle, it also enters with that number of defense counters."
+      },
+      {
+       "date": "2023-04-14",
+       "text": "As a Siege enters the battlefield, its controller chooses an opponent to be its protector."
+      },
+      {
+       "date": "2023-04-14",
+       "text": "Assigning a creature’s damage as though it weren’t blocked is all or nothing. You can’t use this effect to assign some of the creature’s damage to a blocking creature and the rest to the player, planeswalker, or battle it’s attacking."
+      },
+      {
+       "date": "2023-04-14",
+       "text": "Battles can’t attack or block, even if one also becomes a creature. If an attacking or blocking creature somehow becomes a battle in addition to being a creature, it is removed from combat."
+      },
+      {
+       "date": "2023-04-14",
+       "text": "Damage dealt to a battle causes that many defense counters to be removed from it."
+      },
+      {
+       "date": "2023-04-14",
+       "text": "Even if a creature assigns damage as though it were not blocked, it will still receive damage from creatures that are blocking it."
+      },
+      {
+       "date": "2023-04-14",
+       "text": "If a Siege never had defense counters on it (perhaps because a permanent became a copy of one), it can’t have its last defense counter removed. It will be put into its owner’s graveyard. You won’t exile it or cast the other face."
+      },
+      {
+       "date": "2023-04-14",
+       "text": "If a battle has no defense counters, and it isn’t the source of a triggered ability that has triggered but not yet left the stack, that battle is put into its owner’s graveyard. This is a state-based action. This doesn’t cause a Siege’s intrinsic triggered ability to trigger."
+      },
+      {
+       "date": "2023-04-14",
+       "text": "If a battle that’s being attacked somehow stops being a battle, it is removed from combat. Similarly, if its controller changes in the middle of combat, it is removed from combat."
+      },
+      {
+       "date": "2023-04-14",
+       "text": "If a non-battle permanent that is already on the battlefield become a copy of a Siege, its controller chooses one of their opponents to be that battle’s protector. However, it will most likely be put into its owner’s graveyard because it has no defense counters (see below)."
+      },
+      {
+       "date": "2023-04-14",
+       "text": "If a permanent that is represented by a transforming double-faced card becomes a copy of a Siege, it will be exiled as that Siege’s triggered ability resolves, then it will be cast transformed. Note that this applies only to transforming double-faced cards, not to modal double-faced cards that can normally be played using either face."
+      },
+      {
+       "date": "2023-04-14",
+       "text": "If a token or a card that isn’t represented by a transforming double-faced card becomes a copy of a Siege, it can’t be cast as its triggered ability resolves. It will remain in exile. If it’s a token, it will cease to exist the next time state-based actions are performed."
+      },
+      {
+       "date": "2023-04-14",
+       "text": "In a multiplayer game, if the protector of a battle leaves the game and that battle is not currently being attacked, its controller chooses a new protector for it as a state-based action. If it is being attacked, its controller chooses a new protector for it once no creatures are attacking it. This means that it continues to be attacked and can be dealt combat damage as normal."
+      },
+      {
+       "date": "2023-04-14",
+       "text": "Only creatures controlled by a battle’s protector can block creatures that are attacking that battle. This means a Siege’s controller can never assign creatures to block for it."
+      },
+      {
+       "date": "2023-04-14",
+       "text": "Sieges each have an intrinsic triggered ability. That ability is “When the last defense counter is removed from this permanent, exile it, then you may cast it transformed without paying its mana cost.”"
+      },
+      {
+       "date": "2023-04-14",
+       "text": "You decide whether to assign a non-Human creature’s combat damage as though it weren’t blocked just before it assigns that damage. You may make a different choice for each non-Human creature you control—that is, you may have none, some, or all of those creatures assign combat damage as though they weren’t blocked."
+      }
+     ],
+     "scryfall_oracle_id": "21d90735-5e04-4a8c-a546-ff26d4d5998d",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "When this Siege enters, search your library and/or graveyard for a non-Human creature card with mana value X or less and put it onto the battlefield. If you search your library this way, shuffle.",
+       "destination": "Battlefield",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "filter": {
+          "controller": null,
+          "properties": [
+           {
+            "comparator": "LE",
+            "type": "Cmc",
+            "value": {
+             "qty": {
+              "name": "X",
+              "type": "Variable"
+             },
+             "type": "Ref"
+            }
+           }
+          ],
+          "type": "Typed",
+          "type_filters": [
+           "Creature",
+           {
+            "Non": {
+             "Subtype": "Human"
+            }
+           }
+          ]
+         },
+         "reveal": false,
+         "source_zones": [
+          "Graveyard",
+          "Library"
+         ],
+         "type": "SearchLibrary"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "destination": "Battlefield",
+          "enter_tapped": false,
+          "enter_transformed": false,
+          "enters_attacking": false,
+          "origin": null,
+          "owner_library": false,
+          "target": {
+           "type": "Any"
+          },
+          "type": "ChangeZone"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": {
+          "condition": null,
+          "cost": null,
+          "description": null,
+          "duration": null,
+          "effect": {
+           "target": {
+            "type": "Controller"
+           },
+           "type": "Shuffle"
+          },
+          "forward_result": false,
+          "kind": "Spell",
+          "optional": false,
+          "optional_targeting": false,
+          "sub_ability": null,
+          "sub_link": "SequentialSibling",
+          "target_prompt": null
+         },
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "mode": "ChangesZone",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": null
+      },
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "counter_filter": {
+        "counter_type": "defense",
+        "threshold": 0
+       },
+       "damage_kind": "Any",
+       "description": "CR 310.12b: When the last defense counter is removed from this Siege, exile it, then you may cast it transformed without paying its mana cost.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "destination": "Exile",
+         "enter_tapped": false,
+         "enter_transformed": false,
+         "enters_attacking": false,
+         "origin": "Battlefield",
+         "owner_library": false,
+         "target": {
+          "type": "SelfRef"
+         },
+         "type": "ChangeZone"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "cast_transformed": true,
+          "driver": "DuringResolution",
+          "mode": "Cast",
+          "target": {
+           "type": "SelfRef"
+          },
+          "type": "CastFromZone",
+          "without_paying_mana_cost": true
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": true,
+         "optional_targeting": false,
+         "sub_ability": null,
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "mode": "CounterRemoved",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [],
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    },
+    {
+     "abilities": [],
+     "brawl_commander": true,
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Dinosaur"
+      ],
+      "supertypes": [
+       "Legendary"
+      ]
+     },
+     "color_identity": [
+      "Green"
+     ],
+     "color_override": [
+      "Green"
+     ],
+     "defense": null,
+     "face_index": 1,
+     "flavor_name": null,
+     "is_commander": true,
+     "keywords": [
+      "Reach"
+     ],
+     "layout": "transform",
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "type": "NoCost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "5d59c8f2-f6af-40a6-8dfe-8cc45bf231ce"
+      ]
+     },
+     "name": "Zilortha, Apex of Ikoria",
+     "non_ability_text": null,
+     "oracle_text": "Reach\nFor each non-Human creature you control, you may have that creature assign its combat damage as though it weren't blocked.",
+     "power": {
+      "type": "Fixed",
+      "value": 8
+     },
+     "printings": [
+      "MOM",
+      "PMOM"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "21d90735-5e04-4a8c-a546-ff26d4d5998d",
+     "static_abilities": [
+      {
+       "active_zones": [],
+       "affected": {
+        "controller": "You",
+        "properties": [],
+        "type": "Typed",
+        "type_filters": [
+         "Creature",
+         {
+          "Non": {
+           "Subtype": "Human"
+          }
+         }
+        ]
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": null,
+       "description": "For each non-Human creature you control, you may have that creature assign its combat damage as though it weren't blocked.",
+       "effect_zone": null,
+       "mode": "Continuous",
+       "modifications": [
+        {
+         "type": "AssignDamageAsThoughUnblocked"
+        }
+       ]
+      }
+     ],
+     "toughness": {
+      "type": "Fixed",
+      "value": 8
+     },
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "card_faces": [
+     {
+      "colors": [
+       "G"
+      ],
+      "defense": "6",
+      "keywords": [
+       "Reach",
+       "Transform"
+      ],
+      "mana_cost": "{X}{G}{G}",
+      "name": "Invasion of Ikoria",
+      "oracle_text": "(As a Siege enters, choose an opponent to protect it. You and others can attack it. When it's defeated, exile it, then cast it transformed.)\nWhen this Siege enters, search your library and/or graveyard for a non-Human creature card with mana value X or less and put it onto the battlefield. If you search your library this way, shuffle.",
+      "type_line": "Battle — Siege"
+     },
+     {
+      "colors": [
+       "G"
+      ],
+      "keywords": [
+       "Reach",
+       "Transform"
+      ],
+      "mana_cost": "",
+      "name": "Zilortha, Apex of Ikoria",
+      "oracle_text": "Reach\nFor each non-Human creature you control, you may have that creature assign its combat damage as though it weren't blocked.",
+      "power": "8",
+      "toughness": "8",
+      "type_line": "Legendary Creature — Dinosaur"
+     }
+    ],
+    "cmc": 2.0,
+    "color_identity": [
+     "G"
+    ],
+    "keywords": [
+     "Reach",
+     "Transform"
+    ],
+    "layout": "transform",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "name": "Invasion of Ikoria // Zilortha, Apex of Ikoria",
+    "oracle_id": "21d90735-5e04-4a8c-a546-ff26d4d5998d",
+    "type_line": "Battle — Siege // Legendary Creature — Dinosaur"
    }
   },
   "Invasion of New Capenna // Holy Frazzle-Cannon": {
@@ -789356,6 +791187,234 @@
     "type_line": "Enchantment — Aura"
    }
   },
+  "Noxious Gearhulk": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Artifact",
+       "Creature"
+      ],
+      "subtypes": [
+       "Construct"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Black"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [
+      "Menace"
+     ],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 4,
+      "shards": [
+       "Black",
+       "Black"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "289c11b7-a460-4a2f-b11a-e1ba54bd1f34",
+       "36b1e963-9b8c-4103-abbc-580866f144e7",
+       "60d1b650-6c5f-435c-826a-f025d7b796e5",
+       "6ea94d38-d99a-4668-adb4-5f60724ca484",
+       "77741652-d431-440d-8c47-3f95d68e846e",
+       "82db9fb9-51c0-4d06-a589-e4ea17589857",
+       "96886e7f-66b2-4f67-a5c6-c65500bcfdef",
+       "9f86e5fe-8723-4494-b4cc-b7ac3a047bd1"
+      ]
+     },
+     "name": "Noxious Gearhulk",
+     "non_ability_text": null,
+     "oracle_text": "Menace\nWhen this creature enters, you may destroy another target creature. If a creature is destroyed this way, you gain life equal to its toughness.",
+     "power": {
+      "type": "Fixed",
+      "value": 5
+     },
+     "printings": [
+      "BRC",
+      "C21",
+      "DSC",
+      "KLD",
+      "KLR",
+      "MOC",
+      "MPS",
+      "NCC",
+      "PKLD",
+      "TDC",
+      "TLE"
+     ],
+     "rarities": [
+      "mythic"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2016-09-20",
+       "text": "If the target creature has indestructible, it isn't destroyed this way and you won't gain life. If it is destroyed but put into a zone other than a graveyard, you'll gain life."
+      },
+      {
+       "date": "2016-09-20",
+       "text": "Use the toughness of the creature as it last existed on the battlefield to determine how much life to gain."
+      }
+     ],
+     "scryfall_oracle_id": "a77b5be2-f361-4135-ba25-670a74d268ac",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 4
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "When ~ enters, you may destroy another target creature. If a creature is destroyed this way, you gain life equal to its toughness.",
+       "destination": "Battlefield",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "cant_regenerate": false,
+         "target": {
+          "controller": null,
+          "properties": [
+           {
+            "type": "Another"
+           }
+          ],
+          "type": "Typed",
+          "type_filters": [
+           "Creature"
+          ]
+         },
+         "type": "Destroy"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": true,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": {
+          "filter": {
+           "controller": null,
+           "properties": [],
+           "type": "Typed",
+           "type_filters": [
+            "Creature"
+           ]
+          },
+          "type": "ZoneChangedThisWay"
+         },
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "amount": {
+           "qty": {
+            "scope": {
+             "type": "Anaphoric"
+            },
+            "type": "Toughness"
+           },
+           "type": "Ref"
+          },
+          "type": "GainLife"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": null,
+         "sub_link": "SequentialSibling",
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "mode": "ChangesZone",
+       "optional": true,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 6.0,
+    "color_identity": [
+     "B"
+    ],
+    "colors": [
+     "B"
+    ],
+    "keywords": [
+     "Menace"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{4}{B}{B}",
+    "name": "Noxious Gearhulk",
+    "oracle_id": "a77b5be2-f361-4135-ba25-670a74d268ac",
+    "oracle_text": "Menace\nWhen this creature enters, you may destroy another target creature. If a creature is destroyed this way, you gain life equal to its toughness.",
+    "power": "5",
+    "toughness": "4",
+    "type_line": "Artifact Creature — Construct"
+   }
+  },
   "Noxious Ghoul": {
    "phase_records": [
     {
@@ -845135,6 +847194,213 @@
     "oracle_id": "85bde6ac-3dd4-4946-8b57-24f57e3eae2b",
     "oracle_text": "Destroy target creature with flying.",
     "type_line": "Instant"
+   }
+  },
+  "Poison Dart Frog": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": {
+        "type": "Tap"
+       },
+       "description": "{T}: Add one mana of any color.",
+       "duration": null,
+       "effect": {
+        "produced": {
+         "color_options": [
+          "White",
+          "Blue",
+          "Black",
+          "Red",
+          "Green"
+         ],
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "type": "AnyOneColor"
+        },
+        "type": "Mana"
+       },
+       "forward_result": false,
+       "is_mana_ability": true,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      },
+      {
+       "condition": null,
+       "cost": {
+        "cost": {
+         "generic": 2,
+         "shards": [],
+         "type": "Cost"
+        },
+        "type": "Mana"
+       },
+       "description": "{2}: ~ gains deathtouch until end of turn.",
+       "duration": "UntilEndOfTurn",
+       "effect": {
+        "duration": "UntilEndOfTurn",
+        "static_abilities": [
+         {
+          "active_zones": [],
+          "affected": {
+           "type": "SelfRef"
+          },
+          "affected_zone": null,
+          "characteristic_defining": false,
+          "condition": null,
+          "description": "gain deathtouch",
+          "effect_zone": null,
+          "mode": "Continuous",
+          "modifications": [
+           {
+            "keyword": "Deathtouch",
+            "type": "AddKeyword"
+           }
+          ]
+         }
+        ],
+        "target": null,
+        "type": "GenericEffect"
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Frog"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Green"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [
+      "Reach"
+     ],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pauper": "legal",
+      "paupercommander": "legal",
+      "pioneer": "legal",
+      "standard": "legal",
+      "standardbrawl": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "Green"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "62c1f09a-9d17-415c-8afa-cd0b62abe48d",
+       "cac29a5e-7f06-4d9d-9ee8-14dd525e2c54",
+       "e99d6e94-2fb7-45ef-bb35-4bf4b92d4f4d"
+      ]
+     },
+     "name": "Poison Dart Frog",
+     "non_ability_text": null,
+     "oracle_text": "Reach\n{T}: Add one mana of any color.\n{2}: This creature gains deathtouch until end of turn.",
+     "power": {
+      "type": "Fixed",
+      "value": 1
+     },
+     "printings": [
+      "LCI",
+      "M3C",
+      "PLST"
+     ],
+     "rarities": [
+      "common"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "e88a2b71-c90d-4e16-99a3-93d11fe7a968",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 1
+     },
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 2.0,
+    "color_identity": [
+     "G"
+    ],
+    "colors": [
+     "G"
+    ],
+    "keywords": [
+     "Reach"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "legal",
+     "paupercommander": "legal",
+     "penny": "not_legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "legal",
+     "standardbrawl": "legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}{G}",
+    "name": "Poison Dart Frog",
+    "oracle_id": "e88a2b71-c90d-4e16-99a3-93d11fe7a968",
+    "oracle_text": "Reach\n{T}: Add one mana of any color.\n{2}: This creature gains deathtouch until end of turn.",
+    "power": "1",
+    "produced_mana": [
+     "B",
+     "G",
+     "R",
+     "U",
+     "W"
+    ],
+    "toughness": "1",
+    "type_line": "Creature — Frog"
    }
   },
   "Polis Crusher": {
@@ -1136525,6 +1138791,134 @@
     "type_line": "Legendary Creature — Human Cleric"
    }
   },
+  "Typhoid Rats": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Rat"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Black"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [
+      "Deathtouch"
+     ],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pauper": "legal",
+      "paupercommander": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 0,
+      "shards": [
+       "Black"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "035533c6-ed13-488c-a9bc-5c7087472e84",
+       "4371c00a-06f8-4350-a906-8a367c014416",
+       "4490ce65-c73a-4809-abd1-ccc3175bd2a4",
+       "9f8723f6-96b1-4441-8a57-435fb82d6db4",
+       "d13cb90b-50c3-46ef-83f8-812dfb7ff881"
+      ]
+     },
+     "name": "Typhoid Rats",
+     "non_ability_text": null,
+     "oracle_text": "Deathtouch (Any amount of damage this deals to a creature is enough to destroy it.)",
+     "power": {
+      "type": "Fixed",
+      "value": 1
+     },
+     "printings": [
+      "ANB",
+      "CNS",
+      "FRF",
+      "ISD",
+      "J22",
+      "J25",
+      "M15",
+      "PLST"
+     ],
+     "rarities": [
+      "common"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "d6ee6cc1-902d-4f56-afa5-6fa4813bfbbc",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 1
+     },
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 1.0,
+    "color_identity": [
+     "B"
+    ],
+    "colors": [
+     "B"
+    ],
+    "keywords": [
+     "Deathtouch"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "legal",
+     "paupercommander": "legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{B}",
+    "name": "Typhoid Rats",
+    "oracle_id": "d6ee6cc1-902d-4f56-afa5-6fa4813bfbbc",
+    "oracle_text": "Deathtouch (Any amount of damage this deals to a creature is enough to destroy it.)",
+    "power": "1",
+    "toughness": "1",
+    "type_line": "Creature — Rat"
+   }
+  },
   "Typhoon": {
    "phase_records": [
     {
@@ -1161115,6 +1163509,214 @@
     "power": "4",
     "toughness": "4",
     "type_line": "Creature — Elephant Cleric"
+   }
+  },
+  "Venerated Rotpriest": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Phyrexian",
+       "Druid"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Green"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [
+      {
+       "Toxic": 1
+      }
+     ],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 0,
+      "shards": [
+       "Green"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "29ea9176-16cf-4064-8c69-071a520a110b",
+       "d1b032e3-14e3-48ba-ab8a-d2b4f8d31a7d"
+      ]
+     },
+     "name": "Venerated Rotpriest",
+     "non_ability_text": null,
+     "oracle_text": "Toxic 1 (Players dealt combat damage by this creature also get a poison counter.)\nWhenever a creature you control becomes the target of a spell, target opponent gets a poison counter.",
+     "power": {
+      "type": "Fixed",
+      "value": 1
+     },
+     "printings": [
+      "ONE",
+      "PONE"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2023-02-04",
+       "text": "A player with ten or more poison counters loses the game. This is a state-based action and doesn't use the stack. In other words, it happens immediately and players can't respond to it, just like a player losing the game due to having 0 or less life."
+      },
+      {
+       "date": "2023-02-04",
+       "text": "Any other effects of that damage, such as life gain from lifelink, still apply."
+      },
+      {
+       "date": "2023-02-04",
+       "text": "Conversely, replacement effects that apply to the number of counters put on a player can modify the counters placed this way. For example, Vorinclex, Monstrous Raider's last two abilities can apply to counters placed this way."
+      },
+      {
+       "date": "2023-02-04",
+       "text": "Damage dealt by a creature with toxic grants the same number of counters regardless of how much damage is dealt. Notably, if a replacement effect modifies the damage in some way (such as that of Gratuitous Violence), the number of counters given remains unchanged."
+      },
+      {
+       "date": "2023-02-04",
+       "text": "If a creature with toxic deals combat damage to a creature or planeswalker, or if it deals noncombat damage, toxic has no effect and no player gets poison counters."
+      },
+      {
+       "date": "2023-02-04",
+       "text": "Multiple instances of toxic are cumulative. For example, if a creature has toxic 2 and gains toxic 1 due to another effect, combat damage that creature deals to a player will cause that player to get 3 poison counters."
+      },
+      {
+       "date": "2023-02-04",
+       "text": "Toxic doesn't change the amount of combat damage a creature deals. For example, if a 2/2 creature with toxic 1 deals combat damage to a player, that creature will deal 2 damage. The results of that damage are the player loses 2 life and gets a poison counter."
+      }
+     ],
+     "scryfall_oracle_id": "eafd7ba5-691d-4f8d-94bb-70a5612245a1",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 2
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever a creature you control becomes the target of a spell, target opponent gets a poison counter.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "declares_chosen_group": 2147483648,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "counter_kind": "Poison",
+         "target": {
+          "controller": "Opponent",
+          "properties": [],
+          "type": "Typed",
+          "type_filters": []
+         },
+         "type": "GivePlayerCounter"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "BecomesTarget",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "controller": "You",
+        "properties": [],
+        "type": "Typed",
+        "type_filters": [
+         "Creature"
+        ]
+       },
+       "valid_source": {
+        "type": "StackSpell"
+       },
+       "valid_target": {
+        "type": "Player"
+       }
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 1.0,
+    "color_identity": [
+     "G"
+    ],
+    "colors": [
+     "G"
+    ],
+    "keywords": [
+     "Toxic"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{G}",
+    "name": "Venerated Rotpriest",
+    "oracle_id": "eafd7ba5-691d-4f8d-94bb-70a5612245a1",
+    "oracle_text": "Toxic 1 (Players dealt combat damage by this creature also get a poison counter.)\nWhenever a creature you control becomes the target of a spell, target opponent gets a poison counter.",
+    "power": "1",
+    "toughness": "2",
+    "type_line": "Creature — Phyrexian Druid"
    }
   },
   "Vengeant Earth": {

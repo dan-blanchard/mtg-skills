@@ -94,9 +94,32 @@ def test_static_grant_dropped_canary(name, kw):
     )
 
 
-@pytest.mark.parametrize(("name", "kw"), _STATIC_DROPS)
+#: The two whose grant is their own activated ability ("{1}: ~ gains your choice
+#: of flying, …"): restored, but a grant until end of turn (CR 113.1a), never a
+#: body of the keyword (the lane's own call, ``crosswalk.keyword_bodies``).
+_ACTIVATED_SELF_GRANTS = {"Argivian Avenger", "Jodah's Avenger"}
+
+
+@pytest.mark.parametrize(
+    ("name", "kw"),
+    [(n, kw) for n, kw in _STATIC_DROPS if n not in _ACTIVATED_SELF_GRANTS],
+)
 def test_static_grant_restored(name, kw):
     assert f"keyword_bodies|you|{kw}" in _idents(name)
+
+
+@pytest.mark.parametrize(
+    ("name", "kw"), [(n, kw) for n, kw in _STATIC_DROPS if n in _ACTIVATED_SELF_GRANTS]
+)
+def test_an_activated_self_grant_is_restored_but_no_body(name, kw):
+    spelled = PHASE_KEYWORDS.get(kw) or kw.title()
+    restored = [restore_dropped_keywords(rec) for rec in test_phase_records(name)]
+    assert any(
+        n.get("type") == "AddKeyword" and _spells(n.get("keyword"), spelled)
+        for rec in restored
+        for n in _walk(rec)
+    )
+    assert f"keyword_bodies|you|{kw}" not in _idents(name)
 
 
 def test_restored_grant_feeds_the_team_lanes():

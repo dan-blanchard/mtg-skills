@@ -286,7 +286,7 @@ mark-owned <deck.json> <collection.json> [--bulk-data <bulk-data-path>]
 |------|------|
 | Find format-legal cards by oracle text, type, CMC | `card-search --format <fmt> --bulk-data <path>` |
 | Warm/verify the deck's hydrated sidecar (check `missing`) | `deck-hydrate <deck.json> [--bulk-data <path>]` |
-| **Run the Step-6 deterministic spine (scorecard + candidate swaps)** — every format | `deck-tune <deck.json> [--bulk-data <path>] [--bracket <1-5>] [--max-swaps <N>] [--budget <usd> \| --wildcards <rarity=N,…>] [--medium paper\|digital] [--exclude <name>]… --output <wd>/tune.json` |
+| **Run the Step-6 deterministic spine (scorecard + candidate swaps)** — every format | `deck-tune <deck.json> [--bulk-data <path>] [--bracket <1-5>] [--max-swaps <N>] [--budget <usd> \| --wildcards <rarity=N,…>] [--medium paper\|digital] [--exclude <name>]… [--collection <collection>] --output <wd>/tune.json` |
 | See what the commander/deck cares about (signal lanes) — *ad-hoc; the spine's `focus` has this* | `deck-signals <deck.json> [--bulk-data <path>] [--json]` |
 | Role-density budgets (lands/ramp/draw/interaction/wipes) — *ad-hoc; the spine's `template` has this* | `slot-budgets <deck.json> [--bulk-data <path>] [--shape <S>] [--json]` (deck size comes from the deck JSON) |
 | Rank a separate candidate list by synergy — *the spine's `swaps` already rank adds* | `deck-rank <deck.json> <candidates.json> [--bulk-data <path>] [--limit <N>] [--json] [--medium paper\|digital] [--meta auto\|off\|<archetype>]` (candidates from `card-search --json`) |
@@ -1329,11 +1329,11 @@ Review existing combos and near-misses. Distinguish:
 
 ```
 deck-tune <deck.json> [--bulk-data <path>] \
-    --bracket <1-5> --max-swaps <N> [--budget <usd> | --wildcards rare=4,uncommon=8] [--medium paper|digital] [--shape <aggro|midrange|control|combo>] [--exclude <name>]... \
+    --bracket <1-5> --max-swaps <N> [--budget <usd> | --wildcards rare=4,uncommon=8] [--medium paper|digital] [--shape <aggro|midrange|control|combo>] [--exclude <name>]... [--collection <collection>] \
     --output <working-dir>/tune.json
 ```
 
-The medium picks the currency: a **paper** build spends `--budget` USD; a **digital** (Arena) build spends `--wildcards` (per-rarity, e.g. `mythic=1,rare=4,uncommon=8,common=8`) and ignores `--budget`. Omit both for an owned-only pass. The medium also picks the candidate pool — paper printings for a paper table, Arena's for a digital build.
+The medium picks the currency: a **paper** build spends `--budget` USD; a **digital** (Arena) build spends `--wildcards` (per-rarity, e.g. `mythic=1,rare=4,uncommon=8,common=8`) and ignores `--budget`. Omit both for an owned-only pass. Pass `--collection` (the same file `mark-owned` and `proposal-check` take: parsed JSON, or an Untapped / Moxfield CSV) whenever the user has one: a candidate add they own then costs nothing, as in deck-forge with a Collection loaded. Without it every add is priced as a buy, owned or not. The medium also picks the candidate pool — paper printings for a paper table, Arena's for a digital build.
 
 Scorecard sections and what each subsumes:
 - **`shape` / `efficiency`** — deck speed + curve/tempo health (the 6a curve read). Each card is read at the cost the deck pays on curve: an unconditional cheaper alternative cost (warp, evoke, dash, blitz, prototype, impending) replaces its printed mana value (`_analysis.costs.effective_mana_value`, read off phase's keywords; the scorecard's `curve` and average both read it, while `deck-stats` keeps reporting printed mana value and lists the alternative costs beside it). Suspend and plot keep the printed value: they pay now and cast turns later, so judge those by hand (the alternative-cost check below).

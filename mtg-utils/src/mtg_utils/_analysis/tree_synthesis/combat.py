@@ -34,7 +34,9 @@ from mtg_utils._card_ir.crosswalk import (
     iter_typed_nodes,
     mod_keyword_name,
     node_duration,
+    picked_by_caster,
     pump_is_negative,
+    quantity_referent,
     tag_of,
 )
 from mtg_utils._card_ir.mirror.runtime import MirrorVariant
@@ -661,32 +663,69 @@ def _arm_pump_makers(tree: ConceptTree) -> ConceptNode | None:
 # toughness (Vhal, The Pride of Hull Clade) — relocates the deleted
 # ``_TOUGHNESS_VALUE_MIRROR`` verbatim, gap-gated. Measured over the
 # commander-legal corpus: 103 structural + 32 bucket-B, 0 drops, 0 adds.
-def has_structural_toughness_combat(tree: ConceptTree) -> bool:
-    """Whether an ``AssignDamageFromToughness`` modification exists, or a
-    Toughness-typed ``amount``/``count`` ref (``toughness_combat``'s direct
-    arm)."""
-    for n in tree.iter_typed():
-        if tag_of(n) == "AssignDamageFromToughness":
-            return True
-        for fname in ("amount", "count"):
-            q = getattr(n, fname, None)
-            if tag_of(q) != "Ref":
+def _toughness_refs(tree: ConceptTree) -> Iterator[bool]:
+    """Each toughness the card reads (an ``AssignDamageFromToughness``
+    modification, or a Toughness-typed ``amount``/``count`` ref), and whether
+    it is the toughness of a creature of yours. A size read off an object an
+    earlier effect targets or sacrifices is that object's
+    (``crosswalk.quantity_referent``), yours only when you pick it
+    (``crosswalk.picked_by_caster``): Noxious Gearhulk gains life equal to the
+    toughness of the creature it destroyed, any player's (its ruling: "the
+    toughness of the creature as it last existed on the battlefield")."""
+    for unit in tree.units:
+        for n in unit.iter_typed():
+            if tag_of(n) == "AssignDamageFromToughness":
+                yield True
                 continue
-            qty = getattr(q, "qty", None)
-            qt = tag_of(qty)
-            if qt == "Toughness" or (
-                qt in AGGREGATE_QTY_TAGS
-                and getattr(qty, "property", None) == "Toughness"
-            ):
-                return True
-    return False
+            for fname in ("amount", "count"):
+                q = getattr(n, fname, None)
+                if tag_of(q) != "Ref":
+                    continue
+                qty = getattr(q, "qty", None)
+                qt = tag_of(qty)
+                if qt == "Toughness":
+                    ref = quantity_referent(qty, unit, holder=n)
+                    yield (
+                        ref.kind not in ("target", "that")
+                        or ref.effect is None
+                        or picked_by_caster(
+                            qty, unit, n, sacrifice_actor=_sacrifice_actor()
+                        )
+                    )
+                elif (
+                    qt in AGGREGATE_QTY_TAGS
+                    and getattr(qty, "property", None) == "Toughness"
+                ):
+                    yield True
+
+
+def _sacrifice_actor():  # noqa: ANN202 — the lanes' read, imported late
+    """``lanes._shared.sacrifice_actor_scope``, the one sacrifice-actor read
+    :func:`crosswalk.picked_by_caster` takes. Imported at call time: the lanes
+    package imports this stage, and the read is needed only once a tree is."""
+    from mtg_utils._analysis.lanes._shared import sacrifice_actor_scope
+
+    return sacrifice_actor_scope
+
+
+def reads_typed_toughness(tree: ConceptTree) -> bool:
+    """Whether phase typed any toughness the card reads, whoever's
+    (:func:`_toughness_refs`)."""
+    return next(_toughness_refs(tree), None) is not None
+
+
+def has_structural_toughness_combat(tree: ConceptTree) -> bool:
+    """Whether the card reads a toughness of yours (:func:`_toughness_refs`):
+    ``toughness_combat``'s direct arm."""
+    return any(_toughness_refs(tree))
 
 
 def _arm_toughness_combat(tree: ConceptTree) -> ConceptNode | None:
     """Synthesize a ``toughness_combat`` node for the toughness-as-value
     residual (the deleted ``_TOUGHNESS_VALUE_MIRROR`` mirror relocated,
-    gap-gated against :func:`has_structural_toughness_combat`)."""
-    if has_structural_toughness_combat(tree):
+    gap-gated against every typed toughness read: a card phase gave a typed
+    ref is read off it, whoever's toughness it is)."""
+    if reads_typed_toughness(tree):
         return None
     if _TOUGHNESS_VALUE_MIRROR.search(_REMINDER.sub(" ", tree.oracle or "")) is None:
         return None
