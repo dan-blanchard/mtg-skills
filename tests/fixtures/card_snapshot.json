@@ -10410,6 +10410,245 @@
     "type_line": "Creature — Human Warrior"
    }
   },
+  "Academy Rector": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Human",
+       "Cleric"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "White"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "premodern": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 3,
+      "shards": [
+       "White"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "21aa9f50-face-4f2d-860d-9cd51a1b36d7"
+      ]
+     },
+     "name": "Academy Rector",
+     "non_ability_text": null,
+     "oracle_text": "When this creature dies, you may exile it. If you do, search your library for an enchantment card, put that card onto the battlefield, then shuffle.",
+     "power": {
+      "type": "Fixed",
+      "value": 1
+     },
+     "printings": [
+      "UDS",
+      "WC00"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2004-10-04",
+       "text": "You do not have to find an enchantment card if you do not want to, even if you have one in your library."
+      },
+      {
+       "date": "2005-08-01",
+       "text": "An enchantment card is any Enchantment card, including Auras."
+      }
+     ],
+     "scryfall_oracle_id": "e3c85068-b4b6-40b9-a16c-5c3b2d059ec4",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 2
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "When ~ dies, you may exile it. If you do, search your library for an enchantment card, put that card onto the battlefield, then shuffle.",
+       "destination": "Graveyard",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "destination": "Exile",
+         "enter_tapped": false,
+         "enter_transformed": false,
+         "enters_attacking": false,
+         "origin": null,
+         "owner_library": false,
+         "target": {
+          "type": "TriggeringSource"
+         },
+         "type": "ChangeZone"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": true,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": {
+          "signal": "OptionalEffectPerformed",
+          "type": "EffectOutcome"
+         },
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "count": {
+           "type": "Fixed",
+           "value": 1
+          },
+          "filter": {
+           "controller": null,
+           "properties": [],
+           "type": "Typed",
+           "type_filters": [
+            "Enchantment"
+           ]
+          },
+          "reveal": false,
+          "type": "SearchLibrary"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": {
+          "condition": null,
+          "cost": null,
+          "description": null,
+          "duration": null,
+          "effect": {
+           "destination": "Battlefield",
+           "enter_tapped": false,
+           "enter_transformed": false,
+           "enters_attacking": false,
+           "origin": "Library",
+           "owner_library": false,
+           "target": {
+            "type": "Any"
+           },
+           "type": "ChangeZone"
+          },
+          "forward_result": false,
+          "kind": "Spell",
+          "optional": false,
+          "optional_targeting": false,
+          "sub_ability": {
+           "condition": {
+            "signal": "OptionalEffectPerformed",
+            "type": "EffectOutcome"
+           },
+           "cost": null,
+           "description": null,
+           "duration": null,
+           "effect": {
+            "target": {
+             "type": "Controller"
+            },
+            "type": "Shuffle"
+           },
+           "forward_result": false,
+           "kind": "Spell",
+           "optional": false,
+           "optional_targeting": false,
+           "sub_ability": null,
+           "target_prompt": null
+          },
+          "target_prompt": null
+         },
+         "sub_link": "SequentialSibling",
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "mode": "ChangesZone",
+       "optional": true,
+       "origin": "Battlefield",
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Graveyard"
+       ],
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 4.0,
+    "color_identity": [
+     "W"
+    ],
+    "colors": [
+     "W"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{3}{W}",
+    "name": "Academy Rector",
+    "oracle_id": "e3c85068-b4b6-40b9-a16c-5c3b2d059ec4",
+    "oracle_text": "When this creature dies, you may exile it. If you do, search your library for an enchantment card, put that card onto the battlefield, then shuffle.",
+    "power": "1",
+    "toughness": "2",
+    "type_line": "Creature — Human Cleric"
+   }
+  },
   "Academy Researchers": {
    "phase_records": [
     {
@@ -203336,6 +203575,237 @@
     "type_line": "Creature — Human Soldier // Legendary Creature — Human Samurai"
    }
   },
+  "Bushwhack": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": null,
+       "duration": null,
+       "effect": {
+        "count": {
+         "type": "Fixed",
+         "value": 1
+        },
+        "filter": {
+         "controller": null,
+         "properties": [
+          {
+           "type": "HasSupertype",
+           "value": "Basic"
+          }
+         ],
+         "type": "Typed",
+         "type_filters": [
+          "Land"
+         ]
+        },
+        "reveal": true,
+        "type": "SearchLibrary"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "destination": "Hand",
+         "enter_tapped": false,
+         "enter_transformed": false,
+         "enters_attacking": false,
+         "origin": "Library",
+         "owner_library": false,
+         "target": {
+          "type": "Any"
+         },
+         "type": "ChangeZone"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "target": {
+           "type": "Controller"
+          },
+          "type": "Shuffle"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": null,
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "target_prompt": null
+      },
+      {
+       "condition": null,
+       "cost": null,
+       "description": null,
+       "duration": null,
+       "effect": {
+        "subject": {
+         "controller": "You",
+         "properties": [],
+         "type": "Typed",
+         "type_filters": [
+          "Creature"
+         ]
+        },
+        "target": {
+         "controller": "Opponent",
+         "properties": [],
+         "type": "Typed",
+         "type_filters": [
+          "Creature"
+         ]
+        },
+        "type": "Fight"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Sorcery"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Green"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pauper": "legal",
+      "paupercommander": "legal",
+      "pioneer": "legal",
+      "standard": "legal",
+      "standardbrawl": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 0,
+      "shards": [
+       "Green"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "03ebdb36-55e0-49dd-a514-785fbeb4ae19",
+       "712a0640-d9c8-46fc-b38b-bf20a40fa902",
+       "a0487cb8-c394-4c59-b6fc-2cdcbeb7dd40"
+      ]
+     },
+     "modal": {
+      "allow_repeat_modes": false,
+      "chooser": {
+       "type": "Controller"
+      },
+      "max_choices": 1,
+      "min_choices": 1,
+      "mode_count": 2,
+      "mode_descriptions": [
+       "Search your library for a basic land card, reveal it, put it into your hand, then shuffle.",
+       "Target creature you control fights target creature you don't control."
+      ]
+     },
+     "name": "Bushwhack",
+     "non_ability_text": null,
+     "oracle_text": "Choose one —\n• Search your library for a basic land card, reveal it, put it into your hand, then shuffle.\n• Target creature you control fights target creature you don't control. (Each deals damage equal to its power to the other.)",
+     "power": null,
+     "printings": [
+      "BRO",
+      "FDN",
+      "J25",
+      "PLST"
+     ],
+     "rarities": [
+      "common",
+      "uncommon"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "c61374e5-a7f6-455e-a40b-a481751b536b",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 1.0,
+    "color_identity": [
+     "G"
+    ],
+    "colors": [
+     "G"
+    ],
+    "keywords": [
+     "Fight"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "legal",
+     "paupercommander": "legal",
+     "penny": "not_legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "legal",
+     "standardbrawl": "legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{G}",
+    "name": "Bushwhack",
+    "oracle_id": "c61374e5-a7f6-455e-a40b-a481751b536b",
+    "oracle_text": "Choose one —\n• Search your library for a basic land card, reveal it, put it into your hand, then shuffle.\n• Target creature you control fights target creature you don't control. (Each deals damage equal to its power to the other.)",
+    "type_line": "Sorcery"
+   }
+  },
   "Butcher Ghoul": {
    "phase_records": [
     {
@@ -330922,6 +331392,431 @@
     "oracle_id": "058917c1-21ab-488a-9f9c-591c55f3c596",
     "oracle_text": "Target player sacrifices a creature of their choice.",
     "type_line": "Instant"
+   }
+  },
+  "Diabolic Intent": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Search your library for a card, put that card into your hand, then shuffle.",
+       "duration": null,
+       "effect": {
+        "count": {
+         "type": "Fixed",
+         "value": 1
+        },
+        "filter": {
+         "controller": null,
+         "properties": [],
+         "type": "Typed",
+         "type_filters": [
+          "Card"
+         ]
+        },
+        "reveal": false,
+        "type": "SearchLibrary"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "destination": "Hand",
+         "enter_tapped": false,
+         "enter_transformed": false,
+         "enters_attacking": false,
+         "origin": "Library",
+         "owner_library": false,
+         "target": {
+          "type": "Any"
+         },
+         "type": "ChangeZone"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "target": {
+           "type": "Controller"
+          },
+          "type": "Shuffle"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": null,
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "additional_cost": {
+      "data": {
+       "count": 1,
+       "target": {
+        "controller": null,
+        "properties": [],
+        "type": "Typed",
+        "type_filters": [
+         "Creature"
+        ]
+       },
+       "type": "Sacrifice"
+      },
+      "type": "Required"
+     },
+     "bracket_signals": {
+      "efficient_tutor": true,
+      "extra_turn": false,
+      "game_changer": false,
+      "mass_land_denial": false
+     },
+     "card_type": {
+      "core_types": [
+       "Sorcery"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Black"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "premodern": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "Black"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "0f2917bc-d7db-4b7b-8366-6c992869603f",
+       "10ef1c00-7ead-4ebb-9e64-1b29d8f088b8",
+       "3a1e8139-3690-4d4b-80b4-c733b4bbe786",
+       "4128b02b-204f-4677-9277-9d42bcbf7bf9",
+       "57a21794-dea0-46c8-a575-c41527ea46b5",
+       "b58299a8-e674-46de-ae25-c98410e0b445",
+       "d72ab698-de67-4ca8-8e42-b05346bf52fa"
+      ]
+     },
+     "name": "Diabolic Intent",
+     "non_ability_text": null,
+     "oracle_text": "As an additional cost to cast this spell, sacrifice a creature.\nSearch your library for a card, put that card into your hand, then shuffle.",
+     "power": null,
+     "printings": [
+      "BBD",
+      "BRO",
+      "FCA",
+      "LTC",
+      "MP2",
+      "PBRO",
+      "PLS",
+      "PRM",
+      "SLD"
+     ],
+     "rarities": [
+      "rare",
+      "mythic"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2004-10-04",
+       "text": "You must choose a card if there are any in your library."
+      },
+      {
+       "date": "2013-04-15",
+       "text": "Players can only respond once this spell has been cast and all its costs have been paid. No one can try to destroy the creature you sacrificed to prevent you from casting this spell."
+      },
+      {
+       "date": "2013-04-15",
+       "text": "You must sacrifice exactly one creature to cast this spell; you cannot cast it without sacrificing a creature, and you cannot sacrifice additional creatures."
+      },
+      {
+       "date": "2022-10-14",
+       "text": "Players can only respond once this spell has been cast and all its costs have been paid. No one can try to destroy the creature you sacrificed to prevent you from casting this spell."
+      },
+      {
+       "date": "2022-10-14",
+       "text": "You must sacrifice exactly one creature to cast this spell; you cannot cast it without sacrificing a creature, and you cannot sacrifice additional creatures."
+      }
+     ],
+     "scryfall_oracle_id": "038519b9-bca8-4b27-b5ac-2409595469d0",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 2.0,
+    "color_identity": [
+     "B"
+    ],
+    "colors": [
+     "B"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "legal",
+     "predh": "legal",
+     "premodern": "legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}{B}",
+    "name": "Diabolic Intent",
+    "oracle_id": "038519b9-bca8-4b27-b5ac-2409595469d0",
+    "oracle_text": "As an additional cost to cast this spell, sacrifice a creature.\nSearch your library for a card, put that card into your hand, then shuffle.",
+    "type_line": "Sorcery"
+   }
+  },
+  "Diabolic Tutor": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Search your library for a card, put that card into your hand, then shuffle.",
+       "duration": null,
+       "effect": {
+        "count": {
+         "type": "Fixed",
+         "value": 1
+        },
+        "filter": {
+         "controller": null,
+         "properties": [],
+         "type": "Typed",
+         "type_filters": [
+          "Card"
+         ]
+        },
+        "reveal": false,
+        "type": "SearchLibrary"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "destination": "Hand",
+         "enter_tapped": false,
+         "enter_transformed": false,
+         "enters_attacking": false,
+         "origin": "Library",
+         "owner_library": false,
+         "target": {
+          "type": "Any"
+         },
+         "type": "ChangeZone"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "target": {
+           "type": "Controller"
+          },
+          "type": "Shuffle"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": null,
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Sorcery"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Black"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "premodern": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 2,
+      "shards": [
+       "Black",
+       "Black"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "06750380-a9a9-4ab4-a03b-d4d35a31132a",
+       "1fb98f0e-5fa0-497e-9061-85cf0b3a3eff",
+       "2db75949-f8cd-4461-83c0-7eaee2196132",
+       "7cff6d24-4aeb-4b6c-b193-0c470fc4badf",
+       "8c6150f2-cc6c-405d-9812-bbbc524ce450",
+       "98724907-0469-4016-87ff-02cbce8008fa",
+       "d650dd8c-edd8-44e4-ae95-aaaf84557a72",
+       "d75a7c8b-f29f-4574-96c0-daac17fc75bb",
+       "dd14df0b-026d-473f-bfba-f57a2ccfd771",
+       "df6ba63e-0168-45e4-abf3-f7a5b87a4b85",
+       "e8f7af1b-97c9-4954-bb21-1e389fcb6361"
+      ]
+     },
+     "name": "Diabolic Tutor",
+     "non_ability_text": null,
+     "oracle_text": "Search your library for a card, put that card into your hand, then shuffle.",
+     "power": null,
+     "printings": [
+      "10E",
+      "8ED",
+      "9ED",
+      "CMA",
+      "CMD",
+      "CN2",
+      "KLD",
+      "M10",
+      "M11",
+      "M12",
+      "M14",
+      "ODY",
+      "PHUK",
+      "PLST",
+      "PSAL",
+      "PW24",
+      "SLD"
+     ],
+     "rarities": [
+      "uncommon",
+      "rare"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "14589b6b-1814-46f9-a364-83cc15dacac2",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 4.0,
+    "color_identity": [
+     "B"
+    ],
+    "colors": [
+     "B"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "legal",
+     "predh": "legal",
+     "premodern": "legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}{B}{B}",
+    "name": "Diabolic Tutor",
+    "oracle_id": "14589b6b-1814-46f9-a364-83cc15dacac2",
+    "oracle_text": "Search your library for a card, put that card into your hand, then shuffle.",
+    "type_line": "Sorcery"
    }
   },
   "Diabolic Vision": {
@@ -515642,6 +516537,259 @@
     "name": "Green Sun's Twilight",
     "oracle_id": "0221330a-3e7a-40aa-9c78-85c88a4c1a53",
     "oracle_text": "Reveal the top X plus one cards of your library. Choose a creature card and/or a land card from among them. Put those cards into your hand and the rest on the bottom of your library in a random order. If X is 5 or more, instead put the chosen cards onto the battlefield or into your hand and the rest on the bottom of your library in a random order.",
+    "type_line": "Sorcery"
+   }
+  },
+  "Green Sun's Zenith": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Search your library for a green creature card with mana value X or less, put it onto the battlefield, then shuffle. Shuffle ~ into its owner's library.",
+       "duration": null,
+       "effect": {
+        "count": {
+         "type": "Fixed",
+         "value": 1
+        },
+        "filter": {
+         "controller": null,
+         "properties": [
+          {
+           "comparator": "LE",
+           "type": "Cmc",
+           "value": {
+            "qty": {
+             "name": "X",
+             "type": "Variable"
+            },
+            "type": "Ref"
+           }
+          },
+          {
+           "color": "Green",
+           "type": "HasColor"
+          }
+         ],
+         "type": "Typed",
+         "type_filters": [
+          "Creature"
+         ]
+        },
+        "reveal": false,
+        "type": "SearchLibrary"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "destination": "Battlefield",
+         "enter_tapped": false,
+         "enter_transformed": false,
+         "enters_attacking": false,
+         "origin": "Library",
+         "owner_library": false,
+         "target": {
+          "type": "Any"
+         },
+         "type": "ChangeZone"
+        },
+        "forward_result": true,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "target": {
+           "type": "Controller"
+          },
+          "type": "Shuffle"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": {
+          "condition": null,
+          "cost": null,
+          "description": null,
+          "duration": null,
+          "effect": {
+           "destination": "Library",
+           "enter_tapped": false,
+           "enter_transformed": false,
+           "enters_attacking": false,
+           "origin": null,
+           "owner_library": true,
+           "target": {
+            "type": "SelfRef"
+           },
+           "type": "ChangeZone"
+          },
+          "forward_result": false,
+          "kind": "Spell",
+          "optional": false,
+          "optional_targeting": false,
+          "sub_ability": {
+           "condition": null,
+           "cost": null,
+           "description": null,
+           "duration": null,
+           "effect": {
+            "target": {
+             "type": "ParentTargetOwner"
+            },
+            "type": "Shuffle"
+           },
+           "forward_result": false,
+           "kind": "Spell",
+           "optional": false,
+           "optional_targeting": false,
+           "sub_ability": null,
+           "target_prompt": null
+          },
+          "sub_link": "SequentialSibling",
+          "target_prompt": null
+         },
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Sorcery"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Green"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 0,
+      "shards": [
+       "X",
+       "Green"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "01794178-cf41-454c-ac37-1d8b18e42db2",
+       "02335747-54e3-4827-ae19-4e362863da9b",
+       "586fdc7a-add9-4ed6-88f6-188061647c31",
+       "70291c7b-a86f-4466-8502-c28765a89b2a"
+      ]
+     },
+     "name": "Green Sun's Zenith",
+     "non_ability_text": null,
+     "oracle_text": "Search your library for a green creature card with mana value X or less, put it onto the battlefield, then shuffle. Shuffle Green Sun's Zenith into its owner's library.",
+     "power": null,
+     "printings": [
+      "2X2",
+      "EMA",
+      "MBS",
+      "PRM",
+      "SPG",
+      "V13"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2011-06-01",
+       "text": "If this spell doesn't resolve, none of its effects occur. In particular, it will go to the graveyard rather than to its owner's library."
+      },
+      {
+       "date": "2016-06-08",
+       "text": "If Green Sun's Zenith is countered, none of its effects will happen. Notably, it will be put into its owner's graveyard rather than shuffled into its owner's library."
+      },
+      {
+       "date": "2016-06-08",
+       "text": "If you own Green Sun's Zenith, but an opponent casts it (due to Knowledge Pool's effect, for example), that opponent searches their library for an appropriate creature card, then shuffles that library. That opponent then shuffles Green Sun's Zenith into your library. You won't shuffle any library in this case."
+      },
+      {
+       "date": "2016-06-08",
+       "text": "In most cases, if you own Green Sun's Zenith and cast it, you'll shuffle your library twice. In practice, shuffling once is sufficient, but effects that care about you shuffling your library (like Psychogenic Probe, for example) will see that you've shuffled twice."
+      }
+     ],
+     "scryfall_oracle_id": "0d96b60b-a060-48ee-bb83-93f1c4a10669",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 1.0,
+    "color_identity": [
+     "G"
+    ],
+    "colors": [
+     "G"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{X}{G}",
+    "name": "Green Sun's Zenith",
+    "oracle_id": "0d96b60b-a060-48ee-bb83-93f1c4a10669",
+    "oracle_text": "Search your library for a green creature card with mana value X or less, put it onto the battlefield, then shuffle. Shuffle Green Sun's Zenith into its owner's library.",
     "type_line": "Sorcery"
    }
   },
@@ -725167,6 +726315,194 @@
     "type_line": "Creature — Vampire"
    }
   },
+  "Merchant Scroll": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Search your library for a blue instant card, reveal that card, put it into your hand, then shuffle.",
+       "duration": null,
+       "effect": {
+        "count": {
+         "type": "Fixed",
+         "value": 1
+        },
+        "filter": {
+         "controller": null,
+         "properties": [
+          {
+           "color": "Blue",
+           "type": "HasColor"
+          }
+         ],
+         "type": "Typed",
+         "type_filters": [
+          "Instant"
+         ]
+        },
+        "reveal": true,
+        "type": "SearchLibrary"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "destination": "Hand",
+         "enter_tapped": false,
+         "enter_transformed": false,
+         "enters_attacking": false,
+         "origin": "Library",
+         "owner_library": false,
+         "target": {
+          "type": "Any"
+         },
+         "type": "ChangeZone"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "target": {
+           "type": "Controller"
+          },
+          "type": "Shuffle"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": null,
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Sorcery"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Blue"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pauper": "legal",
+      "paupercommander": "legal",
+      "premodern": "legal",
+      "vintage": "restricted"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "Blue"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "979ad872-75c2-49ed-a4c6-7e0c7595e900",
+       "df6dab52-0c96-40ee-953d-731bc3006ada"
+      ]
+     },
+     "name": "Merchant Scroll",
+     "non_ability_text": null,
+     "oracle_text": "Search your library for a blue instant card, reveal that card, put it into your hand, then shuffle.",
+     "power": null,
+     "printings": [
+      "8ED",
+      "HML",
+      "J18",
+      "MB2",
+      "PRM",
+      "SLD",
+      "SLZ"
+     ],
+     "rarities": [
+      "common",
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2004-10-04",
+       "text": "Because the \"search\" requires you to find a card with certain characteristics, you don't have to find the card if you don't want to."
+      }
+     ],
+     "scryfall_oracle_id": "86cebe2a-95e7-4f22-99cc-e805aeaf347e",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 2.0,
+    "color_identity": [
+     "U"
+    ],
+    "colors": [
+     "U"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "legal",
+     "paupercommander": "legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "restricted"
+    },
+    "mana_cost": "{1}{U}",
+    "name": "Merchant Scroll",
+    "oracle_id": "86cebe2a-95e7-4f22-99cc-e805aeaf347e",
+    "oracle_text": "Search your library for a blue instant card, reveal that card, put it into your hand, then shuffle.",
+    "type_line": "Sorcery"
+   }
+  },
   "Merchant of Truth": {
    "phase_records": [
     {
@@ -833537,6 +834873,190 @@
     "type_line": "Creature — Human Advisor"
    }
   },
+  "Personal Tutor": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Search your library for a sorcery card, reveal it, then shuffle and put that card on top.",
+       "duration": null,
+       "effect": {
+        "count": {
+         "type": "Fixed",
+         "value": 1
+        },
+        "filter": {
+         "controller": null,
+         "properties": [],
+         "type": "Typed",
+         "type_filters": [
+          "Sorcery"
+         ]
+        },
+        "reveal": true,
+        "type": "SearchLibrary"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "target": {
+          "type": "Controller"
+         },
+         "type": "Shuffle"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "count": {
+           "type": "Fixed",
+           "value": 1
+          },
+          "position": {
+           "type": "Top"
+          },
+          "target": {
+           "type": "Any"
+          },
+          "type": "PutAtLibraryPosition"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": null,
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "bracket_signals": {
+      "efficient_tutor": true,
+      "extra_turn": false,
+      "game_changer": false,
+      "mass_land_denial": false
+     },
+     "card_type": {
+      "core_types": [
+       "Sorcery"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Blue"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 0,
+      "shards": [
+       "Blue"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "2887fc25-22cd-48c9-ad2b-6539c8139e27",
+       "294c1fd2-ddb9-4454-ae24-de8e69437ad1",
+       "6eddddd1-cb96-4b99-94bb-f224aac3082a",
+       "8893944f-35f1-47d2-87e1-c24a1d1938bc"
+      ]
+     },
+     "name": "Personal Tutor",
+     "non_ability_text": null,
+     "oracle_text": "Search your library for a sorcery card, reveal it, then shuffle and put that card on top.",
+     "power": null,
+     "printings": [
+      "CMM",
+      "ME2",
+      "POR",
+      "SLD"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2004-10-04",
+       "text": "Because the “search” requires you to find a card with certain characteristics, you don’t have to find the card if you don’t want to."
+      }
+     ],
+     "scryfall_oracle_id": "90f54959-2c9b-4b8a-84c9-d6893eb43553",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 1.0,
+    "color_identity": [
+     "U"
+    ],
+    "colors": [
+     "U"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{U}",
+    "name": "Personal Tutor",
+    "oracle_id": "90f54959-2c9b-4b8a-84c9-d6893eb43553",
+    "oracle_text": "Search your library for a sorcery card, reveal it, then shuffle and put that card on top.",
+    "type_line": "Sorcery"
+   }
+  },
   "Pest Infestation": {
    "phase_records": [
     {
@@ -889005,6 +890525,234 @@
     "power": "1",
     "toughness": "1",
     "type_line": "Legendary Creature — Human Wizard"
+   }
+  },
+  "Razaketh, the Foulblooded": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": {
+        "costs": [
+         {
+          "amount": {
+           "type": "Fixed",
+           "value": 2
+          },
+          "type": "PayLife"
+         },
+         {
+          "count": 1,
+          "target": {
+           "controller": null,
+           "properties": [
+            {
+             "type": "Another"
+            }
+           ],
+           "type": "Typed",
+           "type_filters": [
+            "Creature"
+           ]
+          },
+          "type": "Sacrifice"
+         }
+        ],
+        "type": "Composite"
+       },
+       "description": "Pay 2 life, Sacrifice another creature: Search your library for a card, put that card into your hand, then shuffle.",
+       "duration": null,
+       "effect": {
+        "count": {
+         "type": "Fixed",
+         "value": 1
+        },
+        "filter": {
+         "controller": null,
+         "properties": [],
+         "type": "Typed",
+         "type_filters": [
+          "Card"
+         ]
+        },
+        "reveal": false,
+        "type": "SearchLibrary"
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "destination": "Hand",
+         "enter_tapped": false,
+         "enter_transformed": false,
+         "enters_attacking": false,
+         "origin": "Library",
+         "owner_library": false,
+         "target": {
+          "type": "Any"
+         },
+         "type": "ChangeZone"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "target": {
+           "type": "Controller"
+          },
+          "type": "Shuffle"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": null,
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "brawl_commander": true,
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Demon"
+      ],
+      "supertypes": [
+       "Legendary"
+      ]
+     },
+     "color_identity": [
+      "Black"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "is_commander": true,
+     "keywords": [
+      "Flying",
+      "Trample"
+     ],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 5,
+      "shards": [
+       "Black",
+       "Black",
+       "Black"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "411091f6-45c3-4d7e-a7a6-4c65e4571c11",
+       "7ca18cc5-c278-4c66-ad45-084f5ba960f1",
+       "d6bb956d-0df6-4910-9320-55f2c5674d98",
+       "e0bc7380-e417-4f30-a4aa-356d782b5e4d",
+       "e14adff9-33cc-467e-b782-068854c5e7b7",
+       "ecb98f5c-9ef2-4549-9603-814726f1ffcc"
+      ]
+     },
+     "name": "Razaketh, the Foulblooded",
+     "non_ability_text": null,
+     "oracle_text": "Flying, trample\nPay 2 life, Sacrifice another creature: Search your library for a card, put that card into your hand, then shuffle.",
+     "power": {
+      "type": "Fixed",
+      "value": 8
+     },
+     "printings": [
+      "AKR",
+      "CMM",
+      "HOU",
+      "PHOU",
+      "SLD"
+     ],
+     "rarities": [
+      "mythic"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "136c9ecb-59b4-4ef6-bcb2-7b8d3df3ee75",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 8
+     },
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 8.0,
+    "color_identity": [
+     "B"
+    ],
+    "colors": [
+     "B"
+    ],
+    "keywords": [
+     "Flying",
+     "Trample"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{5}{B}{B}{B}",
+    "name": "Razaketh, the Foulblooded",
+    "oracle_id": "136c9ecb-59b4-4ef6-bcb2-7b8d3df3ee75",
+    "oracle_text": "Flying, trample\nPay 2 life, Sacrifice another creature: Search your library for a card, put that card into your hand, then shuffle.",
+    "power": "8",
+    "toughness": "8",
+    "type_line": "Legendary Creature — Demon"
    }
   },
   "Razia's Purification": {
@@ -1037722,6 +1039470,349 @@
     "oracle_id": "79d46e09-2548-440f-9c02-3c3dc39a0cd1",
     "oracle_text": "{1}, {T}: End the turn. Activate only during your turn. (Exile all spells and abilities from the stack. Discard down to your maximum hand size. Damage wears off, and \"this turn\" and \"until end of turn\" effects end.)",
     "type_line": "Artifact"
+   }
+  },
+  "Sunforger": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": {
+        "costs": [
+         {
+          "cost": {
+           "generic": 0,
+           "shards": [
+            "Red",
+            "White"
+           ],
+           "type": "Cost"
+          },
+          "type": "Mana"
+         },
+         {
+          "type": "Unattach"
+         }
+        ],
+        "type": "Composite"
+       },
+       "description": "{R}{W}, Unattach ~: Search your library for a red or white instant card with mana value 4 or less and cast that card without paying its mana cost. Then shuffle.",
+       "duration": null,
+       "effect": {
+        "count": {
+         "type": "Fixed",
+         "value": 1
+        },
+        "filter": {
+         "filters": [
+          {
+           "controller": null,
+           "properties": [
+            {
+             "comparator": "LE",
+             "type": "Cmc",
+             "value": {
+              "type": "Fixed",
+              "value": 4
+             }
+            },
+            {
+             "color": "Red",
+             "type": "HasColor"
+            }
+           ],
+           "type": "Typed",
+           "type_filters": [
+            "Instant"
+           ]
+          },
+          {
+           "controller": null,
+           "properties": [
+            {
+             "comparator": "LE",
+             "type": "Cmc",
+             "value": {
+              "type": "Fixed",
+              "value": 4
+             }
+            },
+            {
+             "color": "White",
+             "type": "HasColor"
+            }
+           ],
+           "type": "Typed",
+           "type_filters": [
+            "Instant"
+           ]
+          }
+         ],
+         "type": "Or"
+        },
+        "reveal": false,
+        "type": "SearchLibrary"
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "destination": "Hand",
+         "enter_tapped": false,
+         "enter_transformed": false,
+         "enters_attacking": false,
+         "origin": "Library",
+         "owner_library": false,
+         "target": {
+          "type": "Any"
+         },
+         "type": "ChangeZone"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "driver": "DuringResolution",
+          "mode": "Cast",
+          "target": {
+           "type": "ParentTarget"
+          },
+          "type": "CastFromZone",
+          "without_paying_mana_cost": true
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": {
+          "condition": null,
+          "cost": null,
+          "description": null,
+          "duration": null,
+          "effect": {
+           "target": {
+            "type": "Controller"
+           },
+           "type": "Shuffle"
+          },
+          "forward_result": false,
+          "kind": "Spell",
+          "optional": false,
+          "optional_targeting": false,
+          "sub_ability": null,
+          "sub_link": "SequentialSibling",
+          "target_prompt": null
+         },
+         "target_choice_timing": "Resolution",
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "target_prompt": null
+      },
+      {
+       "ability_tag": {
+        "type": "Equip"
+       },
+       "activation_restrictions": [
+        {
+         "type": "AsSorcery"
+        }
+       ],
+       "condition": null,
+       "cost": {
+        "cost": {
+         "generic": 3,
+         "shards": [],
+         "type": "Cost"
+        },
+        "type": "Mana"
+       },
+       "description": "Equip {3}",
+       "duration": null,
+       "effect": {
+        "selection": {
+         "at_resolution": {}
+        },
+        "target": {
+         "controller": "You",
+         "properties": [],
+         "type": "Typed",
+         "type_filters": [
+          "Creature"
+         ]
+        },
+        "type": "Attach"
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Artifact"
+      ],
+      "subtypes": [
+       "Equipment"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Red",
+      "White"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 3,
+      "shards": [],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "0f9a9654-edf1-486f-a002-57418f03de8e",
+       "3945c488-6966-4c7d-a0b7-487a2c1837aa",
+       "dd3e42ee-ab13-460b-90fd-86e677abce4f",
+       "dfe6e159-f229-44a8-b542-78e3c3d6ec79",
+       "f55ea597-fedb-443d-a242-3f161812ec11"
+      ]
+     },
+     "name": "Sunforger",
+     "non_ability_text": null,
+     "oracle_text": "Equipped creature gets +4/+0.\n{R}{W}, Unattach this Equipment: Search your library for a red or white instant card with mana value 4 or less and cast that card without paying its mana cost. Then shuffle.\nEquip {3}",
+     "power": null,
+     "printings": [
+      "2XM",
+      "C16",
+      "CMR",
+      "MM2",
+      "RAV",
+      "SLD"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2020-08-07",
+       "text": "If a spell has {X} in its mana cost, you must choose 0 as the value of X when casting it without paying its mana cost."
+      },
+      {
+       "date": "2020-08-07",
+       "text": "If you cast a spell \"without paying its mana cost,\" you can't choose to cast it for any alternative costs. You can, however, pay additional costs. If the card has any mandatory additional costs, those must be paid to cast the spell."
+      },
+      {
+       "date": "2020-08-07",
+       "text": "You can't pay the cost of unattaching Sunforger unless Sunforger is attached to a creature."
+      }
+     ],
+     "scryfall_oracle_id": "d1421070-a3cc-4af3-bf91-0f97372f4161",
+     "static_abilities": [
+      {
+       "active_zones": [],
+       "affected": {
+        "controller": null,
+        "properties": [
+         {
+          "type": "EquippedBy"
+         }
+        ],
+        "type": "Typed",
+        "type_filters": [
+         "Creature"
+        ]
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": null,
+       "description": "Equipped creature gets +4/+0.",
+       "effect_zone": null,
+       "mode": "Continuous",
+       "modifications": [
+        {
+         "type": "AddPower",
+         "value": 4
+        },
+        {
+         "type": "AddToughness",
+         "value": 0
+        }
+       ]
+      }
+     ],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 3.0,
+    "color_identity": [
+     "R",
+     "W"
+    ],
+    "colors": [],
+    "keywords": [
+     "Equip"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{3}",
+    "name": "Sunforger",
+    "oracle_id": "d1421070-a3cc-4af3-bf91-0f97372f4161",
+    "oracle_text": "Equipped creature gets +4/+0.\n{R}{W}, Unattach this Equipment: Search your library for a red or white instant card with mana value 4 or less and cast that card without paying its mana cost. Then shuffle.\nEquip {3}",
+    "type_line": "Artifact — Equipment"
    }
   },
   "Super-Soldier Serum": {
@@ -1216787,6 +1218878,195 @@
     "oracle_id": "02a8a5cc-62ce-4ae5-aa7d-760124af7d7b",
     "oracle_text": "After the second main phase this turn, there's an additional combat phase followed by an additional main phase. At the beginning of that combat, untap all creatures that attacked this turn.\nRebound (If you cast this spell from your hand, exile it as it resolves. At the beginning of your next upkeep, you may cast this card from exile without paying its mana cost.)",
     "type_line": "Sorcery"
+   }
+  },
+  "Worldly Tutor": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Search your library for a creature card, reveal it, then shuffle and put the card on top.",
+       "duration": null,
+       "effect": {
+        "count": {
+         "type": "Fixed",
+         "value": 1
+        },
+        "filter": {
+         "controller": null,
+         "properties": [],
+         "type": "Typed",
+         "type_filters": [
+          "Creature"
+         ]
+        },
+        "reveal": true,
+        "type": "SearchLibrary"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "target": {
+          "type": "Controller"
+         },
+         "type": "Shuffle"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "count": {
+           "type": "Fixed",
+           "value": 1
+          },
+          "position": {
+           "type": "Top"
+          },
+          "target": {
+           "type": "Any"
+          },
+          "type": "PutAtLibraryPosition"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": null,
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "bracket_signals": {
+      "efficient_tutor": true,
+      "extra_turn": false,
+      "game_changer": true,
+      "mass_land_denial": false
+     },
+     "card_type": {
+      "core_types": [
+       "Instant"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Green"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "premodern": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 0,
+      "shards": [
+       "Green"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "16b4d0a8-3270-4e53-9f1d-90f995c3b712",
+       "8d3569de-ff5e-44a2-94a2-86e994d2a0f1",
+       "ba6706ed-f05b-411f-afa5-f6154f718c80",
+       "f39aa2e9-e294-4ce6-bf5e-e1f579101a7a"
+      ]
+     },
+     "name": "Worldly Tutor",
+     "non_ability_text": null,
+     "oracle_text": "Search your library for a creature card, reveal it, then shuffle and put the card on top.",
+     "power": null,
+     "printings": [
+      "6ED",
+      "CC1",
+      "DMR",
+      "MIR",
+      "TLE"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2004-10-04",
+       "text": "Because the \"search\" requires you to find a card with certain characteristics, you don't have to find the card if you don't want to."
+      }
+     ],
+     "scryfall_oracle_id": "e8863518-0bfa-49c3-8c6e-6c9116a81051",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 1.0,
+    "color_identity": [
+     "G"
+    ],
+    "colors": [
+     "G"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{G}",
+    "name": "Worldly Tutor",
+    "oracle_id": "e8863518-0bfa-49c3-8c6e-6c9116a81051",
+    "oracle_text": "Search your library for a creature card, reveal it, then shuffle and put the card on top.",
+    "type_line": "Instant"
    }
   },
   "Worldspine Wurm": {

@@ -6057,7 +6057,7 @@ def unit_is_self_tutor(unit: AbilityUnit) -> bool | None:
 def self_tutor_found_types(tree: ConceptTree) -> tuple[str, ...]:
     """The card types the card's own-library searches find, sorted: in a self
     tutor's unit (:func:`unit_is_self_tutor`), each search of your library
-    (:func:`_self_searches`) by its filter's card types (CR 205.2a; CR 701.23a:
+    (:func:`self_searches`) by its filter's card types (CR 205.2a; CR 701.23a:
     a search finds "a card that matches the given description") — Fabricate
     ``("Artifact",)``, Enlightened Tutor ``("Artifact", "Enchantment")``, Call
     the Gatewatch ``("Planeswalker",)``. A search for any card (Demonic Tutor)
@@ -6067,7 +6067,7 @@ def self_tutor_found_types(tree: ConceptTree) -> tuple[str, ...]:
     for unit in tree.units:
         if unit_is_self_tutor(unit) is not True:
             continue
-        for search in _self_searches(unit):
+        for search in self_searches(unit):
             found.update(
                 t
                 for t in filter_core_types(getattr(search, "filter", None))
@@ -6312,7 +6312,7 @@ class LandSearch(NamedTuple):
     cycling: bool  # a landcycling search: from your hand, into your hand
 
 
-def _self_searches(unit: AbilityUnit) -> list[TypedMirrorNode]:
+def self_searches(unit: AbilityUnit) -> list[TypedMirrorNode]:
     """The unit's ``SearchLibrary`` effects that search YOUR library, judged one
     search at a time along the effect chain. A search's own ``target_player``
     decides (:func:`_searcher_is_self`); a recipient-less search is read off the
@@ -6438,7 +6438,7 @@ def _battlefield_count(unit: AbilityUnit, search: TypedMirrorNode) -> int:
 def land_searches(tree: ConceptTree) -> tuple[LandSearch, ...]:
     """Every unit of TREE that searches YOUR library for a land.
 
-    Each search is judged on its own (:func:`_self_searches`): an opponent's
+    Each search is judged on its own (:func:`self_searches`): an opponent's
     compensation search (Path to Exile, Assassin's Trophy, Ghost Quarter, Settle
     the Wreckage) is not yours, while Demolition Field's own search after the
     opponent's is. A symmetric or another-player-scoped ability is vetoed whole
@@ -6454,7 +6454,7 @@ def land_searches(tree: ConceptTree) -> tuple[LandSearch, ...]:
             continue
         found = [
             (node, colors)
-            for node in _self_searches(unit)
+            for node in self_searches(unit)
             if (colors := land_search_colors(getattr(node, "filter", None))) is not None
         ]
         if not found:
