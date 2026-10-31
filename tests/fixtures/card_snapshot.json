@@ -590048,6 +590048,308 @@
     "type_line": "Enchantment — Class"
    }
   },
+  "Insatiable Avarice": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": null,
+       "duration": null,
+       "effect": {
+        "count": {
+         "type": "Fixed",
+         "value": 1
+        },
+        "filter": {
+         "controller": null,
+         "properties": [],
+         "type": "Typed",
+         "type_filters": [
+          "Card"
+         ]
+        },
+        "reveal": false,
+        "type": "SearchLibrary"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "target": {
+          "type": "Controller"
+         },
+         "type": "Shuffle"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "count": {
+           "type": "Fixed",
+           "value": 1
+          },
+          "position": {
+           "type": "Top"
+          },
+          "target": {
+           "type": "Any"
+          },
+          "type": "PutAtLibraryPosition"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": null,
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "target_prompt": null
+      },
+      {
+       "condition": null,
+       "cost": null,
+       "declares_chosen_group": 2147483648,
+       "description": null,
+       "duration": null,
+       "effect": {
+        "count": {
+         "type": "Fixed",
+         "value": 3
+        },
+        "target": {
+         "type": "Player"
+        },
+        "type": "Draw"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "amount": {
+          "type": "Fixed",
+          "value": 3
+         },
+         "target": {
+          "group": 2147483648,
+          "type": "DeclaredPlayer"
+         },
+         "type": "LoseLife"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Sorcery"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Black"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [
+      "Spree"
+     ],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "standard": "legal",
+      "standardbrawl": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 0,
+      "shards": [
+       "Black"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "a108b0e4-1b43-4659-9e91-facb0bd57ebb",
+       "aae03d91-8269-4124-ba50-a6c65f47718b"
+      ]
+     },
+     "modal": {
+      "allow_repeat_modes": false,
+      "chooser": {
+       "type": "Controller"
+      },
+      "max_choices": 2,
+      "min_choices": 1,
+      "mode_costs": [
+       {
+        "generic": 2,
+        "shards": [],
+        "type": "Cost"
+       },
+       {
+        "generic": 0,
+        "shards": [
+         "Black",
+         "Black"
+        ],
+        "type": "Cost"
+       }
+      ],
+      "mode_count": 2,
+      "mode_descriptions": [
+       "Search your library for a card, then shuffle and put that card on top.",
+       "Target player draws three cards and loses 3 life."
+      ]
+     },
+     "name": "Insatiable Avarice",
+     "non_ability_text": null,
+     "oracle_text": "Spree (Choose one or more additional costs.)\n+ {2} — Search your library for a card, then shuffle and put that card on top.\n+ {B}{B} — Target player draws three cards and loses 3 life.",
+     "power": null,
+     "printings": [
+      "OTJ",
+      "POTJ"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2024-04-12",
+       "text": "Each additional cost and associated mode in the text box is also preceded with a + indicator. These symbols also have no rules meaning and serve only to remind players that the listed costs are additional costs."
+      },
+      {
+       "date": "2024-04-12",
+       "text": "If a mode requires a target, you can select that mode only if there’s a legal target available. Ignore the targeting requirements for modes you don’t choose."
+      },
+      {
+       "date": "2024-04-12",
+       "text": "If a spell with spree is copied, the effect that creates the copy may allow you to choose new targets. You cannot choose new modes."
+      },
+      {
+       "date": "2024-04-12",
+       "text": "If all targets for the chosen modes become illegal before a spell with spree resolves, the spell won’t resolve and none of its effects will happen. If at least one target is still legal, the spell will resolve but will have no effect on any illegal targets."
+      },
+      {
+       "date": "2024-04-12",
+       "text": "If an effect allows you to cast a spell with spree “without paying its mana cost,” you must still choose at least one mode and pay the associated additional costs."
+      },
+      {
+       "date": "2024-04-12",
+       "text": "No matter which modes you choose, you always follow the instructions in the order they are written."
+      },
+      {
+       "date": "2024-04-12",
+       "text": "No player can cast spells or activate abilities in between the modes of a resolving spell. Any abilities that trigger won’t be put onto the stack until the spell is done resolving."
+      },
+      {
+       "date": "2024-04-12",
+       "text": "Spells with spree have a + (plus sign) indicator in the upper right corner of the card frame. This has no rules meaning and serves only to remind players that at least one additional cost is required to cast the spell."
+      },
+      {
+       "date": "2024-04-12",
+       "text": "The mana value of a spell with spree is determined only by its mana cost (in the upper right corner of the card). It doesn’t matter which modes you choose or which additional costs you pay, including any additional costs imposed by other effects."
+      },
+      {
+       "date": "2024-04-12",
+       "text": "You can’t choose the same mode more than once."
+      },
+      {
+       "date": "2024-04-12",
+       "text": "You choose the modes as you cast the spell with spree. Once modes are chosen, they can’t be changed."
+      },
+      {
+       "date": "2024-04-12",
+       "text": "You must choose at least one of the listed modes and pay its associated additional cost in order to cast a spell with spree."
+      }
+     ],
+     "scryfall_oracle_id": "ad3e705f-da57-4eff-84d7-2072522de988",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 1.0,
+    "color_identity": [
+     "B"
+    ],
+    "colors": [
+     "B"
+    ],
+    "keywords": [
+     "Spree"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "legal",
+     "standardbrawl": "legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{B}",
+    "name": "Insatiable Avarice",
+    "oracle_id": "ad3e705f-da57-4eff-84d7-2072522de988",
+    "oracle_text": "Spree (Choose one or more additional costs.)\n+ {2} — Search your library for a card, then shuffle and put that card on top.\n+ {B}{B} — Target player draws three cards and loses 3 life.",
+    "type_line": "Sorcery"
+   }
+  },
   "Insatiable Hemophage": {
    "phase_records": [
     {
@@ -722026,6 +722328,251 @@
     "type_line": "Creature — Snake"
    }
   },
+  "Martial Coup": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Create X 1/1 white Soldier creature tokens. If X is 5 or more, destroy all other creatures.",
+       "duration": null,
+       "effect": {
+        "colors": [
+         "White"
+        ],
+        "count": {
+         "qty": {
+          "name": "X",
+          "type": "Variable"
+         },
+         "type": "Ref"
+        },
+        "enters_attacking": false,
+        "keywords": [],
+        "name": "Soldier",
+        "owner": {
+         "type": "Controller"
+        },
+        "power": {
+         "type": "Fixed",
+         "value": 1
+        },
+        "tapped": false,
+        "toughness": {
+         "type": "Fixed",
+         "value": 1
+        },
+        "type": "Token",
+        "types": [
+         "Creature",
+         "Soldier"
+        ]
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": {
+         "comparator": "GE",
+         "lhs": {
+          "qty": {
+           "type": "CostXPaid"
+          },
+          "type": "Ref"
+         },
+         "rhs": {
+          "type": "Fixed",
+          "value": 5
+         },
+         "type": "QuantityCheck"
+        },
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "cant_regenerate": false,
+         "target": {
+          "controller": null,
+          "properties": [
+           {
+            "type": "Another"
+           }
+          ],
+          "type": "Typed",
+          "type_filters": [
+           "Creature"
+          ]
+         },
+         "type": "DestroyAll"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "sub_link": "SequentialSibling",
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Sorcery"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "White"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 0,
+      "shards": [
+       "X",
+       "White",
+       "White"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "related_token_ids": [
+       "012a08fa-5185-5a5e-8aca-86aa2b5dec2f",
+       "110e89d4-1091-52dd-9e61-8d0cff945201",
+       "48db8a3b-57f9-5eae-8344-4b46db06f111",
+       "69b34ffc-28e4-54b9-a815-d54517c8afa9",
+       "8f529538-cff7-50ad-853e-445ec721ba41",
+       "9a28c20d-86fe-57ac-a3c3-ab330ed62190",
+       "cc38a9ca-b576-5193-aa82-324eac09d676",
+       "d69959d9-f0f9-51cd-8b0d-c560cff6e53d",
+       "f65c845c-0a79-5dfa-b514-cc127d26251d"
+      ],
+      "source_printing_ids": [
+       "30206bee-c895-4ab7-9535-68a6afb2c686",
+       "4201385f-6f74-4e3d-aafb-0eff82cb24c1",
+       "42f30b99-5177-48e9-be0a-ab04bbc4586b",
+       "4d7296ef-afe3-4d1d-9cbc-7ee7ad78f297",
+       "5c4d0ad9-4d57-4e5c-b478-059220f5b1dd",
+       "75f95e28-8841-4986-b183-d113beacbafa",
+       "7a3f7f71-625a-46ec-bce8-6bd934f2a275",
+       "85a09100-e438-4ac0-b6c7-2dfbdf934c8d",
+       "a0660e74-6973-41d7-a20b-8d71fed1495a",
+       "b6e7563a-a613-49f4-98a0-dd0f5c00f299",
+       "c1963e9f-94e4-44fa-943f-ae726438408b",
+       "d8e79f95-6733-476e-9bff-408e90f151c0",
+       "f06e7b7e-bd02-4e57-af3c-63daa0be7c2e",
+       "f2eb4f30-bb11-487c-95b0-24077569fc37",
+       "f4503a5c-f3ef-41a6-807d-f335b1a15638",
+       "f6a14e82-31fc-4c56-a8cc-acc3f7ef91a3"
+      ]
+     },
+     "name": "Martial Coup",
+     "non_ability_text": null,
+     "oracle_text": "Create X 1/1 white Soldier creature tokens. If X is 5 or more, destroy all other creatures.",
+     "power": null,
+     "printings": [
+      "40K",
+      "BLC",
+      "C14",
+      "C18",
+      "CMR",
+      "CON",
+      "FRC",
+      "MSC",
+      "NCC",
+      "ONC",
+      "PIP",
+      "V14"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2009-02-01",
+       "text": "Martial Coup checks the number you chose for X, not the amount of mana you actually spent."
+      },
+      {
+       "date": "2009-02-01",
+       "text": "No one can cast spells or activate abilities between the time the Soldier tokens are put onto the battlefield and the time all other creatures are destroyed. For example, you can't sacrifice one of those Soldier tokens to regenerate a Skeletal Kathari."
+      },
+      {
+       "date": "2009-02-01",
+       "text": "You do what the spell says in order. If X is 5 or more, you'll put the Soldier tokens onto the battlefield, then you'll destroy all other creatures."
+      }
+     ],
+     "scryfall_oracle_id": "2b7c4dab-e432-4b34-b058-3cec5c0d72df",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "all_parts": [
+     {
+      "component": "token",
+      "id": "c8ae31d1-9a6e-43f3-9b04-bd15699f73d6",
+      "name": "Soldier",
+      "oracle_id": "eac25f12-6459-438c-a09e-93e23d2cf80d",
+      "type_line": "Token Creature — Soldier"
+     }
+    ],
+    "arena_available": false,
+    "cmc": 2.0,
+    "color_identity": [
+     "W"
+    ],
+    "colors": [
+     "W"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{X}{W}{W}",
+    "name": "Martial Coup",
+    "oracle_id": "2b7c4dab-e432-4b34-b058-3cec5c0d72df",
+    "oracle_text": "Create X 1/1 white Soldier creature tokens. If X is 5 or more, destroy all other creatures.",
+    "type_line": "Sorcery"
+   }
+  },
   "Martyr's Bond": {
    "phase_records": [
     {
@@ -782042,6 +782589,205 @@
     "oracle_id": "9d637892-26d7-46f1-bd7d-89bda523f649",
     "oracle_text": "Enchant creature\nEnchanted creature has \"At the beginning of your upkeep, sacrifice this creature.\"\nWhen enchanted creature dies, its controller chooses target creature one of their opponents controls. Return this card from its owner's graveyard to the battlefield attached to that creature.",
     "type_line": "Enchantment — Aura"
+   }
+  },
+  "Negate": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Counter target noncreature spell.",
+       "duration": null,
+       "effect": {
+        "target": {
+         "filters": [
+          {
+           "type": "StackSpell"
+          },
+          {
+           "controller": null,
+           "properties": [],
+           "type": "Typed",
+           "type_filters": [
+            {
+             "Non": "Creature"
+            }
+           ]
+          }
+         ],
+         "type": "And"
+        },
+        "type": "Counter"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Instant"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Blue"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pauper": "legal",
+      "paupercommander": "legal",
+      "pioneer": "legal",
+      "standard": "legal",
+      "standardbrawl": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "Blue"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "026c499d-3d5b-4f65-a824-f78f146b82ef",
+       "1dc492d5-ec52-4ab3-813e-acb40b0b6d5a",
+       "31534f45-43e6-4103-bf58-ad8fa688e4b0",
+       "33b83158-78b4-425e-8379-be3ef038295c",
+       "3877d196-332c-4266-aac8-a35754d74297",
+       "3d5e6fdf-022a-480d-96fc-bfadbf7ee5f6",
+       "4016c6f7-7cb4-46c2-af73-3bd6d682ea5e",
+       "40b33b38-8591-4e0c-8f3a-0249da977821",
+       "52d58fe4-6070-4022-9cd7-c35a11b44525",
+       "5a501252-e722-4ebf-bcf7-f53a42745fa7",
+       "60380ed0-fed1-4d68-9763-56a9ff8ac5e6",
+       "6276afe2-1bd9-456e-82d5-389909ae5ab0",
+       "64a2ba6d-ada1-4f06-b135-37606b6588fc",
+       "7f21cd05-2fdb-4c37-90a4-220a3eda23ef",
+       "81752db1-374e-4723-b695-a2f4a634dfc6",
+       "8da17a86-3666-46b8-932e-daafd6a0cd69",
+       "ae89bd67-3c72-449f-be72-d04bb7cca916",
+       "b12d13b4-a210-4d8d-bd04-42a00f68ae7b",
+       "cb142515-0856-441d-84d4-9c9d450a86e9",
+       "cfc1c914-fa52-4492-8dee-0c35bebc3766",
+       "d0165d1f-6d9f-40e1-aaff-d587e4112220",
+       "e848b632-e08a-4341-a99c-d8207f9ffe48",
+       "e92c7477-d453-4fa4-acf4-3835ab9eb55a",
+       "fbd28be5-c493-433a-a19f-cace2214b83e",
+       "ff3b0dba-0207-4249-bdab-e807c76ce39e"
+      ]
+     },
+     "name": "Negate",
+     "non_ability_text": null,
+     "oracle_text": "Counter target noncreature spell.",
+     "power": null,
+     "printings": [
+      "AER",
+      "BBD",
+      "CN2",
+      "DMU",
+      "DPA",
+      "DTK",
+      "FDC",
+      "FDN",
+      "M10",
+      "M11",
+      "M12",
+      "M13",
+      "M14",
+      "M15",
+      "M20",
+      "MOM",
+      "MOR",
+      "OGW",
+      "ORI",
+      "P09",
+      "PLST",
+      "PM20",
+      "PRM",
+      "PS11",
+      "RIX",
+      "SCD",
+      "SS1",
+      "STA",
+      "TMT",
+      "ZNR"
+     ],
+     "rarities": [
+      "common",
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2026-01-27",
+       "text": "A \"creature spell\" is any spell with the creature type, even if it has other types such as artifact or enchantment."
+      }
+     ],
+     "scryfall_oracle_id": "3407fe41-fdd3-4119-8f70-4bc4590a379f",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 2.0,
+    "color_identity": [
+     "U"
+    ],
+    "colors": [
+     "U"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "legal",
+     "paupercommander": "legal",
+     "penny": "not_legal",
+     "pioneer": "legal",
+     "predh": "legal",
+     "premodern": "not_legal",
+     "standard": "legal",
+     "standardbrawl": "legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}{U}",
+    "name": "Negate",
+    "oracle_id": "3407fe41-fdd3-4119-8f70-4bc4590a379f",
+    "oracle_text": "Counter target noncreature spell.",
+    "type_line": "Instant"
    }
   },
   "Neheb, the Eternal": {
@@ -1036888,6 +1037634,150 @@
      "W"
     ],
     "type_line": "Enchantment — Aura"
+   }
+  },
+  "Stifle": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Counter target activated or triggered ability.",
+       "duration": null,
+       "effect": {
+        "target": {
+         "type": "StackAbility"
+        },
+        "type": "Counter"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Instant"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Blue"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "premodern": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 0,
+      "shards": [
+       "Blue"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "23924d21-8271-446b-a896-3241fb3085c1",
+       "616d1b20-61c1-4d39-a9b5-ad9fd61699e4",
+       "6f141feb-f6c3-4232-9a11-43d81cc8076f",
+       "917463ca-4347-4b05-aca1-bd65fcb2d336"
+      ]
+     },
+     "name": "Stifle",
+     "non_ability_text": null,
+     "oracle_text": "Counter target activated or triggered ability. (Mana abilities can't be targeted.)",
+     "power": null,
+     "printings": [
+      "CNS",
+      "G09",
+      "HA5",
+      "MB2",
+      "MP2",
+      "PRM",
+      "SCG",
+      "SLD",
+      "WC04"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2004-10-04",
+       "text": "An activated ability has a \"Cost: Effect\" format. Look for the colon. A triggered ability starts with \"when\", \"whenever\", or \"at\"."
+      },
+      {
+       "date": "2004-10-04",
+       "text": "It can target delayed triggered abilities. For example, a card that says \"Whenever a player cycles a card, you may exile target creature. If you do, return that creature to the battlefield at the beginning of the end step.\" triggers when a player cycles a card and creates a delayed trigger that happens at the beginning of the end step. You can choose to target the \"at the beginning of the end step\" trigger when it is placed on the stack at end of turn."
+      },
+      {
+       "date": "2004-10-04",
+       "text": "Turn-based actions and special actions like the normal card draw, combat damage, or turning a face-down creature face up can't be targeted."
+      }
+     ],
+     "scryfall_oracle_id": "b3b00911-ece7-4484-bc36-f211ce72b6cc",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 1.0,
+    "color_identity": [
+     "U"
+    ],
+    "colors": [
+     "U"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{U}",
+    "name": "Stifle",
+    "oracle_id": "b3b00911-ece7-4484-bc36-f211ce72b6cc",
+    "oracle_text": "Counter target activated or triggered ability. (Mana abilities can't be targeted.)",
+    "type_line": "Instant"
    }
   },
   "Sting, the Glinting Dagger": {

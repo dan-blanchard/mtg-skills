@@ -47,7 +47,7 @@ def test_a_land_back_reads_as_a_free_slot():
 @pytest.mark.parametrize(
     "name",
     [
-        "Counterspell",  # countering is another job
+        "Stifle",  # countering an ability alone is no interaction answer
         "Animate Dead",  # a -1/-0 on the creature it returns never removes one
         "Llanowar Elves",
     ],
@@ -163,3 +163,29 @@ def test_winnow_condition_dropped_canary():
     assert spell["effect"]["type"] == "Destroy"
     assert spell["condition"] is None
     assert spell["effect"]["target"]["properties"] == []
+
+
+def test_a_searched_card_put_on_top_is_not_a_tuck():
+    """Insatiable Avarice searches your library and puts the found card on top:
+    card selection (the search precedes the library placement, as a reveal or a
+    mill does), never a permanent tucked off the battlefield. The read used to
+    score it as soft removal with no permanent type at all."""
+    assert removal.features(_real("Insatiable Avarice")) is None
+    assert _score("Insatiable Avarice") is None
+    # A real single-target tuck still reads.
+    assert _score("Condemn") is not None
+
+
+def test_a_counterspell_is_an_interaction_answer():
+    """A Counter whose target reaches a spell on the stack is read (membership:
+    the interaction read gates, ADR-0060), so a counterspell can replace a
+    removal spell on the interaction page as the guides' Fierce Guardianship
+    does; one that counters only an ability (Stifle) is not the row's answer.
+    A counter of any spell is unconditional; one of a class (Negate's
+    noncreature) is not."""
+    assert _score("Counterspell") is not None
+    assert _score("Fierce Guardianship") is not None
+    assert _score("Stifle") is None
+    assert removal.features(_real("Counterspell"))["unconditional"] == 1.0
+    assert removal.features(_real("Negate"))["unconditional"] == 0.0
+    assert removal.features(_real("Fierce Guardianship"))["cheap"] == 1.0  # free

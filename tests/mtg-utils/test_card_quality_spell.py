@@ -58,3 +58,12 @@ def test_a_casters_drawback_is_nothing_the_spell_does():
 def test_another_type_reads_none(name):
     """A card the read can't see scores None, never a low number."""
     assert _score(name) is None
+
+
+def test_an_x_spell_is_costed_with_an_x():
+    """A printed mana value counts X as 0 (CR 202.3e), so Martial Coup read as a
+    two-mana spell and topped the wipe page's blend over Wrath of God; the read
+    now charges an assumed X (``read_cost``'s ``X_ASSUMED``) on top of the
+    printed cost."""
+    assert features(_real("Martial Coup"))["cost"] == 2.0 + 3.0
+    assert features(_real("Wrath of God"))["cost"] == 4.0

@@ -2918,3 +2918,22 @@ def test_protection_at_the_shapes_target_moves_onto_the_theme():
 
     assert upgrade(1) == ["Evolution Sage"]
     assert upgrade(2) == ["Lightning Greaves"]
+
+
+def test_a_counterspell_upgrades_a_removal_cut_on_the_interaction_page():
+    """The interaction read covers counterspells (2026-10-31), so a counterspell
+    more decks play replaces a removal cut as any interaction upgrade does; a
+    counter of an ability alone (Stifle) is still no answer."""
+    murder = _real_cc("Murder", "spine", roles=["interaction"], edhrec_rank=8000)
+
+    def upgrade(pool):
+        return _swaps_for_issue_dicts(
+            [murder],
+            [{"kind": "upgrade", "severity": 1, "count": 1}],
+            _upgrade_ctx([murder], pool),
+        )["swaps"]
+
+    assert [s["add"]["name"] for s in upgrade([_played("Counterspell", 100)])] == [
+        "Counterspell"
+    ]
+    assert upgrade([_played("Stifle", 100)]) == []
