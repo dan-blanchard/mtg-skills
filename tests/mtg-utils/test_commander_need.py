@@ -184,7 +184,12 @@ def test_graveyard_arrival_from_anywhere_is_a_fill_need_not_a_death():
     creatures = next(
         n for n in sefris if n.label == "Creature cards reaching your graveyard"
     )
-    assert {"sacrifice_outlets", "mill_makers"} <= creatures.keys
+    assert {"sacrifice_outlets", "edict_makers", "mill_makers"} <= creatures.keys
+    # A token is not a card (CR 108.2): token makers feed no card-arrival need.
+    assert "token_maker" not in creatures.keys
+    # The umbrella graveyard_makers key never tests a need (it made the need
+    # 12% of the pool, never specific).
+    assert "graveyard_makers" not in fill.keys
 
 
 def test_disa_reads_her_lhurgoyf_graveyard_need():

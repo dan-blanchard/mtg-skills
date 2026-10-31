@@ -112,8 +112,12 @@ CARD_TYPES: tuple[str, ...] = (
 #: self-mill, a surveil, a loot, a sacrifice): what a graveyard-count or
 #: card-type condition is raised by.
 _LAND_SUBTYPE_WORDS: frozenset[str] = frozenset(s.lower() for s in LAND_SUBTYPES)
+#: Keys whose emitters put cards INTO your graveyard from outside the battlefield
+#: (what a "put into your graveyard from anywhere" trigger is fed by). The
+#: umbrella ``graveyard_makers`` is left out (:data:`_UMBRELLA_KEYS`): with it the
+#: need is 12% of the pool and never specific; the fill is mill and discard.
 _GRAVEYARD_FILL_KEYS: frozenset[str] = frozenset(
-    {"graveyard_makers", "mill_makers", "discard_makers", "discard_outlet"}
+    {"mill_makers", "discard_makers", "discard_outlet"}
 )
 #: Keys whose emitters take cards OUT of the commander's graveyard (what a
 #: "whenever one or more cards leave your graveyard" trigger is fed by).
@@ -603,12 +607,14 @@ def _event_need(node: TypedMirrorNode, desc: str) -> Need | None:
             # leaves-the-battlefield ability): fed by every way a card reaches
             # the graveyard, and by the way the watched type usually does — a
             # land card by land sacrifice (The Gitrog Monster), a creature card
-            # by dying (Sefris of the Hidden Ways).
+            # by a sacrifice outlet or an edict (Sefris of the Hidden Ways). Not
+            # by token makers: a token is not a card (CR 108.2), so a token dying
+            # is no "creature card put into your graveyard".
             keys = set(_GRAVEYARD_FILL_KEYS)
             if "Land" in core or {s.lower() for s in subs} & _LAND_SUBTYPE_WORDS:
                 keys.add("land_sacrifice_makers")
             if "Creature" in core:
-                keys |= _DEATH_FEED_KEYS
+                keys |= {"sacrifice_outlets", "edict_makers"}
             words = tuple(w for w in core if w not in ("Card", "Permanent")) + subs
             what = " ".join(sorted(words)) or None
             return Need(
