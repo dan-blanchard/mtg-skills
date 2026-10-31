@@ -2485,3 +2485,20 @@ filter adds nothing. `w41/sb-*-R1.json`.
 
 **Baseline after the deepened read (R1):** the 25 739 / 342 / 116 (page@30 156,
 plan 315 of 739); held-out 20 581 / 256 / 100 (page@30 164, plan 225 of 581).
+
+**C11, the deck-aware incidental-job read — one short of the bar, not shipped.**
+C10's structural read (a job carried only by a trigger watching something other
+than the card's own entering) kept, and asked only of a cut that serves one of
+the deck's main lanes (`CardClass.served` ∩ the focus's `mains`): a rider on a
+plan card is the plan's payoff (Terror of the Peaks in a creature deck), its slot
+upgraded on the theme or a need page; an engine serving no main lane keeps its
+job (Rhystic Study, Esper Sentinel — the cards C10 lost). Candidates on a job
+page are read as before. Against R1: the held-out 20 581 / 256 / 100 → 582 /
+257 / 102, job-equivalents 32 → 31, consensus 0, plan-consistent 225 → **234
+(+9)**; the 25 739 / 342 / 116 → 735 / 340 / 116, plan 315 → 323, consensus −1.
+Every line holds or rises (adds +2, cuts +1, the floor untouched), but the
+primary moves nine of the ten the gate asks, so by the rule it stays out. The
+patch (`issues.incidental_job`, `upgrade_job(on_plan=)`, `Sourcing.on_plan`, the
+jobless-pool view in `propose_swaps`, two tests) is `w41/C11.patch`; the
+cheapest next try is to re-measure it on top of the next read change, since a
+deeper need read gives a rider's slot more pages to land on.

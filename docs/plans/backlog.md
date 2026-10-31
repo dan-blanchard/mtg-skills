@@ -24,10 +24,11 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   plan-consistent adds rise ≥ 10, guide adds + job-equivalents fall ≤ 5, cuts
   ≤ 1; the 25 are reported. The need read's deeper reads shipped (mana-value
   bounds, spells-per-turn conditions, opponents drawing — ADR-0061's third
-  amendment). Open from it: a watcher-based incidental-job read (a job carried
-  by a trigger watching a main-lane event is a payoff rider; one watching
-  anything else — Rhystic Study — is an engine), gated as policy.
-  Reanimation-target properties stay out.
+  amendment). The deck-aware incidental-job read (a trigger-rider job on a card
+  serving a main lane is no job; Rhystic Study keeps its job) measured
+  2026-10-31 at held-out plan +9, adds +2, cuts +1 — one short of the bar;
+  `~/mtg/tuner-work/w41/C11.patch` holds it, to re-measure on top of the next
+  need-read change. Reanimation-target properties stay out.
 - **What the polymorph tune and the 25-precon audit still get wrong** (third
   pass, 2026-10-18 — `docs/plans/precon-audit-2026-10-18.md` has the method,
   the three before / after tables and the per-precon reads; the first two
