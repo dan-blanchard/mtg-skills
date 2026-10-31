@@ -66,6 +66,7 @@ from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
+from mtg_utils._analysis._subtypes import LAND_SUBTYPES
 from mtg_utils._analysis.signal_keys import TOKEN_MAKER
 from mtg_utils._card_ir.crosswalk.reads import (
     _present,
@@ -110,6 +111,7 @@ CARD_TYPES: tuple[str, ...] = (
 #: Keys whose emitters put the commander's OWN cards into the graveyard (a
 #: self-mill, a surveil, a loot, a sacrifice): what a graveyard-count or
 #: card-type condition is raised by.
+_LAND_SUBTYPE_WORDS: frozenset[str] = frozenset(s.lower() for s in LAND_SUBTYPES)
 _GRAVEYARD_FILL_KEYS: frozenset[str] = frozenset(
     {"graveyard_makers", "mill_makers", "discard_makers", "discard_outlet"}
 )
@@ -597,11 +599,25 @@ def _event_need(node: TypedMirrorNode, desc: str) -> Need | None:
                 keys=_GRAVEYARD_LEAVE_KEYS,
             )
         if dest == "Graveyard":
+            # "put into your graveyard from anywhere" (CR 603.6c: never a
+            # leaves-the-battlefield ability): fed by every way a card reaches
+            # the graveyard, and by the way the watched type usually does — a
+            # land card by land sacrifice (The Gitrog Monster), a creature card
+            # by dying (Sefris of the Hidden Ways).
+            keys = set(_GRAVEYARD_FILL_KEYS)
+            if "Land" in core or {s.lower() for s in subs} & _LAND_SUBTYPE_WORDS:
+                keys.add("land_sacrifice_makers")
+            if "Creature" in core:
+                keys |= _DEATH_FEED_KEYS
+            words = tuple(w for w in core if w not in ("Card", "Permanent")) + subs
+            what = " ".join(sorted(words)) or None
             return Need(
                 "event",
-                "cards reaching your graveyard",
+                f"{what} cards reaching your graveyard"
+                if what
+                else "cards reaching your graveyard",
                 desc,
-                keys=_GRAVEYARD_FILL_KEYS,
+                keys=frozenset(keys),
             )
         return None
     if event == "attacks":

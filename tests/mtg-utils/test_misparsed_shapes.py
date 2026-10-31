@@ -62,3 +62,38 @@ def test_one_creature_damaging_itself_is_no_sweep(name):
     (rec,) = test_phase_records(name)
     assert correct_misparsed_shapes(rec) is rec
     assert "mass_removal" not in _keys(name)
+
+
+@pytest.mark.retirement_canary
+def test_graveyard_arrival_unknown_mode_canary():
+    """Disa the Restless's "Whenever a Lhurgoyf permanent card is put into your
+    graveyard from anywhere other than the battlefield": phase leaves the trigger
+    mode ``Unknown`` with no zone fields. The stage rewrites it to the
+    ``ChangesZone`` → Graveyard form of every other "from anywhere" arrival."""
+    (rec,) = test_phase_records("Disa the Restless")
+    before = rec["triggers"][0]
+    assert isinstance(before["mode"], dict), (
+        "misparsed_shapes graveyard arrival: RETIRE-READY — phase types Disa the "
+        "Restless's Lhurgoyf graveyard trigger. Delete the arrival row of "
+        "misparsed_shapes and this canary."
+    )
+    assert "Unknown" in before["mode"]
+    assert before["destination"] is None
+    after = correct_misparsed_shapes(rec)["triggers"][0]
+    assert after["mode"] == "ChangesZone"
+    assert after["destination"] == "Graveyard"
+    assert after["origin"] is None  # phase has no "other than the battlefield"
+    assert {"Subtype": "Lhurgoyf"} in after["valid_card"]["type_filters"]
+    assert after["valid_card"]["properties"] == [{"type": "Owned", "controller": "You"}]
+    assert after["execute"] == before["execute"]  # the typed body is kept
+    assert isinstance(rec["triggers"][0]["mode"], dict)  # the input is untouched
+    assert {"subtype_ref|you|Lhurgoyf"} <= {
+        f"{s.key}|{s.scope}|{s.subject}" for s in test_signals("Disa the Restless")
+    }
+
+
+def test_other_unknown_mode_returns_are_not_graveyard_arrivals():
+    # "When target creature dies this turn, return that card to the battlefield"
+    # (Graceful Reprieve) has the same typed body under an Unknown mode: a death.
+    (rec,) = test_phase_records("Graceful Reprieve")
+    assert correct_misparsed_shapes(rec) is rec

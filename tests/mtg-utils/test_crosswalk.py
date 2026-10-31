@@ -19067,3 +19067,49 @@ def test_modified_payoffs_are_modified_matters(name):
 
 def test_a_counter_hoser_is_not_modified_matters():
     assert "modified_matters" not in _keys("Blightbeetle")
+
+
+def _trigger_events(name: str) -> set[str]:
+    return {u.trigger_event for u in _tree(name).units if u.origin == "trigger"}
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "The Gitrog Monster",  # "land cards … into your graveyard from anywhere"
+        "Emrakul, the Aeons Torn",  # "~ is put into a graveyard from anywhere"
+        "Patron of the Nezumi",  # owner-scoped like Moonshadow's "permanent cards"
+    ],
+)
+def test_graveyard_arrival_with_no_origin_is_not_a_death(name):
+    """Phase leaves ``origin`` unset for "put into a graveyard from anywhere"; a
+    watched CARD (an owner, no controller — CR 108.4) can arrive from any zone, so
+    the event is a zone change, never a death (CR 603.6c, 700.4)."""
+    events = _trigger_events(name)
+    assert "changes_zone" in events
+    assert "dies" not in events
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Aetherworks Marvel",  # "a permanent you control is put into a graveyard"
+        "Genju of the Cedars",  # "enchanted Forest is put into a graveyard"
+        "Tezzeret's Touch",  # "enchanted artifact is put into a graveyard"
+        "Silent-Chant Zubera",  # origin Battlefield: a plain "dies"
+    ],
+)
+def test_permanent_put_into_a_graveyard_is_a_death(name):
+    """A watched PERMANENT (a controller, or the object an Aura is attached to) is
+    on the battlefield (CR 110.1), so its arrival in a graveyard is a death."""
+    assert "dies" in _trigger_events(name)
+
+
+def test_land_sacrifice_matters_keeps_the_from_anywhere_watchers():
+    assert ("land_sacrifice_matters", "you", "") in _idents("Titania, Voice of Gaea")
+
+
+def test_kill_engine_payoff_includes_an_opponent_graveyard_arrival():
+    # "Whenever a creature card is put into an opponent's graveyard from
+    # anywhere, you gain 1 life" (Profane Memento) fires on every kill.
+    assert ("kill_engine", "you", "payoff") in _idents("Profane Memento")

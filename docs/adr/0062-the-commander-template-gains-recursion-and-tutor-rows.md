@@ -100,7 +100,7 @@ land back face +0.44. Six features play-rate is silent or contrary on carry
 hand-set weights under ADR-0060's 2026-10-20 amendment, each costing at most
 0.01 of CV: any card over a type +0.1, battlefield or free cast +0.1, two or
 more found +0.1, repeatable +0.1, a sacrifice −0.1, life paid or lost −0.05 —
-set by the agreed design, to be confirmed by Dan. The guides' 36 tutor adds sit
+set by the agreed design, confirmed by Dan as set (2026-10-31). The guides' 36 tutor adds sit
 at the 76th percentile by the read, 84th by play-rate, 77th by the blend (top
 ten 5 / 11 / 7): gates, does not order. A search to the graveyard counts
 (Entomb, Buried Alive: the card goes where a reanimation deck uses it). The

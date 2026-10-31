@@ -161,3 +161,37 @@ def test_hazel_wants_token_makers_and_her_life_payment_is_no_resource():
 def test_a_commanders_own_type_is_not_a_need():
     # Mirko is a Vampire Detective; his text names neither, so no tribe need.
     assert not any("Vampire" in n.label for n in _needs("Mirko, Obsessive Theorist"))
+
+
+def test_graveyard_arrival_from_anywhere_is_a_fill_need_not_a_death():
+    # "Whenever one or more land cards are put into your graveyard from anywhere"
+    # (The Gitrog Monster): an arrival into the graveyard "from anywhere" is never
+    # a leaves-the-battlefield ability (CR 603.6c), so the deck is asked for ways
+    # to put land cards there — land sacrifice above all — not for creatures dying.
+    needs = _needs("The Gitrog Monster")
+    labels = _labels(needs)
+    assert "Land cards reaching your graveyard" in labels
+    assert "creatures that dies" not in labels
+    fill = next(n for n in needs if n.label == "Land cards reaching your graveyard")
+    assert {"land_sacrifice_makers", "mill_makers", "discard_makers"} <= fill.keys
+    # A land subtype is a land too (Yuma's Deserts).
+    yuma = _needs("Yuma, Proud Protector")
+    desert = next(n for n in yuma if n.label == "Desert cards reaching your graveyard")
+    assert "land_sacrifice_makers" in desert.keys
+    assert "creatures that dies" not in _labels(yuma)
+    # Creature cards reach the graveyard by dying too (Sefris).
+    sefris = _needs("Sefris of the Hidden Ways")
+    creatures = next(
+        n for n in sefris if n.label == "Creature cards reaching your graveyard"
+    )
+    assert {"sacrifice_outlets", "mill_makers"} <= creatures.keys
+
+
+def test_disa_reads_her_lhurgoyf_graveyard_need():
+    # Phase leaves Disa's "Whenever a Lhurgoyf permanent card is put into your
+    # graveyard from anywhere other than the battlefield" as an Unknown trigger
+    # mode; ``misparsed_shapes`` rewrites it to the graveyard-arrival form.
+    needs = _needs("Disa the Restless")
+    assert "Lhurgoyf cards reaching your graveyard" in _labels(needs)
+    need = next(n for n in needs if n.label == "Lhurgoyf cards reaching your graveyard")
+    assert "mill_makers" in need.keys
