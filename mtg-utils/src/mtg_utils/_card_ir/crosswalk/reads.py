@@ -2177,6 +2177,25 @@ def recipient_tag(node: TypedMirrorNode) -> str | None:
     return None
 
 
+def _typed_player_recipient(node: TypedMirrorNode) -> str | None:
+    """The controller tag of an effect's first present recipient when that
+    recipient is a ``Typed`` filter naming no types — phase's shape for "target
+    opponent" / "target player" written as a filter rather than a player tag
+    (Ms. Bumbleflower's "target opponent draws a card"); ``None`` otherwise."""
+    for fname in _SCOPE_FIELDS:
+        sub = getattr(node, fname, MISSING)
+        if not _present(sub):
+            continue
+        sub = _unwrap_role_target(sub)
+        if tag_of(sub) != "Typed":
+            return None
+        if getattr(sub, "type_filters", None) or getattr(sub, "properties", None):
+            return None
+        ctrl = getattr(sub, "controller", None)
+        return str(ctrl) if ctrl is not None else None
+    return None
+
+
 def modal_mode_description(
     unit: AbilityUnit, node: TypedMirrorNode, tree: ConceptTree
 ) -> str:
@@ -5710,6 +5729,11 @@ def effect_player_reach(root: object, effect_node: TypedMirrorNode) -> str | Non
         return "target"
     if rt == "ScopedPlayer":
         return "scoped"
+    if rt == "Typed" and _typed_player_recipient(effect_node) in OPPONENT_ACTOR_TAGS:
+        # "target opponent draws a card" (Ms. Bumbleflower): phase writes the
+        # player as a typeless ``Typed`` filter controlled by an opponent — a
+        # player the caster chooses, like a ``Player`` recipient.
+        return "target"
     filt = effect_filter(effect_node)
     for f in (filt, getattr(effect_node, "source_filter", None)):
         ctrl = filter_controller(f)

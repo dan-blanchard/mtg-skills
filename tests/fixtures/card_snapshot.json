@@ -759888,6 +759888,280 @@
     "type_line": "Legendary Creature — Fox Rogue"
    }
   },
+  "Ms. Bumbleflower": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "brawl_commander": true,
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Rabbit",
+       "Citizen"
+      ],
+      "supertypes": [
+       "Legendary"
+      ]
+     },
+     "color_identity": [
+      "Green",
+      "Blue",
+      "White"
+     ],
+     "color_override": [
+      "Green",
+      "Blue",
+      "White"
+     ],
+     "defense": null,
+     "flavor_name": null,
+     "is_commander": true,
+     "keywords": [
+      "Vigilance"
+     ],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "Green",
+       "White",
+       "Blue"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "42bbedc1-6b83-46b4-8b3b-a4e05ce77d87",
+       "5c75bab8-02d0-477c-bfb1-dace7cb33a1f"
+      ]
+     },
+     "name": "Ms. Bumbleflower",
+     "non_ability_text": null,
+     "oracle_text": "Vigilance\nWhenever you cast a spell, target opponent draws a card. Put a +1/+1 counter on target creature. It gains flying until end of turn. If this is the second time this ability has resolved this turn, you draw two cards.",
+     "power": {
+      "type": "Fixed",
+      "value": 1
+     },
+     "printings": [
+      "BLC"
+     ],
+     "rarities": [
+      "mythic"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2024-07-26",
+       "text": "Ms. Bumbleflower's last ability resolves before the spell that caused it to trigger. It resolves even if that spell is countered."
+      }
+     ],
+     "scryfall_oracle_id": "25636214-c6ea-4655-a5e8-98e735da5b05",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 5
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever you cast a spell, target opponent draws a card. Put a +1/+1 counter on target creature. It gains flying until end of turn. If this is the second time this ability has resolved this turn, you draw two cards.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "declares_chosen_group": 2147483648,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "target": {
+          "controller": "Opponent",
+          "properties": [],
+          "type": "Typed",
+          "type_filters": []
+         },
+         "type": "Draw"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "count": {
+           "type": "Fixed",
+           "value": 1
+          },
+          "counter_type": "P1P1",
+          "target": {
+           "controller": null,
+           "properties": [],
+           "type": "Typed",
+           "type_filters": [
+            "Creature"
+           ]
+          },
+          "type": "PutCounter"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": {
+          "condition": null,
+          "cost": null,
+          "description": null,
+          "duration": "UntilEndOfTurn",
+          "effect": {
+           "duration": "UntilEndOfTurn",
+           "static_abilities": [
+            {
+             "active_zones": [],
+             "affected": {
+              "type": "ParentTarget"
+             },
+             "affected_zone": null,
+             "characteristic_defining": false,
+             "condition": null,
+             "description": "gain flying",
+             "effect_zone": null,
+             "mode": "Continuous",
+             "modifications": [
+              {
+               "keyword": "Flying",
+               "type": "AddKeyword"
+              }
+             ]
+            }
+           ],
+           "target": {
+            "type": "ParentTarget"
+           },
+           "type": "GenericEffect"
+          },
+          "forward_result": false,
+          "kind": "Spell",
+          "optional": false,
+          "optional_targeting": false,
+          "sub_ability": {
+           "condition": {
+            "n": 2,
+            "type": "AbilityUseCountThisTurn"
+           },
+           "cost": null,
+           "description": null,
+           "duration": null,
+           "effect": {
+            "count": {
+             "type": "Fixed",
+             "value": 2
+            },
+            "target": {
+             "type": "Controller"
+            },
+            "type": "Draw"
+           },
+           "forward_result": false,
+           "kind": "Spell",
+           "optional": false,
+           "optional_targeting": false,
+           "sub_ability": null,
+           "sub_link": "SequentialSibling",
+           "target_prompt": null
+          },
+          "sub_link": "SequentialSibling",
+          "target_prompt": null
+         },
+         "sub_link": "SequentialSibling",
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "mode": "SpellCast",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": null,
+       "valid_source": null,
+       "valid_target": {
+        "type": "Controller"
+       }
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 4.0,
+    "color_identity": [
+     "G",
+     "U",
+     "W"
+    ],
+    "colors": [
+     "G",
+     "U",
+     "W"
+    ],
+    "keywords": [
+     "Vigilance"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}{G}{W}{U}",
+    "name": "Ms. Bumbleflower",
+    "oracle_id": "25636214-c6ea-4655-a5e8-98e735da5b05",
+    "oracle_text": "Vigilance\nWhenever you cast a spell, target opponent draws a card. Put a +1/+1 counter on target creature. It gains flying until end of turn. If this is the second time this ability has resolved this turn, you draw two cards.",
+    "power": "1",
+    "toughness": "5",
+    "type_line": "Legendary Creature — Rabbit Citizen"
+   }
+  },
   "Ms. Marvel, Elastic Ally": {
    "phase_records": [
     {
@@ -867780,6 +868054,147 @@
     "type_line": "Legendary Creature — Tiefling Warlock"
    }
   },
+  "Prosperity": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Each player draws X cards.",
+       "duration": null,
+       "effect": {
+        "count": {
+         "qty": {
+          "name": "X",
+          "type": "Variable"
+         },
+         "type": "Ref"
+        },
+        "target": {
+         "type": "Controller"
+        },
+        "type": "Draw"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "player_scope": {
+        "type": "All"
+       },
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Sorcery"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Blue"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "premodern": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 0,
+      "shards": [
+       "X",
+       "Blue"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "42543a13-c83f-4f94-b3f2-73c948c2b3ac"
+      ]
+     },
+     "name": "Prosperity",
+     "non_ability_text": null,
+     "oracle_text": "Each player draws X cards.",
+     "power": null,
+     "printings": [
+      "6ED",
+      "C13",
+      "OLEP",
+      "POR",
+      "TLE",
+      "VIS"
+     ],
+     "rarities": [
+      "mythic"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2004-10-04",
+       "text": "If both players run out of cards during this effect, the game is a draw."
+      }
+     ],
+     "scryfall_oracle_id": "c586312d-d04a-4bfb-bbb2-b41186ca178e",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 1.0,
+    "color_identity": [
+     "U"
+    ],
+    "colors": [
+     "U"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{X}{U}",
+    "name": "Prosperity",
+    "oracle_id": "c586312d-d04a-4bfb-bbb2-b41186ca178e",
+    "oracle_text": "Each player draws X cards.",
+    "type_line": "Sorcery"
+   }
+  },
   "Prosperous Bandit": {
    "phase_records": [
     {
@@ -922657,6 +923072,325 @@
     ],
     "toughness": "2",
     "type_line": "Creature — Plant Horror"
+   }
+  },
+  "Rootha, Mastering the Moment": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "brawl_commander": true,
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Orc",
+       "Sorcerer"
+      ],
+      "supertypes": [
+       "Legendary"
+      ]
+     },
+     "color_identity": [
+      "Red",
+      "Blue"
+     ],
+     "color_override": [
+      "Red",
+      "Blue"
+     ],
+     "defense": null,
+     "flavor_name": null,
+     "is_commander": true,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 2,
+      "shards": [
+       "Blue",
+       "Red"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "related_token_ids": [
+       "1c7cd3de-6d37-562e-bfcd-7dcf912008f0"
+      ],
+      "source_printing_ids": [
+       "a5b3dbb2-c090-4118-9e47-56c16202572c"
+      ]
+     },
+     "name": "Rootha, Mastering the Moment",
+     "non_ability_text": null,
+     "oracle_text": "At the beginning of combat on your turn, if you've cast an instant or sorcery spell this turn, create an X/X blue and red Elemental creature token with flying and haste, where X is the greatest mana value among instant and sorcery spells you've cast this turn.",
+     "power": {
+      "type": "Fixed",
+      "value": 3
+     },
+     "printings": [
+      "SOC"
+     ],
+     "rarities": [
+      "mythic"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2026-03-20",
+       "text": "A spell's mana value is determined only by its mana cost. Ignore any alternative costs, additional costs, cost increases, or cost reductions."
+      },
+      {
+       "date": "2026-03-20",
+       "text": "For spells you cast with {X} in their mana costs, use the value chosen for X to determine the spell's mana value."
+      },
+      {
+       "date": "2026-03-20",
+       "text": "Rootha's ability will check as your beginning of combat step starts to see if you've cast an instant or sorcery spell this turn. If you haven't, the ability won't trigger at all. It's not possible to cast an instant or sorcery spell during your beginning of combat step in time to have the ability trigger."
+      }
+     ],
+     "scryfall_oracle_id": "348c67ef-9ccc-4651-9038-efdf1ad1b36a",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 4
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": {
+        "comparator": "GE",
+        "lhs": {
+         "qty": {
+          "filter": {
+           "filters": [
+            {
+             "controller": null,
+             "properties": [],
+             "type": "Typed",
+             "type_filters": [
+              "Instant"
+             ]
+            },
+            {
+             "controller": null,
+             "properties": [],
+             "type": "Typed",
+             "type_filters": [
+              "Sorcery"
+             ]
+            }
+           ],
+           "type": "Or"
+          },
+          "scope": "Controller",
+          "type": "SpellsCastThisTurn"
+         },
+         "type": "Ref"
+        },
+        "rhs": {
+         "type": "Fixed",
+         "value": 1
+        },
+        "type": "QuantityComparison"
+       },
+       "constraint": {
+        "type": "OnlyDuringYourTurn"
+       },
+       "damage_kind": "Any",
+       "description": "At the beginning of combat on your turn, if you've cast an instant or sorcery spell this turn, create an X/X blue and red Elemental creature token with flying and haste, where X is the greatest mana value among instant and sorcery spells you've cast this turn.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "colors": [
+          "Blue",
+          "Red"
+         ],
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "enters_attacking": false,
+         "keywords": [
+          "Flying",
+          "Haste"
+         ],
+         "name": "Elemental",
+         "owner": {
+          "type": "Controller"
+         },
+         "power": {
+          "type": "Quantity",
+          "value": {
+           "qty": {
+            "function": "Max",
+            "property": "ManaValue",
+            "source": {
+             "filter": {
+              "filters": [
+               {
+                "controller": null,
+                "properties": [],
+                "type": "Typed",
+                "type_filters": [
+                 "Instant"
+                ]
+               },
+               {
+                "controller": null,
+                "properties": [],
+                "type": "Typed",
+                "type_filters": [
+                 "Sorcery"
+                ]
+               }
+              ],
+              "type": "Or"
+             },
+             "journal": {
+              "type": "SpellsCast"
+             },
+             "scope": "Controller",
+             "type": "TurnJournal"
+            },
+            "type": "PropertyAggregate"
+           },
+           "type": "Ref"
+          }
+         },
+         "tapped": false,
+         "toughness": {
+          "type": "Quantity",
+          "value": {
+           "qty": {
+            "function": "Max",
+            "property": "ManaValue",
+            "source": {
+             "filter": {
+              "filters": [
+               {
+                "controller": null,
+                "properties": [],
+                "type": "Typed",
+                "type_filters": [
+                 "Instant"
+                ]
+               },
+               {
+                "controller": null,
+                "properties": [],
+                "type": "Typed",
+                "type_filters": [
+                 "Sorcery"
+                ]
+               }
+              ],
+              "type": "Or"
+             },
+             "journal": {
+              "type": "SpellsCast"
+             },
+             "scope": "Controller",
+             "type": "TurnJournal"
+            },
+            "type": "PropertyAggregate"
+           },
+           "type": "Ref"
+          }
+         },
+         "type": "Token",
+         "types": [
+          "Creature",
+          "Elemental"
+         ]
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "Phase",
+       "optional": false,
+       "origin": null,
+       "phase": "BeginCombat",
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": null,
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "all_parts": [
+     {
+      "component": "token",
+      "id": "fe42cba4-e00f-4e34-8e26-99721727dced",
+      "name": "Elemental",
+      "oracle_id": "57094a2f-4c1b-4f96-bc06-3798a0c09125",
+      "type_line": "Token Creature — Elemental"
+     }
+    ],
+    "arena_available": true,
+    "cmc": 4.0,
+    "color_identity": [
+     "R",
+     "U"
+    ],
+    "colors": [
+     "R",
+     "U"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}{U}{R}",
+    "name": "Rootha, Mastering the Moment",
+    "oracle_id": "348c67ef-9ccc-4651-9038-efdf1ad1b36a",
+    "oracle_text": "At the beginning of combat on your turn, if you've cast an instant or sorcery spell this turn, create an X/X blue and red Elemental creature token with flying and haste, where X is the greatest mana value among instant and sorcery spells you've cast this turn.",
+    "power": "3",
+    "toughness": "4",
+    "type_line": "Legendary Creature — Orc Sorcerer"
    }
   },
   "Rooting Moloch": {
@@ -1029667,6 +1030401,331 @@
     "type_line": "Sorcery"
    }
   },
+  "Stella Lee, Wild Card": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "activation_restrictions": [
+        {
+         "data": {
+          "condition": {
+           "comparator": "GE",
+           "lhs": {
+            "qty": {
+             "scope": "Controller",
+             "type": "SpellsCastThisTurn"
+            },
+            "type": "Ref"
+           },
+           "rhs": {
+            "type": "Fixed",
+            "value": 3
+           },
+           "type": "QuantityComparison"
+          }
+         },
+         "type": "RequiresCondition"
+        }
+       ],
+       "condition": null,
+       "cost": {
+        "type": "Tap"
+       },
+       "description": "{T}: Copy target instant or sorcery spell you control. You may choose new targets for the copy. Activate only if you've cast three or more spells this turn.",
+       "duration": null,
+       "effect": {
+        "retarget": {
+         "type": "MayChooseNewTargets"
+        },
+        "starting_loyalty_from_casualty_sacrifice": false,
+        "target": {
+         "filters": [
+          {
+           "filters": [
+            {
+             "type": "StackSpell"
+            },
+            {
+             "controller": "You",
+             "properties": [],
+             "type": "Typed",
+             "type_filters": [
+              "Instant"
+             ]
+            }
+           ],
+           "type": "And"
+          },
+          {
+           "filters": [
+            {
+             "type": "StackSpell"
+            },
+            {
+             "controller": "You",
+             "properties": [],
+             "type": "Typed",
+             "type_filters": [
+              "Sorcery"
+             ]
+            }
+           ],
+           "type": "And"
+          }
+         ],
+         "type": "Or"
+        },
+        "type": "CopySpell"
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "brawl_commander": true,
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Human",
+       "Rogue"
+      ],
+      "supertypes": [
+       "Legendary"
+      ]
+     },
+     "color_identity": [
+      "Red",
+      "Blue"
+     ],
+     "color_override": [
+      "Red",
+      "Blue"
+     ],
+     "defense": null,
+     "flavor_name": null,
+     "is_commander": true,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "Blue",
+       "Red"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "2a8a7696-b5d9-4378-9d5c-2c9007e4df63"
+      ]
+     },
+     "name": "Stella Lee, Wild Card",
+     "non_ability_text": null,
+     "oracle_text": "Whenever you cast your second spell each turn, exile the top card of your library. Until the end of your next turn, you may play that card.\n{T}: Copy target instant or sorcery spell you control. You may choose new targets for the copy. Activate only if you've cast three or more spells this turn.",
+     "power": {
+      "type": "Fixed",
+      "value": 2
+     },
+     "printings": [
+      "OTC"
+     ],
+     "rarities": [
+      "mythic"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2024-04-12",
+       "text": "If a spell that’s copied has an X whose value was determined as it was cast, the copy will have the same value of X."
+      },
+      {
+       "date": "2024-04-12",
+       "text": "If the copied spell divides damage or distributes counters among a number of targets, the division and number of targets can’t be changed. If you choose new targets, you must choose the same number of targets."
+      },
+      {
+       "date": "2024-04-12",
+       "text": "If the copied spell is modal (that is, it says “Choose one —” or the like), the copy will have the same mode or modes. You can’t choose different ones."
+      },
+      {
+       "date": "2024-04-12",
+       "text": "Spells that were cast before Stella Lee entered the battlefield count. If Stella Lee was the first spell you cast this turn, the next spell you cast this turn is your second spell."
+      },
+      {
+       "date": "2024-04-12",
+       "text": "The copy created by Stella Lee’s last ability will have the same targets as the spell it’s copying unless you choose new ones. You may change any number of the targets, including all of them or none of them. The new targets must be legal."
+      },
+      {
+       "date": "2024-04-12",
+       "text": "The copy made by Stella Lee’s last ability is created on the stack, so it’s not “cast.”"
+      },
+      {
+       "date": "2024-04-12",
+       "text": "You can’t choose to pay any additional costs for the copy. However, effects based on any additional costs that were paid for the original spell are copied as though those same costs were paid for the copy too."
+      },
+      {
+       "date": "2024-04-12",
+       "text": "You pay all costs and follow all normal timing rules for cards played from exile with Stella Lee’s first ability. For example, if the exiled card is a land card, you may play it only during your main phase while the stack is empty."
+      }
+     ],
+     "scryfall_oracle_id": "8d0da2f9-0e05-4a94-8d42-fd57d06b09ba",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 4
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": {
+        "n": 2,
+        "type": "NthSpellThisTurn"
+       },
+       "damage_kind": "Any",
+       "description": "Whenever you cast your second spell each turn, exile the top card of your library. Until the end of your next turn, you may play that card.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "player": {
+          "type": "Controller"
+         },
+         "position": {
+          "type": "Top"
+         },
+         "type": "ExileTop"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": {
+          "UntilEndOfNextTurnOf": {
+           "player": {
+            "type": "Controller"
+           }
+          }
+         },
+         "effect": {
+          "permission": {
+           "duration": {
+            "UntilEndOfNextTurnOf": {
+             "player": {
+              "type": "Controller"
+             }
+            }
+           },
+           "granted_to": 0,
+           "type": "PlayFromExile"
+          },
+          "target": {
+           "id": 0,
+           "type": "TrackedSet"
+          },
+          "type": "GrantCastingPermission"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": null,
+         "sub_link": "SequentialSibling",
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "mode": "SpellCast",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": null,
+       "valid_source": null,
+       "valid_target": {
+        "controller": "You",
+        "properties": [],
+        "type": "Typed",
+        "type_filters": []
+       }
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 3.0,
+    "color_identity": [
+     "R",
+     "U"
+    ],
+    "colors": [
+     "R",
+     "U"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}{U}{R}",
+    "name": "Stella Lee, Wild Card",
+    "oracle_id": "8d0da2f9-0e05-4a94-8d42-fd57d06b09ba",
+    "oracle_text": "Whenever you cast your second spell each turn, exile the top card of your library. Until the end of your next turn, you may play that card.\n{T}: Copy target instant or sorcery spell you control. You may choose new targets for the copy. Activate only if you've cast three or more spells this turn.",
+    "power": "2",
+    "toughness": "4",
+    "type_line": "Legendary Creature — Human Rogue"
+   }
+  },
   "Step Right Up": {
    "phase_records": [
     {
@@ -1091384,6 +1092443,317 @@
     "type_line": "Legendary Artifact"
    }
   },
+  "The Great Henge": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": {
+        "type": "Tap"
+       },
+       "description": "{T}: Add {G}{G}. You gain 2 life.",
+       "duration": null,
+       "effect": {
+        "produced": {
+         "colors": [
+          "Green",
+          "Green"
+         ],
+         "type": "Fixed"
+        },
+        "type": "Mana"
+       },
+       "forward_result": false,
+       "is_mana_ability": true,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "amount": {
+          "type": "Fixed",
+          "value": 2
+         },
+         "type": "GainLife"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "sub_link": "SequentialSibling",
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Artifact"
+      ],
+      "subtypes": [],
+      "supertypes": [
+       "Legendary"
+      ]
+     },
+     "color_identity": [
+      "Green"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 7,
+      "shards": [
+       "Green",
+       "Green"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "064efadf-fdba-41fb-bf2f-ef42b274e934",
+       "190ab58b-88cc-4baf-a843-d1b2710c14a8",
+       "5e861bb6-0841-4a84-9d65-1d45ea87e90d",
+       "6340e0f3-7f9c-4d71-8daf-e1be5505eb5b",
+       "af915ed2-1f34-43f6-85f5-2430325b720f",
+       "d1921b08-a3b3-422d-a82d-49af9149aee7",
+       "d8961142-cb5d-49a1-9032-d9b6e5a24f97",
+       "ff7e30c8-b3fc-430f-ac63-d376d9e47a8d"
+      ]
+     },
+     "name": "The Great Henge",
+     "non_ability_text": null,
+     "oracle_text": "This spell costs {X} less to cast, where X is the greatest power among creatures you control.\n{T}: Add {G}{G}. You gain 2 life.\nWhenever a nontoken creature you control enters, put a +1/+1 counter on it and draw a card.",
+     "power": null,
+     "printings": [
+      "CMM",
+      "ELD",
+      "LTC",
+      "PELD",
+      "TLE"
+     ],
+     "rarities": [
+      "mythic"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2025-10-02",
+       "text": "Once The Great Henge's last ability has triggered, you'll draw a card even if you can't put a +1/+1 counter on the creature for some reason (most likely because it has left the battlefield)."
+      },
+      {
+       "date": "2025-10-02",
+       "text": "Once you announce that you're casting a spell, no player may take actions until the spell has been paid for. Notably, opponents can't try to change by how much The Great Henge's cost is reduced."
+      },
+      {
+       "date": "2025-10-02",
+       "text": "Once you determine the cost to cast The Great Henge, you may activate mana abilities to pay that cost. If the greatest power among creatures you control changes while activating mana abilities, the cost to cast The Great Henge remains what you previously determined."
+      },
+      {
+       "date": "2025-10-02",
+       "text": "The cost reduction ability reduces only the generic mana in The Great Henge's cost. The colored mana must still be paid."
+      },
+      {
+       "date": "2025-10-02",
+       "text": "The first step of casting a spell is to move it to the stack. If this causes the greatest power among creatures you control to change, that new power will be used to determine the cost reduction."
+      },
+      {
+       "date": "2025-10-02",
+       "text": "To determine the total cost of a spell, start with the mana cost or alternative cost you're paying, add any cost increases, then apply any cost reductions. The mana value of the spell remains unchanged, no matter what the total cost to cast it was."
+      }
+     ],
+     "scryfall_oracle_id": "78427103-9543-41fb-b6d4-72963fe87275",
+     "static_abilities": [
+      {
+       "active_zones": [
+        "Hand",
+        "Stack",
+        "Command",
+        "Graveyard",
+        "Exile",
+        "Library"
+       ],
+       "affected": {
+        "type": "SelfRef"
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": null,
+       "description": "This spell costs {X} less to cast, where X is the greatest power among creatures you control.",
+       "effect_zone": null,
+       "mode": {
+        "ModifyCost": {
+         "amount": {
+          "generic": 1,
+          "shards": [],
+          "type": "Cost"
+         },
+         "dynamic_count": {
+          "function": "Max",
+          "property": "Power",
+          "source": {
+           "filter": {
+            "controller": "You",
+            "properties": [],
+            "type": "Typed",
+            "type_filters": [
+             "Creature"
+            ]
+           },
+           "type": "Objects"
+          },
+          "type": "PropertyAggregate"
+         },
+         "mode": "Reduce",
+         "spell_filter": null
+        }
+       },
+       "modifications": []
+      }
+     ],
+     "toughness": null,
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever a nontoken creature you control enters, put a +1/+1 counter on it and draw a card.",
+       "destination": "Battlefield",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "counter_type": "P1P1",
+         "target": {
+          "type": "TriggeringSource"
+         },
+         "type": "PutCounter"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "count": {
+           "type": "Fixed",
+           "value": 1
+          },
+          "target": {
+           "type": "Controller"
+          },
+          "type": "Draw"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": null,
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "mode": "ChangesZone",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "controller": "You",
+        "properties": [
+         {
+          "type": "NonToken"
+         }
+        ],
+        "type": "Typed",
+        "type_filters": [
+         "Creature"
+        ]
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 9.0,
+    "color_identity": [
+     "G"
+    ],
+    "colors": [
+     "G"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{7}{G}{G}",
+    "name": "The Great Henge",
+    "oracle_id": "78427103-9543-41fb-b6d4-72963fe87275",
+    "oracle_text": "This spell costs {X} less to cast, where X is the greatest power among creatures you control.\n{T}: Add {G}{G}. You gain 2 life.\nWhenever a nontoken creature you control enters, put a +1/+1 counter on it and draw a card.",
+    "produced_mana": [
+     "G"
+    ],
+    "type_line": "Legendary Artifact"
+   }
+  },
   "The Hunger Tide Rises": {
    "phase_records": [
     {
@@ -1148701,6 +1150071,246 @@
     "oracle_text": "Devoid (This card has no color.)\nWhenever you cast an Eldrazi spell, you may pay {C}{C}. If you do, copy all spells you control, then copy all other activated and triggered abilities you control. You may choose new targets for the copies. (Mana abilities can't be copied.)",
     "power": "2",
     "toughness": "5",
+    "type_line": "Legendary Creature — Eldrazi"
+   }
+  },
+  "Ulamog, the Ceaseless Hunger": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "brawl_commander": true,
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Eldrazi"
+      ],
+      "supertypes": [
+       "Legendary"
+      ]
+     },
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "is_commander": true,
+     "keywords": [
+      "Indestructible"
+     ],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 10,
+      "shards": [],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "1192f7a9-102e-4b3a-b154-18c8eb332217",
+       "82fa24fb-aecc-4c33-9e79-c29651ddafbe",
+       "98c90289-05ba-45fc-8f60-7e200cb11762",
+       "aa0aadff-bc69-49fb-8d12-5b5e4cfa438d",
+       "aaa1571f-d73f-48ed-b6e2-f1388c410506",
+       "bbe88719-d081-49f7-9505-f69a2694c0e7",
+       "c74ae706-b3b3-4097-a387-6f6c38a9b603"
+      ]
+     },
+     "name": "Ulamog, the Ceaseless Hunger",
+     "non_ability_text": null,
+     "oracle_text": "When you cast this spell, exile two target permanents.\nIndestructible\nWhenever Ulamog attacks, defending player exiles the top twenty cards of their library.",
+     "power": {
+      "type": "Fixed",
+      "value": 10
+     },
+     "printings": [
+      "BFZ",
+      "CMM",
+      "HA3",
+      "PBFZ",
+      "PLST",
+      "SLD"
+     ],
+     "rarities": [
+      "mythic"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2015-08-25",
+       "text": "Cards exiled by Ulamog's first and third abilities are exiled face up."
+      },
+      {
+       "date": "2015-08-25",
+       "text": "If the player has less than twenty cards in their library, exile all of them. That player won't lose the game until they have to draw a card from an empty library."
+      },
+      {
+       "date": "2015-08-25",
+       "text": "Ulamog's first ability resolves independently of Ulamog once they've both been put on the stack. If Ulamog is countered, that triggered ability will still resolve. That triggered ability will always resolve before Ulamog does."
+      }
+     ],
+     "scryfall_oracle_id": "0bfa4512-e35a-4c93-b324-80ec659f5a97",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 10
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "When you cast this spell, exile two target permanents.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "destination": "Exile",
+         "enter_tapped": false,
+         "enter_transformed": false,
+         "enters_attacking": false,
+         "origin": null,
+         "owner_library": false,
+         "target": {
+          "controller": null,
+          "properties": [],
+          "type": "Typed",
+          "type_filters": [
+           "Permanent"
+          ]
+         },
+         "type": "ChangeZone"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "multi_target": {
+         "max": {
+          "type": "Fixed",
+          "value": 2
+         },
+         "min": 2
+        },
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "SpellCast",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Stack"
+       ],
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": null
+      },
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever ~ attacks, defending player exiles the top twenty cards of their library.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "actor": "LibraryPlayer",
+         "count": {
+          "type": "Fixed",
+          "value": 20
+         },
+         "player": {
+          "type": "DefendingPlayer"
+         },
+         "position": {
+          "type": "Top"
+         },
+         "type": "ExileTop"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "Attacks",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 10.0,
+    "color_identity": [],
+    "colors": [],
+    "keywords": [
+     "Indestructible"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{10}",
+    "name": "Ulamog, the Ceaseless Hunger",
+    "oracle_id": "0bfa4512-e35a-4c93-b324-80ec659f5a97",
+    "oracle_text": "When you cast this spell, exile two target permanents.\nIndestructible\nWhenever Ulamog attacks, defending player exiles the top twenty cards of their library.",
+    "power": "10",
+    "toughness": "10",
     "type_line": "Legendary Creature — Eldrazi"
    }
   },
