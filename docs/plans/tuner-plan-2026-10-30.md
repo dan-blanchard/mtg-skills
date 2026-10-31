@@ -77,6 +77,14 @@ miss taxonomy, the held-out candidates).
   eleven guide cuts lost; recursion alone flat) and are held as
   `w41/rows-T1.patch`; the baseline stays C11. Next idea: plan-conditional
   rows (backlog).
+- 2026-10-31, after the plan (grilled): reads first, play-rate last. Theme
+  pages (S1: need, lanes, synergy, then play-rate; S2: synergy with a need
+  bonus) — held-out plan +70 / +43 but guide adds −17 / −16: on-plan but
+  obscure picks over the guides' fit-plus-quality staples. Job pages (J1: each
+  read's score first) — held-out plan −34, adds −16. All held back
+  (`w41/theme-order-S2.patch`, `w41/job-order-J1.patch`); the baseline stays
+  C11. Finding: play-rate carries quality the theme pages have no read for;
+  the way to Dan's stance is a theme-card quality read, not a reorder.
 
 ## Target
 
