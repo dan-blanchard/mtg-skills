@@ -112,3 +112,28 @@ swallowing a deck's adds would show. Under this gate the wide near tie (E1)
 replaces the narrowed one (E2) in `swaps._need_ties`: any card supplying a
 specific need takes a near tie on a job page, whether or not a main lane also
 serves it.
+
+**Amendment (2026-10-30, the read deepened).** Three reads go past a trigger's
+mode, each checked against the commander's text and rulings and shipped on
+correctness (the floor held: held-out adds +1, cuts 0; the plan line re-based
+198 → 225 of 581). *Mana-value bounds*: a `Cmc` floor on a static ability's
+`affected` filter (Zhulodok's "colorless spells with mana value 7 or greater":
+colorless is `ColorCount` 0, CR 105.2c; the filter's negated types are honoured,
+so Bello's "non-Equipment artifact" admits no Equipment) or on a cast trigger's
+`valid_card`, and an effect scaled by the greatest mana value among the turn's
+spells (Rootha's X/X token: `PropertyAggregate` `Max` of `ManaValue` over
+`SpellsCast`), whose floor is the read's own line, `BIG_SPELL_MV` = 5; an X spell
+counts, since X is the number chosen while the spell is on the stack (CR 202.3e).
+*Spells-per-turn conditions*: a `SpellsCastThisTurn` comparison of two or more in
+a condition or an "activate only if" restriction (Stella Lee's copy; the
+restrictions are walked through the crosswalk's `iter_condition_sites`), or a cast
+trigger's "second time this ability has resolved this turn" (Ms. Bumbleflower),
+is the cheap-spells need the `second_spell_matters` payoff already read, one need
+per label. *Opponents drawing*: a `Draw` whose recipient is a chosen or every
+player (`effect_player_reach`, which now reads phase's typeless `Typed` filter
+controlled by an opponent as a chosen player) asks for the payoffs that watch
+opponents draw (Smothering Tithe, Consecrated Sphinx) and for more cards that make
+them draw. Under Peace Offering the tune's adds went from 2 to 27 of 30
+plan-consistent without one add changing: the read scores what the tune already
+did. Jace's fodder need was already the `wants_fodder` ident's; the −3's target
+filter adds nothing to it.

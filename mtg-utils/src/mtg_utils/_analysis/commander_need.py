@@ -25,6 +25,29 @@ Plus the commander's static payoff idents with no trigger of their own (a
 tribal payoff, Felothar's toughness-as-power), whose need is a card of the type
 or with the stat.
 
+Three reads go past the trigger's mode (added 2026-10-30, after the plan):
+
+* **mana-value bounds** — a filter with a ``Cmc`` floor on a static ability's
+  ``affected`` (Zhulodok: colorless spells with mana value 7 or greater have
+  cascade) or on a cast trigger's ``valid_card``, and an effect scaled by the
+  GREATEST mana value among spells cast this turn (Rootha's X/X token: a
+  ``PropertyAggregate`` ``Max`` of ``ManaValue`` over the turn's ``SpellsCast``),
+  whose floor is :data:`BIG_SPELL_MV`. The need is a spell of the filter's types
+  (and colour: ``ColorCount == 0`` is colorless, CR 105.2c) at or above the
+  floor; an X spell counts, since X is the number chosen while it is on the
+  stack (CR 202.3e).
+* **spells-per-turn conditions** — a condition or an "activate only if"
+  restriction comparing ``SpellsCastThisTurn`` to two or more (Stella Lee's
+  copy), or a cast trigger's "second time this ability has resolved this turn"
+  (``AbilityUseCountThisTurn``, Ms. Bumbleflower): the need is cheap spells,
+  the same read as the ``second_spell_matters`` payoff.
+* **opponents drawing** — a ``Draw`` effect whose recipient is a chosen or
+  every player, an opponent included (``effect_player_reach``; Ms.
+  Bumbleflower's "target opponent draws a card"): the need is the payoffs that
+  watch opponents draw (``opponent_draw_matters``: Smothering Tithe,
+  Consecrated Sphinx) and the cards that make opponents draw like the
+  commander (``target_player_draws``, ``group_hug_draw``).
+
 A :class:`Need` is a set of ident / key / type-line tests and an optional
 record predicate; :func:`satisfies` is the one test, and
 :func:`need_predicate` the "any need" predicate the scoreboard's
@@ -46,9 +69,17 @@ from typing import TYPE_CHECKING
 from mtg_utils._analysis.signal_keys import TOKEN_MAKER
 from mtg_utils._card_ir.crosswalk.reads import (
     _present,
+    effect_player_reach,
+    filter_controller,
     filter_core_types,
+    filter_mana_value_floor,
+    filter_non_types,
     filter_predicates,
     filter_subtypes,
+    iter_condition_sites,
+    iter_typed_nodes,
+    or_arms,
+    requires_condition_inner,
     tag_of,
     trigger_def_event,
     trigger_scope,
@@ -321,10 +352,166 @@ def _walk(node: object, depth: int = 0) -> Iterator[object]:
 
 
 def _conditions(node: object) -> Iterator[object]:
-    for n in _walk(node):
-        cond = getattr(n, "condition", None)
+    """Every condition leaf under a unit: its ``condition`` fields and the
+    conditions its "activate only if" restrictions carry (Stella Lee's "if
+    you've cast three or more spells this turn", CR 602.5)."""
+    for site in iter_condition_sites(node):
+        cond = site
+        if tag_of(site) == "RequiresCondition":
+            cond = requires_condition_inner(site)
         if _present(cond) and tag_of(cond) is not None:
             yield from _condition_leaves(cond, 0)
+
+
+#: The mana value from which a spell is "big" for a commander whose effect
+#: scales with the greatest mana value among the spells cast this turn (Rootha's
+#: X/X flier with haste: a five-mana spell makes a top-end body). The read's own
+#: line, not a rule's.
+BIG_SPELL_MV = 5
+#: The mana value up to which a spell is "cheap" for a commander counting
+#: spells per turn (the ``second_spell_matters`` payoff's line).
+CHEAP_SPELL_MV = 2
+
+
+def _mana_value_reaches(card: Mapping, floor: int) -> bool:
+    """Whether the card's spell can have mana value ``floor`` or more: its
+    printed mana value (CR 202.3), or an {X} in its cost, since X is the number
+    chosen while the spell is on the stack (CR 202.3e)."""
+    if float(card.get("cmc") or 0) >= floor:
+        return True
+    return any(
+        "X" in (face.get("mana_cost") or "")
+        for face in card.get("card_faces") or [card]
+    )
+
+
+def _cheap_spell(card: Mapping) -> bool:
+    return float(card.get("cmc") or 0) <= CHEAP_SPELL_MV and bool(
+        _type_words(card) & {"instant", "sorcery"}
+    )
+
+
+def _filter_colorless(filt: object) -> bool:
+    """Whether the filter admits colorless objects only (a ``ColorCount``
+    equal to zero — Zhulodok; CR 105.2c)."""
+    for n in iter_typed_nodes(filt):
+        if (
+            tag_of(n) == "ColorCount"
+            and getattr(n, "comparator", None) == "EQ"
+            and int(getattr(n, "count", -1) or 0) == 0
+        ):
+            return True
+    return False
+
+
+def _spell_floor_need(filt: object, floor: int, desc: str) -> Need | None:
+    """The need for spells the filter admits at mana value ``floor`` or more:
+    the filter's types and colour, the floor from its ``Cmc`` bound or the
+    caller's line."""
+    if floor <= 0:
+        return None
+
+    def arm_words(arm: object) -> tuple[frozenset[str], frozenset[str]]:
+        """The type words an arm asks for and the ones it negates (Bello's
+        "non-Equipment artifact" → {artifact}, {equipment})."""
+        core = filter_core_types(arm) if _present(arm) else ()
+        subs = filter_subtypes(arm) if _present(arm) else ()
+        non = filter_non_types(arm) if _present(arm) else ()
+        return (
+            frozenset(
+                w.lower() for w in (*core, *subs) if w.lower() not in ("card", "spell")
+            ),
+            frozenset(w.lower() for w in non),
+        )
+
+    # An ``Or`` filter admits a card of any arm's types ("instant or sorcery
+    # spells": either); an arm naming no type admits every spell.
+    arms = tuple(arm_words(arm) for arm in or_arms(filt)) if _present(filt) else ()
+    arms = () if any(not a for a, _non in arms) else arms
+    words = frozenset().union(*(a for a, _non in arms)) if arms else frozenset()
+    colorless = _filter_colorless(filt)
+
+    def holds(c: dict) -> bool:
+        tw = _type_words(c)
+        if "land" in tw:
+            return False
+        if arms and not any(a <= tw and not (non & tw) for a, non in arms):
+            return False
+        if colorless and c.get("colors"):
+            return False
+        return _mana_value_reaches(c, floor)
+
+    kinds = (" or ".join(sorted(words)) + " ") if words else ""
+    label = f"{'colorless ' if colorless else ''}{kinds}spells at {floor}+ mana"
+    return Need("payoff", label, desc, predicate=holds)
+
+
+def _spells_cast_filter(qty: object) -> object | None:
+    """The spell filter of a ``SpellsCastThisTurn`` quantity or a ``TurnJournal``
+    of ``SpellsCast`` (``None`` when it counts every spell)."""
+    tag = tag_of(qty)
+    if tag == "SpellsCastThisTurn":
+        filt = getattr(qty, "filter", None)
+        return filt if _present(filt) else None
+    if tag == "TurnJournal" and tag_of(getattr(qty, "journal", None)) == "SpellsCast":
+        filt = getattr(qty, "filter", None)
+        return filt if _present(filt) else None
+    return None
+
+
+def _effect_needs(unit_node: object, desc: str) -> Iterator[Need]:
+    """Needs read off a unit's EFFECTS, whatever its origin: an effect scaled by
+    the greatest mana value among the turn's spells (Rootha), and a draw given
+    to an opponent (Ms. Bumbleflower)."""
+    for n in iter_typed_nodes(unit_node):
+        tag = tag_of(n)
+        if (
+            tag == "PropertyAggregate"
+            and getattr(n, "function", None) == "Max"
+            and getattr(n, "property", None) == "ManaValue"
+        ):
+            source = getattr(n, "source", None)
+            if (
+                tag_of(source) == "TurnJournal"
+                and tag_of(getattr(source, "journal", None)) == "SpellsCast"
+            ):
+                need = _spell_floor_need(
+                    _spells_cast_filter(source), BIG_SPELL_MV, desc
+                )
+                if need is not None:
+                    yield need
+        elif tag == "Draw" and effect_player_reach(unit_node, n) in (
+            "target",
+            "opponents",
+            "per_opponent",
+            "each",
+        ):
+            yield Need(
+                "payoff",
+                "opponents drawing payoffs",
+                desc,
+                keys=frozenset({"opponent_draw_matters"}),
+            )
+            yield Need(
+                "redundancy",
+                "opponents draw like the commander",
+                desc,
+                idents=frozenset({"target_player_draws|any|", "group_hug_draw|each|"}),
+            )
+
+
+def _static_needs(node: object, desc: str) -> Iterator[Need]:
+    """Needs read off a static ability's ``affected`` filter: your spells or
+    permanents at a mana-value floor (Zhulodok's colorless spells with mana
+    value 7 or greater)."""
+    aff = getattr(node, "affected", None)
+    if not _present(aff) or filter_controller(aff) != "You":
+        return
+    floor = filter_mana_value_floor(aff)
+    if floor is not None:
+        need = _spell_floor_need(aff, floor, desc)
+        if need is not None:
+            yield need
 
 
 def _condition_leaves(cond: object, depth: int) -> Iterator[object]:
@@ -390,6 +577,9 @@ def _event_need(node: TypedMirrorNode, desc: str) -> Need | None:
             )
         return None
     if event == "cast_spell":
+        floor = filter_mana_value_floor(valid) if _present(valid) else None
+        if floor is not None:
+            return _spell_floor_need(valid, floor, desc)
         types, _keys = _type_need(core, subs)
         return (
             Need("event", f"cast {' '.join(sorted(core + subs))}", desc, types=types)
@@ -457,8 +647,20 @@ def _event_need(node: TypedMirrorNode, desc: str) -> Need | None:
     return Need("event", label, desc, keys=keys)
 
 
-def _condition_need(cond: object, desc: str) -> Need | None:
+def _cheap_spells_need(desc: str) -> Need:
+    return Need("payoff", "cheap spells", desc, predicate=_cheap_spell)
+
+
+def _condition_need(
+    cond: object, desc: str, *, cast_trigger: bool = False
+) -> Need | None:
     tag = tag_of(cond)
+    if tag == "AbilityUseCountThisTurn" and cast_trigger:
+        # "If this is the second time this ability has resolved this turn" on
+        # a cast trigger (Ms. Bumbleflower): two spells a turn.
+        if int(getattr(cond, "n", 0) or 0) >= 2:
+            return _cheap_spells_need(desc)
+        return None
     if tag != "QuantityComparison":
         return None
     lhs = getattr(cond, "lhs", None)
@@ -466,6 +668,20 @@ def _condition_need(cond: object, desc: str) -> Need | None:
     if qty is None:
         return None
     qtag = tag_of(qty)
+    if qtag == "SpellsCastThisTurn":
+        rhs = getattr(cond, "rhs", None)
+        n = int(getattr(rhs, "value", 0) or 0) if tag_of(rhs) == "Fixed" else 0
+        if n >= 2:
+            return _cheap_spells_need(desc)
+        filt = _spells_cast_filter(qty)
+        core = filter_core_types(filt) if filt is not None else ()
+        subs = filter_subtypes(filt) if filt is not None else ()
+        types, _keys = _type_need(core, subs)
+        return (
+            Need("event", f"cast {' '.join(sorted(core + subs))}", desc, types=types)
+            if types
+            else None
+        )
     if qtag == "DistinctCardTypes":
         # Raised by a card that is two types at once, or by a self-mill /
         # surveil that puts several cards (and so several types) in at once.
@@ -659,15 +875,7 @@ def _payoff_needs(idents: Iterable[str], desc: str) -> Iterator[Need]:
                 types=frozenset({frozenset({"instant"}), frozenset({"sorcery"})}),
             )
         elif key == "second_spell_matters":
-            yield Need(
-                "payoff",
-                "cheap spells",
-                desc,
-                predicate=lambda c: (
-                    float(c.get("cmc") or 0) <= 2
-                    and bool(_type_words(c) & {"instant", "sorcery"})
-                ),
-            )
+            yield _cheap_spells_need(desc)
         elif key.startswith("wants_"):
             base = key[len("wants_") :]
             makers = (
@@ -708,15 +916,19 @@ def commander_needs(commanders: Sequence[Mapping]) -> tuple[Need, ...]:
     triggers' events, conditions, then the resource and payoff reads off the
     commanders' idents."""
     out: list[Need] = []
-    seen: set[tuple[str, frozenset[str], frozenset[str], frozenset[frozenset[str]]]] = (
-        set()
-    )
+    seen: set[tuple] = set()
 
     def add(need: Need | None) -> None:
         if need is None or need.empty:
             return
-        key = (need.kind, need.idents, need.keys, need.types)
-        if need.predicate is None and key in seen:
+        # A predicate need is one per label (the same "cheap spells" from a
+        # second-spell trigger and an "activate only if" count).
+        key = (
+            (need.kind, need.idents, need.keys, need.types)
+            if need.predicate is None
+            else ("predicate", need.label)
+        )
+        if key in seen:
             return
         seen.add(key)
         out.append(need)
@@ -730,10 +942,17 @@ def commander_needs(commanders: Sequence[Mapping]) -> tuple[Need, ...]:
             for unit in tree.units:
                 node = unit.node
                 desc = str(getattr(node, "description", "") or "")
+                cast_trigger = False
                 if unit.origin == "trigger" and isinstance(node, TypedMirrorNode):
                     add(_event_need(node, desc))
+                    cast_trigger = trigger_def_event(node) == "cast_spell"
+                if unit.origin == "static":
+                    for need in _static_needs(node, desc):
+                        add(need)
                 for cond in _conditions(node):
-                    add(_condition_need(cond, desc))
+                    add(_condition_need(cond, desc, cast_trigger=cast_trigger))
+                for need in _effect_needs(node, desc):
+                    add(need)
         for need in _resource_needs(idents, rec.get("name", "")):
             add(need)
         for need in _redundancy_needs(idents, rec.get("name", "")):

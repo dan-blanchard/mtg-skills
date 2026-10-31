@@ -51,10 +51,14 @@ miss taxonomy, the held-out candidates).
   now every kind, idents read sorted): held-out unchanged, the 25 118 adds
   (L3). E1 shipped in place of E2 against L3: held-out plan 180 → 198, adds
   100 → 99, job-equivalents −2, cuts +1 — passes. **Baseline (E1c): the 25
-  739 / 342 / 117 (plan 306), held-out 20 581 / 256 / 99 (plan 198).** Next:
-  the need read's three deeper reads (cast-trigger filters, opponent-draw
-  makers, activated-ability payoffs), then the watcher-based incidental-job
-  read — the backlog's tuner entry.
+  739 / 342 / 117 (plan 306), held-out 20 581 / 256 / 99 (plan 198).**
+- 2026-10-30, late: the need read deepened (R1, on correctness): mana-value
+  bounds (Zhulodok, Rootha, Bello), spells-per-turn conditions and "activate
+  only if" restrictions (Stella Lee, Bumbleflower), opponents drawing
+  (Bumbleflower). Held-out adds 99 → 100, cuts 0; the plan line re-based
+  198 → 225. **Baseline (R1): the 25 739 / 342 / 116 (plan 315), held-out 20
+  581 / 256 / 100 (plan 225).** Next: the watcher-based incidental-job read,
+  gated as policy against R1.
 
 ## Target
 

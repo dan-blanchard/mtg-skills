@@ -2453,3 +2453,35 @@ facedown makers 14; no need took a deck). `w41/sb-*-E1c.json`.
 
 **Baseline after E1 (E1c):** the 25 739 / 342 / 117 (page@30 156, plan 306 of
 739); held-out 20 581 / 256 / 99 (page@30 161, plan 198 of 581).
+
+## The need read, deepened (2026-10-30, R1, shipped on correctness)
+
+Three reads past a trigger's mode (ADR-0061's third amendment), each checked
+against the card's rulings (`rulings-lookup`) and the CR (`rules-lookup` 202.3,
+202.3e, 105.2c): mana-value bounds on a static's `affected` filter and a cast
+trigger's `valid_card`, and an effect scaled by the greatest mana value among
+the turn's spells (Zhulodok: "colorless spells at 7+ mana", 0.7% of the pool;
+Rootha: "instant or sorcery spells at 5+ mana", 5.4% plus the X spells, the
+floor the read's own line; Bello: "artifact or enchantment spells at 4+ mana"
+with the non-Equipment / non-Aura negations honoured); spells-per-turn
+conditions, "activate only if" restrictions included (Stella Lee, Shiko and
+Narset: cheap spells, one need however many sites say it; Ms. Bumbleflower's
+"second time this ability has resolved this turn"); and a draw given to an
+opponent (Ms. Bumbleflower: "opponents drawing payoffs", 0.1% — Smothering
+Tithe, Consecrated Sphinx; "opponents draw like the commander", 1.0%). The last
+needed the shared player-reach walk (`crosswalk.reads.effect_player_reach`) to
+read phase's typeless `Typed(controller=Opponent)` recipient as a chosen player.
+
+Measured against E1c: the held-out 20 581 / 256 / 99 → **581 / 256 / 100**
+(job-equivalents 31 → 32, page@30 161 → 164, consensus 0); the 25 739 / 342 /
+117 → 739 / 342 / 116 (Eldrazi Unbound's one add to the swap cascade). The plan
+line re-bases: held-out tune 198 → **225** of 581 (guides 254 → 276); the 25
+306 → 315 (guides 269 → 283). Where it moved: Peace Offering 2 → 27 of 30
+plan-consistent with its adds unchanged (the read now sees the group-hug draw
+the tune was already adding; "opponents draw like the commander" credits 22),
+Prismari Artistry 8 → 10 (guides 3 → 16), Eldrazi Unbound 0 → 6, Animated Army
++3. Jace's fodder need was already read off `wants_fodder`; the −3's own target
+filter adds nothing. `w41/sb-*-R1.json`.
+
+**Baseline after the deepened read (R1):** the 25 739 / 342 / 116 (page@30 156,
+plan 315 of 739); held-out 20 581 / 256 / 100 (page@30 164, plan 225 of 581).
