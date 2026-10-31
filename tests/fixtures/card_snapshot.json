@@ -87524,6 +87524,223 @@
     "type_line": "Creature — Cat Knight"
    }
   },
+  "Army of the Damned": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Create thirteen tapped 2/2 black Zombie creature tokens.",
+       "duration": null,
+       "effect": {
+        "colors": [
+         "Black"
+        ],
+        "count": {
+         "type": "Fixed",
+         "value": 13
+        },
+        "enters_attacking": false,
+        "keywords": [],
+        "name": "Zombie",
+        "owner": {
+         "type": "Controller"
+        },
+        "power": {
+         "type": "Fixed",
+         "value": 2
+        },
+        "tapped": true,
+        "toughness": {
+         "type": "Fixed",
+         "value": 2
+        },
+        "type": "Token",
+        "types": [
+         "Creature",
+         "Zombie"
+        ]
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Sorcery"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Black"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [
+      {
+       "Flashback": {
+        "data": {
+         "generic": 7,
+         "shards": [
+          "Black",
+          "Black",
+          "Black"
+         ],
+         "type": "Cost"
+        },
+        "type": "Mana"
+       }
+      }
+     ],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 5,
+      "shards": [
+       "Black",
+       "Black",
+       "Black"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "related_token_ids": [
+       "05d9cd8a-966d-5502-a296-62da2690493d",
+       "87df5573-4b61-5eaa-94b2-efd2398be6ac",
+       "b82d964c-1e25-5813-8c24-2fc5e5607817",
+       "dcfe20d0-fe21-502b-9a7d-540866e06cf8",
+       "ec9a4944-adaf-511f-a79e-40eb615aa5b5"
+      ],
+      "source_printing_ids": [
+       "260a4544-a1eb-4d07-943f-0401ae288e13",
+       "2f9c3dca-4982-4550-82ac-5c4e515b55aa",
+       "33c01126-1918-4c67-8ee8-14ffc1325b97",
+       "787503ed-ebf5-4309-8dc6-3de925ea28a6",
+       "9aae1c1b-96f0-4529-995d-a53874a74c75",
+       "bf818314-1eb4-48da-8e6f-ff7b89873b63",
+       "cd59d5ff-bba3-46fa-a963-f3dff49a2714"
+      ]
+     },
+     "name": "Army of the Damned",
+     "non_ability_text": null,
+     "oracle_text": "Create thirteen tapped 2/2 black Zombie creature tokens.\nFlashback {7}{B}{B}{B} (You may cast this card from your graveyard for its flashback cost. Then exile it.)",
+     "power": null,
+     "printings": [
+      "C13",
+      "C16",
+      "C18",
+      "FDC",
+      "ISD",
+      "J25",
+      "MIC",
+      "NCC",
+      "SCD"
+     ],
+     "rarities": [
+      "mythic"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2024-11-08",
+       "text": "\"Flashback [cost]\" means \"You may cast this card from your graveyard by paying [cost] rather than paying its mana cost\" and \"If the flashback cost was paid, exile this card instead of putting it anywhere else any time it would leave the stack.\""
+      },
+      {
+       "date": "2024-11-08",
+       "text": "A spell cast using flashback will always be exiled afterward, whether it resolves, is countered, or leaves the stack in some other way."
+      },
+      {
+       "date": "2024-11-08",
+       "text": "If a card with flashback is put into your graveyard during your turn, you can cast it if it's legal to do so before any other player can take any actions."
+      },
+      {
+       "date": "2024-11-08",
+       "text": "To determine the total cost of a spell, start with the mana cost or alternative cost (such as a flashback cost) you're paying, add any cost increases, then apply any cost reductions. The mana value of the spell is determined only by its mana cost, no matter what the total cost to cast the spell was."
+      },
+      {
+       "date": "2024-11-08",
+       "text": "You can cast a spell using flashback even if it was somehow put into your graveyard without having been cast."
+      },
+      {
+       "date": "2024-11-08",
+       "text": "You must still follow any timing restrictions and permissions, including those based on the card's type. For instance, you can cast a sorcery using flashback only when you could normally cast a sorcery."
+      }
+     ],
+     "scryfall_oracle_id": "75d667ec-86f4-4850-a3b6-e7a9fc7053b0",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "all_parts": [
+     {
+      "component": "token",
+      "id": "8a73e348-5bf1-4465-978b-3f31408bade9",
+      "name": "Zombie",
+      "oracle_id": "ddc8c973-c31e-463f-be45-f3fa7d632362",
+      "type_line": "Token Creature — Zombie"
+     }
+    ],
+    "arena_available": true,
+    "cmc": 8.0,
+    "color_identity": [
+     "B"
+    ],
+    "colors": [
+     "B"
+    ],
+    "keywords": [
+     "Flashback"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{5}{B}{B}{B}",
+    "name": "Army of the Damned",
+    "oracle_id": "75d667ec-86f4-4850-a3b6-e7a9fc7053b0",
+    "oracle_text": "Create thirteen tapped 2/2 black Zombie creature tokens.\nFlashback {7}{B}{B}{B} (You may cast this card from your graveyard for its flashback cost. Then exile it.)",
+    "type_line": "Sorcery"
+   }
+  },
   "Arna Kennerüd, Skycaptain": {
    "phase_records": [
     {
@@ -122832,6 +123049,220 @@
     "oracle_id": "c38d4731-8c7c-4356-93c6-a63c2c3be975",
     "oracle_text": "At the beginning of your upkeep, exile the bottom creature card of your library. You may cast that card this turn. At the beginning of the next end step, if that card is still exiled, put it into your graveyard and create a Treasure token.",
     "type_line": "Enchantment"
+   }
+  },
+  "Banner of Kinship": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Artifact"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "standard": "legal",
+      "standardbrawl": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 5,
+      "shards": [],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "19a9b8b0-c1ba-48c3-8f90-6af6948274ee",
+       "1fa434d9-c0c2-47f2-85ba-d2258ad91f58",
+       "a14c16c0-4053-46b0-8fa6-be8b4a7a1c8a",
+       "e4709aed-a74b-4319-87c1-40f14cca6dad"
+      ]
+     },
+     "name": "Banner of Kinship",
+     "non_ability_text": null,
+     "oracle_text": "As this artifact enters, choose a creature type. This artifact enters with a fellowship counter on it for each creature you control of the chosen type.\nCreatures you control of the chosen type get +1/+1 for each fellowship counter on this artifact.",
+     "power": null,
+     "printings": [
+      "FDN",
+      "PFDN"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [
+      {
+       "condition": null,
+       "description": "As ~ enters, choose a creature type.",
+       "destination_zone": "Battlefield",
+       "event": "Moved",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "choice_type": "CreatureType",
+         "persist": true,
+         "type": "Choose"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "count": {
+           "qty": {
+            "filter": {
+             "controller": "You",
+             "properties": [
+              {
+               "type": "IsChosenCreatureType"
+              }
+             ],
+             "type": "Typed",
+             "type_filters": [
+              "Creature"
+             ]
+            },
+            "type": "ObjectCount"
+           },
+           "type": "Ref"
+          },
+          "counter_type": "fellowship",
+          "target": {
+           "type": "SelfRef"
+          },
+          "type": "PutCounter"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": null,
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "mode": {
+        "type": "Mandatory"
+       },
+       "valid_card": {
+        "type": "SelfRef"
+       }
+      }
+     ],
+     "scryfall_oracle_id": "8c220dbd-6572-4715-aae6-dd09a4252d68",
+     "static_abilities": [
+      {
+       "active_zones": [],
+       "affected": {
+        "controller": "You",
+        "properties": [
+         {
+          "type": "IsChosenCreatureType"
+         }
+        ],
+        "type": "Typed",
+        "type_filters": [
+         "Creature"
+        ]
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": null,
+       "description": "Creatures you control of the chosen type get +1/+1 for each fellowship counter on ~.",
+       "effect_zone": null,
+       "mode": "Continuous",
+       "modifications": [
+        {
+         "type": "AddDynamicPower",
+         "value": {
+          "qty": {
+           "counter_type": "fellowship",
+           "scope": {
+            "type": "Source"
+           },
+           "type": "CountersOn"
+          },
+          "type": "Ref"
+         }
+        },
+        {
+         "type": "AddDynamicToughness",
+         "value": {
+          "qty": {
+           "counter_type": "fellowship",
+           "scope": {
+            "type": "Source"
+           },
+           "type": "CountersOn"
+          },
+          "type": "Ref"
+         }
+        }
+       ]
+      }
+     ],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 5.0,
+    "color_identity": [],
+    "colors": [],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "legal",
+     "standardbrawl": "legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{5}",
+    "name": "Banner of Kinship",
+    "oracle_id": "8c220dbd-6572-4715-aae6-dd09a4252d68",
+    "oracle_text": "As this artifact enters, choose a creature type. This artifact enters with a fellowship counter on it for each creature you control of the chosen type.\nCreatures you control of the chosen type get +1/+1 for each fellowship counter on this artifact.",
+    "type_line": "Artifact"
    }
   },
   "Banners Raised": {
@@ -343178,6 +343609,214 @@
     "type_line": "Instant"
    }
   },
+  "Divine Visitation": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Enchantment"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "White"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 3,
+      "shards": [
+       "White",
+       "White"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "related_token_ids": [
+       "4ad6b1d3-c030-52bd-a568-6134cd2ea3ed",
+       "80298dd1-6460-5e53-8390-f1a1c6ee1e45",
+       "aafbe5c9-7a49-5dff-9995-35f0d7ace2d4",
+       "c33e6a6e-1730-5a52-bf8c-c6ab7d18fadb",
+       "db00ab6e-b365-5654-a510-dd1d9fa17590"
+      ],
+      "source_printing_ids": [
+       "0b0c12dc-3978-4c3e-a3a2-a81db878f4ad",
+       "3800216f-5b35-4cfa-bcdb-d70e9b368d18",
+       "38d624ed-650a-45c3-b9c5-26cc264a0517",
+       "3a73bd5a-eb22-41dc-84ff-93d23d84afae",
+       "6aab3dc6-4f9a-48d3-9df2-36c3b87a4ab5",
+       "a5588402-fa0f-4d98-91a4-869180ba490e",
+       "aff6a7f9-9258-4247-9d17-09c9c2cf0c2e",
+       "da3789d4-3621-44a1-bb72-8e3bbac8bf72",
+       "dabd95db-b4ca-446b-bb68-6f52cec9ed2a",
+       "f68a7e08-6af2-4eab-afd4-7eb9db431e9c"
+      ]
+     },
+     "name": "Divine Visitation",
+     "non_ability_text": null,
+     "oracle_text": "If one or more creature tokens would be created under your control, that many 4/4 white Angel creature tokens with flying and vigilance are created instead.",
+     "power": null,
+     "printings": [
+      "2X2",
+      "GRN",
+      "MSC",
+      "PGRN",
+      "RVR",
+      "TDC"
+     ],
+     "rarities": [
+      "mythic"
+     ],
+     "replacements": [
+      {
+       "condition": {
+        "core_types": [
+         "Creature"
+        ],
+        "type": "TokenCoreTypeMatches"
+       },
+       "description": "If one or more creature tokens would be created under your control, that many 4/4 white Angel creature tokens with flying and vigilance are created instead.",
+       "event": "CreateToken",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "colors": [
+          "White"
+         ],
+         "count": {
+          "qty": {
+           "type": "EventContextAmount"
+          },
+          "type": "Ref"
+         },
+         "enters_attacking": false,
+         "keywords": [
+          "Flying",
+          "Vigilance"
+         ],
+         "name": "Angel",
+         "owner": {
+          "type": "Controller"
+         },
+         "power": {
+          "type": "Fixed",
+          "value": 4
+         },
+         "tapped": false,
+         "toughness": {
+          "type": "Fixed",
+          "value": 4
+         },
+         "type": "Token",
+         "types": [
+          "Creature",
+          "Angel"
+         ]
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": {
+        "type": "Mandatory"
+       },
+       "token_owner_scope": "You",
+       "valid_card": null
+      }
+     ],
+     "rulings": [
+      {
+       "date": "2018-10-05",
+       "text": "If an effect changes under whose control a token would be created, that effect applies before Divine Visitation's effect applies. If an effect changes under whose control a token would enter the battlefield, that effect applies after Divine Visitation's effect is able to be applied."
+      },
+      {
+       "date": "2018-10-05",
+       "text": "If you create a noncreature token that will be a creature as it enters the battlefield, perhaps because of an effect such as that of March of the Machines, Divine Visitation's effect doesn't apply to that token's creation. (This is because Divine Visitation's effect modifies how the tokens are created, and March of the Machines's effect doesn't apply until you consider how the tokens are entering the battlefield.)"
+      },
+      {
+       "date": "2018-10-05",
+       "text": "The token's characteristics are entirely replaced by a 4/4 white Angel creature token with flying and vigilance. It doesn't have any abilities the token would have been created with. Anything else specified in the effect creating the token (such as tapped, attacking, \"That token gains haste,\" or \"Exile that token at end of combat\") still applies."
+      }
+     ],
+     "scryfall_oracle_id": "5917216f-5b42-41fa-8976-401bdbeb782e",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "all_parts": [
+     {
+      "component": "token",
+      "id": "31434b32-b741-4a4d-813e-7006fe7ffa3c",
+      "name": "Angel",
+      "oracle_id": "29ff8699-53d8-413b-8a3c-0e3ea1e13ff0",
+      "type_line": "Token Creature — Angel"
+     }
+    ],
+    "arena_available": true,
+    "cmc": 5.0,
+    "color_identity": [
+     "W"
+    ],
+    "colors": [
+     "W"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{3}{W}{W}",
+    "name": "Divine Visitation",
+    "oracle_id": "5917216f-5b42-41fa-8976-401bdbeb782e",
+    "oracle_text": "If one or more creature tokens would be created under your control, that many 4/4 white Angel creature tokens with flying and vigilance are created instead.",
+    "type_line": "Enchantment"
+   }
+  },
   "Diviner Spirit": {
    "phase_records": [
     {
@@ -436834,6 +437473,173 @@
     "type_line": "Enchantment"
    }
   },
+  "Fierce Guardianship": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Counter target noncreature spell.",
+       "duration": null,
+       "effect": {
+        "target": {
+         "filters": [
+          {
+           "type": "StackSpell"
+          },
+          {
+           "controller": null,
+           "properties": [],
+           "type": "Typed",
+           "type_filters": [
+            {
+             "Non": "Creature"
+            }
+           ]
+          }
+         ],
+         "type": "And"
+        },
+        "type": "Counter"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "bracket_signals": {
+      "efficient_tutor": false,
+      "extra_turn": false,
+      "game_changer": true,
+      "mass_land_denial": false
+     },
+     "card_type": {
+      "core_types": [
+       "Instant"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "casting_options": [
+      {
+       "condition": {
+        "ownership": "Any",
+        "type": "ControlsCommander"
+       },
+       "kind": "CastWithoutManaCost"
+      }
+     ],
+     "color_identity": [
+      "Blue"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "banned",
+      "commander": "legal",
+      "duel": "banned",
+      "historic": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 2,
+      "shards": [
+       "Blue"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "180679fa-b820-4793-8f2e-a2d8791192d5",
+       "4c5ffa83-c88d-4f5d-851e-a642b229d596",
+       "ac4fc06d-50b8-455f-8d14-85c0c791c422",
+       "c103c4d8-5a3c-443b-9caf-f41f8b61e73f",
+       "f7f3dd95-bd14-4e0f-a388-444f9cf1b0dc",
+       "f8678852-7f4a-4b30-9f0b-0719489f442e"
+      ]
+     },
+     "name": "Fierce Guardianship",
+     "non_ability_text": null,
+     "oracle_text": "If you control a commander, you may cast this spell without paying its mana cost.\nCounter target noncreature spell.",
+     "power": null,
+     "printings": [
+      "C20",
+      "CMM",
+      "SLC",
+      "SLD",
+      "TLE"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2020-04-17",
+       "text": "It doesn't matter whose commander you control. Any one will do. If you have two commanders, you just need to control one of them."
+      },
+      {
+       "date": "2020-04-17",
+       "text": "Once you begin casting this spell, players can't take any other actions until you're done casting it. Notably, they can't try to remove the commander you control to make you pay its cost."
+      }
+     ],
+     "scryfall_oracle_id": "d09c9cba-fdd2-479b-ad5d-d05181c3e3f9",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 3.0,
+    "color_identity": [
+     "U"
+    ],
+    "colors": [
+     "U"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "banned",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "banned",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}{U}",
+    "name": "Fierce Guardianship",
+    "oracle_id": "d09c9cba-fdd2-479b-ad5d-d05181c3e3f9",
+    "oracle_text": "If you control a commander, you may cast this spell without paying its mana cost.\nCounter target noncreature spell.",
+    "type_line": "Instant"
+   }
+  },
   "Fiery Confluence": {
    "phase_records": [
     {
@@ -470933,6 +471739,225 @@
     "oracle_id": "d211c03a-03cd-40c5-b7c8-ada352fd01a6",
     "oracle_text": "Galvanic Blast deals 2 damage to any target.\nMetalcraft — Galvanic Blast deals 4 damage instead if you control three or more artifacts.",
     "type_line": "Instant"
+   }
+  },
+  "Gamble": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Search your library for a card, put that card into your hand, discard a card at random, then shuffle.",
+       "duration": null,
+       "effect": {
+        "count": {
+         "type": "Fixed",
+         "value": 1
+        },
+        "filter": {
+         "controller": null,
+         "properties": [],
+         "type": "Typed",
+         "type_filters": [
+          "Card"
+         ]
+        },
+        "reveal": false,
+        "type": "SearchLibrary"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "destination": "Hand",
+         "enter_tapped": false,
+         "enter_transformed": false,
+         "enters_attacking": false,
+         "origin": "Library",
+         "owner_library": false,
+         "target": {
+          "type": "Any"
+         },
+         "type": "ChangeZone"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "count": {
+           "type": "Fixed",
+           "value": 1
+          },
+          "random": true,
+          "target": {
+           "type": "Controller"
+          },
+          "type": "Discard"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": {
+          "condition": null,
+          "cost": null,
+          "description": null,
+          "duration": null,
+          "effect": {
+           "target": {
+            "type": "Controller"
+           },
+           "type": "Shuffle"
+          },
+          "forward_result": false,
+          "kind": "Spell",
+          "optional": false,
+          "optional_targeting": false,
+          "sub_ability": null,
+          "target_prompt": null
+         },
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "bracket_signals": {
+      "efficient_tutor": false,
+      "extra_turn": false,
+      "game_changer": true,
+      "mass_land_denial": false
+     },
+     "card_type": {
+      "core_types": [
+       "Sorcery"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Red"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "premodern": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 0,
+      "shards": [
+       "Red"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "3bce6015-a7df-43d4-849b-0f306d501658",
+       "4fa5f934-5407-4844-9cd5-9ba5fa7c4748",
+       "7602b70b-686f-432b-ac59-1141dd3d0dea",
+       "81e57561-17d4-48db-8e40-f41019010bc9",
+       "8e37fae5-ddd0-4e16-8581-71579f89d9c5",
+       "924db286-fb3e-40dd-b5e2-f8128701685d",
+       "c01c9474-90a1-4c2e-bd90-471ff4fd04e5",
+       "f7bc7576-233f-4267-9943-d831a5b2c233"
+      ]
+     },
+     "name": "Gamble",
+     "non_ability_text": null,
+     "oracle_text": "Search your library for a card, put that card into your hand, discard a card at random, then shuffle.",
+     "power": null,
+     "printings": [
+      "DMR",
+      "EMA",
+      "J20",
+      "PLST",
+      "SLD",
+      "SPG",
+      "TLE",
+      "UMA",
+      "USG",
+      "VMA"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2022-12-08",
+       "text": "You might end up discarding the card you searched for. It's a gamble!"
+      }
+     ],
+     "scryfall_oracle_id": "a54f0869-94c8-42af-9080-166efb9486a4",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 1.0,
+    "color_identity": [
+     "R"
+    ],
+    "colors": [
+     "R"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{R}",
+    "name": "Gamble",
+    "oracle_id": "a54f0869-94c8-42af-9080-166efb9486a4",
+    "oracle_text": "Search your library for a card, put that card into your hand, discard a card at random, then shuffle.",
+    "type_line": "Sorcery"
    }
   },
   "Game Preserve": {
@@ -611504,6 +612529,271 @@
     ],
     "toughness": "5",
     "type_line": "Legendary Creature — Elemental Elk"
+   }
+  },
+  "Jeska's Will": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "declares_chosen_group": 2147483648,
+       "description": null,
+       "duration": null,
+       "effect": {
+        "produced": {
+         "color_options": [
+          "Red"
+         ],
+         "count": {
+          "qty": {
+           "binding": "Explicit",
+           "type": "TargetZoneCardCount",
+           "zone": "Hand"
+          },
+          "type": "Ref"
+         },
+         "type": "AnyOneColor"
+        },
+        "target": {
+         "count_source": {
+          "controller": "Opponent",
+          "properties": [],
+          "type": "Typed",
+          "type_filters": []
+         },
+         "role": "CountSource"
+        },
+        "type": "Mana"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      },
+      {
+       "condition": null,
+       "cost": null,
+       "description": null,
+       "duration": null,
+       "effect": {
+        "count": {
+         "type": "Fixed",
+         "value": 3
+        },
+        "player": {
+         "type": "Controller"
+        },
+        "position": {
+         "type": "Top"
+        },
+        "type": "ExileTop"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": "UntilEndOfTurn",
+        "effect": {
+         "duration": "UntilEndOfTurn",
+         "mode": "Play",
+         "target": {
+          "type": "ParentTarget"
+         },
+         "type": "CastFromZone",
+         "without_paying_mana_cost": false
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "sub_link": "SequentialSibling",
+        "target_choice_timing": "Resolution",
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "bracket_signals": {
+      "efficient_tutor": false,
+      "extra_turn": false,
+      "game_changer": true,
+      "mass_land_denial": false
+     },
+     "card_type": {
+      "core_types": [
+       "Sorcery"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Red"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 2,
+      "shards": [
+       "Red"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "3308993d-8bfb-477a-887a-89ed35577f57",
+       "4e91d96d-cc69-439b-b876-a7d57039022c",
+       "99e0c371-1024-4432-9fd9-3bc29c8d38e4",
+       "e6b4d78f-af3e-4210-8886-231a40a6bd98",
+       "f2f2e39f-bf39-4b27-b211-e46b6045039d"
+      ]
+     },
+     "modal": {
+      "allow_repeat_modes": false,
+      "chooser": {
+       "type": "Controller"
+      },
+      "constraints": [
+       {
+        "condition": {
+         "condition": {
+          "ownership": "Any",
+          "type": "ControlsCommander"
+         },
+         "type": "Static"
+        },
+        "max_choices": 2,
+        "otherwise_max_choices": 1,
+        "type": "ConditionalMaxChoices"
+       }
+      ],
+      "max_choices": 1,
+      "min_choices": 1,
+      "mode_count": 2,
+      "mode_descriptions": [
+       "Add {R} for each card in target opponent's hand.",
+       "Exile the top three cards of your library. You may play them this turn."
+      ]
+     },
+     "name": "Jeska's Will",
+     "non_ability_text": null,
+     "oracle_text": "Choose one. If you control a commander as you cast this spell, you may choose both instead.\n• Add {R} for each card in target opponent's hand.\n• Exile the top three cards of your library. You may play them this turn.",
+     "power": null,
+     "printings": [
+      "CLB",
+      "CMR",
+      "MKC",
+      "PRM",
+      "SLD",
+      "SOA"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2026-03-20",
+       "text": "Any of the exiled cards you don't play will remain exiled."
+      },
+      {
+       "date": "2026-03-20",
+       "text": "Even though the card is named after a specific character, controlling any commander will satisfy its condition."
+      },
+      {
+       "date": "2026-03-20",
+       "text": "Once you've announced that you're casting a spell, players can't take any actions until you've finished doing so. Notably, opponents can't try to remove your commander to change how many modes you may choose."
+      },
+      {
+       "date": "2026-03-20",
+       "text": "Once you've chosen both modes for the spell, it doesn't matter whether you continue to control a commander. This is true even if you somehow no longer control a commander as you finish casting the spell."
+      },
+      {
+       "date": "2026-03-20",
+       "text": "The commander you control doesn't have to be your commander."
+      },
+      {
+       "date": "2026-03-20",
+       "text": "There's no extra bonus if you control more than one commander."
+      },
+      {
+       "date": "2026-03-20",
+       "text": "Use the number of cards in the target opponent's hand as Jeska's Will resolves to determine how much {R} to add."
+      },
+      {
+       "date": "2026-03-20",
+       "text": "You pay all costs and follow all timing rules for cards played with the permission from the last mode of Jeska's Will. For example, if one of the exiled cards is a land card, you may play it only during your main phase while the stack is empty and only if you have an available land play remaining."
+      }
+     ],
+     "scryfall_oracle_id": "0fd114c4-092b-4e28-b0dc-ef529f3bc73e",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 3.0,
+    "color_identity": [
+     "R"
+    ],
+    "colors": [
+     "R"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}{R}",
+    "name": "Jeska's Will",
+    "oracle_id": "0fd114c4-092b-4e28-b0dc-ef529f3bc73e",
+    "oracle_text": "Choose one. If you control a commander as you cast this spell, you may choose both instead.\n• Add {R} for each card in target opponent's hand.\n• Exile the top three cards of your library. You may play them this turn.",
+    "produced_mana": [
+     "R"
+    ],
+    "type_line": "Sorcery"
    }
   },
   "Jeskai Barricade": {
