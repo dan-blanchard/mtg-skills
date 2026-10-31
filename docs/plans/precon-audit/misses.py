@@ -42,6 +42,9 @@ TARGET_BRACKET = 3
 #: Land swaps (Phase C, opt-in in the tune): on with PRECON_LAND_SWAPS=1, so the
 #: default recipe stays comparable with the Phase A/B baselines.
 LAND_SWAPS = os.environ.get("PRECON_LAND_SWAPS") == "1"
+#: Record every theme page's whole match set too (PRECON_DEEP_PAGES=1; slower),
+#: for the reach profile: a guide card the page cut off vs one the serve never admits.
+DEEP_PAGES = os.environ.get("PRECON_DEEP_PAGES") == "1"
 
 
 def budget_for(root, name):
@@ -137,13 +140,24 @@ def run_deck(args):
         spec), a theme avenue (a spec credited to one), else other."""
         public = {k: v for k, v in spec.items() if not k.startswith("_")}
         for job, row in (*ROW_SEARCH.items(), ("protection", PROTECTION_SEARCH)):
-            if public == dict(row):
+            # The row may carry a private ``_filter`` (ramp, interaction): compare
+            # the public keys only, or every ramp / interaction page reads "other".
+            if public == {k: v for k, v in row.items() if not k.startswith("_")}:
                 return job
         return "theme" if spec.get("_avenue") or spec.get("_share") else "other"
 
     def rec_search(fn, spec, **kw):
         out = run_search(fn, spec, **kw)
-        pages.append(({k: v for k, v in spec.items() if not k.startswith("_")}, [c.get("name") for c in out], page_kind(spec)))
+        public = {k: v for k, v in spec.items() if not k.startswith("_")}
+        if spec.get("_avenue"):
+            public["_avenue"] = spec["_avenue"]
+        kind = page_kind(spec)
+        pages.append((public, [c.get("name") for c in out], kind))
+        if DEEP_PAGES and kind == "theme" and kw.get("limit", 0) < sys.maxsize and len(out) >= kw.get("limit", 0):
+            # The page's whole match set (PRECON_DEEP_PAGES=1): does the serve admit a
+            # guide card the 150-deep page cut off, or never admit it at all?
+            deep = run_search(fn, spec, **{**kw, "limit": sys.maxsize})
+            pages.append(({**public, "_deep": True}, [c.get("name") for c in deep], "theme-deep"))
         return out
 
     def rec_cuts(*a, **kw):
@@ -230,10 +244,14 @@ def run_deck(args):
     kinds_searched = collections.Counter(kind for _s, _n, kind in pages)
     for spec, names, kind in pages:
         for i, n in enumerate(names):
-            page_names.setdefault(norm(n), []).append((json.dumps(spec, sort_keys=True), i, len(names)))
+            page_names.setdefault(norm(n), []).append((kind, spec.get("_avenue") or json.dumps(spec, sort_keys=True), i, len(names)))
             best = page_pos.get((norm(n), kind))
             if best is None or i < best:
                 page_pos[(norm(n), kind)] = i
+    # Every page this run searched, its head, for the profile scripts (the
+    # identity-wide need pool is thousands deep: its head is enough).
+    out["pages"] = [{"kind": kind, "label": spec.get("_avenue") or json.dumps(spec, sort_keys=True), "n": len(names), "head": names[:80]}
+                    for spec, names, kind in pages]
     searched = [json.dumps(s, sort_keys=True) for s, _n, _k in pages]
     out_pages = {}
     for key, gname in g_adds.items():
@@ -261,7 +279,9 @@ def run_deck(args):
         # search's own order, or None when no page of that kind held it.
         if why != "out of scope" and rec is not None:
             kind = upgrade_job(role_of(rec), rec) or "theme"
-            out_pages[gname] = {"kind": kind, "pos": page_pos.get((key, kind)), "pages": kinds_searched.get(kind, 0)}
+            out_pages[gname] = {"kind": kind, "pos": page_pos.get((key, kind)), "pages": kinds_searched.get(kind, 0),
+                                "hits": page_names.get(key, []), "price": (rec.get("prices") or {}).get("usd"),
+                                "rank": rec.get("edhrec_rank"), "cmc": rec.get("cmc")}
     out["page_pos"] = out_pages
     return name, out
 

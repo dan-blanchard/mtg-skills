@@ -108,6 +108,21 @@ miss taxonomy, the held-out candidates).
   — **shipped; baseline J2** (`w41/sb-*-J2.json`). The theme order stays
   play-rate first; Dan's stance there waits on a strength read whose pairs the
   tuner's order didn't choose.
+- 2026-10-31, evening (Dan: keep iterating alone until real improvements): a
+  reach profile of the held-out misses, with `misses.py` recording every page
+  hit (and, under `PRECON_DEEP_PAGES=1`, each theme page's whole match set):
+  the largest bucket is 152 theme guide adds no theme page holds — 100 the
+  serve never admits, 52 cut off by the 150-card page. Of the 100: Zimone's
+  counter payoffs (15), Ahoy Mateys' theft cards (15), tutors (~10), trigger
+  copiers and clones (~8). Read fix N1 (on correctness): a commander whose text
+  counts the counters on itself (Zimone's `CountersOn` scoped to the source) and
+  grows only itself opens a "counters on the commander" need (proliferate,
+  doublers, counter movers, counter payoffs); the self-grow skip no longer
+  applies to a commander that also grows others (Captain America, Team Leader
+  keeps "plus one consumers"). Held-out adds +3, plan +8 (Quandrix: Branching
+  Evolution, Evolution Sage, The Earth Crystal), the 25 unchanged — **baseline
+  N1** (`w41/sb-*-N1.json`). The audit script's page kinds were also fixed (a
+  ramp or interaction page read "other"), so page recall rose on paper only.
 
 ## Target
 

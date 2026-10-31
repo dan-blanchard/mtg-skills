@@ -70,6 +70,7 @@ from mtg_utils._analysis._subtypes import LAND_SUBTYPES
 from mtg_utils._analysis.signal_keys import TOKEN_MAKER
 from mtg_utils._card_ir.crosswalk.reads import (
     _present,
+    counter_kind,
     effect_player_reach,
     filter_controller,
     filter_core_types,
@@ -91,6 +92,7 @@ from mtg_utils.type_line import split_type_line
 
 if TYPE_CHECKING:
     from mtg_utils._analysis.signal_specs import Serve
+    from mtg_utils._card_ir.crosswalk import ConceptTree
 
 # ── vocabulary ──────────────────────────────────────────────────────────────
 
@@ -141,6 +143,21 @@ _UMBRELLA_KEYS: frozenset[str] = frozenset(
         "artifacts_matter",
         "creatures_matter",
         "attack_matters",
+    }
+)
+#: Keys whose emitters grow or keep the counters already on your creatures, the
+#: commander's own among them: proliferate, a counter doubler or bonus, a counter
+#: mover, and the payoffs that read a creature's counters. What a commander whose
+#: text counts the counters on itself (Zimone, Infinite Analyst's "costs {1} less
+#: for each +1/+1 counter on ~") asks the deck for; the makers that put a counter
+#: on a creature are left out (a sixth of a green pool).
+_COUNTER_GROWTH_KEYS: frozenset[str] = frozenset(
+    {
+        "proliferate_makers",
+        "counter_doubling",
+        "counter_replace_bonus",
+        "counter_move",
+        "plus_one_matters",
     }
 )
 #: Keys whose emitters make a creature of yours die or leave (fodder and the
@@ -755,15 +772,58 @@ def _condition_need(
     return None
 
 
-def _resource_needs(idents: Iterable[str], desc: str) -> Iterator[Need]:
+def _counter_placement(trees: Sequence[ConceptTree]) -> tuple[bool, bool]:
+    """Two facts about the commander's +1/+1 counters: whether any land on
+    something other than itself (Captain America, Team Leader's "a +1/+1 counter
+    on that Hero and a +1/+1 counter on ~"), and whether its own text counts the
+    counters on itself (Zimone, Infinite Analyst's "for each +1/+1 counter on ~":
+    a ``CountersOn`` operand scoped to the source)."""
+    elsewhere = counts_own = False
+    for tree in trees:
+        for unit in tree.units:
+            for c in unit.effect_concepts("place_counter"):
+                node = c.node
+                if tag_of(node) not in ("PutCounter", "PutCounterAll"):
+                    continue
+                if counter_kind(node) != "P1P1":
+                    continue
+                if tag_of(getattr(node, "target", None)) != "SelfRef":
+                    elsewhere = True
+            for n in iter_typed_nodes(unit.node):
+                if (
+                    tag_of(n) == "CountersOn"
+                    and tag_of(getattr(n, "scope", None)) == "Source"
+                ):
+                    counts_own = True
+    return elsewhere, counts_own
+
+
+def _resource_needs(
+    idents: Iterable[str], desc: str, *, trees: Sequence[ConceptTree] = ()
+) -> Iterator[Need]:
     """What the commander produces → the payoffs that consume it."""
     from mtg_utils._tuner.metrics import _cares_keys
 
     seen: set[str] = set()
     idents = tuple(idents)
-    # A commander that grows itself (Mirko's "+1/+1 counter on ~") makes no
-    # counters the deck's counter payoffs could use.
-    self_grow = any(i.startswith("self_counter_grow|") for i in idents)
+    # A commander that grows ONLY itself (Mirko's "+1/+1 counter on ~") makes no
+    # counters the deck's counter payoffs could use; one that also grows others
+    # (Captain America's Heroes) does. When its own text counts the counters on
+    # itself (Zimone), the deck wants them grown and kept: proliferate, doublers,
+    # the counter movers (``_COUNTER_GROWTH_KEYS``) — the upgrade guides' adds
+    # for her (Branching Evolution, Evolution Sage, The Ozolith), none of which a
+    # Mirko or Valgavoth guide reaches for.
+    elsewhere, counts_own = _counter_placement(trees)
+    self_grow = (
+        any(i.startswith("self_counter_grow|") for i in idents) and not elsewhere
+    )
+    if self_grow and counts_own:
+        yield Need(
+            "resource",
+            "counters on the commander",
+            desc,
+            keys=_COUNTER_GROWTH_KEYS,
+        )
     # Every kind of creature token the commander makes feeds that kind's
     # payoffs (Clavileño's Vampires AND Demons): one consumers need over all
     # of them, whatever order the idents came in.
@@ -980,7 +1040,8 @@ def commander_needs(commanders: Sequence[Mapping]) -> tuple[Need, ...]:
         # card types are what it IS, not what it asks for. Sorted: the needs
         # come out in one order whatever the process's hash seed.
         idents = sorted(_card_idents(rec, membership=False))
-        for tree in trees_for(dict(rec)):
+        trees = trees_for(dict(rec))
+        for tree in trees:
             for unit in tree.units:
                 node = unit.node
                 desc = str(getattr(node, "description", "") or "")
@@ -995,7 +1056,7 @@ def commander_needs(commanders: Sequence[Mapping]) -> tuple[Need, ...]:
                     add(_condition_need(cond, desc, cast_trigger=cast_trigger))
                 for need in _effect_needs(node, desc):
                     add(need)
-        for need in _resource_needs(idents, rec.get("name", "")):
+        for need in _resource_needs(idents, rec.get("name", ""), trees=trees):
             add(need)
         for need in _redundancy_needs(idents, rec.get("name", "")):
             add(need)
