@@ -1,5 +1,6 @@
 """Removal — how well a card does single-target permanent removal (the
-``interaction`` role's removal half; counterspells and sweepers are other jobs).
+``interaction`` role's removal half; sweepers are the board-wipe job), and
+since 2026-10-31 whether a card counters a spell at all.
 
 Fitted on the 2,598 noncreature, non-planeswalker cards whose main job is
 single-target removal: cross-validated Spearman 0.40 against play-rate; the
@@ -7,6 +8,14 @@ precon guides' removal adds sit at the 79th percentile of their color identity's
 removal by this read (95th by play-rate — the rest is card age and reprints).
 A free alternative cost (Snuff Out, Deadly Rollick) costs nothing. Too weak to
 order candidates; it GATES them (``JobRead.orders``).
+
+A counterspell is read as an answer too (``_counter_answers``): the read saw only
+removal, so a counterspell could replace another counterspell but never a removal
+spell the read scored — Fierce Guardianship, Swan Song and Arcane Denial sat in
+the top fifteen of five held-out decks' interaction pages and failed the job gate
+(2026-10-31). Its features are the shared ones (cost, instant, unconditional
+when it counters any spell); none were fitted on counterspells, so it is a
+membership read there, as the interaction job's read is anyway.
 """
 
 from __future__ import annotations
@@ -41,6 +50,7 @@ from mtg_utils._card_ir.crosswalk import (
     iter_cost_leaves,
     tag_of,
 )
+from mtg_utils._card_ir.crosswalk.reads import filter_inzone_zones, iter_typed_nodes
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -173,6 +183,57 @@ def _answers(card: dict) -> list[_Answer]:
                 and effect_owner_duration(unit.node, c.node) == "UntilHostLeavesPlay",
             )
         )
+    out.extend(_counter_answers(trees))
+    return out
+
+
+def _counters_a_spell(target: object) -> tuple[bool, bool]:
+    """Whether a ``Counter`` effect's target reaches a SPELL on the stack (a
+    ``StackSpell`` filter, or a card in the Stack zone — Disallow's "spell,
+    activated ability, or triggered ability"), and whether it names a class of
+    spells (Negate's noncreature, Essence Scatter's creature, Swan Song's three
+    types). A counter of an ability alone (Stifle) reaches no spell."""
+    spell = named = False
+    for n in iter_typed_nodes(target):
+        tag = tag_of(n)
+        if tag == "StackSpell" or (
+            tag == "Typed" and "Stack" in filter_inzone_zones(n)
+        ):
+            spell = True
+        if tag == "Typed" and getattr(n, "type_filters", None):
+            named = True
+    return spell, named
+
+
+def _counter_answers(trees: Sequence[ConceptTree]) -> list[_Answer]:
+    """A counterspell's answers: one per ``Counter`` effect that reaches a spell
+    (:func:`_counters_a_spell`). Breadth 0 (it answers no permanent type);
+    conditional when it counters a class of spells or its unit carries a
+    condition. An "unless its controller pays" (Mana Leak) is not read: the
+    interaction read gates, and a soft counter is still a counterspell."""
+    out: list[_Answer] = []
+    for tree in trees:
+        for unit in tree.units:
+            for c in unit.effect_concepts("counter_spell"):
+                if tag_of(c.node) != "Counter":
+                    continue
+                spell, named = _counters_a_spell(getattr(c.node, "target", None))
+                if not spell:
+                    continue
+                out.append(
+                    _Answer(
+                        mode="counter",
+                        breadth=0,
+                        conditional=named
+                        or getattr(unit.node, "condition", None) is not None,
+                        amount=None,
+                        kind=_unit_kind(unit),
+                        act_mana=activation_mana(unit),
+                        edict_each=False,
+                        opp_only=False,
+                        until_leaves=False,
+                    )
+                )
     return out
 
 
@@ -238,7 +299,8 @@ def _removal_cost(card: dict, answers: list[_Answer]) -> float:
 
 def features(card: dict) -> dict[str, float] | None:
     """The removal read's features for ``card``, or ``None`` when it has no
-    single-target removal (a sweeper is the board-wipe job)."""
+    single-target removal and counters no spell (a sweeper is the board-wipe
+    job)."""
     answers = _answers(card)
     if not answers:
         return None

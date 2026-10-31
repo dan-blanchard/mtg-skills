@@ -123,6 +123,14 @@ miss taxonomy, the held-out candidates).
   Evolution, Evolution Sage, The Earth Crystal), the 25 unchanged — **baseline
   N1** (`w41/sb-*-N1.json`). The audit script's page kinds were also fixed (a
   ramp or interaction page read "other"), so page recall rose on paper only.
+- 2026-10-31, night, three read fixes off the job-page profile (N3, on
+  correctness): a library search before a "put that card on top" is card
+  selection, not a tuck (Insatiable Avarice read as removal); the quality reads
+  cost an X spell its X (`X_ASSUMED` 3 — Martial Coup read as two mana); the
+  interaction read sees counterspells (`removal._counter_answers`), so one can
+  replace a removal cut. The 25 adds +2, cuts +1; held-out adds −2, cuts −2,
+  job-equivalents +9 (the counterspells themselves, Fierce Guardianship being
+  outside most budgets), plan +1 — **baseline N3** (`w41/sb-*-N3.json`).
 
 ## Target
 

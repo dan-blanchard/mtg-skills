@@ -731,8 +731,12 @@ _PERMANENT_TYPES: frozenset[str] = frozenset(
 # Delve (the SAME reveal-then-filter idiom on a DIFFERENT ability of a
 # multi-mode card — the genuine removal on Ajani/Garruk comes from an
 # UNRELATED ability, exile/battlefield-put respectively, not this one).
+# A library SEARCH before the tuck is the same idiom (2026-10-31): Insatiable
+# Avarice's "Search your library for a card, then shuffle and put that card on
+# top" puts the found card on top, and the removal job read scored it as a
+# soft tuck with no permanent type at all.
 _TUCK_SELECTION_SIBLINGS: frozenset[str] = frozenset(
-    {"mill", "dig", "reveal_top", "reveal_until", "exile_top"}
+    {"mill", "dig", "reveal_top", "reveal_until", "exile_top", "tutor"}
 )
 
 

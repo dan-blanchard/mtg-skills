@@ -2763,3 +2763,55 @@ Evolution, Evolution Sage, The Earth Crystal off the need page by routing;
 Avengers' consumers page converted nothing). The 25 unchanged. **Baseline N1:**
 the 25 734 / 338 / 112 (plan 349), held-out 582 / 256 / 102 (plan 261) —
 `w41/sb-*-N1.json`; gate diffs against `sb-ho-N1.json`.
+
+## Three more read fixes off the job-page profile (2026-10-31, night; re-based as N3)
+
+Reproducing the draw and wipe pages' blended order for one deck each
+(`_blended_percentiles`' three percentiles side by side) found the lifts behind
+the obscure picks, and each was a read misreading a card:
+
+1. **A searched card put on top is not a tuck.** Insatiable Avarice ("Search your
+   library for a card, then shuffle and put that card on top") scored as soft
+   removal — a `PutAtLibraryPosition` with no permanent type at all — and so the
+   spell quality read counted it an "answer" too; it sat second on two decks'
+   draw pages, above Rhystic Study. The removal walk's card-selection veto
+   (`_shared._TUCK_SELECTION_SIBLINGS`) now includes a library search before the
+   placement, as it did a reveal or a mill. Condemn, Chaos Warp, Oblation,
+   Unexpectedly Absent still read.
+2. **An X spell costs its X.** The quality reads' `read_cost` used the printed
+   mana value, which counts X as 0 (CR 202.3e), so Martial Coup read as a
+   two-mana spell and topped Lorehold Spirit's wipe page over Wrath of God,
+   Cataclysmic Prospecting as two mana above Starfall Invocation. `read_cost`
+   adds `X_ASSUMED` (3) for an X in the mana cost — the reads' own line, not a
+   rule's. On the guide pairs the shipped weights' in-sample accuracy rose:
+   spell 0.736 → 0.752, noncreature permanent (leave-one-deck-out) 0.717 → 0.741.
+3. **A counterspell is an interaction answer.** The interaction job's read saw
+   only removal, so with a removal cut (which it reads) a counterspell candidate
+   (which it did not) failed "does the job": Fierce Guardianship sat at position
+   8–14 in five held-out decks and was gated, Swan Song and Arcane Denial too;
+   a counterspell could replace only another counterspell. `removal._counter_answers`
+   reads a `Counter` whose target reaches a spell on the stack (a `StackSpell`
+   filter or a card in the Stack zone; Stifle's ability-only counter is not one),
+   conditional when it counters a class of spells (Negate), breadth 0. Membership
+   only, as the interaction read is anyway (`whole_job` stays False).
+
+Measured together against N1 (`sb-*-N3`; the held-out half of the N2 run already
+carried the counter arm, since its workers started after that edit, and N3
+reproduces it exactly):
+
+| set | swaps | cuts | adds | job-equiv | plan |
+|---|---|---|---|---|---|
+| the 25 | 0 | +1 | +2 | 0 | +1 |
+| held-out 20 | −2 | −2 | −2 | +9 | +1 |
+
+The held-out adds lost are Ahoy Mateys (a counterspell took a slot), Avengers
+Assemble and Quandrix Unlimited (−2: Doubling Season now outranks The Earth
+Crystal on the need page); Eternal Might and Jeskai Striker gained one each.
+The job-equivalents +9 are the counterspells themselves: with Fierce
+Guardianship ($60) outside most precon budgets the tuner takes An Offer You
+Can't Refuse or Counterspell in its place in six decks, which the guides' own
+pick counts as the same job. Counter Intelligence lost three swaps and three
+guide cuts to a reshuffled upgrade chain. Read fixes, so they ship with the
+delta recorded. **Baseline N3:** the 25 734 / 339 / 114 (plan 350), held-out
+580 / 254 / 100 (plan 262) — `w41/sb-*-N3.json`; gate diffs against
+`sb-ho-N3.json`.
