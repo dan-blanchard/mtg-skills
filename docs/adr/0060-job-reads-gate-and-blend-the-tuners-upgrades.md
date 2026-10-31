@@ -281,3 +281,7 @@ deck's own permanents a sweep leaves) leading the wipe order in a tribal deck wa
 measured and rejected: it took Raise the Palisade in Fae Dominion but lost three
 guide adds there on the budget (the audit report, "The deck-fit wipe read and the
 tune's speed").
+
+**Cross-reference (2026-10-31).** Two further reads, recursion and tutors, were
+built by this ADR's method for the Commander template's new rows; ADR-0062
+records their features, fits and the rows' gate.

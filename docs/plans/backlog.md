@@ -27,7 +27,30 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   amendment) and the deck-aware incidental-job read (a trigger-rider job on a
   card serving a main lane is no job; Rhystic Study keeps its job) shipped on
   Dan's call at held-out plan +9, adds +2, cuts +1. Reanimation-target
-  properties stay out. A phase parse gap
+  properties stay out. **Generic recursion / tutor template rows — measured and
+  held back (2026-10-31, ADR-0062; don't re-suggest as generic floors):** the
+  frameworks' "~2 recursion, 1-2 tutors" as floor-only rows cost the held-out
+  20 plan −31 as designed (a self-recurring plan card cut as a "recursion job"
+  and replaced off the recursion page), the tutor row alone −9 with eleven guide
+  cuts and a swap per deck lost (its fills — Pyre of Heroes, Diabolic Intent —
+  take slots and purse the plan's issues then lack), the recursion row alone
+  flat. The guides' tutors and recursion are plan cards, found on the plan's
+  pages. Kept as `~/mtg/tuner-work/w41/rows-T1.patch` (rows, roles, open
+  ceiling "2+", `recursion` preset, upgrade order, panel labels, tests). The
+  idea the numbers point at: a PLAN-CONDITIONAL row — a tutor row only when a
+  main lane names a type a tutor can find, a recursion row only under a
+  graveyard plan — a separate grilling. The recursion and tutor job reads
+  (ADR-0062, built 2026-10-31, in the tree) cannot read: an X tutor's mana value (costed at X = 0), a Pact's
+  upkeep payment, an opponent-choice clause (Rhystic Tutor, Distant Memories),
+  a stray move-to-hand phase adds to Grim Reminder (scores as a tutor), six
+  tutors phase describes only in text (the Kaito and Garruk emblems: None),
+  tribal tutors read narrow (Sliver Overlord, Faerie Harbinger) with no deck
+  fit; Cleansing Meditation parses as "return all cards" (scores 0.49, near the
+  top), six returns are unparsed leftovers (Custodi Soulcaller, Venerable
+  Warsinger, Liliana's Talent, All Hallow's Eve, Everquill Phoenix, Can't Stay
+  Away: None), Necromancy's flash casting is not visible. The tutor read's six
+  hand-set weights (ADR-0060's 2026-10-20 amendment: Dan's call) await his
+  confirmation. A phase parse gap
   the read cannot work around: Disa the Restless's "Whenever a Lhurgoyf
   permanent card is put into your graveyard from anywhere other than the
   battlefield" is a trigger with mode `Unknown` and no zone fields (its effect
