@@ -162,8 +162,11 @@ it is a permanent or spell (CR 108.4), and a permanent is on the battlefield
 anywhere (never a leaves-the-battlefield ability, CR 603.6c), a controller or an
 attached object a permanent dying, and the card itself a permanent only when the
 trigger works from the battlefield. The need is now "<type> cards reaching your
-graveyard": the fill keys, plus land sacrifice for a land or land subtype and
-the death feed for a creature card. Disa the Restless's "from anywhere other
-than the battlefield" is phase's one `Unknown` mode of the shape, rewritten to
-the arrival form by `misparsed_shapes` (its text read behind a structural gate,
-a canary on the mode). Shipped on correctness; the plan line is re-based as C12.
+graveyard": mill and discard (the umbrella `graveyard_makers` left out — with it
+the need was 12% of the pool and never specific), plus land sacrifice for a land
+or land subtype and sacrifice outlets and edicts for a creature card (not token
+makers: a token is not a card, CR 108.2). Disa the Restless's "from anywhere
+other than the battlefield" is phase's one `Unknown` mode of the shape, rewritten
+to the arrival form by `misparsed_shapes` (its text read behind a structural
+gate, a canary on the mode). Shipped on correctness; the plan line is re-based
+as C12 (`w41/sb-*-C12b.json`).
