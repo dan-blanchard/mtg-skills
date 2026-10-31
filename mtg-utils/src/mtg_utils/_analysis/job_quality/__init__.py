@@ -38,6 +38,7 @@ from mtg_utils._analysis.job_quality import (
     card_draw,
     protection,
     ramp,
+    recursion,
     removal,
     tutor,
 )
@@ -187,6 +188,13 @@ READS: dict[str, JobRead] = {
             orders=True,
             fit=card_draw.deck_fit,
             theme_ties=True,
+        ),
+        JobRead(
+            "recursion",
+            recursion.features,
+            recursion.WEIGHTS,
+            orders=False,
+            fit=recursion.deck_fit,
         ),
         JobRead("tutor", tutor.features, tutor.WEIGHTS, orders=False),
     )

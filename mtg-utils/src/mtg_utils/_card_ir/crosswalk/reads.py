@@ -2491,6 +2491,43 @@ def recursion_card_types(
     return types
 
 
+#: The back-references a return binds to the card an earlier clause chose.
+_CHOSEN_CARD_REFS: frozenset[str] = frozenset(
+    {"ParentTarget", "TrackedSet", "TrackedSetFiltered"}
+)
+
+
+def chosen_graveyard_recursion(unit: AbilityUnit, node: object) -> RecursionHit | None:
+    """The :class:`RecursionHit` of a return that moves a card an earlier clause of
+    ``unit`` chose in a graveyard, which :func:`graveyard_recursion` can't see:
+    phase puts the choice on a ``TargetOnly`` ("choose target creature card in
+    your graveyard" — Meren of Clan Nel Toth's end-step trigger, Victimize) and
+    binds the ``ChangeZone`` that returns it, origin unset, to that choice
+    (``ParentTarget`` / ``TrackedSet``). The hit's filter is the chosen card's;
+    the gates are :func:`graveyard_recursion`'s (not an opponent's card, onto
+    the battlefield under your control)."""
+    if tag_of(node) not in ("ChangeZone", "ChangeZoneAll"):
+        return None
+    origin, dest = change_zone_dirs(cast("TypedMirrorNode", node))
+    if origin is not None or dest not in GRAVEYARD_RECURSION_ZONES:
+        return None
+    if tag_of(getattr(node, "target", None)) not in _CHOSEN_CARD_REFS:
+        return None
+    if dest == "Battlefield" and not puts_under_your_control(node):
+        return None
+    for other in unit.iter_typed():
+        if tag_of(other) != "TargetOnly":
+            continue
+        filt = getattr(other, "target", None)
+        if (
+            tag_of(filt) in OBJECT_FILTER_TAGS
+            and "Graveyard" in filter_inzone_zones(filt)
+            and filter_controller(filt) != "Opponent"
+        ):
+            return RecursionHit(str(dest).lower(), filt)
+    return None
+
+
 #: A whole added PHASE (``segment: Phase``) → the step-name kind the readers key
 #: on: an added combat phase is ``"begincombat"`` (its first step), an added
 #: beginning phase ``"untap"`` (CR 501.1: untap, upkeep, draw), an added ending
