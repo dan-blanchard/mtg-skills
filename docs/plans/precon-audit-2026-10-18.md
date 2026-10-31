@@ -2486,6 +2486,25 @@ filter adds nothing. `w41/sb-*-R1.json`.
 **Baseline after the deepened read (R1):** the 25 739 / 342 / 116 (page@30 156,
 plan 315 of 739); held-out 20 581 / 256 / 100 (page@30 164, plan 225 of 581).
 
+**R2, two more read fixes (2026-10-31, on correctness).** From the 25's lowest
+plan lines: a `tokens_matter` payoff (Hazel's "tap X untapped tokens you
+control" and "copy target token you control"; Zurgo's token-leaves watcher)
+asks for token makers of any kind (the `wants_fodder` keys — the read had
+excluded the key for want of a `tokens_makers` lane); and a `lifeloss_makers`
+ident scoped to the commander's own controller (Hazel's "pay 2 life",
+Tegwyll's "you lose 1 life") is a cost or a drawback, not a resource for drain
+payoffs to consume or a drain to make more of — the call `_event_need` already
+made for a self-life-loss watcher. Against R1: the held-out 20 identical
+(581 / 256 / 100, plan 225); the 25 739 / 342 / 116 → 736 / 340 / 118 (plan
+315 → 318, guides' 283 → 297; Fae Dominion −8 / −3 on the plan line as its
+spurious lifeloss needs go, Mardu Surge +7 / +8, Squirreled Away +4 / +9).
+Graveyard Overdrive stays at 0 of 30: Disa's graveyard trigger is a phase
+`Unknown` mode with no zone fields — a parse gap for the next pin bump
+(backlog). `w41/sb-*-R2.json`.
+
+**Baseline after R2:** the 25 736 / 340 / 118 (page@30 157, plan 318 of 736);
+held-out 20 581 / 256 / 100 (page@30 164, plan 225 of 581).
+
 **C11, the deck-aware incidental-job read — one short of the bar, not shipped.**
 C10's structural read (a job carried only by a trigger watching something other
 than the card's own entering) kept, and asked only of a cut that serves one of

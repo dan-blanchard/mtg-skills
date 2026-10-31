@@ -136,4 +136,8 @@ opponents draw (Smothering Tithe, Consecrated Sphinx) and for more cards that ma
 them draw. Under Peace Offering the tune's adds went from 2 to 27 of 30
 plan-consistent without one add changing: the read scores what the tune already
 did. Jace's fodder need was already the `wants_fodder` ident's; the −3's target
-filter adds nothing to it.
+filter adds nothing to it. Two fixes followed from the design set's lowest plan
+lines: a `tokens_matter` payoff asks for token makers of any kind (Hazel's "tap
+X untapped tokens", Zurgo's token-leaves watcher), and a `lifeloss_makers` ident
+scoped to the commander's own controller — a life payment or a "you lose 1 life"
+drawback — is neither a resource nor an effect to make more of.

@@ -58,6 +58,11 @@ miss taxonomy, the held-out candidates).
   (Bumbleflower). Held-out adds 99 → 100, cuts 0; the plan line re-based
   198 → 225. **Baseline (R1): the 25 739 / 342 / 116 (plan 315), held-out 20
   581 / 256 / 100 (plan 225).**
+- 2026-10-31: two more read fixes (R2, on correctness): a `tokens_matter`
+  payoff asks for token makers (Hazel, Zurgo); a self-scoped life loss is no
+  resource (Hazel's payment, Tegwyll's drawback). Held-out unchanged; the 25
+  736 / 340 / 118 (plan 318). Disa's graveyard trigger is a phase parse gap
+  (backlog).
 - 2026-10-31: the deck-aware incidental-job read (C11: a trigger-rider job on
   a card serving a main lane is no job) measured against R1 — held-out plan
   +9, adds +2, cuts +1, job-equivalents −1 — one short of the +10 bar; not

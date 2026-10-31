@@ -542061,6 +542061,314 @@
     "type_line": "Creature — Devil"
    }
   },
+  "Hazel of the Rootbloom": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": {
+        "costs": [
+         {
+          "type": "Tap"
+         },
+         {
+          "amount": {
+           "type": "Fixed",
+           "value": 2
+          },
+          "type": "PayLife"
+         },
+         {
+          "filter": {
+           "controller": "You",
+           "properties": [
+            {
+             "type": "Token"
+            }
+           ],
+           "type": "Typed",
+           "type_filters": []
+          },
+          "requirement": {
+           "count": 4294967295,
+           "requirement": "count"
+          },
+          "type": "TapCreatures"
+         }
+        ],
+        "type": "Composite"
+       },
+       "description": "{T}, Pay 2 life, Tap X untapped tokens you control: Add X mana in any combination of colors.",
+       "duration": null,
+       "effect": {
+        "produced": {
+         "color_options": [
+          "White",
+          "Blue",
+          "Black",
+          "Red",
+          "Green"
+         ],
+         "count": {
+          "qty": {
+           "name": "X",
+           "type": "Variable"
+          },
+          "type": "Ref"
+         },
+         "type": "AnyCombination"
+        },
+        "type": "Mana"
+       },
+       "forward_result": false,
+       "is_mana_ability": true,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "brawl_commander": true,
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Squirrel",
+       "Druid"
+      ],
+      "supertypes": [
+       "Legendary"
+      ]
+     },
+     "color_identity": [
+      "Black",
+      "Green"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "is_commander": true,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 2,
+      "shards": [
+       "Black",
+       "Green"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "1269ca79-907e-4932-9e77-a9a5d2929060",
+       "e68bb0bf-2907-4413-bfe3-c5f1b40c2b93"
+      ]
+     },
+     "name": "Hazel of the Rootbloom",
+     "non_ability_text": null,
+     "oracle_text": "{T}, Pay 2 life, Tap X untapped tokens you control: Add X mana in any combination of colors.\nAt the beginning of your end step, create a token that's a copy of target token you control. If that token is a Squirrel, instead create two tokens that are copies of it.",
+     "power": {
+      "type": "Fixed",
+      "value": 3
+     },
+     "printings": [
+      "BLC"
+     ],
+     "rarities": [
+      "mythic"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2024-07-26",
+       "text": "Any \"enters\" abilities of the copied token will trigger when the token enters. Any \"as [this permanent] enters\" or \"[this permanent] enters with\" abilities of the copied token will also work."
+      },
+      {
+       "date": "2024-07-26",
+       "text": "If the copied token has {X} in its mana cost, X is 0."
+      },
+      {
+       "date": "2024-07-26",
+       "text": "If the copied token is copying something else (for example, if the copied token is one previously created by this ability), then the token enters as whatever that token copied."
+      },
+      {
+       "date": "2024-07-26",
+       "text": "The token (or tokens) you create copies the original characteristics of the token as stated by the effect that created that token (unless that token is copying something else; see below). It doesn't copy whether that token is tapped or untapped, whether it has any counters on it or Auras and Equipment attached to it, or any non-copy effects that have changed its power, toughness, types, color, or so on."
+      },
+      {
+       "date": "2024-07-26",
+       "text": "You can tap any untapped tokens you control, including creature tokens you control that you haven't controlled continuously since the beginning of your most recent turn, to pay the cost of Hazel of the Rootbloom's activated ability."
+      }
+     ],
+     "scryfall_oracle_id": "845b40b1-dc09-44fa-9910-22544c1424ba",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 5
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": {
+        "type": "OnlyDuringYourTurn"
+       },
+       "damage_kind": "Any",
+       "description": "At the beginning of your end step, create a token that's a copy of target token you control. If that token is a Squirrel, instead create two tokens that are copies of it.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "enters_attacking": false,
+         "owner": {
+          "type": "Controller"
+         },
+         "tapped": false,
+         "target": {
+          "controller": "You",
+          "properties": [
+           {
+            "type": "Token"
+           }
+          ],
+          "type": "Typed",
+          "type_filters": []
+         },
+         "type": "CopyTokenOf"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": {
+          "inner": {
+           "filter": {
+            "controller": null,
+            "properties": [],
+            "type": "Typed",
+            "type_filters": [
+             {
+              "Subtype": "Squirrel"
+             }
+            ]
+           },
+           "type": "TargetMatchesFilter",
+           "use_lki": false
+          },
+          "type": "ConditionInstead"
+         },
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "count": {
+           "type": "Fixed",
+           "value": 2
+          },
+          "enters_attacking": false,
+          "owner": {
+           "type": "Controller"
+          },
+          "tapped": false,
+          "target": {
+           "type": "ParentTarget"
+          },
+          "type": "CopyTokenOf"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": null,
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "mode": "Phase",
+       "optional": false,
+       "origin": null,
+       "phase": "End",
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": null,
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 4.0,
+    "color_identity": [
+     "B",
+     "G"
+    ],
+    "colors": [
+     "B",
+     "G"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}{B}{G}",
+    "name": "Hazel of the Rootbloom",
+    "oracle_id": "845b40b1-dc09-44fa-9910-22544c1424ba",
+    "oracle_text": "{T}, Pay 2 life, Tap X untapped tokens you control: Add X mana in any combination of colors.\nAt the beginning of your end step, create a token that's a copy of target token you control. If that token is a Squirrel, instead create two tokens that are copies of it.",
+    "power": "3",
+    "produced_mana": [
+     "B",
+     "G",
+     "R",
+     "U",
+     "W"
+    ],
+    "toughness": "5",
+    "type_line": "Legendary Creature — Squirrel Druid"
+   }
+  },
   "Hazezon Tamar": {
    "phase_records": [
     {

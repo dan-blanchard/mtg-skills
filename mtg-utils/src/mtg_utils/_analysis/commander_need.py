@@ -754,6 +754,8 @@ def _resource_needs(idents: Iterable[str], desc: str) -> Iterator[Need]:
         key = ident.split("|", 1)[0]
         if key == "plus_one_makers" and self_grow:
             continue
+        if _self_life_payment(ident):
+            continue
         if key in _UMBRELLA_KEYS:
             continue  # the umbrella's consumers are the umbrella
         if key == TOKEN_MAKER or key.endswith("_makers"):
@@ -778,6 +780,14 @@ def _resource_needs(idents: Iterable[str], desc: str) -> Iterator[Need]:
             )
 
 
+def _self_life_payment(ident: str) -> bool:
+    """A ``lifeloss_makers`` ident scoped to the commander's own controller
+    (Hazel's "pay 2 life"): a cost the commander pays, not life loss the
+    deck's drain payoffs consume or a drain to make more of — the same call
+    :func:`_event_need` makes for a self-life-loss watcher."""
+    return ident.startswith("lifeloss_makers|you|")
+
+
 def _doer_name(key: str) -> str:
     return key.replace("_makers", "").replace("_", " ")
 
@@ -789,7 +799,7 @@ def _redundancy_needs(idents: Iterable[str], desc: str) -> Iterator[Need]:
     keeps a generic doer (an attack trigger) from becoming a need."""
     for ident in idents:
         key, _scope, subject = ident.split("|", 2)
-        if key in _UMBRELLA_KEYS:
+        if key in _UMBRELLA_KEYS or _self_life_payment(ident):
             continue
         if key == TOKEN_MAKER or key.endswith("_makers"):
             yield Need(
@@ -886,7 +896,17 @@ def _payoff_needs(idents: Iterable[str], desc: str) -> Iterator[Need]:
             makers &= _served_keys()
             if makers:
                 yield Need("payoff", f"{base} makers", desc, keys=frozenset(makers))
-        elif key.endswith("_matters") and key != "tokens_matter":
+        elif key == "tokens_matter":
+            # A token payoff (Hazel's "tap X untapped tokens", "copy target
+            # token you control") is fed by token makers of any kind — the
+            # ``wants_fodder`` keys, since no ``tokens_makers`` key is served.
+            yield Need(
+                "payoff",
+                "token makers",
+                desc,
+                keys=frozenset({TOKEN_MAKER, "mass_token_makers"}),
+            )
+        elif key.endswith("_matters"):
             base = key[: -len("_matters")]
             maker = f"{base}_makers"
             if maker in _served_keys() and maker not in _UMBRELLA_KEYS:

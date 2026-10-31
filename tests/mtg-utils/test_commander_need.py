@@ -144,6 +144,20 @@ def test_an_activation_count_of_spells_is_one_cheap_spells_need():
     assert not satisfies(test_card("Blasphemous Act"), cheap)
 
 
+def test_hazel_wants_token_makers_and_her_life_payment_is_no_resource():
+    # "Tap X untapped tokens you control" and "copy target token you control":
+    # tokens of any kind feed her. "Pay 2 life" is a cost she pays, not life
+    # loss for drain payoffs to consume or to make more of.
+    needs = _needs("Hazel of the Rootbloom")
+    labels = _labels(needs)
+    assert "token makers" in labels
+    assert "lifeloss consumers" not in labels
+    assert "lifeloss like the commander" not in labels
+    tokens = next(n for n in needs if n.label == "token makers")
+    assert satisfies(test_card("Raise the Alarm"), tokens)
+    assert not satisfies(test_card("Counterspell"), tokens)
+
+
 def test_a_commanders_own_type_is_not_a_need():
     # Mirko is a Vampire Detective; his text names neither, so no tribe need.
     assert not any("Vampire" in n.label for n in _needs("Mirko, Obsessive Theorist"))
