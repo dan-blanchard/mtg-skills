@@ -164,3 +164,15 @@ def test_a_cumulative_upkeep_engine_reads_below_a_lasting_one():
     assert remora is not None
     assert remora < job_score(test_card("Rhystic Study"), "card_draw")
     assert remora < job_score(test_card("Phyrexian Arena"), "card_draw")
+
+
+def test_a_sacrifice_draw_runs_on_fodder():
+    """Deadly Dispute's every draw eats an artifact or creature: two cards for
+    one mana in a deck of X/1s, tokens and Treasures, and no engine in a deck of
+    spells (it read as free fodder in any deck and topped a Knights deck's draw
+    page over Rhystic Study, 2026-10-31). Sign in Blood eats nothing."""
+    dispute = _real("Deadly Dispute")
+    assert card_draw.draw_fuel(dispute) == "fodder"
+    assert card_draw.deck_fit(dispute, _deck(_BODIES)) == 1.0
+    assert card_draw.deck_fit(dispute, _deck(_SPELLS)) == 0.0
+    assert card_draw.draw_fuel(_real("Sign in Blood")) is None

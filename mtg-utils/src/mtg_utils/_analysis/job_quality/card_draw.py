@@ -647,9 +647,15 @@ WEIGHTS: dict[str, float] = {
 #: share at which it runs at full rate (``_FUEL_REFERENCE``).
 #: ``x1_creatures_or_tokens``: an Equipment's "equipped creature dies"
 #: (Skullclamp), whose -1 toughness kills an X/1 and whose engine wants bodies
-#: cheap to lose: X/1 creatures and creature-token makers.
+#: cheap to lose: X/1 creatures and creature-token makers. ``fodder``: a
+#: one-shot whose every draw sacrifices another permanent (Deadly Dispute,
+#: Village Rites, Corrupted Conviction) — two cards for one mana only in a deck
+#: with permanents cheap to lose: X/1 creatures, token makers, Treasure / Clue /
+#: Food makers. Read as free fodder, these topped the draw pages of a Knights
+#: deck and a Zombie deck over Rhystic Study and Brainstorm (2026-10-31).
 _FUEL_REFERENCE: dict[str, float] = {
     "x1_creatures_or_tokens": 1 / 4,
+    "fodder": 1 / 4,
     "creatures": 1 / 3,
     "instants_sorceries": 1 / 3,
     "enchantments": 1 / 3,
@@ -657,6 +663,9 @@ _FUEL_REFERENCE: dict[str, float] = {
 }
 #: The fuels a deck must supply, by the trigger's fuel class.
 _DECK_FUELS = frozenset({"deaths", "enters", "creature_cast", "you_cast", "combat"})
+#: Makers of the predefined artifact tokens a sacrifice-draw eats (Deadly
+#: Dispute's "artifact or creature").
+_FODDER_TOKEN_KEYS = frozenset({"treasure_makers", "clue_makers", "food_makers"})
 
 
 def _source_fuel(s: _Source) -> str | None:
@@ -691,13 +700,17 @@ def draw_fuel(card: dict) -> str | None:
     oid = card.get("oracle_id")
     if oid and (hit := _FUELS.get(oid)) is not MISSING:
         return cast("str | None", hit)
+    sources = _sources(card)
     engines = [
         s
-        for s in _sources(card)
+        for s in sources
         if s.got > 0 and s.kind in _ENGINE_KINDS and _advantage(s) > 0
     ]
     best = max(engines, key=lambda s: _advantage(s) * s.rate, default=None)
     fuel = _source_fuel(best) if best is not None else None
+    mine = [s for s in sources if s.got > 0 and s.kind != "cycling"]
+    if best is None and mine and all(s.fodder for s in mine):
+        fuel = "fodder"  # a one-shot that eats a permanent per draw
     if oid and signal_trees_for(card, bulk=card):
         _FUELS.put(oid, fuel)
     return fuel
@@ -714,11 +727,15 @@ def _feeds(record: dict, fuel: str) -> bool:
         return "Enchantment" in face
     if fuel == "artifacts":
         return "Artifact" in face
-    makes_bodies = "token_maker" in signal_keys_for(record)
+    keys = signal_keys_for(record)
+    makes_bodies = "token_maker" in keys
     if fuel == "creatures":
         return "Creature" in face or makes_bodies
     toughness = fixed_stat(record.get("toughness"))
-    return ("Creature" in face and toughness in (0, 1)) or makes_bodies
+    cheap_body = ("Creature" in face and toughness in (0, 1)) or makes_bodies
+    if fuel == "fodder":
+        return cheap_body or bool(keys & _FODDER_TOKEN_KEYS)
+    return cheap_body
 
 
 #: (the deck's oracle ids, fuel) -> the share of its nonland cards feeding it.

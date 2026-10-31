@@ -131,6 +131,10 @@ miss taxonomy, the held-out candidates).
   replace a removal cut. The 25 adds +2, cuts +1; held-out adds −2, cuts −2,
   job-equivalents +9 (the counterspells themselves, Fierce Guardianship being
   outside most budgets), plan +1 — **baseline N3** (`w41/sb-*-N3.json`).
+- 2026-10-31, night (N4, on correctness): a one-shot sacrifice-draw (Deadly
+  Dispute) is fuelled by fodder — the draw read's deck fit, at the Skullclamp
+  reference. Delta noise (the 25 adds −1; held-out flat) — **baseline N4**
+  (`w41/sb-*-N4.json`).
 
 ## Target
 
