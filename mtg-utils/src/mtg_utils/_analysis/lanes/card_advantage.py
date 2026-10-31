@@ -2884,7 +2884,12 @@ def _land_sacrifice_matters(tree: ConceptTree) -> list[Signal]:
     keys disjoint. Scope "you".
     """
     for unit in tree.units:
-        if unit.trigger_event not in _LAND_SAC_EVENTS:
+        if unit.trigger_event not in _LAND_SAC_EVENTS and not (
+            # "put into your graveyard from anywhere" (Gitrog, Titania): a
+            # graveyard arrival, not a death (CR 603.6c), fed by the same sacrifice.
+            unit.trigger_event == "changes_zone"
+            and getattr(unit.node, "destination", None) == "Graveyard"
+        ):
             continue
         if "Land" not in trigger_subject(unit.node):
             continue

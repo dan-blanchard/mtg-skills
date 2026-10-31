@@ -48,7 +48,9 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   one, reads-first becomes measurable again. The
   idea the numbers point at: a PLAN-CONDITIONAL row — a tutor row only when a
   main lane names a type a tutor can find, a recursion row only under a
-  graveyard plan — a separate grilling. The recursion and tutor job reads
+  graveyard plan — PARKED (2026-10-31 grilling) behind the theme-card quality
+  read, since its fills would come off a job page ordered by play-rate, the
+  ordering the quality read is meant to fix. The recursion and tutor job reads
   (ADR-0062, built 2026-10-31, in the tree) cannot read: an X tutor's mana value (costed at X = 0), a Pact's
   upkeep payment, an opponent-choice clause (Rhystic Tutor, Distant Memories),
   a stray move-to-hand phase adds to Grim Reminder (scores as a tutor), six
@@ -58,15 +60,30 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   top), six returns are unparsed leftovers (Custodi Soulcaller, Venerable
   Warsinger, Liliana's Talent, All Hallow's Eve, Everquill Phoenix, Can't Stay
   Away: None), Necromancy's flash casting is not visible. The tutor read's six
-  hand-set weights (ADR-0060's 2026-10-20 amendment: Dan's call) await his
-  confirmation. A phase parse gap
-  the read cannot work around: Disa the Restless's "Whenever a Lhurgoyf
-  permanent card is put into your graveyard from anywhere other than the
-  battlefield" is a trigger with mode `Unknown` and no zone fields (its effect
-  is a `ChangeZone` to the battlefield of the `ParentTarget`), so Graveyard
-  Overdrive reads no graveyard need (plan line 0 of 30, the guides' 0 of 23);
-  a description read is out, and there is no structure to key a correction on
-  — a phase-side fix, to check at the next pin bump.
+  hand-set weights were confirmed by Dan as set (2026-10-31, ADR-0062).
+  **Phase parse gap, worked around locally (2026-10-31):** Disa the Restless's
+  "Whenever a Lhurgoyf permanent card is put into your graveyard from anywhere
+  other than the battlefield" is a trigger with mode `Unknown` and no zone
+  fields (its effect is a `ChangeZone` to the battlefield of the
+  `ParentTarget`); `misparsed_shapes`' graveyard-arrival row rewrites it to the
+  `ChangesZone` → Graveyard form (`test_graveyard_arrival_unknown_mode_canary`
+  retires it). Upstream report, ready to file against phase-rs/phase: *"Disa the
+  Restless (DSK): the first triggered ability parses with `mode: {Unknown: "Whenever
+  a Lhurgoyf permanent card is put into your graveyard from anywhere other than
+  the battlefield"}`, `origin`/`destination`/`valid_card` null, while the body is
+  typed (`ChangeZone` of `ParentTarget` to `Battlefield`). Expected: `mode:
+  ChangesZone`, `destination: Graveyard`, `valid_card: Typed[Permanent,
+  {Subtype: Lhurgoyf}] + Owned You`. Note the grammar has no origin for 'from
+  anywhere other than the battlefield' (origin null today means 'from anywhere',
+  as on Countryside Crusher); an `origin: NotBattlefield` or an excluded-origin
+  field would let the clause be typed exactly."* Beside it, the crosswalk's
+  `trigger_def_event` no longer reads every null-origin graveyard arrival as a
+  death: 49 of the 61 null-origin `ChangesZone` → Graveyard triggers are "from
+  anywhere" watchers (Gitrog, Titania, Sefris, Yuma), told from the 12 permanent
+  watchers by their filter (an owner, no controller — CR 108.4; a controller or
+  an attached object is a permanent — CR 110.1). The one filter the shape cannot
+  split: Patron of the Nezumi's "a permanent is put into an opponent's
+  graveyard" (owner-scoped like Moonshadow's "permanent cards"), read as a card.
 - **What the polymorph tune and the 25-precon audit still get wrong** (third
   pass, 2026-10-18 — `docs/plans/precon-audit-2026-10-18.md` has the method,
   the three before / after tables and the per-precon reads; the first two

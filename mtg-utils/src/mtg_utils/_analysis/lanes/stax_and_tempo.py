@@ -2170,7 +2170,15 @@ def _death_drain_unit(unit: AbilityUnit) -> bool:
     burns a player, gains you life or makes a Treasure, Blood or Clue (Blood
     Artist, Zulaport Cutthroat, Vicious Shadows, Revel in Riches): what a
     repeatable creature-killer fires each time it kills."""
-    if unit.origin != "trigger" or unit.trigger_event != "dies":
+    if unit.origin != "trigger" or not (
+        unit.trigger_event == "dies"
+        or (
+            # "a creature card is put into an opponent's graveyard from anywhere"
+            # (Profane Memento): an arrival that includes every death.
+            unit.trigger_event == "changes_zone"
+            and getattr(unit.node, "destination", None) == "Graveyard"
+        )
+    ):
         return False
     watched = getattr(unit.node, "valid_card", None)
     if tag_of(watched) == "SelfRef":

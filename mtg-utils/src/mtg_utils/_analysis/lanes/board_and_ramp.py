@@ -2458,7 +2458,12 @@ def _artifacts_enchantments_matter(tree: ConceptTree) -> list[Signal]:
     for unit in tree.units:
         if unit.trigger_event == "enters":
             etb_out.extend(_type_payoff_lanes(getattr(unit.node, "valid_card", None)))
-        elif unit.trigger_event == "dies":
+        elif unit.trigger_event == "dies" or (
+            # "a Desert card is put into your graveyard from anywhere" (Yuma): a
+            # graveyard arrival of your own card, the same type payoff.
+            unit.trigger_event == "changes_zone"
+            and getattr(unit.node, "destination", None) == "Graveyard"
+        ):
             vc = getattr(unit.node, "valid_card", None)
             if filter_controller(vc) == "You":
                 out.extend(_type_payoff_lanes(vc))

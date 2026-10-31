@@ -27,12 +27,34 @@ taught a special case. Keyed on phase's structure, never the card's name or text
   record; it is read as every creature, which is a sweep either way.
   ``test_self_damage_sweep_canary`` fails once phase types the population itself.
 
+* **A graveyard arrival "from anywhere other than the battlefield".** "Whenever a
+  Lhurgoyf permanent card is put into your graveyard from anywhere other than the
+  battlefield, put it onto the battlefield" (Disa the Restless) is a trigger whose
+  ``mode`` is ``Unknown`` (the clause's text) with no zone fields; only its effect
+  (a ``ChangeZone`` of the ``ParentTarget`` to the battlefield) is typed. Phase
+  types every other arrival into your graveyard as ``ChangesZone`` with
+  ``destination: Graveyard``, the watched card ``Owned`` by you, and no ``origin``
+  for "from anywhere" (Countryside Crusher, The Gitrog Monster); it has no form
+  for "other than the battlefield", so that is the form written here — the one
+  arrival it over-admits is a Lhurgoyf dying, which Disa's text excludes. The
+  structural gate (an ``Unknown`` mode whose body returns the ``ParentTarget`` to
+  the battlefield) also fits three death and land-destruction triggers (Graceful
+  Reprieve, Scythe of the Wretched, Sacred Ground), so this row alone reads the
+  ``Unknown`` mode's own clause for its "put into your graveyard from anywhere
+  other than the battlefield" and the watched subtype — the text phase itself
+  parked in the mode, never the card's name or oracle text. The watched filter is
+  written in the form ``shape_compat`` (which ran already) gives a graveyard
+  watcher: the owner on ``controller`` beside the ``Owned`` property.
+  ``test_graveyard_arrival_unknown_mode_canary`` fails once phase types the
+  trigger.
+
 Pure functions over plain dicts; nothing here reads the mirror or a tree.
 """
 
 from __future__ import annotations
 
 import copy
+import re
 from collections.abc import Iterator
 
 #: The fields that hold an ability's head body: a face's ``abilities`` entries
@@ -77,16 +99,73 @@ def _is_self_damage_sweep(effect: object) -> bool:
     )
 
 
+#: The clause an ``Unknown`` trigger mode holds for an arrival into your graveyard
+#: from any zone but the battlefield, with the watched subtype.
+_GRAVEYARD_ARRIVAL_RX = re.compile(
+    r"^Whenever an? (?P<subtype>[A-Z][a-z]+) permanent card is put into your "
+    r"graveyard from anywhere other than the battlefield$"
+)
+
+
+def _graveyard_arrival_subtype(trig: object) -> str | None:
+    """The watched subtype of a trigger phase left as an ``Unknown`` mode for
+    "<Subtype> permanent card is put into your graveyard from anywhere other than
+    the battlefield", whose body returns the ``ParentTarget`` to the battlefield."""
+    if not isinstance(trig, dict):
+        return None
+    mode = trig.get("mode")
+    if not (isinstance(mode, dict) and isinstance(mode.get("Unknown"), str)):
+        return None
+    effect = (trig.get("execute") or {}).get("effect") or {}
+    if not (
+        effect.get("type") == "ChangeZone"
+        and effect.get("destination") == "Battlefield"
+        and (effect.get("target") or {}).get("type") == "ParentTarget"
+    ):
+        return None
+    m = _GRAVEYARD_ARRIVAL_RX.match(mode["Unknown"])
+    return m.group("subtype") if m else None
+
+
+def _graveyard_arrival_fields(subtype: str) -> dict:
+    """The ``ChangesZone`` fields phase writes for "a <Subtype> card is put into
+    your graveyard from anywhere" (Countryside Crusher's form, the watcher's owner on
+    ``controller`` as ``shape_compat`` leaves it)."""
+    return {
+        "mode": "ChangesZone",
+        "origin": None,
+        "destination": "Graveyard",
+        "batched": False,
+        "valid_card": {
+            "type": "Typed",
+            "type_filters": ["Permanent", {"Subtype": subtype}],
+            "controller": "You",
+            "properties": [{"type": "Owned", "controller": "You"}],
+        },
+        "valid_target": {
+            "type": "Typed",
+            "type_filters": [],
+            "controller": "You",
+            "properties": [],
+        },
+    }
+
+
 def correct_misparsed_shapes(rec: dict) -> dict:
     """``rec`` with each misparsed shape rewritten (a copy when any)."""
-    found = [
+    sweeps = [
         body for body in _head_bodies(rec) if _is_self_damage_sweep(body.get("effect"))
     ]
-    if not found:
+    arrivals = [
+        (trig, subtype)
+        for trig in rec.get("triggers") or ()
+        if (subtype := _graveyard_arrival_subtype(trig)) is not None
+    ]
+    if not sweeps and not arrivals:
         return rec
     memo: dict[int, object] = {}
     out = copy.deepcopy(rec, memo)
-    for body in found:
+    for body in sweeps:
         target = memo[id(body)]
         assert isinstance(target, dict)
         effect = target["effect"]
@@ -96,4 +175,8 @@ def correct_misparsed_shapes(rec: dict) -> dict:
             "target": copy.deepcopy(_EACH_CREATURE),
             "damage_source": effect["damage_source"],
         }
+    for trig, subtype in arrivals:
+        target = memo[id(trig)]
+        assert isinstance(target, dict)
+        target.update(_graveyard_arrival_fields(subtype))
     return out

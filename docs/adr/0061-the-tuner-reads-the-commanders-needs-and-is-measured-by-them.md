@@ -148,3 +148,22 @@ own entering) as no job when the cut serves one of the deck's main lanes
 payoff, its slot upgraded on the theme or a need page; Rhystic Study, serving no
 main lane, keeps its draw job. Held-out plan +9, adds +2, cuts +1 — one short
 of the gate's primary, passed on Dan's call with every floor line rising.
+
+**Amendment (2026-10-31, graveyard arrivals).** A trigger on a card "put into
+your graveyard from anywhere" was read as a death. Phase writes `origin:
+Battlefield` for "dies" and leaves `origin` unset both for "from anywhere" and
+for a permanent it needs no zone for ("a permanent you control is put into a
+graveyard", Aetherworks Marvel), and the crosswalk's `trigger_def_event` read
+every unset origin as the battlefield: 49 of the corpus's 61 such triggers (The
+Gitrog Monster, Titania, Sefris, Yuma) asked the deck for creatures dying. The
+watched filter tells them apart — a card has an owner but no controller unless
+it is a permanent or spell (CR 108.4), and a permanent is on the battlefield
+(CR 110.1) — so an owner-scoped or unscoped filter is a card arriving from
+anywhere (never a leaves-the-battlefield ability, CR 603.6c), a controller or an
+attached object a permanent dying, and the card itself a permanent only when the
+trigger works from the battlefield. The need is now "<type> cards reaching your
+graveyard": the fill keys, plus land sacrifice for a land or land subtype and
+the death feed for a creature card. Disa the Restless's "from anywhere other
+than the battlefield" is phase's one `Unknown` mode of the shape, rewritten to
+the arrival form by `misparsed_shapes` (its text read behind a structural gate,
+a canary on the mode). Shipped on correctness; the plan line is re-based as C12.

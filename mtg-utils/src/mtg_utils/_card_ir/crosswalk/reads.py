@@ -1376,6 +1376,51 @@ def _node_raw(node: TypedMirrorNode) -> str:
 ENTERS_EVENTS: frozenset[str] = frozenset({"enters", "entersorattacks"})
 
 
+def _watches_a_permanent(trig: TypedMirrorNode) -> bool:
+    """Whether a graveyard-arrival trigger with no origin watches an object that
+    can only arrive from the battlefield, so its event is a death (CR 700.4).
+
+    Phase writes ``origin: Battlefield`` for "dies" / "from the battlefield" and
+    leaves ``origin`` unset both for "from anywhere" and for a watched object it
+    needs no zone for. The watched filter tells the two apart: a card has an owner
+    but no controller unless it is a permanent or spell (CR 108.4), and a permanent
+    is on the battlefield (CR 110.1). So a filter naming only an owner (``Owned``
+    — "a land card is put into your graveyard from anywhere", The Gitrog Monster;
+    "creature cards … from anywhere", Sefris) or no player at all ("another card",
+    Planar Void) watches a card from anywhere; one naming a controller ("a
+    permanent you control", Aetherworks Marvel) or the object its Aura is attached
+    to ("enchanted artifact", Tezzeret's Touch; the bare ``AttachedTo``, Genju of
+    the Cedars) watches a permanent. The card itself (``SelfRef``) is a permanent
+    only when the trigger works from the battlefield; Emrakul's "is put into a
+    graveyard from anywhere" works from the graveyard. The one shape the filter
+    cannot split is "a permanent is put into an opponent's graveyard" (Patron of
+    the Nezumi, owner-scoped like Moonshadow's "permanent cards"), read as a card.
+    """
+    vc = getattr(trig, "valid_card", MISSING)
+    if not _present(vc):
+        return True
+    tag = tag_of(vc)
+    if tag == "SelfRef":
+        zones = getattr(trig, "trigger_zones", None) or ()
+        return tuple(zones) == ("Battlefield",)
+    if tag == "AttachedTo":
+        return True
+    if tag in ("Or", "And"):
+        arms = list(getattr(vc, "filters", ()) or ())
+        return bool(arms) and all(_filter_names_permanent(arm) for arm in arms)
+    return _filter_names_permanent(vc)
+
+
+def _filter_names_permanent(filt: object) -> bool:
+    if tag_of(filt) == "SelfRef":
+        return True
+    if filter_owned_controller(filt) is not None:
+        return False
+    if filter_controller(filt) is not None:
+        return True
+    return bool(set(filter_predicates(filt)) & ATTACHED_OBJECT_PREDICATES)
+
+
 def trigger_def_event(trig: TypedMirrorNode) -> str:
     """Derive a normalized trigger event from a phase trigger DEFINITION's typed
     shape — the spelling ``AbilityUnit.trigger_event`` carries for a unit's own
@@ -1387,15 +1432,19 @@ def trigger_def_event(trig: TypedMirrorNode) -> str:
     mode = getattr(trig, "mode", None)
     mode = mode if isinstance(mode, str) else tag_of(mode) or "other"
     # ``ChangesZoneAll`` is the mass form of the same watcher ("whenever one
-    # or more … are put into …" — The Gitrog Monster's land-dies trigger);
+    # or more … are put into …" — The Gitrog Monster's land watcher);
     # the zone derivation is identical (CR 603.6c).
     if mode in ("ChangesZone", "ChangesZoneAll"):
         dest = getattr(trig, "destination", None)
         origin = getattr(trig, "origin", None)
         if dest == "Battlefield":
             return "enters"
-        if dest == "Graveyard" and origin in ("Battlefield", None):
+        if dest == "Graveyard" and (
+            origin == "Battlefield" or (origin is None and _watches_a_permanent(trig))
+        ):
             return "dies"
+        # Into a graveyard "from anywhere" is never a leaves-the-battlefield
+        # ability (CR 603.6c), so never a death.
         return "changes_zone"
     return {
         "Drawn": "drawn",

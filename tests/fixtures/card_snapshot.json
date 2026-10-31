@@ -514082,6 +514082,164 @@
     "type_line": "Creature — Antelope"
    }
   },
+  "Graceful Reprieve": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Instant"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "White"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pauper": "legal",
+      "paupercommander": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "White"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "38748fbe-0d3e-4697-b9c4-d93a4ac59f9a",
+       "dad31171-ad46-4654-91f0-8027e00dedfc"
+      ]
+     },
+     "name": "Graceful Reprieve",
+     "non_ability_text": null,
+     "oracle_text": "When target creature dies this turn, return that card to the battlefield under its owner's control.",
+     "power": null,
+     "printings": [
+      "MM3",
+      "MOR"
+     ],
+     "rarities": [
+      "common",
+      "uncommon"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2017-03-14",
+       "text": "Graceful Reprieve can target a token creature, but since tokens cease to exist after they leave the battlefield, it won’t be returned to the battlefield."
+      },
+      {
+       "date": "2017-03-14",
+       "text": "Graceful Reprieve’s effect works only once. If the targeted creature leaves the battlefield and is then returned to the battlefield, it’s considered to be a new creature. If that new creature is put into a graveyard, it won’t come back a second time."
+      }
+     ],
+     "scryfall_oracle_id": "76cef1af-ff7e-4eab-9be6-81ba6049d222",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "When target creature dies this turn, return that card to the battlefield under its owner's control.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "destination": "Battlefield",
+         "enter_tapped": false,
+         "enter_transformed": false,
+         "enters_attacking": false,
+         "origin": null,
+         "owner_library": false,
+         "target": {
+          "type": "ParentTarget"
+         },
+         "type": "ChangeZone"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": {
+        "Unknown": "When target creature dies this turn"
+       },
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": null,
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 2.0,
+    "color_identity": [
+     "W"
+    ],
+    "colors": [
+     "W"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "legal",
+     "paupercommander": "legal",
+     "penny": "legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}{W}",
+    "name": "Graceful Reprieve",
+    "oracle_id": "76cef1af-ff7e-4eab-9be6-81ba6049d222",
+    "oracle_text": "When target creature dies this turn, return that card to the battlefield under its owner's control.",
+    "type_line": "Instant"
+   }
+  },
   "Grafdigger's Cage": {
    "phase_records": [
     {
@@ -867983,6 +868141,165 @@
     "type_line": "Creature — Human Wizard Sorcerer"
    }
   },
+  "Profane Memento": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Artifact"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "f2c97632-3cf1-4b79-9d18-d8991654dcca"
+      ]
+     },
+     "name": "Profane Memento",
+     "non_ability_text": null,
+     "oracle_text": "Whenever a creature card is put into an opponent's graveyard from anywhere, you gain 1 life.",
+     "power": null,
+     "printings": [
+      "M15"
+     ],
+     "rarities": [
+      "uncommon"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2014-07-18",
+       "text": "If Profane Memento is put into your graveyard at the same time as a creature card is put into an opponent’s graveyard, its ability won’t trigger."
+      },
+      {
+       "date": "2014-07-18",
+       "text": "Profane Memento’s ability will trigger when a nontoken creature you control but an opponent owns dies."
+      },
+      {
+       "date": "2014-07-18",
+       "text": "Token creatures dying won’t cause Profane Memento’s ability to trigger."
+      }
+     ],
+     "scryfall_oracle_id": "c81d1890-e741-49ec-a6ce-86c27fd4d502",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever a creature card is put into an opponent's graveyard from anywhere, you gain 1 life.",
+       "destination": "Graveyard",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "amount": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "type": "GainLife"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "ChangesZone",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "controller": null,
+        "properties": [
+         {
+          "controller": "Opponent",
+          "type": "Owned"
+         }
+        ],
+        "type": "Typed",
+        "type_filters": [
+         "Creature"
+        ]
+       },
+       "valid_source": null,
+       "valid_target": {
+        "controller": "Opponent",
+        "properties": [],
+        "type": "Typed",
+        "type_filters": []
+       }
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 1.0,
+    "color_identity": [],
+    "colors": [],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}",
+    "name": "Profane Memento",
+    "oracle_id": "c81d1890-e741-49ec-a6ce-86c27fd4d502",
+    "oracle_text": "Whenever a creature card is put into an opponent's graveyard from anywhere, you gain 1 life.",
+    "type_line": "Artifact"
+   }
+  },
   "Profane Tutor": {
    "phase_records": [
     {
@@ -960106,6 +960423,294 @@
      "C"
     ],
     "type_line": "Land"
+   }
+  },
+  "Sefris of the Hidden Ways": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "brawl_commander": true,
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Human",
+       "Wizard"
+      ],
+      "supertypes": [
+       "Legendary"
+      ]
+     },
+     "color_identity": [
+      "Black",
+      "Blue",
+      "White"
+     ],
+     "color_override": [
+      "Black",
+      "Blue",
+      "White"
+     ],
+     "defense": null,
+     "flavor_name": null,
+     "is_commander": true,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 0,
+      "shards": [
+       "White",
+       "Blue",
+       "Black"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "5476a08d-7826-4b5b-90b8-56013273a189",
+       "d30255f6-e058-476a-b377-2ee4c9178ed1",
+       "e7432e83-ae0b-463d-9d5f-b8c319749fa2"
+      ]
+     },
+     "name": "Sefris of the Hidden Ways",
+     "non_ability_text": null,
+     "oracle_text": "Whenever one or more creature cards are put into your graveyard from anywhere, venture into the dungeon. This ability triggers only once each turn. (To venture into the dungeon, enter the first room or advance to the next room.)\nCreate Undead — Whenever you complete a dungeon, return target creature card from your graveyard to the battlefield.",
+     "power": {
+      "type": "Fixed",
+      "value": 2
+     },
+     "printings": [
+      "AFC",
+      "OAFC",
+      "SLD"
+     ],
+     "rarities": [
+      "mythic"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2021-07-23",
+       "text": "A player may only have one dungeon in the command zone at a time."
+      },
+      {
+       "date": "2021-07-23",
+       "text": "Choosing the dungeon or room to venture into is part of resolving the venture into the dungeon keyword action. Once that choice is made, players may not respond until after the appropriate room ability has triggered."
+      },
+      {
+       "date": "2021-07-23",
+       "text": "Dungeon cards are not part of a player's deck or sideboard. In both constructed and limited formats, players can use any dungeon card when they venture into the dungeon."
+      },
+      {
+       "date": "2021-07-23",
+       "text": "Dungeons are removed from the game as a state-based action."
+      },
+      {
+       "date": "2021-07-23",
+       "text": "If you somehow venture into the dungeon while a room's ability is on the stack, you will continue on in the dungeon. If you're already in the last room, complete that dungeon and start a new one."
+      },
+      {
+       "date": "2021-07-23",
+       "text": "Moving into a dungeon room will cause its room ability to trigger."
+      },
+      {
+       "date": "2021-07-23",
+       "text": "Once you resolve the last room ability of a dungeon, that dungeon is now completed and is removed from the game."
+      },
+      {
+       "date": "2021-07-23",
+       "text": "Sefris of the Hidden Ways' first ability looks only at the type the card has in the graveyard, not the type it had in any other zone. For example, animated lands dying won't cause the ability to trigger. The opposite is also true. For example, if a creature that was cast as an Adventure is countered, it's a creature card in the graveyard and the first ability will trigger."
+      },
+      {
+       "date": "2021-07-23",
+       "text": "The player venturing into the dungeon chooses which dungeon they will venture into. They may choose a dungeon that they have already completed this game."
+      },
+      {
+       "date": "2021-07-23",
+       "text": "To venture into the dungeon, a player moves their venture marker into the next room of the dungeon they are currently in. If they aren't currently in a dungeon, that player instead chooses a dungeon card from outside the game, puts it into the command zone, and moves their venture marker onto the first room."
+      },
+      {
+       "date": "2021-07-23",
+       "text": "You can only move forward (well, downward) in a dungeon, never backwards or sideways."
+      },
+      {
+       "date": "2021-09-24",
+       "text": "Sefris of the Hidden Ways must be on the battlefield for its first ability to trigger. It does not trigger when Sefris goes to the graveyard from the battlefield, even if other creature cards also went to the graveyard at the same time."
+      }
+     ],
+     "scryfall_oracle_id": "9b21e056-57e7-4e39-b2b4-2fdf8719d0d2",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 3
+     },
+     "triggers": [
+      {
+       "batched": true,
+       "condition": null,
+       "constraint": {
+        "type": "OncePerTurn"
+       },
+       "damage_kind": "Any",
+       "description": "Whenever one or more creature cards are put into your graveyard from anywhere, venture into the dungeon. This ability triggers only once each turn.",
+       "destination": "Graveyard",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "type": "VentureIntoDungeon"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "ChangesZoneAll",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "controller": null,
+        "properties": [
+         {
+          "controller": "You",
+          "type": "Owned"
+         }
+        ],
+        "type": "Typed",
+        "type_filters": [
+         "Creature"
+        ]
+       },
+       "valid_source": null,
+       "valid_target": {
+        "controller": "You",
+        "properties": [],
+        "type": "Typed",
+        "type_filters": []
+       }
+      },
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever you complete a dungeon, return target creature card from your graveyard to the battlefield.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "destination": "Battlefield",
+         "enter_tapped": false,
+         "enter_transformed": false,
+         "enters_attacking": false,
+         "origin": "Graveyard",
+         "owner_library": false,
+         "target": {
+          "controller": "You",
+          "properties": [
+           {
+            "type": "InZone",
+            "zone": "Graveyard"
+           }
+          ],
+          "type": "Typed",
+          "type_filters": [
+           "Creature"
+          ]
+         },
+         "type": "ChangeZone"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "DungeonCompleted",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": null,
+       "valid_source": null,
+       "valid_target": {
+        "type": "Controller"
+       }
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 3.0,
+    "color_identity": [
+     "B",
+     "U",
+     "W"
+    ],
+    "colors": [
+     "B",
+     "U",
+     "W"
+    ],
+    "keywords": [
+     "Venture into the dungeon"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{W}{U}{B}",
+    "name": "Sefris of the Hidden Ways",
+    "oracle_id": "9b21e056-57e7-4e39-b2b4-2fdf8719d0d2",
+    "oracle_text": "Whenever one or more creature cards are put into your graveyard from anywhere, venture into the dungeon. This ability triggers only once each turn. (To venture into the dungeon, enter the first room or advance to the next room.)\nCreate Undead — Whenever you complete a dungeon, return target creature card from your graveyard to the battlefield.",
+    "power": "2",
+    "toughness": "3",
+    "type_line": "Legendary Creature — Human Wizard"
    }
   },
   "Segovian Leviathan": {
@@ -1125393,6 +1125998,357 @@
     "oracle_id": "30ac0f06-3dd3-4827-8136-4cf8adbf9b12",
     "oracle_text": "Each noncreature artifact loses all abilities and becomes an artifact creature with power and toughness each equal to its mana value. If this enchantment leaves the battlefield, this effect continues until end of turn.",
     "type_line": "Enchantment"
+   }
+  },
+  "Titania, Voice of Gaea": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "brawl_commander": true,
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Elemental"
+      ],
+      "supertypes": [
+       "Legendary"
+      ]
+     },
+     "color_identity": [
+      "Green"
+     ],
+     "color_override": null,
+     "defense": null,
+     "face_index": 0,
+     "flavor_name": null,
+     "is_commander": true,
+     "keywords": [
+      "Reach"
+     ],
+     "layout": "meld",
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "Green",
+       "Green"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "d9815e4d-729d-4cfe-ab54-12c58bc3099e",
+       "deeb6a21-23b0-44f1-b70e-5899bb9d4a84"
+      ]
+     },
+     "name": "Titania, Voice of Gaea",
+     "non_ability_text": null,
+     "oracle_text": "Reach\nWhenever one or more land cards are put into your graveyard from anywhere, you gain 2 life.\nAt the beginning of your upkeep, if there are four or more land cards in your graveyard and you both own and control Titania, Voice of Gaea and a land named Argoth, Sanctum of Nature, exile them, then meld them into Titania, Gaea Incarnate.",
+     "power": {
+      "type": "Fixed",
+      "value": 3
+     },
+     "printings": [
+      "BRO",
+      "PBRO"
+     ],
+     "rarities": [
+      "mythic"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2022-10-14",
+       "text": "A player prompted to name a card may name the combined back face, and each player has the right to know that combined back face's characteristics at all times."
+      },
+      {
+       "date": "2022-10-14",
+       "text": "If an effect moves a melded permanent to a new zone and then affects \"that card,\" it affects both cards."
+      },
+      {
+       "date": "2022-10-14",
+       "text": "In the Commander variant, a meld card's color identity is determined only by the mana costs and mana symbols in the rules text of its front face. No symbols or rules text of the permanent it melds into are considered."
+      },
+      {
+       "date": "2022-10-14",
+       "text": "Note that the permanent represented by the combined back faces has a color indicator."
+      },
+      {
+       "date": "2022-10-14",
+       "text": "One card in each pair of meld cards has an ability that instructs you to exile the two cards and meld them. If you control more than one object with one of those names, you select one object with that name to exile."
+      },
+      {
+       "date": "2022-10-14",
+       "text": "Only two cards belonging to the same meld pair can be melded. Tokens, cards that aren't meld cards, or meld cards that don't form a meld pair can't be melded. If an effect instructs a player to meld cards that can't be melded, those cards remain in exile."
+      },
+      {
+       "date": "2022-10-14",
+       "text": "The mana value of a melded permanent is the sum of the mana values of its front faces. A creature that becomes a copy of a melded permanent has only the characteristics of that combined back face, and its mana value is 0."
+      },
+      {
+       "date": "2022-10-14",
+       "text": "When a pair of cards are melded, the result is a single creature that's represented by two cards. If the melded creature dies, both cards are put into your graveyard. As it leaves the battlefield, both of those cards are turned face up again. If the cards are put on the top or bottom of your library, you choose their relative order."
+      },
+      {
+       "date": "2022-10-14",
+       "text": "When two cards are exiled and melded, they each leave the battlefield, then return together as one new object with no relation to either of the objects that left the battlefield. Counters, Auras, Equipment, and other effects that affected those two cards don't affect the melded permanent."
+      },
+      {
+       "date": "2022-10-14",
+       "text": "While a meld card is in any zone other than the battlefield, it has only the characteristics of its front face. The same is true while it's on the battlefield with its front face up."
+      },
+      {
+       "date": "2022-10-14",
+       "text": "While a melded permanent is on the battlefield, it has only the characteristics of its combined back face. Any effects that modify how the new object enters the battlefield will consider only the combined back face."
+      }
+     ],
+     "scryfall_oracle_id": "42bccda5-1754-4619-b94f-7a72f934a718",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 4
+     },
+     "triggers": [
+      {
+       "batched": true,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever one or more land cards are put into your graveyard from anywhere, you gain 2 life.",
+       "destination": "Graveyard",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "amount": {
+          "type": "Fixed",
+          "value": 2
+         },
+         "type": "GainLife"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "ChangesZoneAll",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "controller": null,
+        "properties": [
+         {
+          "controller": "You",
+          "type": "Owned"
+         }
+        ],
+        "type": "Typed",
+        "type_filters": [
+         "Land"
+        ]
+       },
+       "valid_source": null,
+       "valid_target": {
+        "controller": "You",
+        "properties": [],
+        "type": "Typed",
+        "type_filters": []
+       }
+      },
+      {
+       "batched": false,
+       "condition": {
+        "conditions": [
+         {
+          "comparator": "GE",
+          "lhs": {
+           "qty": {
+            "card_types": [
+             "Land"
+            ],
+            "scope": "Controller",
+            "type": "ZoneCardCount",
+            "zone": "Graveyard"
+           },
+           "type": "Ref"
+          },
+          "rhs": {
+           "type": "Fixed",
+           "value": 4
+          },
+          "type": "QuantityComparison"
+         },
+         {
+          "filter": {
+           "filters": [
+            {
+             "type": "SelfRef"
+            },
+            {
+             "controller": "You",
+             "properties": [
+              {
+               "controller": "You",
+               "type": "Owned"
+              }
+             ],
+             "type": "Typed",
+             "type_filters": []
+            }
+           ],
+           "type": "And"
+          },
+          "minimum": 1,
+          "type": "ControlCount"
+         },
+         {
+          "filter": {
+           "controller": "You",
+           "properties": [
+            {
+             "name": "Argoth, Sanctum of Nature",
+             "type": "Named"
+            },
+            {
+             "controller": "You",
+             "type": "Owned"
+            }
+           ],
+           "type": "Typed",
+           "type_filters": [
+            "Land"
+           ]
+          },
+          "minimum": 1,
+          "type": "ControlCount"
+         }
+        ],
+        "type": "And"
+       },
+       "constraint": {
+        "type": "OnlyDuringYourTurn"
+       },
+       "damage_kind": "Any",
+       "description": "At the beginning of your upkeep, if there are four or more land cards in your graveyard and you both own and control ~ and a land named Argoth, Sanctum of Nature, exile them, then meld them into Titania, Gaea Incarnate.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "entry": {
+          "type": "Normal"
+         },
+         "partner": "Argoth, Sanctum of Nature",
+         "partner_filter": {
+          "type": "Any"
+         },
+         "result": "Titania, Gaea Incarnate",
+         "source": "Titania, Voice of Gaea",
+         "source_filter": {
+          "type": "SelfRef"
+         },
+         "type": "Meld"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "Phase",
+       "optional": false,
+       "origin": null,
+       "phase": "Upkeep",
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": null,
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "all_parts": [
+     {
+      "component": "meld_result",
+      "id": "414b9230-9d25-4bdf-8b1e-b4fa2035b6a4",
+      "name": "Titania, Gaea Incarnate",
+      "oracle_id": "43230d70-4d60-4ceb-bb45-fbc043280652",
+      "type_line": "Legendary Creature — Elemental Avatar"
+     }
+    ],
+    "arena_available": true,
+    "cmc": 3.0,
+    "color_identity": [
+     "G"
+    ],
+    "colors": [
+     "G"
+    ],
+    "keywords": [
+     "Meld",
+     "Reach"
+    ],
+    "layout": "meld",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}{G}{G}",
+    "name": "Titania, Voice of Gaea",
+    "oracle_id": "42bccda5-1754-4619-b94f-7a72f934a718",
+    "oracle_text": "Reach\nWhenever one or more land cards are put into your graveyard from anywhere, you gain 2 life.\nAt the beginning of your upkeep, if there are four or more land cards in your graveyard and you both own and control Titania, Voice of Gaea and a land named Argoth, Sanctum of Nature, exile them, then meld them into Titania, Gaea Incarnate.",
+    "power": "3",
+    "toughness": "4",
+    "type_line": "Legendary Creature — Elemental"
    }
   },
   "Titanic Brawl": {
