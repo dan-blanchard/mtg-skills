@@ -2827,3 +2827,19 @@ deck fuels 0.92 of it, Revenant Recon 0.70, a deck of spells none. The delta is
 noise: the 25 adds −1 (Abzan Armor), plan −2; held-out unchanged. **Baseline
 N4:** the 25 734 / 339 / 113 (plan 348), held-out 580 / 254 / 100 (plan 261) —
 `w41/sb-*-N4.json`; gate diffs against `sb-ho-N4.json`.
+
+## Two policy runs against N4 (2026-10-31, night)
+
+| run | change | held-out plan | adds | job-equiv | cuts | the 25 |
+|---|---|---|---|---|---|---|
+| P1 (`w41/job-blend-P1.patch`) | play-rate percentile counted twice in the ordering jobs' blend (draw, wipe, protection) | −2 | +2 | +1 | +1 | flat |
+| P2 | theme page 150 → 300 cards (`swaps._PAGE`) | 0 | 0 | 0 | 0 | adds −3 |
+
+P1: the guides' job adds cluster under rank 700 while the equal-weight blend
+lifts obscure engines (Satoru, Secrets of the Dead, Dark Prophecy read in the
+97th percentile), so play-rate was weighted double. Guide adds +2 and consensus
+adds +2 with plan −2: not the gate's primary, held back. P2: the 52 held-out
+theme adds the 150-card page cut off (deep profile above) convert nothing — the
+theme order is fit then play-rate, so a card past position 150 is reached only
+once every fitting card above it is taken — and the 25 lost three adds to
+less-played support cards. Reverted; don't re-suggest page depth alone.
