@@ -831,7 +831,31 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   World Shaper's theme upgrades shift down a slot and Tannuk, Valakut Exploration
   and World Shaper fall off the end. Strionic Resonator, Lithoform Engine and
   Illusionist's Bracers stay unpaged, though `commander_multipliers` protects
-  them once they're in a deck.
+  them once they're in a deck. Ceiling re-measured 2026-10-31 with
+  `multipliers.multiplier_reasons` over every in-scope guide add: 27 of the
+  held-out 807 and 18 of the design 25's 793 multiply the commander (Roaming
+  Throne ×4, Reflections of Littjara ×2, Molten Echoes ×2, Strionic Resonator ×2,
+  Lithoform Engine ×2, Panharmonicon, clones and token copiers), 40 of them on
+  some page and outranked or band-gated. A need-page route can't reach them (a
+  deck's multipliers are protected cuts, so nothing routes to the page); the new
+  read this entry asks for would have to find them a slot that is not the first
+  upgrade cut.
+- **Ahoy Mateys' theft sub-theme (2026-10-31).** Fifteen of the guides' adds for
+  the Lost Caverns pirate precon are theft cards (Thief of Sanity, Geyadrone
+  Dihada, Bribery, Mob Rule, Stolen Strategy, Siphon Insight, Cunning Rhetoric,
+  Thieving Amalgam, Dauthi Voidwalker) no theme page admits: the precon holds eight
+  across `wants_theft` / `gain_control` (4), `cast_from_exile` (4) and
+  `theft_makers` (2), below the focus's viable floor, so the tuner opens Pirate
+  tribal, the graveyard engine and discard outlets only. One deck; the question
+  it raises is whether a precon's own 6–8 card sub-theme should be viable to
+  deepen when its guides all deepen it. Not acted on.
+- **Held-back policy patches (2026-10-31, against N4):** `w41/job-blend-P1.patch`
+  (play-rate counted twice in the ordering jobs' blend: held-out adds +2, cuts +1,
+  plan −2) and `w41/theme-band-P3.patch` (theme upgrades may cost one band more, as
+  job upgrades may: held-out adds +2, cuts +2, plan 0, job-equivalents −5; the 25
+  plan +5). Both fail the plan-primary gate by its primary alone; each is a
+  small, real guide-add gain if the gate is ever rebalanced. A 300-card theme page
+  (P2) converted nothing and lost three adds on the 25: don't re-suggest.
 - **Two reads to fold into one (review, 2026-10-30).** (a) Three versions of
   "at instant speed" exist and disagree:
   `crosswalk.instant_end_turn_unit` (an instant or flash spell, or an
