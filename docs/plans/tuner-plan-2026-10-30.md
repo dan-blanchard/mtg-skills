@@ -66,9 +66,10 @@ miss taxonomy, the held-out candidates).
 - 2026-10-31: the deck-aware incidental-job read (C11: a trigger-rider job on
   a card serving a main lane is no job) measured against R1 — held-out plan
   +9, adds +2, cuts +1, job-equivalents −1 — one short of the +10 bar; not
-  shipped, patch kept at `w41/C11.patch`. Re-measured on R2: identical
-  held-out numbers (R2 reached no held-out commander), still +9. The plan's
-  work is complete; what remains is in the backlog.
+  shipped at first. Re-measured on R2: identical held-out numbers, still +9;
+  Dan passed it (every floor line rising). **Baseline (C11): the 25
+  732 / 338 / 118 (plan 327), held-out 20 582 / 257 / 102 (plan 234).** The
+  plan's work is complete; what remains is in the backlog.
 
 ## Target
 

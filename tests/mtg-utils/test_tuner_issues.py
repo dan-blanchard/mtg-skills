@@ -12,8 +12,10 @@ from mtg_utils._tuner.issues import (
     WINCON_SEARCH,
     Sourcing,
     cut_over,
+    incidental_job,
     keep_search,
     top_issues,
+    upgrade_job,
 )
 from mtg_utils.testkit import test_card
 
@@ -564,3 +566,32 @@ def test_a_token_copier_commander_takes_any_token_doubler():
     _label, depth, spec = src.multiplier_avenue()
     assert depth == 1
     assert "_filter" not in spec
+
+
+# ── incidental jobs ───────────────────────────────────────────────────────────
+
+
+def test_a_trigger_rider_is_incidental_a_self_etb_or_spell_is_not():
+    # Terror of the Peaks deals its damage only when ANOTHER creature enters:
+    # a rider. Ravenous Chupacabra destroys on its own entering; Rhystic Study
+    # draws on an opponent's cast — structurally a rider too, which is why the
+    # read alone decides nothing (see upgrade_job's on_plan).
+    assert incidental_job(test_card("Terror of the Peaks"), "interaction")
+    assert not incidental_job(test_card("Ravenous Chupacabra"), "interaction")
+    assert not incidental_job(test_card("Beast Within"), "interaction")
+    assert incidental_job(test_card("Rhystic Study"), "card_draw")
+
+
+def test_a_rider_loses_its_job_only_on_a_plan_card():
+    terror, rhystic = test_card("Terror of the Peaks"), test_card("Rhystic Study")
+    # Off the plan (a deck whose main lanes Terror serves none of) it is removal;
+    # on the plan (a creature deck) it is the plan's payoff, upgraded on the plan.
+    assert upgrade_job({"interaction"}, terror) == "interaction"
+    assert upgrade_job({"interaction"}, terror, on_plan=True) is None
+    # An engine serving no main lane keeps its job however it is wired.
+    assert upgrade_job({"card_draw"}, rhystic) == "card_draw"
+    # A self-ETB keeps its job on the plan too.
+    assert (
+        upgrade_job({"interaction"}, test_card("Ravenous Chupacabra"), on_plan=True)
+        == "interaction"
+    )

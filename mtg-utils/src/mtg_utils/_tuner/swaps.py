@@ -1175,7 +1175,14 @@ def propose_swaps(
             pool = CUT_LANE  # only a ``lane_ok`` remedy, once its own pool is dry
         elif reason == "upgrade":
             pool = CUT_UPGRADE  # only the upgrade issue, for a card doing its job
-            if upgrade_job(card.roles, card.record) is None:
+            if (
+                upgrade_job(
+                    card.roles,
+                    card.record,
+                    on_plan=bool(cut_focus.mains.intersection(card.served)),
+                )
+                is None
+            ):
                 # A second view of the jobless slots, for a lane_ok remedy.
                 pools.setdefault(CUT_UPGRADE_JOBLESS, []).append((reason, card))
         elif reason == "popular_upgrade":

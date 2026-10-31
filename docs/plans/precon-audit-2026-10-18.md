@@ -2505,7 +2505,8 @@ Graveyard Overdrive stays at 0 of 30: Disa's graveyard trigger is a phase
 **Baseline after R2:** the 25 736 / 340 / 118 (page@30 157, plan 318 of 736);
 held-out 20 581 / 256 / 100 (page@30 164, plan 225 of 581).
 
-**C11, the deck-aware incidental-job read — one short of the bar, not shipped.**
+**C11, the deck-aware incidental-job read — shipped on Dan's call (2026-10-31),
+one short of the bar with every other line rising.**
 C10's structural read (a job carried only by a trigger watching something other
 than the card's own entering) kept, and asked only of a cut that serves one of
 the deck's main lanes (`CardClass.served` ∩ the focus's `mains`): a rider on a
@@ -2523,5 +2524,9 @@ cheapest next try is to re-measure it on top of the next read change, since a
 deeper need read gives a rider's slot more pages to land on. Re-measured on R2
 (`w41/sb-*-C11b.json`): the held-out numbers are the same to the card (R2
 touched no held-out commander), plan +9, adds +2, cuts +1; the 25 plan +9,
-cuts −2. Still one short; it waits for a read change that reaches a held-out
-commander.
+cuts −2. Dan passed it: the primary one short of the bar with the floor's
+every line rising is a pass by his call, recorded here as the gate's one
+exception so far.
+
+**Baseline after C11:** the 25 732 / 338 / 118 (page@30 157, plan 327 of
+732); held-out 20 582 / 257 / 102 (page@30 164, plan 234 of 582).

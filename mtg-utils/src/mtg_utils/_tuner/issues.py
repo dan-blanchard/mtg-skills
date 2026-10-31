@@ -29,6 +29,7 @@ from mtg_utils._analysis.signal_specs import (
     avenue_spec_for,
 )
 from mtg_utils._card_ir.crosswalk import token_doubler_kinds
+from mtg_utils._card_ir.crosswalk.reads import trigger_def_event, watches_itself
 from mtg_utils._card_ir.trees import trees_for
 from mtg_utils._tuner.metrics import CALIBRATION_GAME, _cares_keys, is_wincon_card
 from mtg_utils.combo_search import ends_the_game
@@ -192,13 +193,58 @@ class UpgradeSource(NamedTuple):
         return self.job.replace("_", " ") if self.job else "the main theme"
 
 
-def upgrade_job(roles: Collection[str], record: Mapping) -> str | None:
+#: The effect concepts that do each template job, for :func:`incidental_job`.
+_JOB_CONCEPTS: Mapping[str, frozenset[str]] = {
+    "interaction": frozenset(
+        {"destroy", "deal_damage", "bounce", "counter", "sacrifice"}
+    ),
+    "card_draw": frozenset({"draw"}),
+    "ramp": frozenset({"ramp"}),
+}
+
+
+def incidental_job(record: Mapping, job: str) -> bool:
+    """Whether ``record`` carries ``job`` only as a trigger rider: every unit
+    doing the job's effect is a trigger watching something other than the
+    card's own entering (Terror of the Peaks' damage when another creature
+    enters; Rhystic Study's draw when an opponent casts). A spell, an activated
+    ability or a self-ETB (Ravenous Chupacabra, Shriekmaw, Mulldrifter) is the
+    job itself. Structure alone cannot tell a payoff rider from an engine —
+    both watch other events — so :func:`upgrade_job` asks this only of a card
+    serving the deck's plan (``on_plan``): a rider on a main-lane card is the
+    plan's payoff, upgraded on the plan; an engine serving no main lane keeps
+    its job (measured 2026-10-30: the trigger-origin read alone, C10, called
+    Rhystic Study incidental and lost the job pages their best draw)."""
+    concepts = _JOB_CONCEPTS.get(job)
+    if concepts is None:
+        return False
+    carriers = [
+        unit
+        for tree in trees_for(dict(record))
+        for unit in tree.units
+        if any(c.concept in concepts for c in unit.effects)
+    ]
+    if not carriers:
+        return False
+    return all(
+        unit.origin == "trigger"
+        and not (trigger_def_event(unit.node) == "enters" and watches_itself(unit.node))
+        for unit in carriers
+    )
+
+
+def upgrade_job(
+    roles: Collection[str], record: Mapping, *, on_plan: bool = False
+) -> str | None:
     """The one job an upgrade keeps: a card's scarcest template role
     (``UPGRADE_ROLE_ORDER``), else protection, else none. Read the same way for
     the cut and for each candidate, so a counterspell that also draws is never
-    a card-draw upgrade."""
+    a card-draw upgrade. ``on_plan`` says the card serves one of the deck's main
+    lanes: then a role it carries only as a trigger rider (:func:`incidental_job`)
+    is no job — the card is the plan's payoff with a rider, and its slot is
+    upgraded on the plan (the theme or a need page), not the job page."""
     for role in UPGRADE_ROLE_ORDER:
-        if role in roles:
+        if role in roles and not (on_plan and incidental_job(record, role)):
             return role
     return "protection" if protects(dict(record)) else None
 
@@ -517,10 +563,16 @@ class Sourcing:
             return self.avenue(viable[0]["label"]) or {}
         return {}
 
+    def on_plan(self, card: CardClass) -> bool:
+        """Whether ``card`` serves one of the deck's main lanes (the
+        ``on_plan`` a trigger rider's job is read under, :func:`upgrade_job`)."""
+        mains = self._focus.get("mains") or ()
+        return bool(set(card.served).intersection(mains))
+
     def upgrade_spec(self, card: CardClass) -> UpgradeSource | None:
         """Where the upgrade of ``card`` comes from: its job (:func:`upgrade_job`),
         else the main theme. None when neither is sourceable here."""
-        job = upgrade_job(card.roles, card.record)
+        job = upgrade_job(card.roles, card.record, on_plan=self.on_plan(card))
         if job is None:
             # A theme cut that supplies one of the commander's needs is upgraded
             # off that need's page (ADR-0061): the slot keeps doing what the

@@ -1077784,6 +1077784,243 @@
     "type_line": "Sorcery"
    }
   },
+  "Terror of the Peaks": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Dragon"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Red"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [
+      "Flying"
+     ],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "standard": "legal",
+      "standardbrawl": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 3,
+      "shards": [
+       "Red",
+       "Red"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "2febfa1b-5a5e-411a-a7aa-f2ca6ee66f51",
+       "432ecd5f-966f-4403-a973-51e175a524a0",
+       "904ff94a-4db4-44a6-8593-89c32905b3fc",
+       "ac35ea21-fef4-4000-9b22-c8d07420827b",
+       "cd20aae9-9de0-498b-8325-f8e8290d56e3"
+      ]
+     },
+     "name": "Terror of the Peaks",
+     "non_ability_text": null,
+     "oracle_text": "Flying\nSpells your opponents cast that target this creature cost an additional 3 life to cast.\nWhenever another creature you control enters, this creature deals damage equal to that creature's power to any target.",
+     "power": {
+      "type": "Fixed",
+      "value": 5
+     },
+     "printings": [
+      "M21",
+      "OTJ",
+      "PM21",
+      "POTJ",
+      "PRM",
+      "PSPL",
+      "SLD"
+     ],
+     "rarities": [
+      "mythic"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2020-06-23",
+       "text": "The amount of damage Terror of the Peaks deals is the entering creature's power as the triggered ability resolves. If that creature leaves the battlefield before the ability resolves, use its power as it last existed on the battlefield."
+      }
+     ],
+     "scryfall_oracle_id": "f8e17f4f-080d-4bba-bd05-ca27e94ccecc",
+     "static_abilities": [
+      {
+       "active_zones": [],
+       "affected": {
+        "controller": "Opponent",
+        "properties": [],
+        "type": "Typed",
+        "type_filters": [
+         "Card"
+        ]
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": null,
+       "description": "Spells your opponents cast that target ~ cost an additional 3 life to cast.",
+       "effect_zone": null,
+       "mode": {
+        "ImposeAdditionalCost": {
+         "action": "Cast",
+         "cost": {
+          "amount": {
+           "type": "Fixed",
+           "value": 3
+          },
+          "type": "PayLife"
+         },
+         "spell_filter": {
+          "controller": null,
+          "properties": [
+           {
+            "filter": {
+             "type": "SelfRef"
+            },
+            "type": "Targets"
+           }
+          ],
+          "type": "Typed",
+          "type_filters": [
+           "Card"
+          ]
+         }
+        }
+       },
+       "modifications": []
+      }
+     ],
+     "toughness": {
+      "type": "Fixed",
+      "value": 4
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever another creature you control enters, ~ deals damage equal to that creature's power to any target.",
+       "destination": "Battlefield",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "amount": {
+          "qty": {
+           "scope": {
+            "type": "Demonstrative"
+           },
+           "type": "Power"
+          },
+          "type": "Ref"
+         },
+         "target": {
+          "type": "Any"
+         },
+         "type": "DealDamage"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "ChangesZone",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "controller": "You",
+        "properties": [
+         {
+          "type": "Another"
+         }
+        ],
+        "type": "Typed",
+        "type_filters": [
+         "Creature"
+        ]
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 5.0,
+    "color_identity": [
+     "R"
+    ],
+    "colors": [
+     "R"
+    ],
+    "keywords": [
+     "Flying"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "legal",
+     "standardbrawl": "legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{3}{R}{R}",
+    "name": "Terror of the Peaks",
+    "oracle_id": "f8e17f4f-080d-4bba-bd05-ca27e94ccecc",
+    "oracle_text": "Flying\nSpells your opponents cast that target this creature cost an additional 3 life to cast.\nWhenever another creature you control enters, this creature deals damage equal to that creature's power to any target.",
+    "power": "5",
+    "toughness": "4",
+    "type_line": "Creature — Dragon"
+   }
+  },
   "Tervigon": {
    "phase_records": [
     {
