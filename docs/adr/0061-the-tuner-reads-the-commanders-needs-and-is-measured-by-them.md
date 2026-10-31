@@ -140,4 +140,11 @@ filter adds nothing to it. Two fixes followed from the design set's lowest plan
 lines: a `tokens_matter` payoff asks for token makers of any kind (Hazel's "tap
 X untapped tokens", Zurgo's token-leaves watcher), and a `lifeloss_makers` ident
 scoped to the commander's own controller — a life payment or a "you lose 1 life"
-drawback — is neither a resource nor an effect to make more of.
+drawback — is neither a resource nor an effect to make more of. On the policy
+side, `issues.upgrade_job` reads a job carried only by a trigger rider
+(`incidental_job`: every unit doing the job is a trigger not watching the card's
+own entering) as no job when the cut serves one of the deck's main lanes
+(`Sourcing.on_plan`): Terror of the Peaks in a creature deck is the plan's
+payoff, its slot upgraded on the theme or a need page; Rhystic Study, serving no
+main lane, keeps its draw job. Held-out plan +9, adds +2, cuts +1 — one short
+of the gate's primary, passed on Dan's call with every floor line rising.

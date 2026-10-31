@@ -24,12 +24,10 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   plan-consistent adds rise ≥ 10, guide adds + job-equivalents fall ≤ 5, cuts
   ≤ 1; the 25 are reported. The need read's deeper reads shipped (mana-value
   bounds, spells-per-turn conditions, opponents drawing — ADR-0061's third
-  amendment). The deck-aware incidental-job read (a trigger-rider job on a card
-  serving a main lane is no job; Rhystic Study keeps its job) measured
-  2026-10-31 at held-out plan +9, adds +2, cuts +1 — one short of the bar,
-  twice (against R1 and R2); `~/mtg/tuner-work/w41/C11.patch` holds it, to
-  re-measure on top of the next need-read change that reaches a held-out
-  commander. Reanimation-target properties stay out. A phase parse gap
+  amendment) and the deck-aware incidental-job read (a trigger-rider job on a
+  card serving a main lane is no job; Rhystic Study keeps its job) shipped on
+  Dan's call at held-out plan +9, adds +2, cuts +1. Reanimation-target
+  properties stay out. A phase parse gap
   the read cannot work around: Disa the Restless's "Whenever a Lhurgoyf
   permanent card is put into your graveyard from anywhere other than the
   battlefield" is a trigger with mode `Unknown` and no zone fields (its effect
