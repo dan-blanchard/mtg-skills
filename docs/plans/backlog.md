@@ -28,7 +28,14 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   serving a main lane is no job; Rhystic Study keeps its job) measured
   2026-10-31 at held-out plan +9, adds +2, cuts +1 — one short of the bar;
   `~/mtg/tuner-work/w41/C11.patch` holds it, to re-measure on top of the next
-  need-read change. Reanimation-target properties stay out.
+  need-read change. Reanimation-target properties stay out. A phase parse gap
+  the read cannot work around: Disa the Restless's "Whenever a Lhurgoyf
+  permanent card is put into your graveyard from anywhere other than the
+  battlefield" is a trigger with mode `Unknown` and no zone fields (its effect
+  is a `ChangeZone` to the battlefield of the `ParentTarget`), so Graveyard
+  Overdrive reads no graveyard need (plan line 0 of 30, the guides' 0 of 23);
+  a description read is out, and there is no structure to key a correction on
+  — a phase-side fix, to check at the next pin bump.
 - **What the polymorph tune and the 25-precon audit still get wrong** (third
   pass, 2026-10-18 — `docs/plans/precon-audit-2026-10-18.md` has the method,
   the three before / after tables and the per-precon reads; the first two
