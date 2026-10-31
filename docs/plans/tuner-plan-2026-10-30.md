@@ -98,6 +98,16 @@ miss taxonomy, the held-out candidates).
   C12** (`w41/sb-*-C12b.json`): the 25 732 / 338 / 118 (plan 335; Graveyard
   Overdrive 0 → 7), held-out 582 / 257 / 101 (plan 234; adds −1, the floor
   holds). Tutor weights confirmed; plan-conditional rows parked.
+- 2026-10-31, the quality reads (ADR-0063): three per-type reads built by two
+  Opus agents on the guides' pairs (creature 0.66 vs play-rate 0.58, noncreature
+  permanent 0.72 vs 0.65, spell 0.73 vs 0.72, leave-one-deck-out pair accuracy)
+  and shipped; the agents found the pairs teach what the S1 order overrates, not
+  strength. Measured alone against C12: theme orders V1 / V2 held-out plan
+  +63 / +66 but guide adds −22 / −20 — held back (patches in w41/); quality as
+  a third term in the job pages' blend (J2) held-out plan +19, adds −2, cuts −1
+  — **shipped; baseline J2** (`w41/sb-*-J2.json`). The theme order stays
+  play-rate first; Dan's stance there waits on a strength read whose pairs the
+  tuner's order didn't choose.
 
 ## Target
 

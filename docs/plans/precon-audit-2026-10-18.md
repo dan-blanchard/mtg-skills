@@ -2648,3 +2648,46 @@ CR 108.2: a token is not a card), the need is 5.7% of the pool.
 A read change, shipped on correctness; the floor holds (held-out adds −1:
 World Shaper's Avenger of Zendikar slot moves between two guide-named lands'
 partners). **Baseline is now C12**; gate diffs run against `sb-ho-C12b.json`.
+
+## The theme-card quality reads and the reads-first order, again (2026-10-31; the reads ship, the orders held back)
+
+ADR-0063. The grilling on next steps settled a quality read for theme cards as the
+missing piece of the reads-first order. Three per-type reads (creature,
+noncreature permanent, spell) were fitted by two Opus agents on the guides'
+pairs — `docs/plans/precon-audit/theme_pairs.py` over a dump of the design 25's
+theme pages under the S1 order (`w41/pages-S1/`, the `pairs-dump` worktree): a
+guide add against each on-plan non-guide card the order put above it, same page
+and type, once per guide naming the add, each add's pairs weighted to one per
+guide. Leave-one-deck-out pair accuracy against play-rate on the same pairs:
+creature 0.657 vs 0.578 (5,102 pairs, 126 adds), noncreature permanent 0.717 vs
+0.650 (7,973, 115), spell 0.734 vs 0.723 (965, 37). All three cleared the bar and
+shipped (`_analysis/card_quality/`), with the agents' honest finding recorded in
+the ADR: the pairs are chosen by the order they correct, so the reads learned what
+S1 overrates (text volume, token makers, scaling amounts) more than card strength;
+on the creature pairs where need or lanes decided the order the read trails
+play-rate (0.57 vs 0.61).
+
+The pre-declared theme orders, each alone against C12 (`sb-*-C12b`), the
+popularity floor at rank 10,000, play-rate the last tiebreak:
+
+| run | order on a theme page | held-out plan | held-out adds | job-equiv | cuts | the 25 plan / adds |
+|---|---|---|---|---|---|---|
+| V1 (`w41/theme-order-V1.patch`) | need, lanes, synergy × quality factor | +63 | −22 | +1 | −2 | +82 / −7 |
+| V2 (`w41/theme-order-V2.patch`) | need, lanes, quality factor, synergy | +66 | −20 | +4 | −2 | +97 / −6 |
+
+Both fail the floor (adds + job-equivalents ≥ −5; cuts ≥ −1) by a wide margin,
+further than S1 did without the reads (−17). Of V1's 51 held-out guide adds lost,
+30 were outranked on their page and 14 gated by the mana-value band; Quandrix
+Unlimited's nine theme slots went to Hydras (Nyxborn, Mistcutter, Voracious,
+Feral, Genesis, Capricopian, Protean, Endless One, Hooded) the creature read did
+not demote — an X creature with one ability reads as cheap per ability. The
+reads correct synergy's text count; they do not carry the strength play-rate
+carries. The theme order stays play-rate first; the reads stay in the tree.
+
+The job pages, the third run: quality as a third percentile in the ordering
+jobs' blend (`_blended_percentiles`: job read + play-rate + quality; board wipe,
+card draw, protection). Held-out plan +19, adds −2, job-equivalents 0, cuts −1 —
+**passes the gate and ships** (the 25: plan +14, adds −6, job-equivalents −3,
+consensus adds −2, reported). Files `w41/sb-*-J2.json`; the held-out set
+re-scored under `PYTHONHASHSEED=1` as `sb-ho-J2s1` (the hash-seed check the plan
+line wants). **Baseline is now J2**; gate diffs run against `sb-ho-J2.json`.
