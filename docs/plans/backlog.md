@@ -43,9 +43,16 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   plan-consistency +70 / +43 but lost 17 / 16 guide adds to on-plan-but-obscure
   picks; job pages ordered by each read's score (J1) lost plan −34 and adds
   −16. Patches `~/mtg/tuner-work/w41/theme-order-S2.patch`, `job-order-J1.patch`.
-  What's missing is a QUALITY read for theme cards (rate, body, repeatability,
-  effect size — what makes Goldspan Dragon better than Firespitter Whelp); with
-  one, reads-first becomes measurable again. The
+  The quality reads were built (2026-10-31, ADR-0063: three per-type reads
+  fitted on the guides' pairs, shipped as a third term in the job blend, J2
+  passed the gate) and the reads-first theme orders re-measured WITH them (V1 /
+  V2, `w41/theme-order-V1.patch` / `-V2.patch`): held-out plan +63 / +66 but
+  guide adds −22 / −20 — held back again. Finding: pairs chosen by the order
+  they correct teach a read what that order overrates (text volume, token
+  makers, scaling amounts), not strength; a theme-page strength read wants
+  pairs from a source the tuner's order didn't pick (the guides' adds against
+  the guides' cuts of the same type). Don't re-measure a reads-first theme
+  order with the ADR-0063 reads as they stand. The
   idea the numbers point at: a PLAN-CONDITIONAL row — a tutor row only when a
   main lane names a type a tutor can find, a recursion row only under a
   graveyard plan — PARKED (2026-10-31 grilling) behind the theme-card quality

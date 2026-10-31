@@ -2165,10 +2165,13 @@ def test_a_job_read_gates_out_a_card_that_does_not_do_the_job():
     assert _upgrades(_played("Night's Whisper", 100), divination, "card_draw")
 
 
-def test_an_ordering_read_blends_with_play_rate():
-    """An ordering job's candidates take the read's percentile plus play-rate's,
-    so the read and play-rate weigh the same: here each card leads one order and
-    trails the other by as much, and all three tie. A job with no read blends
+def test_an_ordering_read_blends_with_play_rate_and_quality():
+    """An ordering job's candidates take the read's percentile plus play-rate's
+    plus the card's quality read's (``card_quality``, ADR-0063), each weighing
+    the same. On the job read and play-rate alone these three tie (each leads
+    one order and trails the other by as much); the quality read breaks the tie
+    — Swiftfoot Boots (0.03, the permanent read) over Flawless Maneuver (0.0)
+    over Heroic Intervention (-0.4, the spell read). A job with no read blends
     nothing."""
     cards = [
         _played("Swiftfoot Boots", 30),  # protection read 0.89
@@ -2177,7 +2180,7 @@ def test_an_ordering_read_blends_with_play_rate():
     ]
     mix = _blended_percentiles(cards, "protection")
     assert (
-        mix["Heroic Intervention"] == mix["Swiftfoot Boots"] == mix["Flawless Maneuver"]
+        mix["Swiftfoot Boots"] > mix["Flawless Maneuver"] > mix["Heroic Intervention"]
     )
     assert _blended_percentiles(cards, None) == {}
 
@@ -2208,15 +2211,16 @@ def test_an_upgrade_reads_its_jobs_whole_match_set():
 def test_cards_that_tie_share_a_blend_whatever_order_they_come_in():
     """A percentile is the share of the cards strictly below, so two cards the
     read scores alike and as many decks play (Swords to Plowshares and Path to
-    Exile) blend alike, and the input order — the search's, or the synergy
-    ranking's — moves no card's blend."""
+    Exile) share the job-read and play-rate terms; only the quality read parts
+    them (Path's land search is one more effect per cast), and the input order —
+    the search's, or the synergy ranking's — moves no card's blend."""
     cards = [
         _played("Murder", 900),
         _played("Swords to Plowshares", 40),
         _played("Path to Exile", 40),
     ]
     mix = _blended_percentiles(cards, "interaction")
-    assert mix["Swords to Plowshares"] == mix["Path to Exile"] > mix["Murder"]
+    assert mix["Path to Exile"] > mix["Swords to Plowshares"] > mix["Murder"]
     assert _blended_percentiles(cards[::-1], "interaction") == mix
 
 

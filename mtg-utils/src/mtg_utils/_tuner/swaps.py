@@ -222,9 +222,22 @@ def _blended_percentiles(
     n = len(scored)
     reads = sorted(s for _c, s in scored)
     plays = sorted(-edhrec_popularity(c) for c, _s in scored)
+    # J2 (2026-10-31): the card's quality read (``card_quality``, by its type) as
+    # a third percentile beside the job read's and play-rate's; a card no read
+    # sees sits at the middle.
+    from mtg_utils._analysis.card_quality import quality
+
+    quals = sorted(q for c, _s in scored if (q := quality(c)) is not None)
+
+    def quality_pos(c: dict) -> float:
+        q = quality(c)
+        return bisect_left(quals, q) if q is not None else n / 2
+
     return {
         c.get("name", ""): (
-            bisect_left(reads, s) + bisect_left(plays, -edhrec_popularity(c))
+            bisect_left(reads, s)
+            + bisect_left(plays, -edhrec_popularity(c))
+            + quality_pos(c)
         )
         / n
         for c, s in scored
@@ -1435,9 +1448,12 @@ def propose_swaps(
         wipe, protection) trades a card for one doing the same job, not for one
         fitting the theme, so no fit floor: the most played first, or for a job
         whose card read orders (``JobRead.orders``) the best blend of how well
-        each does the job (its read's percentile in the match set) and how many
-        decks play it (its play-rate percentile) — the read alone put the guides'
-        adds lower at the top of the list than play-rate does. The fit floor
+        each does the job (its read's percentile in the match set), how many
+        decks play it (its play-rate percentile) and how strong a card it is on
+        its own text (its quality read's percentile, ``card_quality``, ADR-0063:
+        held-out plan-consistency +19 with the guide floor held) — the job read
+        alone put the guides' adds lower at the top of the list than play-rate
+        does. The fit floor
         kept Swords to Plowshares and Path to Exile — the most played, both guide
         adds — behind Dragon Tempest in a goad deck; without it 54 guide adds
         matched across the 25 precons, against 47 (thirty swaps, 2026-10-19).

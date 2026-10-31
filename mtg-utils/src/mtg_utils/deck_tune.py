@@ -24,6 +24,7 @@ from pathlib import Path
 import click
 
 from mtg_utils import card_search, combo_search, mark_owned
+from mtg_utils._analysis.card_quality import attach_sidecars as attach_quality_sidecars
 from mtg_utils._analysis.card_reads import attach_card_read_sidecar
 from mtg_utils._analysis.ident_provenance import attach_provenance_sidecar
 from mtg_utils._analysis.job_quality import attach_job_read_sidecar
@@ -226,6 +227,7 @@ def main(
         attach_provenance_sidecar(bulk_path)
         attach_job_read_sidecar(bulk_path)
         attach_card_read_sidecar(bulk_path)
+        attach_quality_sidecars(bulk_path)
 
     meta_ctx = cli_meta_context(hd, effective_medium, meta)
     params = TuneParams(

@@ -45,6 +45,7 @@ def warm_at_launch(
     (``theme_presets._SEED_LOCK``). No bulk: nothing to warm. Returns the thread
     (None without bulk) so a caller can join it."""
     from mtg_utils._analysis import (
+        card_quality,
         card_reads,
         ident_provenance,
         job_quality,
@@ -69,6 +70,7 @@ def warm_at_launch(
             ident_provenance.attach_provenance_sidecar(state.bulk_path)
             job_quality.attach_job_read_sidecar(state.bulk_path)
             card_reads.attach_card_read_sidecar(state.bulk_path)
+            card_quality.attach_sidecars(state.bulk_path)
         except Exception as exc:  # noqa: BLE001
             print(f"deck-forge: signals-index warm failed: {exc}", file=sys.stderr)
         try:
