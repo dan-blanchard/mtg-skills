@@ -2520,4 +2520,8 @@ primary moves nine of the ten the gate asks, so by the rule it stays out. The
 patch (`issues.incidental_job`, `upgrade_job(on_plan=)`, `Sourcing.on_plan`, the
 jobless-pool view in `propose_swaps`, two tests) is `w41/C11.patch`; the
 cheapest next try is to re-measure it on top of the next read change, since a
-deeper need read gives a rider's slot more pages to land on.
+deeper need read gives a rider's slot more pages to land on. Re-measured on R2
+(`w41/sb-*-C11b.json`): the held-out numbers are the same to the card (R2
+touched no held-out commander), plan +9, adds +2, cuts +1; the 25 plan +9,
+cuts −2. Still one short; it waits for a read change that reaches a held-out
+commander.
