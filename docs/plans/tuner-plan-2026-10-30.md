@@ -46,6 +46,15 @@ miss taxonomy, the held-out candidates).
   (F1 / F2) was measured at Dan's request: they don't compound on the guide
   yardsticks (plan-consistency +34 / +37, exact adds −1 / −3, job-equivalents
   −14); the gate's exact-name anchor, not interaction effects, is the question.
+- 2026-10-30, evening: the plan-primary gate (below) decided with Dan. A read fix
+  found on the way (the token-consumers need took one token kind by hash order;
+  now every kind, idents read sorted): held-out unchanged, the 25 118 adds
+  (L3). E1 shipped in place of E2 against L3: held-out plan 180 → 198, adds
+  100 → 99, job-equivalents −2, cuts +1 — passes. **Baseline (E1c): the 25
+  739 / 342 / 117 (plan 306), held-out 20 581 / 256 / 99 (plan 198).** Next:
+  the need read's three deeper reads (cast-trigger filters, opponent-draw
+  makers, activated-ability payoffs), then the watcher-based incidental-job
+  read — the backlog's tuner entry.
 
 ## Target
 
@@ -104,7 +113,7 @@ count as hits, and the plan-consistency metric treats a GC add like any other.
    Discord as a bridge-ledger row, Serra Paragon in `recovery`, Helm of
    Obedience in `dropped_clauses`.
 
-**The ship bar from here on** (replaces the ±1-2 add gates): page-level
+**The ship bar, as first set** (replaced the ±1-2 add gates): page-level
 recall@30 rises on the 25 and does not fall on the held-out 20 — for a REACH
 change (a new or deeper page; a ranking or cut-side rule moves no page and is
 judged on the rest); plan-consistency does not fall on either; the tune's
@@ -112,6 +121,34 @@ guide-add count does not fall held-out; guide cuts fall ≤2 on the 25 and ≤1
 held-out; consensus adds fall by at most 2 on the 25 and 1 held-out (revised
 2026-10-30: a −1 of 137 is the swap cascade's own noise). Read fixes still ship
 on correctness with the deltas recorded.
+
+**The ship bar from 2026-10-30 (evening; the plan-primary gate).** Decided with
+Dan after the bundle runs (F1 / F2) showed plan-consistency and exact-name
+matching pulling in different directions: every rejected lever moved the tune's
+adds onto the commander's plan by tens and off the guides' exact names by a few,
+and the exact-name anchor, not interaction effects, was throwing them away.
+
+- **Primary: plan-consistency.** A tune-policy change ships when the held-out
+  20's plan-consistent adds (the scoreboard's PLAN line: adds supplying a
+  SPECIFIC commander need, at most 10% of the pool, umbrella keys out) rise by
+  **10 or more** (of ~580).
+- **Floor: the guides.** Held-out guide adds + job-equivalent adds fall by at
+  most **5 together**; held-out guide cuts by at most **1**.
+- **Reported, not gated:** consensus adds, page recall, and every number on the
+  25 (the design set; the held-out 20 is the only gating set).
+- **Reads vs policy.** A change to the need read itself (a new kind of need, a
+  guard) ships on correctness — each new need checked against the commander's
+  text with rules-lawyer, the floor still holding — and re-bases the PLAN line.
+  A read change and a policy change are never measured in one run.
+- **Guardrail.** The PLAN line reports the credit by need (the needs crediting
+  the most of the tune's adds); no per-need cap unless a run shows one need
+  swallowing a deck's adds.
+
+Re-verdicts under it: E1 (the wide need near tie on the job pages; held-out
+plan +33, adds −3, job-equivalents −1) ships in place of E2 after one confirming
+run against L2. The incidental-job read (C10: job-equivalents −12), the marquee
+(D1: plan +3), the removal-MV slots (D2: plan +4) and default-on land swaps
+(plan −3 / −5) stay rejected.
 
 ## Phase B — reach
 
