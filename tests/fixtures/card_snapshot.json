@@ -188008,6 +188008,273 @@
     "type_line": "Enchantment"
    }
   },
+  "Breeches, Brazen Plunderer": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "brawl_commander": true,
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Goblin",
+       "Pirate"
+      ],
+      "supertypes": [
+       "Legendary"
+      ]
+     },
+     "color_identity": [
+      "Red"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "is_commander": true,
+     "keywords": [
+      "Menace",
+      {
+       "Partner": {
+        "type": "Generic"
+       }
+      }
+     ],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 3,
+      "shards": [
+       "Red"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "83e8fe2e-ec6c-47fc-85c0-6eec185ecdce",
+       "ef509abb-55d8-4c5c-b8c0-eec424665b1e",
+       "fb6dc94e-9b57-4161-a835-15e46c3bb13a"
+      ]
+     },
+     "name": "Breeches, Brazen Plunderer",
+     "non_ability_text": null,
+     "oracle_text": "Menace\nWhenever one or more Pirates you control deal damage to your opponents, exile the top card of each of those opponents' libraries. You may play those cards this turn, and you may spend mana as though it were mana of any color to cast those spells.\nPartner (You can have two commanders if both have partner.)",
+     "parse_warnings": [
+      {
+       "context": "parse_target could not classify",
+       "line_index": 0,
+       "text": "the top card of each of those opponents' libraries",
+       "type": "TargetFallback"
+      }
+     ],
+     "power": {
+      "type": "Fixed",
+      "value": 3
+     },
+     "printings": [
+      "CMR",
+      "LCC",
+      "PRM",
+      "SPG"
+     ],
+     "rarities": [
+      "uncommon"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2020-11-10",
+       "text": "An effect that checks whether you control your commander is satisfied if you control one or both of your two commanders."
+      },
+      {
+       "date": "2020-11-10",
+       "text": "Both commanders start in the command zone, and the remaining 98 cards (or 58 cards in a Commander Draft game) of your deck are shuffled to become your library."
+      },
+      {
+       "date": "2020-11-10",
+       "text": "If something refers to your commander while you have two commanders, it refers to one of them of your choice. If you are instructed to perform an action on your commander (e.g. put it from the command zone into your hand due to Command Beacon), you choose one of your commanders at the time the effect happens."
+      },
+      {
+       "date": "2020-11-10",
+       "text": "If you don't play one of the exiled cards, it remains exiled. It won't be available to be played on future turns."
+      },
+      {
+       "date": "2020-11-10",
+       "text": "If your Commander deck has two commanders, you can only include cards whose own color identities are also found in your commanders' combined color identities. If Falthis and Kediss are your commanders, your deck may contain cards with black and/or red in their color identity, but not cards with green, white, or blue."
+      },
+      {
+       "date": "2020-11-10",
+       "text": "In a multiplayer game, if a player leaves the game, all cards that player owns leave as well. If you leave the game, any spells and/or permanents you control from Breeches's brazen thievery are exiled."
+      },
+      {
+       "date": "2020-11-10",
+       "text": "Once the game begins, your two commanders are tracked separately. If you cast one, you won't have to pay an additional {2} the first time you cast the other. A player loses the game after having been dealt 21 damage from any one of them, not from both of them combined."
+      },
+      {
+       "date": "2020-11-10",
+       "text": "To have two commanders, both must have the partner ability as the game begins. Losing the ability during the game doesn't cause either to cease to be your commander."
+      },
+      {
+       "date": "2020-11-10",
+       "text": "You can choose two commanders with partner that are the same color or colors. In Commander Draft, you can even choose two of the same commander with partner if you drafted them. If you do this, make sure you keep the number of times you've cast each from the command zone clear for \"commander tax\" purposes."
+      },
+      {
+       "date": "2020-11-10",
+       "text": "You must follow the normal timing permissions and restrictions for each exiled card. If one is a land, you can't play it unless you have land plays available."
+      },
+      {
+       "date": "2020-11-10",
+       "text": "You'll exile a card from each opponent who was dealt damage, not from all of your opponents."
+      },
+      {
+       "date": "2020-11-10",
+       "text": "You'll still pay all costs for a spell cast this way, including additional costs. You may also pay alternative costs if any are available."
+      }
+     ],
+     "scryfall_oracle_id": "eb77f7dc-e9e4-44ef-8616-9f4e737e8ca5",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 3
+     },
+     "triggers": [
+      {
+       "batched": true,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever one or more Pirates you control deal damage to your opponents, exile the top card of each of those opponents' libraries. You may play those cards this turn, and you may spend mana as though it were mana of any color to cast those spells.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "destination": "Exile",
+         "enter_tapped": false,
+         "enter_transformed": false,
+         "enters_attacking": false,
+         "origin": null,
+         "owner_library": false,
+         "target": {
+          "type": "Any"
+         },
+         "type": "ChangeZone"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "permission": {
+           "duration": "UntilEndOfTurn",
+           "granted_to": 0,
+           "mana_spend_permission": "AnyColor",
+           "type": "PlayFromExile"
+          },
+          "target": {
+           "id": 0,
+           "type": "TrackedSet"
+          },
+          "type": "GrantCastingPermission"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": null,
+         "sub_link": "SequentialSibling",
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "mode": "DamageDoneOnceByController",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": null,
+       "valid_source": {
+        "controller": "You",
+        "properties": [],
+        "type": "Typed",
+        "type_filters": [
+         {
+          "Subtype": "Pirate"
+         }
+        ]
+       },
+       "valid_target": {
+        "controller": "Opponent",
+        "properties": [],
+        "type": "Typed",
+        "type_filters": []
+       }
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 4.0,
+    "color_identity": [
+     "R"
+    ],
+    "colors": [
+     "R"
+    ],
+    "keywords": [
+     "Menace",
+     "Partner"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{3}{R}",
+    "name": "Breeches, Brazen Plunderer",
+    "oracle_id": "eb77f7dc-e9e4-44ef-8616-9f4e737e8ca5",
+    "oracle_text": "Menace\nWhenever one or more Pirates you control deal damage to your opponents, exile the top card of each of those opponents' libraries. You may play those cards this turn, and you may spend mana as though it were mana of any color to cast those spells.\nPartner (You can have two commanders if both have partner.)",
+    "power": "3",
+    "toughness": "3",
+    "type_line": "Legendary Creature — Goblin Pirate"
+   }
+  },
   "Breeches, Eager Pillager": {
    "phase_records": [
     {
@@ -428538,6 +428805,272 @@
     "type_line": "Creature — Human Wizard"
    }
   },
+  "Fathom Fleet Swordjack": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "activation_restrictions": [
+        {
+         "type": "AsSorcery"
+        }
+       ],
+       "activation_zone": "Graveyard",
+       "condition": null,
+       "cost": {
+        "costs": [
+         {
+          "cost": {
+           "generic": 5,
+           "shards": [
+            "Red"
+           ],
+           "type": "Cost"
+          },
+          "type": "Mana"
+         },
+         {
+          "count": 1,
+          "filter": {
+           "type": "SelfRef"
+          },
+          "type": "Exile",
+          "zone": "Graveyard"
+         }
+        ],
+        "type": "Composite"
+       },
+       "description": null,
+       "duration": null,
+       "effect": {
+        "type": "Encore"
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Orc",
+       "Pirate"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Red"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [
+      {
+       "Encore": {
+        "generic": 5,
+        "shards": [
+         "Red"
+        ],
+        "type": "Cost"
+       }
+      }
+     ],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 3,
+      "shards": [
+       "Red"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "related_token_ids": [
+       "0a417209-92ea-5ce3-ae2c-251ee22f1b92",
+       "cf04eb05-5d99-5015-921c-d7df230b0341"
+      ],
+      "source_printing_ids": [
+       "53c267b7-dbd6-43c5-9741-10f635bff4b1",
+       "d03bfee6-bbec-494d-8117-5ab11e7cffbe"
+      ]
+     },
+     "name": "Fathom Fleet Swordjack",
+     "non_ability_text": null,
+     "oracle_text": "Whenever this creature attacks, it deals damage to the player or planeswalker it's attacking equal to the number of artifacts you control.\nEncore {5}{R} ({5}{R}, Exile this card from your graveyard: For each opponent, create a token copy that attacks that opponent this turn if able. They gain haste. Sacrifice them at the beginning of the next end step. Activate only as a sorcery.)",
+     "power": {
+      "type": "Fixed",
+      "value": 4
+     },
+     "printings": [
+      "CMR",
+      "PLST"
+     ],
+     "rarities": [
+      "uncommon"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2020-11-10",
+       "text": "Each token must attack the appropriate player if able."
+      },
+      {
+       "date": "2020-11-10",
+       "text": "Exiling the card with encore is a cost to activate the ability. Once you announce that you're activating it, no player may take actions until you've finished. They can't try to remove the card from your graveyard to stop you from paying the cost."
+      },
+      {
+       "date": "2020-11-10",
+       "text": "If Fathom Fleet Swordjack leaves the battlefield after its triggered ability triggers but before it resolves, the ability will resolve as normal. The player or planeswalker it was attacking will be dealt damage. On the other hand, if it remains on the battlefield but leaves combat before its triggered ability resolves, no player or planeswalker is dealt damage."
+      },
+      {
+       "date": "2020-11-10",
+       "text": "If one of the tokens can't attack for any reason (such as being tapped), then it doesn't attack. If there's a cost associated with having it attack, you aren't forced to pay that cost, so it doesn't have to attack in that case either."
+      },
+      {
+       "date": "2020-11-10",
+       "text": "If one of the tokens somehow is under another player's control as the delayed triggered ability resolves, you can't sacrifice that token. It remains on the battlefield indefinitely, even if you regain control of it later."
+      },
+      {
+       "date": "2020-11-10",
+       "text": "Opponents who have left the game aren't counted when determining how many tokens to create."
+      },
+      {
+       "date": "2020-11-10",
+       "text": "The tokens copy only what's on the original card. Effects that modified that creature when it was previously on the battlefield won't be copied."
+      },
+      {
+       "date": "2023-07-28",
+       "text": "If an effect stops a token from attacking a specific player, that token can attack any player, planeswalker, or battle, or not attack at all. If the effect stops the token from attacking a specific player unless a cost is paid, you don't have to pay that cost unless you want to attack that player."
+      }
+     ],
+     "scryfall_oracle_id": "77828ebf-58d2-4aca-ae6f-0efa50d5d640",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 3
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever ~ attacks, it deals damage to the player or planeswalker it's attacking equal to the number of artifacts you control.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "amount": {
+          "qty": {
+           "filter": {
+            "controller": "You",
+            "properties": [],
+            "type": "Typed",
+            "type_filters": [
+             "Artifact"
+            ]
+           },
+           "type": "ObjectCount"
+          },
+          "type": "Ref"
+         },
+         "target": {
+          "type": "AttackedPlayerOrPlaneswalker"
+         },
+         "type": "DealDamage"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "Attacks",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "all_parts": [
+     {
+      "component": "token",
+      "id": "6870a2af-80e1-4813-a332-2b1bd789f1c1",
+      "name": "Copy",
+      "oracle_id": "88c78601-87f0-45e7-b2e0-e7ffcfb1cb70",
+      "type_line": "Token"
+     }
+    ],
+    "arena_available": false,
+    "cmc": 4.0,
+    "color_identity": [
+     "R"
+    ],
+    "colors": [
+     "R"
+    ],
+    "keywords": [
+     "Encore"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{3}{R}",
+    "name": "Fathom Fleet Swordjack",
+    "oracle_id": "77828ebf-58d2-4aca-ae6f-0efa50d5d640",
+    "oracle_text": "Whenever this creature attacks, it deals damage to the player or planeswalker it's attacking equal to the number of artifacts you control.\nEncore {5}{R} ({5}{R}, Exile this card from your graveyard: For each opponent, create a token copy that attacks that opponent this turn if able. They gain haste. Sacrifice them at the beginning of the next end step. Activate only as a sorcery.)",
+    "power": "4",
+    "toughness": "3",
+    "type_line": "Creature — Orc Pirate"
+   }
+  },
   "Fathom Mage": {
    "phase_records": [
     {
@@ -442363,6 +442896,205 @@
     "oracle_id": "a02e1ca7-23c5-41e3-a744-72fc9e9dd8ba",
     "oracle_text": "Equipped creature has double strike. (It deals both first-strike and regular combat damage.)\nEquip {2} ({2}: Attach to target creature you control. Equip only as a sorcery.)",
     "type_line": "Artifact — Equipment"
+   }
+  },
+  "Firespitter Whelp": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Dragon"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Red"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [
+      "Flying"
+     ],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "standard": "legal",
+      "standardbrawl": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 2,
+      "shards": [
+       "Red"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "09844edf-50b1-4244-886a-2be4b0520c23",
+       "4b3a4c7d-3126-4bde-9dca-cb6a1e2f37c9",
+       "ddcc3c1b-b564-4444-9a1a-0f62f8e6b8bb"
+      ]
+     },
+     "name": "Firespitter Whelp",
+     "non_ability_text": null,
+     "oracle_text": "Flying\nWhenever you cast a noncreature or Dragon spell, this creature deals 1 damage to each opponent.",
+     "power": {
+      "type": "Fixed",
+      "value": 2
+     },
+     "printings": [
+      "FDC",
+      "FDN",
+      "J25"
+     ],
+     "rarities": [
+      "uncommon"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2024-11-08",
+       "text": "Firespitter Whelp's last ability resolves before the spell that caused it to trigger. It resolves even if that spell is countered or otherwise leaves the stack without resolving."
+      }
+     ],
+     "scryfall_oracle_id": "1cad92ce-55c8-4b78-8d8c-56645ef8e6ee",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 2
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever you cast a noncreature or Dragon spell, ~ deals 1 damage to each opponent.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "amount": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "player_filter": {
+          "type": "Opponent"
+         },
+         "type": "DamageEachPlayer"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "SpellCast",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "filters": [
+         {
+          "controller": null,
+          "properties": [],
+          "type": "Typed",
+          "type_filters": [
+           "Any",
+           {
+            "Non": "Creature"
+           }
+          ]
+         },
+         {
+          "controller": null,
+          "properties": [],
+          "type": "Typed",
+          "type_filters": [
+           {
+            "Subtype": "Dragon"
+           },
+           {
+            "Non": "Creature"
+           }
+          ]
+         }
+        ],
+        "type": "Or"
+       },
+       "valid_source": null,
+       "valid_target": {
+        "type": "Controller"
+       }
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 3.0,
+    "color_identity": [
+     "R"
+    ],
+    "colors": [
+     "R"
+    ],
+    "keywords": [
+     "Flying"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "legal",
+     "standardbrawl": "legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}{R}",
+    "name": "Firespitter Whelp",
+    "oracle_id": "1cad92ce-55c8-4b78-8d8c-56645ef8e6ee",
+    "oracle_text": "Flying\nWhenever you cast a noncreature or Dragon spell, this creature deals 1 damage to each opponent.",
+    "power": "2",
+    "toughness": "2",
+    "type_line": "Creature — Dragon"
    }
   },
   "Firestorm": {
@@ -708779,6 +709511,153 @@
     "oracle_id": "591edddc-3736-44cf-9719-117c24ff3980",
     "oracle_text": "Each opponent separates the creatures they control into two piles. For each opponent, you choose one of their piles. Each opponent sacrifices the creatures in their chosen pile. (Piles can be empty.)",
     "type_line": "Sorcery"
+   }
+  },
+  "Makeshift Mauler": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "additional_cost": {
+      "data": {
+       "count": 1,
+       "filter": {
+        "controller": "You",
+        "properties": [
+         {
+          "type": "InZone",
+          "zone": "Graveyard"
+         }
+        ],
+        "type": "Typed",
+        "type_filters": [
+         "Creature"
+        ]
+       },
+       "type": "Exile",
+       "zone": "Graveyard"
+      },
+      "type": "Required"
+     },
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Zombie",
+       "Horror"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Blue"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pauper": "legal",
+      "paupercommander": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 3,
+      "shards": [
+       "Blue"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "404c6bb8-4c64-458f-a4aa-98beb2c6a77c",
+       "8782f856-06d3-43ef-958a-d2397353fa3a",
+       "d869de57-9454-47ff-af14-eaefd387047a",
+       "e5e74b52-1137-4da5-bf2d-294daa8e65f2"
+      ]
+     },
+     "name": "Makeshift Mauler",
+     "non_ability_text": null,
+     "oracle_text": "As an additional cost to cast this spell, exile a creature card from your graveyard.",
+     "power": {
+      "type": "Fixed",
+      "value": 4
+     },
+     "printings": [
+      "2X2",
+      "DDQ",
+      "INR",
+      "ISD"
+     ],
+     "rarities": [
+      "common"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2013-04-15",
+       "text": "Players can only respond once this spell has been cast and all its costs have been paid. No one can try to otherwise remove the creature card you exiled in order to prevent you from casting this spell."
+      },
+      {
+       "date": "2013-04-15",
+       "text": "You must exile exactly one creature card from your graveyard to cast this spell; you cannot cast it without exiling a creature card, and you cannot exile additional creature cards."
+      }
+     ],
+     "scryfall_oracle_id": "03025ec0-75fe-439d-b0c1-9bdb0f0ff336",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 5
+     },
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 4.0,
+    "color_identity": [
+     "U"
+    ],
+    "colors": [
+     "U"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "legal",
+     "paupercommander": "legal",
+     "penny": "legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{3}{U}",
+    "name": "Makeshift Mauler",
+    "oracle_id": "03025ec0-75fe-439d-b0c1-9bdb0f0ff336",
+    "oracle_text": "As an additional cost to cast this spell, exile a creature card from your graveyard.",
+    "power": "4",
+    "toughness": "5",
+    "type_line": "Creature — Zombie Horror"
    }
   },
   "Malignant Growth": {
