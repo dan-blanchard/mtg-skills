@@ -89,3 +89,7 @@ Arena-playable format (the Format's Arena flag, sealed and draft included), not 
 format: a paper-only format is not a choice for an Arena collection. `win_conditions`
 keeps a defaulted `game` parameter rather than a required one: the tuner passes the
 resolved medium's game, and a direct caller gets the paper reading.
+
+**Cross-reference (2026-10-31).** Two floor-only rows for the Commander template
+(recursion, tutors, with an open ceiling) were designed, measured and held back;
+ADR-0062 records the design and the numbers. No template changed.

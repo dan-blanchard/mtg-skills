@@ -2530,3 +2530,20 @@ exception so far.
 
 **Baseline after C11:** the 25 732 / 338 / 118 (page@30 157, plan 327 of
 732); held-out 20 582 / 257 / 102 (page@30 164, plan 234 of 582).
+
+## Recursion and tutor template rows (2026-10-31, measured and held back)
+
+Grilled with Dan: the frameworks' generic floors (~2 recursion, 1-2 tutors) as
+floor-only Commander template rows, every recursion kind and the nonland
+tutors as roles, tutor and recursion before draw in the upgrade order, a job
+read for each built first (ADR-0062 has the design, the reads' fits and the
+table). Against C11 the design (T1) cost the held-out 20 plan −31, adds −15,
+cuts −10: 43 held-out adds were a self-recurring plan card cut as a "recursion
+job" and replaced off the recursion page. With the old upgrade order (T4) and
+as predicate rows with no roles (T5): plan −13, cuts −11, swaps −25 — the tutor
+row's fills (16 held-out, 2 guide hits: Pyre of Heroes, Diabolic Intent,
+Wishclaw Talisman) take a slot and a purse per deck. Each row alone: recursion
+(T3) flat (plan −2, cuts −3), tutors (T2) plan −9, cuts −11, swaps −24. Not
+shipped; `w41/rows-T1.patch`, `w41/sb-*-T{1,2,3,4,5}.json`. The reads stay in
+the tree. The guides' tutors and recursion are plan cards found on the plan's
+pages; a plan-conditional row is the open idea (backlog).

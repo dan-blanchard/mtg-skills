@@ -70,6 +70,13 @@ miss taxonomy, the held-out candidates).
   Dan passed it (every floor line rising). **Baseline (C11): the 25
   732 / 338 / 118 (plan 327), held-out 20 582 / 257 / 102 (plan 234).** The
   plan's work is complete; what remains is in the backlog.
+- 2026-10-31, after the plan (grilled): recursion and tutor template rows with
+  job reads (ADR-0062). The two reads shipped (two agents; recursion CV 0.36,
+  tutors 0.52; both gate, neither orders). The rows failed the gate every way
+  they were cut (held-out plan −31 as designed; the tutor row alone −9 with
+  eleven guide cuts lost; recursion alone flat) and are held as
+  `w41/rows-T1.patch`; the baseline stays C11. Next idea: plan-conditional
+  rows (backlog).
 
 ## Target
 
