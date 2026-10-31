@@ -2547,3 +2547,65 @@ Wishclaw Talisman) take a slot and a purse per deck. Each row alone: recursion
 shipped; `w41/rows-T1.patch`, `w41/sb-*-T{1,2,3,4,5}.json`. The reads stay in
 the tree. The guides' tutors and recursion are plan cards found on the plan's
 pages; a plan-conditional row is the open idea (backlog).
+
+## Reads first, play-rate last (2026-10-31, grilled; the theme pages measured and held back)
+
+Dan's stance, restated in the grilling: less played doesn't mean worse (price,
+undiscovered cards, other brackets), and EDHREC play-rate was never meant to be
+the order. The facts that framed it, at C11 on the 25: 588 of the 675 missed
+guide adds sit on a page the tune asked for and lose to a more-played card; the
+guides' adds have EDHREC-rank quartiles 662 / 2,391 / 6,234 against the tune's
+157 / 597 / 1,592. The decision: reads order a page, play-rate is a floor (rank
+10,000; an unranked card passes to the reads) and a tiebreak — theme pages
+first, then the job pages, each gated alone against C11b.
+
+**S1, theme pages: need fit, then main lanes served, then synergy, then
+play-rate, then price.** Held-out 20: 582 / 257 / 102 → 574 / 256 / 85 —
+plan-consistent **234 → 304 (+70)**, guide adds −17, job-equivalents −1,
+consensus adds −10; the 25: adds 118 → 105, plan 327 → 412 (+85). The floor
+(adds + job-equivalents ≥ −5) is breached three times over. What the order
+picks is on-plan but obscure: under Ahoy Mateys, Fathom Fleet Swordjack and
+Banner of Kinship for Goldspan-class guide adds (Breeches, Roaming Throne,
+Deadly Rollick); under Silverquill, Goldvein Pick, Eye of Nidhogg and Nurgle's
+Rot for Ethereal Armor and Black Market Connections; under Quandrix, five
+Hydras for Green Sun's Zenith and Chord of Calling. The synergy read sees the
+fit and not the quality; play-rate, whatever its faults, carried the quality.
+Also +19 / +25 adds printed after the guides (the order surfaces new cards;
+the fair line, restricted to cards the guides could name, still loses 17 / 11).
+
+**S2, the variant: synergy score first with a need hit worth +1.0, then
+play-rate.** Held-out 571 / 254 / 86: plan +43, adds −16, cuts −3; the 25
+736 / 342 / 96: plan +51, adds −22. Worse on every line than S1.
+
+Both held back: `w41/theme-order-S2.patch` (S1's key differs by leading with
+the need hit and the main-lane count instead of a bonus), `w41/sb-*-S{1,2}.json`.
+The plan line cannot tell on-plan-and-good from on-plan-and-weak, which is
+exactly what the guide floor is for. A reads-first order needs a QUALITY read
+beside the fit — what the job reads are for the job pages, and what the theme
+pages lack. Next: the job pages (step 2), where each job read orders its page.
+
+**J1, the job pages: the read's score first for every job, then need fit, main
+and viable lanes served, synergy, play-rate, price; the upgrade test asks the
+read to score the add above the cut; the rank-10,000 floor in place of "more
+decks play it than the cut" where a read exists (play-rate stays the judge
+where none does — a theme upgrade, a card the read can't see); E1's need tie
+and the theme tie removed as subsumed.** Held-out 20: 582 / 257 / 102 → 581 /
+258 / 86 — plan-consistent 234 → **200 (−34)**, guide adds −16,
+job-equivalents −2, consensus −1; the 25: 735 / 340 / 105, plan 327 → 296
+(−31), +40 adds printed after the guides. Worse than C11 on every line but
+cuts. The job reads measure how well a card does its job and nothing else;
+at the top of a page play-rate was carrying both quality the reads don't see
+and, through E1's need tie, the plan fit the reads-first key put second. Held
+back: `w41/job-order-J1.patch`, `w41/sb-*-J1.json`.
+
+**What the three runs say together.** Reads-first ordering, as the reads stand,
+loses the guides on both page kinds and the plan line on the job pages. The
+theme pages lack a quality read (synergy sees fit, not strength); the job
+reads lack a plan read (they see strength, not fit) and, by ADR-0060's own
+measurement, trail play-rate at the top of a list. Play-rate is a noisy proxy
+for both at once, which is why it has held. The path to Dan's stance is a
+quality read for theme cards (what makes a Goldspan Dragon better than a
+Firespitter Whelp: rate, body, repeatability, the card's own effect size)
+rather than a different order of the reads we have; until then play-rate
+leads and the reads gate and break ties, as C11 has it. The baseline stays
+C11; no ADR is written.

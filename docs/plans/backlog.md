@@ -37,6 +37,15 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   flat. The guides' tutors and recursion are plan cards, found on the plan's
   pages. Kept as `~/mtg/tuner-work/w41/rows-T1.patch` (rows, roles, open
   ceiling "2+", `recursion` preset, upgrade order, panel labels, tests). The
+**Reads-first page order — measured and held back (2026-10-31; don't re-suggest
+  as a reorder of the reads we have):** theme pages ordered need / lanes /
+  synergy / play-rate (S1) or synergy with a need bonus (S2) raised held-out
+  plan-consistency +70 / +43 but lost 17 / 16 guide adds to on-plan-but-obscure
+  picks; job pages ordered by each read's score (J1) lost plan −34 and adds
+  −16. Patches `~/mtg/tuner-work/w41/theme-order-S2.patch`, `job-order-J1.patch`.
+  What's missing is a QUALITY read for theme cards (rate, body, repeatability,
+  effect size — what makes Goldspan Dragon better than Firespitter Whelp); with
+  one, reads-first becomes measurable again. The
   idea the numbers point at: a PLAN-CONDITIONAL row — a tutor row only when a
   main lane names a type a tutor can find, a recursion row only under a
   graveyard plan — a separate grilling. The recursion and tutor job reads
