@@ -2609,3 +2609,42 @@ Firespitter Whelp: rate, body, repeatability, the card's own effect size)
 rather than a different order of the reads we have; until then play-rate
 leads and the reads gate and break ties, as C11 has it. The baseline stays
 C11; no ADR is written.
+
+## Graveyard arrivals are not deaths; Disa's Unknown-mode trigger (2026-10-31, read fix, re-based as C12)
+
+The 2026-10-31 grilling on next steps settled the theme-card quality read as the
+next stretch (ADR-0063 when it ships) and, first, a local workaround for the Disa
+parse gap. Reading the shape showed a read bug under it: the crosswalk's
+`trigger_def_event` took every `ChangesZone` → Graveyard trigger with no origin
+as a death. Phase writes `origin: Battlefield` for "dies" and leaves the origin
+unset both for "put into your graveyard from anywhere" and for a permanent it
+needs no zone for; of the corpus's 61 such triggers, 49 are "from anywhere"
+watchers (The Gitrog Monster, Titania, Sefris, Yuma) that asked the deck for
+creatures dying. The watched filter tells them apart (an owner, no controller:
+a card, CR 108.4; a controller or an attached object: a permanent, CR 110.1;
+CR 603.6c: an arrival "from anywhere" is never a leaves-the-battlefield
+ability). Disa's "from anywhere other than the battlefield" is phase's one
+`Unknown` mode of the shape; `misparsed_shapes` rewrites it to the arrival form
+behind a structural gate plus the mode's own clause (ADR-0061, fourth
+amendment; the upstream report is drafted in the backlog). Signals moved on 3
+of 72 surveyed cards (Bone Rattler and Paradox Kraken lose a self-death payoff
+that was an arrival; Profane Memento's kill-engine payoff kept by widening the
+lane); needs moved on 47.
+
+The first re-score left Graveyard Overdrive's plan line at 0: the fill need
+carried the umbrella `graveyard_makers` key and was 12% of the pool, never
+specific. Narrowed to mill and discard (land sacrifice for a land watcher,
+sacrifice outlets and edicts for a creature-card watcher; token makers never,
+CR 108.2: a token is not a card), the need is 5.7% of the pool.
+
+| set | C11 (`sb-*-C11b`) | C12 (`sb-*-C12b`) | delta |
+|---|---|---|---|
+| the 25: swaps / guide cuts / guide adds | 732 / 338 / 118 | 732 / 338 / 118 | 0 / 0 / 0 |
+| the 25: plan-consistent adds (tune / guides) | 327 / 297 | 335 / 311 | +8 / +14 |
+| Graveyard Overdrive: plan (tune / guides) | 0 of 30 / 0 of 23 | 7 of 30 / 9 of 23 | +7 / +9 |
+| held-out 20: swaps / cuts / adds | 582 / 257 / 102 | 582 / 257 / 101 | 0 / 0 / −1 |
+| held-out 20: plan-consistent adds | 234 | 234 | 0 |
+
+A read change, shipped on correctness; the floor holds (held-out adds −1:
+World Shaper's Avenger of Zendikar slot moves between two guide-named lands'
+partners). **Baseline is now C12**; gate diffs run against `sb-ho-C12b.json`.

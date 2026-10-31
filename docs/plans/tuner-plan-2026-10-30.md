@@ -85,6 +85,19 @@ miss taxonomy, the held-out candidates).
   (`w41/theme-order-S2.patch`, `w41/job-order-J1.patch`); the baseline stays
   C11. Finding: play-rate carries quality the theme pages have no read for;
   the way to Dan's stance is a theme-card quality read, not a reorder.
+- 2026-10-31, next steps (grilled): the theme-card quality read is the next
+  stretch (three per-type reads fitted on guide pairs from the design 25's S1
+  theme pages, `docs/plans/precon-audit/theme_pairs.py`; a read ships when its
+  leave-one-deck-out pair accuracy beats play-rate's; then the reorders V1 /
+  V2 and the job blend, each gated alone; ADR-0063 at read-ship time). First
+  the Disa workaround, which turned up a crosswalk read bug: a graveyard
+  arrival with no origin ("from anywhere": Gitrog, Titania, Sefris, Yuma; 49
+  cards) read as a death. Fixed on correctness (ADR-0061, fourth amendment)
+  with Disa's `Unknown`-mode trigger rewritten by `misparsed_shapes`; the fill
+  need is mill and discard, never the umbrella key. **Baseline re-based as
+  C12** (`w41/sb-*-C12b.json`): the 25 732 / 338 / 118 (plan 335; Graveyard
+  Overdrive 0 → 7), held-out 582 / 257 / 101 (plan 234; adds −1, the floor
+  holds). Tutor weights confirmed; plan-conditional rows parked.
 
 ## Target
 
