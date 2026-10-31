@@ -39,6 +39,7 @@ from mtg_utils._analysis.job_quality import (
     protection,
     ramp,
     removal,
+    tutor,
 )
 from mtg_utils._analysis.job_quality._common import JOB_READS
 from mtg_utils._analysis.signal_trees import signal_trees_for
@@ -187,6 +188,7 @@ READS: dict[str, JobRead] = {
             fit=card_draw.deck_fit,
             theme_ties=True,
         ),
+        JobRead("tutor", tutor.features, tutor.WEIGHTS, orders=False),
     )
 }
 
