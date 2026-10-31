@@ -2815,3 +2815,15 @@ guide cuts to a reshuffled upgrade chain. Read fixes, so they ship with the
 delta recorded. **Baseline N3:** the 25 734 / 339 / 114 (plan 350), held-out
 580 / 254 / 100 (plan 262) — `w41/sb-*-N3.json`; gate diffs against
 `sb-ho-N3.json`.
+
+**N4, a sacrifice-draw needs fodder (read, on correctness).** Deadly Dispute,
+Village Rites and Corrupted Conviction read as two cards for one mana in any
+deck (their `_Source.fodder` flag fed only the "fodder" feature) and sat first
+and fourth on the Knights and Zombie decks' draw pages; the draw read's deck fit
+now treats a one-shot whose every draw sacrifices another permanent as fuelled by
+fodder — X/1 creatures, token makers, Treasure / Clue / Food makers — at the
+Skullclamp reference (a quarter of the nonland deck). Cavalry Charge's Knights
+deck fuels 0.92 of it, Revenant Recon 0.70, a deck of spells none. The delta is
+noise: the 25 adds −1 (Abzan Armor), plan −2; held-out unchanged. **Baseline
+N4:** the 25 734 / 339 / 113 (plan 348), held-out 580 / 254 / 100 (plan 261) —
+`w41/sb-*-N4.json`; gate diffs against `sb-ho-N4.json`.
