@@ -46,12 +46,20 @@ The columns:
   day) is left out: no guide could name it. Each missed guide add pairs with at
   most one tuner add and each tuner add with at most one guide add (a maximum
   matching, so the count doesn't depend on order).
-- plan-consistent adds (PLAN under TOTAL; the 2026-10-30 plan's gate): the tune's
-  nonland adds, and the in-scope guide adds, that supply one of the commander's
-  specific needs (``_analysis.commander_need``: read off the commander's trees —
-  the events it triggers on, the quantities its conditions compare, what it
-  produces — kept to needs at most ``BROAD_SHARE`` of the pool supplies). The
-  guides' share is the ceiling the tune's is read against.
+- plan-consistent adds (PLAN under TOTAL; the gate's PRIMARY line since
+  2026-10-30): the tune's nonland adds, and the in-scope guide adds, that supply
+  one of the commander's specific needs (``_analysis.commander_need``: read off
+  the commander's trees — the events it triggers on, the quantities its
+  conditions compare, what it produces — kept to needs at most ``BROAD_SHARE`` of
+  the pool supplies). The guides' share is the ceiling the tune's is read against.
+  The gate (the plan doc's ship bar): a tune-policy change ships when the
+  held-out set's plan-consistent adds rise by 10 or more and the floor holds —
+  guide adds + job-equivalent adds fall by at most 5 together, guide cuts by at
+  most 1; consensus adds, page recall and the 25 are reported, not gated. A
+  change to the need read itself ships on correctness and re-bases this line.
+  Under PLAN, the credit by need: the needs crediting the most of the tune's adds
+  across the decks (``plan_by_need`` per deck), the guardrail — one need taking
+  most of a deck's adds is a page swallowing the tune, not a plan.
 - page recall: of the in-scope guide adds, those a search page of their kind
   (a template job's row search; the theme pages otherwise) held in its top 10 /
   top 30 by the search's own order (misses.py records ``page_pos``) — ranking and
@@ -396,7 +404,7 @@ def score_deck(cards, root, name, entry, tight=True):
     # Plan-consistency (the 2026-10-30 plan): the share of the tune's nonland adds,
     # and of the in-scope guide adds, supplying one of the commander's SPECIFIC
     # needs (``commander_need``: at most BROAD_SHARE of the pool supplies it).
-    from mtg_utils._analysis.commander_need import commander_needs, need_predicate, specific_needs
+    from mtg_utils._analysis.commander_need import commander_needs, need_predicate, satisfies, specific_needs
 
     cmds = [r for c in deck.get("commanders") or [] if (r := cards.rec(c["name"]))]
     needs = commander_needs(cmds)
@@ -406,6 +414,12 @@ def score_deck(cards, root, name, entry, tight=True):
     guide_recs = [r for g, _w in in_scope if (r := cards.rec(g))]
     row["plan_tune"], row["plan_tune_n"] = sum(fits(r) for r in tune_recs), len(tune_recs)
     row["plan_guide"], row["plan_guide_n"] = sum(fits(r) for r in guide_recs), len(guide_recs)
+    # The credit by need (the guardrail on the plan-primary gate): how many of
+    # the tune's adds each specific need credits, so one need swallowing a deck's
+    # adds would show. An add supplying two needs counts under both.
+    row["plan_by_need"] = {
+        n.label: hits for n in specific_needs(needs, cards.sample)
+        if (hits := sum(satisfies(r, n) for r in tune_recs))}
     # Page-level recall: of the in-scope guide adds with a page of their kind
     # searched, how many sit in that page's top 10 / top 30 (misses.py's page_pos).
     pos = entry.get("page_pos") or {}
@@ -453,6 +467,16 @@ def plan_line(r):
             f" | page recall @10 {r['page10']} / @30 {r['page30']} of {r['paged']} guide adds with a page of their kind"
             f" | job-equivalent adds (near-miss job) {r['near_job']}"
             f" | mana base: guide land rows matched {r['land_hits']} of {r['land_rows']}")
+
+
+def need_credit_line(rows):
+    """The needs crediting the most of the tune's adds, across the decks: the
+    guardrail on the plan-primary gate (a need taking most of a deck's adds is a
+    page swallowing the tune, not a plan)."""
+    credit = sorted(((hits, deck, need) for deck, r in rows.items()
+                     for need, hits in (r.get("plan_by_need") or {}).items()), reverse=True)
+    top = ", ".join(f"{deck}: {need} {hits}" for hits, deck, need in credit[:6])
+    return f"credit by need (top 6 of {len(credit)}): {top}"
 
 
 def fair_line(r):
@@ -512,6 +536,7 @@ def main():
     tot = total(rows)
     print("\nTOTAL", line(tot))
     print("PLAN ", plan_line(tot))
+    print("      " + need_credit_line(rows))
     print("FAIR ", fair_line(tot))
     if a.pairs:
         for n, r in rows.items():

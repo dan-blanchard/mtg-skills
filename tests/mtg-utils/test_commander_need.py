@@ -65,6 +65,20 @@ def test_zurgo_wants_token_makers_and_their_consumers():
     assert not needs_met(test_card("Counterspell"), needs)
 
 
+def test_every_token_kind_the_commander_makes_feeds_the_consumers_need():
+    # Clavileño makes Vampire tokens and Demon tokens: the one "token maker
+    # consumers" need carries both kinds' payoffs (it used to keep whichever
+    # kind the process's hash order put first, so the plan line moved between
+    # runs).
+    needs = _needs("Clavileño, First of the Blessed")
+    consumers = next(n for n in needs if n.label == "token maker consumers")
+    assert consumers.idents == {"type_matters|you|Vampire", "type_matters|you|Demon"}
+    labels = [n.label for n in needs]
+    assert labels.index("token maker Demon like the commander") < labels.index(
+        "token maker Vampire like the commander"
+    )
+
+
 def test_a_commanders_own_type_is_not_a_need():
     # Mirko is a Vampire Detective; his text names neither, so no tribe need.
     assert not any("Vampire" in n.label for n in _needs("Mirko, Obsessive Theorist"))

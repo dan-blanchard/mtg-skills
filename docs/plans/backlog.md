@@ -15,12 +15,21 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   network failure in `lookup_single`'s batch loop and report it as missing; keep
   the hard exit for a bulk that can't be read at all.
 - **The tuner plan of 2026-10-30** (`docs/plans/tuner-plan-2026-10-30.md`, from
-  the review in `docs/plans/tuner-holistic-review-2026-10-30.md`): measurement
-  first (commander-need predicate as the plan-consistency metric, page-level
-  recall@k, scoreboard rescoring, ten more held-out precons, bracket-3 recipe),
-  then need pages and a specificity-first primary, then lane adds / incidental
-  jobs / land swaps in the tune, then a marquee purse and removal MV thresholds.
-  Its ship bar replaces the ±1-2 add gates below.
+  the review in `docs/plans/tuner-holistic-review-2026-10-30.md`) is carried out:
+  the need read and its metrics, need pages by cut routing, the specificity-first
+  primary and the wide need near tie shipped; land swaps are opt-in; the
+  incidental-job read, marquee purse and removal-MV slots were measured and
+  rejected (don't re-suggest without a new read). The gate is now plan-primary
+  (the plan doc's ship bar; ADR-0061's second amendment): held-out
+  plan-consistent adds rise ≥ 10, guide adds + job-equivalents fall ≤ 5, cuts
+  ≤ 1; the 25 are reported. Open from it: deepen the need read — cast-trigger
+  filters (mana value / type bounds: Rootha, Zhulodok, Stella Lee),
+  opponent-draw / group-hug makers (Bumbleflower), activated-ability payoffs
+  (Jace's fodder count), each checked with rules-lawyer and shipped on
+  correctness; then a watcher-based incidental-job read (a job carried by a
+  trigger watching a main-lane event is a payoff rider; one watching anything
+  else — Rhystic Study — is an engine), gated as policy. Reanimation-target
+  properties stay out.
 - **What the polymorph tune and the 25-precon audit still get wrong** (third
   pass, 2026-10-18 — `docs/plans/precon-audit-2026-10-18.md` has the method,
   the three before / after tables and the per-precon reads; the first two
