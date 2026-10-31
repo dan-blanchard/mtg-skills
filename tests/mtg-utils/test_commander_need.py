@@ -158,6 +158,40 @@ def test_hazel_wants_token_makers_and_her_life_payment_is_no_resource():
     assert not satisfies(test_card("Counterspell"), tokens)
 
 
+def test_a_commander_that_counts_its_own_counters_wants_them_grown():
+    # Zimone's X spells cost less "for each +1/+1 counter on ~" (a CountersOn
+    # operand scoped to the source) and she grows only herself: the deck wants
+    # her counters grown and kept — proliferate, doublers, movers, the payoffs
+    # that read a creature's counters — never a plain counter maker.
+    needs = _needs("Zimone, Infinite Analyst")
+    need = next(n for n in needs if n.label == "counters on the commander")
+    assert need.kind == "resource"
+    for name in ("Branching Evolution", "Evolution Sage", "The Ozolith"):
+        assert satisfies(test_card(name), need), name
+    assert not satisfies(test_card("Rampant Growth"), need)
+    assert not satisfies(test_card("Beast Within"), need)
+
+
+def test_a_commander_that_only_grows_itself_opens_no_counter_need():
+    # Valgavoth's counter is a stat on himself and nothing of his counts it;
+    # Mirko likewise: no counter payoff is asked for.
+    for name in ("Valgavoth, Harrower of Souls", "Mirko, Obsessive Theorist"):
+        labels = _labels(_needs(name))
+        assert "counters on the commander" not in labels, name
+        assert "plus one consumers" not in labels, name
+
+
+def test_a_commander_that_grows_others_too_keeps_the_consumers_need():
+    # Captain America puts a counter on "that Hero" AND on himself: the Heroes'
+    # counters feed the deck's counter payoffs, so the self-grow skip never
+    # applies to him.
+    needs = _needs("Captain America, Team Leader")
+    consumers = next(n for n in needs if n.label == "plus one consumers")
+    assert satisfies(test_card("The Ozolith"), consumers) or satisfies(
+        test_card("Herald of Secret Streams"), consumers
+    )
+
+
 def test_a_commanders_own_type_is_not_a_need():
     # Mirko is a Vampire Detective; his text names neither, so no tribe need.
     assert not any("Vampire" in n.label for n in _needs("Mirko, Obsessive Theorist"))

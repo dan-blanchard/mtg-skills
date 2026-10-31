@@ -2691,3 +2691,75 @@ card draw, protection). Held-out plan +19, adds −2, job-equivalents 0, cuts �
 consensus adds −2, reported). Files `w41/sb-*-J2.json`; the held-out set
 re-scored under `PYTHONHASHSEED=1` as `sb-ho-J2s1` (the hash-seed check the plan
 line wants). **Baseline is now J2**; gate diffs run against `sb-ho-J2.json`.
+
+## Where the misses are (2026-10-31, evening): the reach profile, and the counters need (N1, re-based)
+
+Dan asked for unattended iteration until real improvements, with the tuner's own
+judgment where the guides disagree. First a profile of the held-out misses by
+where the guide add sat. `misses.py` now records every page a guide add appeared
+on (`page_pos[name].hits`), each page's head (`pages`), and under
+`PRECON_DEEP_PAGES=1` each theme page's whole match set as a `theme-deep` page;
+its `page_kind` compared a stripped spec against a row still carrying its
+`_filter`, so every ramp and interaction page had read "other" (the fix moved
+page recall @10 / @30 by +14 / +43 on the held-out set with no tuner change —
+`sb-ho-J2p`, totals identical to J2).
+
+Held-out guide adds not made, by the add's kind and where it sat (J2):
+
+| kind | no page of its kind | on no page of its kind (held elsewhere) | past 30 | 11–30 | top 10 |
+|---|---|---|---|---|---|
+| theme | — | **152** | 135 | 45 | 23 |
+| interaction | — | — | 73 | 8 | 6 |
+| card draw | — | 24 | 57 | 12 | 14 |
+| ramp | 8 | — | 53 | 13 | 10 |
+| board wipe | — | 2 | 19 | 7 | 7 |
+| protection | 18 | 2 | 15 | 3 | 2 |
+
+The 152 theme adds held only by the identity-wide need pool split, with the
+deep pages: **100 the serve never admits**, 52 admitted but cut off by the
+150-card page (22 within 300, 18 within 600, 12 deeper — Jeskai Striker's
+cast-from-exile cards, Prismari's spellslinger legends). The 100 by deck: Ahoy
+Mateys 15 (a theft theme the focus never opened: Thief of Sanity, Geyadrone
+Dihada, Bribery, Mob Rule; plus Strionic Resonator and Lithoform Engine),
+Quandrix Unlimited 15 (Zimone's counter payoffs: Branching Evolution, Evolution
+Sage, The Ozolith, Herald of Secret Streams, Simic Ascendancy), Silverquill
+Influence 8 (an enchantment-Spirit build the guides chose), Creative Energy 7
+(Panharmonicon, Elesh Norn, Mother of Machines, Karn), tutors in ten decks
+(Demonic ×4, Worldly ×2, Vampiric, Enlightened, Gamble, Natural Order), and
+a tail of one or two per deck. A ceiling check with `multipliers.multiplier_reasons`:
+27 of the 807 held-out guide adds (and 18 of the 25's 793) multiply the
+commander — Roaming Throne ×4, Reflections of Littjara ×2, Molten Echoes,
+Strionic Resonator, Panharmonicon, clones and token copiers; 25 of them were on
+some page and outranked or gated. A prior measurement (`Sourcing.multiplier_avenue`'s
+docstring) found trigger doublers and copiers as a theme avenue lost held-out
+adds, so a multiplier *row* is parked, not built.
+
+The job pages' order, read off the same profile: interaction picks are the most
+played (median rank 100: Pongify, Feed the Swarm, Path, Swords) and the guides'
+unmatched interaction adds are theme cards (median rank 4,156), so that page's
+order is not the problem — except the counterspells: Fierce Guardianship sat at
+position 8–14 in five decks and failed the job gate ("doesn't do the job": the
+read is removal-shaped), Arcane Denial and Swan Song "a different job". The
+draw page is another matter: 16 of 53 draw upgrades are past rank 1,000 (Combat
+Tutorial 5,193, High-Society Hunter 4,375, Infiltration Lens 3,790, Mask of
+Memory ×4) while the guides' draw adds cluster under rank 700; the wipe page
+took Martial Coup six times (rank 1,352 median across its 32 picks) where the
+guides took Kindred Dominance ×3, Winds of Abandon ×3, Crippling Fear ×2.
+
+**N1, a read fix (ships on correctness).** `_resource_needs` skipped the
+"plus one consumers" need for any commander emitting `self_counter_grow`. Two
+corrections, both read off the trees (`_counter_placement`): the skip holds
+only when every +1/+1 counter the commander places lands on itself (Captain
+America, Team Leader puts one on "that Hero" too, so his Heroes' counters feed
+the deck's payoffs again); and a self-only grower whose own text counts the
+counters on itself (a `CountersOn` operand scoped to the source — Zimone's "costs
+{1} less for each +1/+1 counter on ~") opens a **"counters on the commander"**
+need: proliferate, counter doublers and bonuses, counter movers and the payoffs
+that read a creature's counters (`_COUNTER_GROWTH_KEYS`; 2.5% of a Simic pool),
+never the plain counter makers. Mirko, Valgavoth, Morska and Eshki stay as they
+were (their guides add no counter payoffs; Zimone's add nineteen). Held-out:
+adds +3 (99 → 102), plan +8, cuts and swaps flat — all Quandrix (Branching
+Evolution, Evolution Sage, The Earth Crystal off the need page by routing;
+Avengers' consumers page converted nothing). The 25 unchanged. **Baseline N1:**
+the 25 734 / 338 / 112 (plan 349), held-out 582 / 256 / 102 (plan 261) —
+`w41/sb-*-N1.json`; gate diffs against `sb-ho-N1.json`.
