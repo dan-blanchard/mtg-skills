@@ -57,8 +57,12 @@ miss taxonomy, the held-out candidates).
   only if" restrictions (Stella Lee, Bumbleflower), opponents drawing
   (Bumbleflower). Held-out adds 99 → 100, cuts 0; the plan line re-based
   198 → 225. **Baseline (R1): the 25 739 / 342 / 116 (plan 315), held-out 20
-  581 / 256 / 100 (plan 225).** Next: the watcher-based incidental-job read,
-  gated as policy against R1.
+  581 / 256 / 100 (plan 225).**
+- 2026-10-31: the deck-aware incidental-job read (C11: a trigger-rider job on
+  a card serving a main lane is no job) measured against R1 — held-out plan
+  +9, adds +2, cuts +1, job-equivalents −1 — one short of the +10 bar; not
+  shipped, patch kept at `w41/C11.patch` to re-measure on the next read
+  change. The plan's work is complete; what remains is in the backlog.
 
 ## Target
 
