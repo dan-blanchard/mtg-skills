@@ -135,6 +135,10 @@ miss taxonomy, the held-out candidates).
   Dispute) is fuelled by fodder — the draw read's deck fit, at the Skullclamp
   reference. Delta noise (the 25 adds −1; held-out flat) — **baseline N4**
   (`w41/sb-*-N4.json`).
+- 2026-10-31, night, two policies against N4, both held back: P1 play-rate
+  counted twice in the job blend (held-out adds +2, cuts +1, plan −2;
+  `w41/job-blend-P1.patch`); P2 a 300-card theme page (held-out flat, the 25
+  adds −3). Don't re-suggest page depth alone.
 
 ## Target
 
