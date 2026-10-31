@@ -2411,3 +2411,45 @@ on the 25, 180 / 254 held-out).
 **Baseline after the lane fixes (L2):** the 25 734 / 339 / 120 (page@30 156,
 plan 274 of 734); held-out 20 581 / 255 / 100 (page@30 161, plan 180 of 581) —
 `w41/sb-*-L2.json`.
+
+## The plan-primary gate (2026-10-30, evening)
+
+Grilled with Dan after the bundle runs. The exact-name anchor was the problem,
+not the levers: every change that moved the tune's adds onto the commander's plan
+cost a few exact guide names and was rejected for it. The gate from here (the
+plan doc's ship bar; ADR-0061's second amendment): **plan-consistency is
+primary** — a tune-policy change ships when the held-out 20's plan-consistent
+adds rise by 10 or more; **the guides are the floor** — held-out guide adds +
+job-equivalent adds fall by at most 5 together, held-out guide cuts by at most 1;
+consensus adds, page recall and the 25 are reported, not gated. A change to the
+need read ships on correctness and re-bases the PLAN line; a read change and a
+policy change are never measured in one run. The scoreboard's PLAN line now
+reports the **credit by need** (the needs crediting the most of the tune's adds,
+`plan_by_need` per deck) as the guardrail against one need swallowing a deck's
+adds; no per-need cap until a run shows one.
+
+**A read fix the re-run exposed (L3, shipped on correctness).** Rescoring one run
+under three hash seeds moved Blood Rites' plan line (tune 12 / 9, guides 16 / 13):
+`_resource_needs` built the "token maker consumers" need from the FIRST token-maker
+ident it met, so under Clavileño (Vampire tokens and Demon tokens) the need carried
+the Vampire payoffs or the Demon payoffs by the process's hash order. Fixed: the
+need carries every kind the commander makes, and the commander's idents are read
+sorted. Measured alone (E2's near tie in place), against L2: the held-out 20
+identical (581 / 255 / 100, plan 180); the 25 734 / 339 / 118 (plan 275, guides'
+plan 272) — Desert Bloom's Aftermath Analyst and Conduit of Worlds lost to the
+swap cascade (Yuma's consumers need now names both his token kinds, and its page
+re-ordered). `w41/sb-*-L3.json`.
+
+**E1 in place of E2 (shipped under the new gate).** The wide need near tie on the
+job pages (`swaps._need_ties`: a card supplying any of the commander's specific
+needs takes a near tie, whether or not a main lane also serves it; `_on_plan_job`
+removed), measured against L3: the held-out 20 581 / 255 / 100 → **581 / 256 /
+99**, plan-consistent **180 → 198 (+18)**, job-equivalents 33 → 31, consensus
+adds −1 — passes (plan ≥ +10; adds + job-equivalents −3 of the −5 floor; cuts
++1). The 25 734 / 339 / 118 → 739 / 342 / 117, plan 275 → 306 (+31),
+job-equivalents −1, consensus adds +1. The credit by need is spread (held-out
+top: Silverquill's voltron 19, Avengers' Hero enters 17, Deadly Disguise's
+facedown makers 14; no need took a deck). `w41/sb-*-E1c.json`.
+
+**Baseline after E1 (E1c):** the 25 739 / 342 / 117 (page@30 156, plan 306 of
+739); held-out 20 581 / 256 / 99 (page@30 161, plan 198 of 581).

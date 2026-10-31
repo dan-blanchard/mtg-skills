@@ -1467,35 +1467,29 @@ def propose_swaps(
         )
         if read is not None and read.theme_ties:
             out = _theme_ties(out, read)
-        if needs_here and cut_focus.mains:
+        if needs_here:
             out = _need_ties(out)
         return out
 
-    def _on_plan_job(card: dict) -> bool:
-        """A job card the guides' kind: it supplies one of the commander's needs
-        AND serves one of the deck's main lanes (Smothering Tithe under a Treasure
-        commander in a Treasure deck; not any Treasure maker anywhere)."""
-        if not supplies_need(card):
-            return False
-        served = rank([card])[0]["score"]["served"]
-        return bool(cut_focus.mains.intersection(served))
-
     def _need_ties(ranked: list[dict]) -> list[dict]:
-        """``ranked`` with an on-plan job card (:func:`_on_plan_job`) taking the
-        place of one that isn't when the two are a near tie in play-rate (within
-        ``_CHEAPER_TIE``, a factor of two in rank). A near tie, never a hold: a
-        clearly better-played staple keeps its place. Only the head of the order
-        (``_THEME_TIE_WINDOW``) is walked."""
+        """``ranked`` with a job card that supplies one of the commander's
+        specific needs (:func:`supplies_need`: Smothering Tithe under a Treasure
+        commander) taking the place of one that doesn't when the two are a near
+        tie in play-rate (within ``_CHEAPER_TIE``, a factor of two in rank). A
+        near tie, never a hold: a clearly better-played staple keeps its place.
+        Only the head of the order (``_THEME_TIE_WINDOW``) is walked. The wide
+        tie (any need, not only one the deck's main lanes also serve): measured
+        2026-10-30, it is what moves plan-consistency, the gate's primary line."""
         head = list(ranked[:_THEME_TIE_WINDOW])
         out: list[dict] = []
         while head:
             pick = head[0]
-            if not _on_plan_job(pick):
+            if not supplies_need(pick):
                 top = math.log10(edhrec_popularity(pick))
                 for later in head[1:]:
                     if math.log10(
                         edhrec_popularity(later)
-                    ) - top <= _CHEAPER_TIE and _on_plan_job(later):
+                    ) - top <= _CHEAPER_TIE and supplies_need(later):
                         pick = later
                         break
             out.append(pick)
