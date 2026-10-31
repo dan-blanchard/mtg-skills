@@ -526,8 +526,16 @@ def _resource_needs(idents: Iterable[str], desc: str) -> Iterator[Need]:
     # A commander that grows itself (Mirko's "+1/+1 counter on ~") makes no
     # counters the deck's counter payoffs could use.
     self_grow = any(i.startswith("self_counter_grow|") for i in idents)
+    # Every kind of creature token the commander makes feeds that kind's
+    # payoffs (Clavileño's Vampires AND Demons): one consumers need over all
+    # of them, whatever order the idents came in.
+    token_kinds = frozenset(
+        ident.split("|", 2)[2]
+        for ident in idents
+        if ident.startswith(f"{TOKEN_MAKER}|") and ident.split("|", 2)[2]
+    )
     for ident in idents:
-        key, _scope, subject = ident.split("|", 2)
+        key = ident.split("|", 1)[0]
         if key == "plus_one_makers" and self_grow:
             continue
         if key in _UMBRELLA_KEYS:
@@ -537,21 +545,19 @@ def _resource_needs(idents: Iterable[str], desc: str) -> Iterator[Need]:
             consumers -= _UMBRELLA_KEYS
             if key == TOKEN_MAKER:
                 consumers |= {"sacrifice_outlets", "death_matters"}
-                if subject:
-                    consumers.add("type_matters")
             if not consumers or key in seen:
                 continue
             seen.add(key)
             idents_ = (
-                frozenset({f"type_matters|you|{subject}"})
-                if subject and key == TOKEN_MAKER
+                frozenset(f"type_matters|you|{kind}" for kind in token_kinds)
+                if key == TOKEN_MAKER
                 else frozenset()
             )
             yield Need(
                 "resource",
                 f"{key.replace('_makers', '').replace('_', ' ')} consumers",
                 desc,
-                keys=frozenset(consumers - {"type_matters"}),
+                keys=frozenset(consumers),
                 idents=idents_,
             )
 
@@ -717,8 +723,9 @@ def commander_needs(commanders: Sequence[Mapping]) -> tuple[Need, ...]:
 
     for rec in commanders:
         # Without the membership floor: a commander's own creature types and
-        # card types are what it IS, not what it asks for.
-        idents = _card_idents(rec, membership=False)
+        # card types are what it IS, not what it asks for. Sorted: the needs
+        # come out in one order whatever the process's hash seed.
+        idents = sorted(_card_idents(rec, membership=False))
         for tree in trees_for(dict(rec)):
             for unit in tree.units:
                 node = unit.node

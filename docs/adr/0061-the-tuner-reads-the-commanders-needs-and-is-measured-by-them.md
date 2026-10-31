@@ -92,3 +92,23 @@ main depth as a main whatever share of its feeders care (Living Energy's
 Artifacts umbrella took the Energy adds); the fold guard without the builders
 floor (Saheeli's Artificers became protected lane doers). The audit report's
 "Phase B" section holds every run.
+
+**Amendment (2026-10-30, the plan-primary gate).** The gate above anchored on the
+guides' exact names, and the day's measurements showed what that anchor does:
+every lever that moved the tune's adds onto the commander's plan (the wide need
+near tie on the job pages, the incidental-job read, the marquee, the removal
+slots — alone and bundled) raised plan-consistency by tens and cost exact guide
+adds by a few, and the gate rejected each. The guides are the yardstick of a
+tune's reach and job reads, not of which of several on-plan cards it names.
+From here **plan-consistency is primary**: a tune-policy change ships when the
+held-out 20's plan-consistent adds rise by 10 or more, with the guides as the
+floor — held-out guide adds and job-equivalent adds fall by at most 5 together,
+held-out guide cuts by at most 1. Consensus adds, page recall and the 25 are
+reported, not gated. A change to the need read ships on correctness (each need
+checked against the commander's text with rules-lawyer; the floor holding) and
+re-bases the plan line; a read change and a policy change are never measured in
+one run. The scoreboard's PLAN line reports the credit by need so a page
+swallowing a deck's adds would show. Under this gate the wide near tie (E1)
+replaces the narrowed one (E2) in `swaps._need_ties`: any card supplying a
+specific need takes a near tie on a job page, whether or not a main lane also
+serves it.
