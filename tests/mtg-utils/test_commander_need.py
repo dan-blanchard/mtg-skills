@@ -393,3 +393,21 @@ def test_a_commanders_own_combat_damage_trigger_wants_grants_to_it():
     assert not satisfies(test_card("Serra Angel"), need)
     # A trigger on any of your creatures keeps the attackers' evasion need.
     assert "evasion for your attackers" in _labels(_needs("Olivia, Opulent Outlaw"))
+
+
+def test_an_effect_scaled_by_the_sacrificed_creatures_power_wants_cheap_big_bodies():
+    # Dina's "{2}, {T}, Sacrifice another creature: You gain X life and put X
+    # +1/+1 counters on target creature you control, where X is the sacrificed
+    # creature's power" (phase: ``Power`` of ``CostPaidObject`` under a
+    # creature-sacrifice cost). Kalakscion, Hunger Tyrant is a vanilla 7/2 for
+    # three; Jumbo Cactuar's printed power is 1.
+    need = _need(
+        "Dina, Essence Brewer",
+        "sacrifice fodder with power 5+ at mana value 4 or less",
+    )
+    assert satisfies(test_card("Kalakscion, Hunger Tyrant"), need)
+    assert not satisfies(test_card("Jumbo Cactuar"), need)
+    assert not satisfies(test_card("Grizzly Bears"), need)
+    # A cast trigger's check of the spell's power is not a sacrifice (Eshki).
+    labels = _labels(_needs("Eshki, Temur's Roar"))
+    assert not any("sacrifice fodder" in label for label in labels)
