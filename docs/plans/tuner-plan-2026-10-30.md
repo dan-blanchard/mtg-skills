@@ -260,6 +260,10 @@ miss taxonomy, the held-out candidates).
   a census first: the pool's Pirates over-index on Treasure makers (10.5×), Combat
   (3.8×), combat damage, blink and evasion — not on theft at all, so Ahoy Mateys'
   13 theft adds stay out of reach of a first-principles read whatever the bar.
+  Measured: 2.0× / 10% on the 25 adds −5, plan −4 (TPa); 3.0× / 15% adds −2, plan
+  −5 (TPb); TPb on the held-out 20 adds −2, plan 0, cuts 0 → FAILED, settled (the
+  backlog entry). The graveyard-hate row (branch `block2-hate-row`) runs next
+  (HR1); the alternate-commander compare is being built on `block2-compare-commanders`.
 
 ## Target
 
