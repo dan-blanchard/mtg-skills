@@ -3138,7 +3138,8 @@ def test_voltron_matters_recovered_mechanisms(name):
         "Unexpected Request",  # "you may attach an Equipment…to that creature"
         "Armed and Armored",  # "Attach any number of Equipment…to it"
         "Super-Soldier Serum",  # attach-on-attack trigger, self Aura payload
-        "Goldwardens' Gambit",  # per-token attach (Unimplemented residue)
+        # (Goldwardens' Gambit's per-token attach is no payoff, but its affinity
+        # for Equipment is: it counts your Equipment, CR 702.41a.)
         "Inventory Management",  # repeat-attach for each Aura/Equipment owned
         "Resolute Strike",  # "…you may attach an Equipment…to it"
         "Benevolent Blessing",  # protection carve-out, not a payoff
