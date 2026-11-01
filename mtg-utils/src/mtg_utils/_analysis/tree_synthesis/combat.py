@@ -22,6 +22,7 @@ from mtg_utils._card_ir.crosswalk import (
     AGGREGATE_QTY_TAGS,
     ConceptNode,
     ConceptTree,
+    attack_trigger_side,
     condition_tags,
     count_operand_filter,
     effect_filter,
@@ -122,7 +123,7 @@ def _watches_attacks_on_you(unit: object) -> bool:
     attackers as your creatures (Legion's Landing): both stay offensive."""
     node = getattr(unit, "node", None)
     if getattr(unit, "trigger_event", None) == "attacks" and (
-        tag_of(getattr(node, "valid_target", None)) == "Controller"
+        attack_trigger_side(node) == "opponents"
     ):
         return True
     return filter_controller(getattr(node, "valid_card", None)) == "Opponent"

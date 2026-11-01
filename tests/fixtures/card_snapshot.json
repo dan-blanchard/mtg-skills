@@ -1080187,6 +1080187,345 @@
     "type_line": "Kindred Enchantment — Lhurgoyf Aura"
    }
   },
+  "Tasha, Unholy Archmage": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "activation_restrictions": [
+        {
+         "type": "AsSorcery"
+        }
+       ],
+       "condition": null,
+       "cost": {
+        "amount": 1,
+        "type": "Loyalty"
+       },
+       "description": "[+1]: Until your next turn, whenever a creature attacks you or ~, put a -1/-1 counter on that creature.",
+       "duration": null,
+       "effect": {
+        "condition": {
+         "expiry": {
+          "UntilControllersNextTurn": {
+           "after": "AfterCreationTurn"
+          }
+         },
+         "trigger": {
+          "attack_target_filter": "Player",
+          "batched": false,
+          "condition": null,
+          "constraint": null,
+          "damage_kind": "Any",
+          "description": null,
+          "destination": null,
+          "execute": null,
+          "mode": "Attacks",
+          "optional": false,
+          "origin": null,
+          "phase": null,
+          "secondary": false,
+          "trigger_zones": [
+           "Battlefield"
+          ],
+          "valid_card": {
+           "controller": null,
+           "properties": [],
+           "type": "Typed",
+           "type_filters": [
+            "Creature"
+           ]
+          },
+          "valid_source": null,
+          "valid_target": {
+           "type": "Controller"
+          }
+         },
+         "type": "WheneverEvent"
+        },
+        "effect": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "count": {
+           "type": "Fixed",
+           "value": 1
+          },
+          "counter_type": "M1M1",
+          "target": {
+           "type": "TriggeringSource"
+          },
+          "type": "PutCounter"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": null,
+         "target_prompt": null
+        },
+        "type": "CreateDelayedTrigger",
+        "uses_tracked_set": false
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      },
+      {
+       "activation_restrictions": [
+        {
+         "type": "AsSorcery"
+        }
+       ],
+       "condition": null,
+       "cost": {
+        "amount": -2,
+        "type": "Loyalty"
+       },
+       "declares_chosen_group": 0,
+       "description": "[−2]: Target opponent puts a creature card of their choice from their graveyard onto the battlefield under your control. That creature gains ward {2}.",
+       "duration": null,
+       "effect": {
+        "target": {
+         "controller": "Opponent",
+         "properties": [],
+         "type": "Typed",
+         "type_filters": []
+        },
+        "type": "TargetOnly"
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "destination": "Battlefield",
+         "enter_tapped": false,
+         "enter_transformed": false,
+         "enters_attacking": false,
+         "enters_under": "You",
+         "origin": "Graveyard",
+         "owner_library": false,
+         "target": {
+          "controller": null,
+          "properties": [],
+          "type": "Typed",
+          "type_filters": [
+           "Creature"
+          ]
+         },
+         "type": "ChangeZone"
+        },
+        "forward_result": true,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "duration": null,
+          "static_abilities": [
+           {
+            "active_zones": [],
+            "affected": {
+             "type": "ParentTarget"
+            },
+            "affected_zone": null,
+            "characteristic_defining": false,
+            "condition": null,
+            "description": "gain ward {2}",
+            "effect_zone": null,
+            "mode": "Continuous",
+            "modifications": [
+             {
+              "keyword": {
+               "Ward": {
+                "data": {
+                 "generic": 2,
+                 "shards": [],
+                 "type": "Cost"
+                },
+                "type": "Mana"
+               }
+              },
+              "type": "AddKeyword"
+             }
+            ]
+           }
+          ],
+          "target": {
+           "type": "ParentTarget"
+          },
+          "type": "GenericEffect"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": null,
+         "sub_link": "SequentialSibling",
+         "target_prompt": null
+        },
+        "target_choice_timing": "Resolution",
+        "target_prompt": null
+       },
+       "target_prompt": null
+      },
+      {
+       "activation_restrictions": [
+        {
+         "type": "AsSorcery"
+        }
+       ],
+       "condition": null,
+       "cost": {
+        "amount": -6,
+        "type": "Loyalty"
+       },
+       "declares_chosen_group": 2147483648,
+       "description": "[−6]: Target opponent reveals cards from the top of their library until they reveal three creature cards. Put those cards onto the battlefield under your control. That player puts the rest into their graveyard.",
+       "duration": null,
+       "effect": {
+        "count": {
+         "type": "Fixed",
+         "value": 3
+        },
+        "enters_under": "You",
+        "filter": {
+         "controller": null,
+         "properties": [],
+         "type": "Typed",
+         "type_filters": [
+          "Creature"
+         ]
+        },
+        "kept_destination": "Battlefield",
+        "player": {
+         "controller": "Opponent",
+         "properties": [],
+         "type": "Typed",
+         "type_filters": []
+        },
+        "rest_destination": "Graveyard",
+        "type": "RevealUntil"
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "brawl_commander": true,
+     "card_type": {
+      "core_types": [
+       "Planeswalker"
+      ],
+      "subtypes": [
+       "Tasha"
+      ],
+      "supertypes": [
+       "Legendary"
+      ]
+     },
+     "color_identity": [
+      "Black",
+      "Blue"
+     ],
+     "color_override": [
+      "Black",
+      "Blue"
+     ],
+     "defense": null,
+     "flavor_name": null,
+     "is_oathbreaker": true,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "historic": "legal",
+      "timeless": "legal"
+     },
+     "loyalty": "4",
+     "mana_cost": {
+      "generic": 2,
+      "shards": [
+       "Blue",
+       "Black"
+      ],
+      "type": "Cost"
+     },
+     "name": "Tasha, Unholy Archmage",
+     "non_ability_text": null,
+     "oracle_text": "[+1]: Until your next turn, whenever a creature attacks you or Tasha, Unholy Archmage, put a -1/-1 counter on that creature.\n[−2]: Target opponent puts a creature card of their choice from their graveyard onto the battlefield under your control. That creature gains ward {2}.\n[−6]: Target opponent reveals cards from the top of their library until they reveal three creature cards. Put those cards onto the battlefield under your control. That player puts the rest into their graveyard.",
+     "power": null,
+     "printings": [
+      "HBG"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "33ad9da4-35d0-467f-be3b-abb77c00c3d3",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 4.0,
+    "color_identity": [
+     "B",
+     "U"
+    ],
+    "colors": [
+     "B",
+     "U"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "not_legal",
+     "competitivebrawl": "legal",
+     "duel": "not_legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "not_legal",
+     "modern": "not_legal",
+     "oathbreaker": "not_legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "not_legal"
+    },
+    "loyalty": "4",
+    "mana_cost": "{2}{U}{B}",
+    "name": "Tasha, Unholy Archmage",
+    "oracle_id": "33ad9da4-35d0-467f-be3b-abb77c00c3d3",
+    "oracle_text": "[+1]: Until your next turn, whenever a creature attacks you or Tasha, Unholy Archmage, put a -1/-1 counter on that creature.\n[−2]: Target opponent puts a creature card of their choice from their graveyard onto the battlefield under your control. That creature gains ward {2}.\n[−6]: Target opponent reveals cards from the top of their library until they reveal three creature cards. Put those cards onto the battlefield under your control. That player puts the rest into their graveyard.",
+    "type_line": "Legendary Planeswalker — Tasha"
+   }
+  },
   "Tasha, the Witch Queen": {
    "phase_records": [
     {

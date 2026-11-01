@@ -180,6 +180,16 @@ def test_a_token_copy_of_itself_keeps_its_tribe():
 
 @pytest.mark.parametrize("name", ["Underbridge Warlock", "Reflective Rimekin"])
 def test_a_boon_on_entering_is_an_enters_payload(name):
-    """ "When this creature enters, you get a one-time boon with …" — the
-    boon is the value each entry re-delivers."""
+    """Its enters trigger gives you a one-time boon: the value each entry
+    re-delivers."""
     assert ("self_etb_payload", "you", "") in _idents(name)
+
+
+# ── debuff_makers: a counter on the creature attacking you ──────────────────
+
+
+def test_a_minus_counter_on_a_creature_attacking_you_is_a_debuff():
+    """Tasha, Unholy Archmage's "+1: Until your next turn, whenever a creature
+    attacks you or Tasha, put a -1/-1 counter on that creature": the attacker is
+    an opponent's (CR 508.1a)."""
+    assert ("debuff_makers", "any", "") in _idents("Tasha, Unholy Archmage")
