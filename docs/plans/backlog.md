@@ -424,20 +424,9 @@ theme guide adds no theme serve admits (J2: 100) — Ahoy Mateys 13 (theft), Sil
 ETB doublers), ~45 scattered one to seven a deck. Gate unchanged (held-out 20: plan
 ≥ +10, adds + job-equivalents ≥ −5, cuts ≥ −1). In order:
 
-- **Triage of the 53 scattered never-admitted adds** (the ~45 plus Silverquill's 8):
-  one Opus pass, each card a recall gap (a read the deck's plan should admit — a read
-  fix, ships on correctness) or a guide-specific pick (recorded as the first-principles
-  ceiling in the audit doc). Deck-wide trigger doublers as a theme AVENUE were
-  measured negative (`Sourcing.multiplier_avenue`); Panharmonicon / Elesh Norn under
-  Satya need a new read, not that avenue. Two read gaps the issue packaging found
-  (2026-11-01, re-checking the reports against v0.118.0) join the pass: a token
-  node's `player_scope` (`OwnersOfCardsExiledBySource` on Skyclave Apparition: the
-  token is the exiled card's owner's, not yours — the token-maker read reads `owner`
-  alone), and the record-level `casting_options: [{kind: AsThoughHadFlash,
-  condition?}]` our instant-speed read never opens (Crashing Tide, Graveyard Shift,
-  Mutual Destruction, Take for a Ride, Necromancy; the ledger row
-  `conditional_self_flash_dropped` should read it and retire).
-  Triage pass done (2026-11-01): verdicts in `docs/plans/precon-audit/triage-2026-11-01.md`.
+- The triage of the never-admitted adds is done (61 cards; 21 recall gaps fixed as
+  reads, 39 guide-specific, one settled as ceiling — the verdict below and
+  `docs/plans/precon-audit/triage-2026-11-01.md`).
 - **A fresh validation set** of 10 never-used precon families (≥ 2 guides, any year,
   the held-out method) under `~/mtg/tuner-work/fresh/root`, scored at N11 (295 / 130
   of 193 / 38 of 386 / plan 119; `w41/sb-fresh-N11.json`); scored once more at block
@@ -1063,6 +1052,33 @@ headroom and parked items.
   S-A, above); Enlightened Tutor and Moonsilver Key are tutor-row fills (T1 and
   PR1, above); Call the Gatewatch and Firemind's Foresight sit past the 150-card
   page (P2, above). Don't re-suggest a page for them without a new read.
+- **The never-admitted adds are triaged; what is left is the guides' own choices
+  (2026-11-01).** `docs/plans/precon-audit/triage-2026-11-01.md`: 61 cards (the 84 less
+  Ahoy Mateys' 13 and the 10 other tutors), one verdict each, every rules claim through
+  the CLIs. 21 recall gaps fixed as reads in three passes (merged 6523840f, 35f80ce4,
+  0e6365e2, 6b7195ae): a token's `player_scope` and an effect for an answered
+  target's controller or owner are the opponents' (`crosswalk.effect_actor_scope`,
+  `acts_for_answered_target`, `effects_by_actor` — Skyclave Apparition, Spell
+  Queller, Darkstar Banisher, Reality Shift, Unidentified Hovership); phase's
+  record-level `casting_options` flash (`casts_as_though_flash`, 33 cards; the ledger
+  row retired); an opponents'-draw count; the resource needs' missing consumers; a
+  planeswalker commander's loyalty need; a commander's own `<type>_matter` trigger
+  as a redundancy page; a cast trigger reading the spell's power; the counter-added
+  need by counter kind; a commander's own combat-damage trigger asking for grants
+  that reach it; a nontoken sacrifice trigger fed by no token maker; Dina's
+  "sacrifice fodder with power 5+ at mana value 4 or less" (Kalakscion is a vanilla
+  7/2); Mirrormind Crown's parked replacement as a ledger row. Re-based N13 → N15:
+  held-out plan +28, guide adds −1 (Witherbloom's add to a near-miss under Dina's
+  page), cuts −1; the 25 adds +3. 39 guide-specific: the first-principles ceiling
+  (Panharmonicon and Elesh Norn multiply the copied creatures' ETBs, not Satya's
+  trigger; Saradoc and Serra Redeemer trigger on face-down 2/2s, a pair read;
+  Ephemerate, Approach of the Second Sun, Insurrection, Lurrus and the rest are the
+  guides' picks). One settled as ceiling: Secret Arcade // Dusty Parlor under Killian
+  makes your permanents enchantments (a static ability's continuous effect, CR
+  611.3), and an enters trigger checks the newcomer as it sits on the battlefield
+  (CR 603.6a), so each of your permanents enters as an enchantment for Killian; a
+  "makes your permanents the commander's watched type" read would admit it, for one
+  card in one deck — not built. Don't re-triage this bucket without a new reach profile.
 - **Ramp need not land two turns before the commander — settled 2026-11-01 (R1).**
   The 2026-10-30 plan's "ramp MV ≤ commander MV − 2": nonland ramp that lands later
   (`ramp_in_time`, `RAMP_LEAD` 2; never fixing, premium or the commander's lane) read
