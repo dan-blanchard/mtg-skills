@@ -15,6 +15,7 @@ from mtg_utils._analysis._subtypes import (
 from mtg_utils._analysis._sweep_detectors import COMBAT_DAMAGE_TO_OPP_DS_GRANT_REGEX
 from mtg_utils._analysis.lanes._shared import (
     _EDICT_ACTORS,
+    _GY_MATTERS_KEYWORDS,
     YOU_EACH,
     _attack_compulsion_hit,
     _kept,
@@ -69,6 +70,7 @@ from mtg_utils._card_ir.crosswalk import (
     iter_nested_trigger_defs,
     iter_static_defs,
     iter_typed_nodes,
+    keyword_bodies,
     keyword_resource_events,
     life_lost_this_turn_sides,
     lifeloss_recipient_is_degraded_typed,
@@ -87,11 +89,13 @@ from mtg_utils._card_ir.crosswalk import (
     tag_of,
     targets_the_card,
     token_creator_side,
+    trigger_damage_kind,
     trigger_scope,
     trigger_subject,
     trigger_subject_scope,
     trigger_turn_constraint,
     trigger_zone_changes,
+    yours_cast_keywords,
 )
 from mtg_utils._card_ir.crosswalk.reads import GrantedTrigger, chooses
 from mtg_utils._card_ir.mirror.runtime import (
@@ -366,6 +370,12 @@ def _graveyard_makers(tree: ConceptTree) -> list[Signal]:
     for unit in tree.units:
         if self_graveyard_fills(unit):
             fire("you", getattr(unit.node, "description", None) or "")
+    # Soulshift returns a Spirit card from your graveyard to your hand (CR
+    # 702.46a). phase expands a printed "Soulshift N" into its dies trigger,
+    # read above; a granted one is only the keyword (Kodama of the Center
+    # Tree's "~ has soulshift X").
+    if "soulshift" in keyword_bodies(tree):
+        fire("you", "")
     return out
 
 
@@ -862,6 +872,10 @@ def _gy_count_ref_scope(node: object) -> str | None:
         if getattr(node, "from_", None) == "Battlefield":
             return None
         return "you"
+    # "if you descended this turn": a permanent card was put into your
+    # graveyard from anywhere this turn (CR 700.11).
+    if t == "DescendedThisTurn":
+        return "you"
     return None
 
 
@@ -902,6 +916,12 @@ def _gy_filter_scope(filt: object) -> str | None:
     if ctrl == "You":
         return "you"
     return "you" if tag_of(filt) == "Typed" else None
+
+
+#: The keyword actions that exile cards from your graveyard as fuel: collect
+#: evidence (CR 701.59a) and forage (CR 701.61a: "Exile three cards from your
+#: graveyard or sacrifice a Food").
+_GRAVEYARD_FUEL_ACTIONS = frozenset({"CollectEvidence", "Forage"})
 
 
 def _graveyard_matters(tree: ConceptTree) -> list[Signal]:
@@ -1085,12 +1105,30 @@ def _graveyard_matters(tree: ConceptTree) -> list[Signal]:
             if sc is not None:
                 fire(sc, c.raw)
 
-        for c in unit.costs:
-            for leaf in iter_cost_leaves(c.node):
+        # The costs the unit pays: its own, and one an effect asks you to pay
+        # ("you may forage" — a ``PayCost`` of "exile three cards from your
+        # graveyard or sacrifice a Food", CR 701.61a).
+        paid = [c.node for c in unit.costs] + [
+            getattr(c.node, "cost", None)
+            for c in unit.effects
+            if tag_of(c.node) == "PayCost"
+        ]
+        # Collecting evidence or foraging wherever the unit does it — an effect
+        # ("you may collect evidence 4" — Surveillance Monitor; "you may forage"
+        # — Corpseberry Cultivator) or an alternative cost ("You may collect
+        # evidence 10 rather than pay the mana cost" — Conspiracy Unraveler).
+        # A Ward cost is the opponent's to pay (CR 702.21a) and is a keyword,
+        # not a unit (Axebane Ferox).
+        if any(tag_of(n) in _GRAVEYARD_FUEL_ACTIONS for n in unit.iter_typed()):
+            fire("you", "")
+        for cost in paid:
+            for leaf in iter_cost_leaves(cost):
                 if (
                     tag_of(leaf) == "Exile"
                     and getattr(leaf, "zone", None) == "Graveyard"
-                ):
+                ) or tag_of(leaf) == "CollectEvidence":
+                    # Collect evidence N exiles cards from your graveyard with
+                    # total mana value N or greater (CR 701.59a).
                     fire("you", "")
                 # ADR-0038 W5b (CR 702.167a) — Craft: "Craft with
                 # [materials] [cost]" means "…, Exile [materials] from
@@ -1208,6 +1246,22 @@ def _graveyard_matters(tree: ConceptTree) -> list[Signal]:
                         fire("you", "")
                         fire(sc, "")
 
+    # A modal spell's choice gated on your graveyard ("Choose one. If you
+    # descended this turn, you may choose both instead." — Molten Collapse)
+    # reads like a unit's condition.
+    for cond in tree.card_modal_conditions:
+        for n in iter_typed_nodes(cond):
+            if (sc := _gy_count_ref_scope(n)) is not None:
+                fire("you", "")
+                fire(sc, "")
+
+    # A graveyard keyword the card gives your spells reads as one it has
+    # (``_keyword_field_signals``' dredge / delve / scavenge): "Spells you cast
+    # have delve" (Teval, Arbiter of Virtue; CR 702.66a exiles cards from your
+    # graveyard to pay).
+    if yours_cast_keywords(tree) & _GY_MATTERS_KEYWORDS:
+        fire("you", "")
+
     # ADR-0038 W5b — the deleted ``_graveyard_count_markers`` producer's
     # raw fallback (CR 400.1): a count/cost gate over "cards … in all
     # graveyards" phase left stranded with NO typed count node the
@@ -1259,6 +1313,7 @@ def _graveyard_matters(tree: ConceptTree) -> list[Signal]:
                     "DistinctCardTypes",
                     "ZoneCardCountAtLeast",
                     "TargetZoneCardCount",
+                    "DescendedThisTurn",
                 ):
                     continue
                 gy_covered = True
@@ -2316,6 +2371,42 @@ def _counters_an_attacker_of_yours(unit: AbilityUnit, c: ConceptNode) -> bool:
     return trig is not None and attack_trigger_side(trig) == "opponents"
 
 
+def _counters_a_foe(unit: AbilityUnit, c: ConceptNode) -> bool:
+    """Whether a counter placement phase scopes to you names another player's
+    creature through a back-reference: the creatures the unit chose with a
+    ``TargetOnly`` not restricted to yours ("Choose two target creatures
+    controlled by the same opponent. … Put a -1/-1 counter on the other" —
+    Retribution's ``TrackedSet``), or the creature your creature dealt combat
+    damage to ("Whenever this creature deals combat damage to a creature, put a
+    -1/-1 counter on that creature" — Obelisk Spider's ``EventTarget``): combat
+    damage passes only between an attacking creature and the creatures blocking
+    it (CR 510.1c-d), and the defending player blocks with their own creatures
+    (CR 509.1a), so it is an opponent's."""
+    tag = tag_of(getattr(c.node, "target", None))
+    if tag in ("TrackedSet", "ParentTarget"):
+        for s in unit.effects:
+            if s is c:
+                return False
+            if (
+                tag_of(s.node) == "TargetOnly"
+                and s.scope != "you"
+                and "Creature" in filter_core_types(getattr(s.node, "target", None))
+            ):
+                return True
+        return False
+    if tag != "EventTarget" or unit.trigger_event != "deals_damage":
+        return False
+    trig = unit.node
+    victim = getattr(trig, "valid_target", None)
+    source = getattr(trig, "valid_source", None)
+    return (
+        trigger_damage_kind(trig) == "CombatOnly"
+        and tag_of(victim) == "Typed"
+        and "Creature" in filter_core_types(victim)
+        and (tag_of(source) == "SelfRef" or filter_controller(source) == "You")
+    )
+
+
 def _debuff_makers(tree: ConceptTree) -> list[Signal]:
     """debuff_makers — a -X/-X / -1/-1 enabler (CR 613.4c / 704.5f), one signal
     per scope over :func:`_debuff_sites`."""
@@ -2394,7 +2485,11 @@ def _debuff_sites(tree: ConceptTree) -> list[tuple[str, str, bool]]:
             if (
                 c.concept == "place_counter"
                 and counter_kind(c.node).upper() == "M1M1"
-                and (c.scope != "you" or _counters_an_attacker_of_yours(unit, c))
+                and (
+                    c.scope != "you"
+                    or _counters_an_attacker_of_yours(unit, c)
+                    or _counters_a_foe(unit, c)
+                )
             ):
                 fire("any", c.raw)
         # phase v0.104.0 residues: a -X/-X shrink its parsers failed on (Death's
@@ -2488,6 +2583,12 @@ def _debuff_sites(tree: ConceptTree) -> list[tuple[str, str, bool]]:
             v = mod_value(c.node)
             if v is not None and v <= 2:
                 fire("you", c.raw)
+    # Flanking is a -1/-1 on each creature without it that blocks its holder
+    # (CR 702.25a). A printed flanking is phase's own trigger, read above; one
+    # the card grants a body of yours is only the keyword (Agility, Sidewinder
+    # Sliver, Jabari's Banner).
+    if "flanking" in keyword_bodies(tree):
+        fire("any", "")
     return out
 
 

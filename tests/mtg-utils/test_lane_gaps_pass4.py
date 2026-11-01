@@ -74,3 +74,76 @@ def test_combat_damaged_player_is_an_opponent(name, edicts):
 )
 def test_opponents_sacrifice_trigger_is_no_outlet(name, outlet):
     assert bool(_keyed(name, "sacrifice_outlets")) is outlet
+
+
+# ── debuff_makers: granted flanking, back-referenced -1/-1 counters ──────────
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        # "Enchanted creature gets +1/+1 and has flanking" (CR 702.25a: the
+        # blocker without flanking gets -1/-1).
+        "Agility",
+        "Sidewinder Sliver",
+        "Jabari's Banner",
+        # "Choose two target creatures controlled by the same opponent. …
+        # Put a -1/-1 counter on the other."
+        "Retribution",
+        # "Whenever this creature deals combat damage to a creature, put a -1/-1
+        # counter on that creature" — the creature it fought is an opponent's.
+        "Obelisk Spider",
+    ],
+)
+def test_debuff_reaches_granted_flanking_and_back_referenced_counters(name):
+    assert ("debuff_makers", "any", "") in _idents(name)
+
+
+def test_own_minus_counter_stays_off_debuff():
+    """Matopi Golem's -1/-1 counter on itself is a cost, not a debuff."""
+    assert not _keyed("Matopi Golem", "debuff_makers")
+
+
+# ── damage_prevention: a granted absorb ──────────────────────────────────────
+
+
+def test_granted_absorb_is_damage_prevention():
+    # "All Sliver creatures have absorb 1" (CR 702.64a: prevent 1 of the damage).
+    assert ("damage_prevention", "you", "") in _idents("Lymph Sliver")
+
+
+# ── graveyard_matters / graveyard_makers: the own-graveyard remainder ───────
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        # collect evidence (CR 701.59a): a cost, an effect, an additional and
+        # an alternative cost
+        "Tenth District Hero",
+        "Surveillance Monitor",
+        "Crimestopper Sprite",
+        "Conspiracy Unraveler",
+        # forage (CR 701.61a): an effect, a PayCost, an additional cost
+        "Corpseberry Cultivator",
+        "Bushy Bodyguard",
+        "Feed the Cycle",
+        # descended this turn (CR 700.11): a trigger condition, a modal gate
+        "Ruin-Lurker Bat",
+        "Molten Collapse",
+        # "Spells you cast have delve" (CR 702.66a)
+        "Teval, Arbiter of Virtue",
+    ],
+)
+def test_graveyard_fuel_and_descend_are_graveyard_matters(name):
+    assert ("graveyard_matters", "you", "") in _idents(name)
+
+
+def test_ward_collect_evidence_is_the_opponents_cost():
+    # "Ward—Collect evidence 4": the opponent who targets it pays (CR 702.21a).
+    assert ("graveyard_matters", "you", "") not in _idents("Axebane Ferox")
+
+
+def test_granted_soulshift_is_a_graveyard_maker():
+    # "~ has soulshift X" (CR 702.46a: return a Spirit card from your graveyard).
+    assert ("graveyard_makers", "you", "") in _idents("Kodama of the Center Tree")
