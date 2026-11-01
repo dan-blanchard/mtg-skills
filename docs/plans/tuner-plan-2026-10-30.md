@@ -271,7 +271,16 @@ miss taxonomy, the held-out candidates).
   --compare-commanders`, deck-forge's `compare_commanders` payload flag and Tune
   panel table; branch `block2-compare-commanders`) is built, tests green; its
   evaluation against the nine guides that switch commanders
-  (`w41/alt-commander-guides.md`) follows.
+  (`w41/alt-commander-guides.md`; `docs/plans/precon-audit/compare_commanders_eval.py`
+  → `w41/compare-commanders-eval.txt`): the guide's alternate ranks first in 1 of 9
+  (Tyranid Swarm → Magus Lucea Kane) and above the face commander in 5 of 9; the
+  top pick disagrees with the guide in 8 of 9 (Temur Roar: Dragonlord Atarka over
+  Ureni; the fit saturates at 1.0 for every legend serving the tribe's lane, so the
+  issue load decides). An advisory table, reported, not gating: the guides switch
+  for a build's flavor as much as for fit. Multiplayer scaling FAILED its refit
+  (quality 0.712 → 0.710, strength 0.677 → 0.666, negative weights;
+  `w41/scaling-feature-SC.diff`) → settled, no gate run. The off-plan MV ≥ 6 cut
+  (branch `block2-value-rules`) runs as R2.
 
 ## Target
 
