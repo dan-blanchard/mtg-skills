@@ -209,6 +209,16 @@ miss taxonomy, the held-out candidates).
   policy questions decided) re-based as N9 against N8: identical on every count
   in both sets — **baseline N9** (`w41/sb-*-N9.json`; the audit's "The third
   lane pass, re-based").
+- 2026-11-01, the fourth lane pass (eighteen commits by a fourth worktree agent:
+  the `(key, subject)` role table, the every-leaf additional-cost walk, the
+  shared ends-the-game read, the hand-size text arm, affinity for Equipment,
+  front-face keywords in every read, bites off triggering and batch dealers and
+  a page subject narrowed to your own creatures' power, blocker fights, the
+  recovered-clause regexes as seam marks) re-based as N10 against N9: identical
+  on every count in both sets — **baseline N10** (`w41/sb-*-N10.json`; the
+  audit's "The fourth lane pass, re-based"). Open call for Dan: letting the
+  voltron floor read the serve specs adds 12 carriers but would key the signals
+  index on `signal_specs/`; reverted pending that decision.
 
 ## Target
 

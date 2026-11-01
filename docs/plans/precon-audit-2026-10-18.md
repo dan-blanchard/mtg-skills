@@ -3110,3 +3110,34 @@ The ranking clause-breadth entry was stale: ident hits have been attributed to
 their clause since 2026-10-20. Against N8: **identical on every count, both
 sets** — these lanes touch no card the guides name in a tuned slot. **Baseline
 N9** (`w41/sb-*-N9.json`; the same numbers as N8).
+
+## The fourth lane pass, re-based (2026-11-01; N10)
+
+Eighteen commits from a fourth worktree agent (merge d8509a36) on the Pass D
+follow-ups and the Fynn lane items: one `(key, subject)` role table
+(`signal_keys.SUBJECT_ROLES`) that the membership, doer and page-only sets, the
+serve and preset wildcards and the pair reads all derive from (output-neutral:
+the census moved nothing, two tunes byte-identical); a spell's additional cost
+keeps every cost leaf (`permanent_etb|you|replay` 207 → 214; the
+`creature_return_cost_dropped` ledger row graduated two pins); the target-less
+`LoseTheGame` arm moved into the shared `ends_the_game` (Angel of Destiny, Nicol
+Bolas, Dragon-God now count as win conditions); "reveal any number of" is no
+hand-size payoff (104 → 91); affinity for Equipment is a gear-count payoff (CR
+702.41a); every read of a card's own keywords reads its front face (CR 712.8a /
+712.8d; the carrier fallback loses three back-face bodies, `set-scan` 62 back-face
+evasion counts); a bite reads a triggering or batch dealer (`bite` 128 → 136:
+Halana, Moonlight Hunt, Kamahl's Will …) and the Power-as-damage page's
+`creature` subject is narrowed to power a creature of yours sizes
+(`crosswalk.power_is_yours`; 183 → 160: Repentance, Solar Blaze, Mutiny, Alpha
+Brawl leave; the page 478 → 457); a fight between two blockers is no fight of
+yours (Dissension in the Ranks); the lanes' five recovered-clause regexes became
+`read_clause` marks in `_card_ir/recovery.py` (one was dead code). Settled with
+measurements: Smothering Tithe and Pyxis of Pandemonium sit in no stax or
+graveyard-hate lane by those lanes' definitions; the ETB-value recast pair row's
+flat weight never reorders a deck's ETB cards among themselves. Shipped and
+reverted: the voltron floor's `has_other_plan` asking `avenue_spec_for` (12
+carriers more, tunes unchanged) would put `signal_specs/` into the persisted
+signals index's code key, which `test_excludes_signal_specs_which_does_not_feed_
+extraction` forbids — a cache-policy call left for Dan. Against N9: **identical
+on every count, both sets**. **Baseline N10** (`w41/sb-*-N10.json`; the same
+numbers as N8 and N9).
