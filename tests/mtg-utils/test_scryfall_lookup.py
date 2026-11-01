@@ -248,6 +248,35 @@ class TestLookupBatch:
         found = [r for r in results if r is not None]
         assert len(found) == 1
 
+    def test_a_scryfall_error_on_one_name_is_that_name_missing(
+        self, sample_bulk_data, tmp_path
+    ):
+        # One 503 on the cache-miss path lands the name in ``missing`` instead of
+        # aborting the batch, and the batch is not cached, so a rerun retries it.
+        import requests as real_requests
+
+        names_path = tmp_path / "names.json"
+        names_path.write_text(json.dumps(["Viscera Seer", "Brand New Card"]))
+        cache_dir = tmp_path / "cache"
+
+        with patch("mtg_utils.scryfall_lookup.requests") as mock_requests:
+            mock_resp = MagicMock()
+            mock_resp.status_code = 503
+            mock_resp.raise_for_status.side_effect = real_requests.HTTPError(
+                "503 Server Error"
+            )
+            mock_session = MagicMock()
+            mock_session.get.return_value = mock_resp
+            mock_requests.Session.return_value = mock_session
+
+            results, cache_path, names = lookup_cards(
+                names_path, bulk_path=sample_bulk_data, cache_dir=cache_dir
+            )
+
+        assert [r["name"] if r else None for r in results] == ["Viscera Seer", None]
+        assert build_digest(results, names)["missing"] == ["Brand New Card"]
+        assert not cache_path.exists()
+
 
 class TestLookupBatchDeckJSON:
     def test_refuses_a_deck_json_and_names_deck_hydrate(
