@@ -290,9 +290,15 @@ miss taxonomy, the held-out candidates).
   gaps fixed as reads, 39 guide-specific) and re-based as **baseline N13**: held-out
   582 / 253 / 100, plan 291 (+28; the guides' own adds read as plan 304 → 370),
   job-equivalents 47, page recall @10 / @30 +13 / +22; the 25 734 / 339 / 121 (adds
-  +3), plan 364 (+15) (`w41/sb-*-N13.json`; gate diffs vs `sb-ho-N13.json`). Left:
-  the pass's two follow-ups (the three lanes reading `OwnersOfCardsExiledBySource`
-  as yours; Kalakscion under Dina), the fresh set's block-end score, CI, the recap.
+  +3), plan 364 (+15) (`w41/sb-*-N13.json`). The pass's follow-ups merged (35f80ce4:
+  seek, free cast and manifest by the exiled card's owner read as the opponents'
+  through the shared `effects_by_actor`; Dina's "sacrifice fodder with power 5+ at
+  mana value 4 or less" need, Kalakscion a vanilla 7/2 and a recall gap) →
+  **baseline N14**: the 25 identical to N13; held-out 582 / 253 / 99, plan 291 —
+  one guide add in Witherbloom Pestilence became a near-miss as Dina's new page
+  took its slot (`w41/sb-*-N14.json`; gate diffs vs `sb-ho-N14.json`). Left: the
+  pass's last two actor gaps (Reality Shift's manifest, Hovership's manifest
+  dread), the fresh set's block-end score, CI, the recap.
 
 ## Target
 
