@@ -918,6 +918,12 @@ def _doer_name(key: str) -> str:
     return key.replace("_makers", "").replace("_", " ")
 
 
+#: The subject a type payoff ident carries for the event its trigger watches
+#: (``lanes.board_and_ramp``'s type-payoff watchers: ``etb`` an enters trigger,
+#: ``cast`` a cast trigger) → the label word.
+_TYPE_EVENT_SUBJECTS: Mapping[str, str] = {"etb": "entering", "cast": "cast"}
+
+
 def _redundancy_needs(idents: Iterable[str], desc: str) -> Iterator[Need]:
     """Cards that do what the commander itself does (its doer idents): the
     frameworks' "redundancy of the commander's key effect" (goad under Nelly,
@@ -925,6 +931,21 @@ def _redundancy_needs(idents: Iterable[str], desc: str) -> Iterator[Need]:
     keeps a generic doer (an attack trigger) from becoming a need."""
     for ident in idents:
         key, _scope, subject = ident.split("|", 2)
+        if key in _UMBRELLA_KEYS and subject in _TYPE_EVENT_SUBJECTS:
+            # The commander's own trigger on a card type entering or being cast
+            # ("Whenever an enchantment you control enters" — Killian: the
+            # ``enchantments_matter|you|etb`` ident): the cards with that same
+            # trigger do what it does (Grim Guardian's constellation, Victor's
+            # eerie, Ondu Spiritdancer). The umbrella key alone stays out.
+            yield Need(
+                "redundancy",
+                f"{_TYPE_EVENT_SUBJECTS[subject]} "
+                f"{key.removesuffix('s_matter').replace('_', ' ')} payoffs "
+                "like the commander",
+                desc,
+                idents=frozenset({ident}),
+            )
+            continue
         if key in _UMBRELLA_KEYS or _self_life_payment(ident):
             continue
         if key == TOKEN_MAKER or key.endswith("_makers"):

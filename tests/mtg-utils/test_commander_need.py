@@ -306,6 +306,27 @@ def test_a_planeswalker_commander_wants_proliferate_for_its_loyalty():
     assert "loyalty on the commander" not in labels
 
 
+def test_an_enchantment_entering_commander_wants_more_of_its_trigger():
+    # Killian's "Whenever an enchantment you control enters": the cards with the
+    # same trigger do what it does (constellation, eerie); an Aura without one
+    # supplies the enchantment, not the trigger.
+    need = _need(
+        "Killian, Decisive Mentor", "entering enchantment payoffs like the commander"
+    )
+    assert need.kind == "redundancy"
+    for name in (
+        "Grim Guardian",
+        "Ondu Spiritdancer",
+        "Slumbering Keepguard",
+        "Victor, Valgavoth's Seneschal",
+    ):
+        assert satisfies(test_card(name), need), name
+    assert not satisfies(test_card("Ethereal Armor"), need)
+    # A cast trigger is another event (Sythis's "Whenever you cast an
+    # enchantment spell").
+    assert not satisfies(test_card("Sythis, Harvest's Hand"), need)
+
+
 def test_a_land_sacrifice_commander_wants_land_recursion_not_creature_fodder():
     # Hearthhull sacrifices lands: a sacrificed land goes to your graveyard (CR
     # 701.21a), whence Life from the Loam and Crucible of Worlds return it. Its
