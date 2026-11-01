@@ -40,6 +40,7 @@ from mtg_utils._card_ir.crosswalk import (
     ConceptTree,
     animates,
     answers_its_target,
+    attack_trigger_side,
     change_zone_dirs,
     condition_tags,
     corrected_scope,
@@ -50,6 +51,7 @@ from mtg_utils._card_ir.crosswalk import (
     effect_actor_scope,
     effect_filter,
     effect_owner_player_scope,
+    effect_trigger_def,
     explicit_recipient_scope,
     filter_controller,
     filter_controller_side,
@@ -2245,6 +2247,19 @@ def _recovered_minus_counter_on_target(unit: AbilityUnit, c: ConceptNode) -> boo
     )
 
 
+def _counters_an_attacker_of_yours(unit: AbilityUnit, c: ConceptNode) -> bool:
+    """Whether a counter placement names "that creature" of a trigger watching
+    creatures attack you (``TriggeringSource`` under
+    :func:`crosswalk.attack_trigger_side` ``"opponents"``) — Tasha, Unholy
+    Archmage's "+1: Until your next turn, whenever a creature attacks you or
+    Tasha, put a -1/-1 counter on that creature": the attacker is an
+    opponent's (CR 508.1a), though phase scopes the counter to you."""
+    if tag_of(getattr(c.node, "target", None)) != "TriggeringSource":
+        return False
+    trig = effect_trigger_def(unit, c.node)
+    return trig is not None and attack_trigger_side(trig) == "opponents"
+
+
 def _debuff_makers(tree: ConceptTree) -> list[Signal]:
     """debuff_makers — a -X/-X / -1/-1 enabler (CR 613.4c / 704.5f), one signal
     per scope over :func:`_debuff_sites`."""
@@ -2323,7 +2338,7 @@ def _debuff_sites(tree: ConceptTree) -> list[tuple[str, str, bool]]:
             if (
                 c.concept == "place_counter"
                 and counter_kind(c.node).upper() == "M1M1"
-                and c.scope != "you"
+                and (c.scope != "you" or _counters_an_attacker_of_yours(unit, c))
             ):
                 fire("any", c.raw)
         # phase v0.104.0 residues: a -X/-X shrink its parsers failed on (Death's

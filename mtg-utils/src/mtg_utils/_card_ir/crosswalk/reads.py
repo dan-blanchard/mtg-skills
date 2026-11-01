@@ -10436,6 +10436,39 @@ def targeting_trigger_side(trig: TypedMirrorNode) -> TargetingSide | None:
     return "you" if sides == {"you"} else "any"
 
 
+def attack_trigger_side(trig: object) -> TargetingSide | None:
+    """Whose creatures an attack trigger watches attack, or ``None`` when the
+    trigger watches no attack:
+
+    * ``"opponents"`` — the attacked object is you ("Whenever a creature
+      attacks you or a planeswalker you control" — Isperia, Supreme Judge;
+      Tasha, Unholy Archmage's +1 watcher, ``valid_target`` Controller): the
+      attacking player is an opponent (CR 508.1a: the active player declares
+      attackers), or the watched creature is an opponent's;
+    * ``"you"`` — the card itself or a creature you control attacks;
+    * ``"any"`` — any creature attacking anyone."""
+    if not isinstance(trig, TypedMirrorNode) or trigger_def_event(trig) != "attacks":
+        return None
+    if tag_of(getattr(trig, "valid_target", None)) == "Controller":
+        return "opponents"
+    return _object_side(getattr(trig, "valid_card", None))
+
+
+def effect_trigger_def(unit: AbilityUnit, node: object) -> TypedMirrorNode | None:
+    """The trigger definition whose firing performs effect ``node`` of ``unit``:
+    the watcher of a delayed trigger the unit creates when ``node`` sits in
+    that delayed ability ("Until your next turn, whenever a creature attacks
+    you or Tasha, put a -1/-1 counter on that creature" — Tasha, Unholy
+    Archmage's +1), else the unit's own trigger, else ``None``."""
+    for n in _iter_typed_nodes(unit.node):
+        if tag_of(n) != "CreateDelayedTrigger":
+            continue
+        if any(m is node for m in _iter_typed_nodes(getattr(n, "effect", None))):
+            trig = getattr(getattr(n, "condition", None), "trigger", None)
+            return trig if isinstance(trig, TypedMirrorNode) else None
+    return unit.node if unit.origin == "trigger" else None
+
+
 # ── Protection reads ──
 # The feeder reads behind four payoff lanes whose serves named cards no lane
 # read: the players a "can't lose the game" static protects (Platinum Angel,
