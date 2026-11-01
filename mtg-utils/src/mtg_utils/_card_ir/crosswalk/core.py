@@ -1141,6 +1141,21 @@ def _cost_concepts(ability: TypedMirrorNode) -> tuple[ConceptNode, ...]:
 _QUALITY_COST_TAGS = frozenset({"Behold", "Reveal"})
 
 
+def _splice_quality(inner: object) -> tuple[str, ...]:
+    """The type words of a splice's "onto [quality]" (CR 702.47a), which phase
+    writes in the keyword's ``subtype`` field: ``("Arcane",)`` (Glacial Ray),
+    ``("Instant", "Sorcery")`` for "instant or sorcery" (Splicer's Skill). Phase
+    folds a splice cost that isn't mana into the field ("Arcane—return a blue
+    creature you control to its owner's hand" — Veil of Secrecy;
+    ``test_splice_cost_in_quality_canary``), so the quality is the text before
+    the dash."""
+    quality = getattr(inner, "subtype", None)
+    if not isinstance(quality, str):
+        return ()
+    head = quality.split("\u2014", 1)[0]
+    return tuple(w.strip().capitalize() for w in head.split(" or ") if w.strip())
+
+
 def _additional_cost_leaves(ac: TypedMirrorNode) -> Iterator[TypedMirrorNode]:
     """The cost leaves a spell's ``additional_cost`` wrapper holds: its ``data``
     (one cost, a ``Choice``'s list, an ``Optional``'s untagged ``{"cost": …}``
@@ -1723,6 +1738,10 @@ def build_concept_tree(
             and kw.inner.lower() in CREATURE_TYPES
         ):
             card_keyword_types.append((name, (kw.inner,)))
+        elif name == "Splice" and (words := _splice_quality(kw.inner)):
+            # "Splice onto [quality]" (CR 702.47a): Arcane, a spell type (CR
+            # 205.3k), or "instant or sorcery"
+            card_keyword_types.append((name, words))
     dropped_rows, dropped_curve = _dropped_keyword_costs(root, present_keywords)
     card_alt_costs.extend(dropped_rows)
     # A keyword phase parked as a residue (Escape Velocity's escape) still names it.

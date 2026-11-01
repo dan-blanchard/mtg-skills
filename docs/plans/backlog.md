@@ -36,11 +36,9 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   names its remainder). Regex-only, measured over the legal corpus:
   `ability_strip_payoff` (the
   crippling-drawback text beside a power floor; no lane reads a drawback a strip
-  turns off). Lane follow-ups the pass found:
-  `card_draw_engine` misses Mask of the Schemer's connive X (phase parks "where
-  X is the amount of damage it dealt" as `where_x_binding`);
-  the empower Jace token's scry / surveil (about thirty cards) is not walked.
-  Phase gaps
+  turns off). Lane follow-ups the pass found: `card_draw_engine` misses Mask
+  of the Schemer's connive X (phase parks "where X is the amount of damage it
+  dealt" as `where_x_binding`, a phase gap). Phase gaps
   to report upstream (Dan posts) (drafted: `docs/plans/phase-upstream-reports.md` §6, §12–§15, §19, §20, §23; "Already fixed"; "Not drafted") — from Pass D: Frodo, Sauron's Bane's granted
   trigger;
   Teferi, Temporal Pilgrim and Devastating Mastery's chooser stamped You; The
@@ -68,8 +66,7 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   Abduction's ChangeController, "as though it had flash" dropped (Rootwater
   Shaman, Arlinn), Radagast, Aluren, Jin Sakai, Nether Void's unless-pay, Mana
   Breach's controller, Dimir Keyrune, Hive of the Eye Tyrant, Corpse Cobble,
-  snow landwalk, Vectis Gloves, Quicksilver Fountain, Sideswipe. Our own
-  projection drops Splice's subtype from `card_keyword_types`.
+  snow landwalk, Vectis Gloves, Quicksilver Fountain, Sideswipe.
 - **Every held serve spec is converted (2026-10-19); what the lanes still
   miss** (the per-spec censuses are in `docs/plans/serve-idents-and-avenue-support.md`
   §2; the 41 holds of the serve-ident pass and the six of the fourth pass are
