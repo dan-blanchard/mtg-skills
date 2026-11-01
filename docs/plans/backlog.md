@@ -1110,6 +1110,22 @@ headroom and parked items.
   lane's ident doesn't carry (no subject), and of the 25 precons only Death
   Toll (Winter, Cynical Opportunist) and Sultai Arisen (Teval) anchor the row,
   neither through a ranking the gate scores.
+- **The voltron floor's `has_other_plan` doesn't ask `avenue_spec_for` — don't
+  re-suggest without deciding the signals index's code key** (2026-11-01, Pass D
+  follow-up). The `(key, subject)` role table shipped (`signal_keys.SUBJECT_ROLES`),
+  and the plan read keeps its own exclusions (page-only doers through
+  `signal_keys.is_page_only`, the `STEP_TRIGGER_KEYS` payoffs in its compat list).
+  Asking the avenue read makes signal extraction depend on the serve specs, so
+  `signal_specs/` would enter the persisted signals index's code key
+  (`signals_index.signal_source_files`, which excludes it by design —
+  `test_excludes_signal_specs_which_does_not_feed_extraction`) and every spec
+  edit would rebuild the index. Measured: it would add the commander-damage
+  carrier tell (`voltron_matters|you|carrier`, 2405 → 2417) to twelve cards whose
+  only plan opens no avenue (`sacrifice_outlets|you|self` — Brass Secretary,
+  Parcel Myr; `donate_makers|you|token` — the Hunted cycle;
+  `opponent_discard|opponents|empty_hand` — Avatar of Will), with deck-tune on
+  Abzan Armor and Death Toll byte-identical. Worth it only if the index may key
+  on the specs.
 - **A spell's casting-cost discard is a discard outlet** (Dan, 2026-10-10). The
   optional keyword costs count: escalate (Collective Brutality, CR 702.120a),
   buyback (Forbid, Demonic Collusion, CR 702.27a), flashback (Conflagrate, Twinned
