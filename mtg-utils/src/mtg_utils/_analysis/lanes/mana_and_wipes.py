@@ -1077,20 +1077,15 @@ def _mass_removal(tree: ConceptTree) -> list[Signal]:
       that many loyalty counters (CR 120.3c), and a planeswalker with none is
       put into its owner's graveyard (CR 704.5i), so it is a planeswalker
       sweep as surely as a "destroy all planeswalkers";
-    * a NEGATIVE symmetric ``PumpAll`` over creatures (Languish's "all
-      creatures get -4/-4"; Toxic Deluge / Drown in Sorrow's dynamic "-X/-X"
-      — :func:`negative_pt_field` reads BOTH the FIXED magnitude and the
-      Variable's sign-only string) — the typed substrate carries the
-      negative amount, so the live ``_MASS_DEBUFF_RAW`` raw arm reads
-      structurally here (a fidelity gain over the spec's live-only
-      expectation). Three sub-gates keep the sweep genuine: the
-      controller-less gate mirrors the live raw's "ALL creatures" anchor (a
-      one-sided "creatures your opponents control get -1/-1" dip — Cower in
-      Fear, and the STATIC opponent-scoped Massacre Wurm/Elesh Norn shape —
-      is debuff_makers here, and the ``population_shrink`` key
-      (:func:`_population_shrink`), which counts it as the board-wipe
-      job — this key keeps the symmetric shrink the mass-death payoffs read);
-      the NEGATIVE-TOUGHNESS gate is the lethality tell (CR 704.5f — a
+    * a NEGATIVE ``PumpAll`` over creatures not limited to yours (Languish's
+      "all creatures get -4/-4"; Toxic Deluge / Drown in Sorrow's dynamic
+      "-X/-X"; Massacre Wurm's and Cower in Fear's "creatures your opponents
+      control get -2/-2 / -1/-1" — :func:`negative_pt_field` reads BOTH the
+      FIXED magnitude and the Variable's sign-only string; a creature at 0
+      toughness dies, CR 704.5f, so a one-sided shrink sweeps as a one-sided
+      DestroyAll does). A continuous shrink (Elesh Norn, Grand Cenobite) is
+      the ``population_shrink`` key's alone (:func:`_population_shrink`).
+      The NEGATIVE-TOUGHNESS gate is the lethality tell (CR 704.5f — a
       "-2/-0" combat dip like Hydrolash never kills); and the attachment veto
       (:func:`_mass_shrink`) drops the Aura's or Equipment's own creature
       (Flowstone Blade's "+1/-1" — one creature, not a board);
@@ -1232,9 +1227,9 @@ def _population_shrink(tree: ConceptTree) -> list[Signal]:
     Languish, Massacre Wurm, Cower in Fear, Elesh Norn, Grand Cenobite, Night of
     Souls' Betrayal. The ``board-wipe`` preset's third key, beside
     ``mass_removal`` and ``mass_bounce``, so the preset and the board-wipe role
-    read the persisted signals index alone. ``mass_removal`` keeps only the
-    symmetric one-shot shrink, the sweep half of a mass-death turn;
-    ``roles.is_board_wipe`` says why a one-sided or static shrink is a wipe.
+    read the persisted signals index alone. ``mass_removal`` takes the one-shot
+    shrinks too, not the continuous ones; ``roles.is_board_wipe`` says why a
+    static shrink is a wipe.
     Scope "any" (the sweep convention)."""
     shrinks = mass_shrink_effects(tree)
     if shrinks:
@@ -1338,10 +1333,13 @@ def _is_mass_removal(tree: ConceptTree, unit: AbilityUnit, c: ConceptNode) -> bo
             return True
     if t == "DamageAll" and cores & _DAMAGE_SWEPT_TYPES:
         return True
-    # A SYMMETRIC mass shrink (Languish's "all creatures get -4/-4"; Toxic
-    # Deluge's "-X/-X") — a one-sided one (Massacre Wurm, Cower in Fear) is
-    # the ``population_shrink`` key's, not this one.
-    if _mass_shrink(unit, c) and ctrl is None:
+    # A one-shot mass shrink over creatures not limited to yours (Languish's
+    # "all creatures get -4/-4", Toxic Deluge's "-X/-X", Massacre Wurm's
+    # "creatures your opponents control get -2/-2"): a creature at 0 toughness
+    # dies (CR 704.5f), so it sweeps as a one-sided DestroyAll does (Plague
+    # Wind, the arm above). A continuous shrink (Elesh Norn) stays the
+    # ``population_shrink`` key's alone.
+    if _mass_shrink(unit, c):
         return True
     if t == "ChooseAndSacrificeRest":
         sac = getattr(c.node, "sacrifice_filter", None)

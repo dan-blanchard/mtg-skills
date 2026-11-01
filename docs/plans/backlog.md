@@ -586,8 +586,7 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   exclusion lists — membership_floor's step-trigger exclusion duplicates
   `STEP_TRIGGER_KEYS` the same way); the spell-additional-cost walk keeps
   only allowlisted OTHER leaves (PayLife, Blight) — walk them all;
-  `mass_removal` misses one-sided "creatures your opponents control get -N/-N"
-  (Massacre Wurm, about forty); `card_draw_engine` misses granted draw triggers
+  `card_draw_engine` misses granted draw triggers
   (Avarice Amulet), aftermath halves and connive X; `opponent_draw_matters` misses
   enchanted-player watchers (Curse of Fool's Wisdom now carries no draw key);
   `ends_the_game` reads a missing player as you (a canary arm in `core_makers`);

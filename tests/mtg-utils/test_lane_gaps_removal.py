@@ -69,9 +69,13 @@ def test_a_sweep_no_creature_dies_to_has_no_creature_subject(name):
 
 
 def test_the_creature_subject_never_widens_mass_removal():
-    """Massacre Wurm's one-sided -2/-2 is not a card the mass_removal lane reads,
-    so it takes no subject of that key either."""
-    assert not any(i.startswith("mass_removal|") for i in _idents("Massacre Wurm"))
+    """Elesh Norn, Grand Cenobite's continuous -2/-2 is not a card the
+    mass_removal lane reads, so it takes no subject of that key either; Massacre
+    Wurm's one-shot one is, and its creatures die (CR 704.5f)."""
+    assert not any(
+        i.startswith("mass_removal|") for i in _idents("Elesh Norn, Grand Cenobite")
+    )
+    assert "mass_removal|you|creature" in _idents("Massacre Wurm")
 
 
 @pytest.mark.parametrize("name", ["Storm of Souls", "Living Death"])
