@@ -419,14 +419,6 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   281 cards), the second pass's in ``~/mtg/tuner-work/w13/classification-final.tsv``).
   A theme pages by its serve (``signal_specs.theme_page``); no search carries an
   oracle pattern (``test_a_theme_pages_by_its_serve_not_a_pattern``). Open:
-  - the commander-damage fallback's silencing took the carrier from Jodah's
-    Avenger (its restored shadow: ``evasion_self|you|shadow``) and Urza's
-    Avenger (``has_banding``), though the floor's own comment says an evasion
-    tell must not silence it — ``evasion_self`` is missing from
-    ``_VOLTRON_HAS_OTHER_PLAN_COMPAT`` (a lifelink body's own lifegain no longer
-    silences it, Dan's call 2026-10-29: Noble Banneret and Vampire Nighthawk
-    are lifegain plans and carriers both — ``membership_floor``'s
-    ``own_lifelink``);
   - the tribe pages were checked on Goblin, Elf, Zombie, Dragon and Sliver
     (and Angel, Vampire, Merfolk, Wizard, Human): every real member they
     lost has an IR ident or a ledger row (the 21 ``_reference_row`` rows). The
