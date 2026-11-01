@@ -288,6 +288,15 @@ def test_a_parked_token_replacement_still_consumes_the_commanders_tokens():
     assert satisfies(test_card("Mirrormind Crown"), consumers)
 
 
+def test_proliferate_makes_energy_for_an_energy_commander():
+    # Energy is a counter on a player (CR 107.14) and a proliferate gives a
+    # player that has a counter one more of it (CR 701.34a).
+    makers = _need("Satya, Aetherflux Genius", "energy makers")
+    assert satisfies(test_card("Metastatic Evangel"), makers)
+    assert satisfies(test_card("Evolution Sage"), makers)
+    assert not satisfies(test_card("Grizzly Bears"), makers)
+
+
 def test_a_land_sacrifice_commander_wants_land_recursion_not_creature_fodder():
     # Hearthhull sacrifices lands: a sacrificed land goes to your graveyard (CR
     # 701.21a), whence Life from the Loam and Crucible of Worlds return it. Its

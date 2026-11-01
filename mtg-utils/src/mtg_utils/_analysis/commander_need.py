@@ -986,8 +986,14 @@ def _payoff_needs(idents: Iterable[str], desc: str) -> Iterator[Need]:
                 ),
             )
         elif key == "energy_matters":
+            # Energy is a counter on a player (CR 107.14), so a proliferate
+            # gives you one more (CR 701.34a: "permanents and/or players that
+            # have a counter") — Metastatic Evangel under Satya.
             yield Need(
-                "payoff", "energy makers", desc, keys=frozenset({"energy_makers"})
+                "payoff",
+                "energy makers",
+                desc,
+                keys=frozenset({"energy_makers", "proliferate_makers"}),
             )
         elif key == "spellcast_matters":
             yield Need(
