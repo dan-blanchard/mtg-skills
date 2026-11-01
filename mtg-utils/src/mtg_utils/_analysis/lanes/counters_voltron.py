@@ -38,6 +38,7 @@ from mtg_utils._card_ir.crosswalk import (
     drains_opponents,
     effect_filter,
     effect_owner_player_scope,
+    effects_by_actor,
     filter_controller,
     filter_core_types,
     filter_predicates,
@@ -329,10 +330,16 @@ def _free_cast(tree: ConceptTree) -> list[Signal]:
     ``CastFromZone`` beside a ``ParentTargetOwner`` recipient — the ONLY
     commander-legal free_cast card carrying that pairing (corpus-verified,
     2026-07); every other free_cast hit keeps its plain "you" (the caster's
-    OWN free cast — Beseech the Mirror, As Foretold, Jodah).
+    OWN free cast — Beseech the Mirror, As Foretold, Jodah). "opponents" when
+    every ``CastFromZone`` on the card is another player's ("the exiled card's
+    owner may cast that card without paying its mana cost" — Spell Queller:
+    :func:`~mtg_utils._card_ir.crosswalk.effects_by_actor`).
     """
     if not _FREE_CAST_KEPT_RX.search(_kept(tree)):
         return []
+    yours, theirs = effects_by_actor(tree, tags=frozenset({"CastFromZone"}))
+    if theirs and not yours:
+        return [Signal("free_cast", "opponents", "", "", tree.name, "high")]
     scope = "you"
     for unit in tree.units:
         # Audacious Swap's ``CastFromZone`` lives on an ``else_ability`` branch

@@ -400,9 +400,17 @@ _CONVERTED = [
         "Gruesome Scourger",
         "Boggart Brute",
     ),
-    # Phase E: seek reads "its owner seeks"; a return-all bounce; a flip-gated win/lose;
-    # heroic payoffs; a shuffle-watcher. Graveyard returns and each-player tutors drop.
-    ("seek_matters", "you", "seek_matters|you|", "Darkstar Banisher", None),
+    # Phase E: seek reads the seek node (Cabaretti Revels' own); "the exiled card's
+    # owner seeks" is the answered player's (Darkstar Banisher); a return-all
+    # bounce; a flip-gated win/lose; heroic payoffs; a shuffle-watcher. Graveyard
+    # returns and each-player tutors drop.
+    (
+        "seek_matters",
+        "you",
+        "seek_matters|you|",
+        "Cabaretti Revels",
+        "Darkstar Banisher",
+    ),
     ("bounce_tempo", "you", "bounce_tempo|you|", "Aetherize", "Pulse of Murasa"),
     ("win_lose_game", "any", "win_lose_game|any|", "Angel of Destiny", None),
     ("own_target_spell", "you", "targeting_matters|any|you", "Heartfire Hero", None),
