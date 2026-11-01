@@ -124,6 +124,7 @@ from mtg_utils._analysis.lanes.card_advantage import (
 from mtg_utils._analysis.signal_trees import signal_trees_for
 from mtg_utils._analysis.write_back import MISSING
 from mtg_utils._card_ir.crosswalk import (
+    at_instant_speed,
     chosen_graveyard_recursion,
     controller_paid_cost_leaves,
     effect_filter,
@@ -385,17 +386,15 @@ def _repeats(u: AbilityUnit, kind: str, *, spends: bool) -> bool:
 
 
 def _instant(tree: ConceptTree, u: AbilityUnit, kind: str) -> bool:
-    """An instant or flash spell (CR 702.8a), or an activation not held to
-    sorcery speed (CR 602.5d) and not a loyalty ability (CR 606.3)."""
+    """An instant or flash spell, or an activation not held to sorcery speed
+    (the one instant-speed read, ``crosswalk.at_instant_speed``) and not a
+    loyalty ability (CR 606.3)."""
     if kind == "spell":
-        return tree.is_type("Instant") or "Flash" in tree.card_keywords
+        return at_instant_speed(tree, u)
     if kind != "activated":
         return False
-    restrictions = {
-        tag_of(r) for r in _list(getattr(u.node, "activation_restrictions", None))
-    }
     leaves = {tag_of(pc.leaf) for pc in controller_paid_cost_leaves(u)}
-    return "AsSorcery" not in restrictions and not leaves & _LOYALTY_LEAVES
+    return at_instant_speed(tree, u) and not leaves & _LOYALTY_LEAVES
 
 
 def _returns(card: dict) -> list[_Return]:

@@ -196,7 +196,13 @@ READS: dict[str, JobRead] = {
             orders=False,
             fit=recursion.deck_fit,
         ),
-        JobRead("tutor", tutor.features, tutor.WEIGHTS, orders=False),
+        JobRead(
+            "tutor",
+            tutor.features,
+            tutor.WEIGHTS,
+            orders=False,
+            in_deck=tutor.deck_features,
+        ),
     )
 }
 

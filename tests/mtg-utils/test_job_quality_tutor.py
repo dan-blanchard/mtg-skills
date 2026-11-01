@@ -68,10 +68,12 @@ def test_any_card_reads_above_a_card_type_above_a_subtype():
 
 def test_onto_the_battlefield_reads_above_into_the_hand():
     """Green Sun's Zenith puts the creature onto the battlefield; Idyllic Tutor
-    and Personal Tutor leave the card to be cast."""
+    leaves the card to be cast. (Zenith is costed at X = 3, four mana, so it no
+    longer outreads the one-mana Personal Tutor, whose top-of-library sorcery
+    search reads level with the hand: cost decides that pair now.)"""
     assert _features("Green Sun's Zenith")["battlefield"] == 1.0
     assert _features("Idyllic Tutor")["battlefield"] == 0.0
-    assert _score("Green Sun's Zenith") > _score("Personal Tutor")
+    assert _score("Green Sun's Zenith") > _score("Idyllic Tutor")
 
 
 def test_a_repeatable_tutor_reads_above_a_one_shot():
@@ -103,6 +105,34 @@ def test_a_transmute_is_a_one_shot_at_its_own_cost():
     assert features["repeat"] == 0.0
     assert features["any_card"] == 0.0
     assert features["cost"] == 3.0
+
+
+def test_an_x_tutor_costs_its_x_and_a_pact_its_upkeep_payment():
+    """A printed mana value counts X as 0 (CR 202.3e), so Chord of Calling read
+    as three mana and Green Sun's Zenith as one: ``cast_cost`` now assumes an X
+    of three. Summoner's Pact costs nothing to cast and {2}{G}{G} at the next
+    upkeep or the game: its delayed payment is its cost."""
+    assert _features("Chord of Calling")["cost"] == 6.0
+    assert _features("Green Sun's Zenith")["cost"] == 4.0
+    assert _features("Summoner's Pact")["cost"] == 4.0
+    assert _features("Worldly Tutor")["cost"] == 1.0
+
+
+def test_a_tribal_tutor_is_broad_in_its_tribes_deck():
+    """A subtype search is narrow to any deck but the tribe's: given a deck whose
+    creature cards share the subtype (``deck_features``, ``JobRead.in_deck``),
+    Faerie Harbinger's Faerie search reads as broad as a creature tutor; in a
+    deck of Dinosaurs it stays narrow."""
+    from mtg_utils._analysis.job_quality import READS
+
+    harbinger = _real("Faerie Harbinger")
+    faeries = [_real("Spellstutter Sprite"), _real("Vendilion Clique")]
+    dinosaurs = [_real("Regisaur Alpha"), _real("Ripjaw Raptor")]
+    assert _features("Faerie Harbinger")["broad"] == 0.0
+    assert tutor.deck_features(harbinger, faeries)["broad"] == 1.0
+    assert tutor.deck_features(harbinger, dinosaurs)["broad"] == 0.0
+    read = READS["tutor"]
+    assert read.score(harbinger, faeries) > read.score(harbinger, dinosaurs)
 
 
 def test_a_free_cast_reads_as_the_battlefield():

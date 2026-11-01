@@ -65,15 +65,20 @@ below lowered the guides' adds. The precon guides' tutor adds (n=36) sit at the
 76th percentile of their color identity's tutors by this read, 84th by
 play-rate, 77th by the blend of the two (in the top ten 5, 11 and 7): it GATES
 (``JobRead.orders`` False).
-The adds it reads lowest are tribal tutors in tribal decks (Sliver Overlord,
+The adds it read lowest were tribal tutors in tribal decks (Sliver Overlord,
 Faerie Harbinger, Forerunner of the Empire): a subtype search is narrow to any
-deck but the tribe's, and this read has no deck fit.
+deck but the tribe's, so given its deck (``JobRead.in_deck``,
+:func:`deck_features`) a subtype search is broad where the deck's creature cards
+share the subtype at :data:`_TRIBE_REFERENCE`. An X tutor costs its X
+(``_common.cast_cost``'s ``X_ASSUMED``: Chord of Calling 6, Green Sun's Zenith
+4) and a Pact its upkeep payment (:func:`_pact_mana`: Summoner's Pact 4), both
+since 2026-10-31.
 
-What it can't read: an X tutor's cost reads at X = 0 (Chord of Calling's 3,
-Green Sun's Zenith's 1); a Pact's upkeep payment; an opponent's say (Rhystic
-Tutor's "unless any player pays {2}", Distant Memories); a search phase leaves
-description-only (Kaito Shizuki's emblem, Garruk Unleashed's), which scores
-``None``.
+What it can't read, phase parse gaps to report upstream: an opponent's say
+(Rhystic Tutor's "unless any player pays {2}" is an ``Unimplemented`` effect;
+Distant Memories); Grim Reminder's revealed card read as put into the hand; a
+search phase leaves description-only (Kaito Shizuki's emblem, Garruk
+Unleashed's), which scores ``None``.
 """
 
 from __future__ import annotations
@@ -87,12 +92,14 @@ from mtg_utils._analysis.job_quality._common import (
     faces,
     free_cast,
     land_back,
+    mana_in,
     unit_kind,
     unpriced,
 )
 from mtg_utils._analysis.signal_trees import signal_trees_for
 from mtg_utils._card_ir.crosswalk import (
     activation_zone,
+    at_instant_speed,
     filter_core_types,
     filter_subtypes,
     iter_cost_leaves,
@@ -105,11 +112,12 @@ from mtg_utils._card_ir.crosswalk import (
     unit_is_self_tutor,
 )
 from mtg_utils.theme_presets import signal_keys_for
+from mtg_utils.type_line import split_type_line
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-    from mtg_utils._card_ir.crosswalk import AbilityUnit
+    from mtg_utils._card_ir.crosswalk import AbilityUnit, ConceptTree
     from mtg_utils._card_ir.mirror.runtime import TypedMirrorNode
 
 #: Filter properties that pin a search to one card or a few: a name, the same
@@ -146,6 +154,7 @@ class _Unit:
     sacrifice: bool  # sacrifices another permanent
     discard: bool  # discards another card
     life: bool  # pays or loses life
+    subtypes: frozenset[str] = frozenset()  # the subtypes a narrow search names
 
 
 def _list(x: object) -> list:
@@ -205,11 +214,14 @@ def _self_paid(leaf: object) -> bool:
 
 
 def _read_unit(
-    unit: AbilityUnit, searches: Sequence[TypedMirrorNode], *, instant_card: bool
+    tree: ConceptTree, unit: AbilityUnit, searches: Sequence[TypedMirrorNode]
 ) -> _Unit:
     reads = [
         b for s in searches if (b := _breadth(getattr(s, "filter", None))) is not None
     ]
+    subtypes = frozenset(
+        st for s in searches for st in filter_subtypes(getattr(s, "filter", None))
+    )
     leaves = [
         *iter_cost_leaves(getattr(unit.node, "cost", None)),
         *(leaf for c in unit.costs for leaf in iter_cost_leaves(c.node)),
@@ -230,16 +242,15 @@ def _read_unit(
         kind = "once" if once else "repeat"
     elif kind not in ("spell", "etb"):
         kind = "once"
-    restrictions = {
-        tag_of(r) for r in _list(getattr(unit.node, "activation_restrictions", None))
-    }
     return _Unit(
         breadth=max(reads, default=0),
         dest=_dest(unit),
         count=max(search_count(s) for s in searches),
         kind=kind,
-        instant=(unit.kind == "Activated" and "AsSorcery" not in restrictions)
-        or (kind in ("spell", "etb") and instant_card),
+        # The one instant-speed read: an activation not held to sorcery speed,
+        # or a spell or enters trigger of an instant or flash card.
+        instant=(unit.kind == "Activated" or kind in ("spell", "etb"))
+        and at_instant_speed(tree, unit),
         act_mana=activation_mana(unit),
         from_hand=from_hand,
         sacrifice=unit.trigger_event == "exploited"
@@ -251,6 +262,7 @@ def _read_unit(
             and tag_of(getattr(c.node, "target", None)) in ("Controller", None)
             for c in unit.effects
         ),
+        subtypes=subtypes,
     )
 
 
@@ -259,27 +271,51 @@ def _units(card: dict) -> list[_Unit]:
     if "tutor" not in signal_keys_for(card):
         return []
     found = [
-        (u, searches)
+        (tree, u, searches)
         for tree in signal_trees_for(card, bulk=card)
         for u in tree.units
         if unit_is_self_tutor(u) is True and (searches := self_searches(u))
     ]
     facts = {
         id(s): search_filter_land_facts(getattr(s, "filter", None))
-        for _u, ss in found
+        for _t, _u, ss in found
         for s in ss
     }
     resolved = [f for f in facts.values() if f is not None]
     inherit = bool(resolved) and all(only for _can, only in resolved)
-    front = faces(card)[0]
-    instant_card = "Instant" in front or "Flash" in (card.get("keywords") or ())
     return [
-        _read_unit(u, ss, instant_card=instant_card)
-        for u, ss in found
+        _read_unit(tree, u, ss)
+        for tree, u, ss in found
         if not all(
             inherit if (f := facts[id(s)]) is None else f[1] for s in ss
         )  # a unit that finds only lands
     ]
+
+
+def _pact_mana(card: dict) -> int:
+    """The mana a Pact asks at the next upkeep, or lose the game (Summoner's
+    Pact: a delayed trigger paying {2}{G}{G}, else ``LoseTheGame``): the card's
+    real cost, paid a turn late. 0 for any other card."""
+    total = 0
+    for tree in signal_trees_for(card, bulk=card):
+        for u in tree.units:
+            for n in iter_typed_nodes(u.node):
+                if tag_of(n) != "CreateDelayedTrigger":
+                    continue
+                inner = list(iter_typed_nodes(n))
+                if any(tag_of(x) == "LoseTheGame" for x in inner):
+                    total += sum(
+                        mana_in(getattr(x, "cost", None))
+                        for x in inner
+                        if tag_of(x) == "PayCost"
+                    )
+    return total
+
+
+#: A narrow (subtype) search is as broad as a card type in a deck whose creature
+#: cards share that subtype at this rate (a tribal deck: Sliver Overlord's
+#: Slivers, Faerie Harbinger's Faeries) — the deck fit the read had none of.
+_TRIBE_REFERENCE = 1 / 3
 
 
 #: Tutor's weights, log10 play-rate per unit (ridge fit, 2026-10-31,
@@ -305,7 +341,9 @@ WEIGHTS: dict[str, float] = {
 }
 
 
-def _unit_features(card: dict, u: _Unit) -> dict[str, float]:
+def _unit_features(
+    card: dict, u: _Unit, *, pact: int = 0, tribe_fits: bool = False
+) -> dict[str, float]:
     if free_cast(card):
         cost = 0.0
     elif u.from_hand and u.act_mana is not None:
@@ -314,8 +352,9 @@ def _unit_features(card: dict, u: _Unit) -> dict[str, float]:
         cost = cast_cost(card)
         if u.kind == "once" and u.act_mana is not None and not unpriced(card):
             cost += u.act_mana  # cast, then paid once more (Sterling Grove)
+    cost += pact  # a Pact's upkeep payment
     return {
-        "broad": float(u.breadth >= 1),
+        "broad": float(u.breadth >= 1 or tribe_fits),
         "cost": min(cost, 7.0),
         "cheap": float(cost <= 2),
         "instant": float(u.instant),
@@ -333,10 +372,47 @@ def _unit_features(card: dict, u: _Unit) -> dict[str, float]:
     }
 
 
-def features(card: dict) -> dict[str, float] | None:
-    """The tutor read's features for ``card``'s best tutor ability, or ``None``
-    when it has none that can find a nonland card."""
-    feats = [_unit_features(card, u) for u in _units(card)]
+def _best(feats: Sequence[dict[str, float]]) -> dict[str, float] | None:
     if not feats:
         return None
     return max(feats, key=lambda f: sum(WEIGHTS[k] * v for k, v in f.items()))
+
+
+def features(card: dict) -> dict[str, float] | None:
+    """The tutor read's features for ``card``'s best tutor ability, or ``None``
+    when it has none that can find a nonland card."""
+    units = _units(card)
+    if not units:
+        return None
+    pact = _pact_mana(card)
+    return _best([_unit_features(card, u, pact=pact) for u in units])
+
+
+def _tribe_fits(subtypes: frozenset[str], deck: Sequence[dict]) -> bool:
+    """Whether ``deck``'s creature cards share one of ``subtypes`` at
+    :data:`_TRIBE_REFERENCE` or more."""
+    if not subtypes:
+        return False
+    creatures = [faces(r)[0] for r in deck if "Creature" in faces(r)[0]]
+    if not creatures:
+        return False
+    words = {s.lower() for s in subtypes}  # the split lower-cases its words
+    hits = sum(bool(words & set(split_type_line(front)[1])) for front in creatures)
+    return hits / len(creatures) >= _TRIBE_REFERENCE
+
+
+def deck_features(card: dict, deck: Sequence[dict]) -> dict[str, float] | None:
+    """The read's features in ``deck`` (``JobRead.in_deck``): a subtype search
+    is broad where the deck's creature cards share the subtype (a tribal deck's
+    tribal tutor — Sliver Overlord, Faerie Harbinger — finds a card as surely
+    as a creature tutor does). ``None`` when the card has no tutor ability."""
+    units = _units(card)
+    if not units:
+        return None
+    pact = _pact_mana(card)
+    return _best(
+        [
+            _unit_features(card, u, pact=pact, tribe_fits=_tribe_fits(u.subtypes, deck))
+            for u in units
+        ]
+    )
