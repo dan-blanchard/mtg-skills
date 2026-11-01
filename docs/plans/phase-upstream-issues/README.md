@@ -50,6 +50,8 @@ Numbering: `NN` is the report section. Sections 12, 15, 16 and 24 hold several u
 | 24f-craft-with-two-that-share-a-card-type.md | Craft with a shared-type material parked | Eye of Ojer Taq | 24 |
 | 24g-loses-defender-trigger.md | "loses defender and gains trample" parked | Guardian of the Ages | 24 |
 | 24h-vibranium-token-no-mana-ability.md | Vibranium token has no mana ability | Shuri's Fabricator (and four other makers) | 24 |
+| 24i-kaust-face-up-combat-damage-unknown-mode.md | Face-up-this-turn combat-damage trigger is an `Unknown` mode | Kaust, Eyes of the Glade | 24 (triage pass) |
+| 24j-mirrormind-crown-token-copy-replacement-parked.md | Token-copy replacement parked as `as_long_as_gate` | Mirrormind Crown | 24 (triage pass) |
 
 ## Not reproduced at v0.118.0
 
