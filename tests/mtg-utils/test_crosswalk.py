@@ -7543,7 +7543,7 @@ def test_discard_outlet_recovered_symmetric_wheel_included():
         ("Toxic Deluge", True),  # dynamic PumpAll -X/-X (Variable, not Fixed)
         ("Tragic Arrogance", True),  # ChooseAndSacrificeRest, Non:Land filter
         ("Cataclysm", True),  # ChooseAndSacrificeRest, bare Permanent filter
-        ("Massacre Wurm", False),  # opponent-scoped static -2/-2 → debuff_makers
+        ("Massacre Wurm", True),  # one-sided one-shot -2/-2 (CR 704.5f)
     ],
 )
 def test_mass_removal_arms_and_gates(name, should_fire):
@@ -7577,17 +7577,15 @@ def test_mass_removal_choose_and_sacrifice_rest_is_sacrifice_not_destroy():
     assert ("mass_removal", "you", "") in _idents("Cataclysm")
 
 
-def test_mass_removal_massacre_wurm_stays_debuff_makers():
+def test_mass_removal_reads_a_one_sided_shrink():
     """Massacre Wurm's -2/-2 is scoped to OPPONENTS' creatures only
-    (``controller="Opponent"`` on the PumpAll filter) — the SAME one-sided
-    shape as Cower in Fear (named in the lane's own docstring), which the
-    mass-debuff arm's controller-less gate excludes by design: a one-sided
-    punisher is debuff_makers, not a symmetric board wipe. This predates
-    the batch-8 combat-scope vetoes (a639113, which fixed a DIFFERENT class
-    — one-combat flanking-style tricks phase mis-flattens to a bare sweep)
-    and is not a lane gap."""
-    assert "mass_removal" not in _keys("Massacre Wurm")
+    (``controller="Opponent"`` on the PumpAll filter): a creature at 0
+    toughness dies (CR 704.5f), so it sweeps the opponents' board as a
+    one-sided DestroyAll does, and it stays a debuff too. A continuous
+    shrink (Elesh Norn, Grand Cenobite) is ``population_shrink``'s alone."""
+    assert ("mass_removal", "you", "") in _idents("Massacre Wurm")
     assert ("debuff_makers", "any", "") in _idents("Massacre Wurm")
+    assert "mass_removal" not in _keys("Elesh Norn, Grand Cenobite")
 
 
 def test_mass_removal_combat_debuff_vetoes():
