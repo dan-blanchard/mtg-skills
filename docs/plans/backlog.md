@@ -160,10 +160,6 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   counters are counters (CR 122.1, not the suspected designation of CR
   701.60a), proliferate adds one of each kind already there (CR 701.34a), and
   removing one is its draw cost, the remove-counter-cost read's own case.
-  Ranking: `ranking._synergy_score` gives clause clusters only to regex-matched
-  hits, so every regex → ident conversion thins clause breadth (Empty the
-  Warrens' token clause 8 → 6 lanes); attributing an ident hit to the clause
-  its signal came from belongs in the ranking module.
 
 **From the no-search guide adds' signal gaps (2026-10-30; bucket D of
 `~/mtg/tuner-work/w27/nosearch_buckets.tsv`)**
