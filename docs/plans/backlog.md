@@ -47,10 +47,8 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   `card_draw_engine` misses Mask of the Schemer's connive X (phase parks "where
   X is the amount of damage it dealt" as `where_x_binding`);
   `ends_the_game` reads a missing player as you (a canary arm in `core_makers`);
-  the empower Jace token's scry / surveil (about thirty cards) is not walked; a
-  clone that adds a keyword (Auton Soldier) and Mouth // Feed's aftermath count
-  are missed; Smothering Tithe and Pyxis of Pandemonium sit in no stax /
-  opponent-graveyard lane. Left from the lane pass:
+  the empower Jace token's scry / surveil (about thirty cards) is not walked.
+  Left from the lane pass:
   `etb_value_x_recast_commander` (`pair_reads.py`) weights a scry-1 ETB like
   Shriekmaw now that `self_etb_payload` reads 4,333 cards. Phase gaps
   to report upstream (Dan posts) (drafted: `docs/plans/phase-upstream-reports.md` §6, §12–§15, §19, §20, §23; "Already fixed"; "Not drafted") — from Pass D: Frodo, Sauron's Bane's granted
@@ -1099,6 +1097,17 @@ headroom and parked items.
   creature (Halana, Kessig Ranger) and a batch's off its sources (Moonlight
   Hunt, Kamahl's Will, Bartz and Boko, Nissa's Judgment, Signature Slam, The
   Bears of Littjara, Judgment of Alexander): `bite` 128 → 136.
+- **Smothering Tithe and Pyxis of Pandemonium sit in no stax or graveyard-hate
+  lane — don't re-suggest** (2026-11-01, Pass D follow-up). `stax_taxes` /
+  `symmetric_stax` read static restrictions and taxes (CR 604.1: casting,
+  attacking, untapping, hand size); Smothering Tithe is a triggered punisher on
+  an opponent's draw, already `opponent_draw_matters|opponents|` and
+  `treasure_makers|you|`. `opponent_exile_makers` is graveyard hate (a
+  graveyard exiled); Pyxis exiles the top card of each player's library face
+  down and later puts the permanents among them onto the battlefield, already
+  `cheat_into_play|you|`. Auton Soldier (`clone_makers|you|`) and Mouth //
+  Feed's aftermath draw (`draw_for_each|you|`, `card_draw_engine|you|`) were
+  served by the second lane pass.
 - **A spell's casting-cost discard is a discard outlet** (Dan, 2026-10-10). The
   optional keyword costs count: escalate (Collective Brutality, CR 702.120a),
   buyback (Forbid, Demonic Collusion, CR 702.27a), flashback (Conflagrate, Twinned
