@@ -449,6 +449,7 @@ ETB doublers), ~45 scattered one to seven a deck. Gate unchanged (held-out 20: p
   condition?}]` our instant-speed read never opens (Crashing Tide, Graveyard Shift,
   Mutual Destruction, Take for a Ride, Necromancy; the ledger row
   `conditional_self_flash_dropped` should read it and retire).
+  Triage pass done: verdicts in `docs/plans/precon-audit/triage-2026-11-01.md`.
 - **A graveyard-hate template row**, measured once (gated, Commander template only,
   sourced by the existing graveyard-hate serve). The recursion and tutor rows are
   settled (T1 / PR1, below).
