@@ -285,8 +285,14 @@ miss taxonomy, the held-out candidates).
   commander comparison merged into main (the frontend bundle rebuilt). The ramp
   lead rule (5f8a3b9a, `w41/ramp-lead-R1.patch`) FAILED R1 against N12: held-out
   plan −13, adds +1, job-equivalents −4; the 25 plan −12, cuts −7, adds −4 →
-  settled. All three value rules are measured and lost. Left in the block: the
-  triage pass's merge, the fresh set's block-end score, CI, the recap.
+  settled. All three value rules are measured and lost. The triage pass merged
+  (6523840f; `docs/plans/precon-audit/triage-2026-11-01.md`: 61 cards, 20 recall
+  gaps fixed as reads, 39 guide-specific) and re-based as **baseline N13**: held-out
+  582 / 253 / 100, plan 291 (+28; the guides' own adds read as plan 304 → 370),
+  job-equivalents 47, page recall @10 / @30 +13 / +22; the 25 734 / 339 / 121 (adds
+  +3), plan 364 (+15) (`w41/sb-*-N13.json`; gate diffs vs `sb-ho-N13.json`). Left:
+  the pass's two follow-ups (the three lanes reading `OwnersOfCardsExiledBySource`
+  as yours; Kalakscion under Dina), the fresh set's block-end score, CI, the recap.
 
 ## Target
 
