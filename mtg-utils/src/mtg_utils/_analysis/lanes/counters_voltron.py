@@ -2197,9 +2197,16 @@ def _voltron_matters(tree: ConceptTree) -> list[Signal]:
     Aura hate / an Equipment's own "Equipped creature gets +X/+X" ``EquippedBy``
     payload-pump); (h) a trigger, static or count over the Auras and Equipment
     you control (:func:`_gear_you_control_payoff` — Puresteel Paladin, Galea,
-    Jor Kadeen). Scope "you".
+    Jor Kadeen); (i) affinity for Equipment (CR 702.41a: "costs {1} less to cast
+    for each Equipment you control" — Oxidda Finisher, Rebel Salvo), the
+    printed keyword's own gear count. Scope "you".
     """
     self_subtypes = frozenset(s.lower() for s in tree.card_subtypes)
+    if any(
+        kw == "Affinity" and {w.lower() for w in words} & _VOLTRON_SUBTYPES
+        for kw, words in tree.card_keyword_types
+    ):
+        return [Signal("voltron_matters", "you", "", "", tree.name, "high")]
     for unit in tree.units:
         if unit.trigger_event == "cast_spell":
             vc = getattr(unit.node, "valid_card", None)

@@ -253,6 +253,20 @@ def test_combat_and_damage_reads(name, ident, has):
 @pytest.mark.parametrize(
     ("name", "ident", "has"),
     [
+        # affinity for Equipment counts your Equipment (CR 702.41a): a gear payoff
+        ("Oxidda Finisher", "voltron_matters|you|", True),
+        ("Rebel Salvo", "voltron_matters|you|", True),
+        # an artifact of yours that becomes an Equipment is gear made
+        ("Dan Lewis", "voltron_makers|you|gear", True),
+    ],
+)
+def test_equipment_you_count_or_make(name, ident, has):
+    assert (ident in _idents(name)) is has
+
+
+@pytest.mark.parametrize(
+    ("name", "ident", "has"),
+    [
         # a count of the cards in your hand (CR 402.2)
         ("Fateful Showdown", "big_hand_matters|you|", True),
         # "reveal any number of green cards in your hand": a count of the cards
