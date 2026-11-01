@@ -692,18 +692,12 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   branch's prevention reads as `damage_prevention` — a dropped-controller
   misstamp, and once a field correction restores it `is_own_drawback` needs a
   `PreventDamage`-on-your-source arm.
-  Lane gaps still open: `creature_recursion` has no destination subject (62
-  reanimation spells sit outside damage_for_each; creature_etb carries a
-  reanimation extra instead); `cost_reduction` has no spell-type subject (21
-  creature-spell reducers); the edict lane misses Incriminate, Malik,
+  Lane gaps still open: the edict lane misses Incriminate, Malik,
   Gluttonous Hellkite, Killing Wave, Tragic Arrogance and granted edicts;
-  keyword token-copy makers
-  (embalm, eternalize, myriad, squad, encore) are not read; granted flanking;
+  granted flanking;
   back-reference counter targets scoped you (Retribution, Obelisk Spider);
   partial prevention, granted absorb, Blinding Powder, Torrent of Lava
-  (`damage_prevention`); `discard_outlet`
-  misses "cast from your graveyard by discarding" (Alien Symbiosis, Demonic
-  Embrace, Rona); the lifegain pair lost its 96 Food makers — `lifegain_makers`
+  (`damage_prevention`); the lifegain pair lost its 96 Food makers — `lifegain_makers`
   does not read the gain inside a Food token (Bake into a Pie, Bill the Pony);
   "whenever you proliferate" payoffs and granted / X proliferate have no ident
   (Scheming Aspirant, Venser, Tam, Ichormoon Gauntlet); the own-graveyard
