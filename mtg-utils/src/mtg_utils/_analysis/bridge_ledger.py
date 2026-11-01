@@ -5435,6 +5435,22 @@ def _freerunning_return_parked(tree: ConceptTree) -> bool:
     return _says(_FREERUNNING_RETURN_RX, tree.residues("unrecognized_clause_head"))
 
 
+# Malik, Grim Manipulator's "you and target opponent each secretly choose a
+# creature that player controls. Then those choices are revealed, and that
+# player sacrifices those creatures": phase v0.118.0 parks the choice as an
+# ``unrecognized_clause_head`` residue, so the ``Sacrifice`` of the chosen set
+# names no player — though the targeted opponent is who sacrifices (CR 701.21a:
+# a player sacrifices only a permanent they control).
+_SECRET_CHOICE_EDICT_RX = re.compile(
+    r"\btarget opponent each secretly choose an? creature that player controls\b",
+    re.IGNORECASE,
+)
+
+
+def _secret_choice_edict_parked(tree: ConceptTree) -> bool:
+    return _says(_SECRET_CHOICE_EDICT_RX, tree.residues("unrecognized_clause_head"))
+
+
 # Goreclaw's "Creature spells you cast with power 4 or greater cost {2} less"
 # parses as a ModifyCost with no spell filter: the creature class is lost.
 _CREATURE_SPELL_DISCOUNT_RX = re.compile(
@@ -5672,6 +5688,26 @@ BRIDGES.update(
                 gap=_freerunning_return_parked,
                 match=_freerunning_return_parked,
                 subject="replay",
+            ),
+            Bridge(
+                bridge_id="secret_choice_edict_parse_failure",
+                key="edict_makers",
+                kind="upstream_parse_failure",
+                todo=(
+                    "upstream phase-rs report candidate (Dan posts): Malik, Grim "
+                    "Manipulator's 'you and target opponent each secretly choose "
+                    "a creature that player controls' parks as "
+                    "unrecognized_clause_head, so the Sacrifice of the chosen set "
+                    "names no player; retires on the bump that types the choice"
+                ),
+                census=(
+                    "1 hit / the legal corpus (Malik, Grim Manipulator), MTGJSON "
+                    "@ phase v0.118.0, 2026-10-31"
+                ),
+                pins=("Malik, Grim Manipulator",),
+                gap=_secret_choice_edict_parked,
+                match=_secret_choice_edict_parked,
+                scope="opponents",
             ),
             Bridge(
                 bridge_id="creature_spell_discount_filter_dropped",
@@ -6138,6 +6174,23 @@ def _double_strike_parked(tree: ConceptTree) -> bool:
     return _parked_says(tree, _PARKED_DOUBLE_STRIKE_RX)
 
 
+# An aftermath half phase emits no record for (CR 702.127a: a half cast from
+# the graveyard) whose instruction is a bulk draw: "Draw two cards" (Spring //
+# Mind), "Draw two cards, then discard two cards" (Farm // Market), "Discard
+# any number of cards, then draw that many cards" (Leave // Chance), "Draw a
+# card for each creature you control with power 3 or greater" (Mouth // Feed)
+# — your own draw — and "Each player … draws seven cards" (Commit // Memory).
+_FACE_BULK_DRAW_RX = re.compile(
+    r"(?<!s )\bdraw (?:two|three|four|five|six|seven|x|that many) cards\b"
+    r"|\bdraw a card for each\b",
+    re.IGNORECASE,
+)
+_FACE_EACH_PLAYER_DRAW_RX = re.compile(
+    r"\beach player\b[^.]*\bdraws (?:two|three|four|five|six|seven) cards\b",
+    re.IGNORECASE,
+)
+
+
 def _chosen_creatures_parked(tree: ConceptTree) -> bool:
     return _parked_says(tree, _CHOSEN_CREATURES_RX)
 
@@ -6449,6 +6502,48 @@ BRIDGES.update(
                 pins=("Onward // Victory",),
                 gap=_text_only_face,
                 match=_oracle_match(_TARGET_GAINS_DOUBLE_STRIKE_RX),
+            ),
+            Bridge(
+                bridge_id="aftermath_face_bulk_draw",
+                key="card_draw_engine",
+                kind="missing_face",
+                todo=(
+                    "the W2c gap (ADR-0038): phase has no record for an aftermath "
+                    "half whose instruction is a bulk draw (Spring // Mind's 'Draw "
+                    "two cards'). Retires when the face gets a unit"
+                ),
+                census=(
+                    "4 hits / the legal corpus (Spring // Mind, Farm // Market, "
+                    "Leave // Chance, Mouth // Feed), MTGJSON @ phase v0.118.0, "
+                    "2026-10-31"
+                ),
+                pins=(
+                    "Spring // Mind",
+                    "Farm // Market",
+                    "Leave // Chance",
+                    "Mouth // Feed",
+                ),
+                gap=_text_only_face,
+                match=_oracle_match(_FACE_BULK_DRAW_RX),
+            ),
+            Bridge(
+                bridge_id="aftermath_face_each_player_draw",
+                key="card_draw_engine",
+                kind="missing_face",
+                todo=(
+                    "the W2c gap (ADR-0038): phase has no record for Commit // "
+                    "Memory's Memory ('Each player shuffles their hand and "
+                    "graveyard into their library, then draws seven cards'). "
+                    "Retires when the face gets a unit"
+                ),
+                census=(
+                    "1 hit / the legal corpus (Commit // Memory), MTGJSON @ phase "
+                    "v0.118.0, 2026-10-31"
+                ),
+                pins=("Commit // Memory",),
+                gap=_text_only_face,
+                match=_oracle_match(_FACE_EACH_PLAYER_DRAW_RX),
+                scope="each",
             ),
             Bridge(
                 bridge_id="role_attach_parked",

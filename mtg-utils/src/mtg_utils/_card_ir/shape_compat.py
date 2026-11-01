@@ -18,6 +18,18 @@ walk can cover, the record also carries the old form every read already knows.
   opponent owns" (Leyline of the Void) are read by their owner.
   ``test_graveyard_owner_controller_canary`` fails once phase writes the
   controller itself again.
+* **A targeted object and what is attached to it.** "Destroy target creature
+  with flying and all Equipment attached to that creature" (Eaten by Spiders),
+  "Exile target attacking creature and all Equipment attached to it" (Soul
+  Nova), "Return target creature … and each Aura attached to it to their owners'
+  hands" (Portal of Sanctuary, Word of Undoing): phase v0.118.0 writes a
+  ``TargetOnly`` of the object, then ONE mass verb (``DestroyAll`` /
+  ``ChangeZoneAll`` / ``BounceAll``) over ``Or[ParentTarget, <the Equipment or
+  Aura attached to it>]``. The removal, exile, bounce and enters reads key the
+  targeted verb, so the object's arm is written back as that verb on the
+  ``TargetOnly`` (``Destroy`` / ``ChangeZone`` / ``Bounce`` of the target), and
+  the mass verb keeps the attached arm. ``test_targeted_and_attached_canary``
+  fails once phase writes the targeted verb itself again.
 
 Pure functions over plain dicts; nothing here reads the mirror or a tree.
 """
@@ -74,8 +86,103 @@ def _triggers(rec: dict) -> Iterator[dict]:
                     yield trig
 
 
+def _targeted_form(mass: dict, target: object) -> dict:
+    """The targeted verb a mass verb over a target and its attachments restores
+    for the target: ``Destroy`` / ``ChangeZone`` / ``Bounce``, keeping the mass
+    verb's own fields."""
+    kind = mass.get("type")
+    if kind == "DestroyAll":
+        return {
+            "type": "Destroy",
+            "target": target,
+            "cant_regenerate": mass.get("cant_regenerate", False),
+        }
+    if kind == "ChangeZoneAll":
+        return {
+            "type": "ChangeZone",
+            "origin": mass.get("origin"),
+            "destination": mass.get("destination"),
+            "target": target,
+            "owner_library": False,
+            "enter_transformed": False,
+            "enter_tapped": False,
+            "enters_attacking": False,
+        }
+    return {"type": "Bounce", "target": target, "destination": None}
+
+
+#: The mass verbs phase writes over a target and its attachments.
+_TARGETED_AND_ATTACHED_VERBS = frozenset({"DestroyAll", "ChangeZoneAll", "BounceAll"})
+
+
+def _attached_to_parent(arm: object) -> bool:
+    """Whether a filter arm is "the [Equipment / Aura] attached to it": an
+    ``AttachedTo`` property whose host is the ``ParentTarget``."""
+    if not isinstance(arm, dict):
+        return False
+    for prop in arm.get("properties") or ():
+        if isinstance(prop, dict) and prop.get("type") == "AttachedTo":
+            host = prop.get("to")
+            if isinstance(host, dict):
+                filt = host.get("filter")
+                if isinstance(filt, dict) and filt.get("type") == "ParentTarget":
+                    return True
+    return False
+
+
+def _targeted_and_attached(rec: dict) -> Iterator[tuple[dict, dict, list]]:
+    """``(ability, mass effect, attached arms)`` for each ability whose
+    ``TargetOnly`` is followed by a mass verb over ``Or[ParentTarget, the
+    attachments of it]``."""
+    from mtg_utils._card_ir.trees import _iter_raw_dicts
+
+    def heads(d: dict) -> bool:
+        effect = d.get("effect")
+        return isinstance(effect, dict) and effect.get("type") == "TargetOnly"
+
+    for ability in _iter_raw_dicts(rec, heads):
+        sub = ability.get("sub_ability")
+        mass = sub.get("effect") if isinstance(sub, dict) else None
+        if not isinstance(mass, dict):
+            continue
+        if mass.get("type") not in _TARGETED_AND_ATTACHED_VERBS:
+            continue
+        target = mass.get("target")
+        if not (isinstance(target, dict) and target.get("type") == "Or"):
+            continue
+        arms = target.get("filters") or []
+        parents = [a for a in arms if a == {"type": "ParentTarget"}]
+        rest = [a for a in arms if a != {"type": "ParentTarget"}]
+        if len(parents) == 1 and rest and all(_attached_to_parent(a) for a in rest):
+            yield ability, mass, rest
+
+
+def _restore_targeted_and_attached(rec: dict) -> dict:
+    """``rec`` with each targeted-and-attached ability's targeted verb written
+    back (a copy when any)."""
+    found = list(_targeted_and_attached(rec))
+    if not found:
+        return rec
+    memo: dict[int, object] = {}
+    out = copy.deepcopy(rec, memo)
+    for ability, mass, rest in found:
+        new_ability = memo[id(ability)]
+        new_mass = memo[id(mass)]
+        assert isinstance(new_ability, dict)
+        assert isinstance(new_mass, dict)
+        target = new_ability["effect"]["target"]
+        new_ability["effect"] = _targeted_form(new_mass, target)
+        attached = [memo.get(id(a), a) for a in rest]
+        if len(attached) == 1:
+            new_mass["target"] = attached[0]
+        else:
+            new_mass["target"] = {"type": "Or", "filters": attached}
+    return out
+
+
 def restore_renamed_shapes(rec: dict) -> dict:
     """``rec`` with each renamed shape's old form beside it (a copy when any)."""
+    rec = _restore_targeted_and_attached(rec)
     found = [
         (arm, owner)
         for trig in _triggers(rec)

@@ -8753,12 +8753,20 @@ def forages(unit: AbilityUnit) -> bool:
     for n in unit.iter_typed():
         if tag_of(n) == "Forage":
             return True
+    return watches_own_action(unit, "Forage")
+
+
+def watches_own_action(unit: AbilityUnit, action: str) -> bool:
+    """Whether ``unit`` is a ``PlayerPerformedAction`` trigger watching its
+    controller perform ``action`` — "Whenever you forage, …" (``Forage``),
+    "Whenever you proliferate, …" (``Proliferate`` — Ezuri, Stalker of
+    Spheres; Scheming Aspirant)."""
     node = unit.node
     actions = getattr(node, "player_actions", MISSING)
     return (
         unit.origin == "trigger"
         and isinstance(actions, list)
-        and "Forage" in actions
+        and action in actions
         and tag_of(getattr(node, "valid_target", None)) in (None, "Controller")
     )
 
@@ -9455,6 +9463,29 @@ def hurts_triggering_player(node: object) -> bool:
         ):
             return True
     return False
+
+
+def watches_enchanted_opponent(enchant: object, trig: object) -> bool:
+    """Whether a trigger DEFINITION watches an Aura's enchanted player
+    (``valid_target: AttachedTo``) and that player is an opponent. CR 303.4:
+    an Aura names no side, so the card says it — an "Enchant opponent" filter
+    (Psychic Possession's "Whenever enchanted opponent draws a card, you may
+    draw a card"), or an "Enchant player" whose trigger hurts a player other
+    than you (:data:`_HURTS_PLAYER_TAGS` — Curse of Fool's Wisdom's "Whenever
+    enchanted player draws a card, they lose 2 life and you gain 2 life"). An
+    "Enchant player" that only helps its player stays unsided (``False``)."""
+    if tag_of(getattr(trig, "valid_target", None)) != "AttachedTo":
+        return False
+    etag = tag_of(enchant)
+    if etag == "Typed":
+        return filter_controller(enchant) in OPPONENT_ACTOR_TAGS
+    if etag != "Player":
+        return False
+    return any(
+        tag_of(n) in _HURTS_PLAYER_TAGS
+        and recipient_tag(n) not in (None, "Controller", "You")
+        for n in _iter_typed_nodes(getattr(trig, "execute", None))
+    )
 
 
 def punishes_triggering_caster(trig: object) -> bool:
@@ -10403,6 +10434,39 @@ def targeting_trigger_side(trig: TypedMirrorNode) -> TargetingSide | None:
     if trigger_scope(trig) == "opponents" or "opponents" in sides:
         return "opponents"
     return "you" if sides == {"you"} else "any"
+
+
+def attack_trigger_side(trig: object) -> TargetingSide | None:
+    """Whose creatures an attack trigger watches attack, or ``None`` when the
+    trigger watches no attack:
+
+    * ``"opponents"`` — the attacked object is you ("Whenever a creature
+      attacks you or a planeswalker you control" — Isperia, Supreme Judge;
+      Tasha, Unholy Archmage's +1 watcher, ``valid_target`` Controller): the
+      attacking player is an opponent (CR 508.1a: the active player declares
+      attackers), or the watched creature is an opponent's;
+    * ``"you"`` — the card itself or a creature you control attacks;
+    * ``"any"`` — any creature attacking anyone."""
+    if not isinstance(trig, TypedMirrorNode) or trigger_def_event(trig) != "attacks":
+        return None
+    if tag_of(getattr(trig, "valid_target", None)) == "Controller":
+        return "opponents"
+    return _object_side(getattr(trig, "valid_card", None))
+
+
+def effect_trigger_def(unit: AbilityUnit, node: object) -> TypedMirrorNode | None:
+    """The trigger definition whose firing performs effect ``node`` of ``unit``:
+    the watcher of a delayed trigger the unit creates when ``node`` sits in
+    that delayed ability ("Until your next turn, whenever a creature attacks
+    you or Tasha, put a -1/-1 counter on that creature" — Tasha, Unholy
+    Archmage's +1), else the unit's own trigger, else ``None``."""
+    for n in _iter_typed_nodes(unit.node):
+        if tag_of(n) != "CreateDelayedTrigger":
+            continue
+        if any(m is node for m in _iter_typed_nodes(getattr(n, "effect", None))):
+            trig = getattr(getattr(n, "condition", None), "trigger", None)
+            return trig if isinstance(trig, TypedMirrorNode) else None
+    return unit.node if unit.origin == "trigger" else None
 
 
 # ── Protection reads ──

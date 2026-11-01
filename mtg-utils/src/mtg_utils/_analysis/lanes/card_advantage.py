@@ -30,6 +30,7 @@ from mtg_utils._analysis.tree_synthesis import (
     _is_shuffle_back_effect,
 )
 from mtg_utils._card_ir.crosswalk import (
+    OPPONENT_ACTOR_TAGS,
     OTHER,
     SELF_REFERENCE_TARGETS,
     TARGETED_PLAYER_TAGS,
@@ -89,6 +90,7 @@ from mtg_utils._card_ir.crosswalk import (
     unit_is_self_tutor,
     unit_zones,
     walk_effect_chain,
+    watches_enchanted_opponent,
     watches_itself,
 )
 from mtg_utils._card_ir.crosswalk.reads import EXTRA_STEP_TRIGGER_PHASES
@@ -479,15 +481,21 @@ def _opponent_draw_matters(tree: ConceptTree) -> list[Signal]:
     they pay {2}" — Phyrexian Tyranny; Spiteful Visions' 1 damage:
     :func:`hurts_triggering_player`) is the same payoff: the card's controller
     builds to make the opponents draw, not to draw into it (the lane's
-    reading — the controller pays too when they draw).
+    reading — the controller pays too when they draw). So is an Aura's
+    watch of the opponent it enchants (:func:`watches_enchanted_opponent` —
+    Curse of Fool's Wisdom, Psychic Possession).
     """
     for unit in tree.units:
         if unit.trigger_event != "drawn":
             continue
         scope = trigger_scope(unit.node)
-        if scope == "opponents" or (
-            scope != "you"
-            and hurts_triggering_player(getattr(unit.node, "execute", None))
+        if (
+            scope == "opponents"
+            or (
+                scope != "you"
+                and hurts_triggering_player(getattr(unit.node, "execute", None))
+            )
+            or watches_enchanted_opponent(tree.card_enchant_filter, unit.node)
         ):
             return [
                 Signal("opponent_draw_matters", "opponents", "", "", tree.name, "high")
@@ -1645,18 +1653,33 @@ def _card_draw_engine(tree: ConceptTree) -> list[Signal]:
       are the one drawing (:func:`_you_draw`): a single draw each time the
       event recurs is the Commander draw engine;
     * a trigger that repeats and makes you a Clue each time (:func:`_clue_engine`
-      — Tireless Tracker), subject :data:`CLUE_ENGINE`.
+      — Tireless Tracker), subject :data:`CLUE_ENGINE`;
+    * a connive of two or more, or of X (CR 701.50d: "the permanent's
+      controller draws N cards, discards N cards" — Raffine, Scheming Seer's
+      "connives X, where X is the number of attacking creatures"), read like a
+      bulk draw.
+
+    A trigger the card grants is read like a printed one
+    (``ConceptTree.iter_units_and_granted_triggers`` — Avarice Amulet's
+    equipped creature's "At the beginning of your upkeep, draw a card").
 
     Expected shadow posture: recall gains over the mirror are the desired
     structural improvement — adjudicated via the harness, not drift.
     """
     out: list[Signal] = []
     seen: set[str] = set()
-    for unit in tree.units:
+    for unit in tree.iter_units_and_granted_triggers():
         is_phase = unit.trigger_event == "phase"
         is_draw_repl = (
             unit.origin == "replacement" and getattr(unit.node, "event", None) == "Draw"
         )
+        if (
+            "you" not in seen
+            and unit.trigger_event != "enters"
+            and any(_bulk_connive(c) for c in unit.effect_concepts("connive"))
+        ):
+            seen.add("you")
+            out.append(Signal("card_draw_engine", "you", "", "", tree.name, "high"))
         for c in unit.effect_concepts("draw"):
             bulk = (
                 amount_factor(c.node, "count") >= 2
@@ -1688,6 +1711,15 @@ def _card_draw_engine(tree: ConceptTree) -> list[Signal]:
             Signal("card_draw_engine", "you", CLUE_ENGINE, raw, tree.name, "high")
         )
     return out
+
+
+def _bulk_connive(c: ConceptNode) -> bool:
+    """Whether a connive draws two or more cards, or a number that scales (CR
+    701.50d) on your side: a ``Connive`` of a creature an opponent controls
+    draws for them."""
+    if filter_controller(getattr(c.node, "target", None)) in OPPONENT_ACTOR_TAGS:
+        return False
+    return amount_factor(c.node, "count") >= 2 or amount_is_scaling(c.node, "count")
 
 
 #: The subject of ``card_draw_engine`` on a Clue engine (:func:`_clue_engine`).
@@ -2520,8 +2552,14 @@ def _topdeck_selection(tree: ConceptTree) -> list[Signal]:
         unit_text = _REMINDER_RX.sub(" ", getattr(unit.node, "description", None) or "")
         # Phase v0.104.0 fails closed on an intervening-if scry ("if it didn't
         # die, scry 1 …" — Taeko, the Patient Avalanche) and parks it as a
-        # residue the ``scry`` token recovers; a scry is always your own library.
-        if any(c.recovered_by == "scry" for c in unit.effects):
+        # residue the ``scry`` token recovers; a scry is its scrier's own
+        # library, so another player's alone ("and they scry 2" — Ingenious
+        # Mastery) curates nothing of yours; "you and each opponent who voted
+        # … may scry 2" (Model of Unity) is yours too.
+        if any(
+            c.recovered_by == "scry" and OTHER_PLAYER not in c.reading
+            for c in unit.effects
+        ):
             return [Signal("topdeck_selection", "you", "", "", tree.name, "high")]
         for n in nodes:
             t = tag_of(n)
@@ -2608,7 +2646,10 @@ def _selection_actions(tree: ConceptTree) -> set[str]:
         for n in iter_typed_nodes(unit.node):
             if (action := _SELECTION_ACTIONS.get(tag_of(n) or "")) is not None:
                 found.add(action)
-        if any(c.recovered_by == "scry" for c in unit.effects):
+        if any(
+            c.recovered_by == "scry" and OTHER_PLAYER not in c.reading
+            for c in unit.effects
+        ):
             found.add("scry")
     if any(c.concept == "synth_topdeck_selection" for c in tree.iter_concepts()):
         found.add("scry")

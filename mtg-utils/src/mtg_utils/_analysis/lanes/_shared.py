@@ -45,6 +45,7 @@ from mtg_utils._card_ir.mirror.runtime import (
 )
 from mtg_utils._card_ir.recovery import (
     CARD,
+    IMPERATIVE,
     SELF,
     TARGETED,
     THEIRS,
@@ -481,12 +482,16 @@ def sacrifice_actor_scope(unit: AbilityUnit, node: TypedMirrorNode) -> str | Non
     # clause names them ("Each opponent who lost life this turn sacrifices a
     # creature …" — Papalymo Totolymo); any other reads as below.
     recovered = recovered_on(unit, node) if tag_of(node) == "Unimplemented" else None
-    if (
-        recovered is not None
-        and recovered.concept == "sacrifice"
-        and done_by_another(recovered)
-    ):
-        return "opponents"
+    if recovered is not None and recovered.concept == "sacrifice":
+        if done_by_another(recovered):
+            return "opponents"
+        # "each player sacrifices X creatures" (Gluttonous Hellkite's cast
+        # trigger, parked whole as ``enters_with_clause``) — every player.
+        if recovered.scope == "each" and IMPERATIVE not in recovered.reading:
+            return "each"
+    looped = _looped_object_controller(unit, node)
+    if looped is not None:
+        return looped
     owner = effect_owner_player_scope(getattr(unit, "node", None), node)
     if owner in _EDICT_ACTORS:
         return _edict_scope(owner)
@@ -499,6 +504,32 @@ def sacrifice_actor_scope(unit: AbilityUnit, node: TypedMirrorNode) -> str | Non
     if scope is None and sacrifice_names_no_player(unit.node, node):
         return _chained_sacrifice_actor(unit, node)
     return scope
+
+
+def _looped_object_controller(unit: AbilityUnit, node: TypedMirrorNode) -> str | None:
+    """The actor of a ``Sacrifice`` of "it" an ability repeats over each object
+    of a population — "For each creature, its controller sacrifices it unless
+    they pay X life" (Killing Wave: ``repeat_for`` an ``ObjectCount`` of
+    creatures, the sacrifice's ``ParentTarget`` the object in hand). Each
+    object's controller sacrifices it (CR 701.21a: a player sacrifices only a
+    permanent they control), so the population's controller is the actor: any
+    player's → ``"each"``, an opponent's → ``"opponents"``; yours, or no such
+    loop → ``None``."""
+    if tag_of(getattr(node, "target", None)) != "ParentTarget":
+        return None
+    root = getattr(unit, "node", None)
+    if getattr(root, "effect", None) is not node:
+        return None
+    repeat = getattr(root, "repeat_for", MISSING)
+    qty = getattr(repeat, "qty", None) if isinstance(repeat, TypedMirrorNode) else None
+    if tag_of(qty) != "ObjectCount":
+        return None
+    ctrl = filter_controller(getattr(qty, "filter", None))
+    if ctrl is None or ctrl in ("All", "EachPlayer", "Each"):
+        return "each"
+    if ctrl in OPPONENT_ACTOR_TAGS:
+        return "opponents"
+    return None
 
 
 def _chained_sacrifice_actor(unit: AbilityUnit, node: TypedMirrorNode) -> str | None:

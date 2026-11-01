@@ -40,6 +40,7 @@ from mtg_utils._card_ir.crosswalk import (
     ConceptTree,
     animates,
     answers_its_target,
+    attack_trigger_side,
     change_zone_dirs,
     condition_tags,
     corrected_scope,
@@ -50,6 +51,7 @@ from mtg_utils._card_ir.crosswalk import (
     effect_actor_scope,
     effect_filter,
     effect_owner_player_scope,
+    effect_trigger_def,
     explicit_recipient_scope,
     filter_controller,
     filter_controller_side,
@@ -97,11 +99,15 @@ from mtg_utils._card_ir.mirror.runtime import (
     TypedMirrorNode,
 )
 from mtg_utils._card_ir.recovery import (
+    ANY_TARGET,
+    OTHER_PLAYER,
+    PLAYER,
     SELF,
     TARGET_OBJECT,
     TARGETED,
     is_theirs,
     is_yours,
+    recovered_on,
 )
 from mtg_utils._card_ir.text_idioms import (
     _GOAD_REWARD_REF,
@@ -1043,6 +1049,18 @@ def _graveyard_matters(tree: ConceptTree) -> list[Signal]:
                 owner = getattr(enode, "zone_owner", None)
                 if owner == "AllOwners":
                     owner = filter_owned_controller(getattr(enode, "filter", None))
+                # "exile a creature or planeswalker card from each graveyard"
+                # (King Narfi's Betrayal; "for each player, choose a creature
+                # card in that player's graveyard" — Ghouls' Night Out): a pick
+                # from every player's graveyard, opponents' among them —
+                # ``zone_owner: Each{AllPlayers}``, the reach graveyard_exile_kind
+                # reads "any" for a mass graveyard exile; ``Each{Opponents}``
+                # ("from each opponent's graveyard" — Kefka, Dancing Mad) is the
+                # opponents'.
+                if isinstance(owner, MirrorVariant) and owner.key == "Each":
+                    each = "opponents" if owner.inner == "Opponents" else "any"
+                    fire(each, c.raw)
+                    continue
                 sc = _gy_player_scope(owner)
                 if sc is not None:
                     fire(sc, c.raw)
@@ -1514,6 +1532,12 @@ def _lifeloss_scope(
         rs == "each" and lifeloss_recipient_is_degraded_typed(node)
     ):
         return rs, False
+    # A loss phase parks, recovered by the seam, is another player's when its
+    # clause says so ("… and attacking player loses that much life" — Souls of
+    # the Faultless).
+    recovered = recovered_on(unit, node) if tag_of(node) == "Unimplemented" else None
+    if recovered is not None and OTHER_PLAYER in recovered.reading:
+        return "opponents", False
     owner = effect_owner_player_scope(getattr(unit, "node", None), node)
     if owner in _EDICT_ACTORS:
         return "opponents", False
@@ -1791,6 +1815,18 @@ def _lifeloss_makers(tree: ConceptTree) -> list[Signal]:
         # (:func:`damage_drains_opponent`).
         if any(damage_drains_opponent(unit, n) for n in iter_typed_nodes(unit.node)):
             fire("opponents", "")
+        # A damage clause phase parks, recovered by the seam, drains the same
+        # way when it names an opponent's side and a player, never "any target"
+        # ("it deals 1 damage to defending player" — Simian Sling, Tormentor's
+        # Helm; Iron Mastiff's "to each opponent" row).
+        for c in unit.effect_concepts("deal_damage"):
+            if (
+                c.recovered_by == "damage"
+                and c.scope == "opponents"
+                and PLAYER in c.reading
+                and ANY_TARGET not in c.reading
+            ):
+                fire("opponents", c.raw)
     if not tree.is_type("Land"):
         for unit in tree.units:
             paylife = any(cost_has_paylife(cc.node) for cc in unit.costs) or any(
@@ -1854,6 +1890,37 @@ def _lifeloss_matters(tree: ConceptTree) -> list[Signal]:
     return [Signal("lifeloss_matters", sc, "", "", tree.name, "high") for sc in scopes]
 
 
+#: A chosen target's controller that is another player: no controller (any
+#: player's — "two target creatures controlled by the same player") or an
+#: opponent's. Yours, or a trigger's "that player chooses" (``ScopedPlayer`` —
+#: Archfiend of Depravity's keep-N), is keep_n_wrath's or your own.
+_TARGETED_SET_OTHER_CONTROLLERS: frozenset[str | None] = frozenset(
+    {None, "Opponent", "TargetPlayer", "TargetOpponent"}
+)
+
+
+def _targeted_set_edict(unit: AbilityUnit, node: TypedMirrorNode) -> str | None:
+    """``"opponents"`` when a ``Sacrifice`` of the ``TrackedSet`` follows straight
+    on a ``TargetOnly`` of creatures another player controls — "Choose two target
+    creatures controlled by the same player. That player sacrifices one of them
+    of their choice" (Incriminate): the targets' controller makes the fresh
+    sacrifice choice among them (CR 701.21a), the political dodge an edict is.
+    Any other tracked set is a keep-N's kept set or your own (``None``)."""
+    prev = None
+    for c in unit.effects:
+        if c.node is node:
+            break
+        prev = c
+    if prev is None or tag_of(prev.node) != "TargetOnly":
+        return None
+    target = getattr(prev.node, "target", None)
+    if "Creature" not in filter_core_types(target):
+        return None
+    if filter_controller(target) not in _TARGETED_SET_OTHER_CONTROLLERS:
+        return None
+    return "opponents"
+
+
 def _edict_makers(tree: ConceptTree) -> list[Signal]:
     """edict_makers — a FORCED player sacrifice (CR 701.21a / 800.4a). The INVERSE of
     the ``sacrifice_outlets`` you-sac gate. Two structural tells, each reading the
@@ -1882,7 +1949,10 @@ def _edict_makers(tree: ConceptTree) -> list[Signal]:
             seen.add(scope)
             out.append(Signal("edict_makers", scope, "", raw, tree.name, "high"))
 
-    for unit in tree.units:
+    # A granted trigger reads like a printed one (Demon of Wailing Agonies'
+    # "that player sacrifices a creature of their choice"); a granted "sacrifice
+    # a creature" names no controller, so it stays the grantee's own.
+    for unit in tree.iter_units_and_granted_triggers():
         for c in unit.effects:
             if c.concept != "sacrifice":
                 continue
@@ -1890,8 +1960,11 @@ def _edict_makers(tree: ConceptTree) -> list[Signal]:
             # back-reference to permanents ALREADY chosen upstream ("choose
             # N, sacrifice the rest" — Single Combat) — never the fresh
             # CR 701.21a sacrifice choice an edict forces. keep_n_wrath owns
-            # the shape; firing edict_makers here poisoned both reads.
+            # the shape; firing edict_makers here poisoned both reads. The one
+            # exception is a sacrifice among the targets the spell just chose
+            # (:func:`_targeted_set_edict`).
             if tag_of(getattr(c.node, "target", None)) == "TrackedSet":
+                fire(_targeted_set_edict(unit, c.node), c.raw)
                 continue
             scope = sacrifice_actor_scope(unit, c.node)
             fire(scope, c.raw)
@@ -2194,6 +2267,19 @@ def _recovered_minus_counter_on_target(unit: AbilityUnit, c: ConceptNode) -> boo
     )
 
 
+def _counters_an_attacker_of_yours(unit: AbilityUnit, c: ConceptNode) -> bool:
+    """Whether a counter placement names "that creature" of a trigger watching
+    creatures attack you (``TriggeringSource`` under
+    :func:`crosswalk.attack_trigger_side` ``"opponents"``) — Tasha, Unholy
+    Archmage's "+1: Until your next turn, whenever a creature attacks you or
+    Tasha, put a -1/-1 counter on that creature": the attacker is an
+    opponent's (CR 508.1a), though phase scopes the counter to you."""
+    if tag_of(getattr(c.node, "target", None)) != "TriggeringSource":
+        return False
+    trig = effect_trigger_def(unit, c.node)
+    return trig is not None and attack_trigger_side(trig) == "opponents"
+
+
 def _debuff_makers(tree: ConceptTree) -> list[Signal]:
     """debuff_makers — a -X/-X / -1/-1 enabler (CR 613.4c / 704.5f), one signal
     per scope over :func:`_debuff_sites`."""
@@ -2272,7 +2358,7 @@ def _debuff_sites(tree: ConceptTree) -> list[tuple[str, str, bool]]:
             if (
                 c.concept == "place_counter"
                 and counter_kind(c.node).upper() == "M1M1"
-                and c.scope != "you"
+                and (c.scope != "you" or _counters_an_attacker_of_yours(unit, c))
             ):
                 fire("any", c.raw)
         # phase v0.104.0 residues: a -X/-X shrink its parsers failed on (Death's

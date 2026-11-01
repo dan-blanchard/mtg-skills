@@ -4,6 +4,7 @@ and the voltron cluster (split from crosswalk_signals.py)."""
 from __future__ import annotations
 
 import re
+from itertools import chain
 
 from mtg_utils._analysis.lanes._shared import (
     _ATTACHMENT_PREDS,
@@ -1684,10 +1685,18 @@ def _token_board_payoffs(tree: ConceptTree) -> list[Signal]:
 def _proliferate_makers(tree: ConceptTree) -> list[Signal]:
     """proliferate_makers — a proliferate DOER (CR 701.34a). A native ``Proliferate``
     effect (Atraxa, Evolution Sage; the keyword-less proliferators the Scryfall regex
-    missed). The ``station`` keyword is a proliferate_matters payoff, not a doer —
-    routed elsewhere. Scope "you".
+    missed), or one an ability the card grants carries (Ichormoon Gauntlet's
+    "Planeswalkers you control have '[0]: Proliferate'"). The ``station``
+    keyword is a proliferate_matters payoff, not a doer — routed elsewhere.
+    Scope "you".
     """
-    for c in tree.effect_concepts("proliferate"):
+    granted = (
+        c
+        for unit in tree.units
+        for c in iter_nested_granted_effect_concepts(unit.node)
+        if c.concept == "proliferate"
+    )
+    for c in chain(tree.effect_concepts("proliferate"), granted):
         return [Signal("proliferate_makers", "you", "", c.raw, tree.name, "high")]
     return []
 

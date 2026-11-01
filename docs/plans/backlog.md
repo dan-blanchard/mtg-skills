@@ -441,9 +441,7 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   - the tribe pages were checked on Goblin, Elf, Zombie, Dragon and Sliver
     (and Angel, Vampire, Merfolk, Wizard, Human): every real member they
     lost has an IR ident or a ledger row (the 21 ``_reference_row`` rows). The
-    other tribes weren't, and phase drops ran 0–3 members a tribe;
-  - ``type_matters``' token-profile join gains Eye and Hand of Vecna on the
-    Zombie page (their Vecna is a Zombie God), no member.
+    other tribes weren't, and phase drops ran 0–3 members a tribe.
   The page-only keys (``signal_keys.PAGE_ONLY_KEYS``: ``subtype_ref``,
   ``keyword_bodies`` and ``land_return_untap``, the Forest-bounce untap engines
   split off ``permanent_etb``) feed a theme's page and open no avenue or plan
@@ -594,9 +592,8 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   exclusion lists — membership_floor's step-trigger exclusion duplicates
   `STEP_TRIGGER_KEYS` the same way); the spell-additional-cost walk keeps
   only allowlisted OTHER leaves (PayLife, Blight) — walk them all;
-  `card_draw_engine` misses granted draw triggers
-  (Avarice Amulet), aftermath halves and connive X; `opponent_draw_matters` misses
-  enchanted-player watchers (Curse of Fool's Wisdom now carries no draw key);
+  `card_draw_engine` misses Mask of the Schemer's connive X (phase parks "where
+  X is the amount of damage it dealt" as `where_x_binding`);
   `ends_the_game` reads a missing player as you (a canary arm in `core_makers`);
   the empower Jace token's scry / surveil (about thirty cards) is not walked; a
   clone that adds a keyword (Auton Soldier) and Mouth // Feed's aftermath count
@@ -698,13 +695,15 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   branch's prevention reads as `damage_prevention` — a dropped-controller
   misstamp, and once a field correction restores it `is_own_drawback` needs a
   `PreventDamage`-on-your-source arm.
-  Lane gaps still open: the edict lane misses Incriminate, Malik,
-  Gluttonous Hellkite, Killing Wave, Tragic Arrogance and granted edicts;
-  granted flanking;
+  Lane gaps still open: a granted "sacrifice a creature" on the grantee's
+  controller (Inevitable End: the enchanted creature's controller, not yours)
+  is no edict yet, and a combat-damage "that player sacrifices" reads `each`
+  (Demon of Loathing, Demon of Wailing Agonies) where the damaged player is an
+  opponent; Tragic Arrogance stays keep_n_wrath's (adjudicated disjoint from
+  edicts); granted flanking;
   back-reference counter targets scoped you (Retribution, Obelisk Spider);
   partial prevention, granted absorb, Blinding Powder, Torrent of Lava
-  (`damage_prevention`); "whenever you proliferate" payoffs and granted / X proliferate have no ident
-  (Scheming Aspirant, Venser, Tam, Ichormoon Gauntlet); the own-graveyard
+  (`damage_prevention`); the own-graveyard
   remainder (collect-evidence and forage costs, descend payoffs, the Empower
   Jace token's surveil, granted delve / soulshift X, a craft cost). Lane false
   positives still open: Skyclave Apparition's "the exiled card's owner
@@ -907,34 +906,12 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
     counter, Rakdos Augermage's and Impetuous Lootmonger's own discard, Indominus
     Rex's keyword counters, Invasion of Arcavios's search.
 - **Our reads still missing a v0.118.0 shape** (open):
-  - "Destroy target creature … and all Equipment attached to that creature" is a
-    `TargetOnly` + `DestroyAll{Or[ParentTarget, AttachedTo{Host}]}` (Eaten by
-    Spiders removal, Silence the Believers and Soul Nova exile_removal, Portal of
-    Sanctuary permanent_etb, Word of Undoing bounce_tempo lost); the removal
-    lanes would resolve the `ParentTarget` arm to the chain's root target.
-  - A recovered `blocked_attacker_damage_source` damage ("it deals 1 damage to
-    defending player" — Simian Sling, Tormentor's Helm; "… to each creature
-    blocking it" — Ib Halfheart, Trailblazer's Torch) is read by direct_damage
-    but not lifeloss_makers / mass_removal.
-  - Underbridge Warlock's enters trigger is a `CreateBoon`; no lane reads a boon
-    as an enters payload (self_etb_payload lost).
-  - Ral, Izzet Viceroy's emblem trigger ("whenever you cast an instant or sorcery
-    spell, … you draw two cards") is typed now; card_draw_engine doesn't read an
-    emblem's draw.
-  - Tasha, Unholy Archmage's "+1: … put a -1/-1 counter on that creature" names
-    the attacker as `TriggeringSource`; debuff_makers doesn't take it.
-  - King Narfi's Betrayal's "exile a creature or planeswalker card from each
-    graveyard" is a `ChooseFromZone` into a `TrackedSet`; graveyard_matters
-    doesn't read the pick.
-  - Recovery marks that misfire: Biomantic Mastery ("another target player
-    controls" sets `OtherPlayer`), Souls of the Faultless ("attacking player
-    loses" not another player), Ursine Monstrosity ("choose an opponent" scopes
-    your own mill), Val, Marooned Surveyor (a parked trigger condition recovers as
-    a clue maker), Ingenious Mastery ("they scry 2" read as yours).
-- `mana_and_wipes._chooses_at_most_one` vetoes a sweep whose tracked set the
-  controller fills with at most one object (Light of Judgment) without resolving
-  which `TrackedSet` the sweep destroys: it holds for any one-object choice in
-  the unit. Resolve the set the `DestroyAll` names (open, low priority).
+  - A recovered `blocked_attacker_damage_source` "… to each creature blocking
+    it" (Ib Halfheart, Trailblazer's Torch) stays off mass_removal (it hits only
+    the blockers); the typed cousins phase flattens to a bare DamageAll over
+    every creature by dropping "blocking it" (Battle-Scarred Goblin, Fire
+    Juggler — [P12]) still read as sweeps: the DamageAll arm lacks the
+    becomes_blocked / blocks veto `_mass_shrink` has.
 - **Policy questions from the bump's gains** (decide; fixing would drop cards
   v0.104.0 already had): lifegain_matters on "whenever an opponent gains life"
   (Punishing Fire new; Kavu Predator, Wedding Ring already); Cinder Wall /
