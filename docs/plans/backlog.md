@@ -311,13 +311,6 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   compound clause and a granted body's residue (nine rows retired that way,
   2026-10-09); the remaining v0.104.0 ledger rows are parked conditions and verbs the
   grammar doesn't tag. Report upstream by residue class, not per card. (drafted: `docs/plans/phase-upstream-reports.md` §21, App. A1)
-- **Lane-side reads of recovered clause text remain** beside the seam's marks:
-  `damage_for_each`'s `_DFE_RECOVERED_RX`, `named_counter_misc`'s
-  `_RECOVERED_POWER_TAP_RE`, `_recovered_power_damage`, `creatures_matter`'s
-  `_RECOVERED_TEAM_COUNTER_RE` and `target_player_draws`'
-  `_RECOVERED_DRAW_REPLACEMENT_RE` (a replacement diagnostic the seam could refuse).
-  Move each onto a `read_clause` mark the same way draw, discard, damage reach and
-  make_token's kinds moved (2026-10-09), population unchanged.
 
 **From the phase v0.118.0 bump (2026-10-30)**
 

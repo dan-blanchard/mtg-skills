@@ -759,6 +759,26 @@ OTHER_CHOOSER = "OtherChooser"
 #: A player other than you does the verb, takes it, or owns the cards it acts on,
 #: in the row's own words (:attr:`TokenRule.other_player`).
 OTHER_PLAYER = "OtherPlayer"
+#: The doer deals damage equal to its own power ("~ deals damage equal to
+#: [twice] its power", "… to itself equal to its power"), not another object's
+#: ("the power of the card returned this way").
+OWN_POWER = "OwnPower"
+#: Power is dealt to a creature ("… power to target creature", "to that
+#: creature"), whoever's power it is.
+POWER_TO_CREATURE = "PowerToCreature"
+#: The clause quotes an activated ability whose cost taps ("{T}, Unattach ~: …"
+#: — Surestrike Trident's grant; Iron Fist's "{T}: …").
+TAP_ACTIVATION = "TapActivation"
+#: The amount counts creatures of yours: "the number of creatures you control"
+#: (Superior Numbers), or "N times the number of creatures tapped this way" to
+#: any target, the creatures its cost tapped (Burn at the Stake). Angel's
+#: Trumpet's "the number of creatures tapped this way" counts the damaged
+#: player's.
+YOUR_CREATURE_COUNT = "YourCreatureCount"
+#: The recovered verb's own object is each [other] creature you control with no
+#: further qualifier ("a +1/+1 counter on each other creature you control" —
+#: Wakka): the whole team, not a tribe or a "with modular" subset.
+TEAM_OBJECT = "TeamObject"
 
 #: Every mark :func:`read_clause` can put in ``subject`` (beside the type words and
 #: the free-form "<kind> counter" marks).
@@ -782,6 +802,11 @@ CLAUSE_MARKS: tuple[str, ...] = (
     FOR_EACH,
     OTHER_CHOOSER,
     OTHER_PLAYER,
+    OWN_POWER,
+    POWER_TO_CREATURE,
+    TAP_ACTIVATION,
+    YOUR_CREATURE_COUNT,
+    TEAM_OBJECT,
 )
 
 
@@ -928,6 +953,20 @@ _MANY_RX = re.compile(
     re.IGNORECASE,
 )
 _FOR_EACH_RX = re.compile(r"\bfor each\b|\bequal to the number of\b", re.IGNORECASE)
+_OWN_POWER_RX = re.compile(
+    r"\bdeals damage (?:to itself )?equal to (?:twice |\w+ times )?its power"
+    r"|\bto itself equal to its power",
+    re.IGNORECASE,
+)
+_POWER_TO_CREATURE_RX = re.compile(
+    r"\bpower to (?:target|another target|that) creature\b", re.IGNORECASE
+)
+_TAP_ACTIVATION_RX = re.compile(r"\{T\}[^\":]*:")
+_YOUR_CREATURE_COUNT_RX = re.compile(
+    r"\bnumber of creatures you control\b"
+    r"|\bany target equal to \w+ times the number of creatures tapped this way\b",
+    re.IGNORECASE,
+)
 # "choose an opponent [at random]" names a player for a later instruction, not
 # the side the clause acts on ("mill a card and choose an opponent at random" —
 # Ursine Monstrosity's own mill).
@@ -1053,6 +1092,10 @@ def read_clause(
         (MANY, _MANY_RX),
         (FOR_EACH, _FOR_EACH_RX),
         (OTHER_CHOOSER, _OTHER_CHOOSER_RX),
+        (OWN_POWER, _OWN_POWER_RX),
+        (POWER_TO_CREATURE, _POWER_TO_CREATURE_RX),
+        (TAP_ACTIVATION, _TAP_ACTIVATION_RX),
+        (YOUR_CREATURE_COUNT, _YOUR_CREATURE_COUNT_RX),
     ):
         if rx.search(text):
             subject.append(mark)
@@ -1073,6 +1116,12 @@ def read_clause(
             subject.append(YOUR_TARGET)
         if re.search(head + r"(?:each|all)\b", text, re.IGNORECASE):
             subject.append(EACH_OBJECT)
+        if re.search(
+            head + r"each (?:other )?creature you control\s*(?:$|[.,;])",
+            text,
+            re.IGNORECASE,
+        ):
+            subject.append(TEAM_OBJECT)
     if other_player and _row_rx(other_player).search(text):
         subject.append(OTHER_PLAYER)
     for m in _COUNTER_KIND_RX.finditer(text):

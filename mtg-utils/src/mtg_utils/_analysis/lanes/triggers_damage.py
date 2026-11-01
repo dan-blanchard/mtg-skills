@@ -127,8 +127,10 @@ from mtg_utils._card_ir.mirror.runtime import (
 from mtg_utils._card_ir.recovery import (
     ANY_TARGET,
     MASS,
+    OWN_POWER,
     PLAYER,
     POWER_SCALED,
+    POWER_TO_CREATURE,
     SELF,
     TARGET_OBJECT,
     YOURS,
@@ -3028,17 +3030,15 @@ _POWER_RECIP_CREATURE_TEXT = re.compile(
 
 def _recovered_power_damage(c: ConceptNode) -> bool:
     """A recovered "damage" clause scaled by power that ``creature_ping``
-    counts (CR 120.3): any power dealt to a creature
-    (:data:`_POWER_RECIP_CREATURE_TEXT`), or its own power
-    (:data:`_POWER_OWN_DOER`) dealt to something other than a player (the seam
-    marks no ``PLAYER`` recipient — Consuming Ferocity's "to its controller",
-    Iron Mastiff's d20 rows). A recovered clause has no typed amount for
-    :func:`crosswalk.deals_its_own_power` to read, so its text stands in; every
-    confirm names "power", standing in for the typed ``Ref(Power)`` anchor."""
-    text = c.raw or ""
-    if _POWER_RECIP_CREATURE_TEXT.search(text):
+    counts (CR 120.3): any power dealt to a creature (the seam's
+    ``POWER_TO_CREATURE``), or its own power (``OWN_POWER``) dealt to something
+    other than a player (no ``PLAYER`` recipient — Consuming Ferocity's "to its
+    controller", Iron Mastiff's d20 rows). A recovered clause has no typed
+    amount for :func:`crosswalk.deals_its_own_power` to read, so the seam's
+    reading stands in for the typed ``Ref(Power)`` anchor."""
+    if POWER_TO_CREATURE in c.subject:
         return True
-    return PLAYER not in c.subject and _POWER_OWN_DOER.search(text) is not None
+    return PLAYER not in c.subject and OWN_POWER in c.subject
 
 
 def _unit_is_repeatable(unit: AbilityUnit) -> bool:

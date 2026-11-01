@@ -128,7 +128,7 @@ from mtg_utils._card_ir.mirror.runtime import (
     MISSING,
     TypedMirrorNode,
 )
-from mtg_utils._card_ir.recovery import OTHER_PLAYER
+from mtg_utils._card_ir.recovery import ANY_TARGET, OTHER_PLAYER, YOUR_CREATURE_COUNT
 
 
 def _win_lose_game(tree: ConceptTree) -> list[Signal]:
@@ -1906,15 +1906,10 @@ def _chosen_type_matters(tree: ConceptTree) -> list[Signal]:
 # ── task B-2: damage_for_each — board-count damage ───────────────────────────
 # Recovered-residue arm (ADR-0038 W5 tails discipline): phase parses these
 # whole effects as Unimplemented, but the recovery allowlist surfaces them as
-# recovered deal_damage nodes carrying the raw clause. Corpus census at phase
-# v0.23.0: the tapped-this-way form is Burn at the Stake alone; the
-# creatures-you-control form is Superior Numbers alone (Angel's Trumpet's
-# punisher counts THAT player's tapped creatures — matches neither).
-_DFE_RECOVERED_RX = re.compile(
-    r"any target equal to \w+ times the number of creatures tapped this way"
-    r"|number of creatures you control",
-    re.IGNORECASE,
-)
+# recovered deal_damage nodes, and the seam marks an amount counting your
+# creatures (``recovery.YOUR_CREATURE_COUNT``): Burn at the Stake's creatures
+# tapped this way and Superior Numbers' creatures you control (Angel's
+# Trumpet's punisher counts THAT player's tapped creatures — no mark).
 # Phase mis-parses "the number of X that player controls" counts as
 # controller "You". Full You-pool census (phase v0.23.0): Jovial Evil and
 # Wing Storm are the two live false fires; Anathemancer / Price of Progress
@@ -1966,8 +1961,8 @@ def _damage_for_each(tree: ConceptTree) -> list[Signal]:
         for c in unit.effect_concepts("deal_damage"):
             raw = c.raw or ""
             if c.recovered_by == "damage":
-                if _DFE_RECOVERED_RX.search(raw):
-                    scope = "opponents" if "any target" in raw.lower() else "any"
+                if YOUR_CREATURE_COUNT in c.subject:
+                    scope = "opponents" if ANY_TARGET in c.subject else "any"
                     push(scope, "", raw)
                 continue
             filt = ref_count_filter(c.node, "amount")
