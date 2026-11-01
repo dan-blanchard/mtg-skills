@@ -911793,6 +911793,226 @@
     "type_line": "Enchantment"
    }
   },
+  "Reflective Rimekin": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Elemental",
+       "Wizard"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Blue"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "historic": "legal",
+      "timeless": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 2,
+      "shards": [
+       "Blue"
+      ],
+      "type": "Cost"
+     },
+     "name": "Reflective Rimekin",
+     "non_ability_text": null,
+     "oracle_text": "When this creature enters, you get a one-time boon with \"When you cast an instant or sorcery spell with mana value 3 or less, copy it. You may choose new targets for the copy.\"",
+     "power": {
+      "type": "Fixed",
+      "value": 3
+     },
+     "printings": [
+      "YECL"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "6e924ac1-c9f1-4fd1-8c44-a933b82151fd",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 2
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "When ~ enters, you get a one-time boon with \"When you cast an instant or sorcery spell with mana value 3 or less, copy it. You may choose new targets for the copy.\"",
+       "destination": "Battlefield",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "recipient": {
+          "type": "Controller"
+         },
+         "trigger": {
+          "batched": false,
+          "condition": null,
+          "constraint": null,
+          "damage_kind": "Any",
+          "description": "When you cast an instant or sorcery spell with mana value 3 or less, copy it. You may choose new targets for the copy",
+          "destination": null,
+          "execute": {
+           "condition": null,
+           "cost": null,
+           "description": null,
+           "duration": null,
+           "effect": {
+            "retarget": {
+             "type": "MayChooseNewTargets"
+            },
+            "starting_loyalty_from_casualty_sacrifice": false,
+            "target": {
+             "type": "TriggeringSource"
+            },
+            "type": "CopySpell"
+           },
+           "forward_result": false,
+           "kind": "Spell",
+           "optional": false,
+           "optional_targeting": false,
+           "sub_ability": null,
+           "target_prompt": null
+          },
+          "mode": "SpellCast",
+          "optional": false,
+          "origin": null,
+          "phase": null,
+          "secondary": false,
+          "trigger_zones": [
+           "Battlefield"
+          ],
+          "valid_card": {
+           "filters": [
+            {
+             "filters": [
+              {
+               "controller": null,
+               "properties": [],
+               "type": "Typed",
+               "type_filters": [
+                "Instant"
+               ]
+              },
+              {
+               "controller": null,
+               "properties": [],
+               "type": "Typed",
+               "type_filters": [
+                "Sorcery"
+               ]
+              }
+             ],
+             "type": "Or"
+            },
+            {
+             "controller": null,
+             "properties": [
+              {
+               "comparator": "LE",
+               "type": "Cmc",
+               "value": {
+                "type": "Fixed",
+                "value": 3
+               }
+              }
+             ],
+             "type": "Typed",
+             "type_filters": []
+            }
+           ],
+           "type": "And"
+          },
+          "valid_source": null,
+          "valid_target": {
+           "type": "Controller"
+          }
+         },
+         "type": "CreateBoon"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "ChangesZone",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 3.0,
+    "color_identity": [
+     "U"
+    ],
+    "colors": [
+     "U"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "legal",
+     "brawl": "legal",
+     "commander": "not_legal",
+     "competitivebrawl": "legal",
+     "duel": "not_legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "not_legal",
+     "modern": "not_legal",
+     "oathbreaker": "not_legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "not_legal"
+    },
+    "mana_cost": "{2}{U}",
+    "name": "Reflective Rimekin",
+    "oracle_id": "6e924ac1-c9f1-4fd1-8c44-a933b82151fd",
+    "oracle_text": "When this creature enters, you get a one-time boon with \"When you cast an instant or sorcery spell with mana value 3 or less, copy it. You may choose new targets for the copy.\"",
+    "power": "3",
+    "toughness": "2",
+    "type_line": "Creature — Elemental Wizard"
+   }
+  },
   "Regenerate": {
    "phase_records": [
     {

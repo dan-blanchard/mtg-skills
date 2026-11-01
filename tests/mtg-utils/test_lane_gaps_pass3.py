@@ -158,9 +158,9 @@ def test_a_combo_pieces_related_legendary_token_is_no_tribe(name):
 
 @pytest.mark.parametrize("name", ["Simian Sling", "Tormentor's Helm"])
 def test_a_parked_damage_to_defending_player_is_life_loss(name):
-    """ "Whenever … becomes blocked, it deals 1 damage to defending player"
-    parks as ``blocked_attacker_damage_source``; damage to a player is life
-    loss (CR 120.3a)."""
+    """Its "it deals 1 damage to defending player" when it becomes blocked parks
+    as ``blocked_attacker_damage_source``; damage to a player is life loss (CR
+    120.3a)."""
     assert ("lifeloss_makers", "opponents", "") in _idents(name)
 
 
@@ -173,3 +173,13 @@ def test_a_parked_damage_to_the_creatures_blocking_it_is_no_sweep():
 def test_a_token_copy_of_itself_keeps_its_tribe():
     """Council of Reeds makes "a token that's a copy of Council of Reeds"."""
     assert ("type_matters", "you", "Scientist") in _idents("Council of Reeds")
+
+
+# ── self_etb_payload: a boon ────────────────────────────────────────────────
+
+
+@pytest.mark.parametrize("name", ["Underbridge Warlock", "Reflective Rimekin"])
+def test_a_boon_on_entering_is_an_enters_payload(name):
+    """ "When this creature enters, you get a one-time boon with …" — the
+    boon is the value each entry re-delivers."""
+    assert ("self_etb_payload", "you", "") in _idents(name)

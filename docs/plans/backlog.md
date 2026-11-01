@@ -912,8 +912,6 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
     every creature by dropping "blocking it" (Battle-Scarred Goblin, Fire
     Juggler — [P12]) still read as sweeps: the DamageAll arm lacks the
     becomes_blocked / blocks veto `_mass_shrink` has.
-  - Underbridge Warlock's enters trigger is a `CreateBoon`; no lane reads a boon
-    as an enters payload (self_etb_payload lost).
   - Tasha, Unholy Archmage's "+1: … put a -1/-1 counter on that creature" names
     the attacker as `TriggeringSource`; debuff_makers doesn't take it.
   - King Narfi's Betrayal's "exile a creature or planeswalker card from each
