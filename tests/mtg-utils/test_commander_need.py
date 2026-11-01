@@ -297,6 +297,15 @@ def test_proliferate_makes_energy_for_an_energy_commander():
     assert not satisfies(test_card("Grizzly Bears"), makers)
 
 
+def test_a_planeswalker_commander_wants_proliferate_for_its_loyalty():
+    # A planeswalker's loyalty is its loyalty counters (CR 306.5c).
+    loyalty = _need("Quintorius, History Chaser", "loyalty on the commander")
+    assert loyalty.kind == "resource"
+    assert satisfies(test_card("Patrolling Peacemaker"), loyalty)
+    labels = _labels(_needs("Captain America, Team Leader"))
+    assert "loyalty on the commander" not in labels
+
+
 def test_a_land_sacrifice_commander_wants_land_recursion_not_creature_fodder():
     # Hearthhull sacrifices lands: a sacrificed land goes to your graveyard (CR
     # 701.21a), whence Life from the Loam and Crucible of Worlds return it. Its
