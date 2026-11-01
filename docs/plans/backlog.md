@@ -440,19 +440,12 @@ ETB doublers), ~45 scattered one to seven a deck. Gate unchanged (held-out 20: p
 - **One value rule left, one gated run:** ramp at MV ≤ commander MV − 2 (slower ramp
   is an upgrade target; the ramp row sources only ramp that lands in time; R1). The
   off-plan MV ≥ 6 cut (R2) and multiplayer scaling are settled below.
-- **Alternate commanders: `deck-tune --compare-commanders`** plus a deck-forge POST
-  route and a Tune-panel row. Every card the format's `commander_eligibility` accepts
-  on its own and every legal partner pair (`card_classify.can_partner`, CR 702.124f);
-  the full tune under each; ranked by the post-tune scorecard total; advisory, never
-  applied. Evaluated against the guides that chose an alternate (Temur Roar → Ureni of
-  the Unwritten, World Shaper → Szarel, Genesis Shepherd, and whichever others the
-  45 summaries name — a Sonnet list first), reported in the audit doc, never gating.
 - **A fresh validation set** of 10 never-used precon families (≥ 2 guides, any year,
-  the held-out method) under `~/mtg/tuner-work/fresh/root`, scored once at N11 and
-  once at block end; gates nothing.
-- **Upstream reports packaged as issues:** `docs/plans/phase-upstream-issues/`, one
-  ready-to-post file per section of `phase-upstream-reports.md`, re-verified against
-  v0.118.0; Dan posts.
+  the held-out method) under `~/mtg/tuner-work/fresh/root`, scored at N11 (295 / 130
+  of 193 / 38 of 386 / plan 119; `w41/sb-fresh-N11.json`); scored once more at block
+  end; gates nothing.
+- The upstream issue files (`docs/plans/phase-upstream-issues/`, 43, re-verified
+  against v0.118.0) are written; posting them is Dan's (the phase-report exception).
 
 **From the 2026-09-17 architecture review (worth exploring, not started)**
 
@@ -1072,6 +1065,19 @@ headroom and parked items.
   S-A, above); Enlightened Tutor and Moonsilver Key are tutor-row fills (T1 and
   PR1, above); Call the Gatewatch and Firemind's Foresight sit past the 150-card
   page (P2, above). Don't re-suggest a page for them without a new read.
+- **The alternate-commander compare shipped as an advisory (2026-11-01).**
+  `deck-tune --compare-commanders`, deck-forge's `compare_commanders` tune flag and
+  the Tune panel's table (`_tuner/compare_commanders.py`): every single the format's
+  `commander_eligibility` accepts and every legal partner pair (`can_partner`, CR
+  702.124f) tuned in the command zone, ranked by post-tune commander fit then issue
+  load — the scorecard has no single total, so that is the rank's definition.
+  Evaluated against the nine guides that switch commanders
+  (`w41/alt-commander-guides.md`, `compare_commanders_eval.py`): the guide's
+  alternate ranks first in 1 of 9, above the face commander in 5 of 9, and the top
+  pick disagrees with the guide in 8 of 9 (the fit saturates at 1.0 for every legend
+  serving a tribal deck's lane). The guides switch for a build's flavor as much as
+  for fit; the table says which legends the deck as built supports. Don't turn it
+  into a proposal.
 - **The off-plan MV ≥ 6 cut changes nothing — settled 2026-11-01 (R2).** An Engine
   card at mana value 6+ serving no viable avenue (not the commander's lane, not
   premium) read as a low-value upgrade target, least played first (branch
