@@ -193,3 +193,21 @@ def test_a_minus_counter_on_a_creature_attacking_you_is_a_debuff():
     attacks you or Tasha, put a -1/-1 counter on that creature": the attacker is
     an opponent's (CR 508.1a)."""
     assert ("debuff_makers", "any", "") in _idents("Tasha, Unholy Archmage")
+
+
+# ── graveyard_matters: a pick from each graveyard ───────────────────────────
+
+
+@pytest.mark.parametrize(
+    ("name", "scope"),
+    [
+        # "Then you may exile a creature or planeswalker card from each graveyard."
+        ("King Narfi's Betrayal", "any"),
+        # "For each player, choose a creature card in that player's graveyard."
+        ("Ghouls' Night Out", "any"),
+        # "exile a card at random from each opponent's graveyard"
+        ("Kefka, Dancing Mad", "opponents"),
+    ],
+)
+def test_a_pick_from_each_graveyard_reaches_the_graveyards_it_names(name, scope):
+    assert ("graveyard_matters", scope, "") in _idents(name)

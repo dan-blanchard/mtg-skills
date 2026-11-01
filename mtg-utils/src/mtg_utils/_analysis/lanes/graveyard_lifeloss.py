@@ -1047,6 +1047,18 @@ def _graveyard_matters(tree: ConceptTree) -> list[Signal]:
                 owner = getattr(enode, "zone_owner", None)
                 if owner == "AllOwners":
                     owner = filter_owned_controller(getattr(enode, "filter", None))
+                # "exile a creature or planeswalker card from each graveyard"
+                # (King Narfi's Betrayal; "for each player, choose a creature
+                # card in that player's graveyard" — Ghouls' Night Out): a pick
+                # from every player's graveyard, opponents' among them —
+                # ``zone_owner: Each{AllPlayers}``, the reach graveyard_exile_kind
+                # reads "any" for a mass graveyard exile; ``Each{Opponents}``
+                # ("from each opponent's graveyard" — Kefka, Dancing Mad) is the
+                # opponents'.
+                if isinstance(owner, MirrorVariant) and owner.key == "Each":
+                    each = "opponents" if owner.inner == "Opponents" else "any"
+                    fire(each, c.raw)
+                    continue
                 sc = _gy_player_scope(owner)
                 if sc is not None:
                     fire(sc, c.raw)
