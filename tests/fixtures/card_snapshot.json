@@ -338852,6 +338852,176 @@
     "type_line": "Legendary Creature — Human Scout"
    }
   },
+  "Disallow": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Counter target spell, activated ability, or triggered ability.",
+       "duration": null,
+       "effect": {
+        "target": {
+         "filters": [
+          {
+           "controller": null,
+           "properties": [
+            {
+             "type": "InZone",
+             "zone": "Stack"
+            }
+           ],
+           "type": "Typed",
+           "type_filters": [
+            "Card"
+           ]
+          },
+          {
+           "type": "StackAbility"
+          }
+         ],
+         "type": "Or"
+        },
+        "type": "Counter"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Instant"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Blue"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "Blue",
+       "Blue"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "25f05814-a5a5-460f-9d29-0ab03efecf4c",
+       "80f8aa2a-78e1-4717-a0bd-a435f4922668"
+      ]
+     },
+     "name": "Disallow",
+     "non_ability_text": null,
+     "oracle_text": "Counter target spell, activated ability, or triggered ability. (Mana abilities can't be targeted.)",
+     "power": null,
+     "printings": [
+      "AER",
+      "DRC",
+      "KLR",
+      "PAER",
+      "TRC"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2017-02-09",
+       "text": "Abilities that create replacement effects, such as a permanent entering the battlefield tapped or with counters on it, can't be targeted. Abilities that apply \"as [this creature] enters the battlefield\" are also replacement effects and can't be targeted."
+      },
+      {
+       "date": "2017-02-09",
+       "text": "Activated abilities are written in the form \"Cost: Effect.\" Some keyword abilities, such as equip and crew, are activated abilities and will have colons in their reminder texts."
+      },
+      {
+       "date": "2017-02-09",
+       "text": "An activated mana ability is one that could add mana as it resolves, doesn't have a target, and isn't a loyalty ability. A triggered mana ability is one that could add mana and triggers on an activated mana ability."
+      },
+      {
+       "date": "2017-02-09",
+       "text": "If you counter a delayed triggered ability that triggers at the beginning of the \"next\" occurrence of a specified step or phase, that ability won't trigger again the following time that phase or step occurs."
+      },
+      {
+       "date": "2017-02-09",
+       "text": "Triggered abilities use the word \"when,\" \"whenever,\" or \"at.\" They're often written as \"[Trigger condition], [effect].\" Some keyword abilities, such as prowess and fabricate, are triggered abilities and will have \"when,\" \"whenever,\" or \"at\" in their reminder text."
+      },
+      {
+       "date": "2018-01-19",
+       "text": "There are many important moments in the story, but the most crucial—called \"story spotlights\"—are shown on cards. These cards have the Planeswalker symbol in their text box; this symbol has no effect on gameplay. You can read more about these events in the official Magic fiction at http://www.mtgstory.com."
+      }
+     ],
+     "scryfall_oracle_id": "88b51e15-6630-4e14-a6b8-db0aa12e34ef",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 3.0,
+    "color_identity": [
+     "U"
+    ],
+    "colors": [
+     "U"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}{U}{U}",
+    "name": "Disallow",
+    "oracle_id": "88b51e15-6630-4e14-a6b8-db0aa12e34ef",
+    "oracle_text": "Counter target spell, activated ability, or triggered ability. (Mana abilities can't be targeted.)",
+    "type_line": "Instant"
+   }
+  },
   "Disarm": {
    "phase_records": [
     {
@@ -826070,6 +826240,141 @@
      "R"
     ],
     "type_line": "Artifact // Artifact"
+   }
+  },
+  "Organic Extinction": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Destroy all nonartifact creatures.",
+       "duration": null,
+       "effect": {
+        "cant_regenerate": false,
+        "target": {
+         "controller": null,
+         "properties": [],
+         "type": "Typed",
+         "type_filters": [
+          "Creature",
+          {
+           "Non": "Artifact"
+          }
+         ]
+        },
+        "type": "DestroyAll"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Sorcery"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "White"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [
+      "Improvise"
+     ],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 8,
+      "shards": [
+       "White",
+       "White"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "1f8761b6-784f-4b64-bbb2-6062f289cf6c",
+       "900b713f-82f7-4e4a-804d-6bb38436aa9d",
+       "daaa7b7e-76fc-47a0-a58d-1169be1aa335",
+       "fea0f8be-c242-49dd-bae3-0b306107ac0b"
+      ]
+     },
+     "name": "Organic Extinction",
+     "non_ability_text": null,
+     "oracle_text": "Improvise (Your artifacts can help cast this spell. Each artifact you tap after you're done activating mana abilities pays for {1}.)\nDestroy all nonartifact creatures.",
+     "power": null,
+     "printings": [
+      "EOC",
+      "MKC",
+      "NEC",
+      "PRM"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "d9e24d7c-0907-45c1-b5d3-9fb16a929868",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 10.0,
+    "color_identity": [
+     "W"
+    ],
+    "colors": [
+     "W"
+    ],
+    "keywords": [
+     "Improvise"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{8}{W}{W}",
+    "name": "Organic Extinction",
+    "oracle_id": "d9e24d7c-0907-45c1-b5d3-9fb16a929868",
+    "oracle_text": "Improvise (Your artifacts can help cast this spell. Each artifact you tap after you're done activating mana abilities pays for {1}.)\nDestroy all nonartifact creatures.",
+    "type_line": "Sorcery"
    }
   },
   "Origin of Iron Man": {
