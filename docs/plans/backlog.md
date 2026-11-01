@@ -47,11 +47,13 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   pairs from a source the tuner's order didn't pick (the guides' adds against
   the guides' cuts of the same type). Don't re-measure a reads-first theme
   order with the ADR-0063 reads as they stand. The
-  idea the numbers point at: a PLAN-CONDITIONAL row — a tutor row only when a
+  idea the numbers pointed at, a PLAN-CONDITIONAL row — a tutor row only when a
   main lane names a type a tutor can find, a recursion row only under a
-  graveyard plan — PARKED (2026-10-31 grilling) behind the theme-card quality
-  read, since its fills would come off a job page ordered by play-rate, the
-  ordering the quality read is meant to fix. The recursion and tutor job reads
+  graveyard plan — was measured 2026-10-31 late night (PR1, the audit's
+  "Plan-conditional tutor and recursion rows"): held-out plan −30, adds −9; the
+  25 plan −12, adds −7. The fills take the plan's slots whichever decks pay.
+  Held as `~/mtg/tuner-work/w41/rows-PR1.patch`; don't re-suggest a tutor or
+  recursion row under any condition. The recursion and tutor job reads
   (ADR-0062, built 2026-10-31, in the tree) read, since 2026-10-31 late night,
   an X tutor's X (`_common.cast_cost`'s `X_ASSUMED`, every job and quality
   read), a Pact's upkeep payment (`tutor._pact_mana`) and a tribal tutor's deck
@@ -803,17 +805,6 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
 **From the no-search guide adds' signal gaps (2026-10-30; bucket D of
 `~/mtg/tuner-work/w27/nosearch_buckets.tsv`)**
 
-- **What the four gaps' fixes still don't page.** Shipped: `end_step_sacrifice`
-  and `end_the_turn|you|instant`, the `commander_keeps` issue (Sundial in all four
-  guide decks), tutor subjects (`tutor|you|<card type>`), ability copiers no longer
-  read as spell copiers, multipliers seeing a granted cascade, and a paid tribe the
-  commander isn't in kept apart from its lane. Still unpaged: Fabricate (Deep Clue
-  Sea's Artifacts is a sub), Enlightened Tutor (Lorehold Spirit), Expedition Map
-  (Desert Bloom's Deserts is a sub; Eldrazi Unbound has no land page) and Moonsilver
-  Key. Call the Gatewatch and Firemind's Foresight are on their theme's serve but
-  below the 150-card play-rate page, which is lever (r). Arena Rector, Changeling
-  Outcast and Conspiracy are on a page now and get outranked. A subject's serve
-  for the land-type and Artifacts avenues was not tried.
 
 **From the Fynn, the Fangbearer real-deck validation (2026-10-29; `real-deck-validation.md`)**
 
@@ -1166,6 +1157,16 @@ headroom and parked items.
 
 ## Settled: don't re-suggest
 
+- **The no-search guide adds' four gaps — closed** (2026-10-30 to 31). Shipped:
+  `end_step_sacrifice` and `end_the_turn|you|instant`, the `commander_keeps`
+  issue (Sundial in all four guide decks), tutor subjects (`tutor|you|<card
+  type>`), ability copiers no longer read as spell copiers (now the
+  `copy_ability` concept), multipliers seeing a granted cascade, a paid tribe the
+  commander isn't in kept apart from its lane. What stayed unpaged was measured
+  and lost: Fabricate and Expedition Map sit on sub pages (sub-theme pages,
+  S-A, above); Enlightened Tutor and Moonsilver Key are tutor-row fills (T1 and
+  PR1, above); Call the Gatewatch and Firemind's Foresight sit past the 150-card
+  page (P2, above). Don't re-suggest a page for them without a new read.
 - **The commander's multipliers are a need, not a page** (2026-10-31). The
   ability-multiplier PAGE was measured negative 2026-10-30 (its one swap took the
   first upgrade cut: held-out adds 35 → 31). The read that replaced it: a

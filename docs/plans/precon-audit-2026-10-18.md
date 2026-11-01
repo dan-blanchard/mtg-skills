@@ -2979,3 +2979,27 @@ Reminder's revealed card put into the hand, Cleansing Meditation's "destroyed
 this way" set lost, the Kaito and Garruk emblems and six returns described only
 in text, Necromancy's "as though it had flash" — the upstream report's.
 **Baseline N6** (`w41/sb-*-N6.json`).
+
+## Plan-conditional tutor and recursion rows (PR1, 2026-10-31, late night; measured and held back)
+
+The ADR-0062 rows (`w41/rows-T1.patch`: recursion 2+, tutors 1+, floor-only)
+gated on the plan (`issues.plan_rows`): the tutor row only where a main lane
+names a tribe or a type payoff (`type_matters`, `artifacts_matter`,
+`enchantments_matter`, `superfriends_matters`, `voltron_matters`,
+`aura_matters`, `historic_matters`, or a commander tribe), the recursion row
+only where a main is a graveyard plan (`graveyard_matters` / `_makers`,
+`reanimator`, `creature_recursion`, `permanent_recast`, `dies_recursion`,
+`mill_makers`, `self_recurring`, `type_changers_graveyard`). Against N6:
+
+| set | swaps | cuts | adds | job-equiv | plan |
+|---|---|---|---|---|---|
+| held-out 20 | −10 | −2 | −9 | +22 | −30 |
+| the 25 | −14 | −2 | −7 | +22 | −12 |
+
+The same shape as the generic rows (plan −31): the rows' fills are tutors and
+recursion the guides didn't name (job-equivalents +22 say so), and they take
+the slots and the purse the plan's issues had — Counter Intelligence loses ten
+swaps and three cuts to a tutor fill. Gating on the plan changes which decks
+pay, not whether. Held back (`w41/rows-PR1.patch`). Settled: the guides' tutors
+and recursion are plan cards found on the plan's pages, under any condition
+on the row; don't re-suggest a tutor or recursion template row.

@@ -175,6 +175,12 @@ miss taxonomy, the held-out candidates).
   subtype); tutor and recursion take the one instant-speed read. The 25 adds +3
   (VelociRampTor's three Dinosaur tutors), plan −5; held-out adds −1, cuts +1,
   job-equivalents +3, plan −1 — **baseline N6** (`w41/sb-*-N6.json`).
+- 2026-10-31, late night, PR1 (the ADR-0062 tutor / recursion rows gated on the
+  plan: a tribe or type-payoff main opens the tutor row, a graveyard main the
+  recursion row) against N6: held-out plan −30, adds −9, swaps −10; the 25 plan
+  −12, adds −7 — the fills take the plan's slots and purse whichever decks pay.
+  Held back (`w41/rows-PR1.patch`); settled: no tutor or recursion row under
+  any condition (the audit's "Plan-conditional tutor and recursion rows").
 
 ## Target
 
