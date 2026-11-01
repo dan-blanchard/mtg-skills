@@ -2874,3 +2874,28 @@ multipliers as on-plan; the tune-side +5 is the near tie taking a few of them
 (Deadly Disguise +2, Quandrix, Creative Energy). Jeskai Striker lost one swap
 to the fold (a sorcery-speed activation no longer upgrades a removal cut).
 **Baseline N5** (`w41/sb-*-N5.json`).
+
+## Sub-theme pages (S-A, 2026-10-31, late night; measured and held back)
+
+Grilled: every built lane the focus read reports — mains, subs and emerging
+lanes, each already folded against the deeper ones — shares the theme adds by
+depth, so a precon's own 6-8 card sub-theme (Ahoy Mateys' theft) is deepened as
+its guides do. Against N5:
+
+| set | swaps | cuts | adds | plan | consensus adds |
+|---|---|---|---|---|---|
+| the 25 | +1 | +1 | −24 | −45 | −12 |
+| held-out 20 | +6 | +3 | −14 | −12 | −5 |
+
+The generic subs' pages (Combat, Spellslinger, Artifacts, Go wide, Graveyard
+engine) take the adds the mains would have, as the 2026-10-24 sharing did (35
+against 50). And the motivating case never opens: Ahoy Mateys' theft lane is not
+built even at the emerging tier (its theft cards are too few carers for their
+depth), so the run shows the same five pages for it. The guides' theft adds now
+sit on the "multipliers of the commander" need page (Thief of Sanity, Geyadrone
+Dihada, Bribery: outranked there), not on no page. Reverted. A specificity-gated
+variant (page only a sub-theme whose broadest ident is under 2% of the pool —
+theft 0.9%, aristocrats 1.0%; Combat 6.3%, Artifacts 12%) was designed but not
+run: it cannot reach Ahoy either, and the general rule lost on both sets. Settled:
+don't re-suggest sub-theme pages without a new read of which sub-themes a deck
+means to deepen.

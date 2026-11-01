@@ -826,22 +826,6 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   deck's multipliers are protected cuts, so nothing routes to the page); the new
   read this entry asks for would have to find them a slot that is not the first
   upgrade cut.
-- **Ahoy Mateys' theft sub-theme (2026-10-31).** Fifteen of the guides' adds for
-  the Lost Caverns pirate precon are theft cards (Thief of Sanity, Geyadrone
-  Dihada, Bribery, Mob Rule, Stolen Strategy, Siphon Insight, Cunning Rhetoric,
-  Thieving Amalgam, Dauthi Voidwalker) no theme page admits: the precon holds eight
-  across `wants_theft` / `gain_control` (4), `cast_from_exile` (4) and
-  `theft_makers` (2), below the focus's viable floor, so the tuner opens Pirate
-  tribal, the graveyard engine and discard outlets only. One deck; the question
-  it raises is whether a precon's own 6–8 card sub-theme should be viable to
-  deepen when its guides all deepen it. Not acted on.
-- **Held-back policy patches (2026-10-31, against N4):** `w41/job-blend-P1.patch`
-  (play-rate counted twice in the ordering jobs' blend: held-out adds +2, cuts +1,
-  plan −2) and `w41/theme-band-P3.patch` (theme upgrades may cost one band more, as
-  job upgrades may: held-out adds +2, cuts +2, plan 0, job-equivalents −5; the 25
-  plan +5). Both fail the plan-primary gate by its primary alone; each is a
-  small, real guide-add gain if the gate is ever rebalanced. A 300-card theme page
-  (P2) converted nothing and lost three adds on the 25: don't re-suggest.
 
 **From the Fynn, the Fangbearer real-deck validation (2026-10-29; `real-deck-validation.md`)**
 
@@ -1193,6 +1177,22 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
 headroom and parked items.
 
 ## Settled: don't re-suggest
+
+- **Sub-theme pages — don't re-suggest without a new read** (2026-10-31, S-A,
+  the audit's "Sub-theme pages"). Every built sub and emerging lane sharing the
+  theme adds by depth lost the 25 24 adds / plan −45 and the held-out 20 14 adds /
+  plan −12: the generic subs' pages take the adds. Ahoy Mateys' theft (the
+  motivating case: fifteen guide adds, eight precon cards across `gain_control` /
+  `theft_makers` / `cast_from_exile`) is not built even at the emerging tier, so
+  no sub-theme rule reaches it; its theft adds sit on the "multipliers of the
+  commander" need page now, outranked.
+- **The held-back policy patches P1 and P3 stay held** (Dan, 2026-10-31
+  grilling: the gate stays plan-primary). `w41/job-blend-P1.patch` (play-rate
+  counted twice in the ordering jobs' blend: held-out adds +2, plan −2) and
+  `w41/theme-band-P3.patch` (theme upgrades may cost one band more: held-out adds
+  +2, plan 0, job-equivalents −5) each gain two guide adds inside the ±3 noise a
+  hash-seed rescore shows. A 300-card theme page (P2) converted nothing. Don't
+  re-suggest any of the three without a rebalanced gate.
 
 - **A folded held lane keeps its doers — don't re-suggest** (2026-10-30;
   `real-deck-validation.md`, Fynn). When Fynn v4's poison lane folds into
