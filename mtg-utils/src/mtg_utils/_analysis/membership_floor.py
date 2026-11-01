@@ -1659,6 +1659,7 @@ def _apply_membership_floor(
     is_kill_engine: bool,
     token_maker_subjects: frozenset[str],
     own_lifelink: bool,
+    made_token_names: frozenset[str] = frozenset(),
 ) -> None:
     """The card-type / own-subtype MEMBERSHIP floor (what the card IS).
 
@@ -1680,7 +1681,9 @@ def _apply_membership_floor(
     so this shared function never touches ``old_ir_for`` / the old ``Card`` type
     at all. Keeps the floor's SEMANTICS identical (a re-plumbing, not a
     redesign) — only the read SOURCE moves. ``own_lifelink`` is one more: the
-    card grants itself lifelink (``crosswalk.own_keyword_bodies``).
+    card grants itself lifelink (``crosswalk.own_keyword_bodies``), and
+    ``made_token_names`` the names of the tokens the card's own ``Token``
+    effects create.
     """
     type_line = (card.get("type_line") or "").lower()
     if "artifact" in type_line:
@@ -1864,6 +1867,20 @@ def _apply_membership_floor(
             continue
         tl = (part.get("type_line") or "").lower()
         if "creature" not in tl or "—" not in tl:
+            continue
+        # A legendary token is one card's own named creation (CR 111.4: the
+        # spell or ability that creates a token sets its name); the
+        # bulk relates it to every card of its combo too (Vecna, a Zombie God
+        # Book of Vile Darkness makes, sits on Eye and Hand of Vecna). A card
+        # whose own Token effects make no token of that name, and that isn't
+        # the card's own name (a token copy of itself — Council of Reeds),
+        # leaves it out.
+        part_name = part.get("name")
+        if (
+            "legendary" in tl
+            and part_name not in made_token_names
+            and part_name not in name.split(" // ")
+        ):
             continue
         for tok in tl.split("—", 1)[1].split():
             sub = tok.strip().lower()

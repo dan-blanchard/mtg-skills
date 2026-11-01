@@ -441,9 +441,7 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   - the tribe pages were checked on Goblin, Elf, Zombie, Dragon and Sliver
     (and Angel, Vampire, Merfolk, Wizard, Human): every real member they
     lost has an IR ident or a ledger row (the 21 ``_reference_row`` rows). The
-    other tribes weren't, and phase drops ran 0–3 members a tribe;
-  - ``type_matters``' token-profile join gains Eye and Hand of Vecna on the
-    Zombie page (their Vecna is a Zombie God), no member.
+    other tribes weren't, and phase drops ran 0–3 members a tribe.
   The page-only keys (``signal_keys.PAGE_ONLY_KEYS``: ``subtype_ref``,
   ``keyword_bodies`` and ``land_return_untap``, the Forest-bounce untap engines
   split off ``permanent_etb``) feed a theme's page and open no avenue or plan
