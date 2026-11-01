@@ -94,6 +94,21 @@ def test_opponent_side_tokens_are_not_yours():
     assert _token_idents("Pharika, God of Affliction") == {"token_maker|any|Snake"}
 
 
+def test_exiled_cards_owner_token_is_not_yours():
+    """ "When this creature leaves the battlefield, the exiled card's owner
+    creates an X/X blue Illusion creature token" (Skyclave Apparition; Severance
+    Priest's Spirit): phase hangs ``OwnersOfCardsExiledBySource`` on the wrapper
+    over a Controller-relative Token. The token is the answered player's
+    consolation (CR 111.2), never a token you make."""
+    from mtg_utils._card_ir.crosswalk.reads import effect_actor_scope
+
+    assert not _token_idents("Skyclave Apparition")
+    (tree,) = trees_for(test_card("Skyclave Apparition"))
+    made = [(u, c) for u in tree.units for c in u.effect_concepts("make_token")]
+    assert made
+    assert all(effect_actor_scope(u, c.node) == "opponents" for u, c in made)
+
+
 @pytest.mark.retirement_canary
 def test_commence_the_endgame_amass_dropped_canary():
     """phase v0.104.0 folds "then amass Zombies X" into the Draw node's

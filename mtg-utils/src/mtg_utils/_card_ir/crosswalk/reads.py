@@ -5722,10 +5722,21 @@ def effect_owner_player_scope(root: object, effect_node: object) -> str | None:
     return _owner_scope_tag(found[1], root) if found is not None else None
 
 
+#: "The exiled card's owner": the wrapper actor phase hangs on the consolation a
+#: card gives back when it leaves the battlefield ("the exiled card's owner
+#: creates an X/X blue Illusion creature token" — Skyclave Apparition; "… may
+#: cast that card without paying its mana cost" — Spell Queller; "… seeks" —
+#: Darkstar Banisher), whose own effect stays Controller-relative. The cards the
+#: source exiled are the ones it answered, so their owner is the answered player
+#: (CR 111.2: the player who creates a token is its owner), read as the opponents
+#: as an answered target's "its controller creates" is (Beast Within).
+EXILED_CARDS_OWNERS_SCOPE = "OwnersOfCardsExiledBySource"
+
 #: Wrapper actors (:func:`effect_owner_player_scope`) naming the opponents: the
-#: opponent ``player_scope`` tags plus "each other player".
+#: opponent ``player_scope`` tags, "each other player", and the owner of the
+#: cards the source exiled.
 OPPONENT_WRAPPER_ACTORS: frozenset[str] = frozenset(
-    {*OPPONENT_ACTOR_TAGS, OTHERS_SCOPE}
+    {*OPPONENT_ACTOR_TAGS, OTHERS_SCOPE, EXILED_CARDS_OWNERS_SCOPE}
 )
 #: Wrapper actors (:func:`effect_owner_player_scope`) under which you act: none
 #: named (the controller), or you beside an opponent.
