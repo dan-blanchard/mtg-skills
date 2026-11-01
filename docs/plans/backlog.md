@@ -424,11 +424,6 @@ theme guide adds no theme serve admits (J2: 100) — Ahoy Mateys 13 (theft), Sil
 ETB doublers), ~45 scattered one to seven a deck. Gate unchanged (held-out 20: plan
 ≥ +10, adds + job-equivalents ≥ −5, cuts ≥ −1). In order:
 
-- **A tutor is a need-satisfier (gated).** A tutor pages on a commander need whose pool
-  satisfiers its search filter can find (the tutor read's filter against the need's
-  satisfiers' types): unrestricted tutors (Demonic, Vampiric, Gamble) on the most
-  specific need; restricted ones (Worldly, Enlightened, Natural Order, Cateran Summons)
-  only where the filter reaches. Rows (T1 / PR1) are settled; this is a new read.
 - **A tribe's signal profile opens its lanes (gated).** For a deck whose plan lane is a
   tribe, the lanes the tribe's pool cards over-index on against the pool base rate
   (the way `metrics.focus` reads base rates) open as an emerging theme page, adds via
@@ -1088,6 +1083,18 @@ headroom and parked items.
   S-A, above); Enlightened Tutor and Moonsilver Key are tutor-row fills (T1 and
   PR1, above); Call the Gatewatch and Firemind's Foresight sit past the 150-card
   page (P2, above). Don't re-suggest a page for them without a new read.
+- **A tutor is no need-satisfier — settled 2026-11-01 (TU1).** The third try at the
+  guides' tutors (after the generic and plan-conditional rows T1 / PR1): a need
+  carries the type-line words a quarter of its pool satisfiers share, and a tutor
+  whose own-library search names one of them supplies it (Idyllic Tutor the Auras,
+  Worldly Tutor the creatures), an unrestricted tutor only the commander's most
+  specific need. Measured against N12 (`w41/sb-*-TU1.json`, `tutor-need-TU1.patch`;
+  branch `block2-tutor-need`): held-out plan +3 with the tutor arm alone crediting
+  48 adds, guide adds −5, cuts −1; the 25 plan +5 (arm 54), adds −12, cuts −2. The
+  tutors take the need pages' slots from the cards the guides add, and the gate's
+  plan line would have read the swap as plan-consistent by definition
+  (`plan_tune_tutor`, the scoreboard's new column, says how much). The guides' tutors
+  stay play-rate adds no page prefers. Don't re-suggest a tutor page, row or arm.
 - **The commander's multipliers are a need, not a page** (2026-10-31). The
   ability-multiplier PAGE was measured negative 2026-10-30 (its one swap took the
   first upgrade cut: held-out adds 35 → 31). The read that replaced it: a
