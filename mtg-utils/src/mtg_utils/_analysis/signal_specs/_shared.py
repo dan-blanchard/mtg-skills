@@ -23,7 +23,7 @@ from mtg_utils._analysis.lanes.card_advantage import (
     FODDER_SELF_RETURNS,
     comes_back_from_graveyard,
 )
-from mtg_utils._analysis.signal_keys import wildcard_counts
+from mtg_utils._analysis.signal_keys import wildcard_counts_ident
 from mtg_utils.card_classify import (
     card_pt_int,
     type_line_has,
@@ -261,11 +261,8 @@ class Serve:
         out a membership subject (``signal_keys.wildcard_counts``): what a
         card IS, which the theme's page never takes as a payoff (Sol Ring's
         ``artifacts_matter|you|member``)."""
-        if ident in self.signal_idents:
-            return True
-        key_scope, _, subject = ident.rpartition("|")
-        return key_scope in _wildcard_scopes(self.signal_idents) and wildcard_counts(
-            key_scope.partition("|")[0], subject
+        return ident in self.signal_idents or wildcard_counts_ident(
+            ident, _wildcard_scopes(self.signal_idents)
         )
 
     def counts_ident(self, ident: str) -> bool:

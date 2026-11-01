@@ -4413,10 +4413,12 @@ def has_nested_fight(node: object) -> bool:
 def fights_between_blockers(node: object) -> bool:
     """Whether every ``Fight`` under ``node`` is between two blocking creatures
     (Dissension in the Ranks: "Target blocking creature fights another target
-    blocking creature"). The defending player blocks with creatures they
-    control (CR 509.1a), so on your turn both fighters are an opponent's and on
-    theirs both are yours: no creature of yours fights one of theirs, as it does
-    when you pick each side (Prey Upon) or two free targets (Blood Feud)."""
+    blocking creature"). Each defending player blocks with creatures they
+    control (CR 509.1a), so with one defending player both fighters are an
+    opponent's on your turn and yours on theirs: no creature of yours fights one
+    of theirs, as it does when you pick each side (Prey Upon) or two free
+    targets (Blood Feud). An attack on two players at once can put your blocker
+    beside another player's; leaving that out is this read's own call."""
     fights = [n for n in _iter_typed_nodes(node) if tag_of(n) == "Fight"]
     return bool(fights) and all(
         "Blocking" in filter_predicates(getattr(f, "subject", None))

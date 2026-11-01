@@ -298,6 +298,16 @@ def wildcard_counts(key: str, subject: str) -> bool:
     return subject_role(key, subject) is not SubjectRole.MEMBERSHIP
 
 
+def wildcard_counts_ident(ident: str, wild_scopes: frozenset[str]) -> bool:
+    """Whether a ``key|scope|subject`` ident meets a ``key|scope|*`` wildcard over
+    one of ``wild_scopes`` (each ``key|scope``) that counts its subject
+    (:func:`wildcard_counts`)."""
+    key_scope, _, subject = ident.rpartition("|")
+    return key_scope in wild_scopes and wildcard_counts(
+        key_scope.partition("|")[0], subject
+    )
+
+
 def is_page_only(key: str, subject: str) -> bool:
     """Whether a signal only feeds a theme's page and opens no avenue — or plan
     — of its own: a page-only key (:data:`PAGE_ONLY_KEYS`) or a page-only doer
