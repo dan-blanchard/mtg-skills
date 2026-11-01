@@ -36,10 +36,12 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   names its remainder). Regex-only, measured over the legal corpus:
   `ability_strip_payoff` (the
   crippling-drawback text beside a power floor; no lane reads a drawback a strip
-  turns off). Lane follow-ups the pass found: `card_draw_engine` misses Mask
-  of the Schemer's connive X (phase parks "where X is the amount of damage it
-  dealt" as `where_x_binding`, a phase gap). Phase gaps
-  to report upstream (Dan posts) (drafted: `docs/plans/phase-upstream-reports.md` §6, §12–§15, §19, §20, §23; "Already fixed"; "Not drafted") — from Pass D: Frodo, Sauron's Bane's granted
+  turns off). Every lane follow-up the pass found shipped or was settled by
+  2026-11-01 (the lane passes of that day, the audit's "The fourth lane pass");
+  what remains here is phase's. Phase gaps
+  to report upstream (Dan posts): Mask of the Schemer's connive X (phase parks
+  "where X is the amount of damage it dealt" as `where_x_binding`, so
+  `card_draw_engine` can't read it); (drafted: `docs/plans/phase-upstream-reports.md` §6, §12–§15, §19, §20, §23; "Already fixed"; "Not drafted") — from Pass D: Frodo, Sauron's Bane's granted
   trigger;
   Teferi, Temporal Pilgrim and Devastating Mastery's chooser stamped You; The
   Canopy Cover's opponent-only hexproof as SelfRef; Phyrexian Unlife and the
@@ -67,8 +69,9 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   Shaman, Arlinn), Radagast, Aluren, Jin Sakai, Nether Void's unless-pay, Mana
   Breach's controller, Dimir Keyrune, Hive of the Eye Tyrant, Corpse Cobble,
   snow landwalk, Vectis Gloves, Quicksilver Fountain, Sideswipe.
-- **Every held serve spec is converted (2026-10-19); what the lanes still
-  miss** (the per-spec censuses are in `docs/plans/serve-idents-and-avenue-support.md`
+- **Every held serve spec is converted (2026-10-19); the phase gaps behind
+  the lanes** (every lane gap and false positive this entry listed shipped or
+  was settled in the lane passes of 2026-11-01; the per-spec censuses are in `docs/plans/serve-idents-and-avenue-support.md`
   §2; the 41 holds of the serve-ident pass and the six of the fourth pass are
   all `serve_idents` now, each with its remainder classified). Phase gaps,
   each bridged 2026-10-19 by the supplemental parser with a `retirement_canary`
@@ -112,8 +115,8 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   Security's countered-creature cost reductions, Brimaz's Phyrexian death,
   `walk_effect_chain` descending a coin flip's WIN branch only (+23 idents;
   the lose branch — Volatile Rig's sweep — is deliberately not walked, since
-  both branches would serve drawbacks: Scoria Wurm's self-bounce). Still open,
-  nothing to read: Commence the Endgame (the amass is folded into the Draw
+  both branches would serve drawbacks: Scoria Wurm's self-bounce). Phase gaps
+  with nothing on our side to read (report upstream, Dan posts): Commence the Endgame (the amass is folded into the Draw
   node's description with no residue; the keyword-array fallback serves it),
   Izzet Generatorium's energy replacement (a payoff on makers, left), Aether
   Refinery's doubler typed as a CreateToken replacement (no consumer reads it
@@ -138,11 +141,11 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   that share a card type" (`unknown`); Guardian of the Ages' "it loses defender
   and gains trample" parks as `unparsed_condition` (ledger row
   `loses_defender_trigger_parked` keeps it a voltron carrier).
-  Lane false
-  positives still open: Skyclave Apparition's "the exiled card's owner
-  creates" token reads as yours — phase stamps the Token's `owner` `Controller`
-  and the exiled card `Owned{You}`, so no structure tells it from your own
-  token (a phase gap to report). Not a false positive (2026-10-31, don't
+  A phase gap behind one false positive (report upstream, Dan posts; drafted in
+  `docs/plans/phase-upstream-reports.md` §24): Skyclave Apparition's "the exiled
+  card's owner creates" token reads as yours — phase stamps the Token's `owner`
+  `Controller` and the exiled card `Owned{You}`, so no structure tells it from
+  your own token; nothing on our side can read it. Not a false positive (2026-10-31, don't
   re-suggest): Investigator's Journal's LOW `proliferate_matters` — its suspect
   counters are counters (CR 122.1, not the suspected designation of CR
   701.60a), proliferate adds one of each kind already there (CR 701.34a), and
