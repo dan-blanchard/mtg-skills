@@ -420,6 +420,7 @@ Generated from `mtg-utils/src/mtg_utils/_analysis/bridge_ledger.py` (202 rows; 3
 - `cast_this_way_gains_haste_dropped` (Thundermane Dragon): Thundermane Dragon's 'If you cast a creature spell this way, it gains haste until end of turn' after its cast from the library top. Retires on the bump that types the haste
 - `enchanted_vigilance_payoff_dropped` (Solid Footing): Solid Footing's 'As long as enchanted creature has vigilance, it assigns combat damage equal to its toughness'. Retires on the bump that types the condition
 - `trampler_excess_damage_payoff_dropped` (Ram Through): Ram Through's 'If the creature you control has trample, excess damage is dealt to that creature's controller instead'. Retires on the bump that types the condition
+- `token_creation_replacement_parked` (Mirrormind Crown): 'As long as ~ is attached to a creature, the first time you would create one or more tokens each turn, you may instead create that many tokens that are copies of equipped creature' parks as an Unimplemented `as_long_as_gate` Spell ability; expected a conditional `CreateToken` replacement (as Anointed Procession's, `token_owner_scope: You`) whose tokens are copies of the equipped creature. Retires on the bump that types the replacement (added 2026-11-01)
 
 ### A4. Second faces with no phase record (Aftermath halves, dungeon)
 
