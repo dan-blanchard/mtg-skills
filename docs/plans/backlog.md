@@ -695,13 +695,12 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   branch's prevention reads as `damage_prevention` — a dropped-controller
   misstamp, and once a field correction restores it `is_own_drawback` needs a
   `PreventDamage`-on-your-source arm.
-  Lane gaps still open: Tragic Arrogance stays keep_n_wrath's (adjudicated
-  disjoint from edicts); granted flanking;
-  back-reference counter targets scoped you (Retribution, Obelisk Spider);
-  partial prevention, granted absorb, Blinding Powder, Torrent of Lava
-  (`damage_prevention`); the own-graveyard
-  remainder (collect-evidence and forage costs, descend payoffs, the Empower
-  Jace token's surveil, granted delve / soulshift X, a craft cost). Lane false
+  Tragic Arrogance stays keep_n_wrath's (adjudicated disjoint from edicts).
+  Phase parks, report upstream (Dan posts): Dark Sphere's "prevent half that
+  damage" (`prevent` residue) and Forcefield's "prevent all but 1"
+  (`unrecognized_clause_head`); Blinding Powder's and Torrent of Lava's granted
+  prevention (`granter_reference_unreached`); Eye of Ojer Taq's "Craft with two
+  that share a card type" (`unknown`). Lane false
   positives still open: Skyclave Apparition's "the exiled card's owner
   creates" token reads as yours — phase stamps the Token's `owner` `Controller`
   and the exiled card `Owned{You}`, so no structure tells it from your own
@@ -1121,6 +1120,12 @@ headroom and parked items.
   keeps it, because a "whenever you discard" payoff (Drake Haven) fires whichever
   card goes (Burning Inquiry). A chosen opponent's discard is not yours either
   (Fervent Mastery, `lanes._shared._choose_opponent_bound_discard`).
+- **Empower Jace is no graveyard maker** (2026-11-01): the Jace token it makes
+  (only when you control none) surveils through a "[−1]: Surveil 1" loyalty
+  ability beside "[−3]: Draw a card"; the 28 empower cards (Protege's Awakening,
+  the Way of the … cycle) build a Jace's loyalty, and a graveyard page that
+  served them would serve a planeswalker plan. `graveyard_makers` reads a fill
+  the card itself makes (surveil, a mill, a discard cost).
 - **Upkeep-payment discards aren't discard outlets** (Dan, 2026-10-09): echo's and
   cumulative upkeep's discard (Deepcavern Imp, Rakdos Headliner, Vexing Sphinx) is
   a forced payment to keep the permanent, not a discard you make on demand (CR

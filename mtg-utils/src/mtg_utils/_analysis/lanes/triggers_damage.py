@@ -80,6 +80,7 @@ from mtg_utils._card_ir.crosswalk import (
     iter_threaded_target_statics,
     iter_typed_nodes,
     iter_unit_trigger_defs,
+    keyword_bodies,
     keyword_subject,
     mana_restrictions,
     mana_spend_criteria,
@@ -2330,6 +2331,11 @@ def _damage_prevention(tree: ConceptTree) -> list[Signal]:
                 ]
     # A prevention phase v0.104.0 parks by shape (reads.PARKED_PREVENTION_RESIDUES).
     if any(parked_prevention(n) for n in tree.unimplemented):
+        return [Signal("damage_prevention", "you", "", "", tree.name, "high")]
+    # Absorb N: "If a source would deal damage to this creature, prevent N of that
+    # damage" (CR 702.64a) — a granted one is only the keyword (Lymph Sliver's
+    # "All Sliver creatures have absorb 1").
+    if "absorb" in keyword_bodies(tree):
         return [Signal("damage_prevention", "you", "", "", tree.name, "high")]
     # Third arm (v0.45.0 pin bump): phase v0.38.0 re-modeled the static
     # "prevent N of that damage" shield (Urza's Armor, Orbs of Warding,

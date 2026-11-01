@@ -1140,8 +1140,16 @@ def _cost_concepts(ability: TypedMirrorNode) -> tuple[ConceptNode, ...]:
 # revealing a card of one (Dragonlord's Prerogative's "you may reveal a Dragon
 # card"), whose filter names what the spell asks you to have.
 _QUALITY_COST_TAGS = frozenset({"Behold", "Reveal"})
+#: Exiling cards from a zone (forage's "exile three cards from your graveyard",
+#: CR 701.61a) and collecting evidence (CR 701.59a: exile cards from your
+#: graveyard with total mana value N or greater) — the graveyard-fuel costs
+#: ``graveyard_matters`` reads.
+_EXILE_COST_TAGS = frozenset({"Exile", "CollectEvidence"})
 _ADDITIONAL_COST_PRIMITIVE_TAGS = (
-    _PAYLIFE_COST_TAGS | frozenset({"Blight", "TapCreatures"}) | _QUALITY_COST_TAGS
+    _PAYLIFE_COST_TAGS
+    | frozenset({"Blight", "TapCreatures"})
+    | _QUALITY_COST_TAGS
+    | _EXILE_COST_TAGS
 )
 
 
