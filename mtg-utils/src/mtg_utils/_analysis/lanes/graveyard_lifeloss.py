@@ -97,6 +97,8 @@ from mtg_utils._card_ir.mirror.runtime import (
     TypedMirrorNode,
 )
 from mtg_utils._card_ir.recovery import (
+    ANY_TARGET,
+    PLAYER,
     SELF,
     TARGET_OBJECT,
     TARGETED,
@@ -1791,6 +1793,18 @@ def _lifeloss_makers(tree: ConceptTree) -> list[Signal]:
         # (:func:`damage_drains_opponent`).
         if any(damage_drains_opponent(unit, n) for n in iter_typed_nodes(unit.node)):
             fire("opponents", "")
+        # A damage clause phase parks, recovered by the seam, drains the same
+        # way when it names an opponent's side and a player, never "any target"
+        # ("it deals 1 damage to defending player" — Simian Sling, Tormentor's
+        # Helm; Iron Mastiff's "to each opponent" row).
+        for c in unit.effect_concepts("deal_damage"):
+            if (
+                c.recovered_by == "damage"
+                and c.scope == "opponents"
+                and PLAYER in c.reading
+                and ANY_TARGET not in c.reading
+            ):
+                fire("opponents", c.raw)
     if not tree.is_type("Land"):
         for unit in tree.units:
             paylife = any(cost_has_paylife(cc.node) for cc in unit.costs) or any(

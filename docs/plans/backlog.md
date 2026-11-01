@@ -906,10 +906,12 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
     counter, Rakdos Augermage's and Impetuous Lootmonger's own discard, Indominus
     Rex's keyword counters, Invasion of Arcavios's search.
 - **Our reads still missing a v0.118.0 shape** (open):
-  - A recovered `blocked_attacker_damage_source` damage ("it deals 1 damage to
-    defending player" — Simian Sling, Tormentor's Helm; "… to each creature
-    blocking it" — Ib Halfheart, Trailblazer's Torch) is read by direct_damage
-    but not lifeloss_makers / mass_removal.
+  - A recovered `blocked_attacker_damage_source` "… to each creature blocking
+    it" (Ib Halfheart, Trailblazer's Torch) stays off mass_removal (it hits only
+    the blockers); the typed cousins phase flattens to a bare DamageAll over
+    every creature by dropping "blocking it" (Battle-Scarred Goblin, Fire
+    Juggler — [P12]) still read as sweeps: the DamageAll arm lacks the
+    becomes_blocked / blocks veto `_mass_shrink` has.
   - Underbridge Warlock's enters trigger is a `CreateBoon`; no lane reads a boon
     as an enters payload (self_etb_payload lost).
   - Tasha, Unholy Archmage's "+1: … put a -1/-1 counter on that creature" names

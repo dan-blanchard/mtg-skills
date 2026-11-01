@@ -156,6 +156,20 @@ def test_a_combo_pieces_related_legendary_token_is_no_tribe(name):
     assert not tribes & {"Zombie", "God"}
 
 
+@pytest.mark.parametrize("name", ["Simian Sling", "Tormentor's Helm"])
+def test_a_parked_damage_to_defending_player_is_life_loss(name):
+    """ "Whenever … becomes blocked, it deals 1 damage to defending player"
+    parks as ``blocked_attacker_damage_source``; damage to a player is life
+    loss (CR 120.3a)."""
+    assert ("lifeloss_makers", "opponents", "") in _idents(name)
+
+
+def test_a_parked_damage_to_the_creatures_blocking_it_is_no_sweep():
+    """Trailblazer's Torch's "it deals 2 damage to each creature blocking it"
+    hits only the blockers: no board wipe."""
+    assert not _keyed("Trailblazer's Torch", "mass_removal", "lifeloss_makers")
+
+
 def test_a_token_copy_of_itself_keeps_its_tribe():
     """Council of Reeds makes "a token that's a copy of Council of Reeds"."""
     assert ("type_matters", "you", "Scientist") in _idents("Council of Reeds")
