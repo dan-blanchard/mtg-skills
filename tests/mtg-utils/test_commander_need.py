@@ -270,6 +270,21 @@ def test_counter_payoffs_and_movers_consume_the_commanders_plus_one_counters():
     assert not satisfies(test_card("Raise the Alarm"), consumers)
 
 
+def test_a_minus_counter_trigger_wants_minus_counters_not_plus_ones():
+    # Auntie Ool's "Whenever one or more -1/-1 counters are put on a creature"
+    # watches one counter kind (phase's ``counter_filter``): a +1/+1 counter
+    # maker feeds it nothing; a -1/-1 counter card, a proliferate and a mover do
+    # (CR 122.5: moving a counter puts it onto the second object — The Ozolith).
+    needs = _needs("Auntie Ool, Cursewretch")
+    assert "counter_added makers" not in _labels(needs)
+    need = _need("Auntie Ool, Cursewretch", "-1/-1 counters put on creatures")
+    assert satisfies(test_card("The Ozolith"), need)
+    assert satisfies(test_card("Evolution Sage"), need)
+    assert satisfies(test_card("Black Sun's Zenith"), need)
+    assert not satisfies(test_card("Bramblewood Paragon"), need)
+    assert not satisfies(test_card("Disfigure"), need)  # -2/-2, no counter
+
+
 def test_a_token_copy_commander_feeds_the_token_payoffs():
     # Satya's attacking copy is a token (CR 111.1): a token payoff consumes it
     # (Junk Winder's "Whenever a token you control enters"; Anointed Procession).
@@ -360,3 +375,21 @@ def test_a_nontoken_sacrifice_trigger_is_not_fed_by_token_makers():
     assert not need.keys & {"token_maker", "mass_token_makers"}
     assert satisfies(test_card("Viscera Seer"), need)
     assert not satisfies(test_card("Raise the Alarm"), need)
+
+
+def test_a_commanders_own_combat_damage_trigger_wants_grants_to_it():
+    # "Whenever Sidar Jabari deals combat damage to a player": the grants that
+    # reach the commander feed it — a commander grant (Sword Coast Sailor's
+    # can't be blocked, Flaming Fist's double strike: CR 702.4b, it deals combat
+    # damage in both steps), a target grant (Duelist's Heritage). Another
+    # creature's own flying does not.
+    labels = _labels(_needs("Sidar Jabari of Zhalfir"))
+    assert "evasion for your attackers" not in labels
+    need = _need(
+        "Sidar Jabari of Zhalfir", "evasion and double strike for the commander"
+    )
+    for name in ("Sword Coast Sailor", "Flaming Fist", "Duelist's Heritage"):
+        assert satisfies(test_card(name), need), name
+    assert not satisfies(test_card("Serra Angel"), need)
+    # A trigger on any of your creatures keeps the attackers' evasion need.
+    assert "evasion for your attackers" in _labels(_needs("Olivia, Opulent Outlaw"))

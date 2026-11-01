@@ -87,7 +87,7 @@ from mtg_utils._card_ir.crosswalk.reads import (
     trigger_def_event,
     trigger_scope,
 )
-from mtg_utils._card_ir.mirror.runtime import TypedMirrorNode
+from mtg_utils._card_ir.mirror.runtime import MirrorVariant, TypedMirrorNode
 from mtg_utils._card_ir.trees import trees_for
 from mtg_utils.type_line import split_type_line
 
@@ -592,6 +592,19 @@ def _type_need(
     return frozenset({frozenset(words)}), frozenset(keys)
 
 
+def _counter_filter_kind(node: TypedMirrorNode) -> str | None:
+    """The counter kind a ``CounterAdded`` trigger watches (its
+    ``counter_filter.counter_type``: ``M1M1``, ``P1P1``), ``None`` when it
+    watches every kind. A bare ``{counter_type: …}`` strict-loads as a
+    ``MirrorVariant`` keyed ``counter_type``."""
+    filt = getattr(node, "counter_filter", None)
+    if isinstance(filt, MirrorVariant) and filt.key == "counter_type":
+        kind = filt.inner
+    else:
+        kind = getattr(filt, "counter_type", None) if _present(filt) else None
+    return kind if isinstance(kind, str) else None
+
+
 def _event_need(node: TypedMirrorNode, desc: str) -> Need | None:
     event = trigger_def_event(node)
     scope = trigger_scope(node)
@@ -703,6 +716,24 @@ def _event_need(node: TypedMirrorNode, desc: str) -> Need | None:
             desc,
             keys=frozenset(keys),
         )
+    if event == "counter_added" and _counter_filter_kind(node) == "M1M1":
+        # "Whenever one or more -1/-1 counters are put on a creature" (Auntie
+        # Ool, Cursewretch): fed by the -1/-1 counter lane's cards, a
+        # proliferate, and a mover — moving a counter puts it onto the second
+        # object (CR 122.5: The Ozolith's counters onto a target creature). A
+        # -X/-X effect (``debuff_makers``: Disfigure) puts no counter.
+        return Need(
+            "event",
+            "-1/-1 counters put on creatures",
+            desc,
+            keys=frozenset(
+                {"minus_counters_matter", "proliferate_makers", "counter_move"}
+            ),
+        )
+    if event == "deals_damage" and tag_of(getattr(node, "valid_source", None)) == (
+        "SelfRef"
+    ):
+        return _own_damage_grant_need(desc)
     if event == "deals_damage":
         return Need(
             "event",
@@ -717,6 +748,47 @@ def _event_need(node: TypedMirrorNode, desc: str) -> Need | None:
     if event == "life_lost" and scope == "you":
         return None  # a self-life-loss watcher is fed by its own costs; not a need
     return Need("event", label, desc, keys=keys)
+
+
+#: The keywords a "whenever ~ deals combat damage to a player" commander wants
+#: put on itself: evasion to connect, and double strike, with which it deals
+#: combat damage in both combat damage steps (CR 702.4b) and so triggers twice.
+_OWN_DAMAGE_KEYWORDS: frozenset[str] = _EVASION_KEYWORDS | {"double strike"}
+
+
+def _grants_the_commander(card: dict) -> bool:
+    """Whether the card gives your commander one of :data:`_OWN_DAMAGE_KEYWORDS`
+    ("Commander creatures you own have 'Whenever this creature attacks a player,
+    … this creature can't be blocked this turn'" — Sword Coast Sailor; "… it
+    gains double strike" — Flaming Fist)."""
+    idents = _card_idents(card)
+    if "commander_matters|you|" not in idents:
+        return False
+    return any(
+        f"{prefix}|you|{kw}" in idents
+        for kw in _OWN_DAMAGE_KEYWORDS
+        for prefix in ("keyword_bodies", "evasion_self")
+    )
+
+
+def _own_damage_grant_need(desc: str) -> Need:
+    """A combat-damage trigger of the commander's own ("Whenever Sidar Jabari
+    deals combat damage to a player"): only what reaches the commander feeds
+    it — a grant to a target or the team of evasion or double strike (Duelist's
+    Heritage), a grant to your commander, a lure. Another creature's own flying
+    does not."""
+    return Need(
+        "event",
+        "evasion and double strike for the commander",
+        desc,
+        keys=frozenset({"team_evasion_grant", "lure_makers"}),
+        idents=frozenset(
+            f"{prefix}|you|{kw}"
+            for kw in _OWN_DAMAGE_KEYWORDS
+            for prefix in ("keyword_grant_target", "team_buff")
+        ),
+        predicate=_grants_the_commander,
+    )
 
 
 def _cheap_spells_need(desc: str) -> Need:
