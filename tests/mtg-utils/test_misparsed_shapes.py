@@ -163,8 +163,11 @@ def test_split_delayed_coin_flip_canary(name, path):
 
 
 def test_split_delayed_flips_losing_outcome_is_a_drawback():
-    """Losing control of the card (Fickle Efreet) is no blocked-creature payoff."""
-    assert "blocked_matters" not in _keys("Fickle Efreet")
+    """Losing control of the card (Fickle Efreet) is no blocked-creature payoff,
+    and no attack payoff either: the trigger's only outcome is a drawback."""
+    assert not {"blocked_matters", "attack_matters"} & _keys("Fickle Efreet")
+    # a real "attacks or blocks" reward keeps its attack payoff
+    assert "attack_matters" in _keys("Elder Gargaroth")
 
 
 def test_desperate_gambits_losing_prevention_is_no_shield():
