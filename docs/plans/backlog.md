@@ -607,7 +607,12 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   warm Blood Rites / Eldrazi Unbound / Sliver Swarm `deck-tune` 2.3-2.6 /
   2.5-2.9 / 3.1-3.5 → 1.7-2.0 / 2.0 / 2.1 s; the 25 precons' warm tunes, each a
   fresh process, 2.04 / 2.49 → 1.66 / 2.02 s median / max; the precon audit 23 s
-  warm, 1.25 GB peak, its output identical). Open: the CLI is now Spellbook's:
+  warm, 1.25 GB peak, its output identical). Settled 2026-10-31 late night: a
+  warm thirty-swap tune reads 2.8 / 2.8 / 3.0 s on those three decks after the
+  need pages, the quality and strength reads and the multiplier need (which cost
+  1.5-3 s until its signal-key gate and per-commander memo); the swap phase's
+  page scans remain the cost, and no further speed pass is planned — re-open on
+  a warm tune past 5 s. Before that: the CLI is now Spellbook's:
   it asks at 0.4 s (after the deck's names: `acquire_for_cli` loads the pool
   index, 0.3 s) and the answer lands at 1.1-1.7 s, while the deck reads are done
   by 1.0 s — what's left behind the answer is the swap phase (0.5 s), whose page
