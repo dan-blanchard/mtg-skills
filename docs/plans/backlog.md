@@ -1155,6 +1155,13 @@ headroom and parked items.
   plan line would have read the swap as plan-consistent by definition
   (`plan_tune_tutor`, the scoreboard's new column, says how much). The guides' tutors
   stay play-rate adds no page prefers. Don't re-suggest a tutor page, row or arm.
+  **Stacked with V3b (VT1, 2026-11-01, Dan's ask after the block):** the one pair
+  whose single-run sums cleared the plan bar (+9 and +3). Measured together against
+  N16 (`w41/sb-*-VT1.json`): held-out plan +13 of which the tutor arm alone 77,
+  guide adds −16, job-equivalents −1, cuts 0; the 25 adds −20, plan +24 (arm 69).
+  The two losses compound — the reorder lifts the tutors the need page admits over
+  the guides' adds — so the combination loses more adds than either alone. No
+  other pair sums past the plan bar. Don't re-suggest stacking the block's losers.
 - **The commander's multipliers are a need, not a page** (2026-10-31). The
   ability-multiplier PAGE was measured negative 2026-10-30 (its one swap took the
   first upgrade cut: held-out adds 35 → 31). The read that replaced it: a
