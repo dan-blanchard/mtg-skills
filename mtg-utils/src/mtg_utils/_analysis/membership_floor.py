@@ -1266,6 +1266,12 @@ _VOLTRON_HAS_OTHER_PLAN_COMPAT: frozenset[str] = frozenset(
         "self_pump",
         "pump_makers",
         "cant_block_grant",
+        # The carrier's own evasion (shadow is an evasion ability, CR 702.28a —
+        # Jodah's Avenger) and its own combat keyword (banding modifies the
+        # combat rules, CR 702.22a — Urza's Avenger): the Evasion leg of the
+        # triad above, a trait of the body, not another plan.
+        "evasion_self",
+        "has_banding",
         # _matters sweep (ADR-0034): the voltron MAKER arm. Attaching/fetching gear
         # IS the voltron plan (load one creature with Equipment/Auras), NOT another
         # plan, so a voltron_makers HIGH must not silence the bare commander-damage

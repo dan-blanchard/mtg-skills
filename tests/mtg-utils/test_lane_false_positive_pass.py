@@ -146,3 +146,16 @@ def test_an_opponent_lock_stays_stax():
 
 def test_the_cant_lose_card_keeps_its_insurance():
     assert ("life_payment_insurance", "you", "cant_lose") in _idents("Platinum Angel")
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Jodah's Avenger",  # shadow, an evasion ability (CR 702.28a)
+        "Urza's Avenger",  # banding (CR 702.22a)
+    ],
+)
+def test_the_carriers_own_evasion_keeps_the_commander_damage_read(name):
+    """The floor's commander-damage fallback (CR 903.10a) is silenced only by
+    another plan; the body's own evasion or combat keyword is none."""
+    assert ("voltron_matters", "you", "carrier") in _idents(name)
