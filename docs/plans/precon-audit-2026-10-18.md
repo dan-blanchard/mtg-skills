@@ -2383,7 +2383,7 @@ combined win on the guide yardsticks; what they show, together and alone, is
 that plan-consistency and exact-name matching pull in different directions, and
 the gate has to say which one it serves.
 
-**The taxonomy's lane fixes (2026-10-30, merged: 955f286e).** Three read fixes
+**The taxonomy's lane fixes (2026-10-30, merged: b28079d0).** Three read fixes
 from `w40/miss-taxonomy.md`, built by an agent and shipped on correctness:
 `aura_matters|any|` (a payoff watching creatures enchanted by an Aura whoever
 controls them — Killian, Eriette, Hateful Eidolon; its maker side
@@ -3024,7 +3024,7 @@ pass. Settled: the tribe pages are read off the IR for every tribe.
 
 ## The lane pass, re-based (2026-11-01; N7b)
 
-Thirteen lane fixes from a worktree agent (merge f1d5ee79; each commit carries
+Thirteen lane fixes from a worktree agent (ending at f150c80b; each commit carries
 its census): an artifact's own membership is its own subject (`artifacts_matter
 |you|member`; Sol Ring leaves the payoff page's 4,568 → 1,360 cards, theme depth
 unchanged); a token another player creates is no maker of yours (`token_maker`
@@ -3045,12 +3045,12 @@ Plant off the Plant page). Against N6:
 Flat, as lane precision fixes on cards the guides rarely name should be.
 **Baseline N7b** (`w41/sb-*-N7b.json`). The first N7 run (held-out plan −35,
 swaps −21) measured the ungated T1 tutor / recursion rows, which `git apply
---3way` had left staged and the N6 docs commit swept in (reverted, 6506fc8f) —
+--3way` had left staged and the N6 docs commit swept in (reverted, 67c2fa02) —
 T1's own signature, and a second confirmation of its verdict.
 
 ## The second lane pass, re-based (2026-11-01; N8)
 
-Eleven more fixes from a second worktree agent (merge 545d80e5; each commit
+Eleven more fixes from a second worktree agent (ending at e375dd46; each commit
 carries its census over the 32,688 legal oracle ids): the edict lane reads a
 targeted-set, looped, parked or granted sacrifice (`edict_makers|each|` 121 →
 124, `|opponents|` 199 → 201; Malik, Grim Manipulator needs a ledger row for his
@@ -3087,7 +3087,7 @@ each gain a near-miss. Flat, as the first pass was. **Baseline N8**
 ## The third lane pass, re-based (2026-11-01; N9)
 
 Seven fixes and one stale entry from a third worktree agent (merge after
-29da3420; censuses in the commits): damage to "each creature blocking it" is no
+208e56b4; censuses in the commits): damage to "each creature blocking it" is no
 board wipe (`mass_removal|you|` 780 → 777: Battle-Scarred Goblin, Fire Juggler,
 Goblin Swine-Rider); a granted "sacrifice a creature" is an edict on its
 holder's controller (Inevitable End); "that player" after your creature's combat
@@ -3113,7 +3113,7 @@ N9** (`w41/sb-*-N9.json`; the same numbers as N8).
 
 ## The fourth lane pass, re-based (2026-11-01; N10)
 
-Eighteen commits from a fourth worktree agent (merge d8509a36) on the Pass D
+Eighteen commits from a fourth worktree agent (ending at 53a208e6) on the Pass D
 follow-ups and the Fynn lane items: one `(key, subject)` role table
 (`signal_keys.SUBJECT_ROLES`) that the membership, doer and page-only sets, the
 serve and preset wildcards and the pair reads all derive from (output-neutral:
@@ -3144,8 +3144,8 @@ numbers as N8 and N9).
 
 ## The follow-ups, re-based (2026-11-01; N11) — the lane list is done
 
-The three agents' follow-ups and one new recall gap (merges after 5de947ad,
-cherry-pick e503299d): an Equipment's equipped creature bites as yours (CR
+The three agents' follow-ups and one new recall gap (merges after f8835cdd,
+cherry-pick 808089cd): an Equipment's equipped creature bites as yours (CR
 702.6a / 301.5a; Lothlórien Blade on the Power-as-damage page and the deathtouch
 lane); a Splice keyword carries the spells it splices onto (CR 702.47a; the
 Arcane page 57 → 84); a one-shot lock on one player is `stax_taxes|opponents|`,
@@ -3236,7 +3236,7 @@ own rebuilds, out of reach of any first-principles read (the pool's Pirates
 don't steal); the scattered rest went to a triage pass
 (`docs/plans/precon-audit/triage-2026-11-01.md`): 61 cards, one verdict each,
 every rules claim through the CLIs. **20 recall gaps, fixed as reads** (12
-commits, merged as 6523840f): a token's `player_scope` names the exiled card's
+commits, ending at c6552a3f): a token's `player_scope` names the exiled card's
 owner (Skyclave Apparition is no token maker of yours); phase's record-level
 `casting_options` flash is read (33 cards; the ledger row retired); an
 opponents'-draw count fires `opponent_draw_matters` (Heliod, the Warped

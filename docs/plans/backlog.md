@@ -854,7 +854,7 @@ headroom and parked items.
   member lost to a phase drop; 57 memberships are back-face-only and stay off by
   the front-face rule; the one false admission (Urza's Power Plant on the Plant
   page, a hyphenated subtype split in two) and Vecna's related token on the
-  Zombie and God pages were fixed in the two lane passes (f1d5ee79, 545d80e5).
+  Zombie and God pages were fixed in the two lane passes (f150c80b, e375dd46).
   The page-only keys (``signal_keys.PAGE_ONLY_KEYS``: ``subtype_ref``,
   ``keyword_bodies`` and ``land_return_untap``, the Forest-bounce untap engines
   split off ``permanent_etb``) feed a theme's page and open no avenue or plan
@@ -1052,8 +1052,8 @@ headroom and parked items.
 - **The never-admitted adds are triaged; what is left is the guides' own choices
   (2026-11-01).** `docs/plans/precon-audit/triage-2026-11-01.md`: 61 cards (the 84 less
   Ahoy Mateys' 13 and the 10 other tutors), one verdict each, every rules claim through
-  the CLIs. 21 recall gaps fixed as reads in three passes (merged 6523840f, 35f80ce4,
-  0e6365e2, 6b7195ae): a token's `player_scope` and an effect for an answered
+  the CLIs. 21 recall gaps fixed as reads in three passes (ending at c6552a3f, 8f7e7a1f,
+  ec181037, f291a8c4): a token's `player_scope` and an effect for an answered
   target's controller or owner are the opponents' (`crosswalk.effect_actor_scope`,
   `acts_for_answered_target`, `effects_by_actor` — Skyclave Apparition, Spell
   Queller, Darkstar Banisher, Reality Shift, Unidentified Hovership); phase's

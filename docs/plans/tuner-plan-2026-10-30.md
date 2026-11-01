@@ -189,7 +189,7 @@ miss taxonomy, the held-out candidates).
   99), plan −1, job-equivalents +3; the 25 adds +1 (118), plan +1 — **baseline
   N7b** (`w41/sb-*-N7b.json`). (A first N7 run read plan −35 / −25 and was the
   ungated T1 rows, which `git apply --3way` had left staged and the N6 docs
-  commit swept in; reverted in 6506fc8f. Lesson: reset the index after applying
+  commit swept in; reverted in 67c2fa02. Lesson: reset the index after applying
   a measurement patch.)
 - 2026-11-01, the second lane pass (eleven fixes by a second worktree agent:
   edicts read through granted, looped, parked and targeted-set sacrifices;
@@ -231,7 +231,7 @@ miss taxonomy, the held-out candidates).
   second tuner block grilled 2026-11-01" entry holds the list). The reach profile
   re-read at N11 (`w41/reach-profile-N11.md`): 84 held-out theme adds no serve
   admits (J2: 100; Quandrix 15 → 3 from the counters need), 49 past the page (P2
-  settled). `has_other_plan` asks `avenue_spec_for` (1cdce48c; Dan: the serve
+  settled). `has_other_plan` asks `avenue_spec_for` (e2222919; Dan: the serve
   specs may key the signals index) → **baseline N12**, identical to N11 on every
   count in both sets (`w41/sb-*-N12.json`; gate diffs vs `sb-ho-N12.json`). A
   FRESH set of 10 never-used precon families with ≥ 2 guides each
@@ -286,24 +286,24 @@ miss taxonomy, the held-out candidates).
   lead rule (5f8a3b9a, `w41/ramp-lead-R1.patch`) FAILED R1 against N12: held-out
   plan −13, adds +1, job-equivalents −4; the 25 plan −12, cuts −7, adds −4 →
   settled. All three value rules are measured and lost. The triage pass merged
-  (6523840f; `docs/plans/precon-audit/triage-2026-11-01.md`: 61 cards, 20 recall
+  (c6552a3f; `docs/plans/precon-audit/triage-2026-11-01.md`: 61 cards, 20 recall
   gaps fixed as reads, 39 guide-specific) and re-based as **baseline N13**: held-out
   582 / 253 / 100, plan 291 (+28; the guides' own adds read as plan 304 → 370),
   job-equivalents 47, page recall @10 / @30 +13 / +22; the 25 734 / 339 / 121 (adds
-  +3), plan 364 (+15) (`w41/sb-*-N13.json`). The pass's follow-ups merged (35f80ce4:
+  +3), plan 364 (+15) (`w41/sb-*-N13.json`). The pass's follow-ups merged (8f7e7a1f:
   seek, free cast and manifest by the exiled card's owner read as the opponents'
   through the shared `effects_by_actor`; Dina's "sacrifice fodder with power 5+ at
   mana value 4 or less" need, Kalakscion a vanilla 7/2 and a recall gap) →
   **baseline N14**: the 25 identical to N13; held-out 582 / 253 / 99, plan 291 —
   one guide add in Witherbloom Pestilence became a near-miss as Dina's new page
-  took its slot (`w41/sb-*-N14.json`). The pass's third pass merged (0e6365e2:
+  took its slot (`w41/sb-*-N14.json`). The pass's third pass merged (ec181037:
   `crosswalk.acts_for_answered_target` — an effect for an answered target's
   controller or owner is the opponents' — fixes Reality Shift's manifest and
   Unidentified Hovership's manifest dread; the keyword-array arm leaves a typed
   face-down action to the structural lane) → **baseline N15**, identical to N14
   on every count in both sets (`w41/sb-*-N15.json`; gate diffs vs
   `sb-ho-N15.json`). The token-maker lane folded onto the shared answered-target
-  read (6b7195ae; a census over 32,046 commander-legal cards: 0 idents differ) →
+  read (f291a8c4; a census over 32,046 commander-legal cards: 0 idents differ) →
   **baseline N16**, identical to N15 on every count in both sets
   (`w41/sb-*-N16.json`; gate diffs vs `sb-ho-N16.json`). The fresh set's block-end
   score (`w41/sb-fresh-N16.json` vs its N11 score): 295 / 130 of 193 / 38 of 386,
