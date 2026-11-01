@@ -46,9 +46,7 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   `card_draw_engine` misses Mask of the Schemer's connive X (phase parks "where
   X is the amount of damage it dealt" as `where_x_binding`);
   the empower Jace token's scry / surveil (about thirty cards) is not walked.
-  Left from the lane pass:
-  `etb_value_x_recast_commander` (`pair_reads.py`) weights a scry-1 ETB like
-  Shriekmaw now that `self_etb_payload` reads 4,333 cards. Phase gaps
+  Phase gaps
   to report upstream (Dan posts) (drafted: `docs/plans/phase-upstream-reports.md` §6, §12–§15, §19, §20, §23; "Already fixed"; "Not drafted") — from Pass D: Frodo, Sauron's Bane's granted
   trigger;
   Teferi, Temporal Pilgrim and Devastating Mastery's chooser stamped You; The
@@ -1106,6 +1104,18 @@ headroom and parked items.
   `cheat_into_play|you|`. Auton Soldier (`clone_makers|you|`) and Mouth //
   Feed's aftermath draw (`draw_for_each|you|`, `card_draw_engine|you|`) were
   served by the second lane pass.
+- **`etb_value_x_recast_commander` keeps one weight for every ETB payload —
+  don't re-suggest without a per-payload read** (2026-11-01, Pass D follow-up;
+  `self_etb_payload` now reads 4,768 cards). The pair rows reach `deck-rank`
+  only (`build_pair_context` has no other caller: deck-tune and deck-forge's
+  Find never price them). Inside a deck whose commander anchors the row, it adds
+  the same 3.0 to every ETB-payload card, so it never reorders them among
+  themselves: Shriekmaw still outranks a scry-1 ETB on its synergy. What the
+  flat weight does is lift a weak ETB over a non-ETB card of equal synergy. A
+  payload weight needs a job read of the enters trigger itself, which the
+  lane's ident doesn't carry (no subject), and of the 25 precons only Death
+  Toll (Winter, Cynical Opportunist) and Sultai Arisen (Teval) anchor the row,
+  neither through a ranking the gate scores.
 - **A spell's casting-cost discard is a discard outlet** (Dan, 2026-10-10). The
   optional keyword costs count: escalate (Collective Brutality, CR 702.120a),
   buyback (Forbid, Demonic Collusion, CR 702.27a), flashback (Conflagrate, Twinned
