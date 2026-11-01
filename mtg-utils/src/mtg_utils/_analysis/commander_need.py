@@ -504,11 +504,58 @@ def _spells_cast_filter(qty: object) -> object | None:
     return None
 
 
+#: The line a sacrificed creature's power must reach, at most what mana value,
+#: for a commander whose effect scales with that power (Dina, Essence Brewer's
+#: "where X is the sacrificed creature's power"): a body that pays it off well
+#: for what it costs. The read's own line, not a rule's.
+FODDER_POWER = 5
+FODDER_MV = 4
+
+
+def _sacrifices_a_creature(unit_node: object) -> bool:
+    """Whether the unit's own cost sacrifices a creature ("{2}, {T}, Sacrifice
+    another creature:" — Dina, Essence Brewer)."""
+    cost = getattr(unit_node, "cost", None)
+    return _present(cost) and any(
+        tag_of(n) == "Sacrifice"
+        and "Creature" in filter_core_types(getattr(n, "target", None))
+        for n in iter_typed_nodes(cost)
+    )
+
+
+def _sacrificed_power_need(desc: str) -> Need:
+    """A commander effect scaled by the power of the creature its cost
+    sacrifices — phase's ``Power`` of ``CostPaidObject``, the sacrificed creature
+    as it last existed on the battlefield (Dina's ruling): the need is cheap
+    bodies with a high printed power (CR 208.1)."""
+    return Need(
+        "payoff",
+        f"sacrifice fodder with power {FODDER_POWER}+ "
+        f"at mana value {FODDER_MV} or less",
+        desc,
+        predicate=lambda c: (
+            "creature" in _type_words(c)
+            and _stat(c, "power") >= FODDER_POWER
+            and float(c.get("cmc") or 0) <= FODDER_MV
+        ),
+    )
+
+
 def _effect_needs(unit_node: object, desc: str) -> Iterator[Need]:
     """Needs read off a unit's EFFECTS, whatever its origin: an effect scaled by
-    the greatest mana value among the turn's spells (Rootha), and a draw given
-    to an opponent (Ms. Bumbleflower)."""
+    the greatest mana value among the turn's spells (Rootha), a draw given to an
+    opponent (Ms. Bumbleflower), and an effect scaled by the power of the
+    creature its cost sacrifices (Dina)."""
+    sacrifices = _sacrifices_a_creature(unit_node)
     for n in iter_typed_nodes(unit_node):
+        if (
+            sacrifices
+            and tag_of(n) == "Power"
+            and tag_of(getattr(n, "scope", None)) == "CostPaidObject"
+        ):
+            yield _sacrificed_power_need(desc)
+            sacrifices = False  # one need per unit
+            continue
         tag = tag_of(n)
         if (
             tag == "PropertyAggregate"
