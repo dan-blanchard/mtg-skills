@@ -408,9 +408,13 @@ def scoped_player_scope(unit: AbilityUnit | None) -> str | None:
     Smokestack — "each player's upkeep, that player sacrifices") → each, a
     SYMMETRIC self-inclusive effect that hits YOU too; ``OnlyDuringYourTurn`` (a
     "your upkeep, you sacrifice" self-sac) → ``None``. A non-trigger ScopedPlayer
-    keeps the opponent default.
+    keeps the opponent default. The player a creature of yours dealt combat damage
+    to is an opponent (:func:`combat_damage_hits_opponent` — Demon of Loathing's
+    "that player sacrifices a creature of their choice").
     """
     if unit is None or getattr(unit, "origin", None) != "trigger":
+        return "opponents"
+    if combat_damage_hits_opponent(unit.node):
         return "opponents"
     c = trigger_turn_constraint(unit.node)
     if c == "OnlyDuringOpponentsTurn":
@@ -3420,11 +3424,24 @@ def is_own_drawback(
       Wirefly"), or it aims at the triggering spell of a trigger that watches
       spells you cast (``cast_by_you`` — Krark, the Thumbless's "return that
       spell to its owner's hand"). Invert Polarity's "counter that spell" names
-      anyone's spell, so it stays."""
+      anyone's spell, so it stays;
+    * it shrinks the creature the other outcome pumps up
+      (:func:`_shrinks_the_pumped_target` — Orcish Captain's "If you win the
+      flip, target Orc creature gets +2/+0 … If you lose the flip, it gets
+      -0/-2"): you chose that creature for the buff;
+    * it prevents the damage of the source the other outcome doubles
+      (:func:`_prevents_the_doubled_source` — Desperate Gambit's "If you win
+      the flip, the next time that source would deal damage this turn, it deals
+      double that damage instead. If you lose the flip, … prevent that
+      damage"): you chose that source to deal more."""
     eff = getattr(ability_like, "effect", None)
     tag = tag_of(eff)
     target = getattr(eff, "target", None)
     if tag in _SELF_DRAWBACK_TAGS and tag_of(target) == "SelfRef":
+        return True
+    if _shrinks_the_pumped_target(ability_like, flip) or _prevents_the_doubled_source(
+        ability_like, flip
+    ):
         return True
     if tag in _SELF_HARM_TAGS and tag_of(target) == "Controller":
         return True
@@ -3448,6 +3465,79 @@ def is_own_drawback(
         )
         for f in filters
     )
+
+
+#: The back-references a flip outcome's "it" can bind to the creature its other
+#: outcome targets: ``ParentTarget``, and the ``SelfRef`` phase stamps on it
+#: (Orcish Captain; ``retirement_canary``:
+#: ``test_flip_outcome_anaphor_stamped_selfref_canary``).
+_FLIP_ANAPHOR_TAGS = frozenset({"ParentTarget", "SelfRef"})
+
+
+def _shrinks_the_pumped_target(ability_like: object, flip: object) -> bool:
+    """Whether a flip outcome is a ``Pump`` shrink (:func:`pump_is_negative`) of
+    "it" (:data:`_FLIP_ANAPHOR_TAGS`) while the flip's other outcome pumps a
+    creature it targets up — the one creature the ability chose."""
+    eff = getattr(ability_like, "effect", None)
+    if not isinstance(eff, TypedMirrorNode) or tag_of(eff) != "Pump":
+        return False
+    if not pump_is_negative(eff):
+        return False
+    if tag_of(getattr(eff, "target", None)) not in _FLIP_ANAPHOR_TAGS:
+        return False
+    for field in _FLIP_OUTCOME_FIELDS:
+        other = getattr(flip, field, None)
+        if other is ability_like:
+            continue
+        buff = getattr(other, "effect", None)
+        if (
+            isinstance(buff, TypedMirrorNode)
+            and tag_of(buff) == "Pump"
+            and not pump_is_negative(buff)
+            and tag_of(getattr(buff, "target", None)) in OBJECT_FILTER_TAGS
+        ):
+            return True
+    return False
+
+
+def drawback_outcome_node_ids(node: object) -> frozenset[int]:
+    """The ids of every typed node inside a coin flip outcome under ``node``
+    that is the card's own drawback (:func:`is_own_drawback`) — what a deep walk
+    over a unit leaves out when the effect walk does (Desperate Gambit's losing
+    prevention is no shield)."""
+    out: set[int] = set()
+    for n in _iter_typed_nodes(node):
+        if tag_of(n) != "FlipCoins":
+            continue
+        for field in _FLIP_OUTCOME_FIELDS:
+            outcome = getattr(n, field, None)
+            if outcome is not None and is_own_drawback(outcome, n):
+                out.update(id(m) for m in _iter_typed_nodes(outcome))
+    return frozenset(out)
+
+
+def _prevents_the_doubled_source(ability_like: object, flip: object) -> bool:
+    """Whether a flip outcome prevents the damage of the chosen source
+    (``damage_source_filter: ChosenDamageSource``) while the flip's other
+    outcome doubles that source's damage (a ``CreateDamageReplacement`` of the
+    ``ChosenDamageSource`` with a ``Double`` modification)."""
+    eff = getattr(ability_like, "effect", None)
+    if tag_of(eff) != "PreventDamage":
+        return False
+    if tag_of(getattr(eff, "damage_source_filter", None)) != "ChosenDamageSource":
+        return False
+    for field in _FLIP_OUTCOME_FIELDS:
+        other = getattr(flip, field, None)
+        if other is ability_like:
+            continue
+        boost = getattr(other, "effect", None)
+        if (
+            tag_of(boost) == "CreateDamageReplacement"
+            and tag_of(getattr(boost, "source_filter", None)) == "ChosenDamageSource"
+            and tag_of(getattr(boost, "modification", None)) == "Double"
+        ):
+            return True
+    return False
 
 
 def is_self_sacrifice(ability_like: object) -> bool:
@@ -4626,6 +4716,27 @@ def is_creature_etb_trigger_def(trig: object) -> bool:
     if trigger_def_event(trig) not in ENTERS_EVENTS:
         return False
     return "Creature" in filter_core_types(getattr(trig, "valid_card", None))
+
+
+def combat_damage_hits_opponent(trig: object) -> bool:
+    """Whether a trigger DEFINITION fires on combat damage to a player from a
+    creature you control — the card itself, one of your creatures, or the
+    creature its Equipment or Aura is attached to (:func:`names_attached_object`,
+    the caster's own creature, as :func:`damage_to_player_trigger_kind`'s
+    callers read it). Only an attacking creature deals combat damage to a player
+    (CR 510.1c-d: a blocking creature assigns its damage to the creatures it
+    blocks), and it attacks one of its controller's opponents (CR 506.2, 802.2:
+    the attacking player's opponents are the defending players), so "that
+    player" is an opponent. A trigger on any player's creature ("whenever a
+    creature deals combat damage to a player") names no side."""
+    if damage_to_player_trigger_kind(trig) != "CombatOnly":
+        return False
+    src = getattr(trig, "valid_source", None)
+    return (
+        tag_of(src) == "SelfRef"
+        or filter_controller(src) == "You"
+        or names_attached_object(src)
+    )
 
 
 def damage_to_player_trigger_kind(trig: object) -> str | None:
@@ -12259,7 +12370,16 @@ def self_drawbacks(tree: ConceptTree) -> SelfDrawbacks:
         if _loses_you_the_game(node):
             harm = True
             continue
-        if any(tag_of(c.node) == "Draw" for c in unit.effects):
+        # a draw the unit pays for, typed or one phase parks (Messenger Jays'
+        # "draw a card for each quill vote. For each card drawn this way, discard
+        # a card" — a loot); a parked conditional draw pays for nothing when its
+        # condition fails (Mindstorm Crown's "draw a card if you had no cards in
+        # hand … If you had a card in hand, ~ deals 1 damage to you")
+        if any(
+            tag_of(c.node) == "Draw"
+            or (c.concept == "draw" and not residue_is(c.node, "unparsed_condition"))
+            for c in unit.effects
+        ):
             continue
         if any(
             _harms_you(unit, c.node, mill_is_fuel=mill_is_fuel) for c in unit.effects
@@ -12606,6 +12726,10 @@ def _keyword_bodies(
         for c in unit.effects:
             out.update(c.made_body_keywords if made_only else c.body_keywords)
     out.discard("")
+    # Enchant restricts what an Aura can enchant (CR 702.5a): the Aura a card
+    # makes or becomes (Scriv, the Obligator's Contract token; Animate Dead) is
+    # no keyworded body.
+    out.discard("enchant")
     return frozenset(out)
 
 

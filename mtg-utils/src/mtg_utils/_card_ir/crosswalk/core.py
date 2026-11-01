@@ -54,6 +54,7 @@ from mtg_utils._card_ir.crosswalk.reads import (
     _PAYLIFE_COST_TAGS,
     CURVE_COST_KEYWORDS,
     FLIP_COIN_TAGS,
+    GrantedTrigger,
     _effect_scope,
     _effect_subject,
     _filter_type_words,
@@ -699,10 +700,20 @@ class ConceptTree:
         your upkeep, draw a card'" (Avarice Amulet) reads like a printed upkeep
         trigger. An emblem's trigger is no grant: an ultimate's emblem fills no
         slot the card plays in (the tutor read's footing)."""
-        for unit in self.units:
+        for unit, _granted in self.iter_units_with_grants():
             yield unit
+
+    def iter_units_with_grants(
+        self,
+    ) -> Iterator[tuple[AbilityUnit, GrantedTrigger | None]]:
+        """:meth:`iter_units_and_granted_triggers`, each unit paired with the
+        :class:`GrantedTrigger` it was built from (``None`` for the card's own
+        unit), so a read can ask who holds a granted trigger: its controller is
+        the grantee's (CR 603.3a)."""
+        for unit in self.units:
+            yield unit, None
             for granted in iter_granted_triggers(unit):
-                yield trigger_def_unit(granted.trigger)
+                yield trigger_def_unit(granted.trigger), granted
 
     def iter_typed(self) -> Iterator[TypedMirrorNode]:
         """Every typed mirror node under every unit — the whole-card deep walk."""
@@ -1129,8 +1140,16 @@ def _cost_concepts(ability: TypedMirrorNode) -> tuple[ConceptNode, ...]:
 # revealing a card of one (Dragonlord's Prerogative's "you may reveal a Dragon
 # card"), whose filter names what the spell asks you to have.
 _QUALITY_COST_TAGS = frozenset({"Behold", "Reveal"})
+#: Exiling cards from a zone (forage's "exile three cards from your graveyard",
+#: CR 701.61a) and collecting evidence (CR 701.59a: exile cards from your
+#: graveyard with total mana value N or greater) — the graveyard-fuel costs
+#: ``graveyard_matters`` reads.
+_EXILE_COST_TAGS = frozenset({"Exile", "CollectEvidence"})
 _ADDITIONAL_COST_PRIMITIVE_TAGS = (
-    _PAYLIFE_COST_TAGS | frozenset({"Blight", "TapCreatures"}) | _QUALITY_COST_TAGS
+    _PAYLIFE_COST_TAGS
+    | frozenset({"Blight", "TapCreatures"})
+    | _QUALITY_COST_TAGS
+    | _EXILE_COST_TAGS
 )
 
 

@@ -1114,7 +1114,11 @@ def _mass_removal(tree: ConceptTree) -> list[Signal]:
     (phase_parse_bug [P12]): a ``becomes_blocked``/``blocks`` trigger unit
     (Baneblade Scoundrel) and a ``WithoutKeyword:Flanking`` blocker filter —
     the flanking template, whose -1/-1 hits only blocking creatures per CR
-    702.25a (Knight of Valor). Scope "you".
+    702.25a (Knight of Valor). The trigger-unit veto
+    (:func:`_combat_scoped`) holds for the ``DamageAll`` arm too: "Whenever
+    this creature becomes blocked, it deals 1 damage to each creature blocking
+    it" (Battle-Scarred Goblin, Fire Juggler) is typed as damage to every
+    creature. Scope "you".
     An overload spell's targeted destroy / damage / exile is a sweep when
     overloaded (``crosswalk.overload_sweep``, CR 702.96a — Damn, Mizzium
     Mortars). A sweep the card GRANTS reads the same as its own (Noxious
@@ -1174,10 +1178,33 @@ def _mass_shrink(unit: AbilityUnit, c: ConceptNode) -> bool:
     return (
         "Creature" in filter_core_types(sub)
         and filter_controller(sub) != "You"
-        and unit.trigger_event not in ("becomes_blocked", "blocks")
+        and not _combat_scoped(unit)
         and "Flanking" not in filter_without_keywords(sub)
         and not names_attached_object(sub)
     )
+
+
+#: The trigger events whose mass effect phase may have flattened from "each
+#: creature blocking it" / "each creature it blocks" to every creature by
+#: dropping the combat scope (phase_parse_bug [P12]).
+_COMBAT_SCOPE_EVENTS = frozenset({"becomes_blocked", "blocks"})
+
+
+def _combat_scoped(unit: AbilityUnit) -> bool:
+    """Whether ``unit`` triggers on its source becoming blocked or blocking, so a
+    mass effect it holds hits the creatures in that combat, not the board
+    (CR 509.3c: "becomes blocked" triggers once per combat, for the creatures
+    declared as its blockers). The combat-scope veto of :func:`_mass_shrink`
+    and of the ``DamageAll`` arm of :func:`_is_mass_removal` (Baneblade
+    Scoundrel's -1/-1, Battle-Scarred Goblin's and Fire Juggler's damage to
+    "each creature blocking it"; ``retirement_canary``:
+    ``test_combat_scope_shrinks_parse_as_board_sweeps`` and
+    ``test_combat_scope_damage_parses_as_board_sweep``). It holds for a typed
+    combat scope as well: Goblin Swine-Rider's "each attacking creature and each
+    blocking creature" is one combat's creatures, not the board. A recovered
+    "… to each creature blocking it" (Ib Halfheart, Trailblazer's Torch) never
+    reaches the sweep arms at all."""
+    return unit.trigger_event in _COMBAT_SCOPE_EVENTS
 
 
 def mass_shrink_effects(tree: ConceptTree) -> SweepEffects:
@@ -1357,7 +1384,7 @@ def _is_mass_removal(tree: ConceptTree, unit: AbilityUnit, c: ConceptNode) -> bo
             and cores & SWEPT_PERMANENT_TYPES
         ):
             return True
-    if t == "DamageAll" and cores & _DAMAGE_SWEPT_TYPES:
+    if t == "DamageAll" and cores & _DAMAGE_SWEPT_TYPES and not _combat_scoped(unit):
         return True
     # A one-shot mass shrink over creatures not limited to yours (Languish's
     # "all creatures get -4/-4", Toxic Deluge's "-X/-X", Massacre Wurm's

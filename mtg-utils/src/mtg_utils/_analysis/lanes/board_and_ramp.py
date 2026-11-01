@@ -100,6 +100,7 @@ from mtg_utils._card_ir.crosswalk import (
     static_mode_field,
     static_mode_tag,
     tag_of,
+    targets_the_card,
     token_creator_side,
     trigger_caster_scope,
     trigger_counter_filter,
@@ -271,7 +272,9 @@ def _sacrifice_outlets(tree: ConceptTree) -> list[Signal]:
 
     Mirrors the deleted ``_signals_ir``'s triggers ~10472/10483 + effect outlet ~9226.
     Five
-    inputs: (a) a ``sacrificed`` trigger (you sacrifice → reward); (b) an
+    inputs: (a) a ``sacrificed`` trigger (you sacrifice → reward; one watching
+    only an opponent's sacrifice rewards edicts instead — Malik, Grim
+    Manipulator, Tergrid); (b) an
     ``exploited`` trigger (CR 702.110); (c) a YOU-sac outlet — an activation COST
     (the cost IS the outlet, paid by the controller — Viscera Seer, Ashnod's Altar,
     Spawning Pit), including a Sacrifice leaf folded into a Composite/OneOf
@@ -409,7 +412,13 @@ def _sacrifice_outlets(tree: ConceptTree) -> list[Signal]:
     Insatiable — formerly the ``sac_devour_unimplemented`` bridge).
     """
     for unit in tree.units:
-        if unit.trigger_event in ("sacrificed", "exploited"):
+        # An opponent's sacrifice rewards your edicts, not your sacrifices
+        # ("Whenever an opponent sacrifices a creature, you create a Treasure
+        # token" — Malik, Grim Manipulator; Tergrid, God of Fright).
+        if (
+            unit.trigger_event in ("sacrificed", "exploited")
+            and trigger_subject_scope(unit.node) != "opponents"
+        ):
             return [Signal("sacrifice_outlets", "you", "", "", tree.name, "high")]
     for unit in tree.units:
         # A COST is always paid by the controller → a you-sac outlet.
@@ -1484,6 +1493,26 @@ def _is_big_mana_tree(tree: ConceptTree) -> bool:
 _FLOOR_TOKEN_MAKER_RAW = re.compile(
     r"\bcreates?\b[^.]*?\bcreature tokens?\b", re.IGNORECASE
 )
+
+
+#: The trigger events of a creature attacking (CR 508.3a), alone or with blocking.
+_ATTACK_TRIGGER_EVENTS = frozenset({"attacks", "attacksorblocks"})
+
+
+def _destroys_itself_attacking(tree: ConceptTree) -> bool:
+    """Whether the card destroys or sacrifices itself whenever it attacks
+    ("When this creature attacks or blocks, destroy it at end of combat" —
+    Ceremonial Guard): it can attack once, so it is no body to deal the 21
+    commander damage (CR 903.10a) the membership floor's carrier fallback
+    reads."""
+    return any(
+        unit.trigger_event in _ATTACK_TRIGGER_EVENTS
+        and any(
+            c.concept in ("destroy", "sacrifice") and targets_the_card(c)
+            for c in unit.effects
+        )
+        for unit in tree.units
+    )
 
 
 def _floor_token_maker_subjects(tree: ConceptTree, vocab: frozenset[str]) -> set[str]:

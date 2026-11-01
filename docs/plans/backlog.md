@@ -138,26 +138,20 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   Reduce // Rubble, Indulge // Excess (phase emits no record for the second
   face — a canary waits on it), Pradesh Gypsies (no record at all), Tomik's
   "affinity for planeswalkers" (the keyword's parameter is not exposed), the
-  Attraction Unknown modes (already served by the sweep row); Orcish Captain's
-  "it gets -0/-2" (an anaphoric "it" inside an ACTIVATED ability's coin-flip
-  branch, stamped `SelfRef`; the `anaphoric_pump` arm covers delayed triggers
-  and a spell's own chain, not activated abilities, since a Dragonrage-type
-  grant really does mean the card) fires `self_pump|you|`; Desperate Gambit's "choose a source you control" loses
-  "you control" (the chooser is `TargetOnly{target: Any}`), so its losing
-  branch's prevention reads as `damage_prevention` — a dropped-controller
-  misstamp, and once a field correction restores it `is_own_drawback` needs a
-  `PreventDamage`-on-your-source arm.
-  Lane gaps still open: a granted "sacrifice a creature" on the grantee's
-  controller (Inevitable End: the enchanted creature's controller, not yours)
-  is no edict yet, and a combat-damage "that player sacrifices" reads `each`
-  (Demon of Loathing, Demon of Wailing Agonies) where the damaged player is an
-  opponent; Tragic Arrogance stays keep_n_wrath's (adjudicated disjoint from
-  edicts); granted flanking;
-  back-reference counter targets scoped you (Retribution, Obelisk Spider);
-  partial prevention, granted absorb, Blinding Powder, Torrent of Lava
-  (`damage_prevention`); the own-graveyard
-  remainder (collect-evidence and forage costs, descend payoffs, the Empower
-  Jace token's surveil, granted delve / soulshift X, a craft cost). Lane false
+  Attraction Unknown modes (already served by the sweep row). Report upstream
+  (worked around, each with a `retirement_canary`): Orcish Captain's losing
+  flip "it gets -0/-2" stamps its "it" `SelfRef` (it is the Orc the winning
+  outcome targets); Desperate Gambit's one coin flip is typed as two (a
+  win-only `FlipCoins` whose `sub_ability` is a lose-only one —
+  `misparsed_shapes` merges them) and its "choose a source you control" loses
+  "you control" (`TargetOnly{target: Any}`; no read needs it once the losing
+  prevention reads as the gamble's drawback).
+  Tragic Arrogance stays keep_n_wrath's (adjudicated disjoint from edicts).
+  Phase parks, report upstream (Dan posts): Dark Sphere's "prevent half that
+  damage" (`prevent` residue) and Forcefield's "prevent all but 1"
+  (`unrecognized_clause_head`); Blinding Powder's and Torrent of Lava's granted
+  prevention (`granter_reference_unreached`); Eye of Ojer Taq's "Craft with two
+  that share a card type" (`unknown`). Lane false
   positives still open: Skyclave Apparition's "the exiled card's owner
   creates" token reads as yours — phase stamps the Token's `owner` `Controller`
   and the exiled card `Owned{You}`, so no structure tells it from your own
@@ -166,10 +160,6 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   counters are counters (CR 122.1, not the suspected designation of CR
   701.60a), proliferate adds one of each kind already there (CR 701.34a), and
   removing one is its draw cost, the remove-counter-cost read's own case.
-  Ranking: `ranking._synergy_score` gives clause clusters only to regex-matched
-  hits, so every regex → ident conversion thins clause breadth (Empty the
-  Warrens' token clause 8 → 6 lanes); attributing an ident hit to the clause
-  its signal came from belongs in the ranking module.
 
 **From the no-search guide adds' signal gaps (2026-10-30; bucket D of
 `~/mtg/tuner-work/w27/nosearch_buckets.tsv`)**
@@ -357,21 +347,6 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
     Intimations' +1/+1-counter tail, Brokers' Safeguard's perpetual shield
     counter, Rakdos Augermage's and Impetuous Lootmonger's own discard, Indominus
     Rex's keyword counters, Invasion of Arcavios's search.
-- **Our reads still missing a v0.118.0 shape** (open):
-  - A recovered `blocked_attacker_damage_source` "… to each creature blocking
-    it" (Ib Halfheart, Trailblazer's Torch) stays off mass_removal (it hits only
-    the blockers); the typed cousins phase flattens to a bare DamageAll over
-    every creature by dropping "blocking it" (Battle-Scarred Goblin, Fire
-    Juggler — [P12]) still read as sweeps: the DamageAll arm lacks the
-    becomes_blocked / blocks veto `_mass_shrink` has.
-- **Policy questions from the bump's gains** (decide; fixing would drop cards
-  v0.104.0 already had): lifegain_matters on "whenever an opponent gains life"
-  (Punishing Fire new; Kavu Predator, Wedding Ring already); Cinder Wall /
-  Ceremonial Guard gain voltron_matters|carrier from the membership floor once
-  blocked_matters left; keyword_bodies|enchant on Aura tokens (Scriv); Word of
-  Undoing's color_change payoff; Messenger Jays' self_drawback; Council's
-  Deliberation's card_draw_engine (it exiles itself, so fires once); Swarmyard
-  Massacre's scaling_pump from a shrink.
 
 **From the keyword tribe's dropped keywords (2026-10-26, phase v0.104.0)**
 
@@ -1146,6 +1121,19 @@ headroom and parked items.
   keeps it, because a "whenever you discard" payoff (Drake Haven) fires whichever
   card goes (Burning Inquiry). A chosen opponent's discard is not yours either
   (Fervent Mastery, `lanes._shared._choose_opponent_bound_discard`).
+- **Swarmyard Massacre's `scaling_pump` stays** (2026-11-01): the lane asks
+  whether a P/T change scales with a board count (CR 107.3, 613.4c), and its own
+  corpus adjudication admits a scaling shrink (Dark Salvation's "-1/-1 for each
+  Zombie"); Swarmyard's -1/-1 grows with your Insects, Rats, Spiders and
+  Squirrels, the board the deck builds. (The bump's other policy questions were
+  fixed the same day: an opponent's lifegain, the attack-less voltron carriers,
+  Aura enchant, one creature's Auras, a parked loot, a self-exiling trigger.)
+- **Empower Jace is no graveyard maker** (2026-11-01): the Jace token it makes
+  (only when you control none) surveils through a "[−1]: Surveil 1" loyalty
+  ability beside "[−3]: Draw a card"; the 28 empower cards (Protege's Awakening,
+  the Way of the … cycle) build a Jace's loyalty, and a graveyard page that
+  served them would serve a planeswalker plan. `graveyard_makers` reads a fill
+  the card itself makes (surveil, a mill, a discard cost).
 - **Upkeep-payment discards aren't discard outlets** (Dan, 2026-10-09): echo's and
   cumulative upkeep's discard (Deepcavern Imp, Rakdos Headliner, Vexing Sphinx) is
   a forced payment to keep the permanent, not a discard you make on demand (CR
