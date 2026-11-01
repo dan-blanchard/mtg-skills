@@ -437,10 +437,9 @@ ETB doublers), ~45 scattered one to seven a deck. Gate unchanged (held-out 20: p
   condition?}]` our instant-speed read never opens (Crashing Tide, Graveyard Shift,
   Mutual Destruction, Take for a Ride, Necromancy; the ledger row
   `conditional_self_flash_dropped` should read it and retire).
-- **Three value rules, one gated run each, in order:** multiplayer scaling of
-  "each opponent" one-shots as a feature in the fitted quality / strength reads
-  (refit, then gate); ramp at MV ≤ commander MV − 2 (slower ramp is a cut, not an
-  upgrade); the off-plan MV ≥ 6 cut.
+- **Two value rules, one gated run each:** ramp at MV ≤ commander MV − 2 (slower
+  ramp is a cut, not an upgrade); the off-plan MV ≥ 6 cut (R2, running). The third,
+  multiplayer scaling, failed its refit (settled below).
 - **Alternate commanders: `deck-tune --compare-commanders`** plus a deck-forge POST
   route and a Tune-panel row. Every card the format's `commander_eligibility` accepts
   on its own and every legal partner pair (`card_classify.can_partner`, CR 702.124f);
@@ -1073,6 +1072,16 @@ headroom and parked items.
   S-A, above); Enlightened Tutor and Moonsilver Key are tutor-row fills (T1 and
   PR1, above); Call the Gatewatch and Firemind's Foresight sit past the 150-card
   page (P2, above). Don't re-suggest a page for them without a new read.
+- **Multiplayer scaling is no quality feature — settled 2026-11-01 (SC).** An
+  "each opponent" one-shot does its work three times at a Commander table, so the
+  spell quality and strength reads got an ``opponents`` feature (any effect whose
+  `effect_player_reach` is each opponent, a per-opponent loop or every player;
+  `w41/scaling-feature-SC.diff`). Refit on the same pairs: quality leave-one-deck-out
+  0.712 → 0.710 (weight −0.06; the feature splits 18% of pairs and the guide add has
+  it 40% of the time), strength on the adds-vs-cuts pairs 0.677 → 0.666 (weight
+  −0.36). The guides prefer the cheaper, narrower card over the symmetric one at
+  the same slot; the fit says so on both pair sources. No gate run (the design was
+  refit, then gate). Don't re-suggest an opponent-count feature.
 - **No graveyard-hate template row — settled 2026-11-01 (HR1).** A floor-only row
   (one piece, open ceiling) counted by `roles.is_graveyard_hate` (a nonland card
   carrying `graveyard_matters|opponents|` or `|any|`: Tormod's Crypt, Soul-Guide
