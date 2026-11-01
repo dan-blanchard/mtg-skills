@@ -6745,6 +6745,57 @@ def is_self_enters_trigger(unit: AbilityUnit) -> bool:
     return tag_of(getattr(unit.node, "valid_card", None)) == "SelfRef"
 
 
+#: The derived trigger events a permanent's own leaving fires (CR 603.6c, a
+#: leaves-the-battlefield ability): its death, its sacrifice, any leaving.
+SELF_LEAVE_EVENTS: frozenset[str] = frozenset({"dies", "leaves", "sacrificed"})
+
+
+def is_self_leaves_trigger(unit: AbilityUnit) -> bool:
+    """Whether UNIT is a trigger that fires when the card ITSELF leaves the
+    battlefield (CR 603.6c): a leave event watching ``SelfRef`` -- Chasm
+    Skulker's Squids, Hangarback Walker's Thopters -- never another permanent's
+    death (a "whenever another creature you control dies" trigger)."""
+    if unit.origin != "trigger" or unit.trigger_event not in SELF_LEAVE_EVENTS:
+        return False
+    return tag_of(getattr(unit.node, "valid_card", None)) == "SelfRef"
+
+
+def unit_repeats(unit: AbilityUnit, tree: ConceptTree) -> bool:
+    """Whether the ability can go off again while its source stays on the
+    battlefield -- what tells a repeatable token maker (Bitterblossom's upkeep
+    Faerie, Loyal Apprentice's combat Thopter, Kher Keep's Kobold) from a
+    one-shot (Raise the Alarm, Marionette Apprentice's fabricate, Chasm
+    Skulker's death Squids, Idol of Oblivion's sacrifice).
+
+    A triggered ability repeats unless it is the source's own enters
+    (:func:`is_self_enters_trigger`) or leaves (:func:`is_self_leaves_trigger`)
+    trigger, or a Saga's chapter (CR 714.2b: it triggers as the lore counters
+    reach its number, so each chapter fires once). An activated ability repeats
+    unless its activation cost sacrifices the source (CR 602.2b: the cost is
+    paid as a spell's is; CR 601.2f: a cost may include sacrificing permanents).
+    An instant's or sorcery's own effect never does (CR 608.2n: the spell goes
+    to its owner's graveyard as the last part of its resolution); a permanent
+    spell's abilities are read as the units above. A static ability's granted
+    body repeats with the grant; a replacement or keyword payload is not read.
+    """
+    if unit.origin == "trigger":
+        if is_self_enters_trigger(unit) or is_self_leaves_trigger(unit):
+            return False
+        return not (
+            unit.trigger_event == "counter_added"
+            and "Saga" in tree.card_subtypes
+            and tag_of(getattr(unit.node, "valid_card", None)) == "SelfRef"
+        )
+    if unit.origin == "ability":
+        if unit.kind != "Activated":
+            return False
+        return not any(
+            tag_of(n) == "Sacrifice" and tag_of(getattr(n, "target", None)) == "SelfRef"
+            for n in iter_typed_nodes(getattr(unit.node, "cost", None))
+        )
+    return unit.origin == "static"
+
+
 class LandSearch(NamedTuple):
     """One of YOUR land searches (CR 701.23a), one per ability unit."""
 

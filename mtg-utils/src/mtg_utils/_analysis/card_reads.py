@@ -25,6 +25,12 @@ import functools
 from typing import TYPE_CHECKING, Any, cast
 
 from mtg_utils._analysis.write_back import MISSING, WriteBackSidecar, content_key
+from mtg_utils._card_ir.crosswalk.core import iter_nested_token_effects
+from mtg_utils._card_ir.crosswalk.reads import (
+    KEYWORD_ACTION_TOKEN_SUBTYPES,
+    keyword_action_events,
+    unit_repeats,
+)
 from mtg_utils._card_ir.trees import (
     has_phase_records,
     read_source,
@@ -106,3 +112,32 @@ def has_trees(card: dict) -> bool:
     the signal path reads it: a card with none (a set newer than the phase pin) is
     one the readers degrade on (``roles.is_interaction``, ``swaps._does_the_job``)."""
     return bool(trees_for(card, bulk=card))
+
+
+@card_read("makes_tokens_repeatedly")
+def makes_tokens_repeatedly(card: dict) -> bool:
+    """Whether one of the card's abilities makes a creature token and can go off
+    again while the card stays on the battlefield (``crosswalk.unit_repeats``):
+    Bitterblossom's upkeep Faerie, Loyal Apprentice's combat Thopter, Young
+    Pyromancer's cast trigger, Kher Keep's Kobold, Dreadhorde Invasion's upkeep
+    amass. Not a spell (Raise the Alarm), an enters trigger (Marionette
+    Apprentice's fabricate), a death trigger (Chasm Skulker) or a sacrifice
+    (Idol of Oblivion). The polymorph fodder page orders by it and admits a
+    creature card by it (``signal_specs`` ``wants_fodder``)."""
+    for tree in trees_for(card, bulk=card):
+        action_units = {
+            id(e.unit)
+            for e in keyword_action_events(tree)
+            if e.yours and e.tag in KEYWORD_ACTION_TOKEN_SUBTYPES
+        }
+        for unit in tree.units:
+            makes = id(unit) in action_units or any(
+                "Creature" in c.subject
+                for c in (
+                    *unit.effect_concepts("make_token"),
+                    *iter_nested_token_effects(unit.node),
+                )
+            )
+            if makes and unit_repeats(unit, tree):
+                return True
+    return False

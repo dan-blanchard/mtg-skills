@@ -690,18 +690,39 @@ headroom and parked items.
   Goldnight, Combustible Gearhulk), and Nezahal is outranked on its page.
   (w) **Polymorph fodder — don't re-suggest the rejected forms** (2026-10-30;
   runs and `experiment.patch` in `~/mtg/tuner-work/w37/`, the audit's "Polymorph
-  fodder and the purse cap"). Shipped: a polymorph commander's trim adds a cheap
-  token spell (`Sourcing.fodder_trim_spec`); its fodder maker's job upgrade must
+  fodder and the purse cap"). Shipped then: a polymorph commander's trim adds
+  fodder (`Sourcing.fodder_trim_spec`); its fodder maker's job upgrade must
   make fodder too; past the even share, no upgrade's add takes more than 0.6 of
-  what is left (`swaps._PURSE_CAP`, every deck). Jace 30 / 15 / 4. The fodder lane
-  was unreached because it is a sub and only mains share the theme adds; its
-  serve already admits the makers. Rejected: the lane sharing the theme adds as a
-  sub (Loyal Apprentice or Raise the Alarm, but Archfiend of Depravity lost every
-  time); the lane's whole page for the trims (30 / 15 / 3). Left: the rest of the
-  guides' fodder (Loyal Apprentice, Shadow Summoning, Tempt with Bunnies, Fable)
-  stays outranked or unasked; Currency Converter still goes as a ramp trim, since
-  the rest of that row is fixing; the Gods (Heliod, Purphoros) still take $45 of its
-  $111.70 as flip targets that aren't creatures below devotion 5.
+  what is left (`swaps._PURSE_CAP`, every deck). Jace 30 / 15 / 4. Rejected: the
+  lane sharing the theme adds as a sub (Loyal Apprentice or Raise the Alarm, but
+  Archfiend of Depravity lost every time); the lane's whole page for the trims in
+  play-rate order (30 / 15 / 3).
+  **Rewritten 2026-11-01 on Dan's Jace tune, by his call, not the guide score**
+  (the tune he saw: ten two- and three-mana creature cards added as "Polymorph
+  fodder" beside eleven bombs cut, and the trims one-shot token spells — Dragon
+  Fodder, Krenko's Command, Raise the Alarm, Frontline Rush). Jace's -3 reveals
+  until a creature or planeswalker card, so every creature card in the library
+  is a flip. Shipped: (1) the fodder serve (`signal_specs` `wants_fodder`) admits
+  a creature card only when its token comes every turn
+  (`card_reads.makes_tokens_repeatedly` over `crosswalk.unit_repeats`); (2) the
+  fodder page orders repeatable makers first, noncreature before creature, the
+  one-shots last (`issues._fodder_lead`, the spec's `_lead` in
+  `swaps._ranked_pool`), and the trim page IS the fodder page (the two-mana
+  instants-and-sorceries page is gone); (3) under a polymorph commander a
+  creature or planeswalker add below the deck's flip floor (one band under its
+  median flip, `swaps.flip_floor_band`) is a whiff unless it is fodder, and a
+  fodder flip only while the flips under the floor stay one in four
+  (`swaps._WHIFF_SHARE`); (4) a flip with no job that is no fodder is upgraded
+  on the flips' page, the commander's typed cheat avenue held to flips
+  (`Sourcing.flip_spec`: every typed cheat avenue as one serve, a five-power
+  body or a planeswalker; "upgrade a flip: …"), and so is a flip WITH a job
+  while its row is in band or over (Niv-Mizzet's draw, Ob Nixilis's wipe); a
+  short row keeps the job page — the guides swap the Jace precon's bombs for
+  better bombs and call its creature count thin. Multiverse Reforged's guide
+  score before: 30 / 16 / 4 (Swiftfoot Boots, Loyal Apprentice, Raise the Alarm,
+  Tempt with Bunnies); after: 30 / 16 / 1 (the one-shots and Loyal Apprentice
+  now sort behind the repeatable non-flip makers). Left: Currency Converter
+  still goes as a ramp trim, since the rest of that row is fixing.
   (m) **Recall** (`precon-audit/misses.py`, at the largest guide's thirty
   swaps and each precon's own guides' budget, `budgets.json`, Spellbook cached):
   335 of 505 cuttable guide cuts, 121 of 793 in-scope guide adds, 732 swaps;

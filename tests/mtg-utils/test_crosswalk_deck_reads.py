@@ -23,6 +23,8 @@ from mtg_utils._card_ir.crosswalk import (
     tag_of,
     unbound_x_reach,
 )
+from mtg_utils._card_ir.crosswalk.core import iter_nested_token_effects
+from mtg_utils._card_ir.crosswalk.reads import is_self_leaves_trigger, unit_repeats
 from mtg_utils._card_ir.trees import trees_for
 from mtg_utils.testkit import test_card, test_phase_records, test_signals
 
@@ -473,3 +475,52 @@ def test_parked_search_put_canary():
 def test_mass_land_denial_key_carries_its_shape(name, kind):
     idents = {(s.key, s.scope, s.subject) for s in test_signals(name)}
     assert ("mass_land_denial", "each", kind) in idents
+
+
+# ── Whether an ability repeats ────────────────────────────────────────────────
+
+
+def _token_units(name: str):
+    """``(unit, tree)`` for each ability of the card that makes a creature token."""
+    return [
+        (u, t)
+        for t in _trees(name)
+        for u in t.units
+        if any(
+            "Creature" in c.subject
+            for c in (
+                *u.effect_concepts("make_token"),
+                *iter_nested_token_effects(u.node),
+            )
+        )
+    ]
+
+
+@pytest.mark.parametrize(
+    ("name", "repeats"),
+    [
+        ("Bitterblossom", True),  # at the beginning of your upkeep
+        ("Loyal Apprentice", True),  # at the beginning of combat on your turn
+        ("Young Pyromancer", True),  # whenever you cast an instant or sorcery
+        ("Zurgo Stormrender", True),  # mobilize: whenever this creature attacks
+        ("Thopter Shop", True),  # an activated ability, tap and mana
+        ("Kher Keep", True),  # a land's activated ability
+        ("Raise the Alarm", False),  # a spell (CR 608.2n)
+        ("Marionette Apprentice", False),  # fabricate: its own enters trigger
+        ("Chasm Skulker", False),  # its own death (CR 603.6c)
+        ("Hangarback Walker", False),  # its own death
+        ("Idol of Oblivion", False),  # sacrifice this artifact, a cost
+        ("Fable of the Mirror-Breaker", False),  # a Saga's chapter (CR 714.2b)
+    ],
+)
+def test_unit_repeats(name, repeats):
+    units = _token_units(name)
+    assert units, f"{name}: no token-making unit"
+    assert any(unit_repeats(u, t) for u, t in units) is repeats
+
+
+def test_is_self_leaves_trigger():
+    skulker = [u for u, _t in _token_units("Chasm Skulker")]
+    assert any(is_self_leaves_trigger(u) for u in skulker)
+    # Another permanent's death is no leaves trigger of the card's own.
+    assert not any(is_self_leaves_trigger(u) for u, _t in _token_units("Bitterblossom"))

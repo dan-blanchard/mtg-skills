@@ -219,6 +219,44 @@
   const pct = (x) => Math.round((x || 0) * 100);
   const WC_LETTER = { mythic: "M", rare: "R", uncommon: "U", common: "C" };
 
+  // The issue list, with the one-card-away combos folded past the first: five
+  // such lines read as five problems when they are five options, and the
+  // first is the one the proposal acts on.
+  $: issueRows = (result?.scorecard?.top_issues ?? []).filter(
+    (i, n, all) =>
+      i.kind !== "near_miss_combo" ||
+      all.findIndex((j) => j.kind === "near_miss_combo") === n,
+  );
+  $: moreCombos = (result?.scorecard?.top_issues ?? [])
+    .filter((i) => i.kind === "near_miss_combo")
+    .slice(1);
+
+  // The swaps grouped under the issue that proposed them, consecutive runs
+  // only (the engine walks the issues in order): one heading for "ramp over by
+  // 3" instead of the same line under each of its three rows. An issue's
+  // swaps share its message, so a run is keyed by issue and message; the
+  // upgrades' messages name each add, so they group as one and the per-row
+  // reason is reduced to the job and the why (the add's name is the chip
+  // beside it).
+  const UPGRADE_HEAD = "Upgrades — a better-played card doing the same job";
+  const groupKey = (s) =>
+    s.issue === "upgrade" ? s.issue : `${s.issue}|${s.reason}`;
+  $: swapGroups = (result?.swaps ?? []).reduce((groups, s) => {
+    const key = groupKey(s);
+    const last = groups[groups.length - 1];
+    if (last && last.key === key) last.swaps.push(s);
+    else groups.push({ key, issue: s.issue, swaps: [s] });
+    return groups;
+  }, []);
+  function groupHead(g) {
+    return g.issue === "upgrade" ? UPGRADE_HEAD : g.swaps[0].reason;
+  }
+  function rowWhy(s, head) {
+    if (s.reason === head) return "";
+    const m = s.reason.match(/^upgrade (.+?): .+? — (.+)$/);
+    return m ? `${m[1]} — ${m[2]}` : s.reason;
+  }
+
   // Cost tag for a swap/commander entry. A swap add carries the backend's coverage
   // (`covered_by` "free" / "owned", and `copies_short`); a commander suggestion carries
   // `owned`. Paper: free / owned / $X. Digital: free / owned, or the wildcard the add
@@ -338,10 +376,25 @@
 
       {#if sc.top_issues.length}
         <ul class="issues">
-          {#each sc.top_issues as i (i.kind + i.message)}
+          {#each issueRows as i (i.kind + i.message)}
             <li><span class="sev">●</span>{i.message}</li>
           {/each}
         </ul>
+        {#if moreCombos.length}
+          <details class="fold">
+            <summary>
+              {moreCombos.length} more one-card-away combo{moreCombos.length ===
+              1
+                ? ""
+                : "s"}
+            </summary>
+            <ul class="issues">
+              {#each moreCombos as i (i.message)}
+                <li><span class="sev">●</span>{i.message}</li>
+              {/each}
+            </ul>
+          </details>
+        {/if}
       {:else}
         <p class="clean">No issues found — the deck reads clean.</p>
       {/if}
@@ -479,10 +532,16 @@
           {/each}
         {/if}
         {#if sc.focus.fed && sc.focus.fed.length}
-          <div class="m-sub">fed — deep, but nobody built toward it</div>
-          {#each sc.focus.fed as a (a.label)}
-            {@render avenueLine(a, "fed")}
-          {/each}
+          <!-- Folded by default: a fed lane is a fact about the card pool, not
+               a thing to act on, and a precon reads twenty of them. -->
+          <details class="fold">
+            <summary class="m-sub">
+              fed — deep, but nobody built toward it ({sc.focus.fed.length})
+            </summary>
+            {#each sc.focus.fed as a (a.label)}
+              {@render avenueLine(a, "fed")}
+            {/each}
+          </details>
         {/if}
       </div>
 
@@ -589,59 +648,67 @@
             Apply all ({result.swaps.length})
           </button>
         </div>
-        {#each result.swaps as s ((s.cut?.name ?? "") + "→" + s.add.name)}
-          <div class="swap" class:fresh={fresh.has(s.add.name)}>
-            <div class="pair">
-              <!-- A fill has no cut: it's a pure add into an open slot, shown as just "+ Card". -->
-              {#if s.cut}
-                <span class="pm cut">−</span>
+        {#each swapGroups as g (g.key)}
+          {@const head = groupHead(g)}
+          <div class="swap-group-head">
+            {head}
+            {#if g.swaps.length > 1}<span class="count">{g.swaps.length}</span
+              >{/if}
+          </div>
+          {#each g.swaps as s ((s.cut?.name ?? "") + "→" + s.add.name)}
+            <div class="swap" class:fresh={fresh.has(s.add.name)}>
+              <div class="pair">
+                <!-- A fill has no cut: it's a pure add into an open slot, shown as just "+ Card". -->
+                {#if s.cut}
+                  <span class="pm cut">−</span>
+                  <CardChip
+                    name={s.cut.name}
+                    card={resolved[s.cut.name] ?? null}
+                    clickable={false}
+                  />
+                  <span class="arrow">→</span>
+                {/if}
+                <span class="pm add">+</span>
                 <CardChip
-                  name={s.cut.name}
-                  card={resolved[s.cut.name] ?? null}
+                  name={s.add.name}
+                  card={resolved[s.add.name] ?? null}
                   clickable={false}
                 />
-                <span class="arrow">→</span>
-              {/if}
-              <span class="pm add">+</span>
-              <CardChip
-                name={s.add.name}
-                card={resolved[s.add.name] ?? null}
-                clickable={false}
-              />
-              <span class="tag"
-                >{costTag(s.add, $isDigital, resolved[s.add.name])}</span
-              >
-              {#if s.add.copy > 1}
-                <span class="tag" title="Which copy this add becomes"
-                  >copy {s.add.copy}</span
+                <span class="tag"
+                  >{costTag(s.add, $isDigital, resolved[s.add.name])}</span
                 >
-              {/if}
-              {#if fresh.has(s.add.name)}
-                <span
-                  class="tag new"
-                  title="Proposed in place of a rejected card">new</span
+                {#if s.add.copy > 1}
+                  <span class="tag" title="Which copy this add becomes"
+                    >copy {s.add.copy}</span
+                  >
+                {/if}
+                {#if fresh.has(s.add.name)}
+                  <span
+                    class="tag new"
+                    title="Proposed in place of a rejected card">new</span
+                  >
+                {/if}
+              </div>
+              <div class="swap-meta">
+                <span class="why"
+                  >{rejecting === s.add.name
+                    ? "finding an alternative…"
+                    : rowWhy(s, head)}</span
                 >
-              {/if}
+                <button
+                  class="reject"
+                  title="Never propose {s.add
+                    .name}; show the next candidate for this slot"
+                  on:click={() => reject(s)}
+                  disabled={applying || !!rejecting}>Reject</button
+                >
+                <button
+                  on:click={() => applySwap(s)}
+                  disabled={applying || !!rejecting}>Apply</button
+                >
+              </div>
             </div>
-            <div class="swap-meta">
-              <span class="why"
-                >{rejecting === s.add.name
-                  ? "finding an alternative…"
-                  : s.reason}</span
-              >
-              <button
-                class="reject"
-                title="Never propose {s.add
-                  .name}; show the next candidate for this slot"
-                on:click={() => reject(s)}
-                disabled={applying || !!rejecting}>Reject</button
-              >
-              <button
-                on:click={() => applySwap(s)}
-                disabled={applying || !!rejecting}>Apply</button
-              >
-            </div>
-          </div>
+          {/each}
         {/each}
         {#if $isDigital}
           <p class="spent">
@@ -838,6 +905,20 @@
     color: var(--pass);
     font-size: 0.9rem;
   }
+  /* A folded block (the fed lanes, the combos past the first): the summary is
+     the line, the rows open on click. */
+  .fold > summary {
+    cursor: pointer;
+    font-size: 0.82rem;
+    color: var(--parchment-dim);
+    list-style: none;
+  }
+  .fold > summary::before {
+    content: "▸ ";
+  }
+  .fold[open] > summary::before {
+    content: "▾ ";
+  }
 
   /* Metrics */
   .metric {
@@ -946,9 +1027,25 @@
     justify-content: space-between;
     align-items: center;
   }
+  .swap-group-head {
+    margin-top: 0.75rem;
+    padding-bottom: 0.2rem;
+    font-size: 0.82rem;
+    color: var(--brass-bright, #e8b04b);
+    border-bottom: 1px solid var(--hairline-soft);
+  }
+  .swap-group-head .count {
+    margin-left: 0.4rem;
+    font-size: 0.7rem;
+    color: var(--parchment-dim);
+    font-variant-numeric: tabular-nums;
+  }
   .swap {
     border-top: 1px solid var(--hairline-soft);
     padding: 0.55rem 0;
+  }
+  .swap-group-head + .swap {
+    border-top: none;
   }
   .pair {
     display: flex;

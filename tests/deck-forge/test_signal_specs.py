@@ -2672,12 +2672,29 @@ def test_wants_fodder_serves_cheap_token_makers():
     """Polymorph fodder (wants_fodder): the cheap creature-token makers a
     polymorph turns into library hits — the token lane's own idents AND mana
     value 3 or less. A pricier token spell (Empty the Warrens, 4) and a
-    non-maker (Doubling Season) stay out."""
+    non-maker (Doubling Season) stay out. Every creature card in the library is
+    a flip (Jace, Multiverse Architect's -3 reveals until a creature or
+    planeswalker card), so a creature maker serves only when its token comes
+    every turn (Loyal Apprentice's combat Thopter, Young Pyromancer's cast
+    trigger); a one-shot creature maker (Marionette Apprentice's fabricate,
+    Chasm Skulker's death Squids) is a whiff, not fodder."""
     spec = spec_for(_sig("wants_fodder"))
     assert spec.label == "Polymorph fodder"
-    for name in ("Raise the Alarm", "Lingering Souls"):
+    for name in (
+        "Raise the Alarm",
+        "Lingering Souls",
+        "Bitterblossom",
+        "Loyal Apprentice",
+        "Young Pyromancer",
+        "Saheeli, Sublime Artificer",  # a planeswalker is a flip too; a Servo per spell
+    ):
         assert spec.serve.matches(_card(name)), name
-    for name in ("Empty the Warrens", "Doubling Season"):
+    for name in (
+        "Empty the Warrens",
+        "Doubling Season",
+        "Marionette Apprentice",
+        "Chasm Skulker",
+    ):
         assert not spec.serve.matches(_card(name)), name
 
 

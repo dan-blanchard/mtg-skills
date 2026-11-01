@@ -2937,3 +2937,180 @@ def test_a_counterspell_upgrades_a_removal_cut_on_the_interaction_page():
         "Counterspell"
     ]
     assert upgrade([_played("Stifle", 100)]) == []
+
+
+# ── A polymorph commander's flips ─────────────────────────────────────────────
+
+#: Jace, Multiverse Architect's own idents: wants fodder, flips into a creature
+#: or planeswalker card (``read_deck_signals``' ``commander_idents``).
+_POLYMORPH_IDENTS = frozenset(
+    {
+        ("wants_fodder", "you", ""),
+        ("cheat_into_play", "you", "Creature"),
+        ("cheat_into_play", "you", "Planeswalker"),
+    }
+)
+_WANTS_FODDER = Signal(key="wants_fodder", scope="you", subject="", text="", source="x")
+
+
+def _polymorph_bombs():
+    """Four flips of a polymorph deck: creature and planeswalker cards at six and
+    seven mana (the top band), what the deck wants its polymorph to reveal."""
+    return [
+        _real_cc(name, "engine", served=("Cheat into play",), edhrec_rank=3000)
+        for name in (
+            "Sun Titan",
+            "Overlord of the Mistmoors",
+            "Myr Battlesphere",
+            "Elspeth, Sun's Champion",
+        )
+    ]
+
+
+def _swaps_under_polymorph(classes, issues, ctx):
+    """``_swaps_for_issue_dicts`` with the commander's idents on the sourcing
+    too, so the issues' remedies read the polymorph commander as the engine does."""
+    sourcing = Sourcing(
+        ctx.focus_result,
+        ctx.deck_signals,
+        ctx.budgets,
+        commander_idents=ctx.commander_idents,
+    )
+    return propose_swaps(classes, [_issue(sourcing, i) for i in issues], ctx)
+
+
+def test_a_polymorph_trim_takes_repeatable_makers_first_and_keeps_the_flips_bombs():
+    """Ramp over by three under Jace: the trims go to the fodder page in its own
+    order (``issues._fodder_lead``) — a maker whose token comes every turn
+    first, a noncreature one (Bitterblossom) before a creature (Loyal
+    Apprentice), the one-shot (Raise the Alarm) last, whatever their play-rate.
+    A creature maker is a flip too, so it is admitted only while the deck's
+    flips stay mostly its bombs (``swaps._WHIFF_SHARE``: one in four): the
+    second one (Young Pyromancer) is left out and the one-shot takes the slot.
+    Dan's Jace tune (2026-11-01) took ten such creatures beside eleven bombs cut."""
+    rocks = [
+        _real_cc(name, "spine", roles=["ramp"], edhrec_rank=8000 + i)
+        for i, name in enumerate(("Mind Stone", "Commander's Sphere", "Arcane Signet"))
+    ]
+    pool = [
+        _played("Young Pyromancer", 500),
+        _played("Loyal Apprentice", 300),
+        _played("Bitterblossom", 3000),
+        _played("Raise the Alarm", 2000),
+    ]
+    ctx = SwapContext(
+        budgets={"ramp": _band(13, 8, 10)},  # over by 3
+        focus_result=_focus(viable=[{"label": "Main", "depth": 20, "cards": []}]),
+        deck_signals=[_WANTS_FODDER],
+        commander_idents=_POLYMORPH_IDENTS,
+        search_fn=lambda **_: pool,
+        identity="",
+        fmt="commander",
+        paper_only=True,
+        owned={},
+        budget=50.0,
+        max_swaps=5,
+        top_heavy=False,
+    )
+    out = _swaps_under_polymorph(
+        [*_polymorph_bombs(), *rocks],
+        [{"kind": "role_over", "role": "ramp", "severity": 3, "message": "ramp over"}],
+        ctx,
+    )
+    assert [s["add"]["name"] for s in out["swaps"]] == [
+        "Bitterblossom",
+        "Loyal Apprentice",
+        "Raise the Alarm",
+    ]
+
+
+def test_a_cheap_creature_that_is_no_fodder_is_a_whiff_under_a_polymorph_commander():
+    """Murder's interaction upgrade: Banisher Priest, more played, is a creature
+    card, and under Jace every creature card in the library is a flip — a
+    three-mana one beside six- and seven-mana bombs is a whiff
+    (``swaps.flip_floor_band``), so the upgrade is Swords to Plowshares. Under
+    any other commander Banisher Priest is the add."""
+    murder = _real_cc("Murder", "spine", roles=["interaction"], edhrec_rank=8000)
+    pool = [_played("Banisher Priest", 10), _played("Swords to Plowshares", 100)]
+    issue = [{"kind": "upgrade", "severity": 1, "count": 1}]
+    classes = [murder, *_polymorph_bombs()]
+
+    def upgrade(ctx):
+        return [
+            s["add"]["name"]
+            for s in _swaps_under_polymorph(classes, issue, ctx)["swaps"]
+        ]
+
+    plain = _upgrade_ctx([murder], pool)
+    assert upgrade(plain) == ["Banisher Priest"]
+    polymorph = replace(
+        plain, deck_signals=[_WANTS_FODDER], commander_idents=_POLYMORPH_IDENTS
+    )
+    assert upgrade(polymorph) == ["Swords to Plowshares"]
+
+
+def test_a_flips_upgrade_is_a_better_flip_under_a_polymorph_commander():
+    """An off-plan bomb with no job (Myr Battlesphere, little played) is a
+    polymorph deck's flip: its slot goes to a better flip off the commander's
+    cheat page (Terror of the Peaks — a five-power body the cheat lane's payoff
+    arm serves), never to a token maker, however many more decks play it
+    (Bitterblossom). The guides trade the Jace precon's off-plan bombs for
+    better ones; under any other commander the slot has no page here."""
+    cheat = Signal(
+        key="cheat_into_play", scope="you", subject="Creature", text="", source="x"
+    )
+    sphere = _real_cc("Myr Battlesphere", "engine", edhrec_rank=8000)
+    pool = [_played("Bitterblossom", 100), _played("Terror of the Peaks", 300)]
+    issue = [{"kind": "upgrade", "severity": 1, "count": 1}]
+    classes = [sphere, *_polymorph_bombs()]
+
+    def upgrade(ctx):
+        return [
+            (s["add"]["name"], s["reason"])
+            for s in _swaps_under_polymorph(classes, issue, ctx)["swaps"]
+        ]
+
+    plain = _upgrade_ctx([sphere], pool)
+    assert upgrade(plain) == []
+    polymorph = replace(
+        plain, deck_signals=[_WANTS_FODDER, cheat], commander_idents=_POLYMORPH_IDENTS
+    )
+    assert upgrade(polymorph) == [
+        (
+            "Terror of the Peaks",
+            "upgrade a flip: Terror of the Peaks — more decks play it",
+        )
+    ]
+
+
+@pytest.mark.parametrize(
+    ("draw_row", "add"),
+    [
+        (_band(12, 10, 12), "Terror of the Peaks"),  # at the max: it needs its flip
+        (_band(11, 10, 12), "Terror of the Peaks"),  # in band: the same
+        (_band(5, 10, 12), "Phyrexian Arena"),  # short: the deck needs the draw
+    ],
+)
+def test_a_flip_with_a_job_keeps_a_flips_slot_unless_its_row_is_short(draw_row, add):
+    """Niv-Mizzet, Ghost Counsel draws under Jace with card draw over its band:
+    the deck needs no more draw, it needs its flip, so the slot goes to the
+    flips' page; only a short row keeps the job page."""
+    cheat = Signal(
+        key="cheat_into_play", scope="you", subject="Creature", text="", source="x"
+    )
+    sphere = _real_cc(
+        "Myr Battlesphere", "spine", roles=["card_draw"], edhrec_rank=8000
+    )
+    pool = [_played("Phyrexian Arena", 50), _played("Terror of the Peaks", 300)]
+    ctx = replace(
+        _upgrade_ctx([sphere], pool),
+        budgets={"card_draw": draw_row},
+        deck_signals=[_WANTS_FODDER, cheat],
+        commander_idents=_POLYMORPH_IDENTS,
+    )
+    out = _swaps_under_polymorph(
+        [sphere, *_polymorph_bombs()],
+        [{"kind": "upgrade", "severity": 1, "count": 1}],
+        ctx,
+    )
+    assert [s["add"]["name"] for s in out["swaps"]] == [add]

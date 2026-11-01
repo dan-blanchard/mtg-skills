@@ -143,3 +143,20 @@ def test_a_bulk_face_cards_reads_never_depend_on_their_order(bulk_first, monkeyp
     trees.seed_records(oid, records[oid])
     assert fame_read(claim) == len(with_faces)
     assert calls == ["Claim // Fame", "Claim // Fame"]
+
+
+@pytest.mark.parametrize(
+    ("name", "repeatedly"),
+    [
+        ("Bitterblossom", True),  # a Faerie each upkeep
+        ("Loyal Apprentice", True),  # a Thopter each combat
+        ("Dreadhorde Invasion", True),  # amass each upkeep: a keyword action
+        ("Raise the Alarm", False),  # two Soldiers once
+        ("Marionette Apprentice", False),  # fabricate, as it enters
+        ("Chasm Skulker", False),  # Squids as it dies
+        ("Idol of Oblivion", False),  # an Eldrazi for its sacrifice
+        ("Doubling Season", False),  # makes no token of its own
+    ],
+)
+def test_makes_tokens_repeatedly(name, repeatedly):
+    assert card_reads.makes_tokens_repeatedly(test_card(name)) is repeatedly

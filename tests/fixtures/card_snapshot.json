@@ -366702,6 +366702,314 @@
     "type_line": "Creature — Zombie Jackal"
    }
   },
+  "Dreadhorde Invasion": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Enchantment"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Black"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "Black"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "related_token_ids": [
+       "056111f7-430a-5c64-9d9d-51fd4c5a0957",
+       "0679e3b4-11e2-56ec-b9cc-c4501fe7885e",
+       "37ac6522-5659-51e5-95d4-d41812a98843",
+       "984fef88-c3f0-5edb-bd4a-4dcccf2accb3",
+       "b58e80b0-3835-5eda-8aa0-b600a9a7cc6c"
+      ],
+      "source_printing_ids": [
+       "04c6e42d-991d-4e6b-a900-38480931f79e",
+       "241a6a3b-8809-4d22-bf1e-c4620c609aba",
+       "4b24194c-d312-45d6-ae02-e15fd2025682",
+       "9bbfad2d-a3b5-4119-aea4-0793b7a9da88",
+       "ccd2fc83-7fbe-45c4-a5f3-18a105ce6f09"
+      ]
+     },
+     "name": "Dreadhorde Invasion",
+     "non_ability_text": null,
+     "oracle_text": "At the beginning of your upkeep, you lose 1 life and amass Zombies 1. (Put a +1/+1 counter on an Army you control. It's also a Zombie. If you don't control an Army, create a 0/0 black Zombie Army creature token first.)\nWhenever a Zombie token you control with power 6 or greater attacks, it gains lifelink until end of turn.",
+     "power": null,
+     "printings": [
+      "CMM",
+      "DRC",
+      "FRC",
+      "MIC",
+      "PWAR",
+      "WAR"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2019-05-03",
+       "text": "If the token's power changes later in the turn after it has attacked, including while Dreadhorde Invasion's second ability is on the stack, it won't cause the token to gain or lose lifelink."
+      },
+      {
+       "date": "2019-05-03",
+       "text": "The power of the Zombie token is checked only immediately after it attacks. Any other abilities that trigger when creatures you control attack won't have resolved yet."
+      },
+      {
+       "date": "2023-06-16",
+       "text": "Amass Orcs works the same way, except you create a 0/0 black Orc Army creature token if you don't control an Army. If the Army creature you chose isn't already an Orc, it becomes an Orc in addition to its other types. By combining cards with amass Orcs and amass Zombies, you can end up with an Orc Zombie Army."
+      },
+      {
+       "date": "2023-06-16",
+       "text": "Amass abilities are now written as \"amass [subtype] N.\" Previous cards with amass have received errata to say \"amass Zombies N.\""
+      },
+      {
+       "date": "2023-06-16",
+       "text": "If you don't control an Army, the Zombie Army token you create enters the battlefield as a 0/0 creature before receiving counters. Any abilities that trigger when a creature with a certain power enters the battlefield, such as that of Mentor of the Meek, will see the token enter as a 0/0 creature before it gets +1/+1 counters."
+      },
+      {
+       "date": "2023-06-16",
+       "text": "In the rare case that you control multiple Army creatures (perhaps because you played a creature with changeling) while you amass Zombies, you choose which of your Army creatures to put the +1/+1 counters on. If that creature isn't a Zombie, it becomes a Zombie in addition to its other types."
+      },
+      {
+       "date": "2023-06-16",
+       "text": "Some cards refer to the \"amassed Army.\" That means the Army creature you chose to receive counters, even if no counters were placed on it for some reason."
+      },
+      {
+       "date": "2023-06-16",
+       "text": "Some cards that cause you to amass Zombies also provide bonuses to \"Zombie tokens.\" These affect any token that happens to be a Zombie, not just a Zombie Army you've amassed."
+      },
+      {
+       "date": "2023-06-16",
+       "text": "To amass Zombies N, if you don't control an Army creature, create a 0/0 black Zombie Army creature token. Then you choose an Army creature you control and put N +1/+1 counters on it. If that Army isn't already a Zombie, it becomes a Zombie in addition to its other types."
+      }
+     ],
+     "scryfall_oracle_id": "01deabbb-af6a-4998-99a7-35b7cfa9ef77",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": {
+        "type": "OnlyDuringYourTurn"
+       },
+       "damage_kind": "Any",
+       "description": "At the beginning of your upkeep, you lose 1 life and amass Zombies 1.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "amount": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "target": {
+          "type": "Controller"
+         },
+         "type": "LoseLife"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "count": {
+           "type": "Fixed",
+           "value": 1
+          },
+          "subtype": "Zombie",
+          "type": "Amass"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": null,
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "mode": "Phase",
+       "optional": false,
+       "origin": null,
+       "phase": "Upkeep",
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": null,
+       "valid_source": null,
+       "valid_target": null
+      },
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever a Zombie token you control with power 6 or greater attacks, it gains lifelink until end of turn.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": "UntilEndOfTurn",
+        "effect": {
+         "duration": "UntilEndOfTurn",
+         "static_abilities": [
+          {
+           "active_zones": [],
+           "affected": {
+            "type": "TriggeringSource"
+           },
+           "affected_zone": null,
+           "characteristic_defining": false,
+           "condition": null,
+           "description": "gain lifelink",
+           "effect_zone": null,
+           "mode": "Continuous",
+           "modifications": [
+            {
+             "keyword": "Lifelink",
+             "type": "AddKeyword"
+            }
+           ]
+          }
+         ],
+         "target": null,
+         "type": "GenericEffect"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "Attacks",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "controller": "You",
+        "properties": [
+         {
+          "type": "Token"
+         },
+         {
+          "comparator": "GE",
+          "scope": "Current",
+          "stat": "Power",
+          "type": "PtComparison",
+          "value": {
+           "type": "Fixed",
+           "value": 6
+          }
+         }
+        ],
+        "type": "Typed",
+        "type_filters": [
+         {
+          "Subtype": "Zombie"
+         }
+        ]
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "all_parts": [
+     {
+      "component": "token",
+      "id": "ab6ce07c-d61c-4334-9ca8-bdf6ed9bee4f",
+      "name": "Zombie Army",
+      "oracle_id": "8bf1137a-163c-446f-8d34-168a7705df4e",
+      "type_line": "Token Creature — Zombie Army"
+     }
+    ],
+    "arena_available": true,
+    "cmc": 2.0,
+    "color_identity": [
+     "B"
+    ],
+    "colors": [
+     "B"
+    ],
+    "keywords": [
+     "Amass"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}{B}",
+    "name": "Dreadhorde Invasion",
+    "oracle_id": "01deabbb-af6a-4998-99a7-35b7cfa9ef77",
+    "oracle_text": "At the beginning of your upkeep, you lose 1 life and amass Zombies 1. (Put a +1/+1 counter on an Army you control. It's also a Zombie. If you don't control an Army, create a 0/0 black Zombie Army creature token first.)\nWhenever a Zombie token you control with power 6 or greater attacks, it gains lifelink until end of turn.",
+    "type_line": "Enchantment"
+   }
+  },
   "Dreadhound": {
    "phase_records": [
     {
@@ -425029,6 +425337,740 @@
     "power": "3",
     "toughness": "3",
     "type_line": "Legendary Creature — Phyrexian Elf Warrior"
+   }
+  },
+  "Fable of the Mirror-Breaker": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Enchantment"
+      ],
+      "subtypes": [
+       "Saga"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Red"
+     ],
+     "color_override": null,
+     "defense": null,
+     "face_index": 0,
+     "flavor_name": null,
+     "keywords": [],
+     "layout": "transform",
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 2,
+      "shards": [
+       "Red"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "related_token_ids": [
+       "3ae3c4af-2b85-5943-bab1-760e1b7da047",
+       "54edcc8d-dc97-5a6e-b42b-00d63b81e738",
+       "fe4dffe8-dc27-5c0d-aaa3-589a15e78f55"
+      ],
+      "source_printing_ids": [
+       "0b696cd1-0d72-4df5-bacc-dc77e62f9a13",
+       "24c0d87b-0049-4beb-b9cb-6f813b7aa7dc",
+       "6dee0388-a78d-4b3c-a0c5-25655e14115e"
+      ]
+     },
+     "name": "Fable of the Mirror-Breaker",
+     "non_ability_text": null,
+     "oracle_text": "(As this Saga enters and after your draw step, add a lore counter.)\nI — Create a 2/2 red Goblin Shaman creature token with \"Whenever this token attacks, create a Treasure token.\"\nII — You may discard up to two cards. If you do, draw that many cards.\nIII — Exile this Saga, then return it to the battlefield transformed under your control.",
+     "power": null,
+     "printings": [
+      "NEO",
+      "PNEO",
+      "PRM",
+      "SCH"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [
+      {
+       "condition": null,
+       "description": "Saga ETB lore counter",
+       "destination_zone": "Battlefield",
+       "event": "Moved",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "counter_type": "lore",
+         "target": {
+          "type": "SelfRef"
+         },
+         "type": "PutCounter"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": {
+        "type": "Mandatory"
+       },
+       "valid_card": {
+        "type": "SelfRef"
+       }
+      }
+     ],
+     "rulings": [
+      {
+       "date": "2022-02-18",
+       "text": "A transforming double-faced card enters the battlefield with its front face up by default, unless a spell or ability instructs you to put it onto the battlefield transformed or you cast it transformed, in which case it enters with its back face up."
+      },
+      {
+       "date": "2022-02-18",
+       "text": "Any enters-the-battlefield abilities of the copied creature will trigger when the token enters the battlefield. Any “as [this permanent] enters the battlefield” or “[this permanent] enters the battlefield with” abilities of the copied creature card will also work."
+      },
+      {
+       "date": "2022-02-18",
+       "text": "Each face of a transforming double-faced card has its own set of characteristics: name, types, subtypes, abilities, and so on. While a transforming double-faced permanent is on the battlefield, consider only the characteristics of the face that's currently up. The other set of characteristics is ignored."
+      },
+      {
+       "date": "2022-02-18",
+       "text": "Each transforming double-faced card in this set is cast face up. In every zone other than the battlefield, consider only the characteristics of its front face. If it is on the battlefield, consider only the characteristics of the face that's up; the other face's characteristics are ignored."
+      },
+      {
+       "date": "2022-02-18",
+       "text": "If Reflection of Kiki-Jiki's ability creates multiple tokens due to a replacement effect (such as the one Doubling Season creates), you'll sacrifice each of them."
+      },
+      {
+       "date": "2022-02-18",
+       "text": "If a copied creature is a token that isn't a copy of something else, the copy copies the original characteristics of that token as stated by the effect that created it."
+      },
+      {
+       "date": "2022-02-18",
+       "text": "If a copied creature is copying something else, the token you create will use the copiable values of the target creature. In most cases, it will just be a copy of whatever that creature is copying."
+      },
+      {
+       "date": "2022-02-18",
+       "text": "If another creature becomes a copy of, or enters the battlefield as a copy of, the token, that creature will copy the creature card the token is copying, except it will also have haste. However, you won't sacrifice the new copy at the beginning of the next end step."
+      },
+      {
+       "date": "2022-02-18",
+       "text": "If the copied creature has {X} in its mana cost, X is 0."
+      },
+      {
+       "date": "2022-02-18",
+       "text": "If you are instructed to put a card that isn't a double-faced card onto the battlefield transformed, it will not enter the battlefield at all. In that case, it stays in the zone it was previously in. For example, if a single-faced card is a copy of Azusa's Many Journeys, the chapter III ability will cause it to be exiled and then remain in exile."
+      },
+      {
+       "date": "2022-02-18",
+       "text": "The back face of a transforming double-faced card usually has a color indicator that defines its color."
+      },
+      {
+       "date": "2022-02-18",
+       "text": "The mana value of a transforming double-faced card is the mana value of its front face, no matter which face is up."
+      },
+      {
+       "date": "2022-02-18",
+       "text": "The token created by Reflection of Kiki-Jiki copies exactly what was printed on the original creature (except that the copy also has haste) and nothing else (unless it's copying a creature that's a token or that's copying something else; see below). It doesn't copy whether the creature is tapped or untapped, whether it has any counters on it or Auras and/or Equipment attached to it, or any non-copy effects that changed its power, toughness, types, color, and so on. Most notably, if the target creature isn't normally a creature, the copy won't be a creature."
+      }
+     ],
+     "scryfall_oracle_id": "c0957e5e-c71b-439c-931c-9f55d2f76ace",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "counter_filter": {
+        "counter_type": "lore",
+        "threshold": 1
+       },
+       "damage_kind": "Any",
+       "description": "Chapter 1",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "colors": [
+          "Red"
+         ],
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "enters_attacking": false,
+         "keywords": [],
+         "name": "Goblin Shaman",
+         "owner": {
+          "type": "Controller"
+         },
+         "power": {
+          "type": "Fixed",
+          "value": 2
+         },
+         "static_abilities": [
+          {
+           "active_zones": [],
+           "affected": {
+            "type": "SelfRef"
+           },
+           "affected_zone": null,
+           "characteristic_defining": false,
+           "condition": null,
+           "description": null,
+           "effect_zone": null,
+           "mode": "Continuous",
+           "modifications": [
+            {
+             "trigger": {
+              "batched": false,
+              "condition": null,
+              "constraint": null,
+              "damage_kind": "Any",
+              "description": "Whenever ~ attacks, create a Treasure token.",
+              "destination": null,
+              "execute": {
+               "condition": null,
+               "cost": null,
+               "description": null,
+               "duration": null,
+               "effect": {
+                "colors": [],
+                "count": {
+                 "type": "Fixed",
+                 "value": 1
+                },
+                "enters_attacking": false,
+                "keywords": [],
+                "name": "Treasure",
+                "owner": {
+                 "type": "Controller"
+                },
+                "power": {
+                 "type": "Fixed",
+                 "value": 0
+                },
+                "tapped": false,
+                "toughness": {
+                 "type": "Fixed",
+                 "value": 0
+                },
+                "type": "Token",
+                "types": [
+                 "Artifact",
+                 "Treasure"
+                ]
+               },
+               "forward_result": false,
+               "kind": "Spell",
+               "optional": false,
+               "optional_targeting": false,
+               "sub_ability": null,
+               "target_prompt": null
+              },
+              "mode": "Attacks",
+              "optional": false,
+              "origin": null,
+              "phase": null,
+              "secondary": false,
+              "trigger_zones": [
+               "Battlefield"
+              ],
+              "valid_card": {
+               "type": "SelfRef"
+              },
+              "valid_source": null,
+              "valid_target": null
+             },
+             "type": "GrantTrigger"
+            }
+           ]
+          }
+         ],
+         "tapped": false,
+         "toughness": {
+          "type": "Fixed",
+          "value": 2
+         },
+         "type": "Token",
+         "types": [
+          "Creature",
+          "Goblin",
+          "Shaman"
+         ]
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "CounterAdded",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "saga_chapter": 1,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": null
+      },
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "counter_filter": {
+        "counter_type": "lore",
+        "threshold": 2
+       },
+       "damage_kind": "Any",
+       "description": "Chapter 2",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "count": {
+          "max": {
+           "type": "Fixed",
+           "value": 2
+          },
+          "type": "UpTo"
+         },
+         "target": {
+          "type": "Controller"
+         },
+         "type": "Discard"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": true,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": {
+          "signal": "OptionalEffectPerformed",
+          "type": "EffectOutcome"
+         },
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "count": {
+           "qty": {
+            "type": "EventContextAmount"
+           },
+           "type": "Ref"
+          },
+          "target": {
+           "type": "Controller"
+          },
+          "type": "Draw"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": null,
+         "sub_link": "SequentialSibling",
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "mode": "CounterAdded",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "saga_chapter": 2,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": null
+      },
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "counter_filter": {
+        "counter_type": "lore",
+        "threshold": 3
+       },
+       "damage_kind": "Any",
+       "description": "Chapter 3",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "destination": "Exile",
+         "enter_tapped": false,
+         "enter_transformed": false,
+         "enters_attacking": false,
+         "origin": null,
+         "owner_library": false,
+         "target": {
+          "type": "SelfRef"
+         },
+         "type": "ChangeZone"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "destination": "Battlefield",
+          "enter_tapped": false,
+          "enter_transformed": true,
+          "enters_attacking": false,
+          "enters_under": "You",
+          "origin": null,
+          "owner_library": false,
+          "target": {
+           "type": "SelfRef"
+          },
+          "type": "ChangeZone"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": null,
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "mode": "CounterAdded",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "saga_chapter": 3,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    },
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": {
+        "costs": [
+         {
+          "cost": {
+           "generic": 1,
+           "shards": [],
+           "type": "Cost"
+          },
+          "type": "Mana"
+         },
+         {
+          "type": "Tap"
+         }
+        ],
+        "type": "Composite"
+       },
+       "description": "{1}, {T}: Create a token that's a copy of another target nonlegendary creature you control, except it has haste. Sacrifice it at the beginning of the next end step.",
+       "duration": null,
+       "effect": {
+        "count": {
+         "type": "Fixed",
+         "value": 1
+        },
+        "enters_attacking": false,
+        "extra_keywords": [
+         "Haste"
+        ],
+        "owner": {
+         "type": "Controller"
+        },
+        "tapped": false,
+        "target": {
+         "controller": "You",
+         "properties": [
+          {
+           "type": "NotSupertype",
+           "value": "Legendary"
+          },
+          {
+           "type": "Another"
+          }
+         ],
+         "type": "Typed",
+         "type_filters": [
+          "Creature"
+         ]
+        },
+        "type": "CopyTokenOf"
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "condition": {
+          "phase": "End",
+          "type": "AtNextPhase"
+         },
+         "effect": {
+          "condition": null,
+          "cost": null,
+          "description": null,
+          "duration": null,
+          "effect": {
+           "count": {
+            "type": "Fixed",
+            "value": 1
+           },
+           "target": {
+            "type": "LastCreated"
+           },
+           "type": "Sacrifice"
+          },
+          "forward_result": false,
+          "kind": "Activated",
+          "optional": false,
+          "optional_targeting": false,
+          "sub_ability": null,
+          "target_prompt": null
+         },
+         "type": "CreateDelayedTrigger",
+         "uses_tracked_set": false
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "sub_link": "SequentialSibling",
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Enchantment",
+       "Creature"
+      ],
+      "subtypes": [
+       "Goblin",
+       "Shaman"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Red"
+     ],
+     "color_override": [
+      "Red"
+     ],
+     "defense": null,
+     "face_index": 1,
+     "flavor_name": null,
+     "keywords": [],
+     "layout": "transform",
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "type": "NoCost"
+     },
+     "metadata": {
+      "related_token_ids": [
+       "3ae3c4af-2b85-5943-bab1-760e1b7da047",
+       "54edcc8d-dc97-5a6e-b42b-00d63b81e738",
+       "fe4dffe8-dc27-5c0d-aaa3-589a15e78f55"
+      ],
+      "source_printing_ids": [
+       "0b696cd1-0d72-4df5-bacc-dc77e62f9a13",
+       "24c0d87b-0049-4beb-b9cb-6f813b7aa7dc",
+       "6dee0388-a78d-4b3c-a0c5-25655e14115e"
+      ]
+     },
+     "name": "Reflection of Kiki-Jiki",
+     "non_ability_text": null,
+     "oracle_text": "{1}, {T}: Create a token that's a copy of another target nonlegendary creature you control, except it has haste. Sacrifice it at the beginning of the next end step.",
+     "power": {
+      "type": "Fixed",
+      "value": 2
+     },
+     "printings": [
+      "NEO",
+      "PNEO",
+      "PRM",
+      "SCH"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "c0957e5e-c71b-439c-931c-9f55d2f76ace",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 2
+     },
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "all_parts": [
+     {
+      "component": "token",
+      "id": "6870a2af-80e1-4813-a332-2b1bd789f1c1",
+      "name": "Copy",
+      "oracle_id": "88c78601-87f0-45e7-b2e0-e7ffcfb1cb70",
+      "type_line": "Token"
+     },
+     {
+      "component": "token",
+      "id": "0d9461c3-f545-4efb-926e-759961db0495",
+      "name": "Goblin Shaman",
+      "oracle_id": "4ece8767-a2e0-42fc-aadf-86a4ae863343",
+      "type_line": "Token Creature — Goblin Shaman"
+     },
+     {
+      "component": "token",
+      "id": "649d42c1-a465-435e-8b67-e901ab9ad8ab",
+      "name": "Treasure",
+      "oracle_id": "3c549374-6c37-42e0-8d88-a8555d46732d",
+      "type_line": "Token Artifact — Treasure"
+     }
+    ],
+    "arena_available": true,
+    "card_faces": [
+     {
+      "colors": [
+       "R"
+      ],
+      "keywords": [
+       "Transform",
+       "Treasure"
+      ],
+      "mana_cost": "{2}{R}",
+      "name": "Fable of the Mirror-Breaker",
+      "oracle_text": "(As this Saga enters and after your draw step, add a lore counter.)\nI — Create a 2/2 red Goblin Shaman creature token with \"Whenever this token attacks, create a Treasure token.\"\nII — You may discard up to two cards. If you do, draw that many cards.\nIII — Exile this Saga, then return it to the battlefield transformed under your control.",
+      "type_line": "Enchantment — Saga"
+     },
+     {
+      "colors": [
+       "R"
+      ],
+      "keywords": [
+       "Transform",
+       "Treasure"
+      ],
+      "mana_cost": "",
+      "name": "Reflection of Kiki-Jiki",
+      "oracle_text": "{1}, {T}: Create a token that's a copy of another target nonlegendary creature you control, except it has haste. Sacrifice it at the beginning of the next end step.",
+      "power": "2",
+      "toughness": "2",
+      "type_line": "Enchantment Creature — Goblin Shaman"
+     }
+    ],
+    "cmc": 3.0,
+    "color_identity": [
+     "R"
+    ],
+    "keywords": [
+     "Transform",
+     "Treasure"
+    ],
+    "layout": "transform",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "name": "Fable of the Mirror-Breaker // Reflection of Kiki-Jiki",
+    "oracle_id": "c0957e5e-c71b-439c-931c-9f55d2f76ace",
+    "type_line": "Enchantment — Saga // Enchantment Creature — Goblin Shaman"
    }
   },
   "Fable of the Mirror-Breaker // Reflection of Kiki-Jiki": {
@@ -590751,6 +591793,263 @@
     "type_line": "Enchantment"
    }
   },
+  "Idol of Oblivion": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "activation_restrictions": [
+        {
+         "data": {
+          "condition": {
+           "comparator": "GE",
+           "lhs": {
+            "qty": {
+             "filter": {
+              "type": "Any"
+             },
+             "player": {
+              "type": "Controller"
+             },
+             "type": "TokensCreatedThisTurn"
+            },
+            "type": "Ref"
+           },
+           "rhs": {
+            "type": "Fixed",
+            "value": 1
+           },
+           "type": "QuantityComparison"
+          }
+         },
+         "type": "RequiresCondition"
+        }
+       ],
+       "condition": null,
+       "cost": {
+        "type": "Tap"
+       },
+       "description": "{T}: Draw a card. Activate only if you created a token this turn.",
+       "duration": null,
+       "effect": {
+        "count": {
+         "type": "Fixed",
+         "value": 1
+        },
+        "target": {
+         "type": "Controller"
+        },
+        "type": "Draw"
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      },
+      {
+       "condition": null,
+       "cost": {
+        "costs": [
+         {
+          "cost": {
+           "generic": 8,
+           "shards": [],
+           "type": "Cost"
+          },
+          "type": "Mana"
+         },
+         {
+          "type": "Tap"
+         },
+         {
+          "count": 1,
+          "target": {
+           "type": "SelfRef"
+          },
+          "type": "Sacrifice"
+         }
+        ],
+        "type": "Composite"
+       },
+       "description": "{8}, {T}, Sacrifice ~: Create a 10/10 colorless Eldrazi creature token.",
+       "duration": null,
+       "effect": {
+        "colors": [],
+        "count": {
+         "type": "Fixed",
+         "value": 1
+        },
+        "enters_attacking": false,
+        "keywords": [],
+        "name": "Eldrazi",
+        "owner": {
+         "type": "Controller"
+        },
+        "power": {
+         "type": "Fixed",
+         "value": 10
+        },
+        "tapped": false,
+        "toughness": {
+         "type": "Fixed",
+         "value": 10
+        },
+        "type": "Token",
+        "types": [
+         "Creature",
+         "Eldrazi"
+        ]
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Artifact"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 2,
+      "shards": [],
+      "type": "Cost"
+     },
+     "metadata": {
+      "related_token_ids": [
+       "10173943-4e6c-5451-9123-e8d236294818",
+       "196dc3e0-d414-5258-a5d8-12f8ad8a3cb7",
+       "3c0ee4a0-0554-5751-9425-fdcd54ec07fb",
+       "58e85fd7-2da8-5e25-81d8-82bb5fb20ee4",
+       "68114091-690b-5fa8-856b-cd550815430e",
+       "6972e7d2-32f5-5d9f-9a2a-1c5c4dccc865",
+       "767c5ca7-495a-5d46-83a5-97d8e520d679",
+       "845560fc-ccf3-5c26-8bd7-2298fd16ade3",
+       "9fc937ca-2dae-5884-b285-6c1b7e7576c0",
+       "a3030333-67fe-5f9b-a27a-139bb63040b6",
+       "ae517e3c-f085-5dc0-925a-7009aecb02c7",
+       "d0945eeb-bd43-5f93-a204-cc7b1f6879a2",
+       "ef7bc75a-9d1d-5aea-b7c2-4422bbf63505"
+      ],
+      "source_printing_ids": [
+       "0fca2f74-d220-47f1-964a-a4cd6e096fbf",
+       "1c602e17-7eee-45f5-82d9-406cb4498b18",
+       "465f803f-0e4a-41b4-9160-10f76c05188e",
+       "659d8632-3326-40b2-bb07-0677b0aad2b8",
+       "6b87b385-0ad9-4aa7-8a7e-c42b9c002a99",
+       "6ccfb12e-348e-4a0b-a365-33ec522306f9",
+       "8235349d-0f92-4af4-ab8d-2f645fe32934",
+       "9f800b59-640c-447a-b0d1-3904bc91b61f",
+       "b13f6c2f-c4f3-4fd4-b6f9-997c69c9ff06",
+       "c29cbd42-cfad-4b8c-a70f-00c4225d2753",
+       "cbc25725-1485-4d98-abe1-906520f868d8",
+       "cec3a4b5-cdec-47bb-824f-4390abe832d0",
+       "daed8456-011e-44e2-b180-6a8a75089257",
+       "f8692db5-6f2d-4330-9e23-1c3246898a35",
+       "fa0e1874-d172-42dd-bebc-5e2c2d3e0b6d"
+      ]
+     },
+     "name": "Idol of Oblivion",
+     "non_ability_text": null,
+     "oracle_text": "{T}: Draw a card. Activate only if you created a token this turn.\n{8}, {T}, Sacrifice this artifact: Create a 10/10 colorless Eldrazi creature token.",
+     "power": null,
+     "printings": [
+      "BLC",
+      "BRC",
+      "C19",
+      "C21",
+      "CMM",
+      "M3C",
+      "MKC",
+      "NCC",
+      "ONC",
+      "OTC",
+      "PLST",
+      "SCD",
+      "TDC"
+     ],
+     "rarities": [
+      "uncommon",
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2019-08-23",
+       "text": "You can activate Idol of Oblivion's first ability even if the token you've created was created before Idol of Oblivion entered the battlefield or if the token has left the battlefield."
+      }
+     ],
+     "scryfall_oracle_id": "c232d974-9c65-4bce-b045-e5a7cc0c62e0",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "all_parts": [
+     {
+      "component": "token",
+      "id": "30ff04d5-ecaf-4be2-94f4-d5409f1c1e4e",
+      "name": "Eldrazi",
+      "oracle_id": "41014a6a-0f5b-48ae-8cb8-9a89f0f0180f",
+      "type_line": "Token Creature — Eldrazi"
+     }
+    ],
+    "arena_available": false,
+    "cmc": 2.0,
+    "color_identity": [],
+    "colors": [],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}",
+    "name": "Idol of Oblivion",
+    "oracle_id": "c232d974-9c65-4bce-b045-e5a7cc0c62e0",
+    "oracle_text": "{T}: Draw a card. Activate only if you created a token this turn.\n{8}, {T}, Sacrifice this artifact: Create a 10/10 colorless Eldrazi creature token.",
+    "type_line": "Artifact"
+   }
+  },
   "Idyllic Tutor": {
    "phase_records": [
     {
@@ -659292,6 +660591,219 @@
     "power": "2",
     "toughness": "2",
     "type_line": "Creature — Zombie Jackal Warrior"
+   }
+  },
+  "Kher Keep": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": {
+        "type": "Tap"
+       },
+       "description": "{T}: Add {C}.",
+       "duration": null,
+       "effect": {
+        "produced": {
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "type": "Colorless"
+        },
+        "type": "Mana"
+       },
+       "forward_result": false,
+       "is_mana_ability": true,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      },
+      {
+       "condition": null,
+       "cost": {
+        "costs": [
+         {
+          "cost": {
+           "generic": 1,
+           "shards": [
+            "Red"
+           ],
+           "type": "Cost"
+          },
+          "type": "Mana"
+         },
+         {
+          "type": "Tap"
+         }
+        ],
+        "type": "Composite"
+       },
+       "description": "{1}{R}, {T}: Create a 0/1 red Kobold creature token named Kobolds of Kher Keep.",
+       "duration": null,
+       "effect": {
+        "colors": [
+         "Red"
+        ],
+        "count": {
+         "type": "Fixed",
+         "value": 1
+        },
+        "enters_attacking": false,
+        "keywords": [],
+        "name": "Kobolds of Kher Keep",
+        "owner": {
+         "type": "Controller"
+        },
+        "power": {
+         "type": "Fixed",
+         "value": 0
+        },
+        "tapped": false,
+        "toughness": {
+         "type": "Fixed",
+         "value": 1
+        },
+        "type": "Token",
+        "types": [
+         "Creature",
+         "Kobold"
+        ]
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Land"
+      ],
+      "subtypes": [],
+      "supertypes": [
+       "Legendary"
+      ]
+     },
+     "color_identity": [
+      "Red"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "type": "NoCost"
+     },
+     "metadata": {
+      "related_token_ids": [
+       "15fc953d-5713-5889-be39-5bd3cd20dc5f",
+       "1fbedc1d-a3cd-5948-a8d0-78702cc81820",
+       "3ef49466-2745-594c-80c3-c598fb5ef612",
+       "6aabcac2-f43d-5895-99fc-68c948e41e34",
+       "9d98cb5b-f17b-5b48-84b2-7d0d0cfabe17",
+       "caf943a4-435e-548a-9081-161b0834d11c",
+       "d341d5d6-e6dd-5a62-a30c-e43cc01b0b07"
+      ],
+      "source_printing_ids": [
+       "15ca0b68-33a1-4d25-b622-d3f5ba05b0a5",
+       "15cfec15-95b5-47d6-9714-ff920ce97932",
+       "4d559369-59eb-4c8f-8bc1-987a529037b8",
+       "5daf0fe9-d567-4749-b649-4bfc929cb238",
+       "5e75a8b5-45c5-4586-aad8-19370477cbc3",
+       "e1e671e7-0e21-472e-9040-e52309c0c760",
+       "e44bba8e-59e9-4a06-b845-c3ba7625ff58",
+       "f7f8cbda-be92-4f14-a626-81682544612f"
+      ]
+     },
+     "name": "Kher Keep",
+     "non_ability_text": null,
+     "oracle_text": "{T}: Add {C}.\n{1}{R}, {T}: Create a 0/1 red Kobold creature token named Kobolds of Kher Keep.",
+     "power": null,
+     "printings": [
+      "C13",
+      "CLB",
+      "FRC",
+      "MKC",
+      "MOC",
+      "ONC",
+      "PLST",
+      "TSP",
+      "TSR"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "79638767-fbc7-451a-b29f-d93f2ac6f102",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "all_parts": [
+     {
+      "component": "token",
+      "id": "dfc03591-1114-4e36-a397-0bb3db8a153c",
+      "name": "Kobolds of Kher Keep",
+      "oracle_id": "6790eb4e-f6ed-44f5-85f1-bd7e167b828c",
+      "type_line": "Token Creature — Kobold"
+     }
+    ],
+    "arena_available": false,
+    "cmc": 0.0,
+    "color_identity": [
+     "R"
+    ],
+    "colors": [],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "",
+    "name": "Kher Keep",
+    "oracle_id": "79638767-fbc7-451a-b29f-d93f2ac6f102",
+    "oracle_text": "{T}: Add {C}.\n{1}{R}, {T}: Create a 0/1 red Kobold creature token named Kobolds of Kher Keep.",
+    "produced_mana": [
+     "C"
+    ],
+    "type_line": "Legendary Land"
    }
   },
   "Khorvath's Fury": {
@@ -960755,6 +962267,326 @@
     "power": "4",
     "toughness": "4",
     "type_line": "Legendary Creature — Human Artificer"
+   }
+  },
+  "Saheeli, Sublime Artificer": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "activation_restrictions": [
+        {
+         "type": "AsSorcery"
+        }
+       ],
+       "condition": null,
+       "cost": {
+        "amount": -2,
+        "type": "Loyalty"
+       },
+       "description": "[−2]: Target artifact you control becomes a copy of another target artifact or creature you control until end of turn, except it's an artifact in addition to its other types.",
+       "duration": "UntilEndOfTurn",
+       "effect": {
+        "additional_modifications": [
+         {
+          "core_type": "Artifact",
+          "type": "AddType"
+         }
+        ],
+        "duration": "UntilEndOfTurn",
+        "recipient": {
+         "filter": {
+          "controller": "You",
+          "properties": [],
+          "type": "Typed",
+          "type_filters": [
+           "Artifact"
+          ]
+         },
+         "type": "Target"
+        },
+        "target": {
+         "filters": [
+          {
+           "controller": "You",
+           "properties": [
+            {
+             "type": "Another"
+            }
+           ],
+           "type": "Typed",
+           "type_filters": [
+            "Artifact"
+           ]
+          },
+          {
+           "controller": "You",
+           "properties": [
+            {
+             "type": "Another"
+            }
+           ],
+           "type": "Typed",
+           "type_filters": [
+            "Creature"
+           ]
+          }
+         ],
+         "type": "Or"
+        },
+        "type": "BecomeCopy"
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "brawl_commander": true,
+     "card_type": {
+      "core_types": [
+       "Planeswalker"
+      ],
+      "subtypes": [
+       "Saheeli"
+      ],
+      "supertypes": [
+       "Legendary"
+      ]
+     },
+     "color_identity": [
+      "Red",
+      "Blue"
+     ],
+     "color_override": [
+      "Red",
+      "Blue"
+     ],
+     "defense": null,
+     "flavor_name": null,
+     "is_oathbreaker": true,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": "5",
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "BlueRed",
+       "BlueRed"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "related_token_ids": [
+       "a74ffa4e-54c6-5945-bfc4-8890cd279b60",
+       "c163b76c-52dc-5775-a924-8c24aa363bd7",
+       "cc281264-7f00-5567-bb0e-c14f40c41490",
+       "eb6a9824-9b87-58c3-bd3b-5054d42958d2",
+       "fe5ab9c4-4f95-552e-a051-6a032351a716"
+      ],
+      "source_printing_ids": [
+       "2e7329c4-5803-43f0-a4b5-306fb77923b7",
+       "5662d0a5-3222-4ab9-9e15-f06477730b75",
+       "5a10b543-d5d4-42a8-9ee8-dada59a2ad7e",
+       "76f344e7-a3a9-44e1-832b-f51dd4ad02f2",
+       "ac555b4e-c682-46d2-a99e-1bd1656155d7",
+       "c8bbc692-8d2e-4487-bd19-1a5c78fd3d53",
+       "ce35a39a-6dcd-4bbc-b43b-bd1a5425cb05"
+      ]
+     },
+     "name": "Saheeli, Sublime Artificer",
+     "non_ability_text": null,
+     "oracle_text": "Whenever you cast a noncreature spell, create a 1/1 colorless Servo artifact creature token.\n[−2]: Target artifact you control becomes a copy of another target artifact or creature you control until end of turn, except it's an artifact in addition to its other types.",
+     "power": null,
+     "printings": [
+      "CMM",
+      "DRC",
+      "MOC",
+      "PRM",
+      "PWAR",
+      "SLD",
+      "WAR"
+     ],
+     "rarities": [
+      "uncommon",
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2019-05-03",
+       "text": "If an effect begins to apply to the target artifact before it becomes a copy of another permanent, that effect will continue to apply."
+      },
+      {
+       "date": "2019-05-03",
+       "text": "If the target artifact becomes a creature the same turn it enters the battlefield, you can't attack with it or use any of its {T} abilities unless it has haste."
+      },
+      {
+       "date": "2019-05-03",
+       "text": "If the target artifact copies a permanent that's copying something else, it will become whatever the target is copying."
+      },
+      {
+       "date": "2019-05-03",
+       "text": "If the target artifact is an Equipment attached to a creature and it becomes a copy of a non-Equipment permanent, it becomes unattached. If it becomes a copy of an Equipment, it remains attached."
+      },
+      {
+       "date": "2019-05-03",
+       "text": "If the target artifact isn't an Equipment and becomes a copy of an Equipment, it'll become unattached when it becomes a non-Equipment artifact again."
+      },
+      {
+       "date": "2019-05-03",
+       "text": "Saheeli's first ability resolves before the spell that caused it to trigger. It resolves even if that spell is countered."
+      },
+      {
+       "date": "2019-05-03",
+       "text": "Saheeli's loyalty ability causes the target artifact to copy the printed values of the target permanent, plus any copy effects that have been applied to it. It won't copy counters on that permanent or effects that have changed its power, toughness, types, color, or so on. Notably, it won't copy effects that made the target permanent become a creature."
+      },
+      {
+       "date": "2019-05-03",
+       "text": "The target artifact is an artifact in addition to whatever types the second target has, and this exception is copiable. If something else copies the artifact later in the turn, that copy also will be an artifact."
+      }
+     ],
+     "scryfall_oracle_id": "ab655810-f67e-4576-9174-35b16f5e3235",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever you cast a noncreature spell, create a 1/1 colorless Servo artifact creature token.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "colors": [],
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "enters_attacking": false,
+         "keywords": [],
+         "name": "Servo",
+         "owner": {
+          "type": "Controller"
+         },
+         "power": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "tapped": false,
+         "toughness": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "type": "Token",
+         "types": [
+          "Artifact",
+          "Creature",
+          "Servo"
+         ]
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "SpellCast",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "controller": null,
+        "properties": [],
+        "type": "Typed",
+        "type_filters": [
+         {
+          "Non": "Creature"
+         }
+        ]
+       },
+       "valid_source": null,
+       "valid_target": {
+        "type": "Controller"
+       }
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "all_parts": [
+     {
+      "component": "token",
+      "id": "ae8e32b9-431c-43d9-a0df-d73f4ff4fbc2",
+      "name": "Servo",
+      "oracle_id": "b6ca7bd1-d72e-4260-8b52-997ee1377279",
+      "type_line": "Token Artifact Creature — Servo"
+     }
+    ],
+    "arena_available": true,
+    "cmc": 3.0,
+    "color_identity": [
+     "R",
+     "U"
+    ],
+    "colors": [
+     "R",
+     "U"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "loyalty": "5",
+    "mana_cost": "{1}{U/R}{U/R}",
+    "name": "Saheeli, Sublime Artificer",
+    "oracle_id": "ab655810-f67e-4576-9174-35b16f5e3235",
+    "oracle_text": "Whenever you cast a noncreature spell, create a 1/1 colorless Servo artifact creature token.\n[−2]: Target artifact you control becomes a copy of another target artifact or creature you control until end of turn, except it's an artifact in addition to its other types.",
+    "type_line": "Legendary Planeswalker — Saheeli"
    }
   },
   "Sai, Master Thopterist": {

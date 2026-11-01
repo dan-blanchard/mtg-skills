@@ -14,6 +14,7 @@ existing search + ranking (ADR-0023).
 from __future__ import annotations
 
 import math
+import statistics
 import sys
 from bisect import bisect_left
 from collections import Counter
@@ -43,12 +44,15 @@ from mtg_utils._tuner.issues import (
     CUT_UPGRADE,
     CUT_UPGRADE_JOBLESS,
     CUT_UPGRADE_POPULAR,
+    FLIP_SLOT,
     UPGRADE_ROLE_ORDER,
     Issue,
     Sourcing,
     UpgradeSource,
     cut_over,
+    is_flip,
     over_role,
+    polymorph_flip_types,
     upgrade_job,
 )
 from mtg_utils._tuner.mana_base import LandPlan
@@ -133,6 +137,16 @@ _THEME_TIE_WINDOW = 300
 #: unbounded, so no wildcard add is past it.
 _PURSE_CAP = 0.6
 
+#: The most of a polymorph deck's flips (:func:`is_flip`) that may sit under
+#: its flip floor (:func:`flip_floor_band`) once a fodder creature is added
+#: (``find_add``): one in four. A creature that makes a token every turn is
+#: fodder (``signal_specs`` ``wants_fodder``, Dan's call 2026-11-01), and every
+#: creature card in the library is also what the polymorph reveals, so without
+#: a bound the fodder page's creature makers took thirteen of Dan's Jace tune's
+#: twenty adds beside eleven bombs cut: two flips in three a two-drop. One in
+#: four is this lane's own line, no rule's.
+_WHIFF_SHARE = 0.25
+
 #: How close a later candidate's play-rate (log10 EDHREC rank, the job reads'
 #: unit) must be to the first pick's for the cheaper of them to be the add
 #: (``find_add``, :func:`_near_tie`): within a factor of two in rank. A near
@@ -178,6 +192,23 @@ _X_COST_VALUE = 3.0
 #: (``off_theme``, :func:`_upgrades`): three guide adds more and one guide cut
 #: (2026-10-25).
 _JOB_BAND_ROOM = 1
+
+
+def flip_floor_band(
+    deck_records: Sequence[Mapping], flip_types: frozenset[str]
+) -> int | None:
+    """The mana-value band (:func:`_mv_band`) a polymorph deck's creature or
+    planeswalker ADD must reach — one band under the deck's median flip — or
+    ``None`` with no polymorph commander or no flips in the deck. Every such
+    card in the library is what the polymorph reveals (Jace's -3 has no
+    mana-value gate), so a cheap one added for any other reason is a whiff
+    beside the deck's bombs: the Jace precon's flips run 6 to 10 mana, median
+    7, so a 4-mana add passes and a 3-mana one does not. A fodder card is read
+    by the fodder page, not this floor (``find_add``)."""
+    bands = [_mv_band(r) for r in deck_records if is_flip(r, flip_types)]
+    if not bands:
+        return None
+    return max(0, int(statistics.median(bands)) - 1)
 
 
 def over_band(
@@ -1117,9 +1148,25 @@ def propose_swaps(
         need_avenues=ctx.need_avenues,
     )
     cut_focus = CutFocus.from_focus(ctx.focus_result)
-    # What a polymorph commander's fodder is (``find_add``'s job upgrades).
+    # What a polymorph commander's fodder is (``find_add``'s job upgrades), what
+    # it flips into and the band a flip added must reach (``find_add``).
     fodder = sourcing.fodder_spec()
     fodder_serve = fodder["_serve"] if fodder else None
+    flip_types = polymorph_flip_types(ctx.commander_idents)
+    flip_floor = flip_floor_band(deck_records, flip_types)
+
+    def below_floor(record: Mapping) -> bool:
+        """A flip under the deck's flip floor: a whiff beside its bombs."""
+        return (
+            flip_floor is not None
+            and is_flip(record, flip_types)
+            and _mv_band(record) < flip_floor
+        )
+
+    # The deck's flips, and how many sit under the floor (``_WHIFF_SHARE``);
+    # ``commit`` moves both with each swap.
+    flip_count = sum(1 for r in deck_records if is_flip(r, flip_types))
+    low_flips = sum(1 for r in deck_records if below_floor(r))
     # The deck's own avenue prominence, so the candidate ranker scores DEPTH in
     # the deck's real themes (a death payoff) over BREADTH across incidental lanes
     # (a token equipment that grazes ten). Without this the count rewards splashy
@@ -1372,6 +1419,13 @@ def propose_swaps(
         spec_filter = spec.get("_filter")
         if spec_filter is not None:  # tuner-side precision pass (e.g. reliable-ramp)
             pool = [c for c in pool if spec_filter(c, deck_mana=ctx.deck_mana)]
+        # A page's own order, ahead of play-rate and synergy (the polymorph
+        # fodder page's repeatable makers first, ``issues._fodder_lead``).
+        lead = spec.get("_lead")
+
+        def led(c: dict) -> tuple:
+            return lead(c) if lead is not None else ()
+
         if synergy_first and job is not None and ctx.playrate:
             ranked = _job_order(pool, job)
         elif synergy_first and ctx.playrate:
@@ -1390,6 +1444,7 @@ def propose_swaps(
             ranked = sorted(
                 pool,
                 key=lambda c: (
+                    led(c),
                     _quality(c, playrate=True),
                     extract_price(c) or 1e9,
                 ),
@@ -1401,6 +1456,7 @@ def propose_swaps(
                 for r in sorted(
                     rank(pool),
                     key=lambda r: (
+                        led(r["card"]),
                         -r["score"]["synergy_score"],
                         extract_price(r["card"]) or 1e9,
                     ),
@@ -1615,6 +1671,14 @@ def propose_swaps(
         Epiphany goes to Thopter Shop, Staff of the Storyteller to Dawn of Hope).
         A theme upgrade is untouched: the guides cut theme cards often (backlog
         (s), 3a).
+
+        And a creature or planeswalker it adds is a flip (:func:`is_flip`): one
+        below the deck's flip floor (:func:`flip_floor_band`) that the fodder
+        page does not admit is a whiff in the library, not an add, whatever
+        page asked for it — Zurgo Stormrender as a card-draw upgrade, Adeline
+        as a theme one (Dan's Jace tune, 2026-11-01: ten such adds beside
+        eleven bombs cut). A card asked for by name (a combo's missing piece)
+        is the exception: the line is the reason.
         """
         ranked = _ranked_pool(
             spec,
@@ -1662,6 +1726,24 @@ def propose_swaps(
                 continue
             if not game_changers.allows(card):
                 continue  # ADR-0030: never propose an add past the bracket's ceiling
+            if not spec.get("name") and below_floor(card):
+                # The docstring: a cheap flip is a whiff in the library, unless
+                # it is fodder, and fodder only while the flips stay mostly the
+                # deck's bombs (``_WHIFF_SHARE``) — counted as the swap would
+                # leave them, the cut's own flip gone where the cut is known.
+                if not (fodder_serve is not None and fodder_serve.matches(card)):
+                    continue
+                cut_rec = band_cut.record if band_cut is not None else None
+                flips_after = (
+                    flip_count
+                    + 1
+                    - bool(cut_rec is not None and is_flip(cut_rec, flip_types))
+                )
+                low_after = (
+                    low_flips + 1 - bool(cut_rec is not None and below_floor(cut_rec))
+                )
+                if low_after > _WHIFF_SHARE * flips_after:
+                    continue
             if (
                 job is not None
                 and upgrade_of is not None
@@ -1788,11 +1870,20 @@ def propose_swaps(
         off_avenue: bool = False,
         avenue: str | None = None,
     ) -> None:
+        nonlocal flip_count, low_flips
         # Charge only now that the swap is finalized (find_add probed read-only, so an
         # unpaired add never consumed budget — USD dollars or a wildcard, by mode).
         if cut is not None:
             count_jobs(cut.record, cut.roles, -1)
         count_jobs(add_card, role_of(add_card, deck_mana=ctx.deck_mana), 1)
+        if flip_floor is not None:
+            # The polymorph deck's flips, as the proposal leaves them.
+            if cut is not None and is_flip(cut.record, flip_types):
+                flip_count -= 1
+                low_flips -= below_floor(cut.record)
+            if is_flip(add_card, flip_types):
+                flip_count += 1
+                low_flips += below_floor(add_card)
         cover = coverage(add_card)
         if cover.covered_by is None:
             ledger.charge(add_card, cost)
@@ -1906,6 +1997,17 @@ def propose_swaps(
             )
 
     theme = sourcing.theme()
+    # Where a full job's slot moves (below): the theme, or for a polymorph
+    # deck's flip the flips' page (``Sourcing.flip_spec``), so the slot stays a
+    # flip — Niv-Mizzet, Ghost Counsel's draw slot under Jace with card draw
+    # over its band.
+    flip_page = sourcing.flip_spec()
+
+    def moved_source(cut: CardClass) -> UpgradeSource | None:
+        if flip_page and is_flip(cut.record, flip_types):
+            return UpgradeSource(flip_page, None, FLIP_SLOT)
+        return UpgradeSource(theme, None) if theme else None
+
     for issue in issues:
         if len(swaps) >= ctx.max_swaps:
             break
@@ -1960,10 +2062,16 @@ def propose_swaps(
                         limit=_JOB_READ_PAGE if job_read else _PAGE,
                     )
                     # A full job's slot moves onto the theme (the docstring) when
-                    # the theme's add costs no more than the job's would.
-                    if theme and source.job in job_room and job_room[source.job] <= 0:
+                    # the theme's add costs no more than the job's would — or,
+                    # for a polymorph deck's flip, onto the flips' page.
+                    target = (
+                        moved_source(cut)
+                        if source.job in job_room and job_room[source.job] <= 0
+                        else None
+                    )
+                    if target is not None:
                         moved, moved_avenue = find_theme_add(
-                            theme,
+                            target.spec,
                             synergy_first=True,
                             nonland_only=True,
                             upgrade_of=cut,
@@ -1976,7 +2084,7 @@ def propose_swaps(
                         )
                         if moved is not None and moved[1] <= cap:
                             picked, avenue = moved, moved_avenue
-                            source, job_read = UpgradeSource(theme, None), None
+                            source, job_read = target, None
                     if picked is not None:
                         why = (
                             "reads better at the job and more decks play it"

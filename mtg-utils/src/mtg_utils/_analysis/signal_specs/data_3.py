@@ -7,10 +7,12 @@ from __future__ import annotations
 from mtg_utils._analysis._sweep_detectors import (
     SWEEP_LABELS,
 )
+from mtg_utils._analysis.card_reads import makes_tokens_repeatedly
 from mtg_utils._analysis.lanes.manifest import (
     PERMANENT_ENTRY_KEYS,
     PERMANENT_ENTRY_SUBJECTS,
 )
+from mtg_utils.card_classify import is_creature_or_planeswalker
 
 from ._shared import (
     _AMASS_SERVE_IDENTS,
@@ -80,6 +82,20 @@ _EQUIPMENT_MOVER_EXTRA = SubAvenue(
 _CLONE_SERVE_IDENTS = frozenset(
     {"clone_makers|you|", "copy_permanent|you|", "token_copy_makers|you|"}
 )
+
+
+def _polymorph_fodder_body(card: dict) -> bool:
+    """A token maker a polymorph deck can run as fodder. Every creature or
+    planeswalker card in the library is a flip (Jace, Multiverse Architect's -3
+    reveals "until you reveal a creature or planeswalker card"), so a maker of
+    either type (``card_classify.is_creature_or_planeswalker``) is admitted only
+    when its token comes again and again (``card_reads.makes_tokens_repeatedly``:
+    Loyal Apprentice, Ophiomancer, Young Pyromancer, Saheeli, Sublime Artificer)
+    — worth the flip it costs. A one-shot one (Marionette Apprentice's
+    fabricate, Chasm Skulker's death Squids) is a whiff in the library; any other
+    maker (Raise the Alarm, Bitterblossom) is never one. Dan's call, 2026-11-01."""
+    return not is_creature_or_planeswalker(card) or makes_tokens_repeatedly(card)
+
 
 # What puts a permanent onto the battlefield under your control (the
 # ``permanent_etb`` page), derived from the manifest's permanents-entering
@@ -1254,15 +1270,22 @@ SPECS_3: dict[tuple[str, str], SignalSpec] = {
     # Proteus Staff — ``lanes.mana_and_wipes._polymorph_fodder``) wants cheap,
     # expendable bodies to transform: a token is the best one to lose (CR 111.7 —
     # a token in a zone other than the battlefield ceases to exist). The serve is
-    # the token lane's own idents, capped at mana value 3 so it stays the cheap end.
+    # the token lane's own idents, capped at mana value 3 so it stays the cheap
+    # end, and held to the makers a polymorph deck can run
+    # (:func:`_polymorph_fodder_body`).
     ("wants_fodder", "you"): SignalSpec(
         label="Polymorph fodder",
-        avenue="cheap creature-token makers and expendable bodies to transform",
+        avenue="cheap creature-token makers to transform — noncreature ones, "
+        "or creatures that make a token every turn",
         search={"cmc_max": 3},
         serve=Serve(
             all_of=(
                 Serve(signal_idents=frozenset({"token_maker|you|*"})),
                 Serve(cmc_max=3),
+                Serve(
+                    predicate=_polymorph_fodder_body,
+                    predicate_id="polymorph_fodder_body",
+                ),
             )
         ),
     ),

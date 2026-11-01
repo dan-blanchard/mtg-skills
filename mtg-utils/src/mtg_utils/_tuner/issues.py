@@ -19,6 +19,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, NamedTuple
 
 from mtg_utils._analysis import signal_keys
+from mtg_utils._analysis.card_reads import makes_tokens_repeatedly
 from mtg_utils._analysis.commander_need import satisfies
 from mtg_utils._analysis.lanes import TOKEN_SUBTYPE_PAYOFF_KEYS
 from mtg_utils._analysis.multipliers import Commander, multiplier_reasons
@@ -32,7 +33,12 @@ from mtg_utils._card_ir.crosswalk import token_doubler_kinds
 from mtg_utils._card_ir.crosswalk.reads import trigger_def_event, watches_itself
 from mtg_utils._card_ir.trees import trees_for
 from mtg_utils._tuner.metrics import CALIBRATION_GAME, _cares_keys, is_wincon_card
+from mtg_utils.card_classify import (
+    classifying_type_line,
+    is_creature_or_planeswalker,
+)
 from mtg_utils.combo_search import ends_the_game
+from mtg_utils.deck import split_type_line
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Collection, Mapping, Sequence
@@ -57,18 +63,24 @@ ROW_SEARCH: dict[str, dict] = {
 PROTECTION_SEARCH = {"preset_names": ("protects-board",)}
 WINCON_SEARCH = {"oracle": r"wins the game|an additional combat phase|deals damage"}
 
-#: A polymorph commander's trim page (:meth:`Sourcing.fodder_trim_spec`): a spell
-#: of mana value 2 or less making two or more creature tokens at once
-#: (``crosswalk.makes_creature_tokens_at_once``). Each token is a separate creature
-#: for Jace's -3 to exile; Mass Polymorph counts all of them. The spell-and-mana-value
-#: line is this page's own decision, no rule's.
-_CHEAP_FODDER_SERVE = Serve(
-    all_of=(
-        Serve(signal_idents=frozenset({"mass_token_makers|you|"})),
-        Serve(types=frozenset({"instant", "sorcery"})),
-        Serve(cmc_max=2),
-    )
-)
+
+def _fodder_lead(card: Mapping) -> tuple[bool, bool]:
+    """The polymorph fodder page's order (``swaps._ranked_pool``'s ``_lead``):
+    a maker whose token comes every turn (``card_reads.makes_tokens_repeatedly``)
+    before a one-shot (Raise the Alarm), and among those one that is no flip
+    (Bitterblossom, Goblin Assault) before a creature or planeswalker (Loyal
+    Apprentice, Saheeli, Sublime Artificer), which the polymorph reveals too;
+    play-rate within each. One body a turn for the polymorph is the plan, and a
+    maker that is no flip costs the plan nothing; a two-mana spell is two bodies
+    once. Dan's call (2026-11-01) over the instants-and-sorceries page that
+    scored one guide add more."""
+    record = dict(card)
+    return (not makes_tokens_repeatedly(record), is_creature_or_planeswalker(record))
+
+
+#: What an upgrade's reason calls a polymorph deck's flip slot
+#: (:meth:`Sourcing.flip_spec`): "upgrade a flip: …".
+FLIP_SLOT = "a flip"
 
 
 def _fixed_cost(card: Mapping, **_kw: object) -> bool:
@@ -186,11 +198,43 @@ class UpgradeSource(NamedTuple):
 
     spec: dict
     job: str | None
+    #: What the slot is when it is neither a job nor the theme: a polymorph
+    #: deck's flip (:meth:`Sourcing.flip_spec`).
+    what: str | None = None
 
     @property
     def label(self) -> str:
         """The job as the swap's reason names it."""
+        if self.what:
+            return self.what
         return self.job.replace("_", " ") if self.job else "the main theme"
+
+
+def polymorph_flip_types(
+    commander_idents: Collection[tuple[str, str, str]],
+) -> frozenset[str]:
+    """The card types a polymorph commander puts onto the battlefield, read off
+    its own signals (``read_deck_signals``' ``commander_idents``): the subjects
+    of its ``cheat_into_play`` when it also wants fodder (``wants_fodder``, the
+    lane's polymorph read). Jace, Multiverse Architect's -3 reveals "until you
+    reveal a creature or planeswalker card": Creature and Planeswalker. Empty
+    for any other commander."""
+    if not any(key == "wants_fodder" for key, _scope, _sub in commander_idents):
+        return frozenset()
+    return frozenset(
+        subject.lower()
+        for key, scope, subject in commander_idents
+        if key == "cheat_into_play" and scope == "you" and subject
+    )
+
+
+def is_flip(card: Mapping, flip_types: frozenset[str]) -> bool:
+    """Whether ``card`` is one the deck's polymorph flips into: its front face
+    holds one of ``flip_types``."""
+    if not flip_types:
+        return False
+    types, _subtypes = split_type_line(classifying_type_line(dict(card)))
+    return not flip_types.isdisjoint(t.lower() for t in types)
 
 
 #: The effect concepts that do each template job, for :func:`incidental_job`.
@@ -403,11 +447,20 @@ class Sourcing:
     def avenue(self, label: str) -> dict | None:
         """The candidate search for an avenue label: its spec's search, carrying
         the spec's serving predicate (``_serve``), which pages the theme in
-        place of the search's pattern (``swaps._run_search``)."""
+        place of the search's pattern (``swaps._run_search``). The polymorph
+        fodder page of a commander that wants fodder carries its order too
+        (``_lead``: :func:`_fodder_lead`), whether a trim or a theme add asks
+        it."""
         for sig in self._signals:
             spec = avenue_spec_for(sig)
             if spec is not None and spec.label == label:
-                return {**spec.search, "_serve": spec.serve, "_avenue": label}
+                out = {**spec.search, "_serve": spec.serve, "_avenue": label}
+                if (
+                    sig.key == "wants_fodder"
+                    and (sig.key, sig.scope, sig.subject) in self._commander_idents
+                ):
+                    out["_lead"] = _fodder_lead
+                return out
         return None
 
     def theme_avenues(self) -> list[tuple[str, int, dict]]:
@@ -456,30 +509,24 @@ class Sourcing:
         return None
 
     def fodder_trim_spec(self) -> dict | None:
-        """Where a polymorph commander's trimmed slot goes: the cheap token spells
-        (:data:`_CHEAP_FODDER_SERVE`). The fodder lane is a sub, and only mains
-        share the theme adds (:meth:`theme_avenues`), so no tune ever asked its
-        page: its serve admits Raise the Alarm and Loyal Apprentice alike, and
-        "no search for its kind" was the page, not the read.
+        """Where a polymorph commander's trimmed slot goes: the fodder page
+        (:meth:`fodder_spec` — the makers a polymorph deck can run, repeatable
+        first, :func:`_fodder_lead`), with no X in the cost (:func:`_fixed_cost`).
+        The fodder lane may be a sub, and only mains share the theme adds
+        (:meth:`theme_avenues`), so a trim is how the page is reached.
 
-        Measured on the 25 precons with the purse cap (``swaps._PURSE_CAP``;
-        2026-10-30; only Multiverse Reforged moves, from the cap's own 30 / 14 / 2):
-        this page 30 / 14 / 4 (Raise the Alarm, and the budget the Gods took keeps
-        Nezahal, Primal Tide). Without the cap 25 / 13 / 2: a $29 Solphim ends
-        the tune. The lane's whole page for the trims scored 30 / 15 / 3 with the
-        job-upgrade rule, since play-rate reaches Bastion of Remembrance, Adeline,
-        Marionette Apprentice and Ophiomancer first. Sharing the theme adds over the
-        lane as well, a sub joining the mains, won Loyal Apprentice or Raise the
-        Alarm and lost Archfiend of Depravity every time (30 / 15 / 3)."""
+        Before 2026-11-01 the page was the two-mana instants and sorceries making
+        two or more tokens at once, which scored one guide add more on Multiverse
+        Reforged (Raise the Alarm; 30 / 14 / 4 against 30 / 14 / 3, 2026-10-30)
+        and filled Dan's Jace tune with Dragon Fodder, Krenko's Command and
+        Frontline Rush. Measured then and still true: the lane's whole page in
+        play-rate order reaches Bastion of Remembrance, Adeline, Marionette
+        Apprentice and Ophiomancer first; the repeatable-first order is what
+        changes it."""
         fodder = self.fodder_spec()
         if fodder is None:
             return None
-        return {
-            **fodder,
-            "cmc_max": 2,
-            "_serve": _CHEAP_FODDER_SERVE,
-            "_filter": _fixed_cost,
-        }
+        return {**fodder, "_filter": _fixed_cost}
 
     def multiplier_avenue(self) -> tuple[str, int, dict] | None:
         """The other side of the commander's token output: the token doublers
@@ -569,11 +616,78 @@ class Sourcing:
         mains = self._focus.get("mains") or ()
         return bool(set(card.served).intersection(mains))
 
+    def is_fodder(self, record: Mapping) -> bool:
+        """Whether the card is a polymorph commander's fodder (:meth:`fodder_spec`'s
+        serve); never under any other commander."""
+        fodder = self.fodder_spec()
+        return fodder is not None and fodder["_serve"].matches(dict(record))
+
+    @property
+    def flip_types(self) -> frozenset[str]:
+        """The card types the commander's polymorph flips into
+        (:func:`polymorph_flip_types`); empty under any other commander."""
+        return polymorph_flip_types(self._commander_idents)
+
+    def flip_spec(self) -> dict | None:
+        """The page a polymorph deck's flip is upgraded on: the commander's own
+        typed cheat avenues (``signal_specs.core._cheat_subject_spec`` for each
+        type it flips into — the creature one's payoff arm is the big creatures
+        worth cheating in, the planeswalker one's the planeswalkers), as ONE
+        serve (the arms OR, as a serve's do), held to the flips (:func:`is_flip`)
+        so the cheats themselves stay off it. None under any other commander,
+        or with no typed cheat signal in the deck."""
+        flips = self.flip_types
+        if not flips:
+            return None
+        specs = [
+            spec
+            for sig in self._signals
+            if sig.key == "cheat_into_play"
+            and sig.scope == "you"
+            and sig.subject.lower() in flips
+            and (spec := avenue_spec_for(sig)) is not None
+        ]
+        if not specs:
+            return None
+        serves = [spec.serve for spec in specs]
+        serve = Serve(
+            power_min=max(
+                (s.power_min for s in serves if s.power_min is not None), default=None
+            ),
+            types=frozenset().union(*(s.types for s in serves)),
+            signal_idents=frozenset().union(*(s.signal_idents for s in serves)),
+        )
+        return {
+            **specs[0].search,
+            "_serve": serve,
+            "_avenue": specs[0].label,
+            "_filter": lambda c, **_kw: is_flip(c, flips),
+        }
+
     def upgrade_spec(self, card: CardClass) -> UpgradeSource | None:
         """Where the upgrade of ``card`` comes from: its job (:func:`upgrade_job`),
-        else the main theme. None when neither is sourceable here."""
+        else the main theme. None when neither is sourceable here. Under a
+        polymorph commander a flip with no job (an off-plan bomb) is upgraded
+        on the flips' page (:meth:`flip_spec`): the slot stays a flip. The
+        guides trade the Jace precon's off-plan bombs for better ones (Terror
+        of the Peaks, Archfiend of Depravity, Agent of Treachery, Nezahal) and
+        name its thin creature count a weakness; upgraded on the main theme,
+        Dan's tune (2026-11-01) cut twelve of its nineteen flips for token
+        makers and added one. A flip WITH a job keeps the flips' page too while
+        its row is in band or over (Niv-Mizzet, Ghost Counsel's draw under
+        Jace, card draw 14 of 10-12: the deck needs no more draw, it needs its
+        flip); a short row keeps the job page, since the deck needs the job."""
         job = upgrade_job(card.roles, card.record, on_plan=self.on_plan(card))
         if job is None:
+            # A flip that is no fodder (Overlord of the Mistmoors makes two
+            # Insects once, and is a seven-mana flip first) keeps a flip's slot,
+            # before the need pages read its tokens.
+            if (
+                is_flip(card.record, self.flip_types)
+                and not self.is_fodder(card.record)
+                and (flip := self.flip_spec())
+            ):
+                return UpgradeSource(flip, None, FLIP_SLOT)
             # A theme cut that supplies one of the commander's needs is upgraded
             # off that need's page (ADR-0061): the slot keeps doing what the
             # commander asks, with a better card — never the shared cap. A cut
@@ -587,6 +701,14 @@ class Sourcing:
                         {k: v for k, v in nspec.items() if k != "_cap"}, None
                     )
             spec = None
+        elif (
+            job != "protection"
+            and is_flip(card.record, self.flip_types)
+            and not self.is_fodder(card.record)
+            and (self._budgets.get(job) or {}).get("deviation", 0) >= 0
+            and (flip := self.flip_spec())
+        ):
+            return UpgradeSource(flip, None, FLIP_SLOT)
         elif job == "protection":
             spec = PROTECTION_SEARCH
         else:

@@ -209,8 +209,10 @@ ARM_PINS: dict[tuple[str, str], tuple[str, str]] = {
         "Wall of Omens",
         "Grizzly Bears",
     ),
-    # a cheap token maker to sacrifice; Hornet Queen costs seven
-    ("wants_fodder|you", "all_of[1].cmc_max"): ("Hangarback Walker", "Hornet Queen"),
+    # a cheap token maker to sacrifice; Hornet Queen costs seven (a creature
+    # maker serves only when its token comes every turn: Hangarback Walker's
+    # death Thopters don't, Loyal Apprentice's combat Thopter does)
+    ("wants_fodder|you", "all_of[1].cmc_max"): ("Raise the Alarm", "Hornet Queen"),
     ("wants_lifegain|you", "keywords"): ("Baneslayer Angel", "Serra Angel"),
     # a keyword tribe's bodies by their printed keyword (CR 702.9a: flying)
     ("keyword_tribe|you|Flying", "keywords"): ("Baneslayer Angel", "Grizzly Bears"),

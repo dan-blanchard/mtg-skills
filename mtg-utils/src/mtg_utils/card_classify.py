@@ -268,6 +268,14 @@ def is_creature(card: dict) -> bool:
     return "Creature" in classifying_type_line(card)
 
 
+def is_creature_or_planeswalker(card: dict) -> bool:
+    """Whether the card's (front-face) type line is a creature's or a
+    planeswalker's — what a polymorph reveals for (Jace, Multiverse Architect's
+    -3: "until you reveal a creature or planeswalker card")."""
+    line = classifying_type_line(card)
+    return "Creature" in line or "Planeswalker" in line
+
+
 #: The basic land names: the five basic land types (CR 305.6) plus Wastes; a
 #: Snow-Covered basic shares the name with its prefix stripped.
 BASIC_LAND_NAMES: frozenset[str] = frozenset(

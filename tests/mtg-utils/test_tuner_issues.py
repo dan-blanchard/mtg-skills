@@ -517,20 +517,62 @@ def test_a_polymorph_commanders_trim_is_a_cheap_token_spell():
     )
     spec = held.remedy_for("role_over", role="ramp").spec
     assert spec["_avenue"] == spec_for(fodder).label
+    # The fodder page itself: the spec's serve, with the page's own order.
+    assert spec["_serve"] is spec_for(fodder).serve
     assert spec["_serve"].matches(test_card("Raise the Alarm"))
-    # One body at a time, and three mana.
-    assert not spec["_serve"].matches(test_card("Loyal Apprentice"))
-    assert not spec["_serve"].matches(test_card("Hordeling Outburst"))
+    assert spec["_serve"].matches(test_card("Loyal Apprentice"))
+    assert spec["_serve"].matches(test_card("Hordeling Outburst"))
     # A printed mana value counts X as 0 (CR 202.3e).
     assert spec["_serve"].matches(test_card("Secure the Wastes"))
     assert not spec["_filter"](test_card("Secure the Wastes"))
     assert spec["_filter"](test_card("Raise the Alarm"))
-    # The same lane on a deck card, not the commander's: its lane, as before.
+    # Repeatable makers first, one that is no flip before a creature or a
+    # planeswalker (flips too), one-shots last (``_fodder_lead``); the theme
+    # page carries it too.
+    lead = spec["_lead"]
+    assert lead(test_card("Bitterblossom")) < lead(test_card("Loyal Apprentice"))
+    assert lead(test_card("Bitterblossom")) < lead(
+        test_card("Saheeli, Sublime Artificer")
+    )
+    assert lead(test_card("Loyal Apprentice")) < lead(test_card("Raise the Alarm"))
+    assert held.avenue(spec_for(fodder).label)["_lead"] is lead
+    # The same lane on a deck card, not the commander's: its lane, as before,
+    # and no order of its own.
     unheld = Sourcing(focus, [cheat, fodder], {})
     assert unheld.fodder_spec() is None
+    assert "_lead" not in unheld.avenue(spec_for(fodder).label)
     assert unheld.remedy_for("role_over", role="ramp").spec["_avenue"] == (
         spec_for(cheat).label
     )
+
+
+def test_a_polymorph_commanders_flips_page_holds_every_type_it_flips_into():
+    # Jace's -3 reveals until a creature OR planeswalker card: the flips' page
+    # is both typed cheat avenues as one serve (a five-power body, or a
+    # planeswalker), held to the flips — a cheat (Mass Polymorph) and a token
+    # maker (Bitterblossom) are not slots for a bomb's upgrade.
+    creature = _held_sig("cheat_into_play", "Creature")
+    walker = _held_sig("cheat_into_play", "Planeswalker")
+    held = Sourcing(
+        _focus(),
+        [creature, walker, _held_sig("wants_fodder")],
+        {},
+        commander_idents={
+            ("wants_fodder", "you", ""),
+            ("cheat_into_play", "you", "Creature"),
+            ("cheat_into_play", "you", "Planeswalker"),
+        },
+    )
+    page = held.flip_spec()
+    assert page["_avenue"] == "Cheat into play"
+    for name in ("Terror of the Peaks", "Vraska, Betrayal's Sting"):
+        assert page["_serve"].matches(test_card(name)), name
+        assert page["_filter"](test_card(name)), name
+    assert not page["_serve"].matches(test_card("Bitterblossom"))
+    assert page["_serve"].matches(test_card("Mass Polymorph"))  # a cheat serves
+    assert not page["_filter"](test_card("Mass Polymorph"))  # but is no flip
+    # No polymorph commander: no flips page.
+    assert Sourcing(_focus(), [creature, walker], {}).flip_spec() is None
 
 
 def test_a_clue_making_commander_gets_the_doublers_that_double_a_clue():
