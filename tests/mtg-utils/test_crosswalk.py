@@ -9279,6 +9279,41 @@ def test_cast_as_though_it_had_flash_reads_casting_options(name, conditional):
     assert "flash_grant" not in _keys(name)
 
 
+@pytest.mark.parametrize(
+    ("name", "ident"),
+    [
+        ("Darkstar Banisher", ("seek_matters", "opponents", "")),
+        ("Cackling Observer", ("seek_matters", "opponents", "")),
+        ("Spell Queller", ("free_cast", "opponents", "")),
+        ("Unidentified Hovership", ("facedown_makers", "opponents", "")),
+    ],
+)
+def test_the_exiled_cards_owners_consolation_is_not_yours(name, ident):
+    """"When ~ leaves the battlefield, the exiled card's owner seeks … / may cast
+    that card without paying its mana cost / manifests dread": phase hangs
+    ``OwnersOfCardsExiledBySource`` on the wrapper over a Controller-relative
+    effect. The owner of the card the source answered does it
+    (``crosswalk.effects_by_actor``), so the doer lane reads the opponents'
+    scope, never yours."""
+    idents = _idents(name)
+    key = ident[0]
+    assert ident in idents
+    assert not any(k == key and s == "you" for k, s, _ in idents)
+
+
+@pytest.mark.parametrize(
+    ("name", "ident"),
+    [
+        ("Cabaretti Revels", ("seek_matters", "you", "")),
+        ("Beseech the Mirror", ("free_cast", "you", "")),
+        ("Whisperwood Elemental", ("facedown_makers", "you", "manifest")),
+    ],
+)
+def test_your_own_seek_free_cast_and_manifest_stay_yours(name, ident):
+    """The same lanes keep a card's own seek, free cast and manifest."""
+    assert ident in _idents(name)
+
+
 def test_a_sorcery_without_a_flash_option_is_not_instant_speed():
     """Raise Dead has no casting options: sorcery timing (CR 307.1)."""
     from mtg_utils._card_ir.crosswalk import at_instant_speed, casts_as_though_flash

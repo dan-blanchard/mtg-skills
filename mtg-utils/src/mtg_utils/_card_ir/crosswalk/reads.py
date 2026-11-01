@@ -5803,6 +5803,27 @@ def effect_actor_scope(unit: AbilityUnit, node: object) -> str | None:
     return None
 
 
+def effects_by_actor(
+    tree: ConceptTree, *, concept: str | None = None, tags: frozenset[str] = frozenset()
+) -> tuple[tuple[ConceptNode, ...], tuple[ConceptNode, ...]]:
+    """The card's role=effect concept nodes named ``concept`` (or whose node tag
+    is one of ``tags``), split into ``(yours, the opponents')`` by who performs
+    each (:func:`effect_actor_scope`): "the exiled card's owner seeks" (Darkstar
+    Banisher), "… may cast that card without paying its mana cost" (Spell
+    Queller), "… manifests dread" (Unidentified Hovership) are the answered
+    player's (:data:`EXILED_CARDS_OWNERS_SCOPE`), as "each opponent mills" is.
+    The read a whole-card doer lane asks before it calls the effect yours."""
+    yours: list[ConceptNode] = []
+    theirs: list[ConceptNode] = []
+    for unit in tree.units:
+        for c in unit.effects:
+            if not (c.concept == concept or tag_of(c.node) in tags):
+                continue
+            side = theirs if effect_actor_scope(unit, c.node) == "opponents" else yours
+            side.append(c)
+    return tuple(yours), tuple(theirs)
+
+
 def optional_clause_actor(root: object, effect_node: object) -> str | None:
     """The actor of an optional "each player may <X> and <Y>" clause, read for
     its second action ``effect_node`` — the wrapper actor tag
