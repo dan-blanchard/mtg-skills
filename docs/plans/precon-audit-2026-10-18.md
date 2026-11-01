@@ -3003,3 +3003,21 @@ swaps and three cuts to a tutor fill. Gating on the plan changes which decks
 pay, not whether. Held back (`w41/rows-PR1.patch`). Settled: the guides' tutors
 and recursion are plan cards found on the plan's pages, under any condition
 on the row; don't re-suggest a tutor or recursion template row.
+
+## The tribe pages, every tribe (2026-10-31, late night; a read-only sweep)
+
+The backlog's (o) sub-entry had the tribe pages checked on ten tribes only. A
+Sonnet agent reproduced each page's serve (`type_matters|you|<Type>`) over the
+33,949 commander-legal non-token cards for the 151 creature subtypes with 25 or
+more members (`~/mtg/tuner-work/w41/tribe-pages-sweep*.tsv`). No real member is
+lost to a phase drop: one card in the pool has no phase record and it is in no
+tribe, and the serve's type-line arm admits any front face carrying the subtype.
+The 57 lost memberships (46 cards; Human 11, Avatar 8, Wizard and Shaman 5) are
+all cards whose creature subtype sits only on the BACK face — the Invasion
+battles, the Legend Sagas, Sephiroth, Fabled SOLDIER's One-Winged Angel — and
+`Serve.matches` classifies by the front face on purpose: a Saga or battle is no
+creature until it flips. False admissions: the generic tribal support every page
+takes by design (Cavern of Souls, Herald's Horn, the type-changers), the
+sea-monster group's siblings, and one real one — Urza's Power Plant on the Plant
+page, the hyphen in "Power-Plant" read as a word boundary — handed to the lane
+pass. Settled: the tribe pages are read off the IR for every tribe.
