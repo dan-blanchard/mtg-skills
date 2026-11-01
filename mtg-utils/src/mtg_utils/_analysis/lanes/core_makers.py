@@ -52,8 +52,8 @@ from mtg_utils._card_ir.crosswalk import (
     YOUR_CHOSEN_CONTROLLERS,
     AbilityUnit,
     ConceptTree,
+    acts_for_answered_target,
     adds_creature_type,
-    answers_its_target,
     cast_with_keyword_name,
     change_zone_dirs,
     chosen_type_payoffs,
@@ -462,17 +462,9 @@ def _token_maker(tree: ConceptTree) -> list[Signal]:
                     # Beast" (Beast Within, Pongify, Swan Song): the token is
                     # the consolation for the permanent or spell the effect
                     # answers, a directed gift. Only an exiled graveyard card
-                    # (Pharika, Funeral Pyre) is a target you'd pick as your own.
-                    filt = _root_target_filter(unit)
-                    root = next(
-                        e.node
-                        for e in unit.effects
-                        if getattr(e.node, "target", None) is filt
-                    )
-                    if answers_its_target(root) and (
-                        tag_of(root) not in ("ChangeZone", "ChangeZoneAll")
-                        or change_zone_dirs(root)[0] != "Graveyard"
-                    ):
+                    # (Pharika, Funeral Pyre) is a target you'd pick as your own
+                    # (crosswalk.acts_for_answered_target, the shared read).
+                    if acts_for_answered_target(unit, concept.node):
                         scope = "opponents"
             # "Each opponent creates ..." (Slaughter Specialist, Akroan Horse):
             # phase writes the Token's owner Controller-relative under an
