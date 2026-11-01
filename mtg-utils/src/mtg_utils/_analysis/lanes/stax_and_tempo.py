@@ -66,6 +66,7 @@ from mtg_utils._card_ir.crosswalk import (
     filter_inzone_zones,
     filter_non_types,
     filter_owned_controller,
+    filter_predicates,
     filter_subtypes,
     granted_target_taps,
     granted_trigger_events,
@@ -1588,8 +1589,10 @@ def _color_keyed_mass(tree: ConceptTree) -> bool:
     colour, Wash Out's "of the color of your choice" included)."""
     for site in color_keyed_sites(tree):
         if site.kind == "effect":
-            if tag_of(site.node.node) in MASS_FILTER_EFFECT_TAGS and (
-                change_zone_dirs(site.node.node)[0] not in ("Graveyard", "Library")
+            if (
+                tag_of(site.node.node) in MASS_FILTER_EFFECT_TAGS
+                and change_zone_dirs(site.node.node)[0] not in ("Graveyard", "Library")
+                and not _attached_to_one_object(site.filter)
             ):
                 return True
         elif tag_of(site.filter) not in (
@@ -1598,6 +1601,15 @@ def _color_keyed_mass(tree: ConceptTree) -> bool:
         ) and not names_attached_object(site.filter):
             return True
     return False
+
+
+def _attached_to_one_object(filt: object) -> bool:
+    """Whether a mass effect's filter is limited to what is attached to one
+    object (an ``AttachedTo{Host | DeclaredTarget}`` predicate — Word of
+    Undoing's "all white Auras you own attached to it", Champion of the
+    Flame's "each Aura and Equipment attached to it"): those few permanents,
+    not every object of the colour on the board."""
+    return any(p.startswith("AttachedTo") for p in filter_predicates(filt))
 
 
 def _type_change(tree: ConceptTree) -> list[Signal]:

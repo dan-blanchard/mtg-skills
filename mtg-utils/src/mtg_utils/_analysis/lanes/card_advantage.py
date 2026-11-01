@@ -82,6 +82,7 @@ from mtg_utils._card_ir.crosswalk import (
     reveal_until_player,
     static_mode_tag,
     tag_of,
+    targets_the_card,
     token_creator_side,
     trigger_phase,
     trigger_scope,
@@ -1610,12 +1611,24 @@ def _repeats(unit: AbilityUnit) -> bool:
     watches the card itself on an event that recurs (Werewolf Pack Leader's
     attacks, Fathom Mage's counters) — never its own one-time zone change
     (:data:`_ONE_SHOT_SELF_EVENTS`: Wall of Omens' entering, Ichor Wellspring's
-    dying)."""
+    dying), nor one whose effect exiles or sacrifices the card itself, so its
+    ability leaves with it after one firing (Council's Deliberation's "you may
+    exile this card from your graveyard. If you do, draw a card"; CR 400.7:
+    the card that moves is a new object)."""
     if unit.origin != "trigger":
         return False
-    return not (
-        watches_itself(unit.node) and unit.trigger_event in _ONE_SHOT_SELF_EVENTS
-    )
+    if watches_itself(unit.node) and unit.trigger_event in _ONE_SHOT_SELF_EVENTS:
+        return False
+    return not any(_removes_the_card(c) for c in unit.effects)
+
+
+def _removes_the_card(c: ConceptNode) -> bool:
+    """Whether an effect exiles or sacrifices the card itself."""
+    if not targets_the_card(c):
+        return False
+    if c.concept == "sacrifice":
+        return True
+    return c.concept == "change_zone" and change_zone_dirs(c.node)[1] == "Exile"
 
 
 def _you_draw(unit: AbilityUnit, c: ConceptNode) -> bool:

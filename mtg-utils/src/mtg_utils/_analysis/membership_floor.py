@@ -1659,6 +1659,8 @@ def _apply_membership_floor(
     is_kill_engine: bool,
     token_maker_subjects: frozenset[str],
     own_lifelink: bool,
+    dies_attacking: bool = False,
+    attacks_despite_defender: bool = False,
     made_token_names: frozenset[str] = frozenset(),
 ) -> None:
     """The card-type / own-subtype MEMBERSHIP floor (what the card IS).
@@ -1681,7 +1683,11 @@ def _apply_membership_floor(
     so this shared function never touches ``old_ir_for`` / the old ``Card`` type
     at all. Keeps the floor's SEMANTICS identical (a re-plumbing, not a
     redesign) — only the read SOURCE moves. ``own_lifelink`` is one more: the
-    card grants itself lifelink (``crosswalk.own_keyword_bodies``), and
+    card grants itself lifelink (``crosswalk.own_keyword_bodies``),
+    ``dies_attacking`` that it destroys itself whenever it attacks
+    (``lanes.board_and_ramp._destroys_itself_attacking``),
+    ``attacks_despite_defender`` that it can attack as though it didn't have
+    defender (a ``CanAttackWithDefender`` static — Novice Knight), and
     ``made_token_names`` the names of the tokens the card's own ``Token``
     effects create.
     """
@@ -2014,11 +2020,16 @@ def _apply_membership_floor(
     # (base) commander-damage fallback (CR 903.10a): only when nothing else gave a
     # strong direction and the creature is a real commander-damage threat (an
     # evasion/resilience keyword, or power >= 2 — Isamaru is a 2/2). A 0/1
-    # themeless wall is excluded by the power floor.
+    # themeless wall is excluded by the power floor, a creature that can't
+    # attack (defender, CR 702.3b — Cinder Wall; not one that can attack as
+    # though it didn't have it — Novice Knight) or dies the first time it does
+    # (Ceremonial Guard) by the attack gate: commander damage is combat damage.
     if (
         not has_other_plan
         and "creature" in type_line
         and (kws & _VOLTRON_KEYWORDS or power >= 2)
+        and ("defender" not in kws or attacks_despite_defender)
+        and not dies_attacking
     ):
         add(
             "voltron_matters",

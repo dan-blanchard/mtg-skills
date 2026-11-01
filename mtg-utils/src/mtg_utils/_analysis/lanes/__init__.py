@@ -112,6 +112,7 @@ from mtg_utils._analysis.lanes.board_and_ramp import (
     _creatures_matter_formidable_condition,
     _creatures_matter_scaled_target_filter,
     _creatures_matter_wrapped_count_filter,
+    _destroys_itself_attacking,
     _floor_token_maker_subjects,
     _generic_board_lanes,
     _has_created_token_devour,
@@ -765,6 +766,7 @@ from mtg_utils._card_ir.crosswalk import (
     ConceptTree,
     own_keyword_bodies,
     recipient_tag,
+    static_mode_tag,
     tag_of,
 )
 from mtg_utils.card_classify import get_oracle_text
@@ -1065,6 +1067,7 @@ __all__ = [
     "_delayed_had_enter_creature_etb",
     "_dep_or_and_reaches_player",
     "_destroy_legendary",
+    "_destroys_itself_attacking",
     "_dice_makers",
     "_dice_matters",
     "_dies_recursion",
@@ -1732,6 +1735,12 @@ def apply_membership_floor(
         is_kill_engine=is_kill_engine,
         token_maker_subjects=token_maker_subjects,
         own_lifelink=any("lifelink" in own_keyword_bodies(t) for t in trees),
+        dies_attacking=any(_destroys_itself_attacking(t) for t in trees),
+        attacks_despite_defender=any(
+            static_mode_tag(u.node) == "CanAttackWithDefender"
+            for t in trees
+            for u in t.iter_units("static")
+        ),
         made_token_names=frozenset(
             token_name
             for t in trees

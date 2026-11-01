@@ -899,14 +899,6 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
     Intimations' +1/+1-counter tail, Brokers' Safeguard's perpetual shield
     counter, Rakdos Augermage's and Impetuous Lootmonger's own discard, Indominus
     Rex's keyword counters, Invasion of Arcavios's search.
-- **Policy questions from the bump's gains** (decide; fixing would drop cards
-  v0.104.0 already had): lifegain_matters on "whenever an opponent gains life"
-  (Punishing Fire new; Kavu Predator, Wedding Ring already); Cinder Wall /
-  Ceremonial Guard gain voltron_matters|carrier from the membership floor once
-  blocked_matters left; keyword_bodies|enchant on Aura tokens (Scriv); Word of
-  Undoing's color_change payoff; Messenger Jays' self_drawback; Council's
-  Deliberation's card_draw_engine (it exiles itself, so fires once); Swarmyard
-  Massacre's scaling_pump from a shrink.
 
 **From the keyword tribe's dropped keywords (2026-10-26, phase v0.104.0)**
 
@@ -1119,6 +1111,13 @@ headroom and parked items.
   keeps it, because a "whenever you discard" payoff (Drake Haven) fires whichever
   card goes (Burning Inquiry). A chosen opponent's discard is not yours either
   (Fervent Mastery, `lanes._shared._choose_opponent_bound_discard`).
+- **Swarmyard Massacre's `scaling_pump` stays** (2026-11-01): the lane asks
+  whether a P/T change scales with a board count (CR 107.3, 613.4c), and its own
+  corpus adjudication admits a scaling shrink (Dark Salvation's "-1/-1 for each
+  Zombie"); Swarmyard's -1/-1 grows with your Insects, Rats, Spiders and
+  Squirrels, the board the deck builds. (The bump's other policy questions were
+  fixed the same day: an opponent's lifegain, the attack-less voltron carriers,
+  Aura enchant, one creature's Auras, a parked loot, a self-exiling trigger.)
 - **Empower Jace is no graveyard maker** (2026-11-01): the Jace token it makes
   (only when you control none) surveils through a "[−1]: Surveil 1" loyalty
   ability beside "[−3]: Draw a card"; the 28 empower cards (Protege's Awakening,

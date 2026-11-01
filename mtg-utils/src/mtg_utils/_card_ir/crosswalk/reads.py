@@ -12367,7 +12367,16 @@ def self_drawbacks(tree: ConceptTree) -> SelfDrawbacks:
         if _loses_you_the_game(node):
             harm = True
             continue
-        if any(tag_of(c.node) == "Draw" for c in unit.effects):
+        # a draw the unit pays for, typed or one phase parks (Messenger Jays'
+        # "draw a card for each quill vote. For each card drawn this way, discard
+        # a card" — a loot); a parked conditional draw pays for nothing when its
+        # condition fails (Mindstorm Crown's "draw a card if you had no cards in
+        # hand … If you had a card in hand, ~ deals 1 damage to you")
+        if any(
+            tag_of(c.node) == "Draw"
+            or (c.concept == "draw" and not residue_is(c.node, "unparsed_condition"))
+            for c in unit.effects
+        ):
             continue
         if any(
             _harms_you(unit, c.node, mill_is_fuel=mill_is_fuel) for c in unit.effects
@@ -12714,6 +12723,10 @@ def _keyword_bodies(
         for c in unit.effects:
             out.update(c.made_body_keywords if made_only else c.body_keywords)
     out.discard("")
+    # Enchant restricts what an Aura can enchant (CR 702.5a): the Aura a card
+    # makes or becomes (Scriv, the Obligator's Contract token; Animate Dead) is
+    # no keyworded body.
+    out.discard("enchant")
     return frozenset(out)
 
 
