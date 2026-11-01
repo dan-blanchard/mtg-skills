@@ -437,9 +437,6 @@ ETB doublers), ~45 scattered one to seven a deck. Gate unchanged (held-out 20: p
   condition?}]` our instant-speed read never opens (Crashing Tide, Graveyard Shift,
   Mutual Destruction, Take for a Ride, Necromancy; the ledger row
   `conditional_self_flash_dropped` should read it and retire).
-- **A graveyard-hate template row**, measured once (gated, Commander template only,
-  sourced by the existing graveyard-hate serve). The recursion and tutor rows are
-  settled (T1 / PR1, below).
 - **Three value rules, one gated run each, in order:** multiplayer scaling of
   "each opponent" one-shots as a feature in the fitted quality / strength reads
   (refit, then gate); ramp at MV ≤ commander MV − 2 (slower ramp is a cut, not an
@@ -1076,6 +1073,17 @@ headroom and parked items.
   S-A, above); Enlightened Tutor and Moonsilver Key are tutor-row fills (T1 and
   PR1, above); Call the Gatewatch and Firemind's Foresight sit past the 150-card
   page (P2, above). Don't re-suggest a page for them without a new read.
+- **No graveyard-hate template row — settled 2026-11-01 (HR1).** A floor-only row
+  (one piece, open ceiling) counted by `roles.is_graveyard_hate` (a nonland card
+  carrying `graveyard_matters|opponents|` or `|any|`: Tormod's Crypt, Soul-Guide
+  Lantern, Rest in Peace; Bojuka Bog is the mana base's) and sourced by the same
+  idents' serve, on the T1 floor-only machinery (branch `block2-hate-row`,
+  `w41/hate-row-HR1.patch`). Against N12: held-out adds −5, plan −9, cuts +1,
+  job-equivalents +2, page recall @30 −30; the 25 adds −1, plan +2, cuts +2
+  (`sb-*-HR1`). The row's fill takes a slot from the plan on every deck short of
+  it, and the guides add graveyard hate rarely and by name. With T1 / PR1 that is
+  every generic template row beyond the Command Zone five measured and lost:
+  don't re-suggest a template row of any kind.
 - **A tribe's signal profile opens no page — settled 2026-11-01 (TPa / TPb).** Under a
   commander whose plan lane is a tribe, the lanes the identity pool's tribe members
   over-index on (share ≥ RATIO × the pool's and ≥ MIN_SHARE of the members; a Spine
