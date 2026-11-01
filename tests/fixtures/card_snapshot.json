@@ -374312,6 +374312,176 @@
     "type_line": "Sorcery"
    }
   },
+  "Eaten by Spiders": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "declares_chosen_group": 0,
+       "description": "Destroy target creature with flying and all Equipment attached to that creature.",
+       "duration": null,
+       "effect": {
+        "target": {
+         "controller": null,
+         "properties": [
+          {
+           "type": "WithKeyword",
+           "value": "Flying"
+          }
+         ],
+         "type": "Typed",
+         "type_filters": [
+          "Creature"
+         ]
+        },
+        "type": "TargetOnly"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "cant_regenerate": false,
+         "target": {
+          "filters": [
+           {
+            "type": "ParentTarget"
+           },
+           {
+            "controller": null,
+            "properties": [
+             {
+              "to": {
+               "filter": {
+                "type": "ParentTarget"
+               },
+               "type": "Host"
+              },
+              "type": "AttachedTo"
+             }
+            ],
+            "type": "Typed",
+            "type_filters": [
+             {
+              "Subtype": "Equipment"
+             }
+            ]
+           }
+          ],
+          "type": "Or"
+         },
+         "type": "DestroyAll"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Instant"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Green"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 2,
+      "shards": [
+       "Green"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "0efea1b1-f212-4b97-98dd-922f85ab191f"
+      ]
+     },
+     "name": "Eaten by Spiders",
+     "non_ability_text": null,
+     "oracle_text": "Destroy target creature with flying and all Equipment attached to that creature.",
+     "power": null,
+     "printings": [
+      "AVR"
+     ],
+     "rarities": [
+      "uncommon"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "d4c04cec-3a0d-4e86-95ed-8d367fe7220d",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 3.0,
+    "color_identity": [
+     "G"
+    ],
+    "colors": [
+     "G"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}{G}",
+    "name": "Eaten by Spiders",
+    "oracle_id": "d4c04cec-3a0d-4e86-95ed-8d367fe7220d",
+    "oracle_text": "Destroy target creature with flying and all Equipment attached to that creature.",
+    "type_line": "Instant"
+   }
+  },
   "Eater of Days": {
    "phase_records": [
     {
@@ -995347,6 +995517,213 @@
     "type_line": "Instant"
    }
   },
+  "Silence the Believers": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "declares_chosen_group": 0,
+       "description": "Exile any number of target creatures and all Auras attached to them.",
+       "duration": null,
+       "effect": {
+        "target": {
+         "controller": null,
+         "properties": [],
+         "type": "Typed",
+         "type_filters": [
+          "Creature"
+         ]
+        },
+        "type": "TargetOnly"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "multi_target": {
+        "max": null,
+        "min": 0
+       },
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "destination": "Exile",
+         "origin": null,
+         "target": {
+          "filters": [
+           {
+            "type": "ParentTarget"
+           },
+           {
+            "controller": null,
+            "properties": [
+             {
+              "to": {
+               "filter": {
+                "type": "ParentTarget"
+               },
+               "type": "Host"
+              },
+              "type": "AttachedTo"
+             }
+            ],
+            "type": "Typed",
+            "type_filters": [
+             {
+              "Subtype": "Aura"
+             }
+            ]
+           }
+          ],
+          "type": "Or"
+         },
+         "type": "ChangeZoneAll"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Instant"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Black"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 2,
+      "shards": [
+       "Black",
+       "Black"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "d6dc2bd1-a980-4eab-8bb3-1ce28c3f9ef4"
+      ]
+     },
+     "name": "Silence the Believers",
+     "non_ability_text": null,
+     "oracle_text": "Strive — This spell costs {2}{B} more to cast for each target beyond the first.\nExile any number of target creatures and all Auras attached to them.",
+     "power": null,
+     "printings": [
+      "JOU"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2014-04-26",
+       "text": "If a spell or ability allows you to cast a strive spell without paying its mana cost, you must pay the additional costs for any targets beyond the first."
+      },
+      {
+       "date": "2014-04-26",
+       "text": "If all of the spell's targets are illegal when the spell tries to resolve, it won't resolve and none of its effects will happen. If one or more of its targets are legal when it tries to resolve, the spell will resolve and affect only those legal targets. It will have no effect on any illegal targets."
+      },
+      {
+       "date": "2014-04-26",
+       "text": "If such a spell is copied, and the effect that copies the spell allows a player to choose new targets for the copy, the number of targets can't be changed. The player may change any number of the targets, including all of them or none of them. If, for one of the targets, the player can't choose a new legal target, then it remains unchanged (even if the current target is illegal)."
+      },
+      {
+       "date": "2014-04-26",
+       "text": "The creatures and Auras are exiled at the same time. Specifically, if an Aura is a permanent with bestow, it will be exiled. It won't stop being an Aura and remain on the battlefield."
+      },
+      {
+       "date": "2014-04-26",
+       "text": "The mana cost and mana value of strive spells don't change no matter how many targets they have. Strive abilities affect only what you pay."
+      },
+      {
+       "date": "2014-04-26",
+       "text": "You choose how many targets each spell with a strive ability has and what those targets are as you cast it. It's legal to cast such a spell with no targets, although this is rarely a good idea. You can't choose the same target more than once for a single strive spell."
+      }
+     ],
+     "scryfall_oracle_id": "3c2de008-5747-49c0-89c1-83331cb55896",
+     "static_abilities": [],
+     "strive_cost": {
+      "generic": 2,
+      "shards": [
+       "Black"
+      ],
+      "type": "Cost"
+     },
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 4.0,
+    "color_identity": [
+     "B"
+    ],
+    "colors": [
+     "B"
+    ],
+    "keywords": [
+     "Strive"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}{B}{B}",
+    "name": "Silence the Believers",
+    "oracle_id": "3c2de008-5747-49c0-89c1-83331cb55896",
+    "oracle_text": "Strive — This spell costs {2}{B} more to cast for each target beyond the first.\nExile any number of target creatures and all Auras attached to them.",
+    "type_line": "Instant"
+   }
+  },
   "Silent Arbiter": {
    "phase_records": [
     {
@@ -1241785,6 +1242162,173 @@
     "power": "7",
     "toughness": "7",
     "type_line": "Creature — Boar Beast"
+   }
+  },
+  "Word of Undoing": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "declares_chosen_group": 0,
+       "description": "Return target creature and all white Auras you own attached to it to their owners' hands.",
+       "duration": null,
+       "effect": {
+        "target": {
+         "controller": null,
+         "properties": [],
+         "type": "Typed",
+         "type_filters": [
+          "Creature"
+         ]
+        },
+        "type": "TargetOnly"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "target": {
+          "filters": [
+           {
+            "type": "ParentTarget"
+           },
+           {
+            "controller": null,
+            "properties": [
+             {
+              "color": "White",
+              "type": "HasColor"
+             },
+             {
+              "controller": "You",
+              "type": "Owned"
+             },
+             {
+              "to": {
+               "filter": {
+                "type": "ParentTarget"
+               },
+               "type": "Host"
+              },
+              "type": "AttachedTo"
+             }
+            ],
+            "type": "Typed",
+            "type_filters": [
+             {
+              "Subtype": "Aura"
+             }
+            ]
+           }
+          ],
+          "type": "Or"
+         },
+         "type": "BounceAll"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Instant"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Blue"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "pauper": "legal",
+      "paupercommander": "legal",
+      "premodern": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 0,
+      "shards": [
+       "Blue"
+      ],
+      "type": "Cost"
+     },
+     "name": "Word of Undoing",
+     "non_ability_text": null,
+     "oracle_text": "Return target creature and all white Auras you own attached to it to their owners' hands.",
+     "power": null,
+     "printings": [
+      "ICE",
+      "ME1"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "2597a1ee-fe9e-44b5-a5e3-d34332c6c123",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 1.0,
+    "color_identity": [
+     "U"
+    ],
+    "colors": [
+     "U"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "legal",
+     "paupercommander": "legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{U}",
+    "name": "Word of Undoing",
+    "oracle_id": "2597a1ee-fe9e-44b5-a5e3-d34332c6c123",
+    "oracle_text": "Return target creature and all white Auras you own attached to it to their owners' hands.",
+    "type_line": "Instant"
    }
   },
   "Words of Waste": {

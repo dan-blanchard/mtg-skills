@@ -66,3 +66,41 @@ def test_folded_trigger_reads_each_clause_destination():
     gy, exile = out["triggers"][0]["zone_change_clauses"]
     assert gy["valid_card"]["controller"] == "You"
     assert exile["valid_card"]["controller"] is None
+
+
+@pytest.mark.retirement_canary
+def test_targeted_and_attached_canary():
+    """Eaten by Spiders' "Destroy target creature with flying and all Equipment
+    attached to that creature": phase writes a ``TargetOnly`` and one
+    ``DestroyAll`` over ``Or[ParentTarget, the Equipment attached to it]``; the
+    stage writes the ``Destroy`` of the target back and keeps the Equipment
+    arm on the mass verb."""
+    (rec,) = test_phase_records("Eaten by Spiders")
+    (ability,) = rec["abilities"]
+    assert ability["effect"]["type"] == "TargetOnly", (
+        "shape_compat targeted-and-attached: RETIRE-READY — phase writes the "
+        "targeted verb itself again. Delete the row and this canary."
+    )
+    out = restore_renamed_shapes(rec)
+    (after,) = out["abilities"]
+    assert after["effect"]["type"] == "Destroy"
+    assert after["effect"]["target"] == ability["effect"]["target"]
+    mass = after["sub_ability"]["effect"]
+    assert mass["type"] == "DestroyAll"
+    assert mass["target"]["type"] == "Typed"
+    assert ability["effect"]["type"] == "TargetOnly"  # the input is untouched
+
+
+@pytest.mark.parametrize(
+    ("name", "ident"),
+    [
+        ("Eaten by Spiders", ("removal", "you")),
+        ("Soul Nova", ("exile_removal", "you")),
+        ("Silence the Believers", ("exile_removal", "you")),
+        ("Word of Undoing", ("bounce_tempo", "you")),
+        ("Portal of Sanctuary", ("permanent_recast", "you")),
+    ],
+)
+def test_a_targeted_object_and_its_attachments_read_as_the_targeted_verb(name, ident):
+    idents = {(s.key, s.scope) for s in test_signals(name)}
+    assert ident in idents

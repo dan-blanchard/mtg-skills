@@ -906,11 +906,6 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
     counter, Rakdos Augermage's and Impetuous Lootmonger's own discard, Indominus
     Rex's keyword counters, Invasion of Arcavios's search.
 - **Our reads still missing a v0.118.0 shape** (open):
-  - "Destroy target creature … and all Equipment attached to that creature" is a
-    `TargetOnly` + `DestroyAll{Or[ParentTarget, AttachedTo{Host}]}` (Eaten by
-    Spiders removal, Silence the Believers and Soul Nova exile_removal, Portal of
-    Sanctuary permanent_etb, Word of Undoing bounce_tempo lost); the removal
-    lanes would resolve the `ParentTarget` arm to the chain's root target.
   - A recovered `blocked_attacker_damage_source` damage ("it deals 1 damage to
     defending player" — Simian Sling, Tormentor's Helm; "… to each creature
     blocking it" — Ib Halfheart, Trailblazer's Torch) is read by direct_damage
