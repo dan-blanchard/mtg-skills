@@ -2181,9 +2181,9 @@ _COPY_SPELL_CONDITION_RX = re.compile(
 
 
 def _copy_spell_condition_gap(tree: ConceptTree) -> bool:
-    return not tree.has_effect("copy_spell") and _says(
-        _COPY_SPELL_CONDITION_RX, tree.residues("unparsed_condition")
-    )
+    return not (
+        tree.has_effect("copy_spell") or tree.has_effect("copy_ability")
+    ) and _says(_COPY_SPELL_CONDITION_RX, tree.residues("unparsed_condition"))
 
 
 # Wakka, Devoted Guardian's go-wide counter spread → type_matters (Warrior).

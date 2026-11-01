@@ -1035,6 +1035,15 @@ def _decorate_effect(node: object, role: str) -> ConceptNode | None:
         return None
     t = tag_of(node)
     concept = EFFECT_CONCEPTS.get(t or "", OTHER)
+    if t == "CopySpell" and tag_of(getattr(node, "target", None)) == "StackAbility":
+        # phase's CopySpell copies spells and abilities alike; a copy of an
+        # ability is an ability, never a spell (CR 707.10), so a copy of a stack
+        # ability (Strionic Resonator, Lithoform Engine) is its own concept and
+        # no spell-copy consumer (the value-engine synthesis, the ledger's
+        # copy-spell gap) counts it. "Copy that ability" in a trigger on an
+        # activation (Rings of Brighthearth) names no StackAbility; the lanes
+        # read it with ``reads.unit_copied_ability_kind``.
+        concept = "copy_ability"
     return ConceptNode(
         concept=concept,
         node=node,
