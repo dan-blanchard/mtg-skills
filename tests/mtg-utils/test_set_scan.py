@@ -79,6 +79,12 @@ def test_set_scan_counts_answers_evasion_and_bodies():
     assert "Sweepers: Wrath of God" in text
 
 
+def test_set_scan_counts_a_creatures_front_face_evasion():
+    # Delver of Secrets flies only as Insectile Aberration (CR 712.8a, 712.8d).
+    delver = {**test_card("Delver of Secrets // Insectile Aberration"), "set": "hob"}
+    assert set_scan([delver], code="hob")["evasion"]["total"] == 0
+
+
 def test_a_missing_rarity_is_its_own_bucket_never_common():
     scan = set_scan([{**BEAR, "rarity": None}])
     assert scan["by_rarity"]["unknown"] == 1

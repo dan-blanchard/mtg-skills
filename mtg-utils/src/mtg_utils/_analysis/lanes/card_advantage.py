@@ -109,6 +109,7 @@ from mtg_utils._card_ir.text_idioms import (
     _TOPDECK_YOUR_LIBRARY,
     _topdeck_stack_self,
 )
+from mtg_utils.card_classify import classifying_keywords
 
 
 def _impulse_scope(unit: AbilityUnit, tops: list[ConceptNode]) -> str:
@@ -1317,7 +1318,7 @@ def comes_back_from_graveyard(card: dict, routes: frozenset[str]) -> bool:
 
     if any(
         KEYWORD_SELF_RETURNS[normalised_keyword_name(k)] in routes
-        for k in card.get("keywords") or ()
+        for k in classifying_keywords(card)
         if k in SELF_RECURRING_KEYWORD_GAPS
     ):
         return True

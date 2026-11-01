@@ -38,7 +38,7 @@ from mtg_utils._analysis.text_reads import (
     _voltron_self_recurs,
     _voltron_self_unblockable,
 )
-from mtg_utils.card_classify import card_pt_int
+from mtg_utils.card_classify import card_pt_int, classifying_keywords
 
 _EVERGREEN_KW_RE = tuple(
     re.compile(r"\b" + kw + r"\b", re.IGNORECASE) for kw in _EVERGREEN_KW_WORDS
@@ -1933,7 +1933,9 @@ def _apply_membership_floor(
     # carrier commander's carers are still the 99's bare payoffs
     # (``_tuner.metrics``: a subject cares about itself and the bare key).
     power = card_pt_int(card)
-    kws = {k.lower() for k in (card.get("keywords") or [])}
+    # The commander's own keywords: a transforming or flip commander's front face
+    # (``classifying_keywords``, CR 712.8a / 710.2).
+    kws = {k.lower() for k in classifying_keywords(card)}
     # (4) self-protection (Power/Evasion/Protection triad; removal is the
     # weakness): an unkillable body that prevents all damage to ITSELF is the
     # ideal Equipment/Aura carrier (Cho-Manno, Gideon Blackblade). Not creature-

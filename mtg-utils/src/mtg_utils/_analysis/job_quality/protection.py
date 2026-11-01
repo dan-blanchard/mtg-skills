@@ -65,7 +65,7 @@ from mtg_utils._card_ir.crosswalk import (
     tag_of,
     unit_keyword_grants,
 )
-from mtg_utils.card_classify import FRONT_FACE_LAYOUTS
+from mtg_utils.card_classify import FRONT_FACE_LAYOUTS, classifying_keywords
 
 if TYPE_CHECKING:
     from mtg_utils._card_ir.crosswalk import AbilityUnit, ConceptTree
@@ -483,7 +483,7 @@ def features(card: dict) -> dict[str, float] | None:
     deploy = cost + (min(equips) if equips and attach else 0)
     pillow = [u for u in units if "pillowfort" in u.kws]
     tax = any(u.deter == "attack_tax" and not u.deter_one for u in pillow)
-    keywords = {k.lower() for k in card.get("keywords") or ()}
+    keywords = {k.lower() for k in classifying_keywords(card)}
     return {
         "team": float(team),
         "team_narrow": float("team_narrow" in scopes and not team),
