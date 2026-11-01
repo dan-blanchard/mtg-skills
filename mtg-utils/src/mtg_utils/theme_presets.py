@@ -112,6 +112,7 @@ from types import MappingProxyType
 from typing import TYPE_CHECKING
 
 from mtg_utils import _gc
+from mtg_utils._analysis.signal_keys import wildcard_counts_ident
 from mtg_utils.card_classify import (
     classifying_keywords,
     classifying_type_line,
@@ -258,7 +259,7 @@ class Preset:
         wildcard, which leaves a membership subject out
         (``signal_keys.wildcard_counts``), as a serve's does."""
         exact, wild = self._ident_arms
-        return any(i in exact or _wildcard_hit(i, wild) for i in view.idents)
+        return any(i in exact or wildcard_counts_ident(i, wild) for i in view.idents)
 
     def matches(self, card: dict, view: CardView | None = None) -> bool:
         """Whether CARD matches any arm. ``view`` is the card's :class:`CardView`,
@@ -282,15 +283,6 @@ class Preset:
         if self.signal_idents and self._idents_match(view):
             return True
         return self.concept is not None and _concept_holds(self, card)
-
-
-def _wildcard_hit(ident: str, wild: frozenset[str]) -> bool:
-    """Whether ``ident``'s ``key|scope`` is one of ``wild`` and the wildcard
-    counts its subject (``signal_keys.wildcard_counts``)."""
-    from mtg_utils._analysis.signal_keys import wildcard_counts
-
-    key_scope, _, subject = ident.rpartition("|")
-    return key_scope in wild and wildcard_counts(key_scope.partition("|")[0], subject)
 
 
 # ─── Structural-view seam (task #83, ADR-0035/0039; sidecar-seeded task #90) ──

@@ -83,7 +83,7 @@ from mtg_utils._card_ir.mirror.runtime import (
     MirrorVariant,
     TypedMirrorNode,
 )
-from mtg_utils._card_ir.recovery import POWER_SCALED, SELF, TAP_ACTIVATION
+from mtg_utils._card_ir.recovery import SELF, TAP_ACTIVATION
 from mtg_utils._card_ir.text_idioms import _counter_kind_token
 
 # ── Batch-15 mirror constants + census sets ──────────────────────────────────
@@ -1507,12 +1507,8 @@ def _power_tap_engine(tree: ConceptTree) -> list[Signal]:
         # its granter ("Equipped creature has '{T}, Unattach ~: ~ deals damage
         # equal to its power ...'" — Surestrike Trident) as one Unimplemented
         # residue the ``damage`` token recovers; the seam marks the quoted {T}
-        # activation (``TAP_ACTIVATION``) and the power-sized amount.
-        if (
-            c.recovered_by == "damage"
-            and TAP_ACTIVATION in c.subject
-            and POWER_SCALED in c.subject
-        ):
+        # ability dealing its own power (``TAP_ACTIVATION``).
+        if c.recovered_by == "damage" and TAP_ACTIVATION in c.subject:
             return [Signal("power_tap_engine", "you", "", c.raw, tree.name, "high")]
     return []
 

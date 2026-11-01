@@ -130,9 +130,11 @@ from mtg_utils._card_ir.recovery import (
     ANY_TARGET,
     MASS,
     OWN_POWER,
+    OWN_POWER_RX,
     PLAYER,
     POWER_SCALED,
     POWER_TO_CREATURE,
+    POWER_TO_CREATURE_RX,
     SELF,
     TARGET_OBJECT,
     YOURS,
@@ -3009,11 +3011,7 @@ _POWER_SELF_RECIP = re.compile(r"to itself|deals damage to itself", re.IGNORECAS
 # dropping the "power" op the bare anchor reads. Gated by this DOER-confirm
 # so a "twice the NUMBER of <X>" multiply burn (a different scaling
 # quantity — Price of Progress) never enters.
-_POWER_OWN_DOER = re.compile(
-    r"(?:deals damage (?:to itself )?equal to (?:twice |\w+ times )?its power"
-    r"|to itself equal to its power)",
-    re.IGNORECASE,
-)
+_POWER_OWN_DOER = OWN_POWER_RX
 # ADR-0038 W3 batch 6 — the RECIPIENT-side text confirm for a back-reference
 # recipient tag (``ParentTarget``/``TriggeringSource``/``SelfRef``/``Any``)
 # whose underlying Filter type phase drops: "power to target creature" (Lie
@@ -3033,9 +3031,7 @@ _POWER_OWN_DOER = re.compile(
 # (corpus-verified over-fire when tried, reverted to this anchor). CR 120.3
 # (any object dealing power-scaled damage that connects with a creature is
 # a creature_ping member).
-_POWER_RECIP_CREATURE_TEXT = re.compile(
-    r"power to (?:target|another target|that) creature\b", re.IGNORECASE
-)
+_POWER_RECIP_CREATURE_TEXT = POWER_TO_CREATURE_RX
 
 
 def _recovered_power_damage(c: ConceptNode) -> bool:

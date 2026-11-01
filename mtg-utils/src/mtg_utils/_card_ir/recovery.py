@@ -766,8 +766,9 @@ OWN_POWER = "OwnPower"
 #: Power is dealt to a creature ("… power to target creature", "to that
 #: creature"), whoever's power it is.
 POWER_TO_CREATURE = "PowerToCreature"
-#: The clause quotes an activated ability whose cost taps ("{T}, Unattach ~: …"
-#: — Surestrike Trident's grant; Iron Fist's "{T}: …").
+#: The clause quotes a tap ability that deals damage equal to its own power
+#: ("{T}, Unattach ~: ~ deals damage equal to its power …" — Surestrike Trident's
+#: grant; Iron Fist's "{T}: ~ deals damage equal to his power …").
 TAP_ACTIVATION = "TapActivation"
 #: The amount counts creatures of yours: "the number of creatures you control"
 #: (Superior Numbers), or "N times the number of creatures tapped this way" to
@@ -953,15 +954,24 @@ _MANY_RX = re.compile(
     re.IGNORECASE,
 )
 _FOR_EACH_RX = re.compile(r"\bfor each\b|\bequal to the number of\b", re.IGNORECASE)
-_OWN_POWER_RX = re.compile(
-    r"\bdeals damage (?:to itself )?equal to (?:twice |\w+ times )?its power"
-    r"|\bto itself equal to its power",
+# A doer's own power ("deals damage equal to its power"), plain or doubled
+# ("equal to TWICE its power" — Polliwallop): the ``OWN_POWER`` mark, and the
+# typed power-damage read's own confirm (``lanes.triggers_damage``).
+OWN_POWER_RX = re.compile(
+    r"(?:deals damage (?:to itself )?equal to (?:twice |\w+ times )?its power"
+    r"|to itself equal to its power)",
     re.IGNORECASE,
 )
-_POWER_TO_CREATURE_RX = re.compile(
-    r"\bpower to (?:target|another target|that) creature\b", re.IGNORECASE
+# Power dealt to a creature ("power to target creature" — Lie in Wait, Dead
+# Reckoning): the ``POWER_TO_CREATURE`` mark, and the typed read's recipient
+# confirm.
+POWER_TO_CREATURE_RX = re.compile(
+    r"power to (?:target|another target|that) creature\b", re.IGNORECASE
 )
-_TAP_ACTIVATION_RX = re.compile(r"\{T\}[^\":]*:")
+_TAP_ACTIVATION_RX = re.compile(
+    r"\{t\}[^\":]*:[^\"]*\bdamage equal to (?:its|his|her|~'s) power\b",
+    re.IGNORECASE,
+)
 _YOUR_CREATURE_COUNT_RX = re.compile(
     r"\bnumber of creatures you control\b"
     r"|\bany target equal to \w+ times the number of creatures tapped this way\b",
@@ -1092,8 +1102,8 @@ def read_clause(
         (MANY, _MANY_RX),
         (FOR_EACH, _FOR_EACH_RX),
         (OTHER_CHOOSER, _OTHER_CHOOSER_RX),
-        (OWN_POWER, _OWN_POWER_RX),
-        (POWER_TO_CREATURE, _POWER_TO_CREATURE_RX),
+        (OWN_POWER, OWN_POWER_RX),
+        (POWER_TO_CREATURE, POWER_TO_CREATURE_RX),
         (TAP_ACTIVATION, _TAP_ACTIVATION_RX),
         (YOUR_CREATURE_COUNT, _YOUR_CREATURE_COUNT_RX),
     ):

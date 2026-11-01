@@ -65,6 +65,7 @@ from mtg_utils._card_ir.crosswalk.reads import (
     cost_mana_value,
     effect_children,
     filter_core_types,
+    iter_cost_leaves,
     iter_granted_triggers,
     iter_nested_granted_bodies,
     iter_static_defs,
@@ -1131,30 +1132,17 @@ _QUALITY_COST_TAGS = frozenset({"Behold", "Reveal"})
 
 def _additional_cost_leaves(ac: TypedMirrorNode) -> Iterator[TypedMirrorNode]:
     """The cost leaves a spell's ``additional_cost`` wrapper holds: its ``data``
-    (one cost, a ``Choice``'s list, an ``Optional``'s ``cost`` or a
-    ``Kicker``'s ``costs``), through ``Composite`` / ``OneOf`` ``costs`` lists
-    (the nesting ``reads.iter_cost_leaves`` walks)."""
-
-    def leaves(node: object, depth: int = 0) -> Iterator[TypedMirrorNode]:
-        if depth > 8:
-            return
-        if isinstance(node, MirrorVariant):  # an untagged {"cost": …} holder
-            node = node.inner
-        if isinstance(node, list):
-            for c in node:
-                yield from leaves(c, depth + 1)
-            return
-        if not isinstance(node, TypedMirrorNode):
-            return
-        costs = getattr(node, "costs", MISSING)
-        if _present(costs) and isinstance(costs, list):
-            yield from leaves(costs, depth + 1)
-        elif tag_of(node) is not None:
-            yield node
-
+    (one cost, a ``Choice``'s list, an ``Optional``'s untagged ``{"cost": …}``
+    or a ``Kicker``'s ``{"costs": […]}``), each walked by
+    :func:`reads.iter_cost_leaves` (``Composite`` / ``OneOf``)."""
     data = getattr(ac, "data", MISSING)
+    if isinstance(data, MirrorVariant):  # the untagged holder
+        data = data.inner
     for item in data if isinstance(data, list) else (data,):
-        yield from leaves(item)
+        cost = item.inner if isinstance(item, MirrorVariant) else item
+        for leaf in iter_cost_leaves(cost):
+            if tag_of(leaf) is not None:
+                yield leaf
 
 
 def _spell_additional_cost_concepts(root: TypedMirrorNode) -> tuple[ConceptNode, ...]:
