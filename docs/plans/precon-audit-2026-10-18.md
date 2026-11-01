@@ -3141,3 +3141,36 @@ signals index's code key, which `test_excludes_signal_specs_which_does_not_feed_
 extraction` forbids — a cache-policy call left for Dan. Against N9: **identical
 on every count, both sets**. **Baseline N10** (`w41/sb-*-N10.json`; the same
 numbers as N8 and N9).
+
+## The follow-ups, re-based (2026-11-01; N11) — the lane list is done
+
+The three agents' follow-ups and one new recall gap (merges after 5de947ad,
+cherry-pick e503299d): an Equipment's equipped creature bites as yours (CR
+702.6a / 301.5a; Lothlórien Blade on the Power-as-damage page and the deathtouch
+lane); a Splice keyword carries the spells it splices onto (CR 702.47a; the
+Arcane page 57 → 84); a one-shot lock on one player is `stax_taxes|opponents|`,
+not symmetric stax (`symmetric_stax|each|` 258 → 250, every leaver already a
+targeted tax); the delayed split coin flip merges and its losing outcome is a
+drawback (Fickle Efreet off `blocked_matters` and, as an attack trigger that
+pays nothing, off `attack_matters`); a defender that loses defender by its own
+ability stays a voltron carrier (Torpid Moloch's typed `RemoveKeyword`; Guardian
+of the Ages by ledger row `loses_defender_trigger_parked`, phase parking its
+trigger); and the Vibranium token makers — five cards, all in the Marvel sets —
+read as ramp judged in the deck like a Powerstone (`ramp|you|` 2,004 → 2,009): the
+known-token join had skipped any Token node carrying a keyword (Indestructible),
+and `roles._mana_effects` had counted activation COSTS tagged `Mana` as mana, so
+Powerstone makers and fifteen restricted-mana sources (Myr Reservoir, Grand
+Architect, Shaman of Forgotten Ways …) were never ruled out in a deck that
+can't spend their mana (CR 106.6). Against N10: **identical on every count,
+both sets** — the deck-judged ramp moved no precon's slots. **Baseline N11**
+(`w41/sb-*-N11.json`; gate diffs vs `sb-ho-N11.json`). CI as CI sees the
+machine (`~/mtg/tuner-work/ci.sh`, empty HOME and cache) is green on this tree.
+
+The block's lane list is done: four lane passes and their follow-ups, 39 fix
+and refactor commits on the lanes and the Card IR, every one censused over the
+32,688 legal oracle ids and none of them moving a guide add or cut on either
+set. The backlog's Open
+section now holds phase-rs parse reports (drafted in
+`docs/plans/phase-upstream-reports.md`, §24 for the ones these passes found)
+and nothing of the tuner's; every tuner lever has a verdict under "Settled:
+don't re-suggest".

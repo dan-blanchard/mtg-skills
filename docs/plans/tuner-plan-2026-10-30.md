@@ -219,6 +219,14 @@ miss taxonomy, the held-out candidates).
   audit's "The fourth lane pass, re-based"). Open call for Dan: letting the
   voltron floor read the serve specs adds 12 carriers but would key the signals
   index on `signal_specs/`; reverted pending that decision.
+- 2026-11-01, the follow-ups (Lothlórien Blade's bite, Splice's subtype, a
+  one-player lock as a targeted tax, the delayed split flip, two defender
+  carriers, Fickle Efreet; and the Vibranium token makers as deck-judged ramp,
+  which also fixed activation costs counting as mana in `roles._mana_effects`)
+  re-based as N11 against N10: identical on every count in both sets —
+  **baseline N11** (`w41/sb-*-N11.json`; the audit's "The follow-ups,
+  re-based"). CI green on the tree. The block's lane list and every tuner
+  backlog item are done; the Open section holds phase reports only.
 
 ## Target
 
