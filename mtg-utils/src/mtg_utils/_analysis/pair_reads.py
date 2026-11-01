@@ -38,6 +38,8 @@ from collections import Counter
 from collections.abc import Callable
 from dataclasses import dataclass, field
 
+from mtg_utils._analysis.signal_keys import wildcard_counts
+
 # A BODY-cheating commander anchor: a creature-typed or untyped cheat (subject
 # "" puts whatever it finds). An enchantment or artifact cheat (Zur, Stoneforge
 # Mystic) floods no bodies and cheats no power, so it anchors neither row; the
@@ -701,7 +703,19 @@ def _subject_of(ident: str) -> str:
 
 
 def _matches_any(ident: str, patterns: tuple[str, ...]) -> bool:
-    return any(fnmatch.fnmatchcase(ident, pat) for pat in patterns)
+    """Whether ``ident`` matches one of ``patterns``: exactly, or through a glob
+    that leaves a membership subject out (``signal_keys.wildcard_counts``), as a
+    serve's ``key|scope|*`` does."""
+    return any(_glob_hit(ident, pat) for pat in patterns)
+
+
+def _glob_hit(ident: str, pat: str) -> bool:
+    if ident == pat:
+        return True
+    if not fnmatch.fnmatchcase(ident, pat):
+        return False
+    key, _, rest = ident.partition("|")
+    return wildcard_counts(key, rest.partition("|")[2])
 
 
 def _anchor_met(
@@ -714,7 +728,7 @@ def _anchor_met(
         # anchor_all: every listed pattern must ALSO match some commander
         # ident (the attack-rider conjunction).
         for pat in row.anchor_all:
-            if not any(fnmatch.fnmatchcase(i, pat) for i in ctx.commander_idents):
+            if not any(_glob_hit(i, pat) for i in ctx.commander_idents):
                 return False
         if not row.match_subject:
             return True
@@ -756,8 +770,7 @@ def pair_score(
         if not matched:
             continue
         if row.candidate_all and not all(
-            any(fnmatch.fnmatchcase(i, pat) for i in idents)
-            for pat in row.candidate_all
+            any(_glob_hit(i, pat) for i in idents) for pat in row.candidate_all
         ):
             continue
         if row.candidate_not and any(
