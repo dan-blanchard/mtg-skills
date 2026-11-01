@@ -3941,7 +3941,7 @@ def test_lifeloss_makers_degraded_typed_each_opponent(name, scope):
 @pytest.mark.parametrize(
     ("name", "scope"),
     [
-        ("Toxic Deluge", "you"),  # additional_cost PayLife carve-out
+        ("Toxic Deluge", "you"),  # additional_cost PayLife leaf
         ("Force of Will", "you"),  # casting_options AlternativeCost
         ("Snuff Out", "you"),  # casting_options AlternativeCost
         ("Deep Analysis", "you"),  # keyword Flashback PayLife

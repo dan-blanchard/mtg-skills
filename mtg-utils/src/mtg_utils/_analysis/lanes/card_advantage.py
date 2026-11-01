@@ -1965,8 +1965,8 @@ def _target_player_draws(tree: ConceptTree) -> list[Signal]:
       opponent" phase triggers) vs. 6 paired (all this idiom), 0 exceptions
       either way;
     * a RECOVERED "draw" residue the seam marks ``OTHER_PLAYER`` (Forget,
-      Soldevi Sentry) — guarded against the replacement-diagnostic residue
-      (:data:`_RECOVERED_DRAW_REPLACEMENT_RE`) and the symmetric each-player
+      Soldevi Sentry) — the seam refuses the replacement-diagnostic residue
+      (``recovery._REPLACEMENT_SENSE``) — guarded against the symmetric each-player
       residue (``effect_owner_player_scope(...) == "All"`` — Grothama,
       All-Devouring's damage-scaled leaves-trigger, group_hug_draw's own
       synthesis-arm territory per its docstring).

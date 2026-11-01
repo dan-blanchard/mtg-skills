@@ -1756,11 +1756,11 @@ def _lifeloss_makers(tree: ConceptTree) -> list[Signal]:
     per-ability walk never reaches, both closed the SAME way arm (b) reads
     an ``additional_cost``: (d) the card's OWN spell-level ``additional_cost``
     (CR 601.2b — Toxic Deluge's "As an additional cost to cast this spell,
-    pay X life.") merges via :func:`_spell_additional_cost_concepts`'s
-    PayLife carve-out (a ``PayLife`` leaf has no ``EFFECT_CONCEPTS`` entry —
-    a cost primitive, not a named effect — so the general OTHER filter
-    there admits it explicitly, verified corpus-safe: every OTHER consumer
-    of ``unit.costs`` filters by an explicit ``concept ==`` name); (e) an
+    pay X life.") merges via :func:`_spell_additional_cost_concepts`, which
+    keeps every cost leaf of the wrapper (a ``PayLife`` leaf has no
+    ``EFFECT_CONCEPTS`` entry — a cost primitive, not a named effect — and
+    every OTHER consumer of ``unit.costs`` filters by an explicit
+    ``concept ==`` name); (e) an
     ALTERNATIVE casting cost (CR 118.9 — Force of Will's "You may pay 1
     life ... rather than pay this spell's mana cost.") rides a SEPARATE
     root field, ``casting_options`` (``kind='AlternativeCost'``), that NO
