@@ -178,6 +178,11 @@ def test_flip_outcome_anaphor_stamped_selfref_canary():
         ("Cinder Wall", ("voltron_matters", "you", "carrier"), False),
         ("Ceremonial Guard", ("voltron_matters", "you", "carrier"), False),
         ("Novice Knight", ("voltron_matters", "you", "carrier"), True),
+        # a defender that loses defender by its own ability attacks then:
+        # Torpid Moloch's typed RemoveKeyword, Guardian of the Ages' parked
+        # trigger (ledger row loses_defender_trigger_parked)
+        ("Torpid Moloch", ("voltron_matters", "you", "carrier"), True),
+        ("Guardian of the Ages", ("voltron_matters", "you", "carrier"), True),
         # Enchant restricts what an Aura enchants (CR 702.5a): no keyword body.
         ("Scriv, the Obligator", ("keyword_bodies", "you", "enchant"), False),
         # the white Auras attached to one creature are no colour-keyed board

@@ -537332,6 +537332,167 @@
     "type_line": "Enchantment — Aura"
    }
   },
+  "Guardian of the Ages": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Artifact",
+       "Creature"
+      ],
+      "subtypes": [
+       "Golem"
+      ],
+      "supertypes": []
+     },
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [
+      "Defender"
+     ],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 7,
+      "shards": [],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "c825c138-97de-44b9-8aec-70608ae035b6"
+      ]
+     },
+     "name": "Guardian of the Ages",
+     "non_ability_text": null,
+     "oracle_text": "Defender (This creature can't attack.)\nWhen a creature attacks you or a planeswalker you control, if this creature has defender, it loses defender and gains trample.",
+     "power": {
+      "type": "Fixed",
+      "value": 7
+     },
+     "printings": [
+      "M14"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2013-07-01",
+       "text": "Once Guardian of the Ages has lost defender, its triggered ability will no longer trigger when a creature attacks you or a planeswalker you control (unless it has somehow gained defender again)."
+      },
+      {
+       "date": "2013-07-01",
+       "text": "The effect of Guardian of the Ages’s triggered ability doesn’t wear off as the turn ends. Losing defender and gaining trample last indefinitely."
+      }
+     ],
+     "scryfall_oracle_id": "1bf88f66-b673-4652-981b-3ea5d28f5c29",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 7
+     },
+     "triggers": [
+      {
+       "attack_target_filter": "PlayerOrPlaneswalker",
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "When a creature attacks you or a planeswalker you control, if ~ has defender, it loses defender and gains trample.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "description": "if ~ has defender, it loses defender and gains trample",
+         "name": "unparsed_condition",
+         "type": "Unimplemented"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "Attacks",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "controller": null,
+        "properties": [],
+        "type": "Typed",
+        "type_filters": [
+         "Creature"
+        ]
+       },
+       "valid_source": null,
+       "valid_target": {
+        "type": "Controller"
+       }
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 7.0,
+    "color_identity": [],
+    "colors": [],
+    "keywords": [
+     "Defender"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{7}",
+    "name": "Guardian of the Ages",
+    "oracle_id": "1bf88f66-b673-4652-981b-3ea5d28f5c29",
+    "oracle_text": "Defender (This creature can't attack.)\nWhen a creature attacks you or a planeswalker you control, if this creature has defender, it loses defender and gains trample.",
+    "power": "7",
+    "toughness": "7",
+    "type_line": "Artifact Creature — Golem"
+   }
+  },
   "Guerrilla Tactics": {
    "phase_records": [
     {
@@ -1158822,6 +1158983,160 @@
     "oracle_id": "1573f7f9-672c-421a-b1ac-3d0d8aea59ca",
     "oracle_text": "{T}, Sacrifice this artifact: Exile target player's graveyard.",
     "type_line": "Artifact"
+   }
+  },
+  "Torpid Moloch": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": {
+        "count": 3,
+        "target": {
+         "controller": null,
+         "properties": [],
+         "type": "Typed",
+         "type_filters": [
+          "Land"
+         ]
+        },
+        "type": "Sacrifice"
+       },
+       "description": "Sacrifice three lands: ~ loses defender until end of turn.",
+       "duration": "UntilEndOfTurn",
+       "effect": {
+        "duration": "UntilEndOfTurn",
+        "static_abilities": [
+         {
+          "active_zones": [],
+          "affected": {
+           "type": "SelfRef"
+          },
+          "affected_zone": null,
+          "characteristic_defining": false,
+          "condition": null,
+          "description": "lose defender",
+          "effect_zone": null,
+          "mode": "Continuous",
+          "modifications": [
+           {
+            "keyword": "Defender",
+            "type": "RemoveKeyword"
+           }
+          ]
+         }
+        ],
+        "target": null,
+        "type": "GenericEffect"
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Lizard"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Red"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [
+      "Defender"
+     ],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pauper": "legal",
+      "paupercommander": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 0,
+      "shards": [
+       "Red"
+      ],
+      "type": "Cost"
+     },
+     "name": "Torpid Moloch",
+     "non_ability_text": null,
+     "oracle_text": "Defender (This creature can't attack.)\nSacrifice three lands: This creature loses defender until end of turn.",
+     "power": {
+      "type": "Fixed",
+      "value": 3
+     },
+     "printings": [
+      "RAV"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "48f78611-13a7-4b5b-a52a-317ecf658ea3",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 2
+     },
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 1.0,
+    "color_identity": [
+     "R"
+    ],
+    "colors": [
+     "R"
+    ],
+    "keywords": [
+     "Defender"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "legal",
+     "paupercommander": "legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{R}",
+    "name": "Torpid Moloch",
+    "oracle_id": "48f78611-13a7-4b5b-a52a-317ecf658ea3",
+    "oracle_text": "Defender (This creature can't attack.)\nSacrifice three lands: This creature loses defender until end of turn.",
+    "power": "3",
+    "toughness": "2",
+    "type_line": "Creature — Lizard"
    }
   },
   "Torpor Orb": {
