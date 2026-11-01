@@ -28,7 +28,6 @@ from mtg_utils._analysis.job_quality._common import (
     MASS_TAGS,
     activation_mana,
     cast_cost,
-    faces,
     fixed_value,
     free_cast,
     land_back,
@@ -39,6 +38,7 @@ from mtg_utils._analysis.lanes.removal_tutors import removal_edict_answers
 from mtg_utils._analysis.signal_trees import signal_trees_for
 from mtg_utils._card_ir.crosswalk import (
     PERMANENT_CARD_TYPES,
+    at_instant_speed,
     change_zone_dirs,
     effect_filter,
     effect_owner_duration,
@@ -79,6 +79,7 @@ class _Answer:
     conditional: bool  # a filter predicate, a mana-value bound, or a unit condition
     amount: int | None  # damage dealt / toughness taken away; None = not a sized effect
     kind: str  # spell | etb | activated | activated_sac | trigger | granted
+    instant: bool  # usable in response (``crosswalk.at_instant_speed``)
     act_mana: int | None  # an activated ability's mana cost
     edict_each: bool  # a forced sacrifice on each opponent (not one target player)
     opp_only: bool  # the filter is an opponent's permanents
@@ -145,6 +146,7 @@ def _answers(card: dict) -> list[_Answer]:
     # with no player named (Papalymo Totolymo), served by the ledger's ident.
     trees = signal_trees_for(card, bulk=card)
     unit_of = {id(c): u for tree in trees for u in tree.units for c in u.effects}
+    tree_of = {id(c): t for t in trees for u in t.units for c in u.effects}
     found = [
         (c, t, False)
         for c, t in removal_edict_answers(card, "removal", soft=True, trees=trees)
@@ -156,6 +158,7 @@ def _answers(card: dict) -> list[_Answer]:
         if (tag_of(c.node) or "") in MASS_TAGS:
             continue
         unit = unit_of.get(id(c))
+        tree = tree_of.get(id(c)) or (trees[0] if trees else None)
         filt = effect_filter(c.node)
         preds = [p for p in filter_predicates(filt) if p != "Another"]
         reach = (
@@ -176,6 +179,7 @@ def _answers(card: dict) -> list[_Answer]:
                 or card.get("name") in _CONDITION_DROPPED,
                 amount=_amount(c),
                 kind=_unit_kind(unit),
+                instant=tree is not None and at_instant_speed(tree, unit),
                 act_mana=activation_mana(unit),
                 edict_each=reach in ("opponents", "per_opponent", "each"),
                 opp_only=filter_controller(filt) == "Opponent",
@@ -228,6 +232,7 @@ def _counter_answers(trees: Sequence[ConceptTree]) -> list[_Answer]:
                         or getattr(unit.node, "condition", None) is not None,
                         amount=None,
                         kind=_unit_kind(unit),
+                        instant=at_instant_speed(tree, unit),
                         act_mana=activation_mana(unit),
                         edict_each=False,
                         opp_only=False,
@@ -312,11 +317,10 @@ def features(card: dict) -> dict[str, float] | None:
             not a.conditional,
         ),
     )
-    instant = (
-        "Instant" in faces(card)[0]
-        or "Flash" in (card.get("keywords") or ())
-        or best.kind in ("activated", "activated_sac")
-    )
+    # The one instant-speed read (``crosswalk.at_instant_speed``): an activation
+    # held to sorcery timing (Ulvenwald Tracker's fight) is no longer "instant",
+    # as every activation was before the three reads were folded (2026-10-31).
+    instant = best.instant
     cost = _removal_cost(card, answers)
     unconditional = not best.conditional
     small = best.mode in ("damage", "shrink") and (best.amount or 0) < KILL_SIZE

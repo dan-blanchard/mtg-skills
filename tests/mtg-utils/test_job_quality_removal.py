@@ -189,3 +189,15 @@ def test_a_counterspell_is_an_interaction_answer():
     assert removal.features(_real("Counterspell"))["unconditional"] == 1.0
     assert removal.features(_real("Negate"))["unconditional"] == 0.0
     assert removal.features(_real("Fierce Guardianship"))["cheap"] == 1.0  # free
+
+
+def test_a_sorcery_speed_activation_is_not_instant_removal():
+    """The one instant-speed read (``crosswalk.at_instant_speed``): an activation
+    held to sorcery timing (CR 602.5d — Westfold Rider's "Sacrifice this creature:
+    Destroy target artifact or enchantment. Activate only as a sorcery") is not
+    usable in response, where the read used to call every activation instant; an
+    unrestricted activation (Seal of Doom's sacrifice, CR 117.1b) and an instant
+    (Murder, CR 117.1a) are."""
+    assert removal.features(_real("Westfold Rider"))["instant"] == 0.0
+    assert removal.features(_real("Seal of Doom"))["instant"] == 1.0
+    assert removal.features(_real("Murder"))["instant"] == 1.0

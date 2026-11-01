@@ -48,6 +48,7 @@ from mtg_utils._analysis.job_quality._common import (
 )
 from mtg_utils._analysis.signal_trees import signal_trees_for
 from mtg_utils._card_ir.crosswalk import (
+    at_instant_speed,
     attack_deterrent,
     filter_controller,
     filter_predicates,
@@ -122,7 +123,7 @@ class _Unit:
     narrow_prot: bool  # every protection grant is from a fixed quality
     act_mana: int | None  # an activated ability's mana cost
     sac_self: bool  # the card pays itself away (one use)
-    sorcery: bool  # an activation held to sorcery speed (equip)
+    instant_speed: bool  # usable in response (``crosswalk.at_instant_speed``)
     equip: bool  # the Equip ability itself
     duration: str | None
     fog: bool  # prevents a whole attack's damage
@@ -360,9 +361,6 @@ def _read_unit(tree: ConceptTree, u: AbilityUnit) -> _Unit | None:
     duration = node_duration(u.node)
     for n in iter_typed_nodes(u.node):
         duration = duration or node_duration(n)
-    restrictions = {
-        tag_of(r) for r in _list(getattr(u.node, "activation_restrictions", None))
-    }
     return _Unit(
         kind=kind,
         kws=frozenset(kws),
@@ -382,7 +380,7 @@ def _read_unit(tree: ConceptTree, u: AbilityUnit) -> _Unit | None:
             )
             for n in iter_cost_leaves(cost)
         ),
-        sorcery="AsSorcery" in restrictions,
+        instant_speed=at_instant_speed(tree, u),
         equip=tag_of(getattr(u.node, "ability_tag", None)) == "Equip",
         duration=duration,
         fog=fog,
@@ -447,12 +445,12 @@ WEIGHTS: dict[str, float] = {
 }
 
 
-def _timely(u: _Unit, *, instant: bool) -> bool:
-    """Up when removal resolves: an instant / flash spell, an activation not held
-    to sorcery speed, an always-on static, or a one-shot outlasting the turn."""
+def _timely(u: _Unit) -> bool:
+    """Up when removal resolves: a spell or activation usable in response
+    (``crosswalk.at_instant_speed`` — the one instant-speed read, shared with the
+    removal read), an always-on static, or a one-shot outlasting the turn."""
     return (
-        (u.kind == "spell" and instant)
-        or (u.kind == "activated" and not u.sorcery)
+        (u.kind in ("spell", "activated") and u.instant_speed)
         or u.kind == "static"
         or u.duration in _LONG
     )
@@ -466,9 +464,8 @@ def features(card: dict) -> dict[str, float] | None:
         return None
     front = faces(card)[0]
     subtypes = (front.split("—")[1] if "—" in front else "").split()
-    instant = "Instant" in front or "Flash" in (card.get("keywords") or ())
     kws = frozenset().union(*(u.kws for u in units))
-    live = [u for u in units if _timely(u, instant=instant)]
+    live = [u for u in units if _timely(u)]
     scopes = frozenset().union(*(u.scopes for u in live)) if live else frozenset()
     all_scopes = frozenset().union(*(u.scopes for u in units))
     attach = "attached" in all_scopes
