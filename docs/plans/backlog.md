@@ -731,8 +731,7 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   positives still open: Skyclave Apparition's "the exiled card's owner
   creates" token reads as yours — phase stamps the Token's `owner` `Controller`
   and the exiled card `Owned{You}`, so no structure tells it from your own
-  token (a phase gap to report); Oft-Nabbed Goat and Sentinel of Lost Lore fire
-  `gain_control`; Investigator's Journal still fires `proliferate_matters` and
+  token (a phase gap to report); Investigator's Journal still fires `proliferate_matters` and
   The Book of Exalted Deeds `stax_taxes|opponents`.
   Ranking: `ranking._synergy_score` gives clause clusters only to regex-matched
   hits, so every regex → ident conversion thins clause breadth (Empty the

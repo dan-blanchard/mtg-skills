@@ -58,6 +58,7 @@ from mtg_utils._card_ir.crosswalk import (
     modify_cost_spell_filter,
     names_attached_object,
     negative_pt_field,
+    opponents_activate,
     or_arms,
     own_token_filters,
     pt_mod_signs,
@@ -1414,6 +1415,11 @@ def _gain_control(tree: ConceptTree) -> list[Signal]:
         return not _gives_control_to_other(node, unit)
 
     for unit in tree.units:
+        if opponents_activate(unit):
+            # "Only your opponents may activate this ability" (Oft-Nabbed
+            # Goat): its "Gain control of this creature" is the activating
+            # opponent's (CR 109.5), a give-away.
+            continue
         for c in unit.effect_concepts("gain_control"):
             if not you_theft(c.node, unit):
                 continue

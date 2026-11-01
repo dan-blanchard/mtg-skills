@@ -2340,6 +2340,41 @@ def event_source_side(trig: object) -> ControllerSide | None:
     return controller_side(getattr(constraint, "controller", None))
 
 
+def opponents_activate(unit: AbilityUnit) -> bool:
+    """Whether only an opponent may activate ``unit`` ("Only your opponents may
+    activate this ability" — Oft-Nabbed Goat; phase's ``activator_filter:
+    Opponent``). For an activated ability "you" is the player who activated it
+    (CR 109.5), so "Gain control of this creature" there hands the card to an
+    opponent."""
+    return tag_of(getattr(unit.node, "activator_filter", None)) == "Opponent"
+
+
+#: The effects that put a card into its owner's library (a library-position put,
+#: a zone change to the library).
+_LIBRARY_PUT_TAGS: frozenset[str] = frozenset(
+    {"PutAtLibraryPosition", "ChangeZone", "ChangeZoneAll"}
+)
+
+
+def puts_away_a_card_you_dont_own(tree: ConceptTree) -> bool:
+    """Whether the card puts a card an opponent owns into its owner's library
+    (Sentinel of Lost Lore: "Put target card you don't own in exile … on the
+    bottom of its owner's library"): its "you don't own" names the card it
+    hoses (``Owned: Opponent`` on the effect's target, CR 108.3), not one you
+    stole and play."""
+    for n in tree.iter_typed():
+        tag = tag_of(n)
+        if tag not in _LIBRARY_PUT_TAGS:
+            continue
+        if tag != "PutAtLibraryPosition" and getattr(n, "destination", None) != (
+            "Library"
+        ):
+            continue
+        if filter_owned_controller(getattr(n, "target", None)) == "Opponent":
+            return True
+    return False
+
+
 def discard_recipient_scope(node: TypedMirrorNode) -> str | None:
     """The DIRECTION of a ``Discard`` effect (who discards) from its recipient node.
 

@@ -49,6 +49,7 @@ from mtg_utils._card_ir.crosswalk import (
     modify_cost_mode,
     names_attached_object,
     planeswalkers_only_beside_creatures,
+    puts_away_a_card_you_dont_own,
     replacement_event_tag,
     replacement_shield_kind,
     scoped_player_scope,
@@ -1327,8 +1328,12 @@ def _arm_dont_own(tree: ConceptTree) -> ConceptNode | None:
     NOT reminder-stripped, matching the deleted reconciliation-body
     read). No competing Tier-1 predicate exists for this specific tell —
     it is the reconciliation's SOLE source, unchanged from the deleted
-    read."""
-    if _DONT_OWN_RX.search(tree.oracle or ""):
+    read. A card whose typed "you don't own" names a card it puts into its
+    owner's library (Sentinel of Lost Lore —
+    :func:`crosswalk.puts_away_a_card_you_dont_own`) is no theft tell."""
+    if _DONT_OWN_RX.search(tree.oracle or "") and not (
+        puts_away_a_card_you_dont_own(tree)
+    ):
         return _synthetic_concept(
             arm_id="dont_own",
             concept="synth_dont_own",
