@@ -601,8 +601,7 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   any number of X cards"; Dan Lewis's AddSubtype Equipment and Equipment
   affinity. Left from the lane pass:
   the resource-maker lanes still count a token another player creates as yours
-  (An Offer You Can't Refuse, Overencumbered); every artifact emits a membership
-  `artifacts_matter|you|`, so Sol Ring lands on the Artifacts payoff page;
+  (An Offer You Can't Refuse, Overencumbered);
   `etb_value_x_recast_commander` (`pair_reads.py`) weights a scry-1 ETB like
   Shriekmaw now that `self_etb_payload` reads 4,333 cards; the `card-draw` preset
   is key-level, so Master of the Feast (opponents draw) stays in it. Phase gaps

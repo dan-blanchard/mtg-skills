@@ -141,13 +141,22 @@ SUBJECT_KEYS: Final = frozenset(
 # and Auras.
 VOLTRON_CARRIER: Final = "carrier"
 
+# The subject of the floor's artifact membership: the card IS an artifact (a card
+# type, CR 205.2a), which the Artifacts theme counts by its type, not a card that cares
+# about artifacts. Under its own subject an artifact commander still opens the
+# avenue, but the payoff page's ``artifacts_matter|you|*`` never takes Sol Ring.
+ARTIFACT_MEMBER: Final = "member"
+
 # The ``(key, subject)`` idents the membership floor writes on a payoff key: the
 # deck WANTS the theme without being a theme card itself. Each opens its avenue
-# (``signal_specs.core.avenue_spec_for``) though the theme's serve never pages it.
+# (``signal_specs.core.avenue_spec_for``) though the theme's serve never pages it:
+# a serve's ``key|scope|*`` wildcard leaves them out (``Serve._serves_ident``).
 MEMBERSHIP_SUBJECTS: Final = frozenset(
     {
         # a creature commander that carries gear
         ("voltron_matters", VOLTRON_CARRIER),
+        # an artifact (an artifact commander)
+        ("artifacts_matter", ARTIFACT_MEMBER),
     }
 )
 
