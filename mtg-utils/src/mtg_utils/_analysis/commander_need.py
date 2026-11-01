@@ -718,6 +718,40 @@ def _cheap_spells_need(desc: str) -> Need:
     return Need("payoff", "cheap spells", desc, predicate=_cheap_spell)
 
 
+def _cast_power_need(cond: object, desc: str) -> Need | None:
+    """A cast trigger's check of the cast spell's power ("If that spell's power
+    is 4 or greater, draw a card. If that spell's power is 6 or greater, …" —
+    Eshki, Temur's Roar): phase reads the triggering spell as ``CostPaidObject``
+    in a ``SpellCast`` trigger (Cabaretti Revels' and Jodah's "lesser mana value"
+    the same way). The need is creature cards whose printed power reaches the
+    floor (CR 208.1: a creature card's power is printed in its lower right);
+    a ``*`` power reads 0."""
+    if getattr(cond, "comparator", None) not in ("GE", "GT"):
+        return None
+    lhs = getattr(cond, "lhs", None)
+    qty = getattr(lhs, "qty", None) if _present(lhs) else None
+    if tag_of(qty) != "Power" or tag_of(getattr(qty, "scope", None)) != (
+        "CostPaidObject"
+    ):
+        return None
+    rhs = getattr(cond, "rhs", None)
+    if tag_of(rhs) != "Fixed":
+        return None
+    floor = int(getattr(rhs, "value", 0) or 0) + (
+        1 if getattr(cond, "comparator", None) == "GT" else 0
+    )
+    if floor <= 0:
+        return None
+    return Need(
+        "payoff",
+        f"creature spells with power {floor}+",
+        desc,
+        predicate=lambda c, floor=floor: (
+            "creature" in _type_words(c) and _stat(c, "power") >= floor
+        ),
+    )
+
+
 def _condition_need(
     cond: object, desc: str, *, cast_trigger: bool = False
 ) -> Need | None:
@@ -728,6 +762,8 @@ def _condition_need(
         if int(getattr(cond, "n", 0) or 0) >= 2:
             return _cheap_spells_need(desc)
         return None
+    if tag == "QuantityCheck" and cast_trigger:
+        return _cast_power_need(cond, desc)
     if tag != "QuantityComparison":
         return None
     lhs = getattr(cond, "lhs", None)

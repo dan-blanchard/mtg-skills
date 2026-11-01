@@ -327,6 +327,17 @@ def test_an_enchantment_entering_commander_wants_more_of_its_trigger():
     assert not satisfies(test_card("Sythis, Harvest's Hand"), need)
 
 
+def test_a_check_of_the_cast_spells_power_wants_big_creatures():
+    # Eshki's "If that spell's power is 4 or greater, draw a card. If that
+    # spell's power is 6 or greater, ~ deals damage …" (phase reads "that
+    # spell" as the cast trigger's CostPaidObject).
+    labels = _labels(_needs("Eshki, Temur's Roar"))
+    assert {"creature spells with power 4+", "creature spells with power 6+"} <= labels
+    six = _need("Eshki, Temur's Roar", "creature spells with power 6+")
+    assert satisfies(test_card("Maelstrom Wanderer"), six)
+    assert not satisfies(test_card("Grizzly Bears"), six)
+
+
 def test_a_land_sacrifice_commander_wants_land_recursion_not_creature_fodder():
     # Hearthhull sacrifices lands: a sacrificed land goes to your graveyard (CR
     # 701.21a), whence Life from the Loam and Crucible of Worlds return it. Its
