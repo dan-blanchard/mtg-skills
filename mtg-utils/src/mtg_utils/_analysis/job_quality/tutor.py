@@ -74,11 +74,14 @@ share the subtype at :data:`_TRIBE_REFERENCE`. An X tutor costs its X
 4) and a Pact its upkeep payment (:func:`_pact_mana`: Summoner's Pact 4), both
 since 2026-10-31.
 
-What it can't read, phase parse gaps to report upstream: an opponent's say
-(Rhystic Tutor's "unless any player pays {2}" is an ``Unimplemented`` effect;
-Distant Memories); Grim Reminder's revealed card read as put into the hand; a
-search phase leaves description-only (Kaito Shizuki's emblem, Garruk
-Unleashed's), which scores ``None``.
+What it can't read, phase parse gaps to report upstream
+(``docs/plans/phase-upstream-reports.md``): an opponent's say (Rhystic Tutor's
+"unless any player pays {2}" sits on an ``Unimplemented`` head); Grim Reminder's
+revealed card read as put into the hand. What it leaves by design: a search
+inside an emblem a planeswalker's ultimate makes (Kaito Shizuki's, Garruk,
+Unleashed's — typed inside ``CreateEmblem``'s triggers, but an ultimate's emblem
+is no tutor slot), which scores ``None``. Distant Memories (search, exile, an
+opponent may hand it over, else draw three) reads as a tutor.
 """
 
 from __future__ import annotations

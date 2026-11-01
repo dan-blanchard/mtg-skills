@@ -5,7 +5,9 @@ A card is in the job when one of its abilities returns a card from a graveyard
 to the battlefield, to your hand or onto the top of your library, or lets you
 cast or play cards from your graveyard, or when the card brings ITSELF back out
 of a graveyard or exile. Every other card scores ``None`` (Buried Alive puts
-cards INTO a graveyard: a tutor, not recursion).
+cards INTO a graveyard: a tutor, not recursion). A self-return that rides an
+ability of a token the card makes (Everquill Phoenix's Feather) is left: the
+walks read the card's own units, and one card has the shape (2026-10-31).
 
 The walks are the lanes' own, run per ability unit on a one-unit view:
 

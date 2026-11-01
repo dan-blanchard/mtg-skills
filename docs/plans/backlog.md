@@ -59,14 +59,19 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   read), a Pact's upkeep payment (`tutor._pact_mana`) and a tribal tutor's deck
   (`tutor.deck_features`: a subtype search is broad where a third of the deck's
   creature cards share the subtype). What is left is phase parse gaps to report
-  upstream: an opponent-choice clause (Rhystic Tutor's "unless any player pays"
-  is `Unimplemented`; Distant Memories), a stray move-to-hand phase adds to Grim
-  Reminder (scores as a tutor), six tutors phase describes only in text (the
-  Kaito and Garruk emblems: None), Cleansing Meditation's "cards destroyed this
-  way" lost (its return parses as every card in your graveyard; scores 0.49),
-  six returns unparsed (Custodi Soulcaller, Venerable Warsinger, Liliana's
-  Talent, All Hallow's Eve, Everquill Phoenix, Can't Stay Away: None), and
-  Necromancy's "as though it had flash" dropped. (drafted: `docs/plans/phase-upstream-reports.md` §3–§7, §23; "Already fixed") The tutor read's six hand-set
+  upstream (drafted: `docs/plans/phase-upstream-reports.md` §3–§7, §23):
+  Rhystic Tutor's "unless any player pays" (the `{2}` sits in `unless_pay` on an
+  `Unimplemented` head), a stray move-to-hand phase adds to Grim Reminder
+  (scores as a tutor), Cleansing Meditation's "cards destroyed this way" lost
+  (its return parses as every card in your graveyard; scores 0.49), five
+  returns unparsed (Custodi Soulcaller, Venerable Warsinger, Liliana's Talent,
+  All Hallow's Eve, Can't Stay Away: None), and Necromancy's "as though it had
+  flash" dropped. Checked 2026-10-31 and NOT phase's: Kaito Shizuki's and
+  Garruk, Unleashed's emblem searches are typed inside `CreateEmblem`'s
+  triggers — an ultimate's emblem is no tutor slot, so the read leaves them (its
+  docstring says so); Distant Memories reads as a tutor; Everquill Phoenix's
+  self-return rides its Feather token's granted ability, a shape the recursion
+  read leaves (one card, its docstring says so). The tutor read's six hand-set
   weights were confirmed by Dan as set (2026-10-31, ADR-0062).
   **Phase parse gap, worked around locally (2026-10-31):** Disa the Restless's
   "Whenever a Lhurgoyf permanent card is put into your graveyard from anywhere
@@ -683,9 +688,8 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   Shriekmaw now that `self_etb_payload` reads 4,333 cards; the `card-draw` preset
   is key-level, so Master of the Feast (opponents draw) stays in it. Phase gaps
   to report upstream (Dan posts) (drafted: `docs/plans/phase-upstream-reports.md` §6, §12–§15, §19, §20, §23; "Already fixed"; "Not drafted") — from Pass D: Frodo, Sauron's Bane's granted
-  trigger; Angel of Destiny and Nicol Bolas, Dragon-God's LoseTheGame player;
+  trigger;
   Teferi, Temporal Pilgrim and Devastating Mastery's chooser stamped You; The
-  Fall of Kroog and Radiating Lightning's "that player controls" stamped You;
   Canopy Cover's opponent-only hexproof as SelfRef; Phyrexian Unlife and the
   zero-life cards as unconditional CantLoseTheGame; seek has no player and nine
   seeks drop; printed firebending has no trigger; double team as CopyTokenOf;
@@ -886,14 +890,6 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   `nether_shadow_graveyard_return_parked`); Bumi's Feast
   Lecture's earthbend return binds to the Food token (`LastCreated`) instead of the
   land (`test_earthbend_last_created_binding_canary`).
-- **Phase misparses behind the granted death-payoff read** (found 2026-10-25,
-  phase v0.104.0; report upstream, Dan posts) (drafted: `docs/plans/phase-upstream-reports.md` "Already fixed"). Mathas, Fiend Seeker's granted "When
-  this creature dies, each opponent draws a card and gains 2 life" parses as `Draw`
-  with target `Controller` (the dying creature's controller, not each of their
-  opponents). No ledger row or canary: `death_matters`' granted arm
-  (`core_makers._grants_death_payoff`) drops the card anyway, because the grant goes
-  to a creature an opponent controls, whose death pays that opponent's trigger
-  (CR 603.3a), so the misparse moves no read.
 - **Phase misparses behind the "Self-recurring fodder" serve** (found 2026-10-09,
   phase v0.104.0; report upstream, Dan posts) (drafted: `docs/plans/phase-upstream-reports.md` §3, §6, §16). The serve reads the card's graveyard
   return routes (`card_advantage.comes_back_from_graveyard`); three legal creatures
