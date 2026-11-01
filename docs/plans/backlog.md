@@ -357,13 +357,6 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
     Intimations' +1/+1-counter tail, Brokers' Safeguard's perpetual shield
     counter, Rakdos Augermage's and Impetuous Lootmonger's own discard, Indominus
     Rex's keyword counters, Invasion of Arcavios's search.
-- **Our reads still missing a v0.118.0 shape** (open):
-  - A recovered `blocked_attacker_damage_source` "… to each creature blocking
-    it" (Ib Halfheart, Trailblazer's Torch) stays off mass_removal (it hits only
-    the blockers); the typed cousins phase flattens to a bare DamageAll over
-    every creature by dropping "blocking it" (Battle-Scarred Goblin, Fire
-    Juggler — [P12]) still read as sweeps: the DamageAll arm lacks the
-    becomes_blocked / blocks veto `_mass_shrink` has.
 - **Policy questions from the bump's gains** (decide; fixing would drop cards
   v0.104.0 already had): lifegain_matters on "whenever an opponent gains life"
   (Punishing Fire new; Kavu Predator, Wedding Ring already); Cinder Wall /

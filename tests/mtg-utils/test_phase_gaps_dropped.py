@@ -347,3 +347,32 @@ def test_combat_scope_shrinks_parse_as_board_sweeps(name, preds):
         "vetoes (lanes/mana_and_wipes.py) and check the board-wipe preset still "
         "excludes the card."
     )
+
+
+@pytest.mark.retirement_canary
+@pytest.mark.parametrize("name", ["Battle-Scarred Goblin", "Fire Juggler"])
+def test_combat_scope_damage_parses_as_board_sweep(name):
+    """Retirement canary for the combat-scope veto on the ``DamageAll`` arm of
+    ``lanes.mana_and_wipes._is_mass_removal`` (phase_parse_bug [P12]): "Whenever
+    this creature becomes blocked, it deals N damage to each creature blocking
+    it" types a ``DamageAll`` over every creature, with no blocking predicate.
+    Once phase types the combat scope, retire the veto."""
+    filters = [
+        effect_filter(c.node)
+        for tree in trees_for(test_card(name))
+        for u in tree.units
+        for c in u.iter_concepts()
+        if tag_of(c.node) == "DamageAll"
+    ]
+    assert filters
+    assert all(filter_predicates(f) == () for f in filters), (
+        f"{name}: RETIRE-READY — phase types the blockers this damage hits; drop "
+        "the DamageAll arm's _combat_scoped veto (lanes/mana_and_wipes.py)."
+    )
+
+
+@pytest.mark.parametrize("name", ["Battle-Scarred Goblin", "Fire Juggler"])
+def test_damage_to_its_blockers_is_no_board_wipe(name):
+    """Damage to "each creature blocking it" hits that combat's blockers, not
+    the board (CR 509.3c), so it is no ``mass_removal``."""
+    assert not any(s.key == "mass_removal" for s in test_signals(name))
