@@ -162765,6 +162765,154 @@
     "type_line": "Land — Swamp Mountain"
    }
   },
+  "Blood Feud": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Target creature fights another target creature.",
+       "duration": null,
+       "effect": {
+        "subject": {
+         "controller": null,
+         "properties": [],
+         "type": "Typed",
+         "type_filters": [
+          "Creature"
+         ]
+        },
+        "target": {
+         "controller": null,
+         "properties": [
+          {
+           "type": "Another"
+          }
+         ],
+         "type": "Typed",
+         "type_filters": [
+          "Creature"
+         ]
+        },
+        "type": "Fight"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Sorcery"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Red"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 4,
+      "shards": [
+       "Red",
+       "Red"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "634d59b8-6046-4796-95c5-eec75a239986",
+       "9f0ec743-46ac-4ace-9c48-8573c3b7a0fe"
+      ]
+     },
+     "name": "Blood Feud",
+     "non_ability_text": null,
+     "oracle_text": "Target creature fights another target creature. (Each deals damage equal to its power to the other.)",
+     "power": null,
+     "printings": [
+      "BBD",
+      "DKA",
+      "J25"
+     ],
+     "rarities": [
+      "uncommon"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2011-01-22",
+       "text": "Blood Feud can target two creatures with the same controller."
+      }
+     ],
+     "scryfall_oracle_id": "fc401d42-80fa-4a17-937a-c230e9317543",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 6.0,
+    "color_identity": [
+     "R"
+    ],
+    "colors": [
+     "R"
+    ],
+    "keywords": [
+     "Fight"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{4}{R}{R}",
+    "name": "Blood Feud",
+    "oracle_id": "fc401d42-80fa-4a17-937a-c230e9317543",
+    "oracle_text": "Target creature fights another target creature. (Each deals damage equal to its power to the other.)",
+    "type_line": "Sorcery"
+   }
+  },
   "Blood Hypnotist": {
    "phase_records": [
     {
@@ -346960,6 +347108,156 @@
     "name": "Disruption Protocol",
     "oracle_id": "4ca3306b-06f7-4a09-b904-f5540d11ddf1",
     "oracle_text": "As an additional cost to cast this spell, tap an untapped artifact you control or pay {1}.\nCounter target spell.",
+    "type_line": "Instant"
+   }
+  },
+  "Dissension in the Ranks": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Target blocking creature fights another target blocking creature.",
+       "duration": null,
+       "effect": {
+        "subject": {
+         "controller": null,
+         "properties": [
+          {
+           "type": "Blocking"
+          }
+         ],
+         "type": "Typed",
+         "type_filters": [
+          "Creature"
+         ]
+        },
+        "target": {
+         "controller": null,
+         "properties": [
+          {
+           "type": "Another"
+          },
+          {
+           "type": "Blocking"
+          }
+         ],
+         "type": "Typed",
+         "type_filters": [
+          "Creature"
+         ]
+        },
+        "type": "Fight"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Instant"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Red"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 3,
+      "shards": [
+       "Red",
+       "Red"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "2c1b563a-7856-40bf-954a-a0110ed4880d"
+      ]
+     },
+     "name": "Dissension in the Ranks",
+     "non_ability_text": null,
+     "oracle_text": "Target blocking creature fights another target blocking creature.",
+     "power": null,
+     "printings": [
+      "SOI"
+     ],
+     "rarities": [
+      "uncommon"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2016-04-08",
+       "text": "Destroying a blocking creature doesn’t cause the attacking creature it blocked to become unblocked."
+      }
+     ],
+     "scryfall_oracle_id": "717266b6-2bbc-4a04-8f30-e3eaf0283acd",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 5.0,
+    "color_identity": [
+     "R"
+    ],
+    "colors": [
+     "R"
+    ],
+    "keywords": [
+     "Fight"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{3}{R}{R}",
+    "name": "Dissension in the Ranks",
+    "oracle_id": "717266b6-2bbc-4a04-8f30-e3eaf0283acd",
+    "oracle_text": "Target blocking creature fights another target blocking creature.",
     "type_line": "Instant"
    }
   },
