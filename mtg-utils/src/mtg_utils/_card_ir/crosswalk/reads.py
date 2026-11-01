@@ -8753,12 +8753,20 @@ def forages(unit: AbilityUnit) -> bool:
     for n in unit.iter_typed():
         if tag_of(n) == "Forage":
             return True
+    return watches_own_action(unit, "Forage")
+
+
+def watches_own_action(unit: AbilityUnit, action: str) -> bool:
+    """Whether ``unit`` is a ``PlayerPerformedAction`` trigger watching its
+    controller perform ``action`` — "Whenever you forage, …" (``Forage``),
+    "Whenever you proliferate, …" (``Proliferate`` — Ezuri, Stalker of
+    Spheres; Scheming Aspirant)."""
     node = unit.node
     actions = getattr(node, "player_actions", MISSING)
     return (
         unit.origin == "trigger"
         and isinstance(actions, list)
-        and "Forage" in actions
+        and action in actions
         and tag_of(getattr(node, "valid_target", None)) in (None, "Controller")
     )
 

@@ -113,6 +113,7 @@ from mtg_utils._card_ir.crosswalk import (
     trigger_scope,
     trigger_zone_changes,
     untap_rider_targets,
+    watches_own_action,
 )
 from mtg_utils._card_ir.mirror.runtime import (
     MISSING,
@@ -1642,15 +1643,14 @@ def _proliferate_matters_lane(tree: ConceptTree) -> list[Signal]:
       ACTIVATION COST (Migloz, Rasputin, Tayam) signals proliferate fuel,
       fired independent of (never suppressed by) the HIGH arms above.
 
-    **Logged live GAP (do NOT port):** v0.9.0 carries a first-class
-    "whenever you proliferate" payoff family (``PlayerPerformedAction
-    {player_actions: ['Proliferate']}`` — Ezuri Stalker of Spheres, Voidwing
-    Hybrid) with NONE in the live pop — a candidate adjudicated widen for a
-    fix batch (the has_mutate precedent), pinned by the Ezuri negative
-    fixture.
+    * **Structural (HIGH):** a "whenever you proliferate" payoff
+      (``crosswalk.watches_own_action`` on ``Proliferate`` — Ezuri, Stalker of
+      Spheres; Scheming Aspirant; Voidwing Hybrid).
     """
     out: list[Signal] = []
-    if has_structural_proliferate(tree):
+    if has_structural_proliferate(tree) or any(
+        watches_own_action(u, "Proliferate") for u in tree.units
+    ):
         out.append(Signal("proliferate_matters", "you", "", "", tree.name, "high"))
     else:
         for c in tree.iter_concepts():

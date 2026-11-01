@@ -580970,6 +580970,269 @@
     "type_line": "Artifact"
    }
   },
+  "Ichormoon Gauntlet": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Artifact"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Blue"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 2,
+      "shards": [
+       "Blue"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "2c093ce0-2561-4847-ab58-f6f1650d743e",
+       "aac5bc52-dd0d-473e-ad8a-a0f5b546d1ee"
+      ]
+     },
+     "name": "Ichormoon Gauntlet",
+     "non_ability_text": null,
+     "oracle_text": "Planeswalkers you control have \"[0]: Proliferate\" and \"[−12]: Take an extra turn after this one.\"\nWhenever you cast a noncreature spell, choose a counter on target permanent. Put an additional counter of that kind on that permanent.",
+     "power": null,
+     "printings": [
+      "ONE",
+      "PONE"
+     ],
+     "rarities": [
+      "mythic"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2023-02-04",
+       "text": "Only one loyalty ability of each planeswalker may be activated per turn, no matter how many it has gained."
+      }
+     ],
+     "scryfall_oracle_id": "9fc7aba7-eda2-4134-9c10-31ee35201b72",
+     "static_abilities": [
+      {
+       "active_zones": [],
+       "affected": {
+        "controller": "You",
+        "properties": [],
+        "type": "Typed",
+        "type_filters": [
+         "Planeswalker"
+        ]
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": null,
+       "description": "Planeswalkers you control have \"[0]: Proliferate\" and \"[−12]: Take an extra turn after this one.\"",
+       "effect_zone": null,
+       "mode": "Continuous",
+       "modifications": [
+        {
+         "definition": {
+          "activation_restrictions": [
+           {
+            "type": "AsSorcery"
+           }
+          ],
+          "condition": null,
+          "cost": {
+           "amount": 0,
+           "type": "Loyalty"
+          },
+          "description": "[0]: Proliferate",
+          "duration": null,
+          "effect": {
+           "type": "Proliferate"
+          },
+          "forward_result": false,
+          "kind": "Activated",
+          "optional": false,
+          "optional_targeting": false,
+          "sub_ability": null,
+          "target_prompt": null
+         },
+         "type": "GrantAbility"
+        },
+        {
+         "definition": {
+          "activation_restrictions": [
+           {
+            "type": "AsSorcery"
+           }
+          ],
+          "condition": null,
+          "cost": {
+           "amount": -12,
+           "type": "Loyalty"
+          },
+          "description": "[−12]: Take an extra turn after this one.",
+          "duration": null,
+          "effect": {
+           "target": {
+            "type": "Controller"
+           },
+           "type": "ExtraTurn"
+          },
+          "forward_result": false,
+          "kind": "Activated",
+          "optional": false,
+          "optional_targeting": false,
+          "sub_ability": null,
+          "target_prompt": null
+         },
+         "type": "GrantAbility"
+        }
+       ]
+      }
+     ],
+     "toughness": null,
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever you cast a noncreature spell, choose a counter on target permanent. Put an additional counter of that kind on that permanent.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "declares_chosen_group": 0,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "target": {
+          "controller": null,
+          "properties": [],
+          "type": "Typed",
+          "type_filters": [
+           "Permanent"
+          ]
+         },
+         "type": "TargetOnly"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "count": {
+           "type": "Fixed",
+           "value": 1
+          },
+          "target": {
+           "type": "ParentTarget"
+          },
+          "type": "PutChosenCounter"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": null,
+         "sub_link": "SequentialSibling",
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "mode": "SpellCast",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "controller": null,
+        "properties": [],
+        "type": "Typed",
+        "type_filters": [
+         {
+          "Non": "Creature"
+         }
+        ]
+       },
+       "valid_source": null,
+       "valid_target": {
+        "type": "Controller"
+       }
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 3.0,
+    "color_identity": [
+     "U"
+    ],
+    "colors": [
+     "U"
+    ],
+    "keywords": [
+     "Proliferate"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}{U}",
+    "name": "Ichormoon Gauntlet",
+    "oracle_id": "9fc7aba7-eda2-4134-9c10-31ee35201b72",
+    "oracle_text": "Planeswalkers you control have \"[0]: Proliferate\" and \"[−12]: Take an extra turn after this one.\"\nWhenever you cast a noncreature spell, choose a counter on target permanent. Put an additional counter of that kind on that permanent.",
+    "type_line": "Artifact"
+   }
+  },
   "Ichorplate Golem": {
    "phase_records": [
     {
@@ -959273,6 +959536,185 @@
     "type_line": "Creature — Ooze"
    }
   },
+  "Scheming Aspirant": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Phyrexian",
+       "Advisor"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Black"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "Black"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "8de80f71-82b5-499c-afc0-6bbae6b896ad"
+      ]
+     },
+     "name": "Scheming Aspirant",
+     "non_ability_text": null,
+     "oracle_text": "Whenever you proliferate, each opponent loses 2 life and you gain 2 life.",
+     "power": {
+      "type": "Fixed",
+      "value": 1
+     },
+     "printings": [
+      "ONE"
+     ],
+     "rarities": [
+      "uncommon"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "cf4a3b1a-4b87-473e-be1f-3aa3da45c28e",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 3
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever you proliferate, each opponent loses 2 life and you gain 2 life.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "amount": {
+          "type": "Fixed",
+          "value": 2
+         },
+         "type": "LoseLife"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "player_scope": {
+         "type": "Opponent"
+        },
+        "sub_ability": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "amount": {
+           "type": "Fixed",
+           "value": 2
+          },
+          "type": "GainLife"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": null,
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "mode": "PlayerPerformedAction",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "player_actions": [
+        "Proliferate"
+       ],
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": null,
+       "valid_source": null,
+       "valid_target": {
+        "type": "Controller"
+       }
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 2.0,
+    "color_identity": [
+     "B"
+    ],
+    "colors": [
+     "B"
+    ],
+    "keywords": [
+     "Proliferate"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}{B}",
+    "name": "Scheming Aspirant",
+    "oracle_id": "cf4a3b1a-4b87-473e-be1f-3aa3da45c28e",
+    "oracle_text": "Whenever you proliferate, each opponent loses 2 life and you gain 2 life.",
+    "power": "1",
+    "toughness": "3",
+    "type_line": "Creature — Phyrexian Advisor"
+   }
+  },
   "Scholar of New Horizons": {
    "phase_records": [
     {
@@ -1202974,6 +1203416,238 @@
     "power": "3",
     "toughness": "3",
     "type_line": "Creature — Human Soldier"
+   }
+  },
+  "Voidwing Hybrid": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Phyrexian",
+       "Bat"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Black",
+      "Blue"
+     ],
+     "color_override": [
+      "Black",
+      "Blue"
+     ],
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [
+      "Flying",
+      {
+       "Toxic": 1
+      }
+     ],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 0,
+      "shards": [
+       "Blue",
+       "Black"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "8a48705f-bd8a-43f1-b1fe-14a5c9a83ccd"
+      ]
+     },
+     "name": "Voidwing Hybrid",
+     "non_ability_text": null,
+     "oracle_text": "Flying\nToxic 1 (Players dealt combat damage by this creature also get a poison counter.)\nWhen you proliferate, return this card from your graveyard to your hand.",
+     "power": {
+      "type": "Fixed",
+      "value": 2
+     },
+     "printings": [
+      "ONE"
+     ],
+     "rarities": [
+      "uncommon"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2023-02-04",
+       "text": "A player with ten or more poison counters loses the game. This is a state-based action and doesn't use the stack. In other words, it happens immediately and players can't respond to it, just like a player losing the game due to having 0 or less life."
+      },
+      {
+       "date": "2023-02-04",
+       "text": "An ability that triggers \"Whenever you proliferate\" triggers even if you chose no permanents or players while doing so."
+      },
+      {
+       "date": "2023-02-04",
+       "text": "Any other effects of that damage, such as life gain from lifelink, still apply."
+      },
+      {
+       "date": "2023-02-04",
+       "text": "Conversely, replacement effects that apply to the number of counters put on a player can modify the counters placed this way. For example, Vorinclex, Monstrous Raider's last two abilities can apply to counters placed this way."
+      },
+      {
+       "date": "2023-02-04",
+       "text": "Damage dealt by a creature with toxic grants the same number of counters regardless of how much damage is dealt. Notably, if a replacement effect modifies the damage in some way (such as that of Gratuitous Violence), the number of counters given remains unchanged."
+      },
+      {
+       "date": "2023-02-04",
+       "text": "If a creature with toxic deals combat damage to a creature or planeswalker, or if it deals noncombat damage, toxic has no effect and no player gets poison counters."
+      },
+      {
+       "date": "2023-02-04",
+       "text": "If a permanent ever has both +1/+1 counters and -1/-1 counters on it at the same time, they're removed in pairs as a state-based action so that the permanent has only one of those kinds of counters on it."
+      },
+      {
+       "date": "2023-02-04",
+       "text": "If a player or permanent has more than one kind of counter on it, and you choose for it to get additional counters, it must get one of each kind of counter it already has. You can't have it get just one kind of counter it already has and not the others."
+      },
+      {
+       "date": "2023-02-04",
+       "text": "Multiple instances of toxic are cumulative. For example, if a creature has toxic 2 and gains toxic 1 due to another effect, combat damage that creature deals to a player will cause that player to get 3 poison counters."
+      },
+      {
+       "date": "2023-02-04",
+       "text": "Players can respond to a spell or ability whose effect includes proliferating. Once that spell or ability starts to resolve, however, and its controller chooses which permanents and players will get new counters, it's too late for anyone to respond."
+      },
+      {
+       "date": "2023-02-04",
+       "text": "To proliferate, you can choose any permanent that has a counter, including ones controlled by opponents. You can choose any player who has a counter, including opponents. You can't choose cards in any zone other than the battlefield, even if they have counters on them."
+      },
+      {
+       "date": "2023-02-04",
+       "text": "Toxic doesn't change the amount of combat damage a creature deals. For example, if a 2/2 creature with toxic 1 deals combat damage to a player, that creature will deal 2 damage. The results of that damage are the player loses 2 life and gets a poison counter."
+      },
+      {
+       "date": "2023-02-04",
+       "text": "You don't have to choose every permanent or player that has a counter, only the ones you want to add another counter to. Since \"any number\" includes zero, you don't have to choose any permanents at all, and you don't have to choose any players at all."
+      }
+     ],
+     "scryfall_oracle_id": "0dab592c-a230-408d-a383-044e561dbe5d",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 1
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "When you proliferate, return this card from your graveyard to your hand.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "destination": "Hand",
+         "enter_tapped": false,
+         "enter_transformed": false,
+         "enters_attacking": false,
+         "origin": "Graveyard",
+         "owner_library": false,
+         "target": {
+          "type": "SelfRef"
+         },
+         "type": "ChangeZone"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_choice_timing": "Resolution",
+        "target_prompt": null
+       },
+       "mode": "PlayerPerformedAction",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "player_actions": [
+        "Proliferate"
+       ],
+       "secondary": false,
+       "trigger_zones": [
+        "Graveyard"
+       ],
+       "valid_card": null,
+       "valid_source": null,
+       "valid_target": {
+        "type": "Controller"
+       }
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 2.0,
+    "color_identity": [
+     "B",
+     "U"
+    ],
+    "colors": [
+     "B",
+     "U"
+    ],
+    "keywords": [
+     "Flying",
+     "Proliferate",
+     "Toxic"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{U}{B}",
+    "name": "Voidwing Hybrid",
+    "oracle_id": "0dab592c-a230-408d-a383-044e561dbe5d",
+    "oracle_text": "Flying\nToxic 1 (Players dealt combat damage by this creature also get a poison counter.)\nWhen you proliferate, return this card from your graveyard to your hand.",
+    "power": "2",
+    "toughness": "1",
+    "type_line": "Creature — Phyrexian Bat"
    }
   },
   "Volatile Chimera": {

@@ -705,8 +705,7 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   edicts); granted flanking;
   back-reference counter targets scoped you (Retribution, Obelisk Spider);
   partial prevention, granted absorb, Blinding Powder, Torrent of Lava
-  (`damage_prevention`); "whenever you proliferate" payoffs and granted / X proliferate have no ident
-  (Scheming Aspirant, Venser, Tam, Ichormoon Gauntlet); the own-graveyard
+  (`damage_prevention`); the own-graveyard
   remainder (collect-evidence and forage costs, descend payoffs, the Empower
   Jace token's surveil, granted delve / soulshift X, a craft cost). Lane false
   positives still open: Skyclave Apparition's "the exiled card's owner
