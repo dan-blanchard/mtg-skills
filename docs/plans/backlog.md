@@ -36,13 +36,7 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   names its remainder). Regex-only, measured over the legal corpus:
   `ability_strip_payoff` (the
   crippling-drawback text beside a power floor; no lane reads a drawback a strip
-  turns off). Lane follow-ups the pass found: a `(key, subject)` role table that
-  `DOER_SUBJECTS`, `MEMBERSHIP_SUBJECTS`, `PAGE_ONLY_SUBJECTS`, the pair reads'
-  wildcards and the presets all read (today each reads its own set:
-  `PAGE_ONLY_SUBJECTS` belongs in it as a role, and the voltron `has_other_plan`
-  read should ask `avenue_spec_for(s) is not None` instead of keeping its own
-  exclusion lists — membership_floor's step-trigger exclusion duplicates
-  `STEP_TRIGGER_KEYS` the same way);
+  turns off). Lane follow-ups the pass found:
   `card_draw_engine` misses Mask of the Schemer's connive X (phase parks "where
   X is the amount of damage it dealt" as `where_x_binding`);
   the empower Jace token's scry / surveil (about thirty cards) is not walked.
