@@ -47887,6 +47887,217 @@
     "type_line": "Enchantment — Aura"
    }
   },
+  "Alpha Brawl": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "declares_chosen_group": 0,
+       "description": "Target creature an opponent controls deals damage equal to its power to each other creature that player controls, then each of those creatures deals damage equal to its power to that creature.",
+       "duration": null,
+       "effect": {
+        "target": {
+         "controller": "Opponent",
+         "properties": [],
+         "type": "Typed",
+         "type_filters": [
+          "Creature"
+         ]
+        },
+        "type": "TargetOnly"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "amount": {
+          "qty": {
+           "scope": {
+            "type": "Target"
+           },
+           "type": "Power"
+          },
+          "type": "Ref"
+         },
+         "damage_source": "Target",
+         "target": {
+          "controller": "ParentTargetController",
+          "properties": [
+           {
+            "type": "Another"
+           }
+          ],
+          "type": "Typed",
+          "type_filters": [
+           "Creature"
+          ]
+         },
+         "type": "DamageAll"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "amount": {
+           "qty": {
+            "scope": {
+             "type": "Anaphoric"
+            },
+            "type": "Power"
+           },
+           "type": "Ref"
+          },
+          "target": {
+           "type": "ParentTarget"
+          },
+          "type": "DealDamage"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": null,
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Sorcery"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Red"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 6,
+      "shards": [
+       "Red",
+       "Red"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "e2ec168a-3e4f-4527-901a-bc28cc28d125"
+      ]
+     },
+     "name": "Alpha Brawl",
+     "non_ability_text": null,
+     "oracle_text": "Target creature an opponent controls deals damage equal to its power to each other creature that player controls, then each of those creatures deals damage equal to its power to that creature.",
+     "power": null,
+     "printings": [
+      "DKA"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2011-01-22",
+       "text": "Abilities like lifelink and deathtouch that care about any kind of damage are taken into account."
+      },
+      {
+       "date": "2011-01-22",
+       "text": "Combat abilities like first strike, double strike, and trample don’t apply and will have no impact on Alpha Brawl’s effect."
+      },
+      {
+       "date": "2011-01-22",
+       "text": "If the targeted creature has infect or wither, the damage it deals will result in -1/-1 counters being put on each creature it deals damage to. The power of those creatures will be reduced when they deal damage back to the targeted creature."
+      },
+      {
+       "date": "2011-01-22",
+       "text": "None of the damage dealt due to Alpha Brawl is combat damage."
+      },
+      {
+       "date": "2011-01-22",
+       "text": "The damage dealt by the targeted creature is not divided in any way. For example, if a 3/3 creature is targeted, it will deal 3 damage to each other creature controlled by its controller."
+      },
+      {
+       "date": "2011-01-22",
+       "text": "The two parts of Alpha Brawl’s effect happen sequentially: first the targeted creature deals damage, then the other creatures deal damage. State-based actions aren’t checked in the middle, so creatures that are dealt lethal damage by the targeted creature will still deal damage."
+      }
+     ],
+     "scryfall_oracle_id": "cfc023e0-9e9d-48ac-bfb5-74bfd5977dee",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 8.0,
+    "color_identity": [
+     "R"
+    ],
+    "colors": [
+     "R"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{6}{R}{R}",
+    "name": "Alpha Brawl",
+    "oracle_id": "cfc023e0-9e9d-48ac-bfb5-74bfd5977dee",
+    "oracle_text": "Target creature an opponent controls deals damage equal to its power to each other creature that player controls, then each of those creatures deals damage equal to its power to that creature.",
+    "type_line": "Sorcery"
+   }
+  },
   "Alpharael, Stonechosen": {
    "phase_records": [
     {
@@ -457790,6 +458001,211 @@
     "type_line": "Artifact — Equipment"
    }
   },
+  "Foray of Orcs": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Amass Orcs 2. When you do, ~ deals X damage to target creature an opponent controls, where X is the amassed Army's power.",
+       "duration": null,
+       "effect": {
+        "count": {
+         "type": "Fixed",
+         "value": 2
+        },
+        "subtype": "Orc",
+        "type": "Amass"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": {
+         "type": "WhenYouDo"
+        },
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "amount": {
+          "qty": {
+           "scope": {
+            "type": "AmassedArmy"
+           },
+           "type": "Power"
+          },
+          "type": "Ref"
+         },
+         "target": {
+          "controller": "Opponent",
+          "properties": [],
+          "type": "Typed",
+          "type_filters": [
+           "Creature"
+          ]
+         },
+         "type": "DealDamage"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "sub_link": "SequentialSibling",
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Sorcery"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Red"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 3,
+      "shards": [
+       "Red"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "related_token_ids": [
+       "08fd2115-1a20-5df5-8107-d5f7c271c10c"
+      ],
+      "source_printing_ids": [
+       "43cddad8-b5ca-4b8f-a73c-38809ef279d6",
+       "5fea0c66-c776-4dc7-a235-f3822521cacd",
+       "ef083f43-4748-42e6-bc22-fc2570db5ca3"
+      ]
+     },
+     "name": "Foray of Orcs",
+     "non_ability_text": null,
+     "oracle_text": "Amass Orcs 2. When you do, Foray of Orcs deals X damage to target creature an opponent controls, where X is the amassed Army's power. (To amass Orcs 2, put two +1/+1 counters on an Army you control. It's also an Orc. If you don't control an Army, create a 0/0 black Orc Army creature token first.)",
+     "power": null,
+     "printings": [
+      "LTR"
+     ],
+     "rarities": [
+      "uncommon"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2023-06-16",
+       "text": "Amass Zombies works the same way, except you create a 0/0 black Zombie Army creature token if you don't control an Army. If the Army creature you chose isn't already a Zombie, it becomes a Zombie in addition to its other types. By combining cards with amass Orcs and amass Zombies, you can end up with an Orc Zombie Army."
+      },
+      {
+       "date": "2023-06-16",
+       "text": "Amass abilities are now written as \"amass [subtype] N.\" Previous cards with amass have received errata to say \"amass Zombies N.\""
+      },
+      {
+       "date": "2023-06-16",
+       "text": "If you don't control an Army, the Orc Army token you create enters the battlefield as a 0/0 creature before receiving counters. Any abilities that trigger when a creature with a certain power enters the battlefield, such as that of Mentor of the Meek, will see the token enter as a 0/0 creature before it gets +1/+1 counters."
+      },
+      {
+       "date": "2023-06-16",
+       "text": "In the rare case that you control multiple Army creatures (perhaps because you played a creature with changeling) while you amass Orcs, you choose which of your Army creatures to put the +1/+1 counters on. If that creature isn't an Orc, it becomes an Orc in addition to its other types."
+      },
+      {
+       "date": "2023-06-16",
+       "text": "Some cards refer to the \"amassed Army.\" That means the Army creature you chose to receive counters, even if no counters were placed on it for some reason."
+      },
+      {
+       "date": "2023-06-16",
+       "text": "Some spells and abilities that amass Orcs may require targets. If each target chosen is an illegal target as that spell or ability tries to resolve, it won't resolve. You won't amass Orcs."
+      },
+      {
+       "date": "2023-06-16",
+       "text": "To amass Orcs N, if you don't control an Army creature, create a 0/0 black Orc Army creature token. Then you choose an Army creature you control and put N +1/+1 counters on it. If that Army isn't already an Orc, it becomes an Orc in addition to its other types."
+      },
+      {
+       "date": "2023-06-16",
+       "text": "You don't choose a target for Foray of Orcs at the time you cast it. Rather, a second \"reflexive\" ability triggers when you amass Orcs this way. You choose a target for that ability as it goes on the stack. Each player may respond to this triggered ability as normal."
+      }
+     ],
+     "scryfall_oracle_id": "60bfcaef-9014-4707-b681-cc3920bf223e",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "all_parts": [
+     {
+      "component": "token",
+      "id": "2f8b43e8-dd89-452e-b572-8559e19fdea2",
+      "name": "Orc Army",
+      "oracle_id": "620159f8-eb7f-4756-a136-8ad9728adbad",
+      "type_line": "Token Creature — Orc Army"
+     }
+    ],
+    "arena_available": true,
+    "cmc": 4.0,
+    "color_identity": [
+     "R"
+    ],
+    "colors": [
+     "R"
+    ],
+    "keywords": [
+     "Amass"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{3}{R}",
+    "name": "Foray of Orcs",
+    "oracle_id": "60bfcaef-9014-4707-b681-cc3920bf223e",
+    "oracle_text": "Amass Orcs 2. When you do, Foray of Orcs deals X damage to target creature an opponent controls, where X is the amassed Army's power. (To amass Orcs 2, put two +1/+1 counters on an Army you control. It's also an Orc. If you don't control an Army, create a 0/0 black Orc Army creature token first.)",
+    "type_line": "Sorcery"
+   }
+  },
   "Forbid": {
    "phase_records": [
     {
@@ -538679,6 +539095,260 @@
     "power": "2",
     "toughness": "3",
     "type_line": "Legendary Creature — Human Ranger"
+   }
+  },
+  "Halana, Kessig Ranger": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "brawl_commander": true,
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Human",
+       "Archer",
+       "Ranger"
+      ],
+      "supertypes": [
+       "Legendary"
+      ]
+     },
+     "color_identity": [
+      "Green"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "is_commander": true,
+     "keywords": [
+      {
+       "Partner": {
+        "type": "Generic"
+       }
+      },
+      "Reach"
+     ],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 3,
+      "shards": [
+       "Green"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "6bee6eb2-2708-4596-86ad-40eea88dbb6b",
+       "d7ad87f5-26da-445e-bdaa-8768d885444e"
+      ]
+     },
+     "name": "Halana, Kessig Ranger",
+     "non_ability_text": null,
+     "oracle_text": "Reach\nWhenever another creature you control enters, you may pay {2}. When you do, that creature deals damage equal to its power to target creature.\nPartner (You can have two commanders if both have partner.)",
+     "power": {
+      "type": "Fixed",
+      "value": 3
+     },
+     "printings": [
+      "CMR",
+      "PRM"
+     ],
+     "rarities": [
+      "uncommon"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2020-11-10",
+       "text": "An effect that checks whether you control your commander is satisfied if you control one or both of your two commanders."
+      },
+      {
+       "date": "2020-11-10",
+       "text": "Both commanders start in the command zone, and the remaining 98 cards (or 58 cards in a Commander Draft game) of your deck are shuffled to become your library."
+      },
+      {
+       "date": "2020-11-10",
+       "text": "For the creature that entered the battlefield, use its power as Halana's reflexive triggered ability resolves to determine how much damage is dealt. If it's no longer on the battlefield at that time, use its power as it last existed on the battlefield."
+      },
+      {
+       "date": "2020-11-10",
+       "text": "Halana, Kessig Ranger's triggered ability goes on the stack without a target. While that ability is resolving, you may pay {2}. If you do, a second ability triggers and you pick a target that will be dealt damage. This is different from abilities that say \"If you do . . .\" in that players may cast spells and activate abilities after mana is paid but before damage is dealt."
+      },
+      {
+       "date": "2020-11-10",
+       "text": "If something refers to your commander while you have two commanders, it refers to one of them of your choice. If you are instructed to perform an action on your commander (e.g. put it from the command zone into your hand due to Command Beacon), you choose one of your commanders at the time the effect happens."
+      },
+      {
+       "date": "2020-11-10",
+       "text": "If your Commander deck has two commanders, you can only include cards whose own color identities are also found in your commanders' combined color identities. If Falthis and Kediss are your commanders, your deck may contain cards with black and/or red in their color identity, but not cards with green, white, or blue."
+      },
+      {
+       "date": "2020-11-10",
+       "text": "Once the game begins, your two commanders are tracked separately. If you cast one, you won't have to pay an additional {2} the first time you cast the other. A player loses the game after having been dealt 21 damage from any one of them, not from both of them combined."
+      },
+      {
+       "date": "2020-11-10",
+       "text": "To have two commanders, both must have the partner ability as the game begins. Losing the ability during the game doesn't cause either to cease to be your commander."
+      },
+      {
+       "date": "2020-11-10",
+       "text": "You can choose two commanders with partner that are the same color or colors. In Commander Draft, you can even choose two of the same commander with partner if you drafted them. If you do this, make sure you keep the number of times you've cast each from the command zone clear for \"commander tax\" purposes."
+      }
+     ],
+     "scryfall_oracle_id": "f5aa7385-12ea-4ecb-86eb-e8622ebb6908",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 4
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever another creature you control enters, you may pay {2}. When you do, that creature deals damage equal to its power to target creature.",
+       "destination": "Battlefield",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "cost": {
+          "cost": {
+           "generic": 2,
+           "shards": [],
+           "type": "Cost"
+          },
+          "type": "Mana"
+         },
+         "payer": {
+          "type": "Controller"
+         },
+         "type": "PayCost"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": true,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": {
+          "type": "WhenYouDo"
+         },
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "amount": {
+           "qty": {
+            "scope": {
+             "type": "EventSource"
+            },
+            "type": "Power"
+           },
+           "type": "Ref"
+          },
+          "damage_source": "TriggeringSource",
+          "target": {
+           "controller": null,
+           "properties": [],
+           "type": "Typed",
+           "type_filters": [
+            "Creature"
+           ]
+          },
+          "type": "DealDamage"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": null,
+         "sub_link": "SequentialSibling",
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "mode": "ChangesZone",
+       "optional": true,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "controller": "You",
+        "properties": [
+         {
+          "type": "Another"
+         }
+        ],
+        "type": "Typed",
+        "type_filters": [
+         "Creature"
+        ]
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 4.0,
+    "color_identity": [
+     "G"
+    ],
+    "colors": [
+     "G"
+    ],
+    "keywords": [
+     "Partner",
+     "Reach"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{3}{G}",
+    "name": "Halana, Kessig Ranger",
+    "oracle_id": "f5aa7385-12ea-4ecb-86eb-e8622ebb6908",
+    "oracle_text": "Reach\nWhenever another creature you control enters, you may pay {2}. When you do, that creature deals damage equal to its power to target creature.\nPartner (You can have two commanders if both have partner.)",
+    "power": "3",
+    "toughness": "4",
+    "type_line": "Legendary Creature — Human Archer Ranger"
    }
   },
   "Haldir, Lórien Lieutenant": {
@@ -1136219,6 +1136889,240 @@
     "type_line": "Artifact Creature — Zombie"
    }
   },
+  "Tiger-Tribe Hunter": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Human",
+       "Barbarian"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Red"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [
+      "Trample"
+     ],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 3,
+      "shards": [
+       "Red",
+       "Red"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "46e0c229-aa31-4c79-bafe-28a8d8e64c61"
+      ]
+     },
+     "name": "Tiger-Tribe Hunter",
+     "non_ability_text": null,
+     "oracle_text": "Trample\nPack tactics — Whenever this creature attacks, if you attacked with creatures with total power 6 or greater this combat, you may sacrifice another creature. When you do, this creature deals damage equal to the sacrificed creature's power to target creature.",
+     "power": {
+      "type": "Fixed",
+      "value": 4
+     },
+     "printings": [
+      "AFR"
+     ],
+     "rarities": [
+      "uncommon"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2021-07-23",
+       "text": "The pack tactics ability goes on the stack without a target. If you sacrifice another creature as it resolves, the reflexive triggered ability will trigger and choose a target for it at that time."
+      },
+      {
+       "date": "2021-07-23",
+       "text": "Use the sacrificed creature's power as it last existed on the battlefield to determine how much damage is dealt."
+      }
+     ],
+     "scryfall_oracle_id": "d5b4e9fd-3df6-4d1d-8135-d7c8615b05a7",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 4
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": {
+        "comparator": "GE",
+        "lhs": {
+         "qty": {
+          "function": "Sum",
+          "property": "Power",
+          "source": {
+           "set": "TriggeringBatch",
+           "type": "TrackedSet"
+          },
+          "type": "PropertyAggregate"
+         },
+         "type": "Ref"
+        },
+        "rhs": {
+         "type": "Fixed",
+         "value": 6
+        },
+        "type": "QuantityComparison"
+       },
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever ~ attacks, if you attacked with creatures with total power 6 or greater this combat, you may sacrifice another creature. When you do, ~ deals damage equal to the sacrificed creature's power to target creature.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "target": {
+          "controller": "You",
+          "properties": [
+           {
+            "type": "Another"
+           }
+          ],
+          "type": "Typed",
+          "type_filters": [
+           "Creature"
+          ]
+         },
+         "type": "Sacrifice"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": true,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": {
+          "type": "WhenYouDo"
+         },
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "amount": {
+           "qty": {
+            "scope": {
+             "type": "CostPaidObject"
+            },
+            "type": "Power"
+           },
+           "type": "Ref"
+          },
+          "target": {
+           "controller": null,
+           "properties": [],
+           "type": "Typed",
+           "type_filters": [
+            "Creature"
+           ]
+          },
+          "type": "DealDamage"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": null,
+         "sub_link": "SequentialSibling",
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "mode": "Attacks",
+       "optional": true,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 5.0,
+    "color_identity": [
+     "R"
+    ],
+    "colors": [
+     "R"
+    ],
+    "keywords": [
+     "Pack tactics",
+     "Trample"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{3}{R}{R}",
+    "name": "Tiger-Tribe Hunter",
+    "oracle_id": "d5b4e9fd-3df6-4d1d-8135-d7c8615b05a7",
+    "oracle_text": "Trample\nPack tactics — Whenever this creature attacks, if you attacked with creatures with total power 6 or greater this combat, you may sacrifice another creature. When you do, this creature deals damage equal to the sacrificed creature's power to target creature.",
+    "power": "4",
+    "toughness": "4",
+    "type_line": "Creature — Human Barbarian"
+   }
+  },
   "Timber Wolves": {
    "phase_records": [
     {
@@ -1159975,6 +1160879,169 @@
     "name": "Triumph of the Hordes",
     "oracle_id": "3ded0c0c-40ce-4d14-a9a6-b023bc19ee0e",
     "oracle_text": "Until end of turn, creatures you control get +1/+1 and gain trample and infect. (Creatures with infect deal damage to creatures in the form of -1/-1 counters and to players in the form of poison counters.)",
+    "type_line": "Sorcery"
+   }
+  },
+  "Triumphant Chomp": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "~ deals damage to target creature equal to 2 or the greatest power among Dinosaurs you control, whichever is greater.",
+       "duration": null,
+       "effect": {
+        "amount": {
+         "exprs": [
+          {
+           "type": "Fixed",
+           "value": 2
+          },
+          {
+           "qty": {
+            "function": "Max",
+            "property": "Power",
+            "source": {
+             "filter": {
+              "controller": "You",
+              "properties": [],
+              "type": "Typed",
+              "type_filters": [
+               {
+                "Subtype": "Dinosaur"
+               }
+              ]
+             },
+             "type": "Objects"
+            },
+            "type": "PropertyAggregate"
+           },
+           "type": "Ref"
+          }
+         ],
+         "type": "Max"
+        },
+        "target": {
+         "controller": null,
+         "properties": [],
+         "type": "Typed",
+         "type_filters": [
+          "Creature"
+         ]
+        },
+        "type": "DealDamage"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Sorcery"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Red"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "standard": "legal",
+      "standardbrawl": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 0,
+      "shards": [
+       "Red"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "06b28139-efa7-4818-a012-cf8150692b43"
+      ]
+     },
+     "name": "Triumphant Chomp",
+     "non_ability_text": null,
+     "oracle_text": "Triumphant Chomp deals damage to target creature equal to 2 or the greatest power among Dinosaurs you control, whichever is greater.",
+     "power": null,
+     "printings": [
+      "LCI"
+     ],
+     "rarities": [
+      "uncommon"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2023-11-10",
+       "text": "The amount of damage Triumphant Chomp deals is determined as it resolves. If you don't control any Dinosaurs at that time, or if the Dinosaurs you control are unusually small, Triumphant Chomp will deal 2 damage."
+      }
+     ],
+     "scryfall_oracle_id": "d417f574-38a4-405c-83bb-49c5cf542648",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 1.0,
+    "color_identity": [
+     "R"
+    ],
+    "colors": [
+     "R"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "legal",
+     "standardbrawl": "legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{R}",
+    "name": "Triumphant Chomp",
+    "oracle_id": "d417f574-38a4-405c-83bb-49c5cf542648",
+    "oracle_text": "Triumphant Chomp deals damage to target creature equal to 2 or the greatest power among Dinosaurs you control, whichever is greater.",
     "type_line": "Sorcery"
    }
   },

@@ -250,6 +250,34 @@ def test_combat_and_damage_reads(name, ident, has):
     assert (ident in _idents(name)) is has
 
 
+@pytest.mark.parametrize(
+    ("name", "ident", "has"),
+    [
+        # a trigger watching a creature of yours: that creature bites
+        ("Halana, Kessig Ranger", "damage_equal_power|you|bite", True),
+        # a batch of your creatures, each its own power
+        ("Moonlight Hunt", "damage_equal_power|you|bite", True),
+        ("Kamahl's Will", "damage_equal_power|you|bite", True),
+        # an opponent's creature hits each other creature that player controls
+        ("Alpha Brawl", "damage_equal_power|you|bite", False),
+        # a creature of yours sizes it: sacrificed, the Army you amassed (CR
+        # 701.47a), the greatest power among yours
+        ("Tiger-Tribe Hunter", "damage_equal_power|you|creature", True),
+        ("Foray of Orcs", "damage_equal_power|you|creature", True),
+        ("Triumphant Chomp", "damage_equal_power|you|creature", True),
+        # an opponent's creature, a creature hitting itself, a moved card's power
+        ("Mutiny", "damage_equal_power|you|creature", False),
+        ("Repentance", "damage_equal_power|you|creature", False),
+        ("Dead Reckoning", "damage_equal_power|you|creature", False),
+    ],
+)
+def test_whose_creature_sizes_the_power_damage(name, ident, has):
+    """A bite is a creature of yours dealing its own power (crosswalk.is_bite);
+    the ``creature`` subject is power-sized damage to a non-player that a
+    creature of yours sizes (crosswalk.power_is_yours)."""
+    assert (ident in _idents(name)) is has
+
+
 @_cases(
     # the card hurts its controller (CR 701.21a / 119.3 / 701.17a / 104.3)
     ("Demonic Taskmaster", "self_drawback|you|harm", True),
