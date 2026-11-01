@@ -139,27 +139,19 @@ def _win_lose_game(tree: ConceptTree) -> list[Signal]:
     The card must end the game in your favour: you win or another player
     loses (:func:`ends_the_game`, which also reads a loss granted to a
     creature, an Equipment's wielder or an emblem — Vorpal Sword, Vraska,
-    Golgari Queen). A loss aimed at you is a drawback, never a win
+    Golgari Queen — and a loss whose player phase drops — Angel of Destiny,
+    Nicol Bolas, Dragon-God). A loss aimed at you is a drawback, never a win
     condition: the Pacts' unpaid upkeep, Final Fortune / Last Chance's
-    extra-turn end step, Lich's Mastery leaving the battlefield. Two more
-    shapes:
-
-    * a lose / win concept the clause grammar recovered onto an untyped
-      node (Hidetsugu Consumes All's "they lose the game");
-    * a ``LoseTheGame`` whose player phase drops ("each player Angel of
-      Destiny attacked this turn loses the game"; Nicol Bolas, Dragon-God's
-      "each opponent who doesn't control …") — never a self-loss in the
-      pool (each self-loss carries ``Controller``), guarded by a
-      ``retirement_canary`` that fails once phase fills the player in.
+    extra-turn end step, Lich's Mastery leaving the battlefield. One more
+    shape: a lose / win concept the clause grammar recovered onto an untyped
+    node (Hidetsugu Consumes All's "they lose the game").
     """
     if ends_the_game(tree):
         return [Signal("win_lose_game", "any", "", "", tree.name, "high")]
     for c in tree.iter_concepts():
-        if c.concept not in ("win_game", "lose_game"):
-            continue
-        tag = tag_of(c.node)
-        if tag not in ("WinTheGame", "LoseTheGame") or (
-            tag == "LoseTheGame" and getattr(c.node, "target", MISSING) is MISSING
+        if c.concept in ("win_game", "lose_game") and tag_of(c.node) not in (
+            "WinTheGame",
+            "LoseTheGame",
         ):
             return [Signal("win_lose_game", "any", "", c.raw, tree.name, "high")]
     return []

@@ -7289,14 +7289,23 @@ def ends_the_game(tree: ConceptTree) -> bool:
     another player loses (CR 104.3e — Door to Nothingness, Phage's combat-damage
     trigger). A loss aimed at you is a drawback (Pact of Negation's upkeep
     payment, Phage's own enters trigger), and "can't win / can't lose" statics
-    (Platinum Angel) are protection, not effects."""
+    (Platinum Angel) are protection, not effects.
+
+    A win with no player is yours ("You win the game"). A loss with no player is
+    another player's: phase drops the losers of "each player Angel of Destiny
+    attacked this turn loses the game" and Nicol Bolas, Dragon-God's "each
+    opponent who doesn't control a legendary creature or planeswalker", and
+    every self-loss in the pool carries ``Controller`` (2026-11-01: those two are
+    the only target-less losses). A ``retirement_canary``
+    (``test_lose_the_game_player_dropped_canary``) fails once phase names them."""
     for n in tree.iter_typed():
         tag = tag_of(n)
         if tag not in ("WinTheGame", "LoseTheGame"):
             continue
         target = getattr(n, "target", MISSING)
-        who = _scope_from_player_node(target) if _present(target) else "you"
-        if (tag == "WinTheGame") == (who == "you"):
+        if not _present(target):
+            return True
+        if (tag == "WinTheGame") == (_scope_from_player_node(target) == "you"):
             return True
     return False
 

@@ -46,7 +46,6 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   only allowlisted OTHER leaves (PayLife, Blight) — walk them all;
   `card_draw_engine` misses Mask of the Schemer's connive X (phase parks "where
   X is the amount of damage it dealt" as `where_x_binding`);
-  `ends_the_game` reads a missing player as you (a canary arm in `core_makers`);
   the empower Jace token's scry / surveil (about thirty cards) is not walked.
   Left from the lane pass:
   `etb_value_x_recast_commander` (`pair_reads.py`) weights a scry-1 ETB like
