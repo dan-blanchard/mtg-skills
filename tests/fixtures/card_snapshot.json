@@ -706837,6 +706837,240 @@
     "type_line": "Enchantment — Aura"
    }
   },
+  "Lothlórien Blade": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "ability_tag": {
+        "type": "Equip"
+       },
+       "activation_restrictions": [
+        {
+         "type": "AsSorcery"
+        }
+       ],
+       "condition": null,
+       "cost": {
+        "cost": {
+         "generic": 2,
+         "shards": [],
+         "type": "Cost"
+        },
+        "type": "Mana"
+       },
+       "description": "Equip Elf {2}",
+       "duration": null,
+       "effect": {
+        "selection": {
+         "at_resolution": {}
+        },
+        "target": {
+         "controller": "You",
+         "properties": [],
+         "type": "Typed",
+         "type_filters": [
+          "Creature",
+          {
+           "Subtype": "Elf"
+          }
+         ]
+        },
+        "type": "Attach"
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      },
+      {
+       "ability_tag": {
+        "type": "Equip"
+       },
+       "activation_restrictions": [
+        {
+         "type": "AsSorcery"
+        }
+       ],
+       "condition": null,
+       "cost": {
+        "cost": {
+         "generic": 5,
+         "shards": [],
+         "type": "Cost"
+        },
+        "type": "Mana"
+       },
+       "description": "Equip {5}",
+       "duration": null,
+       "effect": {
+        "selection": {
+         "at_resolution": {}
+        },
+        "target": {
+         "controller": "You",
+         "properties": [],
+         "type": "Typed",
+         "type_filters": [
+          "Creature"
+         ]
+        },
+        "type": "Attach"
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Artifact"
+      ],
+      "subtypes": [
+       "Equipment"
+      ],
+      "supertypes": []
+     },
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 3,
+      "shards": [],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "3f7f1d3b-d6bb-4ddb-81d8-12f7aaaec49e",
+       "6360afed-c02b-4f10-8d8c-1633a49fabb7",
+       "fae31fc5-ee33-44c6-a2eb-ff74cb975955"
+      ]
+     },
+     "name": "Lothlórien Blade",
+     "non_ability_text": null,
+     "oracle_text": "Whenever equipped creature attacks, it deals damage equal to its power to target creature defending player controls.\nEquip Elf {2}\nEquip {5}",
+     "power": null,
+     "printings": [
+      "LTC"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "a2a39123-8b70-4678-8675-ba79f37a5db8",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever equipped creature attacks, it deals damage equal to its power to target creature defending player controls.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "amount": {
+          "qty": {
+           "scope": {
+            "type": "EventSource"
+           },
+           "type": "Power"
+          },
+          "type": "Ref"
+         },
+         "damage_source": "TriggeringSource",
+         "target": {
+          "controller": "DefendingPlayer",
+          "properties": [],
+          "type": "Typed",
+          "type_filters": [
+           "Creature"
+          ]
+         },
+         "type": "DealDamage"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "Attacks",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "type": "AttachedTo"
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 3.0,
+    "color_identity": [],
+    "colors": [],
+    "keywords": [
+     "Equip"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{3}",
+    "name": "Lothlórien Blade",
+    "oracle_id": "a2a39123-8b70-4678-8675-ba79f37a5db8",
+    "oracle_text": "Whenever equipped creature attacks, it deals damage equal to its power to target creature defending player controls.\nEquip Elf {2}\nEquip {5}",
+    "type_line": "Artifact — Equipment"
+   }
+  },
   "Lotus Bloom": {
    "phase_records": [
     {
@@ -1046665,6 +1046899,200 @@
     "name": "Splendid Reclamation",
     "oracle_id": "13fe5e46-77a6-45d8-ac0b-c3d740eccf86",
     "oracle_text": "Return all land cards from your graveyard to the battlefield tapped.",
+    "type_line": "Sorcery"
+   }
+  },
+  "Splicer's Skill": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Create a 3/3 colorless Phyrexian Golem artifact creature token.",
+       "duration": null,
+       "effect": {
+        "colors": [],
+        "count": {
+         "type": "Fixed",
+         "value": 1
+        },
+        "enters_attacking": false,
+        "keywords": [],
+        "name": "Phyrexian Golem",
+        "owner": {
+         "type": "Controller"
+        },
+        "power": {
+         "type": "Fixed",
+         "value": 3
+        },
+        "tapped": false,
+        "toughness": {
+         "type": "Fixed",
+         "value": 3
+        },
+        "type": "Token",
+        "types": [
+         "Artifact",
+         "Creature",
+         "Phyrexian",
+         "Golem"
+        ]
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Sorcery"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "White"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [
+      {
+       "Splice": {
+        "cost": {
+         "generic": 3,
+         "shards": [
+          "White"
+         ],
+         "type": "Cost"
+        },
+        "subtype": "Instant or sorcery"
+       }
+      }
+     ],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 2,
+      "shards": [
+       "White"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "related_token_ids": [
+       "46b24567-ba09-5525-91d1-0c714075bc89"
+      ],
+      "source_printing_ids": [
+       "38ed7dbe-f2d5-4cc6-94c7-6225fea66bbb",
+       "c59dfb0f-45c7-431f-b5a3-d9b429fc6dde"
+      ]
+     },
+     "name": "Splicer's Skill",
+     "non_ability_text": null,
+     "oracle_text": "Create a 3/3 colorless Phyrexian Golem artifact creature token.\nSplice onto instant or sorcery {3}{W} (As you cast an instant or sorcery spell, you may reveal this card from your hand and pay its splice cost. If you do, add this card's effects to that spell.)",
+     "power": null,
+     "printings": [
+      "MH1",
+      "PLST"
+     ],
+     "rarities": [
+      "uncommon"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2019-06-14",
+       "text": "If a spell is copied, choices made while casting it are copied, so the copy will have the same abilities spliced onto it as the original."
+      },
+      {
+       "date": "2019-06-14",
+       "text": "If all of the spell’s targets are illegal when the spell tries to resolve, it won’t resolve and none of its effects will happen, including those from cards spliced onto it."
+      },
+      {
+       "date": "2019-06-14",
+       "text": "If the spell is countered, any cards you spliced onto it remain in your hand."
+      },
+      {
+       "date": "2019-06-14",
+       "text": "The abilities spliced onto the spell happen last, after all of that spell’s other effects. Notably, the Golem won’t be on the battlefield yet if the spell has an effect that affects all creatures, all creatures you control, or similar."
+      },
+      {
+       "date": "2019-06-14",
+       "text": "The legality of a spell’s targets is checked only as that spell begins to resolve. If the spell this card is spliced onto causes its targets to become illegal while it’s resolving (for example, by removing them from the battlefield) you’ll still create a Golem."
+      },
+      {
+       "date": "2019-06-14",
+       "text": "You reveal all cards you intend to splice at the same time. Each individual card can be spliced only once onto any one spell, although multiple cards with the same name may be spliced onto one spell."
+      }
+     ],
+     "scryfall_oracle_id": "96fe9bab-0ffa-4d8a-81b7-a48fd532d3f2",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "all_parts": [
+     {
+      "component": "token",
+      "id": "83842dfb-e5ea-41dc-91b1-b1dd53e5ecca",
+      "name": "Phyrexian Golem",
+      "oracle_id": "2dc8033c-8ad9-4888-8705-efeda938ebf0",
+      "type_line": "Token Artifact Creature — Phyrexian Golem"
+     }
+    ],
+    "arena_available": false,
+    "cmc": 3.0,
+    "color_identity": [
+     "W"
+    ],
+    "colors": [
+     "W"
+    ],
+    "keywords": [
+     "Splice"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}{W}",
+    "name": "Splicer's Skill",
+    "oracle_id": "96fe9bab-0ffa-4d8a-81b7-a48fd532d3f2",
+    "oracle_text": "Create a 3/3 colorless Phyrexian Golem artifact creature token.\nSplice onto instant or sorcery {3}{W} (As you cast an instant or sorcery spell, you may reveal this card from your hand and pay its splice cost. If you do, add this card's effects to that spell.)",
     "type_line": "Sorcery"
    }
   },

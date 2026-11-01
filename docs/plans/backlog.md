@@ -36,11 +36,9 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   names its remainder). Regex-only, measured over the legal corpus:
   `ability_strip_payoff` (the
   crippling-drawback text beside a power floor; no lane reads a drawback a strip
-  turns off). Lane follow-ups the pass found:
-  `card_draw_engine` misses Mask of the Schemer's connive X (phase parks "where
-  X is the amount of damage it dealt" as `where_x_binding`);
-  the empower Jace token's scry / surveil (about thirty cards) is not walked.
-  Phase gaps
+  turns off). Lane follow-ups the pass found: `card_draw_engine` misses Mask
+  of the Schemer's connive X (phase parks "where X is the amount of damage it
+  dealt" as `where_x_binding`, a phase gap). Phase gaps
   to report upstream (Dan posts) (drafted: `docs/plans/phase-upstream-reports.md` §6, §12–§15, §19, §20, §23; "Already fixed"; "Not drafted") — from Pass D: Frodo, Sauron's Bane's granted
   trigger;
   Teferi, Temporal Pilgrim and Devastating Mastery's chooser stamped You; The
@@ -68,8 +66,7 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   Abduction's ChangeController, "as though it had flash" dropped (Rootwater
   Shaman, Arlinn), Radagast, Aluren, Jin Sakai, Nether Void's unless-pay, Mana
   Breach's controller, Dimir Keyrune, Hive of the Eye Tyrant, Corpse Cobble,
-  snow landwalk, Vectis Gloves, Quicksilver Fountain, Sideswipe. Our own
-  projection drops Splice's subtype from `card_keyword_types`.
+  snow landwalk, Vectis Gloves, Quicksilver Fountain, Sideswipe.
 - **Every held serve spec is converted (2026-10-19); what the lanes still
   miss** (the per-spec censuses are in `docs/plans/serve-idents-and-avenue-support.md`
   §2; the 41 holds of the serve-ident pass and the six of the fourth pass are
@@ -1081,9 +1078,11 @@ headroom and parked items.
   Alpha Brawl, Dead Reckoning, Lie in Wait and the self-damage spells leave), and
   the page keeps `damage_equal_power|you|*`. Corpse Explosion stays: a creature
   card of yours, exiled as its cost, sizes it. Left out by the read's own call:
-  an attached dealer (Lothlórien Blade's equipped creature, whose controller no
-  filter names) and Too Greedily, Too Deep's creature returned "under your
-  control". `is_bite` reads a triggering dealer off the trigger's watched
+  Too Greedily, Too Deep's creature returned "under your control". (An attached
+  dealer was left out too, superseded 2026-11-01: an Equipment's equipped
+  creature is yours — equip attaches it to "target creature you control", CR
+  702.6a, 301.5a — so Lothlórien Blade bites; an Aura's enchanted creature stays
+  out.) `is_bite` reads a triggering dealer off the trigger's watched
   creature (Halana, Kessig Ranger) and a batch's off its sources (Moonlight
   Hunt, Kamahl's Will, Bartz and Boko, Nissa's Judgment, Signature Slam, The
   Bears of Littjara, Judgment of Alexander): `bite` 128 → 136.

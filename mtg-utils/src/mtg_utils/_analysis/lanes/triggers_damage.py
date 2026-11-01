@@ -2621,6 +2621,7 @@ def _damage_equal_power(tree: ConceptTree) -> list[Signal]:
     702.2b): a deathtouch lane's serve reads this subject.
     """
     found: dict[str, str] = {}
+    equipment = "Equipment" in tree.card_subtypes
     for unit in tree.units:
         for c in unit.effect_concepts("deal_damage"):
             # phase v0.104.0 fails closed: an intervening-if power burn
@@ -2645,9 +2646,11 @@ def _damage_equal_power(tree: ConceptTree) -> list[Signal]:
             )
             if player:
                 found.setdefault("", _site_raw(unit.node))
-            elif power_is_yours(node, unit, sacrifice_actor=sacrifice_actor_scope):
+            elif power_is_yours(
+                node, unit, sacrifice_actor=sacrifice_actor_scope, equipment=equipment
+            ):
                 found.setdefault("creature", _site_raw(unit.node))
-            if not player and is_bite(node, unit):
+            if not player and is_bite(node, unit, equipment=equipment):
                 found.setdefault("bite", _site_raw(unit.node))
         if (
             unit.origin == "replacement"
