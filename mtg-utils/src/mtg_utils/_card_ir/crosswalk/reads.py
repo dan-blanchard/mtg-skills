@@ -10214,6 +10214,20 @@ def makes_lands_type(tree: ConceptTree, land_type: str) -> bool:
     return False
 
 
+def counts_opponents_draws(tree: ConceptTree) -> bool:
+    """Whether the card scales with or checks the cards an opponent has drawn
+    this turn (a ``CardsDrawnThisTurn`` quantity of an opponent's draws):
+    Heliod, the Warped Eclipse's "Spells you cast cost {1} less to cast for each
+    card your opponents have drawn this turn", Thought Sponge's counters, Even
+    the Score's discount. A payoff for making the opponents draw, as a "whenever
+    an opponent draws" trigger is."""
+    return any(
+        tag_of(n) == "CardsDrawnThisTurn"
+        and _player_scope_tag(getattr(n, "player", None)) in OPPONENT_ACTOR_TAGS
+        for n in tree.iter_typed()
+    )
+
+
 def counts_opponents_land_type(tree: ConceptTree, land_type: str) -> bool:
     """Whether the card rewards OTHER players controlling lands of ``land_type``:
     a count of them that is not limited to your own ("deals damage to each

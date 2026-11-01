@@ -47,6 +47,7 @@ from mtg_utils._card_ir.crosswalk import (
     controller_paid_cost_leaves,
     count_operand_filter,
     counter_kind_any,
+    counts_opponents_draws,
     effect_actor_scope,
     effect_filter,
     effect_owner_player_scope,
@@ -485,8 +486,12 @@ def _opponent_draw_matters(tree: ConceptTree) -> list[Signal]:
     builds to make the opponents draw, not to draw into it (the lane's
     reading — the controller pays too when they draw). So is an Aura's
     watch of the opponent it enchants (:func:`watches_enchanted_opponent` —
-    Curse of Fool's Wisdom, Psychic Possession).
+    Curse of Fool's Wisdom, Psychic Possession). So is a count of the cards
+    an opponent drew this turn (:func:`~mtg_utils._card_ir.crosswalk.
+    counts_opponents_draws` — Heliod, the Warped Eclipse's discount).
     """
+    if counts_opponents_draws(tree):
+        return [Signal("opponent_draw_matters", "opponents", "", "", tree.name, "high")]
     for unit in tree.units:
         if unit.trigger_event != "drawn":
             continue
