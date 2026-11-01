@@ -23,7 +23,7 @@ from mtg_utils._analysis._sweep_detectors import (
     SWEEP_DETECTORS,
 )
 from mtg_utils._analysis.signal_base import _GENERIC_KEYS, Signal, _clauses
-from mtg_utils._analysis.signal_keys import VOLTRON_CARRIER
+from mtg_utils._analysis.signal_keys import ARTIFACT_MEMBER, VOLTRON_CARRIER
 from mtg_utils._analysis.text_reads import (
     _EVERGREEN_KW_WORDS,
     _VOLTRON_EQUIP_RE,
@@ -1266,6 +1266,12 @@ _VOLTRON_HAS_OTHER_PLAN_COMPAT: frozenset[str] = frozenset(
         "self_pump",
         "pump_makers",
         "cant_block_grant",
+        # The carrier's own evasion (shadow is an evasion ability, CR 702.28a —
+        # Jodah's Avenger) and its own combat keyword (banding modifies the
+        # combat rules, CR 702.22a — Urza's Avenger): the Evasion leg of the
+        # triad above, a trait of the body, not another plan.
+        "evasion_self",
+        "has_banding",
         # _matters sweep (ADR-0034): the voltron MAKER arm. Attaching/fetching gear
         # IS the voltron plan (load one creature with Equipment/Auras), NOT another
         # plan, so a voltron_makers HIGH must not silence the bare commander-damage
@@ -1678,7 +1684,7 @@ def _apply_membership_floor(
     """
     type_line = (card.get("type_line") or "").lower()
     if "artifact" in type_line:
-        add("artifacts_matter", "you", "", "", "low")
+        add("artifacts_matter", "you", ARTIFACT_MEMBER, "", "low")
     if "enchantment" in type_line:
         add("enchantments_matter", "you", "", "", "low")
     # ADR-0027 — land_destruction BYTE-IDENTICAL membership-gated kept mirror. A

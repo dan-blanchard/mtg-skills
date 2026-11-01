@@ -1,0 +1,192 @@
+"""The lane false positives the 2026-10-31 pass closed (``docs/plans/backlog.md``)."""
+
+from __future__ import annotations
+
+import pytest
+
+from mtg_utils.testkit import test_signals
+
+
+def _idents(name: str) -> set[tuple[str, str, str]]:
+    return {(s.key, s.scope, s.subject) for s in test_signals(name)}
+
+
+def _keyed(name: str, *keys: str) -> set[tuple[str, str, str]]:
+    return {i for i in _idents(name) if i[0] in keys}
+
+
+_MAKER_KEYS = (
+    "token_maker",
+    "mass_token_makers",
+    "treasure_makers",
+    "food_makers",
+    "clue_makers",
+    "blood_makers",
+)
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        # "that player creates" on its own combat-damage trigger: the player it
+        # attacked (CR 510.1b), another player
+        "Varchild, Betrayer of Kjeldor",
+        # "At the beginning of each opponent's end step, that player creates"
+        "Goblin Spymaster",
+        # "Its controller creates two Treasure tokens": the countered spell's
+        "An Offer You Can't Refuse",
+        # "enchanted opponent creates a Clue token, a Food token, and a Junk token"
+        "Overencumbered",
+    ],
+)
+def test_a_token_another_player_creates_is_not_yours(name):
+    """CR 111.2: the player who creates a token is its owner, so a token
+    another player creates makes no resource of yours
+    (``crosswalk.token_creator_side``)."""
+    assert not {i for i in _keyed(name, *_MAKER_KEYS) if i[1] == "you"}
+
+
+def test_a_token_whoever_controls_the_object_creates_is_scoped_any():
+    """March of Souls' "its controller creates" for each destroyed creature:
+    every player gets Spirits, so the token maker is scoped "any", as
+    Pharika's chosen graveyard card is."""
+    assert _keyed("March of Souls", "token_maker") == {("token_maker", "any", "Spirit")}
+    assert ("token_maker", "any", "Snake") in _idents("Pharika, God of Affliction")
+
+
+@pytest.mark.parametrize(
+    ("name", "ident"),
+    [
+        ("Raise the Alarm", ("token_maker", "you", "Soldier")),
+        # "you may target yourself": a target player's Treasure stays yours
+        ("Prismari Command", ("treasure_makers", "you", "")),
+        # "When ~ leaves the battlefield, its owner creates": you own it
+        ("Yes Man, Personal Securitron", ("token_maker", "you", "Soldier")),
+    ],
+)
+def test_your_own_tokens_stay_yours(name, ident):
+    assert ident in _idents(name)
+
+
+def test_an_opponents_token_is_a_donation():
+    """The same read hands Varchild's Survivors to the donate lane."""
+    assert ("donate_makers", "you", "token") in _idents("Varchild, Betrayer of Kjeldor")
+
+
+@pytest.mark.parametrize("name", ["Guerrilla Tactics", "Psychic Purge"])
+def test_a_discard_an_opponent_causes_is_no_discard_payoff(name):
+    """ "When a spell or ability an opponent controls causes you to discard this
+    card": no outlet of yours triggers it (Guerrilla Tactics' ruling:
+    discarding as a cost won't), so it pays off no discard theme."""
+    assert not _keyed(name, "discard_matters")
+
+
+def test_a_discard_payoff_of_your_own_stays():
+    assert ("discard_matters", "you", "") in _idents("Archfiend of Ifnir")
+
+
+@pytest.mark.parametrize("name", ["Balance", "Restore Balance"])
+def test_discarding_down_to_the_fewest_hand_is_no_outlet(name):
+    """Balance's "players discard cards … the same way" levels every hand to
+    the smallest: whoever holds the fewest discards nothing."""
+    assert not _keyed(name, "discard_outlet")
+
+
+def test_a_wheel_stays_a_discard_outlet():
+    assert ("discard_outlet", "you", "") in _idents("Wheel of Fortune")
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        # "Only your opponents may activate this ability": "Gain control of this
+        # creature" is the activating opponent's (CR 109.5)
+        "Oft-Nabbed Goat",
+        # "Put target card you don't own in exile … on the bottom of its
+        # owner's library": the "don't own" names the card it hoses
+        "Sentinel of Lost Lore",
+    ],
+)
+def test_no_theft_where_no_card_is_stolen(name):
+    assert not _keyed(name, "gain_control")
+
+
+@pytest.mark.parametrize(
+    ("name", "ident"),
+    [
+        ("Control Magic", ("gain_control", "you", "")),
+        # "Whenever you cast a spell you don't own": the don't-own payoff tell
+        ("Tasha, the Witch Queen", ("gain_control", "you", "")),
+    ],
+)
+def test_theft_stays(name, ident):
+    assert ident in _idents(name)
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        # a granted "your opponents can't win the game"
+        "The Book of Exalted Deeds",
+        "Platinum Angel",
+        # "your opponents can't lose the game": a drawback
+        "Abyssal Persecutor",
+    ],
+)
+def test_a_game_outcome_rule_is_no_stax_lock(name):
+    """phase types "can't win / can't lose the game" as game-outcome statics
+    (CR 104.3: the ways to lose), which lock no action, so the stax residue
+    leaves the clause."""
+    assert not _keyed(name, "stax_taxes")
+
+
+def test_an_opponent_lock_stays_stax():
+    assert ("stax_taxes", "opponents", "") in _idents("Archfiend of Despair")
+
+
+def test_the_cant_lose_card_keeps_its_insurance():
+    assert ("life_payment_insurance", "you", "cant_lose") in _idents("Platinum Angel")
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Jodah's Avenger",  # shadow, an evasion ability (CR 702.28a)
+        "Urza's Avenger",  # banding (CR 702.22a)
+    ],
+)
+def test_the_carriers_own_evasion_keeps_the_commander_damage_read(name):
+    """The floor's commander-damage fallback (CR 903.10a) is silenced only by
+    another plan; the body's own evasion or combat keyword is none."""
+    assert ("voltron_matters", "you", "carrier") in _idents(name)
+
+
+@pytest.mark.parametrize("name", ["Bake into a Pie", "Bill the Pony", "Gilded Goose"])
+def test_a_food_you_make_is_a_life_gain_source(name):
+    """A Food token is an artifact with "{2}, {T}, Sacrifice this token: You
+    gain 3 life" (CR 111.10b)."""
+    assert ("lifegain_makers", "you", "") in _idents(name)
+
+
+def test_a_treasure_maker_gains_no_life():
+    assert not _keyed("Smothering Tithe", "lifegain_makers")
+
+
+@pytest.mark.parametrize(
+    ("name", "served"),
+    [
+        # "Land — Urza's Power-Plant": Power-Plant is one land type (CR 205.3i)
+        ("Urza's Power Plant", False),
+        ("Avenger of Zendikar", True),  # makes Plant tokens
+        ("Changeling Outcast", True),  # every creature type (CR 702.73a)
+    ],
+)
+def test_the_plant_page_reads_whole_subtypes(name, served):
+    from mtg_utils._analysis.signal_base import Signal
+    from mtg_utils._analysis.signal_specs import spec_for
+    from mtg_utils.testkit import test_card
+
+    test_signals(name)  # seed the card's trees memo
+    spec = spec_for(Signal("type_matters", "you", "Plant", "", "", "high"))
+    assert spec is not None
+    assert spec.serve.matches(test_card(name)) is served

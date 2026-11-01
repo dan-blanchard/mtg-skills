@@ -49,6 +49,7 @@ from mtg_utils._card_ir.crosswalk import (
     effect_actor_scope,
     effect_filter,
     effect_owner_player_scope,
+    event_source_side,
     exiled_library_side,
     explicit_recipient_scope,
     filter_controller,
@@ -451,9 +452,17 @@ def _discard_matters(tree: ConceptTree) -> list[Signal]:
     opponent-watching punisher (Megrim → the ``opponent_discard`` trigger
     arm) by the same watcher read. A loot OUTLET (Careful Study) has no
     discarded trigger — it stays discard_makers. Scope "you".
+
+    A discard "a spell or ability an opponent controls causes" (Guerrilla
+    Tactics, Psychic Purge, Quagnoth — :func:`crosswalk.event_source_side`) is
+    a punisher for the opponent's discard effect, which no outlet of yours
+    triggers (its ruling: discarding as a cost won't, only an opponent's
+    effect).
     """
     for unit in tree.units:
         if unit.trigger_event != "discarded":
+            continue
+        if event_source_side(unit.node) == "opponents":
             continue
         if not _discard_watch_is_opponent(unit):
             return [Signal("discard_matters", "you", "", "", tree.name, "high")]

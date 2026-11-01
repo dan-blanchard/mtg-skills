@@ -415,7 +415,7 @@ def is_board_wipe(card: dict) -> bool:
     """THE board-wipe answer (ADR-0051, like :func:`is_ramp`): the ``board-wipe``
     preset, a view over the signal path — the ``mass_removal`` and
     ``mass_bounce`` keys (destroy, exile, tuck, damage, sacrifice, bounce and
-    symmetric shrink sweeps, an overloaded spell's included — CR 702.96a) plus
+    one-shot shrink sweeps, an overloaded spell's included — CR 702.96a) plus
     a toughness shrink on a population of creatures not limited to yours,
     one-shot or continuous, one-sided or not (the ``population_shrink`` key —
     Massacre Wurm, Elesh Norn, Grand Cenobite). The tuner sources the role by
@@ -425,10 +425,11 @@ def is_board_wipe(card: dict) -> bool:
     key and ADR-0051 point here): the template job is clearing the
     opponents' board. Massacre Wurm's -2/-2 to the opponents' creatures does
     that as surely as a one-sided destroy (Plague Wind) or an overloaded bounce
-    (Cyclonic Rift), which the other two keys count, and the board-wipe job
-    read scores a one-sided sweep above a symmetric one. The ``mass_removal``
-    key itself keeps only the symmetric shrink: it is also the sweep half of a
-    mass-death turn the death payoffs read, which a one-sided shrink is not.
+    (Cyclonic Rift), and the board-wipe job read scores a one-sided sweep above
+    a symmetric one. A one-shot shrink is ``mass_removal`` too (its creatures
+    die, CR 704.5f: the sweep half of a mass-death turn, CR 700.4, whoever
+    controls them); a continuous one (Elesh Norn) is ``population_shrink``'s
+    alone.
 
     No text degrade: a card the signal path can't see is not a board wipe."""
     return _matches_preset(card, "board-wipe")

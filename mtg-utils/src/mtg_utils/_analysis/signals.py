@@ -135,6 +135,7 @@ def extract_signals(
         extract_crosswalk_signals,
     )
     from mtg_utils._analysis.signal_trees import signal_trees_for
+    from mtg_utils._card_ir.crosswalk import puts_away_a_card_you_dont_own
 
     # ADR-0038 W2c: `record` is already the bulk record — thread it as `bulk`
     # so `trees_for` can synthesize text-only trees for phase-missing faces
@@ -206,7 +207,7 @@ def extract_signals(
             r"you (?:cast|control|own)?[^.]{0,25}?(?:do not|don't) own",
             get_oracle_text(record) or "",
             re.IGNORECASE,
-        )
+        ) and not any(puts_away_a_card_you_dont_own(t) for t in trees)
         # _matters sweep (ADR-0034): the theft split. The HIGH steal-and-cast DOERS
         # ride the IR kept mirror as theft_makers; the LOW gain_control / don't-own
         # cross-open — a steal commander that WANTS the theft package run — is

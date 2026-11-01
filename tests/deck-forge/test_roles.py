@@ -103,10 +103,11 @@ def test_a_land_is_the_mana_base_never_ramp():
 
 
 def test_a_treasure_handed_to_an_opponent_is_not_ramp():
-    # Both fire `treasure_makers|you` (phase scopes the maker, not the recipient);
-    # the Token node's own `owner` tells them apart.
+    # The Token node's own `owner` tells them apart: the countered spell's
+    # controller creates the Treasure (CR 111.2), so it's no Treasure maker of
+    # yours either (`crosswalk.token_creator_side`).
     offer = _real("An Offer You Can't Refuse")  # "Its controller creates two Treasure"
-    assert "treasure_makers" in {s.key for s in test_signals(offer["name"])}
+    assert "treasure_makers" not in {s.key for s in test_signals(offer["name"])}
     assert not is_ramp(offer)
     assert is_ramp(_real("Smothering Tithe"))
     # One Treasure for you, one for an opponent — still yours.
@@ -308,12 +309,11 @@ def test_the_board_wipe_preset_and_the_role_agree_on_every_covered_card():
 def test_a_one_sided_mass_shrink_is_a_board_wipe(name):
     """ "Creatures your opponents control get -2/-2" clears the opponents' board
     as a one-sided destroy (Plague Wind) does, so the board-wipe job counts it —
-    Bite of the Black Rose's from a vote branch. The ``mass_removal`` key stays
-    the symmetric shrink the mass-death payoffs read; ``population_shrink``
-    carries the one-sided one."""
+    Bite of the Black Rose's from a vote branch. Its creatures die (CR
+    704.5f), so ``mass_removal`` reads it beside ``population_shrink``."""
     assert "board_wipe" in role_of(_real(name))
     keys = {s.key for s in test_signals(name)}
-    assert "mass_removal" not in keys
+    assert "mass_removal" in keys
     assert "population_shrink" in keys
 
 

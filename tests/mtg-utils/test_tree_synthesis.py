@@ -2434,11 +2434,10 @@ def test_symmetric_stax_bucket_a_structural():
 
 
 def test_stax_taxes_bucket_b_synth():
-    """Platinum Angel: 'your opponents can't win the game' -- phase emits a
-    typed CantWinTheGame static (affected controller Opponent), but the
-    structural census has no arm reading that mode -- a genuine bucket-B
-    gap the deleted _STAX_TAXES_RESIDUE_RE covered; the synth relocates it."""
-    tree = _fixture_tree("Platinum Angel")
+    """Teferi's Moat: 'creatures of the chosen color without flying can't
+    attack you' -- no typed field the structural census reads; the deleted
+    _STAX_TAXES_RESIDUE_RE covered it, the synth relocates it."""
+    tree = _fixture_tree("Teferi's Moat")
     assert has_structural_stax_taxes(tree) is False  # genuine gap
     from mtg_utils._analysis.tree_synthesis import _arm_stax_taxes
 
@@ -2446,8 +2445,19 @@ def test_stax_taxes_bucket_b_synth():
     assert node is not None
     assert node.concept == "synth_stax_taxes"
     assert node.scope == "opponents"
-    stax, _sym = _stax_fires("Platinum Angel")
+    stax, _sym = _stax_fires("Teferi's Moat")
     assert stax is True
+
+
+def test_a_typed_game_outcome_clause_leaves_the_stax_residue():
+    """Platinum Angel: phase types 'your opponents can't win the game' as a
+    CantWinTheGame static, a rule about who wins (CR 104.3), never a lock on
+    what a player does, so the residue the census gap-gates leaves it."""
+    from mtg_utils._analysis.tree_synthesis import _arm_stax_taxes
+
+    tree = _fixture_tree("Platinum Angel")
+    assert has_structural_stax_taxes(tree) is False
+    assert _arm_stax_taxes(tree) is None
 
 
 def test_symmetric_stax_bucket_b_synth():

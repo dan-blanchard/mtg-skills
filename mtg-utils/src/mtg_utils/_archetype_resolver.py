@@ -228,6 +228,9 @@ def merge_member_presets(name: str, members: tuple[str, ...] | list[str]) -> Pre
         dict.fromkeys(layout for p in member_presets for layout in p.layouts)
     )
     signal_keys = tuple(dict.fromkeys(k for p in member_presets for k in p.signal_keys))
+    signal_idents = tuple(
+        dict.fromkeys(i for p in member_presets for i in p.signal_idents)
+    )
     concepts = tuple(p.concept for p in member_presets if p.concept is not None)
     concept = (
         (lambda card, _fns=concepts: any(fn(card) for fn in _fns)) if concepts else None
@@ -241,5 +244,6 @@ def merge_member_presets(name: str, members: tuple[str, ...] | list[str]) -> Pre
         type_patterns=type_patterns,
         layouts=layouts,
         signal_keys=signal_keys,
+        signal_idents=signal_idents,
         concept=concept,
     )

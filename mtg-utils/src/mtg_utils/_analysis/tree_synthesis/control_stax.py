@@ -49,6 +49,7 @@ from mtg_utils._card_ir.crosswalk import (
     modify_cost_mode,
     names_attached_object,
     planeswalkers_only_beside_creatures,
+    puts_away_a_card_you_dont_own,
     replacement_event_tag,
     replacement_shield_kind,
     scoped_player_scope,
@@ -558,9 +559,10 @@ def has_structural_symmetric_stax(tree: ConceptTree) -> bool:
 # player-lock idiom Unimplemented -- Winter Orb's "players can't untap more
 # than one land", Static Orb; a split/aftermath dropped face -- Failure //
 # Comply's "your opponents can't cast spells with the chosen name") or
-# structures with no typed field the census reads (Archfiend of Despair /
-# Platinum Angel's "opponents can't gain life" / "can't win the game",
-# Stranglehold's opponent search-lock on a body phase drops wholly).
+# structures with no typed field the census reads (Teferi's Moat's chosen-colour
+# attack lock, Stranglehold's opponent search-lock on a body phase drops
+# wholly). A typed game-outcome clause ("your opponents can't win the game") is
+# claimed (:func:`_game_outcome_descriptions`).
 # Relocates the EXACT deleted _STAX_TAXES_RESIDUE_RE / _SYMMETRIC_STAX_
 # RESIDUE_RE per-clause scan (with the SAME pacify veto) to projection time,
 # gap-gated against has_structural_stax_taxes / has_structural_symmetric_stax
@@ -570,13 +572,40 @@ def has_structural_symmetric_stax(tree: ConceptTree) -> bool:
 # the dropped `creatures your opponents control` / `doesn't/don't/does not
 # untap during` over-fire branches) rides along unchanged -- no new code, no
 # new drift, just relocated to gap-gated projection time.
+#: The game-outcome statics (CR 104.3: the ways to lose the game; "can't win" /
+#: "can't lose" rewrite them): a rule about who wins, never a lock on what a
+#: player does.
+_GAME_OUTCOME_MODES: frozenset[str] = frozenset({"CantWinTheGame", "CantLoseTheGame"})
+
+
+def _game_outcome_descriptions(tree: ConceptTree) -> tuple[str, ...]:
+    """The descriptions of the game-outcome statics phase types on the card, a
+    granted one included ("It gains 'You can't lose the game and your opponents
+    can't win the game'" — The Book of Exalted Deeds), lowercased."""
+    return tuple(
+        d.lower().rstrip(".")
+        for n in tree.iter_typed()
+        if static_mode_tag(n) in _GAME_OUTCOME_MODES
+        and isinstance(d := getattr(n, "description", None), str)
+        and d.strip()
+    )
+
+
 def _stax_residue_hits(tree: ConceptTree) -> tuple[bool, bool]:
     """``(stax_residue, sym_residue)`` -- the deleted per-clause regex scan,
-    reminder-stripped, pacify-vetoed. One shared scan for both synth arms."""
+    reminder-stripped, pacify-vetoed. One shared scan for both synth arms.
+
+    A clause phase types as a game-outcome static (:data:`_GAME_OUTCOME_MODES`
+    — Platinum Angel's and the Book of Exalted Deeds' "your opponents can't win
+    the game", Abyssal Persecutor's "your opponents can't lose the game") is not
+    a clause phase drops, and it locks no action, so the residue leaves it."""
     stax_r = False
     sym_r = False
+    outcomes = _game_outcome_descriptions(tree)
     for cl in clauses(_REMINDER.sub(" ", tree.oracle or "")):
         if _restriction_pacifies_single_creature(cl):
+            continue
+        if any(d in cl.lower() for d in outcomes):
             continue
         if _STAX_TAXES_RESIDUE_RE.search(cl):
             stax_r = True
@@ -1327,8 +1356,12 @@ def _arm_dont_own(tree: ConceptTree) -> ConceptNode | None:
     NOT reminder-stripped, matching the deleted reconciliation-body
     read). No competing Tier-1 predicate exists for this specific tell —
     it is the reconciliation's SOLE source, unchanged from the deleted
-    read."""
-    if _DONT_OWN_RX.search(tree.oracle or ""):
+    read. A card whose typed "you don't own" names a card it puts into its
+    owner's library (Sentinel of Lost Lore —
+    :func:`crosswalk.puts_away_a_card_you_dont_own`) is no theft tell."""
+    if _DONT_OWN_RX.search(tree.oracle or "") and not (
+        puts_away_a_card_you_dont_own(tree)
+    ):
         return _synthetic_concept(
             arm_id="dont_own",
             concept="synth_dont_own",

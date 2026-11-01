@@ -183,7 +183,7 @@ class TestApi:
 # against real Scryfall records + real crosswalk trees.
 
 _STRUCTURAL_PRESET_NAMES = frozenset(
-    name for name, preset in PRESETS.items() if preset.signal_keys or preset.concept
+    name for name, preset in PRESETS.items() if preset.structural
 )
 
 

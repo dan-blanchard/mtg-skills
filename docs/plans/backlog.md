@@ -438,14 +438,6 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   281 cards), the second pass's in ``~/mtg/tuner-work/w13/classification-final.tsv``).
   A theme pages by its serve (``signal_specs.theme_page``); no search carries an
   oracle pattern (``test_a_theme_pages_by_its_serve_not_a_pattern``). Open:
-  - the commander-damage fallback's silencing took the carrier from Jodah's
-    Avenger (its restored shadow: ``evasion_self|you|shadow``) and Urza's
-    Avenger (``has_banding``), though the floor's own comment says an evasion
-    tell must not silence it — ``evasion_self`` is missing from
-    ``_VOLTRON_HAS_OTHER_PLAN_COMPAT`` (a lifelink body's own lifegain no longer
-    silences it, Dan's call 2026-10-29: Noble Banneret and Vampire Nighthawk
-    are lifegain plans and carriers both — ``membership_floor``'s
-    ``own_lifelink``);
   - the tribe pages were checked on Goblin, Elf, Zombie, Dragon and Sliver
     (and Angel, Vampire, Merfolk, Wizard, Human): every real member they
     lost has an IR ident or a ledger row (the 21 ``_reference_row`` rows). The
@@ -600,13 +592,9 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   `PAGE_ONLY_SUBJECTS` belongs in it as a role, and the voltron `has_other_plan`
   read should ask `avenue_spec_for(s) is not None` instead of keeping its own
   exclusion lists — membership_floor's step-trigger exclusion duplicates
-  `STEP_TRIGGER_KEYS` the same way); an `attack_trigger_side` crosswalk read
-  beside `targeting_trigger_side` (the defensive-trigger veto lives in
-  `tree_synthesis.combat`, and `stax_and_tempo`'s own `attacks` reads skip it —
-  MacCready still reads as an attack payoff); the spell-additional-cost walk keeps
+  `STEP_TRIGGER_KEYS` the same way); the spell-additional-cost walk keeps
   only allowlisted OTHER leaves (PayLife, Blight) — walk them all;
-  `mass_removal` misses one-sided "creatures your opponents control get -N/-N"
-  (Massacre Wurm, about forty); `card_draw_engine` misses granted draw triggers
+  `card_draw_engine` misses granted draw triggers
   (Avarice Amulet), aftermath halves and connive X; `opponent_draw_matters` misses
   enchanted-player watchers (Curse of Fool's Wisdom now carries no draw key);
   `ends_the_game` reads a missing player as you (a canary arm in `core_makers`);
@@ -616,12 +604,8 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   opponent-graveyard lane; `big_hand_matters`' text arm still fires on "reveal
   any number of X cards"; Dan Lewis's AddSubtype Equipment and Equipment
   affinity. Left from the lane pass:
-  the resource-maker lanes still count a token another player creates as yours
-  (An Offer You Can't Refuse, Overencumbered); every artifact emits a membership
-  `artifacts_matter|you|`, so Sol Ring lands on the Artifacts payoff page;
   `etb_value_x_recast_commander` (`pair_reads.py`) weights a scry-1 ETB like
-  Shriekmaw now that `self_etb_payload` reads 4,333 cards; the `card-draw` preset
-  is key-level, so Master of the Feast (opponents draw) stays in it. Phase gaps
+  Shriekmaw now that `self_etb_payload` reads 4,333 cards. Phase gaps
   to report upstream (Dan posts) (drafted: `docs/plans/phase-upstream-reports.md` §6, §12–§15, §19, §20, §23; "Already fixed"; "Not drafted") — from Pass D: Frodo, Sauron's Bane's granted
   trigger;
   Teferi, Temporal Pilgrim and Devastating Mastery's chooser stamped You; The
@@ -714,33 +698,23 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   branch's prevention reads as `damage_prevention` — a dropped-controller
   misstamp, and once a field correction restores it `is_own_drawback` needs a
   `PreventDamage`-on-your-source arm.
-  Lane gaps still open: `creature_recursion` has no destination subject (62
-  reanimation spells sit outside damage_for_each; creature_etb carries a
-  reanimation extra instead); `cost_reduction` has no spell-type subject (21
-  creature-spell reducers); the edict lane misses Incriminate, Malik,
+  Lane gaps still open: the edict lane misses Incriminate, Malik,
   Gluttonous Hellkite, Killing Wave, Tragic Arrogance and granted edicts;
-  keyword token-copy makers
-  (embalm, eternalize, myriad, squad, encore) are not read; granted flanking;
+  granted flanking;
   back-reference counter targets scoped you (Retribution, Obelisk Spider);
   partial prevention, granted absorb, Blinding Powder, Torrent of Lava
-  (`damage_prevention`); `discard_outlet`
-  misses "cast from your graveyard by discarding" (Alien Symbiosis, Demonic
-  Embrace, Rona); the lifegain pair lost its 96 Food makers — `lifegain_makers`
-  does not read the gain inside a Food token (Bake into a Pie, Bill the Pony);
-  "whenever you proliferate" payoffs and granted / X proliferate have no ident
+  (`damage_prevention`); "whenever you proliferate" payoffs and granted / X proliferate have no ident
   (Scheming Aspirant, Venser, Tam, Ichormoon Gauntlet); the own-graveyard
   remainder (collect-evidence and forage costs, descend payoffs, the Empower
   Jace token's surveil, granted delve / soulshift X, a craft cost). Lane false
-  positives still open: a token another player
-  creates serves as a `token_maker|you|*` (Varchild, Goblin Spymaster,
-  Skyclave Apparition, Genesis Chamber, March of Souls …); "tap creatures you
-  control" cards serve `tapper_engine` (Jaddi Lifestrider — inseparable from
-  the `controller: You` misstamp above); ~9 "when an opponent causes you to
-  discard this" cards fire `discard_matters` and Balance / Restore Balance
-  `discard_outlet`; Oft-Nabbed Goat and Sentinel of Lost Lore fire
-  `gain_control`; An Offer You Can't Refuse fires `treasure_makers|you`;
-  Investigator's Journal still fires `proliferate_matters` and
-  The Book of Exalted Deeds `stax_taxes|opponents`.
+  positives still open: Skyclave Apparition's "the exiled card's owner
+  creates" token reads as yours — phase stamps the Token's `owner` `Controller`
+  and the exiled card `Owned{You}`, so no structure tells it from your own
+  token (a phase gap to report). Not a false positive (2026-10-31, don't
+  re-suggest): Investigator's Journal's LOW `proliferate_matters` — its suspect
+  counters are counters (CR 122.1, not the suspected designation of CR
+  701.60a), proliferate adds one of each kind already there (CR 701.34a), and
+  removing one is its draw cost, the remove-counter-cost read's own case.
   Ranking: `ranking._synergy_score` gives clause clusters only to regex-matched
   hits, so every regex → ident conversion thins clause breadth (Empty the
   Warrens' token clause 8 → 6 lanes); attributing an ident hit to the clause

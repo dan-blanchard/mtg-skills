@@ -2313,6 +2313,68 @@ def discard_is_random(node: object) -> bool:
     return getattr(node, "random", False) is True
 
 
+def count_down_to_fewest(node: object) -> bool:
+    """Whether an effect's ``count`` is "as many as you have beyond the player
+    with the fewest" — a ``Difference`` whose subtrahend is a ``Min`` over the
+    players ("Players discard cards … the same way" — Balance, Restore Balance:
+    each player discards down to the smallest hand). Whoever holds the fewest
+    loses nothing, so it is an equaliser, not an effect a player sizes."""
+    count = getattr(node, "count", None)
+    if tag_of(count) != "Difference":
+        return False
+    return any(
+        getattr(n, "aggregate", None) == "Min"
+        for n in _iter_typed_nodes(getattr(count, "right", None))
+    )
+
+
+def event_source_side(trig: object) -> ControllerSide | None:
+    """The side controlling the spell or ability whose event a trigger watches
+    — phase's ``EventSourceControlledBy`` constraint ("When a spell or ability
+    an opponent controls causes you to discard this card" — Guerrilla Tactics,
+    Psychic Purge; its ruling: discarding as a cost won't trigger it, only an
+    effect an opponent controls) — or ``None`` when the trigger names none."""
+    constraint = getattr(trig, "constraint", None)
+    if tag_of(constraint) != "EventSourceControlledBy":
+        return None
+    return controller_side(getattr(constraint, "controller", None))
+
+
+def opponents_activate(unit: AbilityUnit) -> bool:
+    """Whether only an opponent may activate ``unit`` ("Only your opponents may
+    activate this ability" — Oft-Nabbed Goat; phase's ``activator_filter:
+    Opponent``). For an activated ability "you" is the player who activated it
+    (CR 109.5), so "Gain control of this creature" there hands the card to an
+    opponent."""
+    return tag_of(getattr(unit.node, "activator_filter", None)) == "Opponent"
+
+
+#: The effects that put a card into its owner's library (a library-position put,
+#: a zone change to the library).
+_LIBRARY_PUT_TAGS: frozenset[str] = frozenset(
+    {"PutAtLibraryPosition", "ChangeZone", "ChangeZoneAll"}
+)
+
+
+def puts_away_a_card_you_dont_own(tree: ConceptTree) -> bool:
+    """Whether the card puts a card an opponent owns into its owner's library
+    (Sentinel of Lost Lore: "Put target card you don't own in exile … on the
+    bottom of its owner's library"): its "you don't own" names the card it
+    hoses (``Owned: Opponent`` on the effect's target, CR 108.3), not one you
+    stole and play."""
+    for n in tree.iter_typed():
+        tag = tag_of(n)
+        if tag not in _LIBRARY_PUT_TAGS:
+            continue
+        if tag != "PutAtLibraryPosition" and getattr(n, "destination", None) != (
+            "Library"
+        ):
+            continue
+        if filter_owned_controller(getattr(n, "target", None)) == "Opponent":
+            return True
+    return False
+
+
 def discard_recipient_scope(node: TypedMirrorNode) -> str | None:
     """The DIRECTION of a ``Discard`` effect (who discards) from its recipient node.
 
@@ -8760,6 +8822,12 @@ def root_target_filter(unit: AbilityUnit) -> object | None:
 
 #: Who creates a token (:func:`token_creator_side`).
 TokenCreatorSide = Literal["you", "opponents", "each", "chosen", "any"]
+#: The token creators (:func:`token_creator_side`) whose token is yours to make:
+#: you, each player (you among them), or a target player — "Target player
+#: creates a Treasure token" (Prismari Command): reading it as yours (you may
+#: target yourself) is the lanes' own decision. "any" (whoever controls the
+#: object the effect points at) and an unplaced creator are not yours.
+TOKEN_YOURS_SIDES: frozenset[str] = frozenset({"you", "each", "chosen"})
 #: Token ``owner`` back-references to the object the chain targets: "its
 #: controller / its owner / they create".
 _TARGET_OWNER_REFS: frozenset[str] = PLAYER_BACK_REFERENCES | {
@@ -8780,18 +8848,30 @@ def token_creator_side(unit: AbilityUnit, node: object) -> TokenCreatorSide | No
       copied permanent's ``OriginalController``, and "that player" on a
       trigger that doesn't watch only opponents (Gonti, Night Minister; Jolene,
       Pain Distributor: a trigger you fire too);
-    * ``"opponents"`` — a target opponent (Wedding Ring), and "that player" on
-      a trigger that watches only opponents ("Whenever an opponent casts a
+    * ``"opponents"`` — a target opponent (Wedding Ring), "that player" on a
+      trigger that watches only opponents ("Whenever an opponent casts a
       spell, that player creates a Blood token" — Bloodvial Purveyor,
-      :func:`triggering_player_side`);
+      :func:`triggering_player_side`), "that player" on a combat-damage
+      trigger of your own creatures (Varchild, Betrayer of Kjeldor; Relic
+      Robber: an unblocked creature deals its combat damage to the player
+      it's attacking, CR 510.1b, another player — CR 508.1b), and the scoped
+      player of an "each opponent's [step]" trigger (Goblin Spymaster,
+      :func:`scoped_player_scope`; ``"each"`` for an "each player's [step]",
+      Infernal Genesis);
     * ``"chosen"`` — a target player the card picks, who may be you
       (Prismari Command, Echocasting Symposium);
     * "its controller / owner creates" (:data:`_TARGET_OWNER_REFS`): the side
       of the object the chain targets (:func:`root_target_filter` — Vraska,
       the Cutting Glare's "target permanent an opponent controls. They create
-      a Treasure token" is ``"opponents"``), and ``"any"`` for an unrestricted
-      target or none (Get Lost, An Offer You Can't Refuse, Saw in Half: the
-      removed object's controller — whoever that is);
+      a Treasure token" is ``"opponents"``), ``"you"`` when a trigger watching
+      the card itself names its own owner (Yes Man, Personal Securitron), and
+      ``"any"`` for an unrestricted target or none (Get Lost, An Offer You
+      Can't Refuse, Saw in Half: the removed object's controller — whoever
+      that is; Genesis Chamber's entering creature, March of Souls' destroyed
+      ones);
+    * "that attacking player" on an attack trigger: the attacker's side
+      (``valid_source`` — "Whenever a player attacks one of your opponents",
+      Combat Calligrapher: ``"you"``, a trigger you fire too);
     * otherwise the owner filter's own scope (``"each"`` for an unrestricted
       player filter), and ``None`` for an owner this read can't place (an
       Aura's enchanted player — Overencumbered's ``AttachedTo``).
@@ -8811,17 +8891,59 @@ def token_creator_side(unit: AbilityUnit, node: object) -> TokenCreatorSide | No
         and effect_owner_player_scope(unit.node, node) == YOU_AND_OPPONENT_SCOPE
     ):
         return "you"  # "you and target opponent each create" (Thran Spider)
+    if tag == "ScopedPlayer":
+        scoped = scoped_player_scope(unit)
+        return "you" if scoped is None else cast("TokenCreatorSide", scoped)
     if tag == "TriggeringPlayer":
-        return "opponents" if triggering_player_side(unit) == "opponents" else "you"
+        if unit.origin == "trigger" and getattr(unit.node, "mode", None) == "Attacks":
+            # "Whenever a player attacks one of your opponents, that attacking
+            # player creates …" (Combat Calligrapher, Ellie, Brick Master): the
+            # triggering player is the attacker (``valid_source``), not the
+            # attacked player ``triggering_player_side`` reads.
+            attacker = getattr(unit.node, "valid_source", None)
+            return (
+                "opponents"
+                if _scope_from_player_node(attacker) == ("opponents")
+                else "you"
+            )
+        if triggering_player_side(unit) == "opponents" or (
+            _your_combat_damage_trigger(unit)
+        ):
+            return "opponents"
+        return "you"
     if tag in ("Player", "TargetPlayer"):
         return "chosen"
     if tag in _TARGET_OWNER_REFS:
-        side = filter_controller_side(root_target_filter(unit))
+        root = root_target_filter(unit)
+        if (
+            root is None
+            and tag in ("ParentTargetOwner", "ParentTargetController")
+            and unit.origin == "trigger"
+            and watches_itself(unit.node)
+        ):
+            # "When ~ leaves the battlefield, its owner creates …" (Yes Man,
+            # Personal Securitron): "it" is the card itself, and it is yours.
+            return "you"
+        side = filter_controller_side(root)
         return side if side in ("you", "opponents") else "any"
     scope = _scope_from_player_node(owner)
     if scope in ("you", "opponents", "each", "any"):
         return cast("TokenCreatorSide", scope)
     return None
+
+
+def _your_combat_damage_trigger(unit: AbilityUnit) -> bool:
+    """Whether ``unit`` triggers on combat damage to a player dealt by the card
+    itself or a creature you control ("Whenever ~ deals combat damage to a
+    player" — Varchild, Betrayer of Kjeldor; "one or more Faeries you control"
+    — Nettling Nuisance): its "that player" is the player that creature
+    attacked (CR 510.1b), another player (CR 508.1b)."""
+    if unit.origin != "trigger" or (
+        damage_to_player_trigger_kind(unit.node) != "CombatOnly"
+    ):
+        return False
+    source = getattr(unit.node, "valid_source", None)
+    return tag_of(source) == "SelfRef" or filter_controller_side(source) == "you"
 
 
 # A damage recipient a caster may point at a creature as readily as at a
