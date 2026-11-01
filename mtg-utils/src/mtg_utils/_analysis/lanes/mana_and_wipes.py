@@ -1263,15 +1263,40 @@ def _walk_mass_removal(tree: ConceptTree) -> SweepEffects:
 _DAMAGE_SWEPT_TYPES: frozenset[str] = CREATURE_OR_PERMANENT | {"Planeswalker"}
 
 
-def _chooses_at_most_one(unit: AbilityUnit) -> bool:
-    """Whether the unit fills its tracked set by one choice of at most one object
-    (a ``ChooseObjectsIntoTrackedSet`` whose ``max`` is 1)."""
-    return any(
-        tag_of(n) == "ChooseObjectsIntoTrackedSet"
-        and isinstance(most := getattr(n, "max", None), int)
+#: The effects that fill a tracked set a later ``TrackedSet`` back-reference
+#: names: a choice into one, a target choice, a pick from a zone.
+_TRACKED_SET_FILLERS = frozenset(
+    {"ChooseObjectsIntoTrackedSet", "TargetOnly", "ChooseFromZone"}
+)
+
+
+def _at_most_one_choice(node: object) -> bool:
+    """A ``ChooseObjectsIntoTrackedSet`` whose ``max`` is 1."""
+    return (
+        tag_of(node) == "ChooseObjectsIntoTrackedSet"
+        and isinstance(most := getattr(node, "max", None), int)
         and most <= 1
-        for n in iter_typed_nodes(unit.node)
     )
+
+
+def _chooses_at_most_one(unit: AbilityUnit, c: ConceptNode) -> bool:
+    """Whether the tracked set the ``DestroyAll`` ``c`` names holds at most one
+    object: the set the nearest earlier filler in its chain
+    (:data:`_TRACKED_SET_FILLERS`) fills is a choice of at most one (Light of
+    Judgment's "Destroy up to one Equipment attached to that creature"), not a
+    target choice an "each player chooses" fills (Call to the Void). A sweep in
+    an ability the unit grants, outside the unit's own chain, reads every
+    choice in the unit."""
+    chain = [e.node for e in unit.effects]
+    if not any(n is c.node for n in chain):
+        return any(_at_most_one_choice(n) for n in iter_typed_nodes(unit.node))
+    filler = None
+    for n in chain:
+        if n is c.node:
+            break
+        if tag_of(n) in _TRACKED_SET_FILLERS:
+            filler = n
+    return filler is not None and _at_most_one_choice(filler)
 
 
 def _is_mass_removal(tree: ConceptTree, unit: AbilityUnit, c: ConceptNode) -> bool:
@@ -1303,7 +1328,7 @@ def _is_mass_removal(tree: ConceptTree, unit: AbilityUnit, c: ConceptNode) -> bo
     if (
         t == "DestroyAll"
         and tag_of(getattr(c.node, "target", None)) == ("TrackedSet")
-        and not _chooses_at_most_one(unit)
+        and not _chooses_at_most_one(unit, c)
     ):
         return True
     if t == "ChangeZoneAll" and ctrl != "You":

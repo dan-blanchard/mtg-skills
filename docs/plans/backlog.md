@@ -912,10 +912,6 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
     every creature by dropping "blocking it" (Battle-Scarred Goblin, Fire
     Juggler — [P12]) still read as sweeps: the DamageAll arm lacks the
     becomes_blocked / blocks veto `_mass_shrink` has.
-- `mana_and_wipes._chooses_at_most_one` vetoes a sweep whose tracked set the
-  controller fills with at most one object (Light of Judgment) without resolving
-  which `TrackedSet` the sweep destroys: it holds for any one-object choice in
-  the unit. Resolve the set the `DestroyAll` names (open, low priority).
 - **Policy questions from the bump's gains** (decide; fixing would drop cards
   v0.104.0 already had): lifegain_matters on "whenever an opponent gains life"
   (Punishing Fire new; Kavu Predator, Wedding Ring already); Cinder Wall /
