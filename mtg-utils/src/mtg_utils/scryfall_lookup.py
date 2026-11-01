@@ -17,6 +17,7 @@ from pathlib import Path
 
 import click
 import requests
+from requests import RequestException
 
 from mtg_utils._http import USER_AGENT
 from mtg_utils._name_index import NameIndex
@@ -217,11 +218,23 @@ def lookup_cards(
     bulk_index = CardPool.load(bulk_path).by_name if bulk_path else None
 
     results: list[dict | None] = []
+    failed = False
     for name in names:
-        result = lookup_single(name, bulk_index=bulk_index)
+        try:
+            result = lookup_single(name, bulk_index=bulk_index)
+        except RequestException as exc:
+            # One Scryfall 503 (or a dropped connection) on the cache-miss path is
+            # that name's problem, not the batch's: it lands in the envelope's
+            # ``missing`` like a card Scryfall doesn't know. A bulk that can't be
+            # read at all still raises above, before the loop.
+            click.echo(f"warning: Scryfall lookup failed for {name!r}: {exc}", err=True)
+            result = None
+            failed = True
         results.append(result)
 
-    atomic_write_json(cache_path, results)
+    # A transient failure is not cached as "unknown card": the next run retries it.
+    if not failed:
+        atomic_write_json(cache_path, results)
     return results, cache_path, names
 
 
