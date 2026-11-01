@@ -122,10 +122,12 @@ def test_artifacts_payoff_avenue_pages_creature_payoffs_by_its_serve(monkeypatch
         page = engine.find_candidates(state, engine.FindParams(limit=50))
         return {row["card"]["name"] for row in page.rows}
 
-    # The serve's ``artifacts_matter|you|*`` also counts what the lane emits for
-    # an artifact itself (Sol Ring); a card that is neither stays out.
+    # The serve's ``artifacts_matter|you|*`` leaves out the membership floor's
+    # ``artifacts_matter|you|member``: Sol Ring is an artifact, not a payoff, and
+    # its page is the pieces'. A card that is neither stays out.
     payoffs = found("engine:artifacts_matter:you")
     assert "Sai, Master Thopterist" in payoffs
+    assert "Sol Ring" not in payoffs
     assert "Snapcaster Mage" not in payoffs
     assert found("engine:artifacts_matter:you:src") == {"Sol Ring"}
 

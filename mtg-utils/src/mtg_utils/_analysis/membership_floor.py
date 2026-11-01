@@ -23,7 +23,7 @@ from mtg_utils._analysis._sweep_detectors import (
     SWEEP_DETECTORS,
 )
 from mtg_utils._analysis.signal_base import _GENERIC_KEYS, Signal, _clauses
-from mtg_utils._analysis.signal_keys import VOLTRON_CARRIER
+from mtg_utils._analysis.signal_keys import ARTIFACT_MEMBER, VOLTRON_CARRIER
 from mtg_utils._analysis.text_reads import (
     _EVERGREEN_KW_WORDS,
     _VOLTRON_EQUIP_RE,
@@ -1678,7 +1678,7 @@ def _apply_membership_floor(
     """
     type_line = (card.get("type_line") or "").lower()
     if "artifact" in type_line:
-        add("artifacts_matter", "you", "", "", "low")
+        add("artifacts_matter", "you", ARTIFACT_MEMBER, "", "low")
     if "enchantment" in type_line:
         add("enchantments_matter", "you", "", "", "low")
     # ADR-0027 — land_destruction BYTE-IDENTICAL membership-gated kept mirror. A

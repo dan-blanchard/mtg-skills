@@ -429,3 +429,31 @@ def test_voltron_fallback_silenced_by_v23_parse_gains(
     idents = _hybrid_idents(monkeypatch, bulk, tree, include=True)
     assert (new_key, "you", "") in idents
     assert ("voltron_matters", "you", VOLTRON_CARRIER) not in idents
+
+
+def test_artifact_membership_is_its_own_subject():
+    """Being an artifact is membership (a card type, CR 205.2a), not artifacts-matter text: the
+    floor writes it under ``ARTIFACT_MEMBER``, so the Artifacts payoff page
+    (the serve's ``artifacts_matter|you|*`` once ADR-0026 split the type off)
+    leaves Sol Ring out and keeps Bosh, whose sacrifice cost cares about
+    artifacts. An artifact commander's membership still opens the avenue."""
+    from mtg_utils._analysis.signal_keys import ARTIFACT_MEMBER
+    from mtg_utils._analysis.signal_specs import avenue_spec_for, payoff_serve
+    from mtg_utils.testkit import test_card
+
+    def idents(name: str) -> set[tuple[str, str, str]]:
+        return {
+            (s.key, s.scope, s.subject)
+            for s in test_signals(name)
+            if s.key == "artifacts_matter"
+        }
+
+    assert idents("Sol Ring") == {("artifacts_matter", "you", ARTIFACT_MEMBER)}
+    assert ("artifacts_matter", "you", "") in idents("Bosh, Iron Golem")
+    (member,) = [s for s in test_signals("Sol Ring") if s.key == "artifacts_matter"]
+    spec = avenue_spec_for(member)
+    assert spec is not None
+    assert spec.label == "Artifacts"
+    payoffs = payoff_serve(spec)
+    assert not payoffs.matches(test_card("Sol Ring"))
+    assert payoffs.matches(test_card("Bosh, Iron Golem"))
