@@ -262,8 +262,16 @@ miss taxonomy, the held-out candidates).
   13 theft adds stay out of reach of a first-principles read whatever the bar.
   Measured: 2.0× / 10% on the 25 adds −5, plan −4 (TPa); 3.0× / 15% adds −2, plan
   −5 (TPb); TPb on the held-out 20 adds −2, plan 0, cuts 0 → FAILED, settled (the
-  backlog entry). The graveyard-hate row (branch `block2-hate-row`) runs next
-  (HR1); the alternate-commander compare is being built on `block2-compare-commanders`.
+  backlog entry). The graveyard-hate row (branch `block2-hate-row`,
+  `w41/hate-row-HR1.patch`) FAILED HR1 against N12: held-out adds −5, plan −9,
+  cuts +1, job-equivalents +2 (page recall @30 −30: the row's fill takes a plan
+  slot on every deck short of it); the 25 adds −1, plan +2, cuts +2 → settled;
+  with T1 / PR1 every generic row beyond the Command Zone five has now lost. The
+  alternate-commander compare (`_tuner/compare_commanders.py`, `deck-tune
+  --compare-commanders`, deck-forge's `compare_commanders` payload flag and Tune
+  panel table; branch `block2-compare-commanders`) is built, tests green; its
+  evaluation against the nine guides that switch commanders
+  (`w41/alt-commander-guides.md`) follows.
 
 ## Target
 
