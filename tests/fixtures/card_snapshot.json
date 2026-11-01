@@ -132749,6 +132749,176 @@
     "type_line": "Sorcery"
    }
   },
+  "Battle-Scarred Goblin": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Goblin",
+       "Warrior"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Red"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pauper": "legal",
+      "paupercommander": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "Red"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "568ef3f1-6d19-4ea3-8395-1e47d06108d7",
+       "b91859de-1983-4c9c-a9e6-289c7dba1eb4"
+      ]
+     },
+     "name": "Battle-Scarred Goblin",
+     "non_ability_text": null,
+     "oracle_text": "Whenever this creature becomes blocked, it deals 1 damage to each creature blocking it.",
+     "power": {
+      "type": "Fixed",
+      "value": 2
+     },
+     "printings": [
+      "HOC",
+      "LTR"
+     ],
+     "rarities": [
+      "common"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2023-06-16",
+       "text": "The ability triggers only once, no matter how many creatures are blocking it. The ability resolves and deals damage to those creatures before combat damage is dealt. Even if that damage destroys all creatures blocking Battle-Scarred Goblin, Battle-Scarred Goblin doesn't become unblocked."
+      }
+     ],
+     "scryfall_oracle_id": "3e765710-e567-4af0-b5f5-7c182649b757",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 2
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever ~ becomes blocked, it deals 1 damage to each creature blocking it.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "amount": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "target": {
+          "controller": null,
+          "properties": [],
+          "type": "Typed",
+          "type_filters": [
+           "Creature"
+          ]
+         },
+         "type": "DamageAll"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "BecomesBlocked",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 2.0,
+    "color_identity": [
+     "R"
+    ],
+    "colors": [
+     "R"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "legal",
+     "paupercommander": "legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}{R}",
+    "name": "Battle-Scarred Goblin",
+    "oracle_id": "3e765710-e567-4af0-b5f5-7c182649b757",
+    "oracle_text": "Whenever this creature becomes blocked, it deals 1 damage to each creature blocking it.",
+    "power": "2",
+    "toughness": "2",
+    "type_line": "Creature — Goblin Warrior"
+   }
+  },
   "Battlefield Improvisation": {
    "phase_records": [
     {
@@ -446342,6 +446512,184 @@
     "oracle_id": "e5f83bfc-ff74-4bb9-82c8-a07fedc6e916",
     "oracle_text": "Target Giant you control gets +2/+2 and gains trample until end of turn. Whenever it deals combat damage to a player this turn, exile that many cards from the top of your library. Until the end of your next turn, you may play those cards.",
     "type_line": "Sorcery"
+   }
+  },
+  "Fire Juggler": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Goblin",
+       "Shaman"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Red"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pauper": "legal",
+      "paupercommander": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 2,
+      "shards": [
+       "Red"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "f04d5eef-da88-496b-a902-b87b0b386f96"
+      ]
+     },
+     "name": "Fire Juggler",
+     "non_ability_text": null,
+     "oracle_text": "Whenever this creature becomes blocked, clash with an opponent. If you win, this creature deals 4 damage to each creature blocking it. (Each clashing player reveals the top card of their library, then puts that card on their choice of the top or bottom. A player wins if their card had a greater mana value.)",
+     "power": {
+      "type": "Fixed",
+      "value": 2
+     },
+     "printings": [
+      "MOR"
+     ],
+     "rarities": [
+      "common"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "dd1b4235-f053-4c46-8993-ae8d7860a0f3",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 2
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever ~ becomes blocked, clash with an opponent. If you win, ~ deals 4 damage to each creature blocking it.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "type": "Clash"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": {
+          "type": "EventOutcomeWon"
+         },
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "amount": {
+           "type": "Fixed",
+           "value": 4
+          },
+          "target": {
+           "controller": null,
+           "properties": [],
+           "type": "Typed",
+           "type_filters": [
+            "Creature"
+           ]
+          },
+          "type": "DamageAll"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": null,
+         "sub_link": "SequentialSibling",
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "mode": "BecomesBlocked",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 3.0,
+    "color_identity": [
+     "R"
+    ],
+    "colors": [
+     "R"
+    ],
+    "keywords": [
+     "Clash"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "legal",
+     "paupercommander": "legal",
+     "penny": "legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}{R}",
+    "name": "Fire Juggler",
+    "oracle_id": "dd1b4235-f053-4c46-8993-ae8d7860a0f3",
+    "oracle_text": "Whenever this creature becomes blocked, clash with an opponent. If you win, this creature deals 4 damage to each creature blocking it. (Each clashing player reveals the top card of their library, then puts that card on their choice of the top or bottom. A player wins if their card had a greater mana value.)",
+    "power": "2",
+    "toughness": "2",
+    "type_line": "Creature — Goblin Shaman"
    }
   },
   "Fire Lord Azula": {
