@@ -159,3 +159,14 @@ def test_the_carriers_own_evasion_keeps_the_commander_damage_read(name):
     """The floor's commander-damage fallback (CR 903.10a) is silenced only by
     another plan; the body's own evasion or combat keyword is none."""
     assert ("voltron_matters", "you", "carrier") in _idents(name)
+
+
+@pytest.mark.parametrize("name", ["Bake into a Pie", "Bill the Pony", "Gilded Goose"])
+def test_a_food_you_make_is_a_life_gain_source(name):
+    """A Food token is an artifact with "{2}, {T}, Sacrifice this token: You
+    gain 3 life" (CR 111.10b)."""
+    assert ("lifegain_makers", "you", "") in _idents(name)
+
+
+def test_a_treasure_maker_gains_no_life():
+    assert not _keyed("Smothering Tithe", "lifegain_makers")
