@@ -66,7 +66,7 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   way" lost (its return parses as every card in your graveyard; scores 0.49),
   six returns unparsed (Custodi Soulcaller, Venerable Warsinger, Liliana's
   Talent, All Hallow's Eve, Everquill Phoenix, Can't Stay Away: None), and
-  Necromancy's "as though it had flash" dropped. The tutor read's six hand-set
+  Necromancy's "as though it had flash" dropped. (drafted: `docs/plans/phase-upstream-reports.md` §3–§7, §23; "Already fixed") The tutor read's six hand-set
   weights were confirmed by Dan as set (2026-10-31, ADR-0062).
   **Phase parse gap, worked around locally (2026-10-31):** Disa the Restless's
   "Whenever a Lhurgoyf permanent card is put into your graveyard from anywhere
@@ -83,7 +83,7 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   {Subtype: Lhurgoyf}] + Owned You`. Note the grammar has no origin for 'from
   anywhere other than the battlefield' (origin null today means 'from anywhere',
   as on Countryside Crusher); an `origin: NotBattlefield` or an excluded-origin
-  field would let the clause be typed exactly."* Beside it, the crosswalk's
+  field would let the clause be typed exactly."* (drafted: `docs/plans/phase-upstream-reports.md` §1) Beside it, the crosswalk's
   `trigger_def_event` no longer reads every null-origin graveyard arrival as a
   death: 49 of the 61 null-origin `ChangesZone` → Graveyard triggers are "from
   anywhere" watchers (Gitrog, Titania, Sefris, Yuma), told from the 12 permanent
@@ -682,7 +682,7 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   `etb_value_x_recast_commander` (`pair_reads.py`) weights a scry-1 ETB like
   Shriekmaw now that `self_etb_payload` reads 4,333 cards; the `card-draw` preset
   is key-level, so Master of the Feast (opponents draw) stays in it. Phase gaps
-  to report upstream (Dan posts) — from Pass D: Frodo, Sauron's Bane's granted
+  to report upstream (Dan posts) (drafted: `docs/plans/phase-upstream-reports.md` §6, §12–§15, §19, §20, §23; "Already fixed"; "Not drafted") — from Pass D: Frodo, Sauron's Bane's granted
   trigger; Angel of Destiny and Nicol Bolas, Dragon-God's LoseTheGame player;
   Teferi, Temporal Pilgrim and Devastating Mastery's chooser stamped You; The
   Fall of Kroog and Radiating Lightning's "that player controls" stamped You;
@@ -718,7 +718,7 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   all `serve_idents` now, each with its remainder classified). Phase gaps,
   each bridged 2026-10-19 by the supplemental parser with a `retirement_canary`
   or a self-retiring ledger row (tests/mtg-utils/test_phase_gaps_*.py; report
-  upstream all the same, Dan posts): where-X keyword heads (Mask of the
+  upstream all the same, Dan posts) (drafted: `docs/plans/phase-upstream-reports.md` §7, §8, §9, §15, §19, §22, App. A): where-X keyword heads (Mask of the
   Schemer's connive X, Thromok's devour X, Fall of Cair Andros's amass X,
   Officious Interrogation's investigate X — the `_where_x_head` recovery,
   scoped to connive / amass / investigate; opening it to every allowlisted verb
@@ -844,7 +844,7 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
 
 - **Phase gaps behind the closer, alternative-cost and mass-land-denial reads**
   (found moving `_tuner/` and `deck_stats` onto the trees, phase v0.94.0; report
-  upstream, Dan posts). Each is a card the old regexes read and the trees don't:
+  upstream, Dan posts) (drafted: `docs/plans/phase-upstream-reports.md` §6, §9, §19, §22, App. A). Each is a card the old regexes read and the trees don't:
   - Reach: `unparsed_quantity` residues park "loses life / deals damage equal to …"
     (Within Range, Soulblast, Final Punishment, Mjölnir; ~28 such residues name
     damage or life loss). (Underbridge Warlock's boon, once a self loss, is a
@@ -867,13 +867,13 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
     four lands" is a residue
     and Global Ruin's sacrifice a tracked set (both ledger bridges).
 - **Phase gap behind the tuner's ramp sourcing** (found 2026-10-08, phase v0.94.0;
-  report upstream, Dan posts). Boxing Ring's "Activate only if you control a
+  report upstream, Dan posts) (drafted: `docs/plans/phase-upstream-reports.md` §10). Boxing Ring's "Activate only if you control a
   creature that fought this turn" is an `unparsed_condition` residue, not an
   activation restriction — the only legal card whose mana or Treasure ability is
   gated that way (`reads.UNPARSED_ACTIVATION_GATE`,
   `test_boxing_ring_gate_is_still_a_residue_canary`).
 - **Phase misparses behind cut-check reads** (found 2026-10-08; report upstream,
-  Dan posts). Each has a canary: Glorfindel, Dauntless Rescuer's "can't be blocked
+  Dan posts) (drafted: `docs/plans/phase-upstream-reports.md` §14, §16, §17). Each has a canary: Glorfindel, Dauntless Rescuer's "can't be blocked
   by more than one creature each combat" parses as `CantBeBlockedBy` a typeless
   filter (`test_glorfindel_blocking_limit_misparse_canary`); Wyll's Reversal loses
   "with one or more targets", so it reads as a commander-spell copy
@@ -887,7 +887,7 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   Lecture's earthbend return binds to the Food token (`LastCreated`) instead of the
   land (`test_earthbend_last_created_binding_canary`).
 - **Phase misparses behind the granted death-payoff read** (found 2026-10-25,
-  phase v0.104.0; report upstream, Dan posts). Mathas, Fiend Seeker's granted "When
+  phase v0.104.0; report upstream, Dan posts) (drafted: `docs/plans/phase-upstream-reports.md` "Already fixed"). Mathas, Fiend Seeker's granted "When
   this creature dies, each opponent draws a card and gains 2 life" parses as `Draw`
   with target `Controller` (the dying creature's controller, not each of their
   opponents). No ledger row or canary: `death_matters`' granted arm
@@ -895,7 +895,7 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   to a creature an opponent controls, whose death pays that opponent's trigger
   (CR 603.3a), so the misparse moves no read.
 - **Phase misparses behind the "Self-recurring fodder" serve** (found 2026-10-09,
-  phase v0.104.0; report upstream, Dan posts). The serve reads the card's graveyard
+  phase v0.104.0; report upstream, Dan posts) (drafted: `docs/plans/phase-upstream-reports.md` §3, §6, §16). The serve reads the card's graveyard
   return routes (`card_advantage.comes_back_from_graveyard`); three legal creatures
   the old regex served stay out because
   phase loses "this card": Sproutback Trudge's and Syrix, Carrier of the Flame's "you
@@ -912,7 +912,7 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
 **From the twohg-guide skill (2026-09-27)**
 
 - **Phase drops the player behind edicts** (found 2026-10-09, phase v0.104.0;
-  report upstream, Dan posts). Each is read with a workaround that retires itself:
+  report upstream, Dan posts) (drafted: `docs/plans/phase-upstream-reports.md` §12b). Each is read with a workaround that retires itself:
   a chained "…, then sacrifices" loses its subject (Undercity Plague, Priest of
   Forgotten Gods, Din of the Fireherd's land half, Nicol Bolas, Planeswalker's −9 —
   `test_chained_sacrifice_actor_dropped_canary`); "each opponent [who …]
@@ -936,7 +936,7 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
 
 - **Phase misparses behind the branch-misread registry** (`_card_ir.branches.
   BRANCH_MISREADS`, each row with its `retirement_canary`; report upstream, Dan
-  posts). Fraying Line's "that player may pay {2}" is a `PayCost` with `payer:
+  posts) (drafted: `docs/plans/phase-upstream-reports.md` §12c). Fraying Line's "that player may pay {2}" is a `PayCost` with `payer:
   Controller`, so its "Otherwise" branch reads as yours (pruned from the certain
   records: LOW). (Osseous Sticktwister's phantom discard choice and Spitting Slug's
   dropped blocking-or-blocked narrowing are fixed at v0.118.0; their rows retired.)
@@ -954,7 +954,7 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   Recovery reads the parked verbs (`recovery.ALLOWLIST`), each instruction of a
   compound clause and a granted body's residue (nine rows retired that way,
   2026-10-09); the remaining v0.104.0 ledger rows are parked conditions and verbs the
-  grammar doesn't tag. Report upstream by residue class, not per card.
+  grammar doesn't tag. Report upstream by residue class, not per card. (drafted: `docs/plans/phase-upstream-reports.md` §21, App. A1)
 - **Lane-side reads of recovered clause text remain** beside the seam's marks:
   `damage_for_each`'s `_DFE_RECOVERED_RX`, `named_counter_misc`'s
   `_RECOVERED_POWER_TAP_RE`, `_recovered_power_damage`, `creatures_matter`'s
@@ -965,7 +965,7 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
 
 **From the phase v0.118.0 bump (2026-10-30)**
 
-- **Phase misparses new at v0.118.0** (report upstream by shape, Dan posts):
+- **Phase misparses new at v0.118.0** (report upstream by shape, Dan posts) (drafted: `docs/plans/phase-upstream-reports.md` §9, §14, §18, App. A):
   - *Subject peeled from a parked clause.* "Target player discards a card for each
     creature it devoured" (Tar Fiend) parks as `unparsed_quantity` "discard a card
     for each …"; likewise Whispering Specter, Doom Foretold, Brain Pry, Cabal
@@ -1042,7 +1042,7 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
 **From the keyword tribe's dropped keywords (2026-10-26, phase v0.104.0)**
 
 - **Phase drops a keyword from a body it otherwise types** (report upstream by
-  shape, Dan posts). Each is read in our correction layer
+  shape, Dan posts) (drafted: `docs/plans/phase-upstream-reports.md` §15). Each is read in our correction layer
   (``_card_ir.dropped_keywords`` before strict load, the recovery stage's
   ``ConceptNode.body_keywords``), with a ``retirement_canary`` in
   ``test_phase_gaps_keywords.py``, or by a ``keyword_bodies`` ledger row:
