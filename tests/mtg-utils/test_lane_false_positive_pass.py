@@ -94,3 +94,30 @@ def test_discarding_down_to_the_fewest_hand_is_no_outlet(name):
 
 def test_a_wheel_stays_a_discard_outlet():
     assert ("discard_outlet", "you", "") in _idents("Wheel of Fortune")
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        # "Only your opponents may activate this ability": "Gain control of this
+        # creature" is the activating opponent's (CR 109.5)
+        "Oft-Nabbed Goat",
+        # "Put target card you don't own in exile … on the bottom of its
+        # owner's library": the "don't own" names the card it hoses
+        "Sentinel of Lost Lore",
+    ],
+)
+def test_no_theft_where_no_card_is_stolen(name):
+    assert not _keyed(name, "gain_control")
+
+
+@pytest.mark.parametrize(
+    ("name", "ident"),
+    [
+        ("Control Magic", ("gain_control", "you", "")),
+        # "Whenever you cast a spell you don't own": the don't-own payoff tell
+        ("Tasha, the Witch Queen", ("gain_control", "you", "")),
+    ],
+)
+def test_theft_stays(name, ident):
+    assert ident in _idents(name)
