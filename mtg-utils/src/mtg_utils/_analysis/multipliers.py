@@ -509,11 +509,22 @@ def grant_abilities(card: Mapping, grant: ZoneGrant) -> list[str] | None:
     return ability_texts(trees_for(dict(card)), include_mana=True)
 
 
+#: (commander name, card oracle_id or name) → :func:`multiplier_reasons`. The
+#: commander-need predicate asks the same card thousands of times a tune (every
+#: page's candidates, a need's pool share, each ``commander_needs`` call its own
+#: ``Commander``), so the walk runs once per card and commander a process.
+_REASONS_MEMO: dict[tuple[str, str], list[Multiplication]] = {}
+
+
 def multiplier_reasons(card: Mapping, cmd: Commander) -> list[Multiplication]:
     """Every way ``card`` multiplies the commander, one per ability (empty when it
     doesn't, and for the commander itself) — cut-check reports these by family."""
     if not card.get("name") or card.get("name") == cmd.name:
         return []
+    key = (cmd.name, str(card.get("oracle_id") or card.get("name")))
+    hit = _REASONS_MEMO.get(key)
+    if hit is not None:
+        return list(hit)
     out = _reasons(trees_for(dict(card)), cmd)
     if cmd.grant is not None:
         abilities = grant_abilities(card, cmd.grant)
@@ -526,6 +537,7 @@ def multiplier_reasons(card: Mapping, cmd: Commander) -> list[Multiplication]:
                     f"{cmd.grant.zone}",
                 )
             )
+    _REASONS_MEMO[key] = list(out)
     return out
 
 
