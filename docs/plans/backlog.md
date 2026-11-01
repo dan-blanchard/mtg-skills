@@ -437,6 +437,7 @@ ETB doublers), ~45 scattered one to seven a deck. Gate unchanged (held-out 20: p
   condition?}]` our instant-speed read never opens (Crashing Tide, Graveyard Shift,
   Mutual Destruction, Take for a Ride, Necromancy; the ledger row
   `conditional_self_flash_dropped` should read it and retire).
+  Triage pass done (2026-11-01): verdicts in `docs/plans/precon-audit/triage-2026-11-01.md`.
 - **A fresh validation set** of 10 never-used precon families (≥ 2 guides, any year,
   the held-out method) under `~/mtg/tuner-work/fresh/root`, scored at N11 (295 / 130
   of 193 / 38 of 386 / plan 119; `w41/sb-fresh-N11.json`); scored once more at block
