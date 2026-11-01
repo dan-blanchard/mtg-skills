@@ -5,6 +5,7 @@ crosswalk_signals.py)."""
 from __future__ import annotations
 
 import re
+from collections.abc import Iterator
 from itertools import chain
 
 from mtg_utils._analysis._subtypes import (
@@ -84,6 +85,7 @@ from mtg_utils._card_ir.crosswalk import (
     tag_of,
     targets_the_card,
     token_creator_side,
+    trigger_def_unit,
     trigger_scope,
     trigger_subject,
     trigger_subject_scope,
@@ -1854,6 +1856,51 @@ def _lifeloss_matters(tree: ConceptTree) -> list[Signal]:
     return [Signal("lifeloss_matters", sc, "", "", tree.name, "high") for sc in scopes]
 
 
+def _edict_units(tree: ConceptTree) -> Iterator[AbilityUnit]:
+    """The card's units, then each trigger one of them grants or puts on an
+    emblem as a unit of its own (:func:`trigger_def_unit`): "has 'Whenever
+    this creature deals combat damage to a player, that player sacrifices a
+    creature of their choice'" (Demon of Wailing Agonies), an emblem's "At the
+    beginning of each opponent's upkeep, that player sacrifices a creature"
+    (Sorin, Solemn Visitor). A granted "sacrifice a creature" names no
+    controller, so it stays its grantee controller's own sacrifice."""
+    for unit in tree.units:
+        yield unit
+        for trig in iter_nested_trigger_defs(unit.node):
+            yield trigger_def_unit(trig)
+
+
+#: A chosen target's controller that is another player: no controller (any
+#: player's — "two target creatures controlled by the same player") or an
+#: opponent's. Yours, or a trigger's "that player chooses" (``ScopedPlayer`` —
+#: Archfiend of Depravity's keep-N), is keep_n_wrath's or your own.
+_TARGETED_SET_OTHER_CONTROLLERS: frozenset[str | None] = frozenset(
+    {None, "Opponent", "TargetPlayer", "TargetOpponent"}
+)
+
+
+def _targeted_set_edict(unit: AbilityUnit, node: TypedMirrorNode) -> str | None:
+    """``"opponents"`` when a ``Sacrifice`` of the ``TrackedSet`` follows straight
+    on a ``TargetOnly`` of creatures another player controls — "Choose two target
+    creatures controlled by the same player. That player sacrifices one of them
+    of their choice" (Incriminate): the targets' controller makes the fresh
+    sacrifice choice among them (CR 701.21a), the political dodge an edict is.
+    Any other tracked set is a keep-N's kept set or your own (``None``)."""
+    prev = None
+    for c in unit.effects:
+        if c.node is node:
+            break
+        prev = c
+    if prev is None or tag_of(prev.node) != "TargetOnly":
+        return None
+    target = getattr(prev.node, "target", None)
+    if "Creature" not in filter_core_types(target):
+        return None
+    if filter_controller(target) not in _TARGETED_SET_OTHER_CONTROLLERS:
+        return None
+    return "opponents"
+
+
 def _edict_makers(tree: ConceptTree) -> list[Signal]:
     """edict_makers — a FORCED player sacrifice (CR 701.21a / 800.4a). The INVERSE of
     the ``sacrifice_outlets`` you-sac gate. Two structural tells, each reading the
@@ -1882,7 +1929,7 @@ def _edict_makers(tree: ConceptTree) -> list[Signal]:
             seen.add(scope)
             out.append(Signal("edict_makers", scope, "", raw, tree.name, "high"))
 
-    for unit in tree.units:
+    for unit in _edict_units(tree):
         for c in unit.effects:
             if c.concept != "sacrifice":
                 continue
@@ -1890,8 +1937,11 @@ def _edict_makers(tree: ConceptTree) -> list[Signal]:
             # back-reference to permanents ALREADY chosen upstream ("choose
             # N, sacrifice the rest" — Single Combat) — never the fresh
             # CR 701.21a sacrifice choice an edict forces. keep_n_wrath owns
-            # the shape; firing edict_makers here poisoned both reads.
+            # the shape; firing edict_makers here poisoned both reads. The one
+            # exception is a sacrifice among the targets the spell just chose
+            # (:func:`_targeted_set_edict`).
             if tag_of(getattr(c.node, "target", None)) == "TrackedSet":
+                fire(_targeted_set_edict(unit, c.node), c.raw)
                 continue
             scope = sacrifice_actor_scope(unit, c.node)
             fire(scope, c.raw)

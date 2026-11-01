@@ -5435,6 +5435,22 @@ def _freerunning_return_parked(tree: ConceptTree) -> bool:
     return _says(_FREERUNNING_RETURN_RX, tree.residues("unrecognized_clause_head"))
 
 
+# Malik, Grim Manipulator's "you and target opponent each secretly choose a
+# creature that player controls. Then those choices are revealed, and that
+# player sacrifices those creatures": phase v0.118.0 parks the choice as an
+# ``unrecognized_clause_head`` residue, so the ``Sacrifice`` of the chosen set
+# names no player — though the targeted opponent is who sacrifices (CR 701.21a:
+# a player sacrifices only a permanent they control).
+_SECRET_CHOICE_EDICT_RX = re.compile(
+    r"\btarget opponent each secretly choose an? creature that player controls\b",
+    re.IGNORECASE,
+)
+
+
+def _secret_choice_edict_parked(tree: ConceptTree) -> bool:
+    return _says(_SECRET_CHOICE_EDICT_RX, tree.residues("unrecognized_clause_head"))
+
+
 # Goreclaw's "Creature spells you cast with power 4 or greater cost {2} less"
 # parses as a ModifyCost with no spell filter: the creature class is lost.
 _CREATURE_SPELL_DISCOUNT_RX = re.compile(
@@ -5672,6 +5688,26 @@ BRIDGES.update(
                 gap=_freerunning_return_parked,
                 match=_freerunning_return_parked,
                 subject="replay",
+            ),
+            Bridge(
+                bridge_id="secret_choice_edict_parse_failure",
+                key="edict_makers",
+                kind="upstream_parse_failure",
+                todo=(
+                    "upstream phase-rs report candidate (Dan posts): Malik, Grim "
+                    "Manipulator's 'you and target opponent each secretly choose "
+                    "a creature that player controls' parks as "
+                    "unrecognized_clause_head, so the Sacrifice of the chosen set "
+                    "names no player; retires on the bump that types the choice"
+                ),
+                census=(
+                    "1 hit / the legal corpus (Malik, Grim Manipulator), MTGJSON "
+                    "@ phase v0.118.0, 2026-10-31"
+                ),
+                pins=("Malik, Grim Manipulator",),
+                gap=_secret_choice_edict_parked,
+                match=_secret_choice_edict_parked,
+                scope="opponents",
             ),
             Bridge(
                 bridge_id="creature_spell_discount_filter_dropped",

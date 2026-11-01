@@ -1554,6 +1554,28 @@ def _dropped_keyword_costs(
     return rows, curve
 
 
+def trigger_def_unit(trig: TypedMirrorNode, index: int = -1) -> AbilityUnit:
+    """The :class:`AbilityUnit` of one trigger definition: a card's own
+    ``triggers`` entry, or a trigger it grants or puts on an emblem
+    (``reads.iter_nested_trigger_defs`` — CR 113.1a: "Abilities can also be
+    granted to objects by rules or effects"), so a lane reads a granted
+    trigger through the same unit-context reads (its owning wrapper, its turn
+    constraint) as a printed one. ``index`` is -1 for a granted trigger: it is
+    no entry of the card's own list."""
+    execute = getattr(trig, "execute", MISSING)
+    typed = isinstance(execute, TypedMirrorNode)
+    return AbilityUnit(
+        origin="trigger",
+        index=index,
+        node=trig,
+        kind=getattr(execute, "kind", None) if typed else None,
+        trigger_event=trigger_def_event(trig),
+        effects=tuple(walk_effect_chain(execute, trigger=trig)) if typed else (),
+        costs=(),
+        statics=_nested_static_concepts(execute) if typed else (),
+    )
+
+
 def build_concept_tree(
     root: TypedMirrorNode, *, name: str = "", oracle_id: str = ""
 ) -> ConceptTree:
@@ -1837,30 +1859,8 @@ def build_concept_tree(
 
     triggers = getattr(root, "triggers", ()) or ()
     for i, trig in enumerate(triggers):
-        if not isinstance(trig, TypedMirrorNode):
-            continue
-        execute = getattr(trig, "execute", MISSING)
-        effects = (
-            tuple(walk_effect_chain(execute, trigger=trig))
-            if isinstance(execute, TypedMirrorNode)
-            else ()
-        )
-        units.append(
-            AbilityUnit(
-                origin="trigger",
-                index=i,
-                node=trig,
-                kind=getattr(execute, "kind", None)
-                if isinstance(execute, TypedMirrorNode)
-                else None,
-                trigger_event=trigger_def_event(trig),
-                effects=effects,
-                costs=(),
-                statics=_nested_static_concepts(execute)
-                if isinstance(execute, TypedMirrorNode)
-                else (),
-            )
-        )
+        if isinstance(trig, TypedMirrorNode):
+            units.append(trigger_def_unit(trig, i))
 
     statics = getattr(root, "static_abilities", ()) or ()
     for i, st in enumerate(statics):
