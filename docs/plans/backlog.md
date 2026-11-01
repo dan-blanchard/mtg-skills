@@ -322,9 +322,11 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   every sub-avenue made only of a held doer's payoff keys (114, held-out 33). 4c,
   the commander's own non-viable lanes sharing the theme adds off its exact-ident
   page, differs from (r)'s rule in page and purse and still fails: 112 adds, or
-  116 held to one lane per deck but held-out 34. Found on the way, not fixed:
-  phase reads Parallel Lives as doubling every token (it doubles creature tokens
-  only), so `crosswalk.token_doubler_kinds` can't keep it from a Clue commander.
+  116 held to one lane per deck but held-out 34. (A note here once said phase
+  misreads Parallel Lives as doubling every token; it does — "If an effect would
+  create one or more tokens under your control, it creates twice that many",
+  checked 2026-10-31 — so `crosswalk.token_doubler_kinds` is right to keep it
+  under a Clue commander.)
   (v) **A polymorph's flip targets skip the mana-value band — don't
   re-suggest without a new order** (2026-10-30; patch
   `~/mtg/tuner-work/w26/flip-band.patch`, runs in `~/mtg/tuner-work/w36/`).
@@ -812,24 +814,6 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   below the 150-card play-rate page, which is lever (r). Arena Rector, Changeling
   Outcast and Conspiracy are on a page now and get outranked. A subject's serve
   for the land-type and Artifacts avenues was not tried.
-- **Measured negative, so don't re-suggest without a new read: a commander
-  ability-multiplier page** (2026-10-30). This is a `commander_keeps`-style issue
-  for the ability copiers and trigger doublers that `multiplier_reasons` says
-  reach the commander. It added the guides' Strionic Resonator (Eldrazi Unbound)
-  and Weaver of Harmony (Enduring Enchantments), and cost four held-out guide adds
-  (34 → 31 with it, 35 without). Its one swap takes the first upgrade cut, so
-  World Shaper's theme upgrades shift down a slot and Tannuk, Valakut Exploration
-  and World Shaper fall off the end. Strionic Resonator, Lithoform Engine and
-  Illusionist's Bracers stay unpaged, though `commander_multipliers` protects
-  them once they're in a deck. Ceiling re-measured 2026-10-31 with
-  `multipliers.multiplier_reasons` over every in-scope guide add: 27 of the
-  held-out 807 and 18 of the design 25's 793 multiply the commander (Roaming
-  Throne ×4, Reflections of Littjara ×2, Molten Echoes ×2, Strionic Resonator ×2,
-  Lithoform Engine ×2, Panharmonicon, clones and token copiers), 40 of them on
-  some page and outranked or band-gated. A need-page route can't reach them (a
-  deck's multipliers are protected cuts, so nothing routes to the page); the new
-  read this entry asks for would have to find them a slot that is not the first
-  upgrade cut.
 
 **From the Fynn, the Fangbearer real-deck validation (2026-10-29; `real-deck-validation.md`)**
 
@@ -1182,6 +1166,16 @@ headroom and parked items.
 
 ## Settled: don't re-suggest
 
+- **The commander's multipliers are a need, not a page** (2026-10-31). The
+  ability-multiplier PAGE was measured negative 2026-10-30 (its one swap took the
+  first upgrade cut: held-out adds 35 → 31). The read that replaced it: a
+  "multipliers of the commander" need (`commander_need._multiplier_need`, a
+  predicate over `multipliers.multiplier_reasons`' `copy` and `ability` families),
+  shipped in N5. The need routes a cut to its own page and gives the E1 near tie
+  its reason, so Strionic Resonator, Lithoform Engine and Illusionist's Bracers
+  are paged now (Ahoy Mateys' need page holds 141 cards; they sit outranked, as
+  the guides' theft adds do there). Ceiling 27 of 807 held-out guide adds. Don't
+  re-suggest the page.
 - **Sub-theme pages — don't re-suggest without a new read** (2026-10-31, S-A,
   the audit's "Sub-theme pages"). Every built sub and emerging lane sharing the
   theme adds by depth lost the 25 24 adds / plan −45 and the held-out 20 14 adds /
