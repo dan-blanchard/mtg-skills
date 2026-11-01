@@ -617,8 +617,7 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   any number of X cards"; Dan Lewis's AddSubtype Equipment and Equipment
   affinity. Left from the lane pass:
   `etb_value_x_recast_commander` (`pair_reads.py`) weights a scry-1 ETB like
-  Shriekmaw now that `self_etb_payload` reads 4,333 cards; the `card-draw` preset
-  is key-level, so Master of the Feast (opponents draw) stays in it. Phase gaps
+  Shriekmaw now that `self_etb_payload` reads 4,333 cards. Phase gaps
   to report upstream (Dan posts) (drafted: `docs/plans/phase-upstream-reports.md` §6, §12–§15, §19, §20, §23; "Already fixed"; "Not drafted") — from Pass D: Frodo, Sauron's Bane's granted
   trigger;
   Teferi, Temporal Pilgrim and Devastating Mastery's chooser stamped You; The
