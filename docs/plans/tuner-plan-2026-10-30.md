@@ -152,6 +152,11 @@ miss taxonomy, the held-out candidates).
   (`w41/sb-*-N5.json`). Two standalone bugs went first (`scryfall-lookup
   --batch` survives a 503; `legality-audit` fails a card that can't be a
   commander, CR 903.3).
+- 2026-10-31, late night, S-A (sub and emerging lanes share the theme adds)
+  against N5: the 25 adds −24 / plan −45, held-out adds −14 / plan −12 — the
+  generic subs' pages take the adds, and Ahoy Mateys' theft lane isn't built
+  even at the emerging tier, so the motivating case never opens. Reverted;
+  settled (the audit's "Sub-theme pages").
 
 ## Target
 
