@@ -175,17 +175,12 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
 
 **From the Fynn, the Fangbearer real-deck validation (2026-10-29; `real-deck-validation.md`)**
 
-- **`damage_equal_power|you|creature` still carries cards that aren't bites.**
-  Repentance and Solar Blaze (a creature damages itself), Mutiny (an opponent's
-  creature deals the damage), and Corpse Explosion and Dead Reckoning (the spell
-  deals the damage) all serve the "Power-as-damage payoffs" page. Mage Slayer
-  reads as `creature` too, though it hits the player or planeswalker being
-  attacked. The new `bite` subject leaves all of these out. The page could read
-  `bite` where it means a creature's own power.
-- **`is_bite` skips triggering and batch dealers**, by construction:
-  "it deals damage equal to its power" off a trigger, or Moonlight Hunt's "each
-  creature you control". The read can't say whose creature those are, so they
-  aren't deathtouch-lane members.
+- **Phase drops a bite's own target** (report upstream, Dan posts): Spirit
+  Flare's "it deals damage equal to its power to target attacking or blocking
+  creature an opponent controls", Crush Underfoot's "to target creature" and
+  Thorin, Mountain-king's "to up to one target creature" parse as a
+  `DealDamage` to `ParentTarget`, the dealer itself, so none reads as a bite
+  (`crosswalk.is_bite`) or as power damage of yours.
 - **The deathtouch lane serves every fight, whoever fights.** `fight_makers`
   doesn't record whose creatures fight. Dissension in the Ranks (two blocking
   creatures) counts the same as Prey Upon.
@@ -1092,6 +1087,23 @@ headroom and parked items.
   inside the kept lane's members cost 6 (711 / 323 / 114). The guides cut a
   folded lane's doers: Quick Draw's spell copies and top-deck selection,
   Sultai Arisen's self-mill. No Fynn run cuts Infectious Bite.
+- **The "Power-as-damage payoffs" page doesn't read `bite` alone — don't
+  re-suggest** (2026-11-01, Fynn validation follow-up). The page turns your big
+  creature's power into damage, and the spell is often the dealer: Tiger-Tribe
+  Hunter's sacrificed creature, Monstrous Emergence's chosen or revealed one,
+  Bloodfire Infusion, Bouncer's Beatdown's greatest power, Foray of Orcs' Army.
+  Read through `bite` the page lost 43 cards, about fifteen of them those. The
+  lane's `creature` subject now carries only power a creature of yours sizes
+  (`crosswalk.power_is_yours`: 183 → 160 cards; Repentance, Solar Blaze, Mutiny,
+  Alpha Brawl, Dead Reckoning, Lie in Wait and the self-damage spells leave), and
+  the page keeps `damage_equal_power|you|*`. Corpse Explosion stays: a creature
+  card of yours, exiled as its cost, sizes it. Left out by the read's own call:
+  an attached dealer (Lothlórien Blade's equipped creature, whose controller no
+  filter names) and Too Greedily, Too Deep's creature returned "under your
+  control". `is_bite` reads a triggering dealer off the trigger's watched
+  creature (Halana, Kessig Ranger) and a batch's off its sources (Moonlight
+  Hunt, Kamahl's Will, Bartz and Boko, Nissa's Judgment, Signature Slam, The
+  Bears of Littjara, Judgment of Alexander): `bite` 128 → 136.
 - **A spell's casting-cost discard is a discard outlet** (Dan, 2026-10-10). The
   optional keyword costs count: escalate (Collective Brutality, CR 702.120a),
   buyback (Forbid, Demonic Collusion, CR 702.27a), flashback (Conflagrate, Twinned

@@ -1324,6 +1324,7 @@ def test_subject_spec_serve_matches_subject_reference():
         ("Rocky Rebuke", True),  # a bite: your creature deals its power
         ("Sylvan Smite", True),  # "that creature" after a counter
         ("Band Together", True),  # two creatures of yours each bite
+        ("Moonlight Hunt", True),  # each creature you control bites
         ("Prey Upon", True),  # a fight (CR 701.14a)
         ("Meltstrider's Resolve", True),  # a fight Aura
         ("Repentance", False),  # the creature hits itself
