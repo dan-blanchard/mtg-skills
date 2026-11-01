@@ -47,6 +47,7 @@ from mtg_utils._card_ir.crosswalk import (
     cast_keyword_type_words,
     change_zone_dirs,
     controller_paid_cost_leaves,
+    count_down_to_fewest,
     count_operand_filter,
     counter_kind,
     discard_is_random,
@@ -979,6 +980,12 @@ def _discard_outlet(tree: ConceptTree) -> list[Signal]:
         for c in unit.effect_concepts("discard"):
             if discard_is_random(c.node) or c.node is opp_bound:
                 continue
+            # "Players discard cards … the same way" (Balance, Restore
+            # Balance): each player discards down to the smallest hand, so
+            # whoever holds the fewest discards nothing — an equaliser, not a
+            # discard you size (:func:`crosswalk.count_down_to_fewest`).
+            if count_down_to_fewest(c.node):
+                continue
             if discard_recipient_scope(c.node) not in ("you", "each", None):
                 continue
             owner = effect_owner_player_scope(getattr(unit, "node", None), c.node)
@@ -1008,7 +1015,7 @@ def _discard_outlet(tree: ConceptTree) -> list[Signal]:
         # read once.
         merged = (c.node for c in unit.costs if c.concept == "discard")
         for n in {id(n): n for n in (*walked, *merged)}.values():
-            if discard_is_random(n) or n is opp_bound:
+            if discard_is_random(n) or n is opp_bound or count_down_to_fewest(n):
                 continue
             # A ``self_ref`` COST leaf ("Discard THIS card:") is Cycling /
             # Eternalize / Unearth-style alt-cost fodder, not an outlet —

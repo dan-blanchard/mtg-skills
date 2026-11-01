@@ -2313,6 +2313,33 @@ def discard_is_random(node: object) -> bool:
     return getattr(node, "random", False) is True
 
 
+def count_down_to_fewest(node: object) -> bool:
+    """Whether an effect's ``count`` is "as many as you have beyond the player
+    with the fewest" — a ``Difference`` whose subtrahend is a ``Min`` over the
+    players ("Players discard cards … the same way" — Balance, Restore Balance:
+    each player discards down to the smallest hand). Whoever holds the fewest
+    loses nothing, so it is an equaliser, not an effect a player sizes."""
+    count = getattr(node, "count", None)
+    if tag_of(count) != "Difference":
+        return False
+    return any(
+        getattr(n, "aggregate", None) == "Min"
+        for n in _iter_typed_nodes(getattr(count, "right", None))
+    )
+
+
+def event_source_side(trig: object) -> ControllerSide | None:
+    """The side controlling the spell or ability whose event a trigger watches
+    — phase's ``EventSourceControlledBy`` constraint ("When a spell or ability
+    an opponent controls causes you to discard this card" — Guerrilla Tactics,
+    Psychic Purge; its ruling: discarding as a cost won't trigger it, only an
+    effect an opponent controls) — or ``None`` when the trigger names none."""
+    constraint = getattr(trig, "constraint", None)
+    if tag_of(constraint) != "EventSourceControlledBy":
+        return None
+    return controller_side(getattr(constraint, "controller", None))
+
+
 def discard_recipient_scope(node: TypedMirrorNode) -> str | None:
     """The DIRECTION of a ``Discard`` effect (who discards) from its recipient node.
 
