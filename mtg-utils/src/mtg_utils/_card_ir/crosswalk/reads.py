@@ -408,9 +408,13 @@ def scoped_player_scope(unit: AbilityUnit | None) -> str | None:
     Smokestack — "each player's upkeep, that player sacrifices") → each, a
     SYMMETRIC self-inclusive effect that hits YOU too; ``OnlyDuringYourTurn`` (a
     "your upkeep, you sacrifice" self-sac) → ``None``. A non-trigger ScopedPlayer
-    keeps the opponent default.
+    keeps the opponent default. The player a creature of yours dealt combat damage
+    to is an opponent (:func:`combat_damage_hits_opponent` — Demon of Loathing's
+    "that player sacrifices a creature of their choice").
     """
     if unit is None or getattr(unit, "origin", None) != "trigger":
+        return "opponents"
+    if combat_damage_hits_opponent(unit.node):
         return "opponents"
     c = trigger_turn_constraint(unit.node)
     if c == "OnlyDuringOpponentsTurn":
@@ -4626,6 +4630,27 @@ def is_creature_etb_trigger_def(trig: object) -> bool:
     if trigger_def_event(trig) not in ENTERS_EVENTS:
         return False
     return "Creature" in filter_core_types(getattr(trig, "valid_card", None))
+
+
+def combat_damage_hits_opponent(trig: object) -> bool:
+    """Whether a trigger DEFINITION fires on combat damage to a player from a
+    creature you control — the card itself, one of your creatures, or the
+    creature its Equipment or Aura is attached to (:func:`names_attached_object`,
+    the caster's own creature, as :func:`damage_to_player_trigger_kind`'s
+    callers read it). Only an attacking creature deals combat damage to a player
+    (CR 510.1c-d: a blocking creature assigns its damage to the creatures it
+    blocks), and it attacks one of its controller's opponents (CR 506.2, 802.2:
+    the attacking player's opponents are the defending players), so "that
+    player" is an opponent. A trigger on any player's creature ("whenever a
+    creature deals combat damage to a player") names no side."""
+    if damage_to_player_trigger_kind(trig) != "CombatOnly":
+        return False
+    src = getattr(trig, "valid_source", None)
+    return (
+        tag_of(src) == "SelfRef"
+        or filter_controller(src) == "You"
+        or names_attached_object(src)
+    )
 
 
 def damage_to_player_trigger_kind(trig: object) -> str | None:

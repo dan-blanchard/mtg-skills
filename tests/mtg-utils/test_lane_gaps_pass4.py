@@ -36,3 +36,21 @@ def _keyed(name: str, *keys: str) -> set[tuple[str, str, str]]:
 )
 def test_granted_sacrifice_is_the_holders_controllers(name, edicts):
     assert _keyed(name, "edict_makers") == edicts
+
+
+# ── "that player" after combat damage from your creature is an opponent ─────
+
+
+@pytest.mark.parametrize(
+    ("name", "edicts"),
+    [
+        # "Whenever ~ deals combat damage to a player, that player sacrifices a
+        # creature of their choice": it attacked an opponent (CR 506.2, 802.2).
+        ("Demon of Loathing", {("edict_makers", "opponents", "")}),
+        ("Wasitora, Nekoru Queen", {("edict_makers", "opponents", "")}),
+        # "… each player sacrifices a creature" stays every player's.
+        ("Rankle, Master of Pranks", {("edict_makers", "each", "")}),
+    ],
+)
+def test_combat_damaged_player_is_an_opponent(name, edicts):
+    assert _keyed(name, "edict_makers") == edicts
