@@ -313,6 +313,10 @@ miss taxonomy, the held-out candidates).
   **The second block is done (2026-11-01 11:30):** every item measured or built, every
   policy lost to the gate, the triage reads shipped, the Open section holds phase
   reports (now packaged as issue files) and the two non-tuner notes.
+  **Stacking (VT1, after the block):** V3b + the tutor need read together, the
+  one pair whose single-run plan deltas sum past the bar, lost on the adds floor
+  (held-out adds −16, plan +13 of which the tutor arm 77; `w41/sb-*-VT1.json`).
+  Main untouched.
 
 ## Target
 

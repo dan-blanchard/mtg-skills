@@ -3214,6 +3214,14 @@ What was measured and lost, every one against N12 under the plan-primary gate
 | multiplayer scaling feature SC (refit only) | quality LODO 0.712 → 0.710, strength 0.677 → 0.666, negative weights | | failed the refit; no gate run |
 | off-plan MV ≥ 6 cut R2 (`sb-*-R2`) | +1 / 0 / −2 / 0 | +1 / −1 / +2 | flat; settled |
 | ramp lead rule R1 (`sb-*-R1`) | +1 / 0 / −13 / −4 | −4 / −7 / −12 | failed |
+| V3b + tutor need read stacked, VT1 (`sb-*-VT1`, vs N16; Dan's ask after the block) | −16 / 0 / +13 (tutor arm alone +77) / −1 | −20 / +1 / +24 (arm +69) | failed; the losses compound |
+
+Stacking was tried once, after the block: the only pair whose single-run plan
+deltas sum past the bar is V3b (+9) and the tutor need read (+3). Together the
+held-out plan reads +13, but the tutor arm credits 77 of the 304 plan-consistent
+adds by definition, and guide adds fall by 16 against a floor of 5. The reorder
+lifts the tutors the need page admits above the guides' adds, so the pair loses
+more than either alone (−1 and −5). No other pair sums past +10.
 
 The commander compare against the nine guides that switch commanders
 (`w41/compare-commanders-eval.txt`): the guide's alternate ranks first in 1 of 9
