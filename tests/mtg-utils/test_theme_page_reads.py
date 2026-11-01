@@ -493,3 +493,36 @@ def test_stray_grant_subtype_canary():
         "still guards a card."
     )
     assert "subtype_ref|any|Flying" not in _idents("Will of the Temur")
+
+
+@pytest.mark.parametrize(
+    ("name", "words"),
+    [
+        ("Glacial Ray", ("Arcane",)),  # Arcane is a spell type (CR 205.3k)
+        ("Splicer's Skill", ("Instant", "Sorcery")),
+        ("Veil of Secrecy", ("Arcane",)),  # its splice cost phase folds in
+    ],
+)
+def test_splice_names_the_spells_it_splices_onto(name, words):
+    """ "Splice onto [quality]" (CR 702.47a): the quality's type words ride the
+    keyword's own types, as an affinity's do."""
+    (tree,) = trees_for(test_card(name))
+    assert ("Splice", words) in tree.card_keyword_types
+
+
+def test_a_splice_onto_arcane_card_is_on_the_arcane_page():
+    assert "subtype_ref|you|Arcane" in _idents("Glacial Ray")
+
+
+@pytest.mark.retirement_canary
+def test_splice_cost_in_quality_canary():
+    """Retirement canary for ``crosswalk.core._splice_quality``'s dash split: phase
+    v0.118.0 folds Veil of Secrecy's non-mana splice cost into the keyword's
+    quality ("Arcane—return a blue creature you control to its owner's hand")."""
+    (rec,) = test_phase_records("Veil of Secrecy")
+    (kw,) = [k for k in rec["keywords"] if isinstance(k, dict) and "Splice" in k]
+    assert "\u2014" in kw["Splice"]["subtype"], (
+        "Veil of Secrecy: RETIRE-READY — phase keeps the splice quality apart from "
+        "its cost. Drop the dash split in crosswalk.core._splice_quality and this "
+        "canary."
+    )
