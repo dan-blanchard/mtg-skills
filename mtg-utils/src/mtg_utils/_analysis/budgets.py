@@ -39,13 +39,10 @@ class BudgetRow:
 
     key: str
     label: str
-    #: (min, max); a ``None`` max is an OPEN ceiling — a floor-only row the tune
-    #: fills when short and never trims (recursion, tutors: a reanimator deck
-    #: runs eight recursion cards on purpose). Shown as "2+".
-    band: tuple[int, int | None]
+    band: tuple[int, int]
     roles: tuple[str, ...] = ()
     fills: Callable[[dict], bool] | None = None
-    shape_bands: Mapping[str, tuple[int, int | None]] = field(default_factory=dict)
+    shape_bands: Mapping[str, tuple[int, int]] = field(default_factory=dict)
     advisory: bool = False
 
     def counts(self, record: dict, roles: frozenset[str] | set[str]) -> bool:
@@ -81,7 +78,7 @@ class Template:
             return False
         return r.counts(record, roles if roles is not None else role_of(record))
 
-    def bands_for(self, shape: str | None) -> dict[str, tuple[int, int | None]]:
+    def bands_for(self, shape: str | None) -> dict[str, tuple[int, int]]:
         """The row→(min,max) bands for a Shape (or the flat bands when None)."""
         return {
             r.key: (r.shape_bands.get(shape, r.band) if shape else r.band)
@@ -135,14 +132,6 @@ COMMANDER_TEMPLATE = Template(
             roles=("board_wipe",),
             shape_bands={"control": (5, 7), "aggro": (1, 2), "combo": (2, 3)},
         ),
-        # The frameworks' two generic floors (Command Zone, Burgess, Tomer: "~2
-        # recursion; 1-2 tutors for the plan's key piece" — the 2026-10-30
-        # review's §6), decided 2026-10-31: floor-only rows, since a graveyard
-        # plan runs many more of either on purpose. ``recursion`` is every
-        # recursion kind (``roles.is_recursion``), ``tutor`` the nonland tutors
-        # (``roles.is_tutor``).
-        BudgetRow("recursion", "Recursion", (2, None), roles=("recursion",)),
-        BudgetRow("tutor", "Tutors", (1, None), roles=("tutor",)),
     ),
 )
 
@@ -264,9 +253,7 @@ def slot_budgets(
 
     ``deviation`` is 0 inside the band, negative when short of the floor, positive when
     over the ceiling. ``remaining`` is the gap up to the floor (0 once in band).
-    ``target`` is the band ceiling, kept for the existing Budgets-panel bar. A
-    floor-only row (an open ceiling: ``max`` is ``None``) is never over; its
-    ``target`` is its floor.
+    ``target`` is the band ceiling, kept for the existing Budgets-panel bar.
 
     ``land_band`` (floor, top) is the deck-specific "lands" row: ``mana_audit``'s
     ``land_band`` (ADR-0041), which every deck carries. It is REQUIRED, so this call
@@ -297,18 +284,18 @@ def slot_budgets(
             rmin, rmax = land_band  # already scaled to deck_size
         else:
             rmin = round(lo * scale)
-            rmax = None if hi is None else round(hi * scale)
+            rmax = round(hi * scale)
         have = current[row.key]
         if have < rmin:
             deviation = have - rmin
-        elif rmax is not None and have > rmax:
+        elif have > rmax:
             deviation = have - rmax
         else:
             deviation = 0
         out[row.key] = {
             "min": rmin,
             "max": rmax,
-            "target": rmin if rmax is None else rmax,
+            "target": rmax,
             "current": have,
             "remaining": max(0, rmin - have),
             "deviation": deviation,

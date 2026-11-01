@@ -970,8 +970,6 @@ def test_commander_scorecard_is_unchanged_by_the_family_switch():
         "card_draw",
         "interaction",
         "board_wipe",
-        "recursion",
-        "tutor",
     ]
     assert sc["focus"]["main_floor"] == 20
     assert sc["focus"]["sub_floor"] == 10
