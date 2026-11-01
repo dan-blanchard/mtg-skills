@@ -258,6 +258,27 @@ def _need(name: str, label: str) -> Need:
     return next(n for n in _needs(name) if n.label == label)
 
 
+def test_counter_payoffs_and_movers_consume_the_commanders_plus_one_counters():
+    # Captain America puts +1/+1 counters on your Heroes and itself: a keyword
+    # for each creature with a counter (Chocobo Knights; CR 122.1) and a mover
+    # that keeps the counters a creature had as it left (The Ozolith; CR 122.8)
+    # consume them, as a +1/+1 counter payoff does.
+    consumers = _need("Captain America, Team Leader", "plus one consumers")
+    assert satisfies(test_card("Chocobo Knights"), consumers)
+    assert satisfies(test_card("The Ozolith"), consumers)
+    assert satisfies(test_card("Bramblewood Paragon"), consumers)
+    assert not satisfies(test_card("Raise the Alarm"), consumers)
+
+
+def test_a_token_copy_commander_feeds_the_token_payoffs():
+    # Satya's attacking copy is a token (CR 111.1): a token payoff consumes it
+    # (Junk Winder's "Whenever a token you control enters"; Anointed Procession).
+    consumers = _need("Satya, Aetherflux Genius", "token copy consumers")
+    assert satisfies(test_card("Junk Winder"), consumers)
+    assert satisfies(test_card("Anointed Procession"), consumers)
+    assert not satisfies(test_card("Counterspell"), consumers)
+
+
 def test_a_parked_token_replacement_still_consumes_the_commanders_tokens():
     # Mirrormind Crown's "the first time you would create one or more tokens
     # each turn, you may instead create … copies of equipped creature" parks as
@@ -265,3 +286,17 @@ def test_a_parked_token_replacement_still_consumes_the_commanders_tokens():
     # ``tokens_matter``, so Rootha's Elemental tokens feed it.
     consumers = _need("Rootha, Mastering the Moment", "token maker consumers")
     assert satisfies(test_card("Mirrormind Crown"), consumers)
+
+
+def test_a_land_sacrifice_commander_wants_land_recursion_not_creature_fodder():
+    # Hearthhull sacrifices lands: a sacrificed land goes to your graveyard (CR
+    # 701.21a), whence Life from the Loam and Crucible of Worlds return it. Its
+    # "Whenever you sacrifice a land" asks for no creature fodder.
+    needs = _needs("Hearthhull, the Worldseed")
+    consumers = _need("Hearthhull, the Worldseed", "land sacrifice consumers")
+    assert satisfies(test_card("Life from the Loam"), consumers)
+    assert satisfies(test_card("Crucible of Worlds"), consumers)
+    assert "creatures that sacrificed" not in _labels(needs)
+    # Dina sacrifices creatures: her need keeps the token fodder.
+    dina = _need("Dina, Essence Brewer", "creatures that sacrificed")
+    assert "token_maker" in dina.keys

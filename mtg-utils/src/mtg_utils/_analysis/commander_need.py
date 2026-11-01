@@ -161,6 +161,27 @@ _COUNTER_GROWTH_KEYS: frozenset[str] = frozenset(
         "plus_one_matters",
     }
 )
+#: A doer key → the consumers ``metrics._cares_keys`` doesn't name, and the
+#: idents among them:
+#:
+#: * ``plus_one_makers``: the payoffs that read your creatures' counters (a
+#:   keyword for each creature with a counter — Chocobo Knights, Bramblewood
+#:   Paragon; CR 122.1) and the movers that keep the counters a creature had
+#:   when it leaves (The Ozolith, Resourceful Defense; CR 122.8).
+#: * ``token_copy_makers``: the token payoffs, since "create a token that's a
+#:   copy" puts a token onto the battlefield (CR 111.1 — Satya's attacker):
+#:   Junk Winder's "Whenever a token you control enters", Ojer Taq's tripling.
+#: * ``land_sacrifice_makers``: the cards that return lands from your graveyard,
+#:   where a sacrificed land goes (CR 701.21a) — Life from the Loam, Crucible of
+#:   Worlds, Ramunap Excavator (``permanent_recast|you|land``).
+_EXTRA_CONSUMER_KEYS: Mapping[str, frozenset[str]] = {
+    "plus_one_makers": frozenset({"counter_grants_kw", "counter_move"}),
+    "token_copy_makers": frozenset({"tokens_matter", "token_doubling"}),
+}
+_EXTRA_CONSUMER_IDENTS: Mapping[str, frozenset[str]] = {
+    "land_sacrifice_makers": frozenset({"permanent_recast|you|land"}),
+}
+
 #: Keys whose emitters make a creature of yours die or leave (fodder and the
 #: outlets that spend it) — what a dies / leaves / sacrificed trigger is fed by.
 _DEATH_FEED_KEYS: frozenset[str] = frozenset(
@@ -662,6 +683,12 @@ def _event_need(node: TypedMirrorNode, desc: str) -> Need | None:
             )
         return None
     if event in ("dies", "leaves", "sacrificed", "exploited"):
+        if "Land" in core:
+            # "Whenever you sacrifice a land" (Hearthhull, the Worldseed) is fed
+            # by land sacrifice, which the commander's own land-sacrifice idents
+            # page (``_payoff_needs``, ``_redundancy_needs``); never by creature
+            # fodder.
+            return None
         keys = set(_EVENT_MAKER_KEYS[event])
         if "Token" in preds:
             keys = set(_TYPE_TOKEN_KEYS["creature"]) | {"sacrifice_outlets"}
@@ -844,16 +871,18 @@ def _resource_needs(
         if key == TOKEN_MAKER or key.endswith("_makers"):
             consumers = {k for k in _cares_keys(key) if k != key}
             consumers -= _UMBRELLA_KEYS
+            consumers |= _EXTRA_CONSUMER_KEYS.get(key, frozenset())
             if key == TOKEN_MAKER:
                 consumers |= {"sacrifice_outlets", "death_matters"}
-            if not consumers or key in seen:
+            extra_idents = _EXTRA_CONSUMER_IDENTS.get(key, frozenset())
+            if not (consumers or extra_idents) or key in seen:
                 continue
             seen.add(key)
             idents_ = (
                 frozenset(f"type_matters|you|{kind}" for kind in token_kinds)
                 if key == TOKEN_MAKER
                 else frozenset()
-            )
+            ) | extra_idents
             yield Need(
                 "resource",
                 f"{key.replace('_makers', '').replace('_', ' ')} consumers",
