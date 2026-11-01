@@ -54,6 +54,7 @@ from mtg_utils._card_ir.crosswalk.reads import (
     _PAYLIFE_COST_TAGS,
     CURVE_COST_KEYWORDS,
     FLIP_COIN_TAGS,
+    GrantedTrigger,
     _effect_scope,
     _effect_subject,
     _filter_type_words,
@@ -699,10 +700,20 @@ class ConceptTree:
         your upkeep, draw a card'" (Avarice Amulet) reads like a printed upkeep
         trigger. An emblem's trigger is no grant: an ultimate's emblem fills no
         slot the card plays in (the tutor read's footing)."""
-        for unit in self.units:
+        for unit, _granted in self.iter_units_with_grants():
             yield unit
+
+    def iter_units_with_grants(
+        self,
+    ) -> Iterator[tuple[AbilityUnit, GrantedTrigger | None]]:
+        """:meth:`iter_units_and_granted_triggers`, each unit paired with the
+        :class:`GrantedTrigger` it was built from (``None`` for the card's own
+        unit), so a read can ask who holds a granted trigger: its controller is
+        the grantee's (CR 603.3a)."""
+        for unit in self.units:
+            yield unit, None
             for granted in iter_granted_triggers(unit):
-                yield trigger_def_unit(granted.trigger)
+                yield trigger_def_unit(granted.trigger), granted
 
     def iter_typed(self) -> Iterator[TypedMirrorNode]:
         """Every typed mirror node under every unit — the whole-card deep walk."""

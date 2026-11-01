@@ -297004,6 +297004,255 @@
     "type_line": "Sorcery"
    }
   },
+  "Cultist of the Absolute": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Enchantment"
+      ],
+      "subtypes": [
+       "Background"
+      ],
+      "supertypes": [
+       "Legendary"
+      ]
+     },
+     "color_identity": [
+      "Black"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "is_commander": true,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 0,
+      "shards": [
+       "Black"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "b0c7b4af-d521-4f4f-8910-7e05f2f60eb6",
+       "bd9b11ac-187c-4cda-9197-93244d6906c8"
+      ]
+     },
+     "name": "Cultist of the Absolute",
+     "non_ability_text": null,
+     "oracle_text": "Commander creatures you own get +3/+3 and have flying, deathtouch, \"Ward—Pay 3 life,\" and \"At the beginning of your upkeep, sacrifice a creature.\"",
+     "power": null,
+     "printings": [
+      "CLB",
+      "PCLB"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2022-06-10",
+       "text": "An effect that checks whether you control your commander is satisfied if you control one or both of your two commanders."
+      },
+      {
+       "date": "2022-06-10",
+       "text": "Both commanders start in the command zone, and the remaining 98 cards (or 58 cards in a Commander Draft game) of your deck are shuffled to become your library."
+      },
+      {
+       "date": "2022-06-10",
+       "text": "Choose a Background is a variant of the partner ability. You may have two commanders if one of them is a legendary creature with the choose a background ability and the other is a legendary Background enchantment. Backgrounds and cards with choose a Background do not interact with cards which have any other partner ability."
+      },
+      {
+       "date": "2022-06-10",
+       "text": "If a card refers to a commander creature you own, a Background won't usually be counted or included for that effect. If another spell or ability causes your Background to become a creature, however, it will be included. Any effect that refers to your commander or a commander you own or control without specifying creature will apply to a Background that is your commander, as appropriate."
+      },
+      {
+       "date": "2022-06-10",
+       "text": "If something refers to your commander while you have two commanders, it refers to one of them of your choice. If you are instructed to perform an action on your commander (e.g. put it from the command zone into your hand due to Command Beacon), you choose one of your commanders at the time the effect happens."
+      },
+      {
+       "date": "2022-06-10",
+       "text": "If you control a Background that grants an ability to commander creatures you own, and you own more than one commander creature, each of them will have that ability."
+      },
+      {
+       "date": "2022-06-10",
+       "text": "If your Commander deck has two commanders, you can include only cards whose own color identities are also found in your commanders’ combined color identities."
+      },
+      {
+       "date": "2022-06-10",
+       "text": "If your commander loses the choose a Background ability or stops being a Background during the game, as appropriate, it is still your commander."
+      },
+      {
+       "date": "2022-06-10",
+       "text": "Once the game begins, your two commanders are tracked separately. If you cast one, you won’t have to pay an additional {2} the first time you cast the other. A player loses the game after having been dealt 21 combat damage from any one of them, not from both of them combined (although your Background won’t usually be a creature anyway)."
+      },
+      {
+       "date": "2022-06-10",
+       "text": "You can choose two commanders that are the same color or colors."
+      }
+     ],
+     "scryfall_oracle_id": "bdc2a72a-f1c0-4e67-8e86-1121a4000537",
+     "static_abilities": [
+      {
+       "active_zones": [],
+       "affected": {
+        "controller": null,
+        "properties": [
+         {
+          "type": "IsCommander"
+         },
+         {
+          "controller": "You",
+          "type": "Owned"
+         }
+        ],
+        "type": "Typed",
+        "type_filters": [
+         "Creature"
+        ]
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": null,
+       "description": "Commander creatures you own get +3/+3 and have flying, deathtouch, \"Ward—Pay 3 life,\" and \"At the beginning of your upkeep, sacrifice a creature.\"",
+       "effect_zone": null,
+       "mode": "Continuous",
+       "modifications": [
+        {
+         "type": "AddPower",
+         "value": 3
+        },
+        {
+         "type": "AddToughness",
+         "value": 3
+        },
+        {
+         "keyword": {
+          "Ward": {
+           "data": 3,
+           "type": "PayLife"
+          }
+         },
+         "type": "AddKeyword"
+        },
+        {
+         "trigger": {
+          "batched": false,
+          "condition": null,
+          "constraint": {
+           "type": "OnlyDuringYourTurn"
+          },
+          "damage_kind": "Any",
+          "description": "At the beginning of your upkeep, sacrifice a creature.",
+          "destination": null,
+          "execute": {
+           "condition": null,
+           "cost": null,
+           "description": null,
+           "duration": null,
+           "effect": {
+            "count": {
+             "type": "Fixed",
+             "value": 1
+            },
+            "target": {
+             "controller": null,
+             "properties": [],
+             "type": "Typed",
+             "type_filters": [
+              "Creature"
+             ]
+            },
+            "type": "Sacrifice"
+           },
+           "forward_result": false,
+           "kind": "Spell",
+           "optional": false,
+           "optional_targeting": false,
+           "sub_ability": null,
+           "target_prompt": null
+          },
+          "mode": "Phase",
+          "optional": false,
+          "origin": null,
+          "phase": "Upkeep",
+          "secondary": false,
+          "trigger_zones": [
+           "Battlefield"
+          ],
+          "valid_card": null,
+          "valid_source": null,
+          "valid_target": null
+         },
+         "type": "GrantTrigger"
+        },
+        {
+         "keyword": "Flying",
+         "type": "AddKeyword"
+        },
+        {
+         "keyword": "Deathtouch",
+         "type": "AddKeyword"
+        }
+       ]
+      }
+     ],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 1.0,
+    "color_identity": [
+     "B"
+    ],
+    "colors": [
+     "B"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{B}",
+    "name": "Cultist of the Absolute",
+    "oracle_id": "bdc2a72a-f1c0-4e67-8e86-1121a4000537",
+    "oracle_text": "Commander creatures you own get +3/+3 and have flying, deathtouch, \"Ward—Pay 3 life,\" and \"At the beginning of your upkeep, sacrifice a creature.\"",
+    "type_line": "Legendary Enchantment — Background"
+   }
+  },
   "Cultivate": {
    "phase_records": [
     {
@@ -590526,6 +590775,207 @@
     "name": "Indulge // Excess",
     "oracle_id": "abcb5b99-bf5e-402f-97a2-abb1ab39dd72",
     "type_line": "Sorcery // Sorcery"
+   }
+  },
+  "Inevitable End": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Enchantment"
+      ],
+      "subtypes": [
+       "Aura"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Black"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [
+      {
+       "Enchant": {
+        "controller": null,
+        "properties": [],
+        "type": "Typed",
+        "type_filters": [
+         "Creature"
+        ]
+       }
+      }
+     ],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 2,
+      "shards": [
+       "Black"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "a6522f01-ae7a-467e-9a05-530a5ccd304d"
+      ]
+     },
+     "name": "Inevitable End",
+     "non_ability_text": null,
+     "oracle_text": "Enchant creature\nEnchanted creature has \"At the beginning of your upkeep, sacrifice a creature.\"",
+     "power": null,
+     "printings": [
+      "THB"
+     ],
+     "rarities": [
+      "uncommon"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2020-01-24",
+       "text": "Because Inevitable End grants the ability to the enchanted creature, the triggered ability triggers at the beginning of the upkeep of the controller of the enchanted creature, and that player chooses a creature to sacrifice. They might not sacrifice the enchanted creature right away, but it’s certain that they’ll have to do so eventually."
+      },
+      {
+       "date": "2020-01-24",
+       "text": "Players may take actions before the triggered ability granted by Inevitable End resolves, but they can’t take any actions during a turn before that turn’s upkeep begins to try to stop the ability from triggering."
+      }
+     ],
+     "scryfall_oracle_id": "e1a5c389-6a56-4da7-b7c4-e26fdec224e5",
+     "static_abilities": [
+      {
+       "active_zones": [],
+       "affected": {
+        "controller": null,
+        "properties": [
+         {
+          "type": "EnchantedBy"
+         }
+        ],
+        "type": "Typed",
+        "type_filters": [
+         "Creature"
+        ]
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": null,
+       "description": "Enchanted creature has \"At the beginning of your upkeep, sacrifice a creature.\"",
+       "effect_zone": null,
+       "mode": "Continuous",
+       "modifications": [
+        {
+         "trigger": {
+          "batched": false,
+          "condition": null,
+          "constraint": {
+           "type": "OnlyDuringYourTurn"
+          },
+          "damage_kind": "Any",
+          "description": "At the beginning of your upkeep, sacrifice a creature.",
+          "destination": null,
+          "execute": {
+           "condition": null,
+           "cost": null,
+           "description": null,
+           "duration": null,
+           "effect": {
+            "count": {
+             "type": "Fixed",
+             "value": 1
+            },
+            "target": {
+             "controller": null,
+             "properties": [],
+             "type": "Typed",
+             "type_filters": [
+              "Creature"
+             ]
+            },
+            "type": "Sacrifice"
+           },
+           "forward_result": false,
+           "kind": "Spell",
+           "optional": false,
+           "optional_targeting": false,
+           "sub_ability": null,
+           "target_prompt": null
+          },
+          "mode": "Phase",
+          "optional": false,
+          "origin": null,
+          "phase": "Upkeep",
+          "secondary": false,
+          "trigger_zones": [
+           "Battlefield"
+          ],
+          "valid_card": null,
+          "valid_source": null,
+          "valid_target": null
+         },
+         "type": "GrantTrigger"
+        }
+       ]
+      }
+     ],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 3.0,
+    "color_identity": [
+     "B"
+    ],
+    "colors": [
+     "B"
+    ],
+    "keywords": [
+     "Enchant"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}{B}",
+    "name": "Inevitable End",
+    "oracle_id": "e1a5c389-6a56-4da7-b7c4-e26fdec224e5",
+    "oracle_text": "Enchant creature\nEnchanted creature has \"At the beginning of your upkeep, sacrifice a creature.\"",
+    "type_line": "Enchantment — Aura"
    }
   },
   "Infantry Shield": {
