@@ -416,6 +416,58 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
     creature has vigilance" and Ram Through: "If the creature you control has
     trample" → no ``WithKeyword`` condition → one.
 
+**From the second tuner block grilled 2026-11-01 (reach on the held-out adds no serve admits; `tuner-plan-2026-10-30.md` Progress)**
+
+The reach profile at N11 (`~/mtg/tuner-work/w41/reach-profile-N11.md`): 84 held-out
+theme guide adds no theme serve admits (J2: 100) — Ahoy Mateys 13 (theft), Silverquill
+8 (a Spirit-enchantment rebuild), tutors 11 in six decks, Creative Energy 7 (deck-wide
+ETB doublers), ~45 scattered one to seven a deck. Gate unchanged (held-out 20: plan
+≥ +10, adds + job-equivalents ≥ −5, cuts ≥ −1). In order:
+
+- **V3 / V3b theme-order retest at the lowered strength bar.** Dan lowered the bar to
+  0.65 leave-one-deck-out on the adds-vs-cuts pairs ALONE (met: 0.66–0.68; the
+  live-order source stays at 0.59–0.62 and no longer gates). Rebase
+  `w41/theme-order-V3.patch` and `-V3b.patch`, one measured run each. Both failing
+  closes the reorder thread for good.
+- **A tutor is a need-satisfier (gated).** A tutor pages on a commander need whose pool
+  satisfiers its search filter can find (the tutor read's filter against the need's
+  satisfiers' types): unrestricted tutors (Demonic, Vampiric, Gamble) on the most
+  specific need; restricted ones (Worldly, Enlightened, Natural Order, Cateran Summons)
+  only where the filter reaches. Rows (T1 / PR1) are settled; this is a new read.
+- **A tribe's signal profile opens its lanes (gated).** For a deck whose plan lane is a
+  tribe, the lanes the tribe's pool cards over-index on against the pool base rate
+  (the way `metrics.focus` reads base rates) open as an emerging theme page, adds via
+  the depth split. The bar (× base rate, minimum tribe share, lanes per tribe) is
+  fitted on the design 25, then gated on the held-out 20. Not a hand-set tribe → lane
+  table (Dan). Target: theft for Pirates (Ahoy Mateys' 13) only if Pirates really
+  over-index on it.
+- **Triage of the 53 scattered never-admitted adds** (the ~45 plus Silverquill's 8):
+  one Opus pass, each card a recall gap (a read the deck's plan should admit — a read
+  fix, ships on correctness) or a guide-specific pick (recorded as the first-principles
+  ceiling in the audit doc). Deck-wide trigger doublers as a theme AVENUE were
+  measured negative (`Sourcing.multiplier_avenue`); Panharmonicon / Elesh Norn under
+  Satya need a new read, not that avenue.
+- **A graveyard-hate template row**, measured once (gated, Commander template only,
+  sourced by the existing graveyard-hate serve). The recursion and tutor rows are
+  settled (T1 / PR1, below).
+- **Three value rules, one gated run each, in order:** multiplayer scaling of
+  "each opponent" one-shots as a feature in the fitted quality / strength reads
+  (refit, then gate); ramp at MV ≤ commander MV − 2 (slower ramp is a cut, not an
+  upgrade); the off-plan MV ≥ 6 cut.
+- **Alternate commanders: `deck-tune --compare-commanders`** plus a deck-forge POST
+  route and a Tune-panel row. Every card the format's `commander_eligibility` accepts
+  on its own and every legal partner pair (`card_classify.can_partner`, CR 702.124f);
+  the full tune under each; ranked by the post-tune scorecard total; advisory, never
+  applied. Evaluated against the guides that chose an alternate (Temur Roar → Ureni of
+  the Unwritten, World Shaper → Szarel, Genesis Shepherd, and whichever others the
+  45 summaries name — a Sonnet list first), reported in the audit doc, never gating.
+- **A fresh validation set** of 10 never-used precon families (≥ 2 guides, any year,
+  the held-out method) under `~/mtg/tuner-work/fresh/root`, scored once at N11 and
+  once at block end; gates nothing.
+- **Upstream reports packaged as issues:** `docs/plans/phase-upstream-issues/`, one
+  ready-to-post file per section of `phase-upstream-reports.md`, re-verified against
+  v0.118.0; Dan posts.
+
 **From the 2026-09-17 architecture review (worth exploring, not started)**
 
 - Speculative: `playtest.py`'s mode functions; copies of the Scryfall client policy.
@@ -786,9 +838,10 @@ headroom and parked items.
     the tune time (below); reordering the page by the card reads (V1, 2026-10-30;
     V3 reads-first and V3b blended with the theme-strength reads, 2026-10-31)
     failed the gate every time — held-out plan +69 / adds −12 for V3, plan +5 /
-    the 25 adds −8 for V3b. Don't re-suggest a page depth or order change until a
-    strength read scores 0.70 leave-one-deck-out on both pair sources (the
-    audit's "The theme-strength reads and the V3 order");
+    the 25 adds −8 for V3b. Don't re-suggest a page depth change; the order
+    change gets one retest under the bar Dan lowered 2026-11-01 (0.65
+    leave-one-deck-out on the adds-vs-cuts pairs alone — see the Open block
+    entry; the audit's "The theme-strength reads and the V3 order");
   - four guide adds serve only a sub (Living Energy's Arcum Dagsson, Clever
     Impersonator, Scrap Welder; Deep Clue Sea's Displaced Dinosaurs). Sharing the
     theme adds over the commander's held subs as well as the mains took Roaming
@@ -1004,9 +1057,14 @@ headroom and parked items.
   `w41/rows-T1.patch`, `rows-PR1.patch`) — the guides' tutors and recursion are
   plan cards found on the plan's pages; reads-first theme orders S1 / S2 / V1 /
   V2 / V3 (plan +43 to +70, guide adds −12 to −22) and the play-rate + strength
-  blend V3b (plan +5; patches `w41/theme-order-*.patch`) — no theme reorder
-  until a strength read reaches 0.70 leave-one-deck-out on both pair sources
-  (`w41/pairs-cuts.json`, `pairs-live.json`); the job pages by read score (J1);
+  blend V3b (plan +5; patches `w41/theme-order-*.patch`) — the bar for a retest
+  was 0.70 leave-one-deck-out on both pair sources (`w41/pairs-cuts.json`,
+  `pairs-live.json`), lowered by Dan 2026-11-01 to 0.65 on adds-vs-cuts alone
+  for ONE retest of V3 / V3b (the Open block entry); the job pages by read score (J1);
+  per-source guide down-weighting (the 2026-10-30 plan's deferred item) is
+  settled as "consensus reported, not weighted" (Dan, 2026-11-01): the scoreboard's
+  consensus and near-miss columns are the view, and weighting the gate's adds
+  mid-block would make every prior baseline incomparable;
   P1 / P2 / P3 and sub-theme pages (below). What the tutor and recursion reads
   still can't see is phase's, drafted in `docs/plans/phase-upstream-reports.md`
   (Rhystic Tutor, Grim Reminder, Cleansing Meditation, five unparsed returns,
@@ -1099,22 +1157,15 @@ headroom and parked items.
   lane's ident doesn't carry (no subject), and of the 25 precons only Death
   Toll (Winter, Cynical Opportunist) and Sultai Arisen (Teval) anchor the row,
   neither through a ranking the gate scores.
-- **The voltron floor's `has_other_plan` doesn't ask `avenue_spec_for` — don't
-  re-suggest without deciding the signals index's code key** (2026-11-01, Pass D
-  follow-up). The `(key, subject)` role table shipped (`signal_keys.SUBJECT_ROLES`),
-  and the plan read keeps its own exclusions (page-only doers through
-  `signal_keys.is_page_only`, the `STEP_TRIGGER_KEYS` payoffs in its compat list).
-  Asking the avenue read makes signal extraction depend on the serve specs, so
-  `signal_specs/` would enter the persisted signals index's code key
-  (`signals_index.signal_source_files`, which excludes it by design —
-  `test_excludes_signal_specs_which_does_not_feed_extraction`) and every spec
-  edit would rebuild the index. Measured: it would add the commander-damage
-  carrier tell (`voltron_matters|you|carrier`, 2405 → 2417) to twelve cards whose
-  only plan opens no avenue (`sacrifice_outlets|you|self` — Brass Secretary,
-  Parcel Myr; `donate_makers|you|token` — the Hunted cycle;
-  `opponent_discard|opponents|empty_hand` — Avatar of Will), with deck-tune on
-  Abzan Armor and Death Toll byte-identical. Worth it only if the index may key
-  on the specs.
+- **The voltron floor's `has_other_plan` asks `avenue_spec_for`; the serve specs
+  key the signals index** (shipped 2026-11-01, Dan's call: correctness over the
+  rebuild a spec edit costs). A signal that opens no avenue — a page-only doer,
+  a step-trigger payoff, a subject its theme's serve doesn't count — is no other
+  plan, so twelve cards whose only plan opens none keep the commander-damage
+  carrier tell (`voltron_matters|you|carrier`, 2405 → 2417: Brass Secretary,
+  Parcel Myr, the Hunted cycle, Avatar of Will). `signal_specs/` is in
+  `signals_index.signal_source_files` now (`test_includes_signal_specs_which_the_membership_floor_asks`),
+  so every spec edit rebuilds the persisted index once. No tune moved.
 - **A spell's casting-cost discard is a discard outlet** (Dan, 2026-10-10). The
   optional keyword costs count: escalate (Collective Brutality, CR 702.120a),
   buyback (Forbid, Demonic Collusion, CR 702.27a), flashback (Conflagrate, Twinned

@@ -101,6 +101,15 @@ def test_a_back_face_keyword_is_no_voltron_tell():
     assert ("voltron_matters", "carrier") not in idents
 
 
+def test_a_signal_that_opens_no_avenue_is_no_other_plan():
+    # Hunted Dragon's tokens go to an opponent (``donate_makers|you|token``, which
+    # opens no avenue): no plan of its own, so a 6/6 flying haste body keeps the
+    # commander-damage carrier tell (CR 903.10a).
+    idents = {(s.key, s.subject) for s in test_signals("Hunted Dragon")}
+    assert ("donate_makers", "token") in idents
+    assert ("voltron_matters", "carrier") in idents
+
+
 def test_an_activated_self_grant_is_no_body():
     # Poison Dart Frog's deathtouch is granted by its {2} ability's effect (CR
     # 113.1a); a body counts only by a keyword it has without paying (the

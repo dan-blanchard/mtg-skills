@@ -376,9 +376,13 @@ run against L2. The incidental-job read (C10: job-equivalents −12), the marque
 
 ## Deferred to a later plan
 
-Graveyard-hate / recursion / tutor template rows; multiplayer scaling of
-one-shot effects; ramp MV ≤ commander MV − 2; the off-plan MV ≥ 6 cut; per-source
-guide down-weighting; alternate-commander plans.
+None left. The six items this section held (graveyard-hate / recursion / tutor
+template rows; multiplayer scaling of one-shot effects; ramp MV ≤ commander MV − 2;
+the off-plan MV ≥ 6 cut; per-source guide down-weighting; alternate-commander
+plans) were taken into the second block grilled 2026-11-01 (the backlog's Open
+entry "From the second tuner block grilled 2026-11-01"): the recursion and tutor
+rows and the guide down-weighting are settled there, the rest are measured or
+built in that block.
 
 ## Pace and hygiene
 

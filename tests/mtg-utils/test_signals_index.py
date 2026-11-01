@@ -139,21 +139,18 @@ class TestSignalSourceFiles:
         assert "signal_trees.py" in names
         assert "schema.py" in names  # mirror/schema.py — codegen'd substrate
 
-    def test_excludes_signal_specs_which_does_not_feed_extraction(self):
-        # signal_specs/ builds card_search serve/search kwargs from a Signal
-        # AFTER extraction — it never feeds extract_signals's own output, so
-        # it must not force a spurious rebuild on every edit. Checked by
-        # PATH PARTS, not basename: signal_specs is now a package
+    def test_includes_signal_specs_which_the_membership_floor_asks(self):
+        # signal_specs/ mostly builds card_search serve/search kwargs from a
+        # Signal AFTER extraction, but the voltron floor's plan read asks
+        # `avenue_spec_for` DURING extraction (a signal that opens no avenue
+        # is no other plan), so a spec edit can change a card's signals and
+        # the package belongs in the index's code key (Dan, 2026-11-01:
+        # correctness over the rebuild a spec edit costs). Checked by PATH
+        # PARTS, not basename: signal_specs is a package
         # (`_analysis/signal_specs/__init__.py`, `core.py`, `data_1.py`, …),
-        # so no file in the closure is literally named "signal_specs.py" —
-        # a basename check is vacuously true regardless of whether the
-        # package ever entered the closure. Verified this assertion isn't
-        # itself vacuous by temporarily splicing a synthetic
-        # `.../signal_specs/core.py` path into the files tuple and
-        # confirming `not any(...)` fails against it (reverted before
-        # committing this test).
+        # so no file in the closure is literally named "signal_specs.py".
         files = signals_index.signal_source_files()
-        assert not any("signal_specs" in p.parts for p in files)
+        assert any("signal_specs" in p.parts for p in files)
 
 
 @pytest.fixture
