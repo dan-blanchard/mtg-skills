@@ -579,3 +579,39 @@ def test_a_neutralize_aura_is_not_ramp(name):
 def test_a_planeswalker_or_granted_sweep_is_a_board_wipe(name):
     roles_ = role_of(_real(name))
     assert {"board_wipe", "interaction"} <= roles_
+
+
+# ── recursion and tutor (the 2026-10-31 template rows) ───────────────────────
+
+
+def test_is_recursion_counts_every_kind():
+    from mtg_utils.testkit import test_card
+
+    for name in (
+        "Reanimate",
+        "Gravedigger",
+        "Eternal Witness",
+        "Regrowth",
+        "Kitchen Finks",
+        "Bloodghast",
+    ):
+        assert roles.is_recursion(test_card(name)), name
+        assert "recursion" in role_of(test_card(name)), name
+    for name in ("Lightning Bolt", "Buried Alive", "Cultivate"):
+        assert not roles.is_recursion(test_card(name)), name
+
+
+def test_is_tutor_leaves_out_land_only_searches():
+    from mtg_utils.testkit import test_card
+
+    for name in ("Demonic Tutor", "Worldly Tutor", "Idyllic Tutor", "Diabolic Intent"):
+        assert roles.is_tutor(test_card(name)), name
+        assert "tutor" in role_of(test_card(name)), name
+    for name in (
+        "Sylvan Scrying",
+        "Expedition Map",
+        "Bushwhack",
+        "Cultivate",
+        "Lightning Bolt",
+    ):
+        assert not roles.is_tutor(test_card(name)), name

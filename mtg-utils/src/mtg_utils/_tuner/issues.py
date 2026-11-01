@@ -157,8 +157,16 @@ CUT_UPGRADE_JOBLESS = "upgrade_jobless"
 CUT_UPGRADE_POPULAR = "upgrade_popular"
 
 # The order a Spine card's job is read in when it holds several roles: the
-# scarcer job first (a sweeper that also draws is upgraded as a sweeper).
-UPGRADE_ROLE_ORDER = ("board_wipe", "interaction", "card_draw", "ramp")
+# scarcer job first (a sweeper that also draws is upgraded as a sweeper; a
+# Gravedigger that also draws, as recursion — the 2026-10-31 rows).
+UPGRADE_ROLE_ORDER = (
+    "board_wipe",
+    "interaction",
+    "tutor",
+    "recursion",
+    "card_draw",
+    "ramp",
+)
 
 
 _CUT_OVER_PREFIX = "over:"
@@ -803,10 +811,8 @@ def top_issues(
 
     for role, b in template_r["short"].items():
         deficit = -b["deviation"]
-        message = (
-            f"{row_name(role, b)} short by {deficit} "
-            f"({b['current']}/{b['min']}-{b['max']})"
-        )
+        band = f"{b['min']}+" if b.get("max") is None else f"{b['min']}-{b['max']}"
+        message = f"{row_name(role, b)} short by {deficit} ({b['current']}/{band})"
         by = sourcing.grant_cover(role)
         if by is not None:
             message += f" — covered by {by}'s ability grant"

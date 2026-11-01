@@ -58,5 +58,5 @@ def main(
         else:
             flag = f"+{b['deviation']} (over)"
         label = b.get("label") or role.replace("_", " ")
-        band = f"{b['min']}-{b['max']}"
+        band = f"{b['min']}+" if b["max"] is None else f"{b['min']}-{b['max']}"
         click.echo(f"{label:28} {b['current']:>3}   band {band}   {flag}")

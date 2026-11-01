@@ -394,7 +394,15 @@ def _creature(i, cmc):
 
 def test_template_default_is_the_commander_rows_with_labels():
     b = slot_budgets([], deck_size=100, land_band=_BAND)
-    assert list(b) == ["lands", "ramp", "card_draw", "interaction", "board_wipe"]
+    assert list(b) == [
+        "lands",
+        "ramp",
+        "card_draw",
+        "interaction",
+        "board_wipe",
+        "recursion",
+        "tutor",
+    ]
     assert b["ramp"]["label"] == "Ramp"
     assert all(row["advisory"] is False for row in b.values())
     assert template_for("commander").base_size == 100
@@ -480,3 +488,37 @@ def test_template_fills_is_the_one_membership_read():
 def test_unknown_family_fails_loud():
     with pytest.raises(ValueError, match="no template"):
         template_for("cube")
+
+
+# ── the floor-only rows (2026-10-31) ─────────────────────────────────────────
+
+
+def test_recursion_and_tutor_rows_are_floor_only():
+    # Recursion wants two, tutors one; neither has a ceiling, so a reanimator
+    # deck's eight recursion cards are never "over".
+    empty = slot_budgets([], land_band=(36, 38))
+    assert empty["recursion"]["min"] == 2
+    assert empty["recursion"]["max"] is None
+    assert empty["recursion"]["deviation"] == -2
+    assert empty["recursion"]["target"] == 2  # the bar fills at the floor
+    assert empty["tutor"]["min"] == 1
+    assert empty["tutor"]["max"] is None
+    many = slot_budgets([test_card("Reanimate")] * 8, land_band=(36, 38))
+    assert many["recursion"]["current"] == 8
+    assert many["recursion"]["deviation"] == 0
+    assert many["recursion"]["remaining"] == 0
+
+
+def test_the_rows_count_every_recursion_kind_and_nonland_tutors():
+    rows = slot_budgets(
+        [
+            test_card("Reanimate"),  # creature to the battlefield
+            test_card("Eternal Witness"),  # any card to hand
+            test_card("Kitchen Finks"),  # returns itself (persist)
+            test_card("Demonic Tutor"),
+            test_card("Sylvan Scrying"),  # a land-only search: not a tutor here
+        ],
+        land_band=(36, 38),
+    )
+    assert rows["recursion"]["current"] == 3
+    assert rows["tutor"]["current"] == 1

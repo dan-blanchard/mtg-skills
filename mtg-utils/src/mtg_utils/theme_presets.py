@@ -2963,6 +2963,41 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
             "Eternal Witness",
         ),
     ),
+    # Every recursion kind at once: the Commander template's Recursion row
+    # (``roles.is_recursion``, 2026-10-31) — creature recursion to the
+    # battlefield or hand, any-card graveyard-to-hand, and a card returning
+    # itself (undying / persist, Bloodghast, flashback). The union of the
+    # ``reanimate``, ``graveyard-return`` and ``self-recurring`` presets plus the
+    # ``dies_recursion`` lane, so the row counts what the lanes read.
+    Preset(
+        name="recursion",
+        description=(
+            "Returns a card from a graveyard to the battlefield or hand, or "
+            "returns itself: the template's recursion row."
+        ),
+        keywords=SELF_RECURRING_KEYWORD_GAPS,
+        signal_keys=(
+            "creature_recursion",
+            "reanimator",
+            "dies_recursion",
+            "self_recurring",
+        ),
+        concept=_graveyard_return_concept,
+        should_match=(
+            "Reanimate",
+            "Gravedigger",
+            "Eternal Witness",
+            "Regrowth",
+            "Kitchen Finks",
+            "Bloodghast",
+        ),
+        should_not_match=(
+            "Lightning Bolt",
+            "Counterspell",
+            "Buried Alive",
+            "Cultivate",
+        ),
+    ),
     # Graveyard-to-hand recursion (Eternal Witness-style). task #83
     # structural-view conversion: NOT ``signal_keys=("graveyard_makers",)``
     # — that key bundles THREE GY-interaction directions under one Signal
