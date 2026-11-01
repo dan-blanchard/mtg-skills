@@ -8,72 +8,7 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
 
 **From the Jace, Multiverse Architect precon tune (2026-10-17)**
 
-- **The tuner plan of 2026-10-30** (`docs/plans/tuner-plan-2026-10-30.md`, from
-  the review in `docs/plans/tuner-holistic-review-2026-10-30.md`) is carried out:
-  the need read and its metrics, need pages by cut routing, the specificity-first
-  primary and the wide need near tie shipped; land swaps are opt-in; the
-  incidental-job read, marquee purse and removal-MV slots were measured and
-  rejected (don't re-suggest without a new read). The gate is now plan-primary
-  (the plan doc's ship bar; ADR-0061's second amendment): held-out
-  plan-consistent adds rise ≥ 10, guide adds + job-equivalents fall ≤ 5, cuts
-  ≤ 1; the 25 are reported. The need read's deeper reads shipped (mana-value
-  bounds, spells-per-turn conditions, opponents drawing — ADR-0061's third
-  amendment) and the deck-aware incidental-job read (a trigger-rider job on a
-  card serving a main lane is no job; Rhystic Study keeps its job) shipped on
-  Dan's call at held-out plan +9, adds +2, cuts +1. Reanimation-target
-  properties stay out. **Generic recursion / tutor template rows — measured and
-  held back (2026-10-31, ADR-0062; don't re-suggest as generic floors):** the
-  frameworks' "~2 recursion, 1-2 tutors" as floor-only rows cost the held-out
-  20 plan −31 as designed (a self-recurring plan card cut as a "recursion job"
-  and replaced off the recursion page), the tutor row alone −9 with eleven guide
-  cuts and a swap per deck lost (its fills — Pyre of Heroes, Diabolic Intent —
-  take slots and purse the plan's issues then lack), the recursion row alone
-  flat. The guides' tutors and recursion are plan cards, found on the plan's
-  pages. Kept as `~/mtg/tuner-work/w41/rows-T1.patch` (rows, roles, open
-  ceiling "2+", `recursion` preset, upgrade order, panel labels, tests). The
-**Reads-first page order — measured and held back (2026-10-31; don't re-suggest
-  as a reorder of the reads we have):** theme pages ordered need / lanes /
-  synergy / play-rate (S1) or synergy with a need bonus (S2) raised held-out
-  plan-consistency +70 / +43 but lost 17 / 16 guide adds to on-plan-but-obscure
-  picks; job pages ordered by each read's score (J1) lost plan −34 and adds
-  −16. Patches `~/mtg/tuner-work/w41/theme-order-S2.patch`, `job-order-J1.patch`.
-  The quality reads were built (2026-10-31, ADR-0063: three per-type reads
-  fitted on the guides' pairs, shipped as a third term in the job blend, J2
-  passed the gate) and the reads-first theme orders re-measured WITH them (V1 /
-  V2, `w41/theme-order-V1.patch` / `-V2.patch`): held-out plan +63 / +66 but
-  guide adds −22 / −20 — held back again. Finding: pairs chosen by the order
-  they correct teach a read what that order overrates (text volume, token
-  makers, scaling amounts), not strength; a theme-page strength read wants
-  pairs from a source the tuner's order didn't pick (the guides' adds against
-  the guides' cuts of the same type). Don't re-measure a reads-first theme
-  order with the ADR-0063 reads as they stand. The
-  idea the numbers pointed at, a PLAN-CONDITIONAL row — a tutor row only when a
-  main lane names a type a tutor can find, a recursion row only under a
-  graveyard plan — was measured 2026-10-31 late night (PR1, the audit's
-  "Plan-conditional tutor and recursion rows"): held-out plan −30, adds −9; the
-  25 plan −12, adds −7. The fills take the plan's slots whichever decks pay.
-  Held as `~/mtg/tuner-work/w41/rows-PR1.patch`; don't re-suggest a tutor or
-  recursion row under any condition. The recursion and tutor job reads
-  (ADR-0062, built 2026-10-31, in the tree) read, since 2026-10-31 late night,
-  an X tutor's X (`_common.cast_cost`'s `X_ASSUMED`, every job and quality
-  read), a Pact's upkeep payment (`tutor._pact_mana`) and a tribal tutor's deck
-  (`tutor.deck_features`: a subtype search is broad where a third of the deck's
-  creature cards share the subtype). What is left is phase parse gaps to report
-  upstream (drafted: `docs/plans/phase-upstream-reports.md` §3–§7, §23):
-  Rhystic Tutor's "unless any player pays" (the `{2}` sits in `unless_pay` on an
-  `Unimplemented` head), a stray move-to-hand phase adds to Grim Reminder
-  (scores as a tutor), Cleansing Meditation's "cards destroyed this way" lost
-  (its return parses as every card in your graveyard; scores 0.49), five
-  returns unparsed (Custodi Soulcaller, Venerable Warsinger, Liliana's Talent,
-  All Hallow's Eve, Can't Stay Away: None), and Necromancy's "as though it had
-  flash" dropped. Checked 2026-10-31 and NOT phase's: Kaito Shizuki's and
-  Garruk, Unleashed's emblem searches are typed inside `CreateEmblem`'s
-  triggers — an ultimate's emblem is no tutor slot, so the read leaves them (its
-  docstring says so); Distant Memories reads as a tutor; Everquill Phoenix's
-  self-return rides its Feather token's granted ability, a shape the recursion
-  read leaves (one card, its docstring says so). The tutor read's six hand-set
-  weights were confirmed by Dan as set (2026-10-31, ADR-0062).
-  **Phase parse gap, worked around locally (2026-10-31):** Disa the Restless's
+- **Phase parse gap, worked around locally (2026-10-31): Disa the Restless.** Her
   "Whenever a Lhurgoyf permanent card is put into your graveyard from anywhere
   other than the battlefield" is a trigger with mode `Unknown` and no zone
   fields (its effect is a `ChangeZone` to the battlefield of the
@@ -1158,6 +1093,32 @@ headroom and parked items.
 
 ## Settled: don't re-suggest
 
+- **The tuner plan of 2026-10-30 and every lever measured after it — settled**
+  (2026-10-30 to 31; `docs/plans/tuner-plan-2026-10-30.md` "Progress" and
+  `docs/plans/precon-audit-2026-10-18.md` hold each run's numbers). Shipped: the
+  commander-need read and its metrics, need pages by cut routing, the
+  specificity-first primary, the wide need near tie, the deck-aware
+  incidental-job read, the recursion / tutor / quality / theme-strength reads,
+  the one instant-speed read, the `copy_ability` concept, the "multipliers of
+  the commander" and "counters on the commander" needs, X costs, a Pact's
+  payment, a tribal tutor's deck fit; land swaps opt-in. The gate is
+  plan-primary (held-out plan-consistent adds ≥ +10; guide adds + job-equivalents
+  ≥ −5; cuts ≥ −1; the 25 reported). Measured and held back, don't re-suggest
+  without a NEW read: the incidental-job read as first specified, the marquee
+  purse, removal-MV slots (C10 / D1 / D2); generic recursion and tutor rows (T1,
+  plan −31) and the same rows gated on the plan (PR1, plan −30; patches
+  `w41/rows-T1.patch`, `rows-PR1.patch`) — the guides' tutors and recursion are
+  plan cards found on the plan's pages; reads-first theme orders S1 / S2 / V1 /
+  V2 / V3 (plan +43 to +70, guide adds −12 to −22) and the play-rate + strength
+  blend V3b (plan +5; patches `w41/theme-order-*.patch`) — no theme reorder
+  until a strength read reaches 0.70 leave-one-deck-out on both pair sources
+  (`w41/pairs-cuts.json`, `pairs-live.json`); the job pages by read score (J1);
+  P1 / P2 / P3 and sub-theme pages (below). What the tutor and recursion reads
+  still can't see is phase's, drafted in `docs/plans/phase-upstream-reports.md`
+  (Rhystic Tutor, Grim Reminder, Cleansing Meditation, five unparsed returns,
+  Necromancy's flash); by design they leave an ultimate's emblem search (Kaito,
+  Garruk) and a self-return riding a made token's ability (Everquill Phoenix).
+  The tutor read's six hand-set weights are set (Dan, 2026-10-31).
 - **The no-search guide adds' four gaps — closed** (2026-10-30 to 31). Shipped:
   `end_step_sacrifice` and `end_the_turn|you|instant`, the `commander_keeps`
   issue (Sundial in all four guide decks), tutor subjects (`tutor|you|<card
