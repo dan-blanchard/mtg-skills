@@ -149013,6 +149013,376 @@
     "type_line": "Artifact"
    }
   },
+  "Black Market Connections": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Enchantment"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Black"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 2,
+      "shards": [
+       "Black"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "related_token_ids": [
+       "270874e9-76ae-5d57-aed6-d54e0da53fa3",
+       "50aae3ed-fa82-5258-9a21-31f5988f6b8f",
+       "741ba9b1-20a4-562b-8096-f067d0aeee11",
+       "7fb44e8f-f3f6-5834-b4ef-a0249adacc31",
+       "8988fa56-4617-5970-b299-76994fefa25e",
+       "b0e0f943-429b-5075-a61d-22338c7dfcf6",
+       "b8a61b58-bb26-509f-b7c8-9630d88432ff",
+       "c799cc36-8f2b-5f7e-b81b-9a7c853afae9",
+       "eb1f128c-ce4e-5dff-b3d3-0df9795ffb54",
+       "f7e12dcc-910d-5b82-b637-0b972542ead5"
+      ],
+      "source_printing_ids": [
+       "318f8ec3-0613-448d-87d2-0bcc9e95da64",
+       "71880a6a-4fac-4d4b-9bc3-a11d31466352",
+       "86c3514a-5e57-44b5-867d-cbfb66a90dfb",
+       "8b28572c-d2ba-4834-8630-3d82202ebb6f",
+       "9bac8176-d0db-4397-820d-acbdd3264377",
+       "9d9ca869-e68a-4f53-9f52-85c714dac6f3",
+       "b8c66fab-7494-42b1-bc4e-dae85a48fa41",
+       "d13cb0d3-3452-4c1f-81ec-024b4c45bbad",
+       "d456810a-452c-4cc6-9d73-35fe64787259"
+      ]
+     },
+     "name": "Black Market Connections",
+     "non_ability_text": null,
+     "oracle_text": "At the beginning of your first main phase, choose one or more —\n• Sell Contraband — Create a Treasure token. You lose 1 life.\n• Buy Information — Draw a card. You lose 2 life.\n• Hire a Mercenary — Create a 3/2 colorless Shapeshifter creature token with changeling. You lose 3 life. (It is every creature type.)",
+     "power": null,
+     "printings": [
+      "ACR",
+      "CLB",
+      "HBG",
+      "LCC",
+      "MSC",
+      "PLST"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "d2664f28-49e1-46f8-a863-b217e961a57c",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": {
+        "type": "OnlyDuringYourTurn"
+       },
+       "damage_kind": "Any",
+       "description": "At the beginning of your first main phase",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "duration": null,
+         "static_abilities": [],
+         "target": null,
+         "type": "GenericEffect"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "modal": {
+         "allow_repeat_modes": false,
+         "chooser": {
+          "type": "Controller"
+         },
+         "max_choices": 3,
+         "min_choices": 1,
+         "mode_count": 3,
+         "mode_descriptions": [
+          "Sell Contraband — Create a Treasure token. You lose 1 life.",
+          "Buy Information — Draw a card. You lose 2 life.",
+          "Hire a Mercenary — Create a 3/2 colorless Shapeshifter creature token with changeling. You lose 3 life."
+         ]
+        },
+        "mode_abilities": [
+         {
+          "condition": null,
+          "cost": null,
+          "description": null,
+          "duration": null,
+          "effect": {
+           "colors": [],
+           "count": {
+            "type": "Fixed",
+            "value": 1
+           },
+           "enters_attacking": false,
+           "keywords": [],
+           "name": "Treasure",
+           "owner": {
+            "type": "Controller"
+           },
+           "power": {
+            "type": "Fixed",
+            "value": 0
+           },
+           "tapped": false,
+           "toughness": {
+            "type": "Fixed",
+            "value": 0
+           },
+           "type": "Token",
+           "types": [
+            "Artifact",
+            "Treasure"
+           ]
+          },
+          "forward_result": false,
+          "kind": "Spell",
+          "optional": false,
+          "optional_targeting": false,
+          "sub_ability": {
+           "condition": null,
+           "cost": null,
+           "description": null,
+           "duration": null,
+           "effect": {
+            "amount": {
+             "type": "Fixed",
+             "value": 1
+            },
+            "target": {
+             "type": "Controller"
+            },
+            "type": "LoseLife"
+           },
+           "forward_result": false,
+           "kind": "Spell",
+           "optional": false,
+           "optional_targeting": false,
+           "sub_ability": null,
+           "sub_link": "SequentialSibling",
+           "target_prompt": null
+          },
+          "target_prompt": null
+         },
+         {
+          "condition": null,
+          "cost": null,
+          "description": null,
+          "duration": null,
+          "effect": {
+           "count": {
+            "type": "Fixed",
+            "value": 1
+           },
+           "target": {
+            "type": "Controller"
+           },
+           "type": "Draw"
+          },
+          "forward_result": false,
+          "kind": "Spell",
+          "optional": false,
+          "optional_targeting": false,
+          "sub_ability": {
+           "condition": null,
+           "cost": null,
+           "description": null,
+           "duration": null,
+           "effect": {
+            "amount": {
+             "type": "Fixed",
+             "value": 2
+            },
+            "target": {
+             "type": "Controller"
+            },
+            "type": "LoseLife"
+           },
+           "forward_result": false,
+           "kind": "Spell",
+           "optional": false,
+           "optional_targeting": false,
+           "sub_ability": null,
+           "sub_link": "SequentialSibling",
+           "target_prompt": null
+          },
+          "target_prompt": null
+         },
+         {
+          "condition": null,
+          "cost": null,
+          "description": null,
+          "duration": null,
+          "effect": {
+           "colors": [],
+           "count": {
+            "type": "Fixed",
+            "value": 1
+           },
+           "enters_attacking": false,
+           "keywords": [
+            "Changeling"
+           ],
+           "name": "Shapeshifter",
+           "owner": {
+            "type": "Controller"
+           },
+           "power": {
+            "type": "Fixed",
+            "value": 3
+           },
+           "tapped": false,
+           "toughness": {
+            "type": "Fixed",
+            "value": 2
+           },
+           "type": "Token",
+           "types": [
+            "Creature",
+            "Shapeshifter"
+           ]
+          },
+          "forward_result": false,
+          "kind": "Spell",
+          "optional": false,
+          "optional_targeting": false,
+          "sub_ability": {
+           "condition": null,
+           "cost": null,
+           "description": null,
+           "duration": null,
+           "effect": {
+            "amount": {
+             "type": "Fixed",
+             "value": 3
+            },
+            "target": {
+             "type": "Controller"
+            },
+            "type": "LoseLife"
+           },
+           "forward_result": false,
+           "kind": "Spell",
+           "optional": false,
+           "optional_targeting": false,
+           "sub_ability": null,
+           "sub_link": "SequentialSibling",
+           "target_prompt": null
+          },
+          "target_prompt": null
+         }
+        ],
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "Phase",
+       "optional": false,
+       "origin": null,
+       "phase": "PreCombatMain",
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": null,
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "all_parts": [
+     {
+      "component": "token",
+      "id": "649d42c1-a465-435e-8b67-e901ab9ad8ab",
+      "name": "Treasure",
+      "oracle_id": "3c549374-6c37-42e0-8d88-a8555d46732d",
+      "type_line": "Token Artifact — Treasure"
+     },
+     {
+      "component": "token",
+      "id": "d20ad1e6-d698-4a0a-8ed5-903e1d463004",
+      "name": "Shapeshifter",
+      "oracle_id": "b9ad70d0-7e71-4ec1-a39e-7d9363501322",
+      "type_line": "Token Creature — Shapeshifter"
+     }
+    ],
+    "arena_available": true,
+    "cmc": 3.0,
+    "color_identity": [
+     "B"
+    ],
+    "colors": [
+     "B"
+    ],
+    "keywords": [
+     "Buy Information",
+     "Hire a Mercenary",
+     "Sell Contraband",
+     "Treasure"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}{B}",
+    "name": "Black Market Connections",
+    "oracle_id": "d2664f28-49e1-46f8-a863-b217e961a57c",
+    "oracle_text": "At the beginning of your first main phase, choose one or more —\n• Sell Contraband — Create a Treasure token. You lose 1 life.\n• Buy Information — Draw a card. You lose 2 life.\n• Hire a Mercenary — Create a 3/2 colorless Shapeshifter creature token with changeling. You lose 3 life. (It is every creature type.)",
+    "type_line": "Enchantment"
+   }
+  },
   "Black Sun's Zenith": {
    "phase_records": [
     {
@@ -279337,6 +279707,235 @@
     "power": "2",
     "toughness": "4",
     "type_line": "Enchantment Creature — Centaur"
+   }
+  },
+  "Court of Ire": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Enchantment"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Red"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 3,
+      "shards": [
+       "Red",
+       "Red"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "14efb04a-67d0-4d48-b292-b211f9cf967c",
+       "73ca0dcc-7a87-49da-8011-8c11a8835df2",
+       "e55b67b7-900e-4b8b-a977-a96a71e198e1"
+      ]
+     },
+     "name": "Court of Ire",
+     "non_ability_text": null,
+     "oracle_text": "When this enchantment enters, you become the monarch.\nAt the beginning of your upkeep, this enchantment deals 2 damage to any target. If you're the monarch, it deals 7 damage instead.",
+     "power": null,
+     "printings": [
+      "CMR",
+      "LTC",
+      "PRM"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2020-11-10",
+       "text": "If combat damage dealt to the monarch causes that player to lose the game, the triggered ability that causes the controller of the attacking creature to become the monarch doesn't resolve. In most cases, the controller of the attacking creature will still become the monarch as it is likely their turn."
+      },
+      {
+       "date": "2020-11-10",
+       "text": "If the monarch leaves the game during another player's turn, that player becomes the monarch. If the monarch leaves the game during their turn, the next player in turn order becomes the monarch."
+      },
+      {
+       "date": "2020-11-10",
+       "text": "If the triggered ability that causes the monarch to draw a card goes on the stack and a different player becomes the monarch before that ability resolves, the first player will still draw the card."
+      },
+      {
+       "date": "2020-11-10",
+       "text": "The game starts with no monarch. Once an effect makes one player the monarch, the game will have exactly one monarch from that point forward. As a player becomes the monarch, the current monarch (if any) ceases being the monarch."
+      },
+      {
+       "date": "2020-11-10",
+       "text": "There are two inherent triggered abilities associated with being the monarch. These triggered abilities have no source and are controlled by the player who was the monarch at the time the abilities triggered. The full texts of these abilities are \"At the beginning of the monarch's end step, that player draws a card\" and \"Whenever a creature deals combat damage to the monarch, its controller becomes the monarch.\""
+      }
+     ],
+     "scryfall_oracle_id": "13f58292-9b78-4cd1-a16e-b1779a170d33",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "When ~ enters, you become the monarch.",
+       "destination": "Battlefield",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "type": "BecomeMonarch"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "ChangesZone",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": null
+      },
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": {
+        "type": "OnlyDuringYourTurn"
+       },
+       "damage_kind": "Any",
+       "description": "At the beginning of your upkeep, ~ deals 2 damage to any target. If you're the monarch, it deals 7 damage instead.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "amount": {
+          "type": "Fixed",
+          "value": 2
+         },
+         "target": {
+          "type": "Any"
+         },
+         "type": "DealDamage"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": {
+          "inner": {
+           "type": "IsMonarch"
+          },
+          "type": "ConditionInstead"
+         },
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "amount": {
+           "type": "Fixed",
+           "value": 7
+          },
+          "target": {
+           "type": "ParentTarget"
+          },
+          "type": "DealDamage"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": null,
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "mode": "Phase",
+       "optional": false,
+       "origin": null,
+       "phase": "Upkeep",
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": null,
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 5.0,
+    "color_identity": [
+     "R"
+    ],
+    "colors": [
+     "R"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{3}{R}{R}",
+    "name": "Court of Ire",
+    "oracle_id": "13f58292-9b78-4cd1-a16e-b1779a170d33",
+    "oracle_text": "When this enchantment enters, you become the monarch.\nAt the beginning of your upkeep, this enchantment deals 2 damage to any target. If you're the monarch, it deals 7 damage instead.",
+    "type_line": "Enchantment"
    }
   },
   "Court of Locthwain": {

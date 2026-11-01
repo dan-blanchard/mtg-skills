@@ -7,6 +7,11 @@ the reads-first theme order put above it): :mod:`creature`,
 and :mod:`spell` (instants and sorceries). :func:`quality` picks the read by the
 card's front face and scores it; a land, or a card no read sees, is ``None`` —
 never a low number. The reads are pure: no play-rate, no price, no deck.
+
+:func:`theme_strength` is a second read per type, for a theme page: each type
+module's ``THEME_READ`` (its ``THEME_WEIGHTS``), fitted on pairs no tuner order
+chose (a guide's add against its cut; the live play-rate order's misses). A
+module without a ``THEME_READ`` scores ``None``. :func:`quality` is unchanged.
 """
 
 from __future__ import annotations
@@ -55,6 +60,27 @@ def quality(record: dict) -> float | None:
     if name is None:
         return None
     return READS[name].score(record)
+
+
+#: The type modules by type name: :func:`theme_strength` reads each one's
+#: ``THEME_READ`` when it has one.
+_MODULES = {
+    creature.READ.type_name: creature,
+    noncreature_permanent.READ.type_name: noncreature_permanent,
+    spell.READ.type_name: spell,
+}
+
+
+def theme_strength(record: dict) -> float | None:
+    """The card's theme-strength score under its type's ``THEME_READ`` (fitted
+    on the guides' add-vs-cut pairs and the live play-rate order's misses, not
+    on an order's own picks; higher is stronger), or ``None`` for a card no
+    theme read sees — a land, a type whose module has no ``THEME_READ``, or a
+    card that module's read can't see. The job-page blend's :func:`quality` is
+    a separate read."""
+    name = type_name(record)
+    read = None if name is None else getattr(_MODULES[name], "THEME_READ", None)
+    return None if read is None else read.score(record)
 
 
 def quality_factor(record: dict) -> float:

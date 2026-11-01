@@ -6,8 +6,14 @@ import dataclasses
 
 import pytest
 
+from mtg_utils._analysis import card_quality
 from mtg_utils._analysis.card_quality import noncreature_permanent
-from mtg_utils._analysis.card_quality.noncreature_permanent import READ, features
+from mtg_utils._analysis.card_quality.noncreature_permanent import (
+    READ,
+    THEME_READ,
+    features,
+    theme_features,
+)
 from mtg_utils.testkit import test_card, test_signals
 
 
@@ -75,6 +81,57 @@ def test_a_read_with_other_weights_scores_by_its_own():
     )
     assert base is not None
     assert doubled.score(card) == pytest.approx(2 * base, abs=0.002)
+
+
+def _theme(name: str) -> float | None:
+    return THEME_READ.score(_real(name))
+
+
+@pytest.mark.parametrize(
+    ("guide_add", "other"),
+    [
+        # Live order's miss: Helm of the Host sat above Parallel Lives.
+        ("Parallel Lives", "Helm of the Host"),
+        # Live order's miss: Black Market Connections above Bitterblossom.
+        ("Bitterblossom", "Black Market Connections"),
+        # A guide's add over that guide's cut, play-rate the other way.
+        ("Sphere of Safety", "Arcane Signet"),
+        ("Izzet Generatorium", "Commander's Sphere"),
+    ],
+)
+def test_theme_strength_orders_pairs_play_rate_gets_wrong(guide_add, other):
+    """Pairs from the 2026-10-31 night fit where the more-played card is the one
+    the guide passed over and the theme read picks the guide's card."""
+    assert _theme(guide_add) > _theme(other)
+
+
+def test_theme_features_read_the_strength_shapes():
+    """The theme read's features on cards that carry each one."""
+    assert theme_features(_real("Parallel Lives"))["multiplier"] == 1.0
+    assert theme_features(_real("Fiery Emancipation"))["multiplier"] == 1.0
+    assert theme_features(_real("Court of Ire"))["damage"] == 1.0
+    assert theme_features(_real("Swiftfoot Boots"))["protection"] > 0
+    assert theme_features(_real("Arcane Signet"))["ramp"] > 0
+    assert theme_features(_real("Omen of the Sun"))["library_top"] == 1.0
+    assert theme_features(_real("Parallel Lives"))["library_top"] == 0.0
+
+
+def test_theme_strength_routes_by_type(monkeypatch):
+    """``theme_strength`` scores a card by its type module's ``THEME_READ`` and
+    is ``None`` for a land, or for a type whose module has none."""
+    card = _real("Parallel Lives")
+    assert card_quality.theme_strength(card) == THEME_READ.score(card)
+    assert card_quality.theme_strength(_real("Forest")) is None
+    monkeypatch.delattr(noncreature_permanent, "THEME_READ")
+    assert card_quality.theme_strength(card) is None
+
+
+def test_the_theme_read_leaves_the_job_blend_read_alone():
+    """The theme weights are a second read: ``quality`` still scores by
+    ``WEIGHTS`` (the job-page blend's)."""
+    card = _real("Parallel Lives")
+    assert card_quality.quality(card) == READ.score(card)
+    assert READ.weights is noncreature_permanent.WEIGHTS
 
 
 def test_the_sidecar_serves_what_a_process_wrote_back(tmp_path):
