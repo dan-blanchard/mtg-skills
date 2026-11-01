@@ -371,44 +371,7 @@ def role_of(card: dict, *, deck_mana: DeckMana | None = None) -> set[str]:
         roles.add("board_wipe")
     if is_interaction(card):
         roles.add("interaction")
-    if is_recursion(card):
-        roles.add("recursion")
-    if is_tutor(card):
-        roles.add("tutor")
     return roles
-
-
-def is_recursion(card: dict) -> bool:
-    """THE recursion answer (ADR-0051, like :func:`is_ramp`): the ``recursion``
-    preset, a view over the signal path — a card returning a card from a
-    graveyard to the battlefield or to hand (the ``creature_recursion`` /
-    ``reanimator`` keys and the graveyard-return concept: Reanimate, Gravedigger,
-    Eternal Witness) or returning itself (``dies_recursion`` / ``self_recurring``:
-    Kitchen Finks, Bloodghast). The Commander template's Recursion row counts
-    by it and the tuner sources the row by the same preset (:data:`ROLE_SEARCH`).
-    Decided 2026-10-31: every kind counts, a self-returning card included. No
-    text degrade: a card the signal path can't see is not recursion."""
-    return _matches_preset(card, "recursion")
-
-
-def is_tutor(card: dict) -> bool:
-    """THE tutor answer for the template's Tutors row: the ``tutors`` preset (the
-    ``tutor`` key — a library search for a card to hand, battlefield, graveyard or
-    the top of the library) less a card whose searches find ONLY lands (its tutor
-    idents name no subject but ``Land``: Sylvan Scrying, Expedition Map,
-    Bushwhack — the mana base's business, as a land fetched to the battlefield is
-    the ramp lane's). Demonic Tutor (no subject), Worldly Tutor (``Creature``) and
-    a two-mode search that can also find a land count. Decided 2026-10-31."""
-    if not _matches_preset(card, "tutors"):
-        return False
-    from mtg_utils.theme_presets import _signal_idents_for
-
-    subjects = {
-        ident.split("|", 2)[2]
-        for ident in _signal_idents_for(card, include_membership=False)
-        if ident.startswith("tutor|")
-    } - {""}
-    return not (subjects and subjects <= {"Land"})
 
 
 def is_board_wipe(card: dict) -> bool:
@@ -520,8 +483,4 @@ ROLE_SEARCH: dict[str, dict] = {
         "_filter": lambda c, **_kw: is_interaction(c),
     },
     "board_wipe": {"preset_names": ("board-wipe",)},
-    # The 2026-10-31 rows: every recursion kind by its own preset; the tutors
-    # preset less the land-only searches (the precision pass is the role's answer).
-    "recursion": {"preset_names": ("recursion",)},
-    "tutor": {"preset_names": ("tutors",), "_filter": lambda c, **_kw: is_tutor(c)},
 }

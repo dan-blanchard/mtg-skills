@@ -1249,18 +1249,13 @@ def propose_swaps(
 
     # Roles already at/above their template ceiling — an add filling one would push the
     # deck OFF-template, so fixing one issue must not regress the template.
-    full_roles = {
-        r
-        for r, b in ctx.budgets.items()
-        if b["max"] is not None and b["current"] >= b["max"]
-    }
+    full_roles = {r for r, b in ctx.budgets.items() if b["current"] >= b["max"]}
     # How far each upgrade job is from the most the deck wants of it, as the
     # swaps land: a template row's max, and the Shape's protection target where
     # it wants protection (ADR-0024). A job with no room left is full, and a
-    # full job's upgrade moves onto the theme (the docstring). A floor-only row
-    # (recursion, tutors: an open ceiling) is never full.
-    job_room: dict[str, float] = {
-        job: math.inf if b["max"] is None else b["max"] - b["current"]
+    # full job's upgrade moves onto the theme (the docstring).
+    job_room = {
+        job: b["max"] - b["current"]
         for job, b in ctx.budgets.items()
         if job in UPGRADE_ROLE_ORDER and not b.get("advisory")
     }
