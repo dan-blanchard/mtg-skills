@@ -20,6 +20,7 @@ from mtg_utils._analysis.tree_synthesis._shared import (
 )
 from mtg_utils._card_ir.crosswalk import (
     AGGREGATE_QTY_TAGS,
+    AbilityUnit,
     ConceptNode,
     ConceptTree,
     attack_trigger_side,
@@ -40,6 +41,7 @@ from mtg_utils._card_ir.crosswalk import (
     quantity_referent,
     tag_of,
 )
+from mtg_utils._card_ir.crosswalk.reads import drawback_outcome_node_ids
 from mtg_utils._card_ir.mirror.runtime import MirrorVariant
 
 # ── attack_matters structural reads (ADR-0036 fold — shared lane/gate source) ──
@@ -130,13 +132,51 @@ def _watches_attacks_on_you(unit: object) -> bool:
 
 
 def has_attack_trigger(tree: ConceptTree) -> bool:
-    """A phase-typed offensive attack-declaration trigger (CR 508.1a)."""
-    return any(
-        unit.origin == "trigger"
-        and unit.trigger_event in ATTACK_TRIGGER_EVENTS
-        and not _watches_attacks_on_you(unit)
-        for unit in tree.units
-    )
+    """A phase-typed offensive attack-declaration trigger (CR 508.1a), one that
+    does something for you: not one whose only outcomes are a coin flip's
+    drawbacks (:func:`_pays_nothing` — Fickle Efreet's "flip a coin at end of
+    combat. If you lose the flip, an opponent gains control of ~")."""
+    return any(not _pays_nothing(unit) for unit in _typed_attack_triggers(tree))
+
+
+def _typed_attack_triggers(
+    tree: ConceptTree, events: frozenset[str] = ATTACK_TRIGGER_EVENTS
+) -> Iterator[AbilityUnit]:
+    """The card's typed offensive triggers on ``events``, whatever they do."""
+    for unit in tree.units:
+        if (
+            unit.origin == "trigger"
+            and unit.trigger_event in events
+            and not _watches_attacks_on_you(unit)
+        ):
+            yield unit
+
+
+#: The attack events the text tail's idiom also reads ("whenever ~ attacks or
+#: blocks"), beside :data:`ATTACK_TRIGGER_EVENTS`.
+_ATTACK_IDIOM_EVENTS = ATTACK_TRIGGER_EVENTS | {"attacksorblocks"}
+
+
+def _attack_triggers_pay_nothing(tree: ConceptTree) -> bool:
+    """Whether the card's typed attack triggers all pay nothing
+    (:func:`_pays_nothing`): the text tail's "whenever ~ attacks" is their own
+    clause, no gap phase left (Fickle Efreet's "attacks or blocks")."""
+    units = list(_typed_attack_triggers(tree, _ATTACK_IDIOM_EVENTS))
+    return bool(units) and all(_pays_nothing(u) for u in units)
+
+
+#: The effects that only frame others: a delayed trigger and a coin flip.
+_FRAMING_EFFECT_TAGS = frozenset({"CreateDelayedTrigger", "FlipCoins"})
+
+
+def _pays_nothing(unit: AbilityUnit) -> bool:
+    """Whether a unit holds a coin flip outcome against you
+    (``crosswalk.reads.drawback_outcome_node_ids``, the outcomes the effect walk
+    leaves out) and no effect beside it but the delayed trigger and the flip
+    that frame it."""
+    if not drawback_outcome_node_ids(unit.node):
+        return False
+    return all(tag_of(c.node) in _FRAMING_EFFECT_TAGS for c in unit.effects)
 
 
 def attack_raid_condition(tree: ConceptTree) -> bool:
@@ -238,9 +278,10 @@ def _arm_attack_matters(tree: ConceptTree) -> ConceptNode | None:
     CR 508: fires only when phase carries no typed attack node
     (:func:`_has_structural_attack`) and the oracle carries a genuine your-side
     attack idiom (:func:`_matches_attack_idiom`). Scope "you" (the lane's + serve
-    spec's scope for this combat-state payoff).
+    spec's scope for this combat-state payoff). A typed attack trigger that pays
+    nothing (:func:`_attack_triggers_pay_nothing`) is no gap either.
     """
-    if _has_structural_attack(tree):
+    if _has_structural_attack(tree) or _attack_triggers_pay_nothing(tree):
         return None
     if not _matches_attack_idiom(tree.oracle or ""):
         return None
