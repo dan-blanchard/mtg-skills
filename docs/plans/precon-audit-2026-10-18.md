@@ -2843,3 +2843,34 @@ theme adds the 150-card page cut off (deep profile above) convert nothing — th
 theme order is fit then play-rate, so a card past position 150 is reached only
 once every fitting card above it is taken — and the 25 lost three adds to
 less-played support cards. Reverted; don't re-suggest page depth alone.
+
+## Three reads as one re-base (2026-10-31, late night; N5)
+
+Grilled with Dan as a backlog block (memory `tuner-block-2026-11-01`). Three
+read changes, each on correctness, measured together against N4:
+
+- **One instant-speed read.** `crosswalk.at_instant_speed(tree, unit)`: an
+  activated ability unless held to sorcery timing (CR 117.1b, 602.5d), any
+  ability of an instant (CR 117.1a) or of a card with flash (CR 702.8a). The
+  end-turn read and protection's `_timely` keep their verdicts; removal's
+  `instant` feature stops crediting a sorcery-speed activation (Westfold Rider).
+- **A copy of a stack ability is `copy_ability`**, not `copy_spell` (CR
+  707.10): the value-engine synthesis and the ledger's copy-spell gap no longer
+  count Strionic Resonator as a spell copy; Lithoform Engine carries both.
+- **"Multipliers of the commander"**, a predicate need over
+  `multipliers.multiplier_reasons` (`copy` and `ability` families; `keep` stays
+  the `commander_keeps` issue's, a zone grant the tribe's), read for a commander
+  with a trigger, an activation or a creature body. It gives the E1 near tie a
+  reason to lift Strionic Resonator or Spark Double where they already sit on a
+  page; the measured-negative multiplier page stays off.
+
+| set | N4 | N5 |
+|---|---|---|
+| held-out 20: swaps / cuts / adds, plan (tune / guides), job-equiv | 580 / 254 / 100, 261 / 284, 41 | 579 / 253 / 100, 266 / 304, 42 |
+| the 25: swaps / cuts / adds, plan (tune) | 734 / 339 / 113, 348 | 734 / 339 / 114, 353 |
+
+The guide-side plan line (+20 held-out) is the need read seeing the guides'
+multipliers as on-plan; the tune-side +5 is the near tie taking a few of them
+(Deadly Disguise +2, Quandrix, Creative Energy). Jeskai Striker lost one swap
+to the fold (a sorcery-speed activation no longer upgrades a removal cut).
+**Baseline N5** (`w41/sb-*-N5.json`).

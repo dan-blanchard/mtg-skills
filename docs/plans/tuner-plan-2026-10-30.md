@@ -139,6 +139,19 @@ miss taxonomy, the held-out candidates).
   counted twice in the job blend (held-out adds +2, cuts +1, plan −2;
   `w41/job-blend-P1.patch`); P2 a 300-card theme page (held-out flat, the 25
   adds −3). Don't re-suggest page depth alone.
+- 2026-10-31, late night (grilled: the backlog block; Dan's standing goal is a
+  tuner backlog with no open item but the upstream phase reports). Three reads
+  as one re-base, N5: the one instant-speed read (`crosswalk.at_instant_speed`;
+  removal no longer credits a sorcery-speed activation), a copy of a stack
+  ability as its own concept (`copy_ability`; Strionic Resonator is no spell
+  copy to the value engines or the ledger), and a "multipliers of the
+  commander" need (a predicate over `multiplier_reasons`, the `copy` and
+  `ability` families) so the E1 near tie lifts on-page doublers and copiers.
+  Held-out plan +5 (266), guide-side plan +20, adds flat (100), cuts −1, job-
+  equivalents +1; the 25 plan +5 (353), adds +1 (114) — **baseline N5**
+  (`w41/sb-*-N5.json`). Two standalone bugs went first (`scryfall-lookup
+  --batch` survives a 503; `legality-audit` fails a card that can't be a
+  commander, CR 903.3).
 
 ## Target
 
