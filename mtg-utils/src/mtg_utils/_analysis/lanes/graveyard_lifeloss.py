@@ -50,6 +50,7 @@ from mtg_utils._card_ir.crosswalk import (
     damage_to_player_trigger_kind,
     effect_actor_scope,
     effect_filter,
+    effect_owner_optional,
     effect_owner_player_scope,
     effect_trigger_def,
     explicit_recipient_scope,
@@ -92,7 +93,7 @@ from mtg_utils._card_ir.crosswalk import (
     trigger_turn_constraint,
     trigger_zone_changes,
 )
-from mtg_utils._card_ir.crosswalk.reads import chooses
+from mtg_utils._card_ir.crosswalk.reads import GrantedTrigger, chooses
 from mtg_utils._card_ir.mirror.runtime import (
     MISSING,
     MirrorVariant,
@@ -1921,6 +1922,38 @@ def _targeted_set_edict(unit: AbilityUnit, node: TypedMirrorNode) -> str | None:
     return "opponents"
 
 
+def _granted_edict_scope(
+    tree: ConceptTree,
+    unit: AbilityUnit,
+    granted: GrantedTrigger,
+    node: TypedMirrorNode,
+) -> str | None:
+    """The actor of a granted trigger's forced "sacrifice a creature" that names
+    no player: the controller of the permanent holding the trigger (CR 603.3a,
+    Inevitable End's ruling: "that player chooses a creature to sacrifice").
+    ``"opponents"`` when that is an opponent — a grantee another player controls,
+    or the creature an Aura enchants when the Aura may enchant any player's
+    (``card_enchant_filter`` not limited to yours): a sacrifice every upkeep is a
+    drawback no deck enchants its own creature with, the Curse's use (Inevitable
+    End). A sacrifice of the holder itself (Necrotic Plague's "sacrifice this
+    creature"; a vanishing upkeep), a "may", and an Equipment's grant (it only
+    equips a creature you control, CR 702.6a) stay ``None``."""
+    target = getattr(node, "target", None)
+    if tag_of(target) != "Typed" or effect_owner_optional(unit.node, node):
+        return None
+    grantee = granted.grantee
+    if filter_controller_side(grantee) == "opponents":
+        return "opponents"
+    enchant = tree.card_enchant_filter
+    if (
+        names_attached_object(grantee)
+        and tag_of(enchant) == "Typed"
+        and filter_controller(enchant) is None
+    ):
+        return "opponents"
+    return None
+
+
 def _edict_makers(tree: ConceptTree) -> list[Signal]:
     """edict_makers — a FORCED player sacrifice (CR 701.21a / 800.4a). The INVERSE of
     the ``sacrifice_outlets`` you-sac gate. Two structural tells, each reading the
@@ -1951,8 +1984,9 @@ def _edict_makers(tree: ConceptTree) -> list[Signal]:
 
     # A granted trigger reads like a printed one (Demon of Wailing Agonies'
     # "that player sacrifices a creature of their choice"); a granted "sacrifice
-    # a creature" names no controller, so it stays the grantee's own.
-    for unit in tree.iter_units_and_granted_triggers():
+    # a creature" names no controller, so it is the grantee's controller's
+    # (:func:`_granted_edict_scope`).
+    for unit, granted in tree.iter_units_with_grants():
         for c in unit.effects:
             if c.concept != "sacrifice":
                 continue
@@ -1967,6 +2001,8 @@ def _edict_makers(tree: ConceptTree) -> list[Signal]:
                 fire(_targeted_set_edict(unit, c.node), c.raw)
                 continue
             scope = sacrifice_actor_scope(unit, c.node)
+            if scope is None and granted is not None:
+                scope = _granted_edict_scope(tree, unit, granted, c.node)
             fire(scope, c.raw)
             # A targeted player's edict ("Target player sacrifices a creature" —
             # Diabolic Edict, Cruel Edict) also carries the subject ``target``: it
