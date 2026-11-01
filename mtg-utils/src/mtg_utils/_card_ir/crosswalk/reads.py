@@ -10942,7 +10942,9 @@ def deals_its_own_power(node: TypedMirrorNode, unit: AbilityUnit | None = None) 
     return ref.kind == "batch"
 
 
-def is_bite(node: TypedMirrorNode, unit: AbilityUnit) -> bool:
+def is_bite(
+    node: TypedMirrorNode, unit: AbilityUnit, *, equipment: bool = False
+) -> bool:
     """Whether a power-sized damage effect (:func:`iter_power_damage`) is a bite:
     a creature of yours deals damage equal to its own power to another object
     ("Target creature you control deals damage equal to its power to target
@@ -10957,9 +10959,13 @@ def is_bite(node: TypedMirrorNode, unit: AbilityUnit) -> bool:
     deals damage equal to its power to target creature" — Halana, Kessig
     Ranger), and a batch's dealers when its sources are creatures you control
     ("Each creature you control deals damage equal to its power to that
-    creature" — Moonlight Hunt, Kamahl's Will, Bartz and Boko). An attached
-    dealer (Lothlórien Blade's equipped creature) is left out: no filter
-    names its controller.
+    creature" — Moonlight Hunt, Kamahl's Will, Bartz and Boko). On an
+    Equipment (``equipment``, the card's own subtype), a trigger watching the
+    creature it's attached to (phase's ``AttachedTo``) watches the equipped
+    creature (CR 301.5a), which equip attaches to "target creature you control"
+    (CR 702.6a): "Whenever equipped creature attacks, it deals damage equal to
+    its power to target creature defending player controls" (Lothlórien Blade)
+    is your creature biting. An Aura's enchanted creature can be anyone's.
 
     Never a dealer an opponent controls (Mutiny), one dealing damage to itself
     (Repentance, Solar Blaze: a ``ParentTarget`` recipient of the targeted
@@ -10977,7 +10983,10 @@ def is_bite(node: TypedMirrorNode, unit: AbilityUnit) -> bool:
         return filter_controller_side(getattr(node, "sources", None)) == "you"
     if ref.kind == "event":
         watched = getattr(unit.node, "valid_card", None)
-        return unit.origin == "trigger" and filter_controller_side(watched) == "you"
+        return unit.origin == "trigger" and (
+            filter_controller_side(watched) == "you"
+            or (equipment and tag_of(watched) == "AttachedTo")
+        )
     if ref.kind != "target" or ref.effect is None:
         return False
     if tag_of(damage_recipient(node)) == "ParentTarget":
@@ -10991,9 +11000,11 @@ def power_is_yours(
     unit: AbilityUnit,
     *,
     sacrifice_actor: Callable[[AbilityUnit, TypedMirrorNode], str | None],
+    equipment: bool = False,
 ) -> bool:
     """Whether a power-sized damage effect (:func:`iter_power_damage`) is sized
-    by a creature of yours: a bite (:func:`is_bite`), a creature the caster
+    by a creature of yours: a bite (:func:`is_bite`, an Equipment's equipped
+    creature among them — ``equipment``, CR 702.6a / 301.5a), a creature the caster
     picks (:func:`picked_by_caster`: Tiger-Tribe Hunter's sacrificed creature,
     Monstrous Emergence's chosen or revealed one, Corpse Explosion's exiled
     creature card, Bolg of the North's "that creature" you sacrifice), the Army
@@ -11004,7 +11015,7 @@ def power_is_yours(
     controls (Repentance's "target creature", Solar Blaze's each creature), nor
     a card an effect moves (Dead Reckoning, Lie in Wait). ``sacrifice_actor`` is
     :func:`picked_by_caster`'s."""
-    if is_bite(node, unit):
+    if is_bite(node, unit, equipment=equipment):
         return True
     if tag_of(node) in POWER_DAMAGE_TAGS:
         return False

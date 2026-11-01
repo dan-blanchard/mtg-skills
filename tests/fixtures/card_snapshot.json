@@ -706837,6 +706837,240 @@
     "type_line": "Enchantment — Aura"
    }
   },
+  "Lothlórien Blade": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "ability_tag": {
+        "type": "Equip"
+       },
+       "activation_restrictions": [
+        {
+         "type": "AsSorcery"
+        }
+       ],
+       "condition": null,
+       "cost": {
+        "cost": {
+         "generic": 2,
+         "shards": [],
+         "type": "Cost"
+        },
+        "type": "Mana"
+       },
+       "description": "Equip Elf {2}",
+       "duration": null,
+       "effect": {
+        "selection": {
+         "at_resolution": {}
+        },
+        "target": {
+         "controller": "You",
+         "properties": [],
+         "type": "Typed",
+         "type_filters": [
+          "Creature",
+          {
+           "Subtype": "Elf"
+          }
+         ]
+        },
+        "type": "Attach"
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      },
+      {
+       "ability_tag": {
+        "type": "Equip"
+       },
+       "activation_restrictions": [
+        {
+         "type": "AsSorcery"
+        }
+       ],
+       "condition": null,
+       "cost": {
+        "cost": {
+         "generic": 5,
+         "shards": [],
+         "type": "Cost"
+        },
+        "type": "Mana"
+       },
+       "description": "Equip {5}",
+       "duration": null,
+       "effect": {
+        "selection": {
+         "at_resolution": {}
+        },
+        "target": {
+         "controller": "You",
+         "properties": [],
+         "type": "Typed",
+         "type_filters": [
+          "Creature"
+         ]
+        },
+        "type": "Attach"
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Artifact"
+      ],
+      "subtypes": [
+       "Equipment"
+      ],
+      "supertypes": []
+     },
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 3,
+      "shards": [],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "3f7f1d3b-d6bb-4ddb-81d8-12f7aaaec49e",
+       "6360afed-c02b-4f10-8d8c-1633a49fabb7",
+       "fae31fc5-ee33-44c6-a2eb-ff74cb975955"
+      ]
+     },
+     "name": "Lothlórien Blade",
+     "non_ability_text": null,
+     "oracle_text": "Whenever equipped creature attacks, it deals damage equal to its power to target creature defending player controls.\nEquip Elf {2}\nEquip {5}",
+     "power": null,
+     "printings": [
+      "LTC"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "a2a39123-8b70-4678-8675-ba79f37a5db8",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever equipped creature attacks, it deals damage equal to its power to target creature defending player controls.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "amount": {
+          "qty": {
+           "scope": {
+            "type": "EventSource"
+           },
+           "type": "Power"
+          },
+          "type": "Ref"
+         },
+         "damage_source": "TriggeringSource",
+         "target": {
+          "controller": "DefendingPlayer",
+          "properties": [],
+          "type": "Typed",
+          "type_filters": [
+           "Creature"
+          ]
+         },
+         "type": "DealDamage"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "Attacks",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "type": "AttachedTo"
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 3.0,
+    "color_identity": [],
+    "colors": [],
+    "keywords": [
+     "Equip"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{3}",
+    "name": "Lothlórien Blade",
+    "oracle_id": "a2a39123-8b70-4678-8675-ba79f37a5db8",
+    "oracle_text": "Whenever equipped creature attacks, it deals damage equal to its power to target creature defending player controls.\nEquip Elf {2}\nEquip {5}",
+    "type_line": "Artifact — Equipment"
+   }
+  },
   "Lotus Bloom": {
    "phase_records": [
     {
