@@ -42,8 +42,7 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   `PAGE_ONLY_SUBJECTS` belongs in it as a role, and the voltron `has_other_plan`
   read should ask `avenue_spec_for(s) is not None` instead of keeping its own
   exclusion lists — membership_floor's step-trigger exclusion duplicates
-  `STEP_TRIGGER_KEYS` the same way); the spell-additional-cost walk keeps
-  only allowlisted OTHER leaves (PayLife, Blight) — walk them all;
+  `STEP_TRIGGER_KEYS` the same way);
   `card_draw_engine` misses Mask of the Schemer's connive X (phase parks "where
   X is the amount of damage it dealt" as `where_x_binding`);
   the empower Jace token's scry / surveil (about thirty cards) is not walked.

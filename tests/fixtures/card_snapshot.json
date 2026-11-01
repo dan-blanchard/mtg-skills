@@ -333414,6 +333414,140 @@
     "type_line": "Instant"
    }
   },
+  "Deprive": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Counter target spell.",
+       "duration": null,
+       "effect": {
+        "target": {
+         "type": "StackSpell"
+        },
+        "type": "Counter"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "additional_cost": {
+      "data": {
+       "count": 1,
+       "filter": {
+        "controller": "You",
+        "properties": [],
+        "type": "Typed",
+        "type_filters": [
+         "Land"
+        ]
+       },
+       "type": "ReturnToHand"
+      },
+      "type": "Required"
+     },
+     "card_type": {
+      "core_types": [
+       "Instant"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Blue"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pauper": "legal",
+      "paupercommander": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 0,
+      "shards": [
+       "Blue",
+       "Blue"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "2efecdd9-bd3a-4b79-92da-6485589d5bde"
+      ]
+     },
+     "name": "Deprive",
+     "non_ability_text": null,
+     "oracle_text": "As an additional cost to cast this spell, return a land you control to its owner's hand.\nCounter target spell.",
+     "power": null,
+     "printings": [
+      "ROE"
+     ],
+     "rarities": [
+      "common"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "1065eceb-9150-4ea4-bd6d-acaabda14e00",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 2.0,
+    "color_identity": [
+     "U"
+    ],
+    "colors": [
+     "U"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "legal",
+     "paupercommander": "legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{U}{U}",
+    "name": "Deprive",
+    "oracle_id": "1065eceb-9150-4ea4-bd6d-acaabda14e00",
+    "oracle_text": "As an additional cost to cast this spell, return a land you control to its owner's hand.\nCounter target spell.",
+    "type_line": "Instant"
+   }
+  },
   "Derevi, Empyrial Tactician": {
    "phase_records": [
     {
@@ -438271,6 +438405,139 @@
     "power": "1",
     "toughness": "1",
     "type_line": "Legendary Creature — Homunculus"
+   }
+  },
+  "Fear of Isolation": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "additional_cost": {
+      "data": {
+       "count": 1,
+       "filter": {
+        "controller": "You",
+        "properties": [],
+        "type": "Typed",
+        "type_filters": [
+         "Permanent"
+        ]
+       },
+       "type": "ReturnToHand"
+      },
+      "type": "Required"
+     },
+     "card_type": {
+      "core_types": [
+       "Enchantment",
+       "Creature"
+      ],
+      "subtypes": [
+       "Nightmare"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Blue"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [
+      "Flying"
+     ],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "standard": "legal",
+      "standardbrawl": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "Blue"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "69aa6054-8c59-4bbc-a283-adb453639786"
+      ]
+     },
+     "name": "Fear of Isolation",
+     "non_ability_text": null,
+     "oracle_text": "As an additional cost to cast this spell, return a permanent you control to its owner's hand.\nFlying",
+     "power": {
+      "type": "Fixed",
+      "value": 2
+     },
+     "printings": [
+      "DSK"
+     ],
+     "rarities": [
+      "uncommon"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "0ee28549-5909-4372-8376-34010b7b6654",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 3
+     },
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 2.0,
+    "color_identity": [
+     "U"
+    ],
+    "colors": [
+     "U"
+    ],
+    "keywords": [
+     "Flying"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "legal",
+     "standardbrawl": "legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}{U}",
+    "name": "Fear of Isolation",
+    "oracle_id": "0ee28549-5909-4372-8376-34010b7b6654",
+    "oracle_text": "As an additional cost to cast this spell, return a permanent you control to its owner's hand.\nFlying",
+    "power": "2",
+    "toughness": "3",
+    "type_line": "Enchantment Creature — Nightmare"
    }
   },
   "Feast of Blood": {
