@@ -253,6 +253,23 @@ def test_combat_and_damage_reads(name, ident, has):
 @pytest.mark.parametrize(
     ("name", "ident", "has"),
     [
+        # a spell's additional cost (CR 601.2b) keeps every cost it holds:
+        # returning a permanent you control to hand re-delivers it
+        ("Fear of Isolation", "permanent_etb|you|replay", True),
+        ("Deprive", "permanent_etb|you|replay", True),
+        # forage: exile three cards from your graveyard or sacrifice a Food
+        ("Feed the Cycle", "graveyard_matters|you|", True),
+        # the residue phase parks as the cost stays the residue reads'
+        ("Close Encounter", "exile_matters|you|", True),
+    ],
+)
+def test_a_spells_additional_cost_keeps_every_cost(name, ident, has):
+    assert (ident in _idents(name)) is has
+
+
+@pytest.mark.parametrize(
+    ("name", "ident", "has"),
+    [
         # affinity for Equipment counts your Equipment (CR 702.41a): a gear payoff
         ("Oxidda Finisher", "voltron_matters|you|", True),
         ("Rebel Salvo", "voltron_matters|you|", True),

@@ -1121,17 +1121,40 @@ def _cost_concepts(ability: TypedMirrorNode) -> tuple[ConceptNode, ...]:
     return (cn,) if cn is not None else ()
 
 
-# The cost primitives with no effect concept that a spell's additional cost
-# keeps (:func:`_spell_additional_cost_concepts`): paying life, blighting,
-# tapping untapped permanents you control, and beholding a quality (CR 701.4a:
+# The quality costs a casting option's optional cost carries
+# (:func:`_spell_additional_cost_concepts`): beholding a quality (CR 701.4a:
 # "Behold a [quality]" means "Reveal a [quality] card from your hand or choose a
-# [quality] permanent you control" — Champion of the Weird's Goblin) or
-# revealing a card of one (Dragonlord's Prerogative's "you may reveal a Dragon
-# card"), whose filter names what the spell asks you to have.
+# [quality] permanent you control") or revealing a card of one, whose filter
+# names what the spell asks you to have.
 _QUALITY_COST_TAGS = frozenset({"Behold", "Reveal"})
-_ADDITIONAL_COST_PRIMITIVE_TAGS = (
-    _PAYLIFE_COST_TAGS | frozenset({"Blight", "TapCreatures"}) | _QUALITY_COST_TAGS
-)
+
+
+def _additional_cost_leaves(ac: TypedMirrorNode) -> Iterator[TypedMirrorNode]:
+    """The cost leaves a spell's ``additional_cost`` wrapper holds: its ``data``
+    (one cost, a ``Choice``'s list, an ``Optional``'s ``cost`` or a
+    ``Kicker``'s ``costs``), through ``Composite`` / ``OneOf`` ``costs`` lists
+    (the nesting ``reads.iter_cost_leaves`` walks)."""
+
+    def leaves(node: object, depth: int = 0) -> Iterator[TypedMirrorNode]:
+        if depth > 8:
+            return
+        if isinstance(node, MirrorVariant):  # an untagged {"cost": …} holder
+            node = node.inner
+        if isinstance(node, list):
+            for c in node:
+                yield from leaves(c, depth + 1)
+            return
+        if not isinstance(node, TypedMirrorNode):
+            return
+        costs = getattr(node, "costs", MISSING)
+        if _present(costs) and isinstance(costs, list):
+            yield from leaves(costs, depth + 1)
+        elif tag_of(node) is not None:
+            yield node
+
+    data = getattr(ac, "data", MISSING)
+    for item in data if isinstance(data, list) else (data,):
+        yield from leaves(item)
 
 
 def _spell_additional_cost_concepts(root: TypedMirrorNode) -> tuple[ConceptNode, ...]:
@@ -1145,40 +1168,45 @@ def _spell_additional_cost_concepts(root: TypedMirrorNode) -> tuple[ConceptNode,
     Kuldotha Rebirth; a Choice arm — Bone Shards' "sacrifice a creature or
     discard a card").
 
-    A ``PayLife`` leaf (Toxic Deluge's "pay X life", Bitter Triumph's
-    "discard a card or pay 3 life" ``Choice`` arm) has no ``EFFECT_CONCEPTS``
-    entry — it is a cost primitive, not a named effect — so it decorates
-    ``concept=OTHER`` like any unrecognized tag; the ordinary OTHER filter
-    below would silently drop it, and unlike Sacrifice/Discard it has NO
-    other structural path back into ``unit.costs`` (:func:`cost_has_paylife`'s
-    own ``.costs``-list recursion is built for a Composite cost's nested
-    fields, not this wrapper's ``data``/``options`` shape), so a dropped
-    PayLife leaf is invisible to every cost-reading lane, not just
-    under-decorated. Kept explicitly (CR 119.4: paying life IS a cost) —
-    every OTHER consumer of ``unit.costs`` filters by an explicit
-    ``concept ==`` name (sacrifice / grant-cast-exile-evidence scans), so an
-    admitted OTHER-concept PayLife node is inert everywhere except a raw
-    node walk like :func:`cost_has_paylife`, exactly what
-    ``lifeloss_makers``'s cost arm needs. A ``Blight`` leaf (Soul Immolation's
-    "As an additional cost to cast this spell, blight X") is the same kind of
-    cost primitive (CR 701.68a), kept for ``minus_counters_matter``'s blight read
-    (``crosswalk.reads.blight_placements``), and so is a ``TapCreatures`` leaf
-    (Disruption Protocol's "tap an untapped artifact you control or pay {1}"),
-    for the readers of ``crosswalk.reads.controller_paid_cost_leaves``. A
-    behold that buys a casting permission rides ``casting_options`` instead
-    ("You may cast this spell as though it had flash if you behold a Dragon as
-    an additional cost to cast it" — Molten Exhale), and joins it.
+    A cost primitive with no ``EFFECT_CONCEPTS`` entry decorates
+    ``concept=OTHER``, and the deep walk also reaches each cost's filters and
+    amounts, which decorate the same way; so an OTHER node is kept only when it
+    is one of the wrapper's cost leaves (:func:`_additional_cost_leaves`):
+    paying life (Toxic Deluge's "pay X life", Bitter Triumph's "discard a card
+    or pay 3 life" arm; CR 119.4, ``lifeloss_makers``' cost arm through
+    :func:`cost_has_paylife`), blighting (Soul Immolation; CR 701.68a,
+    ``crosswalk.reads.blight_placements``), tapping untapped permanents you
+    control (Disruption Protocol), beholding or revealing a quality, collecting
+    evidence (Behind the Mask), waterbending, exiling cards from your graveyard
+    (Skeletal Scrying, forage — Feed the Cycle) and returning a permanent you
+    control to hand (Fear of Isolation, Deprive), for the readers of
+    ``crosswalk.reads.controller_paid_cost_leaves``. Every consumer of
+    ``unit.costs`` that filters by an explicit ``concept ==`` name passes an
+    OTHER leaf by. A residue phase parks as the cost (Close Encounter's
+    ``Unimplemented``) stays out: the residue reads take it. A behold that buys
+    a casting permission rides ``casting_options`` instead ("You may cast this
+    spell as though it had flash if you behold a Dragon as an additional cost to
+    cast it" — Molten Exhale), and joins it.
     """
     out: list[ConceptNode] = []
     ac = getattr(root, "additional_cost", MISSING)
     if isinstance(ac, TypedMirrorNode):
+        # Every cost the wrapper holds is kept, a cost primitive with no effect
+        # concept included (collect evidence, waterbend, exiling cards from your
+        # graveyard, returning a permanent you control to hand): only the nodes
+        # inside a cost (its filters and amounts) stay out, and a residue phase
+        # parks as the cost (Close Encounter's ``Unimplemented``), which the
+        # residue reads take.
+        leaves = {
+            id(n) for n in _additional_cost_leaves(ac) if tag_of(n) != "Unimplemented"
+        }
         for n in iter_typed_nodes(ac):
             if n is ac:
                 continue
             cn = _decorate_effect(n, "cost")
             if cn is None:
                 continue
-            if cn.concept != OTHER or tag_of(n) in _ADDITIONAL_COST_PRIMITIVE_TAGS:
+            if cn.concept != OTHER or id(n) in leaves:
                 out.append(cn)
     for n in _casting_option_cost_leaves(root, alternative=False):
         if tag_of(n) in _QUALITY_COST_TAGS and (cn := _decorate_effect(n, "cost")):
