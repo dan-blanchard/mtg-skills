@@ -9289,8 +9289,9 @@ def test_cast_as_though_it_had_flash_reads_casting_options(name, conditional):
     ],
 )
 def test_the_exiled_cards_owners_consolation_is_not_yours(name, ident):
-    """"When ~ leaves the battlefield, the exiled card's owner seeks … / may cast
-    that card without paying its mana cost / manifests dread": phase hangs
+    """A consolation "When ~ leaves the battlefield, the exiled card's owner
+    seeks … / may cast that card without paying its mana cost / manifests
+    dread": phase hangs
     ``OwnersOfCardsExiledBySource`` on the wrapper over a Controller-relative
     effect. The owner of the card the source answered does it
     (``crosswalk.effects_by_actor``), so the doer lane reads the opponents'
