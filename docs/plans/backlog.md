@@ -703,9 +703,7 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   granted flanking;
   back-reference counter targets scoped you (Retribution, Obelisk Spider);
   partial prevention, granted absorb, Blinding Powder, Torrent of Lava
-  (`damage_prevention`); the lifegain pair lost its 96 Food makers — `lifegain_makers`
-  does not read the gain inside a Food token (Bake into a Pie, Bill the Pony);
-  "whenever you proliferate" payoffs and granted / X proliferate have no ident
+  (`damage_prevention`); "whenever you proliferate" payoffs and granted / X proliferate have no ident
   (Scheming Aspirant, Venser, Tam, Ichormoon Gauntlet); the own-graveyard
   remainder (collect-evidence and forage costs, descend payoffs, the Empower
   Jace token's surveil, granted delve / soulshift X, a craft cost). Lane false

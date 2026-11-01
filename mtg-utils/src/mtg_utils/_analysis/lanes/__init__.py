@@ -1543,6 +1543,15 @@ def extract_crosswalk_signals(
     out_keys = {s.key for s in out}
     if "spell_copy_makers" in out_keys and "spellcast_matters" not in out_keys:
         add(Signal("spellcast_matters", "you", "", "", tree.name, "low"))
+    # A Food you make is a life-gain source: "A Food token is a colorless Food
+    # artifact token with '{2}, {T}, Sacrifice this token: You gain 3 life'" (CR
+    # 111.10b). phase types the predefined token by name, never its ability, so
+    # the gain inside it reaches no ``gain_life`` node (Bake into a Pie, Bill the
+    # Pony). ``food_makers|you|`` already holds only the Foods you create.
+    if any(s.key == "food_makers" and s.scope == "you" for s in out) and not any(
+        s.key == "lifegain_makers" and s.scope == "you" for s in out
+    ):
+        add(Signal("lifegain_makers", "you", "", "", tree.name, "high"))
 
     # b14 §7 — the wants_theft hybrid-FACADE reconciliation (CR 800.4a; the
     # spell_copy precedent above): a battlefield-steal (gain_control in the
