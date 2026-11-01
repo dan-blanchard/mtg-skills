@@ -892,6 +892,20 @@ def _resource_needs(
             )
 
 
+def _loyalty_need(rec: Mapping) -> Need | None:
+    """A planeswalker commander's loyalty is the loyalty counters on it (CR
+    306.5c), and a proliferate gives it one more (CR 701.34a): the deck wants
+    proliferate (Quintorius, History Chaser — Patrolling Peacemaker)."""
+    if "planeswalker" not in _type_words(rec):
+        return None
+    return Need(
+        "resource",
+        "loyalty on the commander",
+        rec.get("name", ""),
+        keys=frozenset({"proliferate_makers"}),
+    )
+
+
 def _self_life_payment(ident: str) -> bool:
     """A ``lifeloss_makers`` ident scoped to the commander's own controller
     (Hazel's "pay 2 life"): a cost the commander pays, not life loss the
@@ -1094,6 +1108,7 @@ def commander_needs(commanders: Sequence[Mapping]) -> tuple[Need, ...]:
                     add(need)
         for need in _resource_needs(idents, rec.get("name", ""), trees=trees):
             add(need)
+        add(_loyalty_need(rec))
         for need in _redundancy_needs(idents, rec.get("name", "")):
             add(need)
         for need in _payoff_needs(idents, rec.get("name", "")):
