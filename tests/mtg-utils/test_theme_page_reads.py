@@ -306,6 +306,10 @@ def test_a_hand_count_is_your_hands_size(name, ident, has):
         ("Kamahl's Will", "damage_equal_power|you|bite", True),
         # an opponent's creature hits each other creature that player controls
         ("Alpha Brawl", "damage_equal_power|you|bite", False),
+        # an Equipment's equipped creature is yours: equip attaches it to "target
+        # creature you control" (CR 702.6a, 301.5a)
+        ("Lothlórien Blade", "damage_equal_power|you|bite", True),
+        ("Lothlórien Blade", "damage_equal_power|you|creature", True),
         # a creature of yours sizes it: sacrificed, the Army you amassed (CR
         # 701.47a), the greatest power among yours
         ("Tiger-Tribe Hunter", "damage_equal_power|you|creature", True),

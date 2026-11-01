@@ -1081,9 +1081,11 @@ headroom and parked items.
   Alpha Brawl, Dead Reckoning, Lie in Wait and the self-damage spells leave), and
   the page keeps `damage_equal_power|you|*`. Corpse Explosion stays: a creature
   card of yours, exiled as its cost, sizes it. Left out by the read's own call:
-  an attached dealer (Lothlórien Blade's equipped creature, whose controller no
-  filter names) and Too Greedily, Too Deep's creature returned "under your
-  control". `is_bite` reads a triggering dealer off the trigger's watched
+  Too Greedily, Too Deep's creature returned "under your control". (An attached
+  dealer was left out too, superseded 2026-11-01: an Equipment's equipped
+  creature is yours — equip attaches it to "target creature you control", CR
+  702.6a, 301.5a — so Lothlórien Blade bites; an Aura's enchanted creature stays
+  out.) `is_bite` reads a triggering dealer off the trigger's watched
   creature (Halana, Kessig Ranger) and a batch's off its sources (Moonlight
   Hunt, Kamahl's Will, Bartz and Boko, Nissa's Judgment, Signature Slam, The
   Bears of Littjara, Judgment of Alexander): `bite` 128 → 136.
