@@ -201,3 +201,11 @@ def test_a_sorcery_speed_activation_is_not_instant_removal():
     assert removal.features(_real("Westfold Rider"))["instant"] == 0.0
     assert removal.features(_real("Seal of Doom"))["instant"] == 1.0
     assert removal.features(_real("Murder"))["instant"] == 1.0
+
+
+def test_a_sorcery_cast_as_though_it_had_flash_is_instant_removal():
+    """Mutual Destruction's "This spell has flash as long as you control a
+    permanent with flash" rides phase's record-level ``casting_options``
+    (``AsThoughHadFlash``), never an ability: CR 702.8a lets it be cast any time
+    you could cast an instant, so it answers in response like Murder."""
+    assert removal.features(_real("Mutual Destruction"))["instant"] == 1.0

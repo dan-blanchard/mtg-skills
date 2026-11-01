@@ -8285,9 +8285,22 @@ def at_instant_speed(tree: ConceptTree, unit: AbilityUnit | None) -> bool:
             isinstance(restrictions, list)
             and any(tag_of(r) == "AsSorcery" for r in restrictions)
         )
-    return tree.is_type("Instant") or "flash" in {
-        normalised_keyword_name(k) for k in tree.card_keywords
-    }
+    return (
+        tree.is_type("Instant")
+        or "flash" in {normalised_keyword_name(k) for k in tree.card_keywords}
+        or casts_as_though_flash(tree)
+    )
+
+
+def casts_as_though_flash(tree: ConceptTree) -> bool:
+    """Whether the card's own casting options let you cast it as though it had
+    flash (CR 702.8a: "any time you could cast an instant"), always or on a
+    condition: Necromancy's "You may cast this spell as though it had flash",
+    Crashing Tide's "This spell has flash as long as you control a Merfolk",
+    Molten Exhale's behold for flash (``ConceptTree.card_flash_options``). A
+    conditional flash counts, as a conditional keyword grant to a body does in
+    :func:`keyword_bodies`."""
+    return bool(tree.card_flash_options)
 
 
 def instant_end_turn_unit(
@@ -12756,9 +12769,11 @@ def keyword_bodies(tree: ConceptTree) -> frozenset[str]:
     Choreographed Sparks), the creature spell a mana ability's mana is spent on
     (Generator Servant's haste), a creature it suspects (menace, CR 701.60c),
     the keyword a printed or granted keyword ability confers
-    (:data:`KEYWORD_ABILITY_KEYWORDS`: dash's haste), and what a residue phase
-    parked puts on a body (``ConceptNode.body_keywords``). The bodies a keyword
-    deck counts."""
+    (:data:`KEYWORD_ABILITY_KEYWORDS`: dash's haste), flash when its casting
+    options let you cast the card as though it had it, always or on a condition
+    (:func:`casts_as_though_flash` — Necromancy, Crashing Tide), and what a
+    residue phase parked puts on a body (``ConceptNode.body_keywords``). The
+    bodies a keyword deck counts."""
     return memo_on(tree, "_xw_keyword_bodies", _keyword_bodies)
 
 
@@ -12801,6 +12816,8 @@ def _keyword_bodies(
     out.update(
         KEYWORD_ABILITY_KEYWORDS[k] for k in printed & KEYWORD_ABILITY_KEYWORDS.keys()
     )
+    if casts_as_though_flash(tree):
+        out.add("flash")  # the card itself, cast as though it had flash
     for unit in tree.units:
         for sdef, mod in iter_mod_sites(unit.node, deep=True):
             affected = getattr(sdef, "affected", None)

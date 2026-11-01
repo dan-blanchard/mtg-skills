@@ -9245,6 +9245,49 @@ def test_spell_keyword_grant_excludes_conditional_self_flash(name):
     assert "flash_makers" not in keys
 
 
+@pytest.mark.parametrize(
+    ("name", "conditional"),
+    [
+        ("Necromancy", False),
+        ("Crashing Tide", True),
+        ("Graveyard Shift", True),
+        ("Mutual Destruction", True),
+        ("Take for a Ride", True),
+    ],
+)
+def test_cast_as_though_it_had_flash_reads_casting_options(name, conditional):
+    """phase types a spell's own flash permission at the record level, never
+    among its abilities: ``casting_options: [{kind: AsThoughHadFlash,
+    condition?}]`` — Necromancy's "You may cast this spell as though it had
+    flash" with no condition, Crashing Tide's "This spell has flash as long as
+    you control a Merfolk" with one. CR 702.8a: flash lets you cast it any time
+    you could cast an instant. ``casts_as_though_flash`` reads it, so the card is
+    a flash body of yours and acts at instant speed; it grants your other spells
+    nothing (no ``flash_grant``)."""
+    from mtg_utils._card_ir.crosswalk import (
+        at_instant_speed,
+        casts_as_though_flash,
+        keyword_bodies,
+    )
+
+    tree = _raw_tree(name)
+    assert casts_as_though_flash(tree)
+    assert (tree.card_flash_options[0] is not None) is conditional
+    assert "flash" in keyword_bodies(tree)
+    assert at_instant_speed(tree, None)
+    assert ("keyword_bodies", "you", "flash") in _idents(name)
+    assert "flash_grant" not in _keys(name)
+
+
+def test_a_sorcery_without_a_flash_option_is_not_instant_speed():
+    """Raise Dead has no casting options: sorcery timing (CR 307.1)."""
+    from mtg_utils._card_ir.crosswalk import at_instant_speed, casts_as_though_flash
+
+    tree = _raw_tree("Raise Dead")
+    assert not casts_as_though_flash(tree)
+    assert not at_instant_speed(tree, None)
+
+
 @pytest.mark.parametrize("name", ["Duress", "Addle", "Telepathy"])
 def test_hand_disruption_fires(name):
     """hand_disruption fires the opponent-directed RevealHand effect
