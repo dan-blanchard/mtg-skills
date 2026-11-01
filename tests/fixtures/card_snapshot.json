@@ -179068,6 +179068,203 @@
     "type_line": "Creature — Treefolk Shaman"
    }
   },
+  "Bothersome Quasit": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Demon"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Red"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [
+      "Menace"
+     ],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 2,
+      "shards": [
+       "Red"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "37544c90-371a-42c2-910d-d0f4de5c8537",
+       "4f882c7a-4cdf-4d0e-b483-8b9888d78503",
+       "6e9a0a23-cd62-4762-b751-ac0159a1b3c5"
+      ]
+     },
+     "name": "Bothersome Quasit",
+     "non_ability_text": null,
+     "oracle_text": "Menace\nGoaded creatures your opponents control can't block.\nWhenever you cast a noncreature spell, goad target creature an opponent controls. (Until your next turn, that creature attacks each combat if able and attacks a player other than you if able.)",
+     "power": {
+      "type": "Fixed",
+      "value": 3
+     },
+     "printings": [
+      "CLB",
+      "PLST"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2022-06-10",
+       "text": "Goading a creature after it has been declared as a blocker will not remove it from combat."
+      }
+     ],
+     "scryfall_oracle_id": "06cf7b77-ffd7-4192-903e-19bd06887ba1",
+     "static_abilities": [
+      {
+       "active_zones": [],
+       "affected": {
+        "controller": "Opponent",
+        "properties": [
+         {
+          "type": "Goaded"
+         }
+        ],
+        "type": "Typed",
+        "type_filters": [
+         "Creature"
+        ]
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": null,
+       "description": "Goaded creatures your opponents control can't block.",
+       "effect_zone": null,
+       "mode": "CantBlock",
+       "modifications": []
+      }
+     ],
+     "toughness": {
+      "type": "Fixed",
+      "value": 2
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever you cast a noncreature spell, goad target creature an opponent controls.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "target": {
+          "controller": "Opponent",
+          "properties": [],
+          "type": "Typed",
+          "type_filters": [
+           "Creature"
+          ]
+         },
+         "type": "Goad"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "SpellCast",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "controller": null,
+        "properties": [],
+        "type": "Typed",
+        "type_filters": [
+         {
+          "Non": "Creature"
+         }
+        ]
+       },
+       "valid_source": null,
+       "valid_target": {
+        "type": "Controller"
+       }
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 3.0,
+    "color_identity": [
+     "R"
+    ],
+    "colors": [
+     "R"
+    ],
+    "keywords": [
+     "Goad",
+     "Menace"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}{R}",
+    "name": "Bothersome Quasit",
+    "oracle_id": "06cf7b77-ffd7-4192-903e-19bd06887ba1",
+    "oracle_text": "Menace\nGoaded creatures your opponents control can't block.\nWhenever you cast a noncreature spell, goad target creature an opponent controls. (Until your next turn, that creature attacks each combat if able and attacks a player other than you if able.)",
+    "power": "3",
+    "toughness": "2",
+    "type_line": "Creature — Demon"
+   }
+  },
   "Bottomless Pit": {
    "phase_records": [
     {
@@ -420068,6 +420265,215 @@
     "type_line": "Land"
    }
   },
+  "Faerie Harbinger": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Faerie",
+       "Wizard"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Blue"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [
+      "Flash",
+      "Flying"
+     ],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 3,
+      "shards": [
+       "Blue"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "b95b126c-9c24-4d86-90c0-30e4b5f4a438",
+       "f9bdc319-4e06-420b-ba54-6cb994d4e279"
+      ]
+     },
+     "name": "Faerie Harbinger",
+     "non_ability_text": null,
+     "oracle_text": "Flash\nFlying\nWhen this creature enters, you may search your library for a Faerie card, reveal it, then shuffle and put that card on top.",
+     "power": {
+      "type": "Fixed",
+      "value": 2
+     },
+     "printings": [
+      "LRW",
+      "PLST"
+     ],
+     "rarities": [
+      "uncommon"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "a171a01c-43f7-488a-870d-b1a9bcc501d1",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 2
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "When ~ enters, you may search your library for a Faerie card, reveal it, then shuffle and put that card on top.",
+       "destination": "Battlefield",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "filter": {
+          "controller": null,
+          "properties": [],
+          "type": "Typed",
+          "type_filters": [
+           {
+            "Subtype": "Faerie"
+           }
+          ]
+         },
+         "reveal": true,
+         "type": "SearchLibrary"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": true,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "target": {
+           "type": "Controller"
+          },
+          "type": "Shuffle"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": {
+          "condition": null,
+          "cost": null,
+          "description": null,
+          "duration": null,
+          "effect": {
+           "count": {
+            "type": "Fixed",
+            "value": 1
+           },
+           "position": {
+            "type": "Top"
+           },
+           "target": {
+            "type": "Any"
+           },
+           "type": "PutAtLibraryPosition"
+          },
+          "forward_result": false,
+          "kind": "Spell",
+          "optional": false,
+          "optional_targeting": false,
+          "sub_ability": null,
+          "target_prompt": null
+         },
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "mode": "ChangesZone",
+       "optional": true,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 4.0,
+    "color_identity": [
+     "U"
+    ],
+    "colors": [
+     "U"
+    ],
+    "keywords": [
+     "Flash",
+     "Flying"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{3}{U}",
+    "name": "Faerie Harbinger",
+    "oracle_id": "a171a01c-43f7-488a-870d-b1a9bcc501d1",
+    "oracle_text": "Flash\nFlying\nWhen this creature enters, you may search your library for a Faerie card, reveal it, then shuffle and put that card on top.",
+    "power": "2",
+    "toughness": "2",
+    "type_line": "Creature — Faerie Wizard"
+   }
+  },
   "Faerie Tauntings": {
    "phase_records": [
     {
@@ -572102,6 +572508,276 @@
     "power": "1",
     "toughness": "2",
     "type_line": "Legendary Creature — Human"
+   }
+  },
+  "Hullbreaker Horror": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Kraken",
+       "Horror"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Blue"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [
+      "Flash"
+     ],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 5,
+      "shards": [
+       "Blue",
+       "Blue"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "08fd6904-c497-40de-b3cf-a427e5bed264",
+       "0b743cf8-2d90-4fcf-94ad-8d9512dddd9e",
+       "137acb70-a1fd-4ea9-a5d9-f4b438eb5e82",
+       "1bfad54e-5a68-4952-9001-c8e9f7c5b72c",
+       "2d2a6bfd-8ab8-4f78-93d2-6249141ee27b",
+       "2e073047-fba8-41bd-b260-1eefb084fc80",
+       "4b546bcf-2e86-42af-bf32-81c7fd36ef8c",
+       "7f82e6a6-2ed6-4e97-a637-586d65af7aaf",
+       "9c19303a-89eb-4d05-bc0a-13a7e283d408",
+       "ad3732f1-26b2-4448-87ea-56a1524ecb0f",
+       "bf786c50-1ba1-4f81-a800-bc98189040dd"
+      ]
+     },
+     "name": "Hullbreaker Horror",
+     "non_ability_text": null,
+     "oracle_text": "Flash\nThis spell can't be countered.\nWhenever you cast a spell, choose up to one —\n• Return target spell you don't control to its owner's hand.\n• Return target nonland permanent to its owner's hand.",
+     "power": {
+      "type": "Fixed",
+      "value": 7
+     },
+     "printings": [
+      "CLB",
+      "DBL",
+      "INR",
+      "PIP",
+      "PRM",
+      "PVOW",
+      "SLD",
+      "SLZ",
+      "VOW",
+      "WOC"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "d4a84e78-d9b9-4c67-8a4b-4329e65f0f15",
+     "static_abilities": [
+      {
+       "active_zones": [],
+       "affected": {
+        "type": "SelfRef"
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": null,
+       "description": "This spell can't be countered.",
+       "effect_zone": null,
+       "mode": "CantBeCountered",
+       "modifications": []
+      }
+     ],
+     "toughness": {
+      "type": "Fixed",
+      "value": 8
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever you cast a spell",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "duration": null,
+         "static_abilities": [],
+         "target": null,
+         "type": "GenericEffect"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "modal": {
+         "allow_repeat_modes": false,
+         "chooser": {
+          "type": "Controller"
+         },
+         "max_choices": 1,
+         "min_choices": 0,
+         "mode_count": 2,
+         "mode_descriptions": [
+          "Return target spell you don't control to its owner's hand.",
+          "Return target nonland permanent to its owner's hand."
+         ]
+        },
+        "mode_abilities": [
+         {
+          "condition": null,
+          "cost": null,
+          "declares_chosen_group": 2147483648,
+          "description": null,
+          "duration": null,
+          "effect": {
+           "destination": null,
+           "target": {
+            "filters": [
+             {
+              "type": "StackSpell"
+             },
+             {
+              "controller": "Opponent",
+              "properties": [],
+              "type": "Typed",
+              "type_filters": []
+             }
+            ],
+            "type": "And"
+           },
+           "type": "Bounce"
+          },
+          "forward_result": false,
+          "kind": "Spell",
+          "optional": false,
+          "optional_targeting": false,
+          "sub_ability": null,
+          "target_prompt": null
+         },
+         {
+          "condition": null,
+          "cost": null,
+          "description": null,
+          "duration": null,
+          "effect": {
+           "destination": null,
+           "target": {
+            "controller": null,
+            "properties": [],
+            "type": "Typed",
+            "type_filters": [
+             "Permanent",
+             {
+              "Non": "Land"
+             }
+            ]
+           },
+           "type": "Bounce"
+          },
+          "forward_result": false,
+          "kind": "Spell",
+          "optional": false,
+          "optional_targeting": false,
+          "sub_ability": null,
+          "target_prompt": null
+         }
+        ],
+        "multi_target": {
+         "max": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "min": 0
+        },
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "SpellCast",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": null,
+       "valid_source": null,
+       "valid_target": {
+        "type": "Controller"
+       }
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 7.0,
+    "color_identity": [
+     "U"
+    ],
+    "colors": [
+     "U"
+    ],
+    "keywords": [
+     "Flash"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{5}{U}{U}",
+    "name": "Hullbreaker Horror",
+    "oracle_id": "d4a84e78-d9b9-4c67-8a4b-4329e65f0f15",
+    "oracle_text": "Flash\nThis spell can't be countered.\nWhenever you cast a spell, choose up to one —\n• Return target spell you don't control to its owner's hand.\n• Return target nonland permanent to its owner's hand.",
+    "power": "7",
+    "toughness": "8",
+    "type_line": "Creature — Kraken Horror"
    }
   },
   "Humility": {

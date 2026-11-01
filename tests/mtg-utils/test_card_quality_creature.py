@@ -108,3 +108,65 @@ def test_a_creature_whose_text_phase_parsed_none_of_scores_none():
     parse it, swap in another creature the read scores ``None`` for."""
     assert creature.READ.score(_real("Makeshift Mauler")) is None
     assert creature.READ.score(_real("Grizzly Bears")) is not None  # vanilla
+
+
+# ── the theme-strength read (THEME_READ) ─────────────────────────────────────
+
+
+def _theme(name: str) -> float:
+    score = creature.THEME_READ.score(_real(name))
+    assert score is not None, name
+    return score
+
+
+def _theme_features(name: str) -> dict[str, float]:
+    features = creature.theme_features(_real(name))
+    assert features is not None, name
+    return features
+
+
+def test_theme_read_weighs_every_feature_and_leaves_the_job_read_alone():
+    feats = _theme_features("Goldspan Dragon")
+    assert set(feats) == set(creature.THEME_WEIGHTS)
+    expected = round(sum(creature.THEME_WEIGHTS[k] * v for k, v in feats.items()), 3)
+    assert _theme("Goldspan Dragon") == expected
+    assert creature.READ.weights is creature.WEIGHTS
+    assert creature.THEME_READ.weights is creature.THEME_WEIGHTS
+
+
+@pytest.mark.parametrize(
+    ("stronger", "weaker"),
+    [
+        # Guide adds over the same guide's cuts (source A), each a pair
+        # play-rate orders the other way.
+        ("Faerie Harbinger", "Hullbreaker Horror"),  # a tutor, Fae Dominion
+        ("Bothersome Quasit", "Steel Hellkite"),  # a board static, Blame Game
+        ("Aurelia, the Law Above", "Sun Titan"),  # Blame Game
+        ("Goblin Anarchomancer", "Rampaging Baloths"),  # Animated Army
+    ],
+)
+def test_the_theme_read_orders_guide_adds_over_more_played_cuts(stronger, weaker):
+    assert _theme(stronger) > _theme(weaker)
+
+
+def test_theme_features_read_the_card():
+    """Faerie Harbinger finds a Faerie (a tutor, CR 701.23a); Goblin
+    Anarchomancer's cost reduction is a static on other spells; Aurelia,
+    the Law Above is legendary with an attack trigger (CR 508.3a)."""
+    assert _theme_features("Faerie Harbinger")["tutor"] == 1
+    assert _theme_features("Hullbreaker Horror")["tutor"] == 0
+    assert _theme_features("Goblin Anarchomancer")["board_static"] == 1
+    assert _theme_features("Rampaging Baloths")["board_static"] == 0
+    aurelia = _theme_features("Aurelia, the Law Above")
+    assert aurelia["legendary"] == 1
+    assert aurelia["attack_trigger"] == 1
+    assert _theme_features("Sun Titan")["legendary"] == 0
+
+
+def test_theme_strength_routes_by_type():
+    from mtg_utils._analysis import card_quality
+
+    assert card_quality.theme_strength(_real("Faerie Harbinger")) == _theme(
+        "Faerie Harbinger"
+    )
+    assert card_quality.theme_strength(test_card("Forest")) is None
