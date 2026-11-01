@@ -106,3 +106,39 @@ def test_a_fuel_serve_opens_for_every_subject():
     assert sigs
     assert all(s.subject for s in sigs)
     assert {avenue_spec_for(s).label for s in sigs} == {"Creature recursion"}
+
+
+def test_one_role_table_feeds_every_subject_set():
+    """``signal_keys.SUBJECT_ROLES`` is the one ``(key, subject)`` role table:
+    the membership, page-only and doer sets are its views (a page-only doer is a
+    doer too), and a ``key|scope|*`` wildcard counts every subject but a
+    membership one."""
+    from mtg_utils._analysis import signal_keys as sk
+
+    roles = sk.SUBJECT_ROLES
+    assert {
+        ks for ks, r in roles.items() if r is sk.SubjectRole.MEMBERSHIP
+    } == sk.MEMBERSHIP_SUBJECTS
+    assert sk.PAGE_ONLY_SUBJECTS <= sk.DOER_SUBJECTS
+    assert not sk.MEMBERSHIP_SUBJECTS & sk.DOER_SUBJECTS
+    assert set(roles) == sk.DOER_SUBJECTS | sk.MEMBERSHIP_SUBJECTS
+    assert sk.wildcard_counts("artifacts_matter", sk.ARTIFACT_MEMBER) is False
+    assert sk.wildcard_counts("artifacts_matter", "token") is True
+    assert sk.wildcard_counts("artifacts_matter", "") is True
+
+
+def test_a_preset_wildcard_leaves_a_membership_subject_out():
+    """A preset's ``key|scope|*`` reads the role table as a serve's does: Sol
+    Ring IS an artifact (``artifacts_matter|you|member``), no artifacts payoff."""
+    from mtg_utils.theme_presets import Preset
+
+    preset = Preset(
+        name="artifact payoffs (test)",
+        description="",
+        signal_idents=("artifacts_matter|you|*",),
+    )
+    test_signals("Sol Ring")
+    assert "artifacts_matter|you|member" in {
+        f"{s.key}|{s.scope}|{s.subject}" for s in test_signals("Sol Ring")
+    }
+    assert not preset.matches(test_card("Sol Ring"))
