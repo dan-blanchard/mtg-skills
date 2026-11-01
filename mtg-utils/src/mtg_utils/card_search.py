@@ -745,9 +745,7 @@ def search_cards(
     # already on disk. A no-op for keyword/pattern-only presets and for a
     # no-bulk/no-sidecar-buildable deployment (theme_presets falls back to its
     # existing live compute either way).
-    if serve is not None or any(
-        p.signal_keys or p.concept is not None for p in presets
-    ):
+    if serve is not None or any(p.structural for p in presets):
         from mtg_utils.theme_presets import seed_signal_key_index
 
         seed_signal_key_index(bulk_path)

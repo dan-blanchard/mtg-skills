@@ -194,6 +194,11 @@ class Preset:
     - ``signal_keys``: the card's production signal keyset (see the
       module docstring's "Structural views" section) intersects these
       keys. Empty for every not-yet-converted preset.
+    - ``signal_idents``: the same read at the ident level — a card's
+      "key|scope|subject" idents meet these, exactly or through a
+      ``"key|scope|*"`` wildcard (every subject of that key and scope), for a
+      preset whose key also fires on another player's side (``card-draw``:
+      Master of the Feast's ``card_draw_engine|opponents|``).
     - ``concept``: an optional ``(card) -> bool`` predicate for a fact
       neither the regex arms nor the signal system carry.
     - ``concept_signals``: the same ``concept`` answer read off the card's
@@ -221,6 +226,7 @@ class Preset:
     type_patterns: tuple[re.Pattern[str], ...] = ()
     layouts: tuple[str, ...] = ()
     signal_keys: tuple[str, ...] = ()
+    signal_idents: tuple[str, ...] = ()
     concept: Callable[[dict], bool] | None = None
     concept_signals: Callable[[Sequence[Signal]], bool] | None = None
     should_match: tuple[str, ...] = ()
@@ -233,6 +239,23 @@ class Preset:
     @functools.cached_property
     def _keywords_lower(self) -> frozenset[str]:
         return frozenset(k.lower() for k in self.keywords)
+
+    @functools.cached_property
+    def _ident_arms(self) -> tuple[frozenset[str], frozenset[str]]:
+        """``signal_idents`` split into exact idents and wildcard ``key|scope``s."""
+        wild = frozenset(i[:-2] for i in self.signal_idents if i.endswith("|*"))
+        exact = frozenset(i for i in self.signal_idents if not i.endswith("|*"))
+        return exact, wild
+
+    @property
+    def structural(self) -> bool:
+        """Whether a structural arm (``signal_keys``, ``signal_idents`` or
+        ``concept``) reads the card's signal path."""
+        return bool(self.signal_keys or self.signal_idents) or self.concept is not None
+
+    def _idents_match(self, view: CardView) -> bool:
+        exact, wild = self._ident_arms
+        return any(i in exact or i.rpartition("|")[0] in wild for i in view.idents)
 
     def matches(self, card: dict, view: CardView | None = None) -> bool:
         """Whether CARD matches any arm. ``view`` is the card's :class:`CardView`,
@@ -252,6 +275,8 @@ class Preset:
         if self.layouts and card.get("layout") in self.layouts:
             return True
         if self.signal_keys and not signal_keys_for(card).isdisjoint(self.signal_keys):
+            return True
+        if self.signal_idents and self._idents_match(view):
             return True
         return self.concept is not None and _concept_holds(self, card)
 
@@ -3153,7 +3178,14 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
     Preset(
         name="card-draw",
         description="Draws two or more cards in a single effect.",
-        signal_keys=("card_draw_engine", "draw_for_each"),
+        # Ident-level: your draws and each player's (you among them), never an
+        # opponent's alone (Master of the Feast's "each opponent draws a card").
+        signal_idents=(
+            "card_draw_engine|you|*",
+            "card_draw_engine|each|*",
+            "draw_for_each|you|*",
+            "draw_for_each|each|*",
+        ),
         concept=_etb_bulk_draw_concept,
         should_match=(
             "Mulldrifter",
@@ -3162,7 +3194,13 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
             "Rielle, the Everwise",
             "Truth or Consequences",  # draw_for_each-only residue
         ),
-        should_not_match=("Lightning Bolt", "Llanowar Elves", "Opt", "Preordain"),
+        should_not_match=(
+            "Lightning Bolt",
+            "Llanowar Elves",
+            "Opt",
+            "Preordain",
+            "Master of the Feast",  # "each opponent draws a card"
+        ),
     ),
     # Lifegain — gains life AS an effect, OR cares about gaining life as a
     # payoff (whenever-trigger). Typed broadly because lifegain as an
