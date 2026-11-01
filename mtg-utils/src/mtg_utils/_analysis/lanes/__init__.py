@@ -1515,7 +1515,7 @@ def extract_crosswalk_signals(
         add(sig)
     for sig in _keyword_field_signals(frozenset(keywords), tree.name):
         add(sig)
-    for sig in _keyword_field_signals_b5(frozenset(keywords), tree.name):
+    for sig in _keyword_field_signals_b5(frozenset(keywords), tree.name, tree):
         add(sig)
     for sig in _keyword_field_signals_b7(frozenset(keywords), tree.name):
         add(sig)
