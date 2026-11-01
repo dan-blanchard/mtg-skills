@@ -542,32 +542,40 @@ def test_each_object_is_bound_to_the_tokens_verb():
     [
         # damage_for_each's recovered arm (Burn at the Stake, Superior Numbers)
         (
-            "deal damage to any target equal to three times the number of "
-            "creatures tapped this way",
+            (
+                "deal damage to any target equal to three times the number of "
+                "creatures tapped this way"
+            ),
             "damage",
             YOUR_CREATURE_COUNT,
             True,
         ),
         (
-            "deal damage to target creature equal to the number of creatures "
-            "you control in excess of the number of creatures target opponent "
-            "controls",
+            (
+                "deal damage to target creature equal to the number of creatures "
+                "you control in excess of the number of creatures target opponent "
+                "controls"
+            ),
             "damage",
             YOUR_CREATURE_COUNT,
             True,
         ),
         # Angel's Trumpet counts the damaged player's tapped creatures
         (
-            "deal damage to the player equal to the number of creatures tapped "
-            "this way",
+            (
+                "deal damage to the player equal to the number of creatures tapped "
+                "this way"
+            ),
             "damage",
             YOUR_CREATURE_COUNT,
             False,
         ),
         # power_tap_engine's granted {T} activation (Surestrike Trident)
         (
-            'Equipped creature has first strike and "{T}, Unattach ~: ~ deals '
-            'damage equal to its power to target player or planeswalker."',
+            (
+                'Equipped creature has first strike and "{T}, Unattach ~: ~ deals '
+                'damage equal to its power to target player or planeswalker."'
+            ),
             "damage",
             TAP_ACTIVATION,
             True,
@@ -586,16 +594,20 @@ def test_each_object_is_bound_to_the_tokens_verb():
             True,
         ),
         (
-            "deal damage to any target equal to the power of the card returned "
-            "this way",
+            (
+                "deal damage to any target equal to the power of the card returned "
+                "this way"
+            ),
             "damage",
             OWN_POWER,
             False,
         ),
         # creatures_matter's recovered team counter (Wakka, Devoted Guardian)
         (
-            "if a counter was put on ~ this turn, put a +1/+1 counter on each "
-            "other creature you control",
+            (
+                "if a counter was put on ~ this turn, put a +1/+1 counter on each "
+                "other creature you control"
+            ),
             "place_counter",
             TEAM_OBJECT,
             True,
