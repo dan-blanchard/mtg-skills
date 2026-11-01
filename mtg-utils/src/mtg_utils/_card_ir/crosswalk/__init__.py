@@ -37,6 +37,7 @@ from mtg_utils._card_ir.crosswalk.core import (
     is_dies_return_trigger,
     iter_nested_granted_effect_concepts,
     iter_nested_token_effects,
+    trigger_def_unit,
     walk_effect_chain,
 )
 from mtg_utils._card_ir.crosswalk.cost_text import (
@@ -1022,6 +1023,7 @@ __all__ = [
     "trigger_counter_filter",
     "trigger_damage_kind",
     "trigger_def_event",
+    "trigger_def_unit",
     "trigger_kinds",
     "trigger_phase",
     "trigger_scope",
