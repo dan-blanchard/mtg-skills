@@ -146266,6 +146266,185 @@
     "type_line": "Creature — Mutant"
    }
   },
+  "Biomantic Mastery": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "declares_chosen_group": 0,
+       "description": "Draw a card for each creature target player controls, then draw a card for each creature another target player controls.",
+       "duration": null,
+       "effect": {
+        "target": {
+         "controller": null,
+         "properties": [],
+         "type": "Typed",
+         "type_filters": []
+        },
+        "type": "TargetOnly"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "count": {
+          "qty": {
+           "filter": {
+            "controller": "TargetPlayer",
+            "properties": [],
+            "type": "Typed",
+            "type_filters": [
+             "Creature"
+            ]
+           },
+           "type": "ObjectCount"
+          },
+          "type": "Ref"
+         },
+         "target": {
+          "type": "Controller"
+         },
+         "type": "Draw"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "description": "draw a card for each creature another target player controls",
+          "name": "unparsed_quantity",
+          "type": "Unimplemented"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": null,
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Sorcery"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Green",
+      "Blue"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 4,
+      "shards": [
+       "GreenBlue",
+       "GreenBlue",
+       "GreenBlue"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "8d63d4b7-5378-4ba9-9a5f-3ab385d83568"
+      ]
+     },
+     "name": "Biomantic Mastery",
+     "non_ability_text": null,
+     "oracle_text": "Draw a card for each creature target player controls, then draw a card for each creature another target player controls.",
+     "power": null,
+     "printings": [
+      "C15",
+      "DIS"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2006-05-01",
+       "text": "You choose both targets before you draw any cards. The targets must be different. One of them may be you."
+      }
+     ],
+     "scryfall_oracle_id": "c302d64b-8026-401a-a8dd-52cf01160046",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 7.0,
+    "color_identity": [
+     "G",
+     "U"
+    ],
+    "colors": [
+     "G",
+     "U"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{4}{G/U}{G/U}{G/U}",
+    "name": "Biomantic Mastery",
+    "oracle_id": "c302d64b-8026-401a-a8dd-52cf01160046",
+    "oracle_text": "Draw a card for each creature target player controls, then draw a card for each creature another target player controls.",
+    "type_line": "Sorcery"
+   }
+  },
   "Biomass Mutation": {
    "phase_records": [
     {
@@ -593036,6 +593215,208 @@
     "type_line": "Creature — Vedalken Ninja"
    }
   },
+  "Ingenious Mastery": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": {
+        "type": "AlternativeManaCostPaid"
+       },
+       "cost": null,
+       "description": "If the {2}{U} cost was paid, you draw three cards, then an opponent creates two Treasure tokens and they scry 2. If that cost wasn't paid, you draw X cards.",
+       "duration": null,
+       "effect": {
+        "description": "draw three cards, then an opponent creates two Treasure tokens and they scry 2",
+        "name": "unparsed_verb_arguments",
+        "type": "Unimplemented"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "count": {
+          "qty": {
+           "name": "X",
+           "type": "Variable"
+          },
+          "type": "Ref"
+         },
+         "target": {
+          "type": "Controller"
+         },
+         "type": "Draw"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "sub_link": "SequentialSibling",
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Sorcery"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "casting_options": [
+      {
+       "cost": {
+        "cost": {
+         "generic": 2,
+         "shards": [
+          "Blue"
+         ],
+         "type": "Cost"
+        },
+        "type": "Mana"
+       },
+       "kind": "AlternativeCost"
+      }
+     ],
+     "color_identity": [
+      "Blue"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 2,
+      "shards": [
+       "X",
+       "Blue"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "related_token_ids": [
+       "84e8350e-916c-5bde-9c98-f4ec1d2b1f12"
+      ],
+      "source_printing_ids": [
+       "18b4f3c5-4129-4e4b-98b9-91d2ca33ab7c",
+       "2386d020-a9ae-4d54-b5e4-f2cb5a7298cc"
+      ]
+     },
+     "name": "Ingenious Mastery",
+     "non_ability_text": null,
+     "oracle_text": "You may pay {2}{U} rather than pay this spell's mana cost.\nIf the {2}{U} cost was paid, you draw three cards, then an opponent creates two Treasure tokens and they scry 2. If that cost wasn't paid, you draw X cards.",
+     "power": null,
+     "printings": [
+      "PRM",
+      "PSTX",
+      "STX"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2021-04-16",
+       "text": "If an effect increases or decreases the cost of spells you cast, that cost increase or decrease is applied to the alternative cost you chose to pay. In that case, the cost was still paid for the purposes of the effect, even if you paid more or less for it when it was cast."
+      },
+      {
+       "date": "2021-04-16",
+       "text": "If you choose to pay one alternative cost, you can’t pay any other alternative costs. For example, if an effect lets you cast a “Mastery” spell “without paying its mana cost,” you can’t also choose to pay its given alternative cost."
+      },
+      {
+       "date": "2021-04-16",
+       "text": "If you copy a “Mastery” spell and the alternative cost was paid, the copy will resolve as though the cost was paid."
+      },
+      {
+       "date": "2021-04-16",
+       "text": "In a multiplayer game, you choose which opponent takes the prescribed action as the spell resolves."
+      },
+      {
+       "date": "2021-04-16",
+       "text": "The mana value of a spell on the stack is determined by its mana cost, not any alternative costs you used to pay for it."
+      }
+     ],
+     "scryfall_oracle_id": "dad43a2d-5b30-45f2-a34d-9e68d1fbb716",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "all_parts": [
+     {
+      "component": "token",
+      "id": "649d42c1-a465-435e-8b67-e901ab9ad8ab",
+      "name": "Treasure",
+      "oracle_id": "3c549374-6c37-42e0-8d88-a8555d46732d",
+      "type_line": "Token Artifact — Treasure"
+     }
+    ],
+    "arena_available": true,
+    "cmc": 3.0,
+    "color_identity": [
+     "U"
+    ],
+    "colors": [
+     "U"
+    ],
+    "keywords": [
+     "Scry",
+     "Treasure"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{X}{2}{U}",
+    "name": "Ingenious Mastery",
+    "oracle_id": "dad43a2d-5b30-45f2-a34d-9e68d1fbb716",
+    "oracle_text": "You may pay {2}{U} rather than pay this spell's mana cost.\nIf the {2}{U} cost was paid, you draw three cards, then an opponent creates two Treasure tokens and they scry 2. If that cost wasn't paid, you draw X cards.",
+    "type_line": "Sorcery"
+   }
+  },
   "Ingenious Prodigy": {
    "phase_records": [
     {
@@ -759886,6 +760267,180 @@
     "power": "1",
     "toughness": "1",
     "type_line": "Creature — Bird Bard"
+   }
+  },
+  "Model of Unity": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": {
+        "type": "Tap"
+       },
+       "description": "{T}: Add one mana of any color.",
+       "duration": null,
+       "effect": {
+        "produced": {
+         "color_options": [
+          "White",
+          "Blue",
+          "Black",
+          "Red",
+          "Green"
+         ],
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "type": "AnyOneColor"
+        },
+        "type": "Mana"
+       },
+       "forward_result": false,
+       "is_mana_ability": true,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Artifact"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 3,
+      "shards": [],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "0d804d47-1f7b-47bd-9eac-aa539eda9af7",
+       "9e77ad2b-0ed6-4d8d-95a2-ac2c9a5492cd",
+       "f42ccb39-c838-426f-8b71-6a071d83cf9a"
+      ]
+     },
+     "name": "Model of Unity",
+     "non_ability_text": null,
+     "oracle_text": "Whenever players finish voting, you and each opponent who voted for a choice you voted for may scry 2.\n{T}: Add one mana of any color.",
+     "power": null,
+     "printings": [
+      "LTC"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2023-06-16",
+       "text": "If multiple players are instructed to scry at once, those players each look at the top cards of their library at the same time, then they choose in turn order whether to put those cards on the top or bottom of their library and in what order."
+      }
+     ],
+     "scryfall_oracle_id": "d7b69fd7-e575-4009-8549-f576249ba641",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever players finish voting, you and each opponent who voted for a choice you voted for may scry 2.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "description": "you and each opponent who voted for a choice you voted for may scry 2",
+         "name": "unbound_subject",
+         "type": "Unimplemented"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "Vote",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": null,
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 3.0,
+    "color_identity": [],
+    "colors": [],
+    "keywords": [
+     "Scry"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{3}",
+    "name": "Model of Unity",
+    "oracle_id": "d7b69fd7-e575-4009-8549-f576249ba641",
+    "oracle_text": "Whenever players finish voting, you and each opponent who voted for a choice you voted for may scry 2.\n{T}: Add one mana of any color.",
+    "produced_mana": [
+     "B",
+     "G",
+     "R",
+     "U",
+     "W"
+    ],
+    "type_line": "Artifact"
    }
   },
   "Mogg Infestation": {
@@ -1025962,6 +1026517,166 @@
     "type_line": "Creature — Spirit"
    }
   },
+  "Souls of the Faultless": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Spirit"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Black",
+      "White"
+     ],
+     "color_override": [
+      "Black",
+      "White"
+     ],
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [
+      "Defender"
+     ],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 0,
+      "shards": [
+       "White",
+       "Black",
+       "Black"
+      ],
+      "type": "Cost"
+     },
+     "name": "Souls of the Faultless",
+     "non_ability_text": null,
+     "oracle_text": "Defender (This creature can't attack.)\nWhenever this creature is dealt combat damage, you gain that much life and attacking player loses that much life.",
+     "power": {
+      "type": "Fixed",
+      "value": 0
+     },
+     "printings": [
+      "GPT"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2006-02-01",
+       "text": "If Souls of the Faultless is dealt combat damage in a Two-Headed Giant game, you may choose either member of the attacking team as the player who will lose life. The player you choose doesn't have to be the controller of a creature that dealt damage to Souls of the Faultless."
+      },
+      {
+       "date": "2006-02-01",
+       "text": "If Souls of the Faultless somehow attacks and is dealt combat damage, you will both gain and lose life when its ability resolves."
+      }
+     ],
+     "scryfall_oracle_id": "5a12e989-d6bc-441e-88dd-779e68a9fee3",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 4
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "CombatOnly",
+       "description": "Whenever ~ is dealt combat damage, you gain that much life and attacking player loses that much life.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "description": "gain that much life and attacking player loses that much life",
+         "name": "unparsed_verb_arguments",
+         "type": "Unimplemented"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "DamageReceived",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 3.0,
+    "color_identity": [
+     "B",
+     "W"
+    ],
+    "colors": [
+     "B",
+     "W"
+    ],
+    "keywords": [
+     "Defender"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{W}{B}{B}",
+    "name": "Souls of the Faultless",
+    "oracle_id": "5a12e989-d6bc-441e-88dd-779e68a9fee3",
+    "oracle_text": "Defender (This creature can't attack.)\nWhenever this creature is dealt combat damage, you gain that much life and attacking player loses that much life.",
+    "power": "0",
+    "toughness": "4",
+    "type_line": "Creature — Spirit"
+   }
+  },
   "Sound the Call": {
    "phase_records": [
     {
@@ -1180523,6 +1181238,261 @@
     "type_line": "Legendary Creature — Elder Giant"
    }
   },
+  "Ursine Monstrosity": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Bear",
+       "Mutant"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Green"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [
+      "Trample"
+     ],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 2,
+      "shards": [
+       "Green"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "4fdb69ae-2d15-4e91-b229-4d03ff9d6fbb",
+       "73cc6df4-3564-4ace-bf8a-eac3e62d725a"
+      ]
+     },
+     "name": "Ursine Monstrosity",
+     "non_ability_text": null,
+     "oracle_text": "Trample\nAt the beginning of combat on your turn, mill a card and choose an opponent at random. This creature attacks that player this combat if able. Until end of turn, this creature gains indestructible and gets +1/+1 for each card type among cards in your graveyard.",
+     "power": {
+      "type": "Fixed",
+      "value": 3
+     },
+     "printings": [
+      "DSC"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2024-09-20",
+       "text": "If Ursine Monstrosity isn't forced to attack the chosen player for one of the above reasons but can still attack, you may choose to have it attack another player, a planeswalker, a battle, or nothing at all."
+      },
+      {
+       "date": "2024-09-20",
+       "text": "If you can't mill a card, you'll still follow the rest of the instructions of Ursine Monstrosity's last ability."
+      },
+      {
+       "date": "2024-09-20",
+       "text": "If your turn has multiple combat phases, Ursine Monstrosity's last ability triggers at the beginning of each of them. Ignore any choices made for its last ability during previous combat phases."
+      },
+      {
+       "date": "2024-09-20",
+       "text": "If, during your declare attackers step, Ursine Monstrosity is tapped, is affected by a spell or ability that says it can't attack, or hasn't been under your control continuously since your turn began (and doesn't have haste), then it doesn't attack. If there's a cost associated with having Ursine Monstrosity attack the chosen player, you aren't forced to pay that cost, so it doesn't have to attack that player in that case either."
+      },
+      {
+       "date": "2024-09-20",
+       "text": "The card types in Magic include artifact, battle, creature, enchantment, instant, kindred, land, planeswalker, and sorcery. Legendary, basic, and snow are supertypes, not card types; Horror and Room are subtypes, not card types."
+      },
+      {
+       "date": "2024-09-20",
+       "text": "Ursine Monstrosity must attack the chosen player if able, not a planeswalker they control or a battle they protect."
+      }
+     ],
+     "scryfall_oracle_id": "647feda9-2876-4430-902f-10dc1f4f99a9",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 3
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": {
+        "type": "OnlyDuringYourTurn"
+       },
+       "damage_kind": "Any",
+       "description": "At the beginning of combat on your turn, mill a card and choose an opponent at random. ~ attacks that player this combat if able. Until end of turn, ~ gains indestructible and gets +1/+1 for each card type among cards in your graveyard.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "description": "mill a card and choose an opponent at random",
+         "name": "unparsed_verb_arguments",
+         "type": "Unimplemented"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "duration": "UntilEndOfCombat",
+          "required_defender": {
+           "controller": {
+            "ChosenPlayer": {
+             "index": 0
+            }
+           },
+           "properties": [],
+           "type": "Typed",
+           "type_filters": []
+          },
+          "scope": {
+           "type": "Single"
+          },
+          "target": {
+           "type": "SelfRef"
+          },
+          "type": "ForceAttack"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": {
+          "condition": null,
+          "cost": null,
+          "description": null,
+          "duration": "UntilEndOfTurn",
+          "effect": {
+           "duration": "UntilEndOfTurn",
+           "static_abilities": [
+            {
+             "active_zones": [],
+             "affected": {
+              "type": "SelfRef"
+             },
+             "affected_zone": null,
+             "characteristic_defining": false,
+             "condition": null,
+             "description": "gain indestructible and gets +1/+1 for each card type among cards in your graveyard",
+             "effect_zone": null,
+             "mode": "Continuous",
+             "modifications": [
+              {
+               "type": "AddPower",
+               "value": 1
+              },
+              {
+               "type": "AddToughness",
+               "value": 1
+              },
+              {
+               "keyword": "Indestructible",
+               "type": "AddKeyword"
+              }
+             ]
+            }
+           ],
+           "target": null,
+           "type": "GenericEffect"
+          },
+          "forward_result": false,
+          "kind": "Spell",
+          "optional": false,
+          "optional_targeting": false,
+          "sub_ability": null,
+          "sub_link": "SequentialSibling",
+          "target_prompt": null
+         },
+         "sub_link": "SequentialSibling",
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "mode": "Phase",
+       "optional": false,
+       "origin": null,
+       "phase": "BeginCombat",
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": null,
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 3.0,
+    "color_identity": [
+     "G"
+    ],
+    "colors": [
+     "G"
+    ],
+    "keywords": [
+     "Mill",
+     "Trample"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}{G}",
+    "name": "Ursine Monstrosity",
+    "oracle_id": "647feda9-2876-4430-902f-10dc1f4f99a9",
+    "oracle_text": "Trample\nAt the beginning of combat on your turn, mill a card and choose an opponent at random. This creature attacks that player this combat if able. Until end of turn, this creature gains indestructible and gets +1/+1 for each card type among cards in your graveyard.",
+    "power": "3",
+    "toughness": "3",
+    "type_line": "Creature — Bear Mutant"
+   }
+  },
   "Urza's Armor": {
    "phase_records": [
     {
@@ -1180803,6 +1181773,259 @@
     "power": "4",
     "toughness": "4",
     "type_line": "Artifact Creature — Shapeshifter"
+   }
+  },
+  "Urza's Construction Drone": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Artifact",
+       "Creature"
+      ],
+      "subtypes": [
+       "Construct"
+      ],
+      "supertypes": []
+     },
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "historic": "legal",
+      "timeless": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 3,
+      "shards": [],
+      "type": "Cost"
+     },
+     "name": "Urza's Construction Drone",
+     "non_ability_text": null,
+     "oracle_text": "When Urza's Construction Drone enters, conjure cards named Urza's Mine, Urza's Power Plant, and Urza's Tower into your library, then shuffle.\nWhenever Urza's Construction Drone attacks or dies, seek an Urza's land card.",
+     "power": {
+      "type": "Fixed",
+      "value": 3
+     },
+     "printings": [
+      "YBRO"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "02a283fc-ca38-48fb-b53c-0d863fca4b08",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 3
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "When ~ enters, conjure cards named Urza's Mine, Urza's Power Plant, and Urza's Tower into your library, then shuffle.",
+       "destination": "Battlefield",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "description": "conjure cards named Urza's Mine, Urza's Power Plant, and Urza's Tower into your library",
+         "name": "unrecognized_clause_head",
+         "type": "Unimplemented"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "target": {
+           "type": "Controller"
+          },
+          "type": "Shuffle"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": null,
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "mode": "ChangesZone",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": null
+      },
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever ~ attacks, seek an Urza's land card.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "destination": "Hand",
+         "enter_tapped": false,
+         "filter": {
+          "controller": null,
+          "properties": [],
+          "type": "Typed",
+          "type_filters": [
+           "Land",
+           {
+            "Subtype": "Urza's"
+           }
+          ]
+         },
+         "type": "Seek"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "Attacks",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": null
+      },
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever ~ dies, seek an Urza's land card.",
+       "destination": "Graveyard",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "destination": "Hand",
+         "enter_tapped": false,
+         "filter": {
+          "controller": null,
+          "properties": [],
+          "type": "Typed",
+          "type_filters": [
+           "Land",
+           {
+            "Subtype": "Urza's"
+           }
+          ]
+         },
+         "type": "Seek"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "ChangesZone",
+       "optional": false,
+       "origin": "Battlefield",
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Graveyard"
+       ],
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 3.0,
+    "color_identity": [],
+    "colors": [],
+    "keywords": [
+     "Conjure",
+     "Seek"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "not_legal",
+     "competitivebrawl": "legal",
+     "duel": "not_legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "not_legal",
+     "modern": "not_legal",
+     "oathbreaker": "not_legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "not_legal"
+    },
+    "mana_cost": "{3}",
+    "name": "Urza's Construction Drone",
+    "oracle_id": "02a283fc-ca38-48fb-b53c-0d863fca4b08",
+    "oracle_text": "When Urza's Construction Drone enters, conjure cards named Urza's Mine, Urza's Power Plant, and Urza's Tower into your library, then shuffle.\nWhenever Urza's Construction Drone attacks or dies, seek an Urza's land card.",
+    "power": "3",
+    "toughness": "3",
+    "type_line": "Artifact Creature — Construct"
    }
   },
   "Urza's Incubator": {
@@ -1183047,6 +1184270,202 @@
     "power": "6",
     "toughness": "6",
     "type_line": "Legendary Creature — Elder Dragon"
+   }
+  },
+  "Val, Marooned Surveyor": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "brawl_commander": true,
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Human",
+       "Scout"
+      ],
+      "supertypes": [
+       "Legendary"
+      ]
+     },
+     "color_identity": [
+      "Green",
+      "Red",
+      "White"
+     ],
+     "color_override": [
+      "Green",
+      "Red",
+      "White"
+     ],
+     "defense": null,
+     "flavor_name": null,
+     "is_commander": true,
+     "keywords": [
+      "Vigilance"
+     ],
+     "legalities": {
+      "brawl": "legal",
+      "historic": "legal",
+      "timeless": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 2,
+      "shards": [
+       "Red",
+       "GreenWhite"
+      ],
+      "type": "Cost"
+     },
+     "name": "Val, Marooned Surveyor",
+     "non_ability_text": null,
+     "oracle_text": "Vigilance\nWhenever you discover, investigate, scry, surveil, or seek one or more cards, Val deals 2 damage to each opponent and you gain 2 life.",
+     "power": {
+      "type": "Fixed",
+      "value": 3
+     },
+     "printings": [
+      "YEOE"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "a9ddb7b1-98cc-4fbd-b8e2-09c5267d59a6",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 3
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever you discover, investigate, scry, surveil, or seek one or more cards, ~ deals 2 damage to each opponent and you gain 2 life.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "description": "investigate, scry, surveil, or seek one or more cards",
+         "name": "unparsed_verb_arguments",
+         "type": "Unimplemented"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "amount": {
+           "type": "Fixed",
+           "value": 2
+          },
+          "player_filter": {
+           "type": "Opponent"
+          },
+          "type": "DamageEachPlayer"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": {
+          "condition": null,
+          "cost": null,
+          "description": null,
+          "duration": null,
+          "effect": {
+           "amount": {
+            "type": "Fixed",
+            "value": 2
+           },
+           "type": "GainLife"
+          },
+          "forward_result": false,
+          "kind": "Spell",
+          "optional": false,
+          "optional_targeting": false,
+          "sub_ability": null,
+          "target_prompt": null
+         },
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "mode": "Discover",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": null,
+       "valid_source": null,
+       "valid_target": {
+        "type": "Controller"
+       }
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 4.0,
+    "color_identity": [
+     "G",
+     "R",
+     "W"
+    ],
+    "colors": [
+     "G",
+     "R",
+     "W"
+    ],
+    "keywords": [
+     "Investigate",
+     "Seek",
+     "Vigilance"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "legal",
+     "brawl": "legal",
+     "commander": "not_legal",
+     "competitivebrawl": "legal",
+     "duel": "not_legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "not_legal",
+     "modern": "not_legal",
+     "oathbreaker": "not_legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "not_legal"
+    },
+    "mana_cost": "{2}{R}{G/W}",
+    "name": "Val, Marooned Surveyor",
+    "oracle_id": "a9ddb7b1-98cc-4fbd-b8e2-09c5267d59a6",
+    "oracle_text": "Vigilance\nWhenever you discover, investigate, scry, surveil, or seek one or more cards, Val deals 2 damage to each opponent and you gain 2 life.",
+    "power": "3",
+    "toughness": "3",
+    "type_line": "Legendary Creature — Human Scout"
    }
   },
   "Valakut Exploration": {

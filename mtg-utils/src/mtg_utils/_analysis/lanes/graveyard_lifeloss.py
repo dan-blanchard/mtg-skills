@@ -100,12 +100,14 @@ from mtg_utils._card_ir.mirror.runtime import (
 )
 from mtg_utils._card_ir.recovery import (
     ANY_TARGET,
+    OTHER_PLAYER,
     PLAYER,
     SELF,
     TARGET_OBJECT,
     TARGETED,
     is_theirs,
     is_yours,
+    recovered_on,
 )
 from mtg_utils._card_ir.text_idioms import (
     _GOAD_REWARD_REF,
@@ -1530,6 +1532,12 @@ def _lifeloss_scope(
         rs == "each" and lifeloss_recipient_is_degraded_typed(node)
     ):
         return rs, False
+    # A loss phase parks, recovered by the seam, is another player's when its
+    # clause says so ("… and attacking player loses that much life" — Souls of
+    # the Faultless).
+    recovered = recovered_on(unit, node) if tag_of(node) == "Unimplemented" else None
+    if recovered is not None and OTHER_PLAYER in recovered.reading:
+        return "opponents", False
     owner = effect_owner_player_scope(getattr(unit, "node", None), node)
     if owner in _EDICT_ACTORS:
         return "opponents", False
