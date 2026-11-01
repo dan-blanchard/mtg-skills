@@ -155,6 +155,9 @@ _CONCEPT_CATEGORY: dict[str, str] = {
     "prevent_damage": "damage_prevention",  # 100% x79.7 n=370
     "exile_top": "exile",  # 100% x15.4 n=348
     "copy_spell": "spell_copy",  # 100% x99.4 n=297
+    # The concept split (a CopySpell of a StackAbility, CR 707.10) the compat
+    # category never made: both arms stay the one old category.
+    "copy_ability": "spell_copy",
     "grant_cast_permission": "cast_from_zone",  # 100% x29.2 n=285
     "regenerate": "regenerate",  # 100% x116.7 n=250
     "reveal_hand": "reveal_hand",  # 100% x127.0 n=237

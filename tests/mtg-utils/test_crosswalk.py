@@ -525,6 +525,22 @@ def test_spell_copy_cross_opens_spellcast(name):
     assert ("spellcast_matters", "you", "") in idents
 
 
+def test_a_copy_of_a_stack_ability_is_not_a_spell_copy():
+    """phase's CopySpell covers spells and abilities alike; a copy of an ability
+    is an ability, never a spell (CR 707.10), so a CopySpell of a StackAbility
+    decorates as ``copy_ability`` (Strionic Resonator) and only a spell's copy as
+    ``copy_spell`` (Twincast); Lithoform Engine's three modes carry both."""
+    resonator = _tree("Strionic Resonator")
+    assert resonator.has_effect("copy_ability")
+    assert not resonator.has_effect("copy_spell")
+    lithoform = _tree("Lithoform Engine")
+    assert lithoform.has_effect("copy_ability")
+    assert lithoform.has_effect("copy_spell")
+    twincast = _tree("Twincast")
+    assert twincast.has_effect("copy_spell")
+    assert not twincast.has_effect("copy_ability")
+
+
 def test_reconciliation_only_fires_with_spell_copy():
     """A card with no spell-copier does not get the spellcast cross-open."""
     assert "spellcast_matters" not in _keys("Thassa's Oracle")

@@ -842,14 +842,6 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   plan +5). Both fail the plan-primary gate by its primary alone; each is a
   small, real guide-add gain if the gate is ever rebalanced. A 300-card theme page
   (P2) converted nothing and lost three adds on the 25: don't re-suggest.
-- **A read to split (review, 2026-10-30).** phase's `CopySpell` maps to the
-  `copy_spell` concept for ability copies too (`crosswalk/core.py`).
-  `_spell_copy_makers` filters them out with `unit_copied_ability_kind`, but the
-  value-engine synthesis (`tree_synthesis/value_engines.py`) and the ledger's
-  copy-spell gap check (`bridge_ledger.py`) still count Strionic Resonator as a
-  spell copy. The fix is to split the concept where it is assigned. (The
-  instant-speed fold the same review asked for shipped 2026-10-31:
-  `crosswalk.at_instant_speed` is the one read.)
 
 **From the Fynn, the Fangbearer real-deck validation (2026-10-29; `real-deck-validation.md`)**
 
