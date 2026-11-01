@@ -421,11 +421,6 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
 
 - Speculative: `playtest.py`'s mode functions; copies of the Scryfall client policy.
 
-**Known lane recall gaps (surfaced by ADR-0051; a lane fix repairs every consumer)**
-
-- Vibranium-mana token makers are suspected not to count as ramp, but no card was
-  found to test.
-
 **Discovery ranking:** see ADR-0043's terminal-state amendment for the unclaimed
 headroom and parked items.
 

@@ -174,6 +174,45 @@ def test_gap_gate_skips_when_phase_already_parsed_keywords(monkeypatch):
     assert il._known_token_trees(rec, oracle_id="oid5") == []
 
 
+_VIBRANIUM_ID = "vibranium-test-id"
+_VIBRANIUM_ENTRY = {
+    "display_name": "Vibranium",
+    "rules_text": (
+        "Indestructible\n{T}: Add {C}. This mana can't be spent to cast a "
+        "nonartifact spell."
+    ),
+    "core_types": ("Artifact",),
+    "subtypes": ("Vibranium",),
+    "supertypes": (),
+}
+
+
+def test_gap_gate_reads_past_a_keyword_line_the_node_carries(monkeypatch):
+    """A Vibranium token's node carries its Indestructible (CR 111.10w) but not
+    its mana ability: the tree is the line the node leaves out."""
+    monkeypatch.setattr(
+        il, "_known_tokens_index", lambda: _index((_VIBRANIUM_ID, _VIBRANIUM_ENTRY))
+    )
+    rec = _rec(
+        "X", [_VIBRANIUM_ID], _token_node("Vibranium", keywords=["Indestructible"])
+    )
+    (tree,) = il._known_token_trees(rec, oracle_id="oid9")
+    assert tree.oracle == (
+        "{T}: Add {C}. This mana can't be spent to cast a nonartifact spell."
+    )
+
+
+def test_gap_gate_skips_a_node_whose_keywords_cover_the_whole_text(monkeypatch):
+    entry = {**_VIBRANIUM_ENTRY, "rules_text": "Indestructible"}
+    monkeypatch.setattr(
+        il, "_known_tokens_index", lambda: _index((_VIBRANIUM_ID, entry))
+    )
+    rec = _rec(
+        "X", [_VIBRANIUM_ID], _token_node("Vibranium", keywords=["Indestructible"])
+    )
+    assert il._known_token_trees(rec, oracle_id="oid10") == []
+
+
 def test_empty_without_related_token_ids(monkeypatch):
     monkeypatch.setattr(
         il, "_known_tokens_index", lambda: _index((_MUTAGEN_ID, _MUTAGEN_ENTRY))
@@ -293,6 +332,14 @@ def test_cut_in_young_hero_cycle_fires_plus_one_makers(monkeypatch):
     rec = _record("Cut In")
     keys = {s.key for s in _signals_for(rec, _YOUNG_HERO_ENTRY, monkeypatch)}
     assert "plus_one_makers" in keys
+
+
+def test_shuris_fabricator_vibranium_tokens_fire_ramp(monkeypatch):
+    """Two Vibranium tokens (CR 111.10w) tap for artifact-only {C}: the
+    Powerstone idiom's ramp node, off the mana line the node leaves out."""
+    rec = _record("Shuri's Fabricator")
+    keys = {s.key for s in _signals_for(rec, _VIBRANIUM_ENTRY, monkeypatch)}
+    assert "ramp" in keys
 
 
 def test_ozox_jumblebones_graveyard_return_needs_no_known_tokens_work():

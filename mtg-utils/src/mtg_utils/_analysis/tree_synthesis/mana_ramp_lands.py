@@ -1455,9 +1455,14 @@ def _arm_ramp_dropped_add_mana_clause(tree: ConceptTree) -> ConceptNode | None:
 # real ability's own text), plus the target lane's own "not already
 # served" check where the lane exposes one, so a future card whose OWN
 # typed effect happens to ALSO carry this wording never double-fires.
-_RAMP_KNOWN_TOKEN_IDIOMS: tuple[str, ...] = (
-    "can't be spent to cast a nonartifact spell",  # Powerstone (CR 605.1a)
-    "add one mana of any color",  # Gold (CR 106.1/605.1a)
+#: Each idiom maps to the mana it makes as ``roles.DeckMana`` reads a ``Mana``
+#: effect: phase's ``produced`` tag and the spell type its mana is limited to
+#: (CR 106.6; ``""`` for none) — so a token rock's restriction is judged in the
+#: deck the way a printed one's is (The Mightstone and Weakstone).
+_RAMP_KNOWN_TOKEN_IDIOMS: dict[str, tuple[str, str]] = {
+    # Powerstone / Vibranium (CR 111.10h / 111.10w, 605.1a)
+    "can't be spent to cast a nonartifact spell": ("Colorless", "Artifact"),
+    "add one mana of any color": ("AnyOneColor", ""),  # Gold (CR 106.1/605.1a)
     # task #np_roles adjudicated AGAINST adding the bare land-tap idiom
     # ("{T}: Add {G}." — Forest Dryad; "{T}: Add {C}." — the Mutavault
     # token): both identities are LAND tokens, and the ``_ramp`` lane's own
@@ -1466,11 +1471,24 @@ _RAMP_KNOWN_TOKEN_IDIOMS: tuple[str, ...] = (
     # card doesn't fire ``ramp``, so its token twin must not either (the
     # token twin mirrors its real-card twin; the lf_ramp convention change
     # doesn't touch these LAND tokens — the mana-base carve-out stands).
-)
+}
+
+
+def known_token_mana(tree: ConceptTree) -> tuple[tuple[str, str], ...]:
+    """The mana a zero-unit text-only tree's ability makes, ``(produced tag,
+    spell-type restriction)`` per :data:`_RAMP_KNOWN_TOKEN_IDIOMS` idiom its
+    text holds — what ``roles._mana_effects`` reads off a typed ``Mana`` node.
+    Empty for a tree with units (its ``Mana`` nodes speak for themselves)."""
+    if tree.units:
+        return ()
+    oracle = (tree.oracle or "").lower()
+    return tuple(
+        mana for idiom, mana in _RAMP_KNOWN_TOKEN_IDIOMS.items() if idiom in oracle
+    )
 
 
 def _arm_known_token_ramp(tree: ConceptTree) -> ConceptNode | None:
-    """Synthesize a ``ramp`` node for a Powerstone / Gold known-token
+    """Synthesize a ``ramp`` node for a Powerstone / Vibranium / Gold known-token
     zero-unit text-only tree (task #95) — see the block comment above.
     Gated on ``not tree.units`` (the text-only-tree shape) and ``not
     tree.effect_concepts("ramp")`` (never doubles a card that already
@@ -1479,17 +1497,14 @@ def _arm_known_token_ramp(tree: ConceptTree) -> ConceptNode | None:
     unconditionally for a nonland tree (both identities are Artifacts,
     never Lands), the SAME real-concept precedent
     ``_arm_ramp_grant_unimplemented_body`` above already established."""
-    if tree.units or tree.effect_concepts("ramp"):
-        return None
-    oracle = (tree.oracle or "").lower()
-    if not any(idiom in oracle for idiom in _RAMP_KNOWN_TOKEN_IDIOMS):
+    if tree.effect_concepts("ramp") or not known_token_mana(tree):
         return None
     return _synthetic_concept(
         arm_id="known_token_ramp",
         concept="ramp",
         scope="you",
         subject=(),
-        desc="predefined known-token mana ability (Powerstone/Gold)",
+        desc="predefined known-token mana ability (Powerstone/Vibranium/Gold)",
     )
 
 

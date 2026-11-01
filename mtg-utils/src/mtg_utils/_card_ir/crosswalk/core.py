@@ -319,6 +319,7 @@ ARTIFACT_TOKEN_SUBTYPES: frozenset[str] = frozenset(
         "blood",
         "lander",
         "mutagen",
+        "vibranium",  # CR 111.10w
     }
 )
 

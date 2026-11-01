@@ -405,10 +405,14 @@ def _text_only_trees(
 # any structural walk — purely additive.
 #
 # GAP-GATED, NOT AN OVERRIDE: only fires when the card's own Token node
-# carries NEITHER ``static_abilities`` NOR ``keywords`` — i.e. only when phase
-# genuinely parsed nothing for that token's ability. A predefined token phase
-# DOES fully decompose (a bare vanilla keyword token, say) is left alone; this
-# substrate never second-guesses a structural parse that already exists.
+# carries no ``static_abilities`` and no keyword the token's rules text doesn't
+# spell as a keyword line — and then carries only the lines the node leaves out
+# (:func:`_unparsed_rules_text`). A Vibranium token's node carries its
+# Indestructible but not its "{T}: Add {C}. This mana can't be spent to cast a
+# nonartifact spell." (CR 111.10w), so its tree is that mana line. A predefined
+# token phase DOES fully decompose (a bare vanilla keyword token, say) is left
+# alone; this substrate never second-guesses a structural parse that already
+# exists.
 #
 # ADJUDICATED ALLOWLIST (task #92, widened task #95): a corpus-wide sweep of
 # every predefined token this gap-gate matches found 34 distinct token
@@ -436,6 +440,9 @@ def _text_only_trees(
 #   spent to cast a nonartifact spell." / "Sacrifice this token: Add one
 #   mana of any color." each open ``ramp`` (CR 106.1/605.1a) via
 #   :func:`~mtg_utils._analysis.tree_synthesis._arm_known_token_ramp`.
+#   "Vibranium" (2026-11-01; CR 111.10w) — Powerstone's mana line beside
+#   indestructible — joins them; its restriction is read by
+#   ``roles.DeckMana`` the way a printed rock's is (CR 106.6).
 # * "Lander" (task #95; re-adjudicated by the lf_ramp convention change,
 #   2026-07-13) — "…Sacrifice this token: Search your library for a basic
 #   land card, put it onto the battlefield tapped…" opens ``ramp`` (CR
@@ -603,6 +610,9 @@ _KNOWN_TOKEN_WIRED_DISPLAY_NAMES = frozenset(
         "Wizard",
         "Contract",
         "Spellgorger Weird",
+        # 2026-11-01: phase carries its Indestructible keyword, not its mana
+        # ability (the gate reads past a keyword line).
+        "Vibranium",
     }
 )
 
@@ -630,17 +640,31 @@ def _iter_raw_dicts(node: object, keep: Callable[[dict], bool]) -> Iterator[dict
 _RAW_TOKEN_SPEC_FIELDS = ("additional_token_spec", "ensure_token_specs")
 
 
-def _iter_raw_token_creations(node: object) -> Iterator[tuple[str, bool]]:
-    """``(token name, phase parsed its abilities)`` for every token ``node`` (a
-    RAW phase record fragment) creates: each ``Token`` effect (a CreateToken
-    payload — always carries its own ``name``) and each token spec a
-    ``CreateToken`` replacement adds (:data:`_RAW_TOKEN_SPEC_FIELDS` — its name
-    on ``characteristics.display_name``, its parsed substance on the spec's
-    ``static_abilities`` and the characteristics' ``keywords``)."""
+def _keyword_names(keywords: object) -> tuple[str, ...]:
+    """A raw ``keywords`` list's entries as strings. A parameterised keyword (a
+    dict, ``{"Ward": …}``) becomes its repr, which no rules-text line spells, so
+    :func:`_unparsed_rules_text` never reads it as accounted for."""
+    if not isinstance(keywords, list):
+        return ()
+    return tuple(k if isinstance(k, str) else repr(k) for k in keywords)
+
+
+def _iter_raw_token_creations(
+    node: object,
+) -> Iterator[tuple[str, bool, tuple[str, ...]]]:
+    """``(token name, phase parsed a static ability, the keywords phase parsed)``
+    for every token ``node`` (a RAW phase record fragment) creates: each ``Token``
+    effect (a CreateToken payload — always carries its own ``name``) and each
+    token spec a ``CreateToken`` replacement adds (:data:`_RAW_TOKEN_SPEC_FIELDS`
+    — its name on ``characteristics.display_name``, its parsed substance on the
+    spec's ``static_abilities`` and the characteristics' ``keywords``)."""
     for token in _iter_raw_dicts(node, lambda d: d.get("type") == "Token"):
         if "name" in token:
-            parsed = bool(token.get("static_abilities") or token.get("keywords"))
-            yield str(token.get("name") or ""), parsed
+            yield (
+                str(token.get("name") or ""),
+                bool(token.get("static_abilities")),
+                _keyword_names(token.get("keywords")),
+            )
     holders = _iter_raw_dicts(node, lambda d: any(map(d.get, _RAW_TOKEN_SPEC_FIELDS)))
     for holder in holders:
         for field in _RAW_TOKEN_SPEC_FIELDS:
@@ -650,8 +674,33 @@ def _iter_raw_token_creations(node: object) -> Iterator[tuple[str, bool]]:
                     continue
                 chars = spec.get("characteristics") or {}
                 name = chars.get("display_name") or spec.get("script_name") or ""
-                parsed = bool(spec.get("static_abilities") or chars.get("keywords"))
-                yield str(name), parsed
+                yield (
+                    str(name),
+                    bool(spec.get("static_abilities")),
+                    _keyword_names(chars.get("keywords")),
+                )
+
+
+def _unparsed_rules_text(rules_text: str, keywords: tuple[str, ...]) -> str | None:
+    """The part of a known token's ``rules_text`` its Token node leaves out, or
+    ``None`` when the node carries a keyword the text doesn't account for (phase
+    parsed something this join can't line up, so it is left alone).
+
+    A line naming only keywords the node carries is parsed: a Vibranium token's
+    node carries ``Indestructible`` but not its mana ability (CR 111.10w), so the
+    gap is the mana line alone. A node with no keywords leaves the whole text."""
+    carried = {k.casefold() for k in keywords}
+    named: set[str] = set()
+    rest: list[str] = []
+    for line in rules_text.splitlines():
+        words = {w.strip().casefold() for w in line.split(",")}
+        if line.strip() and words <= carried:
+            named |= words
+        else:
+            rest.append(line)
+    if named != carried:
+        return None
+    return "\n".join(rest).strip()
 
 
 def _known_token_display_name_candidates(token_name: str) -> tuple[str, ...]:
@@ -756,14 +805,18 @@ def _known_tokens_index() -> dict[str, dict] | None:
     return _parse_known_tokens_toml(text)
 
 
-def _known_token_tree(entry: dict, *, oracle_id: str) -> ConceptTree | None:
+def _known_token_tree(
+    entry: dict, *, oracle_id: str, text: str | None = None
+) -> ConceptTree | None:
     """One matched known-tokens.toml entry as a zero-unit text-only
     ``ConceptTree`` (the ADR-0038 W2c shape), or ``None`` for a blank
     ``rules_text`` (nothing to carry — e.g. a vanilla creature token that
-    already fully round-trips through the Token node's own printed body)."""
+    already fully round-trips through the Token node's own printed body).
+    ``text`` is the part of the rules text the Token node leaves out
+    (:func:`_unparsed_rules_text`); the whole text when not given."""
     from mtg_utils._card_ir.crosswalk import ConceptTree
 
-    rules_text = entry["rules_text"]
+    rules_text = entry["rules_text"] if text is None else text
     if not rules_text:
         return None
     return ConceptTree(
@@ -782,8 +835,9 @@ def _known_token_tree(entry: dict, *, oracle_id: str) -> ConceptTree | None:
 
 def _known_token_trees(rec: dict, *, oracle_id: str) -> list[ConceptTree]:
     """Every predefined-token ability tree ``rec`` (one raw phase face
-    record) creates, gap-gated to Token nodes phase parsed NO ability
-    substance for (see the module comment above). Empty whenever the
+    record) creates, gap-gated to the rules text a Token node's parse leaves
+    out (see the module comment above): no static ability, and no keyword
+    beyond the text's own keyword lines. Empty whenever the
     known-tokens index is unavailable, the card carries no
     ``related_token_ids``, or every Token node phase already fully parsed."""
     index = _known_tokens_index()
@@ -800,9 +854,9 @@ def _known_token_trees(rec: dict, *, oracle_id: str) -> list[ConceptTree]:
         return []
     trees: list[ConceptTree] = []
     seen: set[str] = set()
-    for token_name, parsed in _iter_raw_token_creations(rec):
-        if parsed:
-            continue  # phase already parsed something for this token — leave it
+    for token_name, has_statics, keywords in _iter_raw_token_creations(rec):
+        if has_statics:
+            continue  # phase already parsed an ability for this token — leave it
         entry = None
         for cand in _known_token_display_name_candidates(token_name):
             entry = candidates.get(cand.casefold())
@@ -810,8 +864,11 @@ def _known_token_trees(rec: dict, *, oracle_id: str) -> list[ConceptTree]:
                 break
         if entry is None or entry["display_name"] in seen:
             continue
+        text = _unparsed_rules_text(entry["rules_text"], keywords)
+        if not text:
+            continue  # the node carries all of it, or something the text can't place
         seen.add(entry["display_name"])
-        tree = _known_token_tree(entry, oracle_id=oracle_id)
+        tree = _known_token_tree(entry, oracle_id=oracle_id, text=text)
         if tree is not None:
             trees.append(tree)
     return trees
