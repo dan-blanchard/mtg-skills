@@ -5413,7 +5413,7 @@ def _all_creatures_attack_parked(tree: ConceptTree) -> bool:
 # drops: an additional cost (Familiar's Ruse), a kicker (Arctic Merfolk), a
 # splice cost (Veil of Secrecy).
 _RETURN_COST_RX = re.compile(
-    r"(?:as an additional cost to cast this spell|kicker|splice onto arcane)\W+"
+    r"splice onto arcane\W+"
     r"return (?:a|an) (?:blue )?creature you control to its owner's hand",
     re.IGNORECASE,
 )
@@ -5652,21 +5652,18 @@ BRIDGES.update(
                 key="permanent_recast",
                 kind="dropped_clause",
                 todo=(
-                    "upstream phase-rs report candidate (Dan posts): a cost that "
-                    "returns a creature you control to hand leaves no node — an "
-                    "additional cost (Familiar's Ruse), a kicker (Arctic Merfolk), "
-                    "a splice cost (Veil of Secrecy). Retires per card"
+                    "upstream phase-rs report candidate (Dan posts): a splice "
+                    "cost that returns a creature you control to hand leaves no "
+                    "node (Veil of Secrecy). The additional-cost and kicker forms "
+                    "(Familiar's Ruse, Arctic Merfolk) graduated 2026-11-01: phase "
+                    "types their ReturnToHand cost, which the additional-cost walk "
+                    "now keeps. Retires per card"
                 ),
                 census=(
-                    "3 hits / the legal corpus (Arctic Merfolk, Familiar's Ruse, "
-                    "Veil of Secrecy), MTGJSON 2026-10-17 @ phase v0.104.0, "
-                    "2026-10-25"
+                    "1 hit / the legal corpus (Veil of Secrecy), MTGJSON "
+                    "2026-10-17 @ phase v0.118.0, 2026-11-01"
                 ),
-                pins=(
-                    "Arctic Merfolk",
-                    "Familiar's Ruse",
-                    "Veil of Secrecy",
-                ),
+                pins=("Veil of Secrecy",),
                 gap=_no_return_to_hand,
                 match=_oracle_match(_RETURN_COST_RX),
                 subject="replay",
