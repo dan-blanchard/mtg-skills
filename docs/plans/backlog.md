@@ -584,10 +584,7 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   `PAGE_ONLY_SUBJECTS` belongs in it as a role, and the voltron `has_other_plan`
   read should ask `avenue_spec_for(s) is not None` instead of keeping its own
   exclusion lists — membership_floor's step-trigger exclusion duplicates
-  `STEP_TRIGGER_KEYS` the same way); an `attack_trigger_side` crosswalk read
-  beside `targeting_trigger_side` (the defensive-trigger veto lives in
-  `tree_synthesis.combat`, and `stax_and_tempo`'s own `attacks` reads skip it —
-  MacCready still reads as an attack payoff); the spell-additional-cost walk keeps
+  `STEP_TRIGGER_KEYS` the same way); the spell-additional-cost walk keeps
   only allowlisted OTHER leaves (PayLife, Blight) — walk them all;
   `mass_removal` misses one-sided "creatures your opponents control get -N/-N"
   (Massacre Wurm, about forty); `card_draw_engine` misses granted draw triggers
