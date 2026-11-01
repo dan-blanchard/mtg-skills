@@ -350,3 +350,13 @@ def test_a_land_sacrifice_commander_wants_land_recursion_not_creature_fodder():
     # Dina sacrifices creatures: her need keeps the token fodder.
     dina = _need("Dina, Essence Brewer", "creatures that sacrificed")
     assert "token_maker" in dina.keys
+
+
+def test_a_nontoken_sacrifice_trigger_is_not_fed_by_token_makers():
+    # Ashling's "Whenever you sacrifice a nontoken Elemental": a token is no
+    # nontoken creature, so the outlets feed it and the token makers do not.
+    need = _need("Ashling, the Limitless", "creatures that sacrificed")
+    assert "sacrifice_outlets" in need.keys
+    assert not need.keys & {"token_maker", "mass_token_makers"}
+    assert satisfies(test_card("Viscera Seer"), need)
+    assert not satisfies(test_card("Raise the Alarm"), need)

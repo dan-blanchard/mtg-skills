@@ -692,6 +692,11 @@ def _event_need(node: TypedMirrorNode, desc: str) -> Need | None:
         keys = set(_EVENT_MAKER_KEYS[event])
         if "Token" in preds:
             keys = set(_TYPE_TOKEN_KEYS["creature"]) | {"sacrifice_outlets"}
+        elif "NonToken" in preds:
+            # "Whenever you sacrifice a nontoken Elemental" (Ashling, the
+            # Limitless): a token is no nontoken creature, so the token makers
+            # feed nothing; the outlets and edicts do.
+            keys -= _TYPE_TOKEN_KEYS["creature"]
         return Need(
             "event",
             f"creatures that {event.replace('_', ' ')}",
