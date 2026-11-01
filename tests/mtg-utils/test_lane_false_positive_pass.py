@@ -121,3 +121,28 @@ def test_no_theft_where_no_card_is_stolen(name):
 )
 def test_theft_stays(name, ident):
     assert ident in _idents(name)
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        # a granted "your opponents can't win the game"
+        "The Book of Exalted Deeds",
+        "Platinum Angel",
+        # "your opponents can't lose the game": a drawback
+        "Abyssal Persecutor",
+    ],
+)
+def test_a_game_outcome_rule_is_no_stax_lock(name):
+    """phase types "can't win / can't lose the game" as game-outcome statics
+    (CR 104.3: the ways to lose), which lock no action, so the stax residue
+    leaves the clause."""
+    assert not _keyed(name, "stax_taxes")
+
+
+def test_an_opponent_lock_stays_stax():
+    assert ("stax_taxes", "opponents", "") in _idents("Archfiend of Despair")
+
+
+def test_the_cant_lose_card_keeps_its_insurance():
+    assert ("life_payment_insurance", "you", "cant_lose") in _idents("Platinum Angel")

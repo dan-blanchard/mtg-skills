@@ -77920,6 +77920,200 @@
     "type_line": "Creature — Demon"
    }
   },
+  "Archfiend of Despair": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Demon"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Black"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [
+      "Flying"
+     ],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 6,
+      "shards": [
+       "Black",
+       "Black"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "11d8b7ac-fb65-4496-9d9f-184fa8ad8012",
+       "137b69ad-3296-49f1-bddf-24818a03830f",
+       "afce9284-9d3a-4ab9-8dd0-8fda1ee0c64f",
+       "b6d1e901-cef9-45ca-a946-a4a9cba6702d"
+      ]
+     },
+     "name": "Archfiend of Despair",
+     "non_ability_text": null,
+     "oracle_text": "Flying\nYour opponents can't gain life.\nAt the beginning of each end step, each opponent loses life equal to the life that player lost this turn. (Damage causes loss of life.)",
+     "power": {
+      "type": "Fixed",
+      "value": 6
+     },
+     "printings": [
+      "BBD",
+      "CMM",
+      "FRC"
+     ],
+     "rarities": [
+      "mythic"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2018-06-08",
+       "text": "Archfiend of Despair's last ability counts only how much life was lost. It doesn't care whether a player also gained life."
+      },
+      {
+       "date": "2018-06-08",
+       "text": "In a Two-Headed Giant game, damage and life loss happen to each player individually. If each player on a team is dealt 2 damage, each of those players loses 2 life and the team's life total goes down by 4. When Archfiend of Despair's ability resolves, each of those players again loses 2 life and the team's life total goes down again by 4; they don't each lose 4 life."
+      },
+      {
+       "date": "2018-06-08",
+       "text": "The amount of life to lose is determined only as Archfiend of Despair's triggered ability resolves. For example, if you control two of them and an opponent lost 3 life earlier in the turn, the first ability to resolve would have that player lose 3 life, and the second would have that player lose 6 life."
+      }
+     ],
+     "scryfall_oracle_id": "9c36760b-57c5-488b-afc9-ef141942c6ab",
+     "static_abilities": [
+      {
+       "active_zones": [],
+       "affected": {
+        "controller": "Opponent",
+        "properties": [],
+        "type": "Typed",
+        "type_filters": []
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": null,
+       "description": "Your opponents can't gain life.",
+       "effect_zone": null,
+       "mode": "CantGainLife",
+       "modifications": []
+      }
+     ],
+     "toughness": {
+      "type": "Fixed",
+      "value": 6
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "At the beginning of each end step, each opponent loses life equal to the life that player lost this turn.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "amount": {
+          "qty": {
+           "player": {
+            "type": "ScopedPlayer"
+           },
+           "type": "LifeLostThisTurn"
+          },
+          "type": "Ref"
+         },
+         "type": "LoseLife"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "player_scope": {
+         "type": "Opponent"
+        },
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "Phase",
+       "optional": false,
+       "origin": null,
+       "phase": "End",
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": null,
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 8.0,
+    "color_identity": [
+     "B"
+    ],
+    "colors": [
+     "B"
+    ],
+    "keywords": [
+     "Flying"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{6}{B}{B}",
+    "name": "Archfiend of Despair",
+    "oracle_id": "9c36760b-57c5-488b-afc9-ef141942c6ab",
+    "oracle_text": "Flying\nYour opponents can't gain life.\nAt the beginning of each end step, each opponent loses life equal to the life that player lost this turn. (Damage causes loss of life.)",
+    "power": "6",
+    "toughness": "6",
+    "type_line": "Creature — Demon"
+   }
+  },
   "Archfiend of Ifnir": {
    "phase_records": [
     {

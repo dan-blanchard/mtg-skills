@@ -716,8 +716,11 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   positives still open: Skyclave Apparition's "the exiled card's owner
   creates" token reads as yours — phase stamps the Token's `owner` `Controller`
   and the exiled card `Owned{You}`, so no structure tells it from your own
-  token (a phase gap to report); Investigator's Journal still fires `proliferate_matters` and
-  The Book of Exalted Deeds `stax_taxes|opponents`.
+  token (a phase gap to report). Not a false positive (2026-10-31, don't
+  re-suggest): Investigator's Journal's LOW `proliferate_matters` — its suspect
+  counters are counters (CR 122.1, not the suspected designation of CR
+  701.60a), proliferate adds one of each kind already there (CR 701.34a), and
+  removing one is its draw cost, the remove-counter-cost read's own case.
   Ranking: `ranking._synergy_score` gives clause clusters only to regex-matched
   hits, so every regex → ident conversion thins clause breadth (Empty the
   Warrens' token clause 8 → 6 lanes); attributing an ident hit to the clause
