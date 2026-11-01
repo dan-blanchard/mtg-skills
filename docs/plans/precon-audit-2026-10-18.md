@@ -3225,8 +3225,32 @@ It is reported, not gated, and it proposes nothing.
 What the block says about the 84: the tutors are play-rate adds no page prefers
 (three tries); Ahoy Mateys' theft and Silverquill's Spirits are the guides'
 own rebuilds, out of reach of any first-principles read (the pool's Pirates
-don't steal); the scattered rest went to the triage pass (TRIAGE: see below).
-The baseline after the block is N12 = N11 on every count; every policy of the
-block lost to the gate and every read that shipped moved nothing. Reach into
-the never-admitted bucket is now a question of what the guides chose, not of
-what the tuner reads.
+don't steal); the scattered rest went to a triage pass
+(`docs/plans/precon-audit/triage-2026-11-01.md`): 61 cards, one verdict each,
+every rules claim through the CLIs. **20 recall gaps, fixed as reads** (12
+commits, merged as 6523840f): a token's `player_scope` names the exiled card's
+owner (Skyclave Apparition is no token maker of yours); phase's record-level
+`casting_options` flash is read (33 cards; the ledger row retired); an
+opponents'-draw count fires `opponent_draw_matters` (Heliod, the Warped
+Eclipse); the resource needs gain their missing consumers (+1/+1 counters:
+counter grants and movers; token copies: tokens-matter and doublers; land
+sacrifice: lands recast); proliferate is an energy maker and meets a
+planeswalker commander's "loyalty on the commander" need; a commander's own
+`<type>_matter` enters/cast trigger opens a redundancy page (Killian: 32
+cards); a cast trigger reading the spell's power asks for "creature spells
+with power N+" (Eshki); a nontoken sacrifice trigger is no longer fed by token
+makers (Ashling); the counter-added need reads the counter's kind (Auntie Ool's
+−1/−1) and a commander's own combat-damage trigger asks for grants that reach
+the commander (Sidar), not every evasive body; Mirrormind Crown's parked
+token-copy replacement gets a ledger row. **39 guide-specific** (the
+first-principles ceiling: Panharmonicon and Elesh Norn multiply the copied
+creatures' ETBs, not Satya; Saradoc and Serra Redeemer trigger on face-down
+2/2s, a pair read; Ephemerate, Approach of the Second Sun, Insurrection, Lurrus
+and the rest are the guides' picks). One gap left open (Secret Arcade // Dusty
+Parlor wants a "makes your permanents the commander's watched type" read) and
+one undecided (Kalakscion, Hunger Tyrant under Dina: a power read), both
+handed back to the pass. Re-based as **N13** (the numbers below).
+
+Reach into the never-admitted bucket is now a question of what the guides
+chose, not of what the tuner reads: every policy of the block lost to the gate,
+and the reads that shipped are the correctness fixes above.
