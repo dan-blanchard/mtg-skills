@@ -48,6 +48,7 @@ from mtg_utils._card_ir.crosswalk import (
     OBJECT_FILTER_TAGS,
     OPPONENT_ACTOR_TAGS,
     SELF_REFERENCE_TARGETS,
+    TOKEN_YOURS_SIDES,
     YOUR_CHOSEN_CONTROLLERS,
     AbilityUnit,
     ConceptTree,
@@ -109,6 +110,7 @@ from mtg_utils._card_ir.crosswalk import (
     static_mode_tag,
     steals_stack_spell,
     tag_of,
+    token_creator_side,
     trigger_def_event,
     trigger_phase,
     trigger_scope,
@@ -404,14 +406,23 @@ def _token_maker(tree: ConceptTree) -> list[Signal]:
     directed gift the scope gate drops. A
     token "each opponent creates" (Slaughter Specialist) is skipped through
     :func:`~mtg_utils._card_ir.crosswalk.effect_actor_scope`.
+
+    Past those, the token's creator (CR 111.2: "The player who creates a token
+    is its owner") is :func:`~mtg_utils._card_ir.crosswalk.token_creator_side`:
+    an opponent's token is skipped ("that player creates" on Varchild,
+    Betrayer of Kjeldor's combat-damage trigger, Goblin Spymaster's "each
+    opponent's end step"), and one that whoever controls the object the effect
+    reaches creates (Genesis Chamber's "that creature's controller", March of
+    Souls' "its controller") is scoped "any", not yours — the scope Pharika's
+    chosen graveyard card reads too. ``mass_token_makers`` counts yours alone.
     """
-    seen: set[str] = set()
+    seen: set[tuple[str, str]] = set()
     out: list[Signal] = []
 
     def fire(subject: str, raw: str, scope: str = "you") -> None:
-        if subject in seen:
+        if (subject, scope) in seen:
             return
-        seen.add(subject)
+        seen.add((subject, scope))
         out.append(
             Signal(signal_keys.TOKEN_MAKER, scope, subject, raw, tree.name, "high")
         )
@@ -477,6 +488,9 @@ def _token_maker(tree: ConceptTree) -> list[Signal]:
             # (CR 111.2: the player who creates a token controls it).
             if effect_actor_scope(unit, concept.node) == "opponents":
                 continue
+            creator = token_creator_side(unit, concept.node)
+            if creator == "opponents":
+                continue
             # The "any" bypass below is scoped STRICTLY to the owner-
             # override path above — an unrelated concept whose OWN
             # natural scope happens to be "any" (a ``Player``/``Target``/
@@ -499,9 +513,16 @@ def _token_maker(tree: ConceptTree) -> list[Signal]:
                 for word in reversed(types)
                 if (resolved := _resolve_subject(word, CREATURE_SUBTYPES))
             ] or [""]
+            fired = (
+                "any" if owner_override or creator not in TOKEN_YOURS_SIDES else "you"
+            )
             for subject in subjects:
-                fire(subject, concept.raw, "any" if owner_override else "you")
-            if not mass and makes_creature_tokens_at_once(concept.node):
+                fire(subject, concept.raw, fired)
+            if (
+                not mass
+                and fired == "you"
+                and makes_creature_tokens_at_once(concept.node)
+            ):
                 mass = True
                 out.append(
                     Signal(

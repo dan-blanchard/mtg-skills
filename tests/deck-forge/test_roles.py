@@ -103,10 +103,11 @@ def test_a_land_is_the_mana_base_never_ramp():
 
 
 def test_a_treasure_handed_to_an_opponent_is_not_ramp():
-    # Both fire `treasure_makers|you` (phase scopes the maker, not the recipient);
-    # the Token node's own `owner` tells them apart.
+    # The Token node's own `owner` tells them apart: the countered spell's
+    # controller creates the Treasure (CR 111.2), so it's no Treasure maker of
+    # yours either (`crosswalk.token_creator_side`).
     offer = _real("An Offer You Can't Refuse")  # "Its controller creates two Treasure"
-    assert "treasure_makers" in {s.key for s in test_signals(offer["name"])}
+    assert "treasure_makers" not in {s.key for s in test_signals(offer["name"])}
     assert not is_ramp(offer)
     assert is_ramp(_real("Smothering Tithe"))
     # One Treasure for you, one for an opponent — still yours.

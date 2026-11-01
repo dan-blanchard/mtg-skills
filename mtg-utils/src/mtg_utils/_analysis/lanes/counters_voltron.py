@@ -21,6 +21,7 @@ from mtg_utils._analysis.lanes._shared import (
 from mtg_utils._analysis.signal_base import Signal
 from mtg_utils._analysis.tree_synthesis import ETB_TRIGGER_EVENTS
 from mtg_utils._card_ir.crosswalk import (
+    TOKEN_YOURS_SIDES,
     AbilityUnit,
     ConceptTree,
     aggregate_filter,
@@ -1446,13 +1447,6 @@ def _gain_control(tree: ConceptTree) -> list[Signal]:
     return []
 
 
-#: The token creators (:func:`crosswalk.token_creator_side`) whose token is
-#: yours to make: you, each player (you among them), or a target player —
-#: "Target player creates a Treasure token" (Prismari Command): reading it as
-#: yours (you may target yourself) is the lane's own decision.
-TOKEN_YOURS_SIDES: frozenset[str] = frozenset({"you", "each", "chosen"})
-
-
 def _resource_token_makers(tree: ConceptTree) -> list[Signal]:
     """treasure_makers / food_makers / clue_makers / blood_makers — a predefined
     artifact-token maker (CR 111.10 / 205.3g / 701.16a investigate). Mirrors
@@ -1485,14 +1479,15 @@ def _resource_token_makers(tree: ConceptTree) -> list[Signal]:
       types" (CR 205.1b — Gourmand's Talent's and Ragost's Foods, Senator
       Peacock's Clues), read off an ``AddSubtype`` over a filter you control.
 
-    A token an opponent creates is not yours to make (CR 111.2), including
-    "that player creates" on a trigger that watches only opponents (Bloodvial
-    Purveyor) — :func:`crosswalk.token_creator_side`. This lane reads every
-    other creator as yours, the removed object's controller ("Its controller
-    creates two Treasure tokens" — An Offer You Can't Refuse) and an enchanted
-    opponent (Overencumbered) included; the artifacts/enchantments token read
-    (``board_and_ramp._token_type_lanes``) and :func:`treasure_maker_you_keep`
-    read those as someone else's.
+    A token another player creates is not yours to make (CR 111.2: "The
+    player who creates a token is its owner"): its creator
+    (:func:`crosswalk.token_creator_side`) must be one of
+    :data:`~mtg_utils._card_ir.crosswalk.TOKEN_YOURS_SIDES`, the read the
+    artifacts/enchantments token lane (``board_and_ramp._token_type_lanes``)
+    keeps too. An opponent ("that player creates" on a trigger that watches
+    only opponents — Bloodvial Purveyor), the removed object's controller ("Its
+    controller creates two Treasure tokens" — An Offer You Can't Refuse) and an
+    enchanted opponent (Overencumbered) are someone else.
     """
     keys = {
         "Treasure": "treasure_makers",
@@ -1508,7 +1503,7 @@ def _resource_token_makers(tree: ConceptTree) -> list[Signal]:
                 continue
             if c.concept != "make_token":
                 continue
-            if token_creator_side(unit, c.node) != "opponents":
+            if token_creator_side(unit, c.node) in TOKEN_YOURS_SIDES:
                 out.extend(key for sub, key in keys.items() if sub in c.subject)
             # phase v0.104.0 parks an intervening-if token clause ("if another
             # Human died under your control this turn, create a Food token" —

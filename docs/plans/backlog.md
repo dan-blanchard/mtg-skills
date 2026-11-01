@@ -600,8 +600,6 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   opponent-graveyard lane; `big_hand_matters`' text arm still fires on "reveal
   any number of X cards"; Dan Lewis's AddSubtype Equipment and Equipment
   affinity. Left from the lane pass:
-  the resource-maker lanes still count a token another player creates as yours
-  (An Offer You Can't Refuse, Overencumbered);
   `etb_value_x_recast_commander` (`pair_reads.py`) weights a scry-1 ETB like
   Shriekmaw now that `self_etb_payload` reads 4,333 cards; the `card-draw` preset
   is key-level, so Master of the Feast (opponents draw) stays in it. Phase gaps
@@ -715,15 +713,15 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   (Scheming Aspirant, Venser, Tam, Ichormoon Gauntlet); the own-graveyard
   remainder (collect-evidence and forage costs, descend payoffs, the Empower
   Jace token's surveil, granted delve / soulshift X, a craft cost). Lane false
-  positives still open: a token another player
-  creates serves as a `token_maker|you|*` (Varchild, Goblin Spymaster,
-  Skyclave Apparition, Genesis Chamber, March of Souls …); "tap creatures you
+  positives still open: Skyclave Apparition's "the exiled card's owner
+  creates" token reads as yours — phase stamps the Token's `owner` `Controller`
+  and the exiled card `Owned{You}`, so no structure tells it from your own
+  token (a phase gap to report); "tap creatures you
   control" cards serve `tapper_engine` (Jaddi Lifestrider — inseparable from
   the `controller: You` misstamp above); ~9 "when an opponent causes you to
   discard this" cards fire `discard_matters` and Balance / Restore Balance
   `discard_outlet`; Oft-Nabbed Goat and Sentinel of Lost Lore fire
-  `gain_control`; An Offer You Can't Refuse fires `treasure_makers|you`;
-  Investigator's Journal still fires `proliferate_matters` and
+  `gain_control`; Investigator's Journal still fires `proliferate_matters` and
   The Book of Exalted Deeds `stax_taxes|opponents`.
   Ranking: `ranking._synergy_score` gives clause clusters only to regex-matched
   hits, so every regex → ident conversion thins clause breadth (Empty the
