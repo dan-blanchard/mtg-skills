@@ -227333,6 +227333,162 @@
     "type_line": "Creature — Human Barbarian"
    }
   },
+  "Cease-Fire": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Target player can't cast creature spells this turn.\nDraw a card.",
+       "duration": "UntilEndOfTurn",
+       "effect": {
+        "restriction": {
+         "activity": {
+          "spell_filter": {
+           "controller": null,
+           "properties": [],
+           "type": "Typed",
+           "type_filters": [
+            "Creature"
+           ]
+          },
+          "type": "CastSpells"
+         },
+         "affected_players": {
+          "type": "TargetedPlayer"
+         },
+         "expiry": {
+          "type": "EndOfTurn"
+         },
+         "source": 0,
+         "type": "ProhibitActivity"
+        },
+        "type": "AddRestriction"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "target": {
+          "type": "Controller"
+         },
+         "type": "Draw"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "sub_link": "SequentialSibling",
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Instant"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "White"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "pauper": "legal",
+      "paupercommander": "legal",
+      "premodern": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 2,
+      "shards": [
+       "White"
+      ],
+      "type": "Cost"
+     },
+     "name": "Cease-Fire",
+     "non_ability_text": null,
+     "oracle_text": "Target player can't cast creature spells this turn.\nDraw a card.",
+     "power": null,
+     "printings": [
+      "ODY"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2004-10-04",
+       "text": "This spell will not counter any creature spells on the stack. It only prevents new creature spells from being cast after it resolves."
+      }
+     ],
+     "scryfall_oracle_id": "9e48eb8e-ec62-4d73-ac80-31e6fe74ec31",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 3.0,
+    "color_identity": [
+     "W"
+    ],
+    "colors": [
+     "W"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "legal",
+     "paupercommander": "legal",
+     "penny": "legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}{W}",
+    "name": "Cease-Fire",
+    "oracle_id": "9e48eb8e-ec62-4d73-ac80-31e6fe74ec31",
+    "oracle_text": "Target player can't cast creature spells this turn.\nDraw a card.",
+    "type_line": "Instant"
+   }
+  },
   "Cecily, Haunted Mage": {
    "phase_records": [
     {
@@ -1255463,6 +1255619,178 @@
     "power": "1",
     "toughness": "1",
     "type_line": "Creature — Human Soldier"
+   }
+  },
+  "Xantid Swarm": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Insect"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Green"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [
+      "Flying"
+     ],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "premodern": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 0,
+      "shards": [
+       "Green"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "022ab408-3292-40b6-b35e-ac1b7f06dffa"
+      ]
+     },
+     "name": "Xantid Swarm",
+     "non_ability_text": null,
+     "oracle_text": "Flying\nWhenever this creature attacks, defending player can't cast spells this turn.",
+     "power": {
+      "type": "Fixed",
+      "value": 0
+     },
+     "printings": [
+      "EMA",
+      "SCG"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2016-06-08",
+       "text": "In a multiplayer game, only the player Xantid Swarm attacked is affected. Other defending players may cast spells."
+      },
+      {
+       "date": "2016-06-08",
+       "text": "The defending player may cast spells before Xantid Swarm’s triggered ability resolves."
+      }
+     ],
+     "scryfall_oracle_id": "13ba9ef8-2010-4d3f-8c62-85b7c5620031",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 1
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever ~ attacks, defending player can't cast spells this turn.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": "UntilEndOfTurn",
+        "effect": {
+         "restriction": {
+          "activity": {
+           "type": "CastSpells"
+          },
+          "affected_players": {
+           "type": "DefendingPlayer"
+          },
+          "expiry": {
+           "type": "EndOfTurn"
+          },
+          "source": 0,
+          "type": "ProhibitActivity"
+         },
+         "type": "AddRestriction"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "Attacks",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 1.0,
+    "color_identity": [
+     "G"
+    ],
+    "colors": [
+     "G"
+    ],
+    "keywords": [
+     "Flying"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{G}",
+    "name": "Xantid Swarm",
+    "oracle_id": "13ba9ef8-2010-4d3f-8c62-85b7c5620031",
+    "oracle_text": "Flying\nWhenever this creature attacks, defending player can't cast spells this turn.",
+    "power": "0",
+    "toughness": "1",
+    "type_line": "Creature — Insect"
    }
   },
   "Xathrid Demon": {
