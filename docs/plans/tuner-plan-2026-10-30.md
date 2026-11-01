@@ -157,6 +157,17 @@ miss taxonomy, the held-out candidates).
   generic subs' pages take the adds, and Ahoy Mateys' theft lane isn't built
   even at the emerging tier, so the motivating case never opens. Reverted;
   settled (the audit's "Sub-theme pages").
+- 2026-10-31, late night, the theme-STRENGTH reads (two agents; a second
+  weight set per card-quality module fitted on the guides' adds-vs-cuts pairs and
+  the live order's misses; leave-one-deck-out 0.66-0.68 on the first, 0.59-0.62
+  on the second, where play-rate is 0 by construction and chance is the bar)
+  shipped as `card_quality.theme_strength`, the job blend unchanged. The orders
+  on them against N5: V3 (need, lanes, synergy × strength, play-rate floor)
+  held-out plan +69 but adds −12 / job-equiv +1 — the floor fails; V3b (play-
+  rate and strength as two percentiles) held-out plan +5, adds +1, the 25 adds
+  −8 — the primary fails. Both held back (`w41/theme-order-V3.patch`, `-V3b`);
+  settled: no theme reorder until a strength read reaches 0.70 on both pair
+  sources (the audit's "The theme-strength reads and the V3 order").
 
 ## Target
 

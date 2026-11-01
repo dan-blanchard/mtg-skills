@@ -2899,3 +2899,59 @@ theft 0.9%, aristocrats 1.0%; Combat 6.3%, Artifacts 12%) was designed but not
 run: it cannot reach Ahoy either, and the general rule lost on both sets. Settled:
 don't re-suggest sub-theme pages without a new read of which sub-themes a deck
 means to deepen.
+
+## The theme-strength reads and the V3 order (2026-10-31, late night)
+
+Two agents fitted a second weight set per card-quality module
+(`card_quality.theme_strength`, ADR-0063's reads with new features) on pairs no
+tuner order chose: source A, each guide's adds against that guide's cuts of the
+same type (`theme_pairs_cuts.py`; 3,565 / 1,757 / 945 pairs for creature /
+noncreature permanent / spell); source B, each guide add against the on-plan
+cards the LIVE play-rate order ranked above it (`theme_pairs.py` over a live
+page dump; 6,627 / 6,377 / 813). Leave-one-deck-out pair accuracy:
+
+| read | play-rate on A | read on A | read on B (chance 0.5) |
+|---|---|---|---|
+| creature (six new features; nested selection A 0.616 / B 0.537) | 0.574 | 0.668 | 0.616 |
+| noncreature permanent (seven new features) | 0.530 | 0.658 | 0.610 |
+| spell (the existing features refit) | 0.565 | 0.677 | 0.586 |
+
+Play-rate scores 0 on source B by construction (every B pair is one it got
+wrong), so the grilled bar "beats play-rate on both sources" is trivially met
+on B; the honest bar there is chance, which the reads clear by 0.04-0.12. The
+features are proxies as much as principles (creature: legendary, a tutor, a
+board static, an attack trigger; noncreature: a multiplier, damage, a cheap
+cost, and negative weights on library manipulation and ramp, which the guides
+cut from theme slots). The reads shipped as a second read beside `quality()`,
+which the job blend keeps unchanged.
+
+**V3** (`w41/theme-order-V3.patch`): theme pages ordered need, main lanes
+served, synergy × the logistic of theme strength, play-rate, price, screened at
+EDHREC rank 10,000 — V1's shape with strength in place of quality. Against N5:
+
+| set | swaps | cuts | adds | job-equiv | theme near-misses | plan |
+|---|---|---|---|---|---|---|
+| held-out 20 | −7 | +2 | −12 | +1 | +21 | +69 |
+| the 25 | −2 | +1 | −2 | +11 | +1 | +88 |
+
+Fails the floor (adds + job-equivalents −11 against −5) with the primary far
+past +10, as V1 / V2 did (−22 / −20): better, not enough. The adds lost are
+Lorehold Spirit −6, Quandrix −4, Silverquill −3 — on-plan picks the guides
+didn't name (theme near-misses +21 say they are the same kind of card). Held
+back; the next run blends strength with play-rate as two percentiles (V3b, the
+J2 shape), the step the grilling named if V3 fell.
+
+**V3b** (`w41/theme-order-V3b.patch`): the theme page ordered by the sum of
+its play-rate percentile and its theme-strength percentile (a card no read sees
+at the middle), then price. Against N5: held-out plan +5, adds +1, cuts +3,
+job-equivalents +1; the 25 plan +7, adds −8, cuts +2. Fails the primary (+5)
+and loses the 25 eight adds. Held back.
+
+**Verdict.** With these strength reads neither the reads-first order nor the
+blend passes: V3 buys plan-consistency at the guides' adds, V3b buys almost
+nothing. The reads clear chance on the live order's misses by 0.04-0.12, which
+is not enough signal to reorder a page the guides' adds already sit high on.
+Settled: don't re-suggest a theme reorder until a strength read scores at or
+above 0.70 leave-one-deck-out on BOTH pair sources; the pairs (`w41/pairs-
+cuts.json`, `w41/pairs-live.json`) and the fit scripts stay for that. The
+reads themselves stay shipped (`theme_strength`), unused by any order.
