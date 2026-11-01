@@ -612,6 +612,14 @@ class ConceptTree:
     # Feast of Blood's "Cast this spell only if you control two or more
     # Vampires". Raw condition nodes, read like ``card_modal_conditions``.
     card_cast_conditions: tuple[object, ...] = ()
+    # One entry per card-root ``casting_options`` entry that lets you cast the
+    # card as though it had flash (``kind='AsThoughHadFlash'``, CR 702.8a: flash
+    # lets you cast it "any time you could cast an instant"): its condition node,
+    # or ``None`` when it has none. Necromancy's "You may cast this spell as
+    # though it had flash" (``None``), Crashing Tide's "This spell has flash as
+    # long as you control a Merfolk", Molten Exhale's behold for flash (a cost,
+    # no condition). No ability unit carries it.
+    card_flash_options: tuple[object | None, ...] = ()
     # The mana values of the card's own unconditional alternative casting costs
     # (``reads.CURVE_COST_KEYWORDS`` — warp, evoke, dash, blitz, prototype,
     # impending), read off ``root.keywords`` like ``card_enchant_filter``: the
@@ -1788,6 +1796,25 @@ def build_concept_tree(
         and isinstance(data := getattr(r, "data", None), MirrorVariant)
         and isinstance(cond := data.inner, TypedMirrorNode)
     ]
+    # A bare ``{kind: AsThoughHadFlash}`` (no condition, no cost — Necromancy)
+    # strict-loads as a ``MirrorVariant`` keyed ``kind``.
+    casting_options = getattr(root, "casting_options", None)
+    card_flash_options = tuple(
+        cond
+        if isinstance(o, TypedMirrorNode)
+        and _present(cond := getattr(o, "condition", MISSING))
+        else None
+        for o in (casting_options if isinstance(casting_options, list) else ())
+        if (
+            isinstance(o, TypedMirrorNode)
+            and getattr(o, "kind", None) == "AsThoughHadFlash"
+        )
+        or (
+            isinstance(o, MirrorVariant)
+            and o.key == "kind"
+            and o.inner == "AsThoughHadFlash"
+        )
+    )
     units: list[AbilityUnit] = []
 
     # A spell-level ``additional_cost`` (CR 601.2b) rides the ROOT, not any
@@ -1980,6 +2007,7 @@ def build_concept_tree(
         card_enchant_filter=card_enchant_filter,
         card_modal_conditions=tuple(card_modal_conditions),
         card_cast_conditions=tuple(card_cast_conditions),
+        card_flash_options=card_flash_options,
         card_curve_costs=tuple(card_curve_costs),
         card_alt_costs=tuple(card_alt_costs),
         card_keywords=tuple(card_keywords),

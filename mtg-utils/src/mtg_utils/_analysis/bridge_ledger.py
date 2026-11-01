@@ -7360,14 +7360,6 @@ _KEYWORD_BODY_ROWS: tuple[tuple[str, str, str, str, tuple[str, ...], str], ...] 
         r"\bonto the battlefield with an indestructible counter on it\b",
     ),
     (
-        "conditional_self_flash_dropped",
-        "flash",
-        "dropped_clause",
-        "a spell's 'This spell has flash as long as …' line (CR 702.8a), no node",
-        ("Crashing Tide", "Graveyard Shift", "Mutual Destruction", "Take for a Ride"),
-        r"\bhas flash as long as\b",
-    ),
-    (
         "cloak_parked",
         "ward",
         "upstream_parse_failure",
