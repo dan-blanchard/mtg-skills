@@ -32,8 +32,9 @@ def _keyed(name: str, *keys: str) -> set[tuple[str, str, str]]:
         # "When you cast this spell, each player sacrifices X creatures." (parked)
         ("Gluttonous Hellkite", "each"),
         # a granted "Whenever this creature deals combat damage to a player, that
-        # player sacrifices a creature of their choice" (read like a printed one)
-        ("Demon of Wailing Agonies", "each"),
+        # player sacrifices a creature of their choice" (read like a printed one;
+        # the damaged player is an opponent)
+        ("Demon of Wailing Agonies", "opponents"),
         # the secretly chosen creature's sacrifice (a ledgered bridge)
         ("Malik, Grim Manipulator", "opponents"),
     ],

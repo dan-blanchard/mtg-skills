@@ -147,10 +147,8 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   branch's prevention reads as `damage_prevention` — a dropped-controller
   misstamp, and once a field correction restores it `is_own_drawback` needs a
   `PreventDamage`-on-your-source arm.
-  Lane gaps still open: a combat-damage "that player sacrifices" reads `each`
-  (Demon of Loathing, Demon of Wailing Agonies) where the damaged player is an
-  opponent; Tragic Arrogance stays keep_n_wrath's (adjudicated disjoint from
-  edicts); granted flanking;
+  Lane gaps still open: Tragic Arrogance stays keep_n_wrath's (adjudicated
+  disjoint from edicts); granted flanking;
   back-reference counter targets scoped you (Retribution, Obelisk Spider);
   partial prevention, granted absorb, Blinding Powder, Torrent of Lava
   (`damage_prevention`); the own-graveyard

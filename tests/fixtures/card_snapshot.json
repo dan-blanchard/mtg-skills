@@ -329069,6 +329069,184 @@
     "type_line": "Enchantment Creature — Demon"
    }
   },
+  "Demon of Loathing": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Demon"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Black"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [
+      "Flying",
+      "Trample"
+     ],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 5,
+      "shards": [
+       "Black",
+       "Black"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "57564f6f-7c99-4325-8a0e-22342e73767b",
+       "d77f5e95-1aa5-4b43-b859-b565c0447763"
+      ]
+     },
+     "name": "Demon of Loathing",
+     "non_ability_text": null,
+     "oracle_text": "Flying, trample\nWhenever this creature deals combat damage to a player, that player sacrifices a creature of their choice.",
+     "power": {
+      "type": "Fixed",
+      "value": 7
+     },
+     "printings": [
+      "ANB",
+      "GN3",
+      "THB"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2020-01-24",
+       "text": "If a creature is dealt lethal damage at the same time that Demon of Loathing deals combat damage to its controller, that player can’t sacrifice that creature."
+      }
+     ],
+     "scryfall_oracle_id": "2e55fc03-779c-4a71-beb7-aa0ade738c24",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 7
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "CombatOnly",
+       "description": "Whenever ~ deals combat damage to a player, that player sacrifices a creature of their choice.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "target": {
+          "controller": "ScopedPlayer",
+          "properties": [],
+          "type": "Typed",
+          "type_filters": [
+           "Creature"
+          ]
+         },
+         "type": "Sacrifice"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "DamageDone",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": null,
+       "valid_source": {
+        "type": "SelfRef"
+       },
+       "valid_target": {
+        "type": "Player"
+       }
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 7.0,
+    "color_identity": [
+     "B"
+    ],
+    "colors": [
+     "B"
+    ],
+    "keywords": [
+     "Flying",
+     "Trample"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{5}{B}{B}",
+    "name": "Demon of Loathing",
+    "oracle_id": "2e55fc03-779c-4a71-beb7-aa0ade738c24",
+    "oracle_text": "Flying, trample\nWhenever this creature deals combat damage to a player, that player sacrifices a creature of their choice.",
+    "power": "7",
+    "toughness": "7",
+    "type_line": "Creature — Demon"
+   }
+  },
   "Demon of Wailing Agonies": {
    "phase_records": [
     {
@@ -903189,6 +903367,332 @@
     "type_line": "Creature — Zombie Rat"
    }
   },
+  "Rankle, Master of Pranks": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "brawl_commander": true,
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Faerie",
+       "Rogue"
+      ],
+      "supertypes": [
+       "Legendary"
+      ]
+     },
+     "color_identity": [
+      "Black"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "is_commander": true,
+     "keywords": [
+      "Flying",
+      "Haste"
+     ],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 2,
+      "shards": [
+       "Black",
+       "Black"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "32399c54-632f-434e-bd5a-81b6a7c4fe9b",
+       "4821d865-2a46-4611-ab93-1a9fdde08302",
+       "93c2c11d-dfc3-4ba9-8c0f-a98114090396",
+       "97776800-5647-4d24-9870-72aeb355926a",
+       "9e793c0f-22f9-4ed5-9fb8-bd29f540ee7c",
+       "baa920d7-7b5c-462b-b9ab-ef08d1929d0e",
+       "d2eb31a3-8f07-4d43-9c6a-7047c800423b",
+       "ee4d196e-7ce4-4dc1-9d58-102a89aca2a4"
+      ]
+     },
+     "name": "Rankle, Master of Pranks",
+     "non_ability_text": null,
+     "oracle_text": "Flying, haste\nWhenever Rankle deals combat damage to a player, choose any number —\n• Each player discards a card.\n• Each player loses 1 life and draws a card.\n• Each player sacrifices a creature of their choice.",
+     "power": {
+      "type": "Fixed",
+      "value": 3
+     },
+     "printings": [
+      "CMM",
+      "ELD",
+      "OTC",
+      "PELD",
+      "PLST",
+      "SLD",
+      "WOC"
+     ],
+     "rarities": [
+      "rare",
+      "mythic"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2019-10-04",
+       "text": "As the first mode is performed, first the player whose turn it is chooses a card in hand without revealing it, then each other player in turn order does the same. Then all the chosen cards are discarded at the same time."
+      },
+      {
+       "date": "2019-10-04",
+       "text": "As the third mode is performed, first the player whose turn it chooses a creature they control, then each other player in turn order does the same, knowing the choices made before them. Then all the chosen creatures are sacrificed at the same time."
+      },
+      {
+       "date": "2019-10-04",
+       "text": "For each chosen mode, perform that mode in its entirety before continuing on to the next chosen mode in the order printed."
+      },
+      {
+       "date": "2019-10-04",
+       "text": "If you really want, you can choose zero modes for Rankle's triggered ability, but carefully consider the hidden costs in not entertaining someone titled Master of Pranks."
+      },
+      {
+       "date": "2019-10-04",
+       "text": "In a Two-Headed Giant game, Rankle's second mode causes each team to lose 1 life twice."
+      },
+      {
+       "date": "2019-10-04",
+       "text": "You can choose a mode even if some or all players will be unaffected."
+      },
+      {
+       "date": "2019-10-04",
+       "text": "You can't choose a mode more than once."
+      }
+     ],
+     "scryfall_oracle_id": "b8619990-9dc2-4fcc-bc7e-457b77cd2a8e",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 3
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "CombatOnly",
+       "description": "Whenever ~ deals combat damage to a player",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "duration": null,
+         "static_abilities": [],
+         "target": null,
+         "type": "GenericEffect"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "modal": {
+         "allow_repeat_modes": false,
+         "chooser": {
+          "type": "Controller"
+         },
+         "max_choices": 3,
+         "min_choices": 1,
+         "mode_count": 3,
+         "mode_descriptions": [
+          "Each player discards a card.",
+          "Each player loses 1 life and draws a card.",
+          "Each player sacrifices a creature of their choice."
+         ]
+        },
+        "mode_abilities": [
+         {
+          "condition": null,
+          "cost": null,
+          "description": null,
+          "duration": null,
+          "effect": {
+           "count": {
+            "type": "Fixed",
+            "value": 1
+           },
+           "target": {
+            "type": "Controller"
+           },
+           "type": "Discard"
+          },
+          "forward_result": false,
+          "kind": "Spell",
+          "optional": false,
+          "optional_targeting": false,
+          "player_scope": {
+           "type": "All"
+          },
+          "sub_ability": null,
+          "target_prompt": null
+         },
+         {
+          "condition": null,
+          "cost": null,
+          "description": null,
+          "duration": null,
+          "effect": {
+           "amount": {
+            "type": "Fixed",
+            "value": 1
+           },
+           "type": "LoseLife"
+          },
+          "forward_result": false,
+          "kind": "Spell",
+          "optional": false,
+          "optional_targeting": false,
+          "player_scope": {
+           "type": "All"
+          },
+          "sub_ability": {
+           "condition": null,
+           "cost": null,
+           "description": null,
+           "duration": null,
+           "effect": {
+            "count": {
+             "type": "Fixed",
+             "value": 1
+            },
+            "target": {
+             "type": "Controller"
+            },
+            "type": "Draw"
+           },
+           "forward_result": false,
+           "kind": "Spell",
+           "optional": false,
+           "optional_targeting": false,
+           "player_scope": {
+            "type": "All"
+           },
+           "sub_ability": null,
+           "target_prompt": null
+          },
+          "target_prompt": null
+         },
+         {
+          "condition": null,
+          "cost": null,
+          "description": null,
+          "duration": null,
+          "effect": {
+           "count": {
+            "type": "Fixed",
+            "value": 1
+           },
+           "target": {
+            "controller": null,
+            "properties": [],
+            "type": "Typed",
+            "type_filters": [
+             "Creature"
+            ]
+           },
+           "type": "Sacrifice"
+          },
+          "forward_result": false,
+          "kind": "Spell",
+          "optional": false,
+          "optional_targeting": false,
+          "player_scope": {
+           "type": "All"
+          },
+          "sub_ability": null,
+          "target_prompt": null
+         }
+        ],
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "DamageDone",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": null,
+       "valid_source": {
+        "type": "SelfRef"
+       },
+       "valid_target": {
+        "type": "Player"
+       }
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 4.0,
+    "color_identity": [
+     "B"
+    ],
+    "colors": [
+     "B"
+    ],
+    "keywords": [
+     "Flying",
+     "Haste"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}{B}{B}",
+    "name": "Rankle, Master of Pranks",
+    "oracle_id": "b8619990-9dc2-4fcc-bc7e-457b77cd2a8e",
+    "oracle_text": "Flying, haste\nWhenever Rankle deals combat damage to a player, choose any number —\n• Each player discards a card.\n• Each player loses 1 life and draws a card.\n• Each player sacrifices a creature of their choice.",
+    "power": "3",
+    "toughness": "3",
+    "type_line": "Legendary Creature — Faerie Rogue"
+   }
+  },
   "Ransack the Lab": {
    "phase_records": [
     {
@@ -1222773,6 +1223277,282 @@
     "oracle_id": "54748cb1-d92a-4212-ad76-417ee79b5ef1",
     "oracle_text": "Return all permanents of the color of your choice to their owners' hands.",
     "type_line": "Sorcery"
+   }
+  },
+  "Wasitora, Nekoru Queen": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "brawl_commander": true,
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Cat",
+       "Dragon"
+      ],
+      "supertypes": [
+       "Legendary"
+      ]
+     },
+     "color_identity": [
+      "Black",
+      "Green",
+      "Red"
+     ],
+     "color_override": [
+      "Black",
+      "Green",
+      "Red"
+     ],
+     "defense": null,
+     "flavor_name": null,
+     "is_commander": true,
+     "keywords": [
+      "Flying",
+      "Trample"
+     ],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 2,
+      "shards": [
+       "Black",
+       "Red",
+       "Green"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "related_token_ids": [
+       "5a1dda51-991c-5e13-b4ee-8506439adfd8",
+       "77468071-de65-572f-80bc-88e11a77392f"
+      ],
+      "source_printing_ids": [
+       "07790bd5-0d27-490e-b1ae-3b866882461e",
+       "8d1605dc-7204-4684-ade3-66e727f4deb5",
+       "c7e64fad-909d-474b-8f2f-7a8d1e8aa607",
+       "e4b316cf-677c-4b91-8452-41a4fd8f0c6d",
+       "fb17f2bf-bd38-40da-a226-65f4c905d9e1"
+      ]
+     },
+     "name": "Wasitora, Nekoru Queen",
+     "non_ability_text": null,
+     "oracle_text": "Flying, trample\nWhenever Wasitora deals combat damage to a player, that player sacrifices a creature of their choice. If the player can't, you create a 3/3 black, red, and green Cat Dragon creature token with flying.",
+     "parse_warnings": [
+      {
+       "description": "Flying, trample\nWhenever Wasitora deals combat damage to a player, that player sacrifices a creature of their choice. If the player can't, y",
+       "detector": "Condition_If",
+       "gap": {
+        "guard": "the player can't",
+        "kind": "unparsed_condition"
+       },
+       "items": [
+        0
+       ],
+       "line_index": 1,
+       "type": "SwallowedClause",
+       "unit_span": {
+        "end_byte": 216,
+        "first_line": 0,
+        "last_line": 1,
+        "ordinal_within_span": 0,
+        "precision": "Exact",
+        "start_byte": 0
+       }
+      }
+     ],
+     "power": {
+      "type": "Fixed",
+      "value": 5
+     },
+     "printings": [
+      "2X2",
+      "C17",
+      "PLST",
+      "PZ2",
+      "SLD"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2017-08-25",
+       "text": "If a creature is dealt lethal combat damage at the same time that Wasitora deals combat damage to that creature's controller, that creature will be destroyed before that player chooses a creature to sacrifice."
+      }
+     ],
+     "scryfall_oracle_id": "13fc4168-fcc2-4011-804f-211d5d86b7dd",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 4
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "CombatOnly",
+       "description": "Whenever ~ deals combat damage to a player, that player sacrifices a creature of their choice. If the player can't, you create a 3/3 black, red, and green Cat Dragon creature token with flying.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "target": {
+          "controller": "ScopedPlayer",
+          "properties": [],
+          "type": "Typed",
+          "type_filters": [
+           "Creature"
+          ]
+         },
+         "type": "Sacrifice"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "colors": [],
+          "count": {
+           "type": "Fixed",
+           "value": 1
+          },
+          "enters_attacking": false,
+          "keywords": [
+           "Flying"
+          ],
+          "name": "Black, Red, And Green Cat Dragon",
+          "owner": {
+           "type": "Controller"
+          },
+          "power": {
+           "type": "Fixed",
+           "value": 3
+          },
+          "tapped": false,
+          "toughness": {
+           "type": "Fixed",
+           "value": 3
+          },
+          "type": "Token",
+          "types": [
+           "Creature",
+           "Black,",
+           "Red,",
+           "And",
+           "Green",
+           "Cat",
+           "Dragon"
+          ]
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": null,
+         "sub_link": "SequentialSibling",
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "mode": "DamageDone",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": null,
+       "valid_source": {
+        "type": "SelfRef"
+       },
+       "valid_target": {
+        "type": "Player"
+       }
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "all_parts": [
+     {
+      "component": "token",
+      "id": "b1e883aa-5f73-4c45-9253-1350c24222e4",
+      "name": "Cat Dragon",
+      "oracle_id": "afdf7400-0723-4f0d-b3d8-46ad3a698908",
+      "type_line": "Token Creature — Cat Dragon"
+     }
+    ],
+    "arena_available": false,
+    "cmc": 5.0,
+    "color_identity": [
+     "B",
+     "G",
+     "R"
+    ],
+    "colors": [
+     "B",
+     "G",
+     "R"
+    ],
+    "keywords": [
+     "Flying",
+     "Trample"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}{B}{R}{G}",
+    "name": "Wasitora, Nekoru Queen",
+    "oracle_id": "13fc4168-fcc2-4011-804f-211d5d86b7dd",
+    "oracle_text": "Flying, trample\nWhenever Wasitora deals combat damage to a player, that player sacrifices a creature of their choice. If the player can't, you create a 3/3 black, red, and green Cat Dragon creature token with flying.",
+    "power": "5",
+    "toughness": "4",
+    "type_line": "Legendary Creature — Cat Dragon"
    }
   },
   "Waste Management": {
