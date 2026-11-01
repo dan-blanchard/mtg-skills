@@ -3083,3 +3083,30 @@ emblem searches. Against N7b:
 Most Wanted takes one guide add (plan −1); Grand Larceny and Virtue and Valor
 each gain a near-miss. Flat, as the first pass was. **Baseline N8**
 (`w41/sb-*-N8.json`; gate diffs vs `sb-ho-N8.json`).
+
+## The third lane pass, re-based (2026-11-01; N9)
+
+Seven fixes and one stale entry from a third worktree agent (merge after
+29da3420; censuses in the commits): damage to "each creature blocking it" is no
+board wipe (`mass_removal|you|` 780 → 777: Battle-Scarred Goblin, Fire Juggler,
+Goblin Swine-Rider); a granted "sacrifice a creature" is an edict on its
+holder's controller (Inevitable End); "that player" after your creature's combat
+damage is an opponent (`crosswalk.combat_damage_hits_opponent`: eight edicts
+move from `each` to `opponents`, Demon of Loathing among them); a trigger
+watching only an opponent's sacrifice is no sacrifice outlet (1,188 → 1,182:
+Malik, Tergrid, It That Betrays …); granted flanking, back-referenced −1/−1
+counters (Retribution, Obelisk Spider) and granted absorb join their lanes;
+collect evidence, forage, descend and a delve grant are graveyard fuel
+(`graveyard_matters|you|` 3,781 → 3,820; the additional-cost walk now keeps
+Exile and CollectEvidence leaves — our own projection gap); a losing coin flip
+that undoes the winning one is a drawback (Orcish Captain's shrink, Desperate
+Gambit's prevention; a third `misparsed_shapes` row merges phase's split flip);
+the v0.118.0 policy questions decided by each lane's definition (opponent-only
+lifegain hosers out, 215 → 212; defenders that can't attack and attack-then-die
+bodies leave the voltron carrier fallback, 2,408 → 2,365; `enchant` is no
+keyword body; a trigger that exiles or sacrifices its own card doesn't repeat,
+`card_draw_engine` 1,790 → 1,785; Swarmyard Massacre's scaling shrink kept).
+The ranking clause-breadth entry was stale: ident hits have been attributed to
+their clause since 2026-10-20. Against N8: **identical on every count, both
+sets** — these lanes touch no card the guides name in a tuned slot. **Baseline
+N9** (`w41/sb-*-N9.json`; the same numbers as N8).
