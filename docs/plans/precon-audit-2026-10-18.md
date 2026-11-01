@@ -3256,6 +3256,17 @@ the needs now read as plan 304 → 370), job-equivalents 47 (−1), page recall
 (+15), consensus adds +1 (`w41/sb-*-N13.json`). Reads on correctness, and the
 first of the block to move a guide count.
 
+Two follow-up passes (the exiled card's owner and an answered target's
+controller read as the opponents' — Spell Queller, Darkstar Banisher, Reality
+Shift, Unidentified Hovership; Dina's "sacrifice fodder with power 5+" need;
+the token-maker lane on the shared read, a zero-change census) re-based as N14
+(held-out adds −1: Witherbloom's add to a near-miss under Dina's page), N15 and
+**N16**, each identical to the last. The block's end state: the 25 734 / 339 /
+121, plan 364; held-out 582 / 253 / 99, plan 291, job-equivalents 47, page recall
+@30 246 (`w41/sb-*-N16.json`). The fresh set at block end scores exactly its N11
+numbers on every guide count (295 / 130 / 38, plan 120; `w41/sb-fresh-N16.json`).
+CI as CI sees the machine is green on the final tree.
+
 Reach into the never-admitted bucket is now a question of what the guides
 chose, not of what the tuner reads: every policy of the block lost to the gate,
 and the reads that shipped are the correctness fixes above.

@@ -302,9 +302,17 @@ miss taxonomy, the held-out candidates).
   Unidentified Hovership's manifest dread; the keyword-array arm leaves a typed
   face-down action to the structural lane) → **baseline N15**, identical to N14
   on every count in both sets (`w41/sb-*-N15.json`; gate diffs vs
-  `sb-ho-N15.json`). Left: the token-maker lane's copy of the answered-target
-  logic folded into the shared read (a zero-change census), the fresh set's
-  block-end score, CI, the recap.
+  `sb-ho-N15.json`). The token-maker lane folded onto the shared answered-target
+  read (6b7195ae; a census over 32,046 commander-legal cards: 0 idents differ) →
+  **baseline N16**, identical to N15 on every count in both sets
+  (`w41/sb-*-N16.json`; gate diffs vs `sb-ho-N16.json`). The fresh set's block-end
+  score (`w41/sb-fresh-N16.json` vs its N11 score): 295 / 130 of 193 / 38 of 386,
+  plan 120 (+1), job-equivalents 23 — identical on every guide count, so the block's
+  reads moved the never-used set no more than the gating set. CI as CI sees the
+  machine (`~/mtg/tuner-work/ci.sh`) green on the final tree (`ci-block2-final.log`).
+  **The second block is done (2026-11-01 11:30):** every item measured or built, every
+  policy lost to the gate, the triage reads shipped, the Open section holds phase
+  reports (now packaged as issue files) and the two non-tuner notes.
 
 ## Target
 

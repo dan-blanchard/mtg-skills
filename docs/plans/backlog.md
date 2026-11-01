@@ -6,6 +6,10 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
 
 ## Open
 
+The phase-rs parse reports below are packaged as ready-to-post issue files in
+`docs/plans/phase-upstream-issues/` (45, re-verified against v0.118.0; 2026-11-01).
+Posting them is Dan's.
+
 **From the Jace, Multiverse Architect precon tune (2026-10-17)**
 
 - **Phase parse gap, worked around locally (2026-10-31): Disa the Restless.** Her
@@ -415,24 +419,6 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
     ``Choose`` of a keyword and its grant; Solid Footing: "As long as enchanted
     creature has vigilance" and Ram Through: "If the creature you control has
     trample" → no ``WithKeyword`` condition → one.
-
-**From the second tuner block grilled 2026-11-01 (reach on the held-out adds no serve admits; `tuner-plan-2026-10-30.md` Progress)**
-
-The reach profile at N11 (`~/mtg/tuner-work/w41/reach-profile-N11.md`): 84 held-out
-theme guide adds no theme serve admits (J2: 100) — Ahoy Mateys 13 (theft), Silverquill
-8 (a Spirit-enchantment rebuild), tutors 11 in six decks, Creative Energy 7 (deck-wide
-ETB doublers), ~45 scattered one to seven a deck. Gate unchanged (held-out 20: plan
-≥ +10, adds + job-equivalents ≥ −5, cuts ≥ −1). In order:
-
-- The triage of the never-admitted adds is done (61 cards; 21 recall gaps fixed as
-  reads, 39 guide-specific, one settled as ceiling — the verdict below and
-  `docs/plans/precon-audit/triage-2026-11-01.md`).
-- **A fresh validation set** of 10 never-used precon families (≥ 2 guides, any year,
-  the held-out method) under `~/mtg/tuner-work/fresh/root`, scored at N11 (295 / 130
-  of 193 / 38 of 386 / plan 119; `w41/sb-fresh-N11.json`); scored once more at block
-  end; gates nothing.
-- The upstream issue files (`docs/plans/phase-upstream-issues/`, 43, re-verified
-  against v0.118.0) are written; posting them is Dan's (the phase-report exception).
 
 **From the 2026-09-17 architecture review (worth exploring, not started)**
 
@@ -1052,6 +1038,17 @@ headroom and parked items.
   S-A, above); Enlightened Tutor and Moonsilver Key are tutor-row fills (T1 and
   PR1, above); Call the Gatewatch and Firemind's Foresight sit past the 150-card
   page (P2, above). Don't re-suggest a page for them without a new read.
+- **A fresh validation set exists and the block's gains hold on it (2026-11-01).**
+  Ten never-used precon families with two or more guides each (Necron Dynasties,
+  Explorers of the Deep, Tricky Terrain, Tyranid Swarm, Eldrazi Incursion, Family
+  Matters, Food and Fellowship, Party Time, Call for Backup, Riders of Rohan;
+  `~/mtg/tuner-work/fresh/root`, README there), built by the held-out method and
+  never used to design a rule. Scored at N11 and at the block's end (N16): 295 swaps
+  / 130 of 193 guide cuts / 38 of 386 guide adds both times, plan 119 → 120
+  (`w41/sb-fresh-N11.json`, `sb-fresh-N16.json`): 67% of cuts and 9.8% of adds, the
+  held-out 20's 63% and 9.9% at its first score. Use it as the generalization check
+  at a block's end, never as a gate; a third set is not worth building until a
+  policy passes the gate.
 - **The never-admitted adds are triaged; what is left is the guides' own choices
   (2026-11-01).** `docs/plans/precon-audit/triage-2026-11-01.md`: 61 cards (the 84 less
   Ahoy Mateys' 13 and the 10 other tutors), one verdict each, every rules claim through
