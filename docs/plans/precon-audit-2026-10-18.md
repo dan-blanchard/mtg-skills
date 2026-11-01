@@ -3174,3 +3174,59 @@ section now holds phase-rs parse reports (drafted in
 `docs/plans/phase-upstream-reports.md`, §24 for the ones these passes found)
 and nothing of the tuner's; every tuner lever has a verdict under "Settled:
 don't re-suggest".
+
+## The second block (2026-11-01; N12): reach on the adds no serve admits
+
+Grilled with Dan after N11 (the backlog's "From the second tuner block grilled
+2026-11-01" entry; `tuner-plan-2026-10-30.md` Progress). The question was the
+largest miss bucket left: the held-out theme guide adds no theme page ever
+admits. Re-read at N11 (`w41/reach-profile-N11.md`) it is 84 cards (J2: 100;
+Quandrix 15 → 3 from the counters need) — Ahoy Mateys' 13 theft cards,
+Silverquill's 8 (a Spirit-enchantment rebuild), 11 tutors in six decks,
+Creative Energy's 7 deck-wide ETB doublers, and about 45 scattered one to seven
+a deck. The 49 past the 150-card page were settled before (P2). Zero commander
+multipliers remain never-admitted.
+
+What shipped: `has_other_plan` asks `avenue_spec_for` (the serve specs key the
+signals index — Dan's call) → **baseline N12**, identical to N11 on every count
+in both sets (`w41/sb-*-N12.json`). The alternate-commander compare
+(`deck-tune --compare-commanders`, deck-forge's flag and Tune-panel table), an
+advisory that tunes the deck under every legend and legal partner pair it can
+field and ranks by post-tune commander fit, then issue load. A fresh set of 10
+never-used precon families (`~/mtg/tuner-work/fresh/root`; README there) scored
+at N11: 295 swaps / 130 of 193 guide cuts / 38 of 386 guide adds / plan 119 /
+job-equivalents 23 — 67% of cuts and 9.8% of adds, the held-out 20's 63% and
+9.9% at its own first score. The 43 upstream issue files
+(`docs/plans/phase-upstream-issues/`), five report items retired on
+re-verification (two of them read gaps of ours).
+
+What was measured and lost, every one against N12 under the plan-primary gate
+(held-out plan ≥ +10, adds + job-equivalents ≥ −5, cuts ≥ −1):
+
+| change | held-out: adds / cuts / plan / job-eq | the 25: adds / cuts / plan | verdict |
+|---|---|---|---|
+| V3 reads-first theme order, bar 0.65 on adds-vs-cuts (`sb-*-V3r`) | −12 / +1 / +71 / −4 | −4 / +1 / +91 | failed; reorder thread closed |
+| V3b play-rate + strength blend (`sb-*-V3br`) | +1 / +1 / +9 / −2 | −8 / +1 / +9 | failed |
+| tutor need read TU1 (`sb-*-TU1`, vs N12 re-scored with the tutor-aware scoreboard) | −5 / −1 / +3 (tutor arm alone +48) / 0 | −12 / −2 / +5 (arm +54) | failed; tutors settled for good |
+| tribe signal profile TPa 2.0× / 10% (the 25 only) | — | −5 / +1 / −4 | failed the fit |
+| tribe signal profile TPb 3.0× / 15% (`sb-25-TPb`, `sb-ho-TPb`) | −2 / 0 / 0 / 0 | −2 / 0 / −5 | failed; Pirates over-index on Treasure and combat, not theft |
+| graveyard-hate row HR1 (`sb-*-HR1`) | −5 / +1 / −9 / +2 | −1 / +2 / +2 | failed; no generic row of any kind |
+| multiplayer scaling feature SC (refit only) | quality LODO 0.712 → 0.710, strength 0.677 → 0.666, negative weights | | failed the refit; no gate run |
+| off-plan MV ≥ 6 cut R2 (`sb-*-R2`) | +1 / 0 / −2 / 0 | +1 / −1 / +2 | flat; settled |
+| ramp lead rule R1 (`sb-*-R1`) | +1 / 0 / −13 / −4 | −4 / −7 / −12 | failed |
+
+The commander compare against the nine guides that switch commanders
+(`w41/compare-commanders-eval.txt`): the guide's alternate ranks first in 1 of 9
+(Tyranid Swarm → Magus Lucea Kane), above the face commander in 5 of 9; the top
+pick disagrees with the guide in 8 of 9, since the fit saturates at 1.0 for
+every legend that serves a tribal deck's lane and the issue load then decides.
+It is reported, not gated, and it proposes nothing.
+
+What the block says about the 84: the tutors are play-rate adds no page prefers
+(three tries); Ahoy Mateys' theft and Silverquill's Spirits are the guides'
+own rebuilds, out of reach of any first-principles read (the pool's Pirates
+don't steal); the scattered rest went to the triage pass (TRIAGE: see below).
+The baseline after the block is N12 = N11 on every count; every policy of the
+block lost to the gate and every read that shipped moved nothing. Reach into
+the never-admitted bucket is now a question of what the guides chose, not of
+what the tuner reads.
