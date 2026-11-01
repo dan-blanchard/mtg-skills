@@ -3047,3 +3047,39 @@ Flat, as lane precision fixes on cards the guides rarely name should be.
 swaps −21) measured the ungated T1 tutor / recursion rows, which `git apply
 --3way` had left staged and the N6 docs commit swept in (reverted, 6506fc8f) —
 T1's own signature, and a second confirmation of its verdict.
+
+## The second lane pass, re-based (2026-11-01; N8)
+
+Eleven more fixes from a second worktree agent (merge 545d80e5; each commit
+carries its census over the 32,688 legal oracle ids): the edict lane reads a
+targeted-set, looped, parked or granted sacrifice (`edict_makers|each|` 121 →
+124, `|opponents|` 199 → 201; Malik, Grim Manipulator needs a ledger row for his
+parked "secretly choose"; granted triggers come through one new shared walk,
+`crosswalk.trigger_def_unit`); granted draw triggers, connive X and four
+aftermath halves are draw engines (`card_draw_engine|you|` 1,739 → 1,790) and an
+enchanted opponent's draw a payoff (`opponent_draw_matters` 26 → 28); "whenever
+you proliferate" is a proliferate payoff (336 → 341; the Ezuri test that pinned
+the gap flipped); a legendary related token counts only if the card's own token
+effect names it (Eye and Hand of Vecna off the Zombie and God pages); "destroy /
+exile / return target X and all Equipment attached to it" is a second
+`shape_compat` row with its canary (Eaten by Spiders, Soul Nova, Word of
+Undoing, Portal of Sanctuary back on their lanes); a parked "deals damage to
+defending player" is life loss (1,544 → 1,552), while "each creature blocking
+it" stays off mass removal (it hits the blockers); a boon you get on entering is
+an enters payload (4,762 → 4,768); Tasha's -1/-1 counter on the creature
+attacking you is a debuff (`crosswalk.attack_trigger_side`); a pick from each
+graveyard reaches every graveyard it names (395 → 398); five recovery marks that
+misread a parked clause's player (Biomantic Mastery, Souls of the Faultless,
+Ursine Monstrosity, Val, Ingenious Mastery); Light of Judgment's veto resolves
+the tracked set its `DestroyAll` names. Settled by design: an ultimate's emblem
+fills no slot (Ral's draw, Sorin's edict), the same rule the tutor read keeps for
+emblem searches. Against N7b:
+
+| set | N7b | N8 |
+|---|---|---|
+| held-out 20: swaps / cuts / adds, plan, job-equiv | 581 / 254 / 99, 264, 48 | 581 / 254 / 100, 263, 48 |
+| the 25: swaps / cuts / adds, plan, near-misses | 734 / 339 / 118, 349, 74 | 734 / 339 / 118, 349, 76 |
+
+Most Wanted takes one guide add (plan −1); Grand Larceny and Virtue and Valor
+each gain a near-miss. Flat, as the first pass was. **Baseline N8**
+(`w41/sb-*-N8.json`; gate diffs vs `sb-ho-N8.json`).
