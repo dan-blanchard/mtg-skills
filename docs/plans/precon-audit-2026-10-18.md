@@ -3249,7 +3249,12 @@ creatures' ETBs, not Satya; Saradoc and Serra Redeemer trigger on face-down
 and the rest are the guides' picks). One gap left open (Secret Arcade // Dusty
 Parlor wants a "makes your permanents the commander's watched type" read) and
 one undecided (Kalakscion, Hunger Tyrant under Dina: a power read), both
-handed back to the pass. Re-based as **N13** (the numbers below).
+handed back to the pass. Re-based as **baseline N13** against N12: held-out
+582 swaps / 253 guide cuts / 100 guide adds, plan 291 (+28; the guides' own adds
+the needs now read as plan 304 → 370), job-equivalents 47 (−1), page recall
+@10 / @30 101 → 114 / 223 → 245; the 25 734 / 339 / 121 (adds +3), plan 364
+(+15), consensus adds +1 (`w41/sb-*-N13.json`). Reads on correctness, and the
+first of the block to move a guide count.
 
 Reach into the never-admitted bucket is now a question of what the guides
 chose, not of what the tuner reads: every policy of the block lost to the gate,
