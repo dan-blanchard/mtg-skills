@@ -262,3 +262,21 @@ def test_an_instruction_list_after_a_trigger_head_still_recovers():
 )
 def test_another_players_scry_curates_nothing_of_yours(name, yours):
     assert (("topdeck_selection", "you", "scry") in _idents(name)) is yours
+
+
+# ── mass_removal: the tracked set a DestroyAll names ────────────────────────
+
+
+@pytest.mark.parametrize(
+    ("name", "sweeps"),
+    [
+        # "Destroy up to one Equipment attached to that creature": the set the
+        # DestroyAll names is a choice of at most one
+        ("Light of Judgment", False),
+        # "Each player secretly chooses a creature they control and a creature
+        # they don't control. … Destroy each creature chosen this way."
+        ("Call to the Void", True),
+    ],
+)
+def test_a_tracked_set_sweep_reads_the_set_it_destroys(name, sweeps):
+    assert (("mass_removal", "you", "") in _idents(name)) is sweeps
