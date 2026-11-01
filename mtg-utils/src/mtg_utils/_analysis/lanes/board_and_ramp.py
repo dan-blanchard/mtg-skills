@@ -26,7 +26,6 @@ from mtg_utils._analysis.lanes._shared import (
     is_unserved_artifact_kind,
     typed_token_payoff_signals,
 )
-from mtg_utils._analysis.lanes.counters_voltron import TOKEN_YOURS_SIDES
 from mtg_utils._analysis.lanes.mana_and_wipes import _anthem_static
 from mtg_utils._analysis.signal_base import (
     Signal,
@@ -54,6 +53,7 @@ from mtg_utils._analysis.tree_synthesis import (
 from mtg_utils._analysis.tree_synthesis.combat import ATTACK_TRIGGER_KEYWORDS
 from mtg_utils._card_ir.crosswalk import (
     OPPONENT_ACTOR_TAGS,
+    TOKEN_YOURS_SIDES,
     AbilityUnit,
     ConceptNode,
     ConceptTree,
