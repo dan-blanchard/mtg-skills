@@ -280,7 +280,10 @@ miss taxonomy, the held-out candidates).
   for a build's flavor as much as for fit. Multiplayer scaling FAILED its refit
   (quality 0.712 → 0.710, strength 0.677 → 0.666, negative weights;
   `w41/scaling-feature-SC.diff`) → settled, no gate run. The off-plan MV ≥ 6 cut
-  (branch `block2-value-rules`) runs as R2.
+  (branch `block2-value-rules` cbae6d1d) FAILED R2 against N12: held-out adds +1,
+  cuts 0, plan −2; the 25 adds +1, cuts −1, plan +2 → flat, settled. The
+  commander comparison merged into main (the frontend bundle rebuilt). The ramp
+  lead rule (5f8a3b9a) runs as R1.
 
 ## Target
 
