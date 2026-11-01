@@ -424,13 +424,6 @@ theme guide adds no theme serve admits (J2: 100) — Ahoy Mateys 13 (theft), Sil
 ETB doublers), ~45 scattered one to seven a deck. Gate unchanged (held-out 20: plan
 ≥ +10, adds + job-equivalents ≥ −5, cuts ≥ −1). In order:
 
-- **A tribe's signal profile opens its lanes (gated).** For a deck whose plan lane is a
-  tribe, the lanes the tribe's pool cards over-index on against the pool base rate
-  (the way `metrics.focus` reads base rates) open as an emerging theme page, adds via
-  the depth split. The bar (× base rate, minimum tribe share, lanes per tribe) is
-  fitted on the design 25, then gated on the held-out 20. Not a hand-set tribe → lane
-  table (Dan). Target: theft for Pirates (Ahoy Mateys' 13) only if Pirates really
-  over-index on it.
 - **Triage of the 53 scattered never-admitted adds** (the ~45 plus Silverquill's 8):
   one Opus pass, each card a recall gap (a read the deck's plan should admit — a read
   fix, ships on correctness) or a guide-specific pick (recorded as the first-principles
@@ -1083,6 +1076,21 @@ headroom and parked items.
   S-A, above); Enlightened Tutor and Moonsilver Key are tutor-row fills (T1 and
   PR1, above); Call the Gatewatch and Firemind's Foresight sit past the 150-card
   page (P2, above). Don't re-suggest a page for them without a new read.
+- **A tribe's signal profile opens no page — settled 2026-11-01 (TPa / TPb).** Under a
+  commander whose plan lane is a tribe, the lanes the identity pool's tribe members
+  over-index on (share ≥ RATIO × the pool's and ≥ MIN_SHARE of the members; a Spine
+  role, the tribe's own key, a page-only doer and a lane whose subject is the tribe
+  excluded) opened as theme pages after the mains and need pages
+  (`_tuner/tribe_profile.py`, branch `block2-tribe-profile`, patches
+  `w41/tribe-profile-TPa.patch` + `-TPb-main.diff`). The census first: the pool's
+  Pirates over-index on Treasure makers (10.5×), Combat (3.8×), combat damage, blink
+  and evasion — not on theft, so Ahoy Mateys' 13 theft adds were out of reach of any
+  bar. Fitted on the design 25: 2.0× / 10% adds −5, plan −4; 3.0× / 15% adds −2, plan
+  −5 (`sb-25-TPa`, `sb-25-TPb`); the better bar on the held-out 20: adds −2, plan 0,
+  cuts 0 (`sb-ho-TPb`). A tribe's pool profile is the tribe's generic cards (Treasure
+  under Pirates), which the mains already page; the guides' theme adds are the
+  deck's, not the tribe's. Don't re-suggest a tribe → lane read; Ahoy Mateys' theft
+  and Silverquill's Spirit rebuild are the first-principles ceiling.
 - **A tutor is no need-satisfier — settled 2026-11-01 (TU1).** The third try at the
   guides' tutors (after the generic and plan-conditional rows T1 / PR1): a need
   carries the type-line words a quarter of its pool satisfiers share, and a tutor
