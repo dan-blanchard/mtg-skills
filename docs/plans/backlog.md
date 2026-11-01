@@ -716,9 +716,7 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   positives still open: Skyclave Apparition's "the exiled card's owner
   creates" token reads as yours — phase stamps the Token's `owner` `Controller`
   and the exiled card `Owned{You}`, so no structure tells it from your own
-  token (a phase gap to report); "tap creatures you
-  control" cards serve `tapper_engine` (Jaddi Lifestrider — inseparable from
-  the `controller: You` misstamp above); ~9 "when an opponent causes you to
+  token (a phase gap to report); ~9 "when an opponent causes you to
   discard this" cards fire `discard_matters` and Balance / Restore Balance
   `discard_outlet`; Oft-Nabbed Goat and Sentinel of Lost Lore fire
   `gain_control`; Investigator's Journal still fires `proliferate_matters` and
