@@ -54,3 +54,23 @@ def test_granted_sacrifice_is_the_holders_controllers(name, edicts):
 )
 def test_combat_damaged_player_is_an_opponent(name, edicts):
     assert _keyed(name, "edict_makers") == edicts
+
+
+# ── sacrifice_outlets: an opponent's sacrifice is no outlet of yours ─────────
+
+
+@pytest.mark.parametrize(
+    ("name", "outlet"),
+    [
+        # "Whenever an opponent sacrifices a creature, you create a Treasure
+        # token": an edict payoff, not a sacrifice of yours.
+        ("Malik, Grim Manipulator", False),
+        ("Legate Lanius, Caesar's Ace", False),
+        # "Whenever you sacrifice a creature, draw a card."
+        ("Smothering Abomination", True),
+        # "Whenever a player sacrifices a creature" counts yours too.
+        ("Mortician Beetle", True),
+    ],
+)
+def test_opponents_sacrifice_trigger_is_no_outlet(name, outlet):
+    assert bool(_keyed(name, "sacrifice_outlets")) is outlet

@@ -271,7 +271,9 @@ def _sacrifice_outlets(tree: ConceptTree) -> list[Signal]:
 
     Mirrors the deleted ``_signals_ir``'s triggers ~10472/10483 + effect outlet ~9226.
     Five
-    inputs: (a) a ``sacrificed`` trigger (you sacrifice → reward); (b) an
+    inputs: (a) a ``sacrificed`` trigger (you sacrifice → reward; one watching
+    only an opponent's sacrifice rewards edicts instead — Malik, Grim
+    Manipulator, Tergrid); (b) an
     ``exploited`` trigger (CR 702.110); (c) a YOU-sac outlet — an activation COST
     (the cost IS the outlet, paid by the controller — Viscera Seer, Ashnod's Altar,
     Spawning Pit), including a Sacrifice leaf folded into a Composite/OneOf
@@ -409,7 +411,13 @@ def _sacrifice_outlets(tree: ConceptTree) -> list[Signal]:
     Insatiable — formerly the ``sac_devour_unimplemented`` bridge).
     """
     for unit in tree.units:
-        if unit.trigger_event in ("sacrificed", "exploited"):
+        # An opponent's sacrifice rewards your edicts, not your sacrifices
+        # ("Whenever an opponent sacrifices a creature, you create a Treasure
+        # token" — Malik, Grim Manipulator; Tergrid, God of Fright).
+        if (
+            unit.trigger_event in ("sacrificed", "exploited")
+            and trigger_subject_scope(unit.node) != "opponents"
+        ):
             return [Signal("sacrifice_outlets", "you", "", "", tree.name, "high")]
     for unit in tree.units:
         # A COST is always paid by the controller → a you-sac outlet.
