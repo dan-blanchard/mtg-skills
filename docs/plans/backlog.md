@@ -31,554 +31,6 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   an attached object is a permanent — CR 110.1). The one filter the shape cannot
   split: Patron of the Nezumi's "a permanent is put into an opponent's
   graveyard" (owner-scoped like Moonshadow's "permanent cards"), read as a card.
-- **What the polymorph tune and the 25-precon audit still get wrong** (third
-  pass, 2026-10-18 — `docs/plans/precon-audit-2026-10-18.md` has the method,
-  the three before / after tables and the per-precon reads; the first two
-  passes' fixes are listed there). Fixed in the third pass: a quality read
-  inside a lane is "a feeder nobody plays" (measured, below); Spine fills
-  rank by play-rate within a mana-value band; player-only damage is not
-  `interaction`; Bello's Animation and Yuma's Deserts have lanes
-  (`animate_makers|you|<Type>`, `land_type_matters|you|<Type>`); pillowfort
-  and fogs are not `superfriends_matters`; a typed token replacement or
-  sacrifice trigger carries its token kind (Xorn is `treasure_matters`,
-  Academy Manufactor three kinds, Fisher's Talent `tokens_matter|you|Fish`);
-  an artifact-TOKEN maker is a maker, never `artifacts_matter`; carers respect
-  scope where the specs split it ("Opponents' graveyards" 43 → 4 under
-  Teval); two avenues with one carer set are one theme (Polymorph fodder
-  absorbs Token generators); an emerging theme needs two carers in
-  proportion; the primary lane is a held lane deep enough to show; three pair
-  rows for the Enchantment / Artifact / Planeswalker cheat subjects; the CR
-  2026-09-25 subtype lists (Heartwood); Syr Konrad's folded zone-change
-  trigger reads as `dies` for a dies doubler; a card that merely has an
-  activated ability is a payoff target of "Activated-ability engine", not a
-  builder (its untap engines are — Abzan Armor read that lane as its main
-  over a 42-deep toughness lane; the Jace phantom of the polymorph entry's
-  (d) is gone with it). Fixed in the seventh pass (2026-10-19): the upgrade
-  slots — an off-lane card past rank 3000 and the deep lane's least-played
-  half (never a Granter), traded by a last-ranked `upgrade` issue for a
-  better-played card at no higher mana-value band doing the same job (223
-  swaps, 104 cuts and 29 adds matching a guide, from 85 / 44 / 8); every theme
-  add is the most-played candidate that fits; an Equipment's, Aura's or
-  target's shrink and damage to each player are not board wipes; the main
-  theme no longer changes with the string-hash seed. Fixed in the eighth pass
-  (2026-10-19): the interaction search combined its five presets with AND and
-  sourced nothing (no removal fill or upgrade since the fourth pass) — it reads
-  any of them now; job reads (`_analysis/job_quality/`, ADR-0060) gate which
-  cards may be an upgrade and, for wipes / draw, order them blended with
-  play-rate, so a looter is no draw upgrade and Animate Dead no removal; overload spells are
-  sweeps (`crosswalk.overload_sweep`, a retirement canary). Left:
-  (a) **Inside a lane, the cut read is "a feeder nobody plays" — don't
-  re-suggest a function read.** Measured 2026-10-18 on the 25 precons' main
-  lanes (906 lane cards, 222 guide cuts, base rate 0.245): no function
-  feature moved the rate — one-shot vs repeatable 0.19, body for its cost
-  0.27-0.32, in-deck synergy depth (`rank_candidates` over the deck's own
-  cards) flat 0.22-0.25 across quartiles, lanes touched 0.14-0.28. Play-rate
-  does (least-played quarter 0.35), and "a member that does not itself care
-  about the lane" more so (0.32 vs carers 0.20; rank-bottom-quarter feeders
-  0.46; a feeder with no template role past rank 8000: 0.67, n=24). The
-  `lane_upgrade` tier now orders feeders before carers, then least played
-  (top-five precision 0.48; costlier-first within the half was 0.30). The
-  guides' stated reasons (one-shot, delirium type, curve) are not what their
-  cuts share, and the same holds for the flip-quality read the polymorph tune
-  wanted. Script: `docs/plans/precon-audit/lane_quality.py` (rerun recipe in
-  `docs/plans/precon-audit-2026-10-18.md`).
-  (b) **Lane verdicts — don't re-suggest** (the leftovers closed 2026-10-23).
-  The `animate_artifact` regex lane retired for `animate_makers` drops 24
-  cards with no replacement by design: 19 Vehicles, 2 artifacts that animate
-  only themselves, 2 copy effects (Saheeli, Sublime Artificer; True
-  Polymorph). A token maker is a doer — `artifacts_matter|you|token` /
-  `enchantments_matter|you|token` (Roles, Glimmers), never the bare payoff;
-  an artifact or enchantment card keeps the LOW membership-floor key. In Too
-  Deep is no `clue_makers`: the Clue it makes is the enchanted permanent's
-  controller's. The superfriends synth arm stands down on a card naming
-  planeswalkers only as half of a bare "creature or planeswalker" and never
-  their loyalty (`crosswalk.planeswalkers_only_beside_creatures` — Angelic
-  Intervention, Kaya's Ghostform, Fey Steed and six more), so Spark Double
-  (an extra loyalty counter) and Lae'zel (no typed planeswalker filter) keep
-  it.
-  (d) **Type payoffs — don't re-suggest** (2026-10-25). A choice of types
-  ("creature or artifact you control" — Abuelo, Heliod, Zimone), stax or edicts
-  over other players' artifacts (Null Rod, Harsh Mentor, Pick Your Poison), a
-  count another player wins (Ward of Bones' lock on each opponent with more
-  artifacts than you, `crosswalk.counts_behind_another_player`) and a retype
-  that also strips abilities (Sugar Coat, Kitesail Larcenist, Vraska,
-  Betrayal's Sting, Soul Sculptor: removal) are no payoff. The type-grant read
-  (`crosswalk.granted_card_types`) has no node for Xathrid Gorgon's dropped
-  "becomes a colorless artifact" or the Alchemy perpetual grants (Hinterland
-  Chef, Resourceful Collector, Woodland Investigation, Glimmer Hoarder,
-  Housemeld); none is an artifacts or enchantments payoff a guide plays.
-  (g) **The guide cuts the tuner protects** (2026-10-24, the experiment table in
-  `docs/plans/precon-audit-2026-10-18.md`, "The remaining tuner levers"). Shipped:
-  popular cards (inside `UPGRADE_RANK`, not premium) off every lane and on none of
-  the deck's main avenues are the last upgrade tier (`focus.popular_upgrade_cards`,
-  after the deep lane's half; the guides cut 0.28 of them, 27 of 96, when any viable
-  avenue spared a card; beside the fringe tier they spent the lane's theme budget,
-  51 adds). Since 2026-10-25 only a main shields an off-lane card from the upgrade
-  tiers (a sub's or an emerging or folded theme's carer is a slot, and a popular
-  card on a sub alone; the audit's "The cut pool"); keeping a folded theme's
-  carers shielded lost five guide cuts. Since 2026-10-26 (the audit's "The open
-  levers, closed") a main shields only its carers (a popular main feeder is the
-  last slot), a solid Granter is a slot and may go to a better grant (ADR-0040's
-  amendment). Left: 23 popular cuts, all premium (the guides cut 0.10 of premium
-  cards, 22 of 210 — premium stays), and 45 commander-lane doers, whose guide-cut
-  rate outside the lane's half is 0.08-0.20 in every carer split by role and
-  play-rate holding more than four cards, below the decks' 0.24 — (a) holds,
-  don't re-suggest a split of them without a new read; most sit in tunes that
-  reach the thirty swaps. Combo protection stays whole: only a game-ending combo
-  protecting its pieces lost an add, and `proposal-check` gates every infinite.
-  Script: `docs/plans/precon-audit/cut_splits.py` (both splits; same ROOT as
-  `misses.py`).
-  (j) **Job-read verdicts — don't re-suggest without a new read** (ADR-0060 and
-  its amendments; the experiment tables are the audit's "The tuner-policy
-  leftovers" and "The deck-fit wipe read"). The order is the blend (wipes, draw,
-  protection) or play-rate (removal, ramp), theme fit breaking a near tie for draw
-  and ramp. The wipe read leading its upgrades was flat twice (547 / 195 / 60): it
-  moves picks only in precons whose guides add no wipe. The deck-fit wipe read was
-  built and measured 2026-10-25 (the share of the deck's own permanents a sweep
-  leaves, off its filter: a chosen type, a power or mana-value bound, one each,
-  one-sidedness, damage against toughness): the deck-free read already prices a
-  spare and one-sidedness at the average deck's board, so on its own it moves no
-  non-tribal deck, and leading the wipe order and fill with it in a tribal deck
-  (most creatures share a type: Fae Dominion, Blood Rites, Sliver Swarm,
-  VelociRampTor) took Raise the Palisade in Fae Dominion but cost three guide adds
-  there on the budget (guide adds 18 → 16 over those four, cuts flat): rejected.
-  Expel the Interlopers and Tragic Arrogance under Ellivere, and Chain Reaction
-  and Winds of Abandon in Blame Game, need a slot the tune doesn't open (one wipe
-  upgrade each, already Vanquish the Horde / Blasphemous Act, both guide adds);
-  a lead for every deck trades those away. Rejected for removal: the deck's count
-  of instant any-permanent answers deciding flexible vs targeted (59 and 56 adds;
-  Beast Within's recurrence moved to Abrade). Rejected for ramp: the read blended
-  into the order (56; Mana Vault took Fellwar Stone's 10). The removal read's weak
-  agreement with play-rate over every card with a removal effect stands (it was
-  fitted on main-job removal and only gates). Theme fit as a tie lost for removal,
-  wipes and protection. Protection goes unsearched in 18 guide adds' decks because
-  ADR-0024 asks for it only from a combo or control deck or a voltron plan; a
-  target of 5 or 3 for every shape matched fewer adds. Left narrow, none a guide
-  card: a size off a card the caster takes from a graveyard (Volcanic Vision, Too
-  Greedily, Too Deep) or off a random discard (Kindle the Carnage). An on-theme
-  draw or ramp card reading within a tie of its cut passing the play-rate gate
-  gained none of its targets (Insidious Roots, Faerie Mastermind; 2026-10-26).
-  Where the deck holds the most of a job it wants (a row at its max, protection
-  at the Shape's target) the job's upgrade moves onto the theme (2026-10-26); a
-  looser row read or cost bar spent the budget-bound decks' cuts.
-  (k) **Age-adjusted play-rate — don't re-suggest** (2026-10-30; patch and runs in
-  `~/mtg/tuner-work/w29/`). A card's rank as a percentile among cards first printed
-  within ±6/12/24 months, the better of that and the raw rank, and a recent-only lag
-  boost, each through the add order, fills, near-tie, play-rate gate, page sort or
-  cut side: no variant raised guide adds on the 25 (best 108 against 109; the
-  ordering variants lost 13-19, mostly old staples: Swiftfoot Boots, Counterspell,
-  Nature's Lore). The "newer and less played" misses were mostly a dating error
-  (MTGO's promo set dates every card 2002-06-24; The List and Secret Lair likewise);
-  with reprint-aware dates a ±6-month cohort puts the guide card first in 5 of 151.
-  Real rank lag is limited to 2025-26 cards, which mostly postdate the guides. A
-  card's first printing is its earliest printing not flagged `reprint`
-  (`precon-audit/scoreboard.py`).
-  A recent-only boost also failed, scored fairly (2026-10-30; patch and runs in
-  `~/mtg/tuner-work/w39/`, the audit's "A play-rate boost for recently printed
-  cards"), against 732 / 335 / 121 (held-out 297 / 139 / 37, Jace 30 / 15 / 4). Cards
-  first printed in the last 24 months, sized by how far their cohort's top 5% trails
-  mature years: gate only 737 / 338 / 118, order only 734 / 335 / 112, both 738 / 338 /
-  110, held-out adds 36 each. The fair line (cards a guide could name; `scoreboard.py`'s
-  `FAIR`) falls too, 119 to 116 / 112 / 110, so the scoring wasn't hiding a win. On the
-  19 decks with a guide dated since 2024-11, the boost matches at most 5 of the 55
-  recent guide adds against the baseline's 4, while those decks' guide adds fall from 69
-  to 65-67. Near tie only scored 122 and passes every gate, but through one reshuffle
-  in one deck (Supreme Verdict, a 2012 card, for Flawless Maneuver) and no recent card;
-  not shipped.
-  (s) **Deck fit for job upgrades — don't re-suggest** (2026-10-30; patch and runs
-  in `~/mtg/tuner-work/w31/`, the audit's "Deck fit for the job upgrades"). Two
-  levers, each measured alone, then together; none raised guide adds on the 25.
-  (3a) a job upgrade never cuts a card serving the main theme or the commander (a
-  main's member or carer, a commander-lane doer, or a card sharing a non-generic
-  ident with the commander): 611 / 281 / 97, every split of the set lost (shared
-  ident only 672 / 314 / 103, carers and lane doers 684 / 317 / 101, main members
-  634 / 292 / 98), because the guides cut those cards at 0.39 (57 of the 146
-  protected job-upgrade cuts), above the decks' 0.24. Only two of the five
-  motivating trades are theme cards by focus's sets (Vona, Chittering Witch);
-  Stalking Leonin, Siege-Gang Lieutenant and Will of the Abzan share no
-  non-generic ident with their commander and serve no main. (3b) a job's
-  candidates (upgrade, Spine fill) that share a non-generic ident with the
-  commander or a main's serve rank first, play-rate or the blend within each
-  group: 710 / 324 / 91; per job removal 104, wipes 108, draw 107, ramp 104,
-  protection 107 adds (109 base). Unlike (j)'s theme tie (fit breaks a 0.1
-  job-read tie over the viable avenues) it reorders the whole match set, and the
-  fit read is too loose: `attack_matters`, `combat_damage_to_opp` and
-  `target_player_draws` tie Myr Battlesphere, Sword of Fire and Ice and
-  Kozilek's Command to Nelly Borca, and the guides add the staples it pushes out
-  (Swords and Path in Blame Game, Counterspell, Swiftfoot Boots, Heroic
-  Intervention). A 5% pool-share cap on the shared idents (102) or fit only
-  within tenfold of the top card's play-rate (102) lost too. The guides' deck-fit
-  removal (Wall of Souls, Soul Shatter, Grasp of Fate) is played less than its
-  cuts, so no order reaches it. The two misreads found on the way (Noxious
-  Gearhulk's `toughness_combat`, Myr Battlesphere as removal) were fixed
-  2026-10-30. A strong fit skipping the play-rate gate, with the order kept, also
-  failed (2026-10-30; patch and runs in `~/mtg/tuner-work/w38/`, the audit's "A
-  strong fit skipping the play-rate gate"): the gate isn't what holds these adds
-  out. Under a play-rate order a less-played candidate is reached only when nothing
-  more played passes the other gates. With the gate off for every job candidate:
-  727 / 333 / 117, no guide add gained. With it off for the deck's guide cards
-  alone, the ceiling for any fit read: 119 adds on the 25 (Elemental Bond,
-  Overgrowth), 38 held-out (Brass's Bounty), and none of the three shares a
-  non-generic ident with its commander beyond `permanent_etb`. Every fit read
-  scored 117 adds and 37 held-out. Wall of Souls, Soul Shatter, Grasp of Fate, Rip
-  Apart and Blazing Sunsteel share none either, so no commander-fit read names
-  them. Don't re-suggest a gate change for job adds without a new order, which (s)
-  and (t) already lost on.
-  (t) **Card reads leading the theme adds — don't re-suggest** (2026-10-30;
-  patch and runs in `~/mtg/tuner-work/w33/`, the audit's "Card reads leading the
-  theme adds"). Measured against 715 / 329 / 114 (held-out 297 / 139 / 35, Jace
-  29 / 14 / 3). Order A (fit to the commander, a non-generic ident shared with
-  it; then `rank_candidates`' synergy; then play-rate) over the whole match set:
-  723 / 331 / 82, held-out 30 adds, 2.3× the tune time. Order B (commander fit,
-  then how many deck cards emit one of the candidate's non-generic idents, then
-  play-rate) over the whole match set: 740 / 335 / 80, held-out 30. Each reaches
-  about 22 unpopular guide adds (Gix, Krydle, Djeru, Teferi, Temporal Pilgrim,
-  Conduit of Ruin) and loses about 55 popular ones. The 150-card page, the
-  synergy rounded to whole points, a log-depth, a 5% pool-share cap and tiered
-  forms (fit, then the 0.2 fit floor; fit, then 15+ deck sharers) scored 87-111.
-  Blends in log10 play-rate (fit worth 0.1-0.5 decades, a depth doubling up to
-  0.2, synergy share 0.47, weights from a logistic fit) scored 109-116 adds. The
-  best, fit worth 0.25 decades, scored 725 / 332 / 116 with held-out 38, but Jace
-  fell to 1 add (it lost Archfiend of Depravity and Nezahal). No variant passed
-  all three bars. Inside a play-rate band, fit (2-3×) and 31+ deck sharers (2-5×)
-  do raise the guide-add rate on the whole match sets, but play-rate separates
-  more: rank ≤ 1000 runs 5.4% against 0.07% past 15,000. Found on the way:
-  dropping the theme page's 0.2 synergy fit floor, with play-rate alone and no
-  read, scored 720 / 331 / 118, held-out 290 / 139 / 36, Jace 29 / 14 / 3. By
-  the user's decision it was tested again after the phase v0.118.0 bump, on top
-  of the token doublers ((u)), and shipped (the audit's "Dropping the theme
-  page's fit floor"): 718 / 333 / 118 against 722 / 332 / 115, held-out 290 /
-  139 / 37 against 36, Jace unchanged. A Commander-family theme page is now
-  play-rate, then price; don't re-suggest a synergy floor on it.
-  (u) **The other side of a maker lane, the commander's own mechanics — don't
-  re-suggest the rejected forms** (2026-10-30; patches and runs in
-  `~/mtg/tuner-work/w34/`, the audit's "The other side of a maker lane, and the
-  commander's own mechanics"). Shipped: the token doublers page, one theme add,
-  under a commander that makes tokens or Clues, Treasures, Food or Blood
-  (`Sourcing.multiplier_avenue`; on the phase v0.118.0 pin 722 / 332 / 115,
-  held-out 297 / 139 / 36, Jace unchanged; 720 / 329 / 116 on v0.104.0).
-  Rejected: opening it by deck density (5+ makers: 109 adds, Jace 1;
-  the commander's or 12+: 114, Jace 1); two adds off it (115); the other
-  multiplier sub-avenues (counter and ETB-trigger doublers, trigger copiers,
-  damage and mana amplifiers) on the same terms (116-117 on the 25, held-out 31);
-  every sub-avenue made only of a held doer's payoff keys (114, held-out 33). 4c,
-  the commander's own non-viable lanes sharing the theme adds off its exact-ident
-  page, differs from (r)'s rule in page and purse and still fails: 112 adds, or
-  116 held to one lane per deck but held-out 34. (A note here once said phase
-  misreads Parallel Lives as doubling every token; it does — "If an effect would
-  create one or more tokens under your control, it creates twice that many",
-  checked 2026-10-31 — so `crosswalk.token_doubler_kinds` is right to keep it
-  under a Clue commander.)
-  (v) **A polymorph's flip targets skip the mana-value band — don't
-  re-suggest without a new order** (2026-10-30; patch
-  `~/mtg/tuner-work/w26/flip-band.patch`, runs in `~/mtg/tuner-work/w36/`).
-  Under a commander that `wants_fodder`, a creature or planeswalker card its
-  `cheat_into_play` reveals for (Jace, Multiverse Architect's -3) skipped
-  `over_band`: the commander puts it onto the battlefield, so its mana cost is
-  never paid (CR 601.2f-h pay a spell's cost as it is cast). Jace is the only
-  polymorph deck, so the 25 move only through Jace. Before the phase v0.118.0
-  bump it lost Nezahal, Primal Tide (Jace adds 3 → 2). Re-tested on top of the
-  token doublers and the dropped fit floor, it lost Nezahal again: Jace 30 / 14
-  / 2 against 29 / 14 / 3, the 25 719 / 333 / 117 against 718 / 333 / 118.
-  Play-rate fills the opened slots with the big creatures the band held back
-  (Grave Titan, Artisan of Kozilek, Scourge of the Throne, Gisela, Blade of
-  Goldnight, Combustible Gearhulk), and Nezahal is outranked on its page.
-  (w) **Polymorph fodder — don't re-suggest the rejected forms** (2026-10-30;
-  runs and `experiment.patch` in `~/mtg/tuner-work/w37/`, the audit's "Polymorph
-  fodder and the purse cap"). Shipped: a polymorph commander's trim adds a cheap
-  token spell (`Sourcing.fodder_trim_spec`); its fodder maker's job upgrade must
-  make fodder too; past the even share, no upgrade's add takes more than 0.6 of
-  what is left (`swaps._PURSE_CAP`, every deck). Jace 30 / 15 / 4. The fodder lane
-  was unreached because it is a sub and only mains share the theme adds; its
-  serve already admits the makers. Rejected: the lane sharing the theme adds as a
-  sub (Loyal Apprentice or Raise the Alarm, but Archfiend of Depravity lost every
-  time); the lane's whole page for the trims (30 / 15 / 3). Left: the rest of the
-  guides' fodder (Loyal Apprentice, Shadow Summoning, Tempt with Bunnies, Fable)
-  stays outranked or unasked; Currency Converter still goes as a ramp trim, since
-  the rest of that row is fixing; the Gods (Heliod, Purphoros) still take $45 of its
-  $111.70 as flip targets that aren't creatures below devotion 5.
-  (m) **Recall** (`precon-audit/misses.py`, at the largest guide's thirty
-  swaps and each precon's own guides' budget, `budgets.json`, Spellbook cached):
-  335 of 505 cuttable guide cuts, 121 of 793 in-scope guide adds, 732 swaps;
-  held-out 139 of 216 / 37 of 407, 297 swaps (2026-10-30, polymorph fodder and the
-  purse cap, (w): near-misses 63 / 30, consensus adds 38 / 6, Jace 30 / 15 / 4.
-  Before it 332 / 117, 720 swaps; held-out 139 / 37, 290 swaps, Fynn's fixes,
-  `real-deck-validation.md`: poison closers, the fed-only lane exemption,
-  front-face keywords, the attacked defender as no removal, the trim's band;
-  Mardu Surge lost Professional Face-Breaker, Virtue and Valor a guide cut;
-  Jace 29 / 14 / 3. Before it 333 / 118, 718 swaps; held-out 139 / 37, 290
-  swaps, the theme page's fit floor dropped, (t): Animated Army's Chimil, Death Toll's and Graveyard
-  Overdrive's Buried Alive, Living Energy's Conversion Apparatus, Virtue and
-  Valor's Sram; Lorehold Spirit's Crucible of Worlds and Underworld Breach;
-  near-misses 61 / 30, consensus adds 39 / 6, Jace 29 / 14 / 3. Before it 332 /
-  115, 722 swaps; held-out 139 / 36, 297 swaps, the token doublers
-  under a token-making commander, (u): Deep Clue Sea's and Squirreled Away's
-  Primal Vigor, Lorehold Spirit's Anointed Procession, Tinker Time's Liquimetal
-  Torque becomes Big Score, Planeswalker Party's Supreme Verdict lost to Bard,
-  King of Dale; near-misses 71 / 29, consensus adds 40 / 6, Jace 29 / 14 / 3.
-  Before it 332 / 114, 717 swaps; held-out 139 / 35, 297 swaps, the phase
-  v0.118.0 pin bump, same day: Planeswalker Party one guide cut more, Sliver Swarm two more swaps and
-  two guide cuts more; near-misses 70 / 29, consensus 39 / 121 and 6 / 37, Jace
-  29 / 14 / 3, all as before. Before it 329 / 114, 715 swaps; held-out 139 /
-  35, 297 swaps (2026-10-30, the signal-gap pass:
-  Sundial of the Infinite in all four guide decks, Graveyard Overdrive's Six,
-  Tarmogoyf and Terravore; Mardu Surge's Sundial spends the budget its last five
-  upgrades had, one guide cut fewer; Jace unchanged. Before it 330 / 109, 721
-  swaps; held-out 139 / 34). The scoreboard
-  (`precon-audit/scoreboard.py`, the audit's "The scoreboard", 2026-10-30) adds
-  two reported numbers, not gates: near-misses (a tuner add standing in for a
-  missed guide add by job subtype or shared deck signal; 13 of 20 sampled pairs
-  held up by the rules) 61 on the 25 (71 before the fit floor was dropped), 30
-  held-out, 2 on Jace; consensus guide cards (named by 2+ guides) matched, adds
-  39 of 137 / cuts 121 of 169 on the 25 (40 adds before the fit floor was
-  dropped), 6 of 52 / 37 of 53 held-out, Jace 0 of 2 / 7 of 10. (The baseline is
-  from 2026-10-29, after the guide-row fix: 108 rows that joined cards with commas or misspelled them now name real
-  cards, and the audit scripts no longer split "Dusk // Dawn" at its second
-  slash; the larger add counts raise 14 precons' budgets. Before it, on the old
-  rows: 271 of 408 cuttable guide cuts, 88 of 610 in-scope guide adds,
-  713 swaps (2026-10-26, the audit's "The open levers, closed": solid
-  Granters and a main's popular feeders are upgrade slots, a Spine fill takes a
-  jobless slot before a lane slot, a full job's upgrade moves onto the theme;
-  271 / 88, 713 swaps again, every swap of the 25 precons the same, once a
-  lifelink body kept the voltron carrier, 2026-10-29: 66 cards gained it, none
-  legendary — the held-out ten likewise, 139 / 34, 297 swaps, every swap the
-  same; 256 / 76, 680 swaps before the open levers, unchanged by the
-  fourth and fifth (o) passes; 252 / 75, 669 swaps before the third (o) pass;
-  199 / 67, 562 swaps before the cut pool; 197 / 66, 560 swaps at the even share;
-  195 / 59, 543 swaps before it; 180 / 57 before the near-tie budget rule, 169 / 56
-  at 9e0026ed.) The levers by size now: adds a page held but outranked
-  (235, from 251 by the full-job move; no read separates the rest), theme adds no search reaches (164, (r)), guide cuts in a cut pool
-  the tune never reaches (50: seventeen tunes reach thirty swaps, six
-  end on their budget, two on their cut pool — Blood Rites, its lane all Vampires,
-  and Sliver Swarm), commander-lane cards the guides trim (45, (g)), premium cuts
-  (23, (g)) and protected ones (13). 49 guide adds are gated as fewer
-  played than their cut and 31 as a band higher: a theme upgrade of a
-  main card letting a near tie in play-rate through when it fits better lost two
-  adds, and a band more where the curve has room was flat (2026-10-26). Taking
-  the popular tier before the lane's carers cut four more guide cards but lost two
-  adds: the carers' slots bring the lane's theme adds. The outranked adds, by what beat
-  them (`find_add` traced, 2026-10-25, before the even share): theme pages 122 (91
-  behind a more-played pick, 17 ahead of it but passed over for a cheaper near
-  tie, 8 on a page that picked nothing), removal 37, ramp 26, draw 21, protection
-  16, wipes 6. No card read separates them from the picks: a commander pair read
-  (ADR-0042's rows) fires on 8.0% of the theme pages' guide adds and 7.3% of the
-  rest, a template role on 31% of the outranked guide adds and 28% of the theme
-  picks; the top fifth of a page's synergy holds guide adds at twice the rate,
-  which the synergy orderings below already lost on. Measured negative, so don't
-  re-suggest without a new read: theme adds serving two viable avenues first (46
-  adds), theme adds by a synergy / play-rate blend (53), and, against the even
-  share's experiments (the audit's "The budget's even share"): a theme page's near
-  tie to the better fit where the budget doesn't bind (58), the even share on the
-  guarded Spine fills (one add fewer), and the cheapest card in the window, near
-  tie or not, past the share (adds flat, one cut more); and, against the cut
-  pool's: a lane feeder's theme upgrade to a less-played payoff of the main lane
-  (one add fewer), an over-band trim's add shared over the mains (flat).
-  Six guide summaries don't tag sources per row (`guide_sizes.py` skips them).
-  (r) **Theme reach, what's left** (2026-10-25; the experiment table is in
-  `docs/plans/precon-audit-2026-10-18.md`, "Theme reach"; unchanged by the
-  2026-10-26 pass, which found no new read for it). 164 theme guide adds
-  still have no search. Open:
-  - the 150-card play-rate page (`swaps._PAGE`), which hid 71 main-avenue guide
-    adds at a913f172 ("the most played that fits" never reaches them, nor did
-    payoffs first; 67 serve the commander's main at the cut pool's tune). Blood
-    Rites' Lich-Knights' Conquest is this lever: it carries
-    `sacrifice_outlets|you|`, which the Aristocrats serve counts, but the page
-    doesn't hold it; Pyre of Heroes, Altar of Dementia, Diabolic Intent,
-    Razaketh and Dictate of Erebos are on it, outranked;
-  - four guide adds serve only a sub (Living Energy's Arcum Dagsson, Clever
-    Impersonator, Scrap Welder; Deep Clue Sea's Displaced Dinosaurs). Sharing the
-    theme adds over the commander's held subs as well as the mains took Roaming
-    Throne and Praetor's Grasp but lost eight guide adds elsewhere (2026-10-25,
-    the audit's "The cut pool"), as every sub sharing did.
-  The guide adds that serve only a lane that isn't viable — don't re-suggest
-  without a new read (2026-10-25): of those no search reaches, 54 serve only a
-  fed lane (Spellslinger, Artifacts, Cost reduction: incidental keys, mostly
-  staples and protection) and 4 an emerging one; 14 more on an emerging lane are
-  outranked. The guides cut the carers of an emerging or folded theme (22 of 52
-  past `UPGRADE_RANK`) more than they commit to one, so "commit more" is no
-  lever; the tune now trades those carers as upgrade slots.
-  An Aura deck's gear apart from Equipment (Ellivere counts enchanted creatures;
-  an Aura makes one, CR 303.4b; Equipment an "equipped" one, 301.5a) was
-  simulated before building the read: Auras only on Virtue and Valor's suit-up
-  page took Sram and lost Swiftfoot Boots and Lightning Greaves, the guide adds
-  that page makes (one add fewer) — don't build it without a new read.
-  Measured deltas: a granted "When this creature dies, <payoff>" read as
-  `death_matters|you` alone moved no swap (543 / 195 / 60); a held lane as deep
-  as a main never folding into a held tribe added Blood Rites' Skullclamp (544 /
-  196 / 62; 542 / 195 / 61 after the near-miss piece fix); Ancestral Mask's count
-  of every player's enchantments read as an enchantments carer keeps it in Virtue
-  and Valor, and its slot moves Sram and All That Glitters off the adds (543 /
-  196 / 59). Measured negative, so don't re-suggest without a new read: payoffs
-  first (47 guide adds over the serve's whole match set, 44 over the 150-card
-  page, against 50: the payoffs cost more and spend small budgets); the whole
-  match set as the theme page (no gain, twice the tune time); support at one in
-  three or more (generic tribal support takes the members' budget); slots shared
-  over every viable avenue (35) or by carers (45), because the generic subs'
-  pages hold staples (Murder for Fae Dominion's Spellslinger); one swap off the
-  serve page for each lane below the viable floor that the commander holds and
-  cares about (58 adds; 60 held to the emerging floor, flat); a sub with a
-  main's carers taking one add that also serves a main (57 adds, 2 guide cuts
-  fewer).
-  (n) **Lane follow-up verdicts — don't re-suggest without a card** (2026-10-24:
-  a targeted Treasure conversion is no `ramp` — Vraska, Betrayal's Sting's −2,
-  Kitesail Larcenist answer the target, whose controller keeps it, CR 110.2 /
-  602.2). Checked and empty on the 2026-10-23 corpus: a card with both a creature-type and a card-type Choose firing
-  `chosen_type_matters` (none), and a discard or leaves-the-battlefield
-  trigger's self-return firing `bounce_tempo` (none; the other trigger
-  back-references on cards that fire return an event object — a blocked
-  creature, a damage source, a land tapped for mana).
-  (o) **Theme matching off the IR, what's left** (2026-10-25, after the third
-  pass: the tribe spec and its payoff sub-avenue page off the IR too; the
-  fourth and fifth (2026-10-26) took the pattern off every keyword tribe —
-  ``text_reads._ABILITY_KEYWORDS``, first and double strike now among them; the
-  class of every card the tribe pages lost is in
-  ``~/mtg/tuner-work/w16/classification-tribes.tsv``, the keyword pages' in
-  ``~/mtg/tuner-work/w18/classification-keywords.tsv`` (flying … hexproof, 445
-  cards) and ``~/mtg/tuner-work/w19/classification-keywords2.tsv`` (the rest,
-  281 cards), the second pass's in ``~/mtg/tuner-work/w13/classification-final.tsv``).
-  A theme pages by its serve (``signal_specs.theme_page``); no search carries an
-  oracle pattern (``test_a_theme_pages_by_its_serve_not_a_pattern``). Open:
-  - the tribe pages were checked on Goblin, Elf, Zombie, Dragon and Sliver
-    (and Angel, Vampire, Merfolk, Wizard, Human): every real member they
-    lost has an IR ident or a ledger row (the 21 ``_reference_row`` rows). The
-    other tribes weren't, and phase drops ran 0–3 members a tribe.
-  The page-only keys (``signal_keys.PAGE_ONLY_KEYS``: ``subtype_ref``,
-  ``keyword_bodies`` and ``land_return_untap``, the Forest-bounce untap engines
-  split off ``permanent_etb``) feed a theme's page and open no avenue or plan
-  (``signal_keys.is_page_only``).
-  A card phase has no record for carries no ident at all, so it drops off a
-  pattern-free page: of the permanents-entering makers, Oko, Lord of the Fae;
-  Flourishing Forces; Enter the Eternities; Quintorius, Fate Splitter; Potential
-  Horizon; Searing Soloist; Plunderer's Prize; of the token makers and counter
-  placers, the same Oko, Flourishing Forces and Quintorius; Rootha, Ardent
-  Artisan (sacrifice outlets); Change the Narrative (cost reducers); Nylea's
-  Oracle (go-wide anthems); Avoided Stairwurm (Enlist fodder, Ability-strip
-  targets). The ledger rows that gate on a node's absence (Estrid's
-  Invocation, both rows; Venture Forth; Hide in Plain Sight; the
-  typeless reanimations; the dropped return costs; Catastrophe's creature
-  branch; the where-X player burns; Commence the Endgame's amass; Widespread
-  Brutality's Army bite; Jin Sakai's modes) retire only through
-  ``test_bridge_ledger``'s "already served" guard, not their own gap.
-  Rules that stand: serves were written to credit a deck's own cards, so each
-  OR arm admits a card on its own; ``tests/deck-forge/test_serve_arm_guards.py``
-  pins each structured arm on a page serve to a real card and a near miss, and a
-  new arm needs a row. An IR hit whose emitting unit decides no role
-  (``ranking._unit_role``) is read by lining the unit's text up with an oracle
-  clause, then that clause with a compat ability (``ranking._hit_clauses``):
-  reading the payoff test off the unit itself would drop both text alignments,
-  and would give a role to the hits no single ability emits (a keyword's
-  lifelink, Crucible of Worlds' whole-card ident, a modal spell's text-less
-  mode), which still score structural.
-  What the keyword pages dropped (2026-10-26, each class rules-checked): a card
-  naming the keyword to fight it (a removal or block rider, "without", "loses",
-  flying's reminder "except by creatures with flying or reach" on the reach page,
-  CR 702.9b); "as though it had flash" or "… didn't have defender" adds no
-  ability (CR 113.10: an added ability "gains" or "has" it — 74 flash enablers),
-  though a static letting other creatures attack as though they didn't have
-  defender is a defender payoff (``crosswalk.lets_defenders_attack``, CR
-  702.3b — High Alert; a creature letting only itself attack, Backstreet
-  Bruiser, is not); shroud or hexproof on a player (CR 702.18a / 702.11c); a
-  grant of defender onto another creature, yours or not (Guard Duty, Stasis
-  Field; Peregrine Mask, Dormant Sliver) is the drawback ``_DRAWBACK_GRANT_KW``
-  names, where a body with defender the card is or makes counts
-  (``crosswalk.made_keyword_bodies``: a Wall token, Primal Clay, Guardian
-  Zendikon's land); a Vibranium token is a noncreature artifact (no body); a
-  keyword-variety payoff (Akroma, Vision of Ixidor; Odric, Blood-Cursed) or a
-  keyword-sorting dig (Selective Adaptation) is no one keyword's; a card or
-  ability name (Fear Ray, Shadow the Hedgehog, Undying Flames). A keyword tutor
-  of your own library pages its keyword (Mystical Teachings, Isperia,
-  Mwonvuli Beast Tracker). A token any player may create is no body the card
-  makes for you (Basalt Golem's Wall is the blocker's controller's, CR 111.2).
-  Don't re-suggest: an enters drawback (Phage, the sacrifice-unless lands), an
-  Equipment's auto-attach, a token or search another player gets (the Hunted
-  cycle, gift, Path to Exile) and a card putting only itself are no
-  permanents-entering member; the Emergence Auras' "that land gains
-  indestructible" replacement (CR 614.1a) guards only the land they animate,
-  the animator's own payoff like Kamahl's Will, not land protection; an
-  untargeted edict ("each opponent sacrifices" — Liliana's Triumph, Grave Pact)
-  commits no crime (CR 700.13: a crime targets); a land-creature anthem or
-  token maker (Sylvan Advocate, Jyoti) and a land already a creature (Dryad
-  Arbor) animate no land, so the land-animation preset leaves them out (13
-  cards); a coin-flip-gated self-exile-and-return (Frenetic Sliver) is a blink
-  though the effect walk drops it as the card's own drawback, but one returning
-  the card transformed (Ral, Monsoon Mage) is the transform vehicle. What the
-  second pass dropped from the pages, each class adjudicated: an upkeep "sacrifice
-  it unless you pay" is the card's restriction (``self_drawback|you|restriction``),
-  not harm a donate deck hands over (76 cards), and a pact, an extra-turn spell
-  or another instant or sorcery is no permanent to donate; a self-mill on a card
-  that reads its graveyard is fuel (Splinterfright, Sidisi), not harm; a payoff
-  for damage dealt to you, a Phyrexian Arena's paid draw and a curse on another
-  permanent are no drawback; a creature that untaps only itself, a
-  {Q} cost, a threaten's untap and a "doesn't untap" static are no untap effect
-  (294 cards); a debuff Aura ("enchanted creature gets -N/-N") is removal, and
-  an Equipment payoff or equip-cost reducer is ``voltron_matters``' page, not
-  gear; a creature giving itself double strike, and "that much damage" counting
-  something other than damage dealt, amplify nothing; a symmetric draw, token,
-  tutor or Food is no symmetric mana; a sacrifice-cost drain (Anje, Glass-Cast
-  Heart) is the aristocrats outlet, not a token-leaves drain, and a drain on the
-  token a card makes is that token's; a curse watching its enchanted player's
-  creatures enter punishes them, not a creature-ETB payoff of yours. What the
-  third pass dropped from the tribe pages (``/rules-lawyer``, 2026-10-25): a
-  protection from the tribe guards its holder (CR 702.16b/e); a targeted
-  removal (CR 115.1) that can't hit the tribe spares no board (Victim of
-  Night), while an untargeted mass effect (CR 115.10) or an every-player edict
-  that leaves the tribe out rewards a board of it — the lane's call (Eyeblight
-  Massacre, Kindred Dominance, Call to the Grave) — and pages on both the
-  tribe and its payoffs; a Siege's
-  "Dragons" is an anchor word with no tie to the type (its ruling, CR 607.2m);
-  a party counts one Wizard (CR 700.8); a four-material craft (Throne of the
-  Grim Captain, CR 702.167a), a named card (conjured, tutored) and an
-  opponent's tokens of the tribe are no tribe's; a token maker of the tribe
-  is its main page's, not a payoff. Merging ``creature_etb|you|punish`` into
-  ``typed_enters_punish`` doesn't hold: 17 cards carry both, but each keeps
-  cards the other rightly lacks (a landfall or artifact-entering burn there; a
-  drain or a creature-entering burn here), and the ETB-payoff page reads both.
-  (l) **Tune speed, what's left** (2026-10-26, after the third speed pass: a
-  warm Blood Rites / Eldrazi Unbound / Sliver Swarm `deck-tune` 2.3-2.6 /
-  2.5-2.9 / 3.1-3.5 → 1.7-2.0 / 2.0 / 2.1 s; the 25 precons' warm tunes, each a
-  fresh process, 2.04 / 2.49 → 1.66 / 2.02 s median / max; the precon audit 23 s
-  warm, 1.25 GB peak, its output identical). Settled 2026-10-31 late night: a
-  warm thirty-swap tune reads 2.8 / 2.8 / 3.0 s on those three decks after the
-  need pages, the quality and strength reads and the multiplier need (which cost
-  1.5-3 s until its signal-key gate and per-commander memo); the swap phase's
-  page scans remain the cost, and no further speed pass is planned — re-open on
-  a warm tune past 5 s. Before that: the CLI is now Spellbook's:
-  it asks at 0.4 s (after the deck's names: `acquire_for_cli` loads the pool
-  index, 0.3 s) and the answer lands at 1.1-1.7 s, while the deck reads are done
-  by 1.0 s — what's left behind the answer is the swap phase (0.5 s), whose page
-  scans read every card of the gated slice once a page (~32k cards x 16 pages
-  for a five-colour deck: 0.5 s; Blood Rites 0.2 s), each through one shared
-  `CardView`; the per-card cost left is Python's (`_matches_card`, then
-  `Serve.matches`' arms). Measured verdicts, don't re-suggest: **a Spellbook
-  cache** — a cached answer can't equal a live one: 25 of 25 precon answers
-  changed `popularity` / `prices` within 40 h (popularity orders the near-misses
-  and is in the output), `find-my-combos` sends no ETag or version, and the bulk
-  export's ETag dates the export, not the live database; so the CLI asks before
-  it loads anything else (`deck_tune`), which took the wait off the warm CLI.
-  **`is_wincon_card`'s trees** — 2-16 ms a warm tune, no builds (the trees store
-  serves them). **The mirror classes** (0.28 s) — `mirror/__init__` no longer
-  re-exports the loader, so nothing imports them before the first tree is built
-  or unpickled: a CLI pays them inside Spellbook's wait, a tune still pays them;
-  only a codegen emitting plain classes would cut them, and `dataclasses.fields`
-  / `replace` read the nodes. **The crosswalk JSON** — read through a span index
-  (`<sidecar>.spans.pkl`), 0.12 → 0.02 s. **The import-closure walks** used
-  `find_spec`, which imported every parent (0.45 s, the mirror among them); they
-  resolve names off `sys.modules` and the path finder now, once a process. **The
-  two-face trees memo** — bulk-face reads have their own memo
-  (`trees._BULK_TREES_MEMO`), so neither read depends on the order and
-  `card_reads` / the store need no special case; the 25 precon tunes and the
-  audit were unchanged by it. Earlier verdicts: the per-card reads in
-  `_analysis/card_reads` stay beside the trees store — reading the four light
-  ones (mana, gate, has-trees, self-return) live off stored trees cost a warm
-  tune 0.1 / 0.5 / 0.4 s (Blood Rites / Eldrazi Unbound / Sliver Swarm); the
-  trees store moves a warm tune by nothing measurable but a cold one, with no
-  sidecars attached, by ~0.5 s of its ~1 s of builds; a stored tree carries none
-  of the memos reads leave on its nodes (`crosswalk.reads.MEMO_ATTR_PREFIX`;
-  `_owner_index` is keyed by node ids); a per-serve slice memo (no gain, two
-  serve pages a tune); the collector off for the whole tune (a tune may start
-  the signals index's whole-pool build, which makes ~50 cyclic objects a card —
-  the tune collects at a 100,000 young threshold instead, measured as fast).
-
 - **Pass D: the serves still on a regex** (2026-10-23;
   `docs/plans/serve-idents-and-avenue-support.md` "Pass D"; each spec's comment
   names its remainder). Regex-only, measured over the legal corpus:
@@ -1043,6 +495,568 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
 headroom and parked items.
 
 ## Settled: don't re-suggest
+
+**From the Jace, Multiverse Architect precon tune and the 25-precon audit (2026-10-17 to 2026-11-01)**
+
+- **The polymorph tune and the 25-precon audit: every lever measured, the
+  verdicts** (third pass, 2026-10-18, closed 2026-11-01 at baseline N8 —
+  `docs/plans/precon-audit-2026-10-18.md` has the method, the before / after
+  tables and the per-precon reads; the first two passes' fixes are listed
+  there; `docs/plans/tuner-plan-2026-10-30.md` "Progress" is the ledger of
+  every run since. Each lettered sub-entry below is a verdict: a shipped read,
+  or a policy measured against the held-out gate and held back as a patch under
+  `~/mtg/tuner-work/w41/`. Nothing in it is open; a new tuner lever needs a new
+  card read first). Fixed in the third pass: a quality read
+  inside a lane is "a feeder nobody plays" (measured, below); Spine fills
+  rank by play-rate within a mana-value band; player-only damage is not
+  `interaction`; Bello's Animation and Yuma's Deserts have lanes
+  (`animate_makers|you|<Type>`, `land_type_matters|you|<Type>`); pillowfort
+  and fogs are not `superfriends_matters`; a typed token replacement or
+  sacrifice trigger carries its token kind (Xorn is `treasure_matters`,
+  Academy Manufactor three kinds, Fisher's Talent `tokens_matter|you|Fish`);
+  an artifact-TOKEN maker is a maker, never `artifacts_matter`; carers respect
+  scope where the specs split it ("Opponents' graveyards" 43 → 4 under
+  Teval); two avenues with one carer set are one theme (Polymorph fodder
+  absorbs Token generators); an emerging theme needs two carers in
+  proportion; the primary lane is a held lane deep enough to show; three pair
+  rows for the Enchantment / Artifact / Planeswalker cheat subjects; the CR
+  2026-09-25 subtype lists (Heartwood); Syr Konrad's folded zone-change
+  trigger reads as `dies` for a dies doubler; a card that merely has an
+  activated ability is a payoff target of "Activated-ability engine", not a
+  builder (its untap engines are — Abzan Armor read that lane as its main
+  over a 42-deep toughness lane; the Jace phantom of the polymorph entry's
+  (d) is gone with it). Fixed in the seventh pass (2026-10-19): the upgrade
+  slots — an off-lane card past rank 3000 and the deep lane's least-played
+  half (never a Granter), traded by a last-ranked `upgrade` issue for a
+  better-played card at no higher mana-value band doing the same job (223
+  swaps, 104 cuts and 29 adds matching a guide, from 85 / 44 / 8); every theme
+  add is the most-played candidate that fits; an Equipment's, Aura's or
+  target's shrink and damage to each player are not board wipes; the main
+  theme no longer changes with the string-hash seed. Fixed in the eighth pass
+  (2026-10-19): the interaction search combined its five presets with AND and
+  sourced nothing (no removal fill or upgrade since the fourth pass) — it reads
+  any of them now; job reads (`_analysis/job_quality/`, ADR-0060) gate which
+  cards may be an upgrade and, for wipes / draw, order them blended with
+  play-rate, so a looter is no draw upgrade and Animate Dead no removal; overload spells are
+  sweeps (`crosswalk.overload_sweep`, a retirement canary). Left:
+  (a) **Inside a lane, the cut read is "a feeder nobody plays" — don't
+  re-suggest a function read.** Measured 2026-10-18 on the 25 precons' main
+  lanes (906 lane cards, 222 guide cuts, base rate 0.245): no function
+  feature moved the rate — one-shot vs repeatable 0.19, body for its cost
+  0.27-0.32, in-deck synergy depth (`rank_candidates` over the deck's own
+  cards) flat 0.22-0.25 across quartiles, lanes touched 0.14-0.28. Play-rate
+  does (least-played quarter 0.35), and "a member that does not itself care
+  about the lane" more so (0.32 vs carers 0.20; rank-bottom-quarter feeders
+  0.46; a feeder with no template role past rank 8000: 0.67, n=24). The
+  `lane_upgrade` tier now orders feeders before carers, then least played
+  (top-five precision 0.48; costlier-first within the half was 0.30). The
+  guides' stated reasons (one-shot, delirium type, curve) are not what their
+  cuts share, and the same holds for the flip-quality read the polymorph tune
+  wanted. Script: `docs/plans/precon-audit/lane_quality.py` (rerun recipe in
+  `docs/plans/precon-audit-2026-10-18.md`).
+  (b) **Lane verdicts — don't re-suggest** (the leftovers closed 2026-10-23).
+  The `animate_artifact` regex lane retired for `animate_makers` drops 24
+  cards with no replacement by design: 19 Vehicles, 2 artifacts that animate
+  only themselves, 2 copy effects (Saheeli, Sublime Artificer; True
+  Polymorph). A token maker is a doer — `artifacts_matter|you|token` /
+  `enchantments_matter|you|token` (Roles, Glimmers), never the bare payoff;
+  an artifact or enchantment card keeps the LOW membership-floor key. In Too
+  Deep is no `clue_makers`: the Clue it makes is the enchanted permanent's
+  controller's. The superfriends synth arm stands down on a card naming
+  planeswalkers only as half of a bare "creature or planeswalker" and never
+  their loyalty (`crosswalk.planeswalkers_only_beside_creatures` — Angelic
+  Intervention, Kaya's Ghostform, Fey Steed and six more), so Spark Double
+  (an extra loyalty counter) and Lae'zel (no typed planeswalker filter) keep
+  it.
+  (d) **Type payoffs — don't re-suggest** (2026-10-25). A choice of types
+  ("creature or artifact you control" — Abuelo, Heliod, Zimone), stax or edicts
+  over other players' artifacts (Null Rod, Harsh Mentor, Pick Your Poison), a
+  count another player wins (Ward of Bones' lock on each opponent with more
+  artifacts than you, `crosswalk.counts_behind_another_player`) and a retype
+  that also strips abilities (Sugar Coat, Kitesail Larcenist, Vraska,
+  Betrayal's Sting, Soul Sculptor: removal) are no payoff. The type-grant read
+  (`crosswalk.granted_card_types`) has no node for Xathrid Gorgon's dropped
+  "becomes a colorless artifact" or the Alchemy perpetual grants (Hinterland
+  Chef, Resourceful Collector, Woodland Investigation, Glimmer Hoarder,
+  Housemeld); none is an artifacts or enchantments payoff a guide plays.
+  (g) **The guide cuts the tuner protects** (2026-10-24, the experiment table in
+  `docs/plans/precon-audit-2026-10-18.md`, "The remaining tuner levers"). Shipped:
+  popular cards (inside `UPGRADE_RANK`, not premium) off every lane and on none of
+  the deck's main avenues are the last upgrade tier (`focus.popular_upgrade_cards`,
+  after the deep lane's half; the guides cut 0.28 of them, 27 of 96, when any viable
+  avenue spared a card; beside the fringe tier they spent the lane's theme budget,
+  51 adds). Since 2026-10-25 only a main shields an off-lane card from the upgrade
+  tiers (a sub's or an emerging or folded theme's carer is a slot, and a popular
+  card on a sub alone; the audit's "The cut pool"); keeping a folded theme's
+  carers shielded lost five guide cuts. Since 2026-10-26 (the audit's "The open
+  levers, closed") a main shields only its carers (a popular main feeder is the
+  last slot), a solid Granter is a slot and may go to a better grant (ADR-0040's
+  amendment). Left: 23 popular cuts, all premium (the guides cut 0.10 of premium
+  cards, 22 of 210 — premium stays), and 45 commander-lane doers, whose guide-cut
+  rate outside the lane's half is 0.08-0.20 in every carer split by role and
+  play-rate holding more than four cards, below the decks' 0.24 — (a) holds,
+  don't re-suggest a split of them without a new read; most sit in tunes that
+  reach the thirty swaps. Combo protection stays whole: only a game-ending combo
+  protecting its pieces lost an add, and `proposal-check` gates every infinite.
+  Script: `docs/plans/precon-audit/cut_splits.py` (both splits; same ROOT as
+  `misses.py`).
+  (j) **Job-read verdicts — don't re-suggest without a new read** (ADR-0060 and
+  its amendments; the experiment tables are the audit's "The tuner-policy
+  leftovers" and "The deck-fit wipe read"). The order is the blend (wipes, draw,
+  protection) or play-rate (removal, ramp), theme fit breaking a near tie for draw
+  and ramp. The wipe read leading its upgrades was flat twice (547 / 195 / 60): it
+  moves picks only in precons whose guides add no wipe. The deck-fit wipe read was
+  built and measured 2026-10-25 (the share of the deck's own permanents a sweep
+  leaves, off its filter: a chosen type, a power or mana-value bound, one each,
+  one-sidedness, damage against toughness): the deck-free read already prices a
+  spare and one-sidedness at the average deck's board, so on its own it moves no
+  non-tribal deck, and leading the wipe order and fill with it in a tribal deck
+  (most creatures share a type: Fae Dominion, Blood Rites, Sliver Swarm,
+  VelociRampTor) took Raise the Palisade in Fae Dominion but cost three guide adds
+  there on the budget (guide adds 18 → 16 over those four, cuts flat): rejected.
+  Expel the Interlopers and Tragic Arrogance under Ellivere, and Chain Reaction
+  and Winds of Abandon in Blame Game, need a slot the tune doesn't open (one wipe
+  upgrade each, already Vanquish the Horde / Blasphemous Act, both guide adds);
+  a lead for every deck trades those away. Rejected for removal: the deck's count
+  of instant any-permanent answers deciding flexible vs targeted (59 and 56 adds;
+  Beast Within's recurrence moved to Abrade). Rejected for ramp: the read blended
+  into the order (56; Mana Vault took Fellwar Stone's 10). The removal read's weak
+  agreement with play-rate over every card with a removal effect stands (it was
+  fitted on main-job removal and only gates). Theme fit as a tie lost for removal,
+  wipes and protection. Protection goes unsearched in 18 guide adds' decks because
+  ADR-0024 asks for it only from a combo or control deck or a voltron plan; a
+  target of 5 or 3 for every shape matched fewer adds. Left narrow, none a guide
+  card: a size off a card the caster takes from a graveyard (Volcanic Vision, Too
+  Greedily, Too Deep) or off a random discard (Kindle the Carnage). An on-theme
+  draw or ramp card reading within a tie of its cut passing the play-rate gate
+  gained none of its targets (Insidious Roots, Faerie Mastermind; 2026-10-26).
+  Where the deck holds the most of a job it wants (a row at its max, protection
+  at the Shape's target) the job's upgrade moves onto the theme (2026-10-26); a
+  looser row read or cost bar spent the budget-bound decks' cuts.
+  (k) **Age-adjusted play-rate — don't re-suggest** (2026-10-30; patch and runs in
+  `~/mtg/tuner-work/w29/`). A card's rank as a percentile among cards first printed
+  within ±6/12/24 months, the better of that and the raw rank, and a recent-only lag
+  boost, each through the add order, fills, near-tie, play-rate gate, page sort or
+  cut side: no variant raised guide adds on the 25 (best 108 against 109; the
+  ordering variants lost 13-19, mostly old staples: Swiftfoot Boots, Counterspell,
+  Nature's Lore). The "newer and less played" misses were mostly a dating error
+  (MTGO's promo set dates every card 2002-06-24; The List and Secret Lair likewise);
+  with reprint-aware dates a ±6-month cohort puts the guide card first in 5 of 151.
+  Real rank lag is limited to 2025-26 cards, which mostly postdate the guides. A
+  card's first printing is its earliest printing not flagged `reprint`
+  (`precon-audit/scoreboard.py`).
+  A recent-only boost also failed, scored fairly (2026-10-30; patch and runs in
+  `~/mtg/tuner-work/w39/`, the audit's "A play-rate boost for recently printed
+  cards"), against 732 / 335 / 121 (held-out 297 / 139 / 37, Jace 30 / 15 / 4). Cards
+  first printed in the last 24 months, sized by how far their cohort's top 5% trails
+  mature years: gate only 737 / 338 / 118, order only 734 / 335 / 112, both 738 / 338 /
+  110, held-out adds 36 each. The fair line (cards a guide could name; `scoreboard.py`'s
+  `FAIR`) falls too, 119 to 116 / 112 / 110, so the scoring wasn't hiding a win. On the
+  19 decks with a guide dated since 2024-11, the boost matches at most 5 of the 55
+  recent guide adds against the baseline's 4, while those decks' guide adds fall from 69
+  to 65-67. Near tie only scored 122 and passes every gate, but through one reshuffle
+  in one deck (Supreme Verdict, a 2012 card, for Flawless Maneuver) and no recent card;
+  not shipped.
+  (s) **Deck fit for job upgrades — don't re-suggest** (2026-10-30; patch and runs
+  in `~/mtg/tuner-work/w31/`, the audit's "Deck fit for the job upgrades"). Two
+  levers, each measured alone, then together; none raised guide adds on the 25.
+  (3a) a job upgrade never cuts a card serving the main theme or the commander (a
+  main's member or carer, a commander-lane doer, or a card sharing a non-generic
+  ident with the commander): 611 / 281 / 97, every split of the set lost (shared
+  ident only 672 / 314 / 103, carers and lane doers 684 / 317 / 101, main members
+  634 / 292 / 98), because the guides cut those cards at 0.39 (57 of the 146
+  protected job-upgrade cuts), above the decks' 0.24. Only two of the five
+  motivating trades are theme cards by focus's sets (Vona, Chittering Witch);
+  Stalking Leonin, Siege-Gang Lieutenant and Will of the Abzan share no
+  non-generic ident with their commander and serve no main. (3b) a job's
+  candidates (upgrade, Spine fill) that share a non-generic ident with the
+  commander or a main's serve rank first, play-rate or the blend within each
+  group: 710 / 324 / 91; per job removal 104, wipes 108, draw 107, ramp 104,
+  protection 107 adds (109 base). Unlike (j)'s theme tie (fit breaks a 0.1
+  job-read tie over the viable avenues) it reorders the whole match set, and the
+  fit read is too loose: `attack_matters`, `combat_damage_to_opp` and
+  `target_player_draws` tie Myr Battlesphere, Sword of Fire and Ice and
+  Kozilek's Command to Nelly Borca, and the guides add the staples it pushes out
+  (Swords and Path in Blame Game, Counterspell, Swiftfoot Boots, Heroic
+  Intervention). A 5% pool-share cap on the shared idents (102) or fit only
+  within tenfold of the top card's play-rate (102) lost too. The guides' deck-fit
+  removal (Wall of Souls, Soul Shatter, Grasp of Fate) is played less than its
+  cuts, so no order reaches it. The two misreads found on the way (Noxious
+  Gearhulk's `toughness_combat`, Myr Battlesphere as removal) were fixed
+  2026-10-30. A strong fit skipping the play-rate gate, with the order kept, also
+  failed (2026-10-30; patch and runs in `~/mtg/tuner-work/w38/`, the audit's "A
+  strong fit skipping the play-rate gate"): the gate isn't what holds these adds
+  out. Under a play-rate order a less-played candidate is reached only when nothing
+  more played passes the other gates. With the gate off for every job candidate:
+  727 / 333 / 117, no guide add gained. With it off for the deck's guide cards
+  alone, the ceiling for any fit read: 119 adds on the 25 (Elemental Bond,
+  Overgrowth), 38 held-out (Brass's Bounty), and none of the three shares a
+  non-generic ident with its commander beyond `permanent_etb`. Every fit read
+  scored 117 adds and 37 held-out. Wall of Souls, Soul Shatter, Grasp of Fate, Rip
+  Apart and Blazing Sunsteel share none either, so no commander-fit read names
+  them. Don't re-suggest a gate change for job adds without a new order, which (s)
+  and (t) already lost on.
+  (t) **Card reads leading the theme adds — don't re-suggest** (2026-10-30;
+  patch and runs in `~/mtg/tuner-work/w33/`, the audit's "Card reads leading the
+  theme adds"). Measured against 715 / 329 / 114 (held-out 297 / 139 / 35, Jace
+  29 / 14 / 3). Order A (fit to the commander, a non-generic ident shared with
+  it; then `rank_candidates`' synergy; then play-rate) over the whole match set:
+  723 / 331 / 82, held-out 30 adds, 2.3× the tune time. Order B (commander fit,
+  then how many deck cards emit one of the candidate's non-generic idents, then
+  play-rate) over the whole match set: 740 / 335 / 80, held-out 30. Each reaches
+  about 22 unpopular guide adds (Gix, Krydle, Djeru, Teferi, Temporal Pilgrim,
+  Conduit of Ruin) and loses about 55 popular ones. The 150-card page, the
+  synergy rounded to whole points, a log-depth, a 5% pool-share cap and tiered
+  forms (fit, then the 0.2 fit floor; fit, then 15+ deck sharers) scored 87-111.
+  Blends in log10 play-rate (fit worth 0.1-0.5 decades, a depth doubling up to
+  0.2, synergy share 0.47, weights from a logistic fit) scored 109-116 adds. The
+  best, fit worth 0.25 decades, scored 725 / 332 / 116 with held-out 38, but Jace
+  fell to 1 add (it lost Archfiend of Depravity and Nezahal). No variant passed
+  all three bars. Inside a play-rate band, fit (2-3×) and 31+ deck sharers (2-5×)
+  do raise the guide-add rate on the whole match sets, but play-rate separates
+  more: rank ≤ 1000 runs 5.4% against 0.07% past 15,000. Found on the way:
+  dropping the theme page's 0.2 synergy fit floor, with play-rate alone and no
+  read, scored 720 / 331 / 118, held-out 290 / 139 / 36, Jace 29 / 14 / 3. By
+  the user's decision it was tested again after the phase v0.118.0 bump, on top
+  of the token doublers ((u)), and shipped (the audit's "Dropping the theme
+  page's fit floor"): 718 / 333 / 118 against 722 / 332 / 115, held-out 290 /
+  139 / 37 against 36, Jace unchanged. A Commander-family theme page is now
+  play-rate, then price; don't re-suggest a synergy floor on it.
+  (u) **The other side of a maker lane, the commander's own mechanics — don't
+  re-suggest the rejected forms** (2026-10-30; patches and runs in
+  `~/mtg/tuner-work/w34/`, the audit's "The other side of a maker lane, and the
+  commander's own mechanics"). Shipped: the token doublers page, one theme add,
+  under a commander that makes tokens or Clues, Treasures, Food or Blood
+  (`Sourcing.multiplier_avenue`; on the phase v0.118.0 pin 722 / 332 / 115,
+  held-out 297 / 139 / 36, Jace unchanged; 720 / 329 / 116 on v0.104.0).
+  Rejected: opening it by deck density (5+ makers: 109 adds, Jace 1;
+  the commander's or 12+: 114, Jace 1); two adds off it (115); the other
+  multiplier sub-avenues (counter and ETB-trigger doublers, trigger copiers,
+  damage and mana amplifiers) on the same terms (116-117 on the 25, held-out 31);
+  every sub-avenue made only of a held doer's payoff keys (114, held-out 33). 4c,
+  the commander's own non-viable lanes sharing the theme adds off its exact-ident
+  page, differs from (r)'s rule in page and purse and still fails: 112 adds, or
+  116 held to one lane per deck but held-out 34. (A note here once said phase
+  misreads Parallel Lives as doubling every token; it does — "If an effect would
+  create one or more tokens under your control, it creates twice that many",
+  checked 2026-10-31 — so `crosswalk.token_doubler_kinds` is right to keep it
+  under a Clue commander.)
+  (v) **A polymorph's flip targets skip the mana-value band — don't
+  re-suggest without a new order** (2026-10-30; patch
+  `~/mtg/tuner-work/w26/flip-band.patch`, runs in `~/mtg/tuner-work/w36/`).
+  Under a commander that `wants_fodder`, a creature or planeswalker card its
+  `cheat_into_play` reveals for (Jace, Multiverse Architect's -3) skipped
+  `over_band`: the commander puts it onto the battlefield, so its mana cost is
+  never paid (CR 601.2f-h pay a spell's cost as it is cast). Jace is the only
+  polymorph deck, so the 25 move only through Jace. Before the phase v0.118.0
+  bump it lost Nezahal, Primal Tide (Jace adds 3 → 2). Re-tested on top of the
+  token doublers and the dropped fit floor, it lost Nezahal again: Jace 30 / 14
+  / 2 against 29 / 14 / 3, the 25 719 / 333 / 117 against 718 / 333 / 118.
+  Play-rate fills the opened slots with the big creatures the band held back
+  (Grave Titan, Artisan of Kozilek, Scourge of the Throne, Gisela, Blade of
+  Goldnight, Combustible Gearhulk), and Nezahal is outranked on its page.
+  (w) **Polymorph fodder — don't re-suggest the rejected forms** (2026-10-30;
+  runs and `experiment.patch` in `~/mtg/tuner-work/w37/`, the audit's "Polymorph
+  fodder and the purse cap"). Shipped: a polymorph commander's trim adds a cheap
+  token spell (`Sourcing.fodder_trim_spec`); its fodder maker's job upgrade must
+  make fodder too; past the even share, no upgrade's add takes more than 0.6 of
+  what is left (`swaps._PURSE_CAP`, every deck). Jace 30 / 15 / 4. The fodder lane
+  was unreached because it is a sub and only mains share the theme adds; its
+  serve already admits the makers. Rejected: the lane sharing the theme adds as a
+  sub (Loyal Apprentice or Raise the Alarm, but Archfiend of Depravity lost every
+  time); the lane's whole page for the trims (30 / 15 / 3). Left: the rest of the
+  guides' fodder (Loyal Apprentice, Shadow Summoning, Tempt with Bunnies, Fable)
+  stays outranked or unasked; Currency Converter still goes as a ramp trim, since
+  the rest of that row is fixing; the Gods (Heliod, Purphoros) still take $45 of its
+  $111.70 as flip targets that aren't creatures below devotion 5.
+  (m) **Recall** (`precon-audit/misses.py`, at the largest guide's thirty
+  swaps and each precon's own guides' budget, `budgets.json`, Spellbook cached):
+  335 of 505 cuttable guide cuts, 121 of 793 in-scope guide adds, 732 swaps;
+  held-out 139 of 216 / 37 of 407, 297 swaps (2026-10-30, polymorph fodder and the
+  purse cap, (w): near-misses 63 / 30, consensus adds 38 / 6, Jace 30 / 15 / 4.
+  Before it 332 / 117, 720 swaps; held-out 139 / 37, 290 swaps, Fynn's fixes,
+  `real-deck-validation.md`: poison closers, the fed-only lane exemption,
+  front-face keywords, the attacked defender as no removal, the trim's band;
+  Mardu Surge lost Professional Face-Breaker, Virtue and Valor a guide cut;
+  Jace 29 / 14 / 3. Before it 333 / 118, 718 swaps; held-out 139 / 37, 290
+  swaps, the theme page's fit floor dropped, (t): Animated Army's Chimil, Death Toll's and Graveyard
+  Overdrive's Buried Alive, Living Energy's Conversion Apparatus, Virtue and
+  Valor's Sram; Lorehold Spirit's Crucible of Worlds and Underworld Breach;
+  near-misses 61 / 30, consensus adds 39 / 6, Jace 29 / 14 / 3. Before it 332 /
+  115, 722 swaps; held-out 139 / 36, 297 swaps, the token doublers
+  under a token-making commander, (u): Deep Clue Sea's and Squirreled Away's
+  Primal Vigor, Lorehold Spirit's Anointed Procession, Tinker Time's Liquimetal
+  Torque becomes Big Score, Planeswalker Party's Supreme Verdict lost to Bard,
+  King of Dale; near-misses 71 / 29, consensus adds 40 / 6, Jace 29 / 14 / 3.
+  Before it 332 / 114, 717 swaps; held-out 139 / 35, 297 swaps, the phase
+  v0.118.0 pin bump, same day: Planeswalker Party one guide cut more, Sliver Swarm two more swaps and
+  two guide cuts more; near-misses 70 / 29, consensus 39 / 121 and 6 / 37, Jace
+  29 / 14 / 3, all as before. Before it 329 / 114, 715 swaps; held-out 139 /
+  35, 297 swaps (2026-10-30, the signal-gap pass:
+  Sundial of the Infinite in all four guide decks, Graveyard Overdrive's Six,
+  Tarmogoyf and Terravore; Mardu Surge's Sundial spends the budget its last five
+  upgrades had, one guide cut fewer; Jace unchanged. Before it 330 / 109, 721
+  swaps; held-out 139 / 34). The scoreboard
+  (`precon-audit/scoreboard.py`, the audit's "The scoreboard", 2026-10-30) adds
+  two reported numbers, not gates: near-misses (a tuner add standing in for a
+  missed guide add by job subtype or shared deck signal; 13 of 20 sampled pairs
+  held up by the rules) 61 on the 25 (71 before the fit floor was dropped), 30
+  held-out, 2 on Jace; consensus guide cards (named by 2+ guides) matched, adds
+  39 of 137 / cuts 121 of 169 on the 25 (40 adds before the fit floor was
+  dropped), 6 of 52 / 37 of 53 held-out, Jace 0 of 2 / 7 of 10. (The baseline is
+  from 2026-10-29, after the guide-row fix: 108 rows that joined cards with commas or misspelled them now name real
+  cards, and the audit scripts no longer split "Dusk // Dawn" at its second
+  slash; the larger add counts raise 14 precons' budgets. Before it, on the old
+  rows: 271 of 408 cuttable guide cuts, 88 of 610 in-scope guide adds,
+  713 swaps (2026-10-26, the audit's "The open levers, closed": solid
+  Granters and a main's popular feeders are upgrade slots, a Spine fill takes a
+  jobless slot before a lane slot, a full job's upgrade moves onto the theme;
+  271 / 88, 713 swaps again, every swap of the 25 precons the same, once a
+  lifelink body kept the voltron carrier, 2026-10-29: 66 cards gained it, none
+  legendary — the held-out ten likewise, 139 / 34, 297 swaps, every swap the
+  same; 256 / 76, 680 swaps before the open levers, unchanged by the
+  fourth and fifth (o) passes; 252 / 75, 669 swaps before the third (o) pass;
+  199 / 67, 562 swaps before the cut pool; 197 / 66, 560 swaps at the even share;
+  195 / 59, 543 swaps before it; 180 / 57 before the near-tie budget rule, 169 / 56
+  at 9e0026ed.) The levers by size now: adds a page held but outranked
+  (235, from 251 by the full-job move; no read separates the rest), theme adds no search reaches (164, (r)), guide cuts in a cut pool
+  the tune never reaches (50: seventeen tunes reach thirty swaps, six
+  end on their budget, two on their cut pool — Blood Rites, its lane all Vampires,
+  and Sliver Swarm), commander-lane cards the guides trim (45, (g)), premium cuts
+  (23, (g)) and protected ones (13). 49 guide adds are gated as fewer
+  played than their cut and 31 as a band higher: a theme upgrade of a
+  main card letting a near tie in play-rate through when it fits better lost two
+  adds, and a band more where the curve has room was flat (2026-10-26). Taking
+  the popular tier before the lane's carers cut four more guide cards but lost two
+  adds: the carers' slots bring the lane's theme adds. The outranked adds, by what beat
+  them (`find_add` traced, 2026-10-25, before the even share): theme pages 122 (91
+  behind a more-played pick, 17 ahead of it but passed over for a cheaper near
+  tie, 8 on a page that picked nothing), removal 37, ramp 26, draw 21, protection
+  16, wipes 6. No card read separates them from the picks: a commander pair read
+  (ADR-0042's rows) fires on 8.0% of the theme pages' guide adds and 7.3% of the
+  rest, a template role on 31% of the outranked guide adds and 28% of the theme
+  picks; the top fifth of a page's synergy holds guide adds at twice the rate,
+  which the synergy orderings below already lost on. Measured negative, so don't
+  re-suggest without a new read: theme adds serving two viable avenues first (46
+  adds), theme adds by a synergy / play-rate blend (53), and, against the even
+  share's experiments (the audit's "The budget's even share"): a theme page's near
+  tie to the better fit where the budget doesn't bind (58), the even share on the
+  guarded Spine fills (one add fewer), and the cheapest card in the window, near
+  tie or not, past the share (adds flat, one cut more); and, against the cut
+  pool's: a lane feeder's theme upgrade to a less-played payoff of the main lane
+  (one add fewer), an over-band trim's add shared over the mains (flat).
+  Six guide summaries don't tag sources per row (`guide_sizes.py` skips them).
+  (r) **Theme reach, what's left** (2026-10-25; the experiment table is in
+  `docs/plans/precon-audit-2026-10-18.md`, "Theme reach"; unchanged by the
+  2026-10-26 pass, which found no new read for it). 164 theme guide adds
+  still have no search. Both levers measured and closed (2026-11-01):
+  - the 150-card play-rate page (`swaps._PAGE`), which hid 71 main-avenue guide
+    adds at a913f172 (Blood Rites' Lich-Knights' Conquest carries
+    `sacrifice_outlets|you|`, which the Aristocrats serve counts, but the page
+    doesn't hold it). The whole match set as the page gained nothing at twice
+    the tune time (below); reordering the page by the card reads (V1, 2026-10-30;
+    V3 reads-first and V3b blended with the theme-strength reads, 2026-10-31)
+    failed the gate every time — held-out plan +69 / adds −12 for V3, plan +5 /
+    the 25 adds −8 for V3b. Don't re-suggest a page depth or order change until a
+    strength read scores 0.70 leave-one-deck-out on both pair sources (the
+    audit's "The theme-strength reads and the V3 order");
+  - four guide adds serve only a sub (Living Energy's Arcum Dagsson, Clever
+    Impersonator, Scrap Welder; Deep Clue Sea's Displaced Dinosaurs). Sharing the
+    theme adds over the commander's held subs as well as the mains took Roaming
+    Throne and Praetor's Grasp but lost eight guide adds elsewhere (2026-10-25,
+    the audit's "The cut pool"), as every sub sharing did; sub and emerging
+    lanes paged after the mains (S-A, 2026-10-31) lost 24 adds on the 25 and 14
+    held-out (the audit's "Sub-theme pages"). Don't re-suggest a sub share.
+  The guide adds that serve only a lane that isn't viable — don't re-suggest
+  without a new read (2026-10-25): of those no search reaches, 54 serve only a
+  fed lane (Spellslinger, Artifacts, Cost reduction: incidental keys, mostly
+  staples and protection) and 4 an emerging one; 14 more on an emerging lane are
+  outranked. The guides cut the carers of an emerging or folded theme (22 of 52
+  past `UPGRADE_RANK`) more than they commit to one, so "commit more" is no
+  lever; the tune now trades those carers as upgrade slots.
+  An Aura deck's gear apart from Equipment (Ellivere counts enchanted creatures;
+  an Aura makes one, CR 303.4b; Equipment an "equipped" one, 301.5a) was
+  simulated before building the read: Auras only on Virtue and Valor's suit-up
+  page took Sram and lost Swiftfoot Boots and Lightning Greaves, the guide adds
+  that page makes (one add fewer) — don't build it without a new read.
+  Measured deltas: a granted "When this creature dies, <payoff>" read as
+  `death_matters|you` alone moved no swap (543 / 195 / 60); a held lane as deep
+  as a main never folding into a held tribe added Blood Rites' Skullclamp (544 /
+  196 / 62; 542 / 195 / 61 after the near-miss piece fix); Ancestral Mask's count
+  of every player's enchantments read as an enchantments carer keeps it in Virtue
+  and Valor, and its slot moves Sram and All That Glitters off the adds (543 /
+  196 / 59). Measured negative, so don't re-suggest without a new read: payoffs
+  first (47 guide adds over the serve's whole match set, 44 over the 150-card
+  page, against 50: the payoffs cost more and spend small budgets); the whole
+  match set as the theme page (no gain, twice the tune time); support at one in
+  three or more (generic tribal support takes the members' budget); slots shared
+  over every viable avenue (35) or by carers (45), because the generic subs'
+  pages hold staples (Murder for Fae Dominion's Spellslinger); one swap off the
+  serve page for each lane below the viable floor that the commander holds and
+  cares about (58 adds; 60 held to the emerging floor, flat); a sub with a
+  main's carers taking one add that also serves a main (57 adds, 2 guide cuts
+  fewer).
+  (n) **Lane follow-up verdicts — don't re-suggest without a card** (2026-10-24:
+  a targeted Treasure conversion is no `ramp` — Vraska, Betrayal's Sting's −2,
+  Kitesail Larcenist answer the target, whose controller keeps it, CR 110.2 /
+  602.2). Checked and empty on the 2026-10-23 corpus: a card with both a creature-type and a card-type Choose firing
+  `chosen_type_matters` (none), and a discard or leaves-the-battlefield
+  trigger's self-return firing `bounce_tempo` (none; the other trigger
+  back-references on cards that fire return an event object — a blocked
+  creature, a damage source, a land tapped for mana).
+  (o) **Theme matching off the IR, what's left** (2026-10-25, after the third
+  pass: the tribe spec and its payoff sub-avenue page off the IR too; the
+  fourth and fifth (2026-10-26) took the pattern off every keyword tribe —
+  ``text_reads._ABILITY_KEYWORDS``, first and double strike now among them; the
+  class of every card the tribe pages lost is in
+  ``~/mtg/tuner-work/w16/classification-tribes.tsv``, the keyword pages' in
+  ``~/mtg/tuner-work/w18/classification-keywords.tsv`` (flying … hexproof, 445
+  cards) and ``~/mtg/tuner-work/w19/classification-keywords2.tsv`` (the rest,
+  281 cards), the second pass's in ``~/mtg/tuner-work/w13/classification-final.tsv``).
+  A theme pages by its serve (``signal_specs.theme_page``); no search carries an
+  oracle pattern (``test_a_theme_pages_by_its_serve_not_a_pattern``). The tribe
+  pages were checked on every tribe (2026-10-31, the audit's "The tribe pages,
+  every tribe"; `~/mtg/tuner-work/w41/tribe-pages-sweep.tsv`): 151 tribes, no
+  member lost to a phase drop; 57 memberships are back-face-only and stay off by
+  the front-face rule; the one false admission (Urza's Power Plant on the Plant
+  page, a hyphenated subtype split in two) and Vecna's related token on the
+  Zombie and God pages were fixed in the two lane passes (f1d5ee79, 545d80e5).
+  The page-only keys (``signal_keys.PAGE_ONLY_KEYS``: ``subtype_ref``,
+  ``keyword_bodies`` and ``land_return_untap``, the Forest-bounce untap engines
+  split off ``permanent_etb``) feed a theme's page and open no avenue or plan
+  (``signal_keys.is_page_only``).
+  A card phase has no record for carries no ident at all, so it drops off a
+  pattern-free page: of the permanents-entering makers, Oko, Lord of the Fae;
+  Flourishing Forces; Enter the Eternities; Quintorius, Fate Splitter; Potential
+  Horizon; Searing Soloist; Plunderer's Prize; of the token makers and counter
+  placers, the same Oko, Flourishing Forces and Quintorius; Rootha, Ardent
+  Artisan (sacrifice outlets); Change the Narrative (cost reducers); Nylea's
+  Oracle (go-wide anthems); Avoided Stairwurm (Enlist fodder, Ability-strip
+  targets). The ledger rows that gate on a node's absence (Estrid's
+  Invocation, both rows; Venture Forth; Hide in Plain Sight; the
+  typeless reanimations; the dropped return costs; Catastrophe's creature
+  branch; the where-X player burns; Commence the Endgame's amass; Widespread
+  Brutality's Army bite; Jin Sakai's modes) retire only through
+  ``test_bridge_ledger``'s "already served" guard, not their own gap.
+  Rules that stand: serves were written to credit a deck's own cards, so each
+  OR arm admits a card on its own; ``tests/deck-forge/test_serve_arm_guards.py``
+  pins each structured arm on a page serve to a real card and a near miss, and a
+  new arm needs a row. An IR hit whose emitting unit decides no role
+  (``ranking._unit_role``) is read by lining the unit's text up with an oracle
+  clause, then that clause with a compat ability (``ranking._hit_clauses``):
+  reading the payoff test off the unit itself would drop both text alignments,
+  and would give a role to the hits no single ability emits (a keyword's
+  lifelink, Crucible of Worlds' whole-card ident, a modal spell's text-less
+  mode), which still score structural.
+  What the keyword pages dropped (2026-10-26, each class rules-checked): a card
+  naming the keyword to fight it (a removal or block rider, "without", "loses",
+  flying's reminder "except by creatures with flying or reach" on the reach page,
+  CR 702.9b); "as though it had flash" or "… didn't have defender" adds no
+  ability (CR 113.10: an added ability "gains" or "has" it — 74 flash enablers),
+  though a static letting other creatures attack as though they didn't have
+  defender is a defender payoff (``crosswalk.lets_defenders_attack``, CR
+  702.3b — High Alert; a creature letting only itself attack, Backstreet
+  Bruiser, is not); shroud or hexproof on a player (CR 702.18a / 702.11c); a
+  grant of defender onto another creature, yours or not (Guard Duty, Stasis
+  Field; Peregrine Mask, Dormant Sliver) is the drawback ``_DRAWBACK_GRANT_KW``
+  names, where a body with defender the card is or makes counts
+  (``crosswalk.made_keyword_bodies``: a Wall token, Primal Clay, Guardian
+  Zendikon's land); a Vibranium token is a noncreature artifact (no body); a
+  keyword-variety payoff (Akroma, Vision of Ixidor; Odric, Blood-Cursed) or a
+  keyword-sorting dig (Selective Adaptation) is no one keyword's; a card or
+  ability name (Fear Ray, Shadow the Hedgehog, Undying Flames). A keyword tutor
+  of your own library pages its keyword (Mystical Teachings, Isperia,
+  Mwonvuli Beast Tracker). A token any player may create is no body the card
+  makes for you (Basalt Golem's Wall is the blocker's controller's, CR 111.2).
+  Don't re-suggest: an enters drawback (Phage, the sacrifice-unless lands), an
+  Equipment's auto-attach, a token or search another player gets (the Hunted
+  cycle, gift, Path to Exile) and a card putting only itself are no
+  permanents-entering member; the Emergence Auras' "that land gains
+  indestructible" replacement (CR 614.1a) guards only the land they animate,
+  the animator's own payoff like Kamahl's Will, not land protection; an
+  untargeted edict ("each opponent sacrifices" — Liliana's Triumph, Grave Pact)
+  commits no crime (CR 700.13: a crime targets); a land-creature anthem or
+  token maker (Sylvan Advocate, Jyoti) and a land already a creature (Dryad
+  Arbor) animate no land, so the land-animation preset leaves them out (13
+  cards); a coin-flip-gated self-exile-and-return (Frenetic Sliver) is a blink
+  though the effect walk drops it as the card's own drawback, but one returning
+  the card transformed (Ral, Monsoon Mage) is the transform vehicle. What the
+  second pass dropped from the pages, each class adjudicated: an upkeep "sacrifice
+  it unless you pay" is the card's restriction (``self_drawback|you|restriction``),
+  not harm a donate deck hands over (76 cards), and a pact, an extra-turn spell
+  or another instant or sorcery is no permanent to donate; a self-mill on a card
+  that reads its graveyard is fuel (Splinterfright, Sidisi), not harm; a payoff
+  for damage dealt to you, a Phyrexian Arena's paid draw and a curse on another
+  permanent are no drawback; a creature that untaps only itself, a
+  {Q} cost, a threaten's untap and a "doesn't untap" static are no untap effect
+  (294 cards); a debuff Aura ("enchanted creature gets -N/-N") is removal, and
+  an Equipment payoff or equip-cost reducer is ``voltron_matters``' page, not
+  gear; a creature giving itself double strike, and "that much damage" counting
+  something other than damage dealt, amplify nothing; a symmetric draw, token,
+  tutor or Food is no symmetric mana; a sacrifice-cost drain (Anje, Glass-Cast
+  Heart) is the aristocrats outlet, not a token-leaves drain, and a drain on the
+  token a card makes is that token's; a curse watching its enchanted player's
+  creatures enter punishes them, not a creature-ETB payoff of yours. What the
+  third pass dropped from the tribe pages (``/rules-lawyer``, 2026-10-25): a
+  protection from the tribe guards its holder (CR 702.16b/e); a targeted
+  removal (CR 115.1) that can't hit the tribe spares no board (Victim of
+  Night), while an untargeted mass effect (CR 115.10) or an every-player edict
+  that leaves the tribe out rewards a board of it — the lane's call (Eyeblight
+  Massacre, Kindred Dominance, Call to the Grave) — and pages on both the
+  tribe and its payoffs; a Siege's
+  "Dragons" is an anchor word with no tie to the type (its ruling, CR 607.2m);
+  a party counts one Wizard (CR 700.8); a four-material craft (Throne of the
+  Grim Captain, CR 702.167a), a named card (conjured, tutored) and an
+  opponent's tokens of the tribe are no tribe's; a token maker of the tribe
+  is its main page's, not a payoff. Merging ``creature_etb|you|punish`` into
+  ``typed_enters_punish`` doesn't hold: 17 cards carry both, but each keeps
+  cards the other rightly lacks (a landfall or artifact-entering burn there; a
+  drain or a creature-entering burn here), and the ETB-payoff page reads both.
+  (l) **Tune speed, what's left** (2026-10-26, after the third speed pass: a
+  warm Blood Rites / Eldrazi Unbound / Sliver Swarm `deck-tune` 2.3-2.6 /
+  2.5-2.9 / 3.1-3.5 → 1.7-2.0 / 2.0 / 2.1 s; the 25 precons' warm tunes, each a
+  fresh process, 2.04 / 2.49 → 1.66 / 2.02 s median / max; the precon audit 23 s
+  warm, 1.25 GB peak, its output identical). Settled 2026-10-31 late night: a
+  warm thirty-swap tune reads 2.8 / 2.8 / 3.0 s on those three decks after the
+  need pages, the quality and strength reads and the multiplier need (which cost
+  1.5-3 s until its signal-key gate and per-commander memo); the swap phase's
+  page scans remain the cost, and no further speed pass is planned — re-open on
+  a warm tune past 5 s. Before that: the CLI is now Spellbook's:
+  it asks at 0.4 s (after the deck's names: `acquire_for_cli` loads the pool
+  index, 0.3 s) and the answer lands at 1.1-1.7 s, while the deck reads are done
+  by 1.0 s — what's left behind the answer is the swap phase (0.5 s), whose page
+  scans read every card of the gated slice once a page (~32k cards x 16 pages
+  for a five-colour deck: 0.5 s; Blood Rites 0.2 s), each through one shared
+  `CardView`; the per-card cost left is Python's (`_matches_card`, then
+  `Serve.matches`' arms). Measured verdicts, don't re-suggest: **a Spellbook
+  cache** — a cached answer can't equal a live one: 25 of 25 precon answers
+  changed `popularity` / `prices` within 40 h (popularity orders the near-misses
+  and is in the output), `find-my-combos` sends no ETag or version, and the bulk
+  export's ETag dates the export, not the live database; so the CLI asks before
+  it loads anything else (`deck_tune`), which took the wait off the warm CLI.
+  **`is_wincon_card`'s trees** — 2-16 ms a warm tune, no builds (the trees store
+  serves them). **The mirror classes** (0.28 s) — `mirror/__init__` no longer
+  re-exports the loader, so nothing imports them before the first tree is built
+  or unpickled: a CLI pays them inside Spellbook's wait, a tune still pays them;
+  only a codegen emitting plain classes would cut them, and `dataclasses.fields`
+  / `replace` read the nodes. **The crosswalk JSON** — read through a span index
+  (`<sidecar>.spans.pkl`), 0.12 → 0.02 s. **The import-closure walks** used
+  `find_spec`, which imported every parent (0.45 s, the mirror among them); they
+  resolve names off `sys.modules` and the path finder now, once a process. **The
+  two-face trees memo** — bulk-face reads have their own memo
+  (`trees._BULK_TREES_MEMO`), so neither read depends on the order and
+  `card_reads` / the store need no special case; the 25 precon tunes and the
+  audit were unchanged by it. Earlier verdicts: the per-card reads in
+  `_analysis/card_reads` stay beside the trees store — reading the four light
+  ones (mana, gate, has-trees, self-return) live off stored trees cost a warm
+  tune 0.1 / 0.5 / 0.4 s (Blood Rites / Eldrazi Unbound / Sliver Swarm); the
+  trees store moves a warm tune by nothing measurable but a cold one, with no
+  sidecars attached, by ~0.5 s of its ~1 s of builds; a stored tree carries none
+  of the memos reads leave on its nodes (`crosswalk.reads.MEMO_ATTR_PREFIX`;
+  `_owner_index` is keyed by node ids); a per-serve slice memo (no gain, two
+  serve pages a tune); the collector off for the whole tune (a tune may start
+  the signals index's whole-pool build, which makes ~50 cyclic objects a card —
+  the tune collects at a 100,000 young threshold instead, measured as fast).
 
 - **The tuner plan of 2026-10-30 and every lever measured after it — settled**
   (2026-10-30 to 31; `docs/plans/tuner-plan-2026-10-30.md` "Progress" and

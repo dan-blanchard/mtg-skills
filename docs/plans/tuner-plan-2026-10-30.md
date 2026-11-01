@@ -191,6 +191,16 @@ miss taxonomy, the held-out candidates).
   ungated T1 rows, which `git apply --3way` had left staged and the N6 docs
   commit swept in; reverted in 6506fc8f. Lesson: reset the index after applying
   a measurement patch.)
+- 2026-11-01, the second lane pass (eleven fixes by a second worktree agent:
+  edicts read through granted, looped, parked and targeted-set sacrifices;
+  granted / connive / aftermath draws as engines; proliferate payoffs; Vecna's
+  token off the tribe pages; the "target and everything attached to it" shape;
+  parked defending-player damage as life loss; boons as enters payloads; an
+  attacker debuff; a pick from each graveyard; five recovery marks; the Light of
+  Judgment veto; emblems settled as filling no slot) re-based as N8 against N7b:
+  flat — held-out adds +1 (100), plan −1 (263), job-equivalents 48; the 25
+  unchanged at 734 / 339 / 118, plan 349, two near-misses more — **baseline N8**
+  (`w41/sb-*-N8.json`; the audit's "The second lane pass, re-based").
 
 ## Target
 
