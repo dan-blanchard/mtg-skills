@@ -73,6 +73,9 @@ _REASON_TO_CR_RULES: dict[str, tuple[str, ...]] = {
     # Same rule covers "designation didn't resolve to a real card", but the
     # immediate fix is tooling (typo, stale cache) rather than rules.
     "commander_not_in_hydrated": ("903.6",),
+    # 903.3: a commander is a legendary creature, Vehicle or Spacecraft card (with
+    # power/toughness); 903.3a: or a card whose text says it can be your commander.
+    "not_a_commander": ("903.3", "903.3a"),
     # 103.2b: a player may reveal at most one companion.
     "companion_multiple": ("103.2b",),
     # 702.139a: companion is a keyword ability — the revealed card must have it.
@@ -141,6 +144,10 @@ def _commander_color_identity(
 #: The commander-zone failures that leave the deck with no commander identity, so
 #: the color-identity check would blame every colored card.
 _EMPTY_ZONE_REASONS = frozenset({"no_commander_selected", "commander_not_in_hydrated"})
+#: The ``Format.commander_eligibility`` reasons the zone check reports: the card is
+#: in the format but can't lead. A status that bars the card from the format
+#: altogether is the format-legality check's.
+_ZONE_INELIGIBLE_REASONS = frozenset({"banned_as_commander", "not_a_commander"})
 
 
 def check_commander_zone(
@@ -177,10 +184,13 @@ def check_commander_zone(
     flagged here — the distinction is "name resolves" vs "name doesn't
     resolve", not "identity is empty".
 
-    A third failure, once every commander resolves: ``banned_as_commander``,
-    one violation per commander the format bars from the command zone though
-    it is legal in the 99 (``Format.legality``). Its identity is real, so it
-    doesn't cascade (:data:`_EMPTY_ZONE_REASONS`).
+    A third failure, once every commander resolves: one violation per commander
+    the format admits in the 99 but not in the command zone —
+    ``banned_as_commander`` (the format's list, ``Format.legality``) or
+    ``not_a_commander`` (the card itself can't lead, CR 903.3: a nonlegendary
+    creature, an ordinary legendary artifact, a Commander-format planeswalker
+    without "can be your commander"). Its identity is real, so it doesn't
+    cascade (:data:`_EMPTY_ZONE_REASONS`).
     """
     if not fmt.has_commander:
         return []
@@ -200,14 +210,20 @@ def check_commander_zone(
                     "unresolved_names": unresolved,
                 }
             ]
-        # A card legal in the 99 but banned as a commander (Competitive Brawl) passes
-        # the format-legality check, so the zone check is where it fails.
+        # A card legal in the 99 that can't lead the deck passes the format-legality
+        # check, so the zone check is where it fails: banned as a commander
+        # (Competitive Brawl's list) or no commander by its own card (CR 903.3: not
+        # a legendary creature, Vehicle or Spacecraft with power/toughness, and no
+        # "can be your commander" text, CR 903.3a). A card the format bars outright
+        # (``banned`` / ``not_legal``) is the format-legality check's violation,
+        # not repeated here.
         cards = [hydrated_by_name[entry["name"]] for entry in commanders]
-        return [
-            {"reason": "banned_as_commander", "name": card["name"]}
-            for card in cards
-            if fmt.commander_eligibility(card).get("reason") == "banned_as_commander"
-        ]
+        out = []
+        for card in cards:
+            reason = fmt.commander_eligibility(card).get("reason")
+            if reason in _ZONE_INELIGIBLE_REASONS:
+                out.append({"reason": reason, "name": card["name"]})
+        return out
     return []
 
 
@@ -612,6 +628,8 @@ def _format_violation_line(
                 )
             elif v_reason == "banned_as_commander":
                 names.append(f"{v['name']} (banned as a commander)")
+            elif v_reason == "not_a_commander":
+                names.append(f"{v['name']} (can't be a commander)")
             else:
                 names.append(
                     "no commander selected — run set-commander to populate "

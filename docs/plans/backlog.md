@@ -8,12 +8,6 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
 
 **From the Jace, Multiverse Architect precon tune (2026-10-17)**
 
-- **`scryfall-lookup --batch` without `--bulk-data` dies on one Scryfall 503.** A
-  name the local pool can't resolve (or every name, when no `--bulk-data` is
-  passed) goes to `fetch_card`, and one `HTTPError` aborts the whole batch with a
-  traceback instead of landing in the envelope's `missing`. Catch the per-name
-  network failure in `lookup_single`'s batch loop and report it as missing; keep
-  the hard exit for a bulk that can't be read at all.
 - **The tuner plan of 2026-10-30** (`docs/plans/tuner-plan-2026-10-30.md`, from
   the review in `docs/plans/tuner-holistic-review-2026-10-30.md`) is carried out:
   the need read and its metrics, need pages by cut routing, the specificity-first
@@ -641,14 +635,6 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   serve pages a tune); the collector off for the whole tune (a tune may start
   the signals index's whole-pool build, which makes ~50 cyclic objects a card —
   the tune collects at a 100,000 young threshold instead, measured as fast).
-
-- **`legality-audit` never asks whether a commander can be one** (2026-10-29).
-  `check_commander_zone` fails only a card `Format.commander_eligibility` calls
-  `banned_as_commander` (Competitive Brawl's list); a `not_a_commander` card (a
-  nonlegendary creature, a Commander-format planeswalker without "can be your
-  commander") in the command zone passes the audit. Failing every ineligible
-  reason there (format legality already reports `banned` / `not_legal`) is the
-  general fix; check the synthetic commander fixtures first.
 
 - **Pass D: the serves still on a regex** (2026-10-23;
   `docs/plans/serve-idents-and-avenue-support.md` "Pass D"; each spec's comment

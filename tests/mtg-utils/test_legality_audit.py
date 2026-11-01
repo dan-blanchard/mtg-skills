@@ -1053,6 +1053,27 @@ class TestCompetitiveBrawl:
         hb = legality_audit(_hd({**deck, "format": "historic_brawl"}, hydrated))
         assert hb["violations"]["commander_zone"] == []
 
+    def test_a_card_that_cannot_be_a_commander_cannot_lead(self):
+        # Mana Drain is legal in Commander but no commander (CR 903.3: not a
+        # legendary creature, Vehicle or Spacecraft; no "can be your commander"
+        # text, 903.3a). Format legality passes it; the zone check fails it, and
+        # its identity is real, so the color-identity check still runs.
+        deck = {
+            "format": "commander",
+            "commanders": [{"name": "Mana Drain", "quantity": 1}],
+            "cards": [{"name": "Sol Ring", "quantity": 1}],
+            "total_cards": 2,
+        }
+        hydrated = [_real("Mana Drain"), _real("Sol Ring")]
+        result = legality_audit(_hd(deck, hydrated))
+        assert result["overall_status"] == "FAIL"
+        assert result["violations"]["format_legality"] == []
+        assert result["violations"]["commander_zone"] == [
+            {"reason": "not_a_commander", "name": "Mana Drain"}
+        ]
+        assert result["violations"]["color_identity"] == []
+        assert "Mana Drain (can't be a commander)" in render_text_report(result)
+
     def test_end_to_end_audit_passes_with_a_brawl_banned_card(self):
         cmd = _real("Thranduil, the Elvenking")
         drain = _real("Mana Drain")
