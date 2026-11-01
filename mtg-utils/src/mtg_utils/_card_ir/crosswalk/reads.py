@@ -3479,7 +3479,9 @@ def _shrinks_the_pumped_target(ability_like: object, flip: object) -> bool:
     "it" (:data:`_FLIP_ANAPHOR_TAGS`) while the flip's other outcome pumps a
     creature it targets up — the one creature the ability chose."""
     eff = getattr(ability_like, "effect", None)
-    if tag_of(eff) != "Pump" or not pump_is_negative(eff):
+    if not isinstance(eff, TypedMirrorNode) or tag_of(eff) != "Pump":
+        return False
+    if not pump_is_negative(eff):
         return False
     if tag_of(getattr(eff, "target", None)) not in _FLIP_ANAPHOR_TAGS:
         return False
@@ -3489,7 +3491,8 @@ def _shrinks_the_pumped_target(ability_like: object, flip: object) -> bool:
             continue
         buff = getattr(other, "effect", None)
         if (
-            tag_of(buff) == "Pump"
+            isinstance(buff, TypedMirrorNode)
+            and tag_of(buff) == "Pump"
             and not pump_is_negative(buff)
             and tag_of(getattr(buff, "target", None)) in OBJECT_FILTER_TAGS
         ):
