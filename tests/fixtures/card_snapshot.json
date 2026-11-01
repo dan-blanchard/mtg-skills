@@ -436058,6 +436058,202 @@
     "type_line": "Sorcery"
    }
   },
+  "Fateful Showdown": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "~ deals damage to any target equal to the number of cards in your hand. Discard all the cards in your hand, then draw that many cards.",
+       "duration": null,
+       "effect": {
+        "amount": {
+         "qty": {
+          "player": {
+           "type": "Controller"
+          },
+          "type": "HandSize"
+         },
+         "type": "Ref"
+        },
+        "target": {
+         "type": "Any"
+        },
+        "type": "DealDamage"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "count": {
+          "qty": {
+           "player": {
+            "type": "Controller"
+           },
+           "type": "HandSize"
+          },
+          "type": "Ref"
+         },
+         "target": {
+          "type": "Controller"
+         },
+         "type": "Discard"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "count": {
+           "qty": {
+            "type": "EventContextAmount"
+           },
+           "type": "Ref"
+          },
+          "target": {
+           "type": "Controller"
+          },
+          "type": "Draw"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": null,
+         "target_prompt": null
+        },
+        "sub_link": "SequentialSibling",
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Instant"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Red"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 2,
+      "shards": [
+       "Red",
+       "Red"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "a19d5bdd-7f45-4ff1-bd1a-ac4e87572bcb"
+      ]
+     },
+     "name": "Fateful Showdown",
+     "non_ability_text": null,
+     "oracle_text": "Fateful Showdown deals damage to any target equal to the number of cards in your hand. Discard all the cards in your hand, then draw that many cards.",
+     "power": null,
+     "printings": [
+      "KLD",
+      "KLR",
+      "PKLD"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2016-09-20",
+       "text": "If Fateful Showdown's target becomes an illegal target, you won't discard your hand or draw any cards."
+      },
+      {
+       "date": "2016-09-20",
+       "text": "The number of cards in your hand is counted only as Fateful Showdown resolves. Fateful Showdown is on the stack at this time, so it's not counted."
+      },
+      {
+       "date": "2018-01-19",
+       "text": "There are many important moments in the story, but the most crucial—called “story spotlights”—are shown on cards. These cards have the Planeswalker symbol in their text box; this symbol has no effect on gameplay. You can read more about these events in the official Magic fiction at http://www.mtgstory.com."
+      }
+     ],
+     "scryfall_oracle_id": "729b7ce8-7e7f-4db9-b3ce-67aba46a7b0d",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 4.0,
+    "color_identity": [
+     "R"
+    ],
+    "colors": [
+     "R"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}{R}{R}",
+    "name": "Fateful Showdown",
+    "oracle_id": "729b7ce8-7e7f-4db9-b3ce-67aba46a7b0d",
+    "oracle_text": "Fateful Showdown deals damage to any target equal to the number of cards in your hand. Discard all the cards in your hand, then draw that many cards.",
+    "type_line": "Instant"
+   }
+  },
   "Fatespinner": {
    "phase_records": [
     {
@@ -748521,6 +748717,183 @@
     "type_line": "Enchantment"
    }
   },
+  "Metalworker": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": {
+        "type": "Tap"
+       },
+       "description": "{T}: Reveal any number of artifact cards in your hand. Add {C}{C} for each card revealed this way.",
+       "duration": null,
+       "effect": {
+        "card_filter": {
+         "type": "None"
+        },
+        "count": null,
+        "reveal": true,
+        "target": {
+         "type": "Any"
+        },
+        "type": "RevealHand"
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "produced": {
+          "count": {
+           "factor": 2,
+           "inner": {
+            "qty": {
+             "filter": {
+              "controller": null,
+              "properties": [],
+              "type": "Typed",
+              "type_filters": [
+               "Card"
+              ]
+             },
+             "type": "FilteredTrackedSetSize"
+            },
+            "type": "Ref"
+           },
+           "type": "Multiply"
+          },
+          "type": "Colorless"
+         },
+         "type": "Mana"
+        },
+        "forward_result": false,
+        "is_mana_ability": true,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "sub_link": "SequentialSibling",
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Artifact",
+       "Creature"
+      ],
+      "subtypes": [
+       "Construct"
+      ],
+      "supertypes": []
+     },
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "premodern": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 3,
+      "shards": [],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "10f6e07b-36c1-429b-a857-ada8c643556c"
+      ]
+     },
+     "name": "Metalworker",
+     "non_ability_text": null,
+     "oracle_text": "{T}: Reveal any number of artifact cards in your hand. Add {C}{C} for each card revealed this way.",
+     "power": {
+      "type": "Fixed",
+      "value": 1
+     },
+     "printings": [
+      "PRM",
+      "UDS",
+      "WC00"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2004-10-04",
+       "text": "This is a mana ability. It does not go on the stack and can’t be responded to."
+      },
+      {
+       "date": "2004-10-04",
+       "text": "You can reveal zero cards to gain zero mana."
+      }
+     ],
+     "scryfall_oracle_id": "9ed9accb-9f0c-40fa-aeea-2d1e1c9d1bd1",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 2
+     },
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 3.0,
+    "color_identity": [],
+    "colors": [],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{3}",
+    "name": "Metalworker",
+    "oracle_id": "9ed9accb-9f0c-40fa-aeea-2d1e1c9d1bd1",
+    "oracle_text": "{T}: Reveal any number of artifact cards in your hand. Add {C}{C} for each card revealed this way.",
+    "power": "1",
+    "produced_mana": [
+     "C"
+    ],
+    "toughness": "2",
+    "type_line": "Artifact Creature — Construct"
+   }
+  },
   "Metamorphic Alteration": {
    "phase_records": [
     {
@@ -968583,6 +968956,184 @@
     "power": "2",
     "toughness": "2",
     "type_line": "Creature — Ooze"
+   }
+  },
+  "Scent of Ivy": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Reveal any number of green cards in your hand. Target creature gets +X/+X until end of turn, where X is the number of cards revealed this way.",
+       "duration": null,
+       "effect": {
+        "card_filter": {
+         "type": "None"
+        },
+        "count": null,
+        "reveal": true,
+        "target": {
+         "type": "Any"
+        },
+        "type": "RevealHand"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": "UntilEndOfTurn",
+        "effect": {
+         "power": {
+          "type": "Quantity",
+          "value": {
+           "qty": {
+            "filter": {
+             "controller": null,
+             "properties": [],
+             "type": "Typed",
+             "type_filters": [
+              "Card"
+             ]
+            },
+            "type": "FilteredTrackedSetSize"
+           },
+           "type": "Ref"
+          }
+         },
+         "target": {
+          "controller": null,
+          "properties": [],
+          "type": "Typed",
+          "type_filters": [
+           "Creature"
+          ]
+         },
+         "toughness": {
+          "type": "Quantity",
+          "value": {
+           "qty": {
+            "filter": {
+             "controller": null,
+             "properties": [],
+             "type": "Typed",
+             "type_filters": [
+              "Card"
+             ]
+            },
+            "type": "FilteredTrackedSetSize"
+           },
+           "type": "Ref"
+          }
+         },
+         "type": "Pump"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "sub_link": "SequentialSibling",
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Instant"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Green"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "pauper": "legal",
+      "paupercommander": "legal",
+      "premodern": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 0,
+      "shards": [
+       "Green"
+      ],
+      "type": "Cost"
+     },
+     "name": "Scent of Ivy",
+     "non_ability_text": null,
+     "oracle_text": "Reveal any number of green cards in your hand. Target creature gets +X/+X until end of turn, where X is the number of cards revealed this way.",
+     "power": null,
+     "printings": [
+      "UDS"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2004-10-04",
+       "text": "You reveal cards, and thereby set the value of X, on resolution."
+      }
+     ],
+     "scryfall_oracle_id": "b6db81e5-b7ca-45dc-a72d-1ff12935a3e4",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 1.0,
+    "color_identity": [
+     "G"
+    ],
+    "colors": [
+     "G"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "legal",
+     "paupercommander": "legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{G}",
+    "name": "Scent of Ivy",
+    "oracle_id": "b6db81e5-b7ca-45dc-a72d-1ff12935a3e4",
+    "oracle_text": "Reveal any number of green cards in your hand. Target creature gets +X/+X until end of turn, where X is the number of cards revealed this way.",
+    "type_line": "Instant"
    }
   },
   "Scheming Aspirant": {

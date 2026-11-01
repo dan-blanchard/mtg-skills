@@ -253,6 +253,21 @@ def test_combat_and_damage_reads(name, ident, has):
 @pytest.mark.parametrize(
     ("name", "ident", "has"),
     [
+        # a count of the cards in your hand (CR 402.2)
+        ("Fateful Showdown", "big_hand_matters|you|", True),
+        # "reveal any number of green cards in your hand": a count of the cards
+        # you choose to reveal, not of your hand
+        ("Scent of Ivy", "big_hand_matters|you|", False),
+        ("Metalworker", "big_hand_matters|you|", False),
+    ],
+)
+def test_a_hand_count_is_your_hands_size(name, ident, has):
+    assert (ident in _idents(name)) is has
+
+
+@pytest.mark.parametrize(
+    ("name", "ident", "has"),
+    [
         # a trigger watching a creature of yours: that creature bites
         ("Halana, Kessig Ranger", "damage_equal_power|you|bite", True),
         # a batch of your creatures, each its own power

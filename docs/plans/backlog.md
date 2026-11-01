@@ -50,8 +50,7 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   the empower Jace token's scry / surveil (about thirty cards) is not walked; a
   clone that adds a keyword (Auton Soldier) and Mouth // Feed's aftermath count
   are missed; Smothering Tithe and Pyxis of Pandemonium sit in no stax /
-  opponent-graveyard lane; `big_hand_matters`' text arm still fires on "reveal
-  any number of X cards"; Dan Lewis's AddSubtype Equipment and Equipment
+  opponent-graveyard lane; Dan Lewis's AddSubtype Equipment and Equipment
   affinity. Left from the lane pass:
   `etb_value_x_recast_commander` (`pair_reads.py`) weights a scry-1 ETB like
   Shriekmaw now that `self_etb_payload` reads 4,333 cards. Phase gaps

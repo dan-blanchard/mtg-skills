@@ -1752,9 +1752,11 @@ def has_structural_big_hand_matters(tree: ConceptTree) -> bool:
 _BIG_HAND_MAKERS_SYNTH_RX = re.compile(
     r"no maximum hand size|maximum hand size", re.IGNORECASE
 )
+# Not "reveal any number of green cards in your hand" (Scent of Ivy, the Seers,
+# Metalworker): a count of the cards you choose to reveal, not of your hand.
 _BIG_HAND_MATTERS_SYNTH_RX = re.compile(
     r"(?:five|six|seven|eight) or more cards in (?:your )?hand"
-    r"|(?:equal to|number of) [^.]*cards in your hand",
+    r"|(?:equal to|(?<!any )number of) [^.]*cards in your hand",
     re.IGNORECASE,
 )
 
