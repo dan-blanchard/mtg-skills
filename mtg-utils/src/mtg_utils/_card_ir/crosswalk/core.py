@@ -65,6 +65,7 @@ from mtg_utils._card_ir.crosswalk.reads import (
     cost_mana_value,
     effect_children,
     filter_core_types,
+    iter_granted_triggers,
     iter_nested_granted_bodies,
     iter_static_defs,
     iter_typed_nodes,
@@ -689,6 +690,19 @@ class ConceptTree:
         for unit in self.units:
             if not origins or unit.origin in origins:
                 yield unit
+
+    def iter_units_and_granted_triggers(self) -> Iterator[AbilityUnit]:
+        """The card's ability units, each followed by a unit of its own for every
+        trigger it grants (``reads.iter_granted_triggers`` — CR 113.1a:
+        "Abilities can also be granted to objects by rules or effects"), built by
+        :func:`trigger_def_unit`: "Equipped creature has 'At the beginning of
+        your upkeep, draw a card'" (Avarice Amulet) reads like a printed upkeep
+        trigger. An emblem's trigger is no grant: an ultimate's emblem fills no
+        slot the card plays in (the tutor read's footing)."""
+        for unit in self.units:
+            yield unit
+            for granted in iter_granted_triggers(unit):
+                yield trigger_def_unit(granted.trigger)
 
     def iter_typed(self) -> Iterator[TypedMirrorNode]:
         """Every typed mirror node under every unit — the whole-card deep walk."""

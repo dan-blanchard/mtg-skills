@@ -34,9 +34,6 @@ def _keyed(name: str, *keys: str) -> set[tuple[str, str, str]]:
         # a granted "Whenever this creature deals combat damage to a player, that
         # player sacrifices a creature of their choice" (read like a printed one)
         ("Demon of Wailing Agonies", "each"),
-        # an emblem's "At the beginning of each opponent's upkeep, that player
-        # sacrifices a creature of their choice"
-        ("Sorin, Solemn Visitor", "opponents"),
         # the secretly chosen creature's sacrifice (a ledgered bridge)
         ("Malik, Grim Manipulator", "opponents"),
     ],
@@ -61,3 +58,63 @@ def test_a_forced_sacrifice_is_an_edict(name, scope):
 def test_a_keep_n_wrath_stays_off_the_edict_page(name):
     assert not _keyed(name, "edict_makers")
     assert _keyed(name, "keep_n_wrath")
+
+
+def test_an_emblems_edict_is_no_edict():
+    """Sorin, Solemn Visitor's -6 emblem: "At the beginning of each opponent's
+    upkeep, that player sacrifices a creature of their choice." An ultimate's
+    emblem fills no slot the card plays in (the tutor read's footing)."""
+    assert not _keyed("Sorin, Solemn Visitor", "edict_makers")
+
+
+# ── card_draw_engine / opponent_draw_matters ─────────────────────────────────
+
+
+@pytest.mark.parametrize(
+    ("name", "scope"),
+    [
+        # Equipped creature has "At the beginning of your upkeep, draw a card."
+        ("Avarice Amulet", "you"),
+        # Enchanted creature has "Whenever this creature deals combat damage to a
+        # player, draw a card."
+        ("Combat Research", "you"),
+        # "target attacking creature connives X, where X is the number of
+        # attacking creatures" (CR 701.50d: draws X cards)
+        ("Raffine, Scheming Seer", "you"),
+        # aftermath halves phase emits no record for (ledgered)
+        ("Spring // Mind", "you"),
+        ("Leave // Chance", "you"),
+        ("Commit // Memory", "each"),
+    ],
+)
+def test_a_granted_trigger_connive_x_or_aftermath_draw_is_a_draw_engine(name, scope):
+    assert ("card_draw_engine", scope, "") in _idents(name)
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        # a connive of one each trigger is a loot, not bulk draw
+        "Ledger Shredder",
+        # Ral's draw two rides only the -8 emblem: an ultimate's emblem fills no
+        # draw slot (the tutor read's footing)
+        "Ral, Izzet Viceroy",
+    ],
+)
+def test_a_single_connive_or_an_emblem_draw_is_no_draw_engine(name):
+    assert not _keyed(name, "card_draw_engine")
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        # "Whenever enchanted player draws a card, they lose 2 life and you gain
+        # 2 life"
+        "Curse of Fool's Wisdom",
+        # Enchant opponent / "Whenever enchanted opponent draws a card, you may
+        # draw a card"
+        "Psychic Possession",
+    ],
+)
+def test_an_enchanted_opponents_draw_watcher_is_an_opponent_draw_payoff(name):
+    assert ("opponent_draw_matters", "opponents", "") in _idents(name)

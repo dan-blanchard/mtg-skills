@@ -104882,6 +104882,271 @@
     "type_line": "Creature — Elephant Warrior"
    }
   },
+  "Avarice Amulet": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "ability_tag": {
+        "type": "Equip"
+       },
+       "activation_restrictions": [
+        {
+         "type": "AsSorcery"
+        }
+       ],
+       "condition": null,
+       "cost": {
+        "cost": {
+         "generic": 2,
+         "shards": [],
+         "type": "Cost"
+        },
+        "type": "Mana"
+       },
+       "description": "Equip {2}",
+       "duration": null,
+       "effect": {
+        "selection": {
+         "at_resolution": {}
+        },
+        "target": {
+         "controller": "You",
+         "properties": [],
+         "type": "Typed",
+         "type_filters": [
+          "Creature"
+         ]
+        },
+        "type": "Attach"
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Artifact"
+      ],
+      "subtypes": [
+       "Equipment"
+      ],
+      "supertypes": []
+     },
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 4,
+      "shards": [],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "ec56727f-6280-4625-96b9-9b599af0dada"
+      ]
+     },
+     "name": "Avarice Amulet",
+     "non_ability_text": null,
+     "oracle_text": "Equipped creature gets +2/+0 and has vigilance and \"At the beginning of your upkeep, draw a card.\"\nWhenever equipped creature dies, target opponent gains control of this Equipment.\nEquip {2} ({2}: Attach to target creature you control. Equip only as a sorcery.)",
+     "power": null,
+     "printings": [
+      "M15"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "4c71074b-b8bf-47f4-87e4-67c275abdbc5",
+     "static_abilities": [
+      {
+       "active_zones": [],
+       "affected": {
+        "controller": null,
+        "properties": [
+         {
+          "type": "EquippedBy"
+         }
+        ],
+        "type": "Typed",
+        "type_filters": [
+         "Creature"
+        ]
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": null,
+       "description": "Equipped creature gets +2/+0 and has vigilance and \"At the beginning of your upkeep, draw a card.\"",
+       "effect_zone": null,
+       "mode": "Continuous",
+       "modifications": [
+        {
+         "type": "AddPower",
+         "value": 2
+        },
+        {
+         "type": "AddToughness",
+         "value": 0
+        },
+        {
+         "trigger": {
+          "batched": false,
+          "condition": null,
+          "constraint": {
+           "type": "OnlyDuringYourTurn"
+          },
+          "damage_kind": "Any",
+          "description": "At the beginning of your upkeep, draw a card.",
+          "destination": null,
+          "execute": {
+           "condition": null,
+           "cost": null,
+           "description": null,
+           "duration": null,
+           "effect": {
+            "count": {
+             "type": "Fixed",
+             "value": 1
+            },
+            "target": {
+             "type": "Controller"
+            },
+            "type": "Draw"
+           },
+           "forward_result": false,
+           "kind": "Spell",
+           "optional": false,
+           "optional_targeting": false,
+           "sub_ability": null,
+           "target_prompt": null
+          },
+          "mode": "Phase",
+          "optional": false,
+          "origin": null,
+          "phase": "Upkeep",
+          "secondary": false,
+          "trigger_zones": [
+           "Battlefield"
+          ],
+          "valid_card": null,
+          "valid_source": null,
+          "valid_target": null
+         },
+         "type": "GrantTrigger"
+        },
+        {
+         "keyword": "Vigilance",
+         "type": "AddKeyword"
+        }
+       ]
+      }
+     ],
+     "toughness": null,
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever equipped creature dies, target opponent gains control of ~.",
+       "destination": "Graveyard",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "recipient": {
+          "controller": "Opponent",
+          "properties": [],
+          "type": "Typed",
+          "type_filters": []
+         },
+         "target": {
+          "type": "SelfRef"
+         },
+         "type": "GiveControl"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "ChangesZone",
+       "optional": false,
+       "origin": "Battlefield",
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "type": "AttachedTo"
+       },
+       "valid_source": null,
+       "valid_target": {
+        "type": "Player"
+       }
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 4.0,
+    "color_identity": [],
+    "colors": [],
+    "keywords": [
+     "Equip"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{4}",
+    "name": "Avarice Amulet",
+    "oracle_id": "4c71074b-b8bf-47f4-87e4-67c275abdbc5",
+    "oracle_text": "Equipped creature gets +2/+0 and has vigilance and \"At the beginning of your upkeep, draw a card.\"\nWhenever equipped creature dies, target opponent gains control of this Equipment.\nEquip {2} ({2}: Attach to target creature you control. Equip only as a sorcery.)",
+    "type_line": "Artifact — Equipment"
+   }
+  },
   "Avatar Aang": {
    "phase_records": [
     {
@@ -262542,6 +262807,250 @@
     "type_line": "Creature — Human Warrior"
    }
   },
+  "Combat Research": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Enchantment"
+      ],
+      "subtypes": [
+       "Aura"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Blue"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [
+      {
+       "Enchant": {
+        "controller": null,
+        "properties": [],
+        "type": "Typed",
+        "type_filters": [
+         "Creature"
+        ]
+       }
+      }
+     ],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 0,
+      "shards": [
+       "Blue"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "6c44738c-706f-40b2-a09d-b21cd0889049",
+       "f3135fcd-5132-48e2-8b63-ac4b71f09bd0"
+      ]
+     },
+     "name": "Combat Research",
+     "non_ability_text": null,
+     "oracle_text": "Enchant creature\nEnchanted creature has \"Whenever this creature deals combat damage to a player, draw a card.\"\nAs long as enchanted creature is legendary, it gets +1/+1 and has ward {1}. (Whenever enchanted creature becomes the target of a spell or ability an opponent controls, counter it unless that player pays {1}.)",
+     "power": null,
+     "printings": [
+      "DMU",
+      "PLST"
+     ],
+     "rarities": [
+      "uncommon"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2022-09-09",
+       "text": "Because the card-draw ability is granted to the creature, if an opponent takes control of the enchanted creature and it deals combat damage while they control it, that opponent will draw a card."
+      }
+     ],
+     "scryfall_oracle_id": "fbfd7f38-be9a-49bf-8769-79e1e7e8dfdc",
+     "static_abilities": [
+      {
+       "active_zones": [],
+       "affected": {
+        "controller": null,
+        "properties": [
+         {
+          "type": "EnchantedBy"
+         }
+        ],
+        "type": "Typed",
+        "type_filters": [
+         "Creature"
+        ]
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": null,
+       "description": "Enchanted creature has \"Whenever ~ deals combat damage to a player, draw a card.\"",
+       "effect_zone": null,
+       "mode": "Continuous",
+       "modifications": [
+        {
+         "trigger": {
+          "batched": false,
+          "condition": null,
+          "constraint": null,
+          "damage_kind": "CombatOnly",
+          "description": "Whenever ~ deals combat damage to a player, draw a card.",
+          "destination": null,
+          "execute": {
+           "condition": null,
+           "cost": null,
+           "description": null,
+           "duration": null,
+           "effect": {
+            "count": {
+             "type": "Fixed",
+             "value": 1
+            },
+            "target": {
+             "type": "Controller"
+            },
+            "type": "Draw"
+           },
+           "forward_result": false,
+           "kind": "Spell",
+           "optional": false,
+           "optional_targeting": false,
+           "sub_ability": null,
+           "target_prompt": null
+          },
+          "mode": "DamageDone",
+          "optional": false,
+          "origin": null,
+          "phase": null,
+          "secondary": false,
+          "trigger_zones": [
+           "Battlefield"
+          ],
+          "valid_card": null,
+          "valid_source": {
+           "type": "SelfRef"
+          },
+          "valid_target": {
+           "type": "Player"
+          }
+         },
+         "type": "GrantTrigger"
+        }
+       ]
+      },
+      {
+       "active_zones": [],
+       "affected": {
+        "controller": null,
+        "properties": [
+         {
+          "type": "EnchantedBy"
+         },
+         {
+          "type": "HasSupertype",
+          "value": "Legendary"
+         }
+        ],
+        "type": "Typed",
+        "type_filters": [
+         "Creature"
+        ]
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": null,
+       "description": "As long as enchanted creature is legendary, it gets +1/+1 and has ward {1}.",
+       "effect_zone": null,
+       "mode": "Continuous",
+       "modifications": [
+        {
+         "type": "AddPower",
+         "value": 1
+        },
+        {
+         "type": "AddToughness",
+         "value": 1
+        },
+        {
+         "keyword": {
+          "Ward": {
+           "data": {
+            "generic": 1,
+            "shards": [],
+            "type": "Cost"
+           },
+           "type": "Mana"
+          }
+         },
+         "type": "AddKeyword"
+        }
+       ]
+      }
+     ],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 1.0,
+    "color_identity": [
+     "U"
+    ],
+    "colors": [
+     "U"
+    ],
+    "keywords": [
+     "Enchant"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{U}",
+    "name": "Combat Research",
+    "oracle_id": "fbfd7f38-be9a-49bf-8769-79e1e7e8dfdc",
+    "oracle_text": "Enchant creature\nEnchanted creature has \"Whenever this creature deals combat damage to a player, draw a card.\"\nAs long as enchanted creature is legendary, it gets +1/+1 and has ward {1}. (Whenever enchanted creature becomes the target of a spell or ability an opponent controls, counter it unless that player pays {1}.)",
+    "type_line": "Enchantment — Aura"
+   }
+  },
   "Combo Attack": {
    "phase_records": [
     {
@@ -266287,6 +266796,240 @@
      "R"
     ],
     "type_line": "Land — Mountain Forest"
+   }
+  },
+  "Commit // Memory": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Put target spell or nonland permanent into its owner's library second from the top.",
+       "duration": null,
+       "effect": {
+        "count": {
+         "type": "Fixed",
+         "value": 1
+        },
+        "position": {
+         "n": 2,
+         "type": "NthFromTop"
+        },
+        "target": {
+         "filters": [
+          {
+           "type": "StackSpell"
+          },
+          {
+           "controller": null,
+           "properties": [],
+           "type": "Typed",
+           "type_filters": [
+            "Permanent",
+            {
+             "Non": "Land"
+            }
+           ]
+          }
+         ],
+         "type": "Or"
+        },
+        "type": "PutAtLibraryPosition"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Instant"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Blue"
+     ],
+     "color_override": null,
+     "defense": null,
+     "face_index": 0,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 3,
+      "shards": [
+       "Blue"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "06c9e2e8-2b4c-4087-9141-6aa25a506626",
+       "2fe1dcfb-c765-476f-bc5d-7904eaec00ba",
+       "855af9a8-31fc-4290-8204-04ee026f8853",
+       "ef94afa5-0110-4a12-bf37-c1d3310f52c4"
+      ]
+     },
+     "name": "Commit",
+     "non_ability_text": null,
+     "oracle_text": "Put target spell or nonland permanent into its owner's library second from the top.",
+     "power": null,
+     "printings": [
+      "AKH",
+      "AKR",
+      "LCC",
+      "NCC",
+      "PAKH",
+      "PLST"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2017-04-18",
+       "text": "A spell with aftermath cast from a graveyard will always be exiled afterward, whether it resolves, it's countered, or it leaves the stack in some other way."
+      },
+      {
+       "date": "2017-04-18",
+       "text": "All split cards have two card faces on a single card, and you put a split card onto the stack with only the half you're casting. The characteristics of the half of the card you didn't cast are ignored while the spell is on the stack. For example, if an effect prevents you from casting green spells, you can cast Destined of Destined // Lead, but not Lead."
+      },
+      {
+       "date": "2017-04-18",
+       "text": "Each split card has two names. If an effect instructs you to choose a card name, you may choose one, but not both."
+      },
+      {
+       "date": "2017-04-18",
+       "text": "Each split card is a single card. For example, if you discard one, you've discarded one card, not two. If an effect counts the number of instant and sorcery cards in your graveyard, Destined // Lead counts once, not twice."
+      },
+      {
+       "date": "2017-04-18",
+       "text": "If a copy of a spell or a token is put into its owner's library, it's moved there, then it will cease to exist as a state-based action."
+      },
+      {
+       "date": "2017-04-18",
+       "text": "If a spell is put into its owner's library, it's removed from the stack and thus will not resolve. The spell isn't countered; it just no longer exists. This works against a spell that can't be countered."
+      },
+      {
+       "date": "2017-04-18",
+       "text": "If another effect allows you to cast a split card with aftermath from a graveyard, you may cast either half. If you cast the half that has aftermath, you'll exile the card if it would leave the stack."
+      },
+      {
+       "date": "2017-04-18",
+       "text": "If another effect allows you to cast a split card with aftermath from any zone other than a graveyard, you can't cast the half with aftermath."
+      },
+      {
+       "date": "2017-04-18",
+       "text": "If the target's owner's library contains no cards, the target spell or permanent will be put into that player's library as the only card."
+      },
+      {
+       "date": "2017-04-18",
+       "text": "If you cast the first half of a split card with aftermath during your turn, you'll have priority immediately after it resolves. You can cast the half with aftermath from your graveyard before any player can take any other action if it's legal for you to do so."
+      },
+      {
+       "date": "2017-04-18",
+       "text": "Split cards with aftermath have a new frame treatment—the half you can cast from your hand is oriented the same as other cards you'd cast from your hand, while the half you can cast from your graveyard is a traditional split card half. This frame treatment is for your convenience and has no rules significance."
+      },
+      {
+       "date": "2017-04-18",
+       "text": "While not on the stack, the characteristics of a split card are the combination of its two halves. For example, Destined // Lead is a green and black card, it is both an instant card and a sorcery card, and its mana value is 6. This means that if an effect allows you to cast a card with mana value 2 from your hand, you can't cast Destined. This is a change from the previous rules for split cards."
+      },
+      {
+       "date": "2017-07-14",
+       "text": "Once you've started to cast a spell with aftermath from your graveyard, the card is immediately moved to the stack. Opponents can't try to stop the ability by exiling the card with an effect such as that of Crook of Condemnation."
+      }
+     ],
+     "scryfall_oracle_id": "56fd8895-3be2-4591-86fa-87567d9cdc14",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "card_faces": [
+     {
+      "colors": [
+       "U"
+      ],
+      "keywords": [
+       "Aftermath"
+      ],
+      "mana_cost": "{3}{U}",
+      "name": "Commit",
+      "oracle_text": "Put target spell or nonland permanent into its owner's library second from the top.",
+      "type_line": "Instant"
+     },
+     {
+      "colors": [
+       "U"
+      ],
+      "keywords": [
+       "Aftermath"
+      ],
+      "mana_cost": "{4}{U}{U}",
+      "name": "Memory",
+      "oracle_text": "Aftermath (Cast this spell only from your graveyard. Then exile it.)\nEach player shuffles their hand and graveyard into their library, then draws seven cards.",
+      "type_line": "Sorcery"
+     }
+    ],
+    "cmc": 10.0,
+    "color_identity": [
+     "U"
+    ],
+    "colors": [
+     "U"
+    ],
+    "keywords": [
+     "Aftermath"
+    ],
+    "layout": "aftermath",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{3}{U} // {4}{U}{U}",
+    "name": "Commit // Memory",
+    "oracle_id": "56fd8895-3be2-4591-86fa-87567d9cdc14",
+    "type_line": "Instant // Sorcery"
    }
   },
   "Communal Brewing": {
@@ -429685,6 +430428,229 @@
     "oracle_id": "927d74c4-afe0-4856-9a02-c3fca9535c2f",
     "oracle_text": "Farideh's Fireball deals 5 damage to target creature or planeswalker. Roll a d20.\n1—9 | Farideh's Fireball deals 2 damage to each player.\n10—20 | Farideh's Fireball deals 2 damage to each opponent.",
     "type_line": "Instant"
+   }
+  },
+  "Farm // Market": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Destroy target attacking or blocking creature.",
+       "duration": null,
+       "effect": {
+        "cant_regenerate": false,
+        "target": {
+         "filters": [
+          {
+           "controller": null,
+           "properties": [
+            {
+             "type": "Attacking"
+            }
+           ],
+           "type": "Typed",
+           "type_filters": [
+            "Creature"
+           ]
+          },
+          {
+           "controller": null,
+           "properties": [
+            {
+             "type": "Blocking"
+            }
+           ],
+           "type": "Typed",
+           "type_filters": [
+            "Creature"
+           ]
+          }
+         ],
+         "type": "Or"
+        },
+        "type": "Destroy"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Instant"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Blue",
+      "White"
+     ],
+     "color_override": null,
+     "defense": null,
+     "face_index": 0,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 2,
+      "shards": [
+       "White"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "d998db65-8785-4ee9-940e-fa9ab62e180f",
+       "fe3b32dc-f7e6-455c-b9d1-c7f8d6259179"
+      ]
+     },
+     "name": "Farm",
+     "non_ability_text": null,
+     "oracle_text": "Destroy target attacking or blocking creature.",
+     "power": null,
+     "printings": [
+      "AKR",
+      "C19",
+      "HOU"
+     ],
+     "rarities": [
+      "uncommon"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2017-04-18",
+       "text": "A spell with aftermath cast from a graveyard will always be exiled afterward, whether it resolves, it's countered, or it leaves the stack in some other way."
+      },
+      {
+       "date": "2017-04-18",
+       "text": "All split cards have two card faces on a single card, and you put a split card onto the stack with only the half you're casting. The characteristics of the half of the card you didn't cast are ignored while the spell is on the stack. For example, if an effect prevents you from casting green spells, you can cast Destined of Destined // Lead, but not Lead."
+      },
+      {
+       "date": "2017-04-18",
+       "text": "Each split card has two names. If an effect instructs you to choose a card name, you may choose one, but not both."
+      },
+      {
+       "date": "2017-04-18",
+       "text": "Each split card is a single card. For example, if you discard one, you've discarded one card, not two. If an effect counts the number of instant and sorcery cards in your graveyard, Destined // Lead counts once, not twice."
+      },
+      {
+       "date": "2017-04-18",
+       "text": "If another effect allows you to cast a split card with aftermath from a graveyard, you may cast either half. If you cast the half that has aftermath, you'll exile the card if it would leave the stack."
+      },
+      {
+       "date": "2017-04-18",
+       "text": "If another effect allows you to cast a split card with aftermath from any zone other than a graveyard, you can't cast the half with aftermath."
+      },
+      {
+       "date": "2017-04-18",
+       "text": "If you cast the first half of a split card with aftermath during your turn, you'll have priority immediately after it resolves. You can cast the half with aftermath from your graveyard before any player can take any other action if it's legal for you to do so."
+      },
+      {
+       "date": "2017-04-18",
+       "text": "Split cards with aftermath have a new frame treatment—the half you can cast from your hand is oriented the same as other cards you'd cast from your hand, while the half you can cast from your graveyard is a traditional split card half. This frame treatment is for your convenience and has no rules significance."
+      },
+      {
+       "date": "2017-04-18",
+       "text": "While not on the stack, the characteristics of a split card are the combination of its two halves. For example, Destined // Lead is a green and black card, it is both an instant card and a sorcery card, and its mana value is 6. This means that if an effect allows you to cast a card with mana value 2 from your hand, you can't cast Destined. This is a change from the previous rules for split cards."
+      },
+      {
+       "date": "2017-07-14",
+       "text": "Once you've started to cast a spell with aftermath from your graveyard, the card is immediately moved to the stack. Opponents can't try to stop the ability by exiling the card with an effect such as that of Crook of Condemnation."
+      }
+     ],
+     "scryfall_oracle_id": "2ab857cc-64b9-4115-8fa5-6dfae9edbdb5",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "card_faces": [
+     {
+      "colors": [
+       "W"
+      ],
+      "keywords": [
+       "Aftermath"
+      ],
+      "mana_cost": "{2}{W}",
+      "name": "Farm",
+      "oracle_text": "Destroy target attacking or blocking creature.",
+      "type_line": "Instant"
+     },
+     {
+      "colors": [
+       "U"
+      ],
+      "keywords": [
+       "Aftermath"
+      ],
+      "mana_cost": "{2}{U}",
+      "name": "Market",
+      "oracle_text": "Aftermath (Cast this spell only from your graveyard. Then exile it.)\nDraw two cards, then discard two cards.",
+      "type_line": "Sorcery"
+     }
+    ],
+    "cmc": 6.0,
+    "color_identity": [
+     "U",
+     "W"
+    ],
+    "colors": [
+     "W",
+     "U"
+    ],
+    "keywords": [
+     "Aftermath"
+    ],
+    "layout": "aftermath",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}{W} // {2}{U}",
+    "name": "Farm // Market",
+    "oracle_id": "2ab857cc-64b9-4115-8fa5-6dfae9edbdb5",
+    "type_line": "Instant // Sorcery"
    }
   },
   "Farmstead": {
@@ -677192,6 +678158,220 @@
     "type_line": "Artifact Creature — Dog"
    }
   },
+  "Leave // Chance": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Return any number of target permanents you own to your hand.",
+       "duration": null,
+       "effect": {
+        "destination": null,
+        "target": {
+         "controller": null,
+         "properties": [
+          {
+           "controller": "You",
+           "type": "Owned"
+          }
+         ],
+         "type": "Typed",
+         "type_filters": [
+          "Permanent"
+         ]
+        },
+        "type": "Bounce"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "multi_target": {
+        "max": null,
+        "min": 0
+       },
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Instant"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Red",
+      "White"
+     ],
+     "color_override": null,
+     "defense": null,
+     "face_index": 0,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "White"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "f928e8e8-aa20-402c-85bd-59106e9b9cc7"
+      ]
+     },
+     "name": "Leave",
+     "non_ability_text": null,
+     "oracle_text": "Return any number of target permanents you own to your hand.",
+     "power": null,
+     "printings": [
+      "AKR",
+      "HOU",
+      "PHOU"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2017-04-18",
+       "text": "A spell with aftermath cast from a graveyard will always be exiled afterward, whether it resolves, it's countered, or it leaves the stack in some other way."
+      },
+      {
+       "date": "2017-04-18",
+       "text": "All split cards have two card faces on a single card, and you put a split card onto the stack with only the half you're casting. The characteristics of the half of the card you didn't cast are ignored while the spell is on the stack. For example, if an effect prevents you from casting green spells, you can cast Destined of Destined // Lead, but not Lead."
+      },
+      {
+       "date": "2017-04-18",
+       "text": "Each split card has two names. If an effect instructs you to choose a card name, you may choose one, but not both."
+      },
+      {
+       "date": "2017-04-18",
+       "text": "Each split card is a single card. For example, if you discard one, you've discarded one card, not two. If an effect counts the number of instant and sorcery cards in your graveyard, Destined // Lead counts once, not twice."
+      },
+      {
+       "date": "2017-04-18",
+       "text": "If another effect allows you to cast a split card with aftermath from a graveyard, you may cast either half. If you cast the half that has aftermath, you'll exile the card if it would leave the stack."
+      },
+      {
+       "date": "2017-04-18",
+       "text": "If another effect allows you to cast a split card with aftermath from any zone other than a graveyard, you can't cast the half with aftermath."
+      },
+      {
+       "date": "2017-04-18",
+       "text": "If you cast the first half of a split card with aftermath during your turn, you'll have priority immediately after it resolves. You can cast the half with aftermath from your graveyard before any player can take any other action if it's legal for you to do so."
+      },
+      {
+       "date": "2017-04-18",
+       "text": "Split cards with aftermath have a new frame treatment—the half you can cast from your hand is oriented the same as other cards you'd cast from your hand, while the half you can cast from your graveyard is a traditional split card half. This frame treatment is for your convenience and has no rules significance."
+      },
+      {
+       "date": "2017-04-18",
+       "text": "While not on the stack, the characteristics of a split card are the combination of its two halves. For example, Destined // Lead is a green and black card, it is both an instant card and a sorcery card, and its mana value is 6. This means that if an effect allows you to cast a card with mana value 2 from your hand, you can't cast Destined. This is a change from the previous rules for split cards."
+      },
+      {
+       "date": "2017-07-14",
+       "text": "Once you've started to cast a spell with aftermath from your graveyard, the card is immediately moved to the stack. Opponents can't try to stop the ability by exiling the card with an effect such as that of Crook of Condemnation."
+      },
+      {
+       "date": "2017-07-14",
+       "text": "You are a permanent's owner if the card representing it began the game in your deck, or if it's a token that entered the battlefield under your control. Leave can target a permanent you own but don't control."
+      }
+     ],
+     "scryfall_oracle_id": "dff5d16f-3a41-4873-8188-076e77f18c75",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "card_faces": [
+     {
+      "colors": [
+       "W"
+      ],
+      "keywords": [
+       "Aftermath"
+      ],
+      "mana_cost": "{1}{W}",
+      "name": "Leave",
+      "oracle_text": "Return any number of target permanents you own to your hand.",
+      "type_line": "Instant"
+     },
+     {
+      "colors": [
+       "R"
+      ],
+      "keywords": [
+       "Aftermath"
+      ],
+      "mana_cost": "{3}{R}",
+      "name": "Chance",
+      "oracle_text": "Aftermath (Cast this spell only from your graveyard. Then exile it.)\nDiscard any number of cards, then draw that many cards.",
+      "type_line": "Sorcery"
+     }
+    ],
+    "cmc": 6.0,
+    "color_identity": [
+     "R",
+     "W"
+    ],
+    "colors": [
+     "W",
+     "R"
+    ],
+    "keywords": [
+     "Aftermath"
+    ],
+    "layout": "aftermath",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}{W} // {3}{R}",
+    "name": "Leave // Chance",
+    "oracle_id": "dff5d16f-3a41-4873-8188-076e77f18c75",
+    "type_line": "Instant // Sorcery"
+   }
+  },
   "Ledger Shredder": {
    "phase_records": [
     {
@@ -879024,6 +880204,201 @@
     "type_line": "Creature — Octopus Rogue"
    }
   },
+  "Psychic Possession": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Enchantment"
+      ],
+      "subtypes": [
+       "Aura"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Blue"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [
+      {
+       "Enchant": {
+        "controller": "Opponent",
+        "properties": [],
+        "type": "Typed",
+        "type_filters": []
+       }
+      }
+     ],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 2,
+      "shards": [
+       "Blue",
+       "Blue"
+      ],
+      "type": "Cost"
+     },
+     "name": "Psychic Possession",
+     "non_ability_text": null,
+     "oracle_text": "Enchant opponent\nSkip your draw step.\nWhenever enchanted opponent draws a card, you may draw a card.",
+     "parse_warnings": [
+      {
+       "context": "trigger subject parse fell back to Any",
+       "line_index": 0,
+       "text": "enchanted opponent draws a card",
+       "type": "TargetFallback"
+      }
+     ],
+     "power": null,
+     "printings": [
+      "DIS"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2006-05-01",
+       "text": "An Aura with enchant opponent can't be attached to a permanent."
+      },
+      {
+       "date": "2006-05-01",
+       "text": "Enchanting an opponent works very much like enchanting a permanent. The Aura spell targets the opponent. When it resolves, it enters \"attached\" to that player. Once it's on the battlefield, it no longer targets that player."
+      },
+      {
+       "date": "2006-05-01",
+       "text": "If Psychic Possession's controller ever happens to be the player it's enchanting, Psychic Possession will be put into its owner's graveyard as a state-based action."
+      },
+      {
+       "date": "2006-05-01",
+       "text": "In a multiplayer game, if the enchanted opponent leaves the game, Psychic Possession will be put into its owner's graveyard as a state-based action. If Psychic Possession's owner leaves the game, Psychic Possession immediately leaves the game; this is not a state-based action."
+      },
+      {
+       "date": "2006-05-01",
+       "text": "Psychic Possession's controller, not the enchanted player, skips their draw step."
+      }
+     ],
+     "scryfall_oracle_id": "d2458d63-c627-4e75-8bda-23bca38cae93",
+     "static_abilities": [
+      {
+       "active_zones": [],
+       "affected": {
+        "type": "Controller"
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": null,
+       "description": "Skip your draw step.",
+       "effect_zone": null,
+       "mode": {
+        "SkipStep": {
+         "step": "Draw"
+        }
+       },
+       "modifications": []
+      }
+     ],
+     "toughness": null,
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever enchanted opponent draws a card, you may draw a card.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "target": {
+          "type": "Controller"
+         },
+         "type": "Draw"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": true,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "Drawn",
+       "optional": true,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": null,
+       "valid_source": null,
+       "valid_target": {
+        "type": "AttachedTo"
+       }
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 4.0,
+    "color_identity": [
+     "U"
+    ],
+    "colors": [
+     "U"
+    ],
+    "keywords": [
+     "Enchant"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}{U}{U}",
+    "name": "Psychic Possession",
+    "oracle_id": "d2458d63-c627-4e75-8bda-23bca38cae93",
+    "oracle_text": "Enchant opponent\nSkip your draw step.\nWhenever enchanted opponent draws a card, you may draw a card.",
+    "type_line": "Enchantment — Aura"
+   }
+  },
   "Psychic Puppetry": {
    "phase_records": [
     {
@@ -889471,6 +890846,233 @@
     "type_line": "Creature — Human Wizard"
    }
   },
+  "Raffine, Scheming Seer": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "brawl_commander": true,
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Sphinx",
+       "Demon"
+      ],
+      "supertypes": [
+       "Legendary"
+      ]
+     },
+     "color_identity": [
+      "Black",
+      "Blue",
+      "White"
+     ],
+     "color_override": [
+      "Black",
+      "Blue",
+      "White"
+     ],
+     "defense": null,
+     "flavor_name": null,
+     "is_commander": true,
+     "keywords": [
+      "Flying",
+      {
+       "Ward": {
+        "data": {
+         "generic": 1,
+         "shards": [],
+         "type": "Cost"
+        },
+        "type": "Mana"
+       }
+      }
+     ],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "restricted",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 0,
+      "shards": [
+       "White",
+       "Blue",
+       "Black"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "549bdaa3-15a9-4b59-b30b-9d3d013664d6",
+       "716a44b4-f6b0-4f14-a270-6442aed3251f",
+       "bc85a0ae-aee8-4a19-a8fc-9f915d7c1499"
+      ]
+     },
+     "name": "Raffine, Scheming Seer",
+     "non_ability_text": null,
+     "oracle_text": "Flying, ward {1}\nWhenever you attack, target attacking creature connives X, where X is the number of attacking creatures. (Draw X cards, then discard X cards. Put a +1/+1 counter on that creature for each nonland card discarded this way.)",
+     "power": {
+      "type": "Fixed",
+      "value": 1
+     },
+     "printings": [
+      "PSNC",
+      "SLZ",
+      "SNC"
+     ],
+     "rarities": [
+      "mythic"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2022-04-29",
+       "text": "Connive X is a variant of connive. If a creature connives X, its controller will draw X cards, discard X cards, then then put a number of +1/+1 counters on the conniving permanent equal to the number of nonland cards discarded this way."
+      },
+      {
+       "date": "2024-04-12",
+       "text": "If no card is discarded, most likely because that player's hand is empty and an effect says they can't draw cards, the conniving creature does not receive a +1/+1 counter."
+      },
+      {
+       "date": "2024-04-12",
+       "text": "Once an ability that causes a creature to connive begins to resolve, no player may take any other actions until it's done. Notably, opponents can't try to remove the conniving creature after you discard a nonland card but before it receives a counter."
+      }
+     ],
+     "scryfall_oracle_id": "9307f7e9-bcd9-41f9-88f8-0fb9700a6b12",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 4
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever you attack, target attacking creature connives X, where X is the number of attacking creatures.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "count": {
+          "qty": {
+           "filter": {
+            "controller": null,
+            "properties": [
+             {
+              "type": "Attacking"
+             }
+            ],
+            "type": "Typed",
+            "type_filters": [
+             "Creature"
+            ]
+           },
+           "type": "ObjectCount"
+          },
+          "type": "Ref"
+         },
+         "target": {
+          "controller": null,
+          "properties": [
+           {
+            "type": "Attacking"
+           }
+          ],
+          "type": "Typed",
+          "type_filters": [
+           "Creature"
+          ]
+         },
+         "type": "Connive"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "YouAttack",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": null,
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 3.0,
+    "color_identity": [
+     "B",
+     "U",
+     "W"
+    ],
+    "colors": [
+     "B",
+     "U",
+     "W"
+    ],
+    "keywords": [
+     "Connive",
+     "Flying",
+     "Ward"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "restricted",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{W}{U}{B}",
+    "name": "Raffine, Scheming Seer",
+    "oracle_id": "9307f7e9-bcd9-41f9-88f8-0fb9700a6b12",
+    "oracle_text": "Flying, ward {1}\nWhenever you attack, target attacking creature connives X, where X is the number of attacking creatures. (Draw X cards, then discard X cards. Put a +1/+1 counter on that creature for each nonland card discarded this way.)",
+    "power": "1",
+    "toughness": "4",
+    "type_line": "Legendary Creature — Sphinx Demon"
+   }
+  },
   "Rafiq of the Many": {
    "phase_records": [
     {
@@ -894181,6 +895783,357 @@
     "power": "3",
     "toughness": "3",
     "type_line": "Creature — Lizard Wizard"
+   }
+  },
+  "Ral, Izzet Viceroy": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "activation_restrictions": [
+        {
+         "type": "AsSorcery"
+        }
+       ],
+       "condition": null,
+       "cost": {
+        "amount": 1,
+        "type": "Loyalty"
+       },
+       "description": "[+1]: Look at the top two cards of your library. Put one of them into your hand and the other into your graveyard.",
+       "duration": null,
+       "effect": {
+        "count": {
+         "type": "Fixed",
+         "value": 2
+        },
+        "destination": "Hand",
+        "enter_tapped": false,
+        "enters_attacking": false,
+        "filter": {
+         "type": "Any"
+        },
+        "keep_count": 1,
+        "player": {
+         "type": "Controller"
+        },
+        "rest_destination": "Graveyard",
+        "reveal": false,
+        "type": "Dig",
+        "up_to": false
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      },
+      {
+       "activation_restrictions": [
+        {
+         "type": "AsSorcery"
+        }
+       ],
+       "condition": null,
+       "cost": {
+        "amount": -3,
+        "type": "Loyalty"
+       },
+       "description": "[−3]: ~ deals damage to target creature equal to the total number of instant and sorcery cards you own in exile and in your graveyard.",
+       "duration": null,
+       "effect": {
+        "amount": {
+         "exprs": [
+          {
+           "qty": {
+            "card_types": [
+             "Instant",
+             "Sorcery"
+            ],
+            "scope": "Owner",
+            "type": "ZoneCardCount",
+            "zone": "Exile"
+           },
+           "type": "Ref"
+          },
+          {
+           "qty": {
+            "card_types": [
+             "Instant",
+             "Sorcery"
+            ],
+            "scope": "Owner",
+            "type": "ZoneCardCount",
+            "zone": "Graveyard"
+           },
+           "type": "Ref"
+          }
+         ],
+         "type": "Sum"
+        },
+        "target": {
+         "controller": null,
+         "properties": [],
+         "type": "Typed",
+         "type_filters": [
+          "Creature"
+         ]
+        },
+        "type": "DealDamage"
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      },
+      {
+       "activation_restrictions": [
+        {
+         "type": "AsSorcery"
+        }
+       ],
+       "condition": null,
+       "cost": {
+        "amount": -8,
+        "type": "Loyalty"
+       },
+       "description": "[−8]: You get an emblem with \"Whenever you cast an instant or sorcery spell, ~ deals 4 damage to any target and you draw two cards.\"",
+       "duration": null,
+       "effect": {
+        "statics": [],
+        "triggers": [
+         {
+          "batched": false,
+          "condition": null,
+          "constraint": null,
+          "damage_kind": "Any",
+          "description": "Whenever you cast an instant or sorcery spell, ~ deals 4 damage to any target and you draw two cards",
+          "destination": null,
+          "execute": {
+           "condition": null,
+           "cost": null,
+           "description": null,
+           "duration": null,
+           "effect": {
+            "amount": {
+             "type": "Fixed",
+             "value": 4
+            },
+            "target": {
+             "type": "Any"
+            },
+            "type": "DealDamage"
+           },
+           "forward_result": false,
+           "kind": "Spell",
+           "optional": false,
+           "optional_targeting": false,
+           "sub_ability": {
+            "condition": null,
+            "cost": null,
+            "description": null,
+            "duration": null,
+            "effect": {
+             "count": {
+              "type": "Fixed",
+              "value": 2
+             },
+             "target": {
+              "type": "Controller"
+             },
+             "type": "Draw"
+            },
+            "forward_result": false,
+            "kind": "Spell",
+            "optional": false,
+            "optional_targeting": false,
+            "sub_ability": null,
+            "target_prompt": null
+           },
+           "target_prompt": null
+          },
+          "mode": "SpellCast",
+          "optional": false,
+          "origin": null,
+          "phase": null,
+          "secondary": false,
+          "trigger_zones": [
+           "Command"
+          ],
+          "valid_card": {
+           "filters": [
+            {
+             "controller": null,
+             "properties": [],
+             "type": "Typed",
+             "type_filters": [
+              "Instant"
+             ]
+            },
+            {
+             "controller": null,
+             "properties": [],
+             "type": "Typed",
+             "type_filters": [
+              "Sorcery"
+             ]
+            }
+           ],
+           "type": "Or"
+          },
+          "valid_source": null,
+          "valid_target": {
+           "type": "Controller"
+          }
+         }
+        ],
+        "type": "CreateEmblem"
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "brawl_commander": true,
+     "card_type": {
+      "core_types": [
+       "Planeswalker"
+      ],
+      "subtypes": [
+       "Ral"
+      ],
+      "supertypes": [
+       "Legendary"
+      ]
+     },
+     "color_identity": [
+      "Red",
+      "Blue"
+     ],
+     "color_override": [
+      "Red",
+      "Blue"
+     ],
+     "defense": null,
+     "flavor_name": null,
+     "is_oathbreaker": true,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": "5",
+     "mana_cost": {
+      "generic": 3,
+      "shards": [
+       "Blue",
+       "Red"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "c52066b3-84dc-4198-8090-3336e7df8b5d",
+       "f3e5c13e-2e85-4618-a349-1f79dc918390"
+      ]
+     },
+     "name": "Ral, Izzet Viceroy",
+     "non_ability_text": null,
+     "oracle_text": "[+1]: Look at the top two cards of your library. Put one of them into your hand and the other into your graveyard.\n[−3]: Ral deals damage to target creature equal to the total number of instant and sorcery cards you own in exile and in your graveyard.\n[−8]: You get an emblem with \"Whenever you cast an instant or sorcery spell, this emblem deals 4 damage to any target and you draw two cards.\"",
+     "power": null,
+     "printings": [
+      "GRN",
+      "MED",
+      "PANA"
+     ],
+     "rarities": [
+      "mythic"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2018-10-05",
+       "text": "If any exiled cards you own are face down, they have no characteristics. If they're normally instants or sorceries, they won't be counted for Ral's second ability."
+      },
+      {
+       "date": "2018-10-05",
+       "text": "If the target permanent or player becomes an illegal target for the triggered ability of Ral's emblem, the ability doesn't resolve. You don't draw two cards."
+      },
+      {
+       "date": "2018-10-05",
+       "text": "If you have only one card in your library, Ral's first ability puts it into your hand. Nothing is put into your graveyard."
+      },
+      {
+       "date": "2018-10-05",
+       "text": "The emblem created by Ral's last ability is colorless. The damage it deals is from a colorless source."
+      },
+      {
+       "date": "2018-10-05",
+       "text": "The triggered ability of Ral's emblem resolves before the spell that caused it to trigger. It resolves even if that spell is countered."
+      }
+     ],
+     "scryfall_oracle_id": "f29f4c73-5e5c-4341-8582-2873fbe5c5a3",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 5.0,
+    "color_identity": [
+     "R",
+     "U"
+    ],
+    "colors": [
+     "R",
+     "U"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "loyalty": "5",
+    "mana_cost": "{3}{U}{R}",
+    "name": "Ral, Izzet Viceroy",
+    "oracle_id": "f29f4c73-5e5c-4341-8582-2873fbe5c5a3",
+    "oracle_text": "[+1]: Look at the top two cards of your library. Put one of them into your hand and the other into your graveyard.\n[−3]: Ral deals damage to target creature equal to the total number of instant and sorcery cards you own in exile and in your graveyard.\n[−8]: You get an emblem with \"Whenever you cast an instant or sorcery spell, this emblem deals 4 damage to any target and you draw two cards.\"",
+    "type_line": "Legendary Planeswalker — Ral"
    }
   },
   "Ral, Monsoon Mage // Ral, Leyline Prodigy": {
@@ -1034365,6 +1036318,255 @@
     "oracle_id": "af32757c-9d3c-4f6c-a6fa-d5729a440382",
     "oracle_text": "Enchant land\nWhen this Aura enters, draw a card.\nEnchanted land is an Island.",
     "type_line": "Enchantment — Aura"
+   }
+  },
+  "Spring // Mind": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Search your library for a basic land card, put it onto the battlefield tapped, then shuffle.",
+       "duration": null,
+       "effect": {
+        "count": {
+         "type": "Fixed",
+         "value": 1
+        },
+        "filter": {
+         "controller": null,
+         "properties": [
+          {
+           "type": "HasSupertype",
+           "value": "Basic"
+          }
+         ],
+         "type": "Typed",
+         "type_filters": [
+          "Land"
+         ]
+        },
+        "reveal": false,
+        "type": "SearchLibrary"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "destination": "Battlefield",
+         "enter_tapped": true,
+         "enter_transformed": false,
+         "enters_attacking": false,
+         "origin": "Library",
+         "owner_library": false,
+         "target": {
+          "type": "Any"
+         },
+         "type": "ChangeZone"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "target": {
+           "type": "Controller"
+          },
+          "type": "Shuffle"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": null,
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Sorcery"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Green",
+      "Blue"
+     ],
+     "color_override": null,
+     "defense": null,
+     "face_index": 0,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 2,
+      "shards": [
+       "Green"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "6431d464-1f2b-42c4-ad38-67b7d0984080"
+      ]
+     },
+     "name": "Spring",
+     "non_ability_text": null,
+     "oracle_text": "Search your library for a basic land card, put it onto the battlefield tapped, then shuffle.",
+     "power": null,
+     "printings": [
+      "AKH",
+      "AKR"
+     ],
+     "rarities": [
+      "uncommon"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2017-04-18",
+       "text": "A spell with aftermath cast from a graveyard will always be exiled afterward, whether it resolves, it's countered, or it leaves the stack in some other way."
+      },
+      {
+       "date": "2017-04-18",
+       "text": "All split cards have two card faces on a single card, and you put a split card onto the stack with only the half you're casting. The characteristics of the half of the card you didn't cast are ignored while the spell is on the stack. For example, if an effect prevents you from casting green spells, you can cast Destined of Destined // Lead, but not Lead."
+      },
+      {
+       "date": "2017-04-18",
+       "text": "Each split card has two names. If an effect instructs you to choose a card name, you may choose one, but not both."
+      },
+      {
+       "date": "2017-04-18",
+       "text": "Each split card is a single card. For example, if you discard one, you've discarded one card, not two. If an effect counts the number of instant and sorcery cards in your graveyard, Destined // Lead counts once, not twice."
+      },
+      {
+       "date": "2017-04-18",
+       "text": "If another effect allows you to cast a split card with aftermath from a graveyard, you may cast either half. If you cast the half that has aftermath, you'll exile the card if it would leave the stack."
+      },
+      {
+       "date": "2017-04-18",
+       "text": "If another effect allows you to cast a split card with aftermath from any zone other than a graveyard, you can't cast the half with aftermath."
+      },
+      {
+       "date": "2017-04-18",
+       "text": "If you cast the first half of a split card with aftermath during your turn, you'll have priority immediately after it resolves. You can cast the half with aftermath from your graveyard before any player can take any other action if it's legal for you to do so."
+      },
+      {
+       "date": "2017-04-18",
+       "text": "Split cards with aftermath have a new frame treatment—the half you can cast from your hand is oriented the same as other cards you'd cast from your hand, while the half you can cast from your graveyard is a traditional split card half. This frame treatment is for your convenience and has no rules significance."
+      },
+      {
+       "date": "2017-04-18",
+       "text": "While not on the stack, the characteristics of a split card are the combination of its two halves. For example, Destined // Lead is a green and black card, it is both an instant card and a sorcery card, and its mana value is 6. This means that if an effect allows you to cast a card with mana value 2 from your hand, you can't cast Destined. This is a change from the previous rules for split cards."
+      },
+      {
+       "date": "2017-07-14",
+       "text": "Once you've started to cast a spell with aftermath from your graveyard, the card is immediately moved to the stack. Opponents can't try to stop the ability by exiling the card with an effect such as that of Crook of Condemnation."
+      }
+     ],
+     "scryfall_oracle_id": "6dd7e861-7ae2-49e6-a9ab-8fd761939e22",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "card_faces": [
+     {
+      "colors": [
+       "G"
+      ],
+      "keywords": [
+       "Aftermath"
+      ],
+      "mana_cost": "{2}{G}",
+      "name": "Spring",
+      "oracle_text": "Search your library for a basic land card, put it onto the battlefield tapped, then shuffle.",
+      "type_line": "Sorcery"
+     },
+     {
+      "colors": [
+       "U"
+      ],
+      "keywords": [
+       "Aftermath"
+      ],
+      "mana_cost": "{4}{U}{U}",
+      "name": "Mind",
+      "oracle_text": "Aftermath (Cast this spell only from your graveyard. Then exile it.)\nDraw two cards.",
+      "type_line": "Instant"
+     }
+    ],
+    "cmc": 9.0,
+    "color_identity": [
+     "G",
+     "U"
+    ],
+    "colors": [
+     "G",
+     "U"
+    ],
+    "keywords": [
+     "Aftermath"
+    ],
+    "layout": "aftermath",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}{G} // {4}{U}{U}",
+    "name": "Spring // Mind",
+    "oracle_id": "6dd7e861-7ae2-49e6-a9ab-8fd761939e22",
+    "type_line": "Sorcery // Instant"
    }
   },
   "Springleaf Drum": {

@@ -6174,6 +6174,23 @@ def _double_strike_parked(tree: ConceptTree) -> bool:
     return _parked_says(tree, _PARKED_DOUBLE_STRIKE_RX)
 
 
+# An aftermath half phase emits no record for (CR 702.127a: a half cast from
+# the graveyard) whose instruction is a bulk draw: "Draw two cards" (Spring //
+# Mind), "Draw two cards, then discard two cards" (Farm // Market), "Discard
+# any number of cards, then draw that many cards" (Leave // Chance), "Draw a
+# card for each creature you control with power 3 or greater" (Mouth // Feed)
+# — your own draw — and "Each player … draws seven cards" (Commit // Memory).
+_FACE_BULK_DRAW_RX = re.compile(
+    r"(?<!s )\bdraw (?:two|three|four|five|six|seven|x|that many) cards\b"
+    r"|\bdraw a card for each\b",
+    re.IGNORECASE,
+)
+_FACE_EACH_PLAYER_DRAW_RX = re.compile(
+    r"\beach player\b[^.]*\bdraws (?:two|three|four|five|six|seven) cards\b",
+    re.IGNORECASE,
+)
+
+
 def _chosen_creatures_parked(tree: ConceptTree) -> bool:
     return _parked_says(tree, _CHOSEN_CREATURES_RX)
 
@@ -6485,6 +6502,48 @@ BRIDGES.update(
                 pins=("Onward // Victory",),
                 gap=_text_only_face,
                 match=_oracle_match(_TARGET_GAINS_DOUBLE_STRIKE_RX),
+            ),
+            Bridge(
+                bridge_id="aftermath_face_bulk_draw",
+                key="card_draw_engine",
+                kind="missing_face",
+                todo=(
+                    "the W2c gap (ADR-0038): phase has no record for an aftermath "
+                    "half whose instruction is a bulk draw (Spring // Mind's 'Draw "
+                    "two cards'). Retires when the face gets a unit"
+                ),
+                census=(
+                    "4 hits / the legal corpus (Spring // Mind, Farm // Market, "
+                    "Leave // Chance, Mouth // Feed), MTGJSON @ phase v0.118.0, "
+                    "2026-10-31"
+                ),
+                pins=(
+                    "Spring // Mind",
+                    "Farm // Market",
+                    "Leave // Chance",
+                    "Mouth // Feed",
+                ),
+                gap=_text_only_face,
+                match=_oracle_match(_FACE_BULK_DRAW_RX),
+            ),
+            Bridge(
+                bridge_id="aftermath_face_each_player_draw",
+                key="card_draw_engine",
+                kind="missing_face",
+                todo=(
+                    "the W2c gap (ADR-0038): phase has no record for Commit // "
+                    "Memory's Memory ('Each player shuffles their hand and "
+                    "graveyard into their library, then draws seven cards'). "
+                    "Retires when the face gets a unit"
+                ),
+                census=(
+                    "1 hit / the legal corpus (Commit // Memory), MTGJSON @ phase "
+                    "v0.118.0, 2026-10-31"
+                ),
+                pins=("Commit // Memory",),
+                gap=_text_only_face,
+                match=_oracle_match(_FACE_EACH_PLAYER_DRAW_RX),
+                scope="each",
             ),
             Bridge(
                 bridge_id="role_attach_parked",
