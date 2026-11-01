@@ -264,7 +264,10 @@ def signal_source_files(*extra_roots: str) -> tuple[Path, ...]:
     a fresh walk every call (``_import_closure.source_files``), so a new lane
     module is picked up at once. Deliberately conservative: a module reachable
     here but not read at runtime still counts — over-invalidating costs one
-    wasted rebuild; under-invalidating serves stale signals silently. A walk with
+    wasted rebuild; under-invalidating serves stale signals silently. The serve
+    specs (``signal_specs/``) are in the set since the voltron floor's plan read
+    asks ``avenue_spec_for`` during extraction, so a spec edit rebuilds the
+    index (accepted 2026-11-01: a spec edit can change a card's signals). A walk with
     ``extra_roots`` is a superset of the plain one, so the import memo it
     persists still holds every read the plain walk needs."""
     return source_files(*_ROOT_MODULES, *extra_roots, persist=True)
