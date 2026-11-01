@@ -446,7 +446,14 @@ ETB doublers), ~45 scattered one to seven a deck. Gate unchanged (held-out 20: p
   fix, ships on correctness) or a guide-specific pick (recorded as the first-principles
   ceiling in the audit doc). Deck-wide trigger doublers as a theme AVENUE were
   measured negative (`Sourcing.multiplier_avenue`); Panharmonicon / Elesh Norn under
-  Satya need a new read, not that avenue.
+  Satya need a new read, not that avenue. Two read gaps the issue packaging found
+  (2026-11-01, re-checking the reports against v0.118.0) join the pass: a token
+  node's `player_scope` (`OwnersOfCardsExiledBySource` on Skyclave Apparition: the
+  token is the exiled card's owner's, not yours — the token-maker read reads `owner`
+  alone), and the record-level `casting_options: [{kind: AsThoughHadFlash,
+  condition?}]` our instant-speed read never opens (Crashing Tide, Graveyard Shift,
+  Mutual Destruction, Take for a Ride, Necromancy; the ledger row
+  `conditional_self_flash_dropped` should read it and retire).
 - **A graveyard-hate template row**, measured once (gated, Commander template only,
   sourced by the existing graveyard-hate serve). The recursion and tutor rows are
   settled (T1 / PR1, below).

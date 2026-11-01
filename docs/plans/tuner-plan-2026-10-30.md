@@ -227,6 +227,28 @@ miss taxonomy, the held-out candidates).
   **baseline N11** (`w41/sb-*-N11.json`; the audit's "The follow-ups,
   re-based"). CI green on the tree. The block's lane list and every tuner
   backlog item are done; the Open section holds phase reports only.
+- 2026-11-01, the second block (grilled with Dan after N11; the backlog's "From the
+  second tuner block grilled 2026-11-01" entry holds the list). The reach profile
+  re-read at N11 (`w41/reach-profile-N11.md`): 84 held-out theme adds no serve
+  admits (J2: 100; Quandrix 15 → 3 from the counters need), 49 past the page (P2
+  settled). `has_other_plan` asks `avenue_spec_for` (1cdce48c; Dan: the serve
+  specs may key the signals index) → **baseline N12**, identical to N11 on every
+  count in both sets (`w41/sb-*-N12.json`; gate diffs vs `sb-ho-N12.json`). A
+  FRESH set of 10 never-used precon families with ≥ 2 guides each
+  (`~/mtg/tuner-work/fresh/root`; Necron Dynasties, Explorers of the Deep, Tricky
+  Terrain, Tyranid Swarm, Eldrazi Incursion, Family Matters, Food and Fellowship,
+  Party Time, Call for Backup, Riders of Rohan; README there) scored once at N11:
+  295 swaps / 130 of 193 guide cuts / 38 of 386 guide adds / plan 119 /
+  job-equivalents 23 (`w41/sb-fresh-N11.json`; both hash seeds agree) — the
+  generalization check at block end, gating nothing. V3 (reads-first theme order)
+  retested at the lowered strength bar (0.65 on adds-vs-cuts alone): held-out
+  plan +71 but adds −12 and job-equivalents −4, the 25 adds −4 → FAILED the floor
+  again (`w41/sb-*-V3r.json`). The upstream reports are packaged as 43 ready-to-post
+  issue files (`docs/plans/phase-upstream-issues/`); re-verifying them against
+  v0.118.0 retired five report items (Liliana's Talent, the conditional-flash
+  family and Necromancy's flash — typed at the record level as `casting_options`,
+  Torpid Moloch, Skyclave Apparition's `player_scope`) and handed two read gaps of
+  ours to the triage pass.
 
 ## Target
 
