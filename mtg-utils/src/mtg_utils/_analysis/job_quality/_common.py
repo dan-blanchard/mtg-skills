@@ -38,6 +38,13 @@ MASS_TAGS = frozenset(
 #: not parse): not free. Having no mana cost is an unpayable cost (CR 202.1b),
 #: though its mana value is 0 (CR 202.3a). The constant is the read's own call.
 NO_COST = 4.0
+#: What an X in the mana cost is cast for, beyond the printed cost. A printed
+#: mana value counts X as 0 (CR 202.3e), so Martial Coup ({X}{W}{W}) read as a
+#: two-mana spell and topped the wipe page's blend over Wrath of God, Chord of
+#: Calling as a three-mana tutor and Green Sun's Zenith as one mana. The reads'
+#: own line, not a rule's: three is the smallest X most X spells do something
+#: for. Every job and quality read's :func:`cast_cost` adds it.
+X_ASSUMED = 3.0
 #: The trigger events that fire as the permanent enters: the crosswalk's
 #: (CR 603.6a, with "enters or attacks"), plus haunt's "enters or the creature
 #: it haunts dies" (the haunted creature, CR 702.55b), whose enters half is an
@@ -127,10 +134,15 @@ def free_cast(card: dict) -> bool:
 def cast_cost(card: dict) -> float:
     """The mana the card costs on the curve: its effective mana value (evoke and
     the other curve costs) less its Phyrexian symbols, payable with life (CR
-    107.4f); ``NO_COST`` for an :func:`unpriced` card."""
+    107.4f), plus :data:`X_ASSUMED` for an X in its mana cost (a printed mana
+    value counts X as 0, CR 202.3e); ``NO_COST`` for an :func:`unpriced` card."""
     if unpriced(card):
         return NO_COST
-    return effective_mana_value(card) - front_mana_cost(card).count("/P}")
+    printed = front_mana_cost(card)
+    cost = effective_mana_value(card) - printed.count("/P}")
+    if "{X}" in printed:
+        cost += X_ASSUMED
+    return cost
 
 
 _ABILITY_KINDS = {"Spell": "spell", "Activated": "activated"}

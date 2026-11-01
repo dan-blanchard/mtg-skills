@@ -110,7 +110,6 @@ from mtg_utils._analysis.job_quality._common import (
     cast_cost,
     faces,
     free_cast,
-    front_mana_cost,
 )
 from mtg_utils._analysis.signal_trees import signal_trees_for
 from mtg_utils._analysis.signals import extract_signals
@@ -181,24 +180,14 @@ def own_units(trees: Sequence[ConceptTree], zone: str) -> list[AbilityUnit]:
     ]
 
 
-#: What an X in the mana cost is cast for, beyond the printed cost. A printed
-#: mana value counts X as 0 (CR 202.3e), so Martial Coup ({X}{W}{W}) read as a
-#: two-mana spell and topped the wipe page's blend over Wrath of God, Cataclysmic
-#: Prospecting as two mana over Starfall Invocation. The reads' own line, not a
-#: rule's: three is the smallest X most X spells do something for.
-X_ASSUMED = 3.0
-
-
 def read_cost(card: dict) -> float:
     """The mana the card costs to cast: none when an alternative cost lets it be
     cast for no mana (``_common.free_cast``; CR 118.9), else its curve cost
-    (``_common.cast_cost``) plus :data:`X_ASSUMED` for an X in its mana cost."""
+    (``_common.cast_cost``, which adds ``_common.X_ASSUMED`` for an X in its
+    mana cost — Martial Coup read as two mana over Wrath of God before it)."""
     if free_cast(card):
         return 0.0
-    cost = cast_cost(card)
-    if "{X}" in front_mana_cost(card):
-        cost += X_ASSUMED
-    return cost
+    return cast_cost(card)
 
 
 def best_job(card: dict) -> float:
