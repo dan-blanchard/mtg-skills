@@ -39,6 +39,32 @@ score of ADR-0060's reads.
 A card the read can't see — not an instant or sorcery, or no ability of its own
 on phase's trees (Throes of Chaos) — scores ``None``, never a low number. Pure:
 no deck, no play-rate, no price.
+
+**Theme strength** (``THEME_READ``: :func:`features` x ``THEME_WEIGHTS``;
+``docs/plans/precon-audit/strength_fit_spell.py``, 2026-10-31 night). A second
+weight set over the same features, for ordering a theme page, fitted on a pair
+source the tuner's order did not choose: **A**, a guide's add against that
+guide's cut of the same type (945 pairs, 184 adds, 23 decks). Source **B** (a
+guide add against each on-plan spell the live play-rate order put above it: 813
+pairs, 41 adds, 16 decks) is too small to fit on — fitted alone it scores below a
+coin flip on itself — and is the cross-source check. Leave-one-deck-out pair
+accuracy (L2 = 3):
+
+==========================  =====  =====
+read                        on A   on B
+==========================  =====  =====
+play-rate                   0.565  0.000 (B's pairs are its misses)
+mana value (cheaper)        0.664  0.568
+refit on A (shipped)        0.677  0.586
+refit on B                  0.545  0.458
+refit on A+B                0.657  0.577
+==========================  =====  =====
+
+It beats play-rate on both sources, so no new feature was designed; it is close
+to mana value (cheaper is better) plus a tutor. Weights (standardised): ``cost``
+-0.3 a mana (-0.56), ``tutor`` +1.1 (+0.34), ``answer`` -0.6 (-0.29: the guides
+cut the precons' removal and wipes — Decimate, Harsh Mercy, Organic Extinction —
+for theme spells), ``per_cast`` -0.1 (-0.07), ``abilities`` +0.35 (+0.19).
 """
 
 from __future__ import annotations
@@ -110,6 +136,18 @@ WEIGHTS: dict[str, float] = {
     "abilities": -0.35,
 }
 
+#: The theme-strength weights over the same :func:`features`: hand-rounded from
+#: the 2026-10-31 night refit on source A (see the module docstring's "Theme
+#: strength"); the ``theme_strength`` read, beside ``WEIGHTS`` (the job-page
+#: blend's), never in place of it.
+THEME_WEIGHTS: dict[str, float] = {
+    "cost": -0.3,
+    "tutor": 1.1,
+    "answer": -0.6,
+    "per_cast": -0.1,
+    "abilities": 0.35,
+}
+
 #: Bumped for a change in what a persisted score means that the module's
 #: content hash doesn't see (a data file it loads).
 SIDECAR_VERSION = 1
@@ -128,6 +166,7 @@ def _content_key() -> str:
 SIDECAR = WriteBackSidecar(".quality-spell.pkl", _content_key)
 
 READ = QualityRead("spell", features, WEIGHTS, SIDECAR.memo("score"))
+THEME_READ = QualityRead("spell", features, THEME_WEIGHTS, SIDECAR.memo("theme"))
 
 
 def attach_sidecar(bulk_path: Path | None) -> bool:

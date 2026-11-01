@@ -3,7 +3,7 @@ sorcery is on its own text and cost — real cards (ADR-0056)."""
 
 import pytest
 
-from mtg_utils._analysis.card_quality.spell import READ, features
+from mtg_utils._analysis.card_quality.spell import READ, THEME_READ, features
 from mtg_utils.testkit import test_card, test_signals
 
 
@@ -58,6 +58,28 @@ def test_a_casters_drawback_is_nothing_the_spell_does():
 def test_another_type_reads_none(name):
     """A card the read can't see scores None, never a low number."""
     assert _score(name) is None
+
+
+@pytest.mark.parametrize(
+    ("guide_add", "other"),
+    [
+        # Live order's misses: the more-played spell sat above the guide add.
+        ("Diabolic Intent", "Deadly Dispute"),
+        ("Buried Alive", "Victimize"),
+        # A guide's add over that guide's cut, play-rate the other way.
+        ("Disallow", "Organic Extinction"),
+    ],
+)
+def test_theme_strength_orders_pairs_play_rate_gets_wrong(guide_add, other):
+    """Pairs from the 2026-10-31 night fit where the more-played spell is the
+    one the guide passed over and the theme read picks the guide's spell."""
+    assert THEME_READ.score(_real(guide_add)) > THEME_READ.score(_real(other))
+
+
+def test_the_theme_read_scores_the_same_features():
+    """The spell theme read is a refit of the same features, not new ones."""
+    assert THEME_READ.features is features
+    assert set(THEME_READ.weights) == set(READ.weights)
 
 
 def test_an_x_spell_is_costed_with_an_x():
