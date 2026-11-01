@@ -1327,6 +1327,9 @@ def test_subject_spec_serve_matches_subject_reference():
         ("Moonlight Hunt", True),  # each creature you control bites
         ("Prey Upon", True),  # a fight (CR 701.14a)
         ("Meltstrider's Resolve", True),  # a fight Aura
+        ("Blood Feud", True),  # two free targets: yours against theirs
+        # two blocking creatures, one defending player's (CR 509.1a)
+        ("Dissension in the Ranks", False),
         ("Repentance", False),  # the creature hits itself
         ("Mutiny", False),  # an opponent's creature is the dealer
         ("Dead Reckoning", False),  # the spell deals a graveyard card's power

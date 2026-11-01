@@ -53,6 +53,7 @@ from mtg_utils._card_ir.crosswalk import (
     effect_owner_player_scope,
     effect_trigger_def,
     explicit_recipient_scope,
+    fights_between_blockers,
     filter_controller,
     filter_controller_side,
     filter_core_types,
@@ -1335,12 +1336,21 @@ def _fight_makers(tree: ConceptTree) -> list[Signal]:
       second half (Prepare // Fight) needs task #74's face union first;
       ``tree.oracle`` is single-face.
 
-    Scope "you" (the lane convention)."""
+    Scope "you" (the lane convention). Subject ``blockers`` when every fight is
+    between two blocking creatures (:func:`crosswalk.fights_between_blockers`:
+    Dissension in the Ranks): both fighters are one defending player's, so no
+    creature of yours fights one of theirs, and neither the fight page nor the
+    deathtouch lane (``fight_makers|you|``) counts it."""
+
+    def fight(raw: str, node: object) -> list[Signal]:
+        subject = "blockers" if fights_between_blockers(node) else ""
+        return [Signal("fight_makers", "you", subject, raw, tree.name, "high")]
+
     for c in tree.effect_concepts("fight"):
-        return [Signal("fight_makers", "you", "", c.raw, tree.name, "high")]
+        return fight(c.raw, c.node)
     for unit in tree.units:
         if has_nested_fight(unit.node):
-            return [Signal("fight_makers", "you", "", "", tree.name, "high")]
+            return fight("", unit.node)
     return []
 
 

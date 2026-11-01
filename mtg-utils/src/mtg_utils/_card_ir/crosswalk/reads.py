@@ -4320,6 +4320,21 @@ def has_nested_fight(node: object) -> bool:
     return any(tag_of(n) == "Fight" for n in _iter_typed_nodes(node))
 
 
+def fights_between_blockers(node: object) -> bool:
+    """Whether every ``Fight`` under ``node`` is between two blocking creatures
+    (Dissension in the Ranks: "Target blocking creature fights another target
+    blocking creature"). The defending player blocks with creatures they
+    control (CR 509.1a), so on your turn both fighters are an opponent's and on
+    theirs both are yours: no creature of yours fights one of theirs, as it does
+    when you pick each side (Prey Upon) or two free targets (Blood Feud)."""
+    fights = [n for n in _iter_typed_nodes(node) if tag_of(n) == "Fight"]
+    return bool(fights) and all(
+        "Blocking" in filter_predicates(getattr(f, "subject", None))
+        and "Blocking" in filter_predicates(getattr(f, "target", None))
+        for f in fights
+    )
+
+
 def has_nested_extra_turn(node: object) -> bool:
     """Whether an ``ExtraTurn`` tag (CR 500.7) is reachable ANYWHERE under
     ``node`` — an extra-turn grant buried inside a ``Vote``'s

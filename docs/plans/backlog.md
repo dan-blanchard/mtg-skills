@@ -183,9 +183,6 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   Thorin, Mountain-king's "to up to one target creature" parse as a
   `DealDamage` to `ParentTarget`, the dealer itself, so none reads as a bite
   (`crosswalk.is_bite`) or as power damage of yours.
-- **The deathtouch lane serves every fight, whoever fights.** `fight_makers`
-  doesn't record whose creatures fight. Dissension in the Ranks (two blocking
-  creatures) counts the same as Prey Upon.
 
 **From the Omnath Competitive Brawl build (2026-10-04)**
 
