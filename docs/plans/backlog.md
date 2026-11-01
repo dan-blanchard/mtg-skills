@@ -437,9 +437,6 @@ ETB doublers), ~45 scattered one to seven a deck. Gate unchanged (held-out 20: p
   condition?}]` our instant-speed read never opens (Crashing Tide, Graveyard Shift,
   Mutual Destruction, Take for a Ride, Necromancy; the ledger row
   `conditional_self_flash_dropped` should read it and retire).
-- **One value rule left, one gated run:** ramp at MV ≤ commander MV − 2 (slower ramp
-  is an upgrade target; the ramp row sources only ramp that lands in time; R1). The
-  off-plan MV ≥ 6 cut (R2) and multiplayer scaling are settled below.
 - **A fresh validation set** of 10 never-used precon families (≥ 2 guides, any year,
   the held-out method) under `~/mtg/tuner-work/fresh/root`, scored at N11 (295 / 130
   of 193 / 38 of 386 / plan 119; `w41/sb-fresh-N11.json`); scored once more at block
@@ -1065,6 +1062,17 @@ headroom and parked items.
   S-A, above); Enlightened Tutor and Moonsilver Key are tutor-row fills (T1 and
   PR1, above); Call the Gatewatch and Firemind's Foresight sit past the 150-card
   page (P2, above). Don't re-suggest a page for them without a new read.
+- **Ramp need not land two turns before the commander — settled 2026-11-01 (R1).**
+  The 2026-10-30 plan's "ramp MV ≤ commander MV − 2": nonland ramp that lands later
+  (`ramp_in_time`, `RAMP_LEAD` 2; never fixing, premium or the commander's lane) read
+  as a low-value upgrade target, and the ramp row sourcing only ramp that lands in
+  time (branch `block2-value-rules` 5f8a3b9a, `w41/ramp-lead-R1.patch`). Against
+  N12: held-out plan −13, adds +1, job-equivalents −4, swaps −9; the 25 plan −12,
+  cuts −7, adds −4, swaps −22 (`sb-*-R1`). The guides keep three-mana rocks and
+  ramp creatures under four- and five-mana commanders (the body or the fixing is the
+  point), and the sourcing filter starves the ramp row on a cheap commander. With
+  R2 and the scaling feature, all three value rules are settled: don't re-suggest a
+  mana-value rule for ramp, cuts or one-shots.
 - **The alternate-commander compare shipped as an advisory (2026-11-01).**
   `deck-tune --compare-commanders`, deck-forge's `compare_commanders` tune flag and
   the Tune panel's table (`_tuner/compare_commanders.py`): every single the format's

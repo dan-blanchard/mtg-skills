@@ -283,7 +283,10 @@ miss taxonomy, the held-out candidates).
   (branch `block2-value-rules` cbae6d1d) FAILED R2 against N12: held-out adds +1,
   cuts 0, plan −2; the 25 adds +1, cuts −1, plan +2 → flat, settled. The
   commander comparison merged into main (the frontend bundle rebuilt). The ramp
-  lead rule (5f8a3b9a) runs as R1.
+  lead rule (5f8a3b9a, `w41/ramp-lead-R1.patch`) FAILED R1 against N12: held-out
+  plan −13, adds +1, job-equivalents −4; the 25 plan −12, cuts −7, adds −4 →
+  settled. All three value rules are measured and lost. Left in the block: the
+  triage pass's merge, the fresh set's block-end score, CI, the recap.
 
 ## Target
 
