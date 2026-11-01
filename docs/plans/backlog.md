@@ -52,16 +52,20 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   graveyard plan — PARKED (2026-10-31 grilling) behind the theme-card quality
   read, since its fills would come off a job page ordered by play-rate, the
   ordering the quality read is meant to fix. The recursion and tutor job reads
-  (ADR-0062, built 2026-10-31, in the tree) cannot read: an X tutor's mana value (costed at X = 0), a Pact's
-  upkeep payment, an opponent-choice clause (Rhystic Tutor, Distant Memories),
-  a stray move-to-hand phase adds to Grim Reminder (scores as a tutor), six
-  tutors phase describes only in text (the Kaito and Garruk emblems: None),
-  tribal tutors read narrow (Sliver Overlord, Faerie Harbinger) with no deck
-  fit; Cleansing Meditation parses as "return all cards" (scores 0.49, near the
-  top), six returns are unparsed leftovers (Custodi Soulcaller, Venerable
-  Warsinger, Liliana's Talent, All Hallow's Eve, Everquill Phoenix, Can't Stay
-  Away: None), Necromancy's flash casting is not visible. The tutor read's six
-  hand-set weights were confirmed by Dan as set (2026-10-31, ADR-0062).
+  (ADR-0062, built 2026-10-31, in the tree) read, since 2026-10-31 late night,
+  an X tutor's X (`_common.cast_cost`'s `X_ASSUMED`, every job and quality
+  read), a Pact's upkeep payment (`tutor._pact_mana`) and a tribal tutor's deck
+  (`tutor.deck_features`: a subtype search is broad where a third of the deck's
+  creature cards share the subtype). What is left is phase parse gaps to report
+  upstream: an opponent-choice clause (Rhystic Tutor's "unless any player pays"
+  is `Unimplemented`; Distant Memories), a stray move-to-hand phase adds to Grim
+  Reminder (scores as a tutor), six tutors phase describes only in text (the
+  Kaito and Garruk emblems: None), Cleansing Meditation's "cards destroyed this
+  way" lost (its return parses as every card in your graveyard; scores 0.49),
+  six returns unparsed (Custodi Soulcaller, Venerable Warsinger, Liliana's
+  Talent, All Hallow's Eve, Everquill Phoenix, Can't Stay Away: None), and
+  Necromancy's "as though it had flash" dropped. The tutor read's six hand-set
+  weights were confirmed by Dan as set (2026-10-31, ADR-0062).
   **Phase parse gap, worked around locally (2026-10-31):** Disa the Restless's
   "Whenever a Lhurgoyf permanent card is put into your graveyard from anywhere
   other than the battlefield" is a trigger with mode `Unknown` and no zone
