@@ -912,11 +912,6 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
     every creature by dropping "blocking it" (Battle-Scarred Goblin, Fire
     Juggler — [P12]) still read as sweeps: the DamageAll arm lacks the
     becomes_blocked / blocks veto `_mass_shrink` has.
-  - Recovery marks that misfire: Biomantic Mastery ("another target player
-    controls" sets `OtherPlayer`), Souls of the Faultless ("attacking player
-    loses" not another player), Ursine Monstrosity ("choose an opponent" scopes
-    your own mill), Val, Marooned Surveyor (a parked trigger condition recovers as
-    a clue maker), Ingenious Mastery ("they scry 2" read as yours).
 - `mana_and_wipes._chooses_at_most_one` vetoes a sweep whose tracked set the
   controller fills with at most one object (Light of Judgment) without resolving
   which `TrackedSet` the sweep destroys: it holds for any one-object choice in

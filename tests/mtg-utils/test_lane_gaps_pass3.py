@@ -211,3 +211,54 @@ def test_a_minus_counter_on_a_creature_attacking_you_is_a_debuff():
 )
 def test_a_pick_from_each_graveyard_reaches_the_graveyards_it_names(name, scope):
     assert ("graveyard_matters", scope, "") in _idents(name)
+
+
+# ── recovery marks on parked clauses ────────────────────────────────────────
+
+
+def test_a_player_a_draw_count_names_is_no_drawer():
+    """Biomantic Mastery: "draw a card for each creature another target player
+    controls" — you draw; the target player is the count's."""
+    assert not _keyed("Biomantic Mastery", "target_player_draws")
+    assert ("card_draw_engine", "you", "") in _idents("Biomantic Mastery")
+
+
+def test_the_attacking_players_loss_is_an_opponents():
+    """Souls of the Faultless: "you gain that much life and attacking player
+    loses that much life" — a defender, so the attacking player is an opponent."""
+    assert _keyed("Souls of the Faultless", "lifeloss_makers") == {
+        ("lifeloss_makers", "opponents", "")
+    }
+
+
+def test_choosing_an_opponent_leaves_your_own_mill_yours():
+    """Ursine Monstrosity: "mill a card and choose an opponent at random"."""
+    idents = _idents("Ursine Monstrosity")
+    assert ("mill_makers", "opponents", "") not in idents
+    assert ("graveyard_makers", "you", "") in idents
+
+
+def test_a_parked_trigger_condition_is_no_instruction():
+    """Val, Marooned Surveyor: "Whenever you discover, investigate, scry,
+    surveil, or seek one or more cards, …" — the parked "investigate, …" is the
+    trigger's condition, so Val makes no Clue."""
+    assert not _keyed("Val, Marooned Surveyor", "clue_makers")
+
+
+def test_an_instruction_list_after_a_trigger_head_still_recovers():
+    """Urza's Construction Drone's "When ~ enters, conjure cards named …, and
+    Urza's Tower into your library, then shuffle" is an instruction."""
+    assert ("self_etb_payload", "you", "") in _idents("Urza's Construction Drone")
+
+
+@pytest.mark.parametrize(
+    ("name", "yours"),
+    [
+        # "… then an opponent creates two Treasure tokens and they scry 2"
+        ("Ingenious Mastery", False),
+        # "you and each opponent who voted for a choice you voted for may scry 2"
+        ("Model of Unity", True),
+    ],
+)
+def test_another_players_scry_curates_nothing_of_yours(name, yours):
+    assert (("topdeck_selection", "you", "scry") in _idents(name)) is yours

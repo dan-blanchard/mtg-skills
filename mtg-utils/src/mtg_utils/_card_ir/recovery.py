@@ -236,8 +236,20 @@ ALLOWLIST: dict[str, TokenRule] = {
     # Its reading goes to ``clause`` (the overlay's scope stays): a self-loss
     # opens on the instruction or on "you" (``IMPERATIVE`` — Lord Skitter's
     # Blessing's "you lose 1 life and you draw an additional card").
+    # ``OTHER_PLAYER``: the loss is another player's, whatever opens the clause
+    # ("you gain that much life and attacking player loses that much life" —
+    # Souls of the Faultless, a defender: the attacking player is an opponent,
+    # CR 508.1a).
     "lose_life": TokenRule(
-        concept="lose_life", category="lose_life", reads_clause=True, into_clause=True
+        concept="lose_life",
+        category="lose_life",
+        reads_clause=True,
+        into_clause=True,
+        other_player=(
+            r"\b(?:target (?:player|opponent)|each opponent|an opponent"
+            r"|that player|(?:attacking|defending) player|its controller)"
+            r" loses\b"
+        ),
     ),
     # ADR-0038 post-giants main-session batch: the token-creation ACTION
     # idiom (CR 701.7 "Create" keyword action; CR 111.2 token ownership;
@@ -322,7 +334,10 @@ ALLOWLIST: dict[str, TokenRule] = {
             r"|\w+'s (?:controller|owner)s?|that player|they"
             r"|(?:attacking|defending) player)\b"
             r"(?:(?!\bif\b|\bunless\b)[^.,;])*?\bdraws?\b"
-            r"|\bdraws?\b(?:(?!\bif\b|\bunless\b)[^.,;])*?\b"
+            # the player a draw count names ("draw a card for each creature
+            # another target player controls" — Biomantic Mastery) is no drawer
+            r"|\bdraws?\b(?:(?!\bif\b|\bunless\b|\bfor each\b|\bequal to\b)"
+            r"[^.,;])*?\b"
             r"(?:target (?:player|opponent)s?"
             r"|(?:its|their|that|the) (?:controller|owner)s?"
             r"|\w+'s (?:controller|owner)s?|that player|they)\b"
@@ -489,7 +504,18 @@ ALLOWLIST: dict[str, TokenRule] = {
     "untap": TokenRule(
         concept="tap_untap", category="untap", reads_clause=True, object_verb="untap"
     ),
-    "scry": TokenRule(concept="scry", category="scry", reads_clause=True),
+    # ``OTHER_PLAYER``: another player scries — the subject of a later part
+    # ("… then an opponent creates two Treasure tokens and they scry 2" —
+    # Ingenious Mastery's part "they scry 2").
+    "scry": TokenRule(
+        concept="scry",
+        category="scry",
+        reads_clause=True,
+        other_player=(
+            r"^(?:they|that player|its controller|each opponent"
+            r"|target (?:player|opponent))\b[^.,;]*\bscry\b"
+        ),
+    ),
     "spell_copy": TokenRule(
         concept="copy_spell", category="copy_spell", reads_clause=True
     ),
@@ -902,8 +928,12 @@ _MANY_RX = re.compile(
     re.IGNORECASE,
 )
 _FOR_EACH_RX = re.compile(r"\bfor each\b|\bequal to the number of\b", re.IGNORECASE)
+# "choose an opponent [at random]" names a player for a later instruction, not
+# the side the clause acts on ("mill a card and choose an opponent at random" —
+# Ursine Monstrosity's own mill).
 _OPPONENT_SIDE_RX = re.compile(
-    r"\b(?:each|an|target) opponent\b(?! controls)|\bdefending player\b(?!'s choice)"
+    r"(?<!choose )\b(?:each|an|target) opponent\b(?! controls)"
+    r"|\bdefending player\b(?!'s choice)"
     r"|\bopponent gains control\b",
     re.IGNORECASE,
 )
@@ -1168,6 +1198,31 @@ def _without_spans(text: str, spans: list[tuple[int, int, str]]) -> str:
     return "".join(kept).strip()
 
 
+def _parks_trigger_condition(unit: AbilityUnit | None, c: ConceptNode) -> bool:
+    """Whether a residue is the rest of its trigger's own condition, not an
+    instruction: phase's description of the trigger reads "Whenever you <verb>,
+    <the residue>, <the effect>", the residue a list of alternative actions
+    ("Whenever you discover, investigate, scry, surveil, or seek one or more
+    cards, ~ deals 2 damage …" — Val, Marooned Surveyor's ``Discover`` trigger
+    parks "investigate, scry, surveil, or seek one or more cards" at the head
+    of its effects). An instruction list after the head joins with "and" /
+    "then" ("When ~ enters, conjure cards named Urza's Mine, …, and Urza's Tower
+    into your library, then shuffle" — Urza's Construction Drone)."""
+    if unit is None or unit.origin != "trigger" or not _is_candidate(c) or not c.raw:
+        return False
+    if not re.search(r"\bor\b", c.raw, re.IGNORECASE):
+        return False
+    desc = getattr(unit.node, "description", None)
+    if not isinstance(desc, str):
+        return False
+    head = re.match(
+        r"(?:when|whenever) you \w+,\s*" + re.escape(c.raw) + r"\s*,",
+        desc,
+        re.IGNORECASE,
+    )
+    return head is not None
+
+
 def _is_candidate(c: ConceptNode) -> bool:
     """A residue the stage may read: an undecorated ``Unimplemented`` node."""
     return (
@@ -1276,6 +1331,9 @@ def recover_concepts(
     # a second pass over a recovered tuple adds no instruction twice
     present = {(id(c.node), c.recovered_by, c.raw) for c in concepts}
     for c in concepts:
+        if _parks_trigger_condition(unit, c):
+            out.append(c)
+            continue
         text = c.raw.replace(self_name, "~") if self_name and c.raw else c.raw
         first = _recover(c, table, unit, text) or _recover_binding_sentence(
             c, table, unit

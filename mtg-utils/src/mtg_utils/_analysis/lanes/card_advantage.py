@@ -2552,8 +2552,14 @@ def _topdeck_selection(tree: ConceptTree) -> list[Signal]:
         unit_text = _REMINDER_RX.sub(" ", getattr(unit.node, "description", None) or "")
         # Phase v0.104.0 fails closed on an intervening-if scry ("if it didn't
         # die, scry 1 …" — Taeko, the Patient Avalanche) and parks it as a
-        # residue the ``scry`` token recovers; a scry is always your own library.
-        if any(c.recovered_by == "scry" for c in unit.effects):
+        # residue the ``scry`` token recovers; a scry is its scrier's own
+        # library, so another player's alone ("and they scry 2" — Ingenious
+        # Mastery) curates nothing of yours; "you and each opponent who voted
+        # … may scry 2" (Model of Unity) is yours too.
+        if any(
+            c.recovered_by == "scry" and OTHER_PLAYER not in c.reading
+            for c in unit.effects
+        ):
             return [Signal("topdeck_selection", "you", "", "", tree.name, "high")]
         for n in nodes:
             t = tag_of(n)
@@ -2640,7 +2646,10 @@ def _selection_actions(tree: ConceptTree) -> set[str]:
         for n in iter_typed_nodes(unit.node):
             if (action := _SELECTION_ACTIONS.get(tag_of(n) or "")) is not None:
                 found.add(action)
-        if any(c.recovered_by == "scry" for c in unit.effects):
+        if any(
+            c.recovered_by == "scry" and OTHER_PLAYER not in c.reading
+            for c in unit.effects
+        ):
             found.add("scry")
     if any(c.concept == "synth_topdeck_selection" for c in tree.iter_concepts()):
         found.add("scry")
