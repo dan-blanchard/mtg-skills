@@ -126,7 +126,8 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   flip "it gets -0/-2" stamps its "it" `SelfRef` (it is the Orc the winning
   outcome targets); Desperate Gambit's one coin flip is typed as two (a
   win-only `FlipCoins` whose `sub_ability` is a lose-only one —
-  `misparsed_shapes` merges them) and its "choose a source you control" loses
+  `misparsed_shapes` merges them; Goblin Kites' and Fickle Efreet's delayed
+  flip is the same split with an outcome-less first flip) and its "choose a source you control" loses
   "you control" (`TargetOnly{target: Any}`; no read needs it once the losing
   prevention reads as the gamble's drawback).
   Tragic Arrogance stays keep_n_wrath's (adjudicated disjoint from edicts).
@@ -134,10 +135,7 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   damage" (`prevent` residue) and Forcefield's "prevent all but 1"
   (`unrecognized_clause_head`); Blinding Powder's and Torrent of Lava's granted
   prevention (`granter_reference_unreached`); Eye of Ojer Taq's "Craft with two
-  that share a card type" (`unknown`); Goblin Kites' and Fickle Efreet's
-  delayed flip (an outcome-less `FlipCoins` followed by a lose-only one — the
-  split-flip `misparsed_shapes` row covers Desperate Gambit's nested form, not
-  this one); Guardian of the Ages and Torpid Moloch lose their defender by
+  that share a card type" (`unknown`); Guardian of the Ages and Torpid Moloch lose their defender by
   their own text but phase types neither as `CanAttackWithDefender`, so the
   voltron carrier fallback leaves them (a phase gap; the lane reads the node).
   Lane false

@@ -444341,6 +444341,228 @@
     "type_line": "Legendary Enchantment — Background"
    }
   },
+  "Fickle Efreet": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Efreet"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Red"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "premodern": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 3,
+      "shards": [
+       "Red"
+      ],
+      "type": "Cost"
+     },
+     "name": "Fickle Efreet",
+     "non_ability_text": null,
+     "oracle_text": "Whenever this creature attacks or blocks, flip a coin at end of combat. If you lose the flip, an opponent gains control of this creature.",
+     "power": {
+      "type": "Fixed",
+      "value": 5
+     },
+     "printings": [
+      "PCY"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "e5cd1024-ec1a-4df9-8bc6-ad2f3f443d06",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 2
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever ~ attacks or blocks, flip a coin at end of combat. If you lose the flip, an opponent gains control of ~.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "condition": {
+          "phase": "EndCombat",
+          "type": "AtNextPhase"
+         },
+         "effect": {
+          "condition": null,
+          "cost": null,
+          "description": null,
+          "duration": null,
+          "effect": {
+           "flips": {
+            "count": {
+             "type": "Fixed",
+             "value": 1
+            },
+            "type": "Exactly"
+           },
+           "lose_effect": null,
+           "type": "FlipCoins",
+           "win_effect": null
+          },
+          "forward_result": false,
+          "kind": "Spell",
+          "optional": false,
+          "optional_targeting": false,
+          "sub_ability": {
+           "condition": null,
+           "cost": null,
+           "description": null,
+           "duration": null,
+           "effect": {
+            "flips": {
+             "count": {
+              "type": "Fixed",
+              "value": 1
+             },
+             "type": "Exactly"
+            },
+            "lose_effect": {
+             "condition": null,
+             "cost": null,
+             "description": null,
+             "duration": null,
+             "effect": {
+              "choice_type": "Opponent",
+              "persist": false,
+              "type": "Choose"
+             },
+             "forward_result": false,
+             "kind": "Spell",
+             "optional": false,
+             "optional_targeting": false,
+             "sub_ability": {
+              "condition": null,
+              "cost": null,
+              "description": null,
+              "duration": null,
+              "effect": {
+               "target": {
+                "type": "SelfRef"
+               },
+               "type": "GainControl"
+              },
+              "forward_result": false,
+              "kind": "Spell",
+              "optional": false,
+              "optional_targeting": false,
+              "sub_ability": null,
+              "target_prompt": null
+             },
+             "target_prompt": null
+            },
+            "type": "FlipCoins",
+            "win_effect": null
+           },
+           "forward_result": false,
+           "kind": "Spell",
+           "optional": false,
+           "optional_targeting": false,
+           "sub_ability": null,
+           "sub_link": "SequentialSibling",
+           "target_prompt": null
+          },
+          "target_prompt": null
+         },
+         "type": "CreateDelayedTrigger",
+         "uses_tracked_set": false
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "AttacksOrBlocks",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 4.0,
+    "color_identity": [
+     "R"
+    ],
+    "colors": [
+     "R"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{3}{R}",
+    "name": "Fickle Efreet",
+    "oracle_id": "e5cd1024-ec1a-4df9-8bc6-ad2f3f443d06",
+    "oracle_text": "Whenever this creature attacks or blocks, flip a coin at end of combat. If you lose the flip, an opponent gains control of this creature.",
+    "power": "5",
+    "toughness": "2",
+    "type_line": "Creature — Efreet"
+   }
+  },
   "Field Trip": {
    "phase_records": [
     {
@@ -513720,6 +513942,248 @@
     "power": "2",
     "toughness": "2",
     "type_line": "Creature — Goblin"
+   }
+  },
+  "Goblin Kites": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": {
+        "cost": {
+         "generic": 0,
+         "shards": [
+          "Red"
+         ],
+         "type": "Cost"
+        },
+        "type": "Mana"
+       },
+       "description": "{R}: Target creature you control with toughness 2 or less gains flying until end of turn. Flip a coin at the beginning of the next end step. If you lose the flip, sacrifice that creature.",
+       "duration": "UntilEndOfTurn",
+       "effect": {
+        "duration": "UntilEndOfTurn",
+        "static_abilities": [
+         {
+          "active_zones": [],
+          "affected": {
+           "type": "ParentTarget"
+          },
+          "affected_zone": null,
+          "characteristic_defining": false,
+          "condition": null,
+          "description": "gain flying",
+          "effect_zone": null,
+          "mode": "Continuous",
+          "modifications": [
+           {
+            "keyword": "Flying",
+            "type": "AddKeyword"
+           }
+          ]
+         }
+        ],
+        "target": {
+         "controller": "You",
+         "properties": [
+          {
+           "comparator": "LE",
+           "scope": "Current",
+           "stat": "Toughness",
+           "type": "PtComparison",
+           "value": {
+            "type": "Fixed",
+            "value": 2
+           }
+          }
+         ],
+         "type": "Typed",
+         "type_filters": [
+          "Creature"
+         ]
+        },
+        "type": "GenericEffect"
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "condition": {
+          "phase": "End",
+          "type": "AtNextPhase"
+         },
+         "effect": {
+          "condition": null,
+          "cost": null,
+          "description": null,
+          "duration": null,
+          "effect": {
+           "flips": {
+            "count": {
+             "type": "Fixed",
+             "value": 1
+            },
+            "type": "Exactly"
+           },
+           "lose_effect": null,
+           "type": "FlipCoins",
+           "win_effect": null
+          },
+          "forward_result": false,
+          "kind": "Activated",
+          "optional": false,
+          "optional_targeting": false,
+          "sub_ability": {
+           "condition": null,
+           "cost": null,
+           "description": null,
+           "duration": null,
+           "effect": {
+            "flips": {
+             "count": {
+              "type": "Fixed",
+              "value": 1
+             },
+             "type": "Exactly"
+            },
+            "lose_effect": {
+             "condition": null,
+             "cost": null,
+             "description": null,
+             "duration": null,
+             "effect": {
+              "count": {
+               "type": "Fixed",
+               "value": 1
+              },
+              "target": {
+               "type": "ParentTarget"
+              },
+              "type": "Sacrifice"
+             },
+             "forward_result": false,
+             "kind": "Activated",
+             "optional": false,
+             "optional_targeting": false,
+             "sub_ability": null,
+             "target_prompt": null
+            },
+            "type": "FlipCoins",
+            "win_effect": null
+           },
+           "forward_result": false,
+           "kind": "Spell",
+           "optional": false,
+           "optional_targeting": false,
+           "sub_ability": null,
+           "sub_link": "SequentialSibling",
+           "target_prompt": null
+          },
+          "target_prompt": null
+         },
+         "type": "CreateDelayedTrigger",
+         "uses_tracked_set": false
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "sub_link": "SequentialSibling",
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Enchantment"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Red"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "Red"
+      ],
+      "type": "Cost"
+     },
+     "name": "Goblin Kites",
+     "non_ability_text": null,
+     "oracle_text": "{R}: Target creature you control with toughness 2 or less gains flying until end of turn. Flip a coin at the beginning of the next end step. If you lose the flip, sacrifice that creature.",
+     "power": null,
+     "printings": [
+      "FEM"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "6efd11c8-be8a-4d44-a776-66d058638ad1",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 2.0,
+    "color_identity": [
+     "R"
+    ],
+    "colors": [
+     "R"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}{R}",
+    "name": "Goblin Kites",
+    "oracle_id": "6efd11c8-be8a-4d44-a776-66d058638ad1",
+    "oracle_text": "{R}: Target creature you control with toughness 2 or less gains flying until end of turn. Flip a coin at the beginning of the next end step. If you lose the flip, sacrifice that creature.",
+    "type_line": "Enchantment"
    }
   },
   "Goblin Lore": {
