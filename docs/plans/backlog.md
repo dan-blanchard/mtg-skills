@@ -175,18 +175,6 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
 
 **From the Fynn, the Fangbearer real-deck validation (2026-10-29; `real-deck-validation.md`)**
 
-- **The front-face keyword rule reaches three reads only.**
-  `card_classify.classifying_keywords` (CR 712.8a/712.8d, 710.2, 715.4) feeds
-  the serve and preset keyword arms, `has_evasion` and the signal extractor's
-  keyword field. Other reads of a card's own keywords still read every face's,
-  and could follow on the same rules reason: `set_scan`'s evasion count (a
-  creature card's evasion, so the face it is played by), `_analysis.rate`'s
-  copy keywords, `text_reads._voltron_double_strike_beater`, the
-  `membership_floor` voltron tells, `lanes.card_advantage`'s self-recurring
-  keywords, and the job reads' Flash / Undaunted / cost-reducer checks (a
-  transforming card is cast by its front face, 712.11). Companion conditions
-  stay as they are: they are deckbuilding checks over the card itself, not a
-  body on the battlefield, so every face's keywords count there.
 - **`damage_equal_power|you|creature` still carries cards that aren't bites.**
   Repentance and Solar Blaze (a creature damages itself), Mutiny (an opponent's
   creature deals the damage), and Corpse Explosion and Dead Reckoning (the spell

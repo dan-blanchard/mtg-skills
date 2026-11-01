@@ -483718,6 +483718,304 @@
     "type_line": "Instant"
    }
   },
+  "Gatstaf Shepherd // Gatstaf Howler": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Werewolf"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Green"
+     ],
+     "color_override": [
+      "Green"
+     ],
+     "defense": null,
+     "face_index": 1,
+     "flavor_name": null,
+     "keywords": [
+      "Intimidate"
+     ],
+     "layout": "transform",
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "type": "NoCost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "57f0907f-74f4-4d86-93df-f2e50c9d0b2f"
+      ]
+     },
+     "name": "Gatstaf Howler",
+     "non_ability_text": null,
+     "oracle_text": "Intimidate (This creature can't be blocked except by artifact creatures and/or creatures that share a color with it.)\nAt the beginning of each upkeep, if a player cast two or more spells last turn, transform this creature.",
+     "power": {
+      "type": "Fixed",
+      "value": 3
+     },
+     "printings": [
+      "ISD"
+     ],
+     "rarities": [
+      "uncommon"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "c05c5375-d0d7-4cf2-92e6-76f86cd0febf",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 3
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "At the beginning of each upkeep, if a player cast two or more spells last turn, transform ~.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "description": "if a player cast two or more spells last turn, transform ~",
+         "name": "unparsed_condition",
+         "type": "Unimplemented"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "Phase",
+       "optional": false,
+       "origin": null,
+       "phase": "Upkeep",
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": null,
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    },
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Human",
+       "Werewolf"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Green"
+     ],
+     "color_override": null,
+     "defense": null,
+     "face_index": 0,
+     "flavor_name": null,
+     "keywords": [],
+     "layout": "transform",
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "Green"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "57f0907f-74f4-4d86-93df-f2e50c9d0b2f"
+      ]
+     },
+     "name": "Gatstaf Shepherd",
+     "non_ability_text": null,
+     "oracle_text": "At the beginning of each upkeep, if no spells were cast last turn, transform this creature.",
+     "power": {
+      "type": "Fixed",
+      "value": 2
+     },
+     "printings": [
+      "ISD"
+     ],
+     "rarities": [
+      "uncommon"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2016-07-13",
+       "text": "For more information on double-faced cards, see the Shadows over Innistrad mechanics article (http://magic.wizards.com/en/articles/archive/feature/shadows-over-innistrad-mechanics)."
+      }
+     ],
+     "scryfall_oracle_id": "c05c5375-d0d7-4cf2-92e6-76f86cd0febf",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 2
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": {
+        "comparator": "EQ",
+        "lhs": {
+         "qty": {
+          "type": "SpellsCastLastTurn"
+         },
+         "type": "Ref"
+        },
+        "rhs": {
+         "type": "Fixed",
+         "value": 0
+        },
+        "type": "QuantityComparison"
+       },
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "At the beginning of each upkeep, if no spells were cast last turn, transform ~.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "scope": {
+          "type": "Single"
+         },
+         "target": {
+          "type": "SelfRef"
+         },
+         "type": "Transform"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "Phase",
+       "optional": false,
+       "origin": null,
+       "phase": "Upkeep",
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": null,
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "card_faces": [
+     {
+      "colors": [
+       "G"
+      ],
+      "keywords": [
+       "Intimidate",
+       "Transform"
+      ],
+      "mana_cost": "{1}{G}",
+      "name": "Gatstaf Shepherd",
+      "oracle_text": "At the beginning of each upkeep, if no spells were cast last turn, transform this creature.",
+      "power": "2",
+      "toughness": "2",
+      "type_line": "Creature — Human Werewolf"
+     },
+     {
+      "colors": [
+       "G"
+      ],
+      "keywords": [
+       "Intimidate",
+       "Transform"
+      ],
+      "mana_cost": "",
+      "name": "Gatstaf Howler",
+      "oracle_text": "Intimidate (This creature can't be blocked except by artifact creatures and/or creatures that share a color with it.)\nAt the beginning of each upkeep, if a player cast two or more spells last turn, transform this creature.",
+      "power": "3",
+      "toughness": "3",
+      "type_line": "Creature — Werewolf"
+     }
+    ],
+    "cmc": 2.0,
+    "color_identity": [
+     "G"
+    ],
+    "keywords": [
+     "Intimidate",
+     "Transform"
+    ],
+    "layout": "transform",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "name": "Gatstaf Shepherd // Gatstaf Howler",
+    "oracle_id": "c05c5375-d0d7-4cf2-92e6-76f86cd0febf",
+    "type_line": "Creature — Human Werewolf // Creature — Werewolf"
+   }
+  },
   "Gauntlet of Might": {
    "phase_records": [
     {

@@ -127,6 +127,7 @@ from mtg_utils._card_ir.crosswalk import (
     watches_itself,
 )
 from mtg_utils._card_ir.trees import fixed_stat
+from mtg_utils.card_classify import classifying_keywords
 from mtg_utils.theme_presets import signal_keys_for
 
 if TYPE_CHECKING:
@@ -539,7 +540,7 @@ def _draw_cost(card: dict, sources: list[_Source]) -> float:
         return NO_COST
     mana_cost = front_mana_cost(card)
     cost = max(0.0, cast_cost(card))
-    if set(card.get("keywords") or ()) & _COST_REDUCERS:
+    if set(classifying_keywords(card)) & _COST_REDUCERS:
         cost = min(cost, 3.0)
     if "{X}" in mana_cost and any(s.scaling for s in sources):
         cost += _SCALING

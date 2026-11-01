@@ -91,6 +91,16 @@ def test_a_back_face_keyword_is_no_body():
     assert not _deathtouch_lane().serve.matches(card)
 
 
+def test_a_back_face_keyword_is_no_voltron_tell():
+    # Gatstaf Shepherd's intimidate is Gatstaf Howler's (the back face): a
+    # transforming commander has only its front face's characteristics until it
+    # transforms (CR 712.8a, 712.8d), so no evasion carrier tell.
+    idents = {
+        (s.key, s.subject) for s in test_signals("Gatstaf Shepherd // Gatstaf Howler")
+    }
+    assert ("voltron_matters", "carrier") not in idents
+
+
 def test_an_activated_self_grant_is_no_body():
     # Poison Dart Frog's deathtouch is granted by its {2} ability's effect (CR
     # 113.1a); a body counts only by a keyword it has without paying (the

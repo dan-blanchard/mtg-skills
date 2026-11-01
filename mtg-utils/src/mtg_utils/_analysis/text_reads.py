@@ -24,7 +24,7 @@ from mtg_utils._analysis.signal_base import (
     _tinybones_scope,
 )
 from mtg_utils._card_ir.crosswalk import KEYWORD_COUNTER_KINDS
-from mtg_utils.card_classify import card_pt_int
+from mtg_utils.card_classify import card_pt_int, classifying_keywords
 
 
 @lru_cache(maxsize=4096)
@@ -621,7 +621,7 @@ def _voltron_double_strike_beater(card: dict, text: str) -> bool:
     equipment/aura bonus, so a prime voltron threat (Sabin, Leonardo). The power>=4 +
     no-"create token" gate excludes the double-strike go-wide token-makers (Oketra) that
     are the documented over-fire class for an ungated double-strike rule."""
-    kws = {k.lower() for k in (card.get("keywords") or [])}
+    kws = {k.lower() for k in classifying_keywords(card)}
     if "double strike" not in kws:
         return False
     return card_pt_int(card) >= 4 and not _VOLTRON_TOKEN_MAKE_RE.search(text)

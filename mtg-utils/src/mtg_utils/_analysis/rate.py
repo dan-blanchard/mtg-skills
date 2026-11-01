@@ -47,6 +47,7 @@ from mtg_utils._card_ir.crosswalk import (
     tag_of,
 )
 from mtg_utils._card_ir.trees import trees_for
+from mtg_utils.card_classify import classifying_keywords
 
 # A mid-game go-wide board: what a your-board-count damage spell (Mob
 # Justice) typically reads on the turn it matters.
@@ -107,9 +108,7 @@ def effect_metric(card: dict) -> tuple[str, float] | None:
         return None
     mv = max(float(card.get("cmc") or 0.0), 1.0)
     copy_mult = (
-        2.0
-        if _COPY_KEYWORDS & {k.lower() for k in (card.get("keywords") or ())}
-        else 1.0
+        2.0 if _COPY_KEYWORDS & {k.lower() for k in classifying_keywords(card)} else 1.0
     )
 
     # Spell-basis effects sum across SPELL units (one cast resolves them

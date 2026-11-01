@@ -141,6 +141,7 @@ from mtg_utils._card_ir.crosswalk import (
     tag_of,
 )
 from mtg_utils._card_ir.trees import fixed_stat, object_facts, phase_records_for
+from mtg_utils.card_classify import classifying_keywords
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -932,7 +933,7 @@ def _cost(card: dict, best: _Sweep, *, x: bool) -> float:
     backs = faces(card)[1:]
     if backs and best.face_cmc is not None:
         cost = min(cost, float(best.face_cmc))
-    if "Undaunted" in (card.get("keywords") or ()):
+    if "Undaunted" in classifying_keywords(card):
         cost -= _UNDAUNTED
     if best.overload:
         cost = float(_overload_cost(card) or cost)
