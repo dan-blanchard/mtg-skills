@@ -581281,6 +581281,214 @@
     "type_line": "Instant"
    }
   },
+  "Hunted Dragon": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Dragon"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Red"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [
+      "Flying",
+      "Haste"
+     ],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 3,
+      "shards": [
+       "Red",
+       "Red"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "related_token_ids": [
+       "d1d3472c-dc10-52d7-99ae-3de46bcfa621"
+      ],
+      "source_printing_ids": [
+       "351cea54-905e-401b-8627-7c3fd192b772",
+       "4184638c-bfb8-424d-b106-ed7b3d80b668",
+       "f454ae09-6ad3-4ef5-b640-c09908ba3625"
+      ]
+     },
+     "name": "Hunted Dragon",
+     "non_ability_text": null,
+     "oracle_text": "Flying, haste\nWhen this creature enters, target opponent creates three 2/2 white Knight creature tokens with first strike.",
+     "power": {
+      "type": "Fixed",
+      "value": 6
+     },
+     "printings": [
+      "C15",
+      "CM2",
+      "PLST",
+      "RAV"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2005-10-01",
+       "text": "The tokens are the color white and have name and creature type Knight. They are *not* functionally identical to the card White Knight."
+      }
+     ],
+     "scryfall_oracle_id": "39a4416f-9b40-432e-aeb6-cc7bf519b37a",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 6
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "When ~ enters, target opponent creates three 2/2 white Knight creature tokens with first strike.",
+       "destination": "Battlefield",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "declares_chosen_group": 2147483648,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "colors": [
+          "White"
+         ],
+         "count": {
+          "type": "Fixed",
+          "value": 3
+         },
+         "enters_attacking": false,
+         "keywords": [
+          "FirstStrike"
+         ],
+         "name": "Knight",
+         "owner": {
+          "controller": "Opponent",
+          "properties": [],
+          "type": "Typed",
+          "type_filters": []
+         },
+         "power": {
+          "type": "Fixed",
+          "value": 2
+         },
+         "tapped": false,
+         "toughness": {
+          "type": "Fixed",
+          "value": 2
+         },
+         "type": "Token",
+         "types": [
+          "Creature",
+          "Knight"
+         ]
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "ChangesZone",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": {
+        "type": "Player"
+       }
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "all_parts": [
+     {
+      "component": "token",
+      "id": "2a6415b3-cd84-41fc-95cd-3d2dd84911cb",
+      "name": "Knight",
+      "oracle_id": "100435fe-ae77-4644-8b4a-4c941bb2067f",
+      "type_line": "Token Creature — Knight"
+     }
+    ],
+    "arena_available": false,
+    "cmc": 5.0,
+    "color_identity": [
+     "R"
+    ],
+    "colors": [
+     "R"
+    ],
+    "keywords": [
+     "Flying",
+     "Haste"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{3}{R}{R}",
+    "name": "Hunted Dragon",
+    "oracle_id": "39a4416f-9b40-432e-aeb6-cc7bf519b37a",
+    "oracle_text": "Flying, haste\nWhen this creature enters, target opponent creates three 2/2 white Knight creature tokens with first strike.",
+    "power": "6",
+    "toughness": "6",
+    "type_line": "Creature — Dragon"
+   }
+  },
   "Hunted Horror": {
    "phase_records": [
     {

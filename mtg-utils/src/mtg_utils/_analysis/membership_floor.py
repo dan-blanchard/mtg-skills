@@ -1278,11 +1278,18 @@ _VOLTRON_HAS_OTHER_PLAN_COMPAT: frozenset[str] = frozenset(
         # fallback. (The old combined arm emitted voltron_matters HIGH here, which
         # equally never silenced its own lane — keeping this compat preserves that.)
         "voltron_makers",
-        # A step trigger (Phyrexian Arena's upkeep draw) is a payoff an extra step
-        # would repeat, not an engine the commander runs.
-        *signal_keys.STEP_TRIGGER_KEYS.values(),
     }
 )
+
+
+def _opens_an_avenue(signal: Signal) -> bool:
+    """Whether ``signal`` opens an avenue (``signal_specs.avenue_spec_for``), the
+    test the voltron floor's plan read asks of a high-confidence signal.
+    Imported at call time: ``signal_specs`` reads the lanes' specs, and the
+    floor runs inside signal extraction."""
+    from mtg_utils._analysis.signal_specs import avenue_spec_for
+
+    return avenue_spec_for(signal) is not None
 
 
 _VOLTRON_PLAN_BROADENED: frozenset[str] = frozenset(
@@ -2015,8 +2022,11 @@ def _apply_membership_floor(
         and s.key not in _VOLTRON_HAS_OTHER_PLAN_COMPAT
         and s.key not in _VOLTRON_PLAN_BROADENED
         and not (own_lifelink and s.key == "lifegain_makers")
-        # a page-only doer opens no avenue, so it is no plan either
-        and not signal_keys.is_page_only(s.key, s.subject)
+        # a signal that opens no avenue is no plan either: a page-only doer, a
+        # step trigger (Phyrexian Arena's upkeep draw — a payoff an extra step
+        # would repeat, not an engine the commander runs), a subject its theme's
+        # serve doesn't count
+        and _opens_an_avenue(s)
         for s in out
     ) or bool(_BROADENED_PLAN_MIRROR.search(kept_oracle))
     # (base) commander-damage fallback (CR 903.10a): only when nothing else gave a
