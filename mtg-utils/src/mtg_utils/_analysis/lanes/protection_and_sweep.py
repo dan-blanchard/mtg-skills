@@ -45,6 +45,7 @@ from mtg_utils._card_ir.crosswalk import (
     counter_kind_any,
     counter_pred_kinds,
     counts_opponents_land_type,
+    effects_by_actor,
     evasion_keyword_kind,
     evasion_sites,
     extra_blocker_grants,
@@ -1945,11 +1946,17 @@ def _seek_matters(tree: ConceptTree) -> list[Signal]:
     the live lane fires through it); Arena-only is a LEGALITY property, not
     a skip — deck-forge serves historic_brawl (bl=98). A library SEARCH is
     a different node family (``SearchLibrary`` → tutor) — no gate needed.
-    Scope "you", HIGH.
+    Scope "you", HIGH; "opponents" when only another player seeks ("the exiled
+    card's owner seeks a card …" — Darkstar Banisher, Cackling Observer:
+    :func:`~mtg_utils._card_ir.crosswalk.effects_by_actor`).
     """
-    hits = tree.effect_concepts("seek")
-    if hits:
-        return [Signal("seek_matters", "you", "", hits[0].raw, tree.name, "high")]
+    yours, theirs = effects_by_actor(tree, concept="seek")
+    if yours:
+        return [Signal("seek_matters", "you", "", yours[0].raw, tree.name, "high")]
+    if theirs:
+        return [
+            Signal("seek_matters", "opponents", "", theirs[0].raw, tree.name, "high")
+        ]
     return []
 
 

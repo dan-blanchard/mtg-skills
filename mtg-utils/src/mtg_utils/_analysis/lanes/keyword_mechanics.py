@@ -51,6 +51,7 @@ from mtg_utils._card_ir.crosswalk import (
     discard_recipient_scope,
     effect_filter,
     effect_owner_player_scope,
+    effects_by_actor,
     effects_exclusive,
     end_step_sacrifices,
     ends_turn_at_instant_speed,
@@ -375,14 +376,22 @@ def _facedown_makers(tree: ConceptTree) -> list[Signal]:
     concept, so both are excluded structurally. The morph / megamorph / disguise /
     manifest-dread printed keywords (no ``Manifest`` / ``Cloak`` effect node — they
     are CAST face down) ride the keyword field-lookup in
-    :func:`_keyword_field_signals_b5`. Scope "you".
+    :func:`_keyword_field_signals_b5`. Scope "you"; "opponents" when only
+    another player does it ("the exiled card's owner manifests dread" —
+    Unidentified Hovership: :func:`crosswalk.effects_by_actor`).
     """
-    sigs = _whole_card_maker(tree, "facedown", "facedown_makers", "you")
+    yours, theirs = effects_by_actor(tree, concept="facedown")
+    if not yours:
+        return [
+            Signal("facedown_makers", "opponents", "", c.raw, tree.name, "high")
+            for c in theirs[:1]
+        ]
+    sigs = [Signal("facedown_makers", "you", "", yours[0].raw, tree.name, "high")]
     # The effect node puts a card onto the battlefield (the ``manifest``
     # subject a permanents-entering page counts, page-only) when you manifest
     # or cloak it (:func:`crosswalk.manifests_for_you` — not Reality Shift's
     # "Its controller manifests"); a morph is cast.
-    if any(manifests_for_you(c.node) for c in tree.effect_concepts("facedown")):
+    if any(manifests_for_you(c.node) for c in yours):
         sigs.append(Signal("facedown_makers", "you", "manifest", "", tree.name, "high"))
     return sigs
 
