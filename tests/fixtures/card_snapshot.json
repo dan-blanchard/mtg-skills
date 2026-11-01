@@ -959611,6 +959611,149 @@
     "type_line": "Creature — Serpent"
    }
   },
+  "Seal of Doom": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": {
+        "count": 1,
+        "target": {
+         "type": "SelfRef"
+        },
+        "type": "Sacrifice"
+       },
+       "description": "Sacrifice ~: Destroy target nonblack creature. It can't be regenerated.",
+       "duration": null,
+       "effect": {
+        "cant_regenerate": true,
+        "target": {
+         "controller": null,
+         "properties": [
+          {
+           "color": "Black",
+           "type": "NotColor"
+          }
+         ],
+         "type": "Typed",
+         "type_filters": [
+          "Creature"
+         ]
+        },
+        "type": "Destroy"
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Enchantment"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Black"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pauper": "legal",
+      "paupercommander": "legal",
+      "premodern": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 2,
+      "shards": [
+       "Black"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "3647ef4a-fbf3-4f64-8376-72c9247bbc22",
+       "8ed90da8-2642-4253-9cd6-f26465ce5ad2",
+       "db03f466-f3a2-45ca-bd79-19773a3c8cf8"
+      ]
+     },
+     "name": "Seal of Doom",
+     "non_ability_text": null,
+     "oracle_text": "Sacrifice this enchantment: Destroy target nonblack creature. It can't be regenerated.",
+     "power": null,
+     "printings": [
+      "C15",
+      "DIS",
+      "MM3",
+      "NEM",
+      "PLST"
+     ],
+     "rarities": [
+      "common",
+      "uncommon"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "71d54ba3-91fe-4a14-8b99-c284b4c75013",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 3.0,
+    "color_identity": [
+     "B"
+    ],
+    "colors": [
+     "B"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "legal",
+     "paupercommander": "legal",
+     "penny": "legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}{B}",
+    "name": "Seal of Doom",
+    "oracle_id": "71d54ba3-91fe-4a14-8b99-c284b4c75013",
+    "oracle_text": "Sacrifice this enchantment: Destroy target nonblack creature. It can't be regenerated.",
+    "type_line": "Enchantment"
+   }
+  },
   "Search for Glory": {
    "phase_records": [
     {
@@ -1158309,6 +1158452,183 @@
     "type_line": "Legendary Artifact Creature — Robot Villain"
    }
   },
+  "Ulvenwald Tracker": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": {
+        "costs": [
+         {
+          "cost": {
+           "generic": 1,
+           "shards": [
+            "Green"
+           ],
+           "type": "Cost"
+          },
+          "type": "Mana"
+         },
+         {
+          "type": "Tap"
+         }
+        ],
+        "type": "Composite"
+       },
+       "description": "{1}{G}, {T}: Target creature you control fights another target creature.",
+       "duration": null,
+       "effect": {
+        "subject": {
+         "controller": "You",
+         "properties": [],
+         "type": "Typed",
+         "type_filters": [
+          "Creature"
+         ]
+        },
+        "target": {
+         "controller": null,
+         "properties": [
+          {
+           "type": "Another"
+          }
+         ],
+         "type": "Typed",
+         "type_filters": [
+          "Creature"
+         ]
+        },
+        "type": "Fight"
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Human",
+       "Shaman"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Green"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 0,
+      "shards": [
+       "Green"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "1bf611cc-6a54-40bb-8fc3-b66d942254db",
+       "46199391-a4f5-4532-b89c-b7691b229bd0",
+       "4da9e7d8-5f01-4d55-a0a8-afe5e7d5f8e4"
+      ]
+     },
+     "name": "Ulvenwald Tracker",
+     "non_ability_text": null,
+     "oracle_text": "{1}{G}, {T}: Target creature you control fights another target creature.",
+     "power": {
+      "type": "Fixed",
+      "value": 1
+     },
+     "printings": [
+      "AVR",
+      "MM3",
+      "SLD"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2017-03-14",
+       "text": "If either target of Ulvenwald Tracker’s ability is an illegal target when the ability tries to resolve, neither creature will deal or be dealt damage."
+      },
+      {
+       "date": "2017-03-14",
+       "text": "The second target of Ulvenwald Tracker’s ability can be another creature you control, but it can’t be the same creature as the first target."
+      }
+     ],
+     "scryfall_oracle_id": "63a37c08-7e38-4fe2-9a71-cc4604c4f831",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 1
+     },
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 1.0,
+    "color_identity": [
+     "G"
+    ],
+    "colors": [
+     "G"
+    ],
+    "keywords": [
+     "Fight"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{G}",
+    "name": "Ulvenwald Tracker",
+    "oracle_id": "63a37c08-7e38-4fe2-9a71-cc4604c4f831",
+    "oracle_text": "{1}{G}, {T}: Target creature you control fights another target creature.",
+    "power": "1",
+    "toughness": "1",
+    "type_line": "Creature — Human Shaman"
+   }
+  },
   "Umbra Mystic": {
    "phase_records": [
     {
@@ -1215771,6 +1216091,170 @@
     "name": "Afflicted Deserter // Werewolf Ransacker",
     "oracle_id": "52adc761-1a0a-43d1-a706-41a92bb7880c",
     "type_line": "Creature — Human Werewolf // Creature — Werewolf"
+   }
+  },
+  "Westfold Rider": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "activation_restrictions": [
+        {
+         "type": "AsSorcery"
+        }
+       ],
+       "condition": null,
+       "cost": {
+        "count": 1,
+        "target": {
+         "type": "SelfRef"
+        },
+        "type": "Sacrifice"
+       },
+       "description": "Sacrifice ~: Destroy target artifact or enchantment. Activate only as a sorcery.",
+       "duration": null,
+       "effect": {
+        "cant_regenerate": false,
+        "target": {
+         "filters": [
+          {
+           "controller": null,
+           "properties": [],
+           "type": "Typed",
+           "type_filters": [
+            "Artifact"
+           ]
+          },
+          {
+           "controller": null,
+           "properties": [],
+           "type": "Typed",
+           "type_filters": [
+            "Enchantment"
+           ]
+          }
+         ],
+         "type": "Or"
+        },
+        "type": "Destroy"
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Human",
+       "Knight"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "White"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pauper": "legal",
+      "paupercommander": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "White"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "3c73835d-4af8-4754-bcc8-176e43fceaea",
+       "71ed2e4b-c732-472a-a589-f1f53086d9ee"
+      ]
+     },
+     "name": "Westfold Rider",
+     "non_ability_text": null,
+     "oracle_text": "Sacrifice this creature: Destroy target artifact or enchantment. Activate only as a sorcery.",
+     "power": {
+      "type": "Fixed",
+      "value": 3
+     },
+     "printings": [
+      "HOC",
+      "LTR"
+     ],
+     "rarities": [
+      "common"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "17d35b8f-2189-4587-9c57-425e93d883c6",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 1
+     },
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 2.0,
+    "color_identity": [
+     "W"
+    ],
+    "colors": [
+     "W"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "legal",
+     "paupercommander": "legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}{W}",
+    "name": "Westfold Rider",
+    "oracle_id": "17d35b8f-2189-4587-9c57-425e93d883c6",
+    "oracle_text": "Sacrifice this creature: Destroy target artifact or enchantment. Activate only as a sorcery.",
+    "power": "3",
+    "toughness": "1",
+    "type_line": "Creature — Human Knight"
    }
   },
   "Wheel of Fortune": {

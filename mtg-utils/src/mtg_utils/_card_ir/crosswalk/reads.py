@@ -8041,6 +8041,29 @@ def _end_step_sacrifices(tree: ConceptTree) -> bool:
     )
 
 
+def at_instant_speed(tree: ConceptTree, unit: AbilityUnit | None) -> bool:
+    """Whether ``unit`` can go on the stack while another player's spell or
+    ability waits there — the ONE instant-speed read, which the job reads
+    (removal's and protection's ``instant``) and :func:`instant_end_turn_unit`
+    ask. An activated ability is, unless held to sorcery timing (CR 117.1b;
+    "Activate only as a sorcery", CR 602.5d); any ability of an instant (CR
+    117.1a) or of a card with flash (CR 702.8a: cast "any time you could cast an
+    instant") is — its spell, and the enters trigger a flash body brings, since
+    the body itself is cast in response. A triggered or static ability of a
+    sorcery-speed permanent is not: it works, but nothing was chosen in
+    response. ``None`` (an effect none of the card's own units carries: a granted
+    one) reads the card's own speed."""
+    if unit is not None and unit.kind == "Activated":
+        restrictions = getattr(unit.node, "activation_restrictions", None)
+        return not (
+            isinstance(restrictions, list)
+            and any(tag_of(r) == "AsSorcery" for r in restrictions)
+        )
+    return tree.is_type("Instant") or "flash" in {
+        normalised_keyword_name(k) for k in tree.card_keywords
+    }
+
+
 def instant_end_turn_unit(
     tree: ConceptTree, *, repeatable: bool = False
 ) -> AbilityUnit | None:
@@ -8058,20 +8081,9 @@ def instant_end_turn_unit(
     for unit in tree.units:
         if not any(c.concept == "end_the_turn" for c in unit.effects):
             continue
-        if unit.kind == "Activated":
-            restrictions = getattr(unit.node, "activation_restrictions", None)
-            if not isinstance(restrictions, list) or not any(
-                tag_of(r) == "AsSorcery" for r in restrictions
-            ):
-                return unit
-        elif (
-            not repeatable
-            and unit.kind == "Spell"
-            and (
-                tree.is_type("Instant")
-                or "flash" in {normalised_keyword_name(k) for k in tree.card_keywords}
-            )
-        ):
+        if (
+            unit.kind == "Activated" or (not repeatable and unit.kind == "Spell")
+        ) and at_instant_speed(tree, unit):
             return unit
     return None
 
