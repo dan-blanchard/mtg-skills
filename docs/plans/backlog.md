@@ -424,11 +424,6 @@ theme guide adds no theme serve admits (J2: 100) — Ahoy Mateys 13 (theft), Sil
 ETB doublers), ~45 scattered one to seven a deck. Gate unchanged (held-out 20: plan
 ≥ +10, adds + job-equivalents ≥ −5, cuts ≥ −1). In order:
 
-- **V3 / V3b theme-order retest at the lowered strength bar.** Dan lowered the bar to
-  0.65 leave-one-deck-out on the adds-vs-cuts pairs ALONE (met: 0.66–0.68; the
-  live-order source stays at 0.59–0.62 and no longer gates). Rebase
-  `w41/theme-order-V3.patch` and `-V3b.patch`, one measured run each. Both failing
-  closes the reorder thread for good.
 - **A tutor is a need-satisfier (gated).** A tutor pages on a commander need whose pool
   satisfiers its search filter can find (the tutor read's filter against the need's
   satisfiers' types): unrestricted tutors (Demonic, Vampiric, Gamble) on the most
@@ -845,10 +840,10 @@ headroom and parked items.
     the tune time (below); reordering the page by the card reads (V1, 2026-10-30;
     V3 reads-first and V3b blended with the theme-strength reads, 2026-10-31)
     failed the gate every time — held-out plan +69 / adds −12 for V3, plan +5 /
-    the 25 adds −8 for V3b. Don't re-suggest a page depth change; the order
-    change gets one retest under the bar Dan lowered 2026-11-01 (0.65
-    leave-one-deck-out on the adds-vs-cuts pairs alone — see the Open block
-    entry; the audit's "The theme-strength reads and the V3 order");
+    the 25 adds −8 for V3b; retested 2026-11-01 under the lowered bar (0.65 on
+    the adds-vs-cuts pairs alone) and failed again — V3 held-out adds −12, V3b
+    plan +9 with the 25 adds −8. Don't re-suggest a page depth or order change
+    (the audit's "The theme-strength reads and the V3 order");
   - four guide adds serve only a sub (Living Energy's Arcum Dagsson, Clever
     Impersonator, Scrap Welder; Deep Clue Sea's Displaced Dinosaurs). Sharing the
     theme adds over the commander's held subs as well as the mains took Roaming
@@ -1067,7 +1062,12 @@ headroom and parked items.
   blend V3b (plan +5; patches `w41/theme-order-*.patch`) — the bar for a retest
   was 0.70 leave-one-deck-out on both pair sources (`w41/pairs-cuts.json`,
   `pairs-live.json`), lowered by Dan 2026-11-01 to 0.65 on adds-vs-cuts alone
-  for ONE retest of V3 / V3b (the Open block entry); the job pages by read score (J1);
+  for ONE retest of each against N12: V3 held-out plan +71 but adds −12 and
+  job-equivalents −4 (the 25 adds −4); V3b held-out plan +9, adds +1,
+  job-equivalents −2, the 25 adds −8 (`w41/sb-*-V3r.json`, `sb-*-V3br.json`).
+  **The reorder thread is closed:** no theme reorder by the card reads at any
+  strength bar — the reads lift plan cards the guides don't play and the
+  play-rate order keeps the guides' adds. Don't re-suggest; the job pages by read score (J1);
   per-source guide down-weighting (the 2026-10-30 plan's deferred item) is
   settled as "consensus reported, not weighted" (Dan, 2026-11-01): the scoreboard's
   consensus and near-miss columns are the view, and weighting the gate's adds
