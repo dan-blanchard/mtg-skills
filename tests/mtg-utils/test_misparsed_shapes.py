@@ -124,6 +124,54 @@ def test_split_coin_flip_canary():
     assert rec["abilities"][0]["sub_ability"]["effect"]["lose_effect"] is None
 
 
+@pytest.mark.retirement_canary
+@pytest.mark.parametrize(
+    ("name", "path"),
+    [
+        # "Flip a coin at the beginning of the next end step. If you lose the
+        # flip, sacrifice that creature." — inside the activation's delayed
+        # trigger
+        ("Goblin Kites", ("abilities", 0, "sub_ability", "effect", "effect")),
+        # "flip a coin at end of combat. If you lose the flip, an opponent gains
+        # control of ~" — inside the attack trigger's delayed trigger
+        ("Fickle Efreet", ("triggers", 0, "execute", "effect", "effect")),
+    ],
+)
+def test_split_delayed_coin_flip_canary(name, path):
+    """The delayed form of the split flip: an outcome-less ``FlipCoins`` whose
+    ``sub_ability`` is a lose-only one. The stage moves the losing outcome onto
+    the first flip."""
+    (rec,) = test_phase_records(name)
+
+    def body(r: dict) -> dict:
+        node: object = r
+        for step in path:
+            node = node[step]  # type: ignore[index]
+        assert isinstance(node, dict)
+        return node
+
+    before = body(rec)
+    second = (before.get("sub_ability") or {}).get("effect") or {}
+    assert second.get("type") == "FlipCoins", (
+        f"misparsed_shapes split coin flip: RETIRE-READY — phase types {name}'s "
+        "one delayed flip. Drop the outcome-less form from the split-flip row "
+        "and this canary."
+    )
+    assert before["effect"]["win_effect"] is None
+    assert before["effect"]["lose_effect"] is None
+    after = body(correct_misparsed_shapes(rec))
+    assert after["effect"]["lose_effect"] == second["lose_effect"]
+    assert after["sub_ability"] is None
+
+
+def test_split_delayed_flips_losing_outcome_is_a_drawback():
+    """Losing control of the card (Fickle Efreet) is no blocked-creature payoff,
+    and no attack payoff either: the trigger's only outcome is a drawback."""
+    assert not {"blocked_matters", "attack_matters"} & _keys("Fickle Efreet")
+    # a real "attacks or blocks" reward keeps its attack payoff
+    assert "attack_matters" in _keys("Elder Gargaroth")
+
+
 def test_desperate_gambits_losing_prevention_is_no_shield():
     """The losing outcome prevents the damage of the source the winning one
     doubles: a drawback of the gamble, not a prevention shield."""

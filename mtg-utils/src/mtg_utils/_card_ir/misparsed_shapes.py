@@ -55,7 +55,12 @@ taught a special case. Keyed on phase's structure, never the card's name or text
   which its flipper wins or loses (CR 705.2), and phase types every other flip
   that names both outcomes as one ``FlipCoins`` (Orcish Captain): the second
   flip's ``lose_effect`` is moved onto the first, and the second flip leaves the
-  chain. ``test_split_coin_flip_canary`` fails once phase types the one flip.
+  chain. The delayed form names only the losing outcome ("Flip a coin at the
+  beginning of the next end step. If you lose the flip, sacrifice that
+  creature" — Goblin Kites; Fickle Efreet's "flip a coin at end of combat"):
+  phase types an outcome-less ``FlipCoins`` followed by the lose-only one, read
+  the same way. ``test_split_coin_flip_canary`` and
+  ``test_split_delayed_coin_flip_canary`` fail once phase types the one flip.
 
 Pure functions over plain dicts; nothing here reads the mirror or a tree.
 """
@@ -175,15 +180,15 @@ def _ability_bodies(node: object) -> Iterator[dict]:
 
 
 def _is_split_flip(body: dict) -> bool:
-    """A ``FlipCoins`` with only a ``win_effect`` whose ``sub_ability`` is a
-    ``FlipCoins`` of the same ``flips`` with only a ``lose_effect``."""
+    """A ``FlipCoins`` with no ``lose_effect`` (a ``win_effect`` only, or no
+    outcome at all) whose ``sub_ability`` is a ``FlipCoins`` of the same
+    ``flips`` with only a ``lose_effect``."""
     flip = body["effect"]
     second = (body.get("sub_ability") or {}).get("effect") or {}
     return (
         flip.get("type") == "FlipCoins"
         and second.get("type") == "FlipCoins"
         and flip.get("flips") == second.get("flips")
-        and bool(flip.get("win_effect"))
         and not flip.get("lose_effect")
         and bool(second.get("lose_effect"))
         and not second.get("win_effect")

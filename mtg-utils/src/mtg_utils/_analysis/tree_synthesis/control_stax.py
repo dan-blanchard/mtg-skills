@@ -134,9 +134,19 @@ _THIRD_PARTY_POSSESSIVE_RE = re.compile(
 # ``restriction.affected_players``, a DIFFERENT shape than the continuous
 # static census above (no ``affected``/``modifications`` pair, so
 # :func:`iter_static_defs` never yields it) -- mirrors old-IR's
-# ``project._add_restriction_scope``. CR 604.1 / 720.
+# ``project._add_restriction_scope``. CR 604.1 / 720. A lock on one player the
+# ability names is aimed at an opponent like a targeted one: "that player"
+# after a targeted or watched player (``ParentTargetedPlayer`` -- Sen Triplets'
+# and Xanathar's "choose target opponent", Willie Lumpkin's damaged opponent)
+# and the defending player (``DefendingPlayer`` -- Xantid Swarm; CR 506.2: the
+# defending player is an opponent).
 _ADD_RESTRICTION_STAX: frozenset[str] = frozenset(
-    {"OpponentsOfSourceController", "TargetedPlayer"}
+    {
+        "OpponentsOfSourceController",
+        "TargetedPlayer",
+        "ParentTargetedPlayer",
+        "DefendingPlayer",
+    }
 )
 
 
@@ -632,12 +642,31 @@ def _arm_stax_taxes(tree: ConceptTree) -> ConceptNode | None:
     )
 
 
+def _has_directed_lock(tree: ConceptTree) -> bool:
+    """Whether the card types a one-shot lock on one player
+    (:data:`_ADD_RESTRICTION_STAX`): the residue's "that player can't attack"
+    (Willie Lumpkin) is that lock's own clause, not a "players can't" one."""
+    for unit in tree.units:
+        for c in unit.effects:
+            if tag_of(c.node) != "AddRestriction":
+                continue
+            restr = getattr(c.node, "restriction", None)
+            if tag_of(restr) != "ProhibitActivity":
+                continue
+            if tag_of(getattr(restr, "affected_players", None)) in (
+                _ADD_RESTRICTION_STAX
+            ):
+                return True
+    return False
+
+
 def _arm_symmetric_stax(tree: ConceptTree) -> ConceptNode | None:
     """Synthesize a ``symmetric_stax`` node for the description-only
     bucket-B tail phase's static census doesn't reach at all -- gap-gated
     by ``has_structural_symmetric_stax`` (never double-counts a card
-    Tier-1 already reads)."""
-    if has_structural_symmetric_stax(tree):
+    Tier-1 already reads) and by a typed lock on one player
+    (:func:`_has_directed_lock`)."""
+    if has_structural_symmetric_stax(tree) or _has_directed_lock(tree):
         return None
     if not _stax_residue_hits(tree)[1]:
         return None

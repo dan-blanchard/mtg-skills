@@ -126,7 +126,8 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   flip "it gets -0/-2" stamps its "it" `SelfRef` (it is the Orc the winning
   outcome targets); Desperate Gambit's one coin flip is typed as two (a
   win-only `FlipCoins` whose `sub_ability` is a lose-only one —
-  `misparsed_shapes` merges them) and its "choose a source you control" loses
+  `misparsed_shapes` merges them; Goblin Kites' and Fickle Efreet's delayed
+  flip is the same split with an outcome-less first flip) and its "choose a source you control" loses
   "you control" (`TargetOnly{target: Any}`; no read needs it once the losing
   prevention reads as the gamble's drawback).
   Tragic Arrogance stays keep_n_wrath's (adjudicated disjoint from edicts).
@@ -134,19 +135,14 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   damage" (`prevent` residue) and Forcefield's "prevent all but 1"
   (`unrecognized_clause_head`); Blinding Powder's and Torrent of Lava's granted
   prevention (`granter_reference_unreached`); Eye of Ojer Taq's "Craft with two
-  that share a card type" (`unknown`); Goblin Kites' and Fickle Efreet's
-  delayed flip (an outcome-less `FlipCoins` followed by a lose-only one — the
-  split-flip `misparsed_shapes` row covers Desperate Gambit's nested form, not
-  this one); Guardian of the Ages and Torpid Moloch lose their defender by
-  their own text but phase types neither as `CanAttackWithDefender`, so the
-  voltron carrier fallback leaves them (a phase gap; the lane reads the node).
+  that share a card type" (`unknown`); Guardian of the Ages' "it loses defender
+  and gains trample" parks as `unparsed_condition` (ledger row
+  `loses_defender_trigger_parked` keeps it a voltron carrier).
   Lane false
   positives still open: Skyclave Apparition's "the exiled card's owner
   creates" token reads as yours — phase stamps the Token's `owner` `Controller`
   and the exiled card `Owned{You}`, so no structure tells it from your own
-  token (a phase gap to report); Willie Lumpkin serves `symmetric_stax|each`
-  from a combat-damage trigger that watches only an opponent (found 2026-11-01,
-  the fourth lane pass; re-scope or drop it). Not a false positive (2026-10-31, don't
+  token (a phase gap to report). Not a false positive (2026-10-31, don't
   re-suggest): Investigator's Journal's LOW `proliferate_matters` — its suspect
   counters are counters (CR 122.1, not the suspected designation of CR
   701.60a), proliferate adds one of each kind already there (CR 701.34a), and

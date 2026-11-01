@@ -3439,6 +3439,22 @@ def is_own_drawback(
     target = getattr(eff, "target", None)
     if tag in _SELF_DRAWBACK_TAGS and tag_of(target) == "SelfRef":
         return True
+    # "If you lose the flip, sacrifice that creature" (Goblin Kites): a player
+    # sacrifices only a permanent they control (CR 701.21a), so the chosen
+    # creature the outcome sacrifices with no player named is yours.
+    if (
+        tag == "Sacrifice"
+        and tag_of(target) == "ParentTarget"
+        and getattr(ability_like, "player_scope", MISSING) in (MISSING, None)
+    ):
+        return True
+    # "If you lose the flip, an opponent gains control of ~" (Fickle Efreet):
+    # the card leaves your control, wherever in the outcome's chain.
+    if any(
+        tag_of(n) == "GainControl" and tag_of(getattr(n, "target", None)) == "SelfRef"
+        for n in _iter_typed_nodes(ability_like)
+    ):
+        return True
     if _shrinks_the_pumped_target(ability_like, flip) or _prevents_the_doubled_source(
         ability_like, flip
     ):

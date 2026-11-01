@@ -178,6 +178,11 @@ def test_flip_outcome_anaphor_stamped_selfref_canary():
         ("Cinder Wall", ("voltron_matters", "you", "carrier"), False),
         ("Ceremonial Guard", ("voltron_matters", "you", "carrier"), False),
         ("Novice Knight", ("voltron_matters", "you", "carrier"), True),
+        # a defender that loses defender by its own ability attacks then:
+        # Torpid Moloch's typed RemoveKeyword, Guardian of the Ages' parked
+        # trigger (ledger row loses_defender_trigger_parked)
+        ("Torpid Moloch", ("voltron_matters", "you", "carrier"), True),
+        ("Guardian of the Ages", ("voltron_matters", "you", "carrier"), True),
         # Enchant restricts what an Aura enchants (CR 702.5a): no keyword body.
         ("Scriv, the Obligator", ("keyword_bodies", "you", "enchant"), False),
         # the white Auras attached to one creature are no colour-keyed board
@@ -193,6 +198,26 @@ def test_flip_outcome_anaphor_stamped_selfref_canary():
 )
 def test_bump_policy_questions(name, ident, fires):
     assert (ident in _idents(name)) is fires
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        # "that player can't attack you or permanents you control during their
+        # next turn" — the opponent it dealt combat damage to (CR 510.1c-d)
+        "Willie Lumpkin, Postman",
+        # "defending player can't cast spells this turn" (CR 506.2)
+        "Xantid Swarm",
+        # "choose target opponent. This turn, that player can't cast spells …"
+        "Sen Triplets",
+        # "Target player can't cast creature spells this turn."
+        "Cease-Fire",
+    ],
+)
+def test_lock_on_one_player_is_stax_not_symmetric(name):
+    keys = _keyed(name, "stax_taxes", "symmetric_stax")
+    assert ("stax_taxes", "opponents", "") in keys
+    assert not any(k[0] == "symmetric_stax" for k in keys)
 
 
 def test_losing_flip_that_shrinks_the_pumped_target_is_a_drawback():

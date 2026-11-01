@@ -94,6 +94,8 @@ from mtg_utils._card_ir.crosswalk import (
     iter_typed_nodes,
     land_searches,
     mana_spell_types,
+    mod_keyword_name,
+    normalised_keyword_name,
     or_arms,
     ref_count_filter,
     reveal_until_player,
@@ -1513,6 +1515,28 @@ def _destroys_itself_attacking(tree: ConceptTree) -> bool:
         )
         for unit in tree.units
     )
+
+
+def _attacks_despite_defender(tree: ConceptTree) -> bool:
+    """Whether the card can attack though it has defender (CR 702.3b: a creature
+    with defender can't attack): a ``CanAttackWithDefender`` static ("As long as
+    this creature is enchanted or equipped, it can attack as though it didn't
+    have defender" — Novice Knight), or an effect that removes its own defender
+    ("Sacrifice three lands: This creature loses defender until end of turn" —
+    Torpid Moloch's ``RemoveKeyword``)."""
+    for unit in tree.units:
+        if unit.origin == "static" and (
+            static_mode_tag(unit.node) == "CanAttackWithDefender"
+        ):
+            return True
+        for sdef, mod in iter_mod_sites(unit.node, deep=True):
+            if (
+                tag_of(mod) == "RemoveKeyword"
+                and normalised_keyword_name(mod_keyword_name(mod) or "") == "defender"
+                and tag_of(getattr(sdef, "affected", None)) == "SelfRef"
+            ):
+                return True
+    return False
 
 
 def _floor_token_maker_subjects(tree: ConceptTree, vocab: frozenset[str]) -> set[str]:
