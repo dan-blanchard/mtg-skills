@@ -131,6 +131,16 @@ def _ensure_ir() -> None:
     "own costs nothing, as in deck-forge with a Collection loaded.",
 )
 @click.option(
+    "--compare-commanders",
+    "compare_commanders",
+    is_flag=True,
+    default=False,
+    help="Also run the tune under every other command zone the deck can field "
+    "(each legend the format accepts, every legal partner pair) and rank them "
+    "by post-tune commander fit, then issue load: 'commander_comparison' in the "
+    "result. Advisory; proposes no switch.",
+)
+@click.option(
     "--output",
     "output",
     type=click.Path(),
@@ -152,6 +162,7 @@ def main(
     exclude: tuple[str, ...],
     meta: str,
     collection_path: Path | None,
+    compare_commanders: bool,
     output: str | None,
 ) -> None:
     """Diagnose DECK_JSON and (with --max-swaps) propose swaps."""
@@ -262,6 +273,18 @@ def main(
         combos_fn=combos_fn,
         pool=pool,
     )
+    if compare_commanders:
+        from mtg_utils._tuner.compare_commanders import compare_commanders as compare
+
+        result["commander_comparison"] = compare(
+            hd,
+            tune_fn=tune,
+            search_fn=search,
+            params=params,
+            owned=owned,
+            combos_fn=combos_fn,
+            pool=pool,
+        )
 
     text = json.dumps(result, indent=2)
     if output:
