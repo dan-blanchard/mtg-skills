@@ -248,7 +248,18 @@ miss taxonomy, the held-out candidates).
   v0.118.0 retired five report items (Liliana's Talent, the conditional-flash
   family and Necromancy's flash — typed at the record level as `casting_options`,
   Torpid Moloch, Skyclave Apparition's `player_scope`) and handed two read gaps of
-  ours to the triage pass.
+  ours to the triage pass. V3b likewise FAILED (held-out plan +9, adds +1,
+  job-equivalents −2; the 25 adds −8; `w41/sb-*-V3br.json`): the reorder thread is
+  closed. The tutor NEED read (a tutor supplies the need whose satisfiers its
+  search can find; branch `block2-tutor-need`, `w41/tutor-need-TU1.patch`) FAILED
+  TU1 against N12 re-scored with its tutor-aware scoreboard (`sb-*-N12t.json`):
+  held-out plan +3 with the tutor arm alone crediting 48 adds, guide adds −5, cuts
+  −1; the 25 plan +5 (arm 54), adds −12, cuts −2 — settled, the third and last try
+  at the guides' tutors. The tribe signal-profile read (`_tuner/tribe_profile.py`,
+  branch `block2-tribe-profile`) is in its bar-fitting runs on the 25 (`run-25.sh`);
+  a census first: the pool's Pirates over-index on Treasure makers (10.5×), Combat
+  (3.8×), combat damage, blink and evasion — not on theft at all, so Ahoy Mateys'
+  13 theft adds stay out of reach of a first-principles read whatever the bar.
 
 ## Target
 
