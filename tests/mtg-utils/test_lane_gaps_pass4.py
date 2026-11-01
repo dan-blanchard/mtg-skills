@@ -165,6 +165,36 @@ def test_flip_outcome_anaphor_stamped_selfref_canary():
     )
 
 
+@pytest.mark.parametrize(
+    ("name", "ident", "fires"),
+    [
+        # lifegain_matters is YOUR lifegain's payoff: "Whenever an opponent gains
+        # life" rewards theirs.
+        ("Kavu Predator", ("lifegain_matters", "you", ""), False),
+        ("Punishing Fire", ("lifegain_matters", "you", ""), False),
+        ("Ajani's Pridemate", ("lifegain_matters", "you", ""), True),
+        # commander damage is combat damage (CR 903.10a): a creature that can't
+        # attack (CR 702.3b) or dies the first time it does is no carrier.
+        ("Cinder Wall", ("voltron_matters", "you", "carrier"), False),
+        ("Ceremonial Guard", ("voltron_matters", "you", "carrier"), False),
+        ("Novice Knight", ("voltron_matters", "you", "carrier"), True),
+        # Enchant restricts what an Aura enchants (CR 702.5a): no keyword body.
+        ("Scriv, the Obligator", ("keyword_bodies", "you", "enchant"), False),
+        # the white Auras attached to one creature are no colour-keyed board
+        ("Word of Undoing", ("color_change", "you", "payoff"), False),
+        ("Perish", ("color_change", "you", "payoff"), True),
+        # a parked draw the discard pays for is a loot; a conditional one isn't
+        ("Messenger Jays", ("self_drawback", "you", "restriction"), False),
+        ("Mindstorm Crown", ("self_drawback", "you", "harm"), True),
+        # a trigger that exiles the card from its graveyard fires once
+        ("Council's Deliberation", ("card_draw_engine", "you", ""), False),
+        ("Rhystic Study", ("card_draw_engine", "you", ""), True),
+    ],
+)
+def test_bump_policy_questions(name, ident, fires):
+    assert (ident in _idents(name)) is fires
+
+
 def test_losing_flip_that_shrinks_the_pumped_target_is_a_drawback():
     """The -0/-2 lands on the creature you chose for +2/+0: no self pump, no
     debuff — the pump on the target stays."""

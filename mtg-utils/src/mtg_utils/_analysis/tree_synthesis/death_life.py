@@ -35,6 +35,7 @@ from mtg_utils._card_ir.crosswalk import (
     iter_typed_nodes,
     replacement_event_tag,
     tag_of,
+    trigger_scope,
     trigger_subject,
     zone_change_count_reads,
 )
@@ -493,8 +494,14 @@ def has_life_gained_trigger(tree: ConceptTree) -> bool:
     Archangel of Thune, Ajani's Pridemate, Well of Lost Dreams. The direct
     structural payoff; a conferred/granted one (inside a static-granted ability,
     phase drops the inner trigger — Sunbond) reaches the bucket-B synth instead.
+    One watching only an opponent's gain ("Whenever an opponent gains life" —
+    Kavu Predator, Punishing Fire, Wedding Ring) rewards their lifegain, not
+    yours: the opponent-lifegain hoser ``lifegain_matters`` sheds.
     """
-    return any(u.trigger_event == "life_gained" for u in tree.units)
+    return any(
+        u.trigger_event == "life_gained" and trigger_scope(u.node) != "opponents"
+        for u in tree.units
+    )
 
 
 def has_trigger_draw_bleed(tree: ConceptTree) -> bool:

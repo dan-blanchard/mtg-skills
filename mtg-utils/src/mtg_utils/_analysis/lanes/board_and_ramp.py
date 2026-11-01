@@ -100,6 +100,7 @@ from mtg_utils._card_ir.crosswalk import (
     static_mode_field,
     static_mode_tag,
     tag_of,
+    targets_the_card,
     token_creator_side,
     trigger_caster_scope,
     trigger_counter_filter,
@@ -1492,6 +1493,26 @@ def _is_big_mana_tree(tree: ConceptTree) -> bool:
 _FLOOR_TOKEN_MAKER_RAW = re.compile(
     r"\bcreates?\b[^.]*?\bcreature tokens?\b", re.IGNORECASE
 )
+
+
+#: The trigger events of a creature attacking (CR 508.3a), alone or with blocking.
+_ATTACK_TRIGGER_EVENTS = frozenset({"attacks", "attacksorblocks"})
+
+
+def _destroys_itself_attacking(tree: ConceptTree) -> bool:
+    """Whether the card destroys or sacrifices itself whenever it attacks
+    ("When this creature attacks or blocks, destroy it at end of combat" —
+    Ceremonial Guard): it can attack once, so it is no body to deal the 21
+    commander damage (CR 903.10a) the membership floor's carrier fallback
+    reads."""
+    return any(
+        unit.trigger_event in _ATTACK_TRIGGER_EVENTS
+        and any(
+            c.concept in ("destroy", "sacrifice") and targets_the_card(c)
+            for c in unit.effects
+        )
+        for unit in tree.units
+    )
 
 
 def _floor_token_maker_subjects(tree: ConceptTree, vocab: frozenset[str]) -> set[str]:
