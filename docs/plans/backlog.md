@@ -686,15 +686,14 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   Reduce // Rubble, Indulge // Excess (phase emits no record for the second
   face — a canary waits on it), Pradesh Gypsies (no record at all), Tomik's
   "affinity for planeswalkers" (the keyword's parameter is not exposed), the
-  Attraction Unknown modes (already served by the sweep row); Orcish Captain's
-  "it gets -0/-2" (an anaphoric "it" inside an ACTIVATED ability's coin-flip
-  branch, stamped `SelfRef`; the `anaphoric_pump` arm covers delayed triggers
-  and a spell's own chain, not activated abilities, since a Dragonrage-type
-  grant really does mean the card) fires `self_pump|you|`; Desperate Gambit's "choose a source you control" loses
-  "you control" (the chooser is `TargetOnly{target: Any}`), so its losing
-  branch's prevention reads as `damage_prevention` — a dropped-controller
-  misstamp, and once a field correction restores it `is_own_drawback` needs a
-  `PreventDamage`-on-your-source arm.
+  Attraction Unknown modes (already served by the sweep row). Report upstream
+  (worked around, each with a `retirement_canary`): Orcish Captain's losing
+  flip "it gets -0/-2" stamps its "it" `SelfRef` (it is the Orc the winning
+  outcome targets); Desperate Gambit's one coin flip is typed as two (a
+  win-only `FlipCoins` whose `sub_ability` is a lose-only one —
+  `misparsed_shapes` merges them) and its "choose a source you control" loses
+  "you control" (`TargetOnly{target: Any}`; no read needs it once the losing
+  prevention reads as the gamble's drawback).
   Tragic Arrogance stays keep_n_wrath's (adjudicated disjoint from edicts).
   Phase parks, report upstream (Dan posts): Dark Sphere's "prevent half that
   damage" (`prevent` residue) and Forcefield's "prevent all but 1"

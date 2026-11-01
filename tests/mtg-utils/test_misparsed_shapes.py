@@ -97,3 +97,34 @@ def test_other_unknown_mode_returns_are_not_graveyard_arrivals():
     # (Graceful Reprieve) has the same typed body under an Unknown mode: a death.
     (rec,) = test_phase_records("Graceful Reprieve")
     assert correct_misparsed_shapes(rec) is rec
+
+
+@pytest.mark.retirement_canary
+def test_split_coin_flip_canary():
+    """Desperate Gambit's "flip a coin. If you win the flip, … If you lose the
+    flip, …": phase types two flips, the first with only its ``win_effect`` and
+    its ``sub_ability`` a second with only its ``lose_effect``. The stage moves
+    the losing outcome onto the first flip."""
+    (rec,) = test_phase_records("Desperate Gambit")
+    head = rec["abilities"][0]["sub_ability"]
+    flip, second = head["effect"], head["sub_ability"]["effect"]
+    assert second["type"] == "FlipCoins", (
+        "misparsed_shapes split coin flip: RETIRE-READY — phase types Desperate "
+        "Gambit's one flip. Delete the split-flip row of misparsed_shapes and "
+        "this canary."
+    )
+    assert flip["lose_effect"] is None
+    assert second["win_effect"] is None
+    after = correct_misparsed_shapes(rec)["abilities"][0]["sub_ability"]
+    assert after["effect"]["win_effect"] == flip["win_effect"]
+    assert after["effect"]["lose_effect"] == second["lose_effect"]
+    assert after["sub_ability"] is None
+    assert rec["abilities"][0]["sub_ability"]["effect"]["lose_effect"] is None
+
+
+def test_desperate_gambits_losing_prevention_is_no_shield():
+    """The losing outcome prevents the damage of the source the winning one
+    doubles: a drawback of the gamble, not a prevention shield."""
+    keys = _keys("Desperate Gambit")
+    assert "damage_doubling" in keys
+    assert not {"damage_prevention", "board_protection"} & keys

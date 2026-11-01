@@ -833742,6 +833742,204 @@
     "type_line": "Creature — Orc Archer"
    }
   },
+  "Orcish Captain": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": {
+        "cost": {
+         "generic": 1,
+         "shards": [],
+         "type": "Cost"
+        },
+        "type": "Mana"
+       },
+       "description": "{1}: Flip a coin. If you win the flip, target Orc creature gets +2/+0 until end of turn. If you lose the flip, it gets -0/-2 until end of turn.",
+       "duration": null,
+       "effect": {
+        "flips": {
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "type": "Exactly"
+        },
+        "lose_effect": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": "UntilEndOfTurn",
+         "effect": {
+          "power": {
+           "type": "Fixed",
+           "value": 0
+          },
+          "target": {
+           "type": "SelfRef"
+          },
+          "toughness": {
+           "type": "Fixed",
+           "value": -2
+          },
+          "type": "Pump"
+         },
+         "forward_result": false,
+         "kind": "Activated",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": null,
+         "target_prompt": null
+        },
+        "type": "FlipCoins",
+        "win_effect": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": "UntilEndOfTurn",
+         "effect": {
+          "power": {
+           "type": "Fixed",
+           "value": 2
+          },
+          "target": {
+           "controller": null,
+           "properties": [],
+           "type": "Typed",
+           "type_filters": [
+            "Creature",
+            {
+             "Subtype": "Orc"
+            }
+           ]
+          },
+          "toughness": {
+           "type": "Fixed",
+           "value": 0
+          },
+          "type": "Pump"
+         },
+         "forward_result": false,
+         "kind": "Activated",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": null,
+         "target_prompt": null
+        }
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Orc",
+       "Warrior"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Red"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "premodern": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 0,
+      "shards": [
+       "Red"
+      ],
+      "type": "Cost"
+     },
+     "name": "Orcish Captain",
+     "non_ability_text": null,
+     "oracle_text": "{1}: Flip a coin. If you win the flip, target Orc creature gets +2/+0 until end of turn. If you lose the flip, it gets -0/-2 until end of turn.",
+     "power": {
+      "type": "Fixed",
+      "value": 1
+     },
+     "printings": [
+      "5ED",
+      "FEM",
+      "ME2"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2008-10-01",
+       "text": "You choose the target when you activate the ability. You don’t flip a coin until the ability resolves."
+      }
+     ],
+     "scryfall_oracle_id": "76c06de7-39ff-4b80-8e54-20910372cffd",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 1
+     },
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 1.0,
+    "color_identity": [
+     "R"
+    ],
+    "colors": [
+     "R"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{R}",
+    "name": "Orcish Captain",
+    "oracle_id": "76c06de7-39ff-4b80-8e54-20910372cffd",
+    "oracle_text": "{1}: Flip a coin. If you win the flip, target Orc creature gets +2/+0 until end of turn. If you lose the flip, it gets -0/-2 until end of turn.",
+    "power": "1",
+    "toughness": "1",
+    "type_line": "Creature — Orc Warrior"
+   }
+  },
   "Orcish Farmer": {
    "phase_records": [
     {
