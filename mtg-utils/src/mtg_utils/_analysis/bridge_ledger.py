@@ -7360,14 +7360,6 @@ _KEYWORD_BODY_ROWS: tuple[tuple[str, str, str, str, tuple[str, ...], str], ...] 
         r"\bonto the battlefield with an indestructible counter on it\b",
     ),
     (
-        "conditional_self_flash_dropped",
-        "flash",
-        "dropped_clause",
-        "a spell's 'This spell has flash as long as …' line (CR 702.8a), no node",
-        ("Crashing Tide", "Graveyard Shift", "Mutual Destruction", "Take for a Ride"),
-        r"\bhas flash as long as\b",
-    ),
-    (
         "cloak_parked",
         "ward",
         "upstream_parse_failure",
@@ -7616,6 +7608,48 @@ BRIDGES.update(
                 gap=_no_typed_defender_loss,
                 match=_loses_defender_parked,
                 subject="carrier",
+            ),
+        )
+    }
+)
+
+
+# Mirrormind Crown's "As long as this Equipment is attached to a creature, the
+# first time you would create one or more tokens each turn, you may instead
+# create that many tokens that are copies of equipped creature" parks as an
+# ``as_long_as_gate`` residue, so no ``CreateToken`` replacement says it pays off
+# the tokens you make (CR 614.1a: "instead"), as Anointed Procession's does.
+_PARKED_TOKEN_REPLACEMENT_RX = re.compile(
+    r"\byou would create one or more tokens\b", re.IGNORECASE
+)
+
+
+def _token_replacement_parked(tree: ConceptTree) -> bool:
+    return _says(_PARKED_TOKEN_REPLACEMENT_RX, tree.residues("as_long_as_gate"))
+
+
+BRIDGES.update(
+    {
+        b.bridge_id: b
+        for b in (
+            Bridge(
+                bridge_id="token_creation_replacement_parked",
+                key="tokens_matter",
+                kind="upstream_parse_failure",
+                todo=_upstream(
+                    "Mirrormind Crown's 'the first time you would create one or "
+                    "more tokens each turn, you may instead create that many tokens "
+                    "that are copies of equipped creature', an Unimplemented "
+                    "as_long_as_gate residue. Retires on the bump that types the "
+                    "CreateToken replacement"
+                ),
+                census=(
+                    "1 hit / the legal corpus (Mirrormind Crown), phase v0.118.0 "
+                    "card-data, 2026-11-01"
+                ),
+                pins=("Mirrormind Crown",),
+                gap=_token_replacement_parked,
+                match=_token_replacement_parked,
             ),
         )
     }

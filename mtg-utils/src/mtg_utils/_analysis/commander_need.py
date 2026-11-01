@@ -87,7 +87,7 @@ from mtg_utils._card_ir.crosswalk.reads import (
     trigger_def_event,
     trigger_scope,
 )
-from mtg_utils._card_ir.mirror.runtime import TypedMirrorNode
+from mtg_utils._card_ir.mirror.runtime import MirrorVariant, TypedMirrorNode
 from mtg_utils._card_ir.trees import trees_for
 from mtg_utils.type_line import split_type_line
 
@@ -161,6 +161,27 @@ _COUNTER_GROWTH_KEYS: frozenset[str] = frozenset(
         "plus_one_matters",
     }
 )
+#: A doer key → the consumers ``metrics._cares_keys`` doesn't name, and the
+#: idents among them:
+#:
+#: * ``plus_one_makers``: the payoffs that read your creatures' counters (a
+#:   keyword for each creature with a counter — Chocobo Knights, Bramblewood
+#:   Paragon; CR 122.1) and the movers that keep the counters a creature had
+#:   when it leaves (The Ozolith, Resourceful Defense; CR 122.8).
+#: * ``token_copy_makers``: the token payoffs, since "create a token that's a
+#:   copy" puts a token onto the battlefield (CR 111.1 — Satya's attacker):
+#:   Junk Winder's "Whenever a token you control enters", Ojer Taq's tripling.
+#: * ``land_sacrifice_makers``: the cards that return lands from your graveyard,
+#:   where a sacrificed land goes (CR 701.21a) — Life from the Loam, Crucible of
+#:   Worlds, Ramunap Excavator (``permanent_recast|you|land``).
+_EXTRA_CONSUMER_KEYS: Mapping[str, frozenset[str]] = {
+    "plus_one_makers": frozenset({"counter_grants_kw", "counter_move"}),
+    "token_copy_makers": frozenset({"tokens_matter", "token_doubling"}),
+}
+_EXTRA_CONSUMER_IDENTS: Mapping[str, frozenset[str]] = {
+    "land_sacrifice_makers": frozenset({"permanent_recast|you|land"}),
+}
+
 #: Keys whose emitters make a creature of yours die or leave (fodder and the
 #: outlets that spend it) — what a dies / leaves / sacrificed trigger is fed by.
 _DEATH_FEED_KEYS: frozenset[str] = frozenset(
@@ -571,6 +592,19 @@ def _type_need(
     return frozenset({frozenset(words)}), frozenset(keys)
 
 
+def _counter_filter_kind(node: TypedMirrorNode) -> str | None:
+    """The counter kind a ``CounterAdded`` trigger watches (its
+    ``counter_filter.counter_type``: ``M1M1``, ``P1P1``), ``None`` when it
+    watches every kind. A bare ``{counter_type: …}`` strict-loads as a
+    ``MirrorVariant`` keyed ``counter_type``."""
+    filt = getattr(node, "counter_filter", None)
+    if isinstance(filt, MirrorVariant) and filt.key == "counter_type":
+        kind = filt.inner
+    else:
+        kind = getattr(filt, "counter_type", None) if _present(filt) else None
+    return kind if isinstance(kind, str) else None
+
+
 def _event_need(node: TypedMirrorNode, desc: str) -> Need | None:
     event = trigger_def_event(node)
     scope = trigger_scope(node)
@@ -662,15 +696,44 @@ def _event_need(node: TypedMirrorNode, desc: str) -> Need | None:
             )
         return None
     if event in ("dies", "leaves", "sacrificed", "exploited"):
+        if "Land" in core:
+            # "Whenever you sacrifice a land" (Hearthhull, the Worldseed) is fed
+            # by land sacrifice, which the commander's own land-sacrifice idents
+            # page (``_payoff_needs``, ``_redundancy_needs``); never by creature
+            # fodder.
+            return None
         keys = set(_EVENT_MAKER_KEYS[event])
         if "Token" in preds:
             keys = set(_TYPE_TOKEN_KEYS["creature"]) | {"sacrifice_outlets"}
+        elif "NonToken" in preds:
+            # "Whenever you sacrifice a nontoken Elemental" (Ashling, the
+            # Limitless): a token is no nontoken creature, so the token makers
+            # feed nothing; the outlets and edicts do.
+            keys -= _TYPE_TOKEN_KEYS["creature"]
         return Need(
             "event",
             f"creatures that {event.replace('_', ' ')}",
             desc,
             keys=frozenset(keys),
         )
+    if event == "counter_added" and _counter_filter_kind(node) == "M1M1":
+        # "Whenever one or more -1/-1 counters are put on a creature" (Auntie
+        # Ool, Cursewretch): fed by the -1/-1 counter lane's cards, a
+        # proliferate, and a mover — moving a counter puts it onto the second
+        # object (CR 122.5: The Ozolith's counters onto a target creature). A
+        # -X/-X effect (``debuff_makers``: Disfigure) puts no counter.
+        return Need(
+            "event",
+            "-1/-1 counters put on creatures",
+            desc,
+            keys=frozenset(
+                {"minus_counters_matter", "proliferate_makers", "counter_move"}
+            ),
+        )
+    if event == "deals_damage" and tag_of(getattr(node, "valid_source", None)) == (
+        "SelfRef"
+    ):
+        return _own_damage_grant_need(desc)
     if event == "deals_damage":
         return Need(
             "event",
@@ -687,8 +750,83 @@ def _event_need(node: TypedMirrorNode, desc: str) -> Need | None:
     return Need("event", label, desc, keys=keys)
 
 
+#: The keywords a "whenever ~ deals combat damage to a player" commander wants
+#: put on itself: evasion to connect, and double strike, with which it deals
+#: combat damage in both combat damage steps (CR 702.4b) and so triggers twice.
+_OWN_DAMAGE_KEYWORDS: frozenset[str] = _EVASION_KEYWORDS | {"double strike"}
+
+
+def _grants_the_commander(card: dict) -> bool:
+    """Whether the card gives your commander one of :data:`_OWN_DAMAGE_KEYWORDS`
+    ("Commander creatures you own have 'Whenever this creature attacks a player,
+    … this creature can't be blocked this turn'" — Sword Coast Sailor; "… it
+    gains double strike" — Flaming Fist)."""
+    idents = _card_idents(card)
+    if "commander_matters|you|" not in idents:
+        return False
+    return any(
+        f"{prefix}|you|{kw}" in idents
+        for kw in _OWN_DAMAGE_KEYWORDS
+        for prefix in ("keyword_bodies", "evasion_self")
+    )
+
+
+def _own_damage_grant_need(desc: str) -> Need:
+    """A combat-damage trigger of the commander's own ("Whenever Sidar Jabari
+    deals combat damage to a player"): only what reaches the commander feeds
+    it — a grant to a target or the team of evasion or double strike (Duelist's
+    Heritage), a grant to your commander, a lure. Another creature's own flying
+    does not."""
+    return Need(
+        "event",
+        "evasion and double strike for the commander",
+        desc,
+        keys=frozenset({"team_evasion_grant", "lure_makers"}),
+        idents=frozenset(
+            f"{prefix}|you|{kw}"
+            for kw in _OWN_DAMAGE_KEYWORDS
+            for prefix in ("keyword_grant_target", "team_buff")
+        ),
+        predicate=_grants_the_commander,
+    )
+
+
 def _cheap_spells_need(desc: str) -> Need:
     return Need("payoff", "cheap spells", desc, predicate=_cheap_spell)
+
+
+def _cast_power_need(cond: object, desc: str) -> Need | None:
+    """A cast trigger's check of the cast spell's power ("If that spell's power
+    is 4 or greater, draw a card. If that spell's power is 6 or greater, …" —
+    Eshki, Temur's Roar): phase reads the triggering spell as ``CostPaidObject``
+    in a ``SpellCast`` trigger (Cabaretti Revels' and Jodah's "lesser mana value"
+    the same way). The need is creature cards whose printed power reaches the
+    floor (CR 208.1: a creature card's power is printed in its lower right);
+    a ``*`` power reads 0."""
+    if getattr(cond, "comparator", None) not in ("GE", "GT"):
+        return None
+    lhs = getattr(cond, "lhs", None)
+    qty = getattr(lhs, "qty", None) if _present(lhs) else None
+    if tag_of(qty) != "Power" or tag_of(getattr(qty, "scope", None)) != (
+        "CostPaidObject"
+    ):
+        return None
+    rhs = getattr(cond, "rhs", None)
+    if tag_of(rhs) != "Fixed":
+        return None
+    floor = int(getattr(rhs, "value", 0) or 0) + (
+        1 if getattr(cond, "comparator", None) == "GT" else 0
+    )
+    if floor <= 0:
+        return None
+    return Need(
+        "payoff",
+        f"creature spells with power {floor}+",
+        desc,
+        predicate=lambda c, floor=floor: (
+            "creature" in _type_words(c) and _stat(c, "power") >= floor
+        ),
+    )
 
 
 def _condition_need(
@@ -701,6 +839,8 @@ def _condition_need(
         if int(getattr(cond, "n", 0) or 0) >= 2:
             return _cheap_spells_need(desc)
         return None
+    if tag == "QuantityCheck" and cast_trigger:
+        return _cast_power_need(cond, desc)
     if tag != "QuantityComparison":
         return None
     lhs = getattr(cond, "lhs", None)
@@ -844,16 +984,18 @@ def _resource_needs(
         if key == TOKEN_MAKER or key.endswith("_makers"):
             consumers = {k for k in _cares_keys(key) if k != key}
             consumers -= _UMBRELLA_KEYS
+            consumers |= _EXTRA_CONSUMER_KEYS.get(key, frozenset())
             if key == TOKEN_MAKER:
                 consumers |= {"sacrifice_outlets", "death_matters"}
-            if not consumers or key in seen:
+            extra_idents = _EXTRA_CONSUMER_IDENTS.get(key, frozenset())
+            if not (consumers or extra_idents) or key in seen:
                 continue
             seen.add(key)
             idents_ = (
                 frozenset(f"type_matters|you|{kind}" for kind in token_kinds)
                 if key == TOKEN_MAKER
                 else frozenset()
-            )
+            ) | extra_idents
             yield Need(
                 "resource",
                 f"{key.replace('_makers', '').replace('_', ' ')} consumers",
@@ -861,6 +1003,20 @@ def _resource_needs(
                 keys=frozenset(consumers),
                 idents=idents_,
             )
+
+
+def _loyalty_need(rec: Mapping) -> Need | None:
+    """A planeswalker commander's loyalty is the loyalty counters on it (CR
+    306.5c), and a proliferate gives it one more (CR 701.34a): the deck wants
+    proliferate (Quintorius, History Chaser — Patrolling Peacemaker)."""
+    if "planeswalker" not in _type_words(rec):
+        return None
+    return Need(
+        "resource",
+        "loyalty on the commander",
+        rec.get("name", ""),
+        keys=frozenset({"proliferate_makers"}),
+    )
 
 
 def _self_life_payment(ident: str) -> bool:
@@ -875,6 +1031,12 @@ def _doer_name(key: str) -> str:
     return key.replace("_makers", "").replace("_", " ")
 
 
+#: The subject a type payoff ident carries for the event its trigger watches
+#: (``lanes.board_and_ramp``'s type-payoff watchers: ``etb`` an enters trigger,
+#: ``cast`` a cast trigger) → the label word.
+_TYPE_EVENT_SUBJECTS: Mapping[str, str] = {"etb": "entering", "cast": "cast"}
+
+
 def _redundancy_needs(idents: Iterable[str], desc: str) -> Iterator[Need]:
     """Cards that do what the commander itself does (its doer idents): the
     frameworks' "redundancy of the commander's key effect" (goad under Nelly,
@@ -882,6 +1044,21 @@ def _redundancy_needs(idents: Iterable[str], desc: str) -> Iterator[Need]:
     keeps a generic doer (an attack trigger) from becoming a need."""
     for ident in idents:
         key, _scope, subject = ident.split("|", 2)
+        if key in _UMBRELLA_KEYS and subject in _TYPE_EVENT_SUBJECTS:
+            # The commander's own trigger on a card type entering or being cast
+            # ("Whenever an enchantment you control enters" — Killian: the
+            # ``enchantments_matter|you|etb`` ident): the cards with that same
+            # trigger do what it does (Grim Guardian's constellation, Victor's
+            # eerie, Ondu Spiritdancer). The umbrella key alone stays out.
+            yield Need(
+                "redundancy",
+                f"{_TYPE_EVENT_SUBJECTS[subject]} "
+                f"{key.removesuffix('s_matter').replace('_', ' ')} payoffs "
+                "like the commander",
+                desc,
+                idents=frozenset({ident}),
+            )
+            continue
         if key in _UMBRELLA_KEYS or _self_life_payment(ident):
             continue
         if key == TOKEN_MAKER or key.endswith("_makers"):
@@ -957,8 +1134,14 @@ def _payoff_needs(idents: Iterable[str], desc: str) -> Iterator[Need]:
                 ),
             )
         elif key == "energy_matters":
+            # Energy is a counter on a player (CR 107.14), so a proliferate
+            # gives you one more (CR 701.34a: "permanents and/or players that
+            # have a counter") — Metastatic Evangel under Satya.
             yield Need(
-                "payoff", "energy makers", desc, keys=frozenset({"energy_makers"})
+                "payoff",
+                "energy makers",
+                desc,
+                keys=frozenset({"energy_makers", "proliferate_makers"}),
             )
         elif key == "spellcast_matters":
             yield Need(
@@ -1059,6 +1242,7 @@ def commander_needs(commanders: Sequence[Mapping]) -> tuple[Need, ...]:
                     add(need)
         for need in _resource_needs(idents, rec.get("name", ""), trees=trees):
             add(need)
+        add(_loyalty_need(rec))
         for need in _redundancy_needs(idents, rec.get("name", "")):
             add(need)
         for need in _payoff_needs(idents, rec.get("name", "")):

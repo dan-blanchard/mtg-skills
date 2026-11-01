@@ -252,3 +252,144 @@ def test_disa_reads_her_lhurgoyf_graveyard_need():
     assert "Lhurgoyf cards reaching your graveyard" in _labels(needs)
     need = next(n for n in needs if n.label == "Lhurgoyf cards reaching your graveyard")
     assert "mill_makers" in need.keys
+
+
+def _need(name: str, label: str) -> Need:
+    return next(n for n in _needs(name) if n.label == label)
+
+
+def test_counter_payoffs_and_movers_consume_the_commanders_plus_one_counters():
+    # Captain America puts +1/+1 counters on your Heroes and itself: a keyword
+    # for each creature with a counter (Chocobo Knights; CR 122.1) and a mover
+    # that keeps the counters a creature had as it left (The Ozolith; CR 122.8)
+    # consume them, as a +1/+1 counter payoff does.
+    consumers = _need("Captain America, Team Leader", "plus one consumers")
+    assert satisfies(test_card("Chocobo Knights"), consumers)
+    assert satisfies(test_card("The Ozolith"), consumers)
+    assert satisfies(test_card("Bramblewood Paragon"), consumers)
+    assert not satisfies(test_card("Raise the Alarm"), consumers)
+
+
+def test_a_minus_counter_trigger_wants_minus_counters_not_plus_ones():
+    # Auntie Ool's "Whenever one or more -1/-1 counters are put on a creature"
+    # watches one counter kind (phase's ``counter_filter``): a +1/+1 counter
+    # maker feeds it nothing; a -1/-1 counter card, a proliferate and a mover do
+    # (CR 122.5: moving a counter puts it onto the second object — The Ozolith).
+    needs = _needs("Auntie Ool, Cursewretch")
+    assert "counter_added makers" not in _labels(needs)
+    need = _need("Auntie Ool, Cursewretch", "-1/-1 counters put on creatures")
+    assert satisfies(test_card("The Ozolith"), need)
+    assert satisfies(test_card("Evolution Sage"), need)
+    assert satisfies(test_card("Black Sun's Zenith"), need)
+    assert not satisfies(test_card("Bramblewood Paragon"), need)
+    assert not satisfies(test_card("Disfigure"), need)  # -2/-2, no counter
+
+
+def test_a_token_copy_commander_feeds_the_token_payoffs():
+    # Satya's attacking copy is a token (CR 111.1): a token payoff consumes it
+    # (Junk Winder's "Whenever a token you control enters"; Anointed Procession).
+    consumers = _need("Satya, Aetherflux Genius", "token copy consumers")
+    assert satisfies(test_card("Junk Winder"), consumers)
+    assert satisfies(test_card("Anointed Procession"), consumers)
+    assert not satisfies(test_card("Counterspell"), consumers)
+
+
+def test_a_parked_token_replacement_still_consumes_the_commanders_tokens():
+    # Mirrormind Crown's "the first time you would create one or more tokens
+    # each turn, you may instead create … copies of equipped creature" parks as
+    # a residue; the ledger row ``token_creation_replacement_parked`` serves its
+    # ``tokens_matter``, so Rootha's Elemental tokens feed it.
+    consumers = _need("Rootha, Mastering the Moment", "token maker consumers")
+    assert satisfies(test_card("Mirrormind Crown"), consumers)
+
+
+def test_proliferate_makes_energy_for_an_energy_commander():
+    # Energy is a counter on a player (CR 107.14) and a proliferate gives a
+    # player that has a counter one more of it (CR 701.34a).
+    makers = _need("Satya, Aetherflux Genius", "energy makers")
+    assert satisfies(test_card("Metastatic Evangel"), makers)
+    assert satisfies(test_card("Evolution Sage"), makers)
+    assert not satisfies(test_card("Grizzly Bears"), makers)
+
+
+def test_a_planeswalker_commander_wants_proliferate_for_its_loyalty():
+    # A planeswalker's loyalty is its loyalty counters (CR 306.5c).
+    loyalty = _need("Quintorius, History Chaser", "loyalty on the commander")
+    assert loyalty.kind == "resource"
+    assert satisfies(test_card("Patrolling Peacemaker"), loyalty)
+    labels = _labels(_needs("Captain America, Team Leader"))
+    assert "loyalty on the commander" not in labels
+
+
+def test_an_enchantment_entering_commander_wants_more_of_its_trigger():
+    # Killian's "Whenever an enchantment you control enters": the cards with the
+    # same trigger do what it does (constellation, eerie); an Aura without one
+    # supplies the enchantment, not the trigger.
+    need = _need(
+        "Killian, Decisive Mentor", "entering enchantment payoffs like the commander"
+    )
+    assert need.kind == "redundancy"
+    for name in (
+        "Grim Guardian",
+        "Ondu Spiritdancer",
+        "Slumbering Keepguard",
+        "Victor, Valgavoth's Seneschal",
+    ):
+        assert satisfies(test_card(name), need), name
+    assert not satisfies(test_card("Ethereal Armor"), need)
+    # A cast trigger is another event (Sythis's "Whenever you cast an
+    # enchantment spell").
+    assert not satisfies(test_card("Sythis, Harvest's Hand"), need)
+
+
+def test_a_check_of_the_cast_spells_power_wants_big_creatures():
+    # Eshki's "If that spell's power is 4 or greater, draw a card. If that
+    # spell's power is 6 or greater, ~ deals damage …" (phase reads "that
+    # spell" as the cast trigger's CostPaidObject).
+    labels = _labels(_needs("Eshki, Temur's Roar"))
+    assert {"creature spells with power 4+", "creature spells with power 6+"} <= labels
+    six = _need("Eshki, Temur's Roar", "creature spells with power 6+")
+    assert satisfies(test_card("Maelstrom Wanderer"), six)
+    assert not satisfies(test_card("Grizzly Bears"), six)
+
+
+def test_a_land_sacrifice_commander_wants_land_recursion_not_creature_fodder():
+    # Hearthhull sacrifices lands: a sacrificed land goes to your graveyard (CR
+    # 701.21a), whence Life from the Loam and Crucible of Worlds return it. Its
+    # "Whenever you sacrifice a land" asks for no creature fodder.
+    needs = _needs("Hearthhull, the Worldseed")
+    consumers = _need("Hearthhull, the Worldseed", "land sacrifice consumers")
+    assert satisfies(test_card("Life from the Loam"), consumers)
+    assert satisfies(test_card("Crucible of Worlds"), consumers)
+    assert "creatures that sacrificed" not in _labels(needs)
+    # Dina sacrifices creatures: her need keeps the token fodder.
+    dina = _need("Dina, Essence Brewer", "creatures that sacrificed")
+    assert "token_maker" in dina.keys
+
+
+def test_a_nontoken_sacrifice_trigger_is_not_fed_by_token_makers():
+    # Ashling's "Whenever you sacrifice a nontoken Elemental": a token is no
+    # nontoken creature, so the outlets feed it and the token makers do not.
+    need = _need("Ashling, the Limitless", "creatures that sacrificed")
+    assert "sacrifice_outlets" in need.keys
+    assert not need.keys & {"token_maker", "mass_token_makers"}
+    assert satisfies(test_card("Viscera Seer"), need)
+    assert not satisfies(test_card("Raise the Alarm"), need)
+
+
+def test_a_commanders_own_combat_damage_trigger_wants_grants_to_it():
+    # "Whenever Sidar Jabari deals combat damage to a player": the grants that
+    # reach the commander feed it — a commander grant (Sword Coast Sailor's
+    # can't be blocked, Flaming Fist's double strike: CR 702.4b, it deals combat
+    # damage in both steps), a target grant (Duelist's Heritage). Another
+    # creature's own flying does not.
+    labels = _labels(_needs("Sidar Jabari of Zhalfir"))
+    assert "evasion for your attackers" not in labels
+    need = _need(
+        "Sidar Jabari of Zhalfir", "evasion and double strike for the commander"
+    )
+    for name in ("Sword Coast Sailor", "Flaming Fist", "Duelist's Heritage"):
+        assert satisfies(test_card(name), need), name
+    assert not satisfies(test_card("Serra Angel"), need)
+    # A trigger on any of your creatures keeps the attackers' evasion need.
+    assert "evasion for your attackers" in _labels(_needs("Olivia, Opulent Outlaw"))
