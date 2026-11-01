@@ -3021,3 +3021,29 @@ takes by design (Cavern of Souls, Herald's Horn, the type-changers), the
 sea-monster group's siblings, and one real one — Urza's Power Plant on the Plant
 page, the hyphen in "Power-Plant" read as a word boundary — handed to the lane
 pass. Settled: the tribe pages are read off the IR for every tribe.
+
+## The lane pass, re-based (2026-11-01; N7b)
+
+Thirteen lane fixes from a worktree agent (merge f1d5ee79; each commit carries
+its census): an artifact's own membership is its own subject (`artifacts_matter
+|you|member`; Sol Ring leaves the payoff page's 4,568 → 1,360 cards, theme depth
+unchanged); a token another player creates is no maker of yours (`token_maker`
+2,686 → 2,675); an opponent's forced discard and Balance's levelling leave the
+discard lanes; no theft where no card is stolen; "can't win / can't lose" is no
+stax tax (Platinum Angel re-pinned to Teferi's Moat); the card-draw preset reads
+your draws, not an opponent's (Master of the Feast out); one-sided one-shot
+shrinks are mass removal (Massacre Wurm, 747 → 778); a creature's own evasion
+keeps the commander-damage carrier read (2,189 → 2,409); making a Food is
+lifegain (2,338 → 2,479); a subtype with a hyphen is one token (Urza's Power
+Plant off the Plant page). Against N6:
+
+| set | N6 | N7b |
+|---|---|---|
+| held-out 20: swaps / cuts / adds, plan, job-equiv | 581 / 254 / 99, 265, 45 | 581 / 254 / 99, 264, 48 |
+| the 25: swaps / cuts / adds, plan | 734 / 339 / 117, 348 | 734 / 339 / 118, 349 |
+
+Flat, as lane precision fixes on cards the guides rarely name should be.
+**Baseline N7b** (`w41/sb-*-N7b.json`). The first N7 run (held-out plan −35,
+swaps −21) measured the ungated T1 tutor / recursion rows, which `git apply
+--3way` had left staged and the N6 docs commit swept in (reverted, 6506fc8f) —
+T1's own signature, and a second confirmation of its verdict.

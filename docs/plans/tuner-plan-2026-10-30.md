@@ -181,6 +181,16 @@ miss taxonomy, the held-out candidates).
   −12, adds −7 — the fills take the plan's slots and purse whichever decks pay.
   Held back (`w41/rows-PR1.patch`); settled: no tutor or recursion row under
   any condition (the audit's "Plan-conditional tutor and recursion rows").
+- 2026-11-01, the lane pass (thirteen lane fixes by a worktree agent: false
+  positives off the Artifacts payoff, token-maker, discard, theft, stax and
+  card-draw reads; one-sided one-shot shrinks as mass removal; a carrier's own
+  evasion kept; Food as lifegain; a hyphenated subtype as one token) re-based
+  as N7b against N6: flat — held-out swaps / cuts / adds unchanged (581 / 254 /
+  99), plan −1, job-equivalents +3; the 25 adds +1 (118), plan +1 — **baseline
+  N7b** (`w41/sb-*-N7b.json`). (A first N7 run read plan −35 / −25 and was the
+  ungated T1 rows, which `git apply --3way` had left staged and the N6 docs
+  commit swept in; reverted in 6506fc8f. Lesson: reset the index after applying
+  a measurement patch.)
 
 ## Target
 
