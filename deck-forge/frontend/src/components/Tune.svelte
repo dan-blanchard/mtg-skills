@@ -355,16 +355,25 @@
         <h4>Commander comparison</h4>
         <table class="compare">
           <thead>
-            <tr><th>#</th><th>Command zone</th><th>Fit</th><th>Issue load</th><th>Top swaps</th></tr>
+            <tr
+              ><th>#</th><th>Command zone</th><th>Fit</th><th>Issue load</th><th
+                >Top swaps</th
+              ></tr
+            >
           </thead>
           <tbody>
             {#each result.commander_comparison as row (row.commanders.join(" + "))}
               <tr class:current={row.current}>
                 <td>{row.rank}</td>
-                <td>{row.commanders.join(" + ")}{row.current ? " (current)" : ""}</td>
+                <td
+                  >{row.commanders.join(" + ")}{row.current
+                    ? " (current)"
+                    : ""}</td
+                >
                 <td>{row.fit.toFixed(2)}</td>
                 <td>{row.issues}</td>
-                <td>{row.swaps.map((s) => `${s.cut} → ${s.add}`).join("; ")}</td>
+                <td>{row.swaps.map((s) => `${s.cut} → ${s.add}`).join("; ")}</td
+                >
               </tr>
             {/each}
           </tbody>
