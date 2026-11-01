@@ -1072,6 +1072,21 @@ def commander_needs(commanders: Sequence[Mapping]) -> tuple[Need, ...]:
 #: (Sundial of the Infinite under Saheeli) is the ``commander_keeps`` issue's own
 #: page; a zone grant's cards (Thranduil's Elves) are the tribe's.
 _MULTIPLIER_FAMILIES = frozenset({"copy", "ability"})
+#: The signal keys every commander multiplier carries (census 2026-10-31 over the
+#: legal pool under three commanders: 643 of 644 multiplier hits carry one — the
+#: miss is The Enigma Jewel's Locus face, whose "copy that ability" the
+#: ``ability_copy`` lane doesn't read). A cheap gate before the tree walk, which
+#: a tune would otherwise run for every card of every need page (12,000 a tune).
+_MULTIPLIER_KEYS = frozenset(
+    {
+        "token_copy_makers",
+        "clone_makers",
+        "copy_permanent",
+        "ability_copy",
+        "spell_copy_makers",
+        "trigger_doubling",
+    }
+)
 
 
 def _multiplier_need(rec: Mapping) -> Need | None:
@@ -1086,6 +1101,9 @@ def _multiplier_need(rec: Mapping) -> Need | None:
         return None
 
     def multiplies(card: dict) -> bool:
+        keys = {i.split("|", 1)[0] for i in _card_idents(card)}
+        if not keys & _MULTIPLIER_KEYS:
+            return False
         return any(
             r.family in _MULTIPLIER_FAMILIES for r in multiplier_reasons(card, cmd)
         )
