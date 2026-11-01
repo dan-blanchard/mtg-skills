@@ -67,6 +67,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 from mtg_utils._analysis._subtypes import LAND_SUBTYPES
+from mtg_utils._analysis.multipliers import Commander, multiplier_reasons
 from mtg_utils._analysis.signal_keys import TOKEN_MAKER
 from mtg_utils._card_ir.crosswalk.reads import (
     _present,
@@ -1062,7 +1063,39 @@ def commander_needs(commanders: Sequence[Mapping]) -> tuple[Need, ...]:
             add(need)
         for need in _payoff_needs(idents, rec.get("name", "")):
             add(need)
+        add(_multiplier_need(rec))
     return tuple(out)
+
+
+#: The :data:`multipliers.KIND_FAMILY` families a multiplier need counts: a copy
+#: of the commander and a copy or an extra firing of its abilities. ``keep``
+#: (Sundial of the Infinite under Saheeli) is the ``commander_keeps`` issue's own
+#: page; a zone grant's cards (Thranduil's Elves) are the tribe's.
+_MULTIPLIER_FAMILIES = frozenset({"copy", "ability"})
+
+
+def _multiplier_need(rec: Mapping) -> Need | None:
+    """What multiplies the commander (``multipliers.multiplier_reasons``): a
+    trigger doubler or an ability copier of an ability it has — a copy of an
+    ability is an ability (CR 707.10) — or a clone or token copy of it. Read for
+    a commander with a trigger or an activated ability to multiply, or a
+    creature body to copy; ``None`` otherwise. A predicate need: the card's
+    reasons are read against this commander, not off a key."""
+    cmd = Commander(rec)
+    if not (cmd.copyable_triggers or cmd.activated or "Creature" in cmd.facts.types):
+        return None
+
+    def multiplies(card: dict) -> bool:
+        return any(
+            r.family in _MULTIPLIER_FAMILIES for r in multiplier_reasons(card, cmd)
+        )
+
+    return Need(
+        "payoff",
+        "multipliers of the commander",
+        rec.get("name", ""),
+        predicate=multiplies,
+    )
 
 
 def need_serve(need: Need) -> Serve:

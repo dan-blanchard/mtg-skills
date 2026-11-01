@@ -192,6 +192,24 @@ def test_a_commander_that_grows_others_too_keeps_the_consumers_need():
     )
 
 
+def test_a_commander_with_abilities_wants_its_multipliers():
+    """A trigger doubler or an ability copier of an ability the commander has (a
+    copy of an ability is an ability, CR 707.10) and a clone of it supply the
+    "multipliers of the commander" need, read against this commander; a copier
+    of a kind it lacks, a ramp spell and the ``keep`` family (Sundial under
+    Saheeli: the ``commander_keeps`` issue's own page) do not."""
+    needs = _needs("Adeline, Resplendent Cathar")  # an attack trigger, no activation
+    mult = next(n for n in needs if n.label == "multipliers of the commander")
+    assert mult.kind == "payoff"
+    assert satisfies(test_card("Strionic Resonator"), mult)
+    assert satisfies(test_card("Spark Double"), mult)
+    assert not satisfies(test_card("Rings of Brighthearth"), mult)  # activated only
+    assert not satisfies(test_card("Rampant Growth"), mult)
+    saheeli = _needs("Saheeli, Radiant Creator")
+    keep = next(n for n in saheeli if n.label == "multipliers of the commander")
+    assert not satisfies(test_card("Sundial of the Infinite"), keep)
+
+
 def test_a_commanders_own_type_is_not_a_need():
     # Mirko is a Vampire Detective; his text names neither, so no tribe need.
     assert not any("Vampire" in n.label for n in _needs("Mirko, Obsessive Theorist"))
