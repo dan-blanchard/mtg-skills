@@ -11,6 +11,8 @@
     card_draw: "Card draw",
     interaction: "Interaction",
     board_wipe: "Wraths",
+    recursion: "Recursion",
+    tutor: "Tutors",
   };
   $: rows = $budgets ? Object.entries($budgets) : [];
 </script>

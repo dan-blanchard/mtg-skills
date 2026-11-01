@@ -168,6 +168,13 @@ miss taxonomy, the held-out candidates).
   −8 — the primary fails. Both held back (`w41/theme-order-V3.patch`, `-V3b`);
   settled: no theme reorder until a strength read reaches 0.70 on both pair
   sources (the audit's "The theme-strength reads and the V3 order").
+- 2026-10-31, late night (N6, on correctness): every job and quality read costs
+  an X spell its X (`_common.cast_cost`'s `X_ASSUMED`: Chord of Calling 6, Green
+  Sun's Zenith 4); the tutor read adds a Pact's upkeep payment and reads its deck
+  (a subtype search is broad where a third of the deck's creatures share the
+  subtype); tutor and recursion take the one instant-speed read. The 25 adds +3
+  (VelociRampTor's three Dinosaur tutors), plan −5; held-out adds −1, cuts +1,
+  job-equivalents +3, plan −1 — **baseline N6** (`w41/sb-*-N6.json`).
 
 ## Target
 

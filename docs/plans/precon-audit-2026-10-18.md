@@ -2955,3 +2955,27 @@ Settled: don't re-suggest a theme reorder until a strength read scores at or
 above 0.70 leave-one-deck-out on BOTH pair sources; the pairs (`w41/pairs-
 cuts.json`, `w41/pairs-live.json`) and the fit scripts stay for that. The
 reads themselves stay shipped (`theme_strength`), unused by any order.
+
+## The tutor read's gaps, closed where phase lets them be (2026-10-31, late night; N6)
+
+Read changes, on correctness: `_common.cast_cost` adds `X_ASSUMED` (3) for an X
+in the mana cost, for every job and quality read (Chord of Calling 6, Green
+Sun's Zenith 4, Martial Coup 5 — the quality read's own X line moved here); the
+tutor read adds a Pact's delayed payment (`_pact_mana`: Summoner's Pact 4) and
+reads its deck (`deck_features` through `JobRead.in_deck`: a subtype search is
+as broad as a card type where a third of the deck's creature cards share the
+subtype — Faerie Harbinger in a Faerie deck); tutor and recursion take their
+instant-speed verdict from `crosswalk.at_instant_speed`.
+
+| set | N5 | N6 |
+|---|---|---|
+| held-out 20: swaps / cuts / adds, plan, job-equiv | 579 / 253 / 100, 266, 42 | 581 / 254 / 99, 265, 45 |
+| the 25: swaps / cuts / adds, plan | 734 / 339 / 114, 353 | 734 / 339 / 117, 348 |
+
+The 25's three adds are VelociRampTor's Dinosaur tutors (Forerunner of the
+Empire and kin), the case the deck read was built for. What the tutor read
+still can't see is phase's: Rhystic Tutor's unless-pay (`Unimplemented`), Grim
+Reminder's revealed card put into the hand, Cleansing Meditation's "destroyed
+this way" set lost, the Kaito and Garruk emblems and six returns described only
+in text, Necromancy's "as though it had flash" — the upstream report's.
+**Baseline N6** (`w41/sb-*-N6.json`).
