@@ -142,3 +142,20 @@ def test_a_whenever_you_proliferate_trigger_is_a_proliferate_payoff(name):
 def test_a_granted_proliferate_is_a_proliferate_maker():
     """Ichormoon Gauntlet: "Planeswalkers you control have '[0]: Proliferate'"."""
     assert ("proliferate_makers", "you", "") in _idents("Ichormoon Gauntlet")
+
+
+# ── type_matters: a legendary token the card doesn't make ───────────────────
+
+
+@pytest.mark.parametrize("name", ["Eye of Vecna", "Hand of Vecna"])
+def test_a_combo_pieces_related_legendary_token_is_no_tribe(name):
+    """The bulk relates Vecna (a Zombie God token Book of Vile Darkness makes)
+    to Eye and Hand of Vecna too; neither makes it, so neither sits on the
+    Zombie page."""
+    tribes = {subject for _key, _scope, subject in _keyed(name, "type_matters")}
+    assert not tribes & {"Zombie", "God"}
+
+
+def test_a_token_copy_of_itself_keeps_its_tribe():
+    """Council of Reeds makes "a token that's a copy of Council of Reeds"."""
+    assert ("type_matters", "you", "Scientist") in _idents("Council of Reeds")

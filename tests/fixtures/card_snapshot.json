@@ -280497,6 +280497,223 @@
     "type_line": "Creature — Spirit Advisor"
    }
   },
+  "Council of Reeds": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "brawl_commander": true,
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Human",
+       "Scientist",
+       "Hero"
+      ],
+      "supertypes": [
+       "Legendary"
+      ]
+     },
+     "color_identity": [
+      "Blue"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "is_commander": true,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 2,
+      "shards": [
+       "Blue"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "related_token_ids": [
+       "e5d4a4f1-5195-5ae1-984f-e9e166c684b0"
+      ],
+      "source_printing_ids": [
+       "2aa10540-b082-43d1-94d2-c78ebe6e4805",
+       "a0d824ea-75d2-4de5-923b-813bba44e80b"
+      ]
+     },
+     "name": "Council of Reeds",
+     "non_ability_text": null,
+     "oracle_text": "The \"legend rule\" doesn't apply to creatures you control.\nAt the beginning of combat on your turn, if you've cast a noncreature spell this turn, create a token that's a copy of Council of Reeds.",
+     "power": {
+      "type": "Fixed",
+      "value": 2
+     },
+     "printings": [
+      "MSC"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "33fa949c-f29e-4a98-9381-ecfa9e5c3f6d",
+     "static_abilities": [
+      {
+       "active_zones": [],
+       "affected": {
+        "controller": "You",
+        "properties": [],
+        "type": "Typed",
+        "type_filters": [
+         "Creature"
+        ]
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": null,
+       "description": "The \"legend rule\" doesn't apply to creatures you control.",
+       "effect_zone": null,
+       "mode": "LegendRuleDoesntApply",
+       "modifications": []
+      }
+     ],
+     "toughness": {
+      "type": "Fixed",
+      "value": 2
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": {
+        "comparator": "GE",
+        "lhs": {
+         "qty": {
+          "filter": {
+           "controller": null,
+           "properties": [],
+           "type": "Typed",
+           "type_filters": [
+            {
+             "Non": "Creature"
+            }
+           ]
+          },
+          "scope": "Controller",
+          "type": "SpellsCastThisTurn"
+         },
+         "type": "Ref"
+        },
+        "rhs": {
+         "type": "Fixed",
+         "value": 1
+        },
+        "type": "QuantityComparison"
+       },
+       "constraint": {
+        "type": "OnlyDuringYourTurn"
+       },
+       "damage_kind": "Any",
+       "description": "At the beginning of combat on your turn, if you've cast a noncreature spell this turn, create a token that's a copy of ~.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "enters_attacking": false,
+         "owner": {
+          "type": "Controller"
+         },
+         "tapped": false,
+         "target": {
+          "type": "SelfRef"
+         },
+         "type": "CopyTokenOf"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "Phase",
+       "optional": false,
+       "origin": null,
+       "phase": "BeginCombat",
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": null,
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "all_parts": [
+     {
+      "component": "token",
+      "id": "b1776802-c1d7-4d4d-926f-ab3748942b62",
+      "name": "Council of Reeds",
+      "oracle_id": "8b6c301f-ccbc-47e3-a03c-dc9f397555c3",
+      "type_line": "Token Legendary Creature — Human Scientist Hero"
+     }
+    ],
+    "arena_available": false,
+    "cmc": 3.0,
+    "color_identity": [
+     "U"
+    ],
+    "colors": [
+     "U"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}{U}",
+    "name": "Council of Reeds",
+    "oracle_id": "33fa949c-f29e-4a98-9381-ecfa9e5c3f6d",
+    "oracle_text": "The \"legend rule\" doesn't apply to creatures you control.\nAt the beginning of combat on your turn, if you've cast a noncreature spell this turn, create a token that's a copy of Council of Reeds.",
+    "power": "2",
+    "toughness": "2",
+    "type_line": "Legendary Creature — Human Scientist Hero"
+   }
+  },
   "Countermand": {
    "phase_records": [
     {
@@ -418887,6 +419104,273 @@
     "type_line": "World Enchantment"
    }
   },
+  "Eye of Vecna": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Artifact"
+      ],
+      "subtypes": [],
+      "supertypes": [
+       "Legendary"
+      ]
+     },
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 2,
+      "shards": [],
+      "type": "Cost"
+     },
+     "metadata": {
+      "related_token_ids": [
+       "24276f6c-70a9-50f5-83bc-818575dda480"
+      ],
+      "source_printing_ids": [
+       "69f305d0-f610-400d-a365-6d9afcfb6ab8",
+       "b91e2431-500e-441a-881d-094ebef62283"
+      ]
+     },
+     "name": "Eye of Vecna",
+     "non_ability_text": null,
+     "oracle_text": "When Eye of Vecna enters, you draw a card and you lose 2 life.\nAt the beginning of your upkeep, you may pay {2}. If you do, you draw a card and you lose 2 life.",
+     "power": null,
+     "printings": [
+      "AFR",
+      "PAFR",
+      "PRM"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "371a7bbf-5890-46d8-ae57-f020c103b465",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "When ~ enters, you draw a card and you lose 2 life.",
+       "destination": "Battlefield",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "target": {
+          "type": "Controller"
+         },
+         "type": "Draw"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "amount": {
+           "type": "Fixed",
+           "value": 2
+          },
+          "target": {
+           "type": "Controller"
+          },
+          "type": "LoseLife"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": null,
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "mode": "ChangesZone",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": null
+      },
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": {
+        "type": "OnlyDuringYourTurn"
+       },
+       "damage_kind": "Any",
+       "description": "At the beginning of your upkeep, you may pay {2}. If you do, you draw a card and you lose 2 life.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "cost": {
+          "cost": {
+           "generic": 2,
+           "shards": [],
+           "type": "Cost"
+          },
+          "type": "Mana"
+         },
+         "payer": {
+          "type": "Controller"
+         },
+         "type": "PayCost"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": true,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": {
+          "signal": "OptionalEffectPerformed",
+          "type": "EffectOutcome"
+         },
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "count": {
+           "type": "Fixed",
+           "value": 1
+          },
+          "target": {
+           "type": "Controller"
+          },
+          "type": "Draw"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": {
+          "condition": null,
+          "cost": null,
+          "description": null,
+          "duration": null,
+          "effect": {
+           "amount": {
+            "type": "Fixed",
+            "value": 2
+           },
+           "target": {
+            "type": "Controller"
+           },
+           "type": "LoseLife"
+          },
+          "forward_result": false,
+          "kind": "Spell",
+          "optional": false,
+          "optional_targeting": false,
+          "sub_ability": null,
+          "target_prompt": null
+         },
+         "sub_link": "SequentialSibling",
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "mode": "Phase",
+       "optional": true,
+       "origin": null,
+       "phase": "Upkeep",
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": null,
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "all_parts": [
+     {
+      "component": "token",
+      "id": "86881c5f-df5e-4f50-b554-e4c49d5316f9",
+      "name": "Vecna",
+      "oracle_id": "aeeba0a5-46c0-4637-8761-45be738a18a3",
+      "type_line": "Token Legendary Creature — Zombie God"
+     }
+    ],
+    "arena_available": true,
+    "cmc": 2.0,
+    "color_identity": [],
+    "colors": [],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}",
+    "name": "Eye of Vecna",
+    "oracle_id": "371a7bbf-5890-46d8-ae57-f020c103b465",
+    "oracle_text": "When Eye of Vecna enters, you draw a card and you lose 2 life.\nAt the beginning of your upkeep, you may pay {2}. If you do, you draw a card and you lose 2 life.",
+    "type_line": "Legendary Artifact"
+   }
+  },
   "Eyeblight Massacre": {
    "phase_records": [
     {
@@ -540499,6 +540983,293 @@
     "power": "5",
     "toughness": "5",
     "type_line": "Legendary Creature — Elephant Warrior"
+   }
+  },
+  "Hand of Vecna": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "ability_tag": {
+        "type": "Equip"
+       },
+       "activation_restrictions": [
+        {
+         "type": "AsSorcery"
+        }
+       ],
+       "condition": null,
+       "cost": {
+        "amount": {
+         "factor": 1,
+         "inner": {
+          "qty": {
+           "card_types": [],
+           "scope": "Controller",
+           "type": "ZoneCardCount",
+           "zone": "Hand"
+          },
+          "type": "Ref"
+         },
+         "type": "Multiply"
+        },
+        "type": "PayLife"
+       },
+       "description": "Equip—Pay 1 life for each card in your hand.",
+       "duration": null,
+       "effect": {
+        "selection": {
+         "at_resolution": {}
+        },
+        "target": {
+         "controller": "You",
+         "properties": [],
+         "type": "Typed",
+         "type_filters": [
+          "Creature"
+         ]
+        },
+        "type": "Attach"
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      },
+      {
+       "ability_tag": {
+        "type": "Equip"
+       },
+       "activation_restrictions": [
+        {
+         "type": "AsSorcery"
+        }
+       ],
+       "condition": null,
+       "cost": {
+        "cost": {
+         "generic": 2,
+         "shards": [],
+         "type": "Cost"
+        },
+        "type": "Mana"
+       },
+       "description": "Equip {2}",
+       "duration": null,
+       "effect": {
+        "selection": {
+         "at_resolution": {}
+        },
+        "target": {
+         "controller": "You",
+         "properties": [],
+         "type": "Typed",
+         "type_filters": [
+          "Creature"
+         ]
+        },
+        "type": "Attach"
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Artifact"
+      ],
+      "subtypes": [
+       "Equipment"
+      ],
+      "supertypes": [
+       "Legendary"
+      ]
+     },
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 3,
+      "shards": [],
+      "type": "Cost"
+     },
+     "metadata": {
+      "related_token_ids": [
+       "24276f6c-70a9-50f5-83bc-818575dda480"
+      ],
+      "source_printing_ids": [
+       "ddd0beb7-80dc-4665-bab2-747c795d97db",
+       "ff0502e4-508a-4d78-b987-0801e6b0978c"
+      ]
+     },
+     "name": "Hand of Vecna",
+     "non_ability_text": null,
+     "oracle_text": "At the beginning of combat on your turn, equipped creature or a creature you control named Vecna gets +X/+X until end of turn, where X is the number of cards in your hand.\nEquip—Pay 1 life for each card in your hand.\nEquip {2}",
+     "power": null,
+     "printings": [
+      "AFR",
+      "PAFR",
+      "PRM"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2021-07-23",
+       "text": "Hand of Vecna's triggered ability uses the number of cards in your hand as it resolves to determine the bonus the creature gets. It won't change if the number of cards in your hand changes later in the turn."
+      },
+      {
+       "date": "2021-07-23",
+       "text": "If you control both Vecna and Hand of Vecna equipped to another creature, you choose which creature to apply the bonus to as the triggered ability resolves."
+      }
+     ],
+     "scryfall_oracle_id": "3b7f0dd3-5b4c-4ac0-a43a-ddc62a44663e",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": {
+        "type": "OnlyDuringYourTurn"
+       },
+       "damage_kind": "Any",
+       "description": "At the beginning of combat on your turn, equipped creature or a creature you control named Vecna gets +X/+X until end of turn, where X is the number of cards in your hand.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": "UntilEndOfTurn",
+        "effect": {
+         "power": {
+          "type": "Quantity",
+          "value": {
+           "qty": {
+            "player": {
+             "type": "Controller"
+            },
+            "type": "HandSize"
+           },
+           "type": "Ref"
+          }
+         },
+         "target": {
+          "controller": null,
+          "properties": [
+           {
+            "type": "EquippedBy"
+           }
+          ],
+          "type": "Typed",
+          "type_filters": [
+           "Creature"
+          ]
+         },
+         "toughness": {
+          "type": "Quantity",
+          "value": {
+           "qty": {
+            "player": {
+             "type": "Controller"
+            },
+            "type": "HandSize"
+           },
+           "type": "Ref"
+          }
+         },
+         "type": "PumpAll"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "Phase",
+       "optional": false,
+       "origin": null,
+       "phase": "BeginCombat",
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": null,
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "all_parts": [
+     {
+      "component": "token",
+      "id": "86881c5f-df5e-4f50-b554-e4c49d5316f9",
+      "name": "Vecna",
+      "oracle_id": "aeeba0a5-46c0-4637-8761-45be738a18a3",
+      "type_line": "Token Legendary Creature — Zombie God"
+     }
+    ],
+    "arena_available": true,
+    "cmc": 3.0,
+    "color_identity": [],
+    "colors": [],
+    "keywords": [
+     "Equip"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{3}",
+    "name": "Hand of Vecna",
+    "oracle_id": "3b7f0dd3-5b4c-4ac0-a43a-ddc62a44663e",
+    "oracle_text": "At the beginning of combat on your turn, equipped creature or a creature you control named Vecna gets +X/+X until end of turn, where X is the number of cards in your hand.\nEquip—Pay 1 life for each card in your hand.\nEquip {2}",
+    "type_line": "Legendary Artifact — Equipment"
    }
   },
   "Hand of the Praetors": {
