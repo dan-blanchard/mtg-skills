@@ -296,9 +296,15 @@ miss taxonomy, the held-out candidates).
   mana value 4 or less" need, Kalakscion a vanilla 7/2 and a recall gap) →
   **baseline N14**: the 25 identical to N13; held-out 582 / 253 / 99, plan 291 —
   one guide add in Witherbloom Pestilence became a near-miss as Dina's new page
-  took its slot (`w41/sb-*-N14.json`; gate diffs vs `sb-ho-N14.json`). Left: the
-  pass's last two actor gaps (Reality Shift's manifest, Hovership's manifest
-  dread), the fresh set's block-end score, CI, the recap.
+  took its slot (`w41/sb-*-N14.json`). The pass's third pass merged (0e6365e2:
+  `crosswalk.acts_for_answered_target` — an effect for an answered target's
+  controller or owner is the opponents' — fixes Reality Shift's manifest and
+  Unidentified Hovership's manifest dread; the keyword-array arm leaves a typed
+  face-down action to the structural lane) → **baseline N15**, identical to N14
+  on every count in both sets (`w41/sb-*-N15.json`; gate diffs vs
+  `sb-ho-N15.json`). Left: the token-maker lane's copy of the answered-target
+  logic folded into the shared read (a zero-change census), the fresh set's
+  block-end score, CI, the recap.
 
 ## Target
 
