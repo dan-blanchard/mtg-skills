@@ -26,6 +26,7 @@
   let maxSwaps = 5;
   let shapeOverride = ""; // "" → inferred
   let suggestCommander = false;
+  let compareCommanders = false; // rank every command zone the deck can field
   let loading = false;
   let applying = false;
   let error = "";
@@ -75,6 +76,7 @@
       max_swaps: Number(maxSwaps) || 0,
       shape_override: shapeOverride || null,
       suggest_commander: suggestCommander,
+      compare_commanders: compareCommanders,
       exclude: [...$rejectedAdds],
       // The archetype pinned in the Meta panel, else the one the deck matches.
       meta_archetype: $metaArchetype || null,
@@ -300,6 +302,10 @@
           <input type="checkbox" bind:checked={suggestCommander} />
           Suggest a better commander
         </label>
+        <label class="check">
+          <input type="checkbox" bind:checked={compareCommanders} />
+          Compare the deck's own legends as commander
+        </label>
       {/if}
     </div>
     <button class="run" on:click={run} disabled={loading || applying}>
@@ -340,6 +346,31 @@
         <p class="clean">No issues found — the deck reads clean.</p>
       {/if}
     </div>
+
+    {#if result.commander_comparison}
+      <!-- Every command zone the deck can field, tuned and ranked by commander
+           fit (the share of the deck's lanes the commander serves), then by
+           what the tune left wrong. Advisory: nothing is switched here. -->
+      <div class="panel widget">
+        <h4>Commander comparison</h4>
+        <table class="compare">
+          <thead>
+            <tr><th>#</th><th>Command zone</th><th>Fit</th><th>Issue load</th><th>Top swaps</th></tr>
+          </thead>
+          <tbody>
+            {#each result.commander_comparison as row (row.commanders.join(" + "))}
+              <tr class:current={row.current}>
+                <td>{row.rank}</td>
+                <td>{row.commanders.join(" + ")}{row.current ? " (current)" : ""}</td>
+                <td>{row.fit.toFixed(2)}</td>
+                <td>{row.issues}</td>
+                <td>{row.swaps.map((s) => `${s.cut} → ${s.add}`).join("; ")}</td>
+              </tr>
+            {/each}
+          </tbody>
+        </table>
+      </div>
+    {/if}
 
     <div class="panel widget">
       <!-- Efficiency -->

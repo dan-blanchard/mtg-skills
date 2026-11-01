@@ -31,6 +31,7 @@ from mtg_utils._arena_meta import untapped
 from mtg_utils._deck_forge import collection, discovery, engine, views
 from mtg_utils._deck_forge.engine import DeckRuleError
 from mtg_utils._deck_forge.state import DeckSession, ForgeState
+from mtg_utils._tuner.compare_commanders import compare_commanders
 from mtg_utils._tuner.tune import tune as run_tune
 from mtg_utils.deck_cli import parse_wildcards
 from mtg_utils.deck_stats import deck_stats
@@ -199,6 +200,9 @@ class TunePayload(BaseModel):
     # ADR-0059: the build's Arena meta archetype — None matches the deck from the
     # arena-meta cache, "off" skips it, anything else names one.
     meta_archetype: str | None = None
+    # Also tune under every other command zone the deck can field and rank them
+    # (``_tuner.compare_commanders``): ``commander_comparison`` in the result.
+    compare_commanders: bool = False
 
 
 class MetaRefreshPayload(BaseModel):
@@ -884,26 +888,33 @@ def build_app(
                 engine.meta_context, state, hd, payload.meta_archetype
             ),
         )
+
         # run_tune does blocking work (a Commander Spellbook combos call + heavy bulk
         # searches); offload it to a worker thread so a slow combo lookup can't stall
         # the event loop and wedge the whole hub. Pure read of state, so thread-safe.
-        return await run_in_threadpool(
-            run_tune,
-            hd,
-            # A pool-bounded build searches its opened pool (and owns all of it).
-            search_fn=engine.search_for(state, hd),
-            params=params,
-            # The WHOLE active Collection slot, not the deck-scoped owned map: the tuner
-            # costs CANDIDATE adds (not in the deck yet), so it must see every card you
-            # own as free — otherwise a zero wildcard budget fills nothing and owned
-            # cards wrongly consume budget.
-            owned=engine.owned_collection(state),
-            combos_fn=state.combos_fn,
+        def _run() -> dict:
+            kwargs = {
+                # A pool-bounded build searches its opened pool (and owns all of it).
+                "search_fn": engine.search_for(state, hd),
+                "params": params,
+                # The WHOLE active Collection slot, not the deck-scoped owned map: the
+                # tuner costs CANDIDATE adds (not in the deck yet), so it must see
+                # every card you own as free — otherwise a zero wildcard budget fills
+                # nothing and owned cards wrongly consume budget.
+                "owned": engine.owned_collection(state),
+                "combos_fn": state.combos_fn,
+                "pool": engine.pool_owned(state),
+            }
             # ADR-0025: the tune scorecard must rank the SAME commander lanes
             # the avenues panel shows — folded-object signals included.
-            resolve_object=state.object_resolver,
-            pool=engine.pool_owned(state),
-        )
+            result = run_tune(hd, resolve_object=state.object_resolver, **kwargs)
+            if payload.compare_commanders:
+                result["commander_comparison"] = compare_commanders(
+                    hd, tune_fn=run_tune, **kwargs
+                )
+            return result
+
+        return await run_in_threadpool(_run)
 
     @app.get("/api/meta", response_model=None)
     async def meta(
