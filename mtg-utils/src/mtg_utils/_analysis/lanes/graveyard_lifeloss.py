@@ -5,7 +5,6 @@ crosswalk_signals.py)."""
 from __future__ import annotations
 
 import re
-from collections.abc import Iterator
 from itertools import chain
 
 from mtg_utils._analysis._subtypes import (
@@ -85,7 +84,6 @@ from mtg_utils._card_ir.crosswalk import (
     tag_of,
     targets_the_card,
     token_creator_side,
-    trigger_def_unit,
     trigger_scope,
     trigger_subject,
     trigger_subject_scope,
@@ -1856,20 +1854,6 @@ def _lifeloss_matters(tree: ConceptTree) -> list[Signal]:
     return [Signal("lifeloss_matters", sc, "", "", tree.name, "high") for sc in scopes]
 
 
-def _edict_units(tree: ConceptTree) -> Iterator[AbilityUnit]:
-    """The card's units, then each trigger one of them grants or puts on an
-    emblem as a unit of its own (:func:`trigger_def_unit`): "has 'Whenever
-    this creature deals combat damage to a player, that player sacrifices a
-    creature of their choice'" (Demon of Wailing Agonies), an emblem's "At the
-    beginning of each opponent's upkeep, that player sacrifices a creature"
-    (Sorin, Solemn Visitor). A granted "sacrifice a creature" names no
-    controller, so it stays its grantee controller's own sacrifice."""
-    for unit in tree.units:
-        yield unit
-        for trig in iter_nested_trigger_defs(unit.node):
-            yield trigger_def_unit(trig)
-
-
 #: A chosen target's controller that is another player: no controller (any
 #: player's — "two target creatures controlled by the same player") or an
 #: opponent's. Yours, or a trigger's "that player chooses" (``ScopedPlayer`` —
@@ -1929,7 +1913,10 @@ def _edict_makers(tree: ConceptTree) -> list[Signal]:
             seen.add(scope)
             out.append(Signal("edict_makers", scope, "", raw, tree.name, "high"))
 
-    for unit in _edict_units(tree):
+    # A granted trigger reads like a printed one (Demon of Wailing Agonies'
+    # "that player sacrifices a creature of their choice"); a granted "sacrifice
+    # a creature" names no controller, so it stays the grantee's own.
+    for unit in tree.iter_units_and_granted_triggers():
         for c in unit.effects:
             if c.concept != "sacrifice":
                 continue

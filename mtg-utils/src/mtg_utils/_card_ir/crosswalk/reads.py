@@ -9457,6 +9457,29 @@ def hurts_triggering_player(node: object) -> bool:
     return False
 
 
+def watches_enchanted_opponent(enchant: object, trig: object) -> bool:
+    """Whether a trigger DEFINITION watches an Aura's enchanted player
+    (``valid_target: AttachedTo``) and that player is an opponent. CR 303.4:
+    an Aura names no side, so the card says it — an "Enchant opponent" filter
+    (Psychic Possession's "Whenever enchanted opponent draws a card, you may
+    draw a card"), or an "Enchant player" whose trigger hurts a player other
+    than you (:data:`_HURTS_PLAYER_TAGS` — Curse of Fool's Wisdom's "Whenever
+    enchanted player draws a card, they lose 2 life and you gain 2 life"). An
+    "Enchant player" that only helps its player stays unsided (``False``)."""
+    if tag_of(getattr(trig, "valid_target", None)) != "AttachedTo":
+        return False
+    etag = tag_of(enchant)
+    if etag == "Typed":
+        return filter_controller(enchant) in OPPONENT_ACTOR_TAGS
+    if etag != "Player":
+        return False
+    return any(
+        tag_of(n) in _HURTS_PLAYER_TAGS
+        and recipient_tag(n) not in (None, "Controller", "You")
+        for n in _iter_typed_nodes(getattr(trig, "execute", None))
+    )
+
+
 def punishes_triggering_caster(trig: object) -> bool:
     """Whether a trigger DEFINITION is the SYMMETRIC cast punisher: a
     ``SpellCast`` / ``SpellCastOrCopy`` trigger with no player restriction

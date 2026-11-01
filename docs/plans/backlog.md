@@ -594,9 +594,8 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   exclusion lists — membership_floor's step-trigger exclusion duplicates
   `STEP_TRIGGER_KEYS` the same way); the spell-additional-cost walk keeps
   only allowlisted OTHER leaves (PayLife, Blight) — walk them all;
-  `card_draw_engine` misses granted draw triggers
-  (Avarice Amulet), aftermath halves and connive X; `opponent_draw_matters` misses
-  enchanted-player watchers (Curse of Fool's Wisdom now carries no draw key);
+  `card_draw_engine` misses Mask of the Schemer's connive X (phase parks "where
+  X is the amount of damage it dealt" as `where_x_binding`);
   `ends_the_game` reads a missing player as you (a canary arm in `core_makers`);
   the empower Jace token's scry / surveil (about thirty cards) is not walked; a
   clone that adds a keyword (Auton Soldier) and Mouth // Feed's aftermath count
@@ -921,9 +920,6 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
     but not lifeloss_makers / mass_removal.
   - Underbridge Warlock's enters trigger is a `CreateBoon`; no lane reads a boon
     as an enters payload (self_etb_payload lost).
-  - Ral, Izzet Viceroy's emblem trigger ("whenever you cast an instant or sorcery
-    spell, … you draw two cards") is typed now; card_draw_engine doesn't read an
-    emblem's draw.
   - Tasha, Unholy Archmage's "+1: … put a -1/-1 counter on that creature" names
     the attacker as `TriggeringSource`; debuff_makers doesn't take it.
   - King Narfi's Betrayal's "exile a creature or planeswalker card from each

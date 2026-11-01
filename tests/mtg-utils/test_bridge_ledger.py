@@ -39,14 +39,20 @@ from mtg_utils._card_ir.trees import _face_names, _text_only_trees
 from mtg_utils.testkit import test_card, test_phase_records, test_signals
 
 # ADR-0039 W7: the pins whose face has NO phase record at all (the missing_face
-# kind), each mapped to that face — Insult // Injury's and Driven // Despair's
-# Aftermath back halves, and the Tomb of Annihilation dungeon phase never parses.
+# kind), each mapped to that face — the Aftermath back halves (Insult // Injury's,
+# Driven // Despair's, Spring // Mind's …) and the Tomb of Annihilation dungeon
+# phase never parses.
 _MISSING_FACE_PINS = {
     "Insult // Injury": "Injury",
     "Driven // Despair": "Despair",
     "Appeal // Authority": "Authority",
     "Tomb of Annihilation": "Tomb of Annihilation",
     "Onward // Victory": "Victory",
+    "Spring // Mind": "Mind",
+    "Farm // Market": "Market",
+    "Leave // Chance": "Chance",
+    "Mouth // Feed": "Feed",
+    "Commit // Memory": "Memory",
 }
 # Pins whose row reads a back face phase does record: the face to build.
 _BACK_FACE_PINS = {
