@@ -228,7 +228,11 @@ def classifying_keywords(card: dict) -> tuple[str, ...]:
 def _type_token_re(token: str) -> re.Pattern[str]:
     pat = _TYPE_TOKEN_CACHE.get(token)
     if pat is None:
-        pat = re.compile(rf"\b{re.escape(token)}\b")
+        # A subtype is one token even when it holds a hyphen or an apostrophe
+        # ("Power-Plant", "Urza's", "Assembly-Worker"), so neither is a boundary:
+        # 'plant' is not Urza's Power-Plant.
+        inner = r"\w'\u2019-"  # word characters, both apostrophes, a hyphen
+        pat = re.compile(rf"(?<![{inner}]){re.escape(token)}(?![{inner}])")
         _TYPE_TOKEN_CACHE[token] = pat
     return pat
 
@@ -242,8 +246,9 @@ def type_line_has(type_line_lower: str, token_lower: str) -> bool:
     A type filter must match whole type-line TOKENS, never substrings of
     another type: 'rat' is not a Pirate ("pi[rat]e"), 'orc' is not a Sorcery,
     'mount' is not a Mountain, 'bat' is not a Battle (CR 205.3 — each subtype
-    is its own word). Multi-word filters ("basic land") match as a bounded
-    phrase."""
+    is its own word), and 'plant' is not Urza's Power-Plant (a hyphen or an
+    apostrophe sits inside one subtype, CR 205.3i). Multi-word filters ("basic
+    land") match as a bounded phrase."""
     return _type_token_re(token_lower).search(type_line_lower) is not None
 
 

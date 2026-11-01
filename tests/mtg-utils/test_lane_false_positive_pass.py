@@ -170,3 +170,23 @@ def test_a_food_you_make_is_a_life_gain_source(name):
 
 def test_a_treasure_maker_gains_no_life():
     assert not _keyed("Smothering Tithe", "lifegain_makers")
+
+
+@pytest.mark.parametrize(
+    ("name", "served"),
+    [
+        # "Land — Urza's Power-Plant": Power-Plant is one land type (CR 205.3i)
+        ("Urza's Power Plant", False),
+        ("Avenger of Zendikar", True),  # makes Plant tokens
+        ("Changeling Outcast", True),  # every creature type (CR 702.73a)
+    ],
+)
+def test_the_plant_page_reads_whole_subtypes(name, served):
+    from mtg_utils._analysis.signal_base import Signal
+    from mtg_utils._analysis.signal_specs import spec_for
+    from mtg_utils.testkit import test_card
+
+    test_signals(name)  # seed the card's trees memo
+    spec = spec_for(Signal("type_matters", "you", "Plant", "", "", "high"))
+    assert spec is not None
+    assert spec.serve.matches(test_card(name)) is served
