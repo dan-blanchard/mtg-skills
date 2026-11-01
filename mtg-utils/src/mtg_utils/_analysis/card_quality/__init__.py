@@ -9,10 +9,10 @@ card's front face and scores it; a land, or a card no read sees, is ``None`` —
 never a low number. The reads are pure: no play-rate, no price, no deck.
 
 :func:`theme_strength` is a second read per type, for ordering a theme page:
-each type module's ``THEME_READ``, fitted on pairs the reads-first order
-didn't choose (a guide's adds against its cuts, and against the more-played
-on-plan cards the live play-rate order ranked above them). A type module
-without one scores ``None``.
+each type module's ``THEME_READ`` (its ``THEME_WEIGHTS``), fitted on pairs no
+tuner order chose (a guide's adds against its cuts, and against the more-played
+on-plan cards the live play-rate order ranked above them). A module without a
+``THEME_READ`` scores ``None``. :func:`quality` is unchanged.
 """
 
 from __future__ import annotations
@@ -63,8 +63,8 @@ def quality(record: dict) -> float | None:
     return READS[name].score(record)
 
 
-#: Each read's module by type name: where :func:`theme_strength` finds the
-#: type's ``THEME_READ``.
+#: The type modules by type name: where :func:`theme_strength` finds each one's
+#: ``THEME_READ``.
 _MODULES = {
     creature.READ.type_name: creature,
     noncreature_permanent.READ.type_name: noncreature_permanent,
@@ -73,15 +73,15 @@ _MODULES = {
 
 
 def theme_strength(record: dict) -> float | None:
-    """The card's theme-strength score (log-odds of being the guide's pick
-    over another on-plan card of its type on a theme page; higher is
-    stronger) under its type module's ``THEME_READ``, or ``None``: a land, a
-    card the read can't see, or a type with no theme-strength read. A second
-    read beside :func:`quality`, fitted on other pairs; it never changes it."""
+    """The card's theme-strength score under its type's ``THEME_READ`` (log-odds
+    of being the guide's pick over another on-plan card of its type on a theme
+    page; fitted on the guides' add-vs-cut pairs and the live play-rate order's
+    misses, not on an order's own picks; higher is stronger), or ``None`` for a
+    card no theme read sees — a land, a type whose module has no ``THEME_READ``,
+    or a card that module's read can't see. The job-page blend's
+    :func:`quality` is a separate read."""
     name = type_name(record)
-    if name is None:
-        return None
-    read = getattr(_MODULES[name], "THEME_READ", None)
+    read = None if name is None else getattr(_MODULES[name], "THEME_READ", None)
     return None if read is None else read.score(record)
 
 

@@ -51,6 +51,52 @@ planeswalker.
 A card the read can't see — not a noncreature permanent, or no ability of its own
 on phase's trees — scores ``None``, never a low number. Pure: no deck, no
 play-rate, no price.
+
+**Theme strength** (``THEME_READ``: :func:`theme_features` x ``THEME_WEIGHTS``;
+``docs/plans/precon-audit/strength_fit_noncreature.py``, 2026-10-31 night). A
+second read, for ordering a theme page, fitted on two pair sources the tuner's
+order did not choose, design 25 only: **A**, a guide's add against that guide's
+cut of the same type (1,757 pairs, 293 adds, 25 decks); **B**, a guide add
+against each on-plan card the live play-rate order put above it (6,377 pairs, 129
+adds, 22 decks). Each source normalised to weight 1 for the A+B fit (L2 = 3).
+Leave-one-deck-out pair accuracy:
+
+==========================  =====  =====
+read                        on A   on B
+==========================  =====  =====
+play-rate                   0.530  0.000 (B's pairs are its misses)
+mana value (cheaper)        0.456  0.450
+``features`` refit, A+B     0.473  0.532
+theme, fitted on A          0.656  0.602
+theme, fitted on B          0.642  0.564
+theme, fitted on A+B        0.658  0.610
+==========================  =====  =====
+
+The job-blend read's features, refit, are at a coin flip on A: they learned what
+the reads-first order overrated. Features (weight; standardised weight):
+
+* ``cheap`` +0.35 (+0.16) — costs 2 or less (:func:`read_cost`).
+* ``multiplier`` +0.65 (+0.13) — multiplies what the deck's other cards do
+  (:data:`MULTIPLIER_KEYS`: more tokens, counters or damage by a replacement
+  effect, CR 614.1a; more mana; more triggers): Parallel Lives, Fiery
+  Emancipation.
+* ``abilities`` -0.2 (-0.19) — each battlefield ability beyond the first (cap 4).
+* ``protection`` +0.45 (+0.07) — the protection job read's score (Swiftfoot
+  Boots, Sphere of Safety).
+* ``library_top`` -1.3 (-0.39) — it mills, scries, surveils, reveals or exiles
+  the top of a library (:data:`LIBRARY_TOP`; CR 701.17a, 701.22a, 701.25a): the
+  guides cut these riders (Omen of the Sun, Cunning Rhetoric, the Jace walkers).
+* ``damage`` +1.3 (+0.26) — it deals damage other than to you (Court of Ire, Ral
+  Zarek, Ugin, the Spirit Dragon).
+* ``ramp`` -1.0 (-0.21) — the ramp job read's score: on a theme page a mana rock
+  is the ramp job's card, and the guides cut Arcane Signet, the Talismans and
+  Commander's Sphere for theme cards.
+
+``ramp`` and ``library_top`` are the guides' verdict on a theme slot rather than
+a card-strength principle. Rejected (forward selection gained under 0.002, or
+legibility): mana value, tokens, counters, a recurring trigger, an enters-only
+card, a Saga, a static ability, activation costs, card draw, tutoring, removal,
+equipment, aura, legendary, planeswalker.
 """
 
 from __future__ import annotations
@@ -67,6 +113,7 @@ from mtg_utils._analysis.job_quality._common import (
     front_mana_cost,
 )
 from mtg_utils._analysis.signal_trees import signal_trees_for
+from mtg_utils._analysis.signals import extract_signals
 from mtg_utils._analysis.write_back import (
     MISSING,
     WriteBackMemo,
@@ -201,6 +248,65 @@ WEIGHTS: dict[str, float] = {
     "scaling": -0.7,
 }
 
+#: The served signal keys of a card that multiplies what the deck's other cards
+#: do: a replacement effect that increases tokens created, counters put or damage
+#: dealt (CR 614.1a), a mana amplifier, a trigger doubler (the lanes'
+#: ``_replacement_doubler_lanes``, ``mana_amplifier``, ``trigger_doubling``).
+MULTIPLIER_KEYS = frozenset(
+    {
+        "token_doubling",
+        "counter_doubling",
+        "damage_doubling",
+        "mana_amplifier",
+        "trigger_doubling",
+    }
+)
+#: The concepts that work the top of a library one card at a time: mill (CR
+#: 701.17a), scry (701.22a), surveil (701.25a), reveal, exile the top, dig until.
+LIBRARY_TOP = frozenset(
+    {"mill", "scry", "surveil", "reveal_top", "exile_top", "reveal_until"}
+)
+
+
+def theme_features(card: dict) -> dict[str, float] | None:
+    """The theme-strength read's features for ``card`` (:data:`THEME_WEIGHTS`),
+    or ``None`` when it is not a noncreature permanent or phase gives it no
+    ability of its own — the same cards :func:`features` sees."""
+    front = faces(card)[0]
+    if "Creature" in front or "Land" in front or not any(t in front for t in _TYPES):
+        return None
+    units = own_units(signal_trees_for(card, bulk=card), "Battlefield")
+    if not units:
+        return None
+    effects = [e for u in units for e in u.effects]
+    concepts = {e.concept for e in effects}
+    keys = {s.key for s in extract_signals(card)}
+    return {
+        "cheap": float(read_cost(card) <= 2),
+        "multiplier": float(bool(keys & MULTIPLIER_KEYS)),
+        "abilities": float(min(len(units) - 1, 4)),
+        "protection": JOB_READS["protection"].score(card) or 0.0,
+        "library_top": float(bool(concepts & LIBRARY_TOP)),
+        "damage": float(
+            any(e.concept == "deal_damage" and e.scope != "you" for e in effects)
+        ),
+        "ramp": JOB_READS["ramp"].score(card) or 0.0,
+    }
+
+
+#: The theme-strength weights: hand-rounded from the 2026-10-31 night A+B fit
+#: (see the module docstring's "Theme strength"); the ``theme_strength`` read,
+#: beside ``WEIGHTS`` (the job-page blend's), never in place of it.
+THEME_WEIGHTS: dict[str, float] = {
+    "cheap": 0.35,
+    "multiplier": 0.65,
+    "abilities": -0.2,
+    "protection": 0.45,
+    "library_top": -1.3,
+    "damage": 1.3,
+    "ramp": -1.0,
+}
+
 #: Bumped for a change in what a persisted score means that the module's
 #: content hash doesn't see (a data file it loads).
 SIDECAR_VERSION = 1
@@ -219,6 +325,9 @@ def _content_key() -> str:
 SIDECAR = WriteBackSidecar(".quality-noncreature-permanent.pkl", _content_key)
 
 READ = QualityRead("noncreature_permanent", features, WEIGHTS, SIDECAR.memo("score"))
+THEME_READ = QualityRead(
+    "noncreature_permanent", theme_features, THEME_WEIGHTS, SIDECAR.memo("theme")
+)
 
 
 def attach_sidecar(bulk_path: Path | None) -> bool:
