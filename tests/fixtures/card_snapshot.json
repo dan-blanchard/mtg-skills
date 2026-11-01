@@ -523019,6 +523019,200 @@
     "type_line": "Enchantment — Aura"
    }
   },
+  "Guerrilla Tactics": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "~ deals 2 damage to any target.",
+       "duration": null,
+       "effect": {
+        "amount": {
+         "type": "Fixed",
+         "value": 2
+        },
+        "target": {
+         "type": "Any"
+        },
+        "type": "DealDamage"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Instant"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Red"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pauper": "legal",
+      "paupercommander": "legal",
+      "premodern": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "Red"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "9bf3bac0-6e63-4bd3-bbd6-547f46c2d126",
+       "cf26e172-7fbb-4bbb-b071-c3060842ed12"
+      ]
+     },
+     "name": "Guerrilla Tactics",
+     "non_ability_text": null,
+     "oracle_text": "Guerrilla Tactics deals 2 damage to any target.\nWhen a spell or ability an opponent controls causes you to discard this card, it deals 4 damage to any target.",
+     "power": null,
+     "printings": [
+      "10E",
+      "8ED",
+      "9ED",
+      "ALL",
+      "DKM",
+      "PLST"
+     ],
+     "rarities": [
+      "uncommon"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2004-10-04",
+       "text": "Discarding as a cost to cast a spell will not trigger the ability. Only discarding as an effect will trigger the ability."
+      },
+      {
+       "date": "2004-10-04",
+       "text": "If it is discarded, the damage done by it is done by this card due to an ability and not by a spell."
+      },
+      {
+       "date": "2004-10-04",
+       "text": "The second ability will trigger even on an optional discard caused by an opponent."
+      }
+     ],
+     "scryfall_oracle_id": "65ad90f5-4dae-494b-83fb-8052e77e0b12",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": {
+        "controller": "Opponent",
+        "type": "EventSourceControlledBy"
+       },
+       "damage_kind": "Any",
+       "description": "When a spell or ability an opponent controls causes you to discard this card, it deals 4 damage to any target.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "amount": {
+          "type": "Fixed",
+          "value": 4
+         },
+         "damage_source": "TriggeringSource",
+         "target": {
+          "type": "Any"
+         },
+         "type": "DealDamage"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "Discarded",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Graveyard",
+        "Exile"
+       ],
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": {
+        "type": "Controller"
+       }
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 2.0,
+    "color_identity": [
+     "R"
+    ],
+    "colors": [
+     "R"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "legal",
+     "paupercommander": "legal",
+     "penny": "legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}{R}",
+    "name": "Guerrilla Tactics",
+    "oracle_id": "65ad90f5-4dae-494b-83fb-8052e77e0b12",
+    "oracle_text": "Guerrilla Tactics deals 2 damage to any target.\nWhen a spell or ability an opponent controls causes you to discard this card, it deals 4 damage to any target.",
+    "type_line": "Instant"
+   }
+  },
   "Guff Rewrites History": {
    "phase_records": [
     {
@@ -865628,6 +865822,180 @@
     "oracle_id": "8d3c4e50-6709-42f9-97e7-3165ee501684",
     "oracle_text": "You may tap or untap target permanent.\nSplice onto Arcane {U} (As you cast an Arcane spell, you may reveal this card from your hand and pay its splice cost. If you do, add this card's effects to that spell.)",
     "type_line": "Instant — Arcane"
+   }
+  },
+  "Psychic Purge": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "~ deals 1 damage to any target.",
+       "duration": null,
+       "effect": {
+        "amount": {
+         "type": "Fixed",
+         "value": 1
+        },
+        "target": {
+         "type": "Any"
+        },
+        "type": "DealDamage"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Sorcery"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Blue"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "pauper": "legal",
+      "paupercommander": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 0,
+      "shards": [
+       "Blue"
+      ],
+      "type": "Cost"
+     },
+     "name": "Psychic Purge",
+     "non_ability_text": null,
+     "oracle_text": "Psychic Purge deals 1 damage to any target.\nWhen a spell or ability an opponent controls causes you to discard this card, that player loses 5 life.",
+     "power": null,
+     "printings": [
+      "LEG",
+      "ME1"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2004-10-04",
+       "text": "Discarding as a cost to cast a spell will not trigger the ability. Only discarding as an effect will trigger the ability."
+      },
+      {
+       "date": "2004-10-04",
+       "text": "The loss of life can't be prevented by any means. It is not damage."
+      }
+     ],
+     "scryfall_oracle_id": "6af596d2-f075-4f55-b088-a5237fcdaa51",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": {
+        "controller": "Opponent",
+        "type": "EventSourceControlledBy"
+       },
+       "damage_kind": "Any",
+       "description": "When a spell or ability an opponent controls causes you to discard this card, that player loses 5 life.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "amount": {
+          "type": "Fixed",
+          "value": 5
+         },
+         "target": {
+          "type": "TriggeringPlayer"
+         },
+         "type": "LoseLife"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "Discarded",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Graveyard",
+        "Exile"
+       ],
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": {
+        "type": "Controller"
+       }
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 1.0,
+    "color_identity": [
+     "U"
+    ],
+    "colors": [
+     "U"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "legal",
+     "paupercommander": "legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{U}",
+    "name": "Psychic Purge",
+    "oracle_id": "6af596d2-f075-4f55-b088-a5237fcdaa51",
+    "oracle_text": "Psychic Purge deals 1 damage to any target.\nWhen a spell or ability an opponent controls causes you to discard this card, that player loses 5 life.",
+    "type_line": "Sorcery"
    }
   },
   "Psychic Spear": {

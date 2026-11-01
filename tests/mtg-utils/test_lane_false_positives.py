@@ -71,3 +71,26 @@ def test_your_own_tokens_stay_yours(name, ident):
 def test_an_opponents_token_is_a_donation():
     """The same read hands Varchild's Survivors to the donate lane."""
     assert ("donate_makers", "you", "token") in _idents("Varchild, Betrayer of Kjeldor")
+
+
+@pytest.mark.parametrize("name", ["Guerrilla Tactics", "Psychic Purge"])
+def test_a_discard_an_opponent_causes_is_no_discard_payoff(name):
+    """ "When a spell or ability an opponent controls causes you to discard this
+    card": no outlet of yours triggers it (Guerrilla Tactics' ruling:
+    discarding as a cost won't), so it pays off no discard theme."""
+    assert not _keyed(name, "discard_matters")
+
+
+def test_a_discard_payoff_of_your_own_stays():
+    assert ("discard_matters", "you", "") in _idents("Archfiend of Ifnir")
+
+
+@pytest.mark.parametrize("name", ["Balance", "Restore Balance"])
+def test_discarding_down_to_the_fewest_hand_is_no_outlet(name):
+    """Balance's "players discard cards … the same way" levels every hand to
+    the smallest: whoever holds the fewest discards nothing."""
+    assert not _keyed(name, "discard_outlet")
+
+
+def test_a_wheel_stays_a_discard_outlet():
+    assert ("discard_outlet", "you", "") in _idents("Wheel of Fortune")
