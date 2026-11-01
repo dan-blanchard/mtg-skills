@@ -153,7 +153,6 @@ from mtg_utils._analysis.lanes.card_advantage import (
     _FACEDOWN_MAKER_IDIOM_RX,
     _FACEDOWN_REF_HOOK_RX,
     _LAND_SAC_EVENTS,
-    _RECOVERED_DRAW_REPLACEMENT_RE,
     _SELF_DRAW_RECIPIENT_TAGS,
     _TARGET_PLAYER_DRAW_PHRASE_RE,
     _TARGETED_DRAW_TAGS,
@@ -209,7 +208,6 @@ from mtg_utils._analysis.lanes.card_advantage import (
 )
 from mtg_utils._analysis.lanes.core_makers import (
     _DFE_MISPARSE_RX,
-    _DFE_RECOVERED_RX,
     _EACH_PLAYER_TOKEN_MAKER_RE,
     _GRANT_ANTHEM_TAGS,
     _GRANT_HOSTILE_PREDS,
@@ -821,7 +819,6 @@ __all__ = [
     "_DAYNIGHT_KEYWORDS",
     "_DEP_PLAYER_TAGS",
     "_DFE_MISPARSE_RX",
-    "_DFE_RECOVERED_RX",
     "_DIES_RECURSION_GRANT_KEYWORDS",
     "_DIG_REST_GRAVEYARD_RE",
     "_DIRECTED_SEARCHERS",
@@ -906,7 +903,6 @@ __all__ = [
     "_PT_PUMP_TAGS",
     "_QUALIFIED_DESTROY_TYPE_RE",
     "_RAD_REF",
-    "_RECOVERED_DRAW_REPLACEMENT_RE",
     "_REGENERATE_WORD_RX",
     "_REMINDER_RX",
     "_REPLACEMENT_VALID_PLAYER_SCOPE",

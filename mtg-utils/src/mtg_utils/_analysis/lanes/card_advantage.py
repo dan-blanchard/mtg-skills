@@ -1889,17 +1889,12 @@ def _pce_has_paired_draw(pce: object) -> bool:
 # "unless" boundary (Faramir's "you draw a card if they didn't attack you").
 # CR 121.1.
 #
-# A recovered "draw" residue whose diagnostic wrapper names phase's OWN
-# replacement parser ("Replacement pattern matched but line failed
-# replacement parser: ..." — Alms Collector's "instead you and that player
-# each draw a card" symmetric draw-cap) is a rules REWRITE phase merely
-# failed to structure, not a forced gift — the SAME exclusion the typed
-# ``unit.origin == "replacement"`` check applies below, extended to a
-# residue whose own origin field reads "ability" (the failed-parse fallback)
-# because the diagnostic prefix itself says what it is.
-_RECOVERED_DRAW_REPLACEMENT_RE = re.compile(
-    r"^\s*replacement pattern matched", re.IGNORECASE
-)
+# A residue whose diagnostic wrapper names phase's OWN replacement parser
+# ("Replacement pattern matched but line failed replacement parser: ..." —
+# Alms Collector's "instead you and that player each draw a card" draw-cap) is
+# a rules REWRITE phase failed to structure, not a forced gift: the seam
+# recovers no draw from it (``recovery._REPLACEMENT_SENSE``; the draw row
+# isn't ``in_replacements``).
 
 
 def _widened_tag_phrase_match(
@@ -2115,8 +2110,6 @@ def _target_player_draws(tree: ConceptTree) -> list[Signal]:
                     ]
                 continue
             if c.recovered_by == "draw":
-                if _RECOVERED_DRAW_REPLACEMENT_RE.search(c.raw or ""):
-                    continue
                 if effect_owner_player_scope(unit.node, c.node) == "All":
                     continue  # each-player group draw, group_hug territory
                 if OTHER_PLAYER in c.reading:
