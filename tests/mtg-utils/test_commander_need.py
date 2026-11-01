@@ -252,3 +252,16 @@ def test_disa_reads_her_lhurgoyf_graveyard_need():
     assert "Lhurgoyf cards reaching your graveyard" in _labels(needs)
     need = next(n for n in needs if n.label == "Lhurgoyf cards reaching your graveyard")
     assert "mill_makers" in need.keys
+
+
+def _need(name: str, label: str) -> Need:
+    return next(n for n in _needs(name) if n.label == label)
+
+
+def test_a_parked_token_replacement_still_consumes_the_commanders_tokens():
+    # Mirrormind Crown's "the first time you would create one or more tokens
+    # each turn, you may instead create … copies of equipped creature" parks as
+    # a residue; the ledger row ``token_creation_replacement_parked`` serves its
+    # ``tokens_matter``, so Rootha's Elemental tokens feed it.
+    consumers = _need("Rootha, Mastering the Moment", "token maker consumers")
+    assert satisfies(test_card("Mirrormind Crown"), consumers)
