@@ -201,6 +201,14 @@ miss taxonomy, the held-out candidates).
   flat — held-out adds +1 (100), plan −1 (263), job-equivalents 48; the 25
   unchanged at 734 / 339 / 118, plan 349, two near-misses more — **baseline N8**
   (`w41/sb-*-N8.json`; the audit's "The second lane pass, re-based").
+- 2026-11-01, the third lane pass (seven fixes by a third worktree agent: the
+  blocking-damage sweep veto, granted sacrifices as edicts, combat-damage "that
+  player" as an opponent, opponent-watching triggers out of the outlet lane,
+  flanking / counter / absorb gaps, graveyard fuel from collect evidence,
+  forage, descend and delve, losing coin flips as drawbacks, the v0.118.0
+  policy questions decided) re-based as N9 against N8: identical on every count
+  in both sets — **baseline N9** (`w41/sb-*-N9.json`; the audit's "The third
+  lane pass, re-based").
 
 ## Target
 
