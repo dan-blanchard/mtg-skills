@@ -236,10 +236,13 @@ def job_subtype(rec, job, idents):
     from mtg_utils._analysis.job_quality import READS, removal
     from mtg_utils._analysis.lanes.removal_tutors import removal_edict_answers
 
-    on = {k for k, v in (READS[job].features(rec) or {}).items() if v}
     types = set((rec.get("type_line") or "").split("//")[0].replace("—", " ").split())
     vehicle = ("spell" if types & {"Instant", "Sorcery"} else "creature" if "Creature" in types
                else "planeswalker" if "Planeswalker" in types else "permanent")
+    read = READS.get(job)
+    if read is None:  # a template row with no job read (a measured row: graveyard hate)
+        return (vehicle, "other")
+    on = {k for k, v in (read.features(rec) or {}).items() if v}
     return (vehicle, *_what(rec, job, idents, on, types, removal, removal_edict_answers))
 
 
