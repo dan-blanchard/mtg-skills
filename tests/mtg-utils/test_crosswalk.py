@@ -14603,9 +14603,9 @@ def test_proliferate_matters_four_producers_and_boundaries():
     (Myojin), the charge/experience mirror (Ezuri Claw), and the LOW
     remove-counter-cost mirror (Migloz — LOW asserted) fire; a Proliferate
     KEYWORD bearer is the ported proliferate_makers DOER and must not fire
-    matters (Atraxa), and the "whenever you proliferate" payoff family is
-    the LOGGED live gap (Ezuri, Stalker of Spheres — pins both the gap and
-    the makers/matters boundary)."""
+    matters (Atraxa), and a "whenever you proliferate" payoff fires matters
+    beside its own proliferate (Ezuri, Stalker of Spheres — the two keys are
+    the payoff and the doer)."""
     assert ("proliferate_matters", "you", "") in _idents("Adagia, Windswept Bastion")
     assert ("proliferate_matters", "you", "") in _idents("Myojin of Cleansing Fire")
     assert ("proliferate_matters", "you", "") in _idents("Ezuri, Claw of Progress")
@@ -14614,7 +14614,7 @@ def test_proliferate_matters_four_producers_and_boundaries():
     assert "proliferate_matters" not in atraxa
     assert "proliferate_makers" in atraxa
     ezuri = _keys("Ezuri, Stalker of Spheres")
-    assert "proliferate_matters" not in ezuri
+    assert "proliferate_matters" in ezuri
     assert "proliferate_makers" in ezuri
 
 

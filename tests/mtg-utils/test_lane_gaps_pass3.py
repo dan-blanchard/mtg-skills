@@ -118,3 +118,27 @@ def test_a_single_connive_or_an_emblem_draw_is_no_draw_engine(name):
 )
 def test_an_enchanted_opponents_draw_watcher_is_an_opponent_draw_payoff(name):
     assert ("opponent_draw_matters", "opponents", "") in _idents(name)
+
+
+# ── proliferate (CR 701.34a) ────────────────────────────────────────────────
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        # "Whenever you proliferate, each opponent loses 2 life and you gain 2"
+        "Scheming Aspirant",
+        # "Whenever you proliferate, choose one — …"
+        "Venser, Corpse Puppet",
+        # "When you proliferate, return this card from your graveyard to your hand"
+        "Voidwing Hybrid",
+    ],
+)
+def test_a_whenever_you_proliferate_trigger_is_a_proliferate_payoff(name):
+    assert ("proliferate_matters", "you", "") in _idents(name)
+    assert not _keyed(name, "proliferate_makers")
+
+
+def test_a_granted_proliferate_is_a_proliferate_maker():
+    """Ichormoon Gauntlet: "Planeswalkers you control have '[0]: Proliferate'"."""
+    assert ("proliferate_makers", "you", "") in _idents("Ichormoon Gauntlet")
