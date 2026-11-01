@@ -437,9 +437,9 @@ ETB doublers), ~45 scattered one to seven a deck. Gate unchanged (held-out 20: p
   condition?}]` our instant-speed read never opens (Crashing Tide, Graveyard Shift,
   Mutual Destruction, Take for a Ride, Necromancy; the ledger row
   `conditional_self_flash_dropped` should read it and retire).
-- **Two value rules, one gated run each:** ramp at MV ≤ commander MV − 2 (slower
-  ramp is a cut, not an upgrade); the off-plan MV ≥ 6 cut (R2, running). The third,
-  multiplayer scaling, failed its refit (settled below).
+- **One value rule left, one gated run:** ramp at MV ≤ commander MV − 2 (slower ramp
+  is an upgrade target; the ramp row sources only ramp that lands in time; R1). The
+  off-plan MV ≥ 6 cut (R2) and multiplayer scaling are settled below.
 - **Alternate commanders: `deck-tune --compare-commanders`** plus a deck-forge POST
   route and a Tune-panel row. Every card the format's `commander_eligibility` accepts
   on its own and every legal partner pair (`card_classify.can_partner`, CR 702.124f);
@@ -1072,6 +1072,13 @@ headroom and parked items.
   S-A, above); Enlightened Tutor and Moonsilver Key are tutor-row fills (T1 and
   PR1, above); Call the Gatewatch and Firemind's Foresight sit past the 150-card
   page (P2, above). Don't re-suggest a page for them without a new read.
+- **The off-plan MV ≥ 6 cut changes nothing — settled 2026-11-01 (R2).** An Engine
+  card at mana value 6+ serving no viable avenue (not the commander's lane, not
+  premium) read as a low-value upgrade target, least played first (branch
+  `block2-value-rules` cbae6d1d). Against N12: held-out adds +1, cuts 0, plan −2;
+  the 25 adds +1, cuts −1, plan +2 (`sb-*-R2`). The filler and low-value tiers
+  already hold nearly every such card; what the rule adds is a handful of swaps the
+  guides don't make. Don't re-suggest a mana-value cut rule.
 - **Multiplayer scaling is no quality feature — settled 2026-11-01 (SC).** An
   "each opponent" one-shot does its work three times at a Commander table, so the
   spell quality and strength reads got an ``opponents`` feature (any effect whose
