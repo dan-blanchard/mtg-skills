@@ -83,7 +83,7 @@ from mtg_utils._card_ir.mirror.runtime import (
     MirrorVariant,
     TypedMirrorNode,
 )
-from mtg_utils._card_ir.recovery import SELF
+from mtg_utils._card_ir.recovery import SELF, TAP_ACTIVATION
 from mtg_utils._card_ir.text_idioms import _counter_kind_token
 
 # ── Batch-15 mirror constants + census sets ──────────────────────────────────
@@ -1260,16 +1260,6 @@ def _meld_pair(tree: ConceptTree) -> list[Signal]:
     return []
 
 
-# Recovered granted power-tap gate (see the ``recovered_by == "damage"``
-# branch inside _power_tap_engine): a granted "{T}...: ... deals damage equal
-# to its power" ability inside a quoted grant (Surestrike Trident). Kept as a
-# clause read: the key needs the granted ability's {T} cost, which the seam's
-# reading of the clause doesn't carry.
-_RECOVERED_POWER_TAP_RE = re.compile(
-    r"\{t\}[^\":]*:[^\"]*\bdamage equal to (?:its|his|her|~'s) power\b"
-)
-
-
 def _named_counter_misc(tree: ConceptTree) -> list[Signal]:
     """named_counter_misc (§13) — CR 122.1 ("Counters with the same name or
     description are interchangeable" — the NAME is the mechanic
@@ -1516,10 +1506,9 @@ def _power_tap_engine(tree: ConceptTree) -> list[Signal]:
         # phase v0.104.0 parks a static grant whose granted ability refers to
         # its granter ("Equipped creature has '{T}, Unattach ~: ~ deals damage
         # equal to its power ...'" — Surestrike Trident) as one Unimplemented
-        # residue the ``damage`` token recovers.
-        if c.recovered_by == "damage" and _RECOVERED_POWER_TAP_RE.search(
-            (c.raw or "").lower()
-        ):
+        # residue the ``damage`` token recovers; the seam marks the quoted {T}
+        # ability dealing its own power (``TAP_ACTIVATION``).
+        if c.recovered_by == "damage" and TAP_ACTIVATION in c.subject:
             return [Signal("power_tap_engine", "you", "", c.raw, tree.name, "high")]
     return []
 

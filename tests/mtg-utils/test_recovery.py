@@ -431,11 +431,16 @@ from mtg_utils._card_ir.recovery import (  # noqa: E402
     ON_SELF,
     OTHER_CHOOSER,
     OTHER_PLAYER,
+    OWN_POWER,
     PLAYER,
     POWER_SCALED,
+    POWER_TO_CREATURE,
     SELF,
+    TAP_ACTIVATION,
     TARGET_OBJECT,
+    TEAM_OBJECT,
     THEIRS,
+    YOUR_CREATURE_COUNT,
     YOUR_TARGET,
     YOURS,
     read_clause,
@@ -530,6 +535,96 @@ def test_each_object_is_bound_to_the_tokens_verb():
     assert EACH_OBJECT not in _subject(
         "Put a +1/+1 counter on ~ for each strength vote", "place_counter"
     )
+
+
+@pytest.mark.parametrize(
+    ("raw", "token", "mark", "held"),
+    [
+        # damage_for_each's recovered arm (Burn at the Stake, Superior Numbers)
+        (
+            (
+                "deal damage to any target equal to three times the number of "
+                "creatures tapped this way"
+            ),
+            "damage",
+            YOUR_CREATURE_COUNT,
+            True,
+        ),
+        (
+            (
+                "deal damage to target creature equal to the number of creatures "
+                "you control in excess of the number of creatures target opponent "
+                "controls"
+            ),
+            "damage",
+            YOUR_CREATURE_COUNT,
+            True,
+        ),
+        # Angel's Trumpet counts the damaged player's tapped creatures
+        (
+            (
+                "deal damage to the player equal to the number of creatures tapped "
+                "this way"
+            ),
+            "damage",
+            YOUR_CREATURE_COUNT,
+            False,
+        ),
+        # power_tap_engine's granted {T} activation (Surestrike Trident)
+        (
+            (
+                'Equipped creature has first strike and "{T}, Unattach ~: ~ deals '
+                'damage equal to its power to target player or planeswalker."'
+            ),
+            "damage",
+            TAP_ACTIVATION,
+            True,
+        ),
+        # creature_ping's recovered power damage
+        (
+            "have it deal damage equal to its power to target creature",
+            "damage",
+            POWER_TO_CREATURE,
+            True,
+        ),
+        (
+            "it deals damage equal to its power to any target",
+            "damage",
+            OWN_POWER,
+            True,
+        ),
+        (
+            (
+                "deal damage to any target equal to the power of the card returned "
+                "this way"
+            ),
+            "damage",
+            OWN_POWER,
+            False,
+        ),
+        # creatures_matter's recovered team counter (Wakka, Devoted Guardian)
+        (
+            (
+                "if a counter was put on ~ this turn, put a +1/+1 counter on each "
+                "other creature you control"
+            ),
+            "place_counter",
+            TEAM_OBJECT,
+            True,
+        ),
+        (
+            "put a +1/+1 counter on each creature you control with modular",
+            "place_counter",
+            TEAM_OBJECT,
+            False,
+        ),
+    ],
+)
+def test_lane_marks_read_what_the_lanes_test(raw, token, mark, held):
+    """The marks the recovered arms of damage_for_each, power_tap_engine,
+    creature_ping and creatures_matter test in place of their own clause
+    regexes."""
+    assert (mark in _subject(raw, token)) is held
 
 
 @pytest.mark.parametrize(

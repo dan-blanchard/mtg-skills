@@ -757,7 +757,7 @@ def avenue_spec_for(signal: Signal) -> SignalSpec | None:
     does not open "Cast from exile", whose serve leaves impulse out, and a
     "can't be blocked except by …" body (``evasion_self|you|partial``) does
     not open the evasion avenue. A membership-floor subject
-    (``signal_keys.MEMBERSHIP_SUBJECTS``: a carrier commander) always opens it,
+    (``signal_keys.SubjectRole.MEMBERSHIP``: a carrier commander) always opens it,
     and a step trigger (``signal_keys.STEP_TRIGGER_KEYS``) or a page-only key
     or doer (:func:`signal_keys.is_page_only`) never does. A serve
     that does not read the key at all serves something else the key's emitters
@@ -772,7 +772,8 @@ def avenue_spec_for(signal: Signal) -> SignalSpec | None:
         spec is None
         or not signal.subject
         or signal.key in _SUBJECT_KEYS
-        or (signal.key, signal.subject) in signal_keys.MEMBERSHIP_SUBJECTS
+        or signal_keys.subject_role(signal.key, signal.subject)
+        is signal_keys.SubjectRole.MEMBERSHIP
         or not spec.serve.reads_key(signal.key)
     ):
         return spec

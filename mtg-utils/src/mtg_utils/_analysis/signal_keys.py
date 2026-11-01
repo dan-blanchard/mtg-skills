@@ -14,6 +14,9 @@ module — stdlib only, no deck-forge imports — so both files import it cycle-
 
 from __future__ import annotations
 
+import enum
+from collections.abc import Mapping
+from types import MappingProxyType
 from typing import Final
 
 # Subject-bearing keys: emitted WITH a captured subject and resolved dynamically by
@@ -147,19 +150,6 @@ VOLTRON_CARRIER: Final = "carrier"
 # avenue, but the payoff page's ``artifacts_matter|you|*`` never takes Sol Ring.
 ARTIFACT_MEMBER: Final = "member"
 
-# The ``(key, subject)`` idents the membership floor writes on a payoff key: the
-# deck WANTS the theme without being a theme card itself. Each opens its avenue
-# (``signal_specs.core.avenue_spec_for``) though the theme's serve never pages it:
-# a serve's ``key|scope|*`` wildcard leaves them out (``Serve._serves_ident``).
-MEMBERSHIP_SUBJECTS: Final = frozenset(
-    {
-        # a creature commander that carries gear
-        ("voltron_matters", VOLTRON_CARRIER),
-        # an artifact (an artifact commander)
-        ("artifacts_matter", ARTIFACT_MEMBER),
-    }
-)
-
 # Each extra-step maker key's payoff key: the "at the beginning of [step]"
 # triggers an added step repeats (``card_advantage._extra_upkeep_end``). A trigger
 # opens no avenue of its own (``signal_specs.core.avenue_spec_for``): hundreds of
@@ -184,91 +174,142 @@ PAGE_ONLY_KEYS: Final = frozenset(
     {"subtype_ref", "keyword_bodies", "land_return_untap"}
 )
 
-# The ``(key, subject)`` idents a theme's page counts that open no avenue of their
-# own (``signal_specs.core.avenue_spec_for``): a one-shot step of another card's
-# engine. A reanimation spell or a bounce-your-own creature re-delivers a self-ETB
-# card (the ``self_etb_payload`` page) without being a recast engine itself, and a
-# deck with three of them is no recast deck; a land recursion keeps an animated
-# land (the ``land_protection`` page). Each is a doer too (below).
-PAGE_ONLY_SUBJECTS: Final = frozenset(
+
+class SubjectRole(enum.Enum):
+    """What a subject on a key that is no subject key says about its signal
+    (:data:`SUBJECT_ROLES`)."""
+
+    #: The membership floor's subject on a payoff key: the deck WANTS the theme
+    #: without being a theme card itself. It opens its avenue
+    #: (``signal_specs.core.avenue_spec_for``), but no ``key|scope|*`` wildcard
+    #: counts it (:func:`wildcard_counts`): the theme's page never takes it as a
+    #: payoff (Sol Ring's ``artifacts_matter|you|member``).
+    MEMBERSHIP = "membership"
+    #: The DOER side of a payoff key: it feeds the payoff, and the theme's serve
+    #: counts it as depth, without caring about the theme
+    #: (``_tuner.metrics.focus``'s carer read and ``ranking``'s clause role skip
+    #: it).
+    DOER = "doer"
+    #: A doer only a theme's page counts: a one-shot step of another card's
+    #: engine, which opens no avenue — or plan — of its own (:func:`is_page_only`).
+    PAGE_ONLY = "page_only"
+
+
+# Every ``(key, subject)`` with a role, the one table the role sets below, the serve
+# and preset wildcards (:func:`wildcard_counts`), ``avenue_spec_for`` and the voltron
+# floor's plan read take their answers from.
+SUBJECT_ROLES: Final[Mapping[tuple[str, str], SubjectRole]] = MappingProxyType(
     {
+        # ── membership: what the card IS ──
+        # a creature commander that carries gear
+        ("voltron_matters", VOLTRON_CARRIER): SubjectRole.MEMBERSHIP,
+        # an artifact (an artifact commander)
+        ("artifacts_matter", ARTIFACT_MEMBER): SubjectRole.MEMBERSHIP,
+        # ── doers ──
+        # an artifact-token maker (Thopters, Servos)
+        ("artifacts_matter", "token"): SubjectRole.DOER,
+        # an enchantment-token maker (Roles, Shards)
+        ("enchantments_matter", "token"): SubjectRole.DOER,
+        # an Aura that can go on a creature, yours or an opponent's
+        ("aura_matters", "aura"): SubjectRole.DOER,
+        # a variable-target spell
+        ("per_target_payoff", "variable"): SubjectRole.DOER,
+        # a can't-lose card
+        ("life_payment_insurance", "cant_lose"): SubjectRole.DOER,
+        # a commander-to-hand effect
+        ("lose_unless_hand", "command_to_hand"): SubjectRole.DOER,
+        # an enters-trigger silencer
+        ("lose_unless_hand", "etb_silencer"): SubjectRole.DOER,
+        # a free activation that targets your own permanent
+        ("target_own_payoff", "free_target"): SubjectRole.DOER,
+        # an extra draw at the beginning of your draw step
+        ("draw_matters", "draw_step"): SubjectRole.DOER,
+        # a blink enabler
+        ("blink_flicker", "enabler"): SubjectRole.DOER,
+        # a haste-for-activations grant or an activation-cost reducer
+        ("activated_ability", "enabler"): SubjectRole.DOER,
+        # one-shot land destruction; the floor's repeatable LD is the carer
+        ("land_destruction", "destroy"): SubjectRole.DOER,
+        ("land_destruction", "exile"): SubjectRole.DOER,
+        ("land_destruction", "bounce"): SubjectRole.DOER,
+        ("land_destruction", "tuck"): SubjectRole.DOER,
+        ("land_destruction", "sacrifice"): SubjectRole.DOER,
+        # an edict on a targeted player (Diabolic Edict): the crime it commits
+        ("edict_makers", "target"): SubjectRole.DOER,
+        # a creature that sacrifices itself (Sakura-Tribe Elder): loop fuel
+        ("sacrifice_outlets", "self"): SubjectRole.DOER,
+        # ── page-only doers: a theme's page counts them, no avenue opens. A
+        # reanimation spell or a bounce-your-own creature re-delivers a self-ETB
+        # card (the ``self_etb_payload`` page) without being a recast engine itself,
+        # and a deck with three of them is no recast deck; a land recursion keeps
+        # an animated land (the ``land_protection`` page). ──
         # a permanent card put from a graveyard onto the battlefield (Sun Titan)
-        ("permanent_recast", "reanimate"),
+        ("permanent_recast", "reanimate"): SubjectRole.PAGE_ONLY,
         # a permanent you control returned to your hand (Whitemane Lion)
-        ("permanent_recast", "replay"),
+        ("permanent_recast", "replay"): SubjectRole.PAGE_ONLY,
         # a land card returned from your graveyard, or played from it (Crucible)
-        ("permanent_recast", "land"),
+        ("permanent_recast", "land"): SubjectRole.PAGE_ONLY,
         # a token copy of the card itself (Embalm, Pack Rat): a token entering
-        ("token_copy_makers", "self"),
+        ("token_copy_makers", "self"): SubjectRole.PAGE_ONLY,
         # a card put onto the battlefield face down (manifest, cloak)
-        ("facedown_makers", "manifest"),
+        ("facedown_makers", "manifest"): SubjectRole.PAGE_ONLY,
         # a card put onto the battlefield under your control (Rampant Growth)
-        ("permanent_etb", "put"),
+        ("permanent_etb", "put"): SubjectRole.PAGE_ONLY,
         # a permanent you control returned to hand to replay, a land included
-        ("permanent_etb", "replay"),
+        ("permanent_etb", "replay"): SubjectRole.PAGE_ONLY,
         # two or more creature tokens made at once (Battle Screech): the go-wide
         # pages' depth, no theme of its own
-        ("mass_token_makers", ""),
+        ("mass_token_makers", ""): SubjectRole.PAGE_ONLY,
         # a creature that may block more than one attacker (Wall of Glare): the
         # prevention deck's soak, no theme of its own
-        ("extra_blockers", ""),
-        ("extra_blockers", "any"),
+        ("extra_blockers", ""): SubjectRole.PAGE_ONLY,
+        ("extra_blockers", "any"): SubjectRole.PAGE_ONLY,
         # a permanent's own downside (Sea Serpent, Demonic Taskmaster): what an
         # ability strip turns off or a donate deck hands over, no theme of its own
-        ("self_drawback", "restriction"),
-        ("self_drawback", "harm"),
+        ("self_drawback", "restriction"): SubjectRole.PAGE_ONLY,
+        ("self_drawback", "harm"): SubjectRole.PAGE_ONLY,
         # a land that is or makes itself a creature (Mutavault, Dryad Arbor)
-        ("land_creatures_matter", "self"),
+        ("land_creatures_matter", "self"): SubjectRole.PAGE_ONLY,
     }
 )
+
+
+def subject_role(key: str, subject: str) -> SubjectRole | None:
+    """The role :data:`SUBJECT_ROLES` gives ``(key, subject)``, or ``None``."""
+    return SUBJECT_ROLES.get((key, subject))
+
+
+def _with_role(*roles: SubjectRole) -> frozenset[tuple[str, str]]:
+    return frozenset(ks for ks, role in SUBJECT_ROLES.items() if role in roles)
+
+
+#: The membership floor's ``(key, subject)`` idents (:attr:`SubjectRole.MEMBERSHIP`).
+MEMBERSHIP_SUBJECTS: Final = _with_role(SubjectRole.MEMBERSHIP)
+#: The page-only doers (:attr:`SubjectRole.PAGE_ONLY`).
+PAGE_ONLY_SUBJECTS: Final = _with_role(SubjectRole.PAGE_ONLY)
+#: Every doer, the page-only doers among them: a page-only doer feeds a payoff too.
+DOER_SUBJECTS: Final = _with_role(SubjectRole.DOER, SubjectRole.PAGE_ONLY)
+
+
+def wildcard_counts(key: str, subject: str) -> bool:
+    """Whether a ``key|scope|*`` wildcard — a serve's, a preset's, a pair read's —
+    counts a signal of ``(key, subject)``: every subject but a membership one,
+    what a card IS rather than what it does (:attr:`SubjectRole.MEMBERSHIP`)."""
+    return subject_role(key, subject) is not SubjectRole.MEMBERSHIP
+
+
+def wildcard_counts_ident(ident: str, wild_scopes: frozenset[str]) -> bool:
+    """Whether a ``key|scope|subject`` ident meets a ``key|scope|*`` wildcard over
+    one of ``wild_scopes`` (each ``key|scope``) that counts its subject
+    (:func:`wildcard_counts`)."""
+    key_scope, _, subject = ident.rpartition("|")
+    return key_scope in wild_scopes and wildcard_counts(
+        key_scope.partition("|")[0], subject
+    )
 
 
 def is_page_only(key: str, subject: str) -> bool:
     """Whether a signal only feeds a theme's page and opens no avenue — or plan
-    — of its own: a page-only key (:data:`PAGE_ONLY_KEYS`) or a page-only doer's
-    ``(key, subject)`` (:data:`PAGE_ONLY_SUBJECTS`)."""
-    return key in PAGE_ONLY_KEYS or (key, subject) in PAGE_ONLY_SUBJECTS
-
-
-# The ``(key, subject)`` idents that mark the DOER side of a payoff key that is
-# not a subject key: each feeds the payoff, and the theme's serve counts it as
-# depth, without caring about the theme (``_tuner.metrics.focus``'s carer read
-# skips them).
-DOER_SUBJECTS: Final = frozenset(
-    {
-        # an artifact-token maker (Thopters, Servos)
-        ("artifacts_matter", "token"),
-        # an enchantment-token maker (Roles, Shards)
-        ("enchantments_matter", "token"),
-        # an Aura that can go on a creature, yours or an opponent's
-        ("aura_matters", "aura"),
-        # a variable-target spell
-        ("per_target_payoff", "variable"),
-        # a can't-lose card
-        ("life_payment_insurance", "cant_lose"),
-        # a commander-to-hand effect
-        ("lose_unless_hand", "command_to_hand"),
-        # an enters-trigger silencer
-        ("lose_unless_hand", "etb_silencer"),
-        # a free activation that targets your own permanent
-        ("target_own_payoff", "free_target"),
-        # an extra draw at the beginning of your draw step
-        ("draw_matters", "draw_step"),
-        # a blink enabler
-        ("blink_flicker", "enabler"),
-        # a haste-for-activations grant or an activation-cost reducer
-        ("activated_ability", "enabler"),
-        # one-shot land destruction; the floor's repeatable LD is the carer
-        ("land_destruction", "destroy"),
-        ("land_destruction", "exile"),
-        ("land_destruction", "bounce"),
-        ("land_destruction", "tuck"),
-        ("land_destruction", "sacrifice"),
-        # an edict on a targeted player (Diabolic Edict): the crime it commits
-        ("edict_makers", "target"),
-        # a creature that sacrifices itself (Sakura-Tribe Elder): loop fuel
-        ("sacrifice_outlets", "self"),
-        # the page-only doers (above)
-        *PAGE_ONLY_SUBJECTS,
-    }
-)
+    — of its own: a page-only key (:data:`PAGE_ONLY_KEYS`) or a page-only doer
+    (:attr:`SubjectRole.PAGE_ONLY`)."""
+    return key in PAGE_ONLY_KEYS or subject_role(key, subject) is SubjectRole.PAGE_ONLY

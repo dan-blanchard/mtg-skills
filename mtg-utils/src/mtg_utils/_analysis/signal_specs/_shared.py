@@ -23,7 +23,7 @@ from mtg_utils._analysis.lanes.card_advantage import (
     FODDER_SELF_RETURNS,
     comes_back_from_graveyard,
 )
-from mtg_utils._analysis.signal_keys import MEMBERSHIP_SUBJECTS
+from mtg_utils._analysis.signal_keys import wildcard_counts_ident
 from mtg_utils.card_classify import (
     card_pt_int,
     type_line_has,
@@ -258,15 +258,11 @@ class Serve:
         through a ``"key|scope|*"`` wildcard (every subject of that key and
         scope — a token doubler serves ANY ``token_maker``, whatever the
         token's subtype; the serve-ident pass, 2026-10-18). A wildcard leaves
-        out a membership subject (``signal_keys.MEMBERSHIP_SUBJECTS``): what a
+        out a membership subject (``signal_keys.wildcard_counts``): what a
         card IS, which the theme's page never takes as a payoff (Sol Ring's
         ``artifacts_matter|you|member``)."""
-        if ident in self.signal_idents:
-            return True
-        key_scope, _, subject = ident.rpartition("|")
-        return (
-            key_scope in _wildcard_scopes(self.signal_idents)
-            and (key_scope.partition("|")[0], subject) not in MEMBERSHIP_SUBJECTS
+        return ident in self.signal_idents or wildcard_counts_ident(
+            ident, _wildcard_scopes(self.signal_idents)
         )
 
     def counts_ident(self, ident: str) -> bool:
@@ -1455,9 +1451,12 @@ _CREATURE_COST_EXTRA = SubAvenue(
 )
 # Power-as-damage payoffs: convert a big/pumped creature's power into damage (Fling,
 # Chandra's Ignition, Soul's Fire): every damage_equal_power subject — to a player, and
-# the bite to a creature (Bite Down, Polliwallop's twice its power) — the fights (CR
-# 701.14a: each deals damage equal to its power to the other) and the granted
-# "{T}: deal damage equal to its power" engines (power_tap_engine).
+# to a creature when a creature of yours sizes it (``creature``: the bite — Bite Down,
+# Polliwallop's twice its power — and a creature you sacrifice, reveal or amass, or
+# your greatest power; ``crosswalk.power_is_yours``), so not a bite alone: Tiger-Tribe
+# Hunter's sacrificed creature is the spell's damage — the fights (CR 701.14a: each
+# deals damage equal to its power to the other) and the granted "{T}: deal damage
+# equal to its power" engines (power_tap_engine).
 _POWER_FLING_EXTRA = SubAvenue(
     "Power-as-damage payoffs",
     "fling effects that turn your big creature's power into damage (Fling / Chandra's "

@@ -4410,6 +4410,23 @@ def has_nested_fight(node: object) -> bool:
     return any(tag_of(n) == "Fight" for n in _iter_typed_nodes(node))
 
 
+def fights_between_blockers(node: object) -> bool:
+    """Whether every ``Fight`` under ``node`` is between two blocking creatures
+    (Dissension in the Ranks: "Target blocking creature fights another target
+    blocking creature"). Each defending player blocks with creatures they
+    control (CR 509.1a), so with one defending player both fighters are an
+    opponent's on your turn and yours on theirs: no creature of yours fights one
+    of theirs, as it does when you pick each side (Prey Upon) or two free
+    targets (Blood Feud). An attack on two players at once can put your blocker
+    beside another player's; leaving that out is this read's own call."""
+    fights = [n for n in _iter_typed_nodes(node) if tag_of(n) == "Fight"]
+    return bool(fights) and all(
+        "Blocking" in filter_predicates(getattr(f, "subject", None))
+        and "Blocking" in filter_predicates(getattr(f, "target", None))
+        for f in fights
+    )
+
+
 def has_nested_extra_turn(node: object) -> bool:
     """Whether an ``ExtraTurn`` tag (CR 500.7) is reachable ANYWHERE under
     ``node`` — an extra-turn grant buried inside a ``Vote``'s
@@ -7274,14 +7291,23 @@ def ends_the_game(tree: ConceptTree) -> bool:
     another player loses (CR 104.3e — Door to Nothingness, Phage's combat-damage
     trigger). A loss aimed at you is a drawback (Pact of Negation's upkeep
     payment, Phage's own enters trigger), and "can't win / can't lose" statics
-    (Platinum Angel) are protection, not effects."""
+    (Platinum Angel) are protection, not effects.
+
+    A win with no player is yours ("You win the game"). A loss with no player is
+    another player's: phase drops the losers of "each player Angel of Destiny
+    attacked this turn loses the game" and Nicol Bolas, Dragon-God's "each
+    opponent who doesn't control a legendary creature or planeswalker", and
+    every self-loss in the pool carries ``Controller`` (2026-11-01: those two are
+    the only target-less losses). A ``retirement_canary``
+    (``test_lose_the_game_player_dropped_canary``) fails once phase names them."""
     for n in tree.iter_typed():
         tag = tag_of(n)
         if tag not in ("WinTheGame", "LoseTheGame"):
             continue
         target = getattr(n, "target", MISSING)
-        who = _scope_from_player_node(target) if _present(target) else "you"
-        if (tag == "WinTheGame") == (who == "you"):
+        if not _present(target):
+            return True
+        if (tag == "WinTheGame") == (_scope_from_player_node(target) == "you"):
             return True
     return False
 
@@ -10926,11 +10952,19 @@ def is_bite(node: TypedMirrorNode, unit: AbilityUnit) -> bool:
     Down's ruling: "the creature you control won't deal damage"), so whatever
     the dealer has — deathtouch above all (CR 702.2b) — applies to the damage.
 
+    A triggering dealer is yours when the trigger watches a creature you
+    control ("Whenever another creature you control enters, … that creature
+    deals damage equal to its power to target creature" — Halana, Kessig
+    Ranger), and a batch's dealers when its sources are creatures you control
+    ("Each creature you control deals damage equal to its power to that
+    creature" — Moonlight Hunt, Kamahl's Will, Bartz and Boko). An attached
+    dealer (Lothlórien Blade's equipped creature) is left out: no filter
+    names its controller.
+
     Never a dealer an opponent controls (Mutiny), one dealing damage to itself
     (Repentance, Solar Blaze: a ``ParentTarget`` recipient of the targeted
-    dealer), another object's power (Fling's cost, Dead Reckoning's card), nor a
-    triggering or batch dealer, whose side this read doesn't place. The caller
-    judges the recipient (a creature, not a player)."""
+    dealer), nor another object's power (Fling's cost, Dead Reckoning's card).
+    The caller judges the recipient (a creature, not a player)."""
     if tag_of(node) in POWER_DAMAGE_TAGS:
         return filter_controller_side(getattr(node, "sources", None)) == "you"
     if not deals_its_own_power(node, unit):
@@ -10939,12 +10973,53 @@ def is_bite(node: TypedMirrorNode, unit: AbilityUnit) -> bool:
     ref = quantity_referent(qty, unit, holder=node)
     if ref.kind == "self":
         return True
+    if ref.kind == "batch":
+        return filter_controller_side(getattr(node, "sources", None)) == "you"
+    if ref.kind == "event":
+        watched = getattr(unit.node, "valid_card", None)
+        return unit.origin == "trigger" and filter_controller_side(watched) == "you"
     if ref.kind != "target" or ref.effect is None:
         return False
     if tag_of(damage_recipient(node)) == "ParentTarget":
         return False
     dealer = getattr(ref.effect.node, "target", None)
     return filter_controller_side(dealer) == "you"
+
+
+def power_is_yours(
+    node: TypedMirrorNode,
+    unit: AbilityUnit,
+    *,
+    sacrifice_actor: Callable[[AbilityUnit, TypedMirrorNode], str | None],
+) -> bool:
+    """Whether a power-sized damage effect (:func:`iter_power_damage`) is sized
+    by a creature of yours: a bite (:func:`is_bite`), a creature the caster
+    picks (:func:`picked_by_caster`: Tiger-Tribe Hunter's sacrificed creature,
+    Monstrous Emergence's chosen or revealed one, Corpse Explosion's exiled
+    creature card, Bolg of the North's "that creature" you sacrifice), the Army
+    you amassed (an Army creature you control, CR 701.47a — Foray of Orcs), or
+    the greatest power among creatures you control (Bouncer's Beatdown,
+    Triumphant Chomp's "2 or the greatest power among Dinosaurs you control").
+    Never an opponent's creature's (Mutiny, Alpha Brawl), a creature any player
+    controls (Repentance's "target creature", Solar Blaze's each creature), nor
+    a card an effect moves (Dead Reckoning, Lie in Wait). ``sacrifice_actor`` is
+    :func:`picked_by_caster`'s."""
+    if is_bite(node, unit):
+        return True
+    if tag_of(node) in POWER_DAMAGE_TAGS:
+        return False
+    qty = count_operand_qty(node, fields=("amount",))
+    if tag_of(qty) == "Power":
+        if tag_of(getattr(qty, "scope", None)) == "AmassedArmy":
+            return True
+        return picked_by_caster(qty, unit, node, sacrifice_actor=sacrifice_actor)
+    return any(
+        tag_of(n) in AGGREGATE_QTY_TAGS
+        and getattr(n, "property", None) == "Power"
+        and filter_controller(getattr(getattr(n, "source", None), "filter", None))
+        == "You"
+        for n in iter_typed_nodes(getattr(node, "amount", None))
+    )
 
 
 def free_own_target_activations(tree: ConceptTree) -> bool:

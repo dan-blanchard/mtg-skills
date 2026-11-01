@@ -204,7 +204,13 @@ def classifying_keywords(card: dict) -> tuple[str, ...]:
     A modal double-faced card is cast or played as either face (712.11b,
     712.12) and a split card as either half (709.3), so all their keywords are
     their own. A meld card's record is its front face already. A card with no
-    trees keeps the record's."""
+    trees keeps the record's.
+
+    The reads of a spell as it is cast (a cost reducer, a copy keyword) take
+    the same keywords: a transforming card is cast front face up (712.11). An
+    Adventure cast as one has its own characteristics (715.3a, 715.3b), but no
+    adventurer card prints a keyword on its Adventure half alone (2026-11-01),
+    so none loses one there."""
     keywords = tuple(card.get("keywords") or ())
     faces = card.get("card_faces") or ()
     layout = card.get("layout")

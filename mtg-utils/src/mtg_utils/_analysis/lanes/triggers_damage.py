@@ -15,6 +15,7 @@ from mtg_utils._analysis.lanes._shared import (
     _kept,
     _site_raw,
     _unknown_mode_combat_damage_to_player,
+    sacrifice_actor_scope,
     typed_token_payoff_signals,
 )
 from mtg_utils._analysis.signal_base import Signal
@@ -91,6 +92,7 @@ from mtg_utils._card_ir.crosswalk import (
     or_arms,
     parked_prevention,
     player_filter_tag,
+    power_is_yours,
     protective_grant_recipients,
     pump_keyword_grants,
     punishes_creatures_entering,
@@ -128,8 +130,12 @@ from mtg_utils._card_ir.mirror.runtime import (
 from mtg_utils._card_ir.recovery import (
     ANY_TARGET,
     MASS,
+    OWN_POWER,
+    OWN_POWER_RX,
     PLAYER,
     POWER_SCALED,
+    POWER_TO_CREATURE,
+    POWER_TO_CREATURE_RX,
     SELF,
     TARGET_OBJECT,
     YOURS,
@@ -2596,12 +2602,17 @@ def _damage_equal_power(tree: ConceptTree) -> list[Signal]:
     replacement that raises your sources' damage to the card's power (Ojer
     Axonil, Deepest Might) reaches the players it names. Scope "you".
 
-    Subject ``creature`` beside it (backlog (o)): the same power-scaled damage
-    dealt to anything else — a creature, planeswalker or battle (CR 120.1: damage
-    is dealt to those or to players) — the bite (Bite Down, Polliwallop's twice
-    its power, Band Together's two biters, Mega Flare's greatest power, Abyssal
-    Hunter's tap-and-bite). The power-as-damage page reads both; the player half
-    stays the subject-less ident.
+    Subject ``creature`` beside it (backlog (o)): the same damage dealt to
+    anything else — a creature, planeswalker or battle (CR 120.1: damage is dealt
+    to those or to players) — when a creature of yours sizes it
+    (:func:`crosswalk.power_is_yours`): the bite (Bite Down, Polliwallop's twice
+    its power, Band Together's two biters, Abyssal Hunter's tap-and-bite), a
+    creature you sacrifice, choose or reveal (Tiger-Tribe Hunter, Monstrous
+    Emergence), or the greatest power among yours (Mega Flare). Not an
+    opponent's creature (Mutiny), any creature hitting itself (Repentance, Solar
+    Blaze) or a card an effect moves (Dead Reckoning): the power-as-damage page
+    reads both subjects, and turns your big creature's power into damage. The
+    player half stays the subject-less ident.
 
     Subject ``bite`` beside ``creature`` when the dealer is a creature of yours
     dealing its own power (:func:`crosswalk.is_bite`) — not Repentance's
@@ -2632,7 +2643,10 @@ def _damage_equal_power(tree: ConceptTree) -> list[Signal]:
                 or _dep_or_and_reaches_player(tgt)
                 or effect_reaches_player(node, unit.node)
             )
-            found.setdefault("" if player else "creature", _site_raw(unit.node))
+            if player:
+                found.setdefault("", _site_raw(unit.node))
+            elif power_is_yours(node, unit, sacrifice_actor=sacrifice_actor_scope):
+                found.setdefault("creature", _site_raw(unit.node))
             if not player and is_bite(node, unit):
                 found.setdefault("bite", _site_raw(unit.node))
         if (
@@ -3003,11 +3017,7 @@ _POWER_SELF_RECIP = re.compile(r"to itself|deals damage to itself", re.IGNORECAS
 # dropping the "power" op the bare anchor reads. Gated by this DOER-confirm
 # so a "twice the NUMBER of <X>" multiply burn (a different scaling
 # quantity — Price of Progress) never enters.
-_POWER_OWN_DOER = re.compile(
-    r"(?:deals damage (?:to itself )?equal to (?:twice |\w+ times )?its power"
-    r"|to itself equal to its power)",
-    re.IGNORECASE,
-)
+_POWER_OWN_DOER = OWN_POWER_RX
 # ADR-0038 W3 batch 6 — the RECIPIENT-side text confirm for a back-reference
 # recipient tag (``ParentTarget``/``TriggeringSource``/``SelfRef``/``Any``)
 # whose underlying Filter type phase drops: "power to target creature" (Lie
@@ -3027,24 +3037,20 @@ _POWER_OWN_DOER = re.compile(
 # (corpus-verified over-fire when tried, reverted to this anchor). CR 120.3
 # (any object dealing power-scaled damage that connects with a creature is
 # a creature_ping member).
-_POWER_RECIP_CREATURE_TEXT = re.compile(
-    r"power to (?:target|another target|that) creature\b", re.IGNORECASE
-)
+_POWER_RECIP_CREATURE_TEXT = POWER_TO_CREATURE_RX
 
 
 def _recovered_power_damage(c: ConceptNode) -> bool:
     """A recovered "damage" clause scaled by power that ``creature_ping``
-    counts (CR 120.3): any power dealt to a creature
-    (:data:`_POWER_RECIP_CREATURE_TEXT`), or its own power
-    (:data:`_POWER_OWN_DOER`) dealt to something other than a player (the seam
-    marks no ``PLAYER`` recipient — Consuming Ferocity's "to its controller",
-    Iron Mastiff's d20 rows). A recovered clause has no typed amount for
-    :func:`crosswalk.deals_its_own_power` to read, so its text stands in; every
-    confirm names "power", standing in for the typed ``Ref(Power)`` anchor."""
-    text = c.raw or ""
-    if _POWER_RECIP_CREATURE_TEXT.search(text):
+    counts (CR 120.3): any power dealt to a creature (the seam's
+    ``POWER_TO_CREATURE``), or its own power (``OWN_POWER``) dealt to something
+    other than a player (no ``PLAYER`` recipient — Consuming Ferocity's "to its
+    controller", Iron Mastiff's d20 rows). A recovered clause has no typed
+    amount for :func:`crosswalk.deals_its_own_power` to read, so the seam's
+    reading stands in for the typed ``Ref(Power)`` anchor."""
+    if POWER_TO_CREATURE in c.subject:
         return True
-    return PLAYER not in c.subject and _POWER_OWN_DOER.search(text) is not None
+    return PLAYER not in c.subject and OWN_POWER in c.subject
 
 
 def _unit_is_repeatable(unit: AbilityUnit) -> bool:

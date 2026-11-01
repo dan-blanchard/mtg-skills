@@ -45,8 +45,10 @@ def test_self_damage_sweep_canary():
 @pytest.mark.parametrize("name", ["Solar Blaze", "Wave of Reckoning", "The Akroan War"])
 def test_self_damage_sweep_is_a_board_wipe(name):
     """Each creature is dealt damage equal to its power (CR 120.3e) and one whose
-    toughness is no greater dies (704.5g)."""
-    assert {"mass_removal", "damage_equal_power"} <= _keys(name)
+    toughness is no greater dies (704.5g). No creature of yours sizes the
+    damage, so it is no power-as-damage payoff (``crosswalk.power_is_yours``)."""
+    assert "mass_removal" in _keys(name)
+    assert "damage_equal_power" not in _keys(name)
     assert is_board_wipe(test_card(name))
     assert "board_wipe" in role_of(test_card(name))
 

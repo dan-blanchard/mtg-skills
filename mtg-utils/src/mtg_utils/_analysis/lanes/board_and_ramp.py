@@ -114,7 +114,7 @@ from mtg_utils._card_ir.mirror.runtime import (
     MirrorVariant,
     TypedMirrorNode,
 )
-from mtg_utils._card_ir.recovery import IMPERATIVE, OTHER_PLAYER, SELF
+from mtg_utils._card_ir.recovery import IMPERATIVE, OTHER_PLAYER, SELF, TEAM_OBJECT
 
 
 def _sac_subject_present(tgt: object) -> bool:
@@ -1770,15 +1770,6 @@ def _token_type_lanes(tree: ConceptTree) -> list[str]:
 # predefined artifact-token subtype (CR 205.3g), and the Enchantment
 # card-type word (covers "Aura enchantment token" / "enchantment creature
 # token" phrasings).
-# A recovered "+1/+1 counter on each [other] creature you control" with no
-# further qualifier — the generic team population (the creatures_matter
-# recovered branch; a "that's a token" / "with modular" tail is tribal). Kept as
-# a clause read: the seam's reading names no filter qualifier, and the generic
-# team is the absence of one.
-_RECOVERED_TEAM_COUNTER_RE = re.compile(
-    r"\bcounters? on each (?:other )?creature you control\s*(?:$|[.,;])",
-    re.IGNORECASE,
-)
 
 
 def _names_artifact_kind(types: tuple[str, ...]) -> bool:
@@ -3412,9 +3403,10 @@ def _creatures_matter(tree: ConceptTree) -> list[Signal]:
     # ``place_counter`` token recovers: the typed PutCounterAll over the
     # team (Cathars' Crusade) is read above, the recovered one off its clause.
     for c in tree.effect_concepts("place_counter"):
-        if c.recovered_by == "place_counter" and _RECOVERED_TEAM_COUNTER_RE.search(
-            c.raw or ""
-        ):
+        # The seam marks the generic team (``TEAM_OBJECT``: "on each [other]
+        # creature you control" with no further qualifier — a "with modular"
+        # tail is a subset).
+        if c.recovered_by == "place_counter" and TEAM_OBJECT in c.subject:
             return [Signal("creatures_matter", "you", "", c.raw, tree.name, "high")]
     for unit in tree.units:
         if _is_generic_creature_filter(_mass_untap_creature_filter(unit.node)):

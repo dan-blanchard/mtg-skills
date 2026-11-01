@@ -3138,7 +3138,8 @@ def test_voltron_matters_recovered_mechanisms(name):
         "Unexpected Request",  # "you may attach an Equipment…to that creature"
         "Armed and Armored",  # "Attach any number of Equipment…to it"
         "Super-Soldier Serum",  # attach-on-attack trigger, self Aura payload
-        "Goldwardens' Gambit",  # per-token attach (Unimplemented residue)
+        # (Goldwardens' Gambit's per-token attach is no payoff, but its affinity
+        # for Equipment is: it counts your Equipment, CR 702.41a.)
         "Inventory Management",  # repeat-attach for each Aura/Equipment owned
         "Resolute Strike",  # "…you may attach an Equipment…to it"
         "Benevolent Blessing",  # protection carve-out, not a payoff
@@ -3940,7 +3941,7 @@ def test_lifeloss_makers_degraded_typed_each_opponent(name, scope):
 @pytest.mark.parametrize(
     ("name", "scope"),
     [
-        ("Toxic Deluge", "you"),  # additional_cost PayLife carve-out
+        ("Toxic Deluge", "you"),  # additional_cost PayLife leaf
         ("Force of Will", "you"),  # casting_options AlternativeCost
         ("Snuff Out", "you"),  # casting_options AlternativeCost
         ("Deep Analysis", "you"),  # keyword Flashback PayLife

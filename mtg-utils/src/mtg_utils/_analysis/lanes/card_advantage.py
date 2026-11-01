@@ -110,6 +110,7 @@ from mtg_utils._card_ir.text_idioms import (
     _TOPDECK_YOUR_LIBRARY,
     _topdeck_stack_self,
 )
+from mtg_utils.card_classify import classifying_keywords
 
 
 def _impulse_scope(unit: AbilityUnit, tops: list[ConceptNode]) -> str:
@@ -1318,7 +1319,7 @@ def comes_back_from_graveyard(card: dict, routes: frozenset[str]) -> bool:
 
     if any(
         KEYWORD_SELF_RETURNS[normalised_keyword_name(k)] in routes
-        for k in card.get("keywords") or ()
+        for k in classifying_keywords(card)
         if k in SELF_RECURRING_KEYWORD_GAPS
     ):
         return True
@@ -1889,17 +1890,12 @@ def _pce_has_paired_draw(pce: object) -> bool:
 # "unless" boundary (Faramir's "you draw a card if they didn't attack you").
 # CR 121.1.
 #
-# A recovered "draw" residue whose diagnostic wrapper names phase's OWN
-# replacement parser ("Replacement pattern matched but line failed
-# replacement parser: ..." — Alms Collector's "instead you and that player
-# each draw a card" symmetric draw-cap) is a rules REWRITE phase merely
-# failed to structure, not a forced gift — the SAME exclusion the typed
-# ``unit.origin == "replacement"`` check applies below, extended to a
-# residue whose own origin field reads "ability" (the failed-parse fallback)
-# because the diagnostic prefix itself says what it is.
-_RECOVERED_DRAW_REPLACEMENT_RE = re.compile(
-    r"^\s*replacement pattern matched", re.IGNORECASE
-)
+# A residue whose diagnostic wrapper names phase's OWN replacement parser
+# ("Replacement pattern matched but line failed replacement parser: ..." —
+# Alms Collector's "instead you and that player each draw a card" draw-cap) is
+# a rules REWRITE phase failed to structure, not a forced gift: the seam
+# recovers no draw from it (``recovery._REPLACEMENT_SENSE``; the draw row
+# isn't ``in_replacements``).
 
 
 def _widened_tag_phrase_match(
@@ -1982,8 +1978,9 @@ def _target_player_draws(tree: ConceptTree) -> list[Signal]:
       opponent" phase triggers) vs. 6 paired (all this idiom), 0 exceptions
       either way;
     * a RECOVERED "draw" residue the seam marks ``OTHER_PLAYER`` (Forget,
-      Soldevi Sentry) — guarded against the replacement-diagnostic residue
-      (:data:`_RECOVERED_DRAW_REPLACEMENT_RE`) and the symmetric each-player
+      Soldevi Sentry); the seam refuses the replacement-diagnostic residue
+      (``recovery._REPLACEMENT_SENSE``), and the read is guarded against the
+      symmetric each-player
       residue (``effect_owner_player_scope(...) == "All"`` — Grothama,
       All-Devouring's damage-scaled leaves-trigger, group_hug_draw's own
       synthesis-arm territory per its docstring).
@@ -2115,8 +2112,6 @@ def _target_player_draws(tree: ConceptTree) -> list[Signal]:
                     ]
                 continue
             if c.recovered_by == "draw":
-                if _RECOVERED_DRAW_REPLACEMENT_RE.search(c.raw or ""):
-                    continue
                 if effect_owner_player_scope(unit.node, c.node) == "All":
                     continue  # each-player group draw, group_hug territory
                 if OTHER_PLAYER in c.reading:

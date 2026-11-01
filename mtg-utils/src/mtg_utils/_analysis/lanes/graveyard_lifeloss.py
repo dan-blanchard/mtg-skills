@@ -55,6 +55,7 @@ from mtg_utils._card_ir.crosswalk import (
     effect_owner_player_scope,
     effect_trigger_def,
     explicit_recipient_scope,
+    fights_between_blockers,
     filter_controller,
     filter_controller_side,
     filter_core_types,
@@ -1391,12 +1392,21 @@ def _fight_makers(tree: ConceptTree) -> list[Signal]:
       second half (Prepare // Fight) needs task #74's face union first;
       ``tree.oracle`` is single-face.
 
-    Scope "you" (the lane convention)."""
+    Scope "you" (the lane convention). Subject ``blockers`` when every fight is
+    between two blocking creatures (:func:`crosswalk.fights_between_blockers`:
+    Dissension in the Ranks): both fighters are one defending player's, so no
+    creature of yours fights one of theirs, and neither the fight page nor the
+    deathtouch lane (``fight_makers|you|``) counts it."""
+
+    def fight(raw: str, node: object) -> list[Signal]:
+        subject = "blockers" if fights_between_blockers(node) else ""
+        return [Signal("fight_makers", "you", subject, raw, tree.name, "high")]
+
     for c in tree.effect_concepts("fight"):
-        return [Signal("fight_makers", "you", "", c.raw, tree.name, "high")]
+        return fight(c.raw, c.node)
     for unit in tree.units:
         if has_nested_fight(unit.node):
-            return [Signal("fight_makers", "you", "", "", tree.name, "high")]
+            return fight("", unit.node)
     return []
 
 
@@ -1802,11 +1812,11 @@ def _lifeloss_makers(tree: ConceptTree) -> list[Signal]:
     per-ability walk never reaches, both closed the SAME way arm (b) reads
     an ``additional_cost``: (d) the card's OWN spell-level ``additional_cost``
     (CR 601.2b — Toxic Deluge's "As an additional cost to cast this spell,
-    pay X life.") merges via :func:`_spell_additional_cost_concepts`'s
-    PayLife carve-out (a ``PayLife`` leaf has no ``EFFECT_CONCEPTS`` entry —
-    a cost primitive, not a named effect — so the general OTHER filter
-    there admits it explicitly, verified corpus-safe: every OTHER consumer
-    of ``unit.costs`` filters by an explicit ``concept ==`` name); (e) an
+    pay X life.") merges via :func:`_spell_additional_cost_concepts`, which
+    keeps every cost leaf of the wrapper (a ``PayLife`` leaf has no
+    ``EFFECT_CONCEPTS`` entry — a cost primitive, not a named effect — and
+    every OTHER consumer of ``unit.costs`` filters by an explicit
+    ``concept ==`` name); (e) an
     ALTERNATIVE casting cost (CR 118.9 — Force of Will's "You may pay 1
     life ... rather than pay this spell's mana cost.") rides a SEPARATE
     root field, ``casting_options`` (``kind='AlternativeCost'``), that NO

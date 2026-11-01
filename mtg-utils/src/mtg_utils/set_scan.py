@@ -31,6 +31,7 @@ from mtg_utils._analysis.roles import role_of
 from mtg_utils.card_classify import (
     EVASION_KEYWORDS,
     card_pt_int,
+    classifying_keywords,
     has_evasion,
     is_creature,
     is_land,
@@ -69,7 +70,7 @@ def set_scan(records: Sequence[dict], *, code: str | None = None) -> dict:
             sweepers.append(rec.get("name", ""))
         if is_creature(rec):
             creatures.append(rec)
-            for kw in rec.get("keywords") or []:
+            for kw in classifying_keywords(rec):
                 if kw in EVASION_KEYWORDS:
                     evasion_by_keyword[kw] = evasion_by_keyword.get(kw, 0) + 1
         if not is_land(rec):

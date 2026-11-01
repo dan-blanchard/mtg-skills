@@ -36,25 +36,11 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   names its remainder). Regex-only, measured over the legal corpus:
   `ability_strip_payoff` (the
   crippling-drawback text beside a power floor; no lane reads a drawback a strip
-  turns off). Lane follow-ups the pass found: a `(key, subject)` role table that
-  `DOER_SUBJECTS`, `MEMBERSHIP_SUBJECTS`, `PAGE_ONLY_SUBJECTS`, the pair reads'
-  wildcards and the presets all read (today each reads its own set:
-  `PAGE_ONLY_SUBJECTS` belongs in it as a role, and the voltron `has_other_plan`
-  read should ask `avenue_spec_for(s) is not None` instead of keeping its own
-  exclusion lists — membership_floor's step-trigger exclusion duplicates
-  `STEP_TRIGGER_KEYS` the same way); the spell-additional-cost walk keeps
-  only allowlisted OTHER leaves (PayLife, Blight) — walk them all;
+  turns off). Lane follow-ups the pass found:
   `card_draw_engine` misses Mask of the Schemer's connive X (phase parks "where
   X is the amount of damage it dealt" as `where_x_binding`);
-  `ends_the_game` reads a missing player as you (a canary arm in `core_makers`);
-  the empower Jace token's scry / surveil (about thirty cards) is not walked; a
-  clone that adds a keyword (Auton Soldier) and Mouth // Feed's aftermath count
-  are missed; Smothering Tithe and Pyxis of Pandemonium sit in no stax /
-  opponent-graveyard lane; `big_hand_matters`' text arm still fires on "reveal
-  any number of X cards"; Dan Lewis's AddSubtype Equipment and Equipment
-  affinity. Left from the lane pass:
-  `etb_value_x_recast_commander` (`pair_reads.py`) weights a scry-1 ETB like
-  Shriekmaw now that `self_etb_payload` reads 4,333 cards. Phase gaps
+  the empower Jace token's scry / surveil (about thirty cards) is not walked.
+  Phase gaps
   to report upstream (Dan posts) (drafted: `docs/plans/phase-upstream-reports.md` §6, §12–§15, §19, §20, §23; "Already fixed"; "Not drafted") — from Pass D: Frodo, Sauron's Bane's granted
   trigger;
   Teferi, Temporal Pilgrim and Devastating Mastery's chooser stamped You; The
@@ -175,32 +161,12 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
 
 **From the Fynn, the Fangbearer real-deck validation (2026-10-29; `real-deck-validation.md`)**
 
-- **The front-face keyword rule reaches three reads only.**
-  `card_classify.classifying_keywords` (CR 712.8a/712.8d, 710.2, 715.4) feeds
-  the serve and preset keyword arms, `has_evasion` and the signal extractor's
-  keyword field. Other reads of a card's own keywords still read every face's,
-  and could follow on the same rules reason: `set_scan`'s evasion count (a
-  creature card's evasion, so the face it is played by), `_analysis.rate`'s
-  copy keywords, `text_reads._voltron_double_strike_beater`, the
-  `membership_floor` voltron tells, `lanes.card_advantage`'s self-recurring
-  keywords, and the job reads' Flash / Undaunted / cost-reducer checks (a
-  transforming card is cast by its front face, 712.11). Companion conditions
-  stay as they are: they are deckbuilding checks over the card itself, not a
-  body on the battlefield, so every face's keywords count there.
-- **`damage_equal_power|you|creature` still carries cards that aren't bites.**
-  Repentance and Solar Blaze (a creature damages itself), Mutiny (an opponent's
-  creature deals the damage), and Corpse Explosion and Dead Reckoning (the spell
-  deals the damage) all serve the "Power-as-damage payoffs" page. Mage Slayer
-  reads as `creature` too, though it hits the player or planeswalker being
-  attacked. The new `bite` subject leaves all of these out. The page could read
-  `bite` where it means a creature's own power.
-- **`is_bite` skips triggering and batch dealers**, by construction:
-  "it deals damage equal to its power" off a trigger, or Moonlight Hunt's "each
-  creature you control". The read can't say whose creature those are, so they
-  aren't deathtouch-lane members.
-- **The deathtouch lane serves every fight, whoever fights.** `fight_makers`
-  doesn't record whose creatures fight. Dissension in the Ranks (two blocking
-  creatures) counts the same as Prey Upon.
+- **Phase drops a bite's own target** (report upstream, Dan posts): Spirit
+  Flare's "it deals damage equal to its power to target attacking or blocking
+  creature an opponent controls", Crush Underfoot's "to target creature" and
+  Thorin, Mountain-king's "to up to one target creature" parse as a
+  `DealDamage` to `ParentTarget`, the dealer itself, so none reads as a bite
+  (`crosswalk.is_bite`) or as power damage of yours.
 
 **From the Omnath Competitive Brawl build (2026-10-04)**
 
@@ -309,13 +275,6 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   compound clause and a granted body's residue (nine rows retired that way,
   2026-10-09); the remaining v0.104.0 ledger rows are parked conditions and verbs the
   grammar doesn't tag. Report upstream by residue class, not per card. (drafted: `docs/plans/phase-upstream-reports.md` §21, App. A1)
-- **Lane-side reads of recovered clause text remain** beside the seam's marks:
-  `damage_for_each`'s `_DFE_RECOVERED_RX`, `named_counter_misc`'s
-  `_RECOVERED_POWER_TAP_RE`, `_recovered_power_damage`, `creatures_matter`'s
-  `_RECOVERED_TEAM_COUNTER_RE` and `target_player_draws`'
-  `_RECOVERED_DRAW_REPLACEMENT_RE` (a replacement diagnostic the seam could refuse).
-  Move each onto a `read_clause` mark the same way draw, discard, damage reach and
-  make_token's kinds moved (2026-10-09), population unchanged.
 
 **From the phase v0.118.0 bump (2026-10-30)**
 
@@ -1111,6 +1070,62 @@ headroom and parked items.
   inside the kept lane's members cost 6 (711 / 323 / 114). The guides cut a
   folded lane's doers: Quick Draw's spell copies and top-deck selection,
   Sultai Arisen's self-mill. No Fynn run cuts Infectious Bite.
+- **The "Power-as-damage payoffs" page doesn't read `bite` alone — don't
+  re-suggest** (2026-11-01, Fynn validation follow-up). The page turns your big
+  creature's power into damage, and the spell is often the dealer: Tiger-Tribe
+  Hunter's sacrificed creature, Monstrous Emergence's chosen or revealed one,
+  Bloodfire Infusion, Bouncer's Beatdown's greatest power, Foray of Orcs' Army.
+  Read through `bite` the page lost 43 cards, about fifteen of them those. The
+  lane's `creature` subject now carries only power a creature of yours sizes
+  (`crosswalk.power_is_yours`: 183 → 160 cards; Repentance, Solar Blaze, Mutiny,
+  Alpha Brawl, Dead Reckoning, Lie in Wait and the self-damage spells leave), and
+  the page keeps `damage_equal_power|you|*`. Corpse Explosion stays: a creature
+  card of yours, exiled as its cost, sizes it. Left out by the read's own call:
+  an attached dealer (Lothlórien Blade's equipped creature, whose controller no
+  filter names) and Too Greedily, Too Deep's creature returned "under your
+  control". `is_bite` reads a triggering dealer off the trigger's watched
+  creature (Halana, Kessig Ranger) and a batch's off its sources (Moonlight
+  Hunt, Kamahl's Will, Bartz and Boko, Nissa's Judgment, Signature Slam, The
+  Bears of Littjara, Judgment of Alexander): `bite` 128 → 136.
+- **Smothering Tithe and Pyxis of Pandemonium sit in no stax or graveyard-hate
+  lane — don't re-suggest** (2026-11-01, Pass D follow-up). `stax_taxes` /
+  `symmetric_stax` read static restrictions and taxes (CR 604.1: casting,
+  attacking, untapping, hand size); Smothering Tithe is a triggered punisher on
+  an opponent's draw, already `opponent_draw_matters|opponents|` and
+  `treasure_makers|you|`. `opponent_exile_makers` is graveyard hate (a
+  graveyard exiled); Pyxis exiles the top card of each player's library face
+  down and later puts the permanents among them onto the battlefield, already
+  `cheat_into_play|you|`. Auton Soldier (`clone_makers|you|`) and Mouth //
+  Feed's aftermath draw (`draw_for_each|you|`, `card_draw_engine|you|`) were
+  served by the second lane pass.
+- **`etb_value_x_recast_commander` keeps one weight for every ETB payload —
+  don't re-suggest without a per-payload read** (2026-11-01, Pass D follow-up;
+  `self_etb_payload` now reads 4,768 cards). The pair rows reach `deck-rank`
+  only (`build_pair_context` has no other caller: deck-tune and deck-forge's
+  Find never price them). Inside a deck whose commander anchors the row, it adds
+  the same 3.0 to every ETB-payload card, so it never reorders them among
+  themselves: Shriekmaw still outranks a scry-1 ETB on its synergy. What the
+  flat weight does is lift a weak ETB over a non-ETB card of equal synergy. A
+  payload weight needs a job read of the enters trigger itself, which the
+  lane's ident doesn't carry (no subject), and of the 25 precons only Death
+  Toll (Winter, Cynical Opportunist) and Sultai Arisen (Teval) anchor the row,
+  neither through a ranking the gate scores.
+- **The voltron floor's `has_other_plan` doesn't ask `avenue_spec_for` — don't
+  re-suggest without deciding the signals index's code key** (2026-11-01, Pass D
+  follow-up). The `(key, subject)` role table shipped (`signal_keys.SUBJECT_ROLES`),
+  and the plan read keeps its own exclusions (page-only doers through
+  `signal_keys.is_page_only`, the `STEP_TRIGGER_KEYS` payoffs in its compat list).
+  Asking the avenue read makes signal extraction depend on the serve specs, so
+  `signal_specs/` would enter the persisted signals index's code key
+  (`signals_index.signal_source_files`, which excludes it by design —
+  `test_excludes_signal_specs_which_does_not_feed_extraction`) and every spec
+  edit would rebuild the index. Measured: it would add the commander-damage
+  carrier tell (`voltron_matters|you|carrier`, 2405 → 2417) to twelve cards whose
+  only plan opens no avenue (`sacrifice_outlets|you|self` — Brass Secretary,
+  Parcel Myr; `donate_makers|you|token` — the Hunted cycle;
+  `opponent_discard|opponents|empty_hand` — Avatar of Will), with deck-tune on
+  Abzan Armor and Death Toll byte-identical. Worth it only if the index may key
+  on the specs.
 - **A spell's casting-cost discard is a discard outlet** (Dan, 2026-10-10). The
   optional keyword costs count: escalate (Collective Brutality, CR 702.120a),
   buyback (Forbid, Demonic Collusion, CR 702.27a), flashback (Conflagrate, Twinned

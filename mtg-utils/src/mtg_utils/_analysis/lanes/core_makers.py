@@ -128,7 +128,7 @@ from mtg_utils._card_ir.mirror.runtime import (
     MISSING,
     TypedMirrorNode,
 )
-from mtg_utils._card_ir.recovery import OTHER_PLAYER
+from mtg_utils._card_ir.recovery import ANY_TARGET, OTHER_PLAYER, YOUR_CREATURE_COUNT
 
 
 def _win_lose_game(tree: ConceptTree) -> list[Signal]:
@@ -139,27 +139,19 @@ def _win_lose_game(tree: ConceptTree) -> list[Signal]:
     The card must end the game in your favour: you win or another player
     loses (:func:`ends_the_game`, which also reads a loss granted to a
     creature, an Equipment's wielder or an emblem — Vorpal Sword, Vraska,
-    Golgari Queen). A loss aimed at you is a drawback, never a win
+    Golgari Queen — and a loss whose player phase drops — Angel of Destiny,
+    Nicol Bolas, Dragon-God). A loss aimed at you is a drawback, never a win
     condition: the Pacts' unpaid upkeep, Final Fortune / Last Chance's
-    extra-turn end step, Lich's Mastery leaving the battlefield. Two more
-    shapes:
-
-    * a lose / win concept the clause grammar recovered onto an untyped
-      node (Hidetsugu Consumes All's "they lose the game");
-    * a ``LoseTheGame`` whose player phase drops ("each player Angel of
-      Destiny attacked this turn loses the game"; Nicol Bolas, Dragon-God's
-      "each opponent who doesn't control …") — never a self-loss in the
-      pool (each self-loss carries ``Controller``), guarded by a
-      ``retirement_canary`` that fails once phase fills the player in.
+    extra-turn end step, Lich's Mastery leaving the battlefield. One more
+    shape: a lose / win concept the clause grammar recovered onto an untyped
+    node (Hidetsugu Consumes All's "they lose the game").
     """
     if ends_the_game(tree):
         return [Signal("win_lose_game", "any", "", "", tree.name, "high")]
     for c in tree.iter_concepts():
-        if c.concept not in ("win_game", "lose_game"):
-            continue
-        tag = tag_of(c.node)
-        if tag not in ("WinTheGame", "LoseTheGame") or (
-            tag == "LoseTheGame" and getattr(c.node, "target", MISSING) is MISSING
+        if c.concept in ("win_game", "lose_game") and tag_of(c.node) not in (
+            "WinTheGame",
+            "LoseTheGame",
         ):
             return [Signal("win_lose_game", "any", "", c.raw, tree.name, "high")]
     return []
@@ -1906,15 +1898,10 @@ def _chosen_type_matters(tree: ConceptTree) -> list[Signal]:
 # ── task B-2: damage_for_each — board-count damage ───────────────────────────
 # Recovered-residue arm (ADR-0038 W5 tails discipline): phase parses these
 # whole effects as Unimplemented, but the recovery allowlist surfaces them as
-# recovered deal_damage nodes carrying the raw clause. Corpus census at phase
-# v0.23.0: the tapped-this-way form is Burn at the Stake alone; the
-# creatures-you-control form is Superior Numbers alone (Angel's Trumpet's
-# punisher counts THAT player's tapped creatures — matches neither).
-_DFE_RECOVERED_RX = re.compile(
-    r"any target equal to \w+ times the number of creatures tapped this way"
-    r"|number of creatures you control",
-    re.IGNORECASE,
-)
+# recovered deal_damage nodes, and the seam marks an amount counting your
+# creatures (``recovery.YOUR_CREATURE_COUNT``): Burn at the Stake's creatures
+# tapped this way and Superior Numbers' creatures you control (Angel's
+# Trumpet's punisher counts THAT player's tapped creatures — no mark).
 # Phase mis-parses "the number of X that player controls" counts as
 # controller "You". Full You-pool census (phase v0.23.0): Jovial Evil and
 # Wing Storm are the two live false fires; Anathemancer / Price of Progress
@@ -1966,8 +1953,8 @@ def _damage_for_each(tree: ConceptTree) -> list[Signal]:
         for c in unit.effect_concepts("deal_damage"):
             raw = c.raw or ""
             if c.recovered_by == "damage":
-                if _DFE_RECOVERED_RX.search(raw):
-                    scope = "opponents" if "any target" in raw.lower() else "any"
+                if YOUR_CREATURE_COUNT in c.subject:
+                    scope = "opponents" if ANY_TARGET in c.subject else "any"
                     push(scope, "", raw)
                 continue
             filt = ref_count_filter(c.node, "amount")

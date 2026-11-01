@@ -250,6 +250,80 @@ def test_combat_and_damage_reads(name, ident, has):
     assert (ident in _idents(name)) is has
 
 
+@pytest.mark.parametrize(
+    ("name", "ident", "has"),
+    [
+        # a spell's additional cost (CR 601.2b) keeps every cost it holds:
+        # returning a permanent you control to hand re-delivers it
+        ("Fear of Isolation", "permanent_etb|you|replay", True),
+        ("Deprive", "permanent_etb|you|replay", True),
+        # forage: exile three cards from your graveyard or sacrifice a Food
+        ("Feed the Cycle", "graveyard_matters|you|", True),
+        # the residue phase parks as the cost stays the residue reads'
+        ("Close Encounter", "exile_matters|you|", True),
+    ],
+)
+def test_a_spells_additional_cost_keeps_every_cost(name, ident, has):
+    assert (ident in _idents(name)) is has
+
+
+@pytest.mark.parametrize(
+    ("name", "ident", "has"),
+    [
+        # affinity for Equipment counts your Equipment (CR 702.41a): a gear payoff
+        ("Oxidda Finisher", "voltron_matters|you|", True),
+        ("Rebel Salvo", "voltron_matters|you|", True),
+        # an artifact of yours that becomes an Equipment is gear made
+        ("Dan Lewis", "voltron_makers|you|gear", True),
+    ],
+)
+def test_equipment_you_count_or_make(name, ident, has):
+    assert (ident in _idents(name)) is has
+
+
+@pytest.mark.parametrize(
+    ("name", "ident", "has"),
+    [
+        # a count of the cards in your hand (CR 402.2)
+        ("Fateful Showdown", "big_hand_matters|you|", True),
+        # "reveal any number of green cards in your hand": a count of the cards
+        # you choose to reveal, not of your hand
+        ("Scent of Ivy", "big_hand_matters|you|", False),
+        ("Metalworker", "big_hand_matters|you|", False),
+    ],
+)
+def test_a_hand_count_is_your_hands_size(name, ident, has):
+    assert (ident in _idents(name)) is has
+
+
+@pytest.mark.parametrize(
+    ("name", "ident", "has"),
+    [
+        # a trigger watching a creature of yours: that creature bites
+        ("Halana, Kessig Ranger", "damage_equal_power|you|bite", True),
+        # a batch of your creatures, each its own power
+        ("Moonlight Hunt", "damage_equal_power|you|bite", True),
+        ("Kamahl's Will", "damage_equal_power|you|bite", True),
+        # an opponent's creature hits each other creature that player controls
+        ("Alpha Brawl", "damage_equal_power|you|bite", False),
+        # a creature of yours sizes it: sacrificed, the Army you amassed (CR
+        # 701.47a), the greatest power among yours
+        ("Tiger-Tribe Hunter", "damage_equal_power|you|creature", True),
+        ("Foray of Orcs", "damage_equal_power|you|creature", True),
+        ("Triumphant Chomp", "damage_equal_power|you|creature", True),
+        # an opponent's creature, a creature hitting itself, a moved card's power
+        ("Mutiny", "damage_equal_power|you|creature", False),
+        ("Repentance", "damage_equal_power|you|creature", False),
+        ("Dead Reckoning", "damage_equal_power|you|creature", False),
+    ],
+)
+def test_whose_creature_sizes_the_power_damage(name, ident, has):
+    """A bite is a creature of yours dealing its own power (crosswalk.is_bite);
+    the ``creature`` subject is power-sized damage to a non-player that a
+    creature of yours sizes (crosswalk.power_is_yours)."""
+    assert (ident in _idents(name)) is has
+
+
 @_cases(
     # the card hurts its controller (CR 701.21a / 119.3 / 701.17a / 104.3)
     ("Demonic Taskmaster", "self_drawback|you|harm", True),
