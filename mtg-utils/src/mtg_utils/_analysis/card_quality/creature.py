@@ -61,6 +61,52 @@ A creature the read can't see scores ``None``: a card phase has no trees for,
 one whose front face has text but no ability or keyword phase parsed (its
 abilities would count none), or one whose front face is no creature. ``None``
 is never a low number.
+
+**The theme-strength read** (:data:`THEME_READ`, :func:`theme_features`,
+:data:`THEME_WEIGHTS`) is a second read beside :data:`READ`, which stays the job
+pages' (ADR-0063's J2). It says which of two on-plan creatures a theme page
+should rank first, and is fitted on two pair sets the reads-first order didn't
+choose (2026-10-31, design 25 only): source A, a guide's add against the same
+guide's cut of a creature (3,565 pairs, 310 deck-adds, 24 decks), and source B,
+a guide add against each on-plan creature the live play-rate order put above it
+on the same theme page (6,627 pairs, 160 deck-adds, 24 decks). Each source's
+weights sum to one, every add counting once per guide naming it.
+``docs/plans/precon-audit/strength_fit_creature.py`` re-runs the fit; its
+docstring holds the table. Leave-one-deck-out pair accuracy, fitted on both
+sources: A 0.668 (play-rate 0.574), B 0.616 (play-rate 0.000 by construction,
+so chance, 0.5, is B's real bar). Fitted on one source and scored on the other:
+A to B 0.606, B to A 0.664. The six features were chosen by forward selection
+over 56 candidates, which saw every deck; with the selection itself inside the
+leave-one-deck-out loop (at most six, ``strength_select_creature.py nested``)
+it is A 0.616 and B 0.537: still above both bars, B's by little. 19 of the 25
+folds chose the same first five (all but ``evasion``).
+
+The features, in log-odds per unit that the card is the guide's pick:
+
+- ``cost`` (-0.10 a mana, capped at 9): the curve cost (``_common.cast_cost``).
+  A cheaper creature is out sooner and leaves mana for the rest of the plan.
+- ``legendary`` (+0.60): the legendary supertype. The supertype
+  itself only puts the permanent under the legend rule (CR 205.4d, 704.5j),
+  so this is no strength the rules give: it is
+  the pairs' verdict on both sources, most likely because a recent legendary
+  creature carries more text for its cost than a common body. A proxy, kept
+  because it holds on both sources.
+- ``tutor`` (+2.4): the tutor job read scores it (``job_quality.tutor``: it
+  finds a nonland card in your library, CR 701.23a). Rare (2% of the pairs'
+  cards; Faerie Harbinger, Fauna Shaman, Ranger-Captain of Eos), hence the size.
+- ``board_static`` (+0.60): a static ability of its own (CR 604.1) that affects
+  something other than the card itself: a lord, a cost reduction, a rule for
+  the opponents' creatures. It works on every card it reaches.
+- ``attack_trigger`` (+0.70): a trigger on attacking (CR 508.3a), phase's
+  "attacks" or "enters or attacks": value again each combat.
+- ``evasion`` (+0.55): the same evasion as :func:`features`' (CR 509.1b).
+
+The ADR-0063 features refitted on these sources take opposite signs on A and B
+(``share``: cheaper per ability on A, dearer on B) and score A 0.618 but B 0.505
+alone, 0.453 fitted on both: they read the old order's bias, not strength.
+Body, power per mana, flying and the other combat keywords also split by
+source; card-advantage effects, trigger counts and job reads agree in sign but
+add nothing past these six.
 """
 
 from __future__ import annotations
@@ -75,6 +121,7 @@ from mtg_utils._analysis.signal_trees import signal_trees_for
 from mtg_utils._analysis.write_back import MISSING, WriteBackSidecar, content_key
 from mtg_utils._card_ir.crosswalk import (
     activated_ability_units,
+    affected_tag,
     evasion_keyword_kind,
     is_evasive_body,
     normalised_keyword_name,
@@ -139,14 +186,10 @@ def _engines(tree: ConceptTree) -> Iterator[AbilityUnit]:
 def features(card: dict) -> dict[str, float] | None:
     """The creature read's features for ``card``, or ``None`` when its front
     face is no creature or phase has no trees for it."""
-    if "Creature" not in faces(card)[0]:
-        return None
-    trees = signal_trees_for(card, bulk=card)
-    if not trees:
-        return None
+    trees = _readable_trees(card)
+    if trees is None:
+        return None  # (text phase parsed none of: its abilities would count 0)
     front = trees[0]
-    if front.is_text_only and front.oracle and not front.card_keywords:
-        return None  # text phase parsed none of: its abilities would count 0
     units = [u for tree in trees for u in tree.units]
     abilities = {_ability_key(u) for u in units if _is_ability(u)}
     engines = {_ability_key(u) for tree in trees for u in _engines(tree)}
@@ -158,14 +201,70 @@ def features(card: dict) -> dict[str, float] | None:
         for u in units
     )
     kws = [normalised_keyword_name(k) for k in front.card_keywords]
-    evasion = any(evasion_keyword_kind(k) for k in kws) or is_evasive_body(front)
     return {
         "share": min(cast_cost(card) / max(len(abilities), 1), _SHARE_CAP),
         "engines": float(min(len(engines), 4)),
         "dies": float(dies),
-        "evasion": float(evasion),
+        "evasion": float(_is_evasive(front)),
         "defender": float("defender" in kws),
         "ramp": float(_JOB_READS["ramp"].score(card) is not None),
+    }
+
+
+def _is_evasive(front: ConceptTree) -> bool:
+    """An evasion ability on the card itself (``features``' ``evasion``)."""
+    return any(
+        evasion_keyword_kind(normalised_keyword_name(k)) for k in front.card_keywords
+    ) or is_evasive_body(front)
+
+
+def _readable_trees(card: dict) -> list[ConceptTree] | None:
+    """The card's signal trees when its front face is a creature the reads can
+    see: phase has trees for it, and its front face's text parsed to at least
+    one ability or keyword."""
+    if "Creature" not in faces(card)[0]:
+        return None
+    trees = signal_trees_for(card, bulk=card)
+    if not trees:
+        return None
+    front = trees[0]
+    if front.is_text_only and front.oracle and not front.card_keywords:
+        return None
+    return list(trees)
+
+
+#: Trigger events of an attack trigger (CR 508.3a): "whenever [a creature]
+#: attacks", and phase's combined "enters or attacks".
+_ATTACK_EVENTS = frozenset({"attacks", "entersorattacks"})
+#: ``cost``'s cap, in mana.
+_COST_CAP = 9.0
+
+
+def theme_features(card: dict) -> dict[str, float] | None:
+    """The theme-strength read's features for ``card`` (see :data:`THEME_WEIGHTS`),
+    or ``None`` when the reads can't see it (as for :func:`features`)."""
+    trees = _readable_trees(card)
+    if trees is None:
+        return None
+    front = trees[0]
+    units = [u for tree in trees for u in tree.units if u.origin != "synth"]
+    board_static = any(
+        affected_tag(sd, u) != "SelfRef"
+        for u in units
+        if u.origin == "static"
+        for sd in u.static_defs()
+    )
+    attack_trigger = any(
+        u.origin == "trigger" and u.effects and u.trigger_event in _ATTACK_EVENTS
+        for u in units
+    )
+    return {
+        "cost": min(cast_cost(card), _COST_CAP),
+        "legendary": float("Legendary" in front.card_supertypes),
+        "tutor": float(_JOB_READS["tutor"].score(card) is not None),
+        "board_static": float(board_static),
+        "attack_trigger": float(attack_trigger),
+        "evasion": float(_is_evasive(front)),
     }
 
 
@@ -179,6 +278,18 @@ WEIGHTS: dict[str, float] = {
     "evasion": 0.55,
     "defender": -2.4,
     "ramp": 0.40,
+}
+
+#: The theme-strength read's log-odds per feature unit (pairwise logistic fit
+#: on both pair sources, 2026-10-31, rounded). The theme-strength section of
+#: the module docstring gives each one's reasoning.
+THEME_WEIGHTS: dict[str, float] = {
+    "cost": -0.10,
+    "legendary": 0.60,
+    "tutor": 2.4,
+    "board_static": 0.60,
+    "attack_trigger": 0.70,
+    "evasion": 0.55,
 }
 
 
@@ -201,6 +312,7 @@ def _content_key() -> str:
 #: processes (a theme page scores every creature on it).
 SIDECAR = WriteBackSidecar(".creature-quality.pkl", _content_key)
 _SCORES = SIDECAR.memo("score")
+_THEME_SCORES = SIDECAR.memo("theme_score")
 
 
 def attach_sidecar(bulk_path: Path | None) -> bool:
@@ -221,11 +333,15 @@ class QualityRead:
     def score(self, record: dict) -> float | None:
         """How strong ``record`` is as a card of this type (higher is better):
         the weighted sum of its features, or ``None`` when the read can't see
-        it. Memoized per oracle_id for the module's own read (another
-        ``QualityRead`` with its own features or weights is scored live)."""
+        it. Memoized per oracle_id for the module's own reads, :data:`READ`
+        and :data:`THEME_READ` (another ``QualityRead`` with its own features or
+        weights is scored live)."""
         oid = record.get("oracle_id")
-        memoized = bool(oid) and self is READ
-        if memoized and (hit := _SCORES.get(oid)) is not MISSING:
+        memo = (
+            _SCORES if self is READ else _THEME_SCORES if self is THEME_READ else None
+        )
+        memoized = bool(oid) and memo is not None
+        if memoized and (hit := memo.get(oid)) is not MISSING:
             return cast("float | None", hit)
         feats = self.features(record)
         score = (
@@ -234,8 +350,11 @@ class QualityRead:
             else round(sum(self.weights[k] * v for k, v in feats.items()), 3)
         )
         if memoized and (feats is not None or signal_trees_for(record, bulk=record)):
-            _SCORES.put(oid, score)  # never a None read before phase data is there
+            memo.put(oid, score)  # never a None read before phase data is there
         return score
 
 
 READ = QualityRead("creature", features, WEIGHTS)
+#: The theme-strength read: which of two on-plan creatures a theme page should
+#: rank first (:data:`THEME_WEIGHTS`). Not the job pages' :data:`READ`.
+THEME_READ = QualityRead("creature", theme_features, THEME_WEIGHTS)

@@ -7,6 +7,12 @@ the reads-first theme order put above it): :mod:`creature`,
 and :mod:`spell` (instants and sorceries). :func:`quality` picks the read by the
 card's front face and scores it; a land, or a card no read sees, is ``None`` —
 never a low number. The reads are pure: no play-rate, no price, no deck.
+
+:func:`theme_strength` is a second read per type, for ordering a theme page:
+each type module's ``THEME_READ``, fitted on pairs the reads-first order
+didn't choose (a guide's adds against its cuts, and against the more-played
+on-plan cards the live play-rate order ranked above them). A type module
+without one scores ``None``.
 """
 
 from __future__ import annotations
@@ -55,6 +61,28 @@ def quality(record: dict) -> float | None:
     if name is None:
         return None
     return READS[name].score(record)
+
+
+#: Each read's module by type name: where :func:`theme_strength` finds the
+#: type's ``THEME_READ``.
+_MODULES = {
+    creature.READ.type_name: creature,
+    noncreature_permanent.READ.type_name: noncreature_permanent,
+    spell.READ.type_name: spell,
+}
+
+
+def theme_strength(record: dict) -> float | None:
+    """The card's theme-strength score (log-odds of being the guide's pick
+    over another on-plan card of its type on a theme page; higher is
+    stronger) under its type module's ``THEME_READ``, or ``None``: a land, a
+    card the read can't see, or a type with no theme-strength read. A second
+    read beside :func:`quality`, fitted on other pairs; it never changes it."""
+    name = type_name(record)
+    if name is None:
+        return None
+    read = getattr(_MODULES[name], "THEME_READ", None)
+    return None if read is None else read.score(record)
 
 
 def quality_factor(record: dict) -> float:
