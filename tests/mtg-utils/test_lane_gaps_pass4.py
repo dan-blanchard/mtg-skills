@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import pytest
 
-from mtg_utils.testkit import test_signals
+from mtg_utils.testkit import test_phase_records, test_signals
 
 
 def _idents(name: str) -> set[tuple[str, str, str]]:
@@ -147,3 +147,26 @@ def test_ward_collect_evidence_is_the_opponents_cost():
 def test_granted_soulshift_is_a_graveyard_maker():
     # "~ has soulshift X" (CR 702.46a: return a Spirit card from your graveyard).
     assert ("graveyard_makers", "you", "") in _idents("Kodama of the Center Tree")
+
+
+# ── a coin flip's losing outcome that undoes the winning one ────────────────
+
+
+@pytest.mark.retirement_canary
+def test_flip_outcome_anaphor_stamped_selfref_canary():
+    """Orcish Captain's "If you lose the flip, it gets -0/-2": "it" is the Orc the
+    winning outcome targets, but phase stamps the losing ``Pump`` ``SelfRef``.
+    ``crosswalk.reads._FLIP_ANAPHOR_TAGS`` takes ``SelfRef`` for it."""
+    (rec,) = test_phase_records("Orcish Captain")
+    flip = rec["abilities"][0]["effect"]
+    assert flip["lose_effect"]["effect"]["target"] == {"type": "SelfRef"}, (
+        "Orcish Captain: RETIRE-READY — phase binds the losing flip's 'it' to the "
+        "target; drop SelfRef from crosswalk.reads._FLIP_ANAPHOR_TAGS."
+    )
+
+
+def test_losing_flip_that_shrinks_the_pumped_target_is_a_drawback():
+    """The -0/-2 lands on the creature you chose for +2/+0: no self pump, no
+    debuff — the pump on the target stays."""
+    assert ("pump_makers", "you", "target") in _idents("Orcish Captain")
+    assert not _keyed("Orcish Captain", "self_pump", "debuff_makers")

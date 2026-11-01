@@ -48,6 +48,15 @@ taught a special case. Keyed on phase's structure, never the card's name or text
   ``test_graveyard_arrival_unknown_mode_canary`` fails once phase types the
   trigger.
 
+* **A coin flip split in two.** "Flip a coin. If you win the flip, … If you lose
+  the flip, …" (Desperate Gambit) is parsed as two flips: a ``FlipCoins`` with
+  only its ``win_effect``, then, as its ``sub_ability``, a second ``FlipCoins``
+  with the same ``flips`` and only its ``lose_effect``. The card flips one coin,
+  which its flipper wins or loses (CR 705.2), and phase types every other flip
+  that names both outcomes as one ``FlipCoins`` (Orcish Captain): the second
+  flip's ``lose_effect`` is moved onto the first, and the second flip leaves the
+  chain. ``test_split_coin_flip_canary`` fails once phase types the one flip.
+
 Pure functions over plain dicts; nothing here reads the mirror or a tree.
 """
 
@@ -151,6 +160,36 @@ def _graveyard_arrival_fields(subtype: str) -> dict:
     }
 
 
+def _ability_bodies(node: object) -> Iterator[dict]:
+    """Every ability-shaped body under ``node``: a dict holding an ``effect``."""
+    if isinstance(node, list):
+        for item in node:
+            yield from _ability_bodies(item)
+        return
+    if not isinstance(node, dict):
+        return
+    if isinstance(node.get("effect"), dict):
+        yield node
+    for value in node.values():
+        yield from _ability_bodies(value)
+
+
+def _is_split_flip(body: dict) -> bool:
+    """A ``FlipCoins`` with only a ``win_effect`` whose ``sub_ability`` is a
+    ``FlipCoins`` of the same ``flips`` with only a ``lose_effect``."""
+    flip = body["effect"]
+    second = (body.get("sub_ability") or {}).get("effect") or {}
+    return (
+        flip.get("type") == "FlipCoins"
+        and second.get("type") == "FlipCoins"
+        and flip.get("flips") == second.get("flips")
+        and bool(flip.get("win_effect"))
+        and not flip.get("lose_effect")
+        and bool(second.get("lose_effect"))
+        and not second.get("win_effect")
+    )
+
+
 def correct_misparsed_shapes(rec: dict) -> dict:
     """``rec`` with each misparsed shape rewritten (a copy when any)."""
     sweeps = [
@@ -161,7 +200,8 @@ def correct_misparsed_shapes(rec: dict) -> dict:
         for trig in rec.get("triggers") or ()
         if (subtype := _graveyard_arrival_subtype(trig)) is not None
     ]
-    if not sweeps and not arrivals:
+    split_flips = [body for body in _ability_bodies(rec) if _is_split_flip(body)]
+    if not sweeps and not arrivals and not split_flips:
         return rec
     memo: dict[int, object] = {}
     out = copy.deepcopy(rec, memo)
@@ -179,4 +219,10 @@ def correct_misparsed_shapes(rec: dict) -> dict:
         target = memo[id(trig)]
         assert isinstance(target, dict)
         target.update(_graveyard_arrival_fields(subtype))
+    for body in split_flips:
+        target = memo[id(body)]
+        assert isinstance(target, dict)
+        second = target["sub_ability"]
+        target["effect"]["lose_effect"] = second["effect"]["lose_effect"]
+        target["sub_ability"] = second.get("sub_ability")
     return out

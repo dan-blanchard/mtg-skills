@@ -38,6 +38,7 @@ from mtg_utils._card_ir.crosswalk.reads import (
     _variant_field,
     animates,
     controller_side,
+    drawback_outcome_node_ids,
     filter_controller,
     filter_controller_side,
     filter_predicates,
@@ -584,9 +585,11 @@ def protective_saves(tree: ConceptTree) -> Iterator[tuple[str, ProtectionRecipie
         }
         granted = _granted_recipients(tree, unit)
         in_token, _ = _token_nodes(unit.node)
+        # a coin flip's losing outcome against you is no save (Desperate Gambit)
+        drawbacks = drawback_outcome_node_ids(unit.node)
         held: bool | None = None
         for n in iter_typed_nodes(unit.node):
-            if id(n) in in_token:
+            if id(n) in in_token or id(n) in drawbacks:
                 continue
             static = (
                 n is unit.node
