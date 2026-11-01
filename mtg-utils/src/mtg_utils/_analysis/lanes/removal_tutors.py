@@ -1948,7 +1948,9 @@ def _recast_doer_subjects(tree: ConceptTree) -> list[tuple[str, str]]:
 #: "target creature an opponent controls doesn't untap" — Fogwalker; Quicksmith
 #: Spy's granted draw), empower Jace (Way of the Mind Sculptor), a
 #: choose-and-sacrifice-the-rest sweep (Cataclysmic Gearhulk), a life total set
-#: (Magister Sphinx), a damage fog (Dawnfluke).
+#: (Magister Sphinx), a damage fog (Dawnfluke), a boon you get (Underbridge
+#: Warlock's "you get a one-time boon with 'At the beginning of your end step,
+#: if three or more creatures died this turn, each opponent loses 5 life …'").
 _SELF_ETB_OTHER_VALUE_TAGS: frozenset[str] = frozenset(
     {
         "GenericEffect",
@@ -1956,6 +1958,7 @@ _SELF_ETB_OTHER_VALUE_TAGS: frozenset[str] = frozenset(
         "ChooseAndSacrificeRest",
         "SetLifeTotal",
         "PreventDamage",
+        "CreateBoon",
     }
 )
 
