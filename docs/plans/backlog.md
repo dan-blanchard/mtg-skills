@@ -152,9 +152,9 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   damage" (`prevent` residue) and Forcefield's "prevent all but 1"
   (`unrecognized_clause_head`); Blinding Powder's and Torrent of Lava's granted
   prevention (`granter_reference_unreached`); Eye of Ojer Taq's "Craft with two
-  that share a card type" (`unknown`); Guardian of the Ages and Torpid Moloch lose their defender by
-  their own text but phase types neither as `CanAttackWithDefender`, so the
-  voltron carrier fallback leaves them (a phase gap; the lane reads the node).
+  that share a card type" (`unknown`); Guardian of the Ages' "it loses defender
+  and gains trample" parks as `unparsed_condition` (ledger row
+  `loses_defender_trigger_parked` keeps it a voltron carrier).
   Lane false
   positives still open: Skyclave Apparition's "the exiled card's owner
   creates" token reads as yours — phase stamps the Token's `owner` `Controller`

@@ -7578,6 +7578,53 @@ BRIDGES.update(
 )
 
 
+# Guardian of the Ages' "When a creature attacks you or a planeswalker you control,
+# if this creature has defender, it loses defender and gains trample" parks the
+# whole body as an ``unparsed_condition`` residue, so no ``RemoveKeyword`` says it
+# stops being a defender. Its rulings: the loss lasts indefinitely, so it attacks
+# from then on, and the membership floor's commander-damage carrier fallback
+# (CR 903.10a: combat damage) keeps it, as it keeps Torpid Moloch's typed
+# "loses defender".
+_LOSES_DEFENDER_RX = re.compile(r"\bit loses defender\b", re.IGNORECASE)
+
+
+def _loses_defender_parked(tree: ConceptTree) -> bool:
+    return _says(_LOSES_DEFENDER_RX, tree.residues("unparsed_condition"))
+
+
+def _no_typed_defender_loss(tree: ConceptTree) -> bool:
+    """No ``RemoveKeyword`` anywhere: the typed loss the lane reads (Torpid
+    Moloch's) is absent."""
+    return not tree.has_typed("RemoveKeyword")
+
+
+BRIDGES.update(
+    {
+        b.bridge_id: b
+        for b in (
+            Bridge(
+                bridge_id="loses_defender_trigger_parked",
+                key="voltron_matters",
+                kind="upstream_parse_failure",
+                todo=_residue_todo(
+                    "Guardian of the Ages' attack trigger 'if this creature has "
+                    "defender, it loses defender and gains trample'",
+                    "unparsed_condition",
+                ),
+                census=(
+                    "1 hit / the legal corpus (Guardian of the Ages), MTGJSON "
+                    "2026-10-17 @ phase v0.118.0, 2026-11-01"
+                ),
+                pins=("Guardian of the Ages",),
+                gap=_no_typed_defender_loss,
+                match=_loses_defender_parked,
+                subject="carrier",
+            ),
+        )
+    }
+)
+
+
 def bridge_fires(bridge_id: str, tree: ConceptTree) -> bool:
     """Whether the registered bridge fires for this tree (gap AND match)."""
     return BRIDGES[bridge_id].fires(tree)

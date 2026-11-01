@@ -1686,8 +1686,9 @@ def _apply_membership_floor(
     card grants itself lifelink (``crosswalk.own_keyword_bodies``),
     ``dies_attacking`` that it destroys itself whenever it attacks
     (``lanes.board_and_ramp._destroys_itself_attacking``),
-    ``attacks_despite_defender`` that it can attack as though it didn't have
-    defender (a ``CanAttackWithDefender`` static — Novice Knight), and
+    ``attacks_despite_defender`` that it can attack though it has defender
+    (``lanes.board_and_ramp._attacks_despite_defender`` — Novice Knight's
+    ``CanAttackWithDefender``, Torpid Moloch's ``RemoveKeyword``), and
     ``made_token_names`` the names of the tokens the card's own ``Token``
     effects create.
     """

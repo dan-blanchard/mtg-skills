@@ -102,6 +102,7 @@ from mtg_utils._analysis.lanes.board_and_ramp import (
     _aggregate_creature_filter,
     _artifacts_enchantments_matter,
     _attack_tapped_matters,
+    _attacks_despite_defender,
     _blink_flicker,
     _cast_add_sac_clause_is_land_only,
     _creature_count_operand_filter,
@@ -766,7 +767,6 @@ from mtg_utils._card_ir.crosswalk import (
     ConceptTree,
     own_keyword_bodies,
     recipient_tag,
-    static_mode_tag,
     tag_of,
 )
 from mtg_utils.card_classify import get_oracle_text
@@ -984,6 +984,7 @@ __all__ = [
     "_attack_compulsion_hit",
     "_attack_requirement_land_sac",
     "_attack_tapped_matters",
+    "_attacks_despite_defender",
     "_b13_conferred_grant_lanes",
     "_base_power_matters",
     "_base_pt_set",
@@ -1736,11 +1737,7 @@ def apply_membership_floor(
         token_maker_subjects=token_maker_subjects,
         own_lifelink=any("lifelink" in own_keyword_bodies(t) for t in trees),
         dies_attacking=any(_destroys_itself_attacking(t) for t in trees),
-        attacks_despite_defender=any(
-            static_mode_tag(u.node) == "CanAttackWithDefender"
-            for t in trees
-            for u in t.iter_units("static")
-        ),
+        attacks_despite_defender=any(_attacks_despite_defender(t) for t in trees),
         made_token_names=frozenset(
             token_name
             for t in trees
