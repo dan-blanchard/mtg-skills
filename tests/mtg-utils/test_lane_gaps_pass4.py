@@ -195,6 +195,26 @@ def test_bump_policy_questions(name, ident, fires):
     assert (ident in _idents(name)) is fires
 
 
+@pytest.mark.parametrize(
+    "name",
+    [
+        # "that player can't attack you or permanents you control during their
+        # next turn" — the opponent it dealt combat damage to (CR 510.1c-d)
+        "Willie Lumpkin, Postman",
+        # "defending player can't cast spells this turn" (CR 506.2)
+        "Xantid Swarm",
+        # "choose target opponent. This turn, that player can't cast spells …"
+        "Sen Triplets",
+        # "Target player can't cast creature spells this turn."
+        "Cease-Fire",
+    ],
+)
+def test_lock_on_one_player_is_stax_not_symmetric(name):
+    keys = _keyed(name, "stax_taxes", "symmetric_stax")
+    assert ("stax_taxes", "opponents", "") in keys
+    assert not any(k[0] == "symmetric_stax" for k in keys)
+
+
 def test_losing_flip_that_shrinks_the_pumped_target_is_a_drawback():
     """The -0/-2 lands on the creature you chose for +2/+0: no self pump, no
     debuff — the pump on the target stays."""

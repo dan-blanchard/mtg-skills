@@ -144,9 +144,7 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   positives still open: Skyclave Apparition's "the exiled card's owner
   creates" token reads as yours — phase stamps the Token's `owner` `Controller`
   and the exiled card `Owned{You}`, so no structure tells it from your own
-  token (a phase gap to report); Willie Lumpkin serves `symmetric_stax|each`
-  from a combat-damage trigger that watches only an opponent (found 2026-11-01,
-  the fourth lane pass; re-scope or drop it). Not a false positive (2026-10-31, don't
+  token (a phase gap to report). Not a false positive (2026-10-31, don't
   re-suggest): Investigator's Journal's LOW `proliferate_matters` — its suspect
   counters are counters (CR 122.1, not the suspected designation of CR
   701.60a), proliferate adds one of each kind already there (CR 701.34a), and
