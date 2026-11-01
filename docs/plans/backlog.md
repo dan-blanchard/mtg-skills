@@ -148,10 +148,6 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   701.60a), proliferate adds one of each kind already there (CR 701.34a), and
   removing one is its draw cost, the remove-counter-cost read's own case.
 
-**From the no-search guide adds' signal gaps (2026-10-30; bucket D of
-`~/mtg/tuner-work/w27/nosearch_buckets.tsv`)**
-
-
 **From the Fynn, the Fangbearer real-deck validation (2026-10-29; `real-deck-validation.md`)**
 
 - **Phase drops a bite's own target** (report upstream, Dan posts): Spirit
