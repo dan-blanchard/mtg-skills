@@ -674,9 +674,17 @@ _DAYNIGHT_KEYWORDS: frozenset[str] = frozenset({"daybound", "nightbound"})
 _FACEDOWN_KEYWORDS: frozenset[str] = frozenset(
     {"morph", "megamorph", "disguise", "manifest", "cloak", "manifest dread"}
 )
+#: The face-down keyword ACTIONS (CR 701.40 / 701.58 / 701.62), which an effect
+#: performs — someone's, not always yours — as against the card's own casting
+#: abilities (morph, megamorph, disguise).
+_FACEDOWN_ACTION_KEYWORDS: frozenset[str] = frozenset(
+    {"manifest", "cloak", "manifest dread"}
+)
 
 
-def _keyword_field_signals_b5(keywords: frozenset[str], name: str) -> list[Signal]:
+def _keyword_field_signals_b5(
+    keywords: frozenset[str], name: str, tree: ConceptTree | None = None
+) -> list[Signal]:
     """The batch-5 Scryfall-keyword field-lookups (checklist #3 survivors):
 
     * ``foretell`` → ``foretell_makers`` you (CR 702.143);
@@ -691,7 +699,12 @@ def _keyword_field_signals_b5(keywords: frozenset[str], name: str) -> list[Signa
       ``facedown_makers`` you (CR 708 — every face-down 2/2 maker; the
       keyword-only morph / disguise bodies carry NO ``Manifest`` / ``Cloak``
       effect, so the keyword array is the uniform anchor over all six, deduped
-      against the structural :func:`_facedown_makers` arm).
+      against the structural :func:`_facedown_makers` arm). A keyword ACTION
+      (manifest, cloak, manifest dread) the card's ``tree`` types as an effect
+      node is that arm's to scope, by who performs it ("Its controller manifests
+      the top card of their library" — Reality Shift; "the exiled card's owner
+      manifests dread" — Unidentified Hovership); the array anchors it only
+      when phase types none.
 
     Reading the STRUCTURED keyword array (not oracle text) makes the lanes immune to
     the name / ability-word collisions the deleted regex floors suffered (a card
@@ -714,7 +727,14 @@ def _keyword_field_signals_b5(keywords: frozenset[str], name: str) -> list[Signa
         out.append(Signal("poison_makers", "opponents", "", "", name, "high"))
     if low & _DAYNIGHT_KEYWORDS:
         out.append(Signal("daynight_matters", "you", "", "", name, "high"))
-    if low & _FACEDOWN_KEYWORDS:
+    facedown = low & _FACEDOWN_KEYWORDS
+    if (
+        facedown <= _FACEDOWN_ACTION_KEYWORDS
+        and tree is not None
+        and tree.effect_concepts("facedown")
+    ):
+        facedown = frozenset()  # the structural arm scopes the typed action
+    if facedown:
         out.append(Signal("facedown_makers", "you", "", "", name, "high"))
     return out
 

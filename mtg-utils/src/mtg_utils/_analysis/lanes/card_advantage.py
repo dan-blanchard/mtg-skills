@@ -51,6 +51,7 @@ from mtg_utils._card_ir.crosswalk import (
     effect_actor_scope,
     effect_filter,
     effect_owner_player_scope,
+    effects_by_actor,
     event_source_side,
     exiled_library_side,
     explicit_recipient_scope,
@@ -3693,7 +3694,9 @@ def _facedown_matters(tree: ConceptTree) -> list[Signal]:
     hits = tree.effect_concepts("turn_face_up")
     if hits:
         return [Signal("facedown_matters", "you", "", hits[0].raw, tree.name, "high")]
-    for c in tree.effect_concepts("facedown"):
+    # Your own manifest dread: "the exiled card's owner manifests dread"
+    # (Unidentified Hovership) turns another player's card face down.
+    for c in effects_by_actor(tree, concept="facedown")[0]:
         if tag_of(c.node) == "ManifestDread":
             return [Signal("facedown_matters", "you", "", c.raw, tree.name, "high")]
     for unit in tree.units:

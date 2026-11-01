@@ -9315,6 +9315,32 @@ def test_your_own_seek_free_cast_and_manifest_stay_yours(name, ident):
     assert ident in _idents(name)
 
 
+def test_the_answered_creatures_controller_manifests_not_you():
+    """Reality Shift: "Exile target creature. Its controller manifests the top
+    card of their library." The manifest's player is the exiled creature's
+    controller (``ParentTargetController`` after an exile of an unrestricted
+    target): the answered player's consolation, as Beast Within's token is
+    (``crosswalk.acts_for_answered_target``). The record's ``Manifest`` keyword
+    no longer reads it as yours: the typed action is the structural arm's to
+    scope."""
+    idents = _idents("Reality Shift")
+    assert ("facedown_makers", "opponents", "") in idents
+    assert not any(k == "facedown_makers" and s == "you" for k, s, _ in idents)
+
+
+def test_another_players_manifest_dread_fills_their_graveyard_not_yours():
+    """Unidentified Hovership's "the exiled card's owner manifests dread": CR
+    701.62a puts the other card into that player's graveyard, so it reads no
+    ``graveyard_makers|you`` and no ``facedown_matters|you``; your own manifest
+    dread (Hauntwoods Shrieker) keeps both."""
+    hovership = _idents("Unidentified Hovership")
+    assert ("graveyard_makers", "you", "") not in hovership
+    assert ("facedown_matters", "you", "") not in hovership
+    shrieker = _idents("Hauntwoods Shrieker")
+    assert ("graveyard_makers", "you", "") in shrieker
+    assert ("facedown_matters", "you", "") in shrieker
+
+
 def test_a_sorcery_without_a_flash_option_is_not_instant_speed():
     """Raise Dead has no casting options: sorcery timing (CR 307.1)."""
     from mtg_utils._card_ir.crosswalk import at_instant_speed, casts_as_though_flash

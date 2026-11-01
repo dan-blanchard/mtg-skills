@@ -3204,10 +3204,15 @@ def self_graveyard_fills(unit: AbilityUnit) -> tuple[TypedMirrorNode, ...]:
     """
     out: dict[int, TypedMirrorNode] = {}
     for n in unit.iter_typed():
+        if tag_of(n) not in ("Surveil", "ManifestDread") or acted_by_opponents(unit, n):
+            # Another player's surveil or manifest dread fills their own
+            # graveyard ("the exiled card's owner manifests dread" —
+            # Unidentified Hovership).
+            continue
         if tag_of(n) == "Surveil":
             if tag_of(getattr(n, "target", None)) in (None, "Controller"):
                 out[id(n)] = n
-        elif tag_of(n) == "ManifestDread":
+        else:
             out[id(n)] = n
     for leaf, how in controller_paid_cost_leaves(unit):
         if how != "tax" and (
@@ -5811,7 +5816,9 @@ def effects_by_actor(
     each (:func:`effect_actor_scope`): "the exiled card's owner seeks" (Darkstar
     Banisher), "… may cast that card without paying its mana cost" (Spell
     Queller), "… manifests dread" (Unidentified Hovership) are the answered
-    player's (:data:`EXILED_CARDS_OWNERS_SCOPE`), as "each opponent mills" is.
+    player's (:data:`EXILED_CARDS_OWNERS_SCOPE`), as "each opponent mills" is;
+    so is "Its controller manifests the top card of their library" after the
+    chain exiles its target (Reality Shift: :func:`acts_for_answered_target`).
     The read a whole-card doer lane asks before it calls the effect yours."""
     yours: list[ConceptNode] = []
     theirs: list[ConceptNode] = []
@@ -5819,9 +5826,48 @@ def effects_by_actor(
         for c in unit.effects:
             if not (c.concept == concept or tag_of(c.node) in tags):
                 continue
-            side = theirs if effect_actor_scope(unit, c.node) == "opponents" else yours
+            side = theirs if acted_by_opponents(unit, c.node) else yours
             side.append(c)
     return tuple(yours), tuple(theirs)
+
+
+def acted_by_opponents(unit: AbilityUnit, node: object) -> bool:
+    """Whether another player performs effect ``node`` of ``unit``: an
+    opponent actor (:func:`effect_actor_scope`), or the controller / owner of
+    the object the chain answers (:func:`acts_for_answered_target`)."""
+    return effect_actor_scope(unit, node) == "opponents" or acts_for_answered_target(
+        unit, node
+    )
+
+
+def acts_for_answered_target(unit: AbilityUnit, node: object) -> bool:
+    """Whether effect ``node`` is done by the controller or owner of the object
+    its chain answers: its player slot names the chain's target
+    (``ParentTargetController`` / ``ParentTargetOwner``) and the effect that
+    targets that object counters, destroys or exiles it
+    (:func:`answers_its_target`) other than from a graveyard. "Exile target
+    creature. Its controller manifests the top card of their library" (Reality
+    Shift) is the answered player's consolation, read as the opponents' as
+    Beast Within's "Its controller creates a 3/3 green Beast creature token"
+    is; a target that must be yours (a blink) is not answered."""
+    if not isinstance(node, TypedMirrorNode) or recipient_tag(node) not in (
+        "ParentTargetController",
+        "ParentTargetOwner",
+    ):
+        return False
+    filt = root_target_filter(unit)
+    if filt is None or filter_controller_side(filt) == "you":
+        return False
+    root = next(
+        (e.node for e in unit.effects if getattr(e.node, "target", None) is filt),
+        None,
+    )
+    if root is None or not answers_its_target(root):
+        return False
+    return (
+        tag_of(root) not in ("ChangeZone", "ChangeZoneAll")
+        or change_zone_dirs(root)[0] != "Graveyard"
+    )
 
 
 def optional_clause_actor(root: object, effect_node: object) -> str | None:
