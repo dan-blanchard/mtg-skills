@@ -122,3 +122,17 @@ def test_opponent_draw_punisher():
     assert ("opponent_draw_matters", "opponents") in _hyb_ks(
         "Sheoldred, the Apocalypse"
     )
+
+
+def test_a_count_of_the_opponents_draws_is_an_opponent_draw_payoff():
+    # Heliod, the Warped Eclipse's "Spells you cast cost {1} less to cast for each
+    # card your opponents have drawn this turn" and Thought Sponge's counters
+    # count an opponent's draws this turn (a ``CardsDrawnThisTurn`` quantity of
+    # the opponents): a payoff for making them draw, with no draw trigger.
+    for name in (
+        "Heliod, the Radiant Dawn // Heliod, the Warped Eclipse",
+        "Thought Sponge",
+    ):
+        assert ("opponent_draw_matters", "opponents") in _hyb_ks(name), name
+    # A count of your own draws is not one (Brainstorm has none at all).
+    assert ("opponent_draw_matters", "opponents") not in _hyb_ks("Brainstorm")
