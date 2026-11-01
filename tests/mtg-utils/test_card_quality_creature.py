@@ -102,11 +102,13 @@ def test_a_noncreature_scores_none():
 
 
 def test_a_creature_whose_text_phase_parsed_none_of_scores_none():
-    """Phase parses no ability of Makeshift Mauler's (v0.118.0), so the read
-    would count none and rate its whole cost as one ability: it can't see the
-    card, so it says nothing rather than a high number. Should a phase bump
-    parse it, swap in another creature the read scores ``None`` for."""
-    assert creature.READ.score(_real("Makeshift Mauler")) is None
+    """Phase parses none of Hewed Stone Retainers' text (v0.118.0: its "Cast
+    this spell only if you've cast another spell this turn"), so the read would
+    count none and rate its whole cost as one ability: it can't see the card,
+    so it says nothing rather than a high number. Should a phase bump parse it,
+    swap in another creature the read scores ``None`` for. (Makeshift Mauler
+    was this card until the additional-cost walk kept its graveyard exile.)"""
+    assert creature.READ.score(_real("Hewed Stone Retainers")) is None
     assert creature.READ.score(_real("Grizzly Bears")) is not None  # vanilla
 
 

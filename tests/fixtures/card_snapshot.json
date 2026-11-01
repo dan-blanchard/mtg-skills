@@ -564878,6 +564878,148 @@
     "type_line": "Sorcery"
    }
   },
+  "Hewed Stone Retainers": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Artifact",
+       "Creature"
+      ],
+      "subtypes": [
+       "Golem"
+      ],
+      "supertypes": []
+     },
+     "casting_restrictions": [
+      {
+       "data": {
+        "condition": {
+         "comparator": "GE",
+         "lhs": {
+          "qty": {
+           "filter": {
+            "controller": null,
+            "properties": [
+             {
+              "type": "Another"
+             }
+            ],
+            "type": "Typed",
+            "type_filters": [
+             "Card"
+            ]
+           },
+           "scope": "Controller",
+           "type": "SpellsCastThisTurn"
+          },
+          "type": "Ref"
+         },
+         "rhs": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "type": "QuantityComparison"
+        }
+       },
+       "type": "RequiresCondition"
+      }
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 3,
+      "shards": [],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "250bc19c-b882-42ae-b516-fe876d0d047d"
+      ]
+     },
+     "name": "Hewed Stone Retainers",
+     "non_ability_text": null,
+     "oracle_text": "Cast this spell only if you've cast another spell this turn.",
+     "power": {
+      "type": "Fixed",
+      "value": 4
+     },
+     "printings": [
+      "FRF",
+      "PRM",
+      "UGIN"
+     ],
+     "rarities": [
+      "uncommon"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2014-11-24",
+       "text": "It doesn’t matter whether the other spell resolved. It could have been countered or, if you’ve somehow cast Hewed Stone Retainers as though it had flash, it could still be on the stack."
+      }
+     ],
+     "scryfall_oracle_id": "a27938d2-9a15-4a87-9e77-dea37347cf62",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 4
+     },
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 3.0,
+    "color_identity": [],
+    "colors": [],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{3}",
+    "name": "Hewed Stone Retainers",
+    "oracle_id": "a27938d2-9a15-4a87-9e77-dea37347cf62",
+    "oracle_text": "Cast this spell only if you've cast another spell this turn.",
+    "power": "4",
+    "toughness": "4",
+    "type_line": "Artifact Creature — Golem"
+   }
+  },
   "Hibernation": {
    "phase_records": [
     {
