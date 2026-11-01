@@ -49,6 +49,10 @@ def _real(name: str) -> dict:
         "Azusa, Lost but Seeking",  # extra land PLAY (the concept arm)
         "Burgeoning",  # land PUT (extra_land_drop)
         "Dockside Extortionist",  # a Treasure maker you keep
+        # Vibranium tokens tap for {C} (CR 111.10w) — phase leaves that ability
+        # to its known-tokens text, as it does a Powerstone's.
+        "T'Challa, the Black Panther",
+        "Shuri's Fabricator",
         "Tireless Provisioner",  # "a Food token or a Treasure token": your choice
         # Firebending isn't ramp (below), but chapter II's "Add one mana of any
         # color" is a ritual.
@@ -459,6 +463,24 @@ def test_artifact_only_mana_is_ramp_where_the_deck_can_spend_it():
     artifacts = _deck(_OMNATH, "Sol Ring", "Mind Stone", "Lightning Bolt")
     assert is_ramp(stone, deck_mana=artifacts)
     assert "card_draw" in role_of(stone, deck_mana=_deck(_OMNATH))
+
+
+@pytest.mark.parametrize("name", ["Shuri's Fabricator", "Powerstone Engineer"])
+def test_artifact_only_token_mana_is_ramp_where_the_deck_can_spend_it(name):
+    """A Vibranium's or Powerstone's {C} "can't be spent to cast a nonartifact
+    spell" (CR 111.10w / 111.10h, 106.6): the token rock is read in the deck
+    the way The Mightstone and Weakstone is."""
+    maker = _real(name)
+    assert is_ramp(maker, deck_mana=_deck(_MEMNARCH))
+    assert not is_ramp(maker, deck_mana=_deck(_OMNATH, "Lightning Bolt", "Cultivate"))
+    artifacts = _deck(_OMNATH, "Sol Ring", "Mind Stone", "Lightning Bolt")
+    assert is_ramp(maker, deck_mana=artifacts)
+
+
+def test_a_treasure_maker_stays_ramp_in_a_deck_without_artifacts():
+    """A Treasure's mana is any color, for any spell (CR 111.10a)."""
+    deck = _deck(_KRENKO, "Lightning Bolt", "Cultivate")
+    assert is_ramp(_real("Dockside Extortionist"), deck_mana=deck)
 
 
 def test_one_usable_mana_ability_keeps_a_source_live():

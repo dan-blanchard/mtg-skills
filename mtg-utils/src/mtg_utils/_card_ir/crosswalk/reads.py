@@ -12095,11 +12095,11 @@ def rewards_opponent_small_hand(tree: ConceptTree) -> bool:
     return False
 
 
-#: The predefined artifact tokens that make mana or fetch a land: Treasure, Gold
-#: and Powerstone sacrifice or tap for mana, a Lander searches for a basic land
-#: (CR 111.10a / 111.10c / 111.10h / 111.10u).
+#: The predefined artifact tokens that make mana or fetch a land: Treasure, Gold,
+#: Powerstone and Vibranium sacrifice or tap for mana, a Lander searches for a
+#: basic land (CR 111.10a / 111.10c / 111.10h / 111.10w / 111.10u).
 RAMP_TOKEN_SUBTYPES: frozenset[str] = frozenset(
-    {"Treasure", "Gold", "Powerstone", "Lander"}
+    {"Treasure", "Gold", "Powerstone", "Vibranium", "Lander"}
 )
 
 

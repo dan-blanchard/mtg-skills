@@ -12,7 +12,7 @@
 # adjudicated allowlist (_KNOWN_TOKEN_WIRED_DISPLAY_NAMES: Mutagen,
 # Young Hero, Powerstone, Lander, Gold, Map, Junk, Wicked, and the
 # task #np_roles seven — Cursed, Royal, Sorcerer, Shard, Wizard, Contract,
-# Spellgorger Weird) wires, trimmed to the fields the join reads
+# Spellgorger Weird — and Vibranium, 2026-11-01) wires, trimmed to the fields the join reads
 # (id / rules_text / token.body) and dropping the upstream entry's large
 # source_card_names / source_card_refs / token_image_ref arrays
 # (informational there, unread here). ALL same-name variant ids are
@@ -459,4 +459,30 @@ Enchanted creature gets +1/+1 and has trample."""
 display_name = "Monster"
 core_types = ["Enchantment"]
 subtypes = ["Aura", "Role"]
+supertypes = []
+
+# Vibranium (CR 111.10w; wired 2026-11-01, verbatim from phase v0.118.0): its
+# Token node carries the Indestructible line, so the join reads the mana line.
+[[token]]
+id = "1238fd0e-e1fd-5450-a4c4-a4ac32a14b92"
+rules_text = """
+Indestructible
+{T}: Add {C}. This mana can't be spent to cast a nonartifact spell."""
+
+[token.body]
+display_name = "Vibranium"
+core_types = ["Artifact"]
+subtypes = ["Vibranium"]
+supertypes = []
+
+[[token]]
+id = "dc28e653-ce6d-56a4-94e2-fa8f779bcafa"
+rules_text = """
+Indestructible
+{T}: Add {C}. This mana can't be spent to cast a nonartifact spell."""
+
+[token.body]
+display_name = "Vibranium"
+core_types = ["Artifact"]
+subtypes = ["Vibranium"]
 supertypes = []

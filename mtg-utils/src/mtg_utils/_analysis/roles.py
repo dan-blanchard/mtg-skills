@@ -27,6 +27,7 @@ from dataclasses import dataclass, field
 
 from mtg_utils._analysis._subtypes import CREATURE_SUBTYPES, LAND_SUBTYPES
 from mtg_utils._analysis.card_reads import card_read, has_trees
+from mtg_utils._analysis.tree_synthesis.mana_ramp_lands import known_token_mana
 from mtg_utils._analysis.tree_synthesis.mechanics_misc import OUTLAW_SUBTYPES
 from mtg_utils._card_ir.compat_lookup import ir_for
 from mtg_utils._card_ir.crosswalk.reads import (
@@ -261,14 +262,21 @@ class DeckMana:
 def _mana_effects(card: Mapping) -> tuple[tuple[str, str], ...]:
     """Each ``Mana`` effect of the card's, in order, as what :meth:`DeckMana.dead_mana`
     reads of it: the kind it produces (``produced_kind``) and the spell type its
-    mana is limited to (``mana_spell_type_restriction``, ``""`` for none)."""
-    return tuple(
-        (produced_kind(node), mana_spell_type_restriction(node))
-        for tree in trees_for(dict(card))
-        for unit in tree.units
-        for node in unit.iter_typed()
-        if tag_of(node) == "Mana"
-    )
+    mana is limited to (``mana_spell_type_restriction``, ``""`` for none). A
+    predefined token's mana ability, which phase leaves to its known-tokens text,
+    reads the same pair off that text's tree (``known_token_mana``: a Powerstone's
+    or Vibranium's artifact-only {C}). A ``Mana`` *cost* (an activation's {6} —
+    Shuri's Fabricator) shares the tag but produces nothing, so it is skipped."""
+    effects: list[tuple[str, str]] = []
+    for tree in trees_for(dict(card)):
+        effects.extend(
+            (kind, mana_spell_type_restriction(node))
+            for unit in tree.units
+            for node in unit.iter_typed()
+            if tag_of(node) == "Mana" and (kind := produced_kind(node))
+        )
+        effects.extend(known_token_mana(tree))
+    return tuple(effects)
 
 
 def _ir_draws(ir: Card) -> bool:
