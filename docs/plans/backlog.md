@@ -433,7 +433,7 @@ proposal as a deckbuilder, fix the structure, the guide score is a yardstick)**
 - **The 25-precon pass is closed (2026-11-02): every flaw its reads found has
   a fix in the tree, verified card by card on the latest run
   (`docs/plans/precon-audit/verify_symptoms.py` over the three `misses.json`
-  files: 60 checks, one per flaw, all passing) and on the fresh 10-deck set
+  files: 64 checks, one per flaw, all passing) and on the fresh 10-deck set
   never used for design** (`~/mtg/tuner-work/fresh/root`; its pre-pass
   baseline `w41/misses-fresh-N16.json`: 295 / 130 / 38 → 294 / 126 / 49;
   every batch's proposals re-read deck by deck on all three sets — batches
@@ -872,8 +872,8 @@ proposal as a deckbuilder, fix the structure, the guide score is a yardstick)**
   Explorers', Party Time's and Cavalry Charge's gains. Verified with
   `verify_symptoms.py` (53 checks, all passing on the final run, 37 of the
   first 46 on the batch-13 run).
-- **Batch 15 (2026-11-02; the 25 735 / 337 / 114 → 734 / 338 / 114, held-out 571 / 262 /
-  105 → 571 / 262 / 105, fresh 294 / 126 / 49 → 294 / 126 / 49).** The closing reviews over the
+- **Batch 15 (2026-11-02; the 25 735 / 337 / 114 → 734 / 338 / 115, held-out 571 / 262 /
+  105 → 571 / 262 / 104, fresh 294 / 126 / 49 unchanged).** The closing reviews over the
   committed batch-14 tree, each flag checked against the pool and the code.
   Fixed: (56) *a symmetric "a player casts an instant or sorcery" trigger
   whose payoff is your draw is a Spellslinger build-around*
@@ -897,10 +897,30 @@ proposal as a deckbuilder, fix the structure, the guide score is a yardstick)**
   Kozilek's Command have eight colorless sources each in Mardu Surge and
   Peace Offering; Dauthi Voidwalker is a Rogue; Metalwork Colossus costs
   nothing under Death Toll's eleven noncreature artifacts; Inspiring Call
-  under Deadly Disguise's ten counter makers is fed. Verified with
-  `verify_symptoms.py` (60 checks, all passing on the final run). The 25's guide adds fall seven across the
-  batch — the price of the gates and the no-downgrade rule on the design
-  set — while the held-out gate holds and the fresh set gains nine.
+  under Deadly Disguise's ten counter makers is fed. A last pair of reviews
+  over that tree found two more, fixed: (60) *a one-shot mana source fills
+  no ramp slot either* (`_one_shot_mana` in the fill path: Dark Ritual for
+  Fae Dominion, Jeska's Will for Quick Draw, Cabal Ritual for Revenant Recon
+  — the last a guide add, so the held-out set gives one up), and (61) *a
+  proliferate spell adds to counters the deck must already place*
+  (`_COUNTERS_GATE` off a `Proliferate` effect: Ripples of Potential under
+  Family Matters' four counter makers), with the spell gate now holding only
+  when every effect standing on its own is gated — Tezzeret's Gambit draws
+  whatever its proliferate finds, Open the Armory's found card follows its
+  search. Its remaining flags are verdicts: Abzan Armor's one-sided
+  sweepers for symmetric ones (the wipe read scores Damn and Massacre Girl
+  above Slaughter the Strong and Expel the Interlopers, whose sparing lives
+  in a chosen power threshold it cannot see); Village Rites for Esper
+  Sentinel (the outlet supplies Clavileño's token-consumer need, which the
+  pool share reads as broad, so it leads no page and gates no upgrade);
+  Gonti's evasive bodies for evasion grants (36 creatures to carry them);
+  Mana Reflection for Farseek, the Ulamog Titans under Ulalek, and the
+  popular-for-popular theme trades (Barrowgoyf, Angel of Invention,
+  Lingering Souls) are the play-rate order ADR-0060 settled. Verified with
+  `verify_symptoms.py` (64 checks, all passing on the final run). Across
+  batches 14 and 15 the 25's guide adds fall six — the gates and the
+  no-downgrade rule on the design set — while the held-out gate holds and
+  the fresh set gains nine.
 
 **From the Jace, Multiverse Architect precon tune and the 25-precon audit (2026-10-17 to 2026-11-01)**
 
