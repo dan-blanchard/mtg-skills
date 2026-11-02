@@ -1580,6 +1580,27 @@ def _condition_need(
                 desc,
                 keys=_TYPE_TOKEN_KEYS["creature"],
             )
+    if qtag == "BattlefieldEntriesThisTurn":
+        # "If another Human entered the battlefield under your control this
+        # turn" (Éowyn, Shieldmaiden): the cards that put one onto the
+        # battlefield — members of the type, and makers of its tokens.
+        # Increasing Devotion's five Humans went to Burnished Hart under her
+        # (Riders of Rohan, 2026-11-02).
+        filt = getattr(qty, "filter", None)
+        core = filter_core_types(filt) if _present(filt) else ()
+        subs = filter_subtypes(filt) if _present(filt) else ()
+        types, keys = _type_need(core, subs)
+        idents = frozenset(f"{TOKEN_MAKER}|you|{sub}" for sub in subs)
+        if types or keys or idents:
+            return Need(
+                "condition",
+                f"{' '.join(sorted(core + subs))} entering this turn",
+                desc,
+                types=types,
+                keys=keys,
+                idents=idents,
+            )
+        return None
     if qtag in ("Devotion", "DevotionCount"):
         return None
     return None

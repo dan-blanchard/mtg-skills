@@ -235042,6 +235042,174 @@
     "type_line": "Creature — Human Warrior"
    }
   },
+  "Champion of the Parish": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Human",
+       "Soldier"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "White"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 0,
+      "shards": [
+       "White"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "5f2296b1-4fc7-4adf-b531-7471d223bf06",
+       "ec2120ff-a6d4-4192-96c0-33c139155ddf",
+       "f7314414-c2d2-48ed-af2c-764cf0207c62"
+      ]
+     },
+     "name": "Champion of the Parish",
+     "non_ability_text": null,
+     "oracle_text": "Whenever another Human you control enters, put a +1/+1 counter on this creature.",
+     "power": {
+      "type": "Fixed",
+      "value": 1
+     },
+     "printings": [
+      "DDQ",
+      "ISD",
+      "PLST"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "faeaa3eb-6eb8-4621-98c7-0c6f58bbff85",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 1
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever another Human you control enters, put a +1/+1 counter on ~.",
+       "destination": "Battlefield",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "counter_type": "P1P1",
+         "target": {
+          "type": "SelfRef"
+         },
+         "type": "PutCounter"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "ChangesZone",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "controller": "You",
+        "properties": [
+         {
+          "type": "Another"
+         }
+        ],
+        "type": "Typed",
+        "type_filters": [
+         {
+          "Subtype": "Human"
+         }
+        ]
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 1.0,
+    "color_identity": [
+     "W"
+    ],
+    "colors": [
+     "W"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{W}",
+    "name": "Champion of the Parish",
+    "oracle_id": "faeaa3eb-6eb8-4621-98c7-0c6f58bbff85",
+    "oracle_text": "Whenever another Human you control enters, put a +1/+1 counter on this creature.",
+    "power": "1",
+    "toughness": "1",
+    "type_line": "Creature — Human Soldier"
+   }
+  },
   "Champion of the Weird": {
    "phase_records": [
     {
@@ -604827,6 +604995,260 @@
     "oracle_id": "a893bee3-ea5c-4619-a875-e4af6d4396fe",
     "oracle_text": "Enchant creature\nAt the beginning of your upkeep, you may put a fuse counter on this Aura.\nWhen enchanted creature dies, this Aura deals X damage to any target, where X is the number of fuse counters on this Aura.",
     "type_line": "Enchantment — Aura"
+   }
+  },
+  "Increasing Devotion": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Create five 1/1 white Human creature tokens. If this spell was cast from a graveyard, create ten of those tokens instead.",
+       "duration": null,
+       "effect": {
+        "colors": [
+         "White"
+        ],
+        "count": {
+         "type": "Fixed",
+         "value": 5
+        },
+        "enters_attacking": false,
+        "keywords": [],
+        "name": "Human",
+        "owner": {
+         "type": "Controller"
+        },
+        "power": {
+         "type": "Fixed",
+         "value": 1
+        },
+        "tapped": false,
+        "toughness": {
+         "type": "Fixed",
+         "value": 1
+        },
+        "type": "Token",
+        "types": [
+         "Creature",
+         "Human"
+        ]
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": {
+         "inner": {
+          "type": "WasCast",
+          "zone": "Graveyard"
+         },
+         "type": "ConditionInstead"
+        },
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "colors": [
+          "White"
+         ],
+         "count": {
+          "type": "Fixed",
+          "value": 10
+         },
+         "enters_attacking": false,
+         "keywords": [],
+         "name": "Human",
+         "owner": {
+          "type": "Controller"
+         },
+         "power": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "tapped": false,
+         "toughness": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "type": "Token",
+         "types": [
+          "Creature",
+          "Human"
+         ]
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Sorcery"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "White"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [
+      {
+       "Flashback": {
+        "data": {
+         "generic": 7,
+         "shards": [
+          "White",
+          "White"
+         ],
+         "type": "Cost"
+        },
+        "type": "Mana"
+       }
+      }
+     ],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 3,
+      "shards": [
+       "White",
+       "White"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "related_token_ids": [
+       "1f71dbee-03ad-5988-8f49-4dd36f705b39",
+       "48c88ecc-7e79-5258-a351-d3ce0a6d85e7",
+       "8ed2c62d-eb66-56d7-8dff-3953dd6c3c7c",
+       "aa03f447-ef3d-5ffd-8801-672f2c19564e",
+       "b6212211-3218-5593-8781-01b15c08b129"
+      ],
+      "source_printing_ids": [
+       "0c786c28-1085-4b3e-9164-5fa3adfa5010",
+       "400bbab4-4ecf-4875-b356-1164d3a29092",
+       "87b5de81-65a6-4a74-8a71-767b92e89e91",
+       "996e9d99-d569-4bf1-893e-24b4f90d31aa",
+       "bd7844a2-70a1-4195-b2b7-1653cb882c6a",
+       "ca0aaf39-0f4d-47c8-834e-f7974e316079"
+      ]
+     },
+     "name": "Increasing Devotion",
+     "non_ability_text": null,
+     "oracle_text": "Create five 1/1 white Human creature tokens. If this spell was cast from a graveyard, create ten of those tokens instead.\nFlashback {7}{W}{W} (You may cast this card from your graveyard for its flashback cost. Then exile it.)",
+     "power": null,
+     "printings": [
+      "C19",
+      "C20",
+      "DDQ",
+      "DKA",
+      "LTC",
+      "ONC"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2021-03-19",
+       "text": "\"Flashback [cost]\" means \"You may cast this card from your graveyard by paying [cost] rather than paying its mana cost\" and \"If the flashback cost was paid, exile this card instead of putting it anywhere else any time it would leave the stack.\""
+      },
+      {
+       "date": "2021-03-19",
+       "text": "A spell cast using flashback will always be exiled afterward, whether it resolves, is countered, or leaves the stack in some other way."
+      },
+      {
+       "date": "2021-03-19",
+       "text": "If a card with flashback is put into your graveyard during your turn, you can cast it if it's legal to do so before any other player can take any actions."
+      },
+      {
+       "date": "2021-03-19",
+       "text": "To determine the total cost of a spell, start with the mana cost or alternative cost (such as a flashback cost) you're paying, add any cost increases, then apply any cost reductions. The mana value of the spell is determined only by its mana cost, no matter what the total cost to cast the spell was."
+      },
+      {
+       "date": "2021-03-19",
+       "text": "You can cast a spell using flashback even if it was somehow put into your graveyard without having been cast."
+      },
+      {
+       "date": "2021-03-19",
+       "text": "You must still follow any timing restrictions and permissions, including those based on the card's type. For instance, you can cast a sorcery using flashback only when you could normally cast a sorcery."
+      }
+     ],
+     "scryfall_oracle_id": "7a5ff4d4-27b7-47d4-ba88-970c63c4e3fb",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "all_parts": [
+     {
+      "component": "token",
+      "id": "147dd1c4-3f07-4e82-896d-08f182f436ac",
+      "name": "Human",
+      "oracle_id": "30272edf-097c-4918-84d2-9fa6c42dbe0a",
+      "type_line": "Token Creature — Human"
+     }
+    ],
+    "arena_available": false,
+    "cmc": 5.0,
+    "color_identity": [
+     "W"
+    ],
+    "colors": [
+     "W"
+    ],
+    "keywords": [
+     "Flashback"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{3}{W}{W}",
+    "name": "Increasing Devotion",
+    "oracle_id": "7a5ff4d4-27b7-47d4-ba88-970c63c4e3fb",
+    "oracle_text": "Create five 1/1 white Human creature tokens. If this spell was cast from a graveyard, create ten of those tokens instead.\nFlashback {7}{W}{W} (You may cast this card from your graveyard for its flashback cost. Then exile it.)",
+    "type_line": "Sorcery"
    }
   },
   "Incriminate": {
@@ -1129237,6 +1129659,299 @@
     "type_line": "Legendary Artifact Creature — Gnome // Legendary Artifact Creature — Gnome"
    }
   },
+  "Teval's Judgment": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Enchantment"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Black"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 2,
+      "shards": [
+       "Black"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "related_token_ids": [
+       "198c5204-6b23-5085-b962-e6db6c948bd6",
+       "f38a64d1-e656-5e3c-a247-14120899d2c7"
+      ],
+      "source_printing_ids": [
+       "40ed0cef-8ff6-4169-a9f3-7dd5cf56b79f",
+       "cb210e6e-fcd1-4ab7-9827-fa73fdce3825"
+      ]
+     },
+     "name": "Teval's Judgment",
+     "non_ability_text": null,
+     "oracle_text": "Whenever one or more cards leave your graveyard, choose one that hasn't been chosen this turn —\n• Draw a card.\n• Create a Treasure token.\n• Create a 2/2 black Zombie Druid creature token.",
+     "power": null,
+     "printings": [
+      "TDC"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "71fc2393-f55c-4b06-897c-fb7d4199b5f5",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": [
+      {
+       "batched": true,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever one or more cards leave your graveyard",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "duration": null,
+         "static_abilities": [],
+         "target": null,
+         "type": "GenericEffect"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "modal": {
+         "allow_repeat_modes": false,
+         "chooser": {
+          "type": "Controller"
+         },
+         "constraints": [
+          {
+           "type": "NoRepeatThisTurn"
+          }
+         ],
+         "max_choices": 1,
+         "min_choices": 1,
+         "mode_count": 3,
+         "mode_descriptions": [
+          "Draw a card.",
+          "Create a Treasure token.",
+          "Create a 2/2 black Zombie Druid creature token."
+         ]
+        },
+        "mode_abilities": [
+         {
+          "condition": null,
+          "cost": null,
+          "description": null,
+          "duration": null,
+          "effect": {
+           "count": {
+            "type": "Fixed",
+            "value": 1
+           },
+           "target": {
+            "type": "Controller"
+           },
+           "type": "Draw"
+          },
+          "forward_result": false,
+          "kind": "Spell",
+          "optional": false,
+          "optional_targeting": false,
+          "sub_ability": null,
+          "target_prompt": null
+         },
+         {
+          "condition": null,
+          "cost": null,
+          "description": null,
+          "duration": null,
+          "effect": {
+           "colors": [],
+           "count": {
+            "type": "Fixed",
+            "value": 1
+           },
+           "enters_attacking": false,
+           "keywords": [],
+           "name": "Treasure",
+           "owner": {
+            "type": "Controller"
+           },
+           "power": {
+            "type": "Fixed",
+            "value": 0
+           },
+           "tapped": false,
+           "toughness": {
+            "type": "Fixed",
+            "value": 0
+           },
+           "type": "Token",
+           "types": [
+            "Artifact",
+            "Treasure"
+           ]
+          },
+          "forward_result": false,
+          "kind": "Spell",
+          "optional": false,
+          "optional_targeting": false,
+          "sub_ability": null,
+          "target_prompt": null
+         },
+         {
+          "condition": null,
+          "cost": null,
+          "description": null,
+          "duration": null,
+          "effect": {
+           "colors": [
+            "Black"
+           ],
+           "count": {
+            "type": "Fixed",
+            "value": 1
+           },
+           "enters_attacking": false,
+           "keywords": [],
+           "name": "Zombie Druid",
+           "owner": {
+            "type": "Controller"
+           },
+           "power": {
+            "type": "Fixed",
+            "value": 2
+           },
+           "tapped": false,
+           "toughness": {
+            "type": "Fixed",
+            "value": 2
+           },
+           "type": "Token",
+           "types": [
+            "Creature",
+            "Zombie",
+            "Druid"
+           ]
+          },
+          "forward_result": false,
+          "kind": "Spell",
+          "optional": false,
+          "optional_targeting": false,
+          "sub_ability": null,
+          "target_prompt": null
+         }
+        ],
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "ChangesZoneAll",
+       "optional": false,
+       "origin": "Graveyard",
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "controller": null,
+        "properties": [
+         {
+          "controller": "You",
+          "type": "Owned"
+         }
+        ],
+        "type": "Typed",
+        "type_filters": [
+         "Card"
+        ]
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "all_parts": [
+     {
+      "component": "token",
+      "id": "649d42c1-a465-435e-8b67-e901ab9ad8ab",
+      "name": "Treasure",
+      "oracle_id": "3c549374-6c37-42e0-8d88-a8555d46732d",
+      "type_line": "Token Artifact — Treasure"
+     },
+     {
+      "component": "token",
+      "id": "f10d5813-7818-43e8-b08d-4ed8c54d0366",
+      "name": "Zombie Druid",
+      "oracle_id": "d2c8634a-e0b5-4c9e-b720-be8b18fc49dc",
+      "type_line": "Token Creature — Zombie Druid"
+     }
+    ],
+    "arena_available": false,
+    "cmc": 3.0,
+    "color_identity": [
+     "B"
+    ],
+    "colors": [
+     "B"
+    ],
+    "keywords": [
+     "Treasure"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}{B}",
+    "name": "Teval's Judgment",
+    "oracle_id": "71fc2393-f55c-4b06-897c-fb7d4199b5f5",
+    "oracle_text": "Whenever one or more cards leave your graveyard, choose one that hasn't been chosen this turn —\n• Draw a card.\n• Create a Treasure token.\n• Create a 2/2 black Zombie Druid creature token.",
+    "type_line": "Enchantment"
+   }
+  },
   "Teval, Arbiter of Virtue": {
    "phase_records": [
     {
@@ -1306459,6 +1307174,301 @@
     "power": "2",
     "toughness": "4",
     "type_line": "Legendary Creature — Human Noble"
+   }
+  },
+  "Éowyn, Shieldmaiden": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "brawl_commander": true,
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Human",
+       "Knight"
+      ],
+      "supertypes": [
+       "Legendary"
+      ]
+     },
+     "color_identity": [
+      "Red",
+      "Blue",
+      "White"
+     ],
+     "color_override": [
+      "Red",
+      "Blue",
+      "White"
+     ],
+     "defense": null,
+     "flavor_name": null,
+     "is_commander": true,
+     "keywords": [
+      "FirstStrike"
+     ],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 2,
+      "shards": [
+       "Blue",
+       "Red",
+       "White"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "related_token_ids": [
+       "310fdbb4-f269-5344-8e0b-6f51b7dbafc6"
+      ],
+      "source_printing_ids": [
+       "083c8d0a-87df-4472-9616-67d57cb05d83",
+       "159a4857-711b-4365-8813-1f56ea8f5291",
+       "902122b6-ad76-4069-8177-2ac720809659",
+       "dd4a00ff-2206-4e12-a0ab-61ed82c9e6c5"
+      ]
+     },
+     "name": "Éowyn, Shieldmaiden",
+     "non_ability_text": null,
+     "oracle_text": "First strike\nAt the beginning of combat on your turn, if another Human entered the battlefield under your control this turn, create two 2/2 red Human Knight creature tokens with trample and haste. Then if you control six or more Humans, draw a card.",
+     "power": {
+      "type": "Fixed",
+      "value": 5
+     },
+     "printings": [
+      "LTC"
+     ],
+     "rarities": [
+      "mythic"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2023-06-16",
+       "text": "If another Human didn't enter the battlefield before your beginning of combat step, Éowyn, Shieldmaiden's ability won't trigger. You won't draw a card even if you control six or more Humans."
+      }
+     ],
+     "scryfall_oracle_id": "98a2a642-a30a-43e7-b47f-4776c22d1cb0",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 4
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": {
+        "comparator": "GE",
+        "lhs": {
+         "qty": {
+          "filter": {
+           "controller": null,
+           "properties": [
+            {
+             "type": "Another"
+            }
+           ],
+           "type": "Typed",
+           "type_filters": [
+            {
+             "Subtype": "Human"
+            }
+           ]
+          },
+          "player": {
+           "type": "Controller"
+          },
+          "type": "BattlefieldEntriesThisTurn"
+         },
+         "type": "Ref"
+        },
+        "rhs": {
+         "type": "Fixed",
+         "value": 1
+        },
+        "type": "QuantityComparison"
+       },
+       "constraint": {
+        "type": "OnlyDuringYourTurn"
+       },
+       "damage_kind": "Any",
+       "description": "At the beginning of combat on your turn, if another Human entered the battlefield under your control this turn, create two 2/2 red Human Knight creature tokens with trample and haste. Then if you control six or more Humans, draw a card.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "colors": [
+          "Red"
+         ],
+         "count": {
+          "type": "Fixed",
+          "value": 2
+         },
+         "enters_attacking": false,
+         "keywords": [
+          "Trample",
+          "Haste"
+         ],
+         "name": "Human Knight",
+         "owner": {
+          "type": "Controller"
+         },
+         "power": {
+          "type": "Fixed",
+          "value": 2
+         },
+         "tapped": false,
+         "toughness": {
+          "type": "Fixed",
+          "value": 2
+         },
+         "type": "Token",
+         "types": [
+          "Creature",
+          "Human",
+          "Knight"
+         ]
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": {
+          "comparator": "GE",
+          "lhs": {
+           "qty": {
+            "filter": {
+             "controller": "You",
+             "properties": [
+              {
+               "type": "InZone",
+               "zone": "Battlefield"
+              }
+             ],
+             "type": "Typed",
+             "type_filters": [
+              {
+               "Subtype": "Human"
+              }
+             ]
+            },
+            "type": "ObjectCount"
+           },
+           "type": "Ref"
+          },
+          "rhs": {
+           "type": "Fixed",
+           "value": 6
+          },
+          "type": "QuantityCheck"
+         },
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "count": {
+           "type": "Fixed",
+           "value": 1
+          },
+          "target": {
+           "type": "Controller"
+          },
+          "type": "Draw"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": null,
+         "sub_link": "SequentialSibling",
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "mode": "Phase",
+       "optional": false,
+       "origin": null,
+       "phase": "BeginCombat",
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": null,
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "all_parts": [
+     {
+      "component": "token",
+      "id": "491fc1c3-a46e-4cfd-a749-57f4c96f6aea",
+      "name": "Human Knight",
+      "oracle_id": "1ee82580-9d1d-4908-8d58-99f7781b08f4",
+      "type_line": "Token Creature — Human Knight"
+     }
+    ],
+    "arena_available": false,
+    "cmc": 5.0,
+    "color_identity": [
+     "R",
+     "U",
+     "W"
+    ],
+    "colors": [
+     "R",
+     "U",
+     "W"
+    ],
+    "keywords": [
+     "First strike"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}{U}{R}{W}",
+    "name": "Éowyn, Shieldmaiden",
+    "oracle_id": "98a2a642-a30a-43e7-b47f-4776c22d1cb0",
+    "oracle_text": "First strike\nAt the beginning of combat on your turn, if another Human entered the battlefield under your control this turn, create two 2/2 red Human Knight creature tokens with trample and haste. Then if you control six or more Humans, draw a card.",
+    "power": "5",
+    "toughness": "4",
+    "type_line": "Legendary Creature — Human Knight"
    }
   }
  },

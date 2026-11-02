@@ -364,6 +364,12 @@ def _fuel(unit: AbilityUnit) -> str:
             # that sacrifices a mobilized one (CR 511.3, 702.181a).
             return "combat"
         return "deaths"
+    if ev == "changes_zone" and getattr(node, "origin", None) == "Graveyard":
+        # Cards leaving your graveyard (Teval's Judgment): fuel only a deck
+        # that moves them out — recursion, escape, delve — supplies, not
+        # every permanent entering. Read as "enters" it was a self-fueled
+        # engine in Multiverse Reforged's graveyard-less deck (2026-11-02).
+        return "graveyard_leave"
     if ev in ENTERS_EVENTS or ev == "changes_zone":
         return "enters"
     if ev in _COMBAT_EVENTS:
@@ -670,6 +676,9 @@ WEIGHTS: dict[str, float] = {
 #: Food makers. Read as free fodder, these topped the draw pages of a Knights
 #: deck and a Zombie deck over Rhystic Study and Brainstorm (2026-10-31).
 _FUEL_REFERENCE: dict[str, float] = {
+    # Cards that move cards out of your graveyard (recursion, reanimation,
+    # recast from it): Teval's Judgment's draw runs on them.
+    "graveyard_leave": 1 / 8,
     "x1_creatures_or_tokens": 1 / 4,
     "fodder": 1 / 4,
     "creatures": 1 / 3,
@@ -679,6 +688,11 @@ _FUEL_REFERENCE: dict[str, float] = {
 }
 #: The fuels a deck must supply, by the trigger's fuel class.
 _DECK_FUELS = frozenset({"deaths", "enters", "creature_cast", "you_cast", "combat"})
+#: The keys of a card that moves cards out of your graveyard (the makers of
+#: ``commander_need``'s "cards leaving your graveyard").
+_GRAVEYARD_LEAVE_KEYS = frozenset(
+    {"creature_recursion", "permanent_recast", "reanimator"}
+)
 #: Makers of the predefined artifact tokens a sacrifice-draw eats (Deadly
 #: Dispute's "artifact or creature").
 _FODDER_TOKEN_KEYS = frozenset({"treasure_makers", "clue_makers", "food_makers"})
@@ -691,6 +705,8 @@ def _source_fuel(s: _Source) -> str | None:
         return None
     if s.fuel == "equipped_dies":
         return "x1_creatures_or_tokens"
+    if s.fuel == "graveyard_leave":
+        return "graveyard_leave"
     if s.fuel not in _DECK_FUELS:
         return None
     if s.watched & {"Instant", "Sorcery"} and not s.watched - {"Instant", "Sorcery"}:
@@ -744,6 +760,8 @@ def _feeds(record: dict, fuel: str) -> bool:
     if fuel == "artifacts":
         return "Artifact" in face
     keys = signal_keys_for(record)
+    if fuel == "graveyard_leave":
+        return bool(keys & _GRAVEYARD_LEAVE_KEYS)
     makes_bodies = "token_maker" in keys
     if fuel == "creatures":
         return "Creature" in face or makes_bodies

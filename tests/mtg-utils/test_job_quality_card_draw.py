@@ -187,3 +187,13 @@ def test_a_draw_only_off_an_attacking_token_is_combat_fuel():
     f = read_for("card_draw").features(test_card("Zurgo Stormrender"))
     assert f["combat"] == 1.0
     assert f["self_fuel"] == 0.0
+
+
+def test_cards_leaving_the_graveyard_are_no_self_fuel():
+    """Teval's Judgment draws "whenever one or more cards leave your
+    graveyard": a deck has to move them out, so it is no engine every
+    permanent entering fires (Multiverse Reforged, 2026-11-02)."""
+    from mtg_utils._analysis.job_quality import read_for
+
+    f = read_for("card_draw").features(test_card("Teval's Judgment"))
+    assert f["self_fuel"] == 0.0

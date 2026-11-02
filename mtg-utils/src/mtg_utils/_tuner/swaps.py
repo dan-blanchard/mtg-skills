@@ -2207,8 +2207,10 @@ def propose_swaps(
             # A resource the commander makes itself is consumed whatever the
             # deck holds of the consumers: Temmet loots on every attack, and
             # Archfiend of Ifnir is one of three discard payoffs Eternal Might
-            # holds (2026-11-02).
-            need.kind == "resource"
+            # holds (2026-11-02). A condition on the commander's own text is
+            # its plan however broad: Éowyn's "if another Human entered the
+            # battlefield … this turn" (Increasing Devotion, Riders of Rohan).
+            need.kind in ("resource", "condition")
             or (
                 need.kind == "payoff"
                 and need.types

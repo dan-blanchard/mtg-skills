@@ -1296,6 +1296,31 @@ proposal as a deckbuilder, fix the structure, the guide score is a yardstick)**
   creatures), Aetherflux Conduit's 50-energy draw (an energy deck's own
   payoff), Faerie Slumber Party (a symmetric bounce filling a real wipe
   shortfall). `verify_symptoms.py`: 90.
+- **Batch 16l (2026-11-02; the 25 733 / 339 / 119 → 733 / 339 / 120, held-out
+  566 / 262 / 108 unchanged, fresh 294 / 126 / 52 → 294 / 126 / 53).** The
+  re-read of batch 16k's 18 proposals. Fixed: (90) *cards leaving your
+  graveyard are their own draw fuel* (`job_quality.card_draw._fuel`:
+  "graveyard_leave", fed by the deck's recursion — `creature_recursion`,
+  `permanent_recast`, `reanimator` — at an eighth of its nonland cards):
+  Teval's Judgment read as an "enters" engine every deck fuels and replaced
+  Staff of the Storyteller in Multiverse Reforged, which moves nothing out
+  of its graveyard; it scores 0 there now and keeps 0.45 in Sultai Arisen.
+  (91) *a commander's "if a creature of a type entered this turn" is a
+  need* (`commander_need._condition_need`, `BattlefieldEntriesThisTurn`: the
+  type's cards and its token makers), *held by the upgrade gate however
+  broad* (`swaps` kept needs take `condition` needs beside `resource`):
+  Éowyn, Shieldmaiden's "if another Human entered the battlefield under
+  your control this turn" — Increasing Devotion went to Burnished Hart and
+  Riders of Rohan to Skullclamp; they now go to Captain Lannery Storm and
+  Professional Face-Breaker, both Humans. Verdicts, with the check: Dawn of
+  Hope in Multiverse Reforged (nine lifegain makers, and it makes lifelink
+  Soldiers); Bitter Triumph for Anger in Mardu Surge (the interaction row
+  had reached its top after the fills — `job_room` is max minus current —
+  so the slot moved onto the theme inside the band); Blame Game's Take the
+  Bait for Avacyn and Vow of Duty for Wyll's Reversal (protection for
+  better-played protection); Hero of Bladehold for Maskwood Nexus (theme
+  for theme); Pashalik Mons (it makes its own Goblins). `verify_symptoms.py`:
+  92.
 
 **From the Jace, Multiverse Architect precon tune and the 25-precon audit (2026-10-17 to 2026-11-01)**
 

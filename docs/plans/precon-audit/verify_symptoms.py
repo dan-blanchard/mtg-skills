@@ -172,6 +172,10 @@ CHECKS = [
     _check("no_pair", "RevenantRecon_MKC", "Black Sun's Zenith -> Negate", batch="16k"),
     _check("never", "AbzanArmor_TDC", "Invisible Woman, Sue Storm", batch="16k"),
     _check("never", "NecronDynasties_40K", "Sanguine Bond", batch="16k"),
+    # Cards leaving the graveyard are no self-fuel for a draw engine.
+    _check("no_pair", "MultiverseReforged_FRC", "Staff of the Storyteller -> Teval's Judgment", batch="16l"),
+    # A condition on the commander's text is kept however broad (Éowyn's Humans entering).
+    _check("no_pair", "RidersOfRohan_LTC", "Increasing Devotion -> Burnished Hart", batch="16l"),
     _check("no_trim", "EldraziIncursion_M3C", "Forsaken Monument", batch="14"),
     _check("no_trim", "TrickyTerrain_M3C", "Mana Reflection", batch="14"),
 ]

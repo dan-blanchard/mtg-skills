@@ -758,3 +758,13 @@ def test_a_commanders_own_lifelink_asks_for_no_lifegain_payoffs():
     labels = _labels(_needs("Olivia, Opulent Outlaw"))
     assert not any("lifegain" in label for label in labels)
     assert any("treasure" in label for label in labels)
+
+
+def test_a_humans_entering_condition_wants_humans_and_their_makers():
+    """Éowyn, Shieldmaiden makes her Knights "if another Human entered the
+    battlefield under your control this turn": the Humans and the makers of
+    Human tokens supply it (Riders of Rohan, 2026-11-02)."""
+    need = _need("Éowyn, Shieldmaiden", "Human entering this turn")
+    assert satisfies(test_card("Increasing Devotion"), need)
+    assert satisfies(test_card("Champion of the Parish"), need)
+    assert not satisfies(test_card("Burnished Hart"), need)
