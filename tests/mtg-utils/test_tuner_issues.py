@@ -717,3 +717,14 @@ def test_a_rider_loses_its_job_only_on_a_plan_card():
         upgrade_job({"interaction"}, test_card("Ravenous Chupacabra"), on_plan=True)
         == "interaction"
     )
+
+
+def test_no_keep_page_for_a_commander_paid_by_its_tokens_leaving():
+    """Zurgo Stormrender's mobilize tokens go at the next end step, and its
+    "Whenever a creature token you control leaves the battlefield" is paid
+    by that: no Sundial page (Mardu Surge, 2026-11-02). Saheeli, Radiant
+    Creator keeps hers."""
+    from mtg_utils._tuner.issues import keep_search
+
+    assert keep_search([test_card("Zurgo Stormrender")]) is None
+    assert keep_search([test_card("Saheeli, Radiant Creator")]) is not None

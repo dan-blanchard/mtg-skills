@@ -543,3 +543,14 @@ def test_a_sweep_that_gives_your_creatures_back_is_one_sided():
     (Lorehold Spirit, 2026-11-02); Wrath of God does not."""
     assert board_wipe.features(test_card("Ceaseless Conflict"))["one_sided"] == 1.0
     assert board_wipe.features(test_card("Wrath of God"))["one_sided"] == 0.0
+
+
+def test_a_shrink_sized_by_the_sacrificed_toughness_spares_tough_decks():
+    """Tip the Scales gives "-X/-X ... where X is the sacrificed creature's
+    toughness": sacrifice a small one, and a deck of walls keeps its board
+    (Abzan Armor, 2026-11-02); a deck of 2/2s doesn't."""
+    tip = test_card("Tip the Scales")
+    walls = [test_card("Wall of Omens")] * 10
+    bears = [test_card("Grizzly Bears")] * 10
+    assert board_wipe.features(tip, walls)["one_sided"] == 1.0
+    assert board_wipe.features(tip, bears)["one_sided"] == 0.0

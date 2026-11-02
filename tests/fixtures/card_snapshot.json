@@ -1182248,6 +1182248,198 @@
     "type_line": "Legendary Creature — Skeleton Rogue"
    }
   },
+  "Tip the Scales": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Sacrifice a creature. When you do, all creatures get -X/-X until end of turn, where X is the sacrificed creature's toughness.",
+       "duration": null,
+       "effect": {
+        "count": {
+         "type": "Fixed",
+         "value": 1
+        },
+        "target": {
+         "controller": null,
+         "properties": [],
+         "type": "Typed",
+         "type_filters": [
+          "Creature"
+         ]
+        },
+        "type": "Sacrifice"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": {
+         "type": "WhenYouDo"
+        },
+        "cost": null,
+        "description": null,
+        "duration": "UntilEndOfTurn",
+        "effect": {
+         "power": {
+          "type": "Quantity",
+          "value": {
+           "factor": -1,
+           "inner": {
+            "qty": {
+             "scope": {
+              "type": "CostPaidObject"
+             },
+             "type": "Toughness"
+            },
+            "type": "Ref"
+           },
+           "type": "Multiply"
+          }
+         },
+         "target": {
+          "controller": null,
+          "properties": [],
+          "type": "Typed",
+          "type_filters": [
+           "Creature"
+          ]
+         },
+         "toughness": {
+          "type": "Quantity",
+          "value": {
+           "factor": -1,
+           "inner": {
+            "qty": {
+             "scope": {
+              "type": "CostPaidObject"
+             },
+             "type": "Toughness"
+            },
+            "type": "Ref"
+           },
+           "type": "Multiply"
+          }
+         },
+         "type": "PumpAll"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "sub_link": "SequentialSibling",
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Sorcery"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Black"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 2,
+      "shards": [
+       "Black"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "00b492ca-9cba-4d51-91b9-41430c6933a1",
+       "addfb20e-dade-431e-8505-900b2311d45c"
+      ]
+     },
+     "name": "Tip the Scales",
+     "non_ability_text": null,
+     "oracle_text": "Sacrifice a creature. When you do, all creatures get -X/-X until end of turn, where X is the sacrificed creature's toughness.",
+     "power": null,
+     "printings": [
+      "TDC"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2025-04-04",
+       "text": "Use the sacrificed creature’s toughness as it last existed on the battlefield to determine the value of X."
+      },
+      {
+       "date": "2025-04-04",
+       "text": "You don’t choose which creature to sacrifice until Tip the Scales resolves. You must sacrifice exactly one creature if you control one at that time. Doing so causes a “reflexive” ability to trigger. Players may respond to that ability knowing the value of X."
+      }
+     ],
+     "scryfall_oracle_id": "f7cac691-960f-4e36-8eae-f24bcdc1269b",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 3.0,
+    "color_identity": [
+     "B"
+    ],
+    "colors": [
+     "B"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}{B}",
+    "name": "Tip the Scales",
+    "oracle_id": "f7cac691-960f-4e36-8eae-f24bcdc1269b",
+    "oracle_text": "Sacrifice a creature. When you do, all creatures get -X/-X until end of turn, where X is the sacrificed creature's toughness.",
+    "type_line": "Sorcery"
+   }
+  },
   "Tippy-Toe, Terrific Partner": {
    "phase_records": [
     {

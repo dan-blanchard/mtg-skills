@@ -2637,13 +2637,32 @@ def propose_swaps(
     # before the tune; this protects the ones the tune completes.
     relied_on: set[str] = set()
 
-    def take_cut(pool: str, keep: Collection[str] = ()) -> tuple[str, CardClass] | None:
+    def take_cut(
+        pool: str, keep: Collection[str] = (), filling: str | None = None
+    ) -> tuple[str, CardClass] | None:
+        skipped: list[tuple[str, CardClass]] = []
+        found = None
         for reason, card in cut_iters.get(pool, iter(())):
             if card.name in relied_on or card.name in keep:
                 continue  # an add the proposal makes needs it
+            if filling is not None and any(
+                r == filling or (ctx.budgets.get(r) or {}).get("deviation", 0) < 0
+                for r in card.roles
+            ):
+                # A fill never cuts a card of a row the deck is short of, its
+                # own or another: Gix, Yawgmoth Praetor's draw went for Black
+                # Market Connections to fill ramp (Mardu Surge, 2026-11-02).
+                # Kept for a later issue.
+                skipped.append((reason, card))
+                continue
             if used_cuts[card.name] < card.quantity:
-                return reason, card
-        return None
+                found = (reason, card)
+                break
+        if skipped:
+            # The pool iterator is shared: put back what this fill passed over.
+            rest = list(cut_iters.get(pool, iter(())))
+            cut_iters[pool] = iter(skipped + rest)
+        return found
 
     def take_lane_ok_cut(keep: Collection[str] = ()) -> tuple[str, CardClass] | None:
         """A ``lane_ok`` remedy's cut once its own pool is dry: the jobless
@@ -3721,7 +3740,11 @@ def propose_swaps(
                         f"{allow_buys}, or allow it again."
                     )
                 break
-            cut_entry = take_cut(remedy.cut_from, issue.relies_on)
+            cut_entry = take_cut(
+                remedy.cut_from,
+                issue.relies_on,
+                filling=issue.role if issue.kind == "role_short" else None,
+            )
             if cut_entry is None and remedy.lane_ok:
                 cut_entry = take_lane_ok_cut(issue.relies_on)
             if cut_entry is None:

@@ -31,7 +31,11 @@ from mtg_utils._analysis.signal_specs import (
     avenue_spec_for,
 )
 from mtg_utils._card_ir.crosswalk import token_doubler_kinds
-from mtg_utils._card_ir.crosswalk.reads import trigger_def_event, watches_itself
+from mtg_utils._card_ir.crosswalk.reads import (
+    filter_predicates,
+    trigger_def_event,
+    watches_itself,
+)
 from mtg_utils._card_ir.trees import trees_for
 from mtg_utils._tuner.metrics import CALIBRATION_GAME, _cares_keys, is_wincon_card
 from mtg_utils.card_classify import (
@@ -149,6 +153,24 @@ def _fixed_cost(card: Mapping, **_kw: object) -> bool:
 _KEEP_SERVE = Serve(signal_idents=frozenset({"end_the_turn|you|instant"}))
 
 
+def _pays_off_tokens_leaving(record: Mapping) -> bool:
+    """Whether the commander's own trigger watches its tokens leave or die:
+    Zurgo Stormrender's "Whenever a creature token you control leaves the
+    battlefield" is paid by the end-step sacrifice of its mobilize tokens, so
+    keeping them is no plan — Sundial of the Infinite took Gix, Yawgmoth
+    Praetor's slot in Mardu Surge (2026-11-02)."""
+    for tree in trees_for(dict(record)):
+        for unit in tree.units:
+            if unit.origin != "trigger":
+                continue
+            if trigger_def_event(unit.node) not in ("leaves", "dies", "sacrificed"):
+                continue
+            valid = getattr(unit.node, "valid_card", None)
+            if "Token" in filter_predicates(valid):
+                return True
+    return False
+
+
 def keep_search(commanders: Sequence[Mapping]) -> dict | None:
     """The ``commander_keeps`` issue's search, or ``None`` when no commander's
     permanents go at the next end step (``multipliers.Commander``'s
@@ -156,7 +178,11 @@ def keep_search(commanders: Sequence[Mapping]) -> dict | None:
     them every turn (``multipliers``' ``"keep"`` family — Sundial of the
     Infinite under Saheeli, Radiant Creator; CR 724.1b). Every guide whose
     commander makes such tokens adds Sundial (four precons, 2026-10-30)."""
-    cmds = [cmd for cmd in map(Commander, commanders) if cmd.sacrifices_at_end_step]
+    cmds = [
+        cmd
+        for cmd, record in zip(map(Commander, commanders), commanders, strict=True)
+        if cmd.sacrifices_at_end_step and not _pays_off_tokens_leaving(record)
+    ]
     if not cmds:
         return None
 

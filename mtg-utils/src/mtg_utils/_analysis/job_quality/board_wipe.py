@@ -847,6 +847,16 @@ _FACE_DOWN_KEYWORDS = frozenset({"Morph", "Megamorph", "Disguise", "Cloak", "Man
 
 def _spared_power(node: object, filt: object) -> tuple[str, int] | None:
     """What a sweep's power bound spares (:attr:`_Sweep.spared_power`)."""
+    if tag_of(node) == "PumpAll" and any(
+        tag_of(n) == "Toughness"
+        and tag_of(getattr(n, "scope", None)) == "CostPaidObject"
+        for n in iter_typed_nodes(getattr(node, "toughness", None))
+    ):
+        # "-X/-X, where X is the sacrificed creature's toughness" (Tip the
+        # Scales): the caster sets the line by what it sacrifices, so it
+        # spares the creatures tougher than that — Felothar's walls in Abzan
+        # Armor (2026-11-02). Read at the chosen line's 3.
+        return ("tough_chosen", _CHOSEN_POWER_BOUND)
     if tag_of(node) == "ChooseAndSacrificeRest":
         cap = getattr(node, "total_power_cap", None)
         value = getattr(cap, "value", None)
@@ -897,6 +907,11 @@ def power_bound_hits(card: dict, record: Mapping) -> bool:
         if s.spared_power is None:
             continue
         kind, bound = s.spared_power
+        if kind == "tough_chosen":
+            toughness = fixed_stat(record.get("toughness"))
+            if isinstance(toughness, int) and toughness <= bound:
+                return True
+            continue
         if (kind == "below" and power >= bound) or (kind == "total" and power > bound):
             return True
     return False
@@ -927,7 +942,13 @@ def _deck_spares_power(deck: Sequence[dict], spared: tuple[str, int]) -> bool:
         value = fixed_stat(r.get("power"))
         return value if isinstance(value, int) else None
 
-    if kind in ("below", "chosen"):
+    if kind == "tough_chosen":
+        kept = sum(
+            1
+            for r in creatures
+            if isinstance(t := fixed_stat(r.get("toughness")), int) and t > bound
+        )
+    elif kind in ("below", "chosen"):
         kept = sum(1 for r in creatures if (pw := power(r)) is not None and pw < bound)
     else:
         kept = sum(1 for r in creatures if power(r) == 0)

@@ -1606,6 +1606,32 @@ proposal as a deckbuilder, fix the structure, the guide score is a yardstick)**
   nonland permanent), Chainsaw ("3 damage to up to one target creature"),
   Rose Room Treasurer (X damage from the third creature a turn, which
   Tinker Time's token makers reach). `verify_symptoms.py`: 141.
+- **Batch 16v (2026-11-02; the 25 728 / 339 / 117 → 728 / 339 / 116, held-out
+  and fresh unchanged at 561 / 263 / 103 and 294 / 126 / 51).** The fifth
+  full 55-deck re-read (five Sonnet reviewers; 16 flags, the fewest yet).
+  Fixed: (145) *no keep page for a commander paid by its tokens leaving*
+  (`issues._pays_off_tokens_leaving`): Zurgo Stormrender's "Whenever a
+  creature token you control leaves the battlefield" is paid by its
+  mobilize tokens' end-step sacrifice, and Sundial of the Infinite had
+  taken Gix, Yawgmoth Praetor's slot in Mardu Surge; Saheeli and Sliver
+  Gravemother keep theirs. (146) *a shrink sized by the sacrificed
+  creature's toughness spares the deck's tougher creatures*
+  (`board_wipe` spared kind `tough_chosen`, read at the chosen line's 3):
+  Tip the Scales under Felothar's walls now goes to The Battle of Bywater,
+  not White Sun's Twilight. (147) *a fill never cuts a card of a row the
+  deck is short of* (`take_cut(filling=…)`, as the lane-ok fallback since
+  16r) — no proposal changed. Verdicts, with the card text, rulings or
+  needs: Aetherflux Reservoir in Animated Army (Bello animates it); Haliya
+  in Deep Clue Sea (each Clue entering gains a life); Norn's Decree for
+  Hot Pursuit (goad for goad); Dune Chanter for Icetill Explorer and
+  Hangarback Walker for Lulu, Nissa, Steward of Elements for Brotherhood
+  Regalia (a need for a need); Heartless Hidetsugu with Angrath's Marauders
+  (Spellbook's own prerequisite: "You have an odd life total", so you
+  survive at 1); Massacre Girl, Known Killer as draw (its wither feeds its
+  own toughness-below-1 draw); Gix for Black Market Connections (card draw
+  is in band in Mardu Surge: a strong body for a real ramp fill); Viscera
+  Seer for Inkshield (both supply Zurgo's token-leaves need).
+  `verify_symptoms.py`: 143.
 
 **From the Jace, Multiverse Architect precon tune and the 25-precon audit (2026-10-17 to 2026-11-01)**
 

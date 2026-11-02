@@ -230,6 +230,9 @@ CHECKS = [
     _check("no_pair", "WorldShaper_EOC", "Sprouting Goblin -> Shadow, Mysterious Assassin", batch="16s"),
     _check("never", "WorldShaper_EOC", "Aggressive Mining", batch="16t"),
     _check("no_pair", "RidersOfRohan_LTC", "Palace Jailer -> Fling", "Fiend Hunter -> Fling", "Fiend Hunter -> Thornbite Staff", batch="16u"),
+    # The fifth full re-read (batch 16v).
+    _check("never", "MarduSurge_TDC", "Sundial of the Infinite", batch="16v"),
+    _check("no_pair", "AbzanArmor_TDC", "Tip the Scales -> White Sun's Twilight", batch="16v"),
     _check("no_pair", "CreativeEnergy_M3C", "Silverquill Lecturer -> Boromir, Warden of the Tower", batch="16n"),
     _check("no_pair", "TinkerTime_MOC", "Feldon of the Third Path -> Skullclamp", batch="16n"),
     _check("no_trim", "EldraziIncursion_M3C", "Forsaken Monument", batch="14"),
