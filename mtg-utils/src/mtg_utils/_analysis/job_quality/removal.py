@@ -50,7 +50,11 @@ from mtg_utils._card_ir.crosswalk import (
     iter_cost_leaves,
     tag_of,
 )
-from mtg_utils._card_ir.crosswalk.reads import filter_inzone_zones, iter_typed_nodes
+from mtg_utils._card_ir.crosswalk.reads import (
+    counter_kind_any,
+    filter_inzone_zones,
+    iter_typed_nodes,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -117,6 +121,13 @@ def _amount(c: ConceptNode) -> int | None:
         a = getattr(c.node, "amount", None)
         v = fixed_value(a)
         return v if v is not None else (_SCALING if a is not None else None)
+    if c.concept == "place_counter" and counter_kind_any(c.node) == "M1M1":
+        # Each -1/-1 counter takes a point of toughness (CR 122.1a): Contagion
+        # Clasp's one counter kills an X/1, no more — it read as unconditional
+        # removal and replaced Spine of Ish Sah (Tinker Time, 2026-11-02).
+        n = getattr(c.node, "count", None)
+        v = fixed_value(n)
+        return v if v is not None else (_SCALING if n is not None else None)
     if c.concept == "pump":
         t = getattr(c.node, "toughness", None)
         v = fixed_value(t)
@@ -323,7 +334,11 @@ def features(card: dict) -> dict[str, float] | None:
     instant = best.instant
     cost = _removal_cost(card, answers)
     unconditional = not best.conditional
-    small = best.mode in ("damage", "shrink") and (best.amount or 0) < KILL_SIZE
+    small = (
+        best.mode in ("damage", "shrink", "counters")
+        and best.amount is not None
+        and best.amount < KILL_SIZE
+    ) or (best.mode in ("damage", "shrink") and best.amount is None)
     kinds = {a.kind for a in answers}
     trees = signal_trees_for(card, bulk=card) if best.until_leaves else ()
     return {

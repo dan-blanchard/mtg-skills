@@ -209,3 +209,14 @@ def test_a_sorcery_cast_as_though_it_had_flash_is_instant_removal():
     (``AsThoughHadFlash``), never an ability: CR 702.8a lets it be cast any time
     you could cast an instant, so it answers in response like Murder."""
     assert removal.features(_real("Mutual Destruction"))["instant"] == 1.0
+
+
+def test_a_minus_counter_kills_only_what_it_shrinks():
+    """Each -1/-1 counter takes a point of toughness (CR 122.1a): Contagion
+    Clasp's one counter is small removal, below Spine of Ish Sah's "destroy
+    target permanent" (Tinker Time, 2026-11-02)."""
+    assert removal.features(test_card("Contagion Clasp"))["small"] == 1.0
+    read = read_for("interaction")
+    assert read.score(test_card("Contagion Clasp")) < read.score(
+        test_card("Spine of Ish Sah")
+    )

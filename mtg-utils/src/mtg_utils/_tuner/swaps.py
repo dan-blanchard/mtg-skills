@@ -51,6 +51,8 @@ from mtg_utils._card_ir.crosswalk.reads import (
     _present,
     filter_controller,
     filter_core_types,
+    filter_inzone_zones,
+    filter_non_types,
     filter_predicates,
     filter_subtypes,
     iter_cost_leaves,
@@ -430,7 +432,11 @@ def _spares_less_of_the_deck(
     weight on sparing too small to hold them (2026-11-02). A power line that
     kills a commander spares nothing that matters: Dusk spares most of
     Virtue and Valor's creatures by printed power, but not Ellivere of the
-    Wild Court, a 4-power commander — Winds of Rath went to it (2026-11-02)."""
+    Wild Court, a 4-power commander — Winds of Rath went to it (2026-11-02).
+    Nor a type left out the commander is not: Extinguish All Hope spares
+    Enduring Enchantments' enchantment creatures, Anikthea among them, and
+    went to The One Ring to Rule Them All, whose "nonlegendary" spares six of
+    them (2026-11-02)."""
     from mtg_utils._analysis.job_quality import board_wipe
 
     def one_sided(card: dict) -> bool | None:
@@ -438,7 +444,8 @@ def _spares_less_of_the_deck(
         if not f:
             return None
         return f.get("one_sided", 0) > 0 and not any(
-            board_wipe.power_bound_hits(card, c) for c in commanders
+            board_wipe.power_bound_hits(card, c) or board_wipe.type_bound_hits(card, c)
+            for c in commanders
         )
 
     a, b = one_sided(candidate), one_sided(dict(cut))
@@ -822,9 +829,59 @@ def deck_profile(classes: Sequence[CardClass]) -> tuple[Counter, Counter, Counte
     if any(
         c.bucket == "commander" and grants_all_creature_types(c.record) for c in classes
     ):
+        printed = Counter(tribes)
+        tribes = _Tribes(tribes)
+        tribes.printed = printed
         for word in _CREATURE_SUBTYPE_WORDS:
             tribes[word] = max(tribes[word], 2 * _FEEDER_FLOOR)
     return keys, tribes, types
+
+
+class _Tribes(Counter):
+    """The deck's tribes under a commander that makes its creatures every
+    type, with the ``printed`` counts beside them: the grant reaches only
+    creatures on the battlefield (Omo's "each nonland creature with an
+    everything counter on it"), never a spell or a card in the library."""
+
+    printed: Counter
+
+
+def _chosen_type_on_battlefield(card: Mapping) -> bool:
+    """Whether the card reads its chosen creature type off permanents you
+    control (an anthem's affected creatures, an enters or attacks trigger's,
+    Distant Melody's count), or has no chosen type at all (Coat of Arms) —
+    rather than only off spells cast or cards in a library (Herald's Horn's
+    discount and upkeep reveal), where a grant of every type (Omo) never
+    reaches: Tricky Terrain's biggest printed tribe is four Hydras, and
+    Herald's Horn went in (2026-11-02)."""
+    found = False
+    for tree in trees_for(dict(card)):
+        for unit in tree.units:
+            node = unit.node
+            off: set[int] = set()
+            if unit.origin == "trigger" and getattr(node, "mode", None) == "SpellCast":
+                off |= {
+                    id(n) for n in iter_typed_nodes(getattr(node, "valid_card", None))
+                }
+            if unit.origin == "static":
+                mode = getattr(node, "mode", None)
+                off |= {
+                    id(n) for n in iter_typed_nodes(getattr(mode, "spell_filter", None))
+                }
+            for n in unit.iter_typed():
+                if tag_of(n) != "Typed" or not any(
+                    tag_of(p) == "IsChosenCreatureType"
+                    for p in list_field(n, "properties")
+                ):
+                    continue
+                found = True
+                if (
+                    id(n) not in off
+                    and filter_controller(n) == "You"
+                    and not filter_inzone_zones(n)
+                ):
+                    return True
+    return not found
 
 
 def dead_payoff(
@@ -994,6 +1051,12 @@ class _UnitGates:
                 )
                 if sum(keys.get(k, 0) for k in feeders) >= _FEEDER_FLOOR:
                     return True
+            elif word.startswith(_NON_PREFIX):
+                others = deck_types.get("creature", 0) - deck_tribes.get(
+                    word.removeprefix(_NON_PREFIX), 0
+                )
+                if others >= _FEEDER_FLOOR:
+                    return True
             elif word == _COUNTERS_GATE:
                 keys = deck_keys or Counter()
                 if sum(keys.get(k, 0) for k in _COUNTER_GATE_FEEDERS) >= _FEEDER_FLOOR:
@@ -1018,6 +1081,14 @@ def _gate_words(filt: object) -> frozenset[str]:
     gear type), its card types in :data:`_GATE_TYPE_WORDS`, and a legendary
     supertype — never a land type or a word every deck has."""
     words = {w.lower() for w in filter_subtypes(filt)}
+    # A creature type the filter leaves out ("a non-Human creature you
+    # control", Winota) is fed by the deck's creatures of any other type:
+    # Riders of Rohan holds three non-Humans of 31 creatures (2026-11-02).
+    words |= {
+        f"{_NON_PREFIX}{w.lower()}"
+        for w in filter_non_types(filt)
+        if w.lower() in _CREATURE_SUBTYPE_WORDS
+    }
     cores = {w.lower() for w in filter_core_types(filt)}
     words |= cores & _GATE_TYPE_WORDS
     if any(
@@ -1213,6 +1284,9 @@ def _unit_gates(card: Mapping) -> _UnitGates:
     )
 
 
+#: A gate word for a creature type a filter leaves out (:func:`_gate_words`).
+_NON_PREFIX = "non-"
+
 #: The gate of a card that opens an Attraction (CR 701.51a: only with an
 #: Attraction deck, CR 717): fed only by
 #: Attraction cards, which no Commander precon's deck holds.
@@ -1328,6 +1402,9 @@ def _biggest_choosable_tribe(card: Mapping, deck_tribes: Counter) -> int:
     """The deck's biggest tribe the card may choose: any tribe for a free
     choice, only the listed ones for a listed choice — Most Wanted's twelve
     Humans fed Dawn-Blessed Pennant, which can't name one (2026-11-02)."""
+    printed = getattr(deck_tribes, "printed", None)
+    if printed is not None and not _chosen_type_on_battlefield(card):
+        deck_tribes = printed
     options = _choosable_types(card)
     if options is None:
         return max(deck_tribes.values(), default=0)
@@ -3009,6 +3086,15 @@ def propose_swaps(
                 card, trim_of.record, None, off_theme=off_theme
             ):
                 continue  # a trim's add keeps its cut's band
+            if trim_of is not None and role_of(card, deck_mana=ctx.deck_mana) & {
+                r
+                for r in trim_of.roles
+                if (ctx.budgets.get(r) or {}).get("deviation", 0) > 0
+            }:
+                # A trim's add is no member of the row it trims: Wizard Class
+                # went to Deep Analysis for "card draw over by 9" (Peace
+                # Offering, 2026-11-02).
+                continue
             cost = acquire_cost(card)
             if cost is None:
                 continue

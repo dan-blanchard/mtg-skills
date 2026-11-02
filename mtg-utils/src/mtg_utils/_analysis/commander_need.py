@@ -84,6 +84,7 @@ from mtg_utils._card_ir.crosswalk.reads import (
     filter_mana_value_floor,
     filter_non_types,
     filter_owned_controller,
+    filter_owners,
     filter_predicates,
     filter_subtypes,
     iter_condition_sites,
@@ -218,8 +219,25 @@ _EXTRA_CONSUMER_KEYS: Mapping[str, frozenset[str]] = {
 _EXTRA_CONSUMER_IDENTS: Mapping[str, frozenset[str]] = {
     "land_sacrifice_makers": frozenset({"permanent_recast|you|land"}),
 }
+
+
+def _sacrifices_artifacts(card: dict) -> bool:
+    """Whether a cost of the card sacrifices an artifact of yours: a Food
+    token is an artifact (CR 111.10b), so Trading Post's "Sacrifice an
+    artifact: Draw a card" spends Sam, Loyal Attendant's Foods — it went to
+    Village Rites, which spends none (Food and Fellowship, 2026-11-02)."""
+    return any(
+        tag_of(leaf) == "Sacrifice"
+        and "Artifact" in filter_core_types(getattr(leaf, "target", None))
+        for tree in trees_for(dict(card))
+        for unit in tree.units
+        for leaf in iter_cost_leaves(getattr(unit.node, "cost", None))
+    )
+
+
 _EXTRA_CONSUMER_PREDICATES: Mapping[str, Callable[[dict], bool]] = {
     "land_sacrifice_makers": plays_extra_lands,
+    "food_makers": _sacrifices_artifacts,
 }
 
 #: Payoff keys with no maker lane behind them: the payoff is the doing, so a
@@ -811,6 +829,131 @@ def _counter_kind_needs(unit_node: object, desc: str) -> Iterator[Need]:
         )
 
 
+#: The keywords a permanent enters with counters of a kind under (CR
+#: 702.63a: vanishing's "This permanent enters with N time counters on it").
+_ENTERS_WITH_COUNTERS: Mapping[str, frozenset[str]] = {
+    "TIME": frozenset({"Vanishing"}),
+}
+
+
+def _has_x_cost(card: dict) -> bool:
+    """Whether a face of the card has {X} in its mana cost (CR 107.3)."""
+    faces = card.get("card_faces") or [card]
+    return any("{X}" in (f.get("mana_cost") or "") for f in faces)
+
+
+def _sacrifices_lands(card: dict) -> bool:
+    """Whether the card sacrifices a land of yours, by cost or effect: a
+    sacrifice of lands or of any permanent (God-Eternal Bontu's "sacrifice
+    any number of other permanents" can pay with lands for Hearthhull, the
+    Worldseed's "Whenever you sacrifice a land" — World Shaper, 2026-11-02).
+    Not an opponent's (an edict)."""
+    for tree in trees_for(dict(card)):
+        for unit in tree.units:
+            nodes = list(iter_cost_leaves(getattr(unit.node, "cost", None)))
+            nodes += [c.node for c in unit.effects]
+            for n in nodes:
+                if tag_of(n) != "Sacrifice":
+                    continue
+                target = getattr(n, "target", None)
+                if not _present(target) or filter_controller(target) not in (
+                    None,
+                    "You",
+                ):
+                    continue
+                if {"Land", "Permanent"} & set(filter_core_types(target)):
+                    return True
+    return False
+
+
+#: Maker keys a structural read feeds besides their lane (:func:`satisfies`).
+_MAKER_PREDICATES: Mapping[str, Callable[[dict], bool]] = {
+    "land_sacrifice_makers": _sacrifices_lands,
+}
+
+
+def _takes_from_your_graveyard(card: dict) -> bool:
+    """Whether an effect of the card moves a card out of a graveyard that may
+    be yours: Quintorius, Loremaster's "exile target noncreature, nonland
+    card from your graveyard" each end step, Deathrite Shaman's "from a
+    graveyard" — what Quintorius, History Chaser's "Whenever one or more
+    cards leave your graveyard" is fed by (Lorehold Spirit, 2026-11-02). Not
+    one limited to an opponent's graveyard."""
+    for tree in trees_for(dict(card)):
+        for unit in tree.units:
+            for c in unit.effects:
+                if c.concept != "change_zone":
+                    continue
+                if getattr(c.node, "origin", None) != "Graveyard":
+                    continue
+                target = getattr(c.node, "target", None)
+                owners = filter_owners(target) if _present(target) else [None]
+                if any(o != "Opponent" for o in owners):
+                    return True
+    return False
+
+
+def _counted_counter_needs(unit_node: object, desc: str) -> Iterator[Need]:
+    """A commander whose text counts your permanents with counters of one kind
+    wants the cards that are such permanents: Rose Tyler's "each other
+    permanent you control with a time counter on it" — The Moment, which
+    puts a time counter on itself each upkeep, went to Martial Coup (Timey
+    Wimey, 2026-11-02). +1/+1, -1/-1 and loyalty counters have needs of
+    their own (:data:`_SPENDER_SKIP_KINDS`)."""
+    seen: set[str] = set()
+    for n in iter_typed_nodes(unit_node):
+        if tag_of(n) != "ObjectCount":
+            continue
+        filt = getattr(n, "filter", None)
+        if not _present(filt) or filter_controller(filt) != "You":
+            continue
+        if "Permanent" not in filter_core_types(filt) and "Creature" not in (
+            filter_core_types(filt)
+        ):
+            continue
+        for prop in iter_typed_nodes(filt):
+            if tag_of(prop) != "Counters":
+                continue
+            counters = getattr(prop, "counters", None)
+            kind = (
+                getattr(counters, "data", None)
+                if tag_of(counters) == "OfType"
+                else None
+            )
+            if not isinstance(kind, str):
+                continue
+            kind = kind.upper()
+            if kind in _SPENDER_SKIP_KINDS or kind in seen:
+                continue
+            seen.add(kind)
+            yield Need(
+                "payoff",
+                f"permanents with {kind.lower()} counters",
+                desc,
+                predicate=_holds_counters(kind),
+            )
+
+
+def _holds_counters(kind: str) -> Callable[[dict], bool]:
+    """Whether a card puts counters of ``kind`` on a permanent, itself
+    included (The Moment's upkeep time counter), or enters with them
+    (:data:`_ENTERS_WITH_COUNTERS`)."""
+
+    def holds(card: dict) -> bool:
+        if set(card.get("keywords") or ()) & _ENTERS_WITH_COUNTERS.get(
+            kind, frozenset()
+        ):
+            return True
+        return any(
+            tag_of(n) in ("PutCounter", "PutCounterAll") and counter_kind_any(n) == kind
+            for tree in trees_for(dict(card))
+            for unit in tree.units
+            for n in unit.iter_typed()
+        )
+
+    return holds
+
+
 def _places_counters(kind: str) -> Callable[[dict], bool]:
     """Whether a card puts counters of ``kind`` on a permanent other than
     itself (Coretapper's "Put a charge counter on target artifact"). One that
@@ -891,6 +1034,7 @@ def _effect_needs(unit_node: object, desc: str) -> Iterator[Need]:
                 break
     yield from _token_kind_needs(unit_node, desc)
     yield from _counter_kind_needs(unit_node, desc)
+    yield from _counted_counter_needs(unit_node, desc)
     sacrifices = _sacrifices_a_creature(unit_node)
     for n in iter_typed_nodes(unit_node):
         if (
@@ -1288,6 +1432,12 @@ def _event_need(node: TypedMirrorNode, desc: str) -> Need | None:
             )
         return None
     if event == "cast_spell":
+        if "HasXInManaCost" in preds:
+            # "Whenever you cast your first spell with {X} in its mana cost
+            # each turn" (Zimone, Infinite Analyst): the X spells. Stonecoil
+            # Serpent went to Badgermole Cub on her page (Quandrix Unlimited,
+            # 2026-11-02).
+            return Need("event", "spells with {X}", desc, predicate=_has_x_cost)
         floor = filter_mana_value_floor(valid) if _present(valid) else None
         if floor is not None:
             return _spell_floor_need(valid, floor, desc)
@@ -1306,6 +1456,7 @@ def _event_need(node: TypedMirrorNode, desc: str) -> Need | None:
                 "cards leaving your graveyard",
                 desc,
                 keys=_GRAVEYARD_LEAVE_KEYS,
+                predicate=_takes_from_your_graveyard,
             )
         if dest == "Graveyard":
             # "put into your graveyard from anywhere" (CR 603.6c: never a
@@ -1374,12 +1525,20 @@ def _event_need(node: TypedMirrorNode, desc: str) -> Need | None:
     ):
         return _own_damage_grant_need(desc)
     if event == "deals_damage":
+        # A keyword granted to a target is evasion only when the keyword is:
+        # Zack Fair's indestructible supplied Ellivere's "enchanted creature
+        # ... deals combat damage" and took Gylwain's Roles' slot (Virtue and
+        # Valor, 2026-11-02).
         return Need(
             "event",
             "evasion for your attackers",
             desc,
-            keys=_EVASION_KEYS,
-            idents=frozenset({f"keyword_bodies|you|{k}" for k in _EVASION_KEYWORDS}),
+            keys=_EVASION_KEYS - {"keyword_grant_target"},
+            idents=frozenset(
+                f"{key}|you|{k}"
+                for key in ("keyword_bodies", "keyword_grant_target")
+                for k in _EVASION_KEYWORDS
+            ),
         )
     keys = _EVENT_MAKER_KEYS.get(event)
     if not keys:
@@ -2040,7 +2199,13 @@ def _payoff_needs(
             base = key[: -len("_matters")]
             maker = f"{base}_makers"
             if maker in _served_keys() and maker not in _UMBRELLA_KEYS:
-                yield Need("payoff", f"{base} makers", desc, keys=frozenset({maker}))
+                yield Need(
+                    "payoff",
+                    f"{base} makers",
+                    desc,
+                    keys=frozenset({maker}),
+                    predicate=_MAKER_PREDICATES.get(maker),
+                )
 
 
 def _served_keys() -> frozenset[str]:

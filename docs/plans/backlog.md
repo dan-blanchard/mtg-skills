@@ -1408,6 +1408,53 @@ proposal as a deckbuilder, fix the structure, the guide score is a yardstick)**
   as a permanent enters is "put on" it (CR 122.6) — and on the interaction
   page "destroy target noncreature permanent" reads above two -1/-1
   counters, so it is an interaction upgrade that keeps the commander's need.
+- **Batch 16p (2026-11-02; the 25 732 / 339 / 120 → 732 / 340 / 116, held-out
+  564 / 261 / 107 → 563 / 262 / 105, fresh 293 / 125 / 53 → 294 / 126 / 50).**
+  The third full 55-deck re-read (five Sonnet reviewers, every card looked
+  up; 27 flags). Fixed: (104) *a tax costs more* — the residue pattern read
+  Artist's Talent's "Noncreature spells you cast cost {1} less" as an
+  opponent tax and so as a drain on opponents' turns under Valgavoth.
+  (105) *a sweep leaving out a type spares a deck of it, and a commander
+  of it* (`board_wipe._spares_a_type` / `type_bound_hits`): Extinguish All
+  Hope and Cacophony Unleashed under Enduring Enchantments' enchantment
+  creatures, Their Name Is Death under Necron Dynasties' artifacts, no
+  longer go to The One Ring to Rule Them All or Massacre Girl. (106) *a
+  board-wipe role the wipe read sees sweep no creatures is an interaction
+  job* (`issues.upgrade_job`): Maelstrom Pulse, Dismantling Wave. (107) *an
+  evasion need takes only evasive keyword grants*: Zack Fair's
+  indestructible. (108) *a count of your permanents with counters of a kind
+  wants their makers* (`commander_need._counted_counter_needs`; vanishing
+  per CR 702.63a): The Moment under Rose Tyler. (109) *a -1/-1 counter is a
+  shrink of its count* (`job_quality.removal`, CR 122.1a): Contagion Clasp
+  is small removal, no upgrade of Spine of Ish Sah. (110) *a draw counting
+  countered creatures runs on counter placers; one on a chosen type, on the
+  biggest printed tribe* (`card_draw` fuels `countered`, `chosen_type`):
+  Inspiring Call, Vanquisher's Banner. (111) *a tribe slot's members are
+  creatures* (CR 700.8): Diviner's Wand under Nalia. (112) *a "non-<type>"
+  gate is fed by the deck's other creatures*: Winota in Riders of Rohan.
+  (113) *a grant of every creature type reaches the battlefield only*
+  (`swaps._chosen_type_on_battlefield`): Herald's Horn under Omo. (114) *an
+  artifact sacrifice spends Food* (CR 111.10b): Trading Post under Sam.
+  (115) *an effect moving a card out of your graveyard feeds "cards leaving
+  your graveyard"*: Quintorius, Loremaster. (116) *a first-X-spell trigger
+  wants X spells* (CR 107.3): Stonecoil Serpent under Zimone. (117) *a
+  sacrifice of any permanent can sacrifice a land*: God-Eternal Bontu under
+  Hearthhull. (118) *a trim's add is no member of the row it trims*: Wizard
+  Class to Deep Analysis for "card draw over by 9". (119) *a power line
+  spares nothing in a deck built on Auras or Equipment*: Dusk under Killian.
+  (120) *a paid activation for a mana token makes no mana* (`ramp._granted`):
+  Idol of False Gods. The batch-15 Vandalblast checks now guard the wipe row
+  only (`never_wipe`): it arrives as an interaction upgrade, its job.
+  Verdicts, with the card text: Hour of Reckoning for Damn in Mardu Surge
+  (it kills Zurgo, and mobilize tokens are sacrificed at end step anyway);
+  Fiery Confluence for Chain Reaction (its "1 damage to each creature" is
+  symmetric too); Ukkima for Spectral Deluge, Kaya's Wrath for Laurine and
+  Summon: Leviathan for Brudiclad (fills of a short wipe row); Deathrite
+  Shaman ("from a graveyard": every opponent's too); Whisperwood Elemental
+  for Hauntwoods Shrieker. Open: The Day of the Doctor for The Battle of
+  Bywater in Timey Wimey — chapter IV keeps up to three chosen Doctors (a
+  tracked set the read can't resolve), and the Battle kills the Tenth
+  Doctor. `verify_symptoms.py`: 122.
 
 **From the Jace, Multiverse Architect precon tune and the 25-precon audit (2026-10-17 to 2026-11-01)**
 

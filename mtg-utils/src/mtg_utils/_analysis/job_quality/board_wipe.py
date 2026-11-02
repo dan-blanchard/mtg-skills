@@ -325,6 +325,10 @@ class _Sweep:
     spared_power: tuple[str, int] | None = None
     # The quantity of an amount the deck decides (:func:`_deck_amount`).
     amount: object = field(default=None, compare=False, repr=False)
+    # The swept filter, when a type it leaves out spares part of the board
+    # ("nonenchantment creatures", "nonartifact creatures"): read against the
+    # deck's own creatures (:func:`_deck_spared_by_type`).
+    type_spared: object = field(default=None, compare=False, repr=False)
 
 
 #: The field a sweep effect's size sits on: a damage amount, a shrink's
@@ -789,6 +793,7 @@ def _tree_sweeps(tree: ConceptTree, *, walker: bool) -> list[_Sweep]:
                     amount=_deck_amount(c, u),
                     spares_attached=_spared_attachment(filt),
                     spared_power=_spared_power(c.node, filt),
+                    type_spared=filt if _spares_a_type(filt) else None,
                 )
             )
     return out
@@ -882,8 +887,17 @@ def power_bound_hits(card: dict, record: Mapping) -> bool:
 
 def _deck_spares_power(deck: Sequence[dict], spared: tuple[str, int]) -> bool:
     """Whether the deck's creatures are mostly what a power bound spares: below
-    the bound (a face-down creature is a 2/2), or at 0 power under a total."""
+    the bound (a face-down creature is a 2/2), or at 0 power under a total.
+    Never in a deck built on Auras or Equipment (``_ATTACHMENT_DECK`` of
+    them): what it attaches grows its creatures past the line their printed
+    power is under — Dusk kills Killian's enchanted attackers, the bodies
+    Winds of Rath spares (Silverquill Influence, 2026-11-02)."""
     kind, bound = spared
+    if (
+        _deck_attachments(deck, "Aura") + _deck_attachments(deck, "Equipment")
+        >= _ATTACHMENT_DECK
+    ):
+        return False
     creatures = [
         r for r in deck if "creature" in split_type_line(r.get("type_line") or "")[0]
     ]
@@ -901,6 +915,41 @@ def _deck_spares_power(deck: Sequence[dict], spared: tuple[str, int]) -> bool:
     else:
         kept = sum(1 for r in creatures if power(r) == 0)
     return kept / len(creatures) >= _DECK_SPARED_SHARE
+
+
+def _spares_a_type(filt: object) -> bool:
+    """Whether a swept filter leaves out a card type or a supertype: Extinguish
+    All Hope's "nonenchantment creatures", Their Name Is Death's "nonartifact
+    creatures", The One Ring to Rule Them All's "nonlegendary creatures"."""
+    if set(filter_non_types(filt)) - {"Land"}:
+        return True
+    return any(
+        tag_of(n) == "Not" and tag_of(getattr(n, "prop", None)) == "HasSupertype"
+        for n in iter_typed_nodes(filt)
+    )
+
+
+def _deck_spared_by_type(deck: Sequence[dict], filt: object) -> bool:
+    """Whether the deck's creatures are mostly of a type the sweep leaves out
+    (its filter admits none of them): Enduring Enchantments' enchantment
+    creatures under Extinguish All Hope, Necron Dynasties' artifact creatures
+    under Their Name Is Death (2026-11-02)."""
+    creatures = [facts for _rec, facts in _board(deck) if facts.has_type("Creature")]
+    if not creatures:
+        return False
+    spared = sum(1 for facts in creatures if filter_admits(filt, facts) is False)
+    return spared / len(creatures) >= _DECK_SPARED_SHARE
+
+
+def type_bound_hits(card: dict, record: Mapping) -> bool:
+    """Whether a sweep of ``card``'s that spares a type sweeps ``record``: The
+    One Ring to Rule Them All's "nonlegendary creatures" spares a legendary
+    commander; Extinguish All Hope sweeps a commander that is no enchantment."""
+    facts = object_facts(dict(record), zone="battlefield")
+    return any(
+        s.type_spared is not None and filter_admits(s.type_spared, facts) is True
+        for s in _sweeps(card)
+    )
 
 
 def _deck_attachments(deck: Sequence[dict], kind: str) -> int:
@@ -1149,6 +1198,10 @@ def features(card: dict, deck: Sequence[dict] | None = None) -> dict[str, float]
             best.spared_power is not None
             and _deck_spares_power(deck, best.spared_power)
         )
+        or (
+            best.type_spared is not None
+            and _deck_spared_by_type(deck, best.type_spared)
+        )
     )
     return {
         "creatures": float(creatures),
@@ -1263,6 +1316,7 @@ def _deck_dependent(card: dict) -> bool:
         s.amount is not None
         or s.spares_attached is not None
         or s.spared_power is not None
+        or s.type_spared is not None
         for s in _sweeps(card)
     )
     if oid and (out or signal_trees_for(card, bulk=card)):

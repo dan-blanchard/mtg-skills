@@ -209,3 +209,16 @@ def test_a_first_spell_each_turn_draw_fires_less_than_every_spell():
     sentinel, study = test_card("Esper Sentinel"), test_card("Rhystic Study")
     assert read.features(sentinel)["flow"] < read.features(study)["flow"]
     assert read.score(sentinel, ()) < read.score(study, ())
+
+
+def test_a_draw_on_countered_creatures_or_a_chosen_type_runs_on_the_deck():
+    """Inspiring Call draws "for each creature you control with a +1/+1
+    counter", fed by the deck's counter placers; Vanquisher's Banner on "a
+    creature spell of the chosen type", fed by its biggest tribe (Tinker
+    Time, Tricky Terrain, 2026-11-02)."""
+    assert card_draw.draw_fuel(test_card("Inspiring Call")) == "countered"
+    assert card_draw.draw_fuel(test_card("Vanquisher's Banner")) == "chosen_type"
+    rocks = [test_card("Mind Stone")] * 20
+    assert card_draw.deck_fit(test_card("Inspiring Call"), rocks) == 0.0
+    elves = [test_card("Llanowar Elves")] * 20
+    assert card_draw.deck_fit(test_card("Vanquisher's Banner"), elves) == 1.0

@@ -515,3 +515,23 @@ def test_a_power_line_hits_a_commander_at_or_over_it():
     assert not board_wipe.power_bound_hits(
         expel, test_card("Ellivere of the Wild Court")
     )
+
+
+def test_a_sweep_leaving_out_a_type_spares_a_deck_of_it():
+    """Extinguish All Hope destroys "all nonenchantment creatures": under
+    enchantment creatures it is one-sided, and it spares an enchantment
+    commander (Anikthea) where The One Ring to Rule Them All's "nonlegendary"
+    spares a legendary one (Enduring Enchantments, 2026-11-02)."""
+    extinguish = test_card("Extinguish All Hope")
+    enchanted = [test_card("Courser of Kruphix")] * 10
+    big = [test_card("Colossal Dreadmaw")] * 10
+    assert board_wipe.features(extinguish, enchanted)["one_sided"] == 1.0
+    assert board_wipe.features(extinguish, big)["one_sided"] == 0.0
+    anikthea = test_card("Anikthea, Hand of Erebos")
+    assert not board_wipe.type_bound_hits(extinguish, anikthea)
+    assert board_wipe.type_bound_hits(
+        extinguish, test_card("Ellivere of the Wild Court")
+    )
+    assert not board_wipe.type_bound_hits(
+        test_card("One Ring to Rule Them All"), anikthea
+    )

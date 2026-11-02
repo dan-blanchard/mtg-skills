@@ -921,7 +921,9 @@ _STAX_TAXES_RESIDUE_RE = re.compile(
     r"[^.]{0,90}?can't (?:cast|activate|attack|block|search|untap|draw)"
     r"|must pay \{?\d?\}?[^.]*additional"
     r"|spells?[^.]*cost \{?\d+\}? more to (?:cast|activate)"
-    r"|noncreature spells?[^.]*cost(?:s)? \{?\d"
+    # A tax costs MORE (Thalia's "Noncreature spells cost {1} more"): "cost
+    # {1} less" is your own discount (Artist's Talent's level 2), no tax.
+    r"|noncreature spells?[^.]*cost(?:s)? \{?\d+\}? more"
     r"|noncreature spells?[^.]*can't be cast"
     r"|spells? with mana value \d[^.]*can't be cast"
     r"|players? can't cast|that player can't cast spells|spells can't be cast"

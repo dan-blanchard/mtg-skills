@@ -87,3 +87,13 @@ def test_the_synthesis_unit_is_no_ability_of_the_card():
     feats = ramp.features(_real("Deathrite Shaman"))
     assert feats is not None
     assert feats["other_units"] == 2.0
+
+
+def test_a_paid_activation_for_a_spawn_makes_no_mana():
+    """Idol of False Gods pays "{1}{C}, {T}" for an Eldrazi Spawn that
+    sacrifices for one {C}: no mana a turn (Lorehold Spirit, 2026-11-02).
+    Awakening Zone's upkeep Spawn is free and stays a turn's mana."""
+    from mtg_utils._analysis.job_quality import ramp
+
+    assert ramp.features(test_card("Idol of False Gods"))["per_turn"] == 0.0
+    assert ramp.features(test_card("Awakening Zone"))["per_turn"] == 1.0

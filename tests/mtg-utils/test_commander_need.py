@@ -797,3 +797,69 @@ def test_gimbal_counts_every_artifact_token_maker():
     assert satisfies(test_card("Feldon of the Third Path"), need)
     assert satisfies(test_card("Whirler Rogue"), need)
     assert not satisfies(test_card("Mind Stone"), need)
+
+
+def test_an_evasion_need_takes_only_evasive_keyword_grants():
+    """Ellivere of the Wild Court draws when "an enchanted creature you
+    control deals combat damage to a player": Zack Fair's granted
+    indestructible lets nothing connect (Virtue and Valor, 2026-11-02)."""
+    need = _need("Ellivere of the Wild Court", "evasion for your attackers")
+    assert not satisfies(test_card("Zack Fair"), need)
+    assert satisfies(test_card("Rogue's Passage"), need)
+
+
+def test_a_count_of_permanents_with_time_counters_wants_their_makers():
+    """Rose Tyler counts "each other permanent you control with a time counter
+    on it": The Moment puts one on itself each upkeep (Timey Wimey,
+    2026-11-02); vanishing enters with them (CR 702.63a)."""
+    need = _need("Rose Tyler", "permanents with time counters")
+    assert satisfies(test_card("The Moment"), need)
+    assert satisfies(test_card("Aven Riftwatcher"), need)
+    assert not satisfies(test_card("Martial Coup"), need)
+
+
+def test_an_artifact_sacrifice_spends_food():
+    """A Food token is an artifact (CR 111.10b): Trading Post's "Sacrifice an
+    artifact: Draw a card" spends Sam, Loyal Attendant's Foods; Village Rites
+    sacrifices a creature (Food and Fellowship, 2026-11-02)."""
+    need = _need("Sam, Loyal Attendant", "food consumers")
+    assert satisfies(test_card("Trading Post"), need)
+    assert not satisfies(test_card("Village Rites"), need)
+
+
+def test_a_discount_on_your_own_spells_is_no_tax_on_opponents():
+    """Artist's Talent's "Noncreature spells you cast cost {1} less" read as
+    a tax and so as a drain on opponents' turns under Valgavoth, Harrower of
+    Souls; Rampaging Ferocidon's ping on their creatures entering is one
+    (Endless Punishment, 2026-11-02)."""
+    need = _need("Valgavoth, Harrower of Souls", "life loss on opponents' turns")
+    assert not satisfies(test_card("Artist's Talent"), need)
+    assert satisfies(test_card("Rampaging Ferocidon"), need)
+
+
+def test_a_graveyard_exile_feeds_cards_leaving_your_graveyard():
+    """Quintorius, History Chaser makes a Spirit "whenever one or more cards
+    leave your graveyard": Quintorius, Loremaster exiles one from your
+    graveyard each end step (Lorehold Spirit, 2026-11-02)."""
+    need = _need("Quintorius, History Chaser", "cards leaving your graveyard")
+    assert satisfies(test_card("Quintorius, Loremaster"), need)
+    assert not satisfies(test_card("Séance Board"), need)
+
+
+def test_a_first_x_spell_trigger_wants_x_spells():
+    """Zimone, Infinite Analyst grows on "your first spell with {X} in its
+    mana cost each turn" (CR 107.3): Stonecoil Serpent is one, Badgermole
+    Cub is not (Quandrix Unlimited, 2026-11-02)."""
+    need = _need("Zimone, Infinite Analyst", "spells with {X}")
+    assert satisfies(test_card("Stonecoil Serpent"), need)
+    assert not satisfies(test_card("Badgermole Cub"), need)
+
+
+def test_a_sacrifice_of_any_permanent_can_sacrifice_a_land():
+    """Hearthhull, the Worldseed drains "whenever you sacrifice a land":
+    God-Eternal Bontu's "sacrifice any number of other permanents" can pay
+    with lands; Village Rites sacrifices a creature (World Shaper,
+    2026-11-02)."""
+    need = _need("Hearthhull, the Worldseed", "land_sacrifice makers")
+    assert satisfies(test_card("God-Eternal Bontu"), need)
+    assert not satisfies(test_card("Village Rites"), need)

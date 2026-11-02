@@ -72,11 +72,16 @@ def _subtype_words(record: Mapping) -> frozenset[str]:
 
 
 def _tribe_member_filter(kind: str) -> Callable[..., bool]:
-    """A page filter admitting the tribe's members: a card of the subtype, or a
-    changeling (CR 702.73a: every creature type)."""
+    """A page filter admitting the tribe's members: a creature card of the
+    subtype, or a changeling (CR 702.73a: every creature type). A Kindred card
+    of the type is no member: Diviner's Wand, a "Kindred Artifact — Wizard
+    Equipment", took a Wizard's slot under Nalia, whose party counts only
+    creatures (CR 700.8; Party Time, 2026-11-02)."""
     want = kind.lower()
 
     def member(card: Mapping, **_kw: object) -> bool:
+        if "Creature" not in (card.get("type_line") or ""):
+            return False
         return want in _subtype_words(card) or "Changeling" in (
             card.get("keywords") or ()
         )
@@ -331,8 +336,27 @@ def upgrade_job(
     upgraded on the plan (the theme or a need page), not the job page."""
     for role in UPGRADE_ROLE_ORDER:
         if role in roles and not (on_plan and incidental_job(record, role)):
+            if role == "board_wipe" and not _sweeps_creatures(record):
+                continue
             return role
     return "protection" if protects(dict(record)) else None
+
+
+def _sweeps_creatures(record: Mapping) -> bool:
+    """Whether the wipe read sees ``record`` sweep creatures, or can't read it
+    (no trees). A board-wipe role it sees no creature sweep in is no wipe job:
+    Maelstrom Pulse's "all other permanents with the same name" (a targeted
+    kill's tail) went to Massacre Girl under Hazel's tokens, and Dismantling
+    Wave's artifact-and-enchantment cycling to Sunfall under Captain America's
+    Heroes (2026-11-02); their job is interaction."""
+    from mtg_utils._analysis.card_reads import has_trees
+    from mtg_utils._analysis.job_quality import read_for
+
+    read = read_for("board_wipe")
+    if read is None or not has_trees(dict(record)):
+        return True
+    features = read.features(dict(record))
+    return bool(features) and features.get("creatures", 0) > 0
 
 
 @dataclass(frozen=True)

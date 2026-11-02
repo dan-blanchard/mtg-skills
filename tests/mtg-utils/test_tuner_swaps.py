@@ -397,10 +397,11 @@ def test_role_over_trim_cuts_least_played_excess_not_a_staple():
     ]
     budgets = {"ramp": _band(11, 8, 10)}  # over by 1
     issue = {"kind": "role_over", "role": "ramp", "severity": 1, "message": "ramp over"}
+    # The trim's add is no ramp (a trim's add is no member of the row it trims).
     add = {
-        "name": "Better Rock",
+        "name": "Better Statue",
         "type_line": "Artifact",
-        "oracle_text": "{T}: Add {C}.",
+        "oracle_text": "",
         "cmc": 2.0,
         "prices": {"usd": "1.00"},
         "color_identity": [],
@@ -4024,13 +4025,29 @@ def test_a_power_line_that_kills_the_commander_is_no_one_sided_sweep():
     Glade (power 2) Dusk stays one-sided."""
     from mtg_utils._tuner.swaps import _spares_less_of_the_deck
 
-    deck = [test_card("Ethereal Armor")] * 10 + [test_card("Wall of Omens")] * 10
+    auras = [test_card("Ethereal Armor")] * 10 + [test_card("Wall of Omens")] * 10
     dusk, winds = test_card("Dusk // Dawn"), test_card("Winds of Rath")
     ellivere = test_card("Ellivere of the Wild Court")
-    assert _spares_less_of_the_deck(dusk, winds, deck, [ellivere])
-    assert not _spares_less_of_the_deck(
-        dusk, winds, deck, [test_card("Kaust, Eyes of the Glade")]
+    assert _spares_less_of_the_deck(dusk, winds, auras, [ellivere])
+    walls = [test_card("Wall of Omens")] * 20
+    wrath = test_card("Wrath of God")
+    assert _spares_less_of_the_deck(
+        wrath, dusk, walls, [test_card("Kaust, Eyes of the Glade")]
     )
+    assert not _spares_less_of_the_deck(wrath, dusk, walls, [ellivere])
+
+
+def test_a_power_line_spares_nothing_in_a_deck_built_on_attachments():
+    """Ten Auras grow the creatures they enchant past their printed power:
+    Dusk kills Killian's enchanted attackers, so it is no one-sided sweep
+    there (Silverquill Influence, 2026-11-02)."""
+    from mtg_utils._analysis.job_quality import board_wipe
+
+    small = [test_card("Wall of Omens")] * 10
+    dusk = test_card("Dusk // Dawn")
+    assert board_wipe.features(dusk, small)["one_sided"] == 1.0
+    auras = small + [test_card("Ethereal Armor")] * 10
+    assert board_wipe.features(dusk, auras)["one_sided"] == 0.0
 
 
 def test_a_tap_creatures_cost_gates_the_ability_on_their_type():
@@ -4044,3 +4061,53 @@ def test_a_tap_creatures_cost_gates_the_ability_on_their_type():
     morcant = test_card("High Perfect Morcant")
     assert gated_without_feed(morcant, Counter({"elf": 3}), Counter())
     assert not gated_without_feed(morcant, Counter({"elf": 12}), Counter())
+
+
+def test_a_non_type_trigger_is_fed_by_the_decks_other_creatures():
+    """Winota, Joiner of Forces waits on "a non-Human creature you control"
+    attacking: a deck of Humans never feeds it (Riders of Rohan,
+    2026-11-02)."""
+    from collections import Counter
+
+    from mtg_utils._tuner.swaps import gated_without_feed
+
+    winota = test_card("Winota, Joiner of Forces")
+    humans = Counter({"human": 28})
+    assert gated_without_feed(winota, humans, Counter({"creature": 31}))
+    assert not gated_without_feed(winota, humans, Counter({"creature": 40}))
+
+
+def test_a_chosen_type_read_off_spells_takes_the_printed_tribes():
+    """Omo makes a creature with an everything counter every type, on the
+    battlefield only: Herald's Horn's discount and reveal look at spells and
+    library cards, so a deck of four Hydras doesn't feed it; Coat of Arms and
+    Distant Melody read your permanents (Tricky Terrain, 2026-11-02)."""
+    from mtg_utils._tuner.swaps import _chosen_type_on_battlefield
+
+    assert not _chosen_type_on_battlefield(test_card("Herald's Horn"))
+    assert _chosen_type_on_battlefield(test_card("Coat of Arms"))
+    assert _chosen_type_on_battlefield(test_card("Distant Melody"))
+    assert _chosen_type_on_battlefield(test_card("Vanquisher's Banner"))
+
+
+def test_a_wipe_role_with_no_creature_sweep_is_upgraded_as_interaction():
+    """Maelstrom Pulse's "all other permanents with the same name" and
+    Dismantling Wave's artifact-and-enchantment cycling sweep no creatures:
+    their job is interaction, never the wipe page (Squirreled Away, Avengers
+    Assemble, 2026-11-02)."""
+    from mtg_utils._tuner.issues import upgrade_job
+
+    roles = {"board_wipe", "interaction"}
+    assert upgrade_job(roles, test_card("Maelstrom Pulse")) == "interaction"
+    assert upgrade_job(roles, test_card("Dismantling Wave")) == "interaction"
+    assert upgrade_job({"board_wipe"}, test_card("Wrath of God")) == "board_wipe"
+
+
+def test_a_tribe_slot_takes_only_creatures():
+    """A party counts creatures (CR 700.8): Diviner's Wand, a Kindred Wizard
+    Equipment, is no Wizard for Nalia's slot (Party Time, 2026-11-02)."""
+    from mtg_utils._tuner.issues import _tribe_member_filter
+
+    member = _tribe_member_filter("Wizard")
+    assert not member(test_card("Diviner's Wand"))
+    assert member(test_card("Archmage Emeritus"))

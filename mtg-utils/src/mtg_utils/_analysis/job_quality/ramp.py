@@ -380,6 +380,18 @@ def _granted(r: _Read, tree: ConceptTree, unit: AbilityUnit, *, sc: bool) -> Non
         cost = getattr(definition, "cost", None)
         leaves = {tag_of(n) for n in iter_cost_leaves(cost)}
         k = _unit_class(unit, spell_card=sc)
+        if (
+            makes_tokens
+            and "Sacrifice" in leaves
+            and unit.origin == "ability"
+            and unit.kind == "Activated"
+            and _cost_shape(unit.node)[0] >= 1
+        ):
+            # An activation paying a mana or more for a token that sacrifices
+            # for one makes no mana: Idol of False Gods' "{1}{C}, {T}: Create
+            # a 0/1 ... Eldrazi Spawn" read as a rock a turn and replaced
+            # Relic Retriever (Lorehold Spirit, 2026-11-02).
+            continue
         if own or "Sacrifice" in leaves:
             if k == "turn":
                 r.turn += 1

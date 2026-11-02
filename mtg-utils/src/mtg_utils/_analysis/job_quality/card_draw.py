@@ -83,6 +83,7 @@ Dispute (a FaeDominion guide add, as Skullclamp was).
 from __future__ import annotations
 
 import math
+from collections import Counter
 from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, cast
@@ -117,6 +118,7 @@ from mtg_utils._card_ir.crosswalk import (
     is_opponent_cast_trigger_def,
     is_self_discard_cost,
     iter_cost_leaves,
+    iter_typed_nodes,
     recipient_tag,
     tag_of,
     trigger_caster_scope,
@@ -126,9 +128,11 @@ from mtg_utils._card_ir.crosswalk import (
     triggering_player_side,
     watches_itself,
 )
+from mtg_utils._card_ir.mirror.runtime import TypedMirrorNode
 from mtg_utils._card_ir.trees import fixed_stat
 from mtg_utils.card_classify import classifying_keywords
 from mtg_utils.theme_presets import signal_keys_for
+from mtg_utils.type_line import split_type_line
 
 if TYPE_CHECKING:
     from mtg_utils._card_ir.crosswalk import AbilityUnit, ConceptNode
@@ -226,6 +230,12 @@ class _Source:
     watched: frozenset[str]  # the card types a trigger's watched object names
     fodder: bool  # it sacrifices another permanent per draw
     rate: float = 0.0
+    # The count is your creatures with counters on them (Inspiring Call's
+    # "each creature you control with a +1/+1 counter on it").
+    countered: bool = False
+    # A trigger watching only creatures of the chosen type (Vanquisher's
+    # Banner's "a creature spell of the chosen type").
+    chosen: bool = False
 
 
 def _count(c: ConceptNode, field: str = "count") -> int:
@@ -250,6 +260,20 @@ def _scaling_qty(c: ConceptNode, field: str = "count") -> tuple[str | None, bool
     named = filt is not None and "Named" in filter_predicates(filt)
     board = t in _BOARD_QTY and not named and filter_controller(filt) == "You"
     return t, named, board
+
+
+def _counts_countered(c: ConceptNode) -> bool:
+    """Whether a scaling draw count counts your permanents with counters on
+    them (Inspiring Call's "each creature you control with a +1/+1 counter on
+    it"): fed only by a deck that places them."""
+    cnt = getattr(c.node, "count", None)
+    inner = getattr(cnt, "inner", None) if tag_of(cnt) == "Offset" else cnt
+    filt = getattr(getattr(inner, "qty", None), "filter", None)
+    return (
+        isinstance(filt, TypedMirrorNode)
+        and filter_controller(filt) == "You"
+        and "Counters" in filter_predicates(filt)
+    )
 
 
 def _drawer(unit: AbilityUnit, c: ConceptNode) -> str:
@@ -461,6 +485,7 @@ def _sources(card: dict) -> list[_Source]:
             if not draws and not unit.has_effect("connive"):
                 continue
             got, each, scaling, board = 0, False, False, False
+            countered = False
             for c in draws:
                 who = _drawer(unit, c)
                 if who == "opp":
@@ -469,6 +494,7 @@ def _sources(card: dict) -> list[_Source]:
                 got += _count(c)
                 scaling |= amount_is_scaling(c.node, "count")
                 board |= amount_is_scaling(c.node, "count") and _scaling_qty(c)[2]
+                countered |= amount_is_scaling(c.node, "count") and _counts_countered(c)
             lost, wheel = 0, False
             for c in unit.effects:
                 if c.concept == "discard" and discard_recipient_scope(c.node) in (
@@ -514,6 +540,12 @@ def _sources(card: dict) -> list[_Source]:
                 wheel=wheel,
                 scaling=scaling,
                 board=board,
+                countered=countered,
+                chosen=unit.origin == "trigger"
+                and any(
+                    tag_of(n) == "IsChosenCreatureType"
+                    for n in iter_typed_nodes(getattr(unit.node, "valid_card", None))
+                ),
                 fuel=fuel,
                 narrow=_narrow(unit) if unit.origin == "trigger" else 1.0,
                 self_watch=unit.origin == "trigger"
@@ -686,6 +718,13 @@ _FUEL_REFERENCE: dict[str, float] = {
     "graveyard_leave": 1 / 8,
     "x1_creatures_or_tokens": 1 / 4,
     "fodder": 1 / 4,
+    # Cards that put counters on your creatures (a counters deck holds a
+    # quarter of its spells so, as a fodder deck does its cheap bodies).
+    "countered": 1 / 4,
+    # The deck's biggest creature type, by its printed type lines: a draw
+    # on the chosen type runs on one tribe (Vanquisher's Banner drew for
+    # Tricky Terrain's four Hydras, 2026-11-02).
+    "chosen_type": 1 / 4,
     "creatures": 1 / 3,
     "instants_sorceries": 1 / 3,
     "enchantments": 1 / 3,
@@ -698,6 +737,8 @@ _DECK_FUELS = frozenset({"deaths", "enters", "creature_cast", "you_cast", "comba
 _GRAVEYARD_LEAVE_KEYS = frozenset(
     {"creature_recursion", "permanent_recast", "reanimator"}
 )
+#: The counter placers a draw counting your countered creatures runs on.
+_COUNTER_PLACER_KEYS = frozenset({"plus_one_makers", "any_counter_makers"})
 #: Makers of the predefined artifact tokens a sacrifice-draw eats (Deadly
 #: Dispute's "artifact or creature").
 _FODDER_TOKEN_KEYS = frozenset({"treasure_makers", "clue_makers", "food_makers"})
@@ -708,6 +749,8 @@ def _source_fuel(s: _Source) -> str | None:
     supplies it (a turn, an opponent's spell, a land entering, any spell)."""
     if s.kind != "trigger" or s.fuel is None:
         return None
+    if s.chosen:
+        return "chosen_type"
     if s.fuel == "equipped_dies":
         return "x1_creatures_or_tokens"
     if s.fuel == "graveyard_leave":
@@ -748,6 +791,11 @@ def draw_fuel(card: dict) -> str | None:
     mine = [s for s in sources if s.got > 0 and s.kind != "cycling"]
     if best is None and mine and all(s.fodder for s in mine):
         fuel = "fodder"  # a one-shot that eats a permanent per draw
+    if fuel is None and mine and all(s.countered for s in mine):
+        # A draw counting your creatures with counters runs on the deck's
+        # counter placers: Inspiring Call drew for Tinker Time's five of them
+        # in place of Stroke of Genius (2026-11-02).
+        fuel = "countered"
     if oid and signal_trees_for(card, bulk=card):
         _FUELS.put(oid, fuel)
     return fuel
@@ -765,6 +813,8 @@ def _feeds(record: dict, fuel: str) -> bool:
     if fuel == "artifacts":
         return "Artifact" in face
     keys = signal_keys_for(record)
+    if fuel == "countered":
+        return bool(keys & _COUNTER_PLACER_KEYS)
     if fuel == "graveyard_leave":
         return bool(keys & _GRAVEYARD_LEAVE_KEYS)
     makes_bodies = "token_maker" in keys
@@ -793,7 +843,15 @@ def _fuel_share(deck_records: Sequence[dict], fuel: str) -> float:
     if len(_SHARE_MEMO) > 256:
         _SHARE_MEMO.clear()
     nonland = [r for r in deck_records if "Land" not in faces(r)[0]]
-    fed = sum(1 for r in nonland if _feeds(r, fuel))
+    if fuel == "chosen_type":
+        tribes: Counter = Counter()
+        for r in nonland:
+            words, subs = split_type_line(r.get("type_line") or "")
+            if "creature" in words:
+                tribes.update(set(subs))
+        fed = max(tribes.values(), default=0)
+    else:
+        fed = sum(1 for r in nonland if _feeds(r, fuel))
     share = fed / len(nonland) if nonland else 0.0
     _SHARE_MEMO[key] = (deck_records, share)
     return share

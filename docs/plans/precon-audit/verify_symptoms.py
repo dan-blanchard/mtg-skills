@@ -121,10 +121,10 @@ CHECKS = [
     _check("kept", "QuickDraw_OTC", "Niv-Mizzet, Parun", batch="15"),
     _check("never", "EldraziIncursion_M3C", "Inverter of Truth", batch="15"),
     _check("never", "MostWanted_OTC", "Monument to Endurance", batch="15"),
-    _check("never", "BlameGame_MKC", "Vandalblast", batch="15"),
-    _check("never", "DesertBloom_OTC", "Vandalblast", batch="15"),
-    _check("never", "EndlessPunishment_DSC", "Vandalblast", batch="15"),
-    _check("never", "TimeyWimey_WHO", "Vandalblast", batch="15"),
+    _check("never_wipe", "BlameGame_MKC", "Vandalblast", batch="15"),
+    _check("never_wipe", "DesertBloom_OTC", "Vandalblast", batch="15"),
+    _check("never_wipe", "EndlessPunishment_DSC", "Vandalblast", batch="15"),
+    _check("never_wipe", "TimeyWimey_WHO", "Vandalblast", batch="15"),
     _check("never", "FaeDominion_WOC", "Dark Ritual", batch="15"),
     _check("never", "QuickDraw_OTC", "Jeska's Will", batch="15"),
     _check("never", "RevenantRecon_MKC", "Cabal Ritual", batch="15"),
@@ -188,6 +188,26 @@ CHECKS = [
     _check("no_pair", "VirtueAndValor_WOC", "Winds of Rath -> Dusk // Dawn", batch="16o"),
     # A tap-three-Elves cost gates on Elves (Blight Curse holds three).
     _check("never", "BlightCurse_ECC", "High Perfect Morcant", batch="16o"),
+    # The third full re-read (batch 16p).
+    _check("no_pair", "EnduringEnchantments_CMM", "Extinguish All Hope -> One Ring to Rule Them All", batch="16p"),
+    _check("no_pair", "EnduringEnchantments_CMM", "Cacophony Unleashed -> Massacre Girl", batch="16p"),
+    _check("no_pair", "NecronDynasties_40K", "Their Name Is Death -> One Ring to Rule Them All", batch="16p"),
+    _check("no_pair", "SquirreledAway_BLC", "Maelstrom Pulse -> Massacre Girl", batch="16p"),
+    _check("no_pair", "AvengersAssemble_MSC", "Dismantling Wave -> Sunfall", batch="16p"),
+    _check("no_pair", "TinkerTime_MOC", "Spine of Ish Sah -> Contagion Clasp", batch="16p"),
+    _check("no_pair", "TimeyWimey_WHO", "The Moment -> Martial Coup", batch="16p"),
+    _check("no_pair", "VirtueAndValor_WOC", "Gylwain, Casting Director -> Zack Fair", batch="16p"),
+    _check("no_pair", "EndlessPunishment_DSC", "Rampaging Ferocidon -> Artist's Talent", batch="16p"),
+    _check("never", "PartyTime_CLB", "Diviner's Wand", batch="16p"),
+    _check("never", "RidersOfRohan_LTC", "Winota, Joiner of Forces", batch="16p"),
+    _check("never", "TrickyTerrain_M3C", "Herald's Horn", batch="16p"),
+    _check("no_pair", "FoodAndFellowship_LTC", "Trading Post -> Village Rites", batch="16p"),
+    _check("no_pair", "LoreholdSpirit_SOC", "Quintorius, Loremaster -> Séance Board", batch="16p"),
+    _check("never", "LoreholdSpirit_SOC", "Idol of False Gods", batch="16p"),
+    _check("no_pair", "PeaceOffering_BLC", "Wizard Class -> Deep Analysis", batch="16p"),
+    _check("no_pair", "QuandrixUnlimited_SOC", "Stonecoil Serpent -> Badgermole Cub", batch="16p"),
+    _check("no_pair", "SilverquillInfluence_SOC", "Winds of Rath -> Dusk // Dawn", batch="16p"),
+    _check("no_pair", "WorldShaper_EOC", "God-Eternal Bontu -> Village Rites", batch="16p"),
     _check("no_pair", "CreativeEnergy_M3C", "Silverquill Lecturer -> Boromir, Warden of the Tower", batch="16n"),
     _check("no_pair", "TinkerTime_MOC", "Feldon of the Third Path -> Skullclamp", batch="16n"),
     _check("no_trim", "EldraziIncursion_M3C", "Forsaken Monument", batch="14"),
@@ -234,6 +254,15 @@ def main(paths):
         elif kind == "never":
             bad = [n for n in names if n in adds]
             ok, detail = not bad, f"added: {bad}"
+        elif kind == "never_wipe":
+            # Never added for the board-wipe row (a fill or an upgrade on it).
+            bad = [
+                n
+                for n in names
+                for s in swaps
+                if s[2] == n and ("board wipe" in str(s[3]) or "board_wipe" in str(s[3]))
+            ]
+            ok, detail = not bad, f"added as a wipe: {bad}"
         elif kind == "added":
             bad = [n for n in names if n not in adds]
             ok, detail = not bad, f"missing: {bad}"
