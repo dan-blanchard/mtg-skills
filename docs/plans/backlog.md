@@ -1491,6 +1491,11 @@ proposal as a deckbuilder, fix the structure, the guide score is a yardstick)**
   Vanquisher's Banner for Painful Truths in Most Wanted (it names Human, of
   which the deck holds twelve: 0.44 against 0.16 on the draw read).
   `verify_symptoms.py`: 126.
+- **The re-read of batch 16q (2026-11-02): no new flaw.** A Sonnet reviewer
+  read the four proposals it changed, every added card looked up: Mizzium
+  Mortars' overload is one-sided where The Day of the Doctor exiles your own
+  non-Doctors; Virtue and Valor's adds are enchantments Ellivere counts;
+  Most Wanted's are outlaws and a guide add (Port Razer).
 
 **From the Jace, Multiverse Architect precon tune and the 25-precon audit (2026-10-17 to 2026-11-01)**
 
