@@ -1589,6 +1589,23 @@ proposal as a deckbuilder, fix the structure, the guide score is a yardstick)**
   Dragon in a deck with Mountains), Hew the Entwood (it sacrifices lands for
   Hearthhull), Rishkar, Peema Renegade (Hakbal's countered creatures tap for
   mana). `verify_symptoms.py`: 140.
+- **Batch 16u (2026-11-02; the 25 728 / 339 / 115 → 728 / 339 / 117, held-out
+  and fresh unchanged at 561 / 263 / 103 and 294 / 126 / 51).** Closes 16t's
+  open Fling item, then what reading the moved swaps found, three times
+  over. Fixed: (142) *a spell whose cost sacrifices a creature pays as an
+  activation's sacrifice does* (`removal._spell_sacrifices` →
+  `activated_sac`): Fling 0.69 → 0.32, Bone Splinters 0.41 → 0.04, so
+  Fling no longer replaces Palace Jailer (Riders of Rohan), Spine of Ish Sah
+  (Tinker Time) or Unholy Heat (Desert Bloom). (143) *a card that pays a
+  creature the cut doesn't is no cheaper* (`swaps._pays_a_sacrifice_more`
+  denies the tempo exemption): Fling for Fiend Hunter. (144) *an
+  Equipment's granted removal costs its equip* (`removal._equip_cost`, and
+  `_job_cost` reads the removal's deploy cost): Thornbite Staff's ping
+  behind "Equip {4}" costs six and scores 0.15, no upgrade of Fiend Hunter
+  or Root Out. The moved swaps read: Aether Channeler (it bounces a
+  nonland permanent), Chainsaw ("3 damage to up to one target creature"),
+  Rose Room Treasurer (X damage from the third creature a turn, which
+  Tinker Time's token makers reach). `verify_symptoms.py`: 141.
 
 **From the Jace, Multiverse Architect precon tune and the 25-precon audit (2026-10-17 to 2026-11-01)**
 

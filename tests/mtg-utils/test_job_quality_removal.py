@@ -220,3 +220,19 @@ def test_a_minus_counter_kills_only_what_it_shrinks():
     assert read.score(test_card("Contagion Clasp")) < read.score(
         test_card("Spine of Ish Sah")
     )
+
+
+def test_a_spell_that_sacrifices_a_creature_pays_for_it():
+    """Fling's "As an additional cost to cast this spell, sacrifice a
+    creature" is the price an activation's sacrifice is charged
+    (``activated_sac``): Fling is no upgrade of Palace Jailer (Riders of
+    Rohan, 2026-11-02). Lightning Bolt pays nothing."""
+    assert removal.features(test_card("Fling"))["activated_sac"] == 1.0
+    assert removal.features(test_card("Lightning Bolt"))["activated_sac"] == 0.0
+
+
+def test_an_equipments_granted_removal_costs_its_equip():
+    """Thornbite Staff's ping is granted to the equipped creature, so it
+    costs "Equip {4}" on top of the Staff (Riders of Rohan, 2026-11-02)."""
+    assert removal.deploy_cost(test_card("Thornbite Staff")) == 6.0
+    assert removal.deploy_cost(test_card("Lightning Bolt")) == 1.0

@@ -455583,6 +455583,262 @@
     "type_line": "Enchantment"
    }
   },
+  "Fiend Hunter": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Human",
+       "Cleric"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "White"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "White",
+       "White"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "1f8fd6e7-a7d9-433c-9d8c-ec279132af50",
+       "5e15829e-4f18-4c41-8770-23624a1e838d",
+       "646bf107-326a-4297-8c2f-ff1c4ff85c2e",
+       "703c52d2-9e9d-4a54-82af-800fa1456d36",
+       "ca9bcc90-0488-41cd-91e3-f4ca3dcbe5a4",
+       "d7b402fa-abf1-4e93-a481-dfd065ae3206",
+       "df99e7b7-f6ef-488d-ba85-a97c594cd664",
+       "ea329d8b-b658-4a52-b86e-b47b1786fa3e",
+       "f02e3c30-e540-4d7b-a17b-3eece63743cb",
+       "f1e4c7d8-11a5-40fe-962b-7e938bf08616",
+       "f606cf4d-e29b-415a-956c-b148045c44e9"
+      ]
+     },
+     "name": "Fiend Hunter",
+     "non_ability_text": null,
+     "oracle_text": "When this creature enters, you may exile another target creature.\nWhen this creature leaves the battlefield, return the exiled card to the battlefield under its owner's control.",
+     "power": {
+      "type": "Fixed",
+      "value": 1
+     },
+     "printings": [
+      "A25",
+      "C13",
+      "CMA",
+      "DDK",
+      "DDQ",
+      "HOC",
+      "INR",
+      "ISD",
+      "LTC",
+      "PLST",
+      "SIS",
+      "SLD",
+      "UMA"
+     ],
+     "rarities": [
+      "uncommon",
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2018-12-07",
+       "text": "If Fiend Hunter leaves the battlefield before its first ability has resolved, its second ability will trigger and do nothing. Then its first ability will resolve and exile the target creature indefinitely. This is different from abilities on other cards that exile a permanent \"until\" something happens."
+      },
+      {
+       "date": "2018-12-07",
+       "text": "If a token is exiled this way, it won't return to the battlefield."
+      },
+      {
+       "date": "2018-12-07",
+       "text": "In a multiplayer game, if you lose the game, the creature exiled with Fiend Hunter remains exiled indefinitely. This is also different from abilities on other cards that exile a permanent \"until\" something happens."
+      },
+      {
+       "date": "2018-12-07",
+       "text": "Once the exiled creature returns, it's considered a new object with no relation to the object that it was. Auras attached to the exiled creature will be put into their owners' graveyards. Equipment attached to the exiled creature will become unattached and remain on the battlefield. Any counters on the exiled creature will cease to exist."
+      }
+     ],
+     "scryfall_oracle_id": "cb9d557a-fc06-428c-8be6-7d28add33028",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 3
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "When ~ enters, you may exile another target creature.",
+       "destination": "Battlefield",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": "UntilHostLeavesPlay",
+        "effect": {
+         "destination": "Exile",
+         "enter_tapped": false,
+         "enter_transformed": false,
+         "enters_attacking": false,
+         "origin": null,
+         "owner_library": false,
+         "target": {
+          "controller": null,
+          "properties": [
+           {
+            "type": "Another"
+           }
+          ],
+          "type": "Typed",
+          "type_filters": [
+           "Creature"
+          ]
+         },
+         "type": "ChangeZone"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": true,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "ChangesZone",
+       "optional": true,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": null
+      },
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "When ~ leaves the battlefield, return the exiled card to the battlefield under its owner's control.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "destination": "Battlefield",
+         "enter_tapped": false,
+         "enter_transformed": false,
+         "enters_attacking": false,
+         "origin": null,
+         "owner_library": false,
+         "target": {
+          "id": 0,
+          "type": "TrackedSet"
+         },
+         "type": "ChangeZone"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "LeavesBattlefield",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield",
+        "Graveyard",
+        "Exile"
+       ],
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 3.0,
+    "color_identity": [
+     "W"
+    ],
+    "colors": [
+     "W"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}{W}{W}",
+    "name": "Fiend Hunter",
+    "oracle_id": "cb9d557a-fc06-428c-8be6-7d28add33028",
+    "oracle_text": "When this creature enters, you may exile another target creature.\nWhen this creature leaves the battlefield, return the exiled card to the battlefield under its owner's control.",
+    "power": "1",
+    "toughness": "3",
+    "type_line": "Creature — Human Cleric"
+   }
+  },
   "Fierce Guardianship": {
    "phase_records": [
     {
@@ -1169020,6 +1169276,338 @@
     "oracle_id": "b2f9e07b-64b7-40b3-9a5e-5f1d59b35af7",
     "oracle_text": "Whenever one or more artifact creatures you control die, draw a card. This ability triggers only once each turn.\n{2}{W}, {T}: Create a 1/1 colorless Thopter artifact creature token with flying.",
     "type_line": "Artifact"
+   }
+  },
+  "Thornbite Staff": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "ability_tag": {
+        "type": "Equip"
+       },
+       "activation_restrictions": [
+        {
+         "type": "AsSorcery"
+        }
+       ],
+       "condition": null,
+       "cost": {
+        "cost": {
+         "generic": 4,
+         "shards": [],
+         "type": "Cost"
+        },
+        "type": "Mana"
+       },
+       "description": "Equip {4}",
+       "duration": null,
+       "effect": {
+        "selection": {
+         "at_resolution": {}
+        },
+        "target": {
+         "controller": "You",
+         "properties": [],
+         "type": "Typed",
+         "type_filters": [
+          "Creature"
+         ]
+        },
+        "type": "Attach"
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Kindred",
+       "Artifact"
+      ],
+      "subtypes": [
+       "Shaman",
+       "Equipment"
+      ],
+      "supertypes": []
+     },
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 2,
+      "shards": [],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "c1ab3225-64a9-411e-b22b-1869e958b8e5",
+       "c925965e-3788-4abb-b671-1b61ece27895"
+      ]
+     },
+     "name": "Thornbite Staff",
+     "non_ability_text": null,
+     "oracle_text": "Equipped creature has \"{2}, {T}: This creature deals 1 damage to any target\" and \"Whenever a creature dies, untap this creature.\"\nWhenever a Shaman creature enters, you may attach this Equipment to it.\nEquip {4}",
+     "power": null,
+     "printings": [
+      "MB2",
+      "MOR"
+     ],
+     "rarities": [
+      "uncommon"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2008-04-01",
+       "text": "Each of these Equipment has a triggered ability that says \"Whenever a [creature type] creature enters, you may attach [this Equipment] to it.\" This triggers whenever any creature of the specified creature type enters, no matter who controls it. You may attach your Equipment to another player's creature this way, even though you can't do so with the equip ability."
+      },
+      {
+       "date": "2008-04-01",
+       "text": "Each of these Equipment has two subtypes listed on its type line. The first one is a creature type, which in this case is also a subtype of kindred. The second one is Equipment, which is a subtype of artifact."
+      },
+      {
+       "date": "2008-04-01",
+       "text": "If you attach an Equipment you control to another player's creature, you retain control of the Equipment, but you don't control the creature. Only you can activate the Equipment's equip ability, and if the Equipment's ability triggers again, you choose whether to move the Equipment. Only the creature's controller can activate any activated abilities the Equipment grants to the creature, and \"you\" in any abilities granted to the creature refers to that player."
+      },
+      {
+       "date": "2024-06-07",
+       "text": "Kindred is a card type that allows noncreature cards to have creature types. For example, Echoes of Eternity is an Eldrazi (although not a creature) while on the battlefield and an Eldrazi card (although not a creature card) in zones other than the battlefield."
+      },
+      {
+       "date": "2024-06-07",
+       "text": "This cards was originally printed with the \"tribal\" card type. That card type has been replaced with \"kindred\". This change does not affect the gameplay function of this card."
+      },
+      {
+       "date": "2024-06-07",
+       "text": "While it appears only on cards that already have other card types, kindred is a card type and will be counted by effects that refer to the number of card types among cards in a zone."
+      }
+     ],
+     "scryfall_oracle_id": "dae4815e-9025-4993-ab46-52a3f1a7219e",
+     "static_abilities": [
+      {
+       "active_zones": [],
+       "affected": {
+        "controller": null,
+        "properties": [
+         {
+          "type": "EquippedBy"
+         }
+        ],
+        "type": "Typed",
+        "type_filters": [
+         "Creature"
+        ]
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": null,
+       "description": "Equipped creature has \"{2}, {T}: ~ deals 1 damage to any target\" and \"Whenever a creature dies, untap ~.\"",
+       "effect_zone": null,
+       "mode": "Continuous",
+       "modifications": [
+        {
+         "definition": {
+          "condition": null,
+          "cost": {
+           "costs": [
+            {
+             "cost": {
+              "generic": 2,
+              "shards": [],
+              "type": "Cost"
+             },
+             "type": "Mana"
+            },
+            {
+             "type": "Tap"
+            }
+           ],
+           "type": "Composite"
+          },
+          "description": "{2}, {T}: ~ deals 1 damage to any target",
+          "duration": null,
+          "effect": {
+           "amount": {
+            "type": "Fixed",
+            "value": 1
+           },
+           "target": {
+            "type": "Any"
+           },
+           "type": "DealDamage"
+          },
+          "forward_result": false,
+          "kind": "Activated",
+          "optional": false,
+          "optional_targeting": false,
+          "sub_ability": null,
+          "target_prompt": null
+         },
+         "type": "GrantAbility"
+        },
+        {
+         "trigger": {
+          "batched": false,
+          "condition": null,
+          "constraint": null,
+          "damage_kind": "Any",
+          "description": "Whenever a creature dies, untap ~.",
+          "destination": "Graveyard",
+          "execute": {
+           "condition": null,
+           "cost": null,
+           "description": null,
+           "duration": null,
+           "effect": {
+            "scope": {
+             "type": "Single"
+            },
+            "state": {
+             "type": "Untap"
+            },
+            "target": {
+             "type": "SelfRef"
+            },
+            "type": "SetTapState"
+           },
+           "forward_result": false,
+           "kind": "Spell",
+           "optional": false,
+           "optional_targeting": false,
+           "sub_ability": null,
+           "target_prompt": null
+          },
+          "mode": "ChangesZone",
+          "optional": false,
+          "origin": "Battlefield",
+          "phase": null,
+          "secondary": false,
+          "trigger_zones": [
+           "Battlefield"
+          ],
+          "valid_card": {
+           "controller": null,
+           "properties": [],
+           "type": "Typed",
+           "type_filters": [
+            "Creature"
+           ]
+          },
+          "valid_source": null,
+          "valid_target": null
+         },
+         "type": "GrantTrigger"
+        }
+       ]
+      }
+     ],
+     "toughness": null,
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever a Shaman creature enters, you may attach ~ to it.",
+       "destination": "Battlefield",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "selection": {
+          "at_resolution": {}
+         },
+         "target": {
+          "type": "TriggeringSource"
+         },
+         "type": "Attach"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": true,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "ChangesZone",
+       "optional": true,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "controller": null,
+        "properties": [],
+        "type": "Typed",
+        "type_filters": [
+         "Creature",
+         {
+          "Subtype": "Shaman"
+         }
+        ]
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 2.0,
+    "color_identity": [],
+    "colors": [],
+    "keywords": [
+     "Equip"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}",
+    "name": "Thornbite Staff",
+    "oracle_id": "dae4815e-9025-4993-ab46-52a3f1a7219e",
+    "oracle_text": "Equipped creature has \"{2}, {T}: This creature deals 1 damage to any target\" and \"Whenever a creature dies, untap this creature.\"\nWhenever a Shaman creature enters, you may attach this Equipment to it.\nEquip {4}",
+    "type_line": "Kindred Artifact — Shaman Equipment"
    }
   },
   "Thornwood Falls": {

@@ -283,6 +283,24 @@ WEIGHTS: dict[str, float] = {
 }
 
 
+def _spell_sacrifices(trees: Sequence[ConceptTree]) -> bool:
+    """Whether every spell unit of the card asks a sacrifice as its cost:
+    Fling's and Bone Splinters' "As an additional cost to cast this spell,
+    sacrifice a creature" — a card and a body for one answer, the same
+    price as an activation's sacrifice (``activated_sac``). Fling read as
+    free any-target removal and replaced Palace Jailer in Riders of Rohan
+    (2026-11-02)."""
+    spells = [
+        unit
+        for tree in trees
+        for unit in tree.units
+        if unit.origin == "ability" and unit.kind == "Spell"
+    ]
+    return bool(spells) and all(
+        any(cn.concept == "sacrifice" for cn in (unit.costs or ())) for unit in spells
+    )
+
+
 def _aura(trees: Sequence[ConceptTree]) -> bool:
     """The card is an Aura: it leaves when its host does (CR 704.5m)."""
     return any("Aura" in tree.card_subtypes for tree in trees)
@@ -312,7 +330,32 @@ def _removal_cost(card: dict, answers: list[_Answer]) -> float:
     acts = [a.act_mana for a in answers if a.act_mana is not None]
     if acts and not any(a.kind in ("spell", "etb") for a in answers):
         cost = float(min(acts))
+    if answers and all(a.kind == "granted" for a in answers):
+        # An Equipment's removal is the ability it grants, so it costs the
+        # equip too: Thornbite Staff's ping needs "Equip {4}" and read as
+        # two-mana removal, cheaper than Fiend Hunter (Riders of Rohan,
+        # 2026-11-02).
+        cost += _equip_cost(card)
     return cost
+
+
+def _equip_cost(card: dict) -> float:
+    """The mana of the card's cheapest equip activation (an ``Attach``
+    activated ability), 0 when it has none."""
+    costs = [
+        activation_mana(unit) or 0
+        for tree in signal_trees_for(card, bulk=card)
+        for unit in tree.units
+        if unit.kind == "Activated" and unit.has_effect("attach")
+    ]
+    return float(min(costs)) if costs else 0.0
+
+
+def deploy_cost(card: dict) -> float | None:
+    """What deploying the card's removal costs (:func:`_removal_cost`),
+    ``None`` when the read sees no removal."""
+    answers = _answers(card)
+    return _removal_cost(card, answers) if answers else None
 
 
 def answers_creatures(card: dict) -> bool | None:
@@ -354,6 +397,7 @@ def features(card: dict) -> dict[str, float] | None:
     ) or (best.mode in ("damage", "shrink") and best.amount is None)
     kinds = {a.kind for a in answers}
     trees = signal_trees_for(card, bulk=card) if best.until_leaves else ()
+    trees_all = signal_trees_for(card, bulk=card)
     return {
         "breadth": float(min(best.breadth, 4)),
         "unconditional": float(unconditional),
@@ -367,7 +411,8 @@ def features(card: dict) -> dict[str, float] | None:
         "etb": float("etb" in kinds),
         "land_back": float(land_back(card)),
         "activated_sac": float(
-            "activated_sac" in kinds and not kinds & {"spell", "etb", "activated"}
+            ("activated_sac" in kinds and not kinds & {"spell", "etb", "activated"})
+            or _spell_sacrifices(trees_all)
         ),
         "opp_only": float(best.opp_only),
         "aura_host": float(_aura(trees)),

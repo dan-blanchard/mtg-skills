@@ -229,6 +229,7 @@ CHECKS = [
     _check("no_pair", "DanceOfTheElements_ECC", "Timeless Lotus -> Insidious Roots", batch="16s"),
     _check("no_pair", "WorldShaper_EOC", "Sprouting Goblin -> Shadow, Mysterious Assassin", batch="16s"),
     _check("never", "WorldShaper_EOC", "Aggressive Mining", batch="16t"),
+    _check("no_pair", "RidersOfRohan_LTC", "Palace Jailer -> Fling", "Fiend Hunter -> Fling", "Fiend Hunter -> Thornbite Staff", batch="16u"),
     _check("no_pair", "CreativeEnergy_M3C", "Silverquill Lecturer -> Boromir, Warden of the Tower", batch="16n"),
     _check("no_pair", "TinkerTime_MOC", "Feldon of the Third Path -> Skullclamp", batch="16n"),
     _check("no_trim", "EldraziIncursion_M3C", "Forsaken Monument", batch="14"),

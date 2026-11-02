@@ -375,6 +375,14 @@ def _stops_land_plays(card: Mapping) -> bool:
 #: Surge (batch 15's verdict); twelve for Echoes of Eternity's three.
 _C_SOURCES_PER_PIP = 4
 
+
+def _pays_a_sacrifice_more(read: JobRead, candidate: dict, cut: Mapping) -> bool:
+    """Whether the job's read charges ``candidate`` a sacrifice cost
+    (``activated_sac``) it does not charge ``cut``."""
+    fc, fu = read.features(candidate) or {}, read.features(dict(cut)) or {}
+    return fc.get("activated_sac", 0) > fu.get("activated_sac", 0)
+
+
 #: The share of the cut's read a cheaper card in its band must keep to be a
 #: tempo upgrade (:func:`_reads_worse_at_the_job`): Duplicant keeps 0.49 of
 #: Meteor Golem (the kept precedent), Key to the City 0.38 of Smuggler's
@@ -440,6 +448,10 @@ def _reads_worse_at_the_job(
         # Key to the City's discard-to-untap draw (0.22) replaced Smuggler's
         # Share (0.57) in Blame Game (2026-11-02).
         and (sc is None or su is None or sc >= _TEMPO_FLOOR * su)
+        # Nor is a card cheaper that pays a creature the cut doesn't: Fling's
+        # "sacrifice a creature" for Fiend Hunter (Riders of Rohan,
+        # 2026-11-02).
+        and not _pays_a_sacrifice_more(read, candidate, cut)
     ):
         return False
     return sc is not None and su is not None and sc < su - 1e-9
@@ -619,6 +631,12 @@ def _job_cost(read: JobRead, card: dict) -> float:
     features = read.features(card)
     if features and "cost" in features:
         return float(features["cost"])
+    if read.job == "interaction":
+        from mtg_utils._analysis.job_quality import removal
+
+        cost = removal.deploy_cost(card)
+        if cost is not None:
+            return max(cost, effective_mana_value(card))
     return effective_mana_value(card)
 
 

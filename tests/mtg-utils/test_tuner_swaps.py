@@ -4222,3 +4222,13 @@ def test_a_card_that_stops_land_plays_is_read():
 
     assert _stops_land_plays(test_card("Aggressive Mining"))
     assert not _stops_land_plays(test_card("Sol Ring"))
+
+
+def test_a_card_paying_a_creature_is_no_cheaper():
+    """Fling is a mana cheaper than Fiend Hunter but asks a creature too, so
+    it is no tempo upgrade (Riders of Rohan, 2026-11-02)."""
+    from mtg_utils._tuner.swaps import _reads_worse_at_the_job
+
+    assert _reads_worse_at_the_job(
+        test_card("Fling"), test_card("Fiend Hunter"), "interaction", []
+    )
