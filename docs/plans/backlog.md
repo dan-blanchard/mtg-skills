@@ -431,18 +431,12 @@ headroom and parked items.
 proposal as a deckbuilder, fix the structure, the guide score is a yardstick)**
 
 - **The 25-precon pass is closed (2026-11-02): every flaw its reads found has
-  a fix in the tree, verified card by card on the latest run (the symptom
-  checks in batch 10's entry) and on the fresh 10-deck set never used for
-  design** (`~/mtg/tuner-work/fresh/root`; its pre-pass baseline is
-  `w41/misses-fresh-N16.json`). The approaches measured and rejected along
-  the way (listed under Settled with their numbers) were alternative routes
-  to flaws fixed by other means, not open flaws. Two residues the reads
-  judge right and the guides' lists disagree with: Explorers of the Deep
-  keeps Tributary Instructor and Sage of Fables (they feed Hakbal's counters
-  and no Merfolk on the page supplies as much while better played; 26 swaps
-  to the baseline's 29), and Counter Intelligence proposes 24 swaps on its
-  $40.69 (the counters consumers now reach Inexorable Tide and Metastatic
-  Evangel instead of fifty-cent rocks; 30 on an unlimited budget).
+  a fix in the tree, verified card by card on the latest run (the eighteen
+  symptom checks in batch 11's entry, all passing) and on the fresh 10-deck
+  set never used for design** (`~/mtg/tuner-work/fresh/root`; its pre-pass
+  baseline `w41/misses-fresh-N16.json`: 295 / 130 / 38 → 295 / 130 / 37).
+  The approaches measured and rejected along the way (under Settled with
+  their numbers) were alternative routes to flaws fixed by other means.
 
 ## Settled: don't re-suggest
 
@@ -667,6 +661,25 @@ proposal as a deckbuilder, fix the structure, the guide score is a yardstick)**
   Anikthea's page has no counter doublers; Aryel stays a Knight; Cavalier of
   Thorns and Kwain are no trims; Mirko opens no payload page; Bright-Palm's
   counters staples are back.
+- **Batch 11 (2026-11-02; the 25 732 / 341 / 121 → 732 / 340 / 121,
+  held-out 571 / 255 / 103 → 578 / 259 / 103, fresh 291 / 126 / 37 → 295 /
+  130 / 37).** The last two residues fixed. (37) *A tribe slot whose page
+  holds nothing better is routed as any theme cut's is*: the main theme, then
+  the pages of the needs the cut supplies (`propose_swaps`' upgrade loop;
+  Explorers of the Deep's weak Merfolk feed Hakbal's counters — Benthic
+  Biomancer goes to Ozolith, and the deck has its 30 swaps and 13 guide cuts
+  again). (38) *Under a tight purse — an even share under `_TIGHT_SHARE`
+  ($2) a swap, below a played staple's price — a theme page's near tie looks
+  `_CHEAPER_WINDOW_THEME` (40) candidates deep* for the cheaper card of the
+  same popularity: Counter Intelligence's $40, half of it on Aetherflux
+  Reservoir (a combo piece), ran dry at 24 swaps with the cheap counters
+  cards past the tenth candidate; 30 again. Measured and held back: the
+  wider window for every purse (Pantlaza's Etali went to Tyrranax Rex on a
+  $286 budget, three guide adds), and a near tie by equal need count
+  whatever the popularity gap (not needed once the window was tight-purse
+  only). Verified on the run: all of batch 10's checks, plus Etali kept
+  under Pantlaza, Counter Intelligence at 30 swaps, Explorers at 30 with its
+  weak Merfolk cut.
 
 **From the Jace, Multiverse Architect precon tune and the 25-precon audit (2026-10-17 to 2026-11-01)**
 

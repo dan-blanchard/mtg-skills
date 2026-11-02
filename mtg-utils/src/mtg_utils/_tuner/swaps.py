@@ -186,6 +186,15 @@ _NEED_BUILT_FLOOR = 5
 _CHEAPER_TIE = 0.3
 #: How many candidates past the first pick the near tie looks at.
 _CHEAPER_WINDOW = 10
+#: On a theme page under a TIGHT purse — an even share under ``_TIGHT_SHARE``
+#: a swap, below what a played staple costs — the window reaches further for
+#: the cheaper near tie: Counter Intelligence's $40 (a $1.35 share) went on
+#: Walking Ballista and Thought Vessel with Contagion Clasp and Core Prowler
+#: past the tenth candidate, and the tune ran dry at 24 swaps. Widened for
+#: every purse it traded Pantlaza's Etali for Tyrranax Rex on a $286 budget
+#: and moved his ramp slots onto cheap Dinosaurs (2026-11-02).
+_CHEAPER_WINDOW_THEME = 40
+_TIGHT_SHARE = 2.0
 
 #: Spine-fill jobs exempt from the ADR-0040 avenue guard (``find_add``'s
 #: ``role_fix``): protection guards the deck's threats whatever avenue they are
@@ -2083,10 +2092,15 @@ def propose_swaps(
         first: tuple[dict, float] | None = None
         best: tuple[dict, float] | None = None
         looked = 0
+        window = (
+            _CHEAPER_WINDOW_THEME
+            if job is None and ctx.playrate and share < _TIGHT_SHARE
+            else _CHEAPER_WINDOW
+        )
         for card in ranked:
             if first is not None:
                 looked += 1
-                if looked > _CHEAPER_WINDOW:
+                if looked > window:
                     break
             if not addable(card):  # every allowed copy taken — the next best
                 continue
@@ -2466,21 +2480,32 @@ def propose_swaps(
                         and source.what not in (None, FLIP_SLOT)
                     ):
                         # A tribe slot stays the tribe's while the tribe's page
-                        # holds a better card; past that the main theme takes
-                        # it, as any theme cut's does (Explorers of the Deep's
-                        # Merfolk page ran dry and four swaps went unmade,
+                        # holds a better card; past that the slot is routed as
+                        # any theme cut's is — the main theme, then the pages
+                        # of the needs the cut supplies (Explorers of the
+                        # Deep's weak Merfolk feed Hakbal's counters, and the
+                        # Merfolk page ran dry: four swaps went unmade,
                         # 2026-11-02). A flip's slot stays a flip's.
-                        theme = sourcing.theme()
-                        if theme:
+                        fallbacks = [sourcing.theme() or {}]
+                        fallbacks += [
+                            {k: v for k, v in nspec.items() if k != "_cap"}
+                            for _l, _d, nspec in ctx.need_avenues
+                            if nspec.get("_need") is not None
+                            and satisfies(cut.record, nspec["_need"])
+                        ]
+                        for spec in fallbacks:
+                            if not spec:
+                                continue
                             picked, avenue = find_theme_add(
-                                theme,
+                                spec,
                                 synergy_first=True,
                                 nonland_only=True,
                                 upgrade_of=cut,
                                 job=None,
                             )
                             if picked is not None:
-                                source = UpgradeSource(theme, None)
+                                source = UpgradeSource(spec, None)
+                                break
                     # A full job's slot moves onto the theme (the docstring) when
                     # the theme's add costs no more than the job's would — or,
                     # for a polymorph deck's flip, onto the flips' page.
