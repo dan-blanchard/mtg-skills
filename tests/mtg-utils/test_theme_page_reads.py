@@ -590,3 +590,16 @@ def test_a_ping_on_every_creature_entering_hurts_its_controller_too():
     assert "self_drawback|you|harm" in _idents("Rampaging Ferocidon")
     assert "self_drawback|you|harm" not in _idents("Suture Priest")
 
+
+def test_a_sacrifice_the_player_may_decline_for_a_penalty_is_no_edict():
+    """Braids, Arisen Nightmare: "each opponent may sacrifice a permanent …
+    For each opponent who doesn't, that player loses 2 life" — the opponent
+    picks, so it forces nothing and is no removal (Blood Rites, 2026-11-02).
+    Fleshbag Marauder's "each player sacrifices a creature" stays an edict."""
+    from mtg_utils._analysis.roles import role_of
+
+    assert not any(
+        i.startswith("edict_makers|") for i in _idents("Braids, Arisen Nightmare")
+    )
+    assert "interaction" not in role_of(test_card("Braids, Arisen Nightmare"))
+    assert any(i.startswith("edict_makers|") for i in _idents("Fleshbag Marauder"))

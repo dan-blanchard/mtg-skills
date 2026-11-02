@@ -3797,12 +3797,11 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
             "Priest of Forgotten Gods",  # "any number of target players each …"
             "Papalymo Totolymo",  # phase drops "each opponent" (a ledger row)
             "Davriel, Soul Broker",  # +1's "they sacrifice an attacking creature"
-            # "may sacrifice a permanent … that shares a card type with it" (its
-            # ruling): the types of what you sacrificed.
-            "Braids, Arisen Nightmare",
         ),
         # Devour (CR 702.82a) is a sacrifice YOU make (CR 701.21a): no edict; nor
-        # is a punisher "any player may sacrifice".
+        # is a punisher "any player may sacrifice" — Braids, Arisen Nightmare's
+        # "each opponent may sacrifice … For each opponent who doesn't, that
+        # player loses 2 life" is the opponent's choice too (2026-11-02).
         should_not_match=(
             "Lightning Bolt",
             "Shatter",
@@ -3810,6 +3809,7 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
             "Mycoloth",
             "Prowling Pangolin",
             "Brain Gorgers",
+            "Braids, Arisen Nightmare",
         ),
     ),
     Preset(

@@ -374,12 +374,36 @@ def _reads_worse_at_the_job(
         return True
     if job == "board_wipe" and _sweeps_fewer_kinds(read, candidate, cut):
         return True
+    records = deck or ()
+    if _one_shot_for_an_engine(read, candidate, cut, records):
+        return True
     cand_cost, cut_cost = _job_cost(read, candidate), _job_cost(read, cut)
     if cand_cost < cut_cost and _cost_band(cand_cost) == _cost_band(cut_cost):
         return False
-    records = deck or ()
     sc, su = read.score(candidate, records), read.score(cut, records)
     return sc is not None and su is not None and sc < su - 1e-9
+
+
+def _one_shot_for_an_engine(
+    read: JobRead, candidate: dict, cut: Mapping, deck: Sequence[dict]
+) -> bool:
+    """Whether ``candidate`` is an instant or sorcery the job's read sees
+    nothing of, replacing a permanent the read scores at the job: Vanquisher's
+    Banner's draw on every Knight cast went to And They Shall Know No Fear's
+    one turn of +1/+0 (Cavalry Charge, 2026-11-02). Only a one-shot spell: the
+    broader "nothing at the job is worse" also caught creatures the read
+    can't see (Dark Confidant) and was reverted."""
+    words = {w.lower() for w in split_type_line(candidate.get("type_line") or "")[0]}
+    if not words & {"instant", "sorcery"}:
+        return False
+    cut_words = {w.lower() for w in split_type_line(cut.get("type_line") or "")[0]}
+    if cut_words & {"instant", "sorcery"}:
+        return False
+    if not has_trees(candidate):
+        return False
+    return (
+        read.score(candidate, deck) is None and read.score(dict(cut), deck) is not None
+    )
 
 
 def _one_shot_mana(card: dict) -> bool:

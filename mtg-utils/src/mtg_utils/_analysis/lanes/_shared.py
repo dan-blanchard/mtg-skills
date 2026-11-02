@@ -29,6 +29,7 @@ from mtg_utils._card_ir.crosswalk import (
     filter_owned_controller,
     filter_predicates,
     filter_subtypes,
+    iter_typed_nodes,
     root_target_filter,
     sacrifice_names_no_player,
     scoped_player_scope,
@@ -489,6 +490,8 @@ def sacrifice_actor_scope(unit: AbilityUnit, node: TypedMirrorNode) -> str | Non
         # trigger, parked whole as ``enters_with_clause``) — every player.
         if recovered.scope == "each" and IMPERATIVE not in recovered.reading:
             return "each"
+    if _punisher_choice(unit, node):
+        return None
     looped = _looped_object_controller(unit, node)
     if looped is not None:
         return looped
@@ -504,6 +507,30 @@ def sacrifice_actor_scope(unit: AbilityUnit, node: TypedMirrorNode) -> str | Non
     if scope is None and sacrifice_names_no_player(unit.node, node):
         return _chained_sacrifice_actor(unit, node)
     return scope
+
+
+def _punisher_choice(unit: AbilityUnit, node: TypedMirrorNode) -> bool:
+    """Whether a ``Sacrifice`` is the sacrificing player's choice with a
+    penalty for declining — an optional sacrifice whose next step fires only
+    when it was not performed: Braids, Arisen Nightmare's "each opponent may
+    sacrifice a permanent … For each opponent who doesn't, that player loses
+    2 life and you draw a card". The player picks the cheaper branch, so it
+    forces nothing: no edict (Blood Rites, 2026-11-02). "You may have each
+    opponent sacrifice" has no such branch and stays one."""
+    for wrapper in iter_typed_nodes(getattr(unit, "node", None)):
+        if getattr(wrapper, "effect", None) is not node:
+            continue
+        if getattr(wrapper, "optional", False) is not True:
+            return False
+        nxt = getattr(wrapper, "sub_ability", None)
+        cond = getattr(nxt, "condition", None)
+        return (
+            tag_of(cond) == "Not"
+            and tag_of(getattr(cond, "condition", None)) == "EffectOutcome"
+            and getattr(getattr(cond, "condition", None), "signal", None)
+            == "OptionalEffectPerformed"
+        )
+    return False
 
 
 def _looped_object_controller(unit: AbilityUnit, node: TypedMirrorNode) -> str | None:

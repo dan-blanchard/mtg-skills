@@ -152,6 +152,9 @@ CHECKS = [
     _check("never", "MostWanted_OTC", "Sanguine Bond", "Vito, Thorn of the Dusk Rose", batch="16c"),
     # A lane_ok fill takes a non-supplier from either fallback pool before a supplier.
     _check("no_pair", "VelociRampTor_LCC", "Descendants' Path -> Esper Sentinel", batch="16d"),
+    # A punisher ("may sacrifice … if they don't") is no edict; a one-shot spell no job engine.
+    _check("no_pair", "BloodRites_LCC", "Patron of the Vein -> Braids, Arisen Nightmare", batch="16e"),
+    _check("no_pair", "CavalryCharge_MOC", "Vanquisher's Banner -> And They Shall Know No Fear", batch="16e"),
     _check("no_trim", "EldraziIncursion_M3C", "Forsaken Monument", batch="14"),
     _check("no_trim", "TrickyTerrain_M3C", "Mana Reflection", batch="14"),
 ]

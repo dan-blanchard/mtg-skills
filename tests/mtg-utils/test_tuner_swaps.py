@@ -3943,3 +3943,14 @@ def test_a_narrow_sweep_is_no_upgrade_of_a_whole_board_one():
     fumigate = _real_cc("Fumigate", "spine", roles=["board_wipe"], edhrec_rank=8000)
     assert not _upgrades(_played("Aetherize", 10), fumigate, "board_wipe")
     assert _upgrades(_played("Wrath of God", 10), fumigate, "board_wipe")
+
+
+def test_a_one_shot_spell_is_no_upgrade_of_a_job_engine():
+    """Vanquisher's Banner draws on every creature spell of the chosen type;
+    And They Shall Know No Fear is one turn of +1/+0 and indestructible, and
+    draws nothing: no upgrade of the Banner's slot (Cavalry Charge,
+    2026-11-02). A creature the read can't see is not held to it."""
+    banner = _real_cc(
+        "Vanquisher's Banner", "spine", roles=["card_draw"], edhrec_rank=8000
+    )
+    assert not _upgrades(_played("And They Shall Know No Fear", 10), banner, None)

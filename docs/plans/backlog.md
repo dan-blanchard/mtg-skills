@@ -1164,6 +1164,28 @@ proposal as a deckbuilder, fix the structure, the guide score is a yardstick)**
   Outlaws page, Olivia's own lane. Blood Rites' Vampires falling from 35 to
   23 — its guides add 33 cards, four of them Vampires.
   `verify_symptoms.py`: Descendants' Path never goes to Esper Sentinel; 79.
+- **Batch 16e (2026-11-02; the 25 735 / 338 / 119 → 734 / 337 / 118, held-out
+  569 / 262 / 106 → 570 / 263 / 107, fresh unchanged).** The re-read of
+  batch 16d's six proposals, each flag checked against the card text.
+  Fixed: (78) *a sacrifice the player may decline for a penalty is no edict*
+  (`lanes._shared._punisher_choice`, read by `sacrifice_actor_scope`, so the
+  edict lane and the removal walk both see it): Braids, Arisen Nightmare's
+  "each opponent may sacrifice … For each opponent who doesn't, that player
+  loses 2 life" was interaction and upgraded Blood Rites' Patron of the
+  Vein (a Vampire whose enters trigger destroys a creature); it now goes to
+  Eaten Alive. The `creature-edict` preset already excluded punishers
+  (Prowling Pangolin) and listed Braids as a match against its own rule —
+  moved to should-not-match. (79) *a one-shot spell is no upgrade of a
+  permanent that does the job* (`swaps._one_shot_for_an_engine`: an instant
+  or sorcery the job's read sees nothing of, for a permanent it scores):
+  Vanquisher's Banner's draw went to And They Shall Know No Fear's one turn
+  of +1/+0 in Cavalry Charge and Sliver Swarm; it now goes to Kindred Boon.
+  Verdicts, with the check: Cast Out for Accursed Marauder (the removal read
+  scores the Marauder 0.77 to Cast Out's 0.75, and it is a Zombie under
+  Temmet). Open, measured next: Archfiend of Ifnir for Counterspell (it
+  supplies Temmet's "discard consumers" need, which reads as broad, so the
+  gate doesn't hold it). The 25's loss is Sultai Arisen's Harrow-for-Ramunap
+  pair, gone in a reshuffle of its theme page. `verify_symptoms.py`: 81.
 
 **From the Jace, Multiverse Architect precon tune and the 25-precon audit (2026-10-17 to 2026-11-01)**
 
