@@ -2197,7 +2197,13 @@ def test_a_job_upgrade_at_the_same_mana_never_reads_worse_at_the_job():
     an equal read played more, is its upgrade. A cheaper card is not held to
     the read (Duplicant for Meteor Golem, the test above)."""
     signet = _real_cc("Golgari Signet", "spine", roles=["ramp"], edhrec_rank=8000)
-    pool = [_played("Fellwar Stone", 10), _played("Arcane Signet", 20)]
+    # Wayfarer's Bauble is printed at one mana, but the ramp read's deploy cost
+    # counts its activation (three): no cheaper card, and a worse read.
+    pool = [
+        _played("Fellwar Stone", 10),
+        _played("Wayfarer's Bauble", 15),
+        _played("Arcane Signet", 20),
+    ]
     out = _swaps_for_issue_dicts(
         [signet],
         [{"kind": "upgrade", "severity": 1, "count": 1}],

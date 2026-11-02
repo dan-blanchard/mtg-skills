@@ -87,6 +87,7 @@ CHECKS = [
     _check("never", "TrickyTerrain_M3C", "Talrand, Sky Summoner", "Aqueous Form",
            "Crashing Drawbridge", "Blade of Selves", batch="13"),
     _check("never", "DeathToll_DSC", "Fellwar Stone", batch="13"),
+    _check("never", "JeskaiStriker_TDC", "Wayfarer's Bauble", batch="13"),
 ]
 
 

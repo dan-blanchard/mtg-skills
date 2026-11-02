@@ -433,7 +433,7 @@ proposal as a deckbuilder, fix the structure, the guide score is a yardstick)**
 - **The 25-precon pass is closed (2026-11-02): every flaw its reads found has
   a fix in the tree, verified card by card on the latest run
   (`docs/plans/precon-audit/verify_symptoms.py` over the three `misses.json`
-  files: 34 checks, one per flaw, all passing) and on the fresh 10-deck set
+  files: 35 checks, one per flaw, all passing) and on the fresh 10-deck set
   never used for design** (`~/mtg/tuner-work/fresh/root`; its pre-pass
   baseline `w41/misses-fresh-N16.json`: 295 / 130 / 38 → 294 / 132 / 40;
   every batch's proposals re-read deck by deck on all three sets — batches
@@ -729,9 +729,9 @@ proposal as a deckbuilder, fix the structure, the guide score is a yardstick)**
   doesn't hold — superseded by batch 13's need read. Verified with
   `docs/plans/precon-audit/verify_symptoms.py` (31 / 31 on this run; 20 / 31
   on the previous — every batch-12 check bit).
-- **Batch 13 (2026-11-02; the 25 733 / 339 / 119 → 732 / 340 / 121,
-  held-out 576 / 259 / 104 → 575 / 260 / 103, fresh 295 / 133 / 39 → 294 /
-  132 / 40).** Batch 12's proposals re-read on all three sets. (42) *A
+- **Batch 13 (2026-11-02; the 25 733 / 339 / 119 → 733 / 340 / 121,
+  held-out 576 / 259 / 104 unchanged, fresh 295 / 133 / 39 → 294 / 132 /
+  40).** Batch 12's proposals re-read on all three sets. (42) *A
   commander whose static makes permanents every creature type wants the
   payoffs those types unlock* (`commander_need._static_needs` →
   `_grants_all_creature_types_node`, an `AddAllCreatureTypes` modification,
@@ -752,20 +752,24 @@ proposal as a deckbuilder, fix the structure, the guide score is a yardstick)**
   *A job upgrade at the same or a higher mana value never reads worse at the
   job than the card it replaces* (`swaps._reads_worse_at_the_job`, before
   the needs gate; a cheaper card is a tempo upgrade whatever the read says —
-  Duplicant for Meteor Golem). The read still decides membership and
+  Duplicant for Meteor Golem — where "cheaper" is the job read's own deploy
+  cost when it has one, `_job_cost`: Wayfarer's Bauble costs three to the
+  ramp read, not its printed one, so it undercuts no Signet — Jeskai Striker
+  had taken it for Azorius Signet). The read still decides membership and
   play-rate still orders (ADR-0060); this is the floor under a swap for its
   own sake: Golgari Signet for Fellwar Stone (Death Toll), Simic Signet for
   Cultivate and Ripples of Potential for Innkeeper's Talent (Explorers, now
   29 swaps), Infernal Grasp for Withering Torment and Casualties of War for
   Feed the Swarm (Witherbloom), Chain Reaction for Aetherize (Counter
-  Intelligence), Damn for Toxic Deluge (Blood Rites, Eternal Might) all
-  stop; Squirreled Away gains Drey Keeper and Bitterblossom. Verdicts: Temur
+  Intelligence) all stop, while Damn still goes to Toxic Deluge (three to
+  the wipe read against Damn's overloaded four: cheaper); Squirreled Away
+  gains Drey Keeper and Bitterblossom. Verdicts: Temur
   Roar's 24 swaps are the settled lane rule — its unreached guide cuts are
   carers and lane doers of the Dragon lane, which verdict (a) below keeps
   ("a feeder nobody plays", never a function read); Animated Army's four
   fewer ramp trims are the curve-aware band's reading of a 26-ramp deck whose
-  guides keep 25. Verified with `verify_symptoms.py` (34 / 34 on this run,
-  the three batch-13 checks failing on the previous).
+  guides keep 25. Verified with `verify_symptoms.py` (35 / 35 on this run,
+  the four batch-13 checks failing on the previous).
 
 **From the Jace, Multiverse Architect precon tune and the 25-precon audit (2026-10-17 to 2026-11-01)**
 

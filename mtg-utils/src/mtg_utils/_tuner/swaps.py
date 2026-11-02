@@ -361,11 +361,22 @@ def _reads_worse_at_the_job(
     read = read_for(job)
     if read is None or not has_trees(candidate) or not has_trees(cut):
         return False
-    if effective_mana_value(candidate) < effective_mana_value(cut):
+    if _job_cost(read, candidate) < _job_cost(read, cut):
         return False
     records = deck or ()
     sc, su = read.score(candidate, records), read.score(cut, records)
     return sc is not None and su is not None and sc < su - 1e-9
+
+
+def _job_cost(read: JobRead, card: dict) -> float:
+    """What deploying ``card`` for its job costs: the read's own ``cost``
+    feature where it has one (the ramp read counts Wayfarer's Bauble's
+    activation — three, not its printed one, so a Signet is no card it
+    undercuts), else the mana value on the curve."""
+    features = read.features(card)
+    if features and "cost" in features:
+        return float(features["cost"])
+    return effective_mana_value(card)
 
 
 def _upgrades(
