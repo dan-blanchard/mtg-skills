@@ -55,7 +55,10 @@ from mtg_utils._card_ir.crosswalk.reads import (
     iter_cost_leaves,
     iter_typed_nodes,
     tag_of,
+    trigger_def_event,
+    trigger_scope,
 )
+from mtg_utils._card_ir.mirror.runtime import TypedMirrorNode
 from mtg_utils._card_ir.trees import trees_for
 from mtg_utils._tuner import mana_base
 from mtg_utils._tuner.ability_quality import grant_grade, outgrades
@@ -81,6 +84,7 @@ from mtg_utils._tuner.issues import (
 from mtg_utils._tuner.mana_base import LandPlan
 from mtg_utils._tuner.metrics import NEUTRAL_KEYS, NO_FEEDER_READ, payoff_feeders
 from mtg_utils.card_classify import (
+    color_sources,
     extract_price,
     is_basic_land,
     is_land,
@@ -365,12 +369,58 @@ def _reads_worse_at_the_job(
     read = read_for(job)
     if read is None or not has_trees(candidate) or not has_trees(cut):
         return False
+    if job == "ramp" and _one_shot_for_repeatable(read, candidate, cut):
+        return True
     cand_cost, cut_cost = _job_cost(read, candidate), _job_cost(read, cut)
     if cand_cost < cut_cost and _cost_band(cand_cost) == _cost_band(cut_cost):
         return False
     records = deck or ()
     sc, su = read.score(candidate, records), read.score(cut, records)
     return sc is not None and su is not None and sc < su - 1e-9
+
+
+def _one_shot_for_repeatable(read: JobRead, candidate: dict, cut: Mapping) -> bool:
+    """Whether ``candidate`` is a one-shot mana source (a ritual, Lotus Petal:
+    the ramp read's ``per_turn`` zero and no land) replacing a repeatable one —
+    a downgrade whatever it costs: Wild Growth went to Lotus Petal (Deadly
+    Disguise), Azorius Signet to Dark Ritual (Multiverse Reforged), Millikin to
+    Simian Spirit Guide (Lorehold Spirit; 2026-11-02)."""
+    a, b = read.features(candidate), read.features(dict(cut))
+    if not a or a.get("per_turn", 0) > 0 or a.get("land", 0) > 0:
+        return False
+    # A cut the read can't itemise (Millikin's mill-cost mana, a ramp role all
+    # the same) is repeatable for all a one-shot knows; so is a conditional
+    # engine (Relic Retriever's Treasures).
+    return b is None or any(
+        b.get(k, 0) > 0 for k in ("per_turn", "land", "cond_engine")
+    )
+
+
+def _lateral_at_the_job(candidate: dict, cut: Mapping, job: str) -> bool:
+    """Whether ``candidate`` is the cut in another coat: the same job read, the
+    same deploy cost and as many colors — Talisman of Creativity for Talisman
+    of Curiosity in a Temur deck (Living Energy), Pongify for Rapid
+    Hybridization (Explorers of the Deep; 2026-11-02). Arcane Signet's
+    any-color mana is more colors than a Signet's two, so it stays an
+    upgrade; a read that differs at all is play-rate's to order."""
+    read = read_for(job)
+    if read is None or not has_trees(candidate) or not has_trees(cut):
+        return False
+    sc, su = read.score(candidate), read.score(dict(cut))
+    if sc is None or su is None or abs(sc - su) > 1e-9:
+        return False
+    if _job_cost(read, candidate) != _job_cost(read, dict(cut)):
+        return False
+    return _color_count(candidate) == _color_count(cut)
+
+
+def _color_count(card: Mapping) -> int:
+    """How many colors the card's mana reaches (five for "any"), else how many
+    colors it is."""
+    sources = color_sources(dict(card))
+    if sources:
+        return 5 if "any" in sources else len(sources - {"C"})
+    return len(card.get("color_identity") or [])
 
 
 def _cost_band(cost: float) -> int:
@@ -464,6 +514,8 @@ def _upgrades(
     if read_job is not None and _reads_worse_at_the_job(
         candidate, cut.record, read_job, deck
     ):
+        return False
+    if read_job is not None and _lateral_at_the_job(candidate, cut.record, read_job):
         return False
     if needs is not None and needs(candidate) < needs(cut.record):
         return False
@@ -591,6 +643,15 @@ _CREATURE_TOKENS_GATE = "creature tokens"
 #: cards of the color; the word is ``color:<letter>``.
 _COLOR_LETTERS = {"white": "w", "blue": "u", "black": "b", "red": "r", "green": "g"}
 _COUNTER_GATE_FEEDERS = frozenset({"plus_one_makers", "any_counter_makers"})
+#: A gate on an opponent's discard (Waste Not's three triggers), fed by the
+#: deck's discard makers; the event is the gate where the discarded card's
+#: type is generic (2026-11-02).
+_OPP_DISCARD_GATE = "opponents discard"
+_OPP_DISCARD_FEEDERS = frozenset({"opponent_discard", "discard_makers"})
+#: The library effects whose filter is over YOUR cards though it carries no
+#: controller: Heroes' Podium's legendary creature from the top, Open the
+#: Armory's Aura or Equipment.
+_LIBRARY_EFFECTS = frozenset({"Dig", "SearchLibrary"})
 
 
 def deck_profile(classes: Sequence[CardClass]) -> tuple[Counter, Counter, Counter]:
@@ -779,6 +840,10 @@ class _UnitGates:
             if word.startswith("color:"):
                 if deck_types.get(word, 0) >= _TYPE_GATE_FLOOR:
                     return True
+            elif word == _OPP_DISCARD_GATE:
+                keys = deck_keys or Counter()
+                if sum(keys.get(k, 0) for k in _OPP_DISCARD_FEEDERS) >= _FEEDER_FLOOR:
+                    return True
             elif word == _COUNTERS_GATE:
                 keys = deck_keys or Counter()
                 if sum(keys.get(k, 0) for k in _COUNTER_GATE_FEEDERS) >= _FEEDER_FLOOR:
@@ -833,9 +898,11 @@ def _ability_gate_words(node: object, effects: Sequence) -> frozenset[str]:
                 words |= _gate_words(target)
     for c in effects:
         # Every typed filter the effect reaches — its target, an attachment
-        # (Brass Squire's Equipment), a count (Inspiring Call's counters).
+        # (Brass Squire's Equipment), a count (Inspiring Call's counters); a
+        # library effect's filter is yours with no controller on it.
+        library = tag_of(c.node) in _LIBRARY_EFFECTS
         for n in iter_typed_nodes(c.node):
-            if tag_of(n) == "Typed" and filter_controller(n) == "You":
+            if tag_of(n) == "Typed" and (library or filter_controller(n) == "You"):
                 words |= _gate_words(n)
     return frozenset(words)
 
@@ -881,6 +948,20 @@ def _unit_gates(card: Mapping) -> _UnitGates:
                 continue
             if unit.origin == "trigger":
                 filt = getattr(unit.node, "valid_card", None)
+                if (
+                    isinstance(unit.node, TypedMirrorNode)
+                    and trigger_def_event(unit.node) == "discarded"
+                    and trigger_scope(unit.node) in ("opponents", "each")
+                ):
+                    units += 1
+                    gates.append(
+                        _Gate(
+                            (_gate_words(filt) if _present(filt) else frozenset())
+                            | {_OPP_DISCARD_GATE},
+                            static=False,
+                        )
+                    )
+                    continue
             elif unit.origin == "static":
                 filt = getattr(unit.node, "affected", None)
                 if tag_of(filt) == "SelfRef":

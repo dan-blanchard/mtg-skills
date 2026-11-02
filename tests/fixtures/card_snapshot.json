@@ -576400,6 +576400,253 @@
     "type_line": "Instant"
    }
   },
+  "Heroes' Podium": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": {
+        "costs": [
+         {
+          "cost": {
+           "generic": 0,
+           "shards": [
+            "X"
+           ],
+           "type": "Cost"
+          },
+          "type": "Mana"
+         },
+         {
+          "type": "Tap"
+         }
+        ],
+        "type": "Composite"
+       },
+       "description": "{X}, {T}: Look at the top X cards of your library. You may reveal a legendary creature card from among them and put it into your hand. Put the rest on the bottom of your library in a random order.",
+       "duration": null,
+       "effect": {
+        "count": {
+         "qty": {
+          "name": "X",
+          "type": "Variable"
+         },
+         "type": "Ref"
+        },
+        "destination": "Hand",
+        "enter_tapped": false,
+        "enters_attacking": false,
+        "filter": {
+         "controller": null,
+         "properties": [
+          {
+           "type": "HasSupertype",
+           "value": "Legendary"
+          }
+         ],
+         "type": "Typed",
+         "type_filters": [
+          "Creature"
+         ]
+        },
+        "keep_count": 1,
+        "player": {
+         "type": "Controller"
+        },
+        "rest_destination": "Library",
+        "rest_order": "random",
+        "reveal": true,
+        "type": "Dig",
+        "up_to": true
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Artifact"
+      ],
+      "subtypes": [],
+      "supertypes": [
+       "Legendary"
+      ]
+     },
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 5,
+      "shards": [],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "1b2bee5c-7ea0-4713-a60b-dccaf89c5d48",
+       "4503b65f-416e-49af-88c8-0871bca2c050",
+       "85f585e6-4435-437a-98f0-b9159211067c",
+       "98ef8f63-1224-495e-ae0b-7789c2b94e3a",
+       "a3cb14f9-343c-4672-b4ee-db7f1d1a98ff",
+       "dcc631ce-4b0d-49da-a5ad-6f419678abb4"
+      ]
+     },
+     "name": "Heroes' Podium",
+     "non_ability_text": null,
+     "oracle_text": "Each legendary creature you control gets +1/+1 for each other legendary creature you control.\n{X}, {T}: Look at the top X cards of your library. You may reveal a legendary creature card from among them and put it into your hand. Put the rest on the bottom of your library in a random order.",
+     "power": null,
+     "printings": [
+      "BNG",
+      "DMC",
+      "WHO"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2014-02-01",
+       "text": "Heroes' Podium will give a bonus to each legendary creature you control, even if gaining control of one causes the \"legend rule\" to apply. For example, if you control Brimaz, King of Oreskos (a 3/4 legendary creature), and gain control of another one, they'll each be 4/5 when you put one into its owner's graveyard. Then the remaining one will return to being 3/4."
+      },
+      {
+       "date": "2014-02-01",
+       "text": "The bonus given by Heroes' Podium counts only legendary creatures. It won't count itself unless some other effect causes it to be a creature in addition to being a land (in which case it will also get the bonus)."
+      }
+     ],
+     "scryfall_oracle_id": "85292bfb-32d7-449e-9ebb-5be828e8ecf6",
+     "static_abilities": [
+      {
+       "active_zones": [],
+       "affected": {
+        "controller": "You",
+        "properties": [
+         {
+          "type": "HasSupertype",
+          "value": "Legendary"
+         }
+        ],
+        "type": "Typed",
+        "type_filters": [
+         "Creature"
+        ]
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": null,
+       "description": "Each legendary creature you control gets +1/+1 for each other legendary creature you control.",
+       "effect_zone": null,
+       "mode": "Continuous",
+       "modifications": [
+        {
+         "type": "AddDynamicPower",
+         "value": {
+          "qty": {
+           "filter": {
+            "controller": "You",
+            "properties": [
+             {
+              "type": "Another"
+             },
+             {
+              "type": "HasSupertype",
+              "value": "Legendary"
+             }
+            ],
+            "type": "Typed",
+            "type_filters": [
+             "Creature"
+            ]
+           },
+           "type": "ObjectCount"
+          },
+          "type": "Ref"
+         }
+        },
+        {
+         "type": "AddDynamicToughness",
+         "value": {
+          "qty": {
+           "filter": {
+            "controller": "You",
+            "properties": [
+             {
+              "type": "Another"
+             },
+             {
+              "type": "HasSupertype",
+              "value": "Legendary"
+             }
+            ],
+            "type": "Typed",
+            "type_filters": [
+             "Creature"
+            ]
+           },
+           "type": "ObjectCount"
+          },
+          "type": "Ref"
+         }
+        }
+       ]
+      }
+     ],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 5.0,
+    "color_identity": [],
+    "colors": [],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{5}",
+    "name": "Heroes' Podium",
+    "oracle_id": "85292bfb-32d7-449e-9ebb-5be828e8ecf6",
+    "oracle_text": "Each legendary creature you control gets +1/+1 for each other legendary creature you control.\n{X}, {T}: Look at the top X cards of your library. You may reveal a legendary creature card from among them and put it into your hand. Put the rest on the bottom of your library in a random order.",
+    "type_line": "Legendary Artifact"
+   }
+  },
   "Heroic Intervention": {
    "phase_records": [
     {
@@ -926021,6 +926268,225 @@
     "type_line": "Creature — Otter Artificer"
    }
   },
+  "Rapid Hybridization": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Destroy target creature. It can't be regenerated. That creature's controller creates a 3/3 green Frog Lizard creature token.",
+       "duration": null,
+       "effect": {
+        "cant_regenerate": true,
+        "target": {
+         "controller": null,
+         "properties": [],
+         "type": "Typed",
+         "type_filters": [
+          "Creature"
+         ]
+        },
+        "type": "Destroy"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "colors": [
+          "Green"
+         ],
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "enters_attacking": false,
+         "keywords": [],
+         "name": "Frog Lizard",
+         "owner": {
+          "type": "ParentTargetController"
+         },
+         "power": {
+          "type": "Fixed",
+          "value": 3
+         },
+         "tapped": false,
+         "toughness": {
+          "type": "Fixed",
+          "value": 3
+         },
+         "type": "Token",
+         "types": [
+          "Creature",
+          "Frog",
+          "Lizard"
+         ]
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "sub_link": "SequentialSibling",
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Instant"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Blue"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 0,
+      "shards": [
+       "Blue"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "related_token_ids": [
+       "3e43ea41-fe1d-53dc-9c31-d9017d90aa4e",
+       "3efe4ef0-fcfb-543b-ae0c-63570dd400a0",
+       "4d6fd4f9-afa8-5996-a766-89c7b5909751",
+       "5b3f064a-1d67-5cac-81d7-092a714c7631",
+       "90c3872a-9afa-5003-bc53-cbec13e1bb0d",
+       "ae51167e-0159-51c3-aede-0ead05e9df5f",
+       "de563207-5b78-529c-889f-88e8a82924cd",
+       "fe05bec2-d5f9-50f6-b439-2eedd5a51e57"
+      ],
+      "source_printing_ids": [
+       "1dd85561-28b9-464c-a1b5-81c3a43a4f38",
+       "213bdaac-8044-4af3-b568-2859e3087082",
+       "423ed9cd-94d9-49a1-a167-69899b630f95",
+       "6b5c6ed5-0fb9-40d4-bdce-bcaff40ef9a6",
+       "83557f55-f1ab-4995-9cc1-37be895a59db",
+       "917df0f5-af77-4e8a-af81-2f78a432b520",
+       "9c9d4ea4-2ca2-46d2-b196-e0f5e1100edf",
+       "b6912638-b087-4754-9e7e-8bd76fbf095c",
+       "ccda5bda-5afd-4548-bd48-12c780bfa68b",
+       "dc3d101f-7ae4-44e3-9e48-6091aca8587f",
+       "e9a52e70-b7a7-4ad4-97e1-a7033925db53"
+      ]
+     },
+     "name": "Rapid Hybridization",
+     "non_ability_text": null,
+     "oracle_text": "Destroy target creature. It can't be regenerated. That creature's controller creates a 3/3 green Frog Lizard creature token.",
+     "power": null,
+     "printings": [
+      "BLC",
+      "C15",
+      "C21",
+      "CLU",
+      "GK2",
+      "GTC",
+      "LCC",
+      "PIO",
+      "PLST",
+      "SLD",
+      "SOC",
+      "TDC"
+     ],
+     "rarities": [
+      "uncommon",
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2013-01-24",
+       "text": "If the creature is an illegal target when Rapid Hybridization tries to resolve, it won't resolve and none of its effects will happen. No Frog Lizard token will be created."
+      },
+      {
+       "date": "2013-07-01",
+       "text": "If Rapid Hybridization resolves and the creature isn't destroyed (perhaps because it has indestructible), its controller will still get the Frog Lizard token."
+      }
+     ],
+     "scryfall_oracle_id": "06692cd9-ac2f-4a32-8fd1-043ba3c0fe71",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "all_parts": [
+     {
+      "component": "token",
+      "id": "48c184d8-159a-47e3-8107-c7e7c5788e1d",
+      "name": "Frog Lizard",
+      "oracle_id": "8653c69b-99a9-4881-a14c-68ba928c34d5",
+      "type_line": "Token Creature — Frog Lizard"
+     }
+    ],
+    "arena_available": true,
+    "cmc": 1.0,
+    "color_identity": [
+     "U"
+    ],
+    "colors": [
+     "U"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{U}",
+    "name": "Rapid Hybridization",
+    "oracle_id": "06692cd9-ac2f-4a32-8fd1-043ba3c0fe71",
+    "oracle_text": "Destroy target creature. It can't be regenerated. That creature's controller creates a 3/3 green Frog Lizard creature token.",
+    "type_line": "Instant"
+   }
+  },
   "Rashel, Fist of Torm": {
    "phase_records": [
     {
@@ -938592,6 +939058,231 @@
     "power": "6",
     "toughness": "6",
     "type_line": "Artifact Creature — Golem"
+   }
+  },
+  "Relic Retriever": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Spirit",
+       "Monkey"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Red"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [
+      "FirstStrike"
+     ],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "Red"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "related_token_ids": [
+       "8dc5a01d-0271-51e0-bd2c-423b404802bc"
+      ],
+      "source_printing_ids": [
+       "2866da1d-62e9-4a0d-9e6c-793d2d38c884",
+       "a016463d-a0aa-44a5-97ca-17ff70c4eb95"
+      ]
+     },
+     "name": "Relic Retriever",
+     "non_ability_text": null,
+     "oracle_text": "First strike\nAt the beginning of each end step, if a card left your graveyard this turn, create a Treasure token. (It's an artifact with \"{T}, Sacrifice this token: Add one mana of any color.\")",
+     "power": {
+      "type": "Fixed",
+      "value": 2
+     },
+     "printings": [
+      "SOC"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2026-03-20",
+       "text": "Relic Retriever's last ability will check as your end step starts to see if any cards have left your graveyard this turn. If none did, the ability won't trigger at all. It's not possible to remove cards from your graveyard during your end step in time to have the ability trigger."
+      }
+     ],
+     "scryfall_oracle_id": "689c41e9-800a-4998-bb04-74bf90141035",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 1
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": {
+        "comparator": "GE",
+        "lhs": {
+         "qty": {
+          "filter": {
+           "controller": null,
+           "properties": [
+            {
+             "controller": "You",
+             "type": "Owned"
+            },
+            {
+             "type": "NonToken"
+            }
+           ],
+           "type": "Typed",
+           "type_filters": []
+          },
+          "from": "Graveyard",
+          "type": "ZoneChangeCountThisTurn"
+         },
+         "type": "Ref"
+        },
+        "rhs": {
+         "type": "Fixed",
+         "value": 1
+        },
+        "type": "QuantityComparison"
+       },
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "At the beginning of each end step, if a card left your graveyard this turn, create a Treasure token.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "colors": [],
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "enters_attacking": false,
+         "keywords": [],
+         "name": "Treasure",
+         "owner": {
+          "type": "Controller"
+         },
+         "power": {
+          "type": "Fixed",
+          "value": 0
+         },
+         "tapped": false,
+         "toughness": {
+          "type": "Fixed",
+          "value": 0
+         },
+         "type": "Token",
+         "types": [
+          "Artifact",
+          "Treasure"
+         ]
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "Phase",
+       "optional": false,
+       "origin": null,
+       "phase": "End",
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": null,
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "all_parts": [
+     {
+      "component": "token",
+      "id": "649d42c1-a465-435e-8b67-e901ab9ad8ab",
+      "name": "Treasure",
+      "oracle_id": "3c549374-6c37-42e0-8d88-a8555d46732d",
+      "type_line": "Token Artifact — Treasure"
+     }
+    ],
+    "arena_available": false,
+    "cmc": 2.0,
+    "color_identity": [
+     "R"
+    ],
+    "colors": [
+     "R"
+    ],
+    "keywords": [
+     "First strike",
+     "Treasure"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}{R}",
+    "name": "Relic Retriever",
+    "oracle_id": "689c41e9-800a-4998-bb04-74bf90141035",
+    "oracle_text": "First strike\nAt the beginning of each end step, if a card left your graveyard this turn, create a Treasure token. (It's an artifact with \"{T}, Sacrifice this token: Add one mana of any color.\")",
+    "power": "2",
+    "produced_mana": [
+     "B",
+     "G",
+     "R",
+     "U",
+     "W"
+    ],
+    "toughness": "1",
+    "type_line": "Creature — Spirit Monkey"
    }
   },
   "Relic Runner": {
@@ -1025448,6 +1026139,169 @@
     "type_line": "Artifact Creature — Equipment Monkey"
    }
   },
+  "Simian Spirit Guide": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "activation_zone": "Hand",
+       "condition": null,
+       "cost": {
+        "count": 1,
+        "filter": {
+         "type": "SelfRef"
+        },
+        "type": "Exile",
+        "zone": "Hand"
+       },
+       "description": "Exile this card from your hand: Add {R}.",
+       "duration": null,
+       "effect": {
+        "produced": {
+         "colors": [
+          "Red"
+         ],
+         "type": "Fixed"
+        },
+        "type": "Mana"
+       },
+       "forward_result": false,
+       "is_mana_ability": true,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Ape",
+       "Spirit"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Red"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "modern": "banned",
+      "oathbreaker": "legal",
+      "pauper": "legal",
+      "paupercommander": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 2,
+      "shards": [
+       "Red"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "0e57335d-4066-4d73-83cd-67a215e01a4e",
+       "19f1ac65-aed8-4ac6-ba90-e088db6c1389",
+       "234b53a3-cf34-46dd-a556-653e2348c5da",
+       "68b55798-3e16-4b94-a809-0a15633f1638",
+       "9d367aa4-e85f-402e-b781-527808edcc0a",
+       "d5ac2428-87a3-4aea-8c91-a02c0b401469"
+      ]
+     },
+     "name": "Simian Spirit Guide",
+     "non_ability_text": null,
+     "oracle_text": "Exile this card from your hand: Add {R}.",
+     "power": {
+      "type": "Fixed",
+      "value": 2
+     },
+     "printings": [
+      "A25",
+      "MB2",
+      "PLC",
+      "PLST",
+      "SLD",
+      "SLZ",
+      "TSR"
+     ],
+     "rarities": [
+      "common",
+      "uncommon",
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2021-03-19",
+       "text": "If a spell or ability's cost includes returning a creature to your hand and paying mana, you can't activate Simian Spirit Guide's mana ability after returning it to your hand. This is because mana abilities must be activated before you begin paying costs."
+      }
+     ],
+     "scryfall_oracle_id": "44e0ffa3-8915-4c1f-8f1a-4aeea1365f07",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 2
+     },
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 3.0,
+    "color_identity": [
+     "R"
+    ],
+    "colors": [
+     "R"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "banned",
+     "oathbreaker": "legal",
+     "pauper": "legal",
+     "paupercommander": "legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}{R}",
+    "name": "Simian Spirit Guide",
+    "oracle_id": "44e0ffa3-8915-4c1f-8f1a-4aeea1365f07",
+    "oracle_text": "Exile this card from your hand: Add {R}.",
+    "power": "2",
+    "produced_mana": [
+     "R"
+    ],
+    "toughness": "2",
+    "type_line": "Creature — Ape Spirit"
+   }
+  },
   "Simic Growth Chamber": {
    "phase_records": [
     {
@@ -1103715,6 +1104569,422 @@
     "power": "3",
     "toughness": "4",
     "type_line": "Legendary Creature — Faerie Noble"
+   }
+  },
+  "Talisman of Creativity": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": {
+        "type": "Tap"
+       },
+       "description": "{T}: Add {C}.",
+       "duration": null,
+       "effect": {
+        "produced": {
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "type": "Colorless"
+        },
+        "type": "Mana"
+       },
+       "forward_result": false,
+       "is_mana_ability": true,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      },
+      {
+       "condition": null,
+       "cost": {
+        "type": "Tap"
+       },
+       "description": "{T}: Add {U} or {R}. ~ deals 1 damage to you.",
+       "duration": null,
+       "effect": {
+        "produced": {
+         "color_options": [
+          "Blue",
+          "Red"
+         ],
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "type": "AnyOneColor"
+        },
+        "type": "Mana"
+       },
+       "forward_result": false,
+       "is_mana_ability": true,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "amount": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "target": {
+          "type": "Controller"
+         },
+         "type": "DealDamage"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "sub_link": "SequentialSibling",
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Artifact"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Red",
+      "Blue"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 2,
+      "shards": [],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "101e47ed-4afe-4d15-b6c3-4ab495965fde",
+       "14a506e4-9a46-4499-a986-eb258e809344",
+       "28b4fea5-aa7b-40e7-a3c4-cb467af16b42",
+       "2cc0a11c-99f0-439d-a372-4fd77e007df4",
+       "2f43aa0a-d063-48af-b6d1-a89dbd803c83",
+       "33ae73bc-fac3-4c15-9863-117caa30e4aa",
+       "35805e27-fc26-4eb1-943c-f5b6c2185e03",
+       "3ed13229-bbbb-41a7-933e-8975a6b64226",
+       "4d9dbadd-c1b6-44fe-92ac-6f69d7178342",
+       "56bf263b-a568-4901-a9c7-205aabf2b631",
+       "57ff96fa-ec98-4ce1-bf1b-d68ecccdc5dc",
+       "89d318b7-5c82-40a7-a63e-d8e72938624f",
+       "8ebb2086-3d9c-4322-bd3f-1366a4354578",
+       "9d8b61ab-9cc9-4eed-8241-67a834a1786d",
+       "a267b55c-3f77-4cf9-83ee-f2c0bf3b5549",
+       "a6104a32-95ba-4003-bd02-12c567631990",
+       "bfe00640-e775-4b2e-91a8-081c7ec0125c",
+       "d4ba86c8-8052-4c9e-a0d0-ac6ad0b2679c"
+      ]
+     },
+     "name": "Talisman of Creativity",
+     "non_ability_text": null,
+     "oracle_text": "{T}: Add {C}.\n{T}: Add {U} or {R}. This artifact deals 1 damage to you.",
+     "power": null,
+     "printings": [
+      "40K",
+      "AA1",
+      "C21",
+      "CLB",
+      "CMM",
+      "FRC",
+      "H1R",
+      "M3C",
+      "MH1",
+      "MSC",
+      "PIP",
+      "PLST",
+      "PRM",
+      "SLD",
+      "SOC",
+      "TDC",
+      "WHO"
+     ],
+     "rarities": [
+      "uncommon",
+      "rare",
+      "mythic"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "14d2979d-5728-42d7-a027-0eb1f754655d",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 2.0,
+    "color_identity": [
+     "R",
+     "U"
+    ],
+    "colors": [],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}",
+    "name": "Talisman of Creativity",
+    "oracle_id": "14d2979d-5728-42d7-a027-0eb1f754655d",
+    "oracle_text": "{T}: Add {C}.\n{T}: Add {U} or {R}. This artifact deals 1 damage to you.",
+    "produced_mana": [
+     "C",
+     "R",
+     "U"
+    ],
+    "type_line": "Artifact"
+   }
+  },
+  "Talisman of Curiosity": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": {
+        "type": "Tap"
+       },
+       "description": "{T}: Add {C}.",
+       "duration": null,
+       "effect": {
+        "produced": {
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "type": "Colorless"
+        },
+        "type": "Mana"
+       },
+       "forward_result": false,
+       "is_mana_ability": true,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      },
+      {
+       "condition": null,
+       "cost": {
+        "type": "Tap"
+       },
+       "description": "{T}: Add {G} or {U}. ~ deals 1 damage to you.",
+       "duration": null,
+       "effect": {
+        "produced": {
+         "color_options": [
+          "Green",
+          "Blue"
+         ],
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "type": "AnyOneColor"
+        },
+        "type": "Mana"
+       },
+       "forward_result": false,
+       "is_mana_ability": true,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "amount": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "target": {
+          "type": "Controller"
+         },
+         "type": "DealDamage"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "sub_link": "SequentialSibling",
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Artifact"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Green",
+      "Blue"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 2,
+      "shards": [],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "00413cf3-bc14-4881-8feb-829f11af0fdd",
+       "06f45b45-86ca-48cb-adb1-1d01c197ece4",
+       "30e1d7e2-e1a5-443c-86c4-ff4e18933853",
+       "40bccd95-acd9-48d1-817c-b07f95234427",
+       "72fc32b4-d58d-4f9a-9af8-af145dd4c4a8",
+       "8388c4e8-bda1-47e5-8df2-ddec5babcaf9",
+       "9544d0d1-f9bb-43a5-9c39-db187a6efe3b",
+       "9ecc83e0-7de2-4680-9d68-15a6018095fe",
+       "c6c74a36-5d0f-49fe-b1ec-330f40c9abca",
+       "fd52688a-39fd-430f-b950-cb56e0004396"
+      ]
+     },
+     "name": "Talisman of Curiosity",
+     "non_ability_text": null,
+     "oracle_text": "{T}: Add {C}.\n{T}: Add {G} or {U}. This artifact deals 1 damage to you.",
+     "power": null,
+     "printings": [
+      "AA1",
+      "DRC",
+      "H1R",
+      "M3C",
+      "MH1",
+      "MKC",
+      "PIP",
+      "PRM",
+      "SLD",
+      "SOC",
+      "WHO"
+     ],
+     "rarities": [
+      "uncommon",
+      "rare",
+      "mythic"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "8c34b089-aad1-476e-958a-3077bf1bbb51",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 2.0,
+    "color_identity": [
+     "G",
+     "U"
+    ],
+    "colors": [],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}",
+    "name": "Talisman of Curiosity",
+    "oracle_id": "8c34b089-aad1-476e-958a-3077bf1bbb51",
+    "oracle_text": "{T}: Add {C}.\n{T}: Add {G} or {U}. This artifact deals 1 damage to you.",
+    "produced_mana": [
+     "C",
+     "G",
+     "U"
+    ],
+    "type_line": "Artifact"
    }
   },
   "Talisman of Dominance": {
@@ -1251996,6 +1253266,319 @@
     "oracle_id": "8d4e0866-d8f5-4eb6-a0fd-3fa9d4b9cf4a",
     "oracle_text": "Kicker {3}{B} (You may pay an additional {3}{B} as you cast this spell.)\nExile up to two target cards from a single graveyard. If this spell was kicked, instead exile target player's graveyard. Create a 2/2 black Rogue creature token for each creature card exiled this way.",
     "type_line": "Instant"
+   }
+  },
+  "Waste Not": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Enchantment"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Black"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "Black"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "related_token_ids": [
+       "1e851ec5-fc7c-52e0-b201-7c350377c8a9",
+       "87df5573-4b61-5eaa-94b2-efd2398be6ac",
+       "ce24f27b-16b5-596b-b810-805a9384991b"
+      ],
+      "source_printing_ids": [
+       "241d8f7d-3981-47c1-b7b8-748277fa452f",
+       "2f5500a2-c6d6-40d7-b586-59b854733160",
+       "f4fc8e83-471a-4d75-9703-d8f3998a705a",
+       "fd3e5359-97c4-41ec-b18e-4abcd2205886"
+      ]
+     },
+     "name": "Waste Not",
+     "non_ability_text": null,
+     "oracle_text": "Whenever an opponent discards a creature card, create a 2/2 black Zombie creature token.\nWhenever an opponent discards a land card, add {B}{B}.\nWhenever an opponent discards a noncreature, nonland card, draw a card.",
+     "power": null,
+     "printings": [
+      "C16",
+      "HA2",
+      "M15",
+      "SLD",
+      "TMC",
+      "WOT"
+     ],
+     "rarities": [
+      "rare",
+      "mythic"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "00fdcc19-88ed-46c3-91f0-095806228105",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever an opponent discards a creature card, create a 2/2 black Zombie creature token.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "colors": [
+          "Black"
+         ],
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "enters_attacking": false,
+         "keywords": [],
+         "name": "Zombie",
+         "owner": {
+          "type": "Controller"
+         },
+         "power": {
+          "type": "Fixed",
+          "value": 2
+         },
+         "tapped": false,
+         "toughness": {
+          "type": "Fixed",
+          "value": 2
+         },
+         "type": "Token",
+         "types": [
+          "Creature",
+          "Zombie"
+         ]
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "Discarded",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "controller": null,
+        "properties": [],
+        "type": "Typed",
+        "type_filters": [
+         "Creature"
+        ]
+       },
+       "valid_source": null,
+       "valid_target": {
+        "controller": "Opponent",
+        "properties": [],
+        "type": "Typed",
+        "type_filters": []
+       }
+      },
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever an opponent discards a land card, add {B}{B}.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "produced": {
+          "colors": [
+           "Black",
+           "Black"
+          ],
+          "type": "Fixed"
+         },
+         "type": "Mana"
+        },
+        "forward_result": false,
+        "is_mana_ability": true,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "Discarded",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "controller": null,
+        "properties": [],
+        "type": "Typed",
+        "type_filters": [
+         "Land"
+        ]
+       },
+       "valid_source": null,
+       "valid_target": {
+        "controller": "Opponent",
+        "properties": [],
+        "type": "Typed",
+        "type_filters": []
+       }
+      },
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever an opponent discards a noncreature, nonland card, draw a card.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "target": {
+          "type": "Controller"
+         },
+         "type": "Draw"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "Discarded",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "controller": null,
+        "properties": [],
+        "type": "Typed",
+        "type_filters": [
+         "Card",
+         {
+          "Non": "Creature"
+         },
+         {
+          "Non": "Land"
+         }
+        ]
+       },
+       "valid_source": null,
+       "valid_target": {
+        "controller": "Opponent",
+        "properties": [],
+        "type": "Typed",
+        "type_filters": []
+       }
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "all_parts": [
+     {
+      "component": "token",
+      "id": "8a73e348-5bf1-4465-978b-3f31408bade9",
+      "name": "Zombie",
+      "oracle_id": "ddc8c973-c31e-463f-be45-f3fa7d632362",
+      "type_line": "Token Creature — Zombie"
+     }
+    ],
+    "arena_available": true,
+    "cmc": 2.0,
+    "color_identity": [
+     "B"
+    ],
+    "colors": [
+     "B"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}{B}",
+    "name": "Waste Not",
+    "oracle_id": "00fdcc19-88ed-46c3-91f0-095806228105",
+    "oracle_text": "Whenever an opponent discards a creature card, create a 2/2 black Zombie creature token.\nWhenever an opponent discards a land card, add {B}{B}.\nWhenever an opponent discards a noncreature, nonland card, draw a card.",
+    "produced_mana": [
+     "B"
+    ],
+    "type_line": "Enchantment"
    }
   },
   "Wasteland": {

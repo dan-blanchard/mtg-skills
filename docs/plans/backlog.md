@@ -433,9 +433,9 @@ proposal as a deckbuilder, fix the structure, the guide score is a yardstick)**
 - **The 25-precon pass is closed (2026-11-02): every flaw its reads found has
   a fix in the tree, verified card by card on the latest run
   (`docs/plans/precon-audit/verify_symptoms.py` over the three `misses.json`
-  files: 46 checks, one per flaw, all passing) and on the fresh 10-deck set
+  files: 53 checks, one per flaw, all passing) and on the fresh 10-deck set
   never used for design** (`~/mtg/tuner-work/fresh/root`; its pre-pass
-  baseline `w41/misses-fresh-N16.json`: 295 / 130 / 38 → 294 / 126 / 48;
+  baseline `w41/misses-fresh-N16.json`: 295 / 130 / 38 → 294 / 126 / 49;
   every batch's proposals re-read deck by deck on all three sets — batches
   12 and 13 are those re-reads' own findings, batch 14 two deckbuilder
   reviews' of every proposal). The approaches
@@ -771,8 +771,8 @@ proposal as a deckbuilder, fix the structure, the guide score is a yardstick)**
   fewer ramp trims are the curve-aware band's reading of a 26-ramp deck whose
   guides keep 25. Verified with `verify_symptoms.py` (35 / 35 on this run,
   the four batch-13 checks failing on the previous).
-- **Batch 14 (2026-11-02; the 25 733 / 340 / 121 → 735 / 336 / 116, held-out 576 / 259 /
-  104 → 572 / 262 / 105, fresh 294 / 132 / 40 → 294 / 126 / 48).** Two Sonnet deckbuilder reviews of
+- **Batch 14 (2026-11-02; the 25 733 / 340 / 121 → 735 / 337 / 114, held-out 576 / 259 /
+  104 → 571 / 262 / 105, fresh 294 / 132 / 40 → 294 / 126 / 49).** Two Sonnet deckbuilder reviews of
   every proposal on the three sets (the first a read of the 25, the second of
   the held-out 20 and the fresh 10), each flag checked against the cards and
   the code. Fixed: (45) *A colorless commander's identity is ``"C"``, never
@@ -825,7 +825,20 @@ proposal as a deckbuilder, fix the structure, the guide score is a yardstick)**
   design). (51) *A multi-role card, a mana doubler and a theme-serving piece trim
   last from an over-band row, ahead of the fixing shield* (Wrenn and Seven's
   ramp beside its draw; Forsaken Monument and Mana Reflection,
-  `_MANA_DOUBLER_KEYS`; Awakening Zone's Spawn under Ulalek). Verdicts, not fixes (the
+  `_MANA_DOUBLER_KEYS`; Awakening Zone's Spawn under Ulalek). A second
+  pair of reviews over the final proposals found four more, fixed: (52) *a
+  library effect's filter is yours with no controller on it* (`_LIBRARY_EFFECTS`:
+  Heroes' Podium's legendary creature from the top in Animated Army's
+  ten-legend deck, Open the Armory's gear in Jeskai Striker); (53) *an
+  opponent's discard is the gate on a trigger watching it*
+  (`_OPP_DISCARD_GATE`, fed by the deck's discard makers: Waste Not under
+  Jace); (54) *a one-shot mana source never upgrades a repeatable one*
+  (`_one_shot_for_repeatable`: Lotus Petal for Wild Growth, Dark Ritual for
+  Azorius Signet, Simian Spirit Guide for Millikin); (55) *the cut in another
+  coat is no upgrade* (`_lateral_at_the_job`: the same read, deploy cost and
+  color count — Talisman of Creativity for Talisman of Curiosity, Pongify
+  for Rapid Hybridization; Arcane Signet's any color is more colors than a
+  Signet's two). Verdicts, not fixes (the
   reviewers' remaining flags): a popular bomb traded on its theme page for a
   better-played theme card of the same band (Hero of Bladehold for Krenko,
   Hydroid Krasis for Nature's Rhythm, Admiral Beckett Brass for Corsairs of
@@ -836,7 +849,14 @@ proposal as a deckbuilder, fix the structure, the guide score is a yardstick)**
   Rhystic Study at Bracket 2, Blasphemous Act in a go-wide deck and Silent
   Arbiter are bracket or symmetry calls the reads don't make; the identity
   flags on Kaito, Will of the Sultai, Akroma's Memorial and Eldrazi
-  Conscription were wrong (the pool's identities). Measured and reverted
+  Conscription were wrong (the pool's identities), as were Will of the
+  Sultai's and Will of the Abzan's (mono-colored); Intangible Virtue and
+  Inspiring Call are fed by six or more makers in the decks they were flagged
+  in; Herald's Horn and Vanquisher's Banner under Omo are the guides' own
+  direction (batch 13); Inverter of Truth as a closer, Traxos under eighteen
+  historic cards, Coastal Piracy (phase drops its creature filter), Anger,
+  Impact Tremors and Blood Artist against the Most Wanted plan are judgment
+  calls the reads don't make. Measured and reverted
   on the way, each a route to a flaw the shipped reads cover: a ceiling on a
   built need (met at twelve suppliers, leads no more — it switched off
   Bello's big-artifact need and Éowyn's Human need, the 25 lost ten guide
@@ -844,8 +864,10 @@ proposal as a deckbuilder, fix the structure, the guide score is a yardstick)**
   Horn, Vanquisher's Banner and Kindred Discovery side by side — Cavalry
   Charge lost three adds, held-out 105 → 99); and keeping the tribe's
   payoffs out of the off-lane tiers (above). Verified with
-  `verify_symptoms.py` (46 checks, all passing on the final run, 37 on the
-  batch-13 run).
+  `verify_symptoms.py` (53 checks, all passing on the final run, 37 of the
+  first 46 on the batch-13 run). The 25's guide adds fall seven across the
+  batch — the price of the gates and the no-downgrade rule on the design
+  set — while the held-out gate holds and the fresh set gains nine.
 
 **From the Jace, Multiverse Architect precon tune and the 25-precon audit (2026-10-17 to 2026-11-01)**
 

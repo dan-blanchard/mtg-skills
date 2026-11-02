@@ -2212,6 +2212,27 @@ def test_a_job_upgrade_at_the_same_mana_never_reads_worse_at_the_job():
     assert [(s["cut"]["name"], s["add"]["name"]) for s in out["swaps"]] == [
         ("Golgari Signet", "Arcane Signet")
     ]
+    # Another two-color Talisman is the same rock in another coat: no upgrade
+    # of Talisman of Curiosity in a Temur deck however many more decks play it
+    # (Living Energy, 2026-11-02); Arcane Signet's any color is more. Pongify
+    # is Rapid Hybridization in another coat too. A one-shot mana source
+    # never upgrades a repeatable one: Lotus Petal for Wild Growth.
+    curiosity = _real_cc(
+        "Talisman of Curiosity", "spine", roles=["ramp"], edhrec_rank=8000
+    )
+    assert not _upgrades(_played("Talisman of Creativity", 10), curiosity, "ramp")
+    assert _upgrades(_played("Arcane Signet", 10), curiosity, "ramp")
+    hybrid = _real_cc(
+        "Rapid Hybridization", "spine", roles=["interaction"], edhrec_rank=8000
+    )
+    assert not _upgrades(_played("Pongify", 10), hybrid, "interaction")
+    growth = _real_cc("Wild Growth", "spine", roles=["ramp"], edhrec_rank=8000)
+    assert not _upgrades(_played("Lotus Petal", 10), growth, "ramp")
+    millikin = _real_cc("Millikin", "spine", roles=["ramp"], edhrec_rank=8000)
+    assert not _upgrades(_played("Simian Spirit Guide", 10), millikin, "ramp")
+    assert not _upgrades(_played("Dark Ritual", 10), millikin, "ramp")
+    retriever = _real_cc("Relic Retriever", "spine", roles=["ramp"], edhrec_rank=8000)
+    assert not _upgrades(_played("Simian Spirit Guide", 10), retriever, "ramp")
 
 
 def test_a_theme_slot_upgraded_on_play_rate_stays_within_a_band_downward():
@@ -3767,6 +3788,17 @@ def test_a_payoff_for_what_the_deck_does_not_do_is_dead_there():
     # spells, a colorless card dead in Golgari (Squirreled Away, 2026-11-02).
     assert dead("Oketra's Monument", types=Counter({"color:g": 20}))
     assert not dead("Oketra's Monument", types=Counter({"color:w": 20}))
+    # A library effect's filter is yours with no controller on it: Heroes'
+    # Podium finds and pumps legendary creatures (Animated Army's ten), Open
+    # the Armory finds gear. An opponent's discard is the gate on Waste Not's
+    # triggers, fed by the deck's discard makers (Multiverse Reforged forces
+    # none).
+    assert dead("Heroes' Podium", types=Counter({"legendary": 10}))
+    assert not dead("Heroes' Podium", types=Counter({"legendary": 20}))
+    assert dead("Open the Armory")
+    assert not dead("Open the Armory", types=Counter({"equipment": 8}))
+    assert dead("Waste Not")
+    assert not dead("Waste Not", keys=Counter({"opponent_discard": 6}))
     # The gate rule alone is what a job page applies.
     from mtg_utils._tuner.swaps import gated_without_feed
 

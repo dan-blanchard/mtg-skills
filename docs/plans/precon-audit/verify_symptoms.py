@@ -107,6 +107,14 @@ CHECKS = [
     # piece both keep the need the cut supplied: the reviewers' call, not a
     # structural flaw, so they are not pinned.
     _check("never", "SquirreledAway_BLC", "Oketra's Monument", batch="14"),
+    # the second reviewers' pass over the final proposals
+    _check("never", "AnimatedArmy_BLC", "Heroes' Podium", batch="14"),
+    _check("never", "JeskaiStriker_TDC", "Open the Armory", batch="14"),
+    _check("never", "MultiverseReforged_FRC", "Waste Not", "Dark Ritual", batch="14"),
+    _check("never", "DeadlyDisguise_MKC", "Lotus Petal", batch="14"),
+    _check("never", "LoreholdSpirit_SOC", "Simian Spirit Guide", batch="14"),
+    _check("never", "LivingEnergy_DRC", "Talisman of Creativity", batch="14"),
+    _check("never", "ExplorersOfTheDeep_LCC", "Pongify", batch="14"),
     _check("no_trim", "EldraziIncursion_M3C", "Forsaken Monument", batch="14"),
     _check("no_trim", "TrickyTerrain_M3C", "Mana Reflection", batch="14"),
 ]
