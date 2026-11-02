@@ -489,6 +489,7 @@ def _upgrades(
     off_theme: bool = False,
     draw_engine: bool = False,
     needs: Callable[[Mapping], int] | None = None,
+    needs_kept: Callable[[Mapping], int] | None = None,
 ) -> bool:
     """Whether ``candidate`` is an upgrade of ``cut``: it costs no higher
     mana-value band, or for a job one band higher at most (:func:`over_band` — a
@@ -553,6 +554,10 @@ def _upgrades(
     if read_job is not None and _lateral_at_the_job(candidate, cut.record, read_job):
         return False
     if needs is not None and needs(candidate) < needs(cut.record):
+        return False
+    # The needs an upgrade keeps (``needs_kept``, the broad ones included):
+    # a cut supplying the commander's enchantment need goes to an enchantment.
+    if needs_kept is not None and needs_kept(candidate) < needs_kept(cut.record):
         return False
     # A jobless cut (a theme card, a body) is never traded down: the two
     # admissions below that ignore play-rate — moving an off-theme slot onto
@@ -1842,6 +1847,10 @@ class SwapContext:
     #: The commander's need pages (:func:`need_pages`, ADR-0061), built once by
     #: ``tune`` so the issue remedies and the swap engine read the same pages.
     need_avenues: Sequence[tuple[str, int, dict]] = ()
+    #: Every need the commander's text reads (``commander_needs``), the broad
+    #: ones the pages skip included: an upgrade keeps the needs its cut
+    #: supplies (``_upgrades``). Empty: the pages' needs are every need.
+    needs: Sequence[Need] = ()
     #: The mana-base plan (``mana_base.land_plan``, Phase C of the 2026-10-30
     #: plan) and the identity's lands in play-rate order: the land swaps made
     #: first, within their own purse. ``None``: no land swaps.
@@ -2023,6 +2032,35 @@ def propose_swaps(
         if n is None:
             n = sum(1 for need in built_needs if satisfies(card, need))
             needs_count_memo[key] = n
+        return n
+
+    # The needs an upgrade keeps: the built ones and the card types the
+    # commander's text pays off (a ``payoff`` need with ``types``) when too
+    # broad to page (``need_avenues`` skips a need over ``BROAD_SHARE`` of the
+    # pool — Anikthea's enchantments, Inspirit's artifacts). A broad need leads
+    # no page and ranks no theme card, but a cut of the type still goes to a
+    # card of the type: Cast Out, an enchantment Anikthea returns, went to
+    # Assassin's Trophy on the interaction page (Enduring Enchantments,
+    # 2026-11-02). Only the payload types: holding every broad need kept
+    # Massacre Girl (menace, Olivia's evasion event) from Damn and Eshki's
+    # Dragons from Impact Tremors — the held-out 20 lost three guide cuts.
+    kept_needs = built_needs + [
+        need
+        for need in ctx.needs
+        if need not in needs_here
+        and need.kind == "payoff"
+        and need.types
+        and need.leads
+        and sum(1 for c in classes if satisfies(c.record, need)) >= _NEED_BUILT_FLOOR
+    ]
+    kept_count_memo: dict[str, int] = {}
+
+    def needs_kept(card: Mapping) -> int:
+        key = card.get("oracle_id") or card.get("name", "")
+        n = kept_count_memo.get(key)
+        if n is None:
+            n = sum(1 for need in kept_needs if satisfies(card, need))
+            kept_count_memo[key] = n
         return n
 
     # Every ranking below scores in this one context, so each candidate's
@@ -2695,6 +2733,7 @@ def propose_swaps(
                 off_theme=off_theme,
                 draw_engine=ctx.draw_engine_commander,
                 needs=needs_supplied if built_needs else None,
+                needs_kept=needs_kept if kept_needs else None,
             ):
                 continue
             if upgrade_of is None and not _does_the_job(card, job, deck_records):

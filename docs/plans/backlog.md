@@ -921,6 +921,44 @@ proposal as a deckbuilder, fix the structure, the guide score is a yardstick)**
   batches 14 and 15 the 25's guide adds fall six — the gates and the
   no-downgrade rule on the design set — while the held-out gate holds and
   the fresh set gains nine.
+- **Batch 15c (2026-11-02; the 25 734 / 338 / 115 → 736 / 338 / 116, held-out
+  571 / 262 / 104 → 571 / 261 / 104, fresh 294 / 126 / 49 unchanged).** Two
+  verdicts of batch 15 turned into fixes, each read back on all 55 decks.
+  (62) *A token-making commander whose own text spends or counts deaths
+  wants sacrifice outlets as a need of their own*
+  (`commander_need._resource_needs`, gated on `_DEATH_KEYS` in the
+  commander's idents: Clavileño's death trigger, Ghave's sacrifice cost) —
+  the bundled token-consumer need reads as broad in most pools and so led no
+  page and gated no upgrade; Village Rites is kept over Esper Sentinel and
+  Blood Rites gains Pyre of Heroes. Read for EVERY token maker it was
+  measured and narrowed: Anikthea's enchantment copies and Teval's Druids
+  want no outlet, and the 25 lost Parallel Lives, Rootborn Defenses and
+  Ramunap Excavator (736 / 338 / 113). (63) *An upgrade keeps the card type
+  the commander's text pays off, broad or not* (`swaps._upgrades`'
+  `needs_kept` over `SwapContext.needs` — every need, the ones `need_avenues`
+  skips as over `BROAD_SHARE` included, kept to the `payoff` needs with
+  `types`): Cast Out, an enchantment Anikthea returns, went to Assassin's
+  Trophy on the interaction page; it now moves onto the theme (Greater Good,
+  the full job's designed move). Inspirit's Mindless Automaton (an artifact
+  draw) stays for the same reason — the one held-out guide cut given up.
+  Holding every broad leading need was measured and narrowed: Eshki's
+  "whenever you cast a creature spell" kept Gadrak and Steel Hellkite from
+  Impact Tremors and Rhythm of the Wild, Olivia's evasion event kept Massacre
+  Girl from Damn — the held-out 20 lost three guide cuts (571 / 259 / 105).
+  Measured and reverted: *a candidate the job read scores nothing is worse
+  at the job* (so a job card's slot never leaves the job on a theme page) —
+  the 25 728 / 335 / 122, held-out 564 / 260 / 104, fresh 293 / 126 / 45; the
+  reads' coverage is partial (Dark Confidant scores nothing at card draw and
+  was blocked as a Wizard's upgrade), and a full job's slot moving onto the
+  theme is the designed path (``moved_source``), so the rule took guide
+  adds with the misfires. Verdicts, with the reason: Starfield of Nyx for
+  Blind Obedience (the play-rate order of the enchantment page; the
+  "does what the commander does" redundancy need deliberately leads and
+  gates nothing — measured 2026-11-01 under Ms. Bumbleflower); Garruk,
+  Cursed Huntsman for Drey Keeper (a theme upgrade may step one band down).
+  A Sonnet re-read of the other 30 proposals found no new flags.
+  `verify_symptoms.py` gains the Village Rites keep and a `no_pair` kind
+  (Cast Out -> Assassin's Trophy); 66 checks, all passing.
 
 **From the Jace, Multiverse Architect precon tune and the 25-precon audit (2026-10-17 to 2026-11-01)**
 

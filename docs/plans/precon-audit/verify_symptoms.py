@@ -127,6 +127,10 @@ CHECKS = [
     _check("never", "QuickDraw_OTC", "Jeska's Will", batch="15"),
     _check("never", "RevenantRecon_MKC", "Cabal Ritual", batch="15"),
     _check("never", "FamilyMatters_BLC", "Ripples of Potential", batch="15"),
+    _check("kept", "BloodRites_LCC", "Village Rites", batch="15"),
+    # An upgrade keeps the broad need its cut supplies: Cast Out, an enchantment
+    # Anikthea returns, never goes to a non-enchantment.
+    _check("no_pair", "EnduringEnchantments_CMM", "Cast Out -> Assassin's Trophy", batch="15"),
     _check("no_trim", "EldraziIncursion_M3C", "Forsaken Monument", batch="14"),
     _check("no_trim", "TrickyTerrain_M3C", "Mana Reflection", batch="14"),
 ]
@@ -163,6 +167,11 @@ def main(paths):
         elif kind == "cut":
             bad = [n for n in names if n not in cuts]
             ok, detail = not bad, f"not cut: {bad}"
+        elif kind == "no_pair":
+            # "Cut -> Add": that exact swap is never proposed.
+            pairs = {f"{s[1]} -> {s[2]}" for s in swaps}
+            bad = [n for n in names if n in pairs]
+            ok, detail = not bad, f"proposed: {bad}"
         elif kind == "never":
             bad = [n for n in names if n in adds]
             ok, detail = not bad, f"added: {bad}"

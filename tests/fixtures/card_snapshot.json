@@ -1234487,6 +1234487,170 @@
     "type_line": "Legendary Creature — Demon"
    }
   },
+  "Village Rites": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Draw two cards.",
+       "duration": null,
+       "effect": {
+        "count": {
+         "type": "Fixed",
+         "value": 2
+        },
+        "target": {
+         "type": "Controller"
+        },
+        "type": "Draw"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "additional_cost": {
+      "data": {
+       "count": 1,
+       "target": {
+        "controller": null,
+        "properties": [],
+        "type": "Typed",
+        "type_filters": [
+         "Creature"
+        ]
+       },
+       "type": "Sacrifice"
+      },
+      "type": "Required"
+     },
+     "card_type": {
+      "core_types": [
+       "Instant"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Black"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pauper": "legal",
+      "paupercommander": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 0,
+      "shards": [
+       "Black"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "0fab9ee8-776a-48e5-b309-bcd381e67bf7",
+       "2841339b-faef-407d-9838-d03fe80e6294",
+       "42ed35e9-51cd-468a-86a9-9412553cf50d",
+       "563b1d02-5c84-4af5-ab9f-29a04409bbb3",
+       "58fc8aca-9408-4ea4-9360-042cfe5da1f9",
+       "60103ff2-3214-4521-b28e-2af4987056b7",
+       "9c0f60a6-b5c8-4704-8b61-94e8fc463e5d",
+       "f990e5c1-7df4-4eaf-a01b-67f858064e5e"
+      ]
+     },
+     "name": "Village Rites",
+     "non_ability_text": null,
+     "oracle_text": "As an additional cost to cast this spell, sacrifice a creature.\nDraw two cards.",
+     "power": null,
+     "printings": [
+      "GN3",
+      "INR",
+      "J22",
+      "J25",
+      "KHM",
+      "LCC",
+      "M21",
+      "PLST",
+      "SLD",
+      "STA"
+     ],
+     "rarities": [
+      "common",
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2021-02-05",
+       "text": "You must sacrifice exactly one creature to cast this spell; you can't cast it without sacrificing a creature, and you can't sacrifice additional creatures."
+      }
+     ],
+     "scryfall_oracle_id": "365548fb-5acc-4a8a-b20b-26d28b7d029f",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 1.0,
+    "color_identity": [
+     "B"
+    ],
+    "colors": [
+     "B"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "legal",
+     "paupercommander": "legal",
+     "penny": "not_legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{B}",
+    "name": "Village Rites",
+    "oracle_id": "365548fb-5acc-4a8a-b20b-26d28b7d029f",
+    "oracle_text": "As an additional cost to cast this spell, sacrifice a creature.\nDraw two cards.",
+    "type_line": "Instant"
+   }
+  },
   "Villainous Ogre": {
    "phase_records": [
     {

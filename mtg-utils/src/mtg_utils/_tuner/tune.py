@@ -15,7 +15,7 @@ from typing import TYPE_CHECKING
 
 from mtg_utils import _gc
 from mtg_utils._analysis.budgets import banded_slot_budgets, template_for
-from mtg_utils._analysis.commander_need import commander_needs, need_predicate
+from mtg_utils._analysis.commander_need import Need, commander_needs, need_predicate
 from mtg_utils._analysis.multipliers import commander_multipliers
 from mtg_utils._analysis.signals import read_deck_signals
 from mtg_utils._analysis.signals_index import ident_base_rates
@@ -411,9 +411,11 @@ def tune(
     # shared theme adds read the same pages. Only where play-rate orders a page
     # (the Commander family) and a tune will propose swaps.
     need_avenues: list[tuple[str, int, dict]] = []
+    needs: tuple[Need, ...] = ()
     if params.max_swaps > 0 and cal.commander_axes and cal.playrate_meaningful:
+        needs = commander_needs(commander_records)
         need_avenues = swaps_mod.need_pages(
-            commander_needs(commander_records),
+            needs,
             [c.record for c in classes for _ in range(max(1, c.quantity))],
             search_fn=search_fn,
             identity=identity,
@@ -619,6 +621,7 @@ def tune(
             exclude=params.exclude,
             deck_mana=deck_mana,
             need_avenues=need_avenues,
+            needs=needs,
             land_plan=land_plan,
             land_pool=land_pool,
         )

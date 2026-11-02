@@ -128,6 +128,26 @@ def test_a_commander_granting_every_creature_type_wants_typal_payoffs():
     assert not grants_all_creature_types(test_card("Cultivate"))
 
 
+def test_a_token_making_commander_wants_sacrifice_outlets_on_their_own():
+    """Clavileño makes Demons and Vampires; beside the bundled consumers need
+    (broad in most pools) the deck wants sacrifice outlets as a need of their
+    own, so Village Rites is kept over Esper Sentinel (Blood Rites,
+    2026-11-02)."""
+    need = _need(
+        "Clavileño, First of the Blessed",
+        "sacrifice outlets for the commander's tokens",
+    )
+    assert satisfies(test_card("Village Rites"), need)
+    assert satisfies(test_card("Viscera Seer"), need)
+    assert not satisfies(test_card("Esper Sentinel"), need)
+    # Ghave's own text sacrifices; Anikthea's and Teval's tokens are the
+    # plan, so neither wants an outlet for them.
+    outlets = "sacrifice outlets for the commander's tokens"
+    assert outlets in _labels(_needs("Ghave, Guru of Spores"))
+    assert outlets not in _labels(_needs("Anikthea, Hand of Erebos"))
+    assert outlets not in _labels(_needs("Teval, the Balanced Scale"))
+
+
 def test_a_tribal_commander_wants_its_tribes_payoffs():
     """Hakbal names his Merfolk: the deck wants Merfolk payoffs — a lord
     (Merfolk Mistbinder), a choose-a-type card (Vanquisher's Banner) — which

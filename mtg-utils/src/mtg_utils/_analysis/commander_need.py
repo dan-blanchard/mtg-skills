@@ -142,6 +142,11 @@ _GRAVEYARD_LEAVE_KEYS: frozenset[str] = frozenset(
 #: (``graveyard_matters`` under Quintorius made "cards leaving your graveyard"
 #: a 1,240-card page topped by Faithless Looting and Farewell, a hair under the
 #: broad cutoff, so a graveyard commander's theme cuts went to it).
+#: The signal keys a commander's own text emits when it spends or counts
+#: deaths: the token makers among them want sacrifice outlets for their tokens
+#: (``_resource_needs``).
+_DEATH_KEYS: frozenset[str] = frozenset({"death_matters", "sacrifice_outlets"})
+
 _UMBRELLA_KEYS: frozenset[str] = frozenset(
     {
         "graveyard_matters",
@@ -1592,6 +1597,27 @@ def _resource_needs(
                 idents=idents_,
                 predicate=_EXTRA_CONSUMER_PREDICATES.get(key),
             )
+            if key == TOKEN_MAKER and any(
+                i.split("|", 1)[0] in _DEATH_KEYS for i in idents
+            ):
+                # The outlets on their own: the consumers need bundles every
+                # token payoff and reads as broad in most pools (over
+                # ``BROAD_SHARE``), so it leads no page and gates no upgrade —
+                # Village Rites went for Esper Sentinel under Clavileño, whose
+                # guides want more outlets (Blood Rites, 2026-11-02). Outlets
+                # alone are six percent of a two-color pool. Only where the
+                # commander's own text spends or counts deaths (Clavileño's
+                # death trigger, Ghave's sacrifice cost): a token maker whose
+                # tokens are the plan (Anikthea's enchantment copies, Teval's
+                # Druids) wants no outlet for them — read for every token maker,
+                # the 25 lost Parallel Lives, Rootborn Defenses and Ramunap
+                # Excavator (2026-11-02).
+                yield Need(
+                    "resource",
+                    "sacrifice outlets for the commander's tokens",
+                    desc,
+                    keys=frozenset({"sacrifice_outlets"}),
+                )
 
 
 def _loyalty_need(rec: Mapping) -> Need | None:

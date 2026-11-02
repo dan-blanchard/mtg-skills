@@ -3634,6 +3634,30 @@ def test_a_tribe_member_with_a_job_keeps_the_tribes_slot_unless_its_row_is_short
     assert [s["add"]["name"] for s in out["swaps"]] == [add]
 
 
+def test_an_upgrade_keeps_the_broad_need_its_cut_supplies():
+    """Anikthea's enchantment need is too broad to page (over ``BROAD_SHARE``
+    of an Abzan pool), but Cast Out, an enchantment she returns, is still no
+    upgrade to Assassin's Trophy: an upgrade keeps every need its cut supplies
+    (``needs_kept``; Enduring Enchantments, 2026-11-02). Without the kept
+    needs the same trade passes."""
+    from mtg_utils._analysis.commander_need import commander_needs, satisfies
+
+    needs = [
+        n
+        for n in commander_needs([test_card("Anikthea, Hand of Erebos")])
+        if n.label == "enchantments matter"
+    ]
+    assert needs
+
+    def kept(record):
+        return sum(1 for n in needs if satisfies(record, n))
+
+    cast_out = _real_cc("Cast Out", "spine", roles=["interaction"], edhrec_rank=8000)
+    trophy = _played("Assassin's Trophy", 10)
+    assert _upgrades(trophy, cast_out, "interaction")
+    assert not _upgrades(trophy, cast_out, "interaction", needs_kept=kept)
+
+
 def test_a_need_supplier_is_never_low_value_fodder():
     """A fringe-played Engine card is a low-value cut unless it supplies one of
     the commander's needs: Juniper Order Ranger's counters under Bright-Palm
