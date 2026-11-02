@@ -474,3 +474,18 @@ def test_minus_counters_on_each_creature_are_a_sweep():
     zenith = test_card("Black Sun's Zenith")
     assert is_board_wipe(zenith)
     assert board_wipe.features(zenith)["creatures"] == 1.0
+
+
+def test_a_power_bound_sweep_is_one_sided_in_a_deck_it_spares():
+    """Dusk destroys "creatures with power 3 or greater": a deck of face-down
+    2/2s (CR 708.2a) keeps its board. Slaughter the Strong keeps "total power 4
+    or less", so a deck of 0-power walls keeps them all (Deadly Disguise,
+    Abzan Armor, 2026-11-02)."""
+    dusk = test_card("Dusk // Dawn")
+    small = [test_card("Wall of Omens")] * 10
+    big = [test_card("Colossal Dreadmaw")] * 10
+    assert board_wipe.features(dusk, small)["one_sided"] == 1.0
+    assert board_wipe.features(dusk, big)["one_sided"] == 0.0
+    slaughter = test_card("Slaughter the Strong")
+    walls = [test_card("Wall of Roots")] * 10
+    assert board_wipe.features(slaughter, walls)["one_sided"] == 1.0

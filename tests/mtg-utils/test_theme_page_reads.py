@@ -603,3 +603,16 @@ def test_a_sacrifice_the_player_may_decline_for_a_penalty_is_no_edict():
     )
     assert "interaction" not in role_of(test_card("Braids, Arisen Nightmare"))
     assert any(i.startswith("edict_makers|") for i in _idents("Fleshbag Marauder"))
+
+
+def test_a_counter_of_free_spells_only_is_no_counterspell():
+    """Boromir, Warden of the Tower counters a spell "if no mana was spent to
+    cast it": a hoser of free spells, not interaction (Creative Energy,
+    2026-11-02)."""
+    from mtg_utils._analysis.roles import role_of
+
+    assert not any(
+        i.startswith("counter_control|")
+        for i in _idents("Boromir, Warden of the Tower")
+    )
+    assert "interaction" in role_of(test_card("Counterspell"))

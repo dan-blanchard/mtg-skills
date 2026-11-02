@@ -1342,6 +1342,44 @@ proposal as a deckbuilder, fix the structure, the guide score is a yardstick)**
   Vampire-token makers after the proposal, and Clavileño's "target attacking
   Vampire that isn't a Demon" needs one an attack — the drop from 35 is the
   guides' own direction (four Vampires among their 33 adds).
+- **Batch 16n (2026-11-02; the 25 733 / 339 / 120 → 733 / 339 / 119, held-out
+  566 / 262 / 108 → 565 / 262 / 106, fresh 294 / 126 / 53 → 293 / 125 / 53).**
+  The second full 55-deck re-read (four Sonnet reviewers, every card looked
+  up). Fixed: (93) *a sweep that spares most of this deck's creatures is
+  one-sided here* (`job_quality.board_wipe`: `_Sweep.spared_power` — Dusk's
+  "power 3 or greater", Slaughter the Strong's "total power 4 or less" —
+  against the deck, at 40% of its creatures, a face-down creature a 2/2 per
+  CR 708.2a), and *an upgrade never trades a sweep one-sided in this deck
+  for one that isn't* (`swaps._spares_less_of_the_deck`): Winds of Rath and
+  Dusk // Dawn no longer go to Wrath of God, nor Slaughter the Strong to
+  Damn. (94) *a small sweep is no upgrade into a lethal one*
+  (`_sweeps_fewer_kinds`): Starstorm for Contagion Engine. (95) *the -1/-1
+  counter event need counts wither, infect and the counter's own placers*
+  (`commander_need`, CR 702.80a / 702.90c): Kulrath Knight supplies Auntie
+  Ool. (96) *a split card's mana value for a commander's "mana value 5 or
+  greater" is its larger half* (CR 709.3b, hybrid per 202.3f). (97) *a
+  "{type} token makers" payoff need is met only by cards making that token
+  type* (`_makes_tokens_of`): Feldon of the Third Path for Skullclamp in
+  Tinker Time. (98) *a static's own condition is its gate*
+  (`swaps.dead_payoff`, `IsPresent` you control): Gravecrawler's "as long as
+  you control a Zombie" off the Necron page. (99) *a counter only of spells cast
+  with no mana spent is a hoser, not a counterspell*
+  (`lanes.triggers_damage._counter_control` skips a `ManaSpentCondition`):
+  Boromir, Warden of the Tower no longer fills Creative Energy's
+  interaction row for Silverquill Lecturer. (100) *a
+  protection-job flip keeps a flip's slot while protection is in band*
+  (`Sourcing(protection_low=…)`). Verdicts, with the card text or count:
+  Serra's Emissary for Rootborn Defenses under Jace (protection 3 of ~5:
+  a flip whose job row is short keeps its job page, as card draw's does);
+  Kulrath Knight for Ashnod's Altar in Blight Curse (34 deck cards supply
+  the -1/-1 need, the fill took the last non-tribal jobless slot;
+  opening the jobless popular slots ahead of it was measured and reverted —
+  held-out 565 / 262 / 106 → 565 / 265 / 101, Pentad Prism cut again);
+  Horn of Gondor (Omo grants every type); Wonder (it dies on its own);
+  Primal Vigor (12 feeders); Eldrazi Unbound's X-spells (a play note, the
+  size-anti-synergy rule); Thunderherd Migration for Wrath of God (wipe row
+  short, ramp over band); Bitter Triumph (job row full); Commit // Memory
+  (Memory's half is MV 6). `verify_symptoms.py`: 99.
 
 **From the Jace, Multiverse Architect precon tune and the 25-precon audit (2026-10-17 to 2026-11-01)**
 

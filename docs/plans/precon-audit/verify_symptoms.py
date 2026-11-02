@@ -176,6 +176,14 @@ CHECKS = [
     _check("no_pair", "MultiverseReforged_FRC", "Staff of the Storyteller -> Teval's Judgment", batch="16l"),
     # A condition on the commander's text is kept however broad (Éowyn's Humans entering).
     _check("no_pair", "RidersOfRohan_LTC", "Increasing Devotion -> Burnished Hart", batch="16l"),
+    # A wipe one-sided in this deck is never traded for a symmetric one.
+    _check("no_pair", "VirtueAndValor_WOC", "Winds of Rath -> Wrath of God", batch="16n"),
+    _check("no_pair", "DeadlyDisguise_MKC", "Dusk // Dawn -> Wrath of God", batch="16n"),
+    _check("no_pair", "AbzanArmor_TDC", "Slaughter the Strong -> Damn", batch="16n"),
+    _check("no_pair", "AnimatedArmy_BLC", "Starstorm -> Contagion Engine", batch="16n"),
+    _check("never", "NecronDynasties_40K", "Gravecrawler", batch="16n"),
+    _check("no_pair", "CreativeEnergy_M3C", "Silverquill Lecturer -> Boromir, Warden of the Tower", batch="16n"),
+    _check("no_pair", "TinkerTime_MOC", "Feldon of the Third Path -> Skullclamp", batch="16n"),
     _check("no_trim", "EldraziIncursion_M3C", "Forsaken Monument", batch="14"),
     _check("no_trim", "TrickyTerrain_M3C", "Mana Reflection", batch="14"),
 ]

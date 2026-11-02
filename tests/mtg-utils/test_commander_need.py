@@ -768,3 +768,32 @@ def test_a_humans_entering_condition_wants_humans_and_their_makers():
     assert satisfies(test_card("Increasing Devotion"), need)
     assert satisfies(test_card("Champion of the Parish"), need)
     assert not satisfies(test_card("Burnished Hart"), need)
+
+
+def test_wither_and_infect_put_the_minus_counters_auntie_ool_watches():
+    """Auntie Ool, Cursewretch draws "whenever one or more -1/-1 counters are
+    put on a creature": wither's damage to a creature is -1/-1 counters
+    (CR 702.80a), so Kulrath Knight supplies it (Blight Curse, 2026-11-02)."""
+    need = _need("Auntie Ool, Cursewretch", "-1/-1 counters put on creatures")
+    assert satisfies(test_card("Kulrath Knight"), need)
+    assert not satisfies(test_card("Ashnod's Altar"), need)
+
+
+def test_a_split_card_reaches_a_mana_value_floor_by_its_biggest_half():
+    """A split or aftermath card is cast one half at a time (CR 709.3b):
+    Commit // Memory casts at 4 or 6, never its combined 10 (CR 709.4)."""
+    from mtg_utils._analysis.commander_need import _mana_value_reaches
+
+    assert _mana_value_reaches(test_card("Commit // Memory"), 5)
+    assert not _mana_value_reaches(test_card("Commit // Memory"), 7)
+    assert not _mana_value_reaches(test_card("Fire // Ice"), 4)
+
+
+def test_gimbal_counts_every_artifact_token_maker():
+    """Gimbal counts "artifact tokens you control with different names": a
+    Thopter maker and a token copy "except it's an artifact" (Feldon of the
+    Third Path) supply it; a mana rock does not (Tinker Time, 2026-11-02)."""
+    need = _need("Gimbal, Gremlin Prodigy", "artifact token makers")
+    assert satisfies(test_card("Feldon of the Third Path"), need)
+    assert satisfies(test_card("Whirler Rogue"), need)
+    assert not satisfies(test_card("Mind Stone"), need)

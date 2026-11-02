@@ -431,11 +431,16 @@ class Sourcing:
         emitters: Mapping[tuple[str, str, str], Collection[str]] | None = None,
         poisons: bool = False,
         need_avenues: Sequence[tuple[str, int, dict]] = (),
+        protection_low: bool = False,
     ) -> None:
         self._focus = focus_result
         #: The commander's need pages (ADR-0061; ``swaps.need_avenues``): label,
         #: depth and spec, shared with the mains by :meth:`theme_avenues`.
         self._need_avenues = tuple(need_avenues)
+        #: Whether the deck is under its protection target (the scorecard's
+        #: protection read): a flip whose job is protection keeps a flip's slot
+        #: only while it isn't.
+        self._protection_low = protection_low
         self._signals = deck_signals
         self._budgets = budgets
         self._game = game
@@ -816,7 +821,11 @@ class Sourcing:
                     )
             spec = None
         elif (
-            job != "protection"
+            # A flip whose job is protection keeps a flip's slot too, unless
+            # the deck is short on protection: Serra's Emissary went to
+            # Rootborn Defenses under Jace (Multiverse Reforged, 2026-11-02)
+            # — "flips upgrade to flips" (2026-11-01).
+            (job != "protection" or not self._protection_low)
             and is_flip(card.record, self.flip_types)
             and not self.is_fodder(card.record)
             and (self._budgets.get(job) or {}).get("deviation", 0) >= 0

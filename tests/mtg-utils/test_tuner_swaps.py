@@ -3981,3 +3981,37 @@ def test_a_redirect_that_copies_is_no_copy_of_a_creature_commanders_spell():
     )
     assert reasons
     assert all(r.kind != "copy_commander_spell" for r in reasons)
+
+
+def test_a_wipe_sparing_the_decks_board_is_never_traded_for_a_symmetric_one():
+    """Winds of Rath spares enchanted creatures: under ten Auras it is
+    one-sided, and Wrath of God is no upgrade of it there, however the read
+    weighs the two (Virtue and Valor, 2026-11-02). A sweep that only kills
+    small creatures (Contagion Engine) is no upgrade of one that kills the
+    board (Starstorm)."""
+    from mtg_utils._analysis.job_quality import read_for
+    from mtg_utils._tuner.swaps import _spares_less_of_the_deck, _sweeps_fewer_kinds
+
+    auras = [test_card("Ethereal Armor")] * 10
+    assert _spares_less_of_the_deck(
+        test_card("Wrath of God"), test_card("Winds of Rath"), auras
+    )
+    assert not _spares_less_of_the_deck(
+        test_card("Wrath of God"), test_card("Winds of Rath"), auras[:3]
+    )
+    assert _sweeps_fewer_kinds(
+        read_for("board_wipe"), test_card("Contagion Engine"), test_card("Starstorm")
+    )
+
+
+def test_a_static_working_only_beside_a_type_is_gated_on_it():
+    """Gravecrawler casts from your graveyard "as long as you control a
+    Zombie": a deck without Zombies never recasts it (Necron Dynasties,
+    2026-11-02)."""
+    from collections import Counter
+
+    from mtg_utils._tuner.swaps import gated_without_feed
+
+    crawler = test_card("Gravecrawler")
+    assert gated_without_feed(crawler, Counter(), Counter())
+    assert not gated_without_feed(crawler, Counter({"zombie": 12}), Counter())

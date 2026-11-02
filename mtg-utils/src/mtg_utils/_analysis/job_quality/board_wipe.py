@@ -318,6 +318,11 @@ class _Sweep:
     # The attachment whose creatures it spares ("creatures that aren't
     # enchanted" — Winds of Rath: ``Aura``), read against the deck.
     spares_attached: str | None = None
+    # What a power bound spares, read against the deck: ``("below", n)`` for
+    # "destroy all creatures with power n or greater" (Dusk), ``("total", n)``
+    # for "choose creatures with total power n or less, sacrifice the rest"
+    # (Slaughter the Strong, whose 0-power creatures cost nothing to keep).
+    spared_power: tuple[str, int] | None = None
     # The quantity of an amount the deck decides (:func:`_deck_amount`).
     amount: object = field(default=None, compare=False, repr=False)
 
@@ -783,6 +788,7 @@ def _tree_sweeps(tree: ConceptTree, *, walker: bool) -> list[_Sweep]:
                     refills=refills,
                     amount=_deck_amount(c, u),
                     spares_attached=_spared_attachment(filt),
+                    spared_power=_spared_power(c.node, filt),
                 )
             )
     return out
@@ -806,6 +812,56 @@ def _spared_attachment(filt: object) -> str | None:
             if isinstance(kind, str):
                 return kind
     return None
+
+
+#: The share of the deck's creatures a sweep must spare to read one-sided in
+#: that deck — the read's own line (Deadly Disguise's face-down 2/2s under
+#: Dusk, Abzan Armor's 0-power walls under Slaughter the Strong).
+_DECK_SPARED_SHARE = 0.4
+#: The keywords that put a creature on the battlefield face down, a 2/2
+#: (CR 708.2a): morph, megamorph, disguise, cloak, manifest.
+_FACE_DOWN_KEYWORDS = frozenset({"Morph", "Megamorph", "Disguise", "Cloak", "Manifest"})
+
+
+def _spared_power(node: object, filt: object) -> tuple[str, int] | None:
+    """What a sweep's power bound spares (:attr:`_Sweep.spared_power`)."""
+    if tag_of(node) == "ChooseAndSacrificeRest":
+        cap = getattr(node, "total_power_cap", None)
+        value = getattr(cap, "value", None)
+        return ("total", value) if isinstance(value, int) else None
+    for n in iter_typed_nodes(filt):
+        if (
+            tag_of(n) == "PtComparison"
+            and getattr(n, "stat", None) == "Power"
+            and getattr(n, "comparator", None) == "GE"
+        ):
+            value = getattr(getattr(n, "value", None), "value", None)
+            if isinstance(value, int):
+                return ("below", value)
+    return None
+
+
+def _deck_spares_power(deck: Sequence[dict], spared: tuple[str, int]) -> bool:
+    """Whether the deck's creatures are mostly what a power bound spares: below
+    the bound (a face-down creature is a 2/2), or at 0 power under a total."""
+    kind, bound = spared
+    creatures = [
+        r for r in deck if "creature" in split_type_line(r.get("type_line") or "")[0]
+    ]
+    if not creatures:
+        return False
+
+    def power(r: dict) -> int | None:
+        if set(r.get("keywords") or ()) & _FACE_DOWN_KEYWORDS:
+            return 2
+        value = fixed_stat(r.get("power"))
+        return value if isinstance(value, int) else None
+
+    if kind == "below":
+        kept = sum(1 for r in creatures if (pw := power(r)) is not None and pw < bound)
+    else:
+        kept = sum(1 for r in creatures if power(r) == 0)
+    return kept / len(creatures) >= _DECK_SPARED_SHARE
 
 
 def _deck_attachments(deck: Sequence[dict], kind: str) -> int:
@@ -1045,10 +1101,15 @@ def features(card: dict, deck: Sequence[dict] | None = None) -> dict[str, float]
     # enchanted creatures under Ellivere's twenty Auras) is one-sided there:
     # it went to Martial Coup, which kills the deck's own board (Virtue and
     # Valor, 2026-11-02).
-    kept = (
-        deck is not None
-        and best.spares_attached is not None
-        and _deck_attachments(deck, best.spares_attached) >= _ATTACHMENT_DECK
+    kept = deck is not None and (
+        (
+            best.spares_attached is not None
+            and _deck_attachments(deck, best.spares_attached) >= _ATTACHMENT_DECK
+        )
+        or (
+            best.spared_power is not None
+            and _deck_spares_power(deck, best.spared_power)
+        )
     )
     return {
         "creatures": float(creatures),
@@ -1160,7 +1221,10 @@ def _deck_dependent(card: dict) -> bool:
     if oid and (hit := _DECK_DEPENDENT.get(oid)) is not MISSING:
         return bool(hit)
     out = any(
-        s.amount is not None or s.spares_attached is not None for s in _sweeps(card)
+        s.amount is not None
+        or s.spares_attached is not None
+        or s.spared_power is not None
+        for s in _sweeps(card)
     )
     if oid and (out or signal_trees_for(card, bulk=card)):
         _DECK_DEPENDENT.put(oid, out)

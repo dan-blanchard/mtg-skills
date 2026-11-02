@@ -55,6 +55,7 @@ from mtg_utils._card_ir.crosswalk.reads import (
     filter_subtypes,
     iter_cost_leaves,
     iter_typed_nodes,
+    list_field,
     tag_of,
     trigger_def_event,
     trigger_scope,
@@ -375,6 +376,12 @@ def _reads_worse_at_the_job(
     if job == "board_wipe" and _sweeps_fewer_kinds(read, candidate, cut):
         return True
     records = deck or ()
+    if (
+        job == "board_wipe"
+        and records
+        and _spares_less_of_the_deck(candidate, cut, records)
+    ):
+        return True
     if _one_shot_for_an_engine(read, candidate, cut, records):
         return True
     cand_cost, cut_cost = _job_cost(read, candidate), _job_cost(read, cut)
@@ -404,6 +411,22 @@ def _one_shot_for_an_engine(
     return (
         read.score(candidate, deck) is None and read.score(dict(cut), deck) is not None
     )
+
+
+def _spares_less_of_the_deck(
+    candidate: dict, cut: Mapping, deck: Sequence[dict]
+) -> bool:
+    """Whether a wipe candidate is symmetric in ``deck`` where the cut spares
+    the deck's own board (``board_wipe.features``' deck-read ``one_sided``):
+    Winds of Rath under twenty Auras, Dusk under face-down 2/2s, Slaughter the
+    Strong under 0-power walls all went to Wrath of God or Damn, the read's
+    weight on sparing too small to hold them (2026-11-02)."""
+    from mtg_utils._analysis.job_quality import board_wipe
+
+    a, b = board_wipe.features(candidate, deck), board_wipe.features(dict(cut), deck)
+    if not a or not b:
+        return False
+    return b.get("one_sided", 0) > 0 and a.get("one_sided", 0) == 0
 
 
 def _one_shot_mana(card: dict) -> bool:
@@ -438,6 +461,11 @@ def _sweeps_fewer_kinds(read: JobRead, candidate: dict, cut: Mapping) -> bool:
     if not a or not b:
         return False
     if a.get("creatures", 0) == 0 and b.get("creatures", 0) > 0:
+        return True
+    # A sweep that kills only small creatures never replaces one that kills
+    # the board: Contagion Engine's one -1/-1 counter for Starstorm's X damage
+    # (Animated Army, 2026-11-02), let through as the "cheaper" card.
+    if a.get("small", 0) > 0 and b.get("lethal", 0) >= 1:
         return True
     # A sweep of a narrow slice (the attacking creatures, a power bound)
     # never replaces one of the whole board: Aetherize's "return all
@@ -1111,6 +1139,17 @@ def _unit_gates(card: Mapping) -> _UnitGates:
                 filt = getattr(unit.node, "affected", None)
                 if tag_of(filt) == "SelfRef":
                     filt = None
+                # A static that works only while you control a creature of a
+                # type (Gravecrawler's "cast this card from your graveyard as
+                # long as you control a Zombie") is gated on that type: Necron
+                # Dynasties holds no Zombies (2026-11-02).
+                cond = getattr(unit.node, "condition", None)
+                if (
+                    filt is None
+                    and tag_of(cond) == "IsPresent"
+                    and filter_controller(getattr(cond, "filter", None)) == "You"
+                ):
+                    filt = getattr(cond, "filter", None)
                 # A cost reduction's spell filter is its gate (Oketra's
                 # Monument's white creature spells), beside the affected.
                 mode_words: set[str] = set()
@@ -1166,7 +1205,7 @@ def _trigger_effect_gate_words(unit: AbilityUnit) -> frozenset[str]:
         return frozenset()
     words: set[str] = set()
     for c in unit.effects:
-        statics = getattr(c.node, "static_abilities", None) or ()
+        statics = list_field(c.node, "static_abilities")
         if not statics:
             return frozenset()
         for sdef in statics:
@@ -2330,7 +2369,11 @@ def propose_swaps(
         while Drover of the Mighty and four other guide cuts waited in the lane
         pool (Veloci-Ramp-Tor, 2026-11-02). Holding back every need supplier
         so was measured and narrowed: held-out 569 / 262 / 107 → 564 / 260 /
-        104."""
+        104. Opening the jobless popular slots that supply no need ahead of a
+        need supplier was measured and reverted too: it kept Blight Curse's
+        Kulrath Knight (wither, under Auntie Ool) from a ramp fill but churned
+        Counter Intelligence and cut Pentad Prism again — held-out 565 / 262 /
+        106 → 565 / 265 / 101 (2026-11-02)."""
         for want in (False, True):
             for pool in (CUT_UPGRADE_JOBLESS, CUT_LANE):
                 for reason, card in pools.get(pool, ()):

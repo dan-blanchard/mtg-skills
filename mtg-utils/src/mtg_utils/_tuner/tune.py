@@ -467,6 +467,7 @@ def tune(
             commander_idents=read.commander_idents,
             poisons=wins["poisons"],
             need_avenues=need_avenues,
+            protection_low=prot.get("status") == "low",
         ),
         near_misses=suggestable_near_misses(combos, params.target_bracket),
         meta_missing=[c for c in meta_missing if not c["land"]][:META_CORE_ISSUES],

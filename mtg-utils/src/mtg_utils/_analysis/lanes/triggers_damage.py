@@ -1191,7 +1191,16 @@ def _counter_control(tree: ConceptTree) -> list[Signal]:
     countered" permission STATICS (Vexing Shusher — a ``CantBeCountered``
     mode, no Counter effect). Scope "you" (live).
     """
-    hits = tree.effect_concepts("counter_spell")
+    # A counter only of spells cast with no mana spent (Boromir, Warden of the
+    # Tower; Lavinia, Azorius Renegade) answers free spells alone — a hoser,
+    # not a counterspell: it filled Creative Energy's interaction row
+    # (2026-11-02).
+    hits = [
+        c
+        for unit in tree.units
+        if tag_of(getattr(unit.node, "condition", None)) != "ManaSpentCondition"
+        for c in unit.effect_concepts("counter_spell")
+    ]
     if hits:
         return [Signal("counter_control", "you", "", hits[0].raw, tree.name, "high")]
     return []

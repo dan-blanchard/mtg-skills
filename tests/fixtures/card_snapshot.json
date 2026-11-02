@@ -277919,6 +277919,228 @@
     "type_line": "Artifact"
    }
   },
+  "Contagion Engine": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": {
+        "costs": [
+         {
+          "cost": {
+           "generic": 4,
+           "shards": [],
+           "type": "Cost"
+          },
+          "type": "Mana"
+         },
+         {
+          "type": "Tap"
+         }
+        ],
+        "type": "Composite"
+       },
+       "description": "{4}, {T}: Proliferate twice.",
+       "duration": null,
+       "effect": {
+        "type": "Proliferate"
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "repeat_for": {
+        "type": "Fixed",
+        "value": 2
+       },
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Artifact"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 6,
+      "shards": [],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "2f843059-b21f-4c78-8f18-b8450d69aaca",
+       "6acd847d-7474-4d6a-8281-aa59991a1b87",
+       "dce72636-08e4-484e-ad81-4d1597a31ffb",
+       "e8125bcb-b110-4705-b77d-0548aaac4c91",
+       "fe584bf8-cb71-42b5-b5c0-dea3fec79c9d"
+      ]
+     },
+     "name": "Contagion Engine",
+     "non_ability_text": null,
+     "oracle_text": "When this artifact enters, put a -1/-1 counter on each creature target player controls.\n{4}, {T}: Proliferate twice. (Choose any number of permanents and/or players, then give each another counter of each kind already there. Then do it again.)",
+     "power": null,
+     "printings": [
+      "OTP",
+      "PLST",
+      "SLD",
+      "SOM"
+     ],
+     "rarities": [
+      "rare",
+      "mythic"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2011-01-01",
+       "text": "As Contagion Engine's activated ability resolves, you'll complete an entire proliferate action, then you'll complete a second proliferate action. You may choose different players and/or permanents, or different counters on those permanents, when you proliferate the second time."
+      },
+      {
+       "date": "2011-01-01",
+       "text": "Players can't respond between the first and the second proliferate actions."
+      },
+      {
+       "date": "2023-02-04",
+       "text": "An ability that triggers \"Whenever you proliferate\" triggers even if you chose no permanents or players while doing so."
+      },
+      {
+       "date": "2023-02-04",
+       "text": "If a permanent ever has both +1/+1 counters and -1/-1 counters on it at the same time, they're removed in pairs as a state-based action so that the permanent has only one of those kinds of counters on it."
+      },
+      {
+       "date": "2023-02-04",
+       "text": "If a player or permanent has more than one kind of counter on it, and you choose for it to get additional counters, it must get one of each kind of counter it already has. You can't have it get just one kind of counter it already has and not the others."
+      },
+      {
+       "date": "2023-02-04",
+       "text": "Players can respond to a spell or ability whose effect includes proliferating. Once that spell or ability starts to resolve, however, and its controller chooses which permanents and players will get new counters, it's too late for anyone to respond."
+      },
+      {
+       "date": "2023-02-04",
+       "text": "To proliferate, you can choose any permanent that has a counter, including ones controlled by opponents. You can choose any player who has a counter, including opponents. You can't choose cards in any zone other than the battlefield, even if they have counters on them."
+      },
+      {
+       "date": "2023-02-04",
+       "text": "You don't have to choose every permanent or player that has a counter, only the ones you want to add another counter to. Since \"any number\" includes zero, you don't have to choose any permanents at all, and you don't have to choose any players at all."
+      }
+     ],
+     "scryfall_oracle_id": "482bd55a-ba73-4722-8643-94fa12818515",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "When ~ enters, put a -1/-1 counter on each creature target player controls.",
+       "destination": "Battlefield",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "counter_type": "M1M1",
+         "target": {
+          "controller": "TargetPlayer",
+          "properties": [],
+          "type": "Typed",
+          "type_filters": [
+           "Creature"
+          ]
+         },
+         "type": "PutCounterAll"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "ChangesZone",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": {
+        "type": "Player"
+       }
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 6.0,
+    "color_identity": [],
+    "colors": [],
+    "keywords": [
+     "Proliferate"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{6}",
+    "name": "Contagion Engine",
+    "oracle_id": "482bd55a-ba73-4722-8643-94fa12818515",
+    "oracle_text": "When this artifact enters, put a -1/-1 counter on each creature target player controls.\n{4}, {T}: Proliferate twice. (Choose any number of permanents and/or players, then give each another counter of each kind already there. Then do it again.)",
+    "type_line": "Artifact"
+   }
+  },
   "Containment Construct": {
    "phase_records": [
     {
@@ -447402,6 +447624,311 @@
     "oracle_id": "f718e507-296b-4f22-842b-5fb91322069b",
     "oracle_text": "Until end of turn, target creature gains \"When this creature dies, return it to the battlefield tapped under its owner's control with a +1/+1 counter on it.\"",
     "type_line": "Instant"
+   }
+  },
+  "Feldon of the Third Path": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": {
+        "costs": [
+         {
+          "cost": {
+           "generic": 2,
+           "shards": [
+            "Red"
+           ],
+           "type": "Cost"
+          },
+          "type": "Mana"
+         },
+         {
+          "type": "Tap"
+         }
+        ],
+        "type": "Composite"
+       },
+       "description": "{2}{R}, {T}: Create a token that's a copy of target creature card in your graveyard, except it's an artifact in addition to its other types. It gains haste. Sacrifice it at the beginning of the next end step.",
+       "duration": null,
+       "effect": {
+        "additional_modifications": [
+         {
+          "core_type": "Artifact",
+          "type": "AddType"
+         }
+        ],
+        "count": {
+         "type": "Fixed",
+         "value": 1
+        },
+        "enters_attacking": false,
+        "owner": {
+         "type": "Controller"
+        },
+        "tapped": false,
+        "target": {
+         "controller": "You",
+         "properties": [
+          {
+           "type": "InZone",
+           "zone": "Graveyard"
+          }
+         ],
+         "type": "Typed",
+         "type_filters": [
+          "Creature"
+         ]
+        },
+        "type": "CopyTokenOf"
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "duration": "Permanent",
+         "static_abilities": [
+          {
+           "active_zones": [],
+           "affected": {
+            "type": "LastCreated"
+           },
+           "affected_zone": null,
+           "characteristic_defining": false,
+           "condition": null,
+           "description": "gain haste",
+           "effect_zone": null,
+           "mode": "Continuous",
+           "modifications": [
+            {
+             "keyword": "Haste",
+             "type": "AddKeyword"
+            }
+           ]
+          }
+         ],
+         "target": {
+          "type": "LastCreated"
+         },
+         "type": "GenericEffect"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "condition": {
+           "phase": "End",
+           "type": "AtNextPhase"
+          },
+          "effect": {
+           "condition": null,
+           "cost": null,
+           "description": null,
+           "duration": null,
+           "effect": {
+            "count": {
+             "type": "Fixed",
+             "value": 1
+            },
+            "target": {
+             "type": "LastCreated"
+            },
+            "type": "Sacrifice"
+           },
+           "forward_result": false,
+           "kind": "Activated",
+           "optional": false,
+           "optional_targeting": false,
+           "sub_ability": null,
+           "target_prompt": null
+          },
+          "type": "CreateDelayedTrigger",
+          "uses_tracked_set": false
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": null,
+         "sub_link": "SequentialSibling",
+         "target_prompt": null
+        },
+        "sub_link": "SequentialSibling",
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "brawl_commander": true,
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Human",
+       "Artificer"
+      ],
+      "supertypes": [
+       "Legendary"
+      ]
+     },
+     "color_identity": [
+      "Red"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "is_commander": true,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "Red",
+       "Red"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "related_token_ids": [
+       "0a417209-92ea-5ce3-ae2c-251ee22f1b92",
+       "3ae3c4af-2b85-5943-bab1-760e1b7da047",
+       "53c49d79-4634-5dca-80ea-af578fcdf6dc"
+      ],
+      "source_printing_ids": [
+       "0360f1ff-15c9-48e3-89eb-fbc4bf140c55",
+       "1665327f-8267-4054-9be5-43a610887c26",
+       "44130046-cd48-42d5-8083-5e4e7dd37a7b",
+       "4c174e92-bc2a-42ba-9ce7-8c9fdf0a27f0",
+       "4c257487-5494-4251-9e93-43bd9cc6558f",
+       "5000aa89-10b6-4776-871d-7f6d69e5a474",
+       "97879ddb-b00b-4f24-b901-af19c436b9f1"
+      ]
+     },
+     "name": "Feldon of the Third Path",
+     "non_ability_text": null,
+     "oracle_text": "{2}{R}, {T}: Create a token that's a copy of target creature card in your graveyard, except it's an artifact in addition to its other types. It gains haste. Sacrifice it at the beginning of the next end step.",
+     "power": {
+      "type": "Fixed",
+      "value": 2
+     },
+     "printings": [
+      "C14",
+      "C19",
+      "C21",
+      "CM2",
+      "J15",
+      "MOC",
+      "PLST",
+      "PRM",
+      "TSR"
+     ],
+     "rarities": [
+      "mythic",
+      "special"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2021-03-19",
+       "text": "Any enters-the-battlefield abilities of the copied creature card will trigger when the token enters the battlefield. Any \"as [this permanent] enters the battlefield\" or \"[this permanent] enters the battlefield with\" abilities of the copied creature card will also work."
+      },
+      {
+       "date": "2021-03-19",
+       "text": "If Feldon's ability creates multiple tokens due to a replacement effect (such as the one Doubling Season creates), each of those tokens will gain haste and you'll sacrifice each of them."
+      },
+      {
+       "date": "2021-03-19",
+       "text": "If another creature becomes a copy of, or enters the battlefield as a copy of the token, that creature will copy the creature card the token is copying, except it will also be an artifact. This is true even if the creature card that was copied by Feldon of the Third Path is no longer in the graveyard at that time. However, the new copy won't gain haste and you won't sacrifice it at the beginning of the next end step."
+      },
+      {
+       "date": "2021-03-19",
+       "text": "If the copied creature card has {X} in its mana cost, X is 0."
+      },
+      {
+       "date": "2021-03-19",
+       "text": "The token copies exactly what was printed on the original creature card (except that the copy is also an artifact) and nothing else."
+      }
+     ],
+     "scryfall_oracle_id": "be094704-5232-4b10-beeb-aa9bbfae063d",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 3
+     },
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "all_parts": [
+     {
+      "component": "token",
+      "id": "6870a2af-80e1-4813-a332-2b1bd789f1c1",
+      "name": "Copy",
+      "oracle_id": "88c78601-87f0-45e7-b2e0-e7ffcfb1cb70",
+      "type_line": "Token"
+     }
+    ],
+    "arena_available": false,
+    "cmc": 3.0,
+    "color_identity": [
+     "R"
+    ],
+    "colors": [
+     "R"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}{R}{R}",
+    "name": "Feldon of the Third Path",
+    "oracle_id": "be094704-5232-4b10-beeb-aa9bbfae063d",
+    "oracle_text": "{2}{R}, {T}: Create a token that's a copy of target creature card in your graveyard, except it's an artifact in addition to its other types. It gains haste. Sacrifice it at the beginning of the next end step.",
+    "power": "2",
+    "toughness": "3",
+    "type_line": "Legendary Creature — Human Artificer"
    }
   },
   "Felidar Sovereign": {
@@ -690413,6 +690940,165 @@
     "power": "2",
     "toughness": "3",
     "type_line": "Creature — Phyrexian Hyena"
+   }
+  },
+  "Kulrath Knight": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Elemental",
+       "Knight"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Black",
+      "Red"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [
+      "Flying",
+      "Wither"
+     ],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 3,
+      "shards": [
+       "BlackRed",
+       "BlackRed"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "2408b0bb-37d6-48a3-b140-c826de74c3a0",
+       "c28c15bd-6fb3-4250-81c4-d42f3efdb6f6",
+       "e7086839-eba0-4ff2-b6c9-96d3c72937e0"
+      ]
+     },
+     "name": "Kulrath Knight",
+     "non_ability_text": null,
+     "oracle_text": "Flying\nWither (This deals damage to creatures in the form of -1/-1 counters.)\nCreatures your opponents control with counters on them can't attack or block.",
+     "power": {
+      "type": "Fixed",
+      "value": 3
+     },
+     "printings": [
+      "ECC",
+      "PLST",
+      "SHM"
+     ],
+     "rarities": [
+      "uncommon"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2008-05-01",
+       "text": "This checks your opponents' creatures for any kind of counters, not just -1/-1 counters."
+      }
+     ],
+     "scryfall_oracle_id": "f3d1b2e9-6ede-416d-937b-2063ea278d2f",
+     "static_abilities": [
+      {
+       "active_zones": [],
+       "affected": {
+        "controller": "Opponent",
+        "properties": [
+         {
+          "comparator": "GE",
+          "count": {
+           "type": "Fixed",
+           "value": 1
+          },
+          "counters": {
+           "type": "Any"
+          },
+          "type": "Counters"
+         }
+        ],
+        "type": "Typed",
+        "type_filters": [
+         "Creature"
+        ]
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": null,
+       "description": "Creatures your opponents control with counters on them can't attack or block.",
+       "effect_zone": null,
+       "mode": "CantAttackOrBlock",
+       "modifications": []
+      }
+     ],
+     "toughness": {
+      "type": "Fixed",
+      "value": 3
+     },
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 5.0,
+    "color_identity": [
+     "B",
+     "R"
+    ],
+    "colors": [
+     "B",
+     "R"
+    ],
+    "keywords": [
+     "Flying",
+     "Wither"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{3}{B/R}{B/R}",
+    "name": "Kulrath Knight",
+    "oracle_id": "f3d1b2e9-6ede-416d-937b-2063ea278d2f",
+    "oracle_text": "Flying\nWither (This deals damage to creatures in the form of -1/-1 counters.)\nCreatures your opponents control with counters on them can't attack or block.",
+    "power": "3",
+    "toughness": "3",
+    "type_line": "Creature — Elemental Knight"
    }
   },
   "Kumano Faces Kakkazan // Etching of Kumano": {
@@ -1076281,6 +1076967,221 @@
     "type_line": "Artifact Creature — Robot Soldier"
    }
   },
+  "Starstorm": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "~ deals X damage to each creature.",
+       "duration": null,
+       "effect": {
+        "amount": {
+         "qty": {
+          "name": "X",
+          "type": "Variable"
+         },
+         "type": "Ref"
+        },
+        "target": {
+         "controller": null,
+         "properties": [],
+         "type": "Typed",
+         "type_filters": [
+          "Creature"
+         ]
+        },
+        "type": "DamageAll"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      },
+      {
+       "ability_tag": {
+        "type": "Cycling"
+       },
+       "activation_zone": "Hand",
+       "condition": null,
+       "consumes_source": true,
+       "cost": {
+        "costs": [
+         {
+          "cost": {
+           "generic": 3,
+           "shards": [],
+           "type": "Cost"
+          },
+          "type": "Mana"
+         },
+         {
+          "count": {
+           "type": "Fixed",
+           "value": 1
+          },
+          "filter": null,
+          "random": false,
+          "self_ref": true,
+          "type": "Discard"
+         }
+        ],
+        "type": "Composite"
+       },
+       "description": null,
+       "duration": null,
+       "effect": {
+        "count": {
+         "type": "Fixed",
+         "value": 1
+        },
+        "target": {
+         "type": "Controller"
+        },
+        "type": "Draw"
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Instant"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Red"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [
+      {
+       "Cycling": {
+        "data": {
+         "generic": 3,
+         "shards": [],
+         "type": "Cost"
+        },
+        "type": "Mana"
+       }
+      }
+     ],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "premodern": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 0,
+      "shards": [
+       "X",
+       "Red",
+       "Red"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "18e20113-6ba1-474b-bfed-1fa462fc63e2",
+       "4327f5bd-e2e6-40de-82c3-853a23b4ddc8",
+       "622f92d3-89cf-423b-bb0e-0c392e8dd7b3",
+       "728b356a-e2ec-4c44-bd0a-bb9a5427a1ad",
+       "a181760b-949d-4901-b05f-0b1f032d0a8a",
+       "a5f3ab82-2a24-4c6c-bdd9-f2bd5adca144",
+       "b45264cb-67d0-4dfb-9229-61c4e90c760a",
+       "d7753550-3a91-47ad-9616-c46c69a0b93a"
+      ]
+     },
+     "name": "Starstorm",
+     "non_ability_text": null,
+     "oracle_text": "Starstorm deals X damage to each creature.\nCycling {3} ({3}, Discard this card: Draw a card.)",
+     "power": null,
+     "printings": [
+      "40K",
+      "BLC",
+      "C13",
+      "C14",
+      "C20",
+      "CM2",
+      "J22",
+      "NEC",
+      "ONS",
+      "VMA",
+      "WC03"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2008-10-01",
+       "text": "Cycling is an activated ability. Effects that interact with activated abilities (such as Stifle or Rings of Brighthearth) will interact with cycling. Effects that interact with spells (such as Remove Soul or Faerie Tauntings) will not."
+      }
+     ],
+     "scryfall_oracle_id": "34d112c3-cc2d-4428-bd7f-568bda61bd30",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 2.0,
+    "color_identity": [
+     "R"
+    ],
+    "colors": [
+     "R"
+    ],
+    "keywords": [
+     "Cycling"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{X}{R}{R}",
+    "name": "Starstorm",
+    "oracle_id": "34d112c3-cc2d-4428-bd7f-568bda61bd30",
+    "oracle_text": "Starstorm deals X damage to each creature.\nCycling {3} ({3}, Discard this card: Draw a card.)",
+    "type_line": "Instant"
+   }
+  },
   "Stasis": {
    "phase_records": [
     {
@@ -1252737,6 +1253638,185 @@
     "type_line": "Creature — Wall"
    }
   },
+  "Wall of Roots": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "activation_restrictions": [
+        {
+         "type": "OnlyOnceEachTurn"
+        }
+       ],
+       "condition": null,
+       "cost": {
+        "effect": {
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "counter_type": "-0/-1",
+         "target": {
+          "type": "SelfRef"
+         },
+         "type": "PutCounter"
+        },
+        "type": "EffectCost"
+       },
+       "description": "Put a -0/-1 counter on ~: Add {G}. Activate only once each turn.",
+       "duration": null,
+       "effect": {
+        "produced": {
+         "colors": [
+          "Green"
+         ],
+         "type": "Fixed"
+        },
+        "type": "Mana"
+       },
+       "forward_result": false,
+       "is_mana_ability": true,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Plant",
+       "Wall"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Green"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [
+      "Defender"
+     ],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pauper": "legal",
+      "paupercommander": "legal",
+      "premodern": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "Green"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "04326924-55c4-4315-893a-6a05e0b7eb7f",
+       "999f9e72-97ed-430a-8c1c-26a54f8b7a08",
+       "b65cb901-bfb0-454a-97ef-138021e524ff",
+       "d80940ad-8e36-4226-ad5f-b54487c75c76",
+       "e4e7d3b7-9b0c-463d-975c-ef81d7fd8dad"
+      ]
+     },
+     "name": "Wall of Roots",
+     "non_ability_text": null,
+     "oracle_text": "Defender\nPut a -0/-1 counter on this creature: Add {G}. Activate only once each turn.",
+     "power": {
+      "type": "Fixed",
+      "value": 0
+     },
+     "printings": [
+      "ARC",
+      "F08",
+      "IMA",
+      "MIR",
+      "NCC",
+      "P30A",
+      "PLST",
+      "PRM",
+      "TDC",
+      "TSB",
+      "WC98"
+     ],
+     "rarities": [
+      "common"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2017-11-17",
+       "text": "If you must sacrifice a creature to pay a casting or activation cost that also includes mana, such as that of Bubbling Cauldron's abilities, you may put a -0/-1 counter on Wall of Roots to make its toughness 0 and then sacrifice it to pay that cost."
+      }
+     ],
+     "scryfall_oracle_id": "3a21a6ae-b2f2-4f0c-acfd-5f3e8d63fd2f",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 5
+     },
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 2.0,
+    "color_identity": [
+     "G"
+    ],
+    "colors": [
+     "G"
+    ],
+    "keywords": [
+     "Defender"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "legal",
+     "paupercommander": "legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}{G}",
+    "name": "Wall of Roots",
+    "oracle_id": "3a21a6ae-b2f2-4f0c-acfd-5f3e8d63fd2f",
+    "oracle_text": "Defender\nPut a -0/-1 counter on this creature: Add {G}. Activate only once each turn.",
+    "power": "0",
+    "produced_mana": [
+     "G"
+    ],
+    "toughness": "5",
+    "type_line": "Creature — Plant Wall"
+   }
+  },
   "Wall of Shadows": {
    "phase_records": [
     {
@@ -1266768,6 +1267848,314 @@
     "power": "4",
     "toughness": "4",
     "type_line": "Creature — Lizard Hydra"
+   }
+  },
+  "Whirler Rogue": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": {
+        "filter": {
+         "controller": "You",
+         "properties": [],
+         "type": "Typed",
+         "type_filters": [
+          "Artifact"
+         ]
+        },
+        "requirement": {
+         "count": 2,
+         "requirement": "count"
+        },
+        "type": "TapCreatures"
+       },
+       "description": "Tap two untapped artifacts you control: Target creature can't be blocked this turn.",
+       "duration": "UntilEndOfTurn",
+       "effect": {
+        "duration": "UntilEndOfTurn",
+        "static_abilities": [
+         {
+          "active_zones": [],
+          "affected": {
+           "type": "ParentTarget"
+          },
+          "affected_zone": null,
+          "characteristic_defining": false,
+          "condition": null,
+          "description": "can't be blocked",
+          "effect_zone": null,
+          "mode": "CantBeBlocked",
+          "modifications": [
+           {
+            "mode": "CantBeBlocked",
+            "type": "AddStaticMode"
+           }
+          ]
+         }
+        ],
+        "target": {
+         "controller": null,
+         "properties": [],
+         "type": "Typed",
+         "type_filters": [
+          "Creature"
+         ]
+        },
+        "type": "GenericEffect"
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Human",
+       "Rogue",
+       "Artificer"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Blue"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 2,
+      "shards": [
+       "Blue",
+       "Blue"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "related_token_ids": [
+       "003cfec6-d5a5-5426-8943-9991e8c8195f",
+       "147e652c-87f3-5002-b778-e6e9f1ae3176",
+       "2bd4585e-48e5-58a6-a684-9f1672cb99a5",
+       "31d9595b-9d1c-581c-9f15-d9d4bd8403aa",
+       "53316f3a-2854-52da-826e-8e37dcb53d12",
+       "6cfb85ca-b3aa-5234-8697-65f7f891dadf",
+       "6e095a33-6680-5357-b7d4-297db686d634",
+       "74a8ea63-91e1-5cb6-b851-b0d333a5ba80",
+       "836ea731-1b6e-5118-9059-03d5ab0b4ecb",
+       "88e4b3a4-d00d-5bf8-8360-35069add6912",
+       "bb5d293a-75af-53c0-9279-f560c2a9ffce",
+       "d0ddfd70-ed9e-56db-8424-5a30af6d2425",
+       "d976794c-c6a4-56c8-8f29-7a3668f30b9f",
+       "e9029dbc-b8eb-5eda-85bd-64b59e07da42",
+       "f22f3e10-8d4f-55df-8bb6-c8774c1a3f51",
+       "f282f43b-3966-5b9c-b2da-bbb804c11b6d"
+      ],
+      "source_printing_ids": [
+       "0e37b4f3-8750-45f9-90dd-5d7a26591ff9",
+       "0feb66d2-c50f-4296-af2f-b374c57443b0",
+       "150b14f7-f0b0-4713-83ce-344e0375204c",
+       "23dcb171-884d-480f-ba05-2a7c9cde5cfd",
+       "261dd09a-6a68-4fe1-aed3-0892955e52c3",
+       "31dec9a8-714f-4e28-9781-d0a8c6775298",
+       "3f2ddb63-e4d0-418e-9ec7-70add0ed06a8",
+       "51505039-b6f6-4dd6-9a09-5494e030deff",
+       "64d978dd-f194-4f5c-97ca-cadb1a105d39",
+       "6bf5a7b6-62ef-48c5-b081-a6f0ca917d16",
+       "6e85ad25-7496-4832-b945-e7a39582faaa",
+       "73b9b5ce-5687-4c3a-ac33-189badf8b98d",
+       "91323e0e-5384-4571-a7c0-0e2c2ed45f02",
+       "bfd71d34-3fd5-4029-b29f-b23e63ec2031",
+       "c4c846c7-b12a-4465-af5e-36adf2b6cdd0",
+       "d1054d2b-a424-466d-8ec6-36f014849e43",
+       "ec604fd6-5cbe-4066-9324-156eb26dc27b"
+      ]
+     },
+     "name": "Whirler Rogue",
+     "non_ability_text": null,
+     "oracle_text": "When this creature enters, create two 1/1 colorless Thopter artifact creature tokens with flying.\nTap two untapped artifacts you control: Target creature can't be blocked this turn.",
+     "power": {
+      "type": "Fixed",
+      "value": 2
+     },
+     "printings": [
+      "BRC",
+      "C18",
+      "CMM",
+      "DDU",
+      "DRC",
+      "FDC",
+      "GNT",
+      "HA5",
+      "J22",
+      "KHC",
+      "MKC",
+      "MOC",
+      "NCC",
+      "NEC",
+      "ORI",
+      "OTC",
+      "PIP",
+      "PLST",
+      "ZNC"
+     ],
+     "rarities": [
+      "uncommon"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2015-06-22",
+       "text": "Activating the second ability of Whirler Rogue after a creature has become blocked won't cause it to become unblocked."
+      },
+      {
+       "date": "2015-06-22",
+       "text": "You may tap any two untapped artifacts you control, including artifact creatures that haven't been under your control continuously since the beginning of your most recent turn."
+      }
+     ],
+     "scryfall_oracle_id": "7060f2c8-fca0-4b7a-bddf-37682f434596",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 2
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "When ~ enters, create two 1/1 colorless Thopter artifact creature tokens with flying.",
+       "destination": "Battlefield",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "colors": [],
+         "count": {
+          "type": "Fixed",
+          "value": 2
+         },
+         "enters_attacking": false,
+         "keywords": [
+          "Flying"
+         ],
+         "name": "Thopter",
+         "owner": {
+          "type": "Controller"
+         },
+         "power": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "tapped": false,
+         "toughness": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "type": "Token",
+         "types": [
+          "Artifact",
+          "Creature",
+          "Thopter"
+         ]
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "ChangesZone",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "all_parts": [
+     {
+      "component": "token",
+      "id": "75602e25-a0ab-430e-b610-5e12c1cab3d8",
+      "name": "Thopter",
+      "oracle_id": "7c0b6b53-4ddb-4bb5-8a26-0041b2006d3f",
+      "type_line": "Token Artifact Creature — Thopter"
+     }
+    ],
+    "arena_available": true,
+    "cmc": 4.0,
+    "color_identity": [
+     "U"
+    ],
+    "colors": [
+     "U"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}{U}{U}",
+    "name": "Whirler Rogue",
+    "oracle_id": "7060f2c8-fca0-4b7a-bddf-37682f434596",
+    "oracle_text": "When this creature enters, create two 1/1 colorless Thopter artifact creature tokens with flying.\nTap two untapped artifacts you control: Target creature can't be blocked this turn.",
+    "power": "2",
+    "toughness": "2",
+    "type_line": "Creature — Human Rogue Artificer"
    }
   },
   "Whirler Virtuoso": {

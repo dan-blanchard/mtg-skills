@@ -89,6 +89,7 @@ from mtg_utils._card_ir.crosswalk.reads import (
     iter_condition_sites,
     iter_cost_leaves,
     iter_typed_nodes,
+    list_field,
     or_arms,
     requires_condition_inner,
     tag_of,
@@ -493,11 +494,44 @@ BIG_SPELL_MV = 5
 CHEAP_SPELL_MV = 2
 
 
+#: The layouts whose halves are cast one at a time: on the stack only the half
+#: being cast exists (CR 709.3b), though the card's mana value elsewhere is the
+#: two combined (CR 709.4).
+_HALF_CAST_LAYOUTS = frozenset({"split", "aftermath"})
+
+
+def _cost_string_value(cost: str) -> int:
+    """The mana value of a printed mana cost string (CR 202.3): a number counts
+    its value, {X} counts 0 (CR 202.3e), a monocolored hybrid {2/W} counts 2
+    (CR 202.3f), any other symbol 1."""
+    total = 0
+    for sym in re.findall(r"\{([^}]*)\}", cost or ""):
+        if sym.isdigit():
+            total += int(sym)
+        elif sym == "X":
+            continue
+        elif sym.split("/", 1)[0].isdigit():
+            total += int(sym.split("/", 1)[0])
+        else:
+            total += 1
+    return total
+
+
 def _mana_value_reaches(card: Mapping, floor: int) -> bool:
     """Whether the card's spell can have mana value ``floor`` or more: its
     printed mana value (CR 202.3), or an {X} in its cost, since X is the number
-    chosen while the spell is on the stack (CR 202.3e)."""
-    if float(card.get("cmc") or 0) >= floor:
+    chosen while the spell is on the stack (CR 202.3e). A split or aftermath
+    card is cast one half at a time (CR 709.3b), so its biggest half counts,
+    not the two combined: Commit // Memory casts at 4 or 6, never 10."""
+    if card.get("layout") in _HALF_CAST_LAYOUTS and card.get("card_faces"):
+        if (
+            max(
+                _cost_string_value(f.get("mana_cost") or "") for f in card["card_faces"]
+            )
+            >= floor
+        ):
+            return True
+    elif float(card.get("cmc") or 0) >= floor:
         return True
     return any(
         "X" in (face.get("mana_cost") or "")
@@ -1142,6 +1176,23 @@ def _type_need(
     return frozenset({frozenset(words)}), frozenset(keys)
 
 
+def _puts_minus_counters(card: dict) -> bool:
+    """Whether a card puts -1/-1 counters on creatures: wither or infect (its
+    damage to a creature is -1/-1 counters, CR 702.80a / 702.90c), or a
+    -1/-1 counter effect of its own."""
+    for tree in trees_for(dict(card)):
+        if {k.lower() for k in tree.card_keywords} & {"wither", "infect"}:
+            return True
+        for unit in tree.units:
+            for n in unit.iter_typed():
+                if (
+                    tag_of(n) in ("PutCounter", "PutCounterAll")
+                    and counter_kind_any(n) == "M1M1"
+                ):
+                    return True
+    return False
+
+
 def _counter_filter_kind(node: TypedMirrorNode) -> str | None:
     """The counter kind a ``CounterAdded`` trigger watches (its
     ``counter_filter.counter_type``: ``M1M1``, ``P1P1``), ``None`` when it
@@ -1305,6 +1356,10 @@ def _event_need(node: TypedMirrorNode, desc: str) -> Need | None:
         # proliferate, and a mover — moving a counter puts it onto the second
         # object (CR 122.5: The Ozolith's counters onto a target creature). A
         # -X/-X effect (``debuff_makers``: Disfigure) puts no counter.
+        # And the cards that put them on: wither's or infect's damage to a
+        # creature is -1/-1 counters (CR 702.80a, 702.90c), and a -1/-1
+        # counter effect places them outright — Kulrath Knight went as a
+        # ramp fill's cut under Auntie Ool (Blight Curse, 2026-11-02).
         return Need(
             "event",
             "-1/-1 counters put on creatures",
@@ -1312,6 +1367,7 @@ def _event_need(node: TypedMirrorNode, desc: str) -> Need | None:
             keys=frozenset(
                 {"minus_counters_matter", "proliferate_makers", "counter_move"}
             ),
+            predicate=_puts_minus_counters,
         )
     if event == "deals_damage" and tag_of(getattr(node, "valid_source", None)) == (
         "SelfRef"
@@ -1798,6 +1854,30 @@ def _redundancy_needs(idents: Iterable[str], desc: str) -> Iterator[Need]:
             )
 
 
+def _makes_tokens_of(words: frozenset[str]) -> Callable[[dict], bool]:
+    """Whether a card makes a token of one of the card types ``words``: a
+    ``Token`` effect whose types name it, or a token copy that adds the type
+    (``CopyTokenOf`` with an ``AddType``)."""
+    wanted = {w.capitalize() for w in words}
+
+    def makes(card: dict) -> bool:
+        for tree in trees_for(dict(card)):
+            for unit in tree.units:
+                for n in unit.iter_typed():
+                    tag = tag_of(n)
+                    if tag == "Token" and wanted & set(list_field(n, "types")):
+                        return True
+                    if tag == "CopyTokenOf" and any(
+                        tag_of(m) == "AddType"
+                        and getattr(m, "core_type", None) in wanted
+                        for m in list_field(n, "additional_modifications")
+                    ):
+                        return True
+        return False
+
+    return makes
+
+
 def _payoff_needs(
     idents: Iterable[str], desc: str, *, floor_read: bool = False
 ) -> Iterator[Need]:
@@ -1842,11 +1922,17 @@ def _payoff_needs(
                 # Artifacts page led with Fellwar Stone, Mind Stone and Thought
                 # Vessel over Big Score and Idol of Oblivion.
                 if keys:
+                    # And any card making a token of the type — a Thopter, a
+                    # Servo, a copy "except it's an artifact": Gimbal counts
+                    # every differently named artifact token, and Feldon of the
+                    # Third Path went as a draw fill's cut (Tinker Time,
+                    # 2026-11-02).
                     yield Need(
                         "payoff",
                         f"{' '.join(sorted(words))} token makers",
                         desc,
                         keys=frozenset(keys),
+                        predicate=_makes_tokens_of(frozenset(words)),
                     )
                 continue
             yield Need(
