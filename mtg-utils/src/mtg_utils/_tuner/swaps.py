@@ -2185,8 +2185,7 @@ def propose_swaps(
         need
         for need in ctx.needs
         if need not in needs_here
-        and need.kind == "payoff"
-        and need.types
+        and ((need.kind == "payoff" and need.types) or need.kind == "resource")
         and need.leads
         and sum(1 for c in classes if satisfies(c.record, need)) >= _NEED_BUILT_FLOOR
     ]

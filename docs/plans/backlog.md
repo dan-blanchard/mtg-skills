@@ -1182,10 +1182,16 @@ proposal as a deckbuilder, fix the structure, the guide score is a yardstick)**
   of +1/+0 in Cavalry Charge and Sliver Swarm; it now goes to Kindred Boon.
   Verdicts, with the check: Cast Out for Accursed Marauder (the removal read
   scores the Marauder 0.77 to Cast Out's 0.75, and it is a Zombie under
-  Temmet). Open, measured next: Archfiend of Ifnir for Counterspell (it
-  supplies Temmet's "discard consumers" need, which reads as broad, so the
-  gate doesn't hold it). The 25's loss is Sultai Arisen's Harrow-for-Ramunap
-  pair, gone in a reshuffle of its theme page. `verify_symptoms.py`: 81.
+  Temmet). The 25's loss is Sultai Arisen's Harrow-for-Ramunap pair, gone
+  in a reshuffle of its theme page. `verify_symptoms.py`: 81.
+- **Batch 16f (2026-11-02; the 25 734 / 337 / 118 → 733 / 339 / 120; held-out
+  and fresh unchanged).** Fixed: (80) *an upgrade keeps a broad commander
+  resource need the deck builds toward* (`swaps` kept needs: the `resource`
+  needs beside the payoff card types, at `_NEED_BUILT_FLOOR` suppliers) —
+  Sultai Arisen gets Harrow for Ramunap Excavator back and Mardu Surge,
+  Enduring Enchantments gain a guide cut or add each. Archfiend of Ifnir for
+  Counterspell in Eternal Might is untouched: Temmet's "discard consumers"
+  has three suppliers in the deck, under the floor.
 
 **From the Jace, Multiverse Architect precon tune and the 25-precon audit (2026-10-17 to 2026-11-01)**
 
