@@ -1088,6 +1088,7 @@ def focus(
         if condemns
         else []
     )
+
     # The deep lane's upgrade slots: once the commander's lanes hold
     # ``lane_upgrade_floor`` engine doers, their least-played half. Measured
     # against the upgrade guides' cuts inside the 25 precons' lanes (906 lane
@@ -1105,18 +1106,41 @@ def focus(
     # 404) at the same precision, where taking two-thirds of the engine doers
     # instead of half reached none (2026-10-19). A Granter is in it unless its
     # grant grades premium (:func:`_grant_leaves_slot`).
-    lane_pool = [
-        c
-        for c in nonland
-        if c.bucket in ("engine", "spine")
-        and c.name not in fed_only_names
-        and c.name in lane_doers
-        and _grant_leaves_slot(c)
-        and not (cal.playrate_meaningful and is_premium(c.edhrec_rank))
-    ]
+    # Where the commander's own lanes hold too few doers for a half, a main
+    # the commander doesn't hold is the deep lane instead: Temur Roar's 42
+    # Dragons under Eshki, whose own lanes are pingers (11 cards, under the
+    # floor) — its weak Dragons were carers of a main, never a slot, and the
+    # deck proposed 24 swaps while its guides cut eleven Dragons for better
+    # ones (2026-11-02). Only then: with every deck's mains in the pool the
+    # main's members displaced the off-lane upgrades that found adds
+    # (held-out 576 / 259 → 542 / 250, measured the same day).
+    def pool_of(names: set[str]) -> list[CardClass]:
+        return [
+            c
+            for c in nonland
+            if c.bucket in ("engine", "spine")
+            and c.name not in fed_only_names
+            and c.name in names
+            and _grant_leaves_slot(c)
+            and not (cal.playrate_meaningful and is_premium(c.edhrec_rank))
+        ]
+
+    lane_floor = cal.scaled(cal.lane_upgrade_floor, deck_size)
+    lane_pool = pool_of(lane_doers)
+    pool_carers = lane_carers
+    if len(lane_pool) < lane_floor and mains:
+        main_members = (
+            set().union(*(member_sets.get(lbl, frozenset()) for lbl in mains))
+            - land_names
+            - set(upgrade_cards)  # an off-lane fringe card is that tier's already
+        )
+        main_pool = pool_of(main_members)
+        if len(main_pool) >= lane_floor:
+            lane_pool = main_pool
+            pool_carers = carers_of(mains)
     lane_upgrade_cards: list[str] = []
-    if len(lane_pool) >= cal.scaled(cal.lane_upgrade_floor, deck_size):
-        lane_pool.sort(key=lambda c: (c.name in lane_carers, c.least_played_key))
+    if len(lane_pool) >= lane_floor:
+        lane_pool.sort(key=lambda c: (c.name in pool_carers, c.least_played_key))
         lane_upgrade_cards = [c.name for c in lane_pool[: len(lane_pool) // 2]]
 
     engine_labels = {lbl for c in engine_built for lbl in themes(c)}

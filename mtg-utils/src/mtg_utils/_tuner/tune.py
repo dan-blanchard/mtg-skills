@@ -93,13 +93,19 @@ class TuneParams:
 def _deck_identity(hd: HydratedDeck) -> str:
     """The deck's color identity — the commander's (the deck identity it enforces),
     or the union across the main deck's cards when there is no commander (never the
-    sideboard's, and never an opened pool's)."""
+    sideboard's, and never an opened pool's). A colorless identity is ``"C"``
+    (``card_search``'s colorless-only filter), never the empty string, which the
+    search reads as no restriction: Zhulodok, Void Gorger's deck took Swords to
+    Plowshares, Deadly Dispute and Etali as upgrades (Eldrazi Unbound,
+    2026-11-02; CR 903.4 — a colorless commander's deck holds colorless cards)."""
     colors: set[str] = set()
     sources = hd.commanders or []
     records = [hd.by_name.get(e["name"]) for e in sources]
     records = [r for r in records if r] or hd.deck_records(zones=("cards",))
     for rec in records:
         colors.update(rec.get("color_identity") or [])
+    if not colors and records:
+        return "C"
     return "".join(sorted(colors))
 
 

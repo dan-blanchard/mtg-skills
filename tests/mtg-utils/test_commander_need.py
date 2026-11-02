@@ -128,6 +128,29 @@ def test_a_commander_granting_every_creature_type_wants_typal_payoffs():
     assert not grants_all_creature_types(test_card("Cultivate"))
 
 
+def test_a_tribal_commander_wants_its_tribes_payoffs():
+    """Hakbal names his Merfolk: the deck wants Merfolk payoffs — a lord
+    (Merfolk Mistbinder), a choose-a-type card (Vanquisher's Banner) — which
+    a tribe slot's upgrade then keeps over a plain member (Triton Shorestalker,
+    Explorers of the Deep 2026-11-02). ``typal_payoff_for`` is the one read:
+    Icon of Ancestry pays off Slivers, Cultivate nothing."""
+    from mtg_utils._analysis.commander_need import typal_payoff_for
+
+    need = _need(
+        "Hakbal of the Surging Soul", "payoffs for the commander's Merfolk tribe"
+    )
+    for name in ("Merfolk Mistbinder", "Vanquisher's Banner"):
+        assert satisfies(test_card(name), need), name
+    assert not satisfies(test_card("Triton Shorestalker"), need)
+    assert typal_payoff_for(test_card("Icon of Ancestry"), {"sliver"})
+    assert not typal_payoff_for(test_card("Cultivate"), {"sliver"})
+    assert not typal_payoff_for(test_card("Icon of Ancestry"), set())
+    # A reference beside no payoff key is a rider: Drover of the Mighty's
+    # Dinosaur bonus on a mana dork pays no Dinosaur off (Veloci-Ramp-Tor).
+    assert not typal_payoff_for(test_card("Drover of the Mighty"), {"dinosaur"})
+    assert typal_payoff_for(test_card("Galerider Sliver"), {"sliver"})
+
+
 def test_bello_wants_big_non_equipment_artifacts_and_non_aura_enchantments():
     # A static ability's affected filter with a mana-value floor and negated
     # subtypes: "each non-Equipment artifact and non-Aura enchantment you

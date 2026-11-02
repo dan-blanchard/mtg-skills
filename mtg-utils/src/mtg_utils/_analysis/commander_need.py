@@ -63,8 +63,9 @@ context beyond the commander's own records.
 from __future__ import annotations
 
 import re
-from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence
+from collections.abc import Callable, Collection, Iterable, Iterator, Mapping, Sequence
 from dataclasses import dataclass, field
+from functools import partial
 from typing import TYPE_CHECKING
 
 from mtg_utils._analysis._subtypes import LAND_SUBTYPES
@@ -903,6 +904,81 @@ def _typal_payoff(card: dict) -> bool:
         ):
             return True  # a named type, or a shared one (Coat of Arms)
     return False
+
+
+def typal_payoff_for(card: Mapping, kinds: Collection[str]) -> bool:
+    """A card that pays off one of the creature types ``kinds`` (lower-cased):
+    a lord or typed anthem of it, a trigger or reference to it among yours, or
+    a choose-a-type card (Vanquisher's Banner, Icon of Ancestry, Roaming
+    Throne). The tuner's tribe slots keep these beside the tribe's own members
+    (``swaps.cut_candidates``' ``tribe_member``): Icon of Ancestry left Sliver
+    Swarm for a board wipe, Vanquisher's Banner Cavalry Charge for a Knight
+    (2026-11-02)."""
+    if not kinds:
+        return False
+    wanted = {k.lower() for k in kinds}
+    idents = _card_idents(card, membership=False)
+    keys = {i.split("|", 1)[0] for i in idents}
+    pays_off = bool(keys - _RIDER_KEYS)
+    for ident in idents:
+        key, _scope, subject = ident.split("|", 2)
+        if key == "chosen_type_matters":
+            return True
+        if key == "anthem_static" and subject.lower() in wanted:
+            return True
+        if key == "subtype_ref" and (
+            subject == "shared" or (subject.lower() in wanted and pays_off)
+        ):
+            return True
+    return False
+
+
+#: The keys a tribal reference may sit beside and still be a rider on another
+#: job rather than a payoff: the card's own body and membership, a mana
+#: ability, a graveyard side effect. A reference beside nothing else is a
+#: rider — Drover of the Mighty's and Ixalli's Lorekeeper's Dinosaur bonuses
+#: on mana dorks held Veloci-Ramp-Tor's ramp to Dinosaur cards and cost it
+#: Nature's Lore and Birds of Paradise (2026-11-02); beside anything else it
+#: pays the tribe off — a lord's anthem, Galerider Sliver's grant, The First
+#: Sliver's cascade, Sliver Overlord's tutor (an allow-list of payoff keys
+#: dropped those three, and Sliver Swarm four guide adds).
+_RIDER_KEYS: frozenset[str] = frozenset(
+    {
+        "subtype_ref",
+        "type_matters",
+        "ramp",
+        "permanent_etb",
+        "self_etb_payload",
+        "self_pump",
+        "self_counter_grow",
+        "evasion_self",
+        "keyword_bodies",
+        "graveyard_makers",
+        "graveyard_matters",
+        "sacrifice_outlets",
+        "activated_ability",
+    }
+)
+
+
+def _tribe_payoff_needs(idents: Iterable[str], source: str) -> Iterator[Need]:
+    """A commander naming a creature type of yours (Hakbal's Merfolk, Sliver
+    Gravemother's Slivers, Éowyn's Humans — ``subtype_ref|you|<Type>``) asks
+    for that tribe's payoffs (:func:`typal_payoff_for`): the lords, anthems
+    and choose-a-type cards its guides add, which a tribe slot's upgrade must
+    then keep — Merfolk Mistbinder went to Triton Shorestalker (Explorers of
+    the Deep, 2026-11-02)."""
+    for ident in sorted(set(idents)):
+        key, scope, subject = ident.split("|", 2)
+        if key == "subtype_ref" and scope == "you":
+            kind = subject.lower()
+            if kind in _CREATURE_TYPE_WORDS:
+                yield Need(
+                    "payoff",
+                    f"payoffs for the commander's {subject} tribe",
+                    source,
+                    predicate=partial(typal_payoff_for, kinds=frozenset({kind})),
+                )
 
 
 def _grants_all_creature_types_node(node: object) -> bool:
@@ -1818,6 +1894,8 @@ def commander_needs(commanders: Sequence[Mapping]) -> tuple[Need, ...]:
                 for need in _effect_needs(node, desc):
                     add(need)
         for need in _resource_needs(idents, rec.get("name", ""), trees=trees):
+            add(need)
+        for need in _tribe_payoff_needs(idents, rec.get("name", "")):
             add(need)
         add(_loyalty_need(rec))
         for need in _redundancy_needs(idents, rec.get("name", "")):

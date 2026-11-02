@@ -2214,6 +2214,30 @@ def test_a_job_upgrade_at_the_same_mana_never_reads_worse_at_the_job():
     ]
 
 
+def test_a_theme_slot_upgraded_on_play_rate_stays_within_a_band_downward():
+    """Garruk, Cursed Huntsman's six-mana slot is not Chatter of the Squirrel's
+    one-mana one however many more decks play the cantrip (Squirreled Away,
+    2026-11-02); Doubling Season, one band down and played more, is its
+    upgrade. The card-quality read decides nothing here: it rates Garruk
+    below the cantrip."""
+    garruk = _real_cc("Garruk, Cursed Huntsman", "engine", edhrec_rank=8000)
+    assert not _upgrades(_played("Chatter of the Squirrel", 10), garruk, None)
+    assert _upgrades(_played("Doubling Season", 10), garruk, None)
+
+
+def test_a_job_card_on_the_theme_page_keeps_its_job_read_across_bands():
+    """Niv-Mizzet, Parun draws; on the main theme page Thrill of Possibility,
+    two bands cheaper and a far weaker draw by the read, is no upgrade of it
+    (Quick Draw, 2026-11-02). The cheaper exemption holds within one band:
+    Duplicant for Meteor Golem (the test above)."""
+    parun = _real_cc(
+        "Niv-Mizzet, Parun", "spine", roles=["card_draw"], edhrec_rank=8000
+    )
+    thrill = _played("Thrill of Possibility", 10)
+    assert not _upgrades(thrill, parun, None)
+    assert not _upgrades(thrill, parun, "card_draw")
+
+
 def test_an_upgrade_does_the_job_by_its_read_and_more_decks_play_it():
     """Removal has a card read (``job_quality``): Animate Dead counts as
     interaction for the role, but its "-1/-0" on the creature it returns
@@ -3584,6 +3608,47 @@ def test_a_tribe_member_with_a_job_keeps_the_tribes_slot_unless_its_row_is_short
     assert [s["add"]["name"] for s in out["swaps"]] == [add]
 
 
+def test_a_need_supplier_is_never_low_value_fodder():
+    """A fringe-played Engine card is a low-value cut unless it supplies one of
+    the commander's needs: Juniper Order Ranger's counters under Bright-Palm
+    went for a closer (Call for Backup, 2026-11-02)."""
+    classes = [
+        _cc("Need Engine", "engine", served=["Counters"], edhrec_rank=60000),
+        _cc("Idle Engine", "engine", served=["Counters"], edhrec_rank=60000),
+    ]
+    cuts = cut_candidates(
+        classes,
+        budgets={},
+        focus=CutFocus(),
+        needs=lambda record: int(record["name"] == "Need Engine"),
+    )
+    assert [c.name for _reason, c in cuts] == ["Idle Engine"]
+
+
+def test_over_band_trim_takes_a_multi_role_card_last():
+    """Equal otherwise, an over-band row trims a card filling only that role
+    before one filling two (Wrenn and Seven's ramp beside its draw, Death
+    Toll 2026-11-02)."""
+    classes = [
+        _cc("Ramp and Draw", "spine", roles=["ramp", "card_draw"], edhrec_rank=1000),
+        _cc("Plain Rock", "spine", roles=["ramp"], edhrec_rank=1000),
+    ]
+    cuts = cut_candidates(classes, budgets={"ramp": _band(2, 0, 1)}, focus=CutFocus())
+    assert [c.name for _reason, c in cuts] == ["Plain Rock"]
+
+
+def test_over_band_trim_takes_a_mana_doubler_last():
+    """Forsaken Monument doubles colorless mana — the ramp's point, not its
+    surplus — so an over-band ramp row trims Mind Stone first (Eldrazi
+    Incursion, 2026-11-02)."""
+    classes = [
+        _real_cc("Forsaken Monument", "spine", roles=["ramp"], edhrec_rank=1000),
+        _real_cc("Mind Stone", "spine", roles=["ramp"], edhrec_rank=1000),
+    ]
+    cuts = cut_candidates(classes, budgets={"ramp": _band(2, 0, 1)}, focus=CutFocus())
+    assert [c.name for _reason, c in cuts] == ["Mind Stone"]
+
+
 def test_over_band_trim_takes_a_tribe_member_last():
     """Equal otherwise, an over-band row trims the member of the commander's
     tribe after the rest (Cavalier of Thorns under an Elemental commander)."""
@@ -3673,8 +3738,35 @@ def test_a_payoff_for_what_the_deck_does_not_do_is_dead_there():
     assert not dead("Kor Spiritdancer", types=Counter({"aura": 8}))
     assert dead("Rising of the Day", types=Counter({"legendary": 7}))
     assert not dead("Rising of the Day", types=Counter({"legendary": 15}))
-    assert not dead("Sai, Master Thopterist", types=Counter({"artifact": 12}))
     assert not dead("Knight of the White Orchid")
+    # An activated ability or a spell is gated by its cost or its effects over
+    # your permanents: Sai's draw costs two artifacts, Skirk Prospector's mana a
+    # Goblin, Grinding Station's mill an artifact; Brass Squire moves your
+    # Equipment; Inspiring Call draws for your creatures with +1/+1 counters;
+    # Intangible Virtue pumps your creature tokens (Clues are none). An
+    # ability no gate holds keeps a card (Asceticism); Krenko's Goblins are his
+    # own. A card's own type feeds no gate: Scourge of Valkas's one Dragon is
+    # itself (the reviewers' pass, 2026-11-02).
+    assert dead("Sai, Master Thopterist", types=Counter({"artifact": 12}))
+    assert not dead("Sai, Master Thopterist", types=Counter({"artifact": 20}))
+    assert dead("Skirk Prospector")
+    assert not dead("Skirk Prospector", tribes=Counter({"goblin": 6}))
+    assert dead("Grinding Station", types=Counter({"artifact": 8}))
+    assert not dead("Grinding Station", types=Counter({"artifact": 20}))
+    assert dead("Brass Squire")
+    assert not dead("Brass Squire", types=Counter({"equipment": 6}))
+    assert dead("Inspiring Call")
+    assert not dead("Inspiring Call", keys=Counter({"plus_one_makers": 6}))
+    assert dead("Intangible Virtue", types=Counter({"creature tokens": 2}))
+    assert not dead("Intangible Virtue", types=Counter({"creature tokens": 6}))
+    assert dead("Scourge of Valkas")
+    assert not dead("Scourge of Valkas", tribes=Counter({"dragon": 6}))
+    assert not dead("Krenko, Mob Boss")
+    assert not dead("Asceticism")
+    # A cost reduction's color is its gate: Oketra's Monument's white creature
+    # spells, a colorless card dead in Golgari (Squirreled Away, 2026-11-02).
+    assert dead("Oketra's Monument", types=Counter({"color:g": 20}))
+    assert not dead("Oketra's Monument", types=Counter({"color:w": 20}))
     # The gate rule alone is what a job page applies.
     from mtg_utils._tuner.swaps import gated_without_feed
 

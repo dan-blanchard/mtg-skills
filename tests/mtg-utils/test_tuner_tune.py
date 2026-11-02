@@ -1182,3 +1182,21 @@ def test_a_paper_build_ignores_the_meta():
     assert not any(
         i["kind"] == "meta_core_missing" for i in out["scorecard"]["top_issues"]
     )
+
+
+def test_a_colorless_commanders_identity_is_colorless_not_unrestricted():
+    """A colorless commander's deck identity is ``"C"`` — the search's
+    colorless-only filter — never the empty string the search reads as no
+    restriction: Zhulodok, Void Gorger's deck took Swords to Plowshares and
+    Deadly Dispute as upgrades (Eldrazi Unbound, 2026-11-02; CR 903.4)."""
+    from mtg_utils._tuner.tune import _deck_identity
+
+    by_name = {n: testkit.test_card(n) for n in ("Zhulodok, Void Gorger", "Sol Ring")}
+    deck = {
+        "format": "commander",
+        "deck_size": 100,
+        "commanders": [{"name": "Zhulodok, Void Gorger", "quantity": 1}],
+        "cards": [{"name": "Sol Ring", "quantity": 1}],
+    }
+    assert _deck_identity(HydratedDeck.from_parsed(deck, by_name=by_name)) == "C"
+    assert _deck_identity(_hd()) == "R"  # Krenko's

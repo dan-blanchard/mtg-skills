@@ -17,6 +17,7 @@ def _index() -> dict:
     cards = (
         test_card("Ishai, Ojutai Dragonspeaker"),
         test_card("Atraxa, Praetors' Voice"),
+        test_card("Karn, Silver Golem"),
         test_card("Forest"),
     )
     return {c["name"]: c for c in cards}
@@ -40,6 +41,10 @@ def test_hydrate_joins_session_to_records():
 def test_deck_color_identity_is_sorted_union():
     st = _state(commanders=["Atraxa, Praetors' Voice"])
     assert engine.deck_color_identity(st) == "BGUW"
+    # A colorless commander's identity is "C", the colorless-only filter — the
+    # empty string would read as no restriction (CR 903.4; 2026-11-02).
+    assert engine.deck_color_identity(_state(commanders=["Karn, Silver Golem"])) == "C"
+    assert engine.deck_color_identity(_state()) == ""
 
 
 def test_partner_search_only_with_exactly_one_partner_commander():

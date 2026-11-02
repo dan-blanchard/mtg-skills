@@ -698,6 +698,19 @@ class Sourcing:
             return kind, {**spec, "_filter": _tribe_member_filter(kind)}
         return None
 
+    @property
+    def tribe_kinds(self) -> frozenset[str]:
+        """The commander's tribes' creature types, lower-cased (the
+        ``card_type`` of each ``commander_tribes`` avenue's search; empty with
+        none) — what :func:`commander_need.typal_payoff_for` keeps a tribe
+        payoff by."""
+        kinds: set[str] = set()
+        for label in self._focus.get("commander_tribes") or ():
+            kind = (self.avenue(label) or {}).get("card_type")
+            if isinstance(kind, str):
+                kinds.add(kind.lower())
+        return frozenset(kinds)
+
     def is_fodder(self, record: Mapping) -> bool:
         """Whether the card is a polymorph commander's fodder (:meth:`fodder_spec`'s
         serve); never under any other commander."""

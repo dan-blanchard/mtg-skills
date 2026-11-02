@@ -433,11 +433,12 @@ proposal as a deckbuilder, fix the structure, the guide score is a yardstick)**
 - **The 25-precon pass is closed (2026-11-02): every flaw its reads found has
   a fix in the tree, verified card by card on the latest run
   (`docs/plans/precon-audit/verify_symptoms.py` over the three `misses.json`
-  files: 35 checks, one per flaw, all passing) and on the fresh 10-deck set
+  files: 46 checks, one per flaw, all passing) and on the fresh 10-deck set
   never used for design** (`~/mtg/tuner-work/fresh/root`; its pre-pass
-  baseline `w41/misses-fresh-N16.json`: 295 / 130 / 38 → 294 / 132 / 40;
+  baseline `w41/misses-fresh-N16.json`: 295 / 130 / 38 → 294 / 126 / 48;
   every batch's proposals re-read deck by deck on all three sets — batches
-  12 and 13 are those re-reads' own findings). The approaches
+  12 and 13 are those re-reads' own findings, batch 14 two deckbuilder
+  reviews' of every proposal). The approaches
   measured and rejected along the way (under Settled with their numbers) were
   alternative routes to flaws fixed by other means; each entry names the fix
   that covers its flaw.
@@ -770,6 +771,81 @@ proposal as a deckbuilder, fix the structure, the guide score is a yardstick)**
   fewer ramp trims are the curve-aware band's reading of a 26-ramp deck whose
   guides keep 25. Verified with `verify_symptoms.py` (35 / 35 on this run,
   the four batch-13 checks failing on the previous).
+- **Batch 14 (2026-11-02; the 25 733 / 340 / 121 → 735 / 336 / 116, held-out 576 / 259 /
+  104 → 572 / 262 / 105, fresh 294 / 132 / 40 → 294 / 126 / 48).** Two Sonnet deckbuilder reviews of
+  every proposal on the three sets (the first a read of the 25, the second of
+  the held-out 20 and the fresh 10), each flag checked against the cards and
+  the code. Fixed: (45) *A colorless commander's identity is ``"C"``, never
+  the empty string* (`tune._deck_identity`, `engine.deck_color_identity`; the
+  search read "" as no restriction and Zhulodok's deck took Swords to
+  Plowshares, Deadly Dispute and Etali — eleven colored adds; `misses.py`
+  now records `identity_violations` and the symptom script pins them at
+  zero). (46) *The gate read reaches abilities, spells, counters, creature
+  tokens and colors* (`swaps._ability_gate_words`: a sacrifice in an
+  activated ability's cost and every typed filter its effects reach over
+  your permanents — Skirk Prospector's Goblin, Grinding Station's and Sai's
+  artifacts, Brass Squire's Equipment; a spell's filters — Inspiring Call's
+  creatures with +1/+1 counters, fed by the deck's counter makers; a static
+  over your creature tokens — Intangible Virtue, fed by creature-token
+  makers, Clues none; a cost reduction's spell filter and its color —
+  Oketra's Monument's white creature spells, fed by fifteen cards of the
+  color; a self-only activated ability — Scourge of Valkas's firebreathing —
+  is nothing to activate; and a card's own type feeds no gate, so Scourge's
+  one Dragon is itself). Inspiring Call and Intangible Virtue were flagged
+  dead in Animated Army, Tinker Time and Deep Clue Sea; each holds six or
+  more makers, so they stay. (47) *A tribal commander wants its tribe's
+  payoffs and keeps them* (`commander_need._tribe_payoff_needs` off
+  `subtype_ref|you|<Type>`; `typal_payoff_for`: a lord, a typed anthem, a
+  reference beside any key but a rider's (`_RIDER_KEYS`: the body, a mana
+  ability, a graveyard side effect) — never Drover of the Mighty's Dinosaur
+  rider on a mana dork, which held Veloci-Ramp-Tor's ramp to Dinosaur cards;
+  an allow-list of payoff keys dropped The First Sliver and Sliver Overlord
+  and cost Sliver Swarm four guide adds, measured — or a choose-a-type card; `Sourcing.tribe_kinds`; `cut_candidates` sorts need
+  suppliers last in every upgrade tier, trims a tribe payoff last
+  (`tribe_member`), and the low-value tier skips a need supplier; keeping
+  the payoffs out of the off-lane tiers altogether was measured and
+  reverted — Sliver Swarm's, Fae Dominion's and Eternal Might's fringe
+  choose-a-type cards are their upgrade pool, the 25 734 / 337 → 722 / 332
+  with it). Riders of Rohan's page gains Thalia's Lieutenant,
+  Champion of the Parish, Riders of Gavony and Coppercoat Vanguard. (48) *A
+  main the commander doesn't hold is the deep lane where the commander's own
+  lanes hold too few doers for a half* (`metrics.focus`: Temur Roar's 42
+  Dragons under Eshki's eleven pingers; 24 → 30 swaps, 8 → 13 guide cuts;
+  with every main's members in the pool instead the off-lane upgrades that
+  found adds were displaced — held-out 576 / 259 → 542 / 250, measured; with
+  the fallback off, 564 / 251 against 572 / 261 — measured the same day, so
+  it stays). (49) *A theme slot upgraded on play-rate alone stays within a
+  band of its cost downward* (`_upgrades`: Garruk, Cursed Huntsman's six is
+  not Chatter of the Squirrel's one); the card-quality read decides nothing
+  here, it rates Garruk below the cantrip. (50) *A job card on the theme
+  page keeps its job read, the cheaper exemption within one band*
+  (`_reads_worse_at_the_job` with `upgrade_job(cut)`; `_cost_band`:
+  Niv-Mizzet, Parun's draw is not Thrill of Possibility's; Duplicant's six
+  for Meteor Golem's seven stands; an off-theme slot leaves its role by
+  design). (51) *A multi-role card, a mana doubler and a theme-serving piece trim
+  last from an over-band row, ahead of the fixing shield* (Wrenn and Seven's
+  ramp beside its draw; Forsaken Monument and Mana Reflection,
+  `_MANA_DOUBLER_KEYS`; Awakening Zone's Spawn under Ulalek). Verdicts, not fixes (the
+  reviewers' remaining flags): a popular bomb traded on its theme page for a
+  better-played theme card of the same band (Hero of Bladehold for Krenko,
+  Hydroid Krasis for Nature's Rhythm, Admiral Beckett Brass for Corsairs of
+  Umbar) is the play-rate order ADR-0060 settled; an engine cut for its
+  template role's staple (Calix, Starfield of Nyx, God-Eternal Bontu) is the
+  role read's; Merfolk Mistbinder for Pyre of Heroes and Juniper Order
+  Ranger for a combo piece keep the need the cut supplied; Howling Mine,
+  Rhystic Study at Bracket 2, Blasphemous Act in a go-wide deck and Silent
+  Arbiter are bracket or symmetry calls the reads don't make; the identity
+  flags on Kaito, Will of the Sultai, Akroma's Memorial and Eldrazi
+  Conscription were wrong (the pool's identities). Measured and reverted
+  on the way, each a route to a flaw the shipped reads cover: a ceiling on a
+  built need (met at twelve suppliers, leads no more — it switched off
+  Bello's big-artifact need and Éowyn's Human need, the 25 lost ten guide
+  adds); a cap of two choose-a-type cards a deck (the guides add Herald's
+  Horn, Vanquisher's Banner and Kindred Discovery side by side — Cavalry
+  Charge lost three adds, held-out 105 → 99); and keeping the tribe's
+  payoffs out of the off-lane tiers (above). Verified with
+  `verify_symptoms.py` (46 checks, all passing on the final run, 37 on the
+  batch-13 run).
 
 **From the Jace, Multiverse Architect precon tune and the 25-precon audit (2026-10-17 to 2026-11-01)**
 

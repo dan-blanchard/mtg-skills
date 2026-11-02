@@ -225,6 +225,12 @@ def run_deck(args):
     weak = {norm(n) for n in (f.get("filler_cards") or []) + (f.get("low_value_cards") or []) + (f.get("fed_only_cards") or [])}
     out = {"cuts": [], "adds": [], "seconds": seconds, "swaps": [(s_["issue"], (s_.get("cut") or {}).get("name"), s_["add"]["name"], s_["reason"])
                                              for s_ in res["swaps"]]}
+    # Every add inside the commanders' color identity (CR 903.4) — a colorless
+    # commander's deck took Swords to Plowshares once (Eldrazi Unbound, 2026-11-02).
+    identity = set().union(*(set((pool.by_name.get(c["name"]) or {}).get("color_identity") or [])
+                             for c in json.loads((d / "deck.json").read_text())["commanders"]))
+    out["identity_violations"] = sorted(s_["add"]["name"] for s_ in res["swaps"]
+                                        if not set(s_["add"].get("color_identity") or []) <= identity)
     for key, gname in g_cuts.items():
         if key not in in_deck:
             continue

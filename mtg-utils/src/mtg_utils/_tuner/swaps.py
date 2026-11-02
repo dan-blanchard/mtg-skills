@@ -32,6 +32,7 @@ from mtg_utils._analysis.commander_need import (
     is_broad,
     need_serve,
     satisfies,
+    typal_payoff_for,
 )
 from mtg_utils._analysis.costs import effective_mana_value
 from mtg_utils._analysis.job_quality import JobRead, read_for
@@ -47,8 +48,11 @@ from mtg_utils._analysis.signals import grant_payloads_for
 from mtg_utils._card_ir.creature_types import CREATURE_TYPES
 from mtg_utils._card_ir.crosswalk.reads import (
     _present,
+    filter_controller,
     filter_core_types,
+    filter_predicates,
     filter_subtypes,
+    iter_cost_leaves,
     iter_typed_nodes,
     tag_of,
 )
@@ -361,11 +365,22 @@ def _reads_worse_at_the_job(
     read = read_for(job)
     if read is None or not has_trees(candidate) or not has_trees(cut):
         return False
-    if _job_cost(read, candidate) < _job_cost(read, cut):
+    cand_cost, cut_cost = _job_cost(read, candidate), _job_cost(read, cut)
+    if cand_cost < cut_cost and _cost_band(cand_cost) == _cost_band(cut_cost):
         return False
     records = deck or ()
     sc, su = read.score(candidate, records), read.score(cut, records)
     return sc is not None and su is not None and sc < su - 1e-9
+
+
+def _cost_band(cost: float) -> int:
+    """The mana-value band (``_MV_BANDS``) a deploy cost falls in: the cheaper
+    exemption of :func:`_reads_worse_at_the_job` holds within one band only —
+    Duplicant's six for Meteor Golem's seven, Toxic Deluge's three for Damn's
+    overloaded four — never across two: Thrill of Possibility's two for
+    Niv-Mizzet, Parun's six drew a card-draw engine down to a cantrip (Quick
+    Draw, 2026-11-02)."""
+    return sum(1 for top in _MV_BANDS if cost > top)
 
 
 def _job_cost(read: JobRead, card: dict) -> float:
@@ -438,7 +453,17 @@ def _upgrades(
         return False
     if not _does_the_job(candidate, job, deck or (), cut.record):
         return False
-    if job is not None and _reads_worse_at_the_job(candidate, cut.record, job, deck):
+    # The job the read holds the swap to: the page's, or on a theme page the
+    # cut's own (Niv-Mizzet, Parun draws; a theme card that draws nothing is
+    # not held to it, a candidate that does none of the job moves the slot
+    # onto the theme as the docstring allows, and an off-theme slot leaves
+    # its role by design).
+    read_job = (
+        job if job is not None or off_theme else upgrade_job(cut.roles, cut.record)
+    )
+    if read_job is not None and _reads_worse_at_the_job(
+        candidate, cut.record, read_job, deck
+    ):
         return False
     if needs is not None and needs(candidate) < needs(cut.record):
         return False
@@ -474,6 +499,17 @@ def _upgrades(
         )
     ):
         return True
+    if (
+        job is None
+        and not off_theme
+        and _mv_band(cut.record) - _mv_band(candidate) > _JOB_BAND_ROOM
+    ):
+        # A theme slot upgraded on play-rate alone stays within a band of its
+        # cost downward too: Garruk, Cursed Huntsman's six went to Chatter of
+        # the Squirrel's one as the more-played Squirrel card (Squirreled
+        # Away, 2026-11-02) — a top-end payoff's slot is not a cantrip's. A
+        # job page and an off-theme move keep their own band rules.
+        return False
     rank = candidate.get("edhrec_rank")
     return rank is not None and (cut.edhrec_rank is None or rank < cut.edhrec_rank)
 
@@ -544,6 +580,17 @@ _LAND_TYPE_WORDS = frozenset(s.lower() for s in LAND_SUBTYPES)
 _GENERIC_TYPE_WORDS = frozenset(
     {"creature", "permanent", "card", "spell", "land", "token", "kindred", "tribal"}
 )
+#: A gate on your permanents with +1/+1 counters (Inspiring Call's draw), fed
+#: by the deck's counter makers; and one on your creature tokens (Intangible
+#: Virtue's anthem), fed by the deck's creature-token makers — Clues and
+#: Treasures are no creatures (Deep Clue Sea, 2026-11-02).
+_COUNTERS_GATE = "+1/+1 counters"
+_CREATURE_TOKENS_GATE = "creature tokens"
+#: A gate on a color of your spells (Oketra's Monument's white creature
+#: spells — a colorless card, dead in Golgari), fed by :data:`_TYPE_GATE_FLOOR`
+#: cards of the color; the word is ``color:<letter>``.
+_COLOR_LETTERS = {"white": "w", "blue": "u", "black": "b", "red": "r", "green": "g"}
+_COUNTER_GATE_FEEDERS = frozenset({"plus_one_makers", "any_counter_makers"})
 
 
 def deck_profile(classes: Sequence[CardClass]) -> tuple[Counter, Counter, Counter]:
@@ -567,6 +614,14 @@ def deck_profile(classes: Sequence[CardClass]) -> tuple[Counter, Counter, Counte
             s.lower() for s in subs if s.lower() not in _CREATURE_SUBTYPE_WORDS
         }:
             types[word] += 1
+        if any(
+            i.startswith(f"{TOKEN_MAKER}|")
+            and i.split("|", 2)[2].lower() in _CREATURE_SUBTYPE_WORDS
+            for i in _signal_idents_for(c.record, include_membership=False)
+        ):
+            types[_CREATURE_TOKENS_GATE] += 1
+        for color in c.record.get("colors") or ():
+            types[f"color:{str(color).lower()}"] += 1
     # A commander that makes permanents every creature type (Omo, Queen of
     # Vesuva's everything counters) fields every tribe: a lord, a tribal
     # trigger or a choose-a-type card is fed whatever the type line says, as
@@ -653,10 +708,10 @@ def dead_payoff(
     # type, or its own tokens.
     for gate in gated.gates:
         cares.add("unit_gate")
-        verdicts.append(gated.fed(gate, deck_tribes, deck_types))
+        verdicts.append(gated.fed(gate, deck_tribes, deck_types, deck_keys))
     if not verdicts or any(verdicts):
         return False
-    if gated_without_feed(card, deck_tribes, deck_types):
+    if gated_without_feed(card, deck_tribes, deck_types, deck_keys):
         return True
     multiplier_feeders = frozenset().union(
         *(feeders.get(k, frozenset()) for k in cares & _MULTIPLIER_KEYS)
@@ -669,8 +724,9 @@ def dead_payoff(
 
 @dataclass(frozen=True)
 class _Gate:
-    """One gated unit's words (a creature type, a card type, a gear type; any
-    word fed feeds the gate) and whether the unit is a static."""
+    """One gated unit's words (a creature type, a card type, a gear type, a
+    counters or creature-tokens gate; any word fed feeds the gate) and whether
+    the unit is a static."""
 
     words: frozenset[str]
     static: bool
@@ -679,32 +735,39 @@ class _Gate:
 @dataclass(frozen=True)
 class _UnitGates:
     """What :func:`_unit_gates` read off one card: its ``gates``; ``units`` —
-    its triggers and statics; whether it has an ``activated`` ability; and
-    what feeds its own gates — the types its statics grant (Ygra's Food) feed
-    any gate; the card's own subtypes and the token kinds it makes feed a
-    trigger's (an entering Dragon triggers itself; Myr Battlesphere's Myr are
-    its own) but not a static's (a Zombie lord's anthem for other Zombies is
-    for nobody — Death Baron; Docent of Perfection's Wizard anthem waits on
-    the Wizards its spell trigger never makes)."""
+    its triggers, statics and abilities; whether it has an ``activated``
+    ability no gate holds; and what feeds its own gates — the types its
+    statics grant (Ygra's Food) feed any gate; the token kinds it makes feed a
+    trigger's or an ability's (Myr Battlesphere's Myr are its own; Krenko's
+    Goblins) but not a static's (Docent of Perfection's Wizard anthem waits on
+    the Wizards its spell trigger never makes). Its own type feeds nothing: a
+    Zombie lord's anthem for other Zombies is for nobody (Death Baron), and
+    Scourge of Valkas's one Dragon is itself (Endless Punishment,
+    2026-11-02)."""
 
     gates: tuple[_Gate, ...]
     units: int
     activated: bool
-    own_subtypes: frozenset[str]
     granted_words: frozenset[str]
+    token_words: frozenset[str]
     makes_tokens: bool
 
-    def fed(self, gate: _Gate, deck_tribes: Counter, deck_types: Counter) -> bool:
+    def fed(
+        self,
+        gate: _Gate,
+        deck_tribes: Counter,
+        deck_types: Counter,
+        deck_keys: Counter | None = None,
+    ) -> bool:
         """Whether the deck feeds ``gate``: a creature type by
-        :data:`_FEEDER_FLOOR` creatures of it or, for a trigger's gate, the
-        card's own type or its own tokens (as the tribe read always has); a
-        card type by :data:`_TYPE_GATE_FLOOR` cards of it — an
-        instant-or-sorcery gate by their sum; a gear or other subtype by
-        :data:`_FEEDER_FLOOR` cards or the kind the card grants."""
+        :data:`_FEEDER_FLOOR` creatures of it or, for a trigger's or ability's
+        gate, the card's own tokens; a card type by :data:`_TYPE_GATE_FLOOR`
+        cards of it — an instant-or-sorcery gate by their sum; a counters gate
+        by :data:`_FEEDER_FLOOR` counter makers (``deck_keys``); a gear or
+        other subtype, or the creature-tokens gate, by :data:`_FEEDER_FLOOR`
+        cards or the kind the card grants."""
         words = gate.words
-        if words & self.granted_words or (
-            not gate.static and words & self.own_subtypes
-        ):
+        if words & self.granted_words or (not gate.static and words & self.token_words):
             return True
         card_types = words & _GATE_TYPE_WORDS
         if (
@@ -713,7 +776,14 @@ class _UnitGates:
         ):
             return True
         for word in words - _GATE_TYPE_WORDS:
-            if word in _CREATURE_SUBTYPE_WORDS:
+            if word.startswith("color:"):
+                if deck_types.get(word, 0) >= _TYPE_GATE_FLOOR:
+                    return True
+            elif word == _COUNTERS_GATE:
+                keys = deck_keys or Counter()
+                if sum(keys.get(k, 0) for k in _COUNTER_GATE_FEEDERS) >= _FEEDER_FLOOR:
+                    return True
+            elif word in _CREATURE_SUBTYPE_WORDS:
                 if (not gate.static and self.makes_tokens) or deck_tribes.get(
                     word, 0
                 ) >= _FEEDER_FLOOR:
@@ -728,13 +798,46 @@ def _gate_words(filt: object) -> frozenset[str]:
     gear type), its card types in :data:`_GATE_TYPE_WORDS`, and a legendary
     supertype — never a land type or a word every deck has."""
     words = {w.lower() for w in filter_subtypes(filt)}
-    words |= {w.lower() for w in filter_core_types(filt)} & _GATE_TYPE_WORDS
+    cores = {w.lower() for w in filter_core_types(filt)}
+    words |= cores & _GATE_TYPE_WORDS
     if any(
         tag_of(n) == "HasSupertype" and getattr(n, "value", None) == "Legendary"
         for n in iter_typed_nodes(filt)
     ):
         words.add("legendary")
+    preds = filter_predicates(filt)
+    for n in iter_typed_nodes(filt):
+        if tag_of(n) == "HasColor":
+            letter = _COLOR_LETTERS.get(str(getattr(n, "color", "")).lower())
+            if letter:
+                words.add(f"color:{letter}")
+    if "Counters" in preds:
+        words.add(_COUNTERS_GATE)
+    if "Token" in preds and "creature" in cores:
+        words.add(_CREATURE_TOKENS_GATE)
     return frozenset(words - _LAND_TYPE_WORDS - _GENERIC_TYPE_WORDS)
+
+
+def _ability_gate_words(node: object, effects: Sequence) -> frozenset[str]:
+    """The gate words of an activated ability or a spell: a sacrifice in its
+    cost names what it feeds on (Skirk Prospector's Goblin, Grinding Station's
+    artifact, Sai, Master Thopterist's two artifacts), and an effect over
+    permanents of YOURS does (Brass Squire's Equipment you control, Inspiring
+    Call's creatures with +1/+1 counters, Krenko's Goblins) — never a target
+    among anyone's (Vandalblast's artifacts, Asceticism's creature)."""
+    words: set[str] = set()
+    for leaf in iter_cost_leaves(getattr(node, "cost", None)):
+        if tag_of(leaf) == "Sacrifice":
+            target = getattr(leaf, "target", None)
+            if _present(target):
+                words |= _gate_words(target)
+    for c in effects:
+        # Every typed filter the effect reaches — its target, an attachment
+        # (Brass Squire's Equipment), a count (Inspiring Call's counters).
+        for n in iter_typed_nodes(c.node):
+            if tag_of(n) == "Typed" and filter_controller(n) == "You":
+                words |= _gate_words(n)
+    return frozenset(words)
 
 
 def _unit_gates(card: Mapping) -> _UnitGates:
@@ -748,11 +851,7 @@ def _unit_gates(card: Mapping) -> _UnitGates:
     gates: list[_Gate] = []
     units = 0
     activated = False
-    own = {
-        w.lower()
-        for w in split_type_line(card.get("type_line") or "")[1]
-        if w.isalpha()
-    }
+    tokens: set[str] = set()
     made: set[str] = set()
     idents = _signal_idents_for(dict(card), include_membership=False)
     makes_tokens = False
@@ -761,11 +860,24 @@ def _unit_gates(card: Mapping) -> _UnitGates:
         if key == TOKEN_MAKER:
             makes_tokens = True
             if subject:
-                own.add(subject.lower())
+                tokens.add(subject.lower())
     for tree in trees_for(dict(card)):
         for unit in tree.units:
             if unit.origin == "ability":
-                activated = True
+                # An activated ability or a spell, gated by its cost or its
+                # effects over your permanents (:func:`_ability_gate_words`);
+                # one no gate holds is something to activate whatever the deck.
+                units += 1
+                words = _ability_gate_words(unit.node, unit.effects)
+                if words:
+                    gates.append(_Gate(words, static=False))
+                elif unit.kind == "Activated" and not all(
+                    tag_of(getattr(c.node, "target", None)) == "SelfRef"
+                    for c in unit.effects
+                ):
+                    # A self-only ability (Scourge of Valkas's firebreathing)
+                    # is not why the card is played: nothing to activate.
+                    activated = True
                 continue
             if unit.origin == "trigger":
                 filt = getattr(unit.node, "valid_card", None)
@@ -773,6 +885,12 @@ def _unit_gates(card: Mapping) -> _UnitGates:
                 filt = getattr(unit.node, "affected", None)
                 if tag_of(filt) == "SelfRef":
                     filt = None
+                # A cost reduction's spell filter is its gate (Oketra's
+                # Monument's white creature spells), beside the affected.
+                mode_words: set[str] = set()
+                for n in iter_typed_nodes(getattr(unit.node, "mode", None)):
+                    if tag_of(n) == "Typed":
+                        mode_words |= _gate_words(n)
                 # A type the static grants feeds a gate on it: Ygra, Eater of
                 # All makes other creatures Food.
                 for mod in getattr(unit.node, "modifications", None) or ():
@@ -784,15 +902,20 @@ def _unit_gates(card: Mapping) -> _UnitGates:
                 continue
             units += 1
             words = _gate_words(filt) if _present(filt) else frozenset()
+            if unit.origin == "static":
+                words |= mode_words
             if words:
-                gates.append(_Gate(words, unit.origin == "static"))
+                gates.append(_Gate(words, static=unit.origin == "static"))
     return _UnitGates(
-        tuple(gates), units, activated, frozenset(own), frozenset(made), makes_tokens
+        tuple(gates), units, activated, frozenset(made), frozenset(tokens), makes_tokens
     )
 
 
 def gated_without_feed(
-    card: Mapping, deck_tribes: Counter, deck_types: Counter
+    card: Mapping,
+    deck_tribes: Counter,
+    deck_types: Counter,
+    deck_keys: Counter | None = None,
 ) -> bool:
     """A card gated on what the deck lacks, dead whatever page asks: a
     choose-a-creature-type card (:func:`chooses_a_type_without_tribe`), or a
@@ -800,14 +923,17 @@ def gated_without_feed(
     type or gear type the deck lacks and that has nothing to activate
     (:func:`_unit_gates`) — whatever they do (Dragon Tempest's damage, a doer
     key) waits on Dragons that never come; its haste for flyers is not why it
-    is played (2026-11-02). Sai, Master Thopterist's artifact cast is unfed in
-    a Humans deck, but its draw can be activated, so it stays."""
+    is played (2026-11-02). An activated ability no gate holds keeps a card
+    (Asceticism's regeneration); Sai, Master Thopterist's draw costs two
+    artifacts, so in a Humans deck it holds nothing."""
     if chooses_a_type_without_tribe(card, deck_tribes):
         return True
     gated = _unit_gates(card)
     if not gated.gates or 2 * len(gated.gates) < gated.units or gated.activated:
         return False
-    return not any(gated.fed(gate, deck_tribes, deck_types) for gate in gated.gates)
+    return not any(
+        gated.fed(gate, deck_tribes, deck_types, deck_keys) for gate in gated.gates
+    )
 
 
 def chooses_a_type_without_tribe(card: Mapping, deck_tribes: Counter) -> bool:
@@ -821,6 +947,19 @@ def chooses_a_type_without_tribe(card: Mapping, deck_tribes: Counter) -> bool:
     if not any(i.startswith("chosen_type_matters|") for i in idents):
         return False
     return max(deck_tribes.values(), default=0) < 2 * _FEEDER_FLOOR
+
+
+#: A mana doubler's keys: a replacement that adds mana (Mana Reflection) or a
+#: trigger on tapping for mana that adds more (Forsaken Monument).
+_MANA_DOUBLER_KEYS = frozenset({"mana_amplifier", "tap_untap_matters"})
+
+
+def _amplifies_mana(card: CardClass) -> bool:
+    """Whether the card is a mana doubler (:data:`_MANA_DOUBLER_KEYS`)."""
+    return any(
+        i.split("|", 1)[0] in _MANA_DOUBLER_KEYS
+        for i in _signal_idents_for(card.record, include_membership=False)
+    )
 
 
 def _is_fixing(card: CardClass) -> bool:
@@ -990,6 +1129,11 @@ def cut_candidates(
             for c in classes
             if c.low_value(medium=medium, playrate=playrate)
             and c.name not in focus.commander_cards
+            # A card supplying one of the commander's needs is no low-value
+            # fodder for a fill, however few decks play it: Juniper Order
+            # Ranger's counters under Bright-Palm went for a closer (Call for
+            # Backup, 2026-11-02).
+            and not (needs is not None and needs(c.record) > 0)
         ),
         key=lambda c: c.least_played_key,
     ):
@@ -1031,9 +1175,18 @@ def cut_candidates(
             key=lambda c: (
                 needs is not None and needs(c.record) > 0,
                 tribe_member is not None and tribe_member(c.record),
+                # A card filling several template roles is not the row's
+                # surplus: Wrenn and Seven's ramp beside its draw and tokens
+                # went as "ramp over" (Death Toll, 2026-11-02). Nor is a mana
+                # doubler, which is what the ramp is for: Forsaken Monument
+                # (Eldrazi Incursion) and Mana Reflection (Tricky Terrain) —
+                # kept ahead of a fixing rock, which the deck has several of.
+                len(c.roles) > 1 or _amplifies_mana(c),
+                # A ramp piece serving a viable avenue (Awakening Zone's Spawn
+                # under Ulalek) outranks a fixing rock that serves none.
+                viable_served(c),
                 _is_fixing(c),
                 c.name in focus.commander_cards,
-                viable_served(c),
                 c.least_played_key,
                 -c.cmc,
             )
@@ -1070,9 +1223,21 @@ def cut_candidates(
     # deck holds and played little — least played first. The upgrade issue
     # draws on them for a better-played card doing the same job; a ``lane_ok``
     # remedy takes one doing no job before a lane slot (``propose_swaps``).
+    # A card supplying one of the commander's needs goes after the rest of
+    # its tier: Icon of Ancestry (Sliver Swarm) and Juniper Order Ranger
+    # (Call for Backup) left as a fill's cut while idle cards stayed
+    # (2026-11-02).
+    def supplies(c: CardClass) -> bool:
+        return needs is not None and needs(c.record) > 0
+
+    # Keeping the tribe's payoffs (Icon of Ancestry) out of these tiers
+    # altogether was measured and reverted: Sliver Swarm's, Fae Dominion's
+    # and Eternal Might's fringe choose-a-type cards are their upgrade pool
+    # (the 25 734 / 337 → 722 / 332, held-out 572 / 261 → 562 / 257,
+    # 2026-11-02).
     for c in sorted(
         (c for c in classes if c.name in focus.upgrade_cards),
-        key=lambda c: c.least_played_key,
+        key=lambda c: (supplies(c), c.least_played_key),
     ):
         push("upgrade", c)
 
@@ -1081,7 +1246,8 @@ def cut_candidates(
     # fill, a closer, a game-ending piece or an upgrade may take.
     lane_order = {name: i for i, name in enumerate(focus.lane_upgrade_cards)}
     for c in sorted(
-        (c for c in classes if c.name in lane_order), key=lambda c: lane_order[c.name]
+        (c for c in classes if c.name in lane_order),
+        key=lambda c: (supplies(c), lane_order[c.name]),
     ):
         push("lane_upgrade", c)
 
@@ -1091,7 +1257,8 @@ def cut_candidates(
     # spent.
     popular = {name: i for i, name in enumerate(focus.popular_upgrade_cards)}
     for c in sorted(
-        (c for c in classes if c.name in popular), key=lambda c: popular[c.name]
+        (c for c in classes if c.name in popular),
+        key=lambda c: (supplies(c), popular[c.name]),
     ):
         push("popular_upgrade", c)
 
@@ -1675,6 +1842,10 @@ def propose_swaps(
     # A need read off the commander's own trigger or condition (``event`` /
     # ``condition``) is the plan whatever the deck holds yet — Valgavoth's
     # opponents'-turn drainers are what Endless Punishment is short of.
+    # A ceiling on a built need ("met at twelve suppliers, leads no more")
+    # was measured and reverted: it switched off Bello's big-artifact need and
+    # Éowyn's Human need, which are the plan however many cards the deck
+    # holds — the 25 lost ten guide adds (2026-11-02).
     built_needs = [
         need
         for need in needs_here
@@ -1725,7 +1896,10 @@ def propose_swaps(
         # Peace Offering trimmed nine draw cards from a group-hug deck whose
         # guides keep the hug-and-draw core (2026-11-01).
         needs=(lambda record: int(supplies_need(record))) if needs_here else None,
-        tribe_member=lambda record: sourcing.tribe_spec(record) is not None,
+        tribe_member=lambda record: (
+            sourcing.tribe_spec(record) is not None
+            or typal_payoff_for(record, sourcing.tribe_kinds)
+        ),
     )
     # Route cuts into the pools a Remedy names: an over-band trim cuts from THAT over
     # role (``over:<role>``); everything else is the generic pool (filler, low-value,
@@ -2323,7 +2497,9 @@ def propose_swaps(
             if not spec.get("name") and (
                 dead_here(card)
                 if job is None
-                else gated_without_feed(card, deck_tribe_counts, deck_type_counts)
+                else gated_without_feed(
+                    card, deck_tribe_counts, deck_type_counts, deck_keys
+                )
             ):
                 # A payoff for something this deck doesn't do: the theme page's
                 # whole read, a job page's gate rule alone (the whole read

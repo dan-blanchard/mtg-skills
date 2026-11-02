@@ -61,15 +61,15 @@ CHECKS = [
     # protection page holding nothing that reads as well.
     _check("swaps>=29", "ExplorersOfTheDeep_LCC", batch="11, 13"),
     # batch 12 (the fresh 10 re-read, and the held-out decks it reached)
-    _check("no_trim", "EldraziIncursion_M3C", "Talisman of Impulse",
-           "Talisman of Resilience", "Talisman of Curiosity", "Awakening Zone",
-           "Forsaken Monument", batch="12"),
+    # The flat band trimmed nine ramp pieces here; the curve-aware band trims
+    # two (Chalice and a Talisman, over by 2 at 17-19). The theme's Spawn maker
+    # and its doubler are the pieces a deckbuilder keeps.
+    _check("no_trim", "EldraziIncursion_M3C", "Awakening Zone", batch="12, 14"),
     _check("cut", "EldraziIncursion_M3C", "Dreamstone Hedron", "Hedron Archive", batch="12"),
     _check("never", "EldraziIncursion_M3C",
            "Docent of Perfection // Final Iteration", batch="12"),
     _check("no_trim", "NecronDynasties_40K", "Illuminor Szeras", batch="12"),
-    # Sai (an activated draw) and Danitha (phase types only her cost reduction)
-    # stay admissible Humans by design.
+    # Danitha (phase types only her cost reduction) stays an admissible Human.
     _check("never", "RidersOfRohan_LTC", "Puresteel Paladin", batch="12"),
     _check("never", "PartyTime_CLB", "Death Baron", "Kor Spiritdancer",
            "Starfield Mystic", batch="12"),
@@ -88,6 +88,27 @@ CHECKS = [
            "Crashing Drawbridge", "Blade of Selves", batch="13"),
     _check("never", "DeathToll_DSC", "Fellwar Stone", batch="13"),
     _check("never", "JeskaiStriker_TDC", "Wayfarer's Bauble", batch="13"),
+    # batch 14 (two deckbuilder reviews of every proposal in the three sets)
+    _check("identity", "*", batch="14"),
+    _check("swaps>=29", "TemurRoar_TDC", batch="14"),
+    # Inspiring Call and Intangible Virtue were flagged dead by a reviewer, but
+    # Animated Army, Tinker Time and Deep Clue Sea each hold six or more counter
+    # or creature-token makers: fed. Living Energy holds fewer.
+    _check("never", "LivingEnergy_DRC", "Inspiring Call", batch="14"),
+    _check("never", "VirtueAndValor_WOC", "Brass Squire", batch="14"),
+    _check("never", "DesertBloom_OTC", "Grinding Station", batch="14"),
+    _check("never", "LoreholdSpirit_SOC", "Skirk Prospector", batch="14"),
+    _check("never", "EndlessPunishment_DSC", "Scourge of Valkas", batch="14"),
+    _check("never", "RidersOfRohan_LTC", "Sai, Master Thopterist", batch="14"),
+    # Icon of Ancestry (Sliver Swarm) is a fill's cut where the deck's only
+    # off-lane fringe cards are its choose-a-type cards: not pinned.
+    # Vanquisher's Banner (Cavalry Charge) goes to another Knight payoff: not pinned.
+    # Merfolk Mistbinder to Pyre of Heroes and Juniper Order Ranger to a combo
+    # piece both keep the need the cut supplied: the reviewers' call, not a
+    # structural flaw, so they are not pinned.
+    _check("never", "SquirreledAway_BLC", "Oketra's Monument", batch="14"),
+    _check("no_trim", "EldraziIncursion_M3C", "Forsaken Monument", batch="14"),
+    _check("no_trim", "TrickyTerrain_M3C", "Mana Reflection", batch="14"),
 ]
 
 
@@ -97,6 +118,14 @@ def main(paths):
         runs.update(json.load(open(pathlib.Path(p))))
     failures = 0
     for kind, deck, names, batch in CHECKS:
+        if kind == "identity":
+            # Every add inside its deck's color identity (recorded by misses.py).
+            bad = {d: e["identity_violations"] for d, e in runs.items() if e.get("identity_violations")}
+            ok = not bad
+            failures += not ok
+            print(f"{'PASS' if ok else 'FAIL'}  {'every deck':26} [batch {batch}] identity"
+                  + ("" if ok else f" — {bad}"))
+            continue
         entry = runs.get(deck)
         if entry is None:
             print(f"SKIP  {deck}: not in these runs")

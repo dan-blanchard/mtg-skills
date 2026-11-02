@@ -142,12 +142,19 @@ def hydrate_session(state: ForgeState) -> HydratedDeck:
 
 
 def deck_color_identity(state: ForgeState) -> str:
-    """Union of the commanders' color identities (the deck's color identity)."""
+    """Union of the commanders' color identities (the deck's color identity). A
+    colorless commander's is ``"C"`` — ``card_search``'s colorless-only filter
+    — never the empty string, which the search reads as no restriction (CR
+    903.4; the tuner's ``_deck_identity`` reads the same)."""
     colors: set[str] = set()
+    found = False
     for entry in state.session.to_deck_dict()["commanders"]:
         record = state.by_name.get(entry["name"])
         if record:
+            found = True
             colors.update(record.get("color_identity", []))
+    if found and not colors:
+        return "C"
     return "".join(sorted(colors))
 
 
