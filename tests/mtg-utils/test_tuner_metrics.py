@@ -401,10 +401,11 @@ def test_an_activated_ability_is_a_payoff_target_not_a_builder():
 
 class TestPoisonClosers:
     """Ten poison counters lose the game whatever the life total (CR 704.5c,
-    122.1f), so a poison giver is a closer: infect (702.90b), toxic (702.164c),
-    poisonous (702.70a) and a direct "gets N poison counters". Proliferate adds a
-    counter of each kind a player has (701.34a): a closer only where the deck
-    poisons."""
+    122.1f), so in a deck that poisons a poison giver is a closer: infect
+    (702.90b), toxic (702.164c), poisonous (702.70a) and a direct "gets N
+    poison counters". Proliferate adds a counter of each kind a player has
+    (701.34a): a closer only where the deck poisons, and so is a lone poison
+    giver — one infect flier is no clock (Viral Drake, 2026-11-02)."""
 
     @pytest.mark.parametrize(
         "name",
@@ -417,9 +418,15 @@ class TestPoisonClosers:
             "Inkmoth Nexus",  # a land that becomes an infect creature
         ],
     )
-    def test_a_poison_giver_is_a_closer(self, name):
-        assert is_wincon_card(test_card(name)) is True
-        assert is_wincon_card(test_card(name), game=DUEL_25) is True
+    def test_a_poison_giver_is_a_closer_where_the_deck_poisons(self, name):
+        assert is_wincon_card(test_card(name), poisons=True) is True
+        assert is_wincon_card(test_card(name), game=DUEL_25, poisons=True) is True
+
+    def test_a_lone_poison_giver_is_judged_as_any_card(self):
+        assert is_wincon_card(test_card("Viral Drake")) is False
+        assert is_wincon_card(test_card("Glistener Elf")) is False
+        # a one-shot team pump closes whatever the deck: infect and +1/+1
+        assert is_wincon_card(test_card("Triumph of the Hordes")) is True
 
     def test_proliferate_closes_only_where_the_deck_poisons(self):
         clasp = test_card("Contagion Clasp")

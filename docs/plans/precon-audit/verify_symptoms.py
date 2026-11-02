@@ -135,6 +135,8 @@ CHECKS = [
     _check("never", "BloodRites_LCC", "Endemic Plague", batch="15"),
     # A planeswalker's ultimate is not its job: Sorin is no interaction card to upgrade.
     _check("no_pair", "BloodRites_LCC", "Sorin, Lord of Innistrad -> Feed the Swarm", batch="15"),
+    # A lone poison giver is no closer: one infect flier in a deck with no poison.
+    _check("never", "CounterIntelligence_EOC", "Viral Drake", batch="15"),
     _check("no_trim", "EldraziIncursion_M3C", "Forsaken Monument", batch="14"),
     _check("no_trim", "TrickyTerrain_M3C", "Mana Reflection", batch="14"),
 ]

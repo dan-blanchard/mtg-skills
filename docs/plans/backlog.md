@@ -1004,6 +1004,27 @@ proposal as a deckbuilder, fix the structure, the guide score is a yardstick)**
   Cover of Darkness (a Vampire payoff for a better-played one, the theme
   page's play-rate order). `verify_symptoms.py`: Sorin is never traded as
   interaction; 68 checks, all passing.
+- **Batch 15f (2026-11-02; the 25 735 / 338 / 116 unchanged, held-out 571 /
+  261 / 104 → 571 / 262 / 104, fresh 294 / 126 / 49 unchanged).** The open
+  verdict of 15e, checked against the card text. Fixed: (66) *a poison giver
+  closes only in a deck that poisons* (`metrics.is_wincon_card`: the same
+  rule proliferate already had; ten poison counters lose, CR 704.5c, and
+  infect gives a counter per point of damage, CR 702.90b). Viral Drake, a
+  1/4 infect flier, was Counter Intelligence's closer add for Deepglow Skate
+  in a deck with no other poison; lone toxic cards (Skrelv's Hive, Skrelv,
+  Defector Mite) stop being sourced as closers in Virtue and Valor and Call
+  for Backup, and Counter Intelligence regains Mindless Automaton as a guide
+  cut. Outside a poison deck a poison giver is judged as any card is:
+  Triumph of the Hordes still closes as a team pump. Verdicts, with the
+  check: Blood Rites' Vampire count falling from 35 to 23 (the guides add 33
+  cards, four of them Vampires — they trade bodies for outlets, removal and
+  payoffs as the tuner does); a cut that doubles what its commander makes
+  (five across the 55: Tanazir Quandrix and Kinetic Ooze go to other
+  doublers, Kaya, Geist Hunter is a guide cut, and Deepglow Skate and The
+  First Tyrannic War double counters once — on entering, on a chapter — so
+  no engine, neither named by its guides; no static doubler is cut anywhere,
+  so a multiplier arm for them would change nothing). `verify_symptoms.py`:
+  Viral Drake never joins Counter Intelligence; 69 checks, all passing.
 
 **From the Jace, Multiverse Architect precon tune and the 25-precon audit (2026-10-17 to 2026-11-01)**
 

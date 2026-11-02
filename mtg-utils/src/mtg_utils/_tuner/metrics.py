@@ -1294,9 +1294,14 @@ def is_wincon_card(
     (``reads.ends_the_game`` — not Pact of Negation's self-loss), an extra combat
     (the ``extra_combats`` key), a one-shot team pump, reach that closes, a big
     evasive body (an evasion keyword, landwalk among them — CR 702.14c — or a
-    blocking restriction on itself, CR 509.1b), a poison giver (ten counters
-    lose, CR 704.5c), or, in a deck that ``poisons``, a proliferator (701.34a)."""
-    if gives_poison(card) or (poisons and _PROLIFERATE_KEY in signal_keys_for(card)):
+    blocking restriction on itself, CR 509.1b), or, in a deck that ``poisons``,
+    a poison giver (ten counters lose, CR 704.5c) or a proliferator (701.34a).
+    A poison giver closes only beside the deck's other poison: one 1-power
+    infect flier gives a counter a hit, and Viral Drake was Counter
+    Intelligence's closer add for Deepglow Skate, which doubles the counters
+    Inspirit's deck is built on (2026-11-02). Outside a poison deck it is
+    judged as any card is — Triumph of the Hordes still closes as a team pump."""
+    if poisons and (gives_poison(card) or _PROLIFERATE_KEY in signal_keys_for(card)):
         return True
     trees = trees_for(card)
     if any(self_drawbacks(tree).restriction for tree in trees):
