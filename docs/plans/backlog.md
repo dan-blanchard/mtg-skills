@@ -1205,6 +1205,31 @@ proposal as a deckbuilder, fix the structure, the guide score is a yardstick)**
   need for another, the count test's call. The cost is King T'Challa in
   Avengers Assemble, now ranked behind Araña for Black Widow's slot.
   Dropping only the floor (run 74) changed nothing: the need had a page.
+- **Batch 16h (2026-11-02; every set's score unchanged: the 25 733 / 339 /
+  120, held-out 570 / 263 / 106, fresh 294 / 126 / 49).** The re-read of the
+  20 proposals batches 16e–16g changed, by two Sonnet reviewers with every
+  card looked up. Fixed: (82) *a chosen card type read as a creature type*
+  (`misparsed_shapes`, a new row, `test_chosen_card_type_sweep_canary`):
+  Season of Gathering's "Choose artifact or enchantment. Destroy all
+  permanents of the chosen type" is phase's `Choose` among `Labeled`
+  card-type options, then a `DestroyAll` over `Permanent` filtered by
+  `IsChosenCreatureType` — creatures included. The filter is rewritten to the
+  listed card types, so the wipe read sees an artifact-or-enchantment sweep
+  and the creature-less veto keeps it out of Tinker Time's board-wipe fill
+  (Faerie Slumber Party now). Measured and reverted: *"remove a counter" of
+  any kind spends a commander's charge counters too* (Gavel of the
+  Righteous' equip cost; Umezawa's Jitte) — the read is right, but the
+  wider need held back Counter Intelligence's upgrades: 30 swaps → 25 and
+  Soul-Guide Lantern, a guide cut, lost (held-out 570 / 263 / 106 → 565 /
+  262 / 106). Verdicts, with the check: Glaring Fleshraker for Hero of
+  Bladehold (twelve colorless spells feed it, batch 16; a better-played
+  theme card); Coretapper for Talisman of Creativity (Coretapper makes
+  charge counters, as Inspirit does — a "like the commander" need, which
+  the gate deliberately doesn't hold — and both are artifacts); The Rise of
+  Sozin for Silhana Ledgewalker (its chapter I wipes, then Fire Lord Sozin
+  returns creature cards from every graveyard under your control — a theft
+  card on Grand Larceny's plan); Gonti's evasive bodies for evasion grants
+  (batch 15's verdict). `verify_symptoms.py`: 83.
 
 **From the Jace, Multiverse Architect precon tune and the 25-precon audit (2026-10-17 to 2026-11-01)**
 

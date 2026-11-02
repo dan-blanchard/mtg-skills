@@ -178,3 +178,35 @@ def test_desperate_gambits_losing_prevention_is_no_shield():
     keys = _keys("Desperate Gambit")
     assert "damage_doubling" in keys
     assert not {"damage_prevention", "board_protection"} & keys
+
+
+@pytest.mark.retirement_canary
+def test_chosen_card_type_sweep_canary():
+    """Season of Gathering's "Choose artifact or enchantment. Destroy all
+    permanents of the chosen type": phase reads the choice as a creature type
+    over every permanent. The stage writes the sweep over the listed card
+    types, and the wipe read then sees no creatures in it."""
+    (rec,) = test_phase_records("Season of Gathering")
+    body = next(
+        b for b in rec["abilities"] if (b.get("effect") or {}).get("type") == "Choose"
+    )
+    swept = body["sub_ability"]["effect"]["target"]
+    assert [p["type"] for p in swept.get("properties") or ()] == [
+        "IsChosenCreatureType"
+    ], (
+        "misparsed_shapes chosen card type: RETIRE-READY — phase types Season "
+        "of Gathering's chosen card type. Delete the chosen-card-type row of "
+        "misparsed_shapes and this canary."
+    )
+    after = correct_misparsed_shapes(rec)
+    fixed = next(
+        b for b in after["abilities"] if (b.get("effect") or {}).get("type") == "Choose"
+    )["sub_ability"]["effect"]["target"]
+    assert fixed["type"] == "Or"
+    assert [f["type_filters"] for f in fixed["filters"]] == [
+        ["Artifact"],
+        ["Enchantment"],
+    ]
+    from mtg_utils._analysis.job_quality import board_wipe
+
+    assert board_wipe.features(test_card("Season of Gathering"))["creatures"] == 0.0

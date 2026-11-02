@@ -62,6 +62,17 @@ taught a special case. Keyed on phase's structure, never the card's name or text
   the same way. ``test_split_coin_flip_canary`` and
   ``test_split_delayed_coin_flip_canary`` fail once phase types the one flip.
 
+* **A chosen card type read as a creature type.** "Choose artifact or
+  enchantment. Destroy all permanents of the chosen type" (Season of
+  Gathering's second mode) is parsed as a ``Choose`` among ``Labeled``
+  options naming card types, then a mass effect over ``Permanent`` with
+  ``IsChosenCreatureType`` — a sweep of every permanent of a creature type,
+  creatures included, where the card destroys only artifacts or only
+  enchantments. The filter is rewritten to the listed card types (an ``Or``
+  of one typed filter each), the most the choice can reach: Tinker Time took
+  Season of Gathering as a creature sweeper (2026-11-02).
+  ``test_chosen_card_type_sweep_canary`` fails once phase types the choice.
+
 Pure functions over plain dicts; nothing here reads the mirror or a tree.
 """
 
@@ -195,6 +206,39 @@ def _is_split_flip(body: dict) -> bool:
     )
 
 
+#: The card types a ``Labeled`` choice may name for a chosen-type sweep
+#: (CR 205.2a's permanent types).
+_PERMANENT_CARD_TYPES = frozenset(
+    {"Artifact", "Battle", "Creature", "Enchantment", "Land", "Planeswalker"}
+)
+
+
+def _chosen_card_type_sweep(body: dict) -> list[str] | None:
+    """The card types a ``Choose`` among ``Labeled`` card-type options names,
+    when its ``sub_ability`` is a mass effect over ``Permanent`` filtered by
+    ``IsChosenCreatureType``; else ``None``."""
+    effect = body["effect"]
+    if effect.get("type") != "Choose":
+        return None
+    choice = effect.get("choice_type")
+    labeled = choice.get("Labeled") if isinstance(choice, dict) else None
+    options = labeled.get("options") if isinstance(labeled, dict) else None
+    if not options or not set(options) <= _PERMANENT_CARD_TYPES:
+        return None
+    nxt = (body.get("sub_ability") or {}).get("effect") or {}
+    target = nxt.get("target") or {}
+    props = [
+        p.get("type") for p in target.get("properties") or () if isinstance(p, dict)
+    ]
+    if (
+        target.get("type") != "Typed"
+        or target.get("type_filters") != ["Permanent"]
+        or props != ["IsChosenCreatureType"]
+    ):
+        return None
+    return list(options)
+
+
 def correct_misparsed_shapes(rec: dict) -> dict:
     """``rec`` with each misparsed shape rewritten (a copy when any)."""
     sweeps = [
@@ -206,7 +250,12 @@ def correct_misparsed_shapes(rec: dict) -> dict:
         if (subtype := _graveyard_arrival_subtype(trig)) is not None
     ]
     split_flips = [body for body in _ability_bodies(rec) if _is_split_flip(body)]
-    if not sweeps and not arrivals and not split_flips:
+    chosen_types = [
+        (body, types)
+        for body in _ability_bodies(rec)
+        if (types := _chosen_card_type_sweep(body)) is not None
+    ]
+    if not sweeps and not arrivals and not split_flips and not chosen_types:
         return rec
     memo: dict[int, object] = {}
     out = copy.deepcopy(rec, memo)
@@ -230,4 +279,20 @@ def correct_misparsed_shapes(rec: dict) -> dict:
         second = target["sub_ability"]
         target["effect"]["lose_effect"] = second["effect"]["lose_effect"]
         target["sub_ability"] = second.get("sub_ability")
+    for body, types in chosen_types:
+        target = memo[id(body)]
+        assert isinstance(target, dict)
+        swept = target["sub_ability"]["effect"]
+        swept["target"] = {
+            "type": "Or",
+            "filters": [
+                {
+                    "type": "Typed",
+                    "type_filters": [t],
+                    "controller": None,
+                    "properties": [],
+                }
+                for t in types
+            ],
+        }
     return out

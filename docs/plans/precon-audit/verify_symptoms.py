@@ -157,6 +157,8 @@ CHECKS = [
     _check("no_pair", "CavalryCharge_MOC", "Vanquisher's Banner -> And They Shall Know No Fear", batch="16e"),
     # A commander resource need under the built floor is still kept.
     _check("no_pair", "EternalMight_DRC", "Archfiend of Ifnir -> Counterspell", batch="16g"),
+    # A chosen-card-type sweep (artifact or enchantment) is no creature sweeper.
+    _check("no_pair", "TinkerTime_MOC", "Junk Winder -> Season of Gathering", batch="16h"),
     _check("no_trim", "EldraziIncursion_M3C", "Forsaken Monument", batch="14"),
     _check("no_trim", "TrickyTerrain_M3C", "Mana Reflection", batch="14"),
 ]
