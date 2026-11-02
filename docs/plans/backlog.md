@@ -1097,10 +1097,19 @@ proposal as a deckbuilder, fix the structure, the guide score is a yardstick)**
   needs); Eldrazi Monument under Bello (six creature-token makers feed its
   upkeep sacrifice). Open, measured next: Pentad Prism for Volt Charge (the
   need gate counts needs, and each supplies two — Pentad Prism the charge
-  spender, Volt Charge proliferate); Most Wanted's lifegain and aristocrat
-  adds (Olivia's only lifegain is her own lifelink, and her guides say
-  lifegain "only works with Olivia's lifelink").
+  spender, Volt Charge proliferate).
   `verify_symptoms.py`: four checks; 77, all passing.
+- **Batch 16c (2026-11-02; held-out 569 / 262 / 105 → 569 / 262 / 107; the 25
+  and fresh unchanged).** Fixed: (75) *a commander whose only lifegain is
+  its own lifelink asks for no lifegain payoffs*
+  (`commander_need._lifelink_only`: the keyword and no `GainLife` effect of
+  its own — CR 702.15b, a gain per hit of one body): Olivia, Opulent
+  Outlaw's lifelink drew Sanguine Bond and Vito, Thorn of the Dusk Rose for
+  Witch of the Moors and Veinwitch Coven where her guides say lifegain "only
+  works with Olivia's lifelink" and cut it; Most Wanted now takes Path to
+  Exile and Bitterblossom, both guide adds. Olivia is the only such
+  commander in the 55. Its aristocrat adds (Zulaport Cutthroat) remain: the
+  deck's death lane is its own, not a reading of Olivia's text — a verdict.
 
 **From the Jace, Multiverse Architect precon tune and the 25-precon audit (2026-10-17 to 2026-11-01)**
 

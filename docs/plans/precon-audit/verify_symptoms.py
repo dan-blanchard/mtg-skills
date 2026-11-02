@@ -149,6 +149,7 @@ CHECKS = [
     _check("never", "MostWanted_OTC", "Dawn-Blessed Pennant", batch="16b"),
     _check("never", "CavalryCharge_MOC", "Gleaming Overseer", "Chocobo Knights", batch="16b"),
     _check("never", "SquirreledAway_BLC", "Squirrel Squatters", batch="16b"),
+    _check("never", "MostWanted_OTC", "Sanguine Bond", "Vito, Thorn of the Dusk Rose", batch="16c"),
     _check("no_trim", "EldraziIncursion_M3C", "Forsaken Monument", batch="14"),
     _check("no_trim", "TrickyTerrain_M3C", "Mana Reflection", batch="14"),
 ]

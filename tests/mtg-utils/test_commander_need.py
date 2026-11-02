@@ -739,3 +739,12 @@ def test_a_commander_placing_charge_counters_wants_their_spenders():
     assert satisfies(test_card("Titan Forge"), need)
     assert satisfies(test_card("Golem Foundry"), need)
     assert not satisfies(test_card("Talisman of Creativity"), need)
+
+
+def test_a_commanders_own_lifelink_asks_for_no_lifegain_payoffs():
+    """Olivia, Opulent Outlaw's only lifegain is her lifelink (CR 702.15b):
+    one body's gain per hit is no lifegain plan, and her guides cut the
+    lifegain payoffs (Most Wanted, 2026-11-02). Her Treasure needs stay."""
+    labels = _labels(_needs("Olivia, Opulent Outlaw"))
+    assert not any("lifegain" in label for label in labels)
+    assert any("treasure" in label for label in labels)

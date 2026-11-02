@@ -1924,6 +1924,20 @@ def _stat(card: Mapping, name: str) -> int:
     return best
 
 
+def _lifelink_only(trees: Sequence[ConceptTree]) -> bool:
+    """Whether a commander's lifegain is only its own lifelink: the keyword,
+    and no effect of its that gains life."""
+    lifelink = any(
+        kw.lower() == "lifelink" for tree in trees for kw in tree.card_keywords
+    )
+    return lifelink and not any(
+        tag_of(n) == "GainLife"
+        for tree in trees
+        for unit in tree.units
+        for n in unit.iter_typed()
+    )
+
+
 def commander_needs(commanders: Sequence[Mapping]) -> tuple[Need, ...]:
     """Every need the commander(s) express, deduplicated, in reading order:
     triggers' events, conditions, then the resource and payoff reads off the
@@ -1952,6 +1966,12 @@ def commander_needs(commanders: Sequence[Mapping]) -> tuple[Need, ...]:
         # come out in one order whatever the process's hash seed.
         idents = sorted(_card_idents(rec, membership=False))
         trees = trees_for(dict(rec))
+        if _lifelink_only(trees):
+            # Its own lifelink (CR 702.15b) is a gain per hit of one body, no
+            # lifegain plan: Olivia, Opulent Outlaw's lifelink drew Sanguine
+            # Bond and Vito where her guides say lifegain "only works with
+            # Olivia's lifelink" and cut it (Most Wanted, 2026-11-02).
+            idents = [i for i in idents if not i.startswith("lifegain_makers|")]
         tree_start = len(out)
         for tree in trees:
             for unit in tree.units:
