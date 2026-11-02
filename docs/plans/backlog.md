@@ -1400,6 +1400,14 @@ proposal as a deckbuilder, fix the structure, the guide score is a yardstick)**
   Elemental for Hauntwoods Shrieker in Deadly Disguise (Kaust turns
   face-down *attackers* face up, so an attack trigger is on the plan, at two
   less mana). `verify_symptoms.py`: 103.
+- **The re-read of batch 16o (2026-11-02): no new flaw.** A Sonnet reviewer
+  read the seven proposals it changed, every card looked up. Its one flag,
+  checked: The Reaper, King No More for Woodfall Primus in Blight Curse.
+  Both supply Auntie Ool's -1/-1 counter need — Woodfall Primus's persist
+  returns it "with a -1/-1 counter on it" (CR 702.79a), and a counter given
+  as a permanent enters is "put on" it (CR 122.6) — and on the interaction
+  page "destroy target noncreature permanent" reads above two -1/-1
+  counters, so it is an interaction upgrade that keeps the commander's need.
 
 **From the Jace, Multiverse Architect precon tune and the 25-precon audit (2026-10-17 to 2026-11-01)**
 
