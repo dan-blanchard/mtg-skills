@@ -203,6 +203,7 @@ _REAL_CASES: dict[str, str] = {
     # exiles cards from your graveyard as a cost and references "creature card in your
     # graveyard", firing the payoff arms but NO maker arm. Reanimate (a pure reanimator
     # MAKER) moved to graveyard_makers.
+    "graveyard_leave_matters": "Teval, the Balanced Scale",
     "graveyard_makers": "Reanimate",
     "graveyard_matters": "Araumi of the Dead Tide",
     "group_hug_draw": "Wheel of Fortune",
@@ -1094,3 +1095,22 @@ def test_every_emitted_key_is_manifest_served():
         if extra:
             stray[name] = extra
     assert not stray, f"keys emitted outside SERVED_SIGNAL_KEYS: {stray}"
+
+
+@pytest.mark.parametrize(
+    ("name", "fires"),
+    [
+        ("Teval, the Balanced Scale", True),
+        ("Desecrated Tomb", True),
+        ("Chalk Outline", True),
+        ("Tormod, the Desecrator", True),
+        ("Syr Konrad, the Grim", True),
+        ("Bojuka Bog", False),
+        ("Reanimate", False),
+    ],
+)
+def test_graveyard_leave_matters_on_real_cards(name, fires):
+    """A trigger on cards leaving your graveyard fires the lane; graveyard hate
+    and plain recursion (no such trigger) do not."""
+    idents = {(s.key, s.scope) for s in extract_signals(test_card(name))}
+    assert (("graveyard_leave_matters", "you") in idents) is fires

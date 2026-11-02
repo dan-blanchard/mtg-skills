@@ -3423,3 +3423,80 @@ def test_over_band_trim_takes_a_card_the_commander_asks_for_last():
         needs=lambda record: int(record["name"] == "Oracle"),
     )
     assert [c.name for _reason, c in cuts] == ["Rock"]
+
+
+def test_a_need_count_admission_never_trades_down_a_card_that_already_served():
+    """Shield-Wall Sentinel ticks two of Felothar's boxes (a defender, toughness
+    4) to Zetalpa, Primal Dawn's one (toughness 8), and four times fewer decks
+    play it: no upgrade, since Zetalpa already served the commander and the
+    card-quality read rates the Sentinel far below it. Jaddi Offshoot's slot
+    goes to Stalwart Shield-Bearers (two boxes, no weaker a card), and a slot
+    that served nothing — Gray Merchant's — goes to Wall of Souls however it
+    reads."""
+    zetalpa = _real_cc("Zetalpa, Primal Dawn", "engine", edhrec_rank=1630)
+    jaddi = _real_cc("Jaddi Offshoot", "engine", edhrec_rank=4000)
+    gary = _real_cc("Gray Merchant of Asphodel", "engine", edhrec_rank=300)
+    boxes = {
+        "Zetalpa, Primal Dawn": 1,
+        "Jaddi Offshoot": 1,
+        "Shield-Wall Sentinel": 2,
+        "Stalwart Shield-Bearers": 2,
+        "Wall of Souls": 1,
+    }
+
+    def needs(record):
+        return boxes.get(record["name"], 0)
+
+    assert not _upgrades(
+        _played("Shield-Wall Sentinel", 6071), zetalpa, None, needs=needs
+    )
+    assert _upgrades(_played("Stalwart Shield-Bearers", 6000), jaddi, None, needs=needs)
+    assert _upgrades(_played("Wall of Souls", 9000), gary, None, needs=needs)
+
+
+def test_a_led_page_is_sorted_whole_before_it_is_cut():
+    """A need lead must see the suppliers below the play-rate head: with the
+    page cut to its limit first, Hazel's Squirrel makers (two of her needs) sat
+    past the token makers' first 150 and never led. Here the cut supplies the
+    need, so its slot is upgraded off the need's page, where the one other
+    supplier sits last of two hundred by play-rate: it is the add (the two
+    hundred supply nothing and keep nothing of the cut's)."""
+    from mtg_utils._analysis.commander_need import Need
+
+    label = "Tokens"
+    cut = _cc("Weak Maker", "engine", served=(label,), edhrec_rank=9000)
+    cut.record.update(type_line="Creature — Beast", cmc=3.0, acorn=True)
+    suit = []
+    for i in range(5):  # the deck builds toward the need
+        card = _cc(f"Acorn {i}", "engine", served=(label,))
+        card.record["acorn"] = True
+        suit.append(card)
+    pool = []
+    for i in range(200):
+        card = {**_played("Raise the Alarm", 100 + i), "name": f"Popular Maker {i}"}
+        card["oracle_id"] = f"popular-{i}"
+        pool.append(card)
+    acorn = {
+        **_played("Raise the Alarm", 8000),
+        "name": "Acorn Maker",
+        "oracle_id": "acorn",
+    }
+    acorn["acorn"] = True
+    pool.append(acorn)
+    need = Need("payoff", "acorn makers", "x", predicate=lambda c: bool(c.get("acorn")))
+    ctx = _upgrade_ctx(
+        [cut],
+        pool,
+        focus_extra={
+            "viable_avenues": [
+                {"label": label, "tier": "main", "depth": 20, "cards": []}
+            ],
+            "mains": [label],
+        },
+    )
+    ctx = replace(ctx, need_avenues=(_need_page(need.label, need, pool),))
+    issue = [{"kind": "upgrade", "severity": 1, "count": 1}]
+    adds = [
+        s["add"]["name"] for s in _swaps_with_needs([cut, *suit], issue, ctx)["swaps"]
+    ]
+    assert adds == ["Acorn Maker"]

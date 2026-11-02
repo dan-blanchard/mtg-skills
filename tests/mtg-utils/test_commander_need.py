@@ -2,15 +2,19 @@
 own text asks the deck for, and whether a card supplies it. Real cards via the
 testkit (ADR-0056); the needs are read off the commander's concept trees."""
 
+import pytest
+
 from mtg_utils._analysis.commander_need import (
     REANIMATION_MV,
     Need,
+    _sizes_the_card,
     card_type_count,
     commander_needs,
     need_predicate,
     needs_met,
     satisfies,
 )
+from mtg_utils._card_ir.trees import trees_for
 from mtg_utils.testkit import test_card, test_card_ir  # noqa: F401  (snapshot usage)
 
 
@@ -171,6 +175,21 @@ def test_an_opponents_turn_drain_trigger_wants_makers_that_fire_on_their_turns()
     for name in ("Guttersnipe", "Reckless Fireweaver", "Lightning Bolt"):
         assert not satisfies(test_card(name), need), name
     assert "lifeloss makers" not in _labels(_needs("Valgavoth, Harrower of Souls"))
+    # Watchers no lane key names, read off the trigger's own watched player:
+    # Blood Seeker (a creature enters under an opponent's control), Harsh
+    # Mentor (an opponent activates an ability), Stormfist Crusader (each
+    # upkeep). Vito drains on your own life gain: not theirs.
+    for name in ("Blood Seeker", "Harsh Mentor", "Stormfist Crusader"):
+        assert satisfies(test_card(name), need), name
+    # Not the card's own attack or cast, nor a sweeper's "any": the first
+    # widening admitted them.
+    for name in (
+        "Vito, Thorn of the Dusk Rose",
+        "Myr Battlesphere",
+        "Crypt Ghast",
+        "Toxic Deluge",
+    ):
+        assert not satisfies(test_card(name), need), name
 
 
 def test_an_energy_doubler_is_an_energy_maker_through_the_ledger():
@@ -571,3 +590,49 @@ def test_a_mana_value_floor_need_is_never_broad():
     )
     assert is_broad(every, 0.125)
     assert not is_broad(every, 0.05)
+
+
+def test_mirko_states_its_own_size_line():
+    # "with power less than Mirko's" bounds the card, so no payload need; Winter's
+    # unbounded reanimation still reads one.
+    assert not any(
+        "worth returning" in n.label for n in _needs("Mirko, Obsessive Theorist")
+    )
+    assert any(
+        "worth returning" in n.label for n in _needs("Winter, Cynical Opportunist")
+    )
+
+
+@pytest.mark.retirement_canary
+def test_mirko_size_bound_canary():
+    """Retirement canary for ``_desc_sizes_the_card``: phase v0.118.0 drops
+    Mirko's "with power less than Mirko's" from the target filter. When this
+    fails phase carries the bound: delete ``_desc_sizes_the_card`` (and its
+    call in ``_effect_needs``) and this test."""
+    rec = test_card("Mirko, Obsessive Theorist")
+    units = [
+        u
+        for tree in trees_for(dict(rec))
+        for u in tree.units
+        if "power less than" in str(getattr(u.node, "description", "") or "")
+    ]
+    assert units, "Mirko's end-step trigger no longer found"
+    assert not any(_sizes_the_card(u.node) for u in units), (
+        "RETIRE-READY: phase now types Mirko's size bound. Delete "
+        "_desc_sizes_the_card and this canary."
+    )
+
+
+def test_a_payoff_with_no_maker_lane_is_its_own_redundancy():
+    """Teval's "whenever one or more cards leave your graveyard" has no maker
+    lane behind it: the cards that do what he does carry the same key
+    (``graveyard_leave_matters``) — Desecrated Tomb, Tormod, the Desecrator —
+    not a reanimation spell, which makes cards leave but is the event's maker
+    (the "cards leaving your graveyard" need's own)."""
+    redundancy = _need(
+        "Teval, the Balanced Scale", "graveyard leave payoffs like the commander"
+    )
+    assert redundancy.kind == "redundancy"
+    assert satisfies(test_card("Desecrated Tomb"), redundancy)
+    assert satisfies(test_card("Tormod, the Desecrator"), redundancy)
+    assert not satisfies(test_card("Reanimate"), redundancy)

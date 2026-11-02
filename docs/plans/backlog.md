@@ -444,24 +444,9 @@ proposal as a deckbuilder, fix the structure, the guide score is a yardstick)**
   carry `chosen_type_matters`, `subtype_ref|you|shared`, `counter_doubling`,
   `any_counter_matters` — no one inverse of `metrics._cares_keys`. The
   ranker's `_gate_penalty` (a tribal gate the deck lacks) is the shape of the
-  right read, widened to a payoff's doer.
-- **Mirko, Obsessive Theorist's "with power less than Mirko's" is dropped by
-  phase v0.118.0 with no residue** (the target filter holds `InZone` and
-  `Owned` only), so the payload read (`commander_need._reanimation_target_need`)
-  gives Revenant Recon a "creature cards worth returning at 7+ mana" page it
-  would not with the bound read. Nothing to key a ledger row or a correction
-  on; an upstream report. Held-out Revenant Recon 30 / 15 / 1 → 26 / 14 / 2
-  with it.
-- **Teval's "whenever one or more cards leave your graveyard" payoffs have no
-  lane.** Desecrated Tomb, Chalk Outline, Tormod, the Desecrator — the
-  redundancy of Teval's own trigger, which Sultai Arisen's guides add — emit no
-  `graveyard_leave_matters` key, so no "do what the commander does" need
-  reaches them. A lane, then the redundancy need picks it up by itself.
-- **Hazel's Squirrel page makes no adds yet.** The Squirrel-token need
-  (`commander_need._token_kind_needs`) keeps Squirrel Nest and Deep Forest
-  Hermit in the deck (the gate), but no cut is routed to its page: Squirreled
-  Away's guides add Nut Collector, Drey Keeper and Deranged Hermit, which the
-  tokens page by play-rate never reaches.
+  right read, widened to a payoff's doer. Idents alone cannot tell it: Etali,
+  Primal Conqueror carries five payoff idents that are its own effects, and
+  Hardened Scales is tagged a counter *maker* (2026-11-01).
 
 ## Settled: don't re-suggest
 
@@ -548,6 +533,41 @@ proposal as a deckbuilder, fix the structure, the guide score is a yardstick)**
   Yuma). Swap counts fell where a gated upgrade found no replacement
   (Veloci-Ramp-Tor 30 → 27, Sultai Arisen 30 → 28): a card the commander
   asks for and nothing better for it is no swap.
+- **Batch 4 (same day, the recursive pass over batch 3's own proposals; the
+  25 723 / 339 / 118 → 719 / 338 / 117, held-out 573 / 256 / 100 → 574 / 256
+  / 101).** (16) *A led page's deep suppliers join its play-rate head*
+  (`swaps._ranked_pool`): a card the lead ranks ahead of every addable card
+  in the head (Hazel's Squirrel makers, two needs to the head's one) is on
+  the page though play-rate never reached it — Squirreled Away takes Drey
+  Keeper, Scurry Oak, Camellia, Cloakwood Hermit, Squirrel Sanctuary where
+  Fanatic of Rhonas and Oketra's Monument took Squirrel Nest's and Deep
+  Forest Hermit's slots. Measured and held back on the way: the whole page
+  sorted and cut to the lead's top — a thousand obscure one-need cards, and
+  the tune spent its budget on them before its job upgrades (held-out
+  Counter Intelligence 30 → 21 swaps; Enduring Enchantments took eight
+  self-mill enchantments). (17) *A need-count admission never trades down a
+  card that already served the commander* (`_upgrades`, the card-quality
+  read as the guard): Zetalpa, Primal Dawn went to Shield-Wall Sentinel for
+  ticking two of Felothar's boxes to its one. (18) *Valgavoth's
+  opponents'-turn read covers the watchers no lane key names*
+  (`_drains_on_opponents_turns`: a trigger on a player action by opponents
+  or every player — Harsh Mentor's "an opponent activates", Kaervek's "an
+  opponent casts" — or on a permanent an opponent controls, Blood Seeker;
+  not the card's own attack or cast, nor a sweeper's "any": Myr
+  Battlesphere, Crypt Ghast and Toxic Deluge, which the first widening
+  admitted). Blood Seeker, Harsh Mentor and Stormfist Crusader are kept
+  where they went to Guttersnipe and Reckless Fireweaver; Endless
+  Punishment proposes 20 swaps on its $126 (30 on an unlimited budget): the
+  right replacements are the pricier drainers. (19) *A `graveyard_leave_matters`
+  lane* ("Cards leaving your graveyard": Teval, Desecrated Tomb, Chalk
+  Outline, Tormod, Syr Konrad's second trigger — read off the trigger's
+  graveyard origin through the shared `trigger_zone_changes`), and *a payoff
+  with no maker lane behind it is its own redundancy*
+  (`commander_need._PAYOFF_REDUNDANCY_KEYS`: "graveyard leave payoffs like
+  the commander" under Teval). (20) *Mirko's dropped "power less than"
+  clause* is read off the ability's description behind a `retirement_canary`
+  (`_desc_sizes_the_card`; phase v0.118.0 keeps no residue), so his return
+  states its own line and opens no payload page.
 
 **From the Jace, Multiverse Architect precon tune and the 25-precon audit (2026-10-17 to 2026-11-01)**
 

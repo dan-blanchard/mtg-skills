@@ -123,6 +123,7 @@ SERVED_SIGNAL_KEYS: frozenset[str] = frozenset(
         # Batch 4 (ADR-0035 Stage 2, this increment):
         "graveyard_makers",
         "graveyard_matters",
+        "graveyard_leave_matters",
         "fight_makers",
         "goad_makers",
         # task B-5 (2026-07-16 study): combat puppeteers — you make

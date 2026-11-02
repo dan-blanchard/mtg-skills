@@ -62,6 +62,7 @@ context beyond the commander's own records.
 
 from __future__ import annotations
 
+import re
 from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
@@ -196,6 +197,11 @@ _EXTRA_CONSUMER_IDENTS: Mapping[str, frozenset[str]] = {
 _EXTRA_CONSUMER_PREDICATES: Mapping[str, Callable[[dict], bool]] = {
     "land_sacrifice_makers": plays_extra_lands,
 }
+
+#: Payoff keys with no maker lane behind them: the payoff is the doing, so a
+#: commander carrying one asks for cards with the same key
+#: (``_redundancy_needs``).
+_PAYOFF_REDUNDANCY_KEYS: frozenset[str] = frozenset({"graveyard_leave_matters"})
 
 #: Keys whose emitters make a creature of yours die or leave (fodder and the
 #: outlets that spend it) — what a dies / leaves / sacrificed trigger is fed by.
@@ -612,6 +618,26 @@ def _sizes_the_card(node: object) -> bool:
     return any(tag_of(n) in _SIZE_TAGS for n in iter_typed_nodes(node))
 
 
+#: A size bound in a unit's description: "with power less than", "mana value 3
+#: or less".
+_DESC_SIZE_BOUND = re.compile(
+    r"\bwith (?:power|toughness|mana value) (?:less|greater) than\b"
+    r"|\b(?:power|toughness|mana value) \d+ or (?:less|greater)\b",
+    re.IGNORECASE,
+)
+
+
+def _desc_sizes_the_card(desc: str) -> bool:
+    """Whether the unit's phase description states a size bound on the card.
+
+    The one text read in this module, a phase gap: v0.118.0 silently drops
+    Mirko, Obsessive Theorist's "with power less than Mirko's" (the target
+    filter keeps only InZone Graveyard, Owned You and Creature, no residue
+    node), so :func:`_sizes_the_card` sees no bound. Retired when
+    ``test_mirko_size_bound_canary`` fails."""
+    return bool(_DESC_SIZE_BOUND.search(desc))
+
+
 #: The typed tags that read a card's size: the filter properties and the
 #: object quantities.
 _SIZE_TAGS: frozenset[str] = frozenset(
@@ -724,7 +750,7 @@ def _effect_needs(unit_node: object, desc: str) -> Iterator[Need]:
     :func:`_reanimation_target_need`), and a token effect that favours one kind
     of token (Hazel's Squirrels, :func:`_token_kind_needs`)."""
     yield from _graveyard_take_needs(unit_node, desc)
-    if not _sizes_the_card(unit_node):
+    if not (_sizes_the_card(unit_node) or _desc_sizes_the_card(desc)):
         for filt in _graveyard_return_filters(unit_node):
             need = _reanimation_target_need(filt, desc)
             if need is not None:
@@ -1035,8 +1061,18 @@ _OPPONENT_TURN_GATES = frozenset({"OncePerOpponentPerTurn", "OnlyDuringOpponents
 
 def _drains_on_opponents_turns(card: dict) -> bool:
     """A life-loss or damage maker whose trigger watches what other players do:
-    an ``opponent_*`` watcher key, a tax, or a payoff lane scoped past "you"
-    (``*_matters|opponents|`` / ``|each|`` / ``|any|``)."""
+    an ``opponent_*`` watcher key, a tax, a payoff lane scoped past "you"
+    (``*_matters|opponents|`` / ``|each|`` / ``|any|``), a watcher ident scoped
+    to opponents or every player (Blood Seeker's ``creature_etb|opponents|``,
+    Stormfist Crusader's ``group_hug_draw|each|``), or on the card's own tree a
+    trigger on a player action by opponents or every player
+    (:data:`_PLAYER_ACTION_EVENTS` at ``crosswalk.trigger_scope`` past "you":
+    Harsh Mentor's "whenever an opponent activates an ability", Kaervek's
+    "whenever an opponent casts a spell") or on a permanent an opponent
+    controls (Blood Seeker's "enters under an opponent's control"). Not the
+    card's own attack or cast (Myr Battlesphere, Crypt Ghast's extort), nor a
+    removal spell's "any" scope (Toxic Deluge) — the first widening admitted
+    them (2026-11-01)."""
     idents = _card_idents(card)
     keys = {i.split("|", 1)[0] for i in idents}
     if not keys & _EVENT_MAKER_KEYS["life_lost"]:
@@ -1047,7 +1083,43 @@ def _drains_on_opponents_turns(card: dict) -> bool:
             return True
         if key.endswith("_matters") and scope in ("opponents", "each", "any"):
             return True
+        if key not in _EVENT_MAKER_KEYS["life_lost"] and scope in ("opponents", "each"):
+            return True
+    for tree in trees_for(dict(card)):
+        for unit in tree.units:
+            if unit.origin != "trigger" or not isinstance(unit.node, TypedMirrorNode):
+                continue
+            event = trigger_def_event(unit.node)
+            if event in _PLAYER_ACTION_EVENTS and trigger_scope(unit.node) in (
+                "opponents",
+                "each",
+            ):
+                return True
+            valid = getattr(unit.node, "valid_card", None)
+            if _present(valid) and filter_controller(valid) == "Opponent":
+                return True
     return False
+
+
+#: The trigger events that are a player's own action (``trigger_def_event``):
+#: one by an opponent happens on their turn, as a rule.
+_PLAYER_ACTION_EVENTS: frozenset[str] = frozenset(
+    {
+        "cast_spell",
+        "abilityactivated",
+        "drawn",
+        "discarded",
+        "life_gained",
+        "surveil",
+        "scry",
+        "explored",
+        "investigated",
+        "sacrificed",
+        "taps",
+        "tapsformana",
+        "phase",
+    }
+)
 
 
 #: The keywords a "whenever ~ deals combat damage to a player" commander wants
@@ -1366,6 +1438,18 @@ def _redundancy_needs(idents: Iterable[str], desc: str) -> Iterator[Need]:
             yield Need(
                 "redundancy",
                 f"{_doer_name(key)}{(' ' + subject) if subject else ''} "
+                "like the commander",
+                desc,
+                idents=frozenset({ident}),
+            )
+        elif key in _PAYOFF_REDUNDANCY_KEYS:
+            # A payoff that IS the doing — Teval's "whenever one or more cards
+            # leave your graveyard" has no maker lane behind it; the cards that
+            # do what he does carry the same key (Desecrated Tomb, Chalk
+            # Outline, Tormod, the Desecrator: Sultai Arisen's guides' adds).
+            yield Need(
+                "redundancy",
+                f"{key.removesuffix('_matters').replace('_', ' ')} payoffs "
                 "like the commander",
                 desc,
                 idents=frozenset({ident}),

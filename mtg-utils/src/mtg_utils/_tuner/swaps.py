@@ -23,6 +23,7 @@ from dataclasses import dataclass
 from typing import Protocol
 
 from mtg_utils._analysis.budgets import COMMANDER_TEMPLATE, Template
+from mtg_utils._analysis.card_quality import quality
 from mtg_utils._analysis.card_reads import has_trees
 from mtg_utils._analysis.commander_need import Need, is_broad, need_serve, satisfies
 from mtg_utils._analysis.job_quality import JobRead, read_for
@@ -380,7 +381,19 @@ def _upgrades(
         return False
     if job is None and off_theme:
         return True
-    if job is None and needs is not None and needs(candidate) > needs(cut.record):
+    # More of what the commander asks admits the candidate however few decks
+    # play it — unless the slot already served the commander and the candidate
+    # is the weaker card on its own text (``card_quality``): Zetalpa, Primal
+    # Dawn (toughness 8) went to Shield-Wall Sentinel, a defender with
+    # toughness 4, for ticking two of Felothar's boxes (Abzan Armor,
+    # 2026-11-01). Gray Merchant's slot served none, so Wall of Souls still
+    # takes it; Jaddi Offshoot's Stalwart Shield-Bearers reads no weaker.
+    if (
+        job is None
+        and needs is not None
+        and needs(candidate) > needs(cut.record)
+        and (needs(cut.record) == 0 or not _weaker_on_its_text(candidate, cut.record))
+    ):
         return True
     if (
         job is None
@@ -392,6 +405,13 @@ def _upgrades(
         return True
     rank = candidate.get("edhrec_rank")
     return rank is not None and (cut.edhrec_rank is None or rank < cut.edhrec_rank)
+
+
+def _weaker_on_its_text(candidate: dict, cut: Mapping) -> bool:
+    """Whether the card-quality read (ADR-0063) rates ``candidate`` below
+    ``cut``; False when either has no read."""
+    a, b = quality(candidate), quality(dict(cut))
+    return a is not None and b is not None and a < b
 
 
 #: A candidate's Granter grade per (oracle id, draw-engine commander): a pure
@@ -1463,40 +1483,6 @@ def propose_swaps(
         # that is not of the type (Urza's Incubator under Dinosaurs), which
         # ``find_add`` holds to ``_SUPPORT_SHARE`` of the theme's adds.
         avenue = spec.get("_avenue")
-        support: set[str] = set()
-        if (
-            synergy_first
-            and job is None
-            and avenue is not None
-            and spec.get("_serve") is not None
-            and not pages_by_serve(spec)
-        ):
-            # Every member, which the support is told apart from: the page is
-            # their head (one search, not a page and then every member).
-            members_page = _search(spec, sys.maxsize, capped=capped)
-            members = {c.get("name") for c in members_page}
-            extra = [
-                c
-                for c in _search(serve_page_search(spec), limit, capped=capped)
-                if c.get("name") not in members
-            ]
-            support = {c.get("name", "") for c in extra}
-            support_names.setdefault(avenue, set()).update(support)
-            found = [*members_page[:limit], *extra]
-        else:
-            found = _search(spec, limit, capped=capped)
-        # A card the deck already runs stays in the pool while it may hold another
-        # copy (used_adds is applied at pick time, so the memoized order holds).
-        pool = [
-            c for c in found if ctx.under_ceiling(c, in_deck.get(c.get("name", ""), 0))
-        ]
-        if nonland_only:
-            pool = [c for c in pool if not is_land(c)]
-        if spec.get("name"):  # a named-card remedy wants that card, not a substring hit
-            pool = [c for c in pool if c.get("name") == spec["name"]]
-        spec_filter = spec.get("_filter")
-        if spec_filter is not None:  # tuner-side precision pass (e.g. reliable-ramp)
-            pool = [c for c in pool if spec_filter(c, deck_mana=ctx.deck_mana)]
         # A page's own order, ahead of play-rate and synergy (the polymorph
         # fodder page's repeatable makers first, ``issues._fodder_lead``), then
         # on a theme page the commander's specific needs the card supplies
@@ -1511,6 +1497,46 @@ def propose_swaps(
         # Equipment on Bello's (25 precons 121 → 109 guide adds).
         lead = spec.get("_lead")
         by_needs = synergy_first and job is None and avenue is not None and built_needs
+        # A page with an order of its own is sorted WHOLE and cut to ``limit``
+        # after: the lead has to see the suppliers below the play-rate head.
+        # Cut first, Hazel's Squirrel makers (two of her needs) sat past the
+        # token makers' first 150 and Fanatic of Rhonas took Arasta's slot
+        # (2026-11-01).
+        page_limit = sys.maxsize if (lead is not None or by_needs) else limit
+        support: set[str] = set()
+        if (
+            synergy_first
+            and job is None
+            and avenue is not None
+            and spec.get("_serve") is not None
+            and not pages_by_serve(spec)
+        ):
+            # Every member, which the support is told apart from: the page is
+            # their head (one search, not a page and then every member).
+            members_page = _search(spec, sys.maxsize, capped=capped)
+            members = {c.get("name") for c in members_page}
+            extra = [
+                c
+                for c in _search(serve_page_search(spec), page_limit, capped=capped)
+                if c.get("name") not in members
+            ]
+            support = {c.get("name", "") for c in extra}
+            support_names.setdefault(avenue, set()).update(support)
+            found = [*members_page[:page_limit], *extra]
+        else:
+            found = _search(spec, page_limit, capped=capped)
+        # A card the deck already runs stays in the pool while it may hold another
+        # copy (used_adds is applied at pick time, so the memoized order holds).
+        pool = [
+            c for c in found if ctx.under_ceiling(c, in_deck.get(c.get("name", ""), 0))
+        ]
+        if nonland_only:
+            pool = [c for c in pool if not is_land(c)]
+        if spec.get("name"):  # a named-card remedy wants that card, not a substring hit
+            pool = [c for c in pool if c.get("name") == spec["name"]]
+        spec_filter = spec.get("_filter")
+        if spec_filter is not None:  # tuner-side precision pass (e.g. reliable-ramp)
+            pool = [c for c in pool if spec_filter(c, deck_mana=ctx.deck_mana)]
 
         def led(c: dict) -> tuple:
             own = lead(c) if lead is not None else ()
@@ -1586,6 +1612,25 @@ def propose_swaps(
                     extract_price(c) or 1e9,
                 ),
             )
+        if page_limit != limit:
+            # The deep page adds only what the play-rate head LACKS: a card the
+            # lead ranks ahead of every addable card in the head (Hazel's
+            # Squirrel makers, two needs to the head's one). Sorted whole and
+            # cut to the lead's top, the page was a thousand obscure cards
+            # supplying as much as the head's did, and the tune spent its budget
+            # on them before its job upgrades (held-out Counter Intelligence 30
+            # → 21 swaps; Enduring Enchantments took eight self-mill
+            # enchantments, 2026-11-01).
+            head = found[:limit]
+            best = min(
+                (led(c) for c in head if not in_deck.get(c.get("name", ""))),
+                default=None,
+            )
+            deep = [c for c in found[limit:] if best is None or led(c) < best]
+            keep = {id(c) for c in head} | {id(c) for c in deep}
+            ranked = [c for c in ranked if id(c) in keep]
+        else:
+            ranked = ranked[:limit]
         _pool_memo[key] = ranked
         return ranked
 

@@ -375,6 +375,14 @@ SPECS_1: dict[tuple[str, str], SignalSpec] = {
         None,
         serve_idents=_OPPONENT_GRAVEYARD_IDENTS,
     ),
+    ("graveyard_leave_matters", "you"): _spec(
+        "Cards leaving your graveyard",
+        "payoffs that trigger when cards leave your graveyard, and the recursion "
+        "and exile that sets them off",
+        # Serve rides the lanes: the payoff itself plus your graveyard's makers.
+        None,
+        serve_idents=_OWN_GRAVEYARD_IDENTS | {"graveyard_leave_matters|you|"},
+    ),
     ("graveyard_matters", "you"): _spec(
         "Your graveyard",
         "self-mill and recursion fuel for your own graveyard, plus the high-ETB and "

@@ -1361,6 +1361,25 @@ def _graveyard_matters(tree: ConceptTree) -> list[Signal]:
     return out
 
 
+def _graveyard_leave_matters(tree: ConceptTree) -> list[Signal]:
+    """graveyard_leave_matters — a trigger that fires when cards LEAVE your
+    graveyard (Teval, Desecrated Tomb, Chalk Outline, Tormod, Syr Konrad). Reads
+    the same typed zone-change origin :func:`_graveyard_matters` does
+    (:func:`trigger_zone_changes`), kept to your own graveyard; a trigger on an
+    opponent's graveyard is not this payoff, and an exile effect (graveyard hate,
+    Bojuka Bog) is no trigger at all, so neither fires."""
+    for unit in tree.units:
+        if unit.origin != "trigger":
+            continue
+        node = unit.node
+        if (
+            any(origin == "Graveyard" for origin, _ in trigger_zone_changes(node))
+            and _gy_scope(trigger_subject_scope(node)) == "you"
+        ):
+            return [Signal("graveyard_leave_matters", "you", "", "", tree.name, "high")]
+    return []
+
+
 def _fight_makers(tree: ConceptTree) -> list[Signal]:
     """fight_makers — a fight DOER (CR 701.14a: each creature deals
     damage equal to its power to the other). Three structural arms, then a
@@ -3193,6 +3212,7 @@ def _venture(tree: ConceptTree) -> list[Signal]:
 LANES = (
     _graveyard_makers,
     _graveyard_matters,
+    _graveyard_leave_matters,
     _fight_makers,
     _goad_makers,
     _regenerate_makers,
