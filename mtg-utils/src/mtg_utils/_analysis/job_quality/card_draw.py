@@ -438,6 +438,11 @@ def _rate(unit: AbilityUnit, src: _Source) -> float:
         constraint == "OnlyDuringYourTurn"
     ):
         r *= 0.3  # opponents rarely act on your turn
+    if constraint == "NthSpellThisTurn":
+        # Only the first such spell each turn (Esper Sentinel's "first
+        # noncreature spell each turn"), where Rhystic Study fires on every
+        # spell: half the firings, the read's own call (2026-11-02).
+        r *= 0.5
     if src.fuel in ("opp_cast", "opp_draw") and (
         tag_of(getattr(unit.node, "valid_target", None)) == "AttachedTo"
     ):

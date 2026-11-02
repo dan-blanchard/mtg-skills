@@ -1331,6 +1331,17 @@ proposal as a deckbuilder, fix the structure, the guide score is a yardstick)**
   call). This closes the loop that began with the full 55-deck re-read of
   batch 16k: every flag each pass raised is fixed above or recorded as a
   verdict with the card text, deck count or measurement behind it.
+- **Batch 16m (2026-11-02; every set's score and every swap unchanged).** The
+  two oldest verdicts re-read against the card text. Fixed: (92) *a draw on
+  the first such spell each turn fires less than one on every spell*
+  (`job_quality.card_draw._rate`: a `NthSpellThisTurn` constraint halves
+  the rate) — Esper Sentinel's "first noncreature spell each turn" had
+  Rhystic Study's flow and read above it (0.98 to 0.96); it now reads
+  0.946. It is still Veloci-Ramp-Tor's card-draw fill, the draw tax it is
+  (rank 80). Re-checked: Blood Rites keeps 26 Vampire creatures and eight
+  Vampire-token makers after the proposal, and Clavileño's "target attacking
+  Vampire that isn't a Demon" needs one an attack — the drop from 35 is the
+  guides' own direction (four Vampires among their 33 adds).
 
 **From the Jace, Multiverse Architect precon tune and the 25-precon audit (2026-10-17 to 2026-11-01)**
 

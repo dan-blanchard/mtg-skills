@@ -197,3 +197,15 @@ def test_cards_leaving_the_graveyard_are_no_self_fuel():
 
     f = read_for("card_draw").features(test_card("Teval's Judgment"))
     assert f["self_fuel"] == 0.0
+
+
+def test_a_first_spell_each_turn_draw_fires_less_than_every_spell():
+    """Esper Sentinel draws on an opponent's "first noncreature spell each
+    turn"; Rhystic Study on every spell: it flows fewer cards and reads below
+    it (2026-11-02)."""
+    from mtg_utils._analysis.job_quality import read_for
+
+    read = read_for("card_draw")
+    sentinel, study = test_card("Esper Sentinel"), test_card("Rhystic Study")
+    assert read.features(sentinel)["flow"] < read.features(study)["flow"]
+    assert read.score(sentinel, ()) < read.score(study, ())
