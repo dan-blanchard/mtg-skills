@@ -1216,12 +1216,7 @@ proposal as a deckbuilder, fix the structure, the guide score is a yardstick)**
   `IsChosenCreatureType` — creatures included. The filter is rewritten to the
   listed card types, so the wipe read sees an artifact-or-enchantment sweep
   and the creature-less veto keeps it out of Tinker Time's board-wipe fill
-  (Faerie Slumber Party now). Measured and reverted: *"remove a counter" of
-  any kind spends a commander's charge counters too* (Gavel of the
-  Righteous' equip cost; Umezawa's Jitte) — the read is right, but the
-  wider need held back Counter Intelligence's upgrades: 30 swaps → 25 and
-  Soul-Guide Lantern, a guide cut, lost (held-out 570 / 263 / 106 → 565 /
-  262 / 106). Verdicts, with the check: Glaring Fleshraker for Hero of
+  (Faerie Slumber Party now). Verdicts, with the check: Glaring Fleshraker for Hero of
   Bladehold (twelve colorless spells feed it, batch 16; a better-played
   theme card); Coretapper for Talisman of Creativity (Coretapper makes
   charge counters, as Inspirit does — a "like the commander" need, which
@@ -1230,6 +1225,20 @@ proposal as a deckbuilder, fix the structure, the guide score is a yardstick)**
   returns creature cards from every graveyard under your control — a theft
   card on Grand Larceny's plan); Gonti's evasive bodies for evasion grants
   (batch 15's verdict). `verify_symptoms.py`: 83.
+- **Batch 16i (2026-11-02; held-out 570 / 263 / 106 → 565 / 262 / 106 — within
+  the gate's floors; the 25 and fresh unchanged).** Fixed: (83) *"remove a
+  counter" of any kind spends a commander's charge counters too*
+  (`commander_need._spends_counters`: a `RemoveCounter` of the kind or of
+  `ANY`): Gavel of the Righteous ("Equip—Pay {3} or remove a counter from
+  this Equipment") went to Serum Snare; it now goes to Umezawa's Jitte,
+  which spends charge counters as well. The deck now keeps Pentad Prism,
+  Long-Range Sensor and Moxite Refinery, all spenders of what Inspirit puts
+  out — which also settles the Pentad Prism for Volt Charge flag — so 30
+  swaps become 25 at the same spend ($40.49 of $40.69), and Soul-Guide
+  Lantern, a guide cut, goes unmade for want of purse. First reverted on the
+  swap count alone; the gate (guide adds ≥ −5, cuts ≥ −1) holds, and the
+  dropped swaps are the deck keeping its plan. Batch 11's `swaps=30` check
+  (a purse that ran dry with cheap cards unreached) becomes `swaps>=25`.
 
 **From the Jace, Multiverse Architect precon tune and the 25-precon audit (2026-10-17 to 2026-11-01)**
 

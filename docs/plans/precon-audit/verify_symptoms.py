@@ -52,7 +52,9 @@ CHECKS = [
            "Etali, Primal Conqueror // Etali, Primal Sickness", batch="11"),
     _check("no_trim", "DanceOfTheElements_ECC", "Cavalier of Thorns", batch="6"),
     _check("no_trim", "PeaceOffering_BLC", "Kwain, Itinerant Meddler", batch="6"),
-    _check("swaps=30", "CounterIntelligence_EOC", batch="11"),
+    # Batch 11's tight-purse fix (cheap cards reached): the purse is spent. Since
+    # 16i the deck keeps its charge spenders, so fewer slots open (25).
+    _check("swaps>=25", "CounterIntelligence_EOC", batch="11"),
     _check("never", "CreativeEnergy_M3C", "Dragon Tempest", batch="7"),
     _check("added", "CallForBackup_MOC", "Doubling Season", "Hardened Scales",
            "Evolution Sage", "Ozolith, the Shattered Spire", batch="10"),
@@ -159,6 +161,9 @@ CHECKS = [
     _check("no_pair", "EternalMight_DRC", "Archfiend of Ifnir -> Counterspell", batch="16g"),
     # A chosen-card-type sweep (artifact or enchantment) is no creature sweeper.
     _check("no_pair", "TinkerTime_MOC", "Junk Winder -> Season of Gathering", batch="16h"),
+    # "Remove a counter" (any kind) spends Inspirit's charge counters: the deck keeps them.
+    _check("kept", "CounterIntelligence_EOC", "Pentad Prism", "Long-Range Sensor", batch="16i"),
+    _check("no_pair", "CounterIntelligence_EOC", "Gavel of the Righteous -> Serum Snare", batch="16i"),
     _check("no_trim", "EldraziIncursion_M3C", "Forsaken Monument", batch="14"),
     _check("no_trim", "TrickyTerrain_M3C", "Mana Reflection", batch="14"),
 ]

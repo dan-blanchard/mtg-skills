@@ -739,6 +739,8 @@ def test_a_commander_placing_charge_counters_wants_their_spenders():
     assert satisfies(test_card("Titan Forge"), need)
     assert satisfies(test_card("Golem Foundry"), need)
     assert not satisfies(test_card("Talisman of Creativity"), need)
+    # "remove a counter", any kind: Inspirit's charge counters pay it too.
+    assert satisfies(test_card("Gavel of the Righteous"), need)
 
 
 def test_a_commanders_own_lifelink_asks_for_no_lifegain_payoffs():

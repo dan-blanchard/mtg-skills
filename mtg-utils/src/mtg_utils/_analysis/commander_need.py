@@ -769,11 +769,13 @@ def _counter_kind_needs(unit_node: object, desc: str) -> Iterator[Need]:
 
 def _spends_counters(kind: str) -> Callable[[dict], bool]:
     """Whether a card removes counters of ``kind`` from itself to pay a cost
-    (Titan Forge's "Remove three charge counters from this artifact")."""
+    (Titan Forge's "Remove three charge counters from this artifact"), or
+    counters of any kind (Gavel of the Righteous' "Equip—Pay {3} or remove a
+    counter from this Equipment": Inspirit's charge counters pay it too)."""
 
     def spends(card: dict) -> bool:
         return any(
-            tag_of(leaf) == "RemoveCounter" and counter_kind_any(leaf) == kind
+            tag_of(leaf) == "RemoveCounter" and counter_kind_any(leaf) in (kind, "ANY")
             for tree in trees_for(dict(card))
             for unit in tree.units
             for leaf in iter_cost_leaves(getattr(unit.node, "cost", None))
