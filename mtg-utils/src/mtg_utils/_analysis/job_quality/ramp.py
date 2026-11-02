@@ -66,6 +66,7 @@ from mtg_utils._card_ir.crosswalk.reads import (
 )
 from mtg_utils.card_classify import color_sources
 from mtg_utils.theme_presets import signal_keys_for
+from mtg_utils.type_line import split_type_line
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -442,6 +443,24 @@ def _read(card: dict) -> _Read:
 _TOKEN_GRANT_REFERENCE = 1 / 4
 
 
+#: The share of a deck's lands of a type at which a bonus on tapping them
+#: runs at full rate (half its lands: a mono-coloured deck's basics).
+_TAPPED_LAND_REFERENCE = 1 / 2
+
+
+def _tapped_land_kinds(card: dict) -> frozenset[str]:
+    """The land types a ``TapsForMana`` trigger of the card watches (Nissa,
+    Who Shakes the World's Forests), lower-cased; empty for any other."""
+    kinds: set[str] = set()
+    for tree in signal_trees_for(card, bulk=card):
+        for unit in tree.units:
+            if getattr(unit.node, "mode", None) != "TapsForMana":
+                continue
+            valid = getattr(unit.node, "valid_card", None)
+            kinds |= {w.lower() for w in filter_subtypes(valid)}
+    return frozenset(kinds)
+
+
 def deck_fit(card: dict, deck_records: Sequence[dict]) -> float:
     """The share of ``card``'s ramp its deck can fuel: a grant of mana to
     your creature tokens and nothing else (Insidious Roots' "Creature tokens
@@ -449,8 +468,25 @@ def deck_fit(card: dict, deck_records: Sequence[dict]) -> float:
     token makers, against a quarter of its nonland cards — it read above
     Timeless Lotus in Dance of the Elements (2026-11-02). 1.0 for any other
     ramp."""
+    if not deck_records:
+        return 1.0
+    kinds = _tapped_land_kinds(card)
+    if kinds:
+        # A bonus on tapping lands of a type (Nissa, Who Shakes the World's
+        # "Whenever you tap a Forest for mana, add an additional {G}") runs on
+        # the deck's lands of it, against half its lands: it read four mana a
+        # turn in Dance of the Elements, eight Forests of 38 (2026-11-02).
+        lands = [d for d in deck_records if "Land" in (d.get("type_line") or "")]
+        if not lands:
+            return 1.0
+        typed = sum(
+            1
+            for d in lands
+            if kinds & {w.lower() for w in split_type_line(d.get("type_line") or "")[1]}
+        )
+        return min(1.0, typed / len(lands) / _TAPPED_LAND_REFERENCE)
     r = _read(card)
-    if not r.token_grant or r.turn or r.tap_best or r.land_bf or not deck_records:
+    if not r.token_grant or r.turn or r.tap_best or r.land_bf:
         return 1.0
     nonland = [d for d in deck_records if "Land" not in (d.get("type_line") or "")]
     if not nonland:

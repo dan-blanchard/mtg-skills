@@ -108,3 +108,14 @@ def test_a_mana_grant_to_creature_tokens_runs_on_token_makers():
     rocks = [test_card("Mind Stone")] * 20
     assert ramp.deck_fit(test_card("Insidious Roots"), rocks) == 0.0
     assert ramp.deck_fit(test_card("Sol Ring"), rocks) == 1.0
+
+
+def test_a_bonus_on_tapping_forests_runs_on_the_decks_forests():
+    """Nissa, Who Shakes the World adds {G} "whenever you tap a Forest for
+    mana": a deck of Islands feeds none of it (Dance of the Elements,
+    2026-11-02)."""
+    from mtg_utils._analysis.job_quality import ramp
+
+    nissa = test_card("Nissa, Who Shakes the World")
+    assert ramp.deck_fit(nissa, [test_card("Forest")] * 20) == 1.0
+    assert ramp.deck_fit(nissa, [test_card("Island")] * 20) == 0.0

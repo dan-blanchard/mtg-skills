@@ -4214,3 +4214,11 @@ def test_a_cheaper_card_is_a_tempo_upgrade_only_while_it_keeps_the_job():
     assert not _reads_worse_at_the_job(
         test_card("Duplicant"), test_card("Meteor Golem"), "interaction", []
     )
+
+
+def test_a_card_that_stops_land_plays_is_read():
+    """Aggressive Mining: "You can't play lands" (World Shaper, 2026-11-02)."""
+    from mtg_utils._tuner.swaps import _stops_land_plays
+
+    assert _stops_land_plays(test_card("Aggressive Mining"))
+    assert not _stops_land_plays(test_card("Sol Ring"))

@@ -1564,6 +1564,31 @@ proposal as a deckbuilder, fix the structure, the guide score is a yardstick)**
   Cavalier of Thorns (its ramp row is short, so it keeps its job page);
   Ribtruss Roaster for Inspiring Call (its fuel read now applies).
   `verify_symptoms.py`: 139.
+- **Batch 16t (2026-11-02; every set's score unchanged; three swaps moved).**
+  The re-read of batch 16s's 15 changed proposals (two Sonnet reviewers,
+  every card looked up; 8 flags). Fixed: (140) *a bonus on tapping lands of
+  a type runs on the deck's lands of it* (`ramp.deck_fit`, against half its
+  lands): Nissa, Who Shakes the World reads at half in Dance of the
+  Elements' eight Forests of 38 — still above Timeless Lotus, since her +1
+  untaps a land each turn. (141) *a deck that plays extra lands or pays off
+  landfall takes no add that stops it playing lands*
+  (`swaps._stops_land_plays`): Aggressive Mining under Hearthhull now goes
+  to Hew the Entwood. Open: the removal read sizes Fling's "damage equal to
+  the sacrificed creature's power" as a scaling amount whatever the deck's
+  creatures (Palace Jailer to Fling in Riders of Rohan's small Humans) — a
+  deck-sized amount for removal, as `board_wipe` has. Verdicts, with the
+  card text or count: Eldrazi Monument (its upkeep sacrifice is the
+  protection read's `upkeep_cost`); Putrefy for An Offer You Can't Refuse
+  (counterspells are outside the creature-reach rule by design); Magmatic
+  Insight for Mask of Memory (both bin a Desert for Yuma); The Scorpion God
+  for Sword of Truth and Justice (its proliferate feeds Auntie Ool; the
+  +1/+1 clash is a play note); Fire Covenant for Chaos Warp (interaction
+  staple); Insidious Roots in Food and Fellowship (eight creature-token
+  makers — Field-Tested Frying Pan makes Halflings — fit 0.52). The three
+  moved swaps were read too: There and Back Again (a Mountain and a 6/6
+  Dragon in a deck with Mountains), Hew the Entwood (it sacrifices lands for
+  Hearthhull), Rishkar, Peema Renegade (Hakbal's countered creatures tap for
+  mana). `verify_symptoms.py`: 140.
 
 **From the Jace, Multiverse Architect precon tune and the 25-precon audit (2026-10-17 to 2026-11-01)**
 

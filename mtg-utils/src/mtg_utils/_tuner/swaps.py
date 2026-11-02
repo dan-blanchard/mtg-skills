@@ -359,6 +359,17 @@ def _does_the_job(
     return read.score(card) is not None and read.deck_fit(card, deck) >= _DECK_FIT_FLOOR
 
 
+def _stops_land_plays(card: Mapping) -> bool:
+    """Whether a static of the card stops you playing lands (Aggressive
+    Mining's "You can't play lands", a ``CantPlayLand`` mode)."""
+    return any(
+        unit.origin == "static"
+        and "CantPlayLand" in str(getattr(unit.node, "mode", ""))
+        for tree in trees_for(dict(card))
+        for unit in tree.units
+    )
+
+
 #: Colorless sources a deck holds per {C} pip of an add's cost: eight cast
 #: Kozilek's Command's and Warping Wail's two in Peace Offering and Mardu
 #: Surge (batch 15's verdict); twelve for Echoes of Eternity's three.
@@ -2422,6 +2433,12 @@ def propose_swaps(
     # of Kinship and Coat of Arms on Bello's artifact page, Hardened Scales
     # on Anikthea's enchantments (2026-11-02). Read once per card.
     deck_keys, deck_tribe_counts, deck_type_counts = deck_profile(classes)
+    # A deck that plays extra lands or pays off landfall takes no add that
+    # stops it playing lands (:func:`_stops_land_plays`).
+    plays_lands = (
+        deck_keys.get("extra_land_drop", 0) + deck_keys.get("landfall", 0)
+        >= _FEEDER_FLOOR
+    )
     dead_memo: dict[str, bool] = {}
 
     def dead_here(card: Mapping) -> bool:
@@ -3164,6 +3181,11 @@ def propose_swaps(
                 continue
             if not game_changers.allows(card):
                 continue  # ADR-0030: never propose an add past the bracket's ceiling
+            if plays_lands and _stops_land_plays(card):
+                # "You can't play lands" in a deck that plays extra lands or
+                # pays off landfall: Aggressive Mining under Hearthhull, the
+                # Worldseed (World Shaper, 2026-11-02).
+                continue
             pips = (card.get("mana_cost") or "").count("{C}")
             if pips and colorless_sources < _C_SOURCES_PER_PIP * pips:
                 # Echoes of Eternity's {C}{C}{C} in Animated Army, a Gruul
