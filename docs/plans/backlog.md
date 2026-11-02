@@ -431,12 +431,15 @@ headroom and parked items.
 proposal as a deckbuilder, fix the structure, the guide score is a yardstick)**
 
 - **The 25-precon pass is closed (2026-11-02): every flaw its reads found has
-  a fix in the tree, verified card by card on the latest run (the eighteen
-  symptom checks in batch 11's entry, all passing) and on the fresh 10-deck
-  set never used for design** (`~/mtg/tuner-work/fresh/root`; its pre-pass
-  baseline `w41/misses-fresh-N16.json`: 295 / 130 / 38 → 295 / 130 / 37).
-  The approaches measured and rejected along the way (under Settled with
-  their numbers) were alternative routes to flaws fixed by other means.
+  a fix in the tree, verified card by card on the latest run
+  (`docs/plans/precon-audit/verify_symptoms.py` over the three `misses.json`
+  files: 31 checks, one per flaw, all passing) and on the fresh 10-deck set
+  never used for design** (`~/mtg/tuner-work/fresh/root`; its pre-pass
+  baseline `w41/misses-fresh-N16.json`: 295 / 130 / 38 → 295 / 133 / 39,
+  re-read deck by deck after the last batch — batch 12). The approaches
+  measured and rejected along the way (under Settled with their numbers) were
+  alternative routes to flaws fixed by other means; each entry names the fix
+  that covers its flaw.
 
 ## Settled: don't re-suggest
 
@@ -600,13 +603,14 @@ proposal as a deckbuilder, fix the structure, the guide score is a yardstick)**
   banner still through on its draw key).
 - **Batch 7 (2026-11-02; the 25 730 / 340 / 120 unchanged, held-out 577 /
   259 / 104 unchanged).** (29) *A trigger gated on a creature type the deck
-  lacks is a dead payoff too*, read off phase's trees (`swaps._tribe_gates`:
-  each trigger's `valid_card` subtypes, the field `ranking._ir_gate_subtypes`
-  reads on the compat Card — whose sidecar CI has no copy of, which the
-  CI-style run caught): when most of the card's triggers are so gated and it
-  has nothing to activate, whatever they do waits on a tribe that never
-  comes. The tribal rule (`tribal_without_tribe`: this and the choose-a-type
-  read) applies on every page, a job page's included — Dragon Tempest left
+  lacks is a dead payoff too*, read off phase's trees (now `swaps._unit_gates`,
+  batch 12: each trigger's `valid_card` subtypes, the field
+  `ranking._ir_gate_subtypes` reads on the compat Card — whose sidecar CI has
+  no copy of, which the CI-style run caught): when most of the card's
+  triggers are so gated and it has nothing to activate, whatever they do
+  waits on a tribe that never comes. The gate rule (`gated_without_feed`:
+  this and the choose-a-type read) applies on every page, a job page's
+  included — Dragon Tempest left
   Endless Punishment's and Creative Energy's interaction upgrades. The CR's
   creature types only (`_card_ir.creature_types`): Ygra, Eater of All's Food
   is an artifact type the deck makes, and the bulk-harvested
@@ -680,6 +684,49 @@ proposal as a deckbuilder, fix the structure, the guide score is a yardstick)**
   only). Verified on the run: all of batch 10's checks, plus Etali kept
   under Pantlaza, Counter Intelligence at 30 swaps, Explorers at 30 with its
   weak Merfolk cut.
+- **Batch 12 (2026-11-02; the 25 732 / 340 / 121 → 733 / 339 / 119,
+  held-out 578 / 259 / 103 → 576 / 259 / 104, fresh 295 / 130 / 37 → 295 /
+  133 / 39).** The fresh ten re-read deck by deck after batch 11. (39) *A
+  unit gated on a card type or a gear type the deck lacks is as dead as one
+  gated on a tribe* (`swaps._unit_gates` replaces `_tribe_gates`: a trigger's
+  `valid_card` and a static's `affected` give their creature types, the card
+  types in `_GATE_TYPE_WORDS` — instant, sorcery, artifact, enchantment,
+  planeswalker, legendary — and their other subtypes; a card type is fed by
+  `_TYPE_GATE_FLOOR` (15) cards of it, a creature or gear type by the
+  feeder floor; a type a static grants feeds its gate (Ygra's Food); the
+  card's own type and tokens feed a trigger's gate, never a static's — a lord
+  for other Zombies; `deck_profile` now counts the deck's type words too).
+  Docent of Perfection (two Wizard tokens a turn in an Eldrazi deck with
+  thirteen spells), Puresteel Paladin (two Equipment), Death Baron, Kor
+  Spiritdancer, Starfield Mystic (Party Time's Cleric and Wizard pages),
+  Rising of the Day (seven legends) and Cyberdrive Awakener are gone from
+  the pages; Sai, Master Thopterist (an activated draw) and Danitha (phase
+  types only her cost reduction) stay admissible by design. (40) *The ramp
+  band rises with the deck's top end* (`budgets.top_end_ramp_shift`: one
+  slot per two nonland cards at effective mana value five or more beyond
+  fourteen per hundred, on both ends of the band, reported as the row's
+  `top_end_shift`): the guides keep sixteen to twenty-two ramp in the decks
+  with twenty-five or more five-drops and trim none; a flat band cut Eldrazi
+  Incursion's three Talismans, Awakening Zone and Forsaken Monument for
+  "ramp over by 9" (now the two Hedrons, the guide's cuts, over by 2 at
+  17-19), Necron Dynasties' Illuminor Szeras — a guide add — for over by 1,
+  and Temur Roar's and Prismari Artistry's ramp the guides added to. Cost:
+  Animated Army's trim list is four shorter (Rain of Riches, a guide cut,
+  no longer reached), Temur Roar proposes 24 swaps for 27. (41) *A sacrifice
+  a mandatory trigger forces at a time you don't pick is the card's drawback,
+  not an outlet* (`board_and_ramp._forced_sacrifice_unit`, before the
+  sacrifice-outlet lane's effect arm: a phase trigger — Rust Elemental's,
+  Lord of the Pit's, Braids' upkeep — or a trigger any player's action fires,
+  Desecration Elemental's "whenever a player casts a spell"; an enters,
+  attack or your-own-cast trigger stays one): Ashling's "creatures that
+  sacrificed" need had put Rust Elemental and Desecration Elemental on Dance
+  of the Elements' page as two-need suppliers. Verdict, not a fix: Omo's
+  primary lane is Combat (her attack trigger is how her counters land, and
+  the deck holds no everything-counter lane), so Tricky Terrain's theme page
+  serves combat support for Omo where the guides build land-type payoffs;
+  the tuner's read is a defensible plan, the guides' needs a lane the deck
+  doesn't hold. Verified with `docs/plans/precon-audit/verify_symptoms.py`
+  (31 / 31 on this run; 20 / 31 on the previous — every batch-12 check bit).
 
 **From the Jace, Multiverse Architect precon tune and the 25-precon audit (2026-10-17 to 2026-11-01)**
 

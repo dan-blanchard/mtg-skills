@@ -1268,6 +1268,21 @@ def test_sac_and_return_this_turn_does_not_over_fire_sacrifice():
     assert ("sacrifice_outlets", "you") not in _ks_real("Grizzly Bears")
 
 
+def test_a_forced_sacrifice_is_a_drawback_not_an_outlet():
+    """A sacrifice a mandatory trigger forces at a time its controller doesn't
+    pick — Rust Elemental's and Lord of the Pit's upkeep, Desecration
+    Elemental's "whenever a player casts a spell" — is the card's drawback,
+    not an outlet (Ashling's deck took Desecration Elemental for its
+    sacrifice, Dance of the Elements 2026-11-02). One its controller times
+    stays an outlet: Disciple of Bolas sacrifices as it enters, Viscera Seer
+    as a cost."""
+    for name in ("Rust Elemental", "Lord of the Pit", "Desecration Elemental"):
+        assert ("sacrifice_outlets", "you") not in _ks_real(name), name
+        assert ("self_drawback", "you") in _ks_real(name), name
+    for name in ("Disciple of Bolas", "Viscera Seer"):
+        assert ("sacrifice_outlets", "you") in _ks_real(name), name
+
+
 def test_warp_granting_is_not_cheat_into_play():
     # Tannuk grants WARP ("Artifact cards and red creature cards in your hand have
     # warp {2}{R}"). ADR-0038 W6 endgame adjudicated this a legacy OVER-FIRE (the

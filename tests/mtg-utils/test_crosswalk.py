@@ -1527,20 +1527,18 @@ def test_sacrifice_outlets_token_predicate_effect_arm():
     assert ("sacrifice_outlets", "you", "") in _idents("Chitterspitter")
 
 
-@pytest.mark.parametrize(
-    "name",
-    [
-        "Lord of the Pit",  # "sacrifice a creature other than ~" — bare imperative
-        "Disciple of Bolas",  # "sacrifice another creature" — ETB effect
-    ],
-)
-def test_sacrifice_outlets_unset_controller_defaults_to_you(name):
+def test_sacrifice_outlets_unset_controller_defaults_to_you():
     """ADR-0038 W6 endgame — the DOMINANT residual class: a Sacrifice EFFECT
     whose target carries NO ``controller`` tag at all now defaults to you
     (CR 109.5 — "you"/"your" means an object's controller; Magic's
     templating omits an explicit "you" subject on a bare imperative
-    addressed to the ability's own controller)."""
-    assert ("sacrifice_outlets", "you", "") in _idents(name)
+    addressed to the ability's own controller): Disciple of Bolas's
+    "sacrifice another creature" as it enters. Lord of the Pit's bare
+    imperative reads as yours too, but its upkeep trigger forces it at a time
+    you don't pick — the card's drawback, no outlet (the tuner's batch 12,
+    2026-11-02; ``_forced_sacrifice_unit``)."""
+    assert ("sacrifice_outlets", "you", "") in _idents("Disciple of Bolas")
+    assert ("sacrifice_outlets", "you", "") not in _idents("Lord of the Pit")
 
 
 @pytest.mark.parametrize(

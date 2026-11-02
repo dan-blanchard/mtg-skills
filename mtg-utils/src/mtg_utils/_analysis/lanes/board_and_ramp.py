@@ -99,6 +99,7 @@ from mtg_utils._card_ir.crosswalk import (
     or_arms,
     ref_count_filter,
     reveal_until_player,
+    self_drawbacks,
     static_mode_field,
     static_mode_tag,
     tag_of,
@@ -269,6 +270,42 @@ def _sacrifices_itself(cost: object) -> bool:
     )
 
 
+def _forced_sacrifice_unit(unit: AbilityUnit, tree: ConceptTree) -> bool:
+    """Whether ``unit`` is a mandatory trigger of a card that hurts its own
+    controller (:func:`crosswalk.self_drawbacks`' harm) and fires at a time
+    they don't pick — a phase of the turn (Rust Elemental's and Lord of the
+    Pit's upkeep, Braids, Cabal Minion's) or a spell any player casts
+    (Desecration Elemental) — so a sacrifice in it is the card's drawback,
+    not an outlet: nothing in the deck is sacrificed on its controller's
+    terms, and Ashling's deck wants no Desecration Elemental for its
+    sacrifice (Dance of the Elements, 2026-11-02). A trigger its controller
+    times — the cast that enters it (Fleshbag Marauder, Disciple of Bolas),
+    its own attack, a spell they cast — stays an outlet, and so does a
+    sacrifice the harm read doesn't charge to you: the ambiguous
+    "its controller sacrifices" shapes (Tainted Aether, Strangling Grasp)
+    keep their W7 adjudication. The W6 unset-controller default below
+    (Desecration Elemental's class) still reads the sacrifice as yours; this
+    read says it is not an outlet."""
+    if unit.origin != "trigger" or getattr(unit.node, "optional", False) is True:
+        return False
+    if unit.trigger_event == "phase":
+        forced = True
+    elif getattr(unit.node, "mode", None) == "SpellCast":
+        # "a player casts" carries no caster (``trigger_caster_scope`` None).
+        forced = trigger_caster_scope(unit.node) != "you"
+    else:
+        forced = False
+    if not forced or not self_drawbacks(tree).harm:
+        return False
+    # "Its controller sacrifices" over an ambiguous parent (Strangling Grasp's
+    # enchanted permanent) keeps the W7 you-outlet adjudication.
+    return not any(
+        getattr(n, "controller", None)
+        in ("ParentTargetController", "EventTargetController")
+        for n in iter_typed_nodes(unit.node)
+    )
+
+
 def _sacrifice_outlets(tree: ConceptTree) -> list[Signal]:
     """A sac outlet / sac payoff (Ashnod's Altar, Mortician Beetle — CR 701.21).
 
@@ -436,7 +473,11 @@ def _sacrifice_outlets(tree: ConceptTree) -> list[Signal]:
         # the sac's OWN ability wrapper does not name a non-controller actor (the
         # per-effect player_scope guard catches the "each opponent sacrifices" edicts
         # phase mislabels as a you-controlled sacrificed subject — Grave Pact, Dictate
-        # of Erebos, Baleful Beholder's modal mode arm).
+        # of Erebos, Baleful Beholder's modal mode arm). A sacrifice a trigger
+        # forces on you at a time you don't pick is the card's drawback, not an
+        # outlet (:func:`_forced_sacrifice_unit`).
+        if _forced_sacrifice_unit(unit, tree):
+            continue
         for c in unit.effects:
             if (
                 c.concept == "sacrifice"

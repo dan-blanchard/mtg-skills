@@ -24,6 +24,7 @@ from __future__ import annotations
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 
+from mtg_utils._analysis.costs import effective_mana_value
 from mtg_utils._analysis.roles import DeckMana, role_of
 from mtg_utils.card_classify import is_creature, is_land
 from mtg_utils.formats import Family
@@ -277,6 +278,7 @@ def slot_budgets(
         for row in tmpl.rows:
             if row.counts(record, roles):
                 current[row.key] += 1
+    shift = top_end_ramp_shift(records, scale) if "ramp" in bands else 0
     out: dict[str, dict] = {}
     for row in tmpl.rows:
         lo, hi = bands[row.key]
@@ -285,6 +287,9 @@ def slot_budgets(
         else:
             rmin = round(lo * scale)
             rmax = round(hi * scale)
+        if row.key == "ramp":
+            rmin += shift
+            rmax += shift
         have = current[row.key]
         if have < rmin:
             deviation = have - rmin
@@ -302,4 +307,32 @@ def slot_budgets(
             "label": row.label,
             "advisory": row.advisory,
         }
+        if row.key == "ramp":
+            out[row.key]["top_end_shift"] = shift
     return out
+
+
+#: A card on the deck's top end: mana value five or more on the curve
+#: (:func:`effective_mana_value` — a warped or evoked card is cast cheaper).
+TOP_END_MV = 5
+#: The top-end count the template's ramp band is stated at, per 100 cards: a
+#: deck with more wants ramp beyond the band, one per two extra top-end cards.
+TOP_END_BASE = 14
+
+
+def top_end_ramp_shift(records: Sequence[dict | None], scale: float = 1.0) -> int:
+    """How far the ramp band rises for a top-heavy deck: one slot per two
+    nonland cards of :data:`TOP_END_MV` or more beyond :data:`TOP_END_BASE`
+    (scaled to the deck's size). The template's ten to twelve ramp is stated
+    for an ordinary curve; the upgrade guides keep sixteen to twenty-two ramp
+    in the decks with twenty-five or more five-drops (the Eldrazi precons, the
+    Elemental and Dinosaur ones) and trim none of it, where a flat band cut
+    the Eldrazi Incursion precon's Talismans for being ramp over by nine and
+    the Necron precon's Illuminor Szeras, a guide add, for ramp over by one
+    (2026-11-02). The lane's own line, not a rule's."""
+    big = sum(
+        1
+        for r in records
+        if r and not is_land(r) and effective_mana_value(r) >= TOP_END_MV
+    )
+    return max(0, big - round(TOP_END_BASE * scale)) // 2

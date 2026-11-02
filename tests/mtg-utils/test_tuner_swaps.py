@@ -3589,16 +3589,19 @@ def test_a_payoff_for_what_the_deck_does_not_do_is_dead_there():
 
     no_tribe, dinos = Counter(), Counter({"dinosaur": 12})
     none, counters = Counter(), Counter({"plus_one_makers": 6})
+    no_types = Counter()
+
+    def dead(name, keys=none, tribes=no_tribe, types=no_types):
+        return dead_payoff(test_card(name), keys, tribes, types)
+
     for name in ("Banner of Kinship", "Door of Destinies", "Coat of Arms"):
-        assert dead_payoff(test_card(name), none, no_tribe), name
-        assert not dead_payoff(test_card(name), none, dinos), name
-    assert dead_payoff(test_card("Hardened Scales"), none, no_tribe)
+        assert dead(name), name
+        assert not dead(name, tribes=dinos), name
+    assert dead("Hardened Scales")
     # A doubler wants twice the floor: six counter cards are incidental
     # (Anikthea's), twelve are the plan.
-    assert dead_payoff(test_card("Hardened Scales"), counters, no_tribe)
-    assert not dead_payoff(
-        test_card("Hardened Scales"), Counter({"plus_one_makers": 12}), no_tribe
-    )
+    assert dead("Hardened Scales", keys=counters)
+    assert not dead("Hardened Scales", keys=Counter({"plus_one_makers": 12}))
     for name in (
         "Etali, Primal Conqueror // Etali, Primal Sickness",
         "Myr Battlesphere",
@@ -3607,7 +3610,7 @@ def test_a_payoff_for_what_the_deck_does_not_do_is_dead_there():
         "Farseek",  # a Plains is no tribe
         "Black Market Connections",  # a life payment wants no life gain
     ):
-        assert not dead_payoff(test_card(name), none, no_tribe), name
+        assert not dead(name), name
     # A choose-a-type card is tribal through and through: Vanquisher's Banner
     # draws nothing without a tribe, whatever page asks for it.
     from mtg_utils._tuner.swaps import chooses_a_type_without_tribe
@@ -3618,15 +3621,46 @@ def test_a_payoff_for_what_the_deck_does_not_do_is_dead_there():
     # A trigger gated on a tribe the deck lacks, and nothing else to do: Dragon
     # Tempest's damage waits on Dragons that never come; with ten Dragons it
     # is alive.
-    assert dead_payoff(test_card("Dragon Tempest"), none, no_tribe)
-    assert not dead_payoff(test_card("Dragon Tempest"), none, Counter({"dragon": 10}))
-    # A gate on an artifact type is no tribe: Ygra, Eater of All's Food.
-    assert not dead_payoff(test_card("Ygra, Eater of All"), none, no_tribe)
-    # The tribal rule alone is what a job page applies.
-    from mtg_utils._tuner.swaps import tribal_without_tribe
-
-    assert tribal_without_tribe(test_card("Dragon Tempest"), no_tribe)
-    assert not tribal_without_tribe(
-        test_card("Dragon Tempest"), Counter({"dragon": 10})
+    assert dead("Dragon Tempest")
+    assert not dead("Dragon Tempest", tribes=Counter({"dragon": 10}))
+    # Ygra, Eater of All's Food gate is fed by the Food she makes of everything.
+    assert not dead("Ygra, Eater of All")
+    # A unit gated on a card type or a gear type the deck lacks is as dead as
+    # one gated on a tribe: Talrand's and Docent of Perfection's tokens wait on
+    # instants and sorceries (thirteen are too few; twenty are a spellslinger
+    # deck), Puresteel Paladin's draw on Equipment (two, or six), Death
+    # Baron's anthem on Zombies (its own Zombie type feeds no static), Kor
+    # Spiritdancer's draw on Auras, Rising of the Day's bonus on legends
+    # (seven, or fifteen). Sai, Master Thopterist's cast trigger is unfed in a
+    # Humans deck, but its draw can be activated; Knight of the White Orchid's
+    # Plains is a land type, no gate (2026-11-02).
+    few_spells = Counter({"instant": 7, "sorcery": 6})
+    many_spells = Counter({"instant": 10, "sorcery": 10})
+    for name in ("Talrand, Sky Summoner", "Docent of Perfection // Final Iteration"):
+        assert dead(name, types=few_spells), name
+        assert not dead(name, types=many_spells), name
+    assert dead("Puresteel Paladin", types=Counter({"equipment": 2, "artifact": 12}))
+    assert not dead(
+        "Puresteel Paladin", types=Counter({"equipment": 6, "artifact": 12})
     )
-    assert not tribal_without_tribe(test_card("Farseek"), no_tribe)
+    assert dead("Death Baron")
+    assert not dead("Death Baron", tribes=Counter({"zombie": 6}))
+    assert dead("Kor Spiritdancer")
+    assert not dead("Kor Spiritdancer", types=Counter({"aura": 8}))
+    assert dead("Rising of the Day", types=Counter({"legendary": 7}))
+    assert not dead("Rising of the Day", types=Counter({"legendary": 15}))
+    assert not dead("Sai, Master Thopterist", types=Counter({"artifact": 12}))
+    assert not dead("Knight of the White Orchid")
+    # The gate rule alone is what a job page applies.
+    from mtg_utils._tuner.swaps import gated_without_feed
+
+    assert gated_without_feed(test_card("Dragon Tempest"), no_tribe, no_types)
+    assert not gated_without_feed(
+        test_card("Dragon Tempest"), Counter({"dragon": 10}), no_types
+    )
+    assert not gated_without_feed(test_card("Farseek"), no_tribe, no_types)
+    # Sram, Senior Edificer draws for gear a deck without gear never casts.
+    assert gated_without_feed(test_card("Sram, Senior Edificer"), no_tribe, no_types)
+    assert not gated_without_feed(
+        test_card("Sram, Senior Edificer"), no_tribe, Counter({"aura": 6})
+    )

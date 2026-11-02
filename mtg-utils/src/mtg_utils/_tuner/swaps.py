@@ -22,6 +22,7 @@ from collections.abc import Callable, Collection, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Protocol
 
+from mtg_utils._analysis._subtypes import LAND_SUBTYPES
 from mtg_utils._analysis.budgets import COMMANDER_TEMPLATE, Template
 from mtg_utils._analysis.card_quality import quality
 from mtg_utils._analysis.card_reads import has_trees
@@ -37,7 +38,13 @@ from mtg_utils._analysis.signal_specs import (
 )
 from mtg_utils._analysis.signals import grant_payloads_for
 from mtg_utils._card_ir.creature_types import CREATURE_TYPES
-from mtg_utils._card_ir.crosswalk.reads import _present, filter_subtypes
+from mtg_utils._card_ir.crosswalk.reads import (
+    _present,
+    filter_core_types,
+    filter_subtypes,
+    iter_typed_nodes,
+    tag_of,
+)
 from mtg_utils._card_ir.trees import trees_for
 from mtg_utils._tuner import mana_base
 from mtg_utils._tuner.ability_quality import grant_grade, outgrades
@@ -479,23 +486,52 @@ _MULTIPLIER_FEEDER_FLOOR = 2 * _FEEDER_FLOOR
 _MULTIPLIER_KEYS = frozenset(
     {"counter_doubling", "counter_replace_bonus", "token_doubling"}
 )
+#: The card types (and the one supertype) a payoff's unit is gated on beside a
+#: creature type: a spellslinger's instants and sorceries (Talrand), an
+#: artifact or enchantment cast (Sai, Master Thopterist; Starfield Mystic),
+#: legends (Rising of the Day). Fed by :data:`_TYPE_GATE_FLOOR` cards of the
+#: type — a quarter of the nonlands; twelve artifacts make no artifact deck
+#: (Riders of Rohan's Sai, 2026-11-02) — where a creature type or a gear type
+#: (Equipment, Aura) is fed by :data:`_FEEDER_FLOOR` (:func:`_unit_gates`).
+_GATE_TYPE_WORDS = frozenset(
+    {"instant", "sorcery", "artifact", "enchantment", "planeswalker", "legendary"}
+)
+_TYPE_GATE_FLOOR = 15
+#: A land type gates nothing (Farseek's Plains, Knight of the White Orchid's).
+_LAND_TYPE_WORDS = frozenset(s.lower() for s in LAND_SUBTYPES)
+#: The type words every deck has: no gate (Asceticism's creatures).
+_GENERIC_TYPE_WORDS = frozenset(
+    {"creature", "permanent", "card", "spell", "land", "token", "kindred", "tribal"}
+)
 
 
-def deck_profile(classes: Sequence[CardClass]) -> tuple[Counter, Counter]:
+def deck_profile(classes: Sequence[CardClass]) -> tuple[Counter, Counter, Counter]:
     """What the deck does, for :func:`dead_payoff`: its signal keys by the
-    cards carrying them, and its creatures' subtypes by count."""
+    cards carrying them, its creatures' subtypes by count, and its cards'
+    other type words by count — card types and supertypes (``instant``,
+    ``artifact``, ``legendary``) and non-creature subtypes (``equipment``,
+    ``aura``, ``food``), the gates :func:`_unit_gates` reads."""
     keys: Counter = Counter()
     tribes: Counter = Counter()
+    types: Counter = Counter()
     for c in classes:
         for ident in _signal_idents_for(c.record, include_membership=False):
             keys[ident.split("|", 1)[0]] += 1
-        if "creature" in (c.record.get("type_line") or "").lower():
-            for sub in split_type_line(c.record.get("type_line") or "")[1]:
+        words, subs = split_type_line(c.record.get("type_line") or "")
+        lowered = {w.lower() for w in words}
+        if "creature" in lowered:
+            for sub in subs:
                 tribes[sub.lower()] += 1
-    return keys, tribes
+        for word in lowered | {
+            s.lower() for s in subs if s.lower() not in _CREATURE_SUBTYPE_WORDS
+        }:
+            types[word] += 1
+    return keys, tribes, types
 
 
-def dead_payoff(card: Mapping, deck_keys: Counter, deck_tribes: Counter) -> bool:
+def dead_payoff(
+    card: Mapping, deck_keys: Counter, deck_tribes: Counter, deck_types: Counter
+) -> bool:
     """Whether ``card`` is a payoff for what the deck doesn't do: every
     mechanic it cares about has fewer than :data:`_FEEDER_FLOOR` doers in the
     deck (``metrics.payoff_feeders``), the card feeds none of them itself, and
@@ -508,7 +544,13 @@ def dead_payoff(card: Mapping, deck_keys: Counter, deck_tribes: Counter) -> bool
     poison, and a doer besides), Myr Battlesphere (its Myr are its own
     tokens), Birgi (boast unfed, but a mana doer), Farseek (a Plains is no
     tribe); a card caring about nothing the read names is never dead
-    (2026-11-02)."""
+    (2026-11-02).
+
+    A unit gated on a type the deck lacks is as dead as one gated on a tribe
+    (:func:`_unit_gates`): Docent of Perfection's Wizards wait on instants and
+    sorceries an Eldrazi deck casts thirteen of, Puresteel Paladin's draw on
+    Equipment a Humans deck holds two of, Death Baron's anthem on Zombies a
+    Party deck has none of (2026-11-02)."""
     idents = _signal_idents_for(dict(card), include_membership=False)
     own_keys = {i.split("|", 1)[0] for i in idents}
     makes_tokens = any(i.startswith(f"{TOKEN_MAKER}|") for i in idents)
@@ -516,6 +558,7 @@ def dead_payoff(card: Mapping, deck_keys: Counter, deck_tribes: Counter) -> bool
     feeders = payoff_feeders()
     verdicts: list[bool] = []
     cares: set[str] = set()
+    gated = _unit_gates(card)
     for ident in idents:
         key, scope, subject = ident.split("|", 2)
         chooses_a_type = key == "chosen_type_matters" or (
@@ -529,8 +572,11 @@ def dead_payoff(card: Mapping, deck_keys: Counter, deck_tribes: Counter) -> bool
             # A creature type the card names among YOUR permanents (Dragon
             # Tempest's Dragons); a land type (Farseek's Plains), a gear type
             # (Sram's Auras) or another player's is no tribe the deck fields.
+            # Where the trees show the gates, they are the read: Docent of
+            # Perfection's Wizard tokens arrive only on the spells its gated
+            # trigger waits for, so they feed no Wizard reference of its own.
             sub = subject.lower()
-            if scope != "you" or sub not in _CREATURE_SUBTYPE_WORDS:
+            if scope != "you" or sub not in _CREATURE_SUBTYPE_WORDS or gated.gates:
                 continue
             cares.add(key)
             verdicts.append(
@@ -550,20 +596,16 @@ def dead_payoff(card: Mapping, deck_keys: Counter, deck_tribes: Counter) -> bool
             verdicts.append(
                 self_fed or sum(deck_keys.get(f, 0) for f in fed_by) >= floor
             )
-    # A trigger gated on a creature type (Dragon Tempest's "whenever a Dragon
-    # you control enters"): the gate lives in the IR, not in a key. Fed by the
-    # deck's creatures of the type, the card's own type, or its own tokens.
-    gates, _triggers, _activated = _tribe_gates(card)
-    for tribes in gates:
-        cares.add("tribe_gate")
-        verdicts.append(
-            makes_tokens
-            or bool(tribes & own_subtypes)
-            or any(deck_tribes.get(t, 0) >= _FEEDER_FLOOR for t in tribes)
-        )
+    # A unit gated on a creature type (Dragon Tempest's "whenever a Dragon
+    # you control enters"), a card type or a gear type: the gate lives in the
+    # IR, not in a key. Fed by the deck's cards of the type, the card's own
+    # type, or its own tokens.
+    for gate in gated.gates:
+        cares.add("unit_gate")
+        verdicts.append(gated.fed(gate, deck_tribes, deck_types))
     if not verdicts or any(verdicts):
         return False
-    if tribal_without_tribe(card, deck_tribes):
+    if gated_without_feed(card, deck_tribes, deck_types):
         return True
     multiplier_feeders = frozenset().union(
         *(feeders.get(k, frozenset()) for k in cares & _MULTIPLIER_KEYS)
@@ -574,56 +616,147 @@ def dead_payoff(card: Mapping, deck_keys: Counter, deck_tribes: Counter) -> bool
     return not doers
 
 
-def _tribe_gates(card: Mapping) -> tuple[list[frozenset[str]], int, bool]:
-    """The creature-type gates on the card's triggers, read off phase's trees
-    (``crosswalk.filter_subtypes`` of each trigger's ``valid_card`` — the
-    field ``ranking._ir_gate_subtypes`` reads on the compat Card, which CI has
-    no sidecar for): one tribe set per gated trigger, the count of its
-    triggers, and whether it has an activated ability. Empty for a card phase
-    has no trees for."""
-    gates: list[frozenset[str]] = []
-    triggers = 0
+@dataclass(frozen=True)
+class _Gate:
+    """One gated unit's words (a creature type, a card type, a gear type; any
+    word fed feeds the gate) and whether the unit is a static."""
+
+    words: frozenset[str]
+    static: bool
+
+
+@dataclass(frozen=True)
+class _UnitGates:
+    """What :func:`_unit_gates` read off one card: its ``gates``; ``units`` —
+    its triggers and statics; whether it has an ``activated`` ability; and
+    what feeds its own gates — the types its statics grant (Ygra's Food) feed
+    any gate; the card's own subtypes and the token kinds it makes feed a
+    trigger's (an entering Dragon triggers itself; Myr Battlesphere's Myr are
+    its own) but not a static's (a Zombie lord's anthem for other Zombies is
+    for nobody — Death Baron; Docent of Perfection's Wizard anthem waits on
+    the Wizards its spell trigger never makes)."""
+
+    gates: tuple[_Gate, ...]
+    units: int
+    activated: bool
+    own_subtypes: frozenset[str]
+    granted_words: frozenset[str]
+    makes_tokens: bool
+
+    def fed(self, gate: _Gate, deck_tribes: Counter, deck_types: Counter) -> bool:
+        """Whether the deck feeds ``gate``: a creature type by
+        :data:`_FEEDER_FLOOR` creatures of it or, for a trigger's gate, the
+        card's own type or its own tokens (as the tribe read always has); a
+        card type by :data:`_TYPE_GATE_FLOOR` cards of it — an
+        instant-or-sorcery gate by their sum; a gear or other subtype by
+        :data:`_FEEDER_FLOOR` cards or the kind the card grants."""
+        words = gate.words
+        if words & self.granted_words or (
+            not gate.static and words & self.own_subtypes
+        ):
+            return True
+        card_types = words & _GATE_TYPE_WORDS
+        if (
+            card_types
+            and sum(deck_types.get(w, 0) for w in card_types) >= _TYPE_GATE_FLOOR
+        ):
+            return True
+        for word in words - _GATE_TYPE_WORDS:
+            if word in _CREATURE_SUBTYPE_WORDS:
+                if (not gate.static and self.makes_tokens) or deck_tribes.get(
+                    word, 0
+                ) >= _FEEDER_FLOOR:
+                    return True
+            elif deck_types.get(word, 0) >= _FEEDER_FLOOR:
+                return True
+        return False
+
+
+def _gate_words(filt: object) -> frozenset[str]:
+    """The gate words of a unit's filter: its subtypes (a creature type, a
+    gear type), its card types in :data:`_GATE_TYPE_WORDS`, and a legendary
+    supertype — never a land type or a word every deck has."""
+    words = {w.lower() for w in filter_subtypes(filt)}
+    words |= {w.lower() for w in filter_core_types(filt)} & _GATE_TYPE_WORDS
+    if any(
+        tag_of(n) == "HasSupertype" and getattr(n, "value", None) == "Legendary"
+        for n in iter_typed_nodes(filt)
+    ):
+        words.add("legendary")
+    return frozenset(words - _LAND_TYPE_WORDS - _GENERIC_TYPE_WORDS)
+
+
+def _unit_gates(card: Mapping) -> _UnitGates:
+    """The gates on the card's triggers and statics, read off phase's trees
+    (the field ``ranking._ir_gate_subtypes`` reads on the compat Card, which
+    CI has no sidecar for): the words of a trigger's ``valid_card`` (Dragon
+    Tempest's Dragons, Talrand's instants and sorceries, Puresteel Paladin's
+    Equipment) or a static's ``affected`` (Death Baron's Skeletons and
+    Zombies; a self-only static has none). Empty for a card phase has no
+    trees for."""
+    gates: list[_Gate] = []
+    units = 0
     activated = False
+    own = {
+        w.lower()
+        for w in split_type_line(card.get("type_line") or "")[1]
+        if w.isalpha()
+    }
+    made: set[str] = set()
+    idents = _signal_idents_for(dict(card), include_membership=False)
+    makes_tokens = False
+    for ident in idents:
+        key, _scope, subject = ident.split("|", 2)
+        if key == TOKEN_MAKER:
+            makes_tokens = True
+            if subject:
+                own.add(subject.lower())
     for tree in trees_for(dict(card)):
         for unit in tree.units:
             if unit.origin == "ability":
                 activated = True
-            if unit.origin != "trigger":
                 continue
-            triggers += 1
-            valid = getattr(unit.node, "valid_card", None)
-            subtypes = filter_subtypes(valid) if _present(valid) else ()
-            # A creature type only: Ygra, Eater of All's "whenever a Food is
-            # sacrificed" is gated on an artifact type the deck makes, no tribe.
-            tribes = frozenset(t.lower() for t in subtypes) & _CREATURE_SUBTYPE_WORDS
-            if tribes:
-                gates.append(tribes)
-    return gates, triggers, activated
+            if unit.origin == "trigger":
+                filt = getattr(unit.node, "valid_card", None)
+            elif unit.origin == "static":
+                filt = getattr(unit.node, "affected", None)
+                if tag_of(filt) == "SelfRef":
+                    filt = None
+                # A type the static grants feeds a gate on it: Ygra, Eater of
+                # All makes other creatures Food.
+                for mod in getattr(unit.node, "modifications", None) or ():
+                    if tag_of(mod) == "AddSubtype":
+                        made.add(str(getattr(mod, "subtype", "")).lower())
+                    elif tag_of(mod) == "AddType":
+                        made.add(str(getattr(mod, "core_type", "")).lower())
+            else:
+                continue
+            units += 1
+            words = _gate_words(filt) if _present(filt) else frozenset()
+            if words:
+                gates.append(_Gate(words, unit.origin == "static"))
+    return _UnitGates(
+        tuple(gates), units, activated, frozenset(own), frozenset(made), makes_tokens
+    )
 
 
-def tribal_without_tribe(card: Mapping, deck_tribes: Counter) -> bool:
-    """A tribal card in a deck with no tribe for it, dead whatever page asks:
-    a choose-a-creature-type card (:func:`chooses_a_type_without_tribe`), or a
-    card whose triggers are mostly gated on a creature type the deck lacks and
-    that has nothing to activate (:func:`_tribe_gates`) — whatever they do
-    (Dragon Tempest's damage, a doer key) waits on Dragons that never come;
-    its haste for flyers is not why it is played (2026-11-02)."""
+def gated_without_feed(
+    card: Mapping, deck_tribes: Counter, deck_types: Counter
+) -> bool:
+    """A card gated on what the deck lacks, dead whatever page asks: a
+    choose-a-creature-type card (:func:`chooses_a_type_without_tribe`), or a
+    card whose triggers and statics are mostly gated on a creature type, card
+    type or gear type the deck lacks and that has nothing to activate
+    (:func:`_unit_gates`) — whatever they do (Dragon Tempest's damage, a doer
+    key) waits on Dragons that never come; its haste for flyers is not why it
+    is played (2026-11-02). Sai, Master Thopterist's artifact cast is unfed in
+    a Humans deck, but its draw can be activated, so it stays."""
     if chooses_a_type_without_tribe(card, deck_tribes):
         return True
-    gates, triggers, activated = _tribe_gates(card)
-    if not gates or 2 * len(gates) < triggers or activated:
+    gated = _unit_gates(card)
+    if not gated.gates or 2 * len(gated.gates) < gated.units or gated.activated:
         return False
-    own_subtypes = {w.lower() for w in split_type_line(card.get("type_line") or "")[1]}
-    makes_tokens = any(
-        i.startswith(f"{TOKEN_MAKER}|")
-        for i in _signal_idents_for(dict(card), include_membership=False)
-    )
-    return not any(
-        makes_tokens
-        or bool(tribes & own_subtypes)
-        or any(deck_tribes.get(t, 0) >= _FEEDER_FLOOR for t in tribes)
-        for tribes in gates
-    )
+    return not any(gated.fed(gate, deck_tribes, deck_types) for gate in gated.gates)
 
 
 def chooses_a_type_without_tribe(card: Mapping, deck_tribes: Counter) -> bool:
@@ -1459,14 +1592,14 @@ def propose_swaps(
     # theme add that cares about a mechanic the deck lacks is no add — Banner
     # of Kinship and Coat of Arms on Bello's artifact page, Hardened Scales
     # on Anikthea's enchantments (2026-11-02). Read once per card.
-    deck_keys, deck_tribe_counts = deck_profile(classes)
+    deck_keys, deck_tribe_counts, deck_type_counts = deck_profile(classes)
     dead_memo: dict[str, bool] = {}
 
     def dead_here(card: Mapping) -> bool:
         key = card.get("oracle_id") or card.get("name", "")
         verdict = dead_memo.get(key)
         if verdict is None:
-            verdict = dead_payoff(card, deck_keys, deck_tribe_counts)
+            verdict = dead_payoff(card, deck_keys, deck_tribe_counts, deck_type_counts)
             dead_memo[key] = verdict
         return verdict
 
@@ -2139,10 +2272,10 @@ def propose_swaps(
             if not spec.get("name") and (
                 dead_here(card)
                 if job is None
-                else tribal_without_tribe(card, deck_tribe_counts)
+                else gated_without_feed(card, deck_tribe_counts, deck_type_counts)
             ):
                 # A payoff for something this deck doesn't do: the theme page's
-                # whole read, a job page's tribal rule alone (the whole read
+                # whole read, a job page's gate rule alone (the whole read
                 # misfired there — Farseek's Plains, Teferi's untap — and a job
                 # card's job is its own; a banner's or Dragon Tempest's is not).
                 # A named add is the line's (2026-11-02).

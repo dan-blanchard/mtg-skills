@@ -58,6 +58,24 @@ VISCERA = _text_only("Viscera Seer")
 _BAND = (36, 38)
 
 
+def test_a_top_heavy_deck_wants_ramp_beyond_the_band():
+    """The ramp band rises one slot per two nonland cards at mana value five or
+    more beyond fourteen per hundred cards: twenty-eight five-drops (the Eldrazi
+    precons') lift it from 10-12 to 17-19; fourteen, or forty two-drops, move it
+    nowhere; a 60-card deck is stated at eight."""
+    from mtg_utils._analysis.budgets import top_end_ramp_shift
+
+    slime = test_card("Acidic Slime")  # mana value five
+    assert top_end_ramp_shift([slime] * 28) == 7
+    assert top_end_ramp_shift([slime] * 14) == 0
+    assert top_end_ramp_shift([test_card("Llanowar Elves")] * 40) == 0
+    assert top_end_ramp_shift([slime] * 14, scale=0.6) == 3
+    bands = slot_budgets([slime] * 28, deck_size=100, land_band=_BAND)
+    assert (bands["ramp"]["min"], bands["ramp"]["max"]) == (17, 19)
+    assert bands["ramp"]["top_end_shift"] == 7
+    assert bands["card_draw"]["max"] == 12
+
+
 def test_empty_deck_bands_scale_to_deck_size():
     b100 = slot_budgets([], deck_size=100, land_band=_BAND)
     assert b100["ramp"]["min"] == 10
