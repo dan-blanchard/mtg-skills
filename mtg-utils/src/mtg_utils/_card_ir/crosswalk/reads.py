@@ -12867,6 +12867,29 @@ def _subtype_refs(tree: ConceptTree) -> SubtypeRefs:
     return SubtypeRefs(frozenset(named | theirs | granted), frozenset(named), shares)
 
 
+def is_ultimate(unit: AbilityUnit, tree: ConceptTree) -> bool:
+    """Whether ``unit`` is a planeswalker's ultimate: a loyalty ability whose
+    cost takes more loyalty than the card enters with (``card_loyalty``, CR
+    306.5b), so it cannot be activated the turn the planeswalker arrives (the
+    cost removes counters, CR 606.4, and a cost can't be paid without them,
+    CR 118.3) and needs turns of plussing first. Its effect is a payoff for keeping the
+    walker alive, not the card's job: Sorin, Lord of Innistrad's [-6]
+    "destroy up to three target creatures" made him an interaction card,
+    and Liliana, Death's Majesty's [-7] sweep a board wipe (Blood Rites,
+    Enduring Enchantments, 2026-11-02). A loyalty ability the walker can pay
+    on arrival (Karn Liberated's [-3]) is its job."""
+    if tree.card_loyalty is None:
+        return False
+    for cost in unit.costs:
+        node = cost.node
+        if tag_of(node) != "Loyalty":
+            continue
+        amount = getattr(node, "amount", None)
+        if isinstance(amount, int) and amount < 0 and -amount > tree.card_loyalty:
+            return True
+    return False
+
+
 def subtype_refs(tree: ConceptTree) -> SubtypeRefs:
     """:func:`_subtype_refs`, read once per tree."""
     return memo_on(tree, "_xw_subtype_refs", _subtype_refs)

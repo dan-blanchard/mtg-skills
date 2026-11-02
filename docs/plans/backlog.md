@@ -982,6 +982,28 @@ proposal as a deckbuilder, fix the structure, the guide score is a yardstick)**
   play-rate order; the guides' Prism combo is their knowledge, not the
   card's text). `verify_symptoms.py`: Endemic Plague never joins Blood
   Rites; 67 checks, all passing.
+- **Batch 15e (2026-11-02; every set's score unchanged: the 25 735 / 338 /
+  116, held-out 571 / 261 / 104, fresh 294 / 126 / 49).** The re-read of
+  batch 15d's Blood Rites. Fixed: (65) *a planeswalker's ultimate is not its
+  job* (`crosswalk.is_ultimate`: a loyalty ability whose cost takes more
+  loyalty than the card's printed starting loyalty, `ConceptTree.card_loyalty`
+  — CR 306.5b, a loyalty cost removes counters, CR 606.4, and a cost needs
+  the resources to pay it, CR 118.3; the removal, removal-answer and sweep
+  walks skip it). Sorin, Lord of Innistrad (three loyalty, a −6 destroy) was
+  an interaction card traded for Feed the Swarm; Liliana, Death's Majesty
+  (five, a −7 sweep) was the board-wipe upgrade in five decks (Death Toll,
+  Enduring Enchantments, Squirreled Away, Multiverse Reforged, Necron
+  Dynasties) and counted as Graveyard Overdrive's own fifth sweeper, which
+  trimmed Final Act. Karn Liberated's −3 on six stays his job. Card text and
+  rulings checked with `scryfall-lookup` / `rulings-lookup` for every card
+  this batch and 15c–15d rest on; every CR number the goal's commits added
+  (ten) checked with `rules-lookup`. One earlier verdict did not survive the
+  card text and is open below (Viral Drake for Deepglow Skate). Verdicts:
+  Patron of the Vein for Braids, Arisen Nightmare (Braids is an end-step
+  sacrifice outlet and edict on Clavileño's plan); Legion Lieutenant for
+  Cover of Darkness (a Vampire payoff for a better-played one, the theme
+  page's play-rate order). `verify_symptoms.py`: Sorin is never traded as
+  interaction; 68 checks, all passing.
 
 **From the Jace, Multiverse Architect precon tune and the 25-precon audit (2026-10-17 to 2026-11-01)**
 

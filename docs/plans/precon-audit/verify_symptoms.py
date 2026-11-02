@@ -133,6 +133,8 @@ CHECKS = [
     _check("no_pair", "EnduringEnchantments_CMM", "Cast Out -> Assassin's Trophy", batch="15"),
     # A shared-type sweeper is no tribe payoff: Endemic Plague never joins a Vampire deck.
     _check("never", "BloodRites_LCC", "Endemic Plague", batch="15"),
+    # A planeswalker's ultimate is not its job: Sorin is no interaction card to upgrade.
+    _check("no_pair", "BloodRites_LCC", "Sorin, Lord of Innistrad -> Feed the Swarm", batch="15"),
     _check("no_trim", "EldraziIncursion_M3C", "Forsaken Monument", batch="14"),
     _check("no_trim", "TrickyTerrain_M3C", "Mana Reflection", batch="14"),
 ]

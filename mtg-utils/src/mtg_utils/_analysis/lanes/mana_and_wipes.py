@@ -75,6 +75,7 @@ from mtg_utils._card_ir.crosswalk import (
     is_self_discard_cost,
     is_team_buff_filter,
     is_token_team_filter,
+    is_ultimate,
     iter_condition_sites,
     iter_cost_leaves,
     iter_mod_sites,
@@ -1272,9 +1273,12 @@ def _population_shrink(tree: ConceptTree) -> list[Signal]:
 def _walk_mass_removal(tree: ConceptTree) -> SweepEffects:
     """The walk behind :func:`mass_removal_effects`: each unit's own effects,
     then the effects of the abilities it grants."""
+    # A planeswalker's ultimate (``is_ultimate``: Liliana, Death's Majesty's
+    # [-7]) is no board wipe the deck can count on.
     return tuple(
         (unit, c)
         for unit in tree.units
+        if not is_ultimate(unit, tree)
         for c in (
             *(c for c in unit.iter_concepts() if c.role == "effect"),
             *iter_nested_granted_effect_concepts(unit.node),

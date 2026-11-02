@@ -710964,6 +710964,351 @@
     "type_line": "Instant"
    }
   },
+  "Liliana, Death's Majesty": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "activation_restrictions": [
+        {
+         "type": "AsSorcery"
+        }
+       ],
+       "condition": null,
+       "cost": {
+        "amount": 1,
+        "type": "Loyalty"
+       },
+       "description": "[+1]: Create a 2/2 black Zombie creature token. Mill two cards.",
+       "duration": null,
+       "effect": {
+        "colors": [
+         "Black"
+        ],
+        "count": {
+         "type": "Fixed",
+         "value": 1
+        },
+        "enters_attacking": false,
+        "keywords": [],
+        "name": "Zombie",
+        "owner": {
+         "type": "Controller"
+        },
+        "power": {
+         "type": "Fixed",
+         "value": 2
+        },
+        "tapped": false,
+        "toughness": {
+         "type": "Fixed",
+         "value": 2
+        },
+        "type": "Token",
+        "types": [
+         "Creature",
+         "Zombie"
+        ]
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "count": {
+          "type": "Fixed",
+          "value": 2
+         },
+         "destination": "Graveyard",
+         "target": {
+          "type": "Controller"
+         },
+         "type": "Mill"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "sub_link": "SequentialSibling",
+        "target_prompt": null
+       },
+       "target_prompt": null
+      },
+      {
+       "activation_restrictions": [
+        {
+         "type": "AsSorcery"
+        }
+       ],
+       "condition": null,
+       "cost": {
+        "amount": -3,
+        "type": "Loyalty"
+       },
+       "description": "[−3]: Return target creature card from your graveyard to the battlefield. That creature is a black Zombie in addition to its other colors and types.",
+       "duration": null,
+       "effect": {
+        "destination": "Battlefield",
+        "enter_tapped": false,
+        "enter_transformed": false,
+        "enters_attacking": false,
+        "origin": "Graveyard",
+        "owner_library": false,
+        "target": {
+         "controller": "You",
+         "properties": [
+          {
+           "type": "InZone",
+           "zone": "Graveyard"
+          }
+         ],
+         "type": "Typed",
+         "type_filters": [
+          "Creature"
+         ]
+        },
+        "type": "ChangeZone"
+       },
+       "forward_result": true,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": "Permanent",
+        "effect": {
+         "duration": "Permanent",
+         "static_abilities": [
+          {
+           "active_zones": [],
+           "affected": {
+            "type": "ParentTarget"
+           },
+           "affected_zone": null,
+           "characteristic_defining": false,
+           "condition": null,
+           "description": "is a black Zombie in addition to its other colors and types",
+           "effect_zone": null,
+           "mode": "Continuous",
+           "modifications": [
+            {
+             "color": "Black",
+             "type": "AddColor"
+            },
+            {
+             "subtype": "Zombie",
+             "type": "AddSubtype"
+            }
+           ]
+          }
+         ],
+         "target": {
+          "type": "ParentTarget"
+         },
+         "type": "GenericEffect"
+        },
+        "entry_onset": "WithEntry",
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "sub_link": "SequentialSibling",
+        "target_prompt": null
+       },
+       "target_prompt": null
+      },
+      {
+       "activation_restrictions": [
+        {
+         "type": "AsSorcery"
+        }
+       ],
+       "condition": null,
+       "cost": {
+        "amount": -7,
+        "type": "Loyalty"
+       },
+       "description": "[−7]: Destroy all non-Zombie creatures.",
+       "duration": null,
+       "effect": {
+        "cant_regenerate": false,
+        "target": {
+         "controller": null,
+         "properties": [],
+         "type": "Typed",
+         "type_filters": [
+          "Creature",
+          {
+           "Non": {
+            "Subtype": "Zombie"
+           }
+          }
+         ]
+        },
+        "type": "DestroyAll"
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "brawl_commander": true,
+     "card_type": {
+      "core_types": [
+       "Planeswalker"
+      ],
+      "subtypes": [
+       "Liliana"
+      ],
+      "supertypes": [
+       "Legendary"
+      ]
+     },
+     "color_identity": [
+      "Black"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "is_oathbreaker": true,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": "5",
+     "mana_cost": {
+      "generic": 3,
+      "shards": [
+       "Black",
+       "Black"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "related_token_ids": [
+       "80e85df7-9984-55a2-a99c-245a54b062df",
+       "87df5573-4b61-5eaa-94b2-efd2398be6ac",
+       "95f36818-6a89-5a1e-9821-03016d94f604",
+       "ac0893be-5124-5b96-be09-690fcd16b1d8",
+       "cb53027b-e24a-51b1-a06a-130217568848",
+       "ce24f27b-16b5-596b-b810-805a9384991b"
+      ],
+      "source_printing_ids": [
+       "40d8f490-f04d-4d59-9ab0-a977527fd529",
+       "62289d27-7232-4bea-b1d1-d258d54527ab",
+       "ae653ad0-c796-49d4-b893-25d627f1ff79",
+       "b63ae119-f91e-4d0d-8bbd-65350a4d47c4",
+       "bdcaf0f0-3681-463c-b132-58056156bc6a",
+       "e7fe57c2-68c6-44c9-ac2b-9d531c0d000c"
+      ]
+     },
+     "name": "Liliana, Death's Majesty",
+     "non_ability_text": null,
+     "oracle_text": "[+1]: Create a 2/2 black Zombie creature token. Mill two cards.\n[−3]: Return target creature card from your graveyard to the battlefield. That creature is a black Zombie in addition to its other colors and types.\n[−7]: Destroy all non-Zombie creatures.",
+     "power": null,
+     "printings": [
+      "AKH",
+      "AKR",
+      "DRC",
+      "J22",
+      "J25",
+      "M3C",
+      "MIC",
+      "PAKH",
+      "PLST",
+      "PS17",
+      "SLD"
+     ],
+     "rarities": [
+      "mythic"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2017-04-18",
+       "text": "A creature that is a Zombie and has other types, such as a Zombie Jackal, isn't a non-Zombie creature."
+      }
+     ],
+     "scryfall_oracle_id": "7fca595e-1902-40fd-a359-622caa612b6a",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "all_parts": [
+     {
+      "component": "token",
+      "id": "8a73e348-5bf1-4465-978b-3f31408bade9",
+      "name": "Zombie",
+      "oracle_id": "ddc8c973-c31e-463f-be45-f3fa7d632362",
+      "type_line": "Token Creature — Zombie"
+     }
+    ],
+    "arena_available": true,
+    "cmc": 5.0,
+    "color_identity": [
+     "B"
+    ],
+    "colors": [
+     "B"
+    ],
+    "keywords": [
+     "Mill"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "loyalty": "5",
+    "mana_cost": "{3}{B}{B}",
+    "name": "Liliana, Death's Majesty",
+    "oracle_id": "7fca595e-1902-40fd-a359-622caa612b6a",
+    "oracle_text": "[+1]: Create a 2/2 black Zombie creature token. Mill two cards.\n[−3]: Return target creature card from your graveyard to the battlefield. That creature is a black Zombie in addition to its other colors and types.\n[−7]: Destroy all non-Zombie creatures.",
+    "type_line": "Legendary Planeswalker — Liliana"
+   }
+  },
   "Liliana, Dreadhorde General": {
    "phase_records": [
     {
@@ -1050871,6 +1051216,327 @@
      "U"
     ],
     "type_line": "Enchantment — Class"
+   }
+  },
+  "Sorin, Lord of Innistrad": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "activation_restrictions": [
+        {
+         "type": "AsSorcery"
+        }
+       ],
+       "condition": null,
+       "cost": {
+        "amount": 1,
+        "type": "Loyalty"
+       },
+       "description": "[+1]: Create a 1/1 black Vampire creature token with lifelink.",
+       "duration": null,
+       "effect": {
+        "colors": [
+         "Black"
+        ],
+        "count": {
+         "type": "Fixed",
+         "value": 1
+        },
+        "enters_attacking": false,
+        "keywords": [
+         "Lifelink"
+        ],
+        "name": "Vampire",
+        "owner": {
+         "type": "Controller"
+        },
+        "power": {
+         "type": "Fixed",
+         "value": 1
+        },
+        "tapped": false,
+        "toughness": {
+         "type": "Fixed",
+         "value": 1
+        },
+        "type": "Token",
+        "types": [
+         "Creature",
+         "Vampire"
+        ]
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      },
+      {
+       "activation_restrictions": [
+        {
+         "type": "AsSorcery"
+        }
+       ],
+       "condition": null,
+       "cost": {
+        "amount": -2,
+        "type": "Loyalty"
+       },
+       "description": "[−2]: You get an emblem with \"Creatures you control get +1/+0.\"",
+       "duration": null,
+       "effect": {
+        "statics": [
+         {
+          "active_zones": [],
+          "affected": {
+           "controller": "You",
+           "properties": [],
+           "type": "Typed",
+           "type_filters": [
+            "Creature"
+           ]
+          },
+          "affected_zone": null,
+          "characteristic_defining": false,
+          "condition": null,
+          "description": "Creatures you control get +1/+0",
+          "effect_zone": null,
+          "mode": "Continuous",
+          "modifications": [
+           {
+            "type": "AddPower",
+            "value": 1
+           },
+           {
+            "type": "AddToughness",
+            "value": 0
+           }
+          ]
+         }
+        ],
+        "triggers": [],
+        "type": "CreateEmblem"
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      },
+      {
+       "activation_restrictions": [
+        {
+         "type": "AsSorcery"
+        }
+       ],
+       "condition": null,
+       "cost": {
+        "amount": -6,
+        "type": "Loyalty"
+       },
+       "description": "[−6]: Destroy up to three target creatures and/or other planeswalkers. Return each card put into a graveyard this way to the battlefield under your control.",
+       "duration": null,
+       "effect": {
+        "cant_regenerate": false,
+        "target": {
+         "controller": null,
+         "properties": [],
+         "type": "Typed",
+         "type_filters": [
+          "Creature"
+         ]
+        },
+        "type": "Destroy"
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "multi_target": {
+        "max": {
+         "type": "Fixed",
+         "value": 3
+        },
+        "min": 0
+       },
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "destination": "Battlefield",
+         "enters_under": "You",
+         "origin": "Graveyard",
+         "target": {
+          "controller": null,
+          "properties": [
+           {
+            "type": "InZone",
+            "zone": "Graveyard"
+           }
+          ],
+          "type": "Typed",
+          "type_filters": [
+           "Card"
+          ]
+         },
+         "type": "ChangeZoneAll"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "sub_link": "SequentialSibling",
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "brawl_commander": true,
+     "card_type": {
+      "core_types": [
+       "Planeswalker"
+      ],
+      "subtypes": [
+       "Sorin"
+      ],
+      "supertypes": [
+       "Legendary"
+      ]
+     },
+     "color_identity": [
+      "Black",
+      "White"
+     ],
+     "color_override": [
+      "Black",
+      "White"
+     ],
+     "defense": null,
+     "flavor_name": null,
+     "is_oathbreaker": true,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": "3",
+     "mana_cost": {
+      "generic": 2,
+      "shards": [
+       "White",
+       "Black"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "related_token_ids": [
+       "83ddb31f-6e19-5aa7-beec-547c0f85f039",
+       "d22c8edf-740f-5145-9b41-f1f786a968c2"
+      ],
+      "source_printing_ids": [
+       "27bb371f-d49f-41bd-bbe0-d5e1e2067e36",
+       "329b9f70-2c35-4fec-813a-5b7f26d34c8e",
+       "ab98caf7-cc24-4027-ad8a-026150b61858"
+      ]
+     },
+     "name": "Sorin, Lord of Innistrad",
+     "non_ability_text": null,
+     "oracle_text": "[+1]: Create a 1/1 black Vampire creature token with lifelink.\n[−2]: You get an emblem with \"Creatures you control get +1/+0.\"\n[−6]: Destroy up to three target creatures and/or other planeswalkers. Return each card put into a graveyard this way to the battlefield under your control.",
+     "power": null,
+     "printings": [
+      "DDK",
+      "DKA",
+      "LCC"
+     ],
+     "rarities": [
+      "mythic"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2011-01-22",
+       "text": "If Sorin, Lord of Innistrad somehow becomes a creature, it can be chosen as a target of its own third ability. If Sorin, Lord of Innistrad is still on the battlefield when that ability resolves, it will then destroy Sorin and return him to the battlefield under your control."
+      },
+      {
+       "date": "2011-01-22",
+       "text": "If a creature with undying is destroyed by Sorin, Lord of Innistrad's third ability, the undying ability will trigger, but the creature will already have been returned to the battlefield by Sorin. The undying ability won't do anything when it resolves."
+      },
+      {
+       "date": "2011-01-22",
+       "text": "The emblems are cumulative. If you get two of them, creatures you control will get +2/+0."
+      },
+      {
+       "date": "2011-01-22",
+       "text": "You can target a token creature with Sorin, Lord of Innistrad's third ability, but it won't return to the battlefield."
+      }
+     ],
+     "scryfall_oracle_id": "5c780dda-ee76-482a-a610-53c321c4fdec",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "all_parts": [
+     {
+      "component": "token",
+      "id": "0d6abdaa-7be5-48a1-acc9-b3cba4c10619",
+      "name": "Vampire",
+      "oracle_id": "2496fe9a-9fd4-4c52-b5ca-39d6333eb333",
+      "type_line": "Token Creature — Vampire"
+     }
+    ],
+    "arena_available": false,
+    "cmc": 4.0,
+    "color_identity": [
+     "B",
+     "W"
+    ],
+    "colors": [
+     "B",
+     "W"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "loyalty": "3",
+    "mana_cost": "{2}{W}{B}",
+    "name": "Sorin, Lord of Innistrad",
+    "oracle_id": "5c780dda-ee76-482a-a610-53c321c4fdec",
+    "oracle_text": "[+1]: Create a 1/1 black Vampire creature token with lifelink.\n[−2]: You get an emblem with \"Creatures you control get +1/+0.\"\n[−6]: Destroy up to three target creatures and/or other planeswalkers. Return each card put into a graveyard this way to the battlefield under your control.",
+    "type_line": "Legendary Planeswalker — Sorin"
    }
   },
   "Sorin, Solemn Visitor": {

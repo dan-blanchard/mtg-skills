@@ -646,6 +646,10 @@ class ConceptTree:
     # each [text] you control"); "Goblin offering" → ``("Offering",
     # ("Goblin",))``. ``card_keywords`` keeps only the name.
     card_keyword_types: tuple[tuple[str, tuple[str, ...]], ...] = ()
+    # A planeswalker's printed starting loyalty (CR 306.5b), ``None`` for
+    # every other card and for a variable one: a loyalty ability costing more
+    # than it is an ultimate (``reads.is_ultimate``).
+    card_loyalty: int | None = None
 
     @property
     def card_enchant_core_types(self) -> tuple[str, ...]:
@@ -1674,6 +1678,15 @@ def build_concept_tree(
     has_printed_cost = isinstance(mc, TypedMirrorNode) and tag_of(mc) == "Cost"
     pw = getattr(root, "power", None)
     power: int | None = None
+    loy = getattr(root, "loyalty", None)
+    card_loyalty: int | None = None
+    if isinstance(loy, TypedMirrorNode) and tag_of(loy) == "Fixed":
+        v = getattr(loy, "value", None)
+        card_loyalty = v if isinstance(v, int) else None
+    elif isinstance(loy, int):
+        card_loyalty = loy
+    elif isinstance(loy, str) and loy.strip().isdigit():
+        card_loyalty = int(loy.strip())
     if isinstance(pw, TypedMirrorNode) and tag_of(pw) == "Fixed":
         v = getattr(pw, "value", None)
         power = v if isinstance(v, int) else None
@@ -2012,6 +2025,7 @@ def build_concept_tree(
         card_alt_costs=tuple(card_alt_costs),
         card_keywords=tuple(card_keywords),
         card_keyword_types=tuple(card_keyword_types),
+        card_loyalty=card_loyalty,
     )
     # ADR-0038 — substrate-wide Unimplemented recovery runs INSIDE the tree
     # build so every consumer (signal lanes, compat projection, convergence +

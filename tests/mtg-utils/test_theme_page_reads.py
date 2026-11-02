@@ -539,3 +539,22 @@ def test_a_shared_type_sweeper_is_no_tribe_payoff():
     assert "subtype_ref|you|shared" in _idents("Coat of Arms")
     # counters on each creature sharing a type: a mass effect, a payoff still
     assert "subtype_ref|you|shared" in _idents("Resplendent Marshal")
+
+
+def test_a_planeswalkers_ultimate_is_not_its_job():
+    """A loyalty ability costing more than the walker enters with is an
+    ultimate (``crosswalk.is_ultimate``): Sorin, Lord of Innistrad's [-6]
+    destroy on three loyalty made him interaction, and Liliana, Death's
+    Majesty's [-7] sweep on five a board wipe (2026-11-02). Karn Liberated's
+    [-3] exile on six loyalty is his job."""
+    from mtg_utils._analysis.roles import is_board_wipe, role_of
+
+    assert not any(
+        i.startswith("removal|") for i in _idents("Sorin, Lord of Innistrad")
+    )
+    assert "interaction" not in role_of(test_card("Sorin, Lord of Innistrad"))
+    assert not any(
+        i.startswith("mass_removal|") for i in _idents("Liliana, Death's Majesty")
+    )
+    assert not is_board_wipe(test_card("Liliana, Death's Majesty"))
+    assert "interaction" in role_of(test_card("Karn Liberated"))

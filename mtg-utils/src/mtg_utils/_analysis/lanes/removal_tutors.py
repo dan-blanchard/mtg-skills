@@ -83,6 +83,7 @@ from mtg_utils._card_ir.crosswalk import (
     graveyard_recursion,
     has_filter_property,
     has_nested_damage_reaching,
+    is_ultimate,
     iter_cost_leaves,
     iter_mod_sites,
     iter_nested_granted_effect_concepts,
@@ -959,6 +960,8 @@ def _removal(tree: ConceptTree) -> list[Signal]:
         ) in ("You", "ScopedPlayer")
 
     for unit in tree.units:
+        if is_ultimate(unit, tree):
+            continue  # a planeswalker's ultimate is no removal to count on
         for c in unit.effect_concepts("destroy"):
             if c.recovered_by:
                 # phase v0.104.0 fail-closed residue, token ``destroy``.
@@ -1309,8 +1312,13 @@ def _walk_removal_answers(
     body yet) — kept in lockstep with ``_removal`` so a card that gains
     ``removal`` membership from the granted descent always answers its
     permanent type too (Arc Spitter -> {Creature}).
+
+    A planeswalker's ultimate (``is_ultimate``: Sorin, Lord of Innistrad's
+    [-6] destroy) answers nothing the deck can count on.
     """
     for unit in tree.units:
+        if is_ultimate(unit, tree):
+            continue
         effects = unit.effects
         for idx, c in enumerate(effects):
             if c.concept == "destroy":
