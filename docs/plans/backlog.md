@@ -1119,6 +1119,21 @@ proposal as a deckbuilder, fix the structure, the guide score is a yardstick)**
   334 / 115, held-out 569 / 262 / 107 → 568 / 264 / 110, fresh 294 / 126 / 48
   → 293 / 127 / 47, and two symptom checks fail. Pentad Prism for Volt
   Charge is the count test's call — a verdict.
+- **The re-read of batches 16b–16c (2026-11-02): no new flaw.** A Sonnet
+  reviewer read the six proposals they changed, card text looked up. Its
+  three flags: Cloakwood Hermit under Hazel (settled in batch 16 — a
+  Background in the 99 grants its ability to "commander creatures you own";
+  its rulings agree); Esper Sentinel as card draw ("draw a card unless that
+  player pays {X}" is a draw tax the way Rhystic Study is — the deck's
+  choice to count it is the read's call); Rampaging Ferocidon for Kinjalli's
+  Sunwing in Velocirampor (a Dinosaur for a better-played Dinosaur, the
+  tribe page's play-rate order; its ping on every creature entering is
+  symmetric, so the opponents' creatures pay too — weighed, not a cut
+  reason). Open, found on the way: `crosswalk.self_drawbacks`' harm read
+  misses damage to "that creature's controller" from a trigger watching
+  every player's creatures (Rampaging Ferocidon reads no `harm`). The flag
+  feeds only search pages and the forced-sacrifice read, so no proposal
+  changes with it; fix it with the next harm-read work.
 
 **From the Jace, Multiverse Architect precon tune and the 25-precon audit (2026-10-17 to 2026-11-01)**
 
