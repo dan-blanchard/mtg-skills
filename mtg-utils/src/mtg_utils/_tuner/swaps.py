@@ -2184,10 +2184,21 @@ def propose_swaps(
     kept_needs = built_needs + [
         need
         for need in ctx.needs
-        if need not in needs_here
-        and ((need.kind == "payoff" and need.types) or need.kind == "resource")
+        if need not in built_needs
         and need.leads
-        and sum(1 for c in classes if satisfies(c.record, need)) >= _NEED_BUILT_FLOOR
+        and (
+            # A resource the commander makes itself is consumed whatever the
+            # deck holds of the consumers: Temmet loots on every attack, and
+            # Archfiend of Ifnir is one of three discard payoffs Eternal Might
+            # holds (2026-11-02).
+            need.kind == "resource"
+            or (
+                need.kind == "payoff"
+                and need.types
+                and sum(1 for c in classes if satisfies(c.record, need))
+                >= _NEED_BUILT_FLOOR
+            )
+        )
     ]
     kept_count_memo: dict[str, int] = {}
 

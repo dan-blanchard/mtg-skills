@@ -1192,6 +1192,19 @@ proposal as a deckbuilder, fix the structure, the guide score is a yardstick)**
   Enduring Enchantments gain a guide cut or add each. Archfiend of Ifnir for
   Counterspell in Eternal Might is untouched: Temmet's "discard consumers"
   has three suppliers in the deck, under the floor.
+- **Batch 16g (2026-11-02; held-out 570 / 263 / 107 → 570 / 263 / 106; the 25
+  and fresh unchanged).** Fixed: (81) *a commander resource need is kept
+  however few suppliers the deck holds, and a page need under the built
+  floor is kept too* (`swaps` kept needs: every leading need outside the
+  built ones — a `resource` need at any count, a payoff card type at the
+  floor). Temmet loots on every attack and Archfiend of Ifnir is one of
+  Eternal Might's three discard payoffs; its "discard consumers" need has a
+  page but sat under the built floor, so neither gate held it and it went
+  to Counterspell, which supplies nothing Temmet asks for. It now goes to
+  Arcane Denial, whose draw feeds Temmet's "whenever you draw a card" — one
+  need for another, the count test's call. The cost is King T'Challa in
+  Avengers Assemble, now ranked behind Araña for Black Widow's slot.
+  Dropping only the floor (run 74) changed nothing: the need had a page.
 
 **From the Jace, Multiverse Architect precon tune and the 25-precon audit (2026-10-17 to 2026-11-01)**
 

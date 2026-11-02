@@ -155,6 +155,8 @@ CHECKS = [
     # A punisher ("may sacrifice … if they don't") is no edict; a one-shot spell no job engine.
     _check("no_pair", "BloodRites_LCC", "Patron of the Vein -> Braids, Arisen Nightmare", batch="16e"),
     _check("no_pair", "CavalryCharge_MOC", "Vanquisher's Banner -> And They Shall Know No Fear", batch="16e"),
+    # A commander resource need under the built floor is still kept.
+    _check("no_pair", "EternalMight_DRC", "Archfiend of Ifnir -> Counterspell", batch="16g"),
     _check("no_trim", "EldraziIncursion_M3C", "Forsaken Monument", batch="14"),
     _check("no_trim", "TrickyTerrain_M3C", "Mana Reflection", batch="14"),
 ]
