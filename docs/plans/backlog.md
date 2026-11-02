@@ -608,12 +608,17 @@ proposal as a deckbuilder, fix the structure, the guide score is a yardstick)**
   banner still through on its draw key).
 - **Batch 7 (2026-11-02; the 25 730 / 340 / 120 unchanged, held-out 577 /
   259 / 104 unchanged).** (29) *A trigger gated on a creature type the deck
-  lacks is a dead payoff too*, read off the compat Card's trigger subject
-  (`swaps._tribe_gates`, the field `ranking._ir_gate_subtypes` reads): when
-  most of the card's triggers are so gated and it has nothing to activate,
-  whatever they do waits on a tribe that never comes — Dragon Tempest's
-  damage under Valgavoth. A creature type only: Ygra, Eater of All's Food is
-  an artifact type the deck makes.
+  lacks is a dead payoff too*, read off phase's trees (`swaps._tribe_gates`:
+  each trigger's `valid_card` subtypes, the field `ranking._ir_gate_subtypes`
+  reads on the compat Card — whose sidecar CI has no copy of, which the
+  CI-style run caught): when most of the card's triggers are so gated and it
+  has nothing to activate, whatever they do waits on a tribe that never
+  comes. The tribal rule (`tribal_without_tribe`: this and the choose-a-type
+  read) applies on every page, a job page's included — Dragon Tempest left
+  Endless Punishment's and Creative Energy's interaction upgrades. The CR's
+  creature types only (`_card_ir.creature_types`): Ygra, Eater of All's Food
+  is an artifact type the deck makes, and the bulk-harvested
+  `CREATURE_SUBTYPES` list holds it.
 
 **From the Jace, Multiverse Architect precon tune and the 25-precon audit (2026-10-17 to 2026-11-01)**
 

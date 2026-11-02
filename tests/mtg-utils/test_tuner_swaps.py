@@ -3608,3 +3608,11 @@ def test_a_payoff_for_what_the_deck_does_not_do_is_dead_there():
     assert not dead_payoff(test_card("Dragon Tempest"), none, Counter({"dragon": 10}))
     # A gate on an artifact type is no tribe: Ygra, Eater of All's Food.
     assert not dead_payoff(test_card("Ygra, Eater of All"), none, no_tribe)
+    # The tribal rule alone is what a job page applies.
+    from mtg_utils._tuner.swaps import tribal_without_tribe
+
+    assert tribal_without_tribe(test_card("Dragon Tempest"), no_tribe)
+    assert not tribal_without_tribe(
+        test_card("Dragon Tempest"), Counter({"dragon": 10})
+    )
+    assert not tribal_without_tribe(test_card("Farseek"), no_tribe)

@@ -36,8 +36,9 @@ from mtg_utils._analysis.signal_specs import (
     theme_page,
 )
 from mtg_utils._analysis.signals import grant_payloads_for
-from mtg_utils._card_ir.compat_lookup import ir_for
 from mtg_utils._card_ir.creature_types import CREATURE_TYPES
+from mtg_utils._card_ir.crosswalk.reads import _present, filter_subtypes
+from mtg_utils._card_ir.trees import trees_for
 from mtg_utils._tuner import mana_base
 from mtg_utils._tuner.ability_quality import grant_grade, outgrades
 from mtg_utils._tuner.classify import CardClass, is_premium
@@ -526,7 +527,7 @@ def dead_payoff(card: Mapping, deck_keys: Counter, deck_tribes: Counter) -> bool
     # A trigger gated on a creature type (Dragon Tempest's "whenever a Dragon
     # you control enters"): the gate lives in the IR, not in a key. Fed by the
     # deck's creatures of the type, the card's own type, or its own tokens.
-    gates, triggers, activated = _tribe_gates(card)
+    gates, _triggers, _activated = _tribe_gates(card)
     for tribes in gates:
         cares.add("tribe_gate")
         verdicts.append(
@@ -536,13 +537,7 @@ def dead_payoff(card: Mapping, deck_keys: Counter, deck_tribes: Counter) -> bool
         )
     if not verdicts or any(verdicts):
         return False
-    if chooses_a_type_without_tribe(card, deck_tribes):
-        return True
-    if gates and 2 * len(gates) >= triggers and not activated:
-        # The card's triggers are mostly gated on a tribe the deck lacks, and
-        # it has nothing to activate: whatever they do (Dragon Tempest's
-        # damage, a doer key) waits on Dragons that never come; its haste for
-        # flyers is not why it is played.
+    if tribal_without_tribe(card, deck_tribes):
         return True
     multiplier_feeders = frozenset().union(
         *(feeders.get(k, frozenset()) for k in cares & _MULTIPLIER_KEYS)
@@ -554,30 +549,55 @@ def dead_payoff(card: Mapping, deck_keys: Counter, deck_tribes: Counter) -> bool
 
 
 def _tribe_gates(card: Mapping) -> tuple[list[frozenset[str]], int, bool]:
-    """The creature-type gates on the card's triggers, read off its compat Card
-    (``ranking._ir_gate_subtypes``' field read: ``trigger.subject.subtypes``):
-    one tribe set per gated trigger, the count of its triggers, and whether it
-    has an activated ability. Empty for a card with no IR."""
-    ir = ir_for(dict(card))
-    if ir is None:
-        return [], 0, False
+    """The creature-type gates on the card's triggers, read off phase's trees
+    (``crosswalk.filter_subtypes`` of each trigger's ``valid_card`` — the
+    field ``ranking._ir_gate_subtypes`` reads on the compat Card, which CI has
+    no sidecar for): one tribe set per gated trigger, the count of its
+    triggers, and whether it has an activated ability. Empty for a card phase
+    has no trees for."""
     gates: list[frozenset[str]] = []
     triggers = 0
     activated = False
-    for ab in ir.all_abilities():
-        if ab.kind == "activated":
-            activated = True
-        if ab.kind != "triggered":
-            continue
-        triggers += 1
-        subject = getattr(ab.trigger, "subject", None) if ab.trigger else None
-        subtypes = getattr(subject, "subtypes", None) or ()
-        # A creature type only: Ygra, Eater of All's "whenever a Food is
-        # sacrificed" is gated on an artifact type the deck makes, no tribe.
-        tribes = frozenset(t.lower() for t in subtypes) & _CREATURE_SUBTYPE_WORDS
-        if tribes:
-            gates.append(tribes)
+    for tree in trees_for(dict(card)):
+        for unit in tree.units:
+            if unit.origin == "ability":
+                activated = True
+            if unit.origin != "trigger":
+                continue
+            triggers += 1
+            valid = getattr(unit.node, "valid_card", None)
+            subtypes = filter_subtypes(valid) if _present(valid) else ()
+            # A creature type only: Ygra, Eater of All's "whenever a Food is
+            # sacrificed" is gated on an artifact type the deck makes, no tribe.
+            tribes = frozenset(t.lower() for t in subtypes) & _CREATURE_SUBTYPE_WORDS
+            if tribes:
+                gates.append(tribes)
     return gates, triggers, activated
+
+
+def tribal_without_tribe(card: Mapping, deck_tribes: Counter) -> bool:
+    """A tribal card in a deck with no tribe for it, dead whatever page asks:
+    a choose-a-creature-type card (:func:`chooses_a_type_without_tribe`), or a
+    card whose triggers are mostly gated on a creature type the deck lacks and
+    that has nothing to activate (:func:`_tribe_gates`) — whatever they do
+    (Dragon Tempest's damage, a doer key) waits on Dragons that never come;
+    its haste for flyers is not why it is played (2026-11-02)."""
+    if chooses_a_type_without_tribe(card, deck_tribes):
+        return True
+    gates, triggers, activated = _tribe_gates(card)
+    if not gates or 2 * len(gates) < triggers or activated:
+        return False
+    own_subtypes = {w.lower() for w in split_type_line(card.get("type_line") or "")[1]}
+    makes_tokens = any(
+        i.startswith(f"{TOKEN_MAKER}|")
+        for i in _signal_idents_for(dict(card), include_membership=False)
+    )
+    return not any(
+        makes_tokens
+        or bool(tribes & own_subtypes)
+        or any(deck_tribes.get(t, 0) >= _FEEDER_FLOOR for t in tribes)
+        for tribes in gates
+    )
 
 
 def chooses_a_type_without_tribe(card: Mapping, deck_tribes: Counter) -> bool:
@@ -1430,7 +1450,7 @@ def propose_swaps(
         spec["_need"] for _l, _d, spec in ctx.need_avenues if spec.get("_need")
     ]
 
-    def supplies_need(card: dict) -> bool:
+    def supplies_need(card: Mapping) -> bool:
         return any(satisfies(card, need) for need in needs_here)
 
     # Of those, the needs the deck already builds toward (``_NEED_BUILT_FLOOR``
@@ -2081,13 +2101,13 @@ def propose_swaps(
             if not spec.get("name") and (
                 dead_here(card)
                 if job is None
-                else chooses_a_type_without_tribe(card, deck_tribe_counts)
+                else tribal_without_tribe(card, deck_tribe_counts)
             ):
                 # A payoff for something this deck doesn't do: the theme page's
-                # whole read, a job page's choose-a-type rule alone (the whole
-                # read misfired there — Farseek's Plains, Teferi's untap — and a
-                # job card's job is its own; the banners' is not). A named add
-                # is the line's (2026-11-02).
+                # whole read, a job page's tribal rule alone (the whole read
+                # misfired there — Farseek's Plains, Teferi's untap — and a job
+                # card's job is its own; a banner's or Dragon Tempest's is not).
+                # A named add is the line's (2026-11-02).
                 continue
             if upgrade_of is not None and not _upgrades(
                 card,
