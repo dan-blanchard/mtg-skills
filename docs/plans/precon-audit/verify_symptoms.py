@@ -167,6 +167,11 @@ CHECKS = [
     _check("no_pair", "CounterIntelligence_EOC", "Gavel of the Righteous -> Serum Snare", batch="16i"),
     # A card putting the commander's counter kind on other permanents is kept.
     _check("no_pair", "CounterIntelligence_EOC", "Coretapper -> Talisman of Creativity", batch="16j"),
+    # The full re-read's fixes: a -1/-1-counter sweep is a wipe; own tokens feed
+    # only their own type; one completion per held combo.
+    _check("no_pair", "RevenantRecon_MKC", "Black Sun's Zenith -> Negate", batch="16k"),
+    _check("never", "AbzanArmor_TDC", "Invisible Woman, Sue Storm", batch="16k"),
+    _check("never", "NecronDynasties_40K", "Sanguine Bond", batch="16k"),
     _check("no_trim", "EldraziIncursion_M3C", "Forsaken Monument", batch="14"),
     _check("no_trim", "TrickyTerrain_M3C", "Mana Reflection", batch="14"),
 ]

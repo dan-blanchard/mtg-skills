@@ -463,3 +463,14 @@ def test_a_sweep_sparing_the_decks_auras_is_one_sided_there():
     assert board_wipe.deck_features(winds, auras)["one_sided"] == 1.0
     coup = test_card("Martial Coup")
     assert board_wipe.features(coup, auras)["one_sided"] == 0.0
+
+
+def test_minus_counters_on_each_creature_are_a_sweep():
+    """Black Sun's Zenith puts X -1/-1 counters on each creature: they lower
+    toughness as -X/-X does (CR 122.1a) and kill at 0 (CR 704.5f), so it is a
+    board wipe (Revenant Recon, 2026-11-02)."""
+    from mtg_utils._analysis.roles import is_board_wipe
+
+    zenith = test_card("Black Sun's Zenith")
+    assert is_board_wipe(zenith)
+    assert board_wipe.features(zenith)["creatures"] == 1.0

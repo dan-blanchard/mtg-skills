@@ -324,6 +324,16 @@ def _kind(unit: AbilityUnit) -> str:
     return unit.origin or "other"
 
 
+def _draws_only_if_attacking(node: object) -> bool:
+    """Whether a leave trigger's draw is conditioned on the object having been
+    attacking (``TargetMatchesFilter`` with ``Attacking``)."""
+    execute = getattr(node, "execute", None)
+    cond = getattr(execute, "condition", None)
+    if tag_of(cond) != "TargetMatchesFilter":
+        return False
+    return "Attacking" in filter_predicates(getattr(cond, "filter", None))
+
+
 def _fuel(unit: AbilityUnit) -> str:
     """What a draw trigger needs to fire again."""
     ev = unit.trigger_event or ""
@@ -348,6 +358,11 @@ def _fuel(unit: AbilityUnit) -> str:
     if ev in ("dies", "sacrificed", "leaves", "exploited"):
         if tag_of(getattr(node, "valid_card", None)) in _ATTACHED_TAGS:
             return "equipped_dies"
+        if _draws_only_if_attacking(node):
+            # Zurgo Stormrender's "draw a card if it was attacking": a token
+            # leaving in combat, not after — combat ends before the end step
+            # that sacrifices a mobilized one (CR 511.3, 702.181a).
+            return "combat"
         return "deaths"
     if ev in ENTERS_EVENTS or ev == "changes_zone":
         return "enters"

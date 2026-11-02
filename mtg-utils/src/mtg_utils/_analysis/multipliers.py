@@ -404,6 +404,16 @@ def _copy_reason(
             return "copy_activated_ability", f"copies {cmd.name}'s activated abilities"
         return None
     if kind is None:  # a spell copy: Double Major, Echoes of Eternity's cast copy
+        if any(tag_of(n) == "ChangeTargets" for n in unit.iter_typed()):
+            # A redirect that copies (Wyll's Reversal: "target spell or ability
+            # with one or more targets … Then copy it") needs a spell with
+            # targets; a creature commander's spell has none. Its triggered
+            # abilities with targets it may still copy.
+            if cmd.copyable_triggers:
+                return _STACK_ABILITY_KINDS[
+                    "Triggered"
+                ], f"copies {cmd.name}'s abilities"
+            return None
         if any(tag_of(n) == "CastFromZone" for n in unit.iter_typed()):
             # Copying a card to cast the copy (CR 707.12) — Zethi's exiled
             # instants, Arcane Savant's card from outside the game, Kaervek's

@@ -855,6 +855,18 @@ def dead_payoff(
     for gate in gated.gates:
         cares.add("unit_gate")
         verdicts.append(gated.fed(gate, deck_tribes, deck_types, deck_keys))
+    # Gated on a tribe the deck lacks is dead whatever else the card cares
+    # about: Invisible Woman's only trigger waits on "other Heroes", and the
+    # +1/+1 counters it also names (fed in Abzan Armor) never reach it without
+    # them (2026-11-02). Only a creature-type gate: a type tokens make (Food)
+    # is counted off the type line, and the early verdict cost Food and
+    # Fellowship's Trail of Crumbs (the 25 -2 adds, fresh -3).
+    if (
+        gated.gates
+        and all(g.words <= _CREATURE_SUBTYPE_WORDS for g in gated.gates)
+        and gated_without_feed(card, deck_tribes, deck_types, deck_keys)
+    ):
+        return True
     if not verdicts or any(verdicts):
         return False
     if gated_without_feed(card, deck_tribes, deck_types, deck_keys):
@@ -940,7 +952,12 @@ class _UnitGates:
                 if sum(keys.get(k, 0) for k in _COUNTER_GATE_FEEDERS) >= _FEEDER_FLOOR:
                     return True
             elif word in _CREATURE_SUBTYPE_WORDS:
-                if (not gate.static and self.makes_tokens) or deck_tribes.get(
+                # Its own tokens feed a trigger's creature-type gate only when
+                # they are of the type (``token_words``, above) or of a kind the
+                # read can't name: Invisible Woman's Walls feed no "other Heroes"
+                # in a deck with none (Abzan Armor, 2026-11-02).
+                unnamed_tokens = self.makes_tokens and not self.token_words
+                if (not gate.static and unnamed_tokens) or deck_tribes.get(
                     word, 0
                 ) >= _FEEDER_FLOOR:
                     return True

@@ -1250,6 +1250,52 @@ proposal as a deckbuilder, fix the structure, the guide score is a yardstick)**
   charge spender for a charge spender. Counter Intelligence gains Cayth as a
   guide add and Soul-Guide Lantern back as a guide cut, and gives up Chain
   Reaction and Angel of the Ruins as cuts.
+- **Batch 16k (2026-11-02; the 25 733 / 339 / 120 → 733 / 339 / 119, held-out
+  565 / 261 / 107 → 566 / 262 / 108, fresh 294 / 126 / 49 → 294 / 126 / 52).**
+  A full re-read of all 55 proposals (four Sonnet reviewers, every card
+  looked up), each flag checked against the text and the deck. Fixed:
+  (85) *-1/-1 counters on each creature are a sweep*
+  (`lanes.mana_and_wipes._mass_shrink`, the wipe read's mode and amount:
+  CR 122.1a, 704.5f) — Black Sun's Zenith read as no wipe, so Revenant
+  Recon upgraded it to Negate while its wipe row was short; it now goes to
+  Cyclonic Rift. (86) *a card's own tokens feed only their own type's gate*
+  (`_UnitGates.fed`: only tokens of a kind the read can't name feed any
+  creature-type gate) and *a creature-type gate the deck can't feed is dead
+  whatever else the card cares about* (`dead_payoff`): Invisible Woman's
+  only trigger waits on "other Heroes", and her Wall tokens and the +1/+1
+  counters Abzan Armor makes never reach it; Tower Defense now goes to Wall
+  Off. The early verdict for every gate was measured and narrowed to
+  creature types: a token-made type like Food is counted off the type line,
+  and it cost Food and Fellowship's Trail of Crumbs (the 25 −2 adds, fresh
+  −3). (87) *a draw only off an attacking token is combat's*
+  (`job_quality.card_draw._draws_only_if_attacking`): Zurgo Stormrender's
+  mobilized token is sacrificed after combat (CR 511.3, 702.181a), so it is
+  no self-fueled engine. (88) *a redirect that copies copies no creature
+  commander's spell* (`multipliers._copy_reason`, beside phase's dropped
+  "with one or more targets"; `test_wylls_reversal_target_constraint_canary`
+  now guards the workaround): Wyll's Reversal reads as copying Nelly
+  Borca's targeted trigger, not her spell. (89) *one completion per set of
+  combo pieces the deck holds* (`issues`' near-miss loop): Necron Dynasties
+  took Vito and Sanguine Bond for the same Shard of the Nightbringer line;
+  it now takes Vito. Verdicts, with the check: Metalwork Colossus in Death
+  Toll (11 noncreature artifacts, 19 mana value — 17 with Golgari Signet
+  cut); Intangible Virtue in Deep Clue Sea and Jaheira in Enduring
+  Enchantments (12 creature-token makers each); Etched Oracle in Peace
+  Offering (12 +1/+1-counter makers beside its sunburst); Thief of
+  Existence (eight colorless sources, batch 15); Curiosity in Quick Draw (it
+  holds Niv-Mizzet, Parun); Archfiend of Ifnir for Arcane Denial, Field
+  Historian for Pyre of Heroes, Rite of the Raging Storm for Sephara (each
+  add supplies another of the commander's needs — the count test);
+  Killian, Ink Duelist for Flawless Maneuver (neither supplies Killian,
+  Decisive Mentor's needs; a free protection spell is the better-played
+  theme card); Cut Your Losses (a casualty sorcery on Rootha's spells
+  theme); Glaring Fleshraker, The Rise of Sozin, Gonti's evasion grants,
+  Eldrazi Monument (earlier batches); the soft flags — Chandra's Ignition as
+  a closer or wipe, Doctor Strange's +2/+2 at 50 life, Sephara's fliers,
+  Coastal Piracy (the draw read scales a combat engine by the deck's
+  creatures), Aetherflux Conduit's 50-energy draw (an energy deck's own
+  payoff), Faerie Slumber Party (a symmetric bounce filling a real wipe
+  shortfall). `verify_symptoms.py`: 90.
 
 **From the Jace, Multiverse Architect precon tune and the 25-precon audit (2026-10-17 to 2026-11-01)**
 

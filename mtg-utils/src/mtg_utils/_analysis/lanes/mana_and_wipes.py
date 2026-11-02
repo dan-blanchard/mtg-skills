@@ -50,6 +50,7 @@ from mtg_utils._card_ir.crosswalk import (
     count_down_to_fewest,
     count_operand_filter,
     counter_kind,
+    counter_kind_any,
     discard_is_random,
     discard_recipient_scope,
     double_target_kind,
@@ -1173,7 +1174,15 @@ def _mass_shrink(unit: AbilityUnit, c: ConceptNode) -> bool:
     and the creature an Equipment or Aura is attached to
     (:func:`names_attached_object`, CR 301.5a / 303.4b: one creature, not a
     board)."""
-    if tag_of(c.node) != "PumpAll" or not negative_pt_field(c.node, "toughness"):
+    tag = tag_of(c.node)
+    # -1/-1 counters on each creature shrink as a -X/-X does (CR 122.1a) and
+    # kill at 0 toughness the same way (CR 704.5f): Black Sun's Zenith's "Put
+    # X -1/-1 counters on each creature" read as no sweep (Revenant Recon,
+    # 2026-11-02).
+    minus_counters = tag == "PutCounterAll" and counter_kind_any(c.node) == "M1M1"
+    if not minus_counters and (
+        tag != "PumpAll" or not negative_pt_field(c.node, "toughness")
+    ):
         return False
     sub = effect_filter(c.node)
     return (

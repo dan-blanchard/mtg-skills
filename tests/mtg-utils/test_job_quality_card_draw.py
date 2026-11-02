@@ -176,3 +176,14 @@ def test_a_sacrifice_draw_runs_on_fodder():
     assert card_draw.deck_fit(dispute, _deck(_BODIES)) == 1.0
     assert card_draw.deck_fit(dispute, _deck(_SPELLS)) == 0.0
     assert card_draw.draw_fuel(_real("Sign in Blood")) is None
+
+
+def test_a_draw_only_off_an_attacking_token_is_combat_fuel():
+    """Zurgo Stormrender draws "if it was attacking" when a creature token
+    leaves: combat ends before the end step that sacrifices a mobilized token
+    (CR 511.3, 702.181a), so the draw is combat's, not every token's."""
+    from mtg_utils._analysis.job_quality import read_for
+
+    f = read_for("card_draw").features(test_card("Zurgo Stormrender"))
+    assert f["combat"] == 1.0
+    assert f["self_fuel"] == 0.0

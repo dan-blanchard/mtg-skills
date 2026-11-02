@@ -3954,3 +3954,30 @@ def test_a_one_shot_spell_is_no_upgrade_of_a_job_engine():
         "Vanquisher's Banner", "spine", roles=["card_draw"], edhrec_rank=8000
     )
     assert not _upgrades(_played("And They Shall Know No Fear", 10), banner, None)
+
+
+def test_a_cards_own_tokens_feed_only_their_own_type():
+    """Invisible Woman, Sue Storm waits on counters on "other Heroes you
+    control"; her Wall tokens are no Heroes, so a deck with none leaves her
+    trigger dead (Abzan Armor, 2026-11-02)."""
+    from collections import Counter
+
+    from mtg_utils._tuner.swaps import gated_without_feed
+
+    sue = test_card("Invisible Woman, Sue Storm")
+    assert gated_without_feed(sue, Counter(), Counter())
+    assert not gated_without_feed(sue, Counter({"hero": 8}), Counter())
+
+
+def test_a_redirect_that_copies_is_no_copy_of_a_creature_commanders_spell():
+    """Wyll's Reversal copies a "spell or ability with one or more targets":
+    Nelly Borca's creature spell has none, so it copies her targeted attack
+    trigger at most, never her spell (Blame Game, 2026-11-02)."""
+    from mtg_utils._analysis.multipliers import Commander, multiplier_reasons
+
+    reasons = multiplier_reasons(
+        test_card("Wyll's Reversal"),
+        Commander(test_card("Nelly Borca, Impulsive Accuser")),
+    )
+    assert reasons
+    assert all(r.kind != "copy_commander_spell" for r in reasons)

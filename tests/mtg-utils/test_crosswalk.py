@@ -19015,18 +19015,25 @@ def test_glorfindel_blocking_limit_misparse_canary():
 @pytest.mark.retirement_canary
 def test_wylls_reversal_target_constraint_canary():
     """Phase v0.94.0 drops Wyll's Reversal's "with one or more targets", leaving a
-    bare ``StackSpell``, so ``_analysis.multipliers`` reads its copy as able to copy
-    a commander spell (which has no targets, CR 115.1a/b). RETIRE-READY when the
-    target carries the constraint: then the multipliers' targeting veto drops it."""
+    bare ``StackSpell`` target. ``_analysis.multipliers._copy_reason`` works
+    around it: a spell copy beside a ``ChangeTargets`` (a redirect) needs a spell
+    with targets, which a creature commander's spell is not (CR 115.1a/b), so it
+    copies the commander's targeted triggers at most. RETIRE-READY when the
+    target carries the constraint: delete that ``ChangeTargets`` arm and this
+    canary."""
     from mtg_utils._analysis.multipliers import commander_multipliers
 
+    (rec,) = test_phase_records("Wyll's Reversal")
+    head = rec["abilities"][0]["effect"]
+    assert head["target"] == {"type": "StackSpell"}, (
+        "Wyll's Reversal: RETIRE-READY — phase types its target constraint; "
+        "delete multipliers' ChangeTargets arm and this canary."
+    )
+    # Krenko's tokens come off an activated ability: nothing it can copy.
     out = commander_multipliers(
         [test_card("Wyll's Reversal")], [test_card("Krenko, Mob Boss")]
     )
-    assert "Wyll's Reversal" in out, (
-        "Wyll's Reversal: RETIRE-READY — no longer read as a commander copy; "
-        "delete this canary and its backlog line."
-    )
+    assert "Wyll's Reversal" not in out
 
 
 @pytest.mark.parametrize(

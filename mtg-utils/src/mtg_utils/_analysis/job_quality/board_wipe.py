@@ -325,6 +325,7 @@ class _Sweep:
 #: The field a sweep effect's size sits on: a damage amount, a shrink's
 #: toughness.
 _AMOUNT_FIELDS = {
+    "PutCounterAll": "count",
     "DamageAll": "amount",
     "DealDamage": "amount",
     "PumpAll": "toughness",
@@ -481,6 +482,7 @@ def _mode(c: ConceptNode) -> str:
         "DealDamage": "damage",
         "PumpAll": "shrink",
         "Pump": "shrink",
+        "PutCounterAll": "shrink",
         "BounceAll": "bounce",
         "Bounce": "bounce",
         "ChooseAndSacrificeRest": "sacrifice",

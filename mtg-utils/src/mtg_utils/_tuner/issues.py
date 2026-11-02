@@ -1194,11 +1194,20 @@ def top_issues(
             )
         )
 
+    # One completion per set of pieces the deck holds: Shard of the
+    # Nightbringer's line completes with Vito or with Sanguine Bond, and both
+    # went in for two bodies (Necron Dynasties, 2026-11-02) — the second is
+    # the same payoff again.
+    completed: set[frozenset[str]] = set()
     for near in near_misses:
         missing = near.get("missing_card")
         if not missing:
             continue  # a missing generic requirement isn't one card to add
         others = [c for c in near.get("cards") or [] if c != missing]
+        held = frozenset(others)
+        if held in completed:
+            continue
+        completed.add(held)
         result = ", ".join(near.get("result") or []) or "a combo"
         terminal = ends_the_game(near)
         issues.append(
