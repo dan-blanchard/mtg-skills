@@ -52,6 +52,7 @@ from mtg_utils._card_ir.crosswalk import (
 )
 from mtg_utils._card_ir.crosswalk.reads import (
     amount_factor,
+    filter_predicates,
     has_fixed_count,
     is_self_enters_trigger,
     iter_search_landings,
@@ -67,6 +68,8 @@ from mtg_utils.card_classify import color_sources
 from mtg_utils.theme_presets import signal_keys_for
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
     from mtg_utils._card_ir.crosswalk import AbilityUnit, ConceptTree
     from mtg_utils._card_ir.mirror.runtime import TypedMirrorNode
 
@@ -101,6 +104,7 @@ class _Read:
     restricted: list[bool] = field(default_factory=list)
     extra_land: float = 0.0
     granted: float = 0.0
+    token_grant: bool = False  # the grant goes to your creature tokens
     scales: bool = False
     paid: bool = False  # one mana per counter paid for (Everflowing Chalice)
     from_hand: bool = False  # a spirit guide: paid from hand, never cast
@@ -402,6 +406,7 @@ def _granted(r: _Read, tree: ConceptTree, unit: AbilityUnit, *, sc: bool) -> Non
         elif k == "turn":
             single = bool({"Aura", "Equipment"} & set(tree.card_subtypes))
             r.granted = max(r.granted, 1.0 if single else 2.0)
+            r.token_grant |= "Token" in filter_predicates(affected)
             r.dork |= "Creature" in filter_core_types(affected)
 
 
@@ -430,6 +435,28 @@ def _read(card: dict) -> _Read:
                 r.borrowed_colors = True
     r.turn += r.tap_best
     return r
+
+
+#: The share of a deck's nonland cards making creature tokens at which a
+#: grant of mana to them runs at full rate (a token deck's quarter).
+_TOKEN_GRANT_REFERENCE = 1 / 4
+
+
+def deck_fit(card: dict, deck_records: Sequence[dict]) -> float:
+    """The share of ``card``'s ramp its deck can fuel: a grant of mana to
+    your creature tokens and nothing else (Insidious Roots' "Creature tokens
+    you control have '{T}: Add one mana of any color'") runs on the deck's
+    token makers, against a quarter of its nonland cards — it read above
+    Timeless Lotus in Dance of the Elements (2026-11-02). 1.0 for any other
+    ramp."""
+    r = _read(card)
+    if not r.token_grant or r.turn or r.tap_best or r.land_bf or not deck_records:
+        return 1.0
+    nonland = [d for d in deck_records if "Land" not in (d.get("type_line") or "")]
+    if not nonland:
+        return 1.0
+    makers = sum(1 for d in nonland if "token_maker" in signal_keys_for(d))
+    return min(1.0, makers / len(nonland) / _TOKEN_GRANT_REFERENCE)
 
 
 def _ramp_cost(card: dict, r: _Read) -> float:

@@ -180,7 +180,14 @@ READS: dict[str, JobRead] = {
             fill_orders=True,
             in_deck=board_wipe.deck_features,
         ),
-        JobRead("ramp", ramp.features, ramp.WEIGHTS, orders=False, theme_ties=True),
+        JobRead(
+            "ramp",
+            ramp.features,
+            ramp.WEIGHTS,
+            orders=False,
+            theme_ties=True,
+            fit=ramp.deck_fit,
+        ),
         JobRead(
             "card_draw",
             card_draw.features,

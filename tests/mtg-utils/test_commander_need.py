@@ -882,3 +882,12 @@ def test_blight_puts_the_minus_counters_auntie_ool_watches():
     Ool's trigger on any creature (Blight Curse, 2026-11-02)."""
     need = _need("Auntie Ool, Cursewretch", "-1/-1 counters put on creatures")
     assert satisfies(test_card("High Perfect Morcant"), need)
+
+
+def test_a_land_sacrifice_trigger_is_an_event_need():
+    """Hearthhull, the Worldseed drains "whenever you sacrifice a land": the
+    land sacrificers feed it, a sacrifice of "another nonland permanent"
+    does not (World Shaper, 2026-11-02)."""
+    need = _need("Hearthhull, the Worldseed", "lands you sacrifice")
+    assert satisfies(test_card("Sprouting Goblin"), need)
+    assert not satisfies(test_card("Shadow, Mysterious Assassin"), need)

@@ -616393,6 +616393,304 @@
     "type_line": "Creature — Nightmare"
    }
   },
+  "Insidious Roots": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Enchantment"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Black",
+      "Green"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "standard": "legal",
+      "standardbrawl": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 0,
+      "shards": [
+       "Black",
+       "Green"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "related_token_ids": [
+       "eb7bf20b-ea05-5471-8ba9-e9c3b3bb77b7"
+      ],
+      "source_printing_ids": [
+       "0bb91a22-2040-4a37-85f8-5f22de8c5907",
+       "61c9e0ae-38c0-4618-b664-16a9ad1661c1"
+      ]
+     },
+     "name": "Insidious Roots",
+     "non_ability_text": null,
+     "oracle_text": "Creature tokens you control have \"{T}: Add one mana of any color.\"\nWhenever one or more creature cards leave your graveyard, create a 0/1 green Plant creature token, then put a +1/+1 counter on each Plant you control.",
+     "power": null,
+     "printings": [
+      "MKM"
+     ],
+     "rarities": [
+      "uncommon"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2024-02-02",
+       "text": "If multiple creature cards leave your graveyard at the same time, Insidious Roots's last ability will trigger only once."
+      },
+      {
+       "date": "2024-02-02",
+       "text": "In the rare case where Insidious Roots is a creature token, it will grant itself the ability \"{T}: Add one mana of any color.\""
+      }
+     ],
+     "scryfall_oracle_id": "d75b2b8e-05c9-47da-b359-a867256d78ea",
+     "static_abilities": [
+      {
+       "active_zones": [],
+       "affected": {
+        "controller": "You",
+        "properties": [
+         {
+          "type": "Token"
+         }
+        ],
+        "type": "Typed",
+        "type_filters": [
+         "Creature"
+        ]
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": null,
+       "description": "Creature tokens you control have \"{T}: Add one mana of any color.\"",
+       "effect_zone": null,
+       "mode": "Continuous",
+       "modifications": [
+        {
+         "definition": {
+          "condition": null,
+          "cost": {
+           "type": "Tap"
+          },
+          "description": "{T}: Add one mana of any color.",
+          "duration": null,
+          "effect": {
+           "produced": {
+            "color_options": [
+             "White",
+             "Blue",
+             "Black",
+             "Red",
+             "Green"
+            ],
+            "count": {
+             "type": "Fixed",
+             "value": 1
+            },
+            "type": "AnyOneColor"
+           },
+           "type": "Mana"
+          },
+          "forward_result": false,
+          "is_mana_ability": true,
+          "kind": "Activated",
+          "optional": false,
+          "optional_targeting": false,
+          "sub_ability": null,
+          "target_prompt": null
+         },
+         "type": "GrantAbility"
+        }
+       ]
+      }
+     ],
+     "toughness": null,
+     "triggers": [
+      {
+       "batched": true,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever one or more creature cards leave your graveyard, create a 0/1 green Plant creature token, then put a +1/+1 counter on each Plant you control.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "colors": [
+          "Green"
+         ],
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "enters_attacking": false,
+         "keywords": [],
+         "name": "Plant",
+         "owner": {
+          "type": "Controller"
+         },
+         "power": {
+          "type": "Fixed",
+          "value": 0
+         },
+         "tapped": false,
+         "toughness": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "type": "Token",
+         "types": [
+          "Creature",
+          "Plant"
+         ]
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "count": {
+           "type": "Fixed",
+           "value": 1
+          },
+          "counter_type": "P1P1",
+          "target": {
+           "controller": "You",
+           "properties": [],
+           "type": "Typed",
+           "type_filters": [
+            {
+             "Subtype": "Plant"
+            }
+           ]
+          },
+          "type": "PutCounterAll"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": null,
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "mode": "ChangesZoneAll",
+       "optional": false,
+       "origin": "Graveyard",
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "controller": null,
+        "properties": [
+         {
+          "controller": "You",
+          "type": "Owned"
+         }
+        ],
+        "type": "Typed",
+        "type_filters": [
+         "Creature"
+        ]
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "all_parts": [
+     {
+      "component": "token",
+      "id": "b1d05bfc-c447-474a-9ec9-9f4772821bfb",
+      "name": "Plant",
+      "oracle_id": "bcd346a7-4d96-4a0c-9725-fb740e32b730",
+      "type_line": "Token Creature — Plant"
+     }
+    ],
+    "arena_available": true,
+    "cmc": 2.0,
+    "color_identity": [
+     "B",
+     "G"
+    ],
+    "colors": [
+     "B",
+     "G"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "legal",
+     "standardbrawl": "legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{B}{G}",
+    "name": "Insidious Roots",
+    "oracle_id": "d75b2b8e-05c9-47da-b359-a867256d78ea",
+    "oracle_text": "Creature tokens you control have \"{T}: Add one mana of any color.\"\nWhenever one or more creature cards leave your graveyard, create a 0/1 green Plant creature token, then put a +1/+1 counter on each Plant you control.",
+    "produced_mana": [
+     "B",
+     "G",
+     "R",
+     "U",
+     "W"
+    ],
+    "type_line": "Enchantment"
+   }
+  },
   "Insolent Neonate": {
    "phase_records": [
     {
@@ -1013510,6 +1013808,241 @@
     "type_line": "Enchantment"
    }
   },
+  "Shadow, Mysterious Assassin": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "brawl_commander": true,
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Human",
+       "Assassin"
+      ],
+      "supertypes": [
+       "Legendary"
+      ]
+     },
+     "color_identity": [
+      "Black"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "is_commander": true,
+     "keywords": [
+      "Deathtouch"
+     ],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 2,
+      "shards": [
+       "Black"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "d2a400d2-cf8e-4be8-9eb8-46af1aa73698",
+       "f88d81d9-8ded-4c20-8237-2218046595fb"
+      ]
+     },
+     "name": "Shadow, Mysterious Assassin",
+     "non_ability_text": null,
+     "oracle_text": "Deathtouch\nThrow — Whenever Shadow deals combat damage to a player, you may sacrifice another nonland permanent. If you do, draw two cards and each opponent loses life equal to the mana value of the sacrificed permanent.",
+     "power": {
+      "type": "Fixed",
+      "value": 3
+     },
+     "printings": [
+      "FIC"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2025-06-06",
+       "text": "If a permanent has {X} in its mana cost, X is 0 for the purpose of determining its mana value."
+      },
+      {
+       "date": "2025-06-06",
+       "text": "Use the mana value of the sacrificed permanent as it last existed on the battlefield to determine how much life each opponent loses."
+      }
+     ],
+     "scryfall_oracle_id": "13ca49a2-8a78-4be4-976a-b684086864bb",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 3
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "CombatOnly",
+       "description": "Whenever ~ deals combat damage to a player, you may sacrifice another nonland permanent. If you do, draw two cards and each opponent loses life equal to the mana value of the sacrificed permanent.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "target": {
+          "controller": "You",
+          "properties": [
+           {
+            "type": "Another"
+           }
+          ],
+          "type": "Typed",
+          "type_filters": [
+           "Permanent",
+           {
+            "Non": "Land"
+           }
+          ]
+         },
+         "type": "Sacrifice"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": true,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": {
+          "signal": "OptionalEffectPerformed",
+          "type": "EffectOutcome"
+         },
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "count": {
+           "type": "Fixed",
+           "value": 2
+          },
+          "target": {
+           "type": "Controller"
+          },
+          "type": "Draw"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": {
+          "condition": null,
+          "cost": null,
+          "description": null,
+          "duration": null,
+          "effect": {
+           "amount": {
+            "qty": {
+             "scope": {
+              "type": "CostPaidObject"
+             },
+             "type": "ObjectManaValue"
+            },
+            "type": "Ref"
+           },
+           "type": "LoseLife"
+          },
+          "forward_result": false,
+          "kind": "Spell",
+          "optional": false,
+          "optional_targeting": false,
+          "player_scope": {
+           "type": "Opponent"
+          },
+          "sub_ability": null,
+          "target_prompt": null
+         },
+         "sub_link": "SequentialSibling",
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "mode": "DamageDone",
+       "optional": true,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": null,
+       "valid_source": {
+        "type": "SelfRef"
+       },
+       "valid_target": {
+        "type": "Player"
+       }
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 3.0,
+    "color_identity": [
+     "B"
+    ],
+    "colors": [
+     "B"
+    ],
+    "keywords": [
+     "Deathtouch"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}{B}",
+    "name": "Shadow, Mysterious Assassin",
+    "oracle_id": "13ca49a2-8a78-4be4-976a-b684086864bb",
+    "oracle_text": "Deathtouch\nThrow — Whenever Shadow deals combat damage to a player, you may sacrifice another nonland permanent. If you do, draw two cards and each opponent loses life equal to the mana value of the sacrificed permanent.",
+    "power": "3",
+    "toughness": "3",
+    "type_line": "Legendary Creature — Human Assassin"
+   }
+  },
   "Shadowborn Apostle": {
    "phase_records": [
     {
@@ -1051099,6 +1051632,250 @@
     "type_line": "Artifact — Vehicle"
    }
   },
+  "Smuggler's Share": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Enchantment"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "White"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 2,
+      "shards": [
+       "White"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "related_token_ids": [
+       "02eda719-658b-52e3-8f94-b66dda715865",
+       "4936a471-c34f-536c-bac9-dfdaf15fdba9",
+       "f7ea7823-dda8-5a31-b223-305e41cbcaf2"
+      ],
+      "source_printing_ids": [
+       "229caa63-ff7e-4e10-99e9-c593d5dac92f",
+       "87e58a16-f344-4a7c-9eca-a71f7c27ad97",
+       "b835e0c3-7d63-402e-8752-7e55e974b777",
+       "f1ced678-5cfd-49ff-9420-6ee52d5edf5a"
+      ]
+     },
+     "name": "Smuggler's Share",
+     "non_ability_text": null,
+     "oracle_text": "At the beginning of each end step, draw a card for each opponent who drew two or more cards this turn, then create a Treasure token for each opponent who had two or more lands enter the battlefield under their control this turn.",
+     "power": null,
+     "printings": [
+      "MKC",
+      "NCC",
+      "PLST",
+      "PNCC"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "17b29350-4f37-4552-8192-4856b15345f9",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "At the beginning of each end step, draw a card for each opponent who drew two or more cards this turn, then create a Treasure token for each opponent who had two or more lands enter the battlefield under their control this turn.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "count": {
+          "qty": {
+           "filter": {
+            "attr": {
+             "player": {
+              "type": "ScopedPlayer"
+             },
+             "type": "CardsDrawnThisTurn"
+            },
+            "comparator": "GE",
+            "relation": {
+             "type": "Opponent"
+            },
+            "type": "PlayerAttribute",
+            "value": {
+             "type": "Fixed",
+             "value": 2
+            }
+           },
+           "type": "PlayerCount"
+          },
+          "type": "Ref"
+         },
+         "target": {
+          "type": "Controller"
+         },
+         "type": "Draw"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "colors": [],
+          "count": {
+           "qty": {
+            "filter": {
+             "attr": {
+              "filter": {
+               "controller": null,
+               "properties": [],
+               "type": "Typed",
+               "type_filters": [
+                "Land"
+               ]
+              },
+              "player": {
+               "type": "ScopedPlayer"
+              },
+              "type": "BattlefieldEntriesThisTurn"
+             },
+             "comparator": "GE",
+             "relation": {
+              "type": "Opponent"
+             },
+             "type": "PlayerAttribute",
+             "value": {
+              "type": "Fixed",
+              "value": 2
+             }
+            },
+            "type": "PlayerCount"
+           },
+           "type": "Ref"
+          },
+          "enters_attacking": false,
+          "keywords": [],
+          "name": "Treasure",
+          "owner": {
+           "type": "Controller"
+          },
+          "power": {
+           "type": "Fixed",
+           "value": 0
+          },
+          "tapped": false,
+          "toughness": {
+           "type": "Fixed",
+           "value": 0
+          },
+          "type": "Token",
+          "types": [
+           "Artifact",
+           "Treasure"
+          ]
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": null,
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "mode": "Phase",
+       "optional": false,
+       "origin": null,
+       "phase": "End",
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": null,
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "all_parts": [
+     {
+      "component": "token",
+      "id": "649d42c1-a465-435e-8b67-e901ab9ad8ab",
+      "name": "Treasure",
+      "oracle_id": "3c549374-6c37-42e0-8d88-a8555d46732d",
+      "type_line": "Token Artifact — Treasure"
+     }
+    ],
+    "arena_available": false,
+    "cmc": 3.0,
+    "color_identity": [
+     "W"
+    ],
+    "colors": [
+     "W"
+    ],
+    "keywords": [
+     "Treasure"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}{W}",
+    "name": "Smuggler's Share",
+    "oracle_id": "17b29350-4f37-4552-8192-4856b15345f9",
+    "oracle_text": "At the beginning of each end step, draw a card for each opponent who drew two or more cards this turn, then create a Treasure token for each opponent who had two or more lands enter the battlefield under their control this turn.",
+    "type_line": "Enchantment"
+   }
+  },
   "Snake Umbra": {
    "phase_records": [
     {
@@ -1077310,6 +1078087,321 @@
      "W"
     ],
     "type_line": "Artifact"
+   }
+  },
+  "Sprouting Goblin": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": {
+        "costs": [
+         {
+          "cost": {
+           "generic": 0,
+           "shards": [
+            "Red"
+           ],
+           "type": "Cost"
+          },
+          "type": "Mana"
+         },
+         {
+          "type": "Tap"
+         },
+         {
+          "count": 1,
+          "target": {
+           "controller": null,
+           "properties": [],
+           "type": "Typed",
+           "type_filters": [
+            "Land"
+           ]
+          },
+          "type": "Sacrifice"
+         }
+        ],
+        "type": "Composite"
+       },
+       "description": "{R}, {T}, Sacrifice a land: Draw a card.",
+       "duration": null,
+       "effect": {
+        "count": {
+         "type": "Fixed",
+         "value": 1
+        },
+        "target": {
+         "type": "Controller"
+        },
+        "type": "Draw"
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "additional_cost": {
+      "data": {
+       "costs": [
+        {
+         "cost": {
+          "generic": 0,
+          "shards": [
+           "Green"
+          ],
+          "type": "Cost"
+         },
+         "type": "Mana"
+        }
+       ]
+      },
+      "type": "Kicker"
+     },
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Goblin",
+       "Druid"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Green",
+      "Red"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [
+      {
+       "Kicker": {
+        "generic": 0,
+        "shards": [
+         "Green"
+        ],
+        "type": "Cost"
+       }
+      }
+     ],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "Red"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "602f5370-d096-4765-b612-16bcec3aafa7",
+       "f5555845-0424-4cb6-b373-57a722444a4a"
+      ]
+     },
+     "name": "Sprouting Goblin",
+     "non_ability_text": null,
+     "oracle_text": "Kicker {G} (You may pay an additional {G} as you cast this spell.)\nWhen this creature enters, if it was kicked, search your library for a land card with a basic land type, reveal it, put it into your hand, then shuffle.\n{R}, {T}, Sacrifice a land: Draw a card.",
+     "power": {
+      "type": "Fixed",
+      "value": 2
+     },
+     "printings": [
+      "DMU",
+      "EOC"
+     ],
+     "rarities": [
+      "uncommon"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2022-09-09",
+       "text": "You may search for any land card with one of the basic land types, even if that land isn't a basic land. The basic land types are Plains, Island, Swamp, Mountain, and Forest."
+      }
+     ],
+     "scryfall_oracle_id": "b0871e12-b156-4fa6-b01c-acaae222b3a5",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 2
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": {
+        "source": "Kicker",
+        "type": "AdditionalCostPaid"
+       },
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "When ~ enters, if it was kicked, search your library for a land card with a basic land type, reveal it, put it into your hand, then shuffle.",
+       "destination": "Battlefield",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "filter": {
+          "controller": null,
+          "properties": [],
+          "type": "Typed",
+          "type_filters": [
+           "Land",
+           {
+            "AnyOf": [
+             {
+              "Subtype": "Plains"
+             },
+             {
+              "Subtype": "Island"
+             },
+             {
+              "Subtype": "Swamp"
+             },
+             {
+              "Subtype": "Mountain"
+             },
+             {
+              "Subtype": "Forest"
+             }
+            ]
+           }
+          ]
+         },
+         "reveal": true,
+         "type": "SearchLibrary"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "destination": "Hand",
+          "enter_tapped": false,
+          "enter_transformed": false,
+          "enters_attacking": false,
+          "origin": "Library",
+          "owner_library": false,
+          "target": {
+           "type": "Any"
+          },
+          "type": "ChangeZone"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": {
+          "condition": null,
+          "cost": null,
+          "description": null,
+          "duration": null,
+          "effect": {
+           "target": {
+            "type": "Controller"
+           },
+           "type": "Shuffle"
+          },
+          "forward_result": false,
+          "kind": "Spell",
+          "optional": false,
+          "optional_targeting": false,
+          "sub_ability": null,
+          "target_prompt": null
+         },
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "mode": "ChangesZone",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 2.0,
+    "color_identity": [
+     "G",
+     "R"
+    ],
+    "colors": [
+     "R"
+    ],
+    "keywords": [
+     "Kicker"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}{R}",
+    "name": "Sprouting Goblin",
+    "oracle_id": "b0871e12-b156-4fa6-b01c-acaae222b3a5",
+    "oracle_text": "Kicker {G} (You may pay an additional {G} as you cast this spell.)\nWhen this creature enters, if it was kicked, search your library for a land card with a basic land type, reveal it, put it into your hand, then shuffle.\n{R}, {T}, Sacrifice a land: Draw a card.",
+    "power": "2",
+    "toughness": "2",
+    "type_line": "Creature — Goblin Druid"
    }
   },
   "Spry and Mighty": {

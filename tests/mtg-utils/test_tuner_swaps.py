@@ -4200,3 +4200,17 @@ def test_life_above_the_starting_total_waits_on_lifegain():
     assert not gated_without_feed(
         strange, Counter(), Counter(), Counter({"lifegain_makers": 9})
     )
+
+
+def test_a_cheaper_card_is_a_tempo_upgrade_only_while_it_keeps_the_job():
+    """Key to the City's discard-to-untap draw keeps under 0.4 of Smuggler's
+    Share at card draw, so cheaper is no excuse (Blame Game, 2026-11-02);
+    Duplicant keeps about half of Meteor Golem and stays a tempo upgrade."""
+    from mtg_utils._tuner.swaps import _reads_worse_at_the_job
+
+    assert _reads_worse_at_the_job(
+        test_card("Key to the City"), test_card("Smuggler's Share"), "card_draw", []
+    )
+    assert not _reads_worse_at_the_job(
+        test_card("Duplicant"), test_card("Meteor Golem"), "interaction", []
+    )

@@ -97,3 +97,14 @@ def test_a_paid_activation_for_a_spawn_makes_no_mana():
 
     assert ramp.features(test_card("Idol of False Gods"))["per_turn"] == 0.0
     assert ramp.features(test_card("Awakening Zone"))["per_turn"] == 1.0
+
+
+def test_a_mana_grant_to_creature_tokens_runs_on_token_makers():
+    """Insidious Roots gives "Creature tokens you control" a mana ability:
+    a deck making no creature tokens fuels none of it (Dance of the
+    Elements, 2026-11-02); a rock is fit anywhere."""
+    from mtg_utils._analysis.job_quality import ramp
+
+    rocks = [test_card("Mind Stone")] * 20
+    assert ramp.deck_fit(test_card("Insidious Roots"), rocks) == 0.0
+    assert ramp.deck_fit(test_card("Sol Ring"), rocks) == 1.0

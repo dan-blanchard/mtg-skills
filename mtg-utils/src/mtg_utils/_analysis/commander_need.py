@@ -867,7 +867,9 @@ def _sacrifices_lands(card: dict) -> bool:
                     "You",
                 ):
                     continue
-                if {"Land", "Permanent"} & set(filter_core_types(target)):
+                if {"Land", "Permanent"} & set(
+                    filter_core_types(target)
+                ) and "Land" not in filter_non_types(target):
                     return True
     return False
 
@@ -1491,10 +1493,16 @@ def _event_need(node: TypedMirrorNode, desc: str) -> Need | None:
     if event in ("dies", "leaves", "sacrificed", "exploited"):
         if "Land" in core:
             # "Whenever you sacrifice a land" (Hearthhull, the Worldseed) is fed
-            # by land sacrifice, which the commander's own land-sacrifice idents
-            # page (``_payoff_needs``, ``_redundancy_needs``); never by creature
-            # fodder.
-            return None
+            # by land sacrifice (:func:`_sacrifices_lands`), never by creature
+            # fodder: an event need, so the upgrade gate keeps it — Sprouting
+            # Goblin's "Sacrifice a land: Draw a card" went to Shadow,
+            # Mysterious Assassin while it was only the broad payoff (World
+            # Shaper, 2026-11-02).
+            if event != "sacrificed":
+                return None
+            return Need(
+                "event", "lands you sacrifice", desc, predicate=_sacrifices_lands
+            )
         keys = set(_EVENT_MAKER_KEYS[event])
         if "Token" in preds:
             keys = set(_TYPE_TOKEN_KEYS["creature"]) | {"sacrifice_outlets"}

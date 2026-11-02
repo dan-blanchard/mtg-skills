@@ -223,6 +223,11 @@ CHECKS = [
     _check("no_pair", "BlightCurse_ECC", "Evolution Sage -> Phyresis", batch="16r"),
     _check("no_pair", "DeadlyDisguise_MKC", "Welcoming Vampire -> Garruk's Uprising", batch="16r"),
     _check("never", "AvengersAssemble_MSC", "Doctor Strange, Surgeon", batch="16r"),
+    # The re-read of batch 16r (batch 16s).
+    _check("no_pair", "BlameGame_MKC", "Smuggler's Share -> Key to the City", batch="16s"),
+    _check("never", "AnimatedArmy_BLC", "Echoes of Eternity", batch="16s"),
+    _check("no_pair", "DanceOfTheElements_ECC", "Timeless Lotus -> Insidious Roots", batch="16s"),
+    _check("no_pair", "WorldShaper_EOC", "Sprouting Goblin -> Shadow, Mysterious Assassin", batch="16s"),
     _check("no_pair", "CreativeEnergy_M3C", "Silverquill Lecturer -> Boromir, Warden of the Tower", batch="16n"),
     _check("no_pair", "TinkerTime_MOC", "Feldon of the Third Path -> Skullclamp", batch="16n"),
     _check("no_trim", "EldraziIncursion_M3C", "Forsaken Monument", batch="14"),

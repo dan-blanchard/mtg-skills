@@ -1531,6 +1531,39 @@ proposal as a deckbuilder, fix the structure, the guide score is a yardstick)**
   ("1 damage to any target" is interaction); Contaminant Grafter (toxic 1
   itself); Reconnaissance Mission (18 creatures); Kozilek's Command (eight
   colorless sources, settled in batch 15). `verify_symptoms.py`: 135.
+- **Batch 16s (2026-11-02; the 25 729 / 339 / 116 → 728 / 339 / 115, held-out
+  562 / 263 / 106 → 561 / 263 / 103, fresh unchanged at 294 / 126 / 51).**
+  The re-read of batch 16r's 28 changed proposals (four Sonnet reviewers,
+  every card looked up; 27 flags). Fixed: (136) *a cheaper card is a tempo
+  upgrade only while it keeps 0.4 of the cut's read*
+  (`swaps._TEMPO_FLOOR`): Key to the City (0.22) for Smuggler's Share
+  (0.57); Duplicant keeps 0.49 of Meteor Golem and stays. (137) *an add
+  asking {C} pips wants four colorless sources a pip*
+  (`_C_SOURCES_PER_PIP`, counted off `produced_mana`, which names a
+  painland's {C}): Echoes of Eternity's {C}{C}{C} in Animated Army's eight;
+  batch 15's {C}{C} verdicts stand. (138) *a mana grant to creature tokens
+  alone runs on the deck's token makers* (`ramp.deck_fit`): Insidious Roots
+  no longer reads above Timeless Lotus in Dance of the Elements. (139) *a
+  commander's "whenever you sacrifice a land" is an event need*, kept by the
+  upgrade gate, and a sacrifice of "another nonland permanent" feeds none:
+  Sprouting Goblin no longer goes to Shadow, Mysterious Assassin under
+  Hearthhull. Open, upstream (phase): Umbra Mystic's umbra-armor grant is
+  `Unimplemented`; Akiri, Fearless Voyager's "with one or more equipped
+  creatures" is dropped (a bare `YouAttack`); Unwanted Remake's "Its
+  controller manifests dread" loses its player (a bare `ManifestDread`).
+  Verdicts, with the card text or count: Vanquisher's Banner in Living
+  Energy (nine Artificers: fit 0.6); Will of the Sultai for Trading Post
+  (both move a card out of the graveyard for Teval); Rite of the Raging
+  Storm for Iroas (protection for protection; both feed Nelly's evasion
+  need); Promise of Aclazotz and March of the Canonized (fill cuts from
+  need suppliers, as Kulrath Knight); Valakut Exploration; Nicanzil for
+  Glistening Sphere (a need for a need: its proliferate feeds Hakbal's
+  counters); Captain Marvel, Shooting Star (a big flier is the read's
+  closer); Blight Curse's infect adds (infect damage is -1/-1 counters, CR
+  702.90c, and poison); Dreamscape Artist (it nets a land each activation);
+  Cavalier of Thorns (its ramp row is short, so it keeps its job page);
+  Ribtruss Roaster for Inspiring Call (its fuel read now applies).
+  `verify_symptoms.py`: 139.
 
 **From the Jace, Multiverse Architect precon tune and the 25-precon audit (2026-10-17 to 2026-11-01)**
 

@@ -359,6 +359,18 @@ def _does_the_job(
     return read.score(card) is not None and read.deck_fit(card, deck) >= _DECK_FIT_FLOOR
 
 
+#: Colorless sources a deck holds per {C} pip of an add's cost: eight cast
+#: Kozilek's Command's and Warping Wail's two in Peace Offering and Mardu
+#: Surge (batch 15's verdict); twelve for Echoes of Eternity's three.
+_C_SOURCES_PER_PIP = 4
+
+#: The share of the cut's read a cheaper card in its band must keep to be a
+#: tempo upgrade (:func:`_reads_worse_at_the_job`): Duplicant keeps 0.49 of
+#: Meteor Golem (the kept precedent), Key to the City 0.38 of Smuggler's
+#: Share.
+_TEMPO_FLOOR = 0.4
+
+
 def _reads_worse_at_the_job(
     candidate: dict,
     cut: dict,
@@ -409,9 +421,16 @@ def _reads_worse_at_the_job(
     if _one_shot_for_an_engine(read, candidate, cut, records):
         return True
     cand_cost, cut_cost = _job_cost(read, candidate), _job_cost(read, cut)
-    if cand_cost < cut_cost and _cost_band(cand_cost) == _cost_band(cut_cost):
-        return False
     sc, su = read.score(candidate, records), read.score(cut, records)
+    if (
+        cand_cost < cut_cost
+        and _cost_band(cand_cost) == _cost_band(cut_cost)
+        # A cheaper card is a tempo upgrade only while it keeps enough of the job:
+        # Key to the City's discard-to-untap draw (0.22) replaced Smuggler's
+        # Share (0.57) in Blame Game (2026-11-02).
+        and (sc is None or su is None or sc >= _TEMPO_FLOOR * su)
+    ):
+        return False
     return sc is not None and su is not None and sc < su - 1e-9
 
 
@@ -2374,6 +2393,11 @@ def propose_swaps(
     # The deck's flips, and how many sit under the floor (``_WHIFF_SHARE``);
     # ``commit`` moves both with each swap.
     flip_count = sum(1 for r in deck_records if is_flip(r, flip_types))
+    # The deck's colorless sources: an add asking {C} pips is cast off them
+    # (:data:`_C_SOURCES_PER_PIP`).
+    colorless_sources = sum(
+        1 for r in deck_records if "C" in (r.get("produced_mana") or ())
+    )
     low_flips = sum(1 for r in deck_records if below_floor(r))
     # The deck's own avenue prominence, so the candidate ranker scores DEPTH in
     # the deck's real themes (a death payoff) over BREADTH across incidental lanes
@@ -3140,6 +3164,11 @@ def propose_swaps(
                 continue
             if not game_changers.allows(card):
                 continue  # ADR-0030: never propose an add past the bracket's ceiling
+            pips = (card.get("mana_cost") or "").count("{C}")
+            if pips and colorless_sources < _C_SOURCES_PER_PIP * pips:
+                # Echoes of Eternity's {C}{C}{C} in Animated Army, a Gruul
+                # deck of eight colorless sources (2026-11-02).
+                continue
             if not spec.get("name") and below_floor(card):
                 # The docstring: a cheap flip is a whiff in the library, unless
                 # it is fodder, and fodder only while the flips stay mostly the
