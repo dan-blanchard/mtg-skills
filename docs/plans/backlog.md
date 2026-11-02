@@ -1632,6 +1632,35 @@ proposal as a deckbuilder, fix the structure, the guide score is a yardstick)**
   is in band in Mardu Surge: a strong body for a real ramp fill); Viscera
   Seer for Inkshield (both supply Zurgo's token-leaves need).
   `verify_symptoms.py`: 143.
+- **Batch 16w (2026-11-02; the 25 728 / 339 / 116 → 728 / 340 / 115, held-out
+  561 / 263 / 103 → 561 / 264 / 102, fresh unchanged at 294 / 126 / 51).**
+  The parse gaps the earlier batches recorded as upstream-only, closed
+  in-repo through the correction layer (each row retires with its canary):
+  (148) `misparsed_shapes` writes Sinister Gnarlbark's unparsed "draw a card
+  and blight 1" as a `Draw` and a `BlightEffect` (CR 701.68a); (149)
+  Unwanted Remake's bare `ManifestDread` gets Fateful Absence's
+  `player_scope: ParentObjectTargetController`, and
+  `crosswalk.acts_for_answered_target` now reads that scope — Fateful
+  Absence's and Beast Within's "Its controller …" had been read as yours
+  too; (150) Akiri, Fearless Voyager's dropped "with one or more equipped
+  creatures" is written back as a `HasAttachment{Equipment}` attacker
+  filter, and `card_draw` reads an `attached_<kind>` fuel off the deck's
+  Equipment (Desert Bloom: 0.03); (151) Umbra Mystic's unparsed grant is
+  written as a `TotemArmor` static over your Auras, umbra armor joins
+  `PROTECTIVE_KEYWORDS` and the protection read's wipe-proof set (CR
+  702.89a: it reads 0.44 at protection; the `protective_grant_parse_failure`
+  bridge graduates its pin); (152) Everlasting Torment's "as though its
+  source had wither", a parser residue, is the
+  `wither_grant_unparsed` bridge row emitting `minus_counters_matter`, so
+  Auntie Ool's -1/-1 need sees it — it is no longer cut as dead weight.
+  (153) *a dig steals only what you may play*
+  (`tree_synthesis.value_engines._theft_dig_effect` needs a `CastFromZone` /
+  `FreeCastFromZones` / unparsed clause beside the opponent's
+  `ExileFromTopUntil`, and the bucket-B theft arm stands down on a typed
+  dig): Tasha's Hideous Laughter and Umbris leave `theft_makers`; Chaos
+  Wand, Dream Harvest, Plargg and Nassari and Wand of Wonder stay. Verdict:
+  Unexplained Absence for Unwanted Remake (interaction for interaction).
+  `verify_symptoms.py`: 148.
 
 **From the Jace, Multiverse Architect precon tune and the 25-precon audit (2026-10-17 to 2026-11-01)**
 

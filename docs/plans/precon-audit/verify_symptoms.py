@@ -233,6 +233,12 @@ CHECKS = [
     # The fifth full re-read (batch 16v).
     _check("never", "MarduSurge_TDC", "Sundial of the Infinite", batch="16v"),
     _check("no_pair", "AbzanArmor_TDC", "Tip the Scales -> White Sun's Twilight", batch="16v"),
+    # The parse gaps closed in-repo (batch 16w).
+    _check("kept", "BlightCurse_ECC", "Everlasting Torment", batch="16w"),
+    _check("never", "DesertBloom_OTC", "Akiri, Fearless Voyager", batch="16w"),
+    _check("never", "GrandLarceny_OTC", "Tasha's Hideous Laughter", batch="16w"),
+    _check("no_pair", "VirtueAndValor_WOC", "Umbra Mystic -> Gaea's Gift", batch="16w"),
+    _check("no_pair", "DeadlyDisguise_MKC", "Sidar Kondo of Jamuraa -> Unwanted Remake", batch="16w"),
     _check("no_pair", "CreativeEnergy_M3C", "Silverquill Lecturer -> Boromir, Warden of the Tower", batch="16n"),
     _check("no_pair", "TinkerTime_MOC", "Feldon of the Third Path -> Skullclamp", batch="16n"),
     _check("no_trim", "EldraziIncursion_M3C", "Forsaken Monument", batch="14"),

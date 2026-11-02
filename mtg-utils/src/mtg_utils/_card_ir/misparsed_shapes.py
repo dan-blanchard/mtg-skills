@@ -73,6 +73,42 @@ taught a special case. Keyed on phase's structure, never the card's name or text
   Season of Gathering as a creature sweeper (2026-11-02).
   ``test_chosen_card_type_sweep_canary`` fails once phase types the choice.
 
+* **A draw and a blight left unparsed.** "At the beginning of your end step,
+  draw a card and blight 1" (Sinister Gnarlbark) is an ``Unimplemented``
+  ``unparsed_verb_arguments`` effect whose own description is "draw a card and
+  blight N". Phase types a draw as ``Draw`` and a blight as ``BlightEffect``
+  (High Perfect Morcant), and to blight N is to put N -1/-1 counters on a
+  creature you control (CR 701.68a): the two are written as a ``Draw`` with a
+  ``BlightEffect`` sub-ability. ``test_draw_and_blight_canary`` fails once phase
+  types the clause.
+
+* **"Its controller manifests dread" with no player.** "Destroy target
+  creature. Its controller manifests dread" (Unwanted Remake) types the
+  manifest as a bare ``ManifestDread`` sub-ability, so every read takes it as
+  yours. Phase types "Its controller investigates" after the same destroy as
+  the sub-ability's ``player_scope: ParentObjectTargetController`` (Fateful
+  Absence); that scope is written onto a bare ``ManifestDread`` whose parent's
+  description says its controller manifests. ``test_its_controller_manifests_
+  canary`` fails once phase types the player.
+
+* **"Attack with one or more equipped creatures" with no filter.** "Whenever
+  you attack a player with one or more equipped creatures, draw a card"
+  (Akiri, Fearless Voyager) is a ``YouAttack`` trigger with no ``valid_card``,
+  read as any attack. Phase types "Whenever you attack with one or more
+  Zombies" with the attackers on ``valid_card`` (Varina, Lich Queen) and an
+  equipped creature as ``HasAttachment{Equipment}`` (Stone Haven Outfitter):
+  that filter is written on, for an equipped or enchanted attacker the
+  trigger's own description names. ``test_equipped_attack_canary`` fails once
+  phase types the filter.
+
+* **"Auras ... have umbra armor" left unparsed.** "Auras attached to
+  permanents you control have umbra armor" (Umbra Mystic) is an
+  ``Unimplemented`` ``static_structure`` ability. Phase types umbra armor as the
+  ``TotemArmor`` keyword (Hyena Umbra) and a keyword your permanents of a
+  subtype have as a ``Continuous`` static adding it (Puresteel Paladin's
+  Equipment): the ability is rewritten as that static over the Auras you
+  control. ``test_umbra_armor_grant_canary`` fails once phase types the static.
+
 Pure functions over plain dicts; nothing here reads the mirror or a tree.
 """
 
@@ -239,6 +275,96 @@ def _chosen_card_type_sweep(body: dict) -> list[str] | None:
     return list(options)
 
 
+#: An unparsed draw-and-blight's own description (:func:`_draw_and_blight`).
+_DRAW_AND_BLIGHT_RX = re.compile(r"^draw (?:a|one) card and blight (?P<n>\d+)$")
+
+
+def _draw_and_blight(body: dict) -> int | None:
+    """N, for an ``Unimplemented`` effect whose description is "draw a card
+    and blight N"."""
+    effect = body["effect"]
+    if effect.get("type") != "Unimplemented":
+        return None
+    m = _DRAW_AND_BLIGHT_RX.match(str(effect.get("description") or ""))
+    return int(m.group("n")) if m else None
+
+
+#: A parent ability's description naming its target's controller as the one
+#: who manifests (:func:`_bare_target_manifest`).
+_CONTROLLER_MANIFESTS_RX = re.compile(r"\bIts controller manifests dread\b")
+
+
+def _bare_target_manifest(body: dict) -> bool:
+    """An ability whose ``sub_ability`` is a bare ``ManifestDread`` with no
+    ``player_scope``, where the ability's own description says "Its controller
+    manifests dread"."""
+    sub = body.get("sub_ability")
+    return (
+        isinstance(sub, dict)
+        and (sub.get("effect") or {}).get("type") == "ManifestDread"
+        and not sub.get("player_scope")
+        and bool(_CONTROLLER_MANIFESTS_RX.search(str(body.get("description") or "")))
+    )
+
+
+#: An attack trigger's description naming its attackers' attachment.
+_ATTACHED_ATTACK_RX = re.compile(
+    r"^Whenever you attack (?:a player )?with one or more "
+    r"(?P<kind>equipped|enchanted) creatures\b"
+)
+
+
+def _attached_attack_kind(trig: object) -> str | None:
+    """``Equipment`` / ``Aura`` for a ``YouAttack`` trigger with no
+    ``valid_card`` whose description watches equipped / enchanted attackers."""
+    if not isinstance(trig, dict) or trig.get("mode") != "YouAttack":
+        return None
+    if trig.get("valid_card"):
+        return None
+    m = _ATTACHED_ATTACK_RX.match(str(trig.get("description") or ""))
+    if not m:
+        return None
+    return "Equipment" if m.group("kind") == "equipped" else "Aura"
+
+
+#: An unparsed static granting umbra armor to the Auras on your permanents.
+_UMBRA_GRANT_RX = re.compile(
+    r"Auras attached to permanents you control have umbra armor\.?$"
+)
+
+
+def _umbra_armor_grant(body: dict) -> bool:
+    """An ``Unimplemented`` ``static_structure`` ability whose description is
+    "Auras attached to permanents you control have umbra armor"."""
+    effect = body.get("effect") or {}
+    return (
+        effect.get("type") == "Unimplemented"
+        and effect.get("name") == "static_structure"
+        and bool(_UMBRA_GRANT_RX.search(str(effect.get("description") or "")))
+    )
+
+
+def _umbra_armor_static(description: str) -> dict:
+    """The ``Continuous`` static phase types for a keyword the Auras you
+    control have (Puresteel Paladin's form), adding ``TotemArmor``."""
+    return {
+        "mode": "Continuous",
+        "affected": {
+            "type": "Typed",
+            "type_filters": [{"Subtype": "Aura"}],
+            "controller": "You",
+            "properties": [],
+        },
+        "modifications": [{"type": "AddKeyword", "keyword": "TotemArmor"}],
+        "condition": None,
+        "affected_zone": None,
+        "effect_zone": None,
+        "active_zones": [],
+        "characteristic_defining": False,
+        "description": description,
+    }
+
+
 def correct_misparsed_shapes(rec: dict) -> dict:
     """``rec`` with each misparsed shape rewritten (a copy when any)."""
     sweeps = [
@@ -255,7 +381,32 @@ def correct_misparsed_shapes(rec: dict) -> dict:
         for body in _ability_bodies(rec)
         if (types := _chosen_card_type_sweep(body)) is not None
     ]
-    if not sweeps and not arrivals and not split_flips and not chosen_types:
+    blights = [
+        (body, n)
+        for body in _ability_bodies(rec)
+        if (n := _draw_and_blight(body)) is not None
+    ]
+    manifests = [body for body in _ability_bodies(rec) if _bare_target_manifest(body)]
+    attacks = [
+        (trig, kind)
+        for trig in rec.get("triggers") or ()
+        if (kind := _attached_attack_kind(trig)) is not None
+    ]
+    umbras = [
+        body
+        for body in rec.get("abilities") or ()
+        if isinstance(body, dict) and _umbra_armor_grant(body)
+    ]
+    if not (
+        sweeps
+        or arrivals
+        or split_flips
+        or chosen_types
+        or blights
+        or manifests
+        or attacks
+        or umbras
+    ):
         return rec
     memo: dict[int, object] = {}
     out = copy.deepcopy(rec, memo)
@@ -295,4 +446,52 @@ def correct_misparsed_shapes(rec: dict) -> dict:
                 for t in types
             ],
         }
+    for body, n in blights:
+        target = memo[id(body)]
+        assert isinstance(target, dict)
+        target["effect"] = {
+            "type": "Draw",
+            "count": {"type": "Fixed", "value": 1},
+            "target": {"type": "Controller"},
+        }
+        target["sub_ability"] = {
+            "kind": "Spell",
+            "effect": {"type": "BlightEffect", "count": n},
+            "cost": None,
+            "sub_ability": target.get("sub_ability"),
+            "duration": None,
+            "description": None,
+            "target_prompt": None,
+            "condition": None,
+            "optional_targeting": False,
+            "optional": False,
+            "forward_result": False,
+            "sub_link": "SequentialSibling",
+        }
+    for body in manifests:
+        target = memo[id(body)]
+        assert isinstance(target, dict)
+        target["sub_ability"]["player_scope"] = {"type": "ParentObjectTargetController"}
+    for trig, kind in attacks:
+        target = memo[id(trig)]
+        assert isinstance(target, dict)
+        target["valid_card"] = {
+            "type": "Typed",
+            "type_filters": ["Creature"],
+            "controller": None,
+            "properties": [{"type": "HasAttachment", "kind": kind}],
+        }
+    if umbras:
+        kept = [
+            b
+            for b in out.get("abilities") or ()
+            if b not in [memo[id(u)] for u in umbras]
+        ]
+        statics = list(out.get("static_abilities") or ())
+        for body in umbras:
+            statics.append(
+                _umbra_armor_static(str(body["effect"].get("description") or ""))
+            )
+        out["abilities"] = kept
+        out["static_abilities"] = statics
     return out

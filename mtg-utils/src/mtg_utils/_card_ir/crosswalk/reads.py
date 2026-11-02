@@ -5849,10 +5849,20 @@ def acts_for_answered_target(unit: AbilityUnit, node: object) -> bool:
     creature. Its controller manifests the top card of their library" (Reality
     Shift) is the answered player's consolation, read as the opponents' as
     Beast Within's "Its controller creates a 3/3 green Beast creature token"
-    is; a target that must be yours (a blink) is not answered."""
-    if not isinstance(node, TypedMirrorNode) or recipient_tag(node) not in (
-        "ParentTargetController",
-        "ParentTargetOwner",
+    is; a target that must be yours (a blink) is not answered. The player may
+    also sit on the effect's ability as ``player_scope:
+    ParentObjectTargetController`` — "Destroy target creature or planeswalker.
+    Its controller investigates" (Fateful Absence), "… manifests dread"
+    (Unwanted Remake)."""
+    if not isinstance(node, TypedMirrorNode):
+        return False
+    if (
+        recipient_tag(node)
+        not in (
+            "ParentTargetController",
+            "ParentTargetOwner",
+        )
+        and effect_owner_player_scope(unit.node, node) != "ParentObjectTargetController"
     ):
         return False
     filt = root_target_filter(unit)
@@ -7719,7 +7729,10 @@ def static_def_adds_power(sdef: object) -> bool:
 #: hexproof (CR 702.11b-c), shroud (702.18a), indestructible (702.12b),
 #: protection (702.16b) and ward (702.21a).
 PROTECTIVE_KEYWORDS: frozenset[str] = frozenset(
-    {"hexproof", "shroud", "indestructible", "ward", "protection"}
+    # Umbra armor (phase's ``TotemArmor``): "If enchanted permanent would be
+    # destroyed, instead remove all damage marked on it and destroy this Aura"
+    # (CR 702.89a) — a save from destruction, as indestructible is.
+    {"hexproof", "shroud", "indestructible", "ward", "protection", "totemarmor"}
 )
 
 

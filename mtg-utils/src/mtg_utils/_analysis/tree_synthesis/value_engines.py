@@ -1223,13 +1223,28 @@ def _theft_heist_effect(unit: AbilityUnit) -> ConceptNode | None:
 def _theft_dig_effect(unit: AbilityUnit) -> ConceptNode | None:
     """An ``ExileFromTopUntil`` (CR 701.20a-adjacent dig) whose DIGGER is an
     opponent — direct (:data:`_THEFT_DIG_OPP_TAGS` / a ``Typed`` opponent
-    filter — Chaos Wand, Nicol Bolas, Umbris) or via the wrapper's
+    filter — Chaos Wand, Nicol Bolas) or via the wrapper's
     ``player_scope`` (:func:`effect_owner_player_scope`) broadening a
     per-card ``Controller`` digger to "each opponent" / "each player"
-    (Dream Harvest, Tasha's Hideous Laughter, Krang & Shredder, Etali). A
+    (Dream Harvest, Krang & Shredder, Etali), beside a permission to play
+    what it exiles (:data:`_PLAY_PERMISSION_TAGS`). A
     bare ``Controller`` digger with NO opponent wrapper is the [P5] trap —
     impulse draw (Light Up the Stage) — and never fires here.
     """
+    # A dig steals only what you may then play: Tasha's Hideous Laughter's
+    # "Each opponent exiles cards ... until … 20 or greater" lets you cast
+    # none of them, and was Grand Larceny's theft upgrade under Gonti
+    # (2026-11-02). A clause phase left unparsed may hold the permission
+    # (Wand of Wonder), so it keeps the card.
+    permitted = any(
+        tag_of(n) in _PLAY_PERMISSION_TAGS for n in iter_typed_nodes(unit.node)
+    )
+    return _opponent_dig(unit) if permitted else None
+
+
+def _opponent_dig(unit: AbilityUnit) -> ConceptNode | None:
+    """An ``ExileFromTopUntil`` an opponent digs (:func:`_theft_dig_effect`'s
+    digger read, with or without a permission to play the cards)."""
     for c in unit.effects:
         if tag_of(c.node) != "ExileFromTopUntil":
             continue
@@ -1239,6 +1254,13 @@ def _theft_dig_effect(unit: AbilityUnit) -> ConceptNode | None:
         if effect_owner_player_scope(unit.node, c.node) in ("Opponent", "All"):
             return c
     return None
+
+
+#: The nodes that let you play an exiled card (or a clause phase left
+#: unparsed, which may), for :func:`_theft_dig_effect`.
+_PLAY_PERMISSION_TAGS = frozenset(
+    {"CastFromZone", "FreeCastFromZones", "Unimplemented"}
+)
 
 
 def _theft_tutor_effect(unit: AbilityUnit) -> ConceptNode | None:
@@ -1370,6 +1392,8 @@ def _arm_theft_makers(tree: ConceptTree) -> ConceptNode | None:
     (ADR-0036/0037 Stage 5) — see :data:`_THEFT_SYNTH_RX`."""
     if has_structural_theft_makers(tree):
         return None
+    if any(_opponent_dig(u) is not None for u in tree.units):
+        return None  # a typed dig with no permission to play (Tasha's): no gap
     if not _matches_theft_idiom(tree.oracle or ""):
         return None
     return _synthetic_concept(

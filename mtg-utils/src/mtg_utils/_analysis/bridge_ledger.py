@@ -85,6 +85,8 @@ from mtg_utils._card_ir.crosswalk import (
     mana_spell_type_restriction,
     mod_keyword_name,
     named_permanent_refs,
+    normalised_keyword,
+    normalised_keyword_name,
     protective_keyword,
     pt_mod_signs,
     pump_is_negative,
@@ -2483,7 +2485,9 @@ BRIDGES: dict[str, Bridge] = {
                 "Darksteel Garrison",
                 "Guardian Beast",
                 "Outmuscle",
-                "Umbra Mystic",
+                # Umbra Mystic graduated (2026-11-02): ``misparsed_shapes``
+                # writes its grant as a TotemArmor static the protection read
+                # serves.
                 "Sheltering Prayers",
                 "Guardian Archon",
                 "Jade Orb of Dragonkind",
@@ -4350,6 +4354,24 @@ _ONE_SIDED_SWEEP_RX = re.compile(
 # its "remove a -1/-1 counter" half; Zealous Persecution keeps only its anthem
 # half. A row emits one key, so Zealous Persecution's one-sided sweep reaches
 # ``debuff_makers`` here and never ``mass_removal``.
+# A wither grant phase fails to parse: Everlasting Torment's "All damage is
+# dealt as though its source had wither" survives only as a parser residue.
+_DROPPED_WITHER_RX = re.compile(
+    r"\bas though (?:its|their) sources? had wither\b", re.IGNORECASE
+)
+
+
+def _no_wither_node(tree: ConceptTree) -> bool:
+    """No wither on the card's tree: no printed keyword and no ``AddKeyword``
+    granting it (CR 702.80a)."""
+    if any(normalised_keyword_name(k) == "wither" for k in tree.card_keywords):
+        return False
+    return not any(
+        tag_of(n) == "AddKeyword" and normalised_keyword(n) == "wither"
+        for n in tree.iter_typed()
+    )
+
+
 _DROPPED_SHRINK_RX = re.compile(
     r"\bput a -1/-1 counter on up to one target creature defending player "
     r"controls\b|\bcreatures your opponents control get -\d+/-\d+\b",
@@ -4588,6 +4610,29 @@ BRIDGES.update(
                 pins=("Decimator Beetle", "Zealous Persecution"),
                 gap=_no_shrink_node,
                 match=_oracle_match(_DROPPED_SHRINK_RX),
+            ),
+            Bridge(
+                bridge_id="wither_grant_unparsed",
+                key="minus_counters_matter",
+                scope="each",
+                kind="upstream_parse_failure",
+                todo=(
+                    "upstream phase-rs report candidate (Dan posts): a wither "
+                    "grant phase fails to parse (an effect-parser residue) — "
+                    "Everlasting Torment's 'All "
+                    "damage is dealt as though its source had wither' (damage "
+                    "to a creature is -1/-1 counters, CR 702.80a): Auntie Ool's "
+                    "-1/-1 counter need never saw it, and Blight Curse cut it "
+                    "as dead weight (2026-11-02). Retires on the bump that "
+                    "types the grant"
+                ),
+                census=(
+                    "1 hit / 32,046 commander-legal (Everlasting Torment), "
+                    "MTGJSON 2026-10-17 @ phase v0.118.0"
+                ),
+                pins=("Everlasting Torment",),
+                gap=_no_wither_node,
+                match=_oracle_match(_DROPPED_WITHER_RX),
             ),
             Bridge(
                 bridge_id="modified_reference_dropped",

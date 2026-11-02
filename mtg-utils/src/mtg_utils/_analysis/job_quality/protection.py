@@ -76,7 +76,7 @@ if TYPE_CHECKING:
 #: replacement. Protection from everything (702.16j) stops targeting, Auras,
 #: Equipment, blocking and damage — the rule names no destruction, so it is
 #: target-proof, not wipe-proof.
-_WIPE_PROOF = frozenset({"indestructible", "phase_out", "return"})
+_WIPE_PROOF = frozenset({"indestructible", "totemarmor", "phase_out", "return"})
 #: Regeneration replaces the next destruction this turn (701.19a), so a WHOLE
 #: board's regeneration also saves it from a destroy-wipe (one that doesn't say
 #: "can't be regenerated"); one creature's regeneration stays a soft save.
@@ -494,7 +494,9 @@ def features(card: dict) -> dict[str, float] | None:
             bool(all_scopes) and all_scopes <= {"player"} and not pillow
         ),
         "target_proof": float(bool(kws & _TARGET_PROOF)),
-        "indestructible": float(bool(kws & {"indestructible", "phase_out"})),
+        "indestructible": float(
+            bool(kws & {"indestructible", "totemarmor", "phase_out"})
+        ),
         "soft_only": float(not kws & _HARD),
         "fog": float(any(u.fog for u in units)),
         "equipment": float(attach and "Equipment" in subtypes),

@@ -1756,8 +1756,9 @@ def _theft_makers_lane(tree: ConceptTree) -> list[Signal]:
     tag) so the [P5] direction trap — a self-exile impulse-draw dig (Light
     Up the Stage) reads NEAR-IDENTICALLY to an opponent steal — stays
     correctly out (:func:`has_structural_theft_makers`): a ``Heist`` effect
-    (Grenzo, Crooked Jailer), an ``ExileFromTopUntil`` opponent dig (Chaos
-    Wand, Nicol Bolas, Umbris, Dream Harvest, Tasha's Hideous Laughter), a
+    (Grenzo, Crooked Jailer), an ``ExileFromTopUntil`` opponent dig that
+    lets you play what it exiles (Chaos Wand, Nicol Bolas, Dream Harvest —
+    not Tasha's Hideous Laughter or Umbris, which exile only), a
     directed ``SearchLibrary`` (Bribery, Ancient Vendetta), a triple-zone
     ``ChangeZoneAll`` hate-piece (Cranial Extraction, Stain the Mind), or a
     Hand-zone ``CastFromZone`` beside an opponent target (Sen Triplets), or

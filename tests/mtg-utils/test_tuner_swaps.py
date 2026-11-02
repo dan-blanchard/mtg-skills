@@ -4232,3 +4232,27 @@ def test_a_card_paying_a_creature_is_no_cheaper():
     assert _reads_worse_at_the_job(
         test_card("Fling"), test_card("Fiend Hunter"), "interaction", []
     )
+
+
+def test_the_answered_targets_controller_acts_by_the_abilitys_scope():
+    """"Destroy target creature or planeswalker. Its controller investigates"
+    (Fateful Absence) is the answered player's, by the ability's
+    ``player_scope``; so is Unwanted Remake's manifest dread once corrected;
+    Tasha's Hideous Laughter steals nothing you may cast."""
+    from mtg_utils._card_ir.crosswalk.reads import acts_for_answered_target, tag_of
+    from mtg_utils._card_ir.trees import trees_for
+    from mtg_utils.testkit import test_signals
+
+    def answered(card, tag):
+        (tree,) = trees_for(card)
+        return any(
+            acts_for_answered_target(u, c.node)
+            for u in tree.units
+            for c in u.effects
+            if tag_of(c.node) == tag
+        )
+
+    assert answered(test_card("Fateful Absence"), "Investigate")
+    assert answered(test_card("Unwanted Remake"), "ManifestDread")
+    signals = test_signals("Tasha's Hideous Laughter")
+    assert not any(sig.key == "theft_makers" for sig in signals)

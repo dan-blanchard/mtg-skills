@@ -210,3 +210,68 @@ def test_chosen_card_type_sweep_canary():
     from mtg_utils._analysis.job_quality import board_wipe
 
     assert board_wipe.features(test_card("Season of Gathering"))["creatures"] == 0.0
+
+
+@pytest.mark.retirement_canary
+def test_draw_and_blight_canary():
+    """Sinister Gnarlbark's "draw a card and blight 1": phase leaves it
+    unparsed. The stage writes a Draw and a BlightEffect (CR 701.68a)."""
+    (rec,) = test_phase_records("Sinister Gnarlbark")
+    effect = rec["triggers"][0]["execute"]["effect"]
+    assert effect["type"] == "Unimplemented", (
+        "misparsed_shapes draw-and-blight: RETIRE-READY — phase types Sinister "
+        "Gnarlbark's clause. Delete the draw-and-blight row and this canary."
+    )
+    fixed = correct_misparsed_shapes(rec)["triggers"][0]["execute"]
+    assert fixed["effect"]["type"] == "Draw"
+    assert fixed["sub_ability"]["effect"] == {"type": "BlightEffect", "count": 1}
+
+
+@pytest.mark.retirement_canary
+def test_its_controller_manifests_canary():
+    """Unwanted Remake's "Its controller manifests dread": phase drops the
+    player. The stage writes Fateful Absence's ``ParentObjectTargetController``."""
+    (rec,) = test_phase_records("Unwanted Remake")
+    sub = rec["abilities"][0]["sub_ability"]
+    assert not sub.get("player_scope"), (
+        "misparsed_shapes its-controller manifest: RETIRE-READY — phase types "
+        "Unwanted Remake's player. Delete the row and this canary."
+    )
+    fixed = correct_misparsed_shapes(rec)["abilities"][0]["sub_ability"]
+    assert fixed["player_scope"] == {"type": "ParentObjectTargetController"}
+
+
+@pytest.mark.retirement_canary
+def test_equipped_attack_canary():
+    """Akiri, Fearless Voyager's "attack a player with one or more equipped
+    creatures": phase drops the attackers. The stage writes them back."""
+    (rec,) = test_phase_records("Akiri, Fearless Voyager")
+    trig = next(t for t in rec["triggers"] if t["mode"] == "YouAttack")
+    assert not trig.get("valid_card"), (
+        "misparsed_shapes equipped attack: RETIRE-READY — phase types Akiri's "
+        "attackers. Delete the row and this canary."
+    )
+    fixed = next(
+        t for t in correct_misparsed_shapes(rec)["triggers"] if t["mode"] == "YouAttack"
+    )
+    assert fixed["valid_card"]["properties"] == [
+        {"type": "HasAttachment", "kind": "Equipment"}
+    ]
+
+
+@pytest.mark.retirement_canary
+def test_umbra_armor_grant_canary():
+    """Umbra Mystic's "Auras attached to permanents you control have umbra
+    armor": phase leaves it unparsed. The stage writes the TotemArmor grant."""
+    (rec,) = test_phase_records("Umbra Mystic")
+    assert any(
+        (b.get("effect") or {}).get("type") == "Unimplemented"
+        for b in rec.get("abilities") or ()
+    ), (
+        "misparsed_shapes umbra armor grant: RETIRE-READY — phase types Umbra "
+        "Mystic's static. Delete the row and this canary."
+    )
+    fixed = correct_misparsed_shapes(rec)
+    grant = fixed["static_abilities"][-1]
+    assert grant["modifications"] == [{"type": "AddKeyword", "keyword": "TotemArmor"}]
+    assert not fixed["abilities"]

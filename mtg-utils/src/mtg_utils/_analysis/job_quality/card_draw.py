@@ -242,6 +242,9 @@ class _Source:
     # A trigger watching only creatures of at least this power entering
     # (Garruk's Uprising's "a creature you control with power 4 or greater").
     min_power: int | None = None
+    # A trigger watching only attackers carrying an attachment of a kind
+    # (Akiri, Fearless Voyager's "one or more equipped creatures").
+    attached: str | None = None
 
 
 def _count(c: ConceptNode, field: str = "count") -> int:
@@ -272,6 +275,32 @@ def _scaling_qty(c: ConceptNode, field: str = "count") -> tuple[str | None, bool
 _POWER_FUEL = "power_ge_"
 #: The keywords that cast a creature face down, a 2/2 (CR 708.2a).
 _FACE_DOWN = frozenset({"Morph", "Megamorph", "Disguise", "Cloak", "Manifest"})
+
+
+#: The fuel of a draw on creatures carrying an attachment: ``attached_<kind>``.
+_ATTACHED_FUEL = "attached_"
+#: The share of a deck's nonland cards of the attachment kind at which such
+#: a draw runs at full rate (a voltron deck's sixth).
+_ATTACHED_REFERENCE = 1 / 6
+
+
+def _watched_attachment(unit: AbilityUnit) -> str | None:
+    """The attachment kind a trigger's watched creatures must carry (a
+    ``HasAttachment`` property not under a ``Not``), else ``None``."""
+    if unit.origin != "trigger":
+        return None
+    valid = getattr(unit.node, "valid_card", None)
+    negated = {
+        id(getattr(n, "prop", None))
+        for n in iter_typed_nodes(valid)
+        if tag_of(n) == "Not"
+    }
+    for n in iter_typed_nodes(valid):
+        if tag_of(n) == "HasAttachment" and id(n) not in negated:
+            kind = getattr(n, "kind", None)
+            if isinstance(kind, str):
+                return kind
+    return None
 
 
 def _watched_min_power(unit: AbilityUnit) -> int | None:
@@ -576,6 +605,7 @@ def _sources(card: dict) -> list[_Source]:
                     for n in iter_typed_nodes(getattr(unit.node, "valid_card", None))
                 ),
                 min_power=_watched_min_power(unit),
+                attached=_watched_attachment(unit),
                 pumped=unit.origin == "trigger"
                 and any(
                     tag_of(n) == "PowerExceedsBase"
@@ -808,6 +838,8 @@ def _source_fuel(s: _Source) -> str | None:
         return "pumped"
     if s.min_power is not None:
         return f"{_POWER_FUEL}{s.min_power}"
+    if s.attached is not None:
+        return f"{_ATTACHED_FUEL}{s.attached}"
     if s.fuel == "equipped_dies":
         return "x1_creatures_or_tokens"
     if s.fuel == "graveyard_leave":
@@ -869,6 +901,11 @@ def _feeds(record: dict, fuel: str) -> bool:
         return "Enchantment" in face
     if fuel == "artifacts":
         return "Artifact" in face
+    if fuel.startswith(_ATTACHED_FUEL):
+        kind = fuel.removeprefix(_ATTACHED_FUEL).lower()
+        return kind in {
+            w.lower() for w in split_type_line(record.get("type_line") or "")[1]
+        }
     if fuel.startswith(_POWER_FUEL):
         # A creature card entering at least that big, face up: Deadly
         # Disguise's face-down 2/2s feed no "power 4 or greater" (2026-11-02).
@@ -934,5 +971,10 @@ def deck_fit(card: dict, deck_records: Sequence[dict]) -> float:
     fuel = draw_fuel(card)
     if fuel is None or not deck_records:
         return 1.0
-    reference = _FUEL_REFERENCE.get(fuel, _FUEL_REFERENCE["creatures"])
+    reference = _FUEL_REFERENCE.get(
+        fuel,
+        _ATTACHED_REFERENCE
+        if fuel.startswith(_ATTACHED_FUEL)
+        else _FUEL_REFERENCE["creatures"],
+    )
     return min(1.0, _fuel_share(deck_records, fuel) / reference)
