@@ -123,6 +123,10 @@ CHECKS = [
     _check("never", "DesertBloom_OTC", "Vandalblast", batch="15"),
     _check("never", "EndlessPunishment_DSC", "Vandalblast", batch="15"),
     _check("never", "TimeyWimey_WHO", "Vandalblast", batch="15"),
+    _check("never", "FaeDominion_WOC", "Dark Ritual", batch="15"),
+    _check("never", "QuickDraw_OTC", "Jeska's Will", batch="15"),
+    _check("never", "RevenantRecon_MKC", "Cabal Ritual", batch="15"),
+    _check("never", "FamilyMatters_BLC", "Ripples of Potential", batch="15"),
     _check("no_trim", "EldraziIncursion_M3C", "Forsaken Monument", batch="14"),
     _check("no_trim", "TrickyTerrain_M3C", "Mana Reflection", batch="14"),
 ]

@@ -381,6 +381,18 @@ def _reads_worse_at_the_job(
     return sc is not None and su is not None and sc < su - 1e-9
 
 
+def _one_shot_mana(card: dict) -> bool:
+    """Whether the ramp read sees a one-shot mana source: no mana a turn, no
+    land, no conditional engine (a ritual, Lotus Petal, a spirit guide)."""
+    read = read_for("ramp")
+    if read is None or not has_trees(card):
+        return False
+    f = read.features(card)
+    return bool(f) and all(
+        f.get(k, 0) == 0 for k in ("per_turn", "land", "cond_engine")
+    )
+
+
 def _sweeps_no_creatures(card: dict) -> bool:
     """Whether the wipe read sees the card sweep no creatures (Vandalblast)."""
     read = read_for("board_wipe")
@@ -679,6 +691,11 @@ _YOU_DISCARD_FEEDERS = frozenset({"discard_outlet", "discard_makers"})
 #: controller: Heroes' Podium's legendary creature from the top, Open the
 #: Armory's Aura or Equipment.
 _LIBRARY_EFFECTS = frozenset({"Dig", "SearchLibrary"})
+#: The effects that stand on no gate of their own: the targeting step, a
+#: shuffle, an opaque residue, and anything acting on what an earlier effect
+#: chose (Ripples of Potential's phase-out of what it proliferated).
+_DEPENDENT_EFFECT_TAGS = frozenset({"TargetOnly", "Shuffle", "GenericEffect"})
+_DEPENDENT_TARGET_TAGS = frozenset({"ParentTarget", "TrackedSet", "TrackedSetFiltered"})
 
 
 def deck_profile(classes: Sequence[CardClass]) -> tuple[Counter, Counter, Counter]:
@@ -922,21 +939,45 @@ def _ability_gate_words(node: object, effects: Sequence) -> frozenset[str]:
     permanents of YOURS does (Brass Squire's Equipment you control, Inspiring
     Call's creatures with +1/+1 counters, Krenko's Goblins) — never a target
     among anyone's (Vandalblast's artifacts, Asceticism's creature)."""
-    words: set[str] = set()
+    # A cost gates the whole ability (it has to be paid: Sai's two artifacts).
+    cost_words: set[str] = set()
     for leaf in iter_cost_leaves(getattr(node, "cost", None)):
         if tag_of(leaf) == "Sacrifice":
             target = getattr(leaf, "target", None)
             if _present(target):
-                words |= _gate_words(target)
+                cost_words |= _gate_words(target)
+    # The effects gate it only when every one that stands on its own is
+    # gated: Tezzeret's Gambit draws two whatever its proliferate finds, where
+    # Ripples of Potential's phase-out reaches only what it proliferated.
+    effect_words: set[str] = set()
+    ungated = False
+    searched = False
     for c in effects:
+        tag = tag_of(c.node)
+        if tag in _DEPENDENT_EFFECT_TAGS or tag_of(getattr(c.node, "target", None)) in (
+            _DEPENDENT_TARGET_TAGS
+        ):
+            continue
+        if searched and tag == "ChangeZone":
+            continue  # the found card going to hand (Open the Armory)
+        searched = searched or tag in _LIBRARY_EFFECTS
         # Every typed filter the effect reaches — its target, an attachment
         # (Brass Squire's Equipment), a count (Inspiring Call's counters); a
         # library effect's filter is yours with no controller on it.
-        library = tag_of(c.node) in _LIBRARY_EFFECTS
+        library = tag in _LIBRARY_EFFECTS
+        words: set[str] = set()
+        if tag == "Proliferate":
+            # Proliferate adds to counters the deck must already place:
+            # Ripples of Potential under four counter makers (Family Matters).
+            words.add(_COUNTERS_GATE)
         for n in iter_typed_nodes(c.node):
             if tag_of(n) == "Typed" and (library or filter_controller(n) == "You"):
                 words |= _gate_words(n)
-    return frozenset(words)
+        if words:
+            effect_words |= words
+        else:
+            ungated = True
+    return frozenset(cost_words | (set() if ungated else effect_words))
 
 
 def _unit_gates(card: Mapping) -> _UnitGates:
@@ -2623,6 +2664,15 @@ def propose_swaps(
                 and _sweeps_no_creatures(card)
             ):
                 continue  # the board-wipe row is for creature boards
+            if (
+                job == "ramp"
+                and upgrade_of is None
+                and not spec.get("name")
+                and _one_shot_mana(card)
+            ):
+                # A ritual fills no ramp slot: Dark Ritual (Fae Dominion),
+                # Jeska's Will (Quick Draw), Cabal Ritual (Revenant Recon).
+                continue
             if not spec.get("name") and (
                 dead_here(card)
                 if job is None

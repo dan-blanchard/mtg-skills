@@ -951840,6 +951840,224 @@
     "type_line": "Creature — Dinosaur"
    }
   },
+  "Ripples of Potential": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Proliferate, then choose any number of permanents you control that had a counter put on them this way. Those permanents phase out.",
+       "duration": null,
+       "effect": {
+        "type": "Proliferate"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "declares_chosen_group": 1,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "target": {
+          "controller": "You",
+          "properties": [],
+          "type": "Typed",
+          "type_filters": [
+           "Permanent"
+          ]
+         },
+         "type": "TargetOnly"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "multi_target": {
+         "max": null,
+         "min": 0
+        },
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "target": {
+           "type": "ParentTarget"
+          },
+          "type": "PhaseOut"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": null,
+         "sub_link": "SequentialSibling",
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Instant"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Blue"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "Blue"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "38a1b5dd-73e7-4f9f-995f-a23eabafe134",
+       "8e724c6d-3922-406f-b9e6-e478e1039416",
+       "a28f7323-f2a2-4c19-b3c0-a7479ea4de19",
+       "b70e6ded-2c25-4608-9ae0-a64e13aa1d2a"
+      ]
+     },
+     "name": "Ripples of Potential",
+     "non_ability_text": null,
+     "oracle_text": "Proliferate, then choose any number of permanents you control that had a counter put on them this way. Those permanents phase out. (To proliferate, choose any number of permanents and/or players, then give each another counter of each kind already there. Treat phased-out permanents and anything attached to them as though they don't exist until their controller's next turn.)",
+     "power": null,
+     "printings": [
+      "EOC",
+      "LCC",
+      "SLD"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2023-11-10",
+       "text": "A phased-out token will phase in at the beginning of its controller's untap step just like a nontoken permanent would."
+      },
+      {
+       "date": "2023-11-10",
+       "text": "An ability that triggers \"Whenever you proliferate\" triggers even if you chose no permanents or players while doing so."
+      },
+      {
+       "date": "2023-11-10",
+       "text": "An attacking or blocking creature that phases out is removed from combat."
+      },
+      {
+       "date": "2023-11-10",
+       "text": "Any continuous effects with a \"for as long as\" duration ignore phased-out objects. If ignoring those objects causes the effect's conditions to no longer be met, the duration will expire."
+      },
+      {
+       "date": "2023-11-10",
+       "text": "As a creature is phased out, Auras and Equipment attached to it also phase out at the same time. Those Auras and Equipment will phase in at the same time that creature does, and they'll phase in still attached to that creature."
+      },
+      {
+       "date": "2023-11-10",
+       "text": "Choices made for permanents as they entered the battlefield are remembered even after they phase in."
+      },
+      {
+       "date": "2023-11-10",
+       "text": "If a player or permanent has more than one kind of counter on it, and you choose for it to get additional counters, it must get one of each kind of counter it already has. You can't have it get just one kind of counter it already has and not the others."
+      },
+      {
+       "date": "2023-11-10",
+       "text": "Permanents phase back in during their controller's untap step, immediately before that player untaps their permanents. Creatures that phase in this way are able to attack and pay a cost of {T} during that turn. If a permanent had counters on it when it phased out, it will have those counters when it phases back in."
+      },
+      {
+       "date": "2023-11-10",
+       "text": "Phased-out permanents are treated as though they don't exist. They can't be the target of spells or abilities, their static abilities have no effect on the game, their triggered abilities can't trigger, they can't attack or block, and so on."
+      },
+      {
+       "date": "2023-11-10",
+       "text": "Phasing out doesn't cause any \"leaves the battlefield\" abilities to trigger. Similarly, phasing in won't cause any \"enters the battlefield\" abilities to trigger."
+      },
+      {
+       "date": "2023-11-10",
+       "text": "Players can respond to a spell or ability whose effect includes proliferating. Once that spell or ability starts to resolve, however, and its controller chooses which permanents and players will get new counters, it's too late for anyone to respond."
+      },
+      {
+       "date": "2023-11-10",
+       "text": "To proliferate, you can choose any permanent that has a counter, including ones controlled by opponents. You can choose any player who has a counter, including opponents. You can't choose cards in any zone other than the battlefield, even if they have counters on them."
+      },
+      {
+       "date": "2023-11-10",
+       "text": "You don't have to choose every permanent or player that has a counter, only the ones you want to add another counter to. Since \"any number\" includes zero, you don't have to choose any permanents at all, and you don't have to choose any players at all."
+      }
+     ],
+     "scryfall_oracle_id": "45bcebd0-5e93-4433-b92f-b4c161d04bd6",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 2.0,
+    "color_identity": [
+     "U"
+    ],
+    "colors": [
+     "U"
+    ],
+    "keywords": [
+     "Proliferate"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}{U}",
+    "name": "Ripples of Potential",
+    "oracle_id": "45bcebd0-5e93-4433-b92f-b4c161d04bd6",
+    "oracle_text": "Proliferate, then choose any number of permanents you control that had a counter put on them this way. Those permanents phase out. (To proliferate, choose any number of permanents and/or players, then give each another counter of each kind already there. Treat phased-out permanents and anything attached to them as though they don't exist until their controller's next turn.)",
+    "type_line": "Instant"
+   }
+  },
   "Rise and Shine": {
    "phase_records": [
     {

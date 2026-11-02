@@ -3807,6 +3807,12 @@ def test_a_payoff_for_what_the_deck_does_not_do_is_dead_there():
     # Your own discard is a gate too: Monument to Endurance under no outlets.
     assert dead("Monument to Endurance")
     assert not dead("Monument to Endurance", keys=Counter({"discard_outlet": 6}))
+    # A proliferate spell adds to counters the deck must already place:
+    # Ripples of Potential under four counter makers (Family Matters).
+    assert dead("Ripples of Potential", keys=Counter({"plus_one_makers": 4}))
+    assert not dead("Ripples of Potential", keys=Counter({"plus_one_makers": 8}))
+    # A draw spell with a proliferate rider draws whatever it finds.
+    assert not dead("Tezzeret's Gambit")
     # The gate rule alone is what a job page applies.
     from mtg_utils._tuner.swaps import gated_without_feed
 
