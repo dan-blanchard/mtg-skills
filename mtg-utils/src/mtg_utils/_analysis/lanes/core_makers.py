@@ -5,6 +5,7 @@ crosswalk_signals.py)."""
 from __future__ import annotations
 
 import re
+from collections.abc import Iterator
 from dataclasses import dataclass
 
 from mtg_utils._analysis import signal_keys
@@ -2306,20 +2307,27 @@ _LANDFALL_STATIC_LAND_DROP_MODES = frozenset(
 )
 
 
-def additional_land_play(tree: ConceptTree) -> bool:
-    """A static/one-shot ``MayPlayAdditionalLand`` / ``AdditionalLandDrop`` MODE
-    anywhere in the tree (Exploration, Azusa's "two additional lands", Summer
-    Bloom — CR 305.2). ONE read, two consumers: the ``landfall`` lane below (an
-    extra land drop is a landfall enabler) and the ``ramp`` preset's concept arm
-    (``theme_presets._ramp_concept`` — an extra land drop is land acceleration,
-    but ``landfall`` alone can't say so: the key also covers pure payoffs)."""
+def additional_land_play_units(tree: ConceptTree) -> Iterator[AbilityUnit]:
+    """The units holding a static/one-shot ``MayPlayAdditionalLand`` /
+    ``AdditionalLandDrop`` MODE (Exploration, Azusa's "two additional lands",
+    Summer Bloom — CR 305.2). ONE read, three consumers: the ``landfall`` lane
+    below (an extra land drop is a landfall enabler), the ``ramp`` preset's
+    concept arm (``theme_presets._ramp_concept`` — an extra land drop is land
+    acceleration, but ``landfall`` alone can't say so: the key also covers pure
+    payoffs), and ``card_reads.plays_extra_lands`` (the repeatable ones, for a
+    land-sacrificing commander's need)."""
     for unit in tree.units:
         nodes = [c.node for c in unit.iter_concepts()]
         if unit.origin == "static":
             nodes.append(unit.node)
         if any(static_mode_tag(n) in _LANDFALL_STATIC_LAND_DROP_MODES for n in nodes):
-            return True
-    return False
+            yield unit
+
+
+def additional_land_play(tree: ConceptTree) -> bool:
+    """Whether any unit lets you play an additional land
+    (:func:`additional_land_play_units`)."""
+    return any(True for _ in additional_land_play_units(tree))
 
 
 # ADR-0038 W3 batch 4 (lands-and-ramp cluster): the "play lands from your

@@ -3,6 +3,7 @@ own text asks the deck for, and whether a card supplies it. Real cards via the
 testkit (ADR-0056); the needs are read off the commander's concept trees."""
 
 from mtg_utils._analysis.commander_need import (
+    REANIMATION_MV,
     Need,
     card_type_count,
     commander_needs,
@@ -114,6 +115,11 @@ def test_bello_wants_big_non_equipment_artifacts_and_non_aura_enchantments():
     assert satisfies(test_card("The Great Henge"), big)
     assert not satisfies(test_card("Batterskull"), big)  # an Equipment
     assert not satisfies(test_card("Sol Ring"), big)  # mana value 1
+    # The ``animate_makers`` ident's read of the same text drops the negations
+    # (its subject is ``Artifact>=4``): it is skipped, so an Equipment at four
+    # mana supplies nothing of Bello's.
+    assert "noncreature artifact at 4+ mana" not in _labels(needs)
+    assert needs_met(test_card("Hammer of Nazahn"), needs) == ()
 
 
 def test_a_keyword_lord_wants_bodies_with_the_keyword():
@@ -435,6 +441,11 @@ def test_a_land_sacrifice_commander_wants_land_recursion_not_creature_fodder():
     consumers = _need("Hearthhull, the Worldseed", "land sacrifice consumers")
     assert satisfies(test_card("Life from the Loam"), consumers)
     assert satisfies(test_card("Crucible of Worlds"), consumers)
+    # And the extra land drops that replay them, turn after turn: Oracle of
+    # Mul Daya and Azusa, not Explore's one turn.
+    assert satisfies(test_card("Oracle of Mul Daya"), consumers)
+    assert satisfies(test_card("Azusa, Lost but Seeking"), consumers)
+    assert not satisfies(test_card("Explore"), consumers)
     assert "creatures that sacrificed" not in _labels(needs)
     # Dina sacrifices creatures: her need keeps the token fodder.
     dina = _need("Dina, Essence Brewer", "creatures that sacrificed")
@@ -485,3 +496,78 @@ def test_an_effect_scaled_by_the_sacrificed_creatures_power_wants_cheap_big_bodi
     # A cast trigger's check of the spell's power is not a sacrifice (Eshki).
     labels = _labels(_needs("Eshki, Temur's Roar"))
     assert not any("sacrifice fodder" in label for label in labels)
+
+
+def test_a_graveyard_to_battlefield_effect_wants_big_permanents_to_return():
+    """Winter's end step puts a permanent card from her graveyard onto the
+    battlefield: the payload is a permanent at ``REANIMATION_MV`` or more, what
+    the deck mills and returns for — Hornet Queen and Hoarding Broodlord, not
+    Buried Alive (a sorcery) nor Ishkanah, Grafwidow (five mana, cast)."""
+    payload = _need(
+        "Winter, Cynical Opportunist",
+        f"permanent cards worth returning at {REANIMATION_MV}+ mana",
+    )
+    assert payload.kind == "payoff"
+    assert satisfies(test_card("Hornet Queen"), payload)
+    assert satisfies(test_card("Hoarding Broodlord"), payload)
+    assert not satisfies(test_card("Buried Alive"), payload)
+    assert not satisfies(test_card("Ishkanah, Grafwidow"), payload)
+    # Teval returns a land card; Meren sizes the card by her experience; Sidar
+    # Jabari returns a Knight, the tribe's page.
+    for name in (
+        "Teval, the Balanced Scale",
+        "Meren of Clan Nel Toth",
+        "Sidar Jabari of Zhalfir",
+    ):
+        assert not any("worth returning" in label for label in _labels(_needs(name)))
+
+
+def test_a_token_effect_that_favours_one_kind_wants_makers_of_that_kind():
+    """ "If that token is a Squirrel, instead create two": Hazel asks for
+    Squirrel token makers beside the token makers of any kind her copy asks
+    for — Squirrel Nest and Deep Forest Hermit, not Raise the Alarm nor Fanatic
+    of Rhonas, whose eternalize copies itself."""
+    squirrels = _need("Hazel of the Rootbloom", "Squirrel token makers")
+    assert satisfies(test_card("Squirrel Nest"), squirrels)
+    assert satisfies(test_card("Deep Forest Hermit"), squirrels)
+    assert not satisfies(test_card("Raise the Alarm"), squirrels)
+    assert not satisfies(test_card("Fanatic of Rhonas"), squirrels)
+
+
+def test_a_commander_that_takes_a_typed_card_from_its_graveyard_wants_it_put_there():
+    """Anikthea exiles a non-Aura enchantment card from her graveyard: the deck
+    wants enchantments reaching it — self-mill and discard (Stitcher's
+    Supplier, Geier Reach Sanitarium), not a counterspell. Winter takes "any
+    number of cards": untyped, nothing beyond her delirium condition."""
+    fill = _need(
+        "Anikthea, Hand of Erebos", "Enchantment cards reaching your graveyard"
+    )
+    assert fill.kind == "event"
+    assert satisfies(test_card("Stitcher's Supplier"), fill)
+    assert satisfies(test_card("Geier Reach Sanitarium"), fill)
+    assert not satisfies(test_card("Counterspell"), fill)
+    assert not any(
+        "reaching your graveyard" in label
+        for label in _labels(_needs("Winter, Cynical Opportunist"))
+    )
+
+
+def test_a_mana_value_floor_need_is_never_broad():
+    """Bello's artifacts and enchantments at 4+ mana are a tenth of a Gruul pool
+    — over the broad line, yet the plan's own top end: read off his filter, the
+    need is specific by construction. An umbrella need over the line is broad."""
+    from mtg_utils._analysis.commander_need import is_broad
+
+    big = _need(
+        "Bello, Bard of the Brambles", "artifact or enchantment spells at 4+ mana"
+    )
+    assert big.mana_floor == 4
+    assert not is_broad(big, 0.105)
+    every = Need(
+        "payoff",
+        "enchantments matter",
+        "x",
+        types=frozenset({frozenset({"enchantment"})}),
+    )
+    assert is_broad(every, 0.125)
+    assert not is_broad(every, 0.05)

@@ -24,7 +24,7 @@ from typing import Protocol
 
 from mtg_utils._analysis.budgets import COMMANDER_TEMPLATE, Template
 from mtg_utils._analysis.card_reads import has_trees
-from mtg_utils._analysis.commander_need import BROAD_SHARE, Need, need_serve, satisfies
+from mtg_utils._analysis.commander_need import Need, is_broad, need_serve, satisfies
 from mtg_utils._analysis.job_quality import JobRead, read_for
 from mtg_utils._analysis.ranking import rank_candidates
 from mtg_utils._analysis.roles import DeckMana, protects, role_of
@@ -363,7 +363,11 @@ def _upgrades(
     walls (Stalwart Shield-Bearers, Wall of Souls) over the big-butt staples a
     toughness page is otherwise ranked by (Gray Merchant of Asphodel), which
     the guides add and play-rate gated out (Abzan Armor, 2026-11-01). The
-    commander's own text outranks the population's habits on its theme pages."""
+    commander's own text outranks the population's habits on its theme pages.
+    And whatever the job, an upgrade keeps what the cut gives the commander: a
+    candidate supplying fewer of the needs is none — Living Death (cards leave
+    Teval's graveyard) is no interaction slot for Assassin's Trophy, Squirrel
+    Nest (Hazel's Squirrel tokens) none for Fanatic of Rhonas (2026-11-01)."""
     if over_band(candidate, cut.record, job, off_theme=off_theme):
         return False
     if job is not None and (
@@ -371,6 +375,8 @@ def _upgrades(
     ):
         return False
     if not _does_the_job(candidate, job, deck or (), cut.record):
+        return False
+    if needs is not None and needs(candidate) < needs(cut.record):
         return False
     if job is None and off_theme:
         return True
@@ -501,8 +507,15 @@ def cut_candidates(
     template: Template = COMMANDER_TEMPLATE,
     playrate: bool = True,
     playrate_meaningful: bool = True,
+    needs: Callable[[Mapping], int] | None = None,
 ) -> list[tuple[str, CardClass]]:
     """Ordered (reason, card) cut candidates, most-cuttable first. Hard floors apply.
+
+    ``needs`` counts the commander's built needs a card supplies
+    (``propose_swaps``' ``needs_supplied``): an over-band row trims a card
+    supplying one after every member supplying none — Oracle of Mul Daya's
+    extra land drops under a land-sacrificing Yuma are what the deck asks for,
+    not surplus ramp (Desert Bloom, 2026-11-01).
 
     ``playrate`` is whether a fringe play-rate may CONDEMN a card
     (``Calibration.playrate_condemns`` — never in a one-on-one game);
@@ -600,10 +613,15 @@ def cut_candidates(
         # reason to keep a card; one on the deck's lands plan is — Desert
         # Bloom's Oracle of Mul Daya went as its least-played ramp while
         # Explore and Harrow serve nothing, 2026-11-01), then the least
-        # played, then highest CMC.
+        # played, then highest CMC. Before all of it, a card supplying one of
+        # the commander's built needs trims last — ahead even of the fixing
+        # shield, since the row is over its band and the deck keeps the rest
+        # of its fixing (Oracle of Mul Daya's extra land drops under Yuma over
+        # Harrow, a guide cut, 2026-11-01).
         members = [c for c in members if not premium(c)]
         members.sort(
             key=lambda c: (
+                needs is not None and needs(c.record) > 0,
                 _is_fixing(c),
                 c.name in focus.commander_cards,
                 viable_served(c),
@@ -954,7 +972,7 @@ def need_avenues(
                 pages[i].append(card)
     out: list[tuple[str, int, dict]] = []
     for need, page in zip(needs, pages, strict=True):
-        if not page or len(page) > BROAD_SHARE * max(1, len(nonland_pool)):
+        if not page or is_broad(need, len(page) / max(1, len(nonland_pool))):
             continue
         have = sum(satisfies(r, need) for r in deck_nonland)
         label = f"{need.label} (commander need)"
@@ -1277,6 +1295,7 @@ def propose_swaps(
         template=ctx.template,
         playrate=ctx.playrate_condemns,
         playrate_meaningful=ctx.playrate,
+        needs=needs_supplied if built_needs else None,
     )
     # Route cuts into the pools a Remedy names: an over-band trim cuts from THAT over
     # role (``over:<role>``); everything else is the generic pool (filler, low-value,
@@ -1484,7 +1503,12 @@ def propose_swaps(
         # (most first): under Morska the Clue makers before a creature-token
         # anthem, under Ellivere the Auras before the Equipment, under Gimbal
         # the artifact token makers before the mana rocks (2026-11-01). The
-        # job pages keep their reads' order (``_job_order``).
+        # job pages keep their reads' order (``_job_order``). Measured and held
+        # back (2026-11-01): a candidate that also fills a role the deck is
+        # short of leading the rest — meant for Asceticism over Panharmonicon
+        # on Bello's page with no protection in the deck — put the cycling
+        # Dinosaurs over Etali and Gishath on Pantlaza's page and protection
+        # Equipment on Bello's (25 precons 121 → 109 guide adds).
         lead = spec.get("_lead")
         by_needs = synergy_first and job is None and avenue is not None and built_needs
 

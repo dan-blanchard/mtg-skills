@@ -141,3 +141,21 @@ def makes_tokens_repeatedly(card: dict) -> bool:
             if makes and unit_repeats(unit, tree):
                 return True
     return False
+
+
+@card_read("plays_extra_lands")
+def plays_extra_lands(card: dict) -> bool:
+    """Whether the card lets you play additional lands turn after turn
+    (``lanes.core_makers.additional_land_play_units`` on a unit that repeats,
+    ``crosswalk.unit_repeats``): Exploration's, Azusa's and Oracle of Mul Daya's
+    statics, not Explore's or Escape to the Wilds' one turn. The landfall lane
+    folds the read into its umbrella key, so a need for extra land drops reads
+    it here: a land-sacrificing commander's deck replays what it sacrifices
+    (``commander_need``)."""
+    from mtg_utils._analysis.lanes.core_makers import additional_land_play_units
+
+    return any(
+        unit_repeats(unit, tree)
+        for tree in trees_for(card, bulk=card)
+        for unit in additional_land_play_units(tree)
+    )

@@ -67,6 +67,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 from mtg_utils._analysis._subtypes import LAND_SUBTYPES
+from mtg_utils._analysis.card_reads import plays_extra_lands
 from mtg_utils._analysis.multipliers import Commander, multiplier_reasons
 from mtg_utils._analysis.signal_keys import TOKEN_MAKER
 from mtg_utils._card_ir.crosswalk.reads import (
@@ -75,8 +76,10 @@ from mtg_utils._card_ir.crosswalk.reads import (
     effect_player_reach,
     filter_controller,
     filter_core_types,
+    filter_inzone_zones,
     filter_mana_value_floor,
     filter_non_types,
+    filter_owned_controller,
     filter_predicates,
     filter_subtypes,
     iter_condition_sites,
@@ -175,12 +178,23 @@ _COUNTER_GROWTH_KEYS: frozenset[str] = frozenset(
 #: * ``land_sacrifice_makers``: the cards that return lands from your graveyard,
 #:   where a sacrificed land goes (CR 701.21a) — Life from the Loam, Crucible of
 #:   Worlds, Ramunap Excavator (``permanent_recast|you|land``).
+#: * ``land_sacrifice_makers`` also wants the extra land drops that replay the
+#:   sacrificed lands and keep the drops coming — a land put from the hand
+#:   (``extra_land_drop``: Burgeoning) or an additional land play
+#:   (``card_reads.plays_extra_lands``: Exploration, Azusa, Oracle of Mul Daya,
+#:   which the landfall lane folds into its umbrella key). The first adds Desert
+#:   Bloom's guides make, while the tuner trimmed Oracle of Mul Daya as surplus
+#:   ramp (2026-11-01).
 _EXTRA_CONSUMER_KEYS: Mapping[str, frozenset[str]] = {
     "plus_one_makers": frozenset({"counter_grants_kw", "counter_move"}),
     "token_copy_makers": frozenset({"tokens_matter", "token_doubling"}),
+    "land_sacrifice_makers": frozenset({"extra_land_drop"}),
 }
 _EXTRA_CONSUMER_IDENTS: Mapping[str, frozenset[str]] = {
     "land_sacrifice_makers": frozenset({"permanent_recast|you|land"}),
+}
+_EXTRA_CONSUMER_PREDICATES: Mapping[str, Callable[[dict], bool]] = {
+    "land_sacrifice_makers": plays_extra_lands,
 }
 
 #: Keys whose emitters make a creature of yours die or leave (fodder and the
@@ -376,11 +390,25 @@ def need_pool_share(need: Need, pool: Sequence[Mapping]) -> float:
     return hit
 
 
+def is_broad(need: Need, share: float, *, floor: float = BROAD_SHARE) -> bool:
+    """Whether a need ``share`` of the pool supplies is broad (over ``floor``).
+    A need with a mana-value floor never is: it is read off the commander's own
+    filter — the types it names at the mana value it names — so its page is the
+    plan's top end, however many such cards the pool holds (Bello's artifacts
+    and enchantments at 4+ mana are 10.5% of a Gruul pool, and over the line
+    his page never led, gated or trimmed by his need; Animated Army,
+    2026-11-01). The line is for the umbrella needs: every enchantment under
+    an enchantress, every instant under a spellslinger."""
+    return need.mana_floor is None and share > floor
+
+
 def specific_needs(
     needs: Sequence[Need], pool: Sequence[Mapping], *, floor: float = BROAD_SHARE
 ) -> tuple[Need, ...]:
-    """The needs at most ``floor`` of ``pool`` supplies."""
-    return tuple(n for n in needs if need_pool_share(n, pool) <= floor)
+    """The needs that are not :func:`is_broad` over ``pool``."""
+    return tuple(
+        n for n in needs if not is_broad(n, need_pool_share(n, pool), floor=floor)
+    )
 
 
 def needs_met(card: Mapping, needs: Sequence[Need]) -> tuple[Need, ...]:
@@ -559,11 +587,150 @@ def _sacrificed_power_need(desc: str) -> Need:
     )
 
 
+#: The mana value a permanent card reaches to be a target worth a commander's
+#: graveyard-to-battlefield effect: the top end a deck cheats in rather than
+#: casts — Death Toll's guides add Overlord of the Balemurk (7) and Hoarding
+#: Broodlord (8) and keep Hornet Queen (7), and the deck's own Vile Mutilator,
+#: Giant Adephage and Moldgraf Monstrosity sit there. At six the need is a tenth
+#: of a two-colour pool (broad, :data:`BROAD_SHARE`), at seven a twenty-fifth.
+#: This read's own line, no rule's.
+REANIMATION_MV = 7
+
+#: The card types a card has once it is on the battlefield (the permanent types
+#: among :data:`CARD_TYPES`).
+_PERMANENT_TYPES: frozenset[str] = frozenset(
+    {"artifact", "battle", "creature", "enchantment", "planeswalker"}
+)
+
+
+def _sizes_the_card(node: object) -> bool:
+    """Whether the node bounds the card's own size — its mana value, power or
+    toughness, as a filter property (Alesha's "power 2 or less") or a quantity
+    checked of the target (Meren's "mana value is less than or equal to the
+    number of experience counters": ``ObjectManaValue`` of ``Target``): the
+    commander states its own line, which the payload read leaves to it."""
+    return any(tag_of(n) in _SIZE_TAGS for n in iter_typed_nodes(node))
+
+
+#: The typed tags that read a card's size: the filter properties and the
+#: object quantities.
+_SIZE_TAGS: frozenset[str] = frozenset(
+    {"Cmc", "Power", "Toughness", "ObjectManaValue", "ObjectPower", "ObjectToughness"}
+)
+
+
+def _graveyard_return_filters(unit_node: object) -> Iterator[object]:
+    """The filter of each card the unit puts from a graveyard onto the
+    battlefield: a ``ChangeZone`` to the battlefield whose target sits in a
+    graveyard (``InZone: Graveyard``) or whose origin is one, or whose
+    ``ParentTarget`` is a card an earlier effect of the unit took from one
+    (Winter's exile-then-return)."""
+    nodes = list(iter_typed_nodes(unit_node))
+    from_graveyard = [
+        target
+        for n in nodes
+        for target in (getattr(n, "target", None),)
+        if _present(target) and "Graveyard" in filter_inzone_zones(target)
+    ]
+    for n in nodes:
+        if tag_of(n) != "ChangeZone" or getattr(n, "destination", None) != (
+            "Battlefield"
+        ):
+            continue
+        target = getattr(n, "target", None)
+        if _present(target) and (
+            "Graveyard" in filter_inzone_zones(target)
+            or getattr(n, "origin", None) == "Graveyard"
+        ):
+            yield target
+        elif tag_of(target) == "ParentTarget" and from_graveyard:
+            yield from_graveyard[0]
+
+
+def _reanimation_target_need(filt: object, desc: str) -> Need | None:
+    """What a commander's graveyard-to-battlefield effect is FOR: a permanent
+    card of the filter's types at :data:`REANIMATION_MV` or more, the payload
+    the deck fills its graveyard to return. A land is no payload (Teval's
+    "return a land card": the lands reads' own), nor a card of a creature type
+    (the tribe's page); another player's graveyard is not the deck's. The
+    caller skips a unit that sizes the card itself (:func:`_sizes_the_card`:
+    Meren, Alesha)."""
+    if filter_controller(filt) not in (None, "You"):
+        return None
+    core = {w.lower() for w in filter_core_types(filt)} - {"card", "permanent"}
+    subs = {w.lower() for w in filter_subtypes(filt)}
+    if "land" in core or subs:
+        # A land is no payload; a return filtered to a creature type is the
+        # tribe's — its members are the payload whatever they cost (Sidar
+        # Jabari's Knights; Admiral Brass's Pirates, which come back as 4/4s),
+        # and the tribal page holds them.
+        return None
+    non = frozenset(w.lower() for w in filter_non_types(filt))
+    words = frozenset(core)
+
+    def holds(c: dict) -> bool:
+        tw = _type_words(c)
+        if not tw & _PERMANENT_TYPES or "land" in tw:
+            return False
+        if words and not words <= tw:
+            return False
+        if non & tw:
+            return False
+        return float(c.get("cmc") or 0) >= REANIMATION_MV
+
+    what = " ".join(sorted(words)) or "permanent"
+    return Need(
+        "payoff",
+        f"{what} cards worth returning at {REANIMATION_MV}+ mana",
+        desc,
+        predicate=holds,
+    )
+
+
+def _token_kind_needs(unit_node: object, desc: str) -> Iterator[Need]:
+    """A token effect that treats one kind of token better — Hazel's "If that
+    token is a Squirrel, instead create two": a ``ConditionInstead`` over a
+    ``TargetMatchesFilter`` naming the subtype, on an effect whose target is a
+    token — asks for makers of THAT kind of token, beyond the token makers of
+    any kind her "copy target token" asks for (Squirreled Away's guides add Nut
+    Collector, Drey Keeper and Deranged Hermit; the tuner swapped Squirrel Nest
+    for Fanatic of Rhonas, 2026-11-01)."""
+    nodes = list(iter_typed_nodes(unit_node))
+    if not any(
+        tag_of(n) == "CopyTokenOf"
+        and "Token" in filter_predicates(getattr(n, "target", None))
+        for n in nodes
+    ):
+        return
+    for n in nodes:
+        if tag_of(n) != "TargetMatchesFilter":
+            continue
+        for sub in filter_subtypes(getattr(n, "filter", None)):
+            yield Need(
+                "payoff",
+                f"{sub} token makers",
+                desc,
+                idents=frozenset({f"{TOKEN_MAKER}|you|{sub}"}),
+            )
+
+
 def _effect_needs(unit_node: object, desc: str) -> Iterator[Need]:
     """Needs read off a unit's EFFECTS, whatever its origin: an effect scaled by
     the greatest mana value among the turn's spells (Rootha), a draw given to an
-    opponent (Ms. Bumbleflower), and an effect scaled by the power of the
-    creature its cost sacrifices (Dina)."""
+    opponent (Ms. Bumbleflower), an effect scaled by the power of the creature
+    its cost sacrifices (Dina), a typed card taken from the graveyard (Anikthea:
+    that type put there, :func:`_graveyard_take_needs`), a card put from the
+    graveyard onto the battlefield (Winter: the payload,
+    :func:`_reanimation_target_need`), and a token effect that favours one kind
+    of token (Hazel's Squirrels, :func:`_token_kind_needs`)."""
+    yield from _graveyard_take_needs(unit_node, desc)
+    if not _sizes_the_card(unit_node):
+        for filt in _graveyard_return_filters(unit_node):
+            need = _reanimation_target_need(filt, desc)
+            if need is not None:
+                yield need
+                break
+    yield from _token_kind_needs(unit_node, desc)
     sacrifices = _sacrifices_a_creature(unit_node)
     for n in iter_typed_nodes(unit_node):
         if (
@@ -670,6 +837,58 @@ def _counter_filter_kind(node: TypedMirrorNode) -> str | None:
     return kind if isinstance(kind, str) else None
 
 
+def _graveyard_fill_need(
+    core: Sequence[str], subs: Sequence[str], desc: str, *, typed_only: bool = False
+) -> Need | None:
+    """The need for cards of the filter's types reaching your graveyard: fed by
+    every way a card gets there, and by the way the type usually does — a land
+    card by land sacrifice (The Gitrog Monster), a creature card by a sacrifice
+    outlet or an edict (Sefris of the Hidden Ways). Not by token makers: a
+    token is not a card (CR 108.2), so a token dying is no "creature card put
+    into your graveyard". ``typed_only``: no need for an untyped card."""
+    keys = set(_GRAVEYARD_FILL_KEYS)
+    if "Land" in core or {s.lower() for s in subs} & _LAND_SUBTYPE_WORDS:
+        keys.add("land_sacrifice_makers")
+    if "Creature" in core:
+        keys |= {"sacrifice_outlets", "edict_makers"}
+    words = tuple(w for w in core if w not in ("Card", "Permanent")) + tuple(subs)
+    what = " ".join(sorted(words)) or None
+    if what is None and typed_only:
+        return None
+    label = (
+        f"{what} cards reaching your graveyard"
+        if what
+        else "cards reaching your graveyard"
+    )
+    return Need("event", label, desc, keys=frozenset(keys))
+
+
+def _graveyard_take_needs(unit_node: object, desc: str) -> Iterator[Need]:
+    """A commander that takes a card of a type from its own graveyard — the
+    target of an effect sits there (``InZone: Graveyard``) and is typed:
+    Anikthea's "non-Aura enchantment card from your graveyard", Meren's and
+    Mirko's creature card, Teval's land card — wants that type put there
+    (:func:`_graveyard_fill_need`): Enduring Enchantments' guides add the
+    discard outlets and self-mill that drop enchantments, where the tuner paged
+    every popular enchantment (2026-11-01). An untyped card (Winter's "any
+    number of cards") asks nothing the condition read does not."""
+    seen: set[str] = set()
+    for n in iter_typed_nodes(unit_node):
+        filt = getattr(n, "target", None)
+        if not _present(filt) or "Graveyard" not in filter_inzone_zones(filt):
+            continue
+        if filter_controller(filt) not in (None, "You"):
+            continue
+        if filter_owned_controller(filt) not in (None, "You"):
+            continue
+        need = _graveyard_fill_need(
+            filter_core_types(filt), filter_subtypes(filt), desc, typed_only=True
+        )
+        if need is not None and need.label not in seen:
+            seen.add(need.label)
+            yield need
+
+
 def _event_need(node: TypedMirrorNode, desc: str) -> Need | None:
     event = trigger_def_event(node)
     scope = trigger_scope(node)
@@ -721,27 +940,8 @@ def _event_need(node: TypedMirrorNode, desc: str) -> Need | None:
             )
         if dest == "Graveyard":
             # "put into your graveyard from anywhere" (CR 603.6c: never a
-            # leaves-the-battlefield ability): fed by every way a card reaches
-            # the graveyard, and by the way the watched type usually does — a
-            # land card by land sacrifice (The Gitrog Monster), a creature card
-            # by a sacrifice outlet or an edict (Sefris of the Hidden Ways). Not
-            # by token makers: a token is not a card (CR 108.2), so a token dying
-            # is no "creature card put into your graveyard".
-            keys = set(_GRAVEYARD_FILL_KEYS)
-            if "Land" in core or {s.lower() for s in subs} & _LAND_SUBTYPE_WORDS:
-                keys.add("land_sacrifice_makers")
-            if "Creature" in core:
-                keys |= {"sacrifice_outlets", "edict_makers"}
-            words = tuple(w for w in core if w not in ("Card", "Permanent")) + subs
-            what = " ".join(sorted(words)) or None
-            return Need(
-                "event",
-                f"{what} cards reaching your graveyard"
-                if what
-                else "cards reaching your graveyard",
-                desc,
-                keys=frozenset(keys),
-            )
+            # leaves-the-battlefield ability).
+            return _graveyard_fill_need(core, subs, desc)
         return None
     if event == "attacks":
         # "creatures enchanted by an Aura you control attack" (Killian): the
@@ -1102,6 +1302,7 @@ def _resource_needs(
                 desc,
                 keys=frozenset(consumers),
                 idents=idents_,
+                predicate=_EXTRA_CONSUMER_PREDICATES.get(key),
             )
 
 
@@ -1171,8 +1372,17 @@ def _redundancy_needs(idents: Iterable[str], desc: str) -> Iterator[Need]:
             )
 
 
-def _payoff_needs(idents: Iterable[str], desc: str) -> Iterator[Need]:
-    """A commander payoff with no trigger of its own → what feeds it."""
+def _payoff_needs(
+    idents: Iterable[str], desc: str, *, floor_read: bool = False
+) -> Iterator[Need]:
+    """A commander payoff with no trigger of its own → what feeds it.
+
+    ``floor_read``: the commander's trees already gave a mana-value-floor need
+    (:func:`_spell_floor_need` off its own filter). That read keeps the filter's
+    negations — Bello's "non-Equipment artifact" — where the ``animate_makers``
+    ident's subject (``Artifact>=4``) drops them, so the ident's need is skipped:
+    with both, Hammer of Nazahn and Leyline Axe led Animated Army's page as
+    artifacts at 4+ mana Bello never animates (2026-11-01)."""
     idents = list(idents)
     keys_held = {ident.split("|", 1)[0] for ident in idents}
     # The commander's own suit is Auras: an ``aura_*`` ident and no equipment one.
@@ -1235,7 +1445,7 @@ def _payoff_needs(idents: Iterable[str], desc: str) -> Iterator[Need]:
                     kw in {k.lower() for k in c.get("keywords") or ()}
                 ),
             )
-        elif key == "animate_makers" and ">=" in subject:
+        elif key == "animate_makers" and ">=" in subject and not floor_read:
             word, _sep, floor = subject.partition(">=")
             w, n = word.lower(), int(floor or 0)
             yield Need(
@@ -1367,6 +1577,7 @@ def commander_needs(commanders: Sequence[Mapping]) -> tuple[Need, ...]:
         # come out in one order whatever the process's hash seed.
         idents = sorted(_card_idents(rec, membership=False))
         trees = trees_for(dict(rec))
+        tree_start = len(out)
         for tree in trees:
             for unit in tree.units:
                 node = unit.node
@@ -1387,7 +1598,10 @@ def commander_needs(commanders: Sequence[Mapping]) -> tuple[Need, ...]:
         add(_loyalty_need(rec))
         for need in _redundancy_needs(idents, rec.get("name", "")):
             add(need)
-        for need in _payoff_needs(idents, rec.get("name", "")):
+        # A mana-value floor read off the commander's own filter keeps the
+        # filter's negations; the ident's does not (``_payoff_needs``).
+        floor_read = any(need.mana_floor for need in out[tree_start:])
+        for need in _payoff_needs(idents, rec.get("name", ""), floor_read=floor_read):
             add(need)
         add(_multiplier_need(rec))
     # A trigger's refined read stands in for the payoff read of the same

@@ -160,3 +160,18 @@ def test_a_bulk_face_cards_reads_never_depend_on_their_order(bulk_first, monkeyp
 )
 def test_makes_tokens_repeatedly(name, repeatedly):
     assert card_reads.makes_tokens_repeatedly(test_card(name)) is repeatedly
+
+
+@pytest.mark.parametrize(
+    ("name", "repeatable"),
+    [
+        ("Exploration", True),
+        ("Azusa, Lost but Seeking", True),
+        ("Oracle of Mul Daya", True),
+        ("Explore", False),  # this turn only
+        ("Escape to the Wilds", False),
+        ("Burgeoning", False),  # a land put onto the battlefield, not a play
+    ],
+)
+def test_plays_extra_lands(name, repeatable):
+    assert card_reads.plays_extra_lands(test_card(name)) is repeatable

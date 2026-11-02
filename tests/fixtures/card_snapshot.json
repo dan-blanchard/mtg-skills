@@ -90808,6 +90808,174 @@
     "type_line": "Enchantment — Saga"
    }
   },
+  "Asceticism": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": {
+        "cost": {
+         "generic": 1,
+         "shards": [
+          "Green"
+         ],
+         "type": "Cost"
+        },
+        "type": "Mana"
+       },
+       "description": "{1}{G}: Regenerate target creature.",
+       "duration": null,
+       "effect": {
+        "target": {
+         "controller": null,
+         "properties": [],
+         "type": "Typed",
+         "type_filters": [
+          "Creature"
+         ]
+        },
+        "type": "Regenerate"
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Enchantment"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Green"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 3,
+      "shards": [
+       "Green",
+       "Green"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "72eefa85-39de-4f9f-aba1-7520b358c6c4",
+       "bde335c5-0e87-43c9-bef6-423e4d1caf35",
+       "ec2b56b0-126c-411b-8c43-b690fc8c194b"
+      ]
+     },
+     "name": "Asceticism",
+     "non_ability_text": null,
+     "oracle_text": "Creatures you control have hexproof.\n{1}{G}: Regenerate target creature. (The next time it would be destroyed this turn, instead tap it, remove it from combat, and heal all damage on it.)",
+     "power": null,
+     "printings": [
+      "LTC",
+      "PLST",
+      "SOM"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2011-01-01",
+       "text": "You may target any creature with the regeneration ability, not just one you control."
+      }
+     ],
+     "scryfall_oracle_id": "9396546c-d067-4ce3-9c3d-b62cca970b4f",
+     "static_abilities": [
+      {
+       "active_zones": [],
+       "affected": {
+        "controller": "You",
+        "properties": [],
+        "type": "Typed",
+        "type_filters": [
+         "Creature"
+        ]
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": null,
+       "description": "Creatures you control have hexproof.",
+       "effect_zone": null,
+       "mode": "Continuous",
+       "modifications": [
+        {
+         "keyword": "Hexproof",
+         "type": "AddKeyword"
+        }
+       ]
+      }
+     ],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 5.0,
+    "color_identity": [
+     "G"
+    ],
+    "colors": [
+     "G"
+    ],
+    "keywords": [
+     "Heal",
+     "Regenerate"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{3}{G}{G}",
+    "name": "Asceticism",
+    "oracle_id": "9396546c-d067-4ce3-9c3d-b62cca970b4f",
+    "oracle_text": "Creatures you control have hexproof.\n{1}{G}: Regenerate target creature. (The next time it would be destroyed this turn, instead tap it, remove it from combat, and heal all damage on it.)",
+    "type_line": "Enchantment"
+   }
+  },
   "Asgardian Inspiration": {
    "phase_records": [
     {
@@ -95434,6 +95602,266 @@
     "name": "Assassin's Ink",
     "oracle_id": "a6d95d26-48d8-4a97-9a42-f492a61300c9",
     "oracle_text": "This spell costs {1} less to cast if you control an artifact and {1} less to cast if you control an enchantment.\nDestroy target creature or planeswalker.",
+    "type_line": "Instant"
+   }
+  },
+  "Assassin's Trophy": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Destroy target permanent an opponent controls. Its controller may search their library for a basic land card, put it onto the battlefield, then shuffle.",
+       "duration": null,
+       "effect": {
+        "cant_regenerate": false,
+        "target": {
+         "controller": "Opponent",
+         "properties": [],
+         "type": "Typed",
+         "type_filters": [
+          "Permanent"
+         ]
+        },
+        "type": "Destroy"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "filter": {
+          "controller": null,
+          "properties": [
+           {
+            "type": "HasSupertype",
+            "value": "Basic"
+           }
+          ],
+          "type": "Typed",
+          "type_filters": [
+           "Land"
+          ]
+         },
+         "reveal": false,
+         "target_player": {
+          "type": "ParentTargetController"
+         },
+         "type": "SearchLibrary"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": true,
+        "optional_player": {
+         "type": "ParentTargetController"
+        },
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "destination": "Battlefield",
+          "enter_tapped": false,
+          "enter_transformed": false,
+          "enters_attacking": false,
+          "origin": "Library",
+          "owner_library": false,
+          "target": {
+           "type": "Any"
+          },
+          "type": "ChangeZone"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": {
+          "condition": null,
+          "cost": null,
+          "description": null,
+          "duration": null,
+          "effect": {
+           "target": {
+            "type": "ParentTargetController"
+           },
+           "type": "Shuffle"
+          },
+          "forward_result": false,
+          "kind": "Spell",
+          "optional": false,
+          "optional_targeting": false,
+          "sub_ability": null,
+          "target_prompt": null
+         },
+         "target_prompt": null
+        },
+        "sub_link": "SequentialSibling",
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Instant"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Black",
+      "Green"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "standard": "legal",
+      "standardbrawl": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 0,
+      "shards": [
+       "Black",
+       "Green"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "0c4f4ff8-efd2-4d22-8491-54bd6e73006c",
+       "2b4c0e5f-3437-4fae-ab9f-36a36a086e88",
+       "5885c728-67a9-4f8c-943d-1dca22b9d8f9",
+       "5e530961-1cb5-4208-ac49-f0963bac0134",
+       "906b6e99-128f-4c11-8daf-16099d35b0d4",
+       "932efc19-9bfd-4501-a623-ff6765a356d8",
+       "aaf258fc-3ba4-4b83-bdbf-10a07e0b6c03",
+       "abd61b58-78d0-4e0c-aedd-d34feeaebe91",
+       "aeb63464-d06b-4626-a57a-1e393ef04a58",
+       "d00efb55-a859-408c-b727-6914584c06d2",
+       "d6644d62-3d2a-4db1-a387-736fcad9a851",
+       "d66da05e-b3a7-4557-a7c3-97051ba24cab",
+       "def90432-6d13-4d28-aa27-f75dd26456bb",
+       "ed6c7d29-71b4-4134-b591-5598f479d592"
+      ]
+     },
+     "name": "Assassin's Trophy",
+     "non_ability_text": null,
+     "oracle_text": "Destroy target permanent an opponent controls. Its controller may search their library for a basic land card, put it onto the battlefield, then shuffle.",
+     "power": null,
+     "printings": [
+      "2X2",
+      "ACR",
+      "ECC",
+      "GRN",
+      "MKM",
+      "PGRN",
+      "PMKM",
+      "PRM",
+      "SLD",
+      "SOC",
+      "TMC"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2018-10-05",
+       "text": "If the permanent's controller doesn't search their library, they don't shuffle their library."
+      },
+      {
+       "date": "2018-10-05",
+       "text": "If the target permanent is a legal target but isn't destroyed, most likely because it has indestructible, its controller may search their library."
+      },
+      {
+       "date": "2018-10-05",
+       "text": "If the target permanent is an illegal target by the time Assassin's Trophy tries to resolve, the spell doesn't resolve. No player searches their library."
+      },
+      {
+       "date": "2024-02-02",
+       "text": "If the permanent's controller doesn't search their library, they don't shuffle their library."
+      },
+      {
+       "date": "2024-02-02",
+       "text": "If the target permanent is a legal target but isn't destroyed, most likely because it has indestructible, its controller may search their library."
+      },
+      {
+       "date": "2024-02-02",
+       "text": "If the target permanent is an illegal target by the time Assassin's Trophy tries to resolve, the spell doesn't resolve. No player searches their library."
+      }
+     ],
+     "scryfall_oracle_id": "ac10d218-f9a6-4058-9cda-a15ca1b0b7b5",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 2.0,
+    "color_identity": [
+     "B",
+     "G"
+    ],
+    "colors": [
+     "B",
+     "G"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "legal",
+     "standardbrawl": "legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{B}{G}",
+    "name": "Assassin's Trophy",
+    "oracle_id": "ac10d218-f9a6-4058-9cda-a15ca1b0b7b5",
+    "oracle_text": "Destroy target permanent an opponent controls. Its controller may search their library for a basic land card, put it onto the battlefield, then shuffle.",
     "type_line": "Instant"
    }
   },
@@ -325348,6 +325776,364 @@
     "type_line": "Sorcery"
    }
   },
+  "Deep Forest Hermit": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Elf",
+       "Druid"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Green"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [
+      {
+       "Vanishing": 3
+      }
+     ],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 3,
+      "shards": [
+       "Green",
+       "Green"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "related_token_ids": [
+       "da457623-e6de-51b0-a22f-e279640934a9",
+       "db984bd7-474c-5634-81ab-d5a23a73b29b"
+      ],
+      "source_printing_ids": [
+       "3287775f-7bec-4e8f-bb8d-daf5ce92e4a8",
+       "f712e233-1de8-45e4-9225-790d608ac90b"
+      ]
+     },
+     "name": "Deep Forest Hermit",
+     "non_ability_text": null,
+     "oracle_text": "Vanishing 3 (This creature enters with three time counters on it. At the beginning of your upkeep, remove a time counter from it. When the last is removed, sacrifice it.)\nWhen this creature enters, create four 1/1 green Squirrel creature tokens.\nSquirrels you control get +1/+1.",
+     "power": {
+      "type": "Fixed",
+      "value": 1
+     },
+     "printings": [
+      "BLC",
+      "H1R",
+      "MH1",
+      "PRM"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [
+      {
+       "condition": null,
+       "description": "CR 702.63a: this permanent enters with 3 time counters on it.",
+       "destination_zone": "Battlefield",
+       "event": "Moved",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": "This permanent enters with 3 time counters on it",
+        "duration": null,
+        "effect": {
+         "count": {
+          "type": "Fixed",
+          "value": 3
+         },
+         "counter_type": "time",
+         "target": {
+          "type": "SelfRef"
+         },
+         "type": "PutCounter"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": {
+        "type": "Mandatory"
+       },
+       "valid_card": {
+        "type": "SelfRef"
+       }
+      }
+     ],
+     "scryfall_oracle_id": "80e9a42e-f4f4-4bfc-91a2-ad124737dca2",
+     "static_abilities": [
+      {
+       "active_zones": [],
+       "affected": {
+        "controller": "You",
+        "properties": [],
+        "type": "Typed",
+        "type_filters": [
+         "Creature",
+         {
+          "Subtype": "Squirrel"
+         }
+        ]
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": null,
+       "description": "Squirrels you control get +1/+1.",
+       "effect_zone": null,
+       "mode": "Continuous",
+       "modifications": [
+        {
+         "type": "AddPower",
+         "value": 1
+        },
+        {
+         "type": "AddToughness",
+         "value": 1
+        }
+       ]
+      }
+     ],
+     "toughness": {
+      "type": "Fixed",
+      "value": 1
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "When ~ enters, create four 1/1 green Squirrel creature tokens.",
+       "destination": "Battlefield",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "colors": [
+          "Green"
+         ],
+         "count": {
+          "type": "Fixed",
+          "value": 4
+         },
+         "enters_attacking": false,
+         "keywords": [],
+         "name": "Squirrel",
+         "owner": {
+          "type": "Controller"
+         },
+         "power": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "tapped": false,
+         "toughness": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "type": "Token",
+         "types": [
+          "Creature",
+          "Squirrel"
+         ]
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "ChangesZone",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": null
+      },
+      {
+       "batched": false,
+       "condition": {
+        "counters": {
+         "data": "time",
+         "type": "OfType"
+        },
+        "minimum": 1,
+        "type": "HasCounters"
+       },
+       "constraint": {
+        "type": "OnlyDuringYourTurn"
+       },
+       "damage_kind": "Any",
+       "description": "CR 702.63a: At the beginning of your upkeep, remove a time counter from this permanent.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "counter_type": "time",
+         "target": {
+          "type": "SelfRef"
+         },
+         "type": "RemoveCounter"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "Phase",
+       "optional": false,
+       "origin": null,
+       "phase": "Upkeep",
+       "secondary": false,
+       "trigger_zones": [],
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": null
+      },
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "counter_filter": {
+        "counter_type": "time",
+        "threshold": 0
+       },
+       "damage_kind": "Any",
+       "description": "CR 702.63a: When the last time counter is removed from this permanent, sacrifice it.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "target": {
+          "type": "SelfRef"
+         },
+         "type": "Sacrifice"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "CounterRemoved",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [],
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "all_parts": [
+     {
+      "component": "token",
+      "id": "aa846cf5-c618-4304-bb92-5df936ebca9b",
+      "name": "Squirrel",
+      "oracle_id": "67f21c0c-2083-4eda-9dc3-cc8aee42289f",
+      "type_line": "Token Creature — Squirrel"
+     }
+    ],
+    "arena_available": false,
+    "cmc": 5.0,
+    "color_identity": [
+     "G"
+    ],
+    "colors": [
+     "G"
+    ],
+    "keywords": [
+     "Vanishing"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{3}{G}{G}",
+    "name": "Deep Forest Hermit",
+    "oracle_id": "80e9a42e-f4f4-4bfc-91a2-ad124737dca2",
+    "oracle_text": "Vanishing 3 (This creature enters with three time counters on it. At the beginning of your upkeep, remove a time counter from it. When the last is removed, sacrifice it.)\nWhen this creature enters, create four 1/1 green Squirrel creature tokens.\nSquirrels you control get +1/+1.",
+    "power": "1",
+    "toughness": "1",
+    "type_line": "Creature — Elf Druid"
+   }
+  },
   "Deep Gnome Terramancer": {
    "phase_records": [
     {
@@ -408521,6 +409307,237 @@
     "type_line": "Enchantment — Aura"
    }
   },
+  "Escape to the Wilds": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Exile the top five cards of your library. You may play cards exiled this way until the end of your next turn.\nYou may play an additional land this turn.",
+       "duration": null,
+       "effect": {
+        "count": {
+         "type": "Fixed",
+         "value": 5
+        },
+        "player": {
+         "type": "Controller"
+        },
+        "position": {
+         "type": "Top"
+        },
+        "type": "ExileTop"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "permission": {
+          "duration": {
+           "UntilEndOfNextTurnOf": {
+            "player": {
+             "type": "Controller"
+            }
+           }
+          },
+          "granted_to": 0,
+          "type": "PlayFromExile"
+         },
+         "target": {
+          "id": 0,
+          "type": "TrackedSet"
+         },
+         "type": "GrantCastingPermission"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": "UntilEndOfTurn",
+         "effect": {
+          "duration": "UntilEndOfTurn",
+          "static_abilities": [
+           {
+            "active_zones": [],
+            "affected": {
+             "type": "Controller"
+            },
+            "affected_zone": null,
+            "characteristic_defining": false,
+            "condition": null,
+            "description": null,
+            "effect_zone": null,
+            "mode": "MayPlayAdditionalLand",
+            "modifications": [
+             {
+              "mode": "MayPlayAdditionalLand",
+              "type": "AddStaticMode"
+             }
+            ]
+           }
+          ],
+          "target": null,
+          "type": "GenericEffect"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": null,
+         "sub_link": "SequentialSibling",
+         "target_prompt": null
+        },
+        "sub_link": "SequentialSibling",
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Sorcery"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Green",
+      "Red"
+     ],
+     "color_override": [
+      "Green",
+      "Red"
+     ],
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 3,
+      "shards": [
+       "Red",
+       "Green"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "1bff641e-aad3-414f-ad5b-8d32c734efa9",
+       "3e26c10b-179f-4a6e-bc8d-3ec1d6783fb9",
+       "7c15363a-f27b-4fb5-8658-edfbd67750ca",
+       "889cdc42-fae3-4dda-9cf0-697730ef00e3",
+       "a65916a8-eeb2-4cd8-904c-dae9385e4356",
+       "b8d58c2d-2bff-4d25-a023-0a6342167f5f",
+       "e9359896-2c8f-4841-8bbb-3231e5a47221"
+      ]
+     },
+     "name": "Escape to the Wilds",
+     "non_ability_text": null,
+     "oracle_text": "Exile the top five cards of your library. You may play cards exiled this way until the end of your next turn.\nYou may play an additional land this turn.",
+     "power": null,
+     "printings": [
+      "CLB",
+      "ELD",
+      "EOC",
+      "MAR",
+      "OTC",
+      "PELD",
+      "SLD"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2019-10-04",
+       "text": "Casting an exiled card causes it to leave exile. You can't cast it multiple times."
+      },
+      {
+       "date": "2019-10-04",
+       "text": "Escape to the Wilds doesn't change when you can play the exiled cards. For example, if you exile a sorcery card, you can cast it only during your main phase when the stack is empty. If you exile a land card, you can play it only during your main phase and only if you have an available land play remaining."
+      },
+      {
+       "date": "2019-10-04",
+       "text": "If you don't play a card exiled this way, it remains in exile."
+      },
+      {
+       "date": "2019-10-04",
+       "text": "The additional land that you play doesn't have to be from among the exiled cards."
+      }
+     ],
+     "scryfall_oracle_id": "45a8c126-5396-4736-a37e-460a50706a98",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 5.0,
+    "color_identity": [
+     "G",
+     "R"
+    ],
+    "colors": [
+     "G",
+     "R"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{3}{R}{G}",
+    "name": "Escape to the Wilds",
+    "oracle_id": "45a8c126-5396-4736-a37e-460a50706a98",
+    "oracle_text": "Exile the top five cards of your library. You may play cards exiled this way until the end of your next turn.\nYou may play an additional land this turn.",
+    "type_line": "Sorcery"
+   }
+  },
   "Eshki, Temur's Roar": {
    "phase_records": [
     {
@@ -489162,6 +490179,218 @@
     "power": "2",
     "toughness": "1",
     "type_line": "Creature — Dwarf Pilot"
+   }
+  },
+  "Geier Reach Sanitarium": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": {
+        "type": "Tap"
+       },
+       "description": "{T}: Add {C}.",
+       "duration": null,
+       "effect": {
+        "produced": {
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "type": "Colorless"
+        },
+        "type": "Mana"
+       },
+       "forward_result": false,
+       "is_mana_ability": true,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      },
+      {
+       "condition": null,
+       "cost": {
+        "costs": [
+         {
+          "cost": {
+           "generic": 2,
+           "shards": [],
+           "type": "Cost"
+          },
+          "type": "Mana"
+         },
+         {
+          "type": "Tap"
+         }
+        ],
+        "type": "Composite"
+       },
+       "description": "{2}, {T}: Each player draws a card, then discards a card.",
+       "duration": null,
+       "effect": {
+        "count": {
+         "type": "Fixed",
+         "value": 1
+        },
+        "target": {
+         "type": "Controller"
+        },
+        "type": "Draw"
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "player_scope": {
+        "type": "All"
+       },
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "target": {
+          "type": "Controller"
+         },
+         "type": "Discard"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "player_scope": {
+         "type": "All"
+        },
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Land"
+      ],
+      "subtypes": [],
+      "supertypes": [
+       "Legendary"
+      ]
+     },
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "type": "NoCost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "0b9fa570-770d-45a7-9b87-2def6992a22b",
+       "4b9c92f0-4242-4a3e-9ede-6a4935f5c75d",
+       "6f5b3931-580a-4471-9b5d-25bcf5803a73",
+       "8d80ec47-0e47-49e3-9c43-1c126d8523e1",
+       "96093739-fedc-4d8f-a29d-0e57f571e5a9",
+       "cdb751d3-580f-44dd-a1e2-0f1240f2b891",
+       "ce583e4c-830a-4f10-883b-e0dc1ce9cc67",
+       "d922754a-37d0-42ec-9f55-134cf4f3bd1d",
+       "fc4d0772-35a3-434f-afb5-2137aa4f3dec"
+      ]
+     },
+     "name": "Geier Reach Sanitarium",
+     "non_ability_text": null,
+     "oracle_text": "{T}: Add {C}.\n{2}, {T}: Each player draws a card, then discards a card.",
+     "power": null,
+     "printings": [
+      "AFC",
+      "C19",
+      "CMM",
+      "DMC",
+      "EMN",
+      "FDC",
+      "LCC",
+      "PEMN",
+      "SIR",
+      "SLD"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2016-07-13",
+       "text": "If more than one player discards a card with madness simultaneously, the player whose turn it is puts their madness abilities onto the stack first, then each other player does the same in turn order. The last one put onto the stack resolves first, and a spell cast this way will resolve before resolving the next madness ability."
+      },
+      {
+       "date": "2016-07-13",
+       "text": "When you activate Geier Reach Sanitarium's last ability, first each player draws a card. Then the player whose turn it is selects a card from their hand and sets it aside without revealing it; proceeding in turn order, each other player does the same. Then the cards that were set aside are discarded at once."
+      }
+     ],
+     "scryfall_oracle_id": "7b9fafe7-d26a-4ed5-b4c4-ce13763770b5",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 0.0,
+    "color_identity": [],
+    "colors": [],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "",
+    "name": "Geier Reach Sanitarium",
+    "oracle_id": "7b9fafe7-d26a-4ed5-b4c4-ce13763770b5",
+    "oracle_text": "{T}: Add {C}.\n{2}, {T}: Each player draws a card, then discards a card.",
+    "produced_mana": [
+     "C"
+    ],
+    "type_line": "Legendary Land"
    }
   },
   "Geist of Saint Thalia": {
@@ -577880,6 +579109,313 @@
     "type_line": "Artifact"
    }
   },
+  "Hoarding Broodlord": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Dragon"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Black"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [
+      "Convoke",
+      "Flying"
+     ],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 5,
+      "shards": [
+       "Black",
+       "Black",
+       "Black"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "2cbfb78e-cbab-4511-a887-60dad1a6cb6b",
+       "386ce3c9-869d-461c-a3de-c8add3786f73"
+      ]
+     },
+     "name": "Hoarding Broodlord",
+     "non_ability_text": null,
+     "oracle_text": "Convoke\nFlying\nWhen this creature enters, search your library for a card, exile it face down, then shuffle. For as long as that card remains exiled, you may play it.\nSpells you cast from exile have convoke.",
+     "power": {
+      "type": "Fixed",
+      "value": 7
+     },
+     "printings": [
+      "MOM",
+      "PMOM"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2023-04-14",
+       "text": "As long as that card remains exiled, you may look at it. This remains true after Hoarding Broodlord leaves the battlefield."
+      },
+      {
+       "date": "2023-04-14",
+       "text": "If another player gains control of Hoarding Broodlord, it's still you who can look at and play the exiled card. That player won't be able to look at or play the exiled card."
+      },
+      {
+       "date": "2024-01-12",
+       "text": "Because convoke isn't an alternative cost, it can be used in conjunction with alternative costs."
+      },
+      {
+       "date": "2024-01-12",
+       "text": "If a creature you control has a mana ability with {T} in the cost, activating that ability while casting a spell with convoke will result in the creature being tapped before you pay the spell's costs. You won't be able to tap it again for convoke. Similarly, if you sacrifice a creature to activate a mana ability while casting a spell with convoke, that creature won't be on the battlefield when you pay the spell's costs, so you won't be able to tap it for convoke."
+      },
+      {
+       "date": "2024-01-12",
+       "text": "Tapping a multicolored creature using convoke will pay for {1} or one mana of your choice of any of that creature's colors."
+      },
+      {
+       "date": "2024-01-12",
+       "text": "Tapping an untapped creature that's attacking or blocking to convoke a spell won't cause that creature to stop attacking or blocking."
+      },
+      {
+       "date": "2024-01-12",
+       "text": "When calculating a spell's total cost, include any alternative costs, additional costs, or anything else that increases or reduces the cost to cast the spell. Convoke applies after the total cost is calculated. Convoke doesn't change a spell's mana cost or mana value."
+      },
+      {
+       "date": "2024-01-12",
+       "text": "You can tap any untapped creature you control to convoke a spell, even one you haven't controlled continuously since the beginning of your most recent turn."
+      }
+     ],
+     "scryfall_oracle_id": "18e856b5-aab7-4802-8cec-1d44dd95d9f7",
+     "static_abilities": [
+      {
+       "active_zones": [
+        "Battlefield"
+       ],
+       "affected": {
+        "controller": "You",
+        "properties": [
+         {
+          "type": "InZone",
+          "zone": "Exile"
+         }
+        ],
+        "type": "Typed",
+        "type_filters": [
+         "Card"
+        ]
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": null,
+       "description": "Spells you cast from exile have convoke.",
+       "effect_zone": null,
+       "mode": {
+        "CastWithKeyword": {
+         "keyword": "Convoke"
+        }
+       },
+       "modifications": []
+      }
+     ],
+     "toughness": {
+      "type": "Fixed",
+      "value": 6
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "When ~ enters, search your library for a card, exile it face down, then shuffle. For as long as that card remains exiled, you may play it.",
+       "destination": "Battlefield",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "filter": {
+          "controller": null,
+          "properties": [],
+          "type": "Typed",
+          "type_filters": [
+           "Card"
+          ]
+         },
+         "reveal": false,
+         "type": "SearchLibrary"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "destination": "Exile",
+          "enter_tapped": false,
+          "enter_transformed": false,
+          "enters_attacking": false,
+          "origin": "Library",
+          "owner_library": false,
+          "target": {
+           "type": "Any"
+          },
+          "type": "ChangeZone"
+         },
+         "face_down_in_exile": true,
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": {
+          "condition": null,
+          "cost": null,
+          "description": null,
+          "duration": null,
+          "effect": {
+           "target": {
+            "type": "Controller"
+           },
+           "type": "Shuffle"
+          },
+          "forward_result": false,
+          "kind": "Spell",
+          "optional": false,
+          "optional_targeting": false,
+          "sub_ability": {
+           "condition": null,
+           "cost": null,
+           "description": null,
+           "duration": {
+            "ForAsLongAs": {
+             "condition": {
+              "text": "that card remains exiled",
+              "type": "Unrecognized"
+             }
+            }
+           },
+           "effect": {
+            "permission": {
+             "duration": "Permanent",
+             "granted_to": 0,
+             "type": "PlayFromExile"
+            },
+            "target": {
+             "id": 0,
+             "type": "TrackedSet"
+            },
+            "type": "GrantCastingPermission"
+           },
+           "forward_result": false,
+           "kind": "Spell",
+           "optional": false,
+           "optional_targeting": false,
+           "sub_ability": null,
+           "sub_link": "SequentialSibling",
+           "target_prompt": null
+          },
+          "target_prompt": null
+         },
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "mode": "ChangesZone",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 8.0,
+    "color_identity": [
+     "B"
+    ],
+    "colors": [
+     "B"
+    ],
+    "keywords": [
+     "Convoke",
+     "Flying"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{5}{B}{B}{B}",
+    "name": "Hoarding Broodlord",
+    "oracle_id": "18e856b5-aab7-4802-8cec-1d44dd95d9f7",
+    "oracle_text": "Convoke\nFlying\nWhen this creature enters, search your library for a card, exile it face down, then shuffle. For as long as that card remains exiled, you may play it.\nSpells you cast from exile have convoke.",
+    "power": "7",
+    "toughness": "6",
+    "type_line": "Creature — Dragon"
+   }
+  },
   "Hobbit Hole": {
    "phase_records": [
     {
@@ -618643,6 +620179,289 @@
     "power": "1",
     "toughness": "1",
     "type_line": "Legendary Creature — Goblin Warrior"
+   }
+  },
+  "Ishkanah, Grafwidow": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": {
+        "cost": {
+         "generic": 6,
+         "shards": [
+          "Black"
+         ],
+         "type": "Cost"
+        },
+        "type": "Mana"
+       },
+       "declares_chosen_group": 2147483648,
+       "description": "{6}{B}: Target opponent loses 1 life for each Spider you control.",
+       "duration": null,
+       "effect": {
+        "amount": {
+         "qty": {
+          "filter": {
+           "controller": "You",
+           "properties": [],
+           "type": "Typed",
+           "type_filters": [
+            {
+             "Subtype": "Spider"
+            }
+           ]
+          },
+          "type": "ObjectCount"
+         },
+         "type": "Ref"
+        },
+        "target": {
+         "controller": "Opponent",
+         "properties": [],
+         "type": "Typed",
+         "type_filters": []
+        },
+        "type": "LoseLife"
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "brawl_commander": true,
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Spider"
+      ],
+      "supertypes": [
+       "Legendary"
+      ]
+     },
+     "color_identity": [
+      "Black",
+      "Green"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "is_commander": true,
+     "keywords": [
+      "Reach"
+     ],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 4,
+      "shards": [
+       "Green"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "related_token_ids": [
+       "a023a74b-91fb-5ba6-9d19-5346bd9593f9",
+       "c5d1d542-2d37-59c3-b620-05f69d6d9e54",
+       "e9464220-95bc-5d69-b144-8e550f391e2c",
+       "fb4b4216-add5-5e47-b8d8-efe9986e3c5c"
+      ],
+      "source_printing_ids": [
+       "2a61bad1-f212-4d9b-8422-8ec548b8155c",
+       "2a6c5a98-2fe5-4671-a6a8-98a47c09c5a7",
+       "84b09c07-a811-4b1c-8264-f63efea93e06",
+       "851c729f-1c98-4962-9cc9-84872133ac02",
+       "db6d1e62-cee9-4b6d-a6fa-9d35b48856ac"
+      ]
+     },
+     "name": "Ishkanah, Grafwidow",
+     "non_ability_text": null,
+     "oracle_text": "Reach\nDelirium — When Ishkanah enters, if there are four or more card types among cards in your graveyard, create three 1/2 green Spider creature tokens with reach.\n{6}{B}: Target opponent loses 1 life for each Spider you control.",
+     "power": {
+      "type": "Fixed",
+      "value": 3
+     },
+     "printings": [
+      "DSC",
+      "EMN",
+      "LTC",
+      "PEMN",
+      "PLST",
+      "SIR"
+     ],
+     "rarities": [
+      "mythic"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2016-07-13",
+       "text": "The number of Spiders you control is checked only as Ishkanah's last ability resolves. The ability will count Ishkanah itself if it's still on the battlefield."
+      }
+     ],
+     "scryfall_oracle_id": "6f4861f4-1b3b-4dbc-b55b-196075d0a693",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 5
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": {
+        "comparator": "GE",
+        "lhs": {
+         "qty": {
+          "source": {
+           "scope": "Controller",
+           "type": "Zone",
+           "zone": "Graveyard"
+          },
+          "type": "DistinctCardTypes"
+         },
+         "type": "Ref"
+        },
+        "rhs": {
+         "type": "Fixed",
+         "value": 4
+        },
+        "type": "QuantityComparison"
+       },
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "When ~ enters, if there are four or more card types among cards in your graveyard, create three 1/2 green Spider creature tokens with reach.",
+       "destination": "Battlefield",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "colors": [
+          "Green"
+         ],
+         "count": {
+          "type": "Fixed",
+          "value": 3
+         },
+         "enters_attacking": false,
+         "keywords": [
+          "Reach"
+         ],
+         "name": "Spider",
+         "owner": {
+          "type": "Controller"
+         },
+         "power": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "tapped": false,
+         "toughness": {
+          "type": "Fixed",
+          "value": 2
+         },
+         "type": "Token",
+         "types": [
+          "Creature",
+          "Spider"
+         ]
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "ChangesZone",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "all_parts": [
+     {
+      "component": "token",
+      "id": "f74900ca-7f0d-460c-86b0-b515c8b44e67",
+      "name": "Spider",
+      "oracle_id": "bd386399-69f0-4653-96a1-fd05b8fd148c",
+      "type_line": "Token Creature — Spider"
+     }
+    ],
+    "arena_available": true,
+    "cmc": 5.0,
+    "color_identity": [
+     "B",
+     "G"
+    ],
+    "colors": [
+     "G"
+    ],
+    "keywords": [
+     "Delirium",
+     "Reach"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{4}{G}",
+    "name": "Ishkanah, Grafwidow",
+    "oracle_id": "6f4861f4-1b3b-4dbc-b55b-196075d0a693",
+    "oracle_text": "Reach\nDelirium — When Ishkanah enters, if there are four or more card types among cards in your graveyard, create three 1/2 green Spider creature tokens with reach.\n{6}{B}: Target opponent loses 1 life for each Spider you control.",
+    "power": "3",
+    "toughness": "5",
+    "type_line": "Legendary Creature — Spider"
    }
   },
   "Isilu, Carrier of Twilight": {
@@ -1059857,6 +1061676,222 @@
     "type_line": "Legendary Creature — Goblin"
    }
   },
+  "Squirrel Nest": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Enchantment"
+      ],
+      "subtypes": [
+       "Aura"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Green"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [
+      {
+       "Enchant": {
+        "controller": null,
+        "properties": [],
+        "type": "Typed",
+        "type_filters": [
+         "Land"
+        ]
+       }
+      }
+     ],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "premodern": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "Green",
+       "Green"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "related_token_ids": [
+       "0b61b788-e892-51c9-9d1b-5882aa9bfa56",
+       "15d70ab7-e396-5476-85cc-840a9f4885c7",
+       "65bd5d1c-a5cf-5b9f-b5c6-671338f887e0",
+       "76ce65a3-028f-555a-8294-afe5c9e769e2",
+       "da457623-e6de-51b0-a22f-e279640934a9",
+       "db984bd7-474c-5634-81ab-d5a23a73b29b"
+      ],
+      "source_printing_ids": [
+       "251eed00-55d4-4f39-8739-7ca17e11e300",
+       "254da3ab-d845-4317-86dd-d98a2a5355a8",
+       "29788426-7a12-4a04-8dbe-c434445b8e0f",
+       "6914d43c-bc5a-47c5-a01c-59ddb1ee8eca",
+       "6f2aa025-e041-4ed5-a046-9debc474fda0",
+       "9bc59e1a-f0f5-4054-bedf-1908fc8646ec",
+       "bac26044-b41f-4c75-8bc1-26359250d8bc",
+       "d52b4496-b60d-4c72-bf86-0f0e54515821",
+       "e4112147-5609-484f-b303-c34df2f315ce"
+      ]
+     },
+     "name": "Squirrel Nest",
+     "non_ability_text": null,
+     "oracle_text": "Enchant land\nEnchanted land has \"{T}: Create a 1/1 green Squirrel creature token.\"",
+     "power": null,
+     "printings": [
+      "BLC",
+      "CNS",
+      "DMR",
+      "MH1",
+      "ODY",
+      "PIP",
+      "PLST",
+      "WC02"
+     ],
+     "rarities": [
+      "uncommon"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "2d584333-b25e-4291-a2c9-80c6d9f8732a",
+     "static_abilities": [
+      {
+       "active_zones": [],
+       "affected": {
+        "controller": null,
+        "properties": [
+         {
+          "type": "EnchantedBy"
+         }
+        ],
+        "type": "Typed",
+        "type_filters": [
+         "Land"
+        ]
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": null,
+       "description": "Enchanted land has \"{T}: Create a 1/1 green Squirrel creature token.\"",
+       "effect_zone": null,
+       "mode": "Continuous",
+       "modifications": [
+        {
+         "definition": {
+          "condition": null,
+          "cost": {
+           "type": "Tap"
+          },
+          "description": "{T}: Create a 1/1 green Squirrel creature token.",
+          "duration": null,
+          "effect": {
+           "colors": [
+            "Green"
+           ],
+           "count": {
+            "type": "Fixed",
+            "value": 1
+           },
+           "enters_attacking": false,
+           "keywords": [],
+           "name": "Squirrel",
+           "owner": {
+            "type": "Controller"
+           },
+           "power": {
+            "type": "Fixed",
+            "value": 1
+           },
+           "tapped": false,
+           "toughness": {
+            "type": "Fixed",
+            "value": 1
+           },
+           "type": "Token",
+           "types": [
+            "Creature",
+            "Squirrel"
+           ]
+          },
+          "forward_result": false,
+          "kind": "Activated",
+          "optional": false,
+          "optional_targeting": false,
+          "sub_ability": null,
+          "target_prompt": null
+         },
+         "type": "GrantAbility"
+        }
+       ]
+      }
+     ],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "all_parts": [
+     {
+      "component": "token",
+      "id": "aa846cf5-c618-4304-bb92-5df936ebca9b",
+      "name": "Squirrel",
+      "oracle_id": "67f21c0c-2083-4eda-9dc3-cc8aee42289f",
+      "type_line": "Token Creature — Squirrel"
+     }
+    ],
+    "arena_available": false,
+    "cmc": 3.0,
+    "color_identity": [
+     "G"
+    ],
+    "colors": [
+     "G"
+    ],
+    "keywords": [
+     "Enchant"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}{G}{G}",
+    "name": "Squirrel Nest",
+    "oracle_id": "2d584333-b25e-4291-a2c9-80c6d9f8732a",
+    "oracle_text": "Enchant land\nEnchanted land has \"{T}: Create a 1/1 green Squirrel creature token.\"",
+    "type_line": "Enchantment — Aura"
+   }
+  },
   "Sram's Expertise": {
    "phase_records": [
     {
@@ -1115412,6 +1117447,304 @@
     "oracle_text": "Flying, lifelink\nSpells you cast have delve. (Each card you exile from your graveyard while casting those spells pays for {1}.)\nWhenever you cast a spell, you lose life equal to its mana value.",
     "power": "6",
     "toughness": "6",
+    "type_line": "Legendary Creature — Spirit Dragon"
+   }
+  },
+  "Teval, the Balanced Scale": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "brawl_commander": true,
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Spirit",
+       "Dragon"
+      ],
+      "supertypes": [
+       "Legendary"
+      ]
+     },
+     "color_identity": [
+      "Black",
+      "Green",
+      "Blue"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "is_commander": true,
+     "keywords": [
+      "Flying"
+     ],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "Black",
+       "Green",
+       "Blue"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "related_token_ids": [
+       "f38a64d1-e656-5e3c-a247-14120899d2c7"
+      ],
+      "source_printing_ids": [
+       "b5d1955a-9ff0-4f8b-9af8-341371957299"
+      ]
+     },
+     "name": "Teval, the Balanced Scale",
+     "non_ability_text": null,
+     "oracle_text": "Flying\nWhenever Teval attacks, mill three cards. Then you may return a land card from your graveyard to the battlefield tapped.\nWhenever one or more cards leave your graveyard, create a 2/2 black Zombie Druid creature token.",
+     "power": {
+      "type": "Fixed",
+      "value": 4
+     },
+     "printings": [
+      "TDC"
+     ],
+     "rarities": [
+      "mythic"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2025-04-04",
+       "text": "If multiple cards leave your graveyard at the same time, Teval’s last ability will trigger only once."
+      }
+     ],
+     "scryfall_oracle_id": "c8cbf0ec-ec98-4cb3-8068-60e92bbd740d",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 4
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever ~ attacks, mill three cards. Then you may return a land card from your graveyard to the battlefield tapped.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "count": {
+          "type": "Fixed",
+          "value": 3
+         },
+         "destination": "Graveyard",
+         "target": {
+          "type": "Controller"
+         },
+         "type": "Mill"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "destination": "Battlefield",
+          "enter_tapped": true,
+          "enter_transformed": false,
+          "enters_attacking": false,
+          "origin": "Graveyard",
+          "owner_library": false,
+          "target": {
+           "controller": "You",
+           "properties": [
+            {
+             "type": "InZone",
+             "zone": "Graveyard"
+            }
+           ],
+           "type": "Typed",
+           "type_filters": [
+            "Land"
+           ]
+          },
+          "type": "ChangeZone"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": true,
+         "optional_targeting": false,
+         "sub_ability": null,
+         "sub_link": "SequentialSibling",
+         "target_choice_timing": "Resolution",
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "mode": "Attacks",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": null
+      },
+      {
+       "batched": true,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever one or more cards leave your graveyard, create a 2/2 black Zombie Druid creature token.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "colors": [
+          "Black"
+         ],
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "enters_attacking": false,
+         "keywords": [],
+         "name": "Zombie Druid",
+         "owner": {
+          "type": "Controller"
+         },
+         "power": {
+          "type": "Fixed",
+          "value": 2
+         },
+         "tapped": false,
+         "toughness": {
+          "type": "Fixed",
+          "value": 2
+         },
+         "type": "Token",
+         "types": [
+          "Creature",
+          "Zombie",
+          "Druid"
+         ]
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "ChangesZoneAll",
+       "optional": false,
+       "origin": "Graveyard",
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "controller": null,
+        "properties": [
+         {
+          "controller": "You",
+          "type": "Owned"
+         }
+        ],
+        "type": "Typed",
+        "type_filters": [
+         "Card"
+        ]
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "all_parts": [
+     {
+      "component": "token",
+      "id": "f10d5813-7818-43e8-b08d-4ed8c54d0366",
+      "name": "Zombie Druid",
+      "oracle_id": "d2c8634a-e0b5-4c9e-b720-be8b18fc49dc",
+      "type_line": "Token Creature — Zombie Druid"
+     }
+    ],
+    "arena_available": true,
+    "cmc": 4.0,
+    "color_identity": [
+     "B",
+     "G",
+     "U"
+    ],
+    "colors": [
+     "B",
+     "G",
+     "U"
+    ],
+    "keywords": [
+     "Flying",
+     "Mill"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}{B}{G}{U}",
+    "name": "Teval, the Balanced Scale",
+    "oracle_id": "c8cbf0ec-ec98-4cb3-8068-60e92bbd740d",
+    "oracle_text": "Flying\nWhenever Teval attacks, mill three cards. Then you may return a land card from your graveyard to the battlefield tapped.\nWhenever one or more cards leave your graveyard, create a 2/2 black Zombie Druid creature token.",
+    "power": "4",
+    "toughness": "4",
     "type_line": "Legendary Creature — Spirit Dragon"
    }
   },

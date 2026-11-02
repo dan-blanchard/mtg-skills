@@ -3388,3 +3388,38 @@ def test_a_theme_page_puts_the_cards_the_commander_asks_for_first():
         s["add"]["name"]
         for s in _swaps_with_needs([blade, *suit], issue, with_needs)["swaps"]
     ] == ["Rancor"]
+
+
+def test_an_upgrade_keeps_what_the_cut_gives_the_commander():
+    """Whatever the job, a candidate supplying fewer of the commander's needs
+    than the cut is no upgrade: Living Death (cards leave Teval's graveyard) is
+    no interaction slot for Assassin's Trophy, however many more decks play it.
+    Without the needs read it is."""
+    living_death = _real_cc(
+        "Living Death", "spine", roles=["interaction"], edhrec_rank=3000
+    )
+    trophy = _played("Assassin's Trophy", 100)
+
+    def needs(record):
+        return 1 if record["name"] == "Living Death" else 0
+
+    assert _upgrades(trophy, living_death, "interaction")
+    assert not _upgrades(trophy, living_death, "interaction", needs=needs)
+
+
+def test_over_band_trim_takes_a_card_the_commander_asks_for_last():
+    """Equal otherwise, an over-band row trims the member supplying none of the
+    commander's built needs before one supplying one: Oracle of Mul Daya's
+    extra land drops under a land-sacrificing Yuma are what the deck asks for,
+    not surplus ramp (Desert Bloom)."""
+    classes = [
+        _cc("Oracle", "spine", roles=["ramp"], edhrec_rank=1000),
+        _cc("Rock", "spine", roles=["ramp"], edhrec_rank=1000),
+    ]
+    cuts = cut_candidates(
+        classes,
+        budgets={"ramp": _band(2, 0, 1)},
+        focus=CutFocus(),
+        needs=lambda record: int(record["name"] == "Oracle"),
+    )
+    assert [c.name for _reason, c in cuts] == ["Rock"]

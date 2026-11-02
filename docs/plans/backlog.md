@@ -430,31 +430,38 @@ headroom and parked items.
 **From the 25-precon deckbuilder pass (2026-11-01; Dan's call: read each
 proposal as a deckbuilder, fix the structure, the guide score is a yardstick)**
 
-- **Death Toll (Winter): reanimation targets cut for reanimation spells.**
-  Hornet Queen → Life from the Loam, Giant Adephage → Syr Konrad: the payload
-  of a graveyard-to-battlefield commander is its big permanents, as a polymorph
-  deck's flips are (`Sourcing.flip_spec`), and its slot should stay a payload.
-  Winter's lane is `permanent_recast|you|` ("Permanent recast engine", the
-  ETB-value payloads she re-delivers). **Measured and held back (2026-11-01):**
-  routing a cut on the commander's own lane to that lane's page — every held
-  lane, then the primary alone — kept Hornet Queen a reanimation target
-  (Avenger of Zendikar) but the lane's page by play-rate is small ETB value
-  (Bastion of Remembrance, Marionette Apprentice), and it sent Felothar's
-  toughness cuts to the butts' page and Quintorius's graveyard cuts to the
-  lands staples: the 25 733 / 341 / 121 → 728 / 338 / 120 (every lane) and
-  728 / 339 / 125 (the primary), held-out 578 / 252 / 101 → 577 / 250 / 96
-  (both). A payload read needs the payload's SIZE, not the lane: the big
-  permanents the deck's own reanimation can return.
-- **Desert Bloom (Yuma): Oracle of Mul Daya trimmed as ramp over.** It serves
-  none of the deck's read avenues (its extra land drop is no Landfall serve)
-  and the ramp job read scores it 0.21 against Explore's 0.52 — the read sees
-  a one-shot as the better ramp. A lands deck's "extra land drops" is a lane
-  the focus read does not have.
-- **Animated Army (Bello): the 4+ artifact/enchantment page by play-rate** is
-  Panharmonicon, Door of Destinies, Roaming Throne; the guides' adds are the
-  ones that also protect, draw or pump (Asceticism, Guardian Project, Glorious
-  Sunrise). Every candidate supplies the same need; the difference is the
-  card's own text — the card-quality read's territory (ADR-0063).
+- **Bello's and Anikthea's pages: popular cards of the type whose text does
+  nothing here.** Bello's artifacts at 4+ mana by play-rate are Banner of
+  Kinship, Door of Destinies, Coat of Arms; Anikthea's enchantments Hardened
+  Scales and Branching Evolution. Every candidate supplies the same need; the
+  difference is whether the card's own payoff is fed in THIS deck. **Measured
+  and held back (2026-11-01):** a theme-page candidate that also fills a role
+  the deck is short of leading the rest (meant for Asceticism over
+  Panharmonicon with no protection in the deck) put cycling Dinosaurs over
+  Etali and Gishath on Pantlaza's page and protection Equipment on Bello's:
+  the 25 121 → 109 guide adds. A "dead payoff" veto (a `*_matters` /
+  `wants_*` card whose doer the deck lacks) has no clean key: the junk adds
+  carry `chosen_type_matters`, `subtype_ref|you|shared`, `counter_doubling`,
+  `any_counter_matters` — no one inverse of `metrics._cares_keys`. The
+  ranker's `_gate_penalty` (a tribal gate the deck lacks) is the shape of the
+  right read, widened to a payoff's doer.
+- **Mirko, Obsessive Theorist's "with power less than Mirko's" is dropped by
+  phase v0.118.0 with no residue** (the target filter holds `InZone` and
+  `Owned` only), so the payload read (`commander_need._reanimation_target_need`)
+  gives Revenant Recon a "creature cards worth returning at 7+ mana" page it
+  would not with the bound read. Nothing to key a ledger row or a correction
+  on; an upstream report. Held-out Revenant Recon 30 / 15 / 1 → 26 / 14 / 2
+  with it.
+- **Teval's "whenever one or more cards leave your graveyard" payoffs have no
+  lane.** Desecrated Tomb, Chalk Outline, Tormod, the Desecrator — the
+  redundancy of Teval's own trigger, which Sultai Arisen's guides add — emit no
+  `graveyard_leave_matters` key, so no "do what the commander does" need
+  reaches them. A lane, then the redundancy need picks it up by itself.
+- **Hazel's Squirrel page makes no adds yet.** The Squirrel-token need
+  (`commander_need._token_kind_needs`) keeps Squirrel Nest and Deep Forest
+  Hermit in the deck (the gate), but no cut is routed to its page: Squirreled
+  Away's guides add Nut Collector, Drey Keeper and Deranged Hermit, which the
+  tokens page by play-rate never reaches.
 
 ## Settled: don't re-suggest
 
@@ -508,6 +515,39 @@ proposal as a deckbuilder, fix the structure, the guide score is a yardstick)**
   ledger row `energy_gain_replacement_parked` (ADR-0048: its "you get that
   many plus one {E} instead" is a phase `replacement_structure` residue);
   Living Energy takes it and Aether Refinery again.
+- **Batch 3 (same day; the 25 729 / 340 / 121 → 723 / 339 / 118, held-out 578
+  / 252 / 99 → 573 / 256 / 100 — the held-out gate's floors cleared, the 25's
+  three adds taken knowingly).** (9) *A graveyard-to-battlefield effect wants
+  its payload*: a permanent card of the filter's types at
+  `commander_need.REANIMATION_MV` (7) or more — the top end a deck cheats in,
+  where Death Toll's guides' adds sit (Overlord of the Balemurk, Hoarding
+  Broodlord); not a land (Teval), not a tribe's card (Sidar Jabari's Knights,
+  Admiral Brass's Pirates, which come back as 4/4s), not a unit that sizes
+  the card itself (Meren's experience, Alesha's power). Hornet Queen goes to
+  Myr Battlesphere and Vile Mutilator to Meteor Golem where they went to
+  Buried Alive and Beast Within. (10) *A commander that takes a typed card
+  from its graveyard wants that type put there* (Anikthea's enchantments: the
+  self-mill and discard outlets its guides add; the one graveyard-fill need
+  the "put into your graveyard" trigger read and this share,
+  `_graveyard_fill_need`). (11) *A token effect that favours one kind of
+  token asks for makers of that kind* (Hazel's "if that token is a Squirrel,
+  instead create two": `token_maker|you|Squirrel`). (12) *A land-sacrificing
+  commander's consumers include the repeatable extra land drops*
+  (`card_reads.plays_extra_lands` — Exploration, Azusa, Oracle of Mul Daya,
+  not Explore's one turn; the landfall lane folds the read into its umbrella
+  key, so the need reads it as a predicate). (13) *An ident-derived
+  mana-value need stands down for the tree-read one* (Bello's
+  `animate_makers|you|Artifact>=4` dropped his "non-Equipment": Hammer of
+  Nazahn and Leyline Axe led his page), and *a mana-value-floor need is never
+  broad* (`is_broad`; his need is 10.5% of a Gruul pool and had no page at
+  all). (14) *An upgrade keeps what the cut gives the commander, whatever the
+  job* (`_upgrades`: Living Death stays under Teval, Squirrel Nest and Deep
+  Forest Hermit under Hazel — Assassin's Trophy and Fanatic of Rhonas supply
+  none of their needs); and (15) *a trim takes a card supplying a built need
+  last, ahead even of the fixing shield* (Oracle of Mul Daya over Harrow under
+  Yuma). Swap counts fell where a gated upgrade found no replacement
+  (Veloci-Ramp-Tor 30 → 27, Sultai Arisen 30 → 28): a card the commander
+  asks for and nothing better for it is no swap.
 
 **From the Jace, Multiverse Architect precon tune and the 25-precon audit (2026-10-17 to 2026-11-01)**
 
