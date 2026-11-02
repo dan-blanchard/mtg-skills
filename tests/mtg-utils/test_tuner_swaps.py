@@ -3870,3 +3870,18 @@ def test_a_payoff_for_what_the_deck_does_not_do_is_dead_there():
                 commander,
                 name,
             )
+
+
+def test_a_kinship_trigger_is_gated_on_the_cards_own_types():
+    """Wolf-Skull Shaman's kinship reveals a Wolf only off an Elf or Shaman:
+    in a Squirrel deck with five of them its Wolves never come, whatever
+    tokens it would make (Squirreled Away, 2026-11-02)."""
+    from collections import Counter
+
+    from mtg_utils._tuner.swaps import gated_without_feed
+
+    shaman = test_card("Wolf-Skull Shaman")
+    squirrels = Counter({"squirrel": 25, "elf": 4, "shaman": 1})
+    assert gated_without_feed(shaman, squirrels, Counter())
+    elves = Counter({"elf": 12})
+    assert not gated_without_feed(shaman, elves, Counter())

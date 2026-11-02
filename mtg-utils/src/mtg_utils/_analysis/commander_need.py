@@ -76,6 +76,7 @@ from mtg_utils._card_ir.creature_types import CREATURE_TYPES
 from mtg_utils._card_ir.crosswalk.reads import (
     _present,
     counter_kind,
+    counter_kind_any,
     effect_player_reach,
     filter_controller,
     filter_core_types,
@@ -86,6 +87,7 @@ from mtg_utils._card_ir.crosswalk.reads import (
     filter_predicates,
     filter_subtypes,
     iter_condition_sites,
+    iter_cost_leaves,
     iter_typed_nodes,
     or_arms,
     requires_condition_inner,
@@ -734,6 +736,52 @@ def _reanimation_target_need(filt: object, desc: str) -> Need | None:
     )
 
 
+#: The counter kinds a counter-spender need is never read for: +1/+1 counters
+#: are the ``plus_one_makers`` consumers' (``_resource_needs``), loyalty a
+#: planeswalker's own (``_loyalty_need``), and -1/-1 counters shrink.
+_SPENDER_SKIP_KINDS = frozenset({"P1P1", "M1M1", "LOYALTY"})
+
+
+def _counter_kind_needs(unit_node: object, desc: str) -> Iterator[Need]:
+    """A commander that puts counters of another kind on other permanents
+    (CR 122.1) wants the cards that spend that kind: Inspirit, Flagship
+    Vessel's "two charge counters on up to one other target artifact" each
+    combat feeds Titan Forge's and Golem Foundry's "Remove three charge
+    counters" — both went to mana rocks on Counter Intelligence's theme page
+    (2026-11-02). A counter it puts only on itself is its own business."""
+    seen: set[str] = set()
+    for n in iter_typed_nodes(unit_node):
+        if tag_of(n) != "PutCounter":
+            continue
+        kind = counter_kind_any(n)
+        if not kind or kind in _SPENDER_SKIP_KINDS or kind in seen:
+            continue
+        if tag_of(getattr(n, "target", None)) == "SelfRef":
+            continue
+        seen.add(kind)
+        yield Need(
+            "resource",
+            f"cards that spend {kind.lower()} counters",
+            desc,
+            predicate=_spends_counters(kind),
+        )
+
+
+def _spends_counters(kind: str) -> Callable[[dict], bool]:
+    """Whether a card removes counters of ``kind`` from itself to pay a cost
+    (Titan Forge's "Remove three charge counters from this artifact")."""
+
+    def spends(card: dict) -> bool:
+        return any(
+            tag_of(leaf) == "RemoveCounter" and counter_kind_any(leaf) == kind
+            for tree in trees_for(dict(card))
+            for unit in tree.units
+            for leaf in iter_cost_leaves(getattr(unit.node, "cost", None))
+        )
+
+    return spends
+
+
 def _token_kind_needs(unit_node: object, desc: str) -> Iterator[Need]:
     """A token effect that treats one kind of token better — Hazel's "If that
     token is a Squirrel, instead create two": a ``ConditionInstead`` over a
@@ -778,6 +826,7 @@ def _effect_needs(unit_node: object, desc: str) -> Iterator[Need]:
                 yield need
                 break
     yield from _token_kind_needs(unit_node, desc)
+    yield from _counter_kind_needs(unit_node, desc)
     sacrifices = _sacrifices_a_creature(unit_node)
     for n in iter_typed_nodes(unit_node):
         if (

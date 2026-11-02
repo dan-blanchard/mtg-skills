@@ -728,3 +728,14 @@ def test_a_counter_commanders_consumers_include_the_doublers_and_proliferators()
     for name in ("Doubling Season", "Evolution Sage", "Hardened Scales", "The Ozolith"):
         assert satisfies(test_card(name), consumers), name
     assert not satisfies(test_card("Counterspell"), consumers)
+
+
+def test_a_commander_placing_charge_counters_wants_their_spenders():
+    """Inspirit, Flagship Vessel puts "two charge counters on up to one other
+    target artifact" each combat (CR 122.1): Titan Forge and Golem Foundry
+    remove charge counters to pay their abilities; a mana rock spends none
+    (Counter Intelligence, 2026-11-02)."""
+    need = _need("Inspirit, Flagship Vessel", "cards that spend charge counters")
+    assert satisfies(test_card("Titan Forge"), need)
+    assert satisfies(test_card("Golem Foundry"), need)
+    assert not satisfies(test_card("Talisman of Creativity"), need)

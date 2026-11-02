@@ -137,6 +137,14 @@ CHECKS = [
     _check("no_pair", "BloodRites_LCC", "Sorin, Lord of Innistrad -> Feed the Swarm", batch="15"),
     # A lone poison giver is no closer: one infect flier in a deck with no poison.
     _check("never", "CounterIntelligence_EOC", "Viral Drake", batch="15"),
+    # Kinship pays off the card's own types: no Elf Shaman for a Squirrel deck.
+    _check("never", "SquirreledAway_BLC", "Wolf-Skull Shaman", batch="16"),
+    # A 50-life cost is no removal: Aetherflux Reservoir doesn't upgrade Duplicant.
+    _check("no_pair", "LivingEnergy_DRC", "Duplicant -> Aetherflux Reservoir", batch="16"),
+    # A sweep sparing the deck's Auras is one-sided there: Winds of Rath stays.
+    _check("no_pair", "VirtueAndValor_WOC", "Winds of Rath -> Martial Coup", batch="16"),
+    # Inspirit's charge counters: Titan Forge isn't traded for a mana rock.
+    _check("no_pair", "CounterIntelligence_EOC", "Titan Forge -> Talisman of Creativity", batch="16"),
     _check("no_trim", "EldraziIncursion_M3C", "Forsaken Monument", batch="14"),
     _check("no_trim", "TrickyTerrain_M3C", "Mana Reflection", batch="14"),
 ]

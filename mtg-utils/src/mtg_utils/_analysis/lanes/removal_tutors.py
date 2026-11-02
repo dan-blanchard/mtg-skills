@@ -83,7 +83,6 @@ from mtg_utils._card_ir.crosswalk import (
     graveyard_recursion,
     has_filter_property,
     has_nested_damage_reaching,
-    is_ultimate,
     iter_cost_leaves,
     iter_mod_sites,
     iter_nested_granted_effect_concepts,
@@ -95,6 +94,7 @@ from mtg_utils._card_ir.crosswalk import (
     mod_value,
     named_filter_subtypes,
     negative_pt_field,
+    out_of_reach,
     overload_sweep,
     plays_lands_from_graveyard,
     pt_mod_signs,
@@ -959,9 +959,10 @@ def _removal(tree: ConceptTree) -> list[Signal]:
             target
         ) in ("You", "ScopedPlayer")
 
-    for unit in tree.units:
-        if is_ultimate(unit, tree):
-            continue  # a planeswalker's ultimate is no removal to count on
+    # An ability the deck can't count on (``out_of_reach``: a planeswalker's
+    # ultimate, a cost of more life than a player starts with) is no removal.
+    units = [u for u in tree.units if not out_of_reach(u, tree)]
+    for unit in units:
         for c in unit.effect_concepts("destroy"):
             if c.recovered_by:
                 # phase v0.104.0 fail-closed residue, token ``destroy``.
@@ -977,14 +978,14 @@ def _removal(tree: ConceptTree) -> list[Signal]:
                 desc = getattr(unit.node, "description", "") or ""
                 if _qualified_destroy_target_type(desc):
                     return [Signal("removal", "you", "", c.raw, tree.name, "high")]
-    for unit in tree.units:
+    for unit in units:
         for c in unit.effects:
             # A toughness set to 0 or lowered on the target can kill outright
             # (CR 704.5f): Multiply by Zero's 0/0 and Nameless Inversion's
             # +3/-3 are removal, Turn to Frog's 1/1 only the 2HG scan's soft read.
             if _toughness_kill(c, unit):
                 return [Signal("removal", "you", "", c.raw, tree.name, "high")]
-    for unit in tree.units:
+    for unit in units:
         for c in unit.effect_concepts("deal_damage"):
             if c.recovered_by:
                 # phase v0.104.0 fail-closed residue, token ``damage``.
@@ -1004,7 +1005,7 @@ def _removal(tree: ConceptTree) -> list[Signal]:
                 return [Signal("removal", "you", "", c.raw, tree.name, "high")]
             if _untyped_burn_reaches_board(c, recipient, unit.node):
                 return [Signal("removal", "you", "", c.raw, tree.name, "high")]
-    for unit in tree.units:
+    for unit in units:
         for c in iter_nested_granted_effect_concepts(unit.node):
             if c.recovered_by:
                 # a granted body's fail-closed residue (Shackles of Treachery)
@@ -1024,13 +1025,13 @@ def _removal(tree: ConceptTree) -> list[Signal]:
     # (Goblin Bangchuckers), a replacement (Words of War), a token's ability
     # (Dance with Devils): the shared deep damage walk, single-target tags only
     # (a nested ``DamageAll`` sweep is ``mass_removal``'s).
-    for unit in tree.units:
+    for unit in units:
         if has_nested_damage_reaching(
             unit.node, "permanent", tags=_SINGLE_TARGET_DAMAGE_TAGS
         ):
             return [Signal("removal", "you", "", "", tree.name, "high")]
     # task #88 — single-target TUCK (battlefield permanent -> library)
-    for unit in tree.units:
+    for unit in units:
         effects = unit.effects
         for idx, c in enumerate(effects):
             if c.concept == "change_zone":
@@ -1068,7 +1069,7 @@ def _removal(tree: ConceptTree) -> list[Signal]:
     # defaulted to Graveyard AND the unit's own description naming the
     # library-choice idiom (never a whole-card scan — no SequentialSibling
     # bleed risk since this is one ability's own text).
-    for unit in tree.units:
+    for unit in units:
         has_bare_counter = any(
             tag_of(c.node) == "Counter"
             and getattr(c.node, "countered_spell_zone", None) in (None, MISSING)
@@ -1317,7 +1318,7 @@ def _walk_removal_answers(
     [-6] destroy) answers nothing the deck can count on.
     """
     for unit in tree.units:
-        if is_ultimate(unit, tree):
+        if out_of_reach(unit, tree):
             continue
         effects = unit.effects
         for idx, c in enumerate(effects):

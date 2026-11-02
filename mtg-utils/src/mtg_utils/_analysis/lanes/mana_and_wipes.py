@@ -75,7 +75,6 @@ from mtg_utils._card_ir.crosswalk import (
     is_self_discard_cost,
     is_team_buff_filter,
     is_token_team_filter,
-    is_ultimate,
     iter_condition_sites,
     iter_cost_leaves,
     iter_mod_sites,
@@ -91,6 +90,7 @@ from mtg_utils._card_ir.crosswalk import (
     names_attached_object,
     negative_pt_field,
     normalised_keyword_name,
+    out_of_reach,
     overload_sweep,
     produced_contribution,
     pt_mod_signs,
@@ -1278,7 +1278,7 @@ def _walk_mass_removal(tree: ConceptTree) -> SweepEffects:
     return tuple(
         (unit, c)
         for unit in tree.units
-        if not is_ultimate(unit, tree)
+        if not out_of_reach(unit, tree)
         for c in (
             *(c for c in unit.iter_concepts() if c.role == "effect"),
             *iter_nested_granted_effect_concepts(unit.node),

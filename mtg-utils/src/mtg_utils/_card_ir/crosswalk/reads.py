@@ -12853,11 +12853,24 @@ def _subtype_refs(tree: ConceptTree) -> SubtypeRefs:
         )
         for m in iter_typed_nodes(getattr(n, "target", None))
     }
+    # Kinship ("if it shares a creature type with this creature" — Wolf-Skull
+    # Shaman) compares against the card itself: a payoff for the card's own
+    # creature types, not for any tribe — it went onto Squirreled Away's
+    # Squirrel page as a Coat of Arms (2026-11-02). Coat of Arms and Shared
+    # Animosity compare against another object.
+    if any(
+        tag_of(n) in ("SharesQuality", "ObjectsShareQuality")
+        and getattr(n, "quality", None) == "CreatureType"
+        and tag_of(getattr(n, "reference", None)) == "SelfRef"
+        for n in tree.iter_typed()
+    ):
+        named.update(sub for sub in tree.card_subtypes if sub.lower() in CREATURE_TYPES)
     shares = any(
         (
             (
                 tag_of(n) in ("SharesQuality", "ObjectsShareQuality")
                 and getattr(n, "quality", None) == "CreatureType"
+                and tag_of(getattr(n, "reference", None)) != "SelfRef"
             )
             or tag_of(n) == "SharesCreatureTypeWithCommander"
         )
@@ -12865,6 +12878,35 @@ def _subtype_refs(tree: ConceptTree) -> SubtypeRefs:
         for n in tree.iter_typed()
     )
     return SubtypeRefs(frozenset(named | theirs | granted), frozenset(named), shares)
+
+
+#: The most life a player starts a game with: Commander's 40 (CR 903.7).
+#: A life payment above it can't be made on the way in (CR 119.4).
+MOST_STARTING_LIFE = 40
+
+
+def pays_beyond_starting_life(unit: AbilityUnit) -> bool:
+    """Whether ``unit``'s cost pays more life than any player starts with
+    (:data:`MOST_STARTING_LIFE`): a player may pay life only up to their life
+    total (CR 119.4), so the ability waits on a life total the deck has to
+    build first. Aetherflux Reservoir's "Pay 50 life: ... 50 damage to any
+    target" read as removal and upgraded Living Energy's Duplicant
+    (2026-11-02)."""
+    for leaf in iter_cost_leaves(getattr(unit.node, "cost", None)):
+        if tag_of(leaf) != "PayLife":
+            continue
+        amount = getattr(leaf, "amount", None)
+        value = getattr(amount, "value", amount)
+        if isinstance(value, int) and value > MOST_STARTING_LIFE:
+            return True
+    return False
+
+
+def out_of_reach(unit: AbilityUnit, tree: ConceptTree) -> bool:
+    """Whether ``unit`` is an ability the deck can't count on for a job: a
+    planeswalker's ultimate (:func:`is_ultimate`) or a cost of more life than
+    a player starts with (:func:`pays_beyond_starting_life`)."""
+    return is_ultimate(unit, tree) or pays_beyond_starting_life(unit)
 
 
 def is_ultimate(unit: AbilityUnit, tree: ConceptTree) -> bool:

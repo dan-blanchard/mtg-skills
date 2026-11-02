@@ -558,3 +558,25 @@ def test_a_planeswalkers_ultimate_is_not_its_job():
     )
     assert not is_board_wipe(test_card("Liliana, Death's Majesty"))
     assert "interaction" in role_of(test_card("Karn Liberated"))
+
+
+def test_kinship_pays_off_the_cards_own_types():
+    """Kinship compares the revealed card against the card itself: Wolf-Skull
+    Shaman pays off Elves and Shamans, not any tribe — it went onto a Squirrel
+    page as a Coat of Arms (Squirreled Away, 2026-11-02). Coat of Arms compares
+    each creature against another and stays a payoff for any tribe."""
+    shaman = _idents("Wolf-Skull Shaman")
+    assert "subtype_ref|you|shared" not in shaman
+    assert {"subtype_ref|you|Elf", "subtype_ref|you|Shaman"} <= shaman
+    assert "subtype_ref|you|shared" in _idents("Coat of Arms")
+
+
+def test_a_cost_of_more_life_than_a_player_starts_with_is_not_its_job():
+    """A player pays life only up to their life total (CR 119.4), and no one
+    starts above 40 (CR 903.7): Aetherflux Reservoir's "Pay 50 life: ... 50
+    damage to any target" is no removal to count on (Living Energy,
+    2026-11-02)."""
+    from mtg_utils._analysis.roles import role_of
+
+    assert not any(i.startswith("removal|") for i in _idents("Aetherflux Reservoir"))
+    assert "interaction" not in role_of(test_card("Aetherflux Reservoir"))

@@ -449,3 +449,17 @@ def test_a_card_with_no_deck_decided_amount_scores_alike_in_any_deck():
     assert job_score(_real("Wrath of God"), "board_wipe", _deck()) == _score(
         "Wrath of God"
     )
+
+
+def test_a_sweep_sparing_the_decks_auras_is_one_sided_there():
+    """Winds of Rath destroys "all creatures that aren't enchanted": in a deck
+    of ten Auras it spares the deck's own board, so it reads one-sided there
+    and nowhere else (Virtue and Valor's twenty, 2026-11-02)."""
+    winds = test_card("Winds of Rath")
+    auras = [test_card("Ethereal Armor")] * 10
+    assert board_wipe.features(winds)["one_sided"] == 0.0
+    assert board_wipe.features(winds, auras)["one_sided"] == 1.0
+    assert board_wipe.features(winds, auras[:3])["one_sided"] == 0.0
+    assert board_wipe.deck_features(winds, auras)["one_sided"] == 1.0
+    coup = test_card("Martial Coup")
+    assert board_wipe.features(coup, auras)["one_sided"] == 0.0

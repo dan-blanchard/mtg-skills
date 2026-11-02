@@ -1025,6 +1025,50 @@ proposal as a deckbuilder, fix the structure, the guide score is a yardstick)**
   no engine, neither named by its guides; no static doubler is cut anywhere,
   so a multiplier arm for them would change nothing). `verify_symptoms.py`:
   Viral Drake never joins Counter Intelligence; 69 checks, all passing.
+- **Batch 16 (2026-11-02; the 25 735 / 338 / 116 unchanged, held-out 571 /
+  262 / 104 → 570 / 262 / 105, fresh 294 / 126 / 49 → 294 / 126 / 48).** A
+  re-read of the 18 proposals batches 15c–15f changed, by two Sonnet
+  reviewers told to look every card up (`scryfall-lookup`) before flagging;
+  each flag then checked against the text, rulings and the deck. Fixed:
+  (67) *kinship pays off the card's own types* (`crosswalk._subtype_refs`:
+  a `SharesQuality` / `ObjectsShareQuality` against `SelfRef` names the
+  card's own creature types, not "shares a type" for any tribe; Coat of Arms
+  and Shared Animosity compare against another object; `swaps._unit_gates`
+  gates the kinship trigger on those types, fed only by the deck's cards of
+  them): Wolf-Skull Shaman, an Elf Shaman, was a Squirrel deck's theme add
+  (five Elves or Shamans), and Waterspout Weavers, a Merfolk Wizard, a
+  Pirate deck's. (68) *a cost of more life than a player starts with is not
+  the card's job* (`crosswalk.out_of_reach` = `is_ultimate` or
+  `pays_beyond_starting_life`: CR 119.4, a player pays life only up to their
+  total; CR 903.7, Commander's 40 is the most anyone starts with; the
+  removal lane skips such units in every arm now, not only its destroy
+  arm): Aetherflux Reservoir's "Pay 50 life: 50 damage" upgraded Living
+  Energy's Duplicant as interaction. (69) *a sweep sparing the deck's own
+  attachments is one-sided there* (`board_wipe._spared_attachment`, read in
+  the deck when it holds `_ATTACHMENT_DECK` (10) of the kind): Winds of Rath
+  ("creatures that aren't enchanted") went to Martial Coup under Ellivere's
+  twenty Auras; it now goes to Wrath of God. (70) *a commander that puts
+  counters of another kind on other permanents wants the cards that spend
+  them* (`commander_need._counter_kind_needs`, CR 122.1; +1/+1, -1/-1 and
+  loyalty excluded): Inspirit's "two charge counters on up to one other
+  target artifact" makes Titan Forge and Golem Foundry need suppliers, and
+  each now goes to another charge spender (Transmogrifying Wand, Spawning
+  Pit), not a mana rock. Checked and not flaws: Cloakwood Hermit under Hazel
+  (a Background in the 99 grants its ability to "commander creatures you
+  own", which Hazel is — its rulings agree); Camellia, the Seedmiser (forage
+  exiles three graveyard cards or sacrifices a Food, CR 701.61a); Glaring
+  Fleshraker in Mardu Surge (twelve colorless spells); Technomancer in Death
+  Toll (six artifact creatures and a mill of three — thin, not dead); The
+  Eternal Wanderer for Sunfall (you choose what each player keeps, so the
+  read's call stands); Vanquisher's Banner for And They Shall Know No Fear
+  (a full draw slot moving onto the theme — the "nothing at the job is
+  worse" rule that would hold it was measured and reverted in 15c). The
+  fresh set's one lost add is a reshuffle: the kinship Wizards leaving the
+  any-tribe read reorder Party Time's Wizard page, and Dark Confidant loses
+  its slot; Counter Intelligence's Fumigate goes to Aetherize instead of
+  Wrath of God because the purse ($40.69, $40.67 spent) no longer reaches
+  Wrath ($3.49) — isolated by switching each read off in turn.
+  `verify_symptoms.py`: four checks; 73, all passing.
 
 **From the Jace, Multiverse Architect precon tune and the 25-precon audit (2026-10-17 to 2026-11-01)**
 

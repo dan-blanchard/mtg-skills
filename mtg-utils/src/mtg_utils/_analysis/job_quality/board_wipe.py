@@ -142,6 +142,7 @@ from mtg_utils._card_ir.crosswalk import (
 )
 from mtg_utils._card_ir.trees import fixed_stat, object_facts, phase_records_for
 from mtg_utils.card_classify import classifying_keywords
+from mtg_utils.type_line import split_type_line
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -314,6 +315,9 @@ class _Sweep:
     x_cards: bool = False  # an X paid in cards (a discard of X, CR 107.3a)
     drawback: bool = False  # keeps your lands tapped (CR 502.3)
     refills: bool = False  # the wiped players get tokens back (CR 111.2)
+    # The attachment whose creatures it spares ("creatures that aren't
+    # enchanted" — Winds of Rath: ``Aura``), read against the deck.
+    spares_attached: str | None = None
     # The quantity of an amount the deck decides (:func:`_deck_amount`).
     amount: object = field(default=None, compare=False, repr=False)
 
@@ -776,9 +780,36 @@ def _tree_sweeps(tree: ConceptTree, *, walker: bool) -> list[_Sweep]:
                     drawback=drawback,
                     refills=refills,
                     amount=_deck_amount(c, u),
+                    spares_attached=_spared_attachment(filt),
                 )
             )
     return out
+
+
+#: The attachments a deck is built on at this many cards of the kind: a sweep
+#: sparing creatures that carry one is one-sided there. The read's own line.
+_ATTACHMENT_DECK = 10
+
+
+def _spared_attachment(filt: object) -> str | None:
+    """The attachment kind a sweep's filter spares — a ``Not`` over
+    ``HasAttachment`` ("creatures that aren't enchanted": ``Aura``) — else
+    ``None``."""
+    for n in iter_typed_nodes(filt):
+        if tag_of(n) != "Not":
+            continue
+        prop = getattr(n, "prop", None)
+        if tag_of(prop) == "HasAttachment":
+            kind = getattr(prop, "kind", None)
+            if isinstance(kind, str):
+                return kind
+    return None
+
+
+def _deck_attachments(deck: Sequence[dict], kind: str) -> int:
+    """How many of ``deck``'s cards are of the attachment subtype ``kind``."""
+    word = kind.lower()
+    return sum(word in split_type_line(r.get("type_line") or "")[1] for r in deck)
 
 
 def _mode_cost(tree: ConceptTree, u: AbilityUnit) -> int:
@@ -1008,13 +1039,22 @@ def features(card: dict, deck: Sequence[dict] | None = None) -> dict[str, float]
         and not best.delayed
         and not best.refills
     )
+    # A sweep sparing what the deck's creatures carry (Winds of Rath's
+    # enchanted creatures under Ellivere's twenty Auras) is one-sided there:
+    # it went to Martial Coup, which kills the deck's own board (Virtue and
+    # Valor, 2026-11-02).
+    kept = (
+        deck is not None
+        and best.spares_attached is not None
+        and _deck_attachments(deck, best.spares_attached) >= _ATTACHMENT_DECK
+    )
     return {
         "creatures": float(creatures),
         "breadth": float(len(best.types)),
         "lethal": kill,
         "bounce": float(best.mode == "bounce"),
         "small": (1.0 - kill) if sized else 0.0,
-        "one_sided": float(best.ctrl in ("Opponent", "TargetPlayer")),
+        "one_sided": float(best.ctrl in ("Opponent", "TargetPlayer") or kept),
         "spares": float(best.spares or bool(best.preds & _SPARES)),
         "narrow": float(bool(best.preds & _NARROW)),
         "flexible": float(best.modal or best.overload or x or best.x_bound),
@@ -1117,7 +1157,9 @@ def _deck_dependent(card: dict) -> bool:
     oid = card.get("oracle_id")
     if oid and (hit := _DECK_DEPENDENT.get(oid)) is not MISSING:
         return bool(hit)
-    out = any(s.amount is not None for s in _sweeps(card))
+    out = any(
+        s.amount is not None or s.spares_attached is not None for s in _sweeps(card)
+    )
     if oid and (out or signal_trees_for(card, bulk=card)):
         _DECK_DEPENDENT.put(oid, out)
     return out
@@ -1125,7 +1167,8 @@ def _deck_dependent(card: dict) -> bool:
 
 def deck_features(card: dict, deck: Sequence[dict]) -> dict[str, float] | None:
     """``card``'s features in ``deck`` when its deck decides one of its sweep
-    amounts (:func:`_deck_amount`), else ``None``: the deck-free read holds
+    amounts (:func:`_deck_amount`) or what it spares
+    (:func:`_spared_attachment`), else ``None``: the deck-free read holds
     (``JobRead.in_deck``)."""
     return features(card, deck) if _deck_dependent(card) else None
 

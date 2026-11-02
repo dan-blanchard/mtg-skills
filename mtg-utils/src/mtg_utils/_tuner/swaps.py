@@ -46,6 +46,7 @@ from mtg_utils._analysis.signal_specs import (
 )
 from mtg_utils._analysis.signals import grant_payloads_for
 from mtg_utils._card_ir.creature_types import CREATURE_TYPES
+from mtg_utils._card_ir.crosswalk import AbilityUnit, ConceptTree
 from mtg_utils._card_ir.crosswalk.reads import (
     _present,
     filter_controller,
@@ -1070,8 +1071,33 @@ def _unit_gates(card: Mapping) -> _UnitGates:
                 words |= mode_words
             if words:
                 gates.append(_Gate(words, static=unit.origin == "static"))
+            elif unit.origin == "trigger" and (kin := _kinship_words(unit, tree)):
+                # Kinship pays off only when the revealed card shares a type
+                # with this one: its gate is its own creature types, fed by the
+                # deck's cards of them, never by the tokens it makes (Wolf-Skull
+                # Shaman's Wolves for its Elf Shaman check — Squirreled Away
+                # holds five, 2026-11-02). A static gate is fed that way.
+                gates.append(_Gate(kin, static=True))
     return _UnitGates(
         tuple(gates), units, activated, frozenset(made), frozenset(tokens), makes_tokens
+    )
+
+
+def _kinship_words(unit: AbilityUnit, tree: ConceptTree) -> frozenset[str]:
+    """The card's own creature types when ``unit`` checks that another card
+    shares a creature type with it (kinship: an ``ObjectsShareQuality`` /
+    ``SharesQuality`` against ``SelfRef``), else empty."""
+    if not any(
+        tag_of(n) in ("SharesQuality", "ObjectsShareQuality")
+        and getattr(n, "quality", None) == "CreatureType"
+        and tag_of(getattr(n, "reference", None)) == "SelfRef"
+        for n in unit.iter_typed()
+    ):
+        return frozenset()
+    return frozenset(
+        w
+        for w in (s.lower() for s in tree.card_subtypes)
+        if w in _CREATURE_SUBTYPE_WORDS
     )
 
 

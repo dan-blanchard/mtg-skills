@@ -528158,6 +528158,219 @@
     "type_line": "Sorcery"
    }
   },
+  "Golem Foundry": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": {
+        "count": 3,
+        "counter_type": {
+         "data": "charge",
+         "type": "OfType"
+        },
+        "selection": "SingleObject",
+        "target": null,
+        "type": "RemoveCounter"
+       },
+       "description": "Remove three charge counters from ~: Create a 3/3 colorless Golem artifact creature token.",
+       "duration": null,
+       "effect": {
+        "colors": [],
+        "count": {
+         "type": "Fixed",
+         "value": 1
+        },
+        "enters_attacking": false,
+        "keywords": [],
+        "name": "Golem",
+        "owner": {
+         "type": "Controller"
+        },
+        "power": {
+         "type": "Fixed",
+         "value": 3
+        },
+        "tapped": false,
+        "toughness": {
+         "type": "Fixed",
+         "value": 3
+        },
+        "type": "Token",
+        "types": [
+         "Artifact",
+         "Creature",
+         "Golem"
+        ]
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Artifact"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pauper": "legal",
+      "paupercommander": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 3,
+      "shards": [],
+      "type": "Cost"
+     },
+     "metadata": {
+      "related_token_ids": [
+       "72154cc7-4afa-5a35-942d-1b4c3b52eaf1",
+       "b5af056b-6809-5ca1-914d-780e9b0fbcc3"
+      ],
+      "source_printing_ids": [
+       "18724f37-d50b-4b00-bd47-c5bc6e62697a",
+       "3cef2e6a-e46b-4425-b507-3213cfd1400c"
+      ]
+     },
+     "name": "Golem Foundry",
+     "non_ability_text": null,
+     "oracle_text": "Whenever you cast an artifact spell, you may put a charge counter on this artifact.\nRemove three charge counters from this artifact: Create a 3/3 colorless Golem artifact creature token.",
+     "power": null,
+     "printings": [
+      "EOC",
+      "SOM"
+     ],
+     "rarities": [
+      "common"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2011-01-01",
+       "text": "Whenever you cast an artifact spell, Golem Foundry's first ability triggers and goes on the stack on top of it. It will resolve before the artifact spell does."
+      }
+     ],
+     "scryfall_oracle_id": "8e96c09f-c064-4dd8-85ee-0f48d86ab670",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever you cast an artifact spell, you may put a charge counter on ~.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "counter_type": "charge",
+         "target": {
+          "type": "SelfRef"
+         },
+         "type": "PutCounter"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": true,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "SpellCast",
+       "optional": true,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "controller": null,
+        "properties": [],
+        "type": "Typed",
+        "type_filters": [
+         "Artifact"
+        ]
+       },
+       "valid_source": null,
+       "valid_target": {
+        "type": "Controller"
+       }
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "all_parts": [
+     {
+      "component": "token",
+      "id": "7becaa04-f142-4163-9286-00018b95c4ca",
+      "name": "Golem",
+      "oracle_id": "9859c54d-695b-4bb1-940e-cfd1c3301e89",
+      "type_line": "Token Artifact Creature — Golem"
+     }
+    ],
+    "arena_available": false,
+    "cmc": 3.0,
+    "color_identity": [],
+    "colors": [],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "legal",
+     "paupercommander": "legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{3}",
+    "name": "Golem Foundry",
+    "oracle_id": "8e96c09f-c064-4dd8-85ee-0f48d86ab670",
+    "oracle_text": "Whenever you cast an artifact spell, you may put a charge counter on this artifact.\nRemove three charge counters from this artifact: Create a 3/3 colorless Golem artifact creature token.",
+    "type_line": "Artifact"
+   }
+  },
   "Golgari Grave-Troll": {
    "phase_records": [
     {
@@ -612192,6 +612405,362 @@
     "oracle_id": "d46dcc75-55ff-4226-a392-a49755d269d2",
     "oracle_text": "Commander creatures you own have \"Creature tokens you control get +2/+2.\"",
     "type_line": "Legendary Enchantment — Background"
+   }
+  },
+  "Inspirit, Flagship Vessel": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Artifact"
+      ],
+      "subtypes": [
+       "Spacecraft"
+      ],
+      "supertypes": [
+       "Legendary"
+      ]
+     },
+     "color_identity": [
+      "Red",
+      "Blue",
+      "White"
+     ],
+     "color_override": [
+      "Red",
+      "Blue",
+      "White"
+     ],
+     "defense": null,
+     "flavor_name": null,
+     "is_commander": true,
+     "keywords": [
+      "Station"
+     ],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 0,
+      "shards": [
+       "Blue",
+       "Red",
+       "White"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "46900ec7-eb18-45c4-8e90-a48b665cfdee"
+      ]
+     },
+     "name": "Inspirit, Flagship Vessel",
+     "non_ability_text": null,
+     "oracle_text": "Station (Tap another creature you control: Put charge counters equal to its power on this Spacecraft. Station only as a sorcery. It's an artifact creature at 8+.)\n1+ | At the beginning of combat on your turn, put your choice of a +1/+1 counter or two charge counters on up to one other target artifact.\n8+ | Flying\nOther artifacts you control have hexproof and indestructible.",
+     "power": {
+      "type": "Fixed",
+      "value": 5
+     },
+     "printings": [
+      "EOC"
+     ],
+     "rarities": [
+      "mythic"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "554df866-3dbb-4811-8573-6033481591aa",
+     "static_abilities": [
+      {
+       "active_zones": [],
+       "affected": {
+        "type": "SelfRef"
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": {
+        "counters": {
+         "data": "charge",
+         "type": "OfType"
+        },
+        "minimum": 8,
+        "type": "HasCounters"
+       },
+       "description": "8+ | Flying",
+       "effect_zone": null,
+       "mode": "Continuous",
+       "modifications": [
+        {
+         "keyword": "Flying",
+         "type": "AddKeyword"
+        }
+       ]
+      },
+      {
+       "active_zones": [],
+       "affected": {
+        "controller": "You",
+        "properties": [
+         {
+          "type": "Another"
+         }
+        ],
+        "type": "Typed",
+        "type_filters": [
+         "Artifact"
+        ]
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": {
+        "counters": {
+         "data": "charge",
+         "type": "OfType"
+        },
+        "minimum": 8,
+        "type": "HasCounters"
+       },
+       "description": "artifacts you control have hexproof and indestructible.",
+       "effect_zone": null,
+       "mode": "Continuous",
+       "modifications": [
+        {
+         "keyword": "Hexproof",
+         "type": "AddKeyword"
+        },
+        {
+         "keyword": "Indestructible",
+         "type": "AddKeyword"
+        }
+       ]
+      },
+      {
+       "active_zones": [],
+       "affected": {
+        "type": "SelfRef"
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": {
+        "counters": {
+         "data": "charge",
+         "type": "OfType"
+        },
+        "minimum": 8,
+        "type": "HasCounters"
+       },
+       "description": "CR 721.2b: Spacecraft is an artifact creature at 8+",
+       "effect_zone": null,
+       "mode": "Continuous",
+       "modifications": [
+        {
+         "core_type": "Creature",
+         "type": "AddType"
+        },
+        {
+         "type": "SetPower",
+         "value": 5
+        },
+        {
+         "type": "SetToughness",
+         "value": 5
+        }
+       ]
+      }
+     ],
+     "toughness": {
+      "type": "Fixed",
+      "value": 5
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": {
+        "counters": {
+         "data": "charge",
+         "type": "OfType"
+        },
+        "minimum": 1,
+        "type": "HasCounters"
+       },
+       "constraint": {
+        "type": "OnlyDuringYourTurn"
+       },
+       "damage_kind": "Any",
+       "description": "At the beginning of combat on your turn, put your choice of a +1/+1 counter or two charge counters on up to one other target artifact.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "declares_chosen_group": 0,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "target": {
+          "controller": null,
+          "properties": [
+           {
+            "type": "Another"
+           }
+          ],
+          "type": "Typed",
+          "type_filters": [
+           "Artifact"
+          ]
+         },
+         "type": "TargetOnly"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "multi_target": {
+         "max": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "min": 0
+        },
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": null,
+         "cost": null,
+         "description": "put your choice of counter",
+         "duration": null,
+         "effect": {
+          "branches": [
+           {
+            "condition": null,
+            "cost": null,
+            "description": "put a +1/+1 counter",
+            "duration": null,
+            "effect": {
+             "count": {
+              "type": "Fixed",
+              "value": 1
+             },
+             "counter_type": "P1P1",
+             "target": {
+              "index": 0,
+              "type": "ParentTargetSlot"
+             },
+             "type": "PutCounter"
+            },
+            "forward_result": false,
+            "kind": "Spell",
+            "optional": false,
+            "optional_targeting": false,
+            "sub_ability": null,
+            "target_prompt": null
+           },
+           {
+            "condition": null,
+            "cost": null,
+            "description": "put two charge counters",
+            "duration": null,
+            "effect": {
+             "count": {
+              "type": "Fixed",
+              "value": 2
+             },
+             "counter_type": "charge",
+             "target": {
+              "index": 0,
+              "type": "ParentTargetSlot"
+             },
+             "type": "PutCounter"
+            },
+            "forward_result": false,
+            "kind": "Spell",
+            "optional": false,
+            "optional_targeting": false,
+            "sub_ability": null,
+            "target_prompt": null
+           }
+          ],
+          "chooser": {
+           "type": "Controller"
+          },
+          "type": "ChooseOneOf"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": null,
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "mode": "Phase",
+       "optional": false,
+       "origin": null,
+       "phase": "BeginCombat",
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": null,
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 3.0,
+    "color_identity": [
+     "R",
+     "U",
+     "W"
+    ],
+    "colors": [
+     "R",
+     "U",
+     "W"
+    ],
+    "keywords": [
+     "Station"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{U}{R}{W}",
+    "name": "Inspirit, Flagship Vessel",
+    "oracle_id": "554df866-3dbb-4811-8573-6033481591aa",
+    "oracle_text": "Station (Tap another creature you control: Put charge counters equal to its power on this Spacecraft. Station only as a sorcery. It's an artifact creature at 8+.)\n1+ | At the beginning of combat on your turn, put your choice of a +1/+1 counter or two charge counters on up to one other target artifact.\n8+ | Flying\nOther artifacts you control have hexproof and indestructible.",
+    "power": "5",
+    "toughness": "5",
+    "type_line": "Legendary Artifact — Spacecraft"
    }
   },
   "Instill Energy": {
@@ -1170976,6 +1171545,205 @@
     "type_line": "Creature — Human Scout"
    }
   },
+  "Titan Forge": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": {
+        "costs": [
+         {
+          "cost": {
+           "generic": 3,
+           "shards": [],
+           "type": "Cost"
+          },
+          "type": "Mana"
+         },
+         {
+          "type": "Tap"
+         }
+        ],
+        "type": "Composite"
+       },
+       "description": "{3}, {T}: Put a charge counter on ~.",
+       "duration": null,
+       "effect": {
+        "count": {
+         "type": "Fixed",
+         "value": 1
+        },
+        "counter_type": "charge",
+        "target": {
+         "type": "SelfRef"
+        },
+        "type": "PutCounter"
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      },
+      {
+       "condition": null,
+       "cost": {
+        "costs": [
+         {
+          "type": "Tap"
+         },
+         {
+          "count": 3,
+          "counter_type": {
+           "data": "charge",
+           "type": "OfType"
+          },
+          "selection": "SingleObject",
+          "target": null,
+          "type": "RemoveCounter"
+         }
+        ],
+        "type": "Composite"
+       },
+       "description": "{T}, Remove three charge counters from ~: Create a 9/9 colorless Golem artifact creature token.",
+       "duration": null,
+       "effect": {
+        "colors": [],
+        "count": {
+         "type": "Fixed",
+         "value": 1
+        },
+        "enters_attacking": false,
+        "keywords": [],
+        "name": "Golem",
+        "owner": {
+         "type": "Controller"
+        },
+        "power": {
+         "type": "Fixed",
+         "value": 9
+        },
+        "tapped": false,
+        "toughness": {
+         "type": "Fixed",
+         "value": 9
+        },
+        "type": "Token",
+        "types": [
+         "Artifact",
+         "Creature",
+         "Golem"
+        ]
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Artifact"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 3,
+      "shards": [],
+      "type": "Cost"
+     },
+     "metadata": {
+      "related_token_ids": [
+       "739eae77-2810-5d5e-8c6b-203db53cdd3b",
+       "c40a64e4-a1f5-5d0e-b017-5d55910bf606"
+      ],
+      "source_printing_ids": [
+       "7a3bb4ab-6fe7-4926-a929-3e37691f287a",
+       "91a3c3ba-6dbb-454c-86ad-064875382499"
+      ]
+     },
+     "name": "Titan Forge",
+     "non_ability_text": null,
+     "oracle_text": "{3}, {T}: Put a charge counter on this artifact.\n{T}, Remove three charge counters from this artifact: Create a 9/9 colorless Golem artifact creature token.",
+     "power": null,
+     "printings": [
+      "EOC",
+      "MBS"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "3b02dfca-bcaa-4e22-b143-401ed250d016",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "all_parts": [
+     {
+      "component": "token",
+      "id": "f2f589ac-991f-4f26-8fd4-0d903683f15a",
+      "name": "Golem",
+      "oracle_id": "80fe0a7b-a310-41a1-8417-c734402e9c4f",
+      "type_line": "Token Artifact Creature — Golem"
+     }
+    ],
+    "arena_available": false,
+    "cmc": 3.0,
+    "color_identity": [],
+    "colors": [],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{3}",
+    "name": "Titan Forge",
+    "oracle_id": "3b02dfca-bcaa-4e22-b143-401ed250d016",
+    "oracle_text": "{3}, {T}: Put a charge counter on this artifact.\n{T}, Remove three charge counters from this artifact: Create a 9/9 colorless Golem artifact creature token.",
+    "type_line": "Artifact"
+   }
+  },
   "Titania's Song": {
    "phase_records": [
     {
@@ -1278318,6 +1279086,280 @@
     "oracle_id": "c6fead73-0473-4b57-899a-9f8c5b4f896d",
     "oracle_text": "Create three 1/1 green Boar creature tokens with \"When this token dies, create a Food token.\" (A Food token is an artifact with \"{2}, {T}, Sacrifice this token: You gain 3 life.\")",
     "type_line": "Sorcery"
+   }
+  },
+  "Wolf-Skull Shaman": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Elf",
+       "Shaman"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Green"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "Green"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "related_token_ids": [
+       "0ac06155-35dc-574c-9937-2da6f006e4ef"
+      ],
+      "source_printing_ids": [
+       "804ef999-0d44-420e-ad0c-a6dcf8e9c392"
+      ]
+     },
+     "name": "Wolf-Skull Shaman",
+     "non_ability_text": null,
+     "oracle_text": "Kinship — At the beginning of your upkeep, you may look at the top card of your library. If it shares a creature type with this creature, you may reveal it. If you do, create a 2/2 green Wolf creature token.",
+     "power": {
+      "type": "Fixed",
+      "value": 2
+     },
+     "printings": [
+      "MOR"
+     ],
+     "rarities": [
+      "uncommon"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2008-04-01",
+       "text": "After the kinship ability finishes resolving, the card you looked at remains on top of your library."
+      },
+      {
+       "date": "2008-04-01",
+       "text": "If the top card of your library is already revealed (due to Magus of the Future, for example), you still have the option to reveal it or not as part of a kinship ability’s effect."
+      },
+      {
+       "date": "2008-04-01",
+       "text": "If you have multiple creatures with kinship abilities, each triggers and resolves separately. You’ll look at the same card for each one, unless you have some method of shuffling your library or moving that card to a different zone."
+      },
+      {
+       "date": "2008-04-01",
+       "text": "Kinship is an ability word that indicates a group of similar triggered abilities that appear on _Morningtide_ creatures. It doesn’t have any special rules associated with it."
+      },
+      {
+       "date": "2008-04-01",
+       "text": "The first two sentences of every kinship ability are the same (except for the creature’s name). Only the last sentence varies from one kinship ability to the next."
+      },
+      {
+       "date": "2008-04-01",
+       "text": "You don’t have to reveal the top card of your library, even if it shares a creature type with the creature that has the kinship ability."
+      }
+     ],
+     "scryfall_oracle_id": "c29724c7-dc2e-4a66-8371-449fd012d429",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 2
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": {
+        "type": "OnlyDuringYourTurn"
+       },
+       "damage_kind": "Any",
+       "description": "At the beginning of your upkeep, you may look at the top card of your library. If it shares a creature type with ~, you may reveal it. If you do, create a 2/2 green Wolf creature token.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "destination": null,
+         "enter_tapped": false,
+         "enters_attacking": false,
+         "filter": {
+          "type": "Any"
+         },
+         "keep_count": 0,
+         "player": {
+          "type": "Controller"
+         },
+         "rest_destination": null,
+         "reveal": false,
+         "type": "Dig",
+         "up_to": false
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": true,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": {
+          "quality": "CreatureType",
+          "reference": {
+           "type": "SelfRef"
+          },
+          "subject": {
+           "type": "LastRevealed"
+          },
+          "type": "ObjectsShareQuality"
+         },
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "count": 1,
+          "player": {
+           "type": "Controller"
+          },
+          "type": "RevealTop"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": true,
+         "optional_targeting": false,
+         "sub_ability": {
+          "condition": {
+           "signal": "OptionalEffectPerformed",
+           "type": "EffectOutcome"
+          },
+          "cost": null,
+          "description": null,
+          "duration": null,
+          "effect": {
+           "colors": [
+            "Green"
+           ],
+           "count": {
+            "type": "Fixed",
+            "value": 1
+           },
+           "enters_attacking": false,
+           "keywords": [],
+           "name": "Wolf",
+           "owner": {
+            "type": "Controller"
+           },
+           "power": {
+            "type": "Fixed",
+            "value": 2
+           },
+           "tapped": false,
+           "toughness": {
+            "type": "Fixed",
+            "value": 2
+           },
+           "type": "Token",
+           "types": [
+            "Creature",
+            "Wolf"
+           ]
+          },
+          "forward_result": false,
+          "kind": "Spell",
+          "optional": false,
+          "optional_targeting": false,
+          "sub_ability": null,
+          "sub_link": "SequentialSibling",
+          "target_prompt": null
+         },
+         "sub_link": "SequentialSibling",
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "mode": "Phase",
+       "optional": true,
+       "origin": null,
+       "phase": "Upkeep",
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": null,
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "all_parts": [
+     {
+      "component": "token",
+      "id": "cf371056-43dd-41ab-8d05-b16a8bdc8d28",
+      "name": "Wolf",
+      "oracle_id": "b2224843-8274-4872-a7ca-2adf69cc066b",
+      "type_line": "Token Creature — Wolf"
+     }
+    ],
+    "arena_available": false,
+    "cmc": 2.0,
+    "color_identity": [
+     "G"
+    ],
+    "colors": [
+     "G"
+    ],
+    "keywords": [
+     "Kinship"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}{G}",
+    "name": "Wolf-Skull Shaman",
+    "oracle_id": "c29724c7-dc2e-4a66-8371-449fd012d429",
+    "oracle_text": "Kinship — At the beginning of your upkeep, you may look at the top card of your library. If it shares a creature type with this creature, you may reveal it. If you do, create a 2/2 green Wolf creature token.",
+    "power": "2",
+    "toughness": "2",
+    "type_line": "Creature — Elf Shaman"
    }
   },
   "Wolfhunter's Quiver": {
