@@ -363605,6 +363605,266 @@
     "type_line": "Enchantment"
    }
   },
+  "Dragon Tempest": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Enchantment"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Red"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "Red"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "13ad7bb2-e58b-4cd1-9b32-38c7f8589214",
+       "39ac7ad0-e570-4209-988c-7c0f9b9d2004",
+       "421badab-0f02-4dfa-a01d-409b5a7b05ce",
+       "4b346178-64f8-49bc-bb50-fa1e2004ae18",
+       "ac9a03b8-7ba2-476b-864f-c248df900379",
+       "cefac283-8491-4d11-9a40-0e90cbeac19f",
+       "eb864e38-61cb-42ec-bf41-3715eadc6cd4",
+       "f1933d08-07fe-45ea-9b60-d9afb98d5753"
+      ]
+     },
+     "name": "Dragon Tempest",
+     "non_ability_text": null,
+     "oracle_text": "Whenever a creature you control with flying enters, it gains haste until end of turn.\nWhenever a Dragon you control enters, it deals X damage to any target, where X is the number of Dragons you control.",
+     "power": null,
+     "printings": [
+      "C17",
+      "DTK",
+      "FDC",
+      "GN3",
+      "IMA",
+      "PDTK",
+      "PL24",
+      "SCD",
+      "TDC"
+     ],
+     "rarities": [
+      "uncommon",
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2017-11-17",
+       "text": "If a Dragon entering the battlefield causes Dragon Tempest’s second ability to trigger but leaves the battlefield before that ability resolves, that Dragon still deals damage."
+      },
+      {
+       "date": "2017-11-17",
+       "text": "The amount of damage dealt by the Dragon that entered the battlefield is based on the number of Dragons you control when the ability resolves."
+      },
+      {
+       "date": "2017-11-17",
+       "text": "The two abilities aren’t mutually exclusive. If a Dragon with flying (which is most of them) enters the battlefield under your control, both abilities will trigger."
+      }
+     ],
+     "scryfall_oracle_id": "b9bacb46-fd1d-459b-81c2-d7d08fe73848",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever a creature you control with flying enters, it gains haste until end of turn.",
+       "destination": "Battlefield",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": "UntilEndOfTurn",
+        "effect": {
+         "duration": "UntilEndOfTurn",
+         "static_abilities": [
+          {
+           "active_zones": [],
+           "affected": {
+            "type": "TriggeringSource"
+           },
+           "affected_zone": null,
+           "characteristic_defining": false,
+           "condition": null,
+           "description": "gain haste",
+           "effect_zone": null,
+           "mode": "Continuous",
+           "modifications": [
+            {
+             "keyword": "Haste",
+             "type": "AddKeyword"
+            }
+           ]
+          }
+         ],
+         "target": null,
+         "type": "GenericEffect"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "ChangesZone",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "controller": "You",
+        "properties": [
+         {
+          "type": "WithKeyword",
+          "value": "Flying"
+         }
+        ],
+        "type": "Typed",
+        "type_filters": [
+         "Creature"
+        ]
+       },
+       "valid_source": null,
+       "valid_target": null
+      },
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever a Dragon you control enters, it deals X damage to any target, where X is the number of Dragons you control.",
+       "destination": "Battlefield",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "amount": {
+          "qty": {
+           "filter": {
+            "controller": "You",
+            "properties": [],
+            "type": "Typed",
+            "type_filters": [
+             {
+              "Subtype": "Dragon"
+             }
+            ]
+           },
+           "type": "ObjectCount"
+          },
+          "type": "Ref"
+         },
+         "damage_source": "TriggeringSource",
+         "target": {
+          "type": "Any"
+         },
+         "type": "DealDamage"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "ChangesZone",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "controller": "You",
+        "properties": [],
+        "type": "Typed",
+        "type_filters": [
+         {
+          "Subtype": "Dragon"
+         }
+        ]
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 2.0,
+    "color_identity": [
+     "R"
+    ],
+    "colors": [
+     "R"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}{R}",
+    "name": "Dragon Tempest",
+    "oracle_id": "b9bacb46-fd1d-459b-81c2-d7d08fe73848",
+    "oracle_text": "Whenever a creature you control with flying enters, it gains haste until end of turn.\nWhenever a Dragon you control enters, it deals X damage to any target, where X is the number of Dragons you control.",
+    "type_line": "Enchantment"
+   }
+  },
   "Dragon-Cursed Halls": {
    "phase_records": [
     {
@@ -1279189,6 +1279449,309 @@
     "oracle_id": "7617a6f7-c83b-4ee5-a681-c7e164456526",
     "oracle_text": "When Yggdrasil enters, exile all creature cards from your graveyard.\n{T}: Exile the top three cards of your library.\n{4}, {T}: Put a creature card exiled with Yggdrasil onto the battlefield under your control. It gains haste until end of turn. Activate only as a sorcery.",
     "type_line": "Legendary Artifact"
+   }
+  },
+  "Ygra, Eater of All": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "brawl_commander": true,
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Elemental",
+       "Cat"
+      ],
+      "supertypes": [
+       "Legendary"
+      ]
+     },
+     "color_identity": [
+      "Black",
+      "Green"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "is_commander": true,
+     "keywords": [
+      {
+       "Ward": {
+        "data": {
+         "count": 1,
+         "filter": {
+          "controller": null,
+          "properties": [],
+          "type": "Typed",
+          "type_filters": [
+           {
+            "Subtype": "Food"
+           }
+          ]
+         }
+        },
+        "type": "Sacrifice"
+       }
+      }
+     ],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "standard": "legal",
+      "standardbrawl": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 3,
+      "shards": [
+       "Black",
+       "Green"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "97e0d6ca-eed9-4b57-a34a-0105c41b20b9",
+       "b9ac7673-eae8-4c4b-889e-5025213a6151"
+      ]
+     },
+     "name": "Ygra, Eater of All",
+     "non_ability_text": null,
+     "oracle_text": "Ward—Sacrifice a Food.\nOther creatures are Food artifacts in addition to their other types and have \"{2}, {T}, Sacrifice this permanent: You gain 3 life.\"\nWhenever a Food is put into a graveyard from the battlefield, put two +1/+1 counters on Ygra.",
+     "power": {
+      "type": "Fixed",
+      "value": 6
+     },
+     "printings": [
+      "BLB",
+      "PBLB"
+     ],
+     "rarities": [
+      "mythic"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2024-07-26",
+       "text": "Creatures that die while you control Ygra are still Food artifacts as they leave the battlefield, so Ygra's last ability will trigger whenever a creature affected by its second ability dies."
+      },
+      {
+       "date": "2024-07-26",
+       "text": "Replacement effects that modify artifacts as they enter will apply after you apply Ygra's effect. For example, if you control Ygra and there is an effect that says artifacts enter tapped, creatures will enter tapped."
+      },
+      {
+       "date": "2024-07-26",
+       "text": "The affected creatures retain their other types and abilities."
+      },
+      {
+       "date": "2024-11-08",
+       "text": "Food is an artifact type. Even though it appears on some creatures, it's never a creature type."
+      },
+      {
+       "date": "2024-11-08",
+       "text": "If an effect refers to a Food, it means any Food artifact, not just a Food artifact token. For example, you can sacrifice Tough Cookie (an Artifact Creature — Food Golem) to activate Maraleaf Rider's ability (an ability with \"Sacrifice a Food\" in its cost)."
+      },
+      {
+       "date": "2024-11-08",
+       "text": "Whatever you do, don't eat the delicious cards."
+      },
+      {
+       "date": "2024-11-08",
+       "text": "You can't sacrifice a Food to pay multiple costs. For example, you can't sacrifice a Food token to activate its own ability and also to activate Maraleaf Rider's ability."
+      }
+     ],
+     "scryfall_oracle_id": "62511d43-8eaf-405a-9c81-7bd593d3a01e",
+     "static_abilities": [
+      {
+       "active_zones": [],
+       "affected": {
+        "controller": null,
+        "properties": [
+         {
+          "type": "Another"
+         }
+        ],
+        "type": "Typed",
+        "type_filters": [
+         "Creature"
+        ]
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": null,
+       "description": "Other creatures are Food artifacts in addition to their other types and have \"{2}, {T}, Sacrifice ~: You gain 3 life.\"",
+       "effect_zone": null,
+       "mode": "Continuous",
+       "modifications": [
+        {
+         "subtype": "Food",
+         "type": "AddSubtype"
+        },
+        {
+         "core_type": "Artifact",
+         "type": "AddType"
+        },
+        {
+         "definition": {
+          "condition": null,
+          "cost": {
+           "costs": [
+            {
+             "cost": {
+              "generic": 2,
+              "shards": [],
+              "type": "Cost"
+             },
+             "type": "Mana"
+            },
+            {
+             "type": "Tap"
+            },
+            {
+             "count": 1,
+             "target": {
+              "type": "SelfRef"
+             },
+             "type": "Sacrifice"
+            }
+           ],
+           "type": "Composite"
+          },
+          "description": "{2}, {T}, Sacrifice ~: You gain 3 life.",
+          "duration": null,
+          "effect": {
+           "amount": {
+            "type": "Fixed",
+            "value": 3
+           },
+           "type": "GainLife"
+          },
+          "forward_result": false,
+          "kind": "Activated",
+          "optional": false,
+          "optional_targeting": false,
+          "sub_ability": null,
+          "target_prompt": null
+         },
+         "type": "GrantAbility"
+        }
+       ]
+      }
+     ],
+     "toughness": {
+      "type": "Fixed",
+      "value": 6
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever a Food is put into a graveyard from the battlefield, put two +1/+1 counters on ~.",
+       "destination": "Graveyard",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "count": {
+          "type": "Fixed",
+          "value": 2
+         },
+         "counter_type": "P1P1",
+         "target": {
+          "type": "SelfRef"
+         },
+         "type": "PutCounter"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "ChangesZone",
+       "optional": false,
+       "origin": "Battlefield",
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "controller": null,
+        "properties": [],
+        "type": "Typed",
+        "type_filters": [
+         {
+          "Subtype": "Food"
+         }
+        ]
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 5.0,
+    "color_identity": [
+     "B",
+     "G"
+    ],
+    "colors": [
+     "B",
+     "G"
+    ],
+    "keywords": [
+     "Ward"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "legal",
+     "standardbrawl": "legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{3}{B}{G}",
+    "name": "Ygra, Eater of All",
+    "oracle_id": "62511d43-8eaf-405a-9c81-7bd593d3a01e",
+    "oracle_text": "Ward—Sacrifice a Food.\nOther creatures are Food artifacts in addition to their other types and have \"{2}, {T}, Sacrifice this permanent: You gain 3 life.\"\nWhenever a Food is put into a graveyard from the battlefield, put two +1/+1 counters on Ygra.",
+    "power": "6",
+    "toughness": "6",
+    "type_line": "Legendary Creature — Elemental Cat"
    }
   },
   "Yomiji, Who Bars the Way": {

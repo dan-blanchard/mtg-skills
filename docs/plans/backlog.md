@@ -437,14 +437,14 @@ proposal as a deckbuilder, fix the structure, the guide score is a yardstick)**
   something, just not much here; the guides' Asceticism, Glorious Sunrise and
   Sight of the Scalelords are the ones that also protect or pump. The
   remaining gap is card fit, the ranker's territory (ADR-0063), not a
-  structural key: the short-role lead was measured and held back (above).
-  Two residues of the dead-payoff read, by design: a payoff whose doer key is
-  gated on the mechanic (Dragon Tempest's damage on Dragons entering) reads
-  alive, since the gate lives in the IR, not the key (the ranker's
-  `_gate_penalty` reads it; a doer-side gate read would be the next step);
-  and Anikthea's Hardened Scales and Branching Evolution stay because her
-  deck places counters on five or more cards (constellation), alive by the
-  deck's own content.
+  structural key. **Measured and held back (2026-11-02):** the short-role lead
+  (above), and an other-lanes lead — among a type page's live cards, one that
+  also serves another viable avenue first — which cost the 25 six guide adds
+  (120 → 114: Felothar's walls, Anikthea's doublers) and the held-out 20
+  eleven (104 → 93), Counter Intelligence back to 21 swaps: the second lane's
+  cards are the pricier, less-played ones. One residue by the deck's own
+  content: Anikthea's Hardened Scales and Branching Evolution stay because
+  her deck places counters on five or more cards (constellation).
 
 ## Settled: don't re-suggest
 
@@ -606,6 +606,14 @@ proposal as a deckbuilder, fix the structure, the guide score is a yardstick)**
   dead-payoff read on job pages (the 25 120 → 116 guide adds: Farseek,
   Scourge of Fleets, Black Market Connections, Teferi all vetoed, and the
   banner still through on its draw key).
+- **Batch 7 (2026-11-02; the 25 730 / 340 / 120 unchanged, held-out 577 /
+  259 / 104 unchanged).** (29) *A trigger gated on a creature type the deck
+  lacks is a dead payoff too*, read off the compat Card's trigger subject
+  (`swaps._tribe_gates`, the field `ranking._ir_gate_subtypes` reads): when
+  most of the card's triggers are so gated and it has nothing to activate,
+  whatever they do waits on a tribe that never comes — Dragon Tempest's
+  damage under Valgavoth. A creature type only: Ygra, Eater of All's Food is
+  an artifact type the deck makes.
 
 **From the Jace, Multiverse Architect precon tune and the 25-precon audit (2026-10-17 to 2026-11-01)**
 

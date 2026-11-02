@@ -22,7 +22,6 @@ from collections.abc import Callable, Collection, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Protocol
 
-from mtg_utils._analysis._subtypes import CREATURE_SUBTYPES
 from mtg_utils._analysis.budgets import COMMANDER_TEMPLATE, Template
 from mtg_utils._analysis.card_quality import quality
 from mtg_utils._analysis.card_reads import has_trees
@@ -37,6 +36,8 @@ from mtg_utils._analysis.signal_specs import (
     theme_page,
 )
 from mtg_utils._analysis.signals import grant_payloads_for
+from mtg_utils._card_ir.compat_lookup import ir_for
+from mtg_utils._card_ir.creature_types import CREATURE_TYPES
 from mtg_utils._tuner import mana_base
 from mtg_utils._tuner.ability_quality import grant_grade, outgrades
 from mtg_utils._tuner.classify import CardClass, is_premium
@@ -448,7 +449,10 @@ def _fills_short_role(card: CardClass, budgets: dict) -> bool:
 #: there; a tribe needs twice as many creatures sharing the type for a
 #: choose-a-type payoff (Door of Destinies). The ``_NEED_BUILT_FLOOR`` line.
 _FEEDER_FLOOR = 5
-_CREATURE_SUBTYPE_WORDS = frozenset(s.lower() for s in CREATURE_SUBTYPES)
+#: The CR's creature types (CR 205.3m), lower-cased — not the bulk-harvested
+#: ``CREATURE_SUBTYPES``, which picks up Food and Equipment off artifact
+#: creature faces.
+_CREATURE_SUBTYPE_WORDS = frozenset(s.lower() for s in CREATURE_TYPES)
 #: The payoffs that multiply what the deck already does, and so never feed
 #: themselves (:func:`dead_payoff`).
 _MULTIPLIER_KEYS = frozenset(
@@ -519,9 +523,26 @@ def dead_payoff(card: Mapping, deck_keys: Counter, deck_tribes: Counter) -> bool
             verdicts.append(
                 self_fed or sum(deck_keys.get(f, 0) for f in fed_by) >= _FEEDER_FLOOR
             )
+    # A trigger gated on a creature type (Dragon Tempest's "whenever a Dragon
+    # you control enters"): the gate lives in the IR, not in a key. Fed by the
+    # deck's creatures of the type, the card's own type, or its own tokens.
+    gates, triggers, activated = _tribe_gates(card)
+    for tribes in gates:
+        cares.add("tribe_gate")
+        verdicts.append(
+            makes_tokens
+            or bool(tribes & own_subtypes)
+            or any(deck_tribes.get(t, 0) >= _FEEDER_FLOOR for t in tribes)
+        )
     if not verdicts or any(verdicts):
         return False
     if chooses_a_type_without_tribe(card, deck_tribes):
+        return True
+    if gates and 2 * len(gates) >= triggers and not activated:
+        # The card's triggers are mostly gated on a tribe the deck lacks, and
+        # it has nothing to activate: whatever they do (Dragon Tempest's
+        # damage, a doer key) waits on Dragons that never come; its haste for
+        # flyers is not why it is played.
         return True
     multiplier_feeders = frozenset().union(
         *(feeders.get(k, frozenset()) for k in cares & _MULTIPLIER_KEYS)
@@ -530,6 +551,33 @@ def dead_payoff(card: Mapping, deck_keys: Counter, deck_tribes: Counter) -> bool
     # the chosen type" is ``spellcast_matters``) are no doing of their own.
     doers = own_keys - cares - NEUTRAL_KEYS - NO_FEEDER_READ - multiplier_feeders
     return not doers
+
+
+def _tribe_gates(card: Mapping) -> tuple[list[frozenset[str]], int, bool]:
+    """The creature-type gates on the card's triggers, read off its compat Card
+    (``ranking._ir_gate_subtypes``' field read: ``trigger.subject.subtypes``):
+    one tribe set per gated trigger, the count of its triggers, and whether it
+    has an activated ability. Empty for a card with no IR."""
+    ir = ir_for(dict(card))
+    if ir is None:
+        return [], 0, False
+    gates: list[frozenset[str]] = []
+    triggers = 0
+    activated = False
+    for ab in ir.all_abilities():
+        if ab.kind == "activated":
+            activated = True
+        if ab.kind != "triggered":
+            continue
+        triggers += 1
+        subject = getattr(ab.trigger, "subject", None) if ab.trigger else None
+        subtypes = getattr(subject, "subtypes", None) or ()
+        # A creature type only: Ygra, Eater of All's "whenever a Food is
+        # sacrificed" is gated on an artifact type the deck makes, no tribe.
+        tribes = frozenset(t.lower() for t in subtypes) & _CREATURE_SUBTYPE_WORDS
+        if tribes:
+            gates.append(tribes)
+    return gates, triggers, activated
 
 
 def chooses_a_type_without_tribe(card: Mapping, deck_tribes: Counter) -> bool:
@@ -1670,9 +1718,18 @@ def propose_swaps(
         if spec_filter is not None:  # tuner-side precision pass (e.g. reliable-ramp)
             pool = [c for c in pool if spec_filter(c, deck_mana=ctx.deck_mana)]
 
+        # Measured and held back (2026-11-02): among the live cards of a type
+        # page, one that also serves another of the deck's viable avenues
+        # leading one that only has the type — meant for Asceticism and
+        # Glorious Sunrise over Panharmonicon on Bello's page — cost the 25 six
+        # guide adds (120 → 114: Felothar's walls, Anikthea's doublers) and the
+        # held-out 20 eleven (104 → 93), Counter Intelligence back to 21
+        # swaps: the second lane's cards are the pricier, less-played ones.
+
         def led(c: dict) -> tuple:
             own = lead(c) if lead is not None else ()
-            return (*own, -needs_supplied(c)) if by_needs else own
+            needs_term = (-needs_supplied(c),) if by_needs else ()
+            return (*own, *needs_term)
 
         if synergy_first and job is not None and ctx.playrate:
             ranked = _job_order(pool, job)

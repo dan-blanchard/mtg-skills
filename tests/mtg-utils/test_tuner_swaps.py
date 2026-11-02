@@ -3601,3 +3601,10 @@ def test_a_payoff_for_what_the_deck_does_not_do_is_dead_there():
     assert chooses_a_type_without_tribe(test_card("Vanquisher's Banner"), no_tribe)
     assert not chooses_a_type_without_tribe(test_card("Vanquisher's Banner"), dinos)
     assert not chooses_a_type_without_tribe(test_card("Farseek"), no_tribe)
+    # A trigger gated on a tribe the deck lacks, and nothing else to do: Dragon
+    # Tempest's damage waits on Dragons that never come; with ten Dragons it
+    # is alive.
+    assert dead_payoff(test_card("Dragon Tempest"), none, no_tribe)
+    assert not dead_payoff(test_card("Dragon Tempest"), none, Counter({"dragon": 10}))
+    # A gate on an artifact type is no tribe: Ygra, Eater of All's Food.
+    assert not dead_payoff(test_card("Ygra, Eater of All"), none, no_tribe)
