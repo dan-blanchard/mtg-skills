@@ -12539,6 +12539,15 @@ def _harms_you(
     if tag in ("DealDamage", "LoseTheGame", "Discard") or (
         tag == "Mill" and not mill_is_fuel()
     ):
+        if tag == "DealDamage" and tag_of(target) == "ParentTargetController":
+            # "deals 1 damage to that creature's controller" off a trigger
+            # watching every player's creatures (Rampaging Ferocidon) hits you
+            # for each of yours; one watching only an opponent's does not.
+            watched = getattr(unit.node, "valid_card", None)
+            return (
+                unit.origin == "trigger"
+                and filter_controller_side(watched) != "opponents"
+            )
         return tag_of(target) in ("Controller", None)
     if tag == "ChangeZoneAll":
         # Your whole library exiled (Inverter of Truth, Leveler): the next
@@ -12640,7 +12649,17 @@ def self_drawbacks(tree: ConceptTree) -> SelfDrawbacks:
         if unit.trigger_event == "enters" and (
             tag_of(getattr(node, "valid_card", None)) != "SelfRef"
         ):
-            continue  # another object entering: an engine's cost, not the card's
+            # Another object entering is an engine's cost, not the card's —
+            # unless it punishes whoever's creature entered, yours too:
+            # Rampaging Ferocidon's "1 damage to that creature's controller".
+            if any(
+                tag_of(c.node) == "DealDamage"
+                and tag_of(getattr(c.node, "target", None)) == "ParentTargetController"
+                and _harms_you(unit, c.node)
+                for c in unit.effects
+            ):
+                harm = True
+            continue
         if _loses_you_the_game(node):
             harm = True
             continue

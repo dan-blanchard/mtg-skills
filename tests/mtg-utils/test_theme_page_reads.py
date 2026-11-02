@@ -580,3 +580,13 @@ def test_a_cost_of_more_life_than_a_player_starts_with_is_not_its_job():
 
     assert not any(i.startswith("removal|") for i in _idents("Aetherflux Reservoir"))
     assert "interaction" not in role_of(test_card("Aetherflux Reservoir"))
+
+
+def test_a_ping_on_every_creature_entering_hurts_its_controller_too():
+    """Rampaging Ferocidon deals 1 damage to "that creature's controller"
+    whenever another creature enters, yours included, so it reads a harm;
+    Suture Priest pings only for a creature entering under an opponent's
+    control (Velocirampor's re-read, 2026-11-02)."""
+    assert "self_drawback|you|harm" in _idents("Rampaging Ferocidon")
+    assert "self_drawback|you|harm" not in _idents("Suture Priest")
+

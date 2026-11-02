@@ -1129,11 +1129,15 @@ proposal as a deckbuilder, fix the structure, the guide score is a yardstick)**
   Sunwing in Velocirampor (a Dinosaur for a better-played Dinosaur, the
   tribe page's play-rate order; its ping on every creature entering is
   symmetric, so the opponents' creatures pay too — weighed, not a cut
-  reason). Open, found on the way: `crosswalk.self_drawbacks`' harm read
-  misses damage to "that creature's controller" from a trigger watching
-  every player's creatures (Rampaging Ferocidon reads no `harm`). The flag
-  feeds only search pages and the forced-sacrifice read, so no proposal
-  changes with it; fix it with the next harm-read work.
+  reason). Fixed on the way: (76) *a ping on whoever's creature entered
+  hurts you too* (`crosswalk.self_drawbacks` / `_harms_you`: a trigger
+  watching every player's creatures that deals damage to "that creature's
+  controller" is a harm, where another object entering is otherwise an
+  engine's cost — Rampaging Ferocidon now reads `harm`; Suture Priest, which
+  pings only for an opponent's creature, does not). No proposal in the 55
+  changes (run 68: the 25 735 / 338 / 118, held-out 569 / 262 / 107, fresh
+  294 / 126 / 48; 78 checks). With it every flaw this pass's re-reads found
+  is fixed or recorded above as a verdict with the check behind it.
 
 **From the Jace, Multiverse Architect precon tune and the 25-precon audit (2026-10-17 to 2026-11-01)**
 
