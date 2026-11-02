@@ -430,11 +430,10 @@ headroom and parked items.
 **From the 25-precon deckbuilder pass (2026-11-01; Dan's call: read each
 proposal as a deckbuilder, fix the structure, the guide score is a yardstick)**
 
-- **The 25-precon pass found nothing further that structure can fix
-  (2026-11-02).** Anikthea's Hardened Scales and Branching Evolution stay
-  because her deck places counters on five or more cards (constellation):
-  alive by the deck's own content, the dead-payoff read's line. The leads
-  measured and held back along the way are listed under Settled.
+- **The 25-precon pass is closed (2026-11-02): every flaw its reads found has
+  a fix in the tree.** The approaches measured and rejected along the way
+  (listed under Settled with their numbers) were alternative routes to flaws
+  fixed by other means, not open flaws.
 
 ## Settled: don't re-suggest
 
@@ -627,6 +626,12 @@ proposal as a deckbuilder, fix the structure, the guide score is a yardstick)**
   while that tier is thin, which flooded the page with obscure artifacts
   (Gruul War Plow, Horn of Deafening) and took Counter Intelligence back to
   21 swaps.
+- **Batch 9 (2026-11-02; both sets unchanged).** (31) *A doubler is for what
+  the deck does a lot*: a multiplier's feeders (`swaps._MULTIPLIER_FEEDER_FLOOR`,
+  twice the dead-payoff floor, ten) — Anikthea's five incidental counter
+  cards (constellation) kept Hardened Scales and Branching Evolution alive on
+  her enchantments page; now dead there, while Hazel's eighteen token makers
+  keep Doubling Season and Parallel Lives.
 
 **From the Jace, Multiverse Architect precon tune and the 25-precon audit (2026-10-17 to 2026-11-01)**
 

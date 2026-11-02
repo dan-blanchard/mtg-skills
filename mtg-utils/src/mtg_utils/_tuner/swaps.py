@@ -454,6 +454,9 @@ _FEEDER_FLOOR = 5
 #: ``CREATURE_SUBTYPES``, which picks up Food and Equipment off artifact
 #: creature faces.
 _CREATURE_SUBTYPE_WORDS = frozenset(s.lower() for s in CREATURE_TYPES)
+#: The doers a multiplier needs in the deck to be alive there: twice the floor
+#: (:func:`dead_payoff`).
+_MULTIPLIER_FEEDER_FLOOR = 2 * _FEEDER_FLOOR
 #: The payoffs that multiply what the deck already does, and so never feed
 #: themselves (:func:`dead_payoff`).
 _MULTIPLIER_KEYS = frozenset(
@@ -520,9 +523,15 @@ def dead_payoff(card: Mapping, deck_keys: Counter, deck_tribes: Counter) -> bool
             )
         elif (fed_by := feeders.get(key)) is not None:
             cares.add(key)
-            self_fed = key not in _MULTIPLIER_KEYS and bool(fed_by & own_keys)
+            multiplier = key in _MULTIPLIER_KEYS
+            self_fed = not multiplier and bool(fed_by & own_keys)
+            # A doubler is for what the deck does a lot: twice the floor.
+            # Anikthea's five incidental counter cards kept Hardened Scales and
+            # Branching Evolution alive on her page; Hazel's eighteen token
+            # makers keep Doubling Season (2026-11-02).
+            floor = _MULTIPLIER_FEEDER_FLOOR if multiplier else _FEEDER_FLOOR
             verdicts.append(
-                self_fed or sum(deck_keys.get(f, 0) for f in fed_by) >= _FEEDER_FLOOR
+                self_fed or sum(deck_keys.get(f, 0) for f in fed_by) >= floor
             )
     # A trigger gated on a creature type (Dragon Tempest's "whenever a Dragon
     # you control enters"): the gate lives in the IR, not in a key. Fed by the

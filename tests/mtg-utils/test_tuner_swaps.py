@@ -3584,7 +3584,12 @@ def test_a_payoff_for_what_the_deck_does_not_do_is_dead_there():
         assert dead_payoff(test_card(name), none, no_tribe), name
         assert not dead_payoff(test_card(name), none, dinos), name
     assert dead_payoff(test_card("Hardened Scales"), none, no_tribe)
-    assert not dead_payoff(test_card("Hardened Scales"), counters, no_tribe)
+    # A doubler wants twice the floor: six counter cards are incidental
+    # (Anikthea's), twelve are the plan.
+    assert dead_payoff(test_card("Hardened Scales"), counters, no_tribe)
+    assert not dead_payoff(
+        test_card("Hardened Scales"), Counter({"plus_one_makers": 12}), no_tribe
+    )
     for name in (
         "Etali, Primal Conqueror // Etali, Primal Sickness",
         "Myr Battlesphere",
