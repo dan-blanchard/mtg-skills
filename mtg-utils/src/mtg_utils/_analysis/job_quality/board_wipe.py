@@ -601,6 +601,31 @@ def _board_count(lhs: object) -> bool:
     return "Creature" in cores or "Permanent" in cores
 
 
+def _repeat_choices(tree: ConceptTree) -> int:
+    """How many times a modal face lets one mode be chosen (``modal``'s
+    ``max_choices`` when ``allow_repeat_modes``), else 1."""
+    for face in phase_records_for(tree.oracle_id):
+        if face.get("name") != tree.name:
+            continue
+        modal = face.get("modal") or {}
+        if modal.get("allow_repeat_modes") and isinstance(
+            modal.get("max_choices"), int
+        ):
+            return max(1, modal["max_choices"])
+    return 1
+
+
+def _spared_toughness(mode: str, mag: object) -> tuple[str, int] | None:
+    """What a damage or shrink sweep of a fixed size under ``KILL_SIZE``
+    spares: the creatures tougher than it (``("tough_above", n)``) —
+    Pyroclasm's 2, Fiery Confluence's 3 under Pantlaza's 4-toughness
+    Dinosaurs, a sweep the tuner traded for Martial Coup (Veloci-Ramp-Tor,
+    2026-11-02)."""
+    if mode in ("damage", "shrink") and isinstance(mag, int) and 0 < mag < KILL_SIZE:
+        return ("tough_above", mag)
+    return None
+
+
 def _face_generic(tree: ConceptTree) -> int:
     """The generic mana in ``tree``'s face's printed cost, off phase's own face
     record (its ``mana_cost.generic``)."""
@@ -760,6 +785,11 @@ def _tree_sweeps(tree: ConceptTree, *, walker: bool) -> list[_Sweep]:
             non = set(filter_non_types(filt))
             types = (cores | (_SWEPT if "Permanent" in cores else set())) & _SWEPT
             mag = _magnitude(c, u, tree.power)
+            if isinstance(mag, int) and mag < _SCALING and u.origin == "ability":
+                # A mode chosen again and again ("Choose three. You may choose
+                # the same mode more than once" — Fiery Confluence's 1 damage
+                # to each creature, three times) is its size times the choices.
+                mag *= _repeat_choices(tree)
             if chain and tag == "PumpAll" and id(c.node) not in delayed:
                 mag = _SCALING
             # An activation that taps or sacrifices nothing repeats for mana:
@@ -803,7 +833,8 @@ def _tree_sweeps(tree: ConceptTree, *, walker: bool) -> list[_Sweep]:
                     refills=refills,
                     amount=_deck_amount(c, u),
                     spares_attached=_spared_attachment(filt),
-                    spared_power=_spared_power(c.node, filt),
+                    spared_power=_spared_power(c.node, filt)
+                    or _spared_toughness(_mode(c), mag),
                     type_spared=filt if _spares_a_type(filt) else None,
                     keeps_chosen=_kept_choice(u, filt),
                     replaces_yours=_replaces_yours(u),
@@ -907,7 +938,7 @@ def power_bound_hits(card: dict, record: Mapping) -> bool:
         if s.spared_power is None:
             continue
         kind, bound = s.spared_power
-        if kind == "tough_chosen":
+        if kind in ("tough_chosen", "tough_above"):
             toughness = fixed_stat(record.get("toughness"))
             if isinstance(toughness, int) and toughness <= bound:
                 return True
@@ -942,7 +973,7 @@ def _deck_spares_power(deck: Sequence[dict], spared: tuple[str, int]) -> bool:
         value = fixed_stat(r.get("power"))
         return value if isinstance(value, int) else None
 
-    if kind == "tough_chosen":
+    if kind in {"tough_above", "tough_chosen"}:
         kept = sum(
             1
             for r in creatures
@@ -1051,6 +1082,23 @@ def _deck_spared_by_type(deck: Sequence[dict], filt: object) -> bool:
         return False
     spared = sum(1 for facts in creatures if filter_admits(filt, facts) is False)
     return spared / len(creatures) >= _DECK_SPARED_SHARE
+
+
+def toughness_spares(card: dict, deck: Sequence[dict]) -> bool:
+    """Whether ``card``'s sweep is a small one (``tough_above``) its deck is
+    mostly too tough for: Fiery Confluence's 3 under Pantlaza's Dinosaurs. A
+    read for the upgrade gate only, never the sweep's own score — a 1-damage
+    sweep "spares" most decks, and read as one-sided Golgari Charm rose
+    above Deluge of Doom in Death Toll (2026-11-02)."""
+    sweeps = _sweeps(card)
+    if not sweeps or not deck:
+        return False
+    best = _best(sweeps)
+    return (
+        best.spared_power is not None
+        and best.spared_power[0] == "tough_above"
+        and _deck_spares_power(deck, best.spared_power)
+    )
 
 
 def type_bound_hits(card: dict, record: Mapping) -> bool:
@@ -1308,6 +1356,7 @@ def features(card: dict, deck: Sequence[dict] | None = None) -> dict[str, float]
         )
         or (
             best.spared_power is not None
+            and best.spared_power[0] != "tough_above"
             and _deck_spares_power(deck, best.spared_power)
         )
         or (

@@ -503,7 +503,8 @@ def _spares_less_of_the_deck(
         f = board_wipe.features(card, deck)
         if not f:
             return None
-        return f.get("one_sided", 0) > 0 and not any(
+        sided = f.get("one_sided", 0) > 0 or board_wipe.toughness_spares(card, deck)
+        return sided and not any(
             board_wipe.power_bound_hits(card, c) or board_wipe.type_bound_hits(card, c)
             for c in commanders
         )

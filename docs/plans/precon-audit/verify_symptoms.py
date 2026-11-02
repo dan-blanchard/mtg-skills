@@ -239,6 +239,8 @@ CHECKS = [
     _check("never", "GrandLarceny_OTC", "Tasha's Hideous Laughter", batch="16w"),
     _check("no_pair", "VirtueAndValor_WOC", "Umbra Mystic -> Gaea's Gift", batch="16w"),
     _check("no_pair", "DeadlyDisguise_MKC", "Sidar Kondo of Jamuraa -> Unwanted Remake", batch="16w"),
+    # The sixth full re-read (batch 16x).
+    _check("no_pair", "VelociRampTor_LCC", "Fiery Confluence -> Martial Coup", batch="16x"),
     _check("no_pair", "CreativeEnergy_M3C", "Silverquill Lecturer -> Boromir, Warden of the Tower", batch="16n"),
     _check("no_pair", "TinkerTime_MOC", "Feldon of the Third Path -> Skullclamp", batch="16n"),
     _check("no_trim", "EldraziIncursion_M3C", "Forsaken Monument", batch="14"),

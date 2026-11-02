@@ -554,3 +554,17 @@ def test_a_shrink_sized_by_the_sacrificed_toughness_spares_tough_decks():
     bears = [test_card("Grizzly Bears")] * 10
     assert board_wipe.features(tip, walls)["one_sided"] == 1.0
     assert board_wipe.features(tip, bears)["one_sided"] == 0.0
+
+
+def test_a_small_sweep_spares_a_tough_deck_and_repeats_its_mode():
+    """Fiery Confluence may choose "1 damage to each creature" three times
+    (``allow_repeat_modes``): a 3-damage sweep, sparing a deck of 4-toughness
+    creatures (Veloci-Ramp-Tor, 2026-11-02); 2/2s die to it."""
+    confluence = test_card("Fiery Confluence")
+    assert max(s.mag for s in board_wipe._sweeps(confluence)) == 3
+    tough = [test_card("Siege Rhino")] * 10
+    bears = [test_card("Grizzly Bears")] * 10
+    assert board_wipe.toughness_spares(confluence, tough)
+    assert not board_wipe.toughness_spares(confluence, bears)
+    # A gate read only: the sweep's own score takes no one-sided weight.
+    assert board_wipe.features(confluence, tough)["one_sided"] == 0.0

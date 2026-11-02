@@ -1661,6 +1661,35 @@ proposal as a deckbuilder, fix the structure, the guide score is a yardstick)**
   Wand, Dream Harvest, Plargg and Nassari and Wand of Wonder stay. Verdict:
   Unexplained Absence for Unwanted Remake (interaction for interaction).
   `verify_symptoms.py`: 148.
+- **Batch 16x (2026-11-02; the 25 728 / 340 / 115 → 728 / 340 / 113, held-out
+  561 / 264 / 102 → 561 / 264 / 103, fresh unchanged at 294 / 126 / 51).** The
+  sixth full 55-deck re-read (five Sonnet reviewers; 15 flags, one
+  structural). Fixed: (154) *a mode chosen again and again is its size
+  times the choices* (`board_wipe._repeat_choices`, off the face's
+  `modal.allow_repeat_modes` / `max_choices`): Fiery Confluence's "1 damage
+  to each creature" is 3; and (155) *a damage or shrink sweep under
+  `KILL_SIZE` spares the creatures tougher than it* (`tough_above`), read
+  by the upgrade gate only (`board_wipe.toughness_spares`): Fiery
+  Confluence under Pantlaza's 4-toughness Dinosaurs no longer goes to
+  Martial Coup but to Delayed Blast Fireball. Read into the sweep's own
+  `one_sided` score it was measured and narrowed — a 1-damage sweep
+  "spares" most decks, and Golgari Charm rose above Deluge of Doom in Death
+  Toll. Verdicts, with the card text, counts or measurement: Jeska, Thrice
+  Reborn under Commodore Guff (at least one loyalty once Guff is cast);
+  Vanquisher's Banner for Kindred Boon, Kotis for Perpetual Timepiece,
+  Essence Anchor for Llanowar Mentor, Frontier Warmonger for Shadowspear
+  (theme for theme, a need for a need); Timely Ward for Gaea's Gift
+  (protection for protection); All Will Be One (Bello animates it; six
+  counter sources); Wheel of Misfortune (you choose your number); Deepglow
+  Skate for Fellwar Stone (a fill cut from need suppliers, as Kulrath
+  Knight); Anger in Creative Energy (a creature: it reaches the graveyard
+  by dying); Welcoming Vampire for Sylvan Library (the draw read prefers
+  the Library); Abzan Falconer (it outlasts itself; Olivia places
+  counters); Thought-Knot Seer and Thief of Existence in Peace Offering
+  (eight colorless sources, four per pip); Storm's Wrath for Season of
+  Weaving (symmetric for symmetric); Immoral Bargain for Feed the Swarm
+  (Dina's sacrifice event is broad, and holding broad event needs was
+  measured and reverted in batch 15c). `verify_symptoms.py`: 149.
 
 **From the Jace, Multiverse Architect precon tune and the 25-precon audit (2026-10-17 to 2026-11-01)**
 
