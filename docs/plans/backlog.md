@@ -434,21 +434,17 @@ proposal as a deckbuilder, fix the structure, the guide score is a yardstick)**
   Hornet Queen → Life from the Loam, Giant Adephage → Syr Konrad: the payload
   of a graveyard-to-battlefield commander is its big permanents, as a polymorph
   deck's flips are (`Sourcing.flip_spec`), and its slot should stay a payload.
-  Winter emits `permanent_recast|you|` with no subject; the lane's subjects
-  (Teval's `reanimate` / `land`) need reading before the flip machinery is
-  generalised to reanimators (no whiff gate: a reanimation target is chosen).
-- **Endless Punishment (Valgavoth): own-turn drainers for an opponents'-turn
-  trigger.** "Whenever an opponent loses life during their turn" is answered
-  with Guttersnipe and Reckless Fireweaver (your spells, your turn) where the
-  guides add Roiling Vortex, Rug of Smothering and Zo-Zu (opponents' upkeeps,
-  spells and land drops). The `lifeloss makers` need wants a "fires on an
-  opponent's turn" arm: a trigger watching an opponent's or each player's
-  action, or an upkeep, read off the maker's trees.
-- **Living Energy (Saheeli): Izzet Generatorium reads as an energy consumer,
-  not a maker** ("whenever you get energy, get one more" is a doubler); with
-  the needs leading the page it fell behind Aether Swooper. A doubler of a
-  resource the commander makes is the strongest maker there is
-  (`multiplier_avenue` knows this for tokens).
+  Winter's lane is `permanent_recast|you|` ("Permanent recast engine", the
+  ETB-value payloads she re-delivers). **Measured and held back (2026-11-01):**
+  routing a cut on the commander's own lane to that lane's page — every held
+  lane, then the primary alone — kept Hornet Queen a reanimation target
+  (Avenger of Zendikar) but the lane's page by play-rate is small ETB value
+  (Bastion of Remembrance, Marionette Apprentice), and it sent Felothar's
+  toughness cuts to the butts' page and Quintorius's graveyard cuts to the
+  lands staples: the 25 733 / 341 / 121 → 728 / 338 / 120 (every lane) and
+  728 / 339 / 125 (the primary), held-out 578 / 252 / 101 → 577 / 250 / 96
+  (both). A payload read needs the payload's SIZE, not the lane: the big
+  permanents the deck's own reanimation can return.
 - **Desert Bloom (Yuma): Oracle of Mul Daya trimmed as ramp over.** It serves
   none of the deck's read avenues (its extra land drop is no Landfall serve)
   and the ramp job read scores it 0.21 against Explore's 0.52 — the read sees
@@ -494,9 +490,24 @@ proposal as a deckbuilder, fix the structure, the guide score is a yardstick)**
   whose plan is its top end* (a need with `Need.mana_floor` ≥
   `tune.TOP_END_FLOOR`) the ramp and card-draw rows are the plan's fuel, never
   a trim (`plan_fuel`; Eldrazi Unbound trimmed four rocks and three draw
-  engines). Guide-score losses taken knowingly: Living Energy 6 → 4 (above),
-  Tinker Time 3 → 2, Graveyard Overdrive 6 → 4 (its Lhurgoyfs are no longer
-  cut at all), Eldrazi Unbound 1 → 0 (its one hit was a draw trim's add).
+  engines). Guide-score losses taken knowingly: Tinker Time 3 → 2, Graveyard
+  Overdrive 6 → 4 (its Lhurgoyfs are no longer cut at all), Eldrazi Unbound 1
+  → 0 (its one hit was a draw trim's add).
+- **Batch 2 (same day; the 25 733 / 341 / 121 → 729 / 340 / 121, held-out 578
+  / 252 / 101 → 578 / 252 / 99).** (7) *A life-loss trigger gated to
+  opponents' turns* (Valgavoth's `OncePerOpponentPerTurn`) asks for makers
+  that fire on their turns — a trigger watching what opponents do
+  (`opponent_*` watcher keys, a tax, a payoff lane scoped past "you":
+  `commander_need._drains_on_opponents_turns`), never your own spells'
+  riders; the payoff read's generic "lifeloss makers" stands down beside it.
+  Endless Punishment's page is Painful Quandary, Underworld Dreams, Razorkin
+  Needlehead, Sheoldred where it was Guttersnipe and Reckless Fireweaver. A
+  need read off the commander's own trigger or condition leads its page
+  whatever the deck holds yet (the `_NEED_BUILT_FLOOR` is for resource and
+  payoff needs). (8) *Izzet Generatorium is an energy maker* through the
+  ledger row `energy_gain_replacement_parked` (ADR-0048: its "you get that
+  many plus one {E} instead" is a phase `replacement_structure` residue);
+  Living Energy takes it and Aether Refinery again.
 
 **From the Jace, Multiverse Architect precon tune and the 25-precon audit (2026-10-17 to 2026-11-01)**
 

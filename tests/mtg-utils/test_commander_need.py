@@ -152,6 +152,31 @@ def test_an_aura_commanders_voltron_need_is_auras_not_equipment():
     assert not satisfies(test_card("Basilisk Collar"), need)
 
 
+def test_an_opponents_turn_drain_trigger_wants_makers_that_fire_on_their_turns():
+    # Valgavoth: "whenever an opponent loses life for the first time during
+    # each of their turns" (phase's OncePerOpponentPerTurn gate). The makers
+    # are the ones watching what opponents do — Roiling Vortex (each upkeep),
+    # Rug of Smothering (their spells), Razorkin Needlehead (their draws) — not
+    # your own spells' riders (Guttersnipe) or your artifacts' (Reckless
+    # Fireweaver), which Endless Punishment's tune added (2026-11-01).
+    need = _need("Valgavoth, Harrower of Souls", "life loss on opponents' turns")
+    for name in ("Roiling Vortex", "Rug of Smothering", "Razorkin Needlehead"):
+        assert satisfies(test_card(name), need), name
+    for name in ("Guttersnipe", "Reckless Fireweaver", "Lightning Bolt"):
+        assert not satisfies(test_card(name), need), name
+    assert "lifeloss makers" not in _labels(_needs("Valgavoth, Harrower of Souls"))
+
+
+def test_an_energy_doubler_is_an_energy_maker_through_the_ledger():
+    # Izzet Generatorium's "you get that many plus one {E} instead" is a phase
+    # replacement_structure residue; the ledger row
+    # ``energy_gain_replacement_parked`` (ADR-0048) serves energy_makers for it,
+    # so Saheeli's energy-makers need counts it beside Aether Refinery.
+    need = _need("Saheeli, Radiant Creator", "energy makers")
+    assert satisfies(test_card("Izzet Generatorium"), need)
+    assert satisfies(test_card("Aether Refinery"), need)
+
+
 def test_an_artifact_token_payoff_wants_the_token_makers_not_every_artifact():
     # Gimbal counts "artifact tokens you control with different names": the
     # need is the artifact-token makers (Big Score's Treasure), and a mana

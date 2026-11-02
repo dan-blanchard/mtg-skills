@@ -7656,6 +7656,51 @@ BRIDGES.update(
 )
 
 
+# ── Izzet Generatorium → energy_makers ───────────────────────────────────────
+# "If you would get one or more {E}, you get that many plus one {E} instead."
+# Phase v0.118.0 parks the whole line as a ``replacement_structure`` residue
+# ("Replacement pattern matched but line failed replacement parser"), so no
+# energy gain reaches the energy_makers read and the card is an energy payoff
+# only. A replacement that adds to the resource (CR 614.1a: "instead" marks a
+# replacement effect) is the strongest maker of it; Living Energy's guides add
+# it first, and the tuner's needs read ranked it behind Aether Swooper
+# (2026-11-01).
+_ENERGY_PLUS_ONE_RX = re.compile(
+    r"\byou get that many plus one \{E\} instead\b", re.IGNORECASE
+)
+
+
+def _energy_plus_one_parked(tree: ConceptTree) -> bool:
+    return _says(_ENERGY_PLUS_ONE_RX, tree.residues("replacement_structure"))
+
+
+BRIDGES.update(
+    {
+        b.bridge_id: b
+        for b in (
+            Bridge(
+                bridge_id="energy_gain_replacement_parked",
+                key="energy_makers",
+                kind="upstream_parse_failure",
+                todo=_upstream(
+                    "Izzet Generatorium's 'If you would get one or more {E}, you "
+                    "get that many plus one {E} instead', an Unimplemented "
+                    "replacement_structure residue. Retires on the bump that "
+                    "types the energy-gain replacement"
+                ),
+                census=(
+                    "1 hit / the legal corpus (Izzet Generatorium; its oracle "
+                    "idiom is its own), phase v0.118.0 card-data, 2026-11-01"
+                ),
+                pins=("Izzet Generatorium",),
+                gap=_energy_plus_one_parked,
+                match=_energy_plus_one_parked,
+            ),
+        )
+    }
+)
+
+
 def bridge_fires(bridge_id: str, tree: ConceptTree) -> bool:
     """Whether the registered bridge fires for this tree (gap AND match)."""
     return BRIDGES[bridge_id].fires(tree)

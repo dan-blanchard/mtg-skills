@@ -774,6 +774,15 @@ class Sourcing:
                 kind = tribe[0]
                 article = "an" if kind[:1].lower() in "aeiou" else "a"
                 return UpgradeSource(tribe[1], None, f"{article} {kind}")
+            # NOT a held-lane slot: routing a cut on one of the commander's own
+            # lanes to that lane's page (every held lane, then the primary
+            # alone) was measured 2026-11-01 and held back — it kept Winter's
+            # Hornet Queen a reanimation target (Avenger of Zendikar) but sent
+            # Felothar's toughness cuts to the butts' page and Quintorius's
+            # graveyard cuts to the lands staples (the 25: 733 / 341 / 121 →
+            # 728 / 338 / 120 for every lane, 728 / 339 / 125 for the primary;
+            # held-out 578 / 252 / 101 → 577 / 250 / 96 both). The flips and
+            # the tribes above are the slots that stay.
             # A theme cut that supplies one of the commander's needs is upgraded
             # off that need's page (ADR-0061): the slot keeps doing what the
             # commander asks, with a better card — never the shared cap. A cut

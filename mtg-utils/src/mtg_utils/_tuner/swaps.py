@@ -1230,12 +1230,18 @@ def propose_swaps(
     # every turn (a ``redundancy`` need: Ms. Bumbleflower makes opponents draw
     # on every spell, and Forget and Martyr's Cry led her page over the
     # payoffs for it) (2026-11-01). Read once per card.
+    # A need read off the commander's own trigger or condition (``event`` /
+    # ``condition``) is the plan whatever the deck holds yet — Valgavoth's
+    # opponents'-turn drainers are what Endless Punishment is short of.
     built_needs = [
         need
         for need in needs_here
         if need.kind != "redundancy"
         and need.leads
-        and sum(1 for c in classes if satisfies(c.record, need)) >= _NEED_BUILT_FLOOR
+        and (
+            need.kind in ("event", "condition")
+            or sum(1 for c in classes if satisfies(c.record, need)) >= _NEED_BUILT_FLOOR
+        )
     ]
     needs_count_memo: dict[str, int] = {}
 

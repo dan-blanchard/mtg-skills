@@ -230,12 +230,18 @@ def test_paying_energy_is_energy_matters(name, residue):
     assert "energy_matters|you|" in _idents(name)
 
 
-def test_energy_replacement_is_not_a_maker():
+def test_energy_replacement_is_a_maker_through_the_ledger_not_the_seam():
     """Izzet Generatorium's "If you would get one or more {E}, you get that many
-    plus one {E} instead" rewards the makers; the seam refuses the replacement,
-    so the card is energy_matters (its paid-{E} condition), never a maker."""
+    plus one {E} instead": the recovery seam refuses the replacement (no
+    ``gain_energy`` effect is recovered — a replacement is not an effect of its
+    own), so the card is energy_matters by its paid-{E} condition; the maker
+    ident it ALSO deserves — a doubler of the resource is its strongest maker,
+    and Living Energy's guides add it first — comes from the ledger row
+    ``energy_gain_replacement_parked`` (ADR-0048), which retires when phase types
+    the replacement (2026-11-01)."""
     assert "gain_energy" not in _recovered("Izzet Generatorium")
-    assert "energy_makers|you|" not in _idents("Izzet Generatorium")
+    assert "energy_matters|you|" in _idents("Izzet Generatorium")
+    assert "energy_makers|you|" in _idents("Izzet Generatorium")
 
 
 def test_energy_payment_names_energy():

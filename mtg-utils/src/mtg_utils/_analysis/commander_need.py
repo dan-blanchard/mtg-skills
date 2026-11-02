@@ -86,6 +86,7 @@ from mtg_utils._card_ir.crosswalk.reads import (
     tag_of,
     trigger_def_event,
     trigger_scope,
+    trigger_turn_constraint,
 )
 from mtg_utils._card_ir.mirror.runtime import MirrorVariant, TypedMirrorNode
 from mtg_utils._card_ir.trees import trees_for
@@ -811,7 +812,42 @@ def _event_need(node: TypedMirrorNode, desc: str) -> Need | None:
         return None
     if event == "life_lost" and scope == "you":
         return None  # a self-life-loss watcher is fed by its own costs; not a need
+    if event == "life_lost" and trigger_turn_constraint(node) in _OPPONENT_TURN_GATES:
+        # "Whenever an opponent loses life for the first time during each of
+        # their turns" (Valgavoth, Harrower of Souls): the makers that fire on
+        # an OPPONENT'S turn — a trigger watching what opponents do (Rug of
+        # Smothering's spells, Razorkin Needlehead's draws, Roiling Vortex's
+        # upkeeps) — not your own spells' and artifacts' riders (Guttersnipe,
+        # Reckless Fireweaver), which the tuner added where Endless
+        # Punishment's guides add the punishers (2026-11-01).
+        return Need(
+            "event",
+            "life loss on opponents' turns",
+            desc,
+            predicate=_drains_on_opponents_turns,
+        )
     return Need("event", label, desc, keys=keys)
+
+
+#: A trigger's turn gates that fire on opponents' turns (phase's ``constraint``).
+_OPPONENT_TURN_GATES = frozenset({"OncePerOpponentPerTurn", "OnlyDuringOpponentsTurn"})
+
+
+def _drains_on_opponents_turns(card: dict) -> bool:
+    """A life-loss or damage maker whose trigger watches what other players do:
+    an ``opponent_*`` watcher key, a tax, or a payoff lane scoped past "you"
+    (``*_matters|opponents|`` / ``|each|`` / ``|any|``)."""
+    idents = _card_idents(card)
+    keys = {i.split("|", 1)[0] for i in idents}
+    if not keys & _EVENT_MAKER_KEYS["life_lost"]:
+        return False
+    for ident in idents:
+        key, scope, _subject = ident.split("|", 2)
+        if key.startswith("opponent_") or key == "stax_taxes":
+            return True
+        if key.endswith("_matters") and scope in ("opponents", "each", "any"):
+            return True
+    return False
 
 
 #: The keywords a "whenever ~ deals combat damage to a player" commander wants
@@ -1354,6 +1390,13 @@ def commander_needs(commanders: Sequence[Mapping]) -> tuple[Need, ...]:
         for need in _payoff_needs(idents, rec.get("name", "")):
             add(need)
         add(_multiplier_need(rec))
+    # A trigger's refined read stands in for the payoff read of the same
+    # ability: Valgavoth's "life loss on opponents' turns" beside the
+    # ``lifeloss_matters`` payoff's generic "lifeloss makers", which would admit
+    # Guttersnipe again.
+    labels = {need.label for need in out}
+    if "life loss on opponents' turns" in labels:
+        out = [need for need in out if need.label != "lifeloss makers"]
     return tuple(out)
 
 
