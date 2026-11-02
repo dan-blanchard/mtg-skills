@@ -100,13 +100,29 @@ def has_structural_spellcast(tree: ConceptTree) -> bool:
     for unit in tree.units:
         if unit.origin != "trigger" or unit.trigger_event not in (CAST_TRIGGER_EVENTS):
             continue
-        if trigger_caster_scope(unit.node) != "you":
-            continue
         vc = getattr(unit.node, "valid_card", None)
         cores = set(filter_core_types(vc))
         typed = bool(cores & {"Instant", "Sorcery"}) or (
             "Creature" in filter_non_types(vc)
         )
+        caster = trigger_caster_scope(unit.node)
+        if caster != "you":
+            # A symmetric "a player casts an instant or sorcery" trigger whose
+            # payoff is YOUR draw (Niv-Mizzet, Parun) is a you build-around
+            # all the same: your own spells fire it. A punisher's damage to
+            # the caster (Eidolon of the Great Revel) is not, nor is an
+            # opponents-only hoser (Mystic Remora) (2026-11-02).
+            if (
+                caster != "opponents"
+                and typed
+                and any(
+                    tag_of(c.node) == "Draw"
+                    and tag_of(getattr(c.node, "target", None)) == "Controller"
+                    for c in unit.effects
+                )
+            ):
+                return True
+            continue
         if typed:
             if cores and cores <= {"Enchantment", "Artifact"}:
                 continue

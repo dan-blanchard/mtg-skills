@@ -371,12 +371,35 @@ def _reads_worse_at_the_job(
         return False
     if job == "ramp" and _one_shot_for_repeatable(read, candidate, cut):
         return True
+    if job == "board_wipe" and _sweeps_fewer_kinds(read, candidate, cut):
+        return True
     cand_cost, cut_cost = _job_cost(read, candidate), _job_cost(read, cut)
     if cand_cost < cut_cost and _cost_band(cand_cost) == _cost_band(cut_cost):
         return False
     records = deck or ()
     sc, su = read.score(candidate, records), read.score(cut, records)
     return sc is not None and su is not None and sc < su - 1e-9
+
+
+def _sweeps_no_creatures(card: dict) -> bool:
+    """Whether the wipe read sees the card sweep no creatures (Vandalblast)."""
+    read = read_for("board_wipe")
+    if read is None or not has_trees(card):
+        return False
+    features = read.features(card)
+    return bool(features) and features.get("creatures", 0) == 0
+
+
+def _sweeps_fewer_kinds(read: JobRead, candidate: dict, cut: Mapping) -> bool:
+    """Whether a wipe candidate sweeps no creatures where the cut does: the
+    wipe read scores Vandalblast's one-sided artifact sweep above Winds of
+    Rath, but the board-wipe row is there for creature boards — Blame Game,
+    Desert Bloom, Endless Punishment and Timey-Wimey traded creature sweepers
+    for it (2026-11-02)."""
+    a, b = read.features(candidate), read.features(dict(cut))
+    if not a or not b:
+        return False
+    return a.get("creatures", 0) == 0 and b.get("creatures", 0) > 0
 
 
 def _one_shot_for_repeatable(read: JobRead, candidate: dict, cut: Mapping) -> bool:
@@ -648,6 +671,10 @@ _COUNTER_GATE_FEEDERS = frozenset({"plus_one_makers", "any_counter_makers"})
 #: type is generic (2026-11-02).
 _OPP_DISCARD_GATE = "opponents discard"
 _OPP_DISCARD_FEEDERS = frozenset({"opponent_discard", "discard_makers"})
+#: And on your own (Monument to Endurance's draw, Treasure and drain), fed by
+#: the deck's discard outlets.
+_YOU_DISCARD_GATE = "you discard"
+_YOU_DISCARD_FEEDERS = frozenset({"discard_outlet", "discard_makers"})
 #: The library effects whose filter is over YOUR cards though it carries no
 #: controller: Heroes' Podium's legendary creature from the top, Open the
 #: Armory's Aura or Equipment.
@@ -840,9 +867,14 @@ class _UnitGates:
             if word.startswith("color:"):
                 if deck_types.get(word, 0) >= _TYPE_GATE_FLOOR:
                     return True
-            elif word == _OPP_DISCARD_GATE:
+            elif word in (_OPP_DISCARD_GATE, _YOU_DISCARD_GATE):
                 keys = deck_keys or Counter()
-                if sum(keys.get(k, 0) for k in _OPP_DISCARD_FEEDERS) >= _FEEDER_FLOOR:
+                feeders = (
+                    _OPP_DISCARD_FEEDERS
+                    if word == _OPP_DISCARD_GATE
+                    else _YOU_DISCARD_FEEDERS
+                )
+                if sum(keys.get(k, 0) for k in feeders) >= _FEEDER_FLOOR:
                     return True
             elif word == _COUNTERS_GATE:
                 keys = deck_keys or Counter()
@@ -951,13 +983,18 @@ def _unit_gates(card: Mapping) -> _UnitGates:
                 if (
                     isinstance(unit.node, TypedMirrorNode)
                     and trigger_def_event(unit.node) == "discarded"
-                    and trigger_scope(unit.node) in ("opponents", "each")
                 ):
+                    scope = trigger_scope(unit.node)
+                    gate = (
+                        _OPP_DISCARD_GATE
+                        if scope in ("opponents", "each")
+                        else _YOU_DISCARD_GATE
+                    )
                     units += 1
                     gates.append(
                         _Gate(
                             (_gate_words(filt) if _present(filt) else frozenset())
-                            | {_OPP_DISCARD_GATE},
+                            | {gate},
                             static=False,
                         )
                     )
@@ -2161,6 +2198,11 @@ def propose_swaps(
         # Dinosaurs over Etali and Gishath on Pantlaza's page and protection
         # Equipment on Bello's (25 precons 121 → 109 guide adds).
         lead = spec.get("_lead")
+        # The need leads a tribe page too: keeping "upgrade a Dinosaur" in
+        # play-rate order was measured and reverted — Veloci-Ramp-Tor's
+        # Bonehoard Dracosaur and Ghalta and Mavren did not come back, and
+        # Dance of the Elements' and Party Time's need-led tribe pages lost
+        # seven guide adds between them (held-out 105 → 100, 2026-11-02).
         by_needs = synergy_first and job is None and avenue is not None and built_needs
         # A page with an order of its own is sorted WHOLE and cut to ``limit``
         # after: the lead has to see the suppliers below the play-rate head.
@@ -2575,6 +2617,12 @@ def propose_swaps(
                 and not fodder_serve.matches(card)
             ):
                 continue  # the docstring: a maker's job upgrade makes fodder too
+            if (
+                job == "board_wipe"
+                and not spec.get("name")
+                and _sweeps_no_creatures(card)
+            ):
+                continue  # the board-wipe row is for creature boards
             if not spec.get("name") and (
                 dead_here(card)
                 if job is None

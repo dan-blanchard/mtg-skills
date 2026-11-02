@@ -12488,7 +12488,15 @@ def _reads_a_graveyard(tree: ConceptTree) -> bool:
 
 #: The effects that can hurt their controller (:func:`_harms_you`).
 _HARM_TAGS: frozenset[str] = frozenset(
-    {"Sacrifice", "LoseLife", "DealDamage", "LoseTheGame", "Discard", "Mill"}
+    {
+        "Sacrifice",
+        "LoseLife",
+        "DealDamage",
+        "LoseTheGame",
+        "Discard",
+        "Mill",
+        "ChangeZoneAll",
+    }
 )
 
 
@@ -12532,6 +12540,14 @@ def _harms_you(
         tag == "Mill" and not mill_is_fuel()
     ):
         return tag_of(target) in ("Controller", None)
+    if tag == "ChangeZoneAll":
+        # Your whole library exiled (Inverter of Truth, Leveler): the next
+        # draw loses (CR 704.5b) unless the graveyard refills it.
+        return (
+            getattr(n, "origin", None) == "Library"
+            and getattr(n, "destination", None) == "Exile"
+            and filter_controller(target) == "You"
+        )
     return False
 
 

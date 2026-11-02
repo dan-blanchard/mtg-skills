@@ -1268,6 +1268,15 @@ def test_sac_and_return_this_turn_does_not_over_fire_sacrifice():
     assert ("sacrifice_outlets", "you") not in _ks_real("Grizzly Bears")
 
 
+def test_a_symmetric_cast_trigger_that_draws_for_you_is_a_spellslinger_payoff():
+    """Niv-Mizzet, Parun draws on any player's instant or sorcery: your own
+    spells fire it, so it is a you build-around (Quick Draw cut it as off every
+    theme, 2026-11-02). Eidolon of the Great Revel's damage to the caster is a
+    punisher, not one."""
+    assert ("spellcast_matters", "you") in _ks_real("Niv-Mizzet, Parun")
+    assert ("spellcast_matters", "you") not in _ks_real("Eidolon of the Great Revel")
+
+
 def test_a_forced_sacrifice_is_a_drawback_not_an_outlet():
     """A sacrifice a mandatory trigger forces at a time its controller doesn't
     pick — Rust Elemental's and Lord of the Pit's upkeep, Desecration

@@ -433,12 +433,12 @@ proposal as a deckbuilder, fix the structure, the guide score is a yardstick)**
 - **The 25-precon pass is closed (2026-11-02): every flaw its reads found has
   a fix in the tree, verified card by card on the latest run
   (`docs/plans/precon-audit/verify_symptoms.py` over the three `misses.json`
-  files: 53 checks, one per flaw, all passing) and on the fresh 10-deck set
+  files: 60 checks, one per flaw, all passing) and on the fresh 10-deck set
   never used for design** (`~/mtg/tuner-work/fresh/root`; its pre-pass
   baseline `w41/misses-fresh-N16.json`: 295 / 130 / 38 → 294 / 126 / 49;
   every batch's proposals re-read deck by deck on all three sets — batches
-  12 and 13 are those re-reads' own findings, batch 14 two deckbuilder
-  reviews' of every proposal). The approaches
+  12 and 13 are those re-reads' own findings, batches 14 and 15 three
+  pairs of deckbuilder reviews' of every proposal). The approaches
   measured and rejected along the way (under Settled with their numbers) were
   alternative routes to flaws fixed by other means; each entry names the fix
   that covers its flaw.
@@ -862,10 +862,43 @@ proposal as a deckbuilder, fix the structure, the guide score is a yardstick)**
   Bello's big-artifact need and Éowyn's Human need, the 25 lost ten guide
   adds); a cap of two choose-a-type cards a deck (the guides add Herald's
   Horn, Vanquisher's Banner and Kindred Discovery side by side — Cavalry
-  Charge lost three adds, held-out 105 → 99); and keeping the tribe's
-  payoffs out of the off-lane tiers (above). Verified with
+  Charge lost three adds, held-out 105 → 99); keeping the tribe's
+  payoffs out of the off-lane tiers (above); and keeping the need lead off
+  the tribe pages for Veloci-Ramp-Tor, whose Dinosaur page trades Bonehoard
+  Dracosaur and Ghalta and Mavren for Dinosaur payoffs under Pantlaza (its
+  guides want bodies) — the lever brought neither back and cost Dance of the
+  Elements and Party Time seven guide adds (held-out 105 → 100), so
+  Veloci's four fewer adds are the tribe need's one cost against Riders',
+  Explorers', Party Time's and Cavalry Charge's gains. Verified with
   `verify_symptoms.py` (53 checks, all passing on the final run, 37 of the
-  first 46 on the batch-13 run). The 25's guide adds fall seven across the
+  first 46 on the batch-13 run).
+- **Batch 15 (2026-11-02; the 25 735 / 337 / 114 → 734 / 338 / 114, held-out 571 / 262 /
+  105 → 571 / 262 / 105, fresh 294 / 126 / 49 → 294 / 126 / 49).** The closing reviews over the
+  committed batch-14 tree, each flag checked against the pool and the code.
+  Fixed: (56) *a symmetric "a player casts an instant or sorcery" trigger
+  whose payoff is your draw is a Spellslinger build-around*
+  (`tree_synthesis.has_structural_spellcast`: Niv-Mizzet, Parun — Quick
+  Draw's own payoff read as serving none of its themes and went as a popular
+  off-lane card for Rapid Hybridization; a punisher's damage to the caster
+  (Eidolon of the Great Revel) and an opponents-only hoser (Mystic Remora)
+  stay out). (57) *A body held back by its own text is no closer*
+  (`metrics.is_wincon_card` on `self_drawbacks`' restriction; the harm read
+  gains the whole-library exile — Inverter of Truth, Leveler — and Eldrazi
+  Incursion's closer slot no longer takes a 6/6 that decks you; Phage's
+  self-loss rides a card that still wins). (58) *Your own discard is a gate
+  too* (`_YOU_DISCARD_GATE`, fed by discard outlets: Monument to Endurance in
+  Most Wanted's no-outlet deck). (59) *A wipe that sweeps no creatures
+  neither fills the board-wipe row nor upgrades a creature sweeper*
+  (`_sweeps_no_creatures` / `_sweeps_fewer_kinds` off the wipe read's
+  `creatures` feature: Vandalblast scored above Winds of Rath, Massacre Girl
+  and Descend upon the Sinful in Blame Game, Desert Bloom, Endless Punishment
+  and Timey-Wimey). Checked and not flaws: Rev, Tithe Extractor and Summon:
+  Bahamut are inside their identities (mono-black; {9}); Warping Wail and
+  Kozilek's Command have eight colorless sources each in Mardu Surge and
+  Peace Offering; Dauthi Voidwalker is a Rogue; Metalwork Colossus costs
+  nothing under Death Toll's eleven noncreature artifacts; Inspiring Call
+  under Deadly Disguise's ten counter makers is fed. Verified with
+  `verify_symptoms.py` (60 checks, all passing on the final run). The 25's guide adds fall seven across the
   batch — the price of the gates and the no-downgrade rule on the design
   set — while the held-out gate holds and the fresh set gains nine.
 

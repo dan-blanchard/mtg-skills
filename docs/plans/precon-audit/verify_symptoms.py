@@ -115,6 +115,14 @@ CHECKS = [
     _check("never", "LoreholdSpirit_SOC", "Simian Spirit Guide", batch="14"),
     _check("never", "LivingEnergy_DRC", "Talisman of Creativity", batch="14"),
     _check("never", "ExplorersOfTheDeep_LCC", "Pongify", batch="14"),
+    # batch 15 (the closing reviews of the committed tree)
+    _check("kept", "QuickDraw_OTC", "Niv-Mizzet, Parun", batch="15"),
+    _check("never", "EldraziIncursion_M3C", "Inverter of Truth", batch="15"),
+    _check("never", "MostWanted_OTC", "Monument to Endurance", batch="15"),
+    _check("never", "BlameGame_MKC", "Vandalblast", batch="15"),
+    _check("never", "DesertBloom_OTC", "Vandalblast", batch="15"),
+    _check("never", "EndlessPunishment_DSC", "Vandalblast", batch="15"),
+    _check("never", "TimeyWimey_WHO", "Vandalblast", batch="15"),
     _check("no_trim", "EldraziIncursion_M3C", "Forsaken Monument", batch="14"),
     _check("no_trim", "TrickyTerrain_M3C", "Mana Reflection", batch="14"),
 ]

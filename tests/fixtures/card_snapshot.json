@@ -619128,6 +619128,261 @@
     "type_line": "Instant"
    }
   },
+  "Inverter of Truth": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Eldrazi"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Black"
+     ],
+     "color_override": [],
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [
+      "Devoid",
+      "Flying"
+     ],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "banned",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 2,
+      "shards": [
+       "Black",
+       "Black"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "88c9d8c5-333b-4281-b923-b4a060927bbc"
+      ]
+     },
+     "name": "Inverter of Truth",
+     "non_ability_text": null,
+     "oracle_text": "Devoid (This card has no color.)\nFlying\nWhen this creature enters, exile all cards from your library face down, then shuffle all cards from your graveyard into your library.",
+     "power": {
+      "type": "Fixed",
+      "value": 6
+     },
+     "printings": [
+      "OGW",
+      "POGW"
+     ],
+     "rarities": [
+      "mythic"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2016-01-22",
+       "text": "If your opponent puts one of the face-down exiled cards into your graveyard (for example, to activate an ability of an Eldrazi Processor), choose one of the cards at random. The card is revealed only after the cost is fully paid. That is, your opponent can’t learn what card was chosen and decide to back up (not cast the spell, activate the ability, or so on, as applicable)."
+      },
+      {
+       "date": "2016-01-22",
+       "text": "No player can look at the cards once they’re exiled."
+      }
+     ],
+     "scryfall_oracle_id": "941350ba-30e2-4549-865f-ca1bd7626782",
+     "static_abilities": [
+      {
+       "active_zones": [],
+       "affected": {
+        "type": "SelfRef"
+       },
+       "affected_zone": null,
+       "characteristic_defining": true,
+       "condition": null,
+       "description": null,
+       "effect_zone": null,
+       "mode": "Continuous",
+       "modifications": [
+        {
+         "colors": [],
+         "type": "SetColor"
+        }
+       ]
+      }
+     ],
+     "toughness": {
+      "type": "Fixed",
+      "value": 6
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "When ~ enters, exile all cards from your library face down, then shuffle all cards from your graveyard into your library.",
+       "destination": "Battlefield",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "destination": "Exile",
+         "origin": "Library",
+         "target": {
+          "controller": "You",
+          "properties": [
+           {
+            "type": "InZone",
+            "zone": "Library"
+           }
+          ],
+          "type": "Typed",
+          "type_filters": [
+           "Card"
+          ]
+         },
+         "type": "ChangeZoneAll"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "destination": "Library",
+          "library_shuffle": {
+           "type": "TerminalShuffle"
+          },
+          "origin": "Graveyard",
+          "target": {
+           "controller": "You",
+           "properties": [
+            {
+             "type": "InZone",
+             "zone": "Graveyard"
+            }
+           ],
+           "type": "Typed",
+           "type_filters": [
+            "Card"
+           ]
+          },
+          "type": "ChangeZoneAll"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": {
+          "condition": null,
+          "cost": null,
+          "description": null,
+          "duration": null,
+          "effect": {
+           "target": {
+            "type": "ScopedPlayer"
+           },
+           "type": "Shuffle"
+          },
+          "forward_result": false,
+          "kind": "Spell",
+          "optional": false,
+          "optional_targeting": false,
+          "player_scope": {
+           "caused_by": "OwnerLibraryShuffleSubject",
+           "filter": {
+            "type": "Any"
+           },
+           "possession": "Owner",
+           "relation": {
+            "type": "All"
+           },
+           "type": "TrackedSetPossessor"
+          },
+          "sub_ability": null,
+          "target_prompt": null
+         },
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "mode": "ChangesZone",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 4.0,
+    "color_identity": [
+     "B"
+    ],
+    "colors": [],
+    "keywords": [
+     "Devoid",
+     "Flying"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "banned",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}{B}{B}",
+    "name": "Inverter of Truth",
+    "oracle_id": "941350ba-30e2-4549-865f-ca1bd7626782",
+    "oracle_text": "Devoid (This card has no color.)\nFlying\nWhen this creature enters, exile all cards from your library face down, then shuffle all cards from your graveyard into your library.",
+    "power": "6",
+    "toughness": "6",
+    "type_line": "Creature — Eldrazi"
+   }
+  },
   "Investigator's Journal": {
    "phase_records": [
     {
@@ -784354,6 +784609,274 @@
     "oracle_id": "646a2371-54c0-4492-ac2f-20f109d6108c",
     "oracle_text": "Target creature gets +2/+0 until end of turn. Create a Monster Role token attached to it. (If you control another Role on it, put that one into the graveyard. Enchanted creature gets +1/+1 and has trample.)",
     "type_line": "Instant"
+   }
+  },
+  "Monument to Endurance": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Artifact"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "standard": "legal",
+      "standardbrawl": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 3,
+      "shards": [],
+      "type": "Cost"
+     },
+     "metadata": {
+      "related_token_ids": [
+       "79b7a1b8-532b-580f-ad16-5a2dcd304e35"
+      ],
+      "source_printing_ids": [
+       "c66cbdac-1d15-40f5-b76f-6f21b917abbc",
+       "c75f3b27-7c08-4e92-ae9a-6208aa9aec0c",
+       "d21433ba-0a14-42bc-ad0b-a4ef823a3295"
+      ]
+     },
+     "name": "Monument to Endurance",
+     "non_ability_text": null,
+     "oracle_text": "Whenever you discard a card, choose one that hasn't been chosen this turn —\n• Draw a card.\n• Create a Treasure token.\n• Each opponent loses 3 life.",
+     "power": null,
+     "printings": [
+      "DFT",
+      "PDFT"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2025-02-07",
+       "text": "If you discard a card after all three have been chosen in a turn, that instance of the ability is removed from the stack with no effect."
+      }
+     ],
+     "scryfall_oracle_id": "e69e8de4-b521-4888-8074-17f1efe2f345",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever you discard a card",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "duration": null,
+         "static_abilities": [],
+         "target": null,
+         "type": "GenericEffect"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "modal": {
+         "allow_repeat_modes": false,
+         "chooser": {
+          "type": "Controller"
+         },
+         "constraints": [
+          {
+           "type": "NoRepeatThisTurn"
+          }
+         ],
+         "max_choices": 1,
+         "min_choices": 1,
+         "mode_count": 3,
+         "mode_descriptions": [
+          "Draw a card.",
+          "Create a Treasure token.",
+          "Each opponent loses 3 life."
+         ]
+        },
+        "mode_abilities": [
+         {
+          "condition": null,
+          "cost": null,
+          "description": null,
+          "duration": null,
+          "effect": {
+           "count": {
+            "type": "Fixed",
+            "value": 1
+           },
+           "target": {
+            "type": "Controller"
+           },
+           "type": "Draw"
+          },
+          "forward_result": false,
+          "kind": "Spell",
+          "optional": false,
+          "optional_targeting": false,
+          "sub_ability": null,
+          "target_prompt": null
+         },
+         {
+          "condition": null,
+          "cost": null,
+          "description": null,
+          "duration": null,
+          "effect": {
+           "colors": [],
+           "count": {
+            "type": "Fixed",
+            "value": 1
+           },
+           "enters_attacking": false,
+           "keywords": [],
+           "name": "Treasure",
+           "owner": {
+            "type": "Controller"
+           },
+           "power": {
+            "type": "Fixed",
+            "value": 0
+           },
+           "tapped": false,
+           "toughness": {
+            "type": "Fixed",
+            "value": 0
+           },
+           "type": "Token",
+           "types": [
+            "Artifact",
+            "Treasure"
+           ]
+          },
+          "forward_result": false,
+          "kind": "Spell",
+          "optional": false,
+          "optional_targeting": false,
+          "sub_ability": null,
+          "target_prompt": null
+         },
+         {
+          "condition": null,
+          "cost": null,
+          "description": null,
+          "duration": null,
+          "effect": {
+           "amount": {
+            "type": "Fixed",
+            "value": 3
+           },
+           "type": "LoseLife"
+          },
+          "forward_result": false,
+          "kind": "Spell",
+          "optional": false,
+          "optional_targeting": false,
+          "player_scope": {
+           "type": "Opponent"
+          },
+          "sub_ability": null,
+          "target_prompt": null
+         }
+        ],
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "Discarded",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "controller": null,
+        "properties": [],
+        "type": "Typed",
+        "type_filters": [
+         "Card"
+        ]
+       },
+       "valid_source": null,
+       "valid_target": {
+        "type": "Controller"
+       }
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "all_parts": [
+     {
+      "component": "token",
+      "id": "649d42c1-a465-435e-8b67-e901ab9ad8ab",
+      "name": "Treasure",
+      "oracle_id": "3c549374-6c37-42e0-8d88-a8555d46732d",
+      "type_line": "Token Artifact — Treasure"
+     }
+    ],
+    "arena_available": true,
+    "cmc": 3.0,
+    "color_identity": [],
+    "colors": [],
+    "keywords": [
+     "Treasure"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "legal",
+     "standardbrawl": "legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{3}",
+    "name": "Monument to Endurance",
+    "oracle_id": "e69e8de4-b521-4888-8074-17f1efe2f345",
+    "oracle_text": "Whenever you discard a card, choose one that hasn't been chosen this turn —\n• Draw a card.\n• Create a Treasure token.\n• Each opponent loses 3 life.",
+    "type_line": "Artifact"
    }
   },
   "Moon-Vigil Adherents": {
@@ -1217547,6 +1218070,192 @@
     "type_line": "Instant"
    }
   },
+  "Vandalblast": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Destroy target artifact you don't control.",
+       "duration": null,
+       "effect": {
+        "cant_regenerate": false,
+        "target": {
+         "controller": "Opponent",
+         "properties": [],
+         "type": "Typed",
+         "type_filters": [
+          "Artifact"
+         ]
+        },
+        "type": "Destroy"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Sorcery"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Red"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [
+      {
+       "Overload": {
+        "generic": 4,
+        "shards": [
+         "Red"
+        ],
+        "type": "Cost"
+       }
+      }
+     ],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pauper": "legal",
+      "paupercommander": "legal",
+      "pioneer": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 0,
+      "shards": [
+       "Red"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "00576634-29da-4f9d-bcbb-07a2f80ceba5",
+       "32d3ed08-7a10-4f49-b5d5-d3ae75b0caa9",
+       "3636b07e-eab9-4cc8-8624-322c18e8133d",
+       "3d96f945-cf40-456d-b53b-95ef1524777c",
+       "4a9c4a7d-9a48-4388-b0af-6fc509f74523",
+       "4bfd4b96-72d4-4eab-9a8d-90c8b3510250",
+       "4ce9072b-58e9-422a-9331-31886c111cfa",
+       "52cf5c10-99aa-4580-8016-9bbb43dbdb00",
+       "5925c559-3e3c-481b-ba95-20a405cbffce",
+       "6239c8c9-113f-410b-8894-94d7287ac8d4",
+       "71067239-d46f-4201-a91c-6aa4c41fa8b1",
+       "71eb87ef-7e79-4370-a367-f8960cfe188e",
+       "9b5a8df2-2bc0-408c-a9d2-e70c0f56642d",
+       "9e0a57ca-f9e4-4f06-9c67-b7b87646954b",
+       "bb320986-0a52-4084-a8c4-e09659432b22",
+       "e781b55f-6388-4ab8-be74-7c56eaba1c4d",
+       "e8afc402-ddc4-4819-bc2a-584a43b9b60e"
+      ]
+     },
+     "name": "Vandalblast",
+     "non_ability_text": null,
+     "oracle_text": "Destroy target artifact you don't control.\nOverload {4}{R} (You may cast this spell for its overload cost. If you do, change \"target\" in its text to \"each.\")",
+     "power": null,
+     "printings": [
+      "AFC",
+      "C15",
+      "CMM",
+      "FIC",
+      "MSC",
+      "OTC",
+      "PIP",
+      "PLST",
+      "RTR",
+      "SCD",
+      "SLD",
+      "SLZ",
+      "TSR",
+      "VOC"
+     ],
+     "rarities": [
+      "uncommon",
+      "rare",
+      "special"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2024-01-12",
+       "text": "Because a spell with overload doesn't target when its overload cost is paid, it may affect permanents with hexproof or with protection from the appropriate color."
+      },
+      {
+       "date": "2024-01-12",
+       "text": "If you are instructed to cast a spell with overload \"without paying its mana cost,\" you can't choose to pay its overload cost instead."
+      },
+      {
+       "date": "2024-01-12",
+       "text": "If you don't pay the overload cost of a spell with overload, that spell will have a single target. If you pay the overload cost, the spell won't have any targets."
+      },
+      {
+       "date": "2024-01-12",
+       "text": "To determine the total cost of a spell, start with the mana cost or alternative cost you're paying (such as an overload cost), add any cost increases, then apply any cost reductions. The mana value of the spell remains unchanged, no matter what the total cost to cast it was."
+      }
+     ],
+     "scryfall_oracle_id": "3567c3c8-b3c7-45b7-935b-b1fdbc973720",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 1.0,
+    "color_identity": [
+     "R"
+    ],
+    "colors": [
+     "R"
+    ],
+    "keywords": [
+     "Overload"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "legal",
+     "paupercommander": "legal",
+     "penny": "not_legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{R}",
+    "name": "Vandalblast",
+    "oracle_id": "3567c3c8-b3c7-45b7-935b-b1fdbc973720",
+    "oracle_text": "Destroy target artifact you don't control.\nOverload {4}{R} (You may cast this spell for its overload cost. If you do, change \"target\" in its text to \"each.\")",
+    "type_line": "Sorcery"
+   }
+  },
   "Vanille, Cheerful l'Cie": {
    "phase_records": [
     {
@@ -1269485,6 +1270194,158 @@
     "power": "2",
     "toughness": "3",
     "type_line": "Creature — Snake"
+   }
+  },
+  "Winds of Rath": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Destroy all creatures that aren't enchanted. They can't be regenerated.",
+       "duration": null,
+       "effect": {
+        "cant_regenerate": true,
+        "target": {
+         "controller": null,
+         "properties": [
+          {
+           "prop": {
+            "kind": "Aura",
+            "type": "HasAttachment"
+           },
+           "type": "Not"
+          }
+         ],
+         "type": "Typed",
+         "type_filters": [
+          "Creature"
+         ]
+        },
+        "type": "DestroyAll"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Sorcery"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "White"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "premodern": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 3,
+      "shards": [
+       "White",
+       "White"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "333bcdcd-fb78-4a87-bb72-2678ee89a2ee",
+       "42a33e3a-f1ee-4901-810d-59e8b9bf6be0",
+       "67b91ab9-a03b-4036-9ad4-5c9f7743cd52",
+       "8dee155b-1f06-4d74-afa8-a1244c254978",
+       "91ee4ff1-8b18-401b-9914-b7bb2851591b",
+       "a3a619f0-32df-403a-a046-786c42f69ef5",
+       "f1d10f75-3ee1-456a-a858-17c07ff020d2"
+      ]
+     },
+     "name": "Winds of Rath",
+     "non_ability_text": null,
+     "oracle_text": "Destroy all creatures that aren't enchanted. They can't be regenerated.",
+     "power": null,
+     "printings": [
+      "AFC",
+      "C18",
+      "CMR",
+      "DDL",
+      "MKC",
+      "SOC",
+      "TMP",
+      "TPR",
+      "VMA",
+      "WOC"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2005-08-01",
+       "text": "A creature is \"enchanted\" if it has any Auras attached to it."
+      }
+     ],
+     "scryfall_oracle_id": "a6fd90dc-0ec3-4dce-a77a-4d04f5e254bf",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 5.0,
+    "color_identity": [
+     "W"
+    ],
+    "colors": [
+     "W"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{3}{W}{W}",
+    "name": "Winds of Rath",
+    "oracle_id": "a6fd90dc-0ec3-4dce-a77a-4d04f5e254bf",
+    "oracle_text": "Destroy all creatures that aren't enchanted. They can't be regenerated.",
+    "type_line": "Sorcery"
    }
   },
   "Windswept Heath": {

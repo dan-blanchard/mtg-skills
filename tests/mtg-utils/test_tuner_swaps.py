@@ -2228,6 +2228,11 @@ def test_a_job_upgrade_at_the_same_mana_never_reads_worse_at_the_job():
     assert not _upgrades(_played("Pongify", 10), hybrid, "interaction")
     growth = _real_cc("Wild Growth", "spine", roles=["ramp"], edhrec_rank=8000)
     assert not _upgrades(_played("Lotus Petal", 10), growth, "ramp")
+    # A wipe that sweeps no creatures never upgrades one that does: Vandalblast
+    # for Winds of Rath (Blame Game, 2026-11-02).
+    winds = _real_cc("Winds of Rath", "spine", roles=["board_wipe"], edhrec_rank=8000)
+    assert not _upgrades(_played("Vandalblast", 10), winds, "board_wipe")
+    assert _upgrades(_played("Blasphemous Act", 10), winds, "board_wipe")
     millikin = _real_cc("Millikin", "spine", roles=["ramp"], edhrec_rank=8000)
     assert not _upgrades(_played("Simian Spirit Guide", 10), millikin, "ramp")
     assert not _upgrades(_played("Dark Ritual", 10), millikin, "ramp")
@@ -3799,6 +3804,9 @@ def test_a_payoff_for_what_the_deck_does_not_do_is_dead_there():
     assert not dead("Open the Armory", types=Counter({"equipment": 8}))
     assert dead("Waste Not")
     assert not dead("Waste Not", keys=Counter({"opponent_discard": 6}))
+    # Your own discard is a gate too: Monument to Endurance under no outlets.
+    assert dead("Monument to Endurance")
+    assert not dead("Monument to Endurance", keys=Counter({"discard_outlet": 6}))
     # The gate rule alone is what a job page applies.
     from mtg_utils._tuner.swaps import gated_without_feed
 

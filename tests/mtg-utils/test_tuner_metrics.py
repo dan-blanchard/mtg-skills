@@ -45,6 +45,13 @@ def test_closer_reads(name, closer):
     assert is_wincon_card(test_card(name)) is closer
 
 
+def test_a_body_that_hurts_its_controller_is_not_a_wincon():
+    """Inverter of Truth is a 6/6 flier whose enter trigger exiles your library:
+    a drawback the read charges to you, so it closes nothing (Eldrazi
+    Incursion took it as a closer, 2026-11-02)."""
+    assert is_wincon_card(test_card("Inverter of Truth")) is False
+
+
 def test_self_loss_drawback_is_not_a_wincon():
     # A self-loss drawback ("you lose the game") is the opposite of a finisher (CR 104.3e
     # — a player losing is a drawback to its controller). Pact of Negation is a free

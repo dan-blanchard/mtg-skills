@@ -24,6 +24,7 @@ from mtg_utils._card_ir.crosswalk import (
     ends_the_game,
     is_evasive_body,
     reach_amount,
+    self_drawbacks,
     static_def_adds_power,
     team_buff_sites,
     unbound_x_reach,
@@ -1298,6 +1299,13 @@ def is_wincon_card(
     if gives_poison(card) or (poisons and _PROLIFERATE_KEY in signal_keys_for(card)):
         return True
     trees = trees_for(card)
+    if any(self_drawbacks(tree).restriction for tree in trees):
+        # A body held back by its own text closes nothing: Inverter of Truth
+        # exiles your library as it enters (Eldrazi Incursion, 2026-11-02),
+        # Sea Serpent can't attack without an Island. A harm clause is not a
+        # restriction: Phage the Untouchable's self-loss rides a card that
+        # still wins (``ends_the_game``).
+        return False
     if any(ends_the_game(tree) for tree in trees):
         return True
     if _matches(card, "extra-combats") or _one_shot_team_pump(trees):
