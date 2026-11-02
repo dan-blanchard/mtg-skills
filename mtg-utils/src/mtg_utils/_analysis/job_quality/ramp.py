@@ -106,6 +106,9 @@ class _Read:
     from_hand: bool = False  # a spirit guide: paid from hand, never cast
     gives: bool = False  # Treasure an opponent creates too
     treasure: bool = False  # Treasure you keep: any color (``color_sources`` skips it)
+    borrowed_colors: bool = (
+        False  # its colors are another player's lands' (Fellwar Stone)
+    )
     equip: int = 0
     other_units: int = 0  # effectful abilities with no ramp component
 
@@ -407,6 +410,12 @@ def _read(card: dict) -> _Read:
             _treasure(r, unit, sc=sc)
             _lands(r, tree, unit, sc=sc)
             _granted(r, tree, unit, sc=sc)
+            if any(
+                tag_of(c.node) == "Mana"
+                and tag_of(getattr(c.node, "produced", None)) == "OpponentLandColors"
+                for c in unit.effects
+            ):
+                r.borrowed_colors = True
     r.turn += r.tap_best
     return r
 
@@ -457,14 +466,21 @@ def features(card: dict) -> dict[str, float] | None:
     ):
         turn *= 0.5
     sources = color_sources(card)
-    fixes = "any" in sources or len(sources - {"C"}) >= 2 or r.treasure
+    fixes = float("any" in sources or len(sources - {"C"}) >= 2 or r.treasure)
+    # Colors read off another player's lands (Fellwar Stone's "any color that a
+    # land an opponent controls could produce") fix on their terms: half. A
+    # Signet of the deck's own colors is the better rock, and the lateral swap
+    # the tuner made of it (Golgari Signet for Fellwar Stone, Death Toll
+    # 2026-11-02) is no upgrade.
+    if r.borrowed_colors:
+        fixes *= 0.5
     return {
         "cost": min(cost, 7.0),
         "early": float(cost <= 2),
         "per_turn": min(turn, 4.0),
         "payback": min(turn / max(cost, 1.0), 2.0),
         "cond_engine": float(r.cond and not turn),
-        "fixes": float(fixes),
+        "fixes": fixes,
         "land": float(r.land_bf > r.land_sac),
         "land_tapped": float(r.land_tapped and not r.land_untapped),
         "land_hand": float(r.land_hand),

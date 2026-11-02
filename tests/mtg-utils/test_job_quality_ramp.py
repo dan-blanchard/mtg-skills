@@ -48,6 +48,16 @@ def test_a_summoning_sick_dork_reads_below_an_equal_rock():
     assert _score("Ornithopter of Paradise") < _score("Arcane Signet")
 
 
+def test_a_rock_of_borrowed_colors_reads_below_a_signet():
+    """Fellwar Stone's colors are whatever an opponent's lands make; a Signet
+    of the deck's own colors fixes on your terms. Equal rocks tie, so a Signet
+    is no upgrade over another Signet either."""
+    assert ramp.features(_real("Fellwar Stone"))["fixes"] == 0.5
+    assert ramp.features(_real("Golgari Signet"))["fixes"] == 1.0
+    assert _score("Golgari Signet") > _score("Fellwar Stone")
+    assert _score("Golgari Signet") == _score("Arcane Signet")
+
+
 def test_sol_ring_reads_above_every_two_mana_rock():
     """Two colorless a turn for one mana: the read's best payback."""
     assert _score("Sol Ring") > _score("Arcane Signet") > _score("Hedron Archive")

@@ -71,6 +71,7 @@ from mtg_utils._analysis._subtypes import LAND_SUBTYPES
 from mtg_utils._analysis.card_reads import plays_extra_lands
 from mtg_utils._analysis.multipliers import Commander, multiplier_reasons
 from mtg_utils._analysis.signal_keys import TOKEN_MAKER
+from mtg_utils._card_ir.creature_types import CREATURE_TYPES
 from mtg_utils._card_ir.crosswalk.reads import (
     _present,
     counter_kind,
@@ -828,6 +829,20 @@ def _static_needs(node: object, desc: str) -> Iterator[Need]:
     evasion grants Animated Army's guides add (Asceticism, Glorious Sunrise,
     Sight of the Scalelords, Akroma's Memorial) where play-rate gave
     Panharmonicon and Mystic Forge (2026-11-02)."""
+    # A static that makes permanents every creature type (Omo's everything
+    # counters, Maskwood Nexus) asks for the payoffs those types unlock: any
+    # lord, anthem or tribal trigger, a choose-a-type card — the guides'
+    # Roaming Throne, Lord of the Unreal, Galerider Sliver and Coat of Arms
+    # for Tricky Terrain, whose counters nothing in the precon used
+    # (2026-11-02). Read before the controller gate: Omo's counters land on
+    # any player's permanents, hers in practice.
+    if _grants_all_creature_types_node(node):
+        yield Need(
+            "payoff",
+            "payoffs for the creature types the commander grants",
+            desc,
+            predicate=_typal_payoff,
+        )
     aff = getattr(node, "affected", None)
     if not _present(aff) or filter_controller(aff) != "You":
         return
@@ -861,6 +876,54 @@ def _supports_attackers(card: dict) -> bool:
     if "equipment" in _type_words(card):
         return False
     return any(i.split("|", 1)[0] in _ATTACKER_SUPPORT_KEYS for i in _card_idents(card))
+
+
+#: The CR's creature types (CR 205.3m), lower-cased: what a tribal payoff
+#: names.
+_CREATURE_TYPE_WORDS: frozenset[str] = frozenset(t.lower() for t in CREATURE_TYPES)
+#: The keys of a payoff for a creature type: a typed anthem, a choose-a-type
+#: card, a multi-type anthem.
+_TYPAL_PAYOFF_KEYS: frozenset[str] = frozenset(
+    {"anthem_static", "chosen_type_matters", "typed_anthem_multi"}
+)
+
+
+def _typal_payoff(card: dict) -> bool:
+    """A card that pays off a creature type: a lord or typed anthem
+    (``anthem_static|you|Illusion``), a tribal trigger or reference to a
+    creature type of yours (``subtype_ref|you|Sliver``), a choose-a-type card
+    (Roaming Throne, Coat of Arms). A reference to a gear or land type is not
+    one."""
+    for ident in _card_idents(card, membership=False):
+        key, _scope, subject = ident.split("|", 2)
+        if key in _TYPAL_PAYOFF_KEYS and (key != "anthem_static" or subject):
+            return True
+        if key == "subtype_ref" and (
+            subject == "shared" or subject.lower() in _CREATURE_TYPE_WORDS
+        ):
+            return True  # a named type, or a shared one (Coat of Arms)
+    return False
+
+
+def _grants_all_creature_types_node(node: object) -> bool:
+    """Whether a static's ``modifications`` make the affected permanents every
+    creature type (``AddAllCreatureTypes``)."""
+    return any(
+        tag_of(mod) == "AddAllCreatureTypes"
+        for mod in getattr(node, "modifications", None) or ()
+    )
+
+
+def grants_all_creature_types(card: Mapping) -> bool:
+    """Whether ``card`` has a static making permanents every creature type
+    (Omo, Queen of Vesuva's everything counters; Maskwood Nexus): under such a
+    commander every tribe is one the deck fields, so no tribal payoff is dead
+    for want of one (``swaps.deck_profile``)."""
+    return any(
+        unit.origin == "static" and _grants_all_creature_types_node(unit.node)
+        for tree in trees_for(dict(card))
+        for unit in tree.units
+    )
 
 
 def _animates_attackers(node: object) -> bool:

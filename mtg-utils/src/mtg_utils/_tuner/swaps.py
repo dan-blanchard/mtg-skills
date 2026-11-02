@@ -26,7 +26,14 @@ from mtg_utils._analysis._subtypes import LAND_SUBTYPES
 from mtg_utils._analysis.budgets import COMMANDER_TEMPLATE, Template
 from mtg_utils._analysis.card_quality import quality
 from mtg_utils._analysis.card_reads import has_trees
-from mtg_utils._analysis.commander_need import Need, is_broad, need_serve, satisfies
+from mtg_utils._analysis.commander_need import (
+    Need,
+    grants_all_creature_types,
+    is_broad,
+    need_serve,
+    satisfies,
+)
+from mtg_utils._analysis.costs import effective_mana_value
 from mtg_utils._analysis.job_quality import JobRead, read_for
 from mtg_utils._analysis.ranking import rank_candidates
 from mtg_utils._analysis.roles import DeckMana, protects, role_of
@@ -340,6 +347,27 @@ def _does_the_job(
     return read.score(card) is not None and read.deck_fit(card, deck) >= _DECK_FIT_FLOOR
 
 
+def _reads_worse_at_the_job(
+    candidate: dict, cut: dict, job: str, deck: Sequence[dict] | None
+) -> bool:
+    """Whether the job's card read (``job_quality``) scores ``candidate`` below
+    ``cut`` in ``deck`` at no lower mana value. The read decides membership
+    and play-rate orders (ADR-0060), but a job upgrade costing as much that
+    does the job less well than the card it replaces is a swap for its own
+    sake: Golgari Signet went to Fellwar Stone, whose colors are an
+    opponent's lands' (Death Toll, 2026-11-02). A cheaper card is a tempo
+    upgrade whatever the read says of its reach (Duplicant for Meteor Golem);
+    a card either read can't see (no trees) is not held to it."""
+    read = read_for(job)
+    if read is None or not has_trees(candidate) or not has_trees(cut):
+        return False
+    if effective_mana_value(candidate) < effective_mana_value(cut):
+        return False
+    records = deck or ()
+    sc, su = read.score(candidate, records), read.score(cut, records)
+    return sc is not None and su is not None and sc < su - 1e-9
+
+
 def _upgrades(
     candidate: dict,
     cut: CardClass,
@@ -398,6 +426,8 @@ def _upgrades(
     ):
         return False
     if not _does_the_job(candidate, job, deck or (), cut.record):
+        return False
+    if job is not None and _reads_worse_at_the_job(candidate, cut.record, job, deck):
         return False
     if needs is not None and needs(candidate) < needs(cut.record):
         return False
@@ -526,6 +556,16 @@ def deck_profile(classes: Sequence[CardClass]) -> tuple[Counter, Counter, Counte
             s.lower() for s in subs if s.lower() not in _CREATURE_SUBTYPE_WORDS
         }:
             types[word] += 1
+    # A commander that makes permanents every creature type (Omo, Queen of
+    # Vesuva's everything counters) fields every tribe: a lord, a tribal
+    # trigger or a choose-a-type card is fed whatever the type line says, as
+    # the guides' Roaming Throne and Coat of Arms for Tricky Terrain are
+    # (2026-11-02).
+    if any(
+        c.bucket == "commander" and grants_all_creature_types(c.record) for c in classes
+    ):
+        for word in _CREATURE_SUBTYPE_WORDS:
+            tribes[word] = max(tribes[word], 2 * _FEEDER_FLOOR)
     return keys, tribes, types
 
 

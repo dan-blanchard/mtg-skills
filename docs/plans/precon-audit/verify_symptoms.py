@@ -25,7 +25,7 @@ def _check(kind, deck, *names, batch=""):
 # (kind, deck, names, batch). Kinds: kept — none of the names is a cut;
 # no_trim — none is cut as surplus (role_over) or dead weight, an upgrade of it
 # being the play-rate's call; never — none is an add; added — every name is an
-# add; any_added — at least one is; swaps=N — exactly N swaps; no_ramp_trim —
+# add; any_added — at least one is; swaps=N — exactly N swaps; swaps>=N; no_ramp_trim —
 # no role_over swap trims ramp.
 CHECKS = [
     # batch 10 / 11 (the 25 and the held-out 20)
@@ -56,7 +56,10 @@ CHECKS = [
     _check("never", "CreativeEnergy_M3C", "Dragon Tempest", batch="7"),
     _check("added", "CallForBackup_MOC", "Doubling Season", "Hardened Scales",
            "Evolution Sage", "Ozolith, the Shattered Spire", batch="10"),
-    _check("swaps=30", "ExplorersOfTheDeep_LCC", batch="11"),
+    # A dry Merfolk page cost Explorers four swaps (26); the fallback gives
+    # them back. 29 since batch 13: Ripples of Potential keeps its slot, the
+    # protection page holding nothing that reads as well.
+    _check("swaps>=29", "ExplorersOfTheDeep_LCC", batch="11, 13"),
     # batch 12 (the fresh 10 re-read, and the held-out decks it reached)
     _check("no_trim", "EldraziIncursion_M3C", "Talisman of Impulse",
            "Talisman of Resilience", "Talisman of Curiosity", "Awakening Zone",
@@ -77,6 +80,13 @@ CHECKS = [
     _check("no_ramp_trim", "TemurRoar_TDC", batch="12"),
     _check("no_ramp_trim", "PrismariArtistry_SOC", batch="12"),
     _check("no_ramp_trim", "NecronDynasties_40K", batch="12"),
+    # batch 13 (the batch-12 re-read of the 25, the held-out 20 and the fresh 10)
+    _check("any_added", "TrickyTerrain_M3C", "Roaming Throne", "Coat of Arms",
+           "Lord of the Unreal", "Galerider Sliver", "Herald's Horn", "Vanquisher's Banner",
+           "Imperious Perfect", "Elvish Warmaster", "Kindred Discovery", batch="13"),
+    _check("never", "TrickyTerrain_M3C", "Talrand, Sky Summoner", "Aqueous Form",
+           "Crashing Drawbridge", "Blade of Selves", batch="13"),
+    _check("never", "DeathToll_DSC", "Fellwar Stone", batch="13"),
 ]
 
 
@@ -112,6 +122,9 @@ def main(paths):
         elif kind == "any_added":
             hit = [n for n in names if n in adds]
             ok, detail = bool(hit), f"none of {list(names)} added"
+        elif kind.startswith("swaps>="):
+            want = int(kind.split(">=")[1])
+            ok, detail = len(swaps) >= want, f"{len(swaps)} swaps"
         elif kind.startswith("swaps="):
             want = int(kind.split("=")[1])
             ok, detail = len(swaps) == want, f"{len(swaps)} swaps"

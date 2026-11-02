@@ -2190,6 +2190,24 @@ def test_an_upgrade_does_the_cut_cards_job_and_more_decks_play_it():
     assert out["swaps"][0]["cut"]["why"].startswith("off the deck's lanes")
 
 
+def test_a_job_upgrade_at_the_same_mana_never_reads_worse_at_the_job():
+    """Golgari Signet at rank 8000 is not traded for Fellwar Stone at rank 10:
+    the ramp read scores the Stone's borrowed colors below a Signet's own at
+    the same two mana (Death Toll made that swap, 2026-11-02). Arcane Signet,
+    an equal read played more, is its upgrade. A cheaper card is not held to
+    the read (Duplicant for Meteor Golem, the test above)."""
+    signet = _real_cc("Golgari Signet", "spine", roles=["ramp"], edhrec_rank=8000)
+    pool = [_played("Fellwar Stone", 10), _played("Arcane Signet", 20)]
+    out = _swaps_for_issue_dicts(
+        [signet],
+        [{"kind": "upgrade", "severity": 1, "count": 1}],
+        _upgrade_ctx([signet], pool),
+    )
+    assert [(s["cut"]["name"], s["add"]["name"]) for s in out["swaps"]] == [
+        ("Golgari Signet", "Arcane Signet")
+    ]
+
+
 def test_an_upgrade_does_the_job_by_its_read_and_more_decks_play_it():
     """Removal has a card read (``job_quality``): Animate Dead counts as
     interaction for the role, but its "-1/-0" on the creature it returns
@@ -3664,3 +3682,23 @@ def test_a_payoff_for_what_the_deck_does_not_do_is_dead_there():
     assert not gated_without_feed(
         test_card("Sram, Senior Edificer"), no_tribe, Counter({"aura": 6})
     )
+    # A commander that makes permanents every creature type fields every
+    # tribe: Coat of Arms and Dragon Tempest are alive under Omo, Queen of
+    # Vesuva, dead under Bello.
+    from mtg_utils._tuner.swaps import deck_profile
+
+    for commander, alive in (
+        ("Omo, Queen of Vesuva", True),
+        ("Bello, Bard of the Brambles", False),
+    ):
+        keys, tribes, types = deck_profile(
+            [
+                _real_cc(commander, "commander"),
+                _real_cc("Cultivate", "spine", roles=("ramp",)),
+            ]
+        )
+        for name in ("Coat of Arms", "Dragon Tempest"):
+            assert dead_payoff(test_card(name), keys, tribes, types) is not alive, (
+                commander,
+                name,
+            )

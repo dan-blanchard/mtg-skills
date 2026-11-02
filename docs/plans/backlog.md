@@ -433,10 +433,11 @@ proposal as a deckbuilder, fix the structure, the guide score is a yardstick)**
 - **The 25-precon pass is closed (2026-11-02): every flaw its reads found has
   a fix in the tree, verified card by card on the latest run
   (`docs/plans/precon-audit/verify_symptoms.py` over the three `misses.json`
-  files: 31 checks, one per flaw, all passing) and on the fresh 10-deck set
+  files: 34 checks, one per flaw, all passing) and on the fresh 10-deck set
   never used for design** (`~/mtg/tuner-work/fresh/root`; its pre-pass
-  baseline `w41/misses-fresh-N16.json`: 295 / 130 / 38 → 295 / 133 / 39,
-  re-read deck by deck after the last batch — batch 12). The approaches
+  baseline `w41/misses-fresh-N16.json`: 295 / 130 / 38 → 294 / 132 / 40;
+  every batch's proposals re-read deck by deck on all three sets — batches
+  12 and 13 are those re-reads' own findings). The approaches
   measured and rejected along the way (under Settled with their numbers) were
   alternative routes to flaws fixed by other means; each entry names the fix
   that covers its flaw.
@@ -725,8 +726,46 @@ proposal as a deckbuilder, fix the structure, the guide score is a yardstick)**
   the deck holds no everything-counter lane), so Tricky Terrain's theme page
   serves combat support for Omo where the guides build land-type payoffs;
   the tuner's read is a defensible plan, the guides' needs a lane the deck
-  doesn't hold. Verified with `docs/plans/precon-audit/verify_symptoms.py`
-  (31 / 31 on this run; 20 / 31 on the previous — every batch-12 check bit).
+  doesn't hold — superseded by batch 13's need read. Verified with
+  `docs/plans/precon-audit/verify_symptoms.py` (31 / 31 on this run; 20 / 31
+  on the previous — every batch-12 check bit).
+- **Batch 13 (2026-11-02; the 25 733 / 339 / 119 → 732 / 340 / 121,
+  held-out 576 / 259 / 104 → 575 / 260 / 103, fresh 295 / 133 / 39 → 294 /
+  132 / 40).** Batch 12's proposals re-read on all three sets. (42) *A
+  commander whose static makes permanents every creature type wants the
+  payoffs those types unlock* (`commander_need._static_needs` →
+  `_grants_all_creature_types_node`, an `AddAllCreatureTypes` modification,
+  read before the controller gate since Omo's counters land on any player's
+  permanents; the need `payoffs for the creature types the commander grants`,
+  predicate `_typal_payoff`: a typed anthem, a tribal reference to a creature
+  type or a shared one, a choose-a-type card) — and under such a commander
+  every tribe is one the deck fields (`commander_need.grants_all_creature_types`,
+  which `swaps.deck_profile` reads off the commander classes: every CR
+  creature type at twice the feeder floor), so Roaming Throne and Coat of
+  Arms are no longer dead there. Tricky Terrain's page turns from combat
+  support for Omo (Talrand, Aqueous Form, Crashing Drawbridge, Blade of
+  Selves) to the guides' direction (Herald's Horn, Vanquisher's Banner,
+  Kindred Discovery, Imperious Perfect, Elvish Warmaster): 2 → 4 guide adds.
+  (43) *A rock whose colors are another player's lands' fixes on their terms*
+  (`job_quality.ramp`: `borrowed_colors` off the `OpponentLandColors` mana
+  node halves `fixes`; Fellwar Stone 0.700 → 0.685, below a Signet). (44)
+  *A job upgrade at the same or a higher mana value never reads worse at the
+  job than the card it replaces* (`swaps._reads_worse_at_the_job`, before
+  the needs gate; a cheaper card is a tempo upgrade whatever the read says —
+  Duplicant for Meteor Golem). The read still decides membership and
+  play-rate still orders (ADR-0060); this is the floor under a swap for its
+  own sake: Golgari Signet for Fellwar Stone (Death Toll), Simic Signet for
+  Cultivate and Ripples of Potential for Innkeeper's Talent (Explorers, now
+  29 swaps), Infernal Grasp for Withering Torment and Casualties of War for
+  Feed the Swarm (Witherbloom), Chain Reaction for Aetherize (Counter
+  Intelligence), Damn for Toxic Deluge (Blood Rites, Eternal Might) all
+  stop; Squirreled Away gains Drey Keeper and Bitterblossom. Verdicts: Temur
+  Roar's 24 swaps are the settled lane rule — its unreached guide cuts are
+  carers and lane doers of the Dragon lane, which verdict (a) below keeps
+  ("a feeder nobody plays", never a function read); Animated Army's four
+  fewer ramp trims are the curve-aware band's reading of a 26-ramp deck whose
+  guides keep 25. Verified with `verify_symptoms.py` (34 / 34 on this run,
+  the three batch-13 checks failing on the previous).
 
 **From the Jace, Multiverse Architect precon tune and the 25-precon audit (2026-10-17 to 2026-11-01)**
 

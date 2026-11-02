@@ -108,6 +108,26 @@ def test_zhulodok_wants_colorless_spells_at_seven_or_more():
     assert not satisfies(test_card("Blasphemous Act"), big)  # red
 
 
+def test_a_commander_granting_every_creature_type_wants_typal_payoffs():
+    """Omo, Queen of Vesuva's statics make permanents every creature type
+    (``AddAllCreatureTypes``): the deck wants the payoffs those types unlock
+    — a choose-a-type card (Roaming Throne, Coat of Arms), a tribal reference
+    (Galerider Sliver's Slivers) — not plain ramp. Under such a commander every
+    tribe is one the deck fields (``grants_all_creature_types``, which
+    Maskwood Nexus's static also is); Bello grants no types."""
+    from mtg_utils._analysis.commander_need import grants_all_creature_types
+
+    label = "payoffs for the creature types the commander grants"
+    need = _need("Omo, Queen of Vesuva", label)
+    for name in ("Roaming Throne", "Galerider Sliver", "Coat of Arms"):
+        assert satisfies(test_card(name), need), name
+    assert not satisfies(test_card("Cultivate"), need)
+    assert label not in _labels(_needs("Bello, Bard of the Brambles"))
+    assert grants_all_creature_types(test_card("Omo, Queen of Vesuva"))
+    assert grants_all_creature_types(test_card("Maskwood Nexus"))
+    assert not grants_all_creature_types(test_card("Cultivate"))
+
+
 def test_bello_wants_big_non_equipment_artifacts_and_non_aura_enchantments():
     # A static ability's affected filter with a mana-value floor and negated
     # subtypes: "each non-Equipment artifact and non-Aura enchantment you
