@@ -1239,6 +1239,17 @@ proposal as a deckbuilder, fix the structure, the guide score is a yardstick)**
   swap count alone; the gate (guide adds ≥ −5, cuts ≥ −1) holds, and the
   dropped swaps are the deck keeping its plan. Batch 11's `swaps=30` check
   (a purse that ran dry with cheap cards unreached) becomes `swaps>=25`.
+- **Batch 16j (2026-11-02; held-out 565 / 262 / 106 → 565 / 261 / 107; the 25
+  and fresh unchanged).** Fixed: (84) *a commander that puts counters of a
+  kind on other permanents wants the cards that put more of them out*
+  (`commander_need._counter_kind_needs`' second need, `_places_counters`:
+  a `PutCounter` of the kind on a target other than the card itself):
+  Coretapper ("Put a charge counter on target artifact") went to Talisman
+  of Creativity under Inspirit; it now goes to Surge Node, which charges
+  another artifact too, and Long-Range Sensor to Reckoner Bankbuster, a
+  charge spender for a charge spender. Counter Intelligence gains Cayth as a
+  guide add and Soul-Guide Lantern back as a guide cut, and gives up Chain
+  Reaction and Angel of the Ruins as cuts.
 
 **From the Jace, Multiverse Architect precon tune and the 25-precon audit (2026-10-17 to 2026-11-01)**
 

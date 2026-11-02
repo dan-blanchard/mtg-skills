@@ -765,6 +765,34 @@ def _counter_kind_needs(unit_node: object, desc: str) -> Iterator[Need]:
             desc,
             predicate=_spends_counters(kind),
         )
+        # And the cards that put more of them where the spenders are, as the
+        # commander does: Coretapper's "Put a charge counter on target
+        # artifact" went to Talisman of Creativity under Inspirit, whose deck
+        # holds five charge spenders (Counter Intelligence, 2026-11-02).
+        yield Need(
+            "resource",
+            f"cards that put {kind.lower()} counters on other permanents",
+            desc,
+            predicate=_places_counters(kind),
+        )
+
+
+def _places_counters(kind: str) -> Callable[[dict], bool]:
+    """Whether a card puts counters of ``kind`` on a permanent other than
+    itself (Coretapper's "Put a charge counter on target artifact"). One that
+    charges only itself (Golem Foundry) spends its own."""
+
+    def places(card: dict) -> bool:
+        return any(
+            tag_of(n) == "PutCounter"
+            and counter_kind_any(n) == kind
+            and tag_of(getattr(n, "target", None)) != "SelfRef"
+            for tree in trees_for(dict(card))
+            for unit in tree.units
+            for n in unit.iter_typed()
+        )
+
+    return places
 
 
 def _spends_counters(kind: str) -> Callable[[dict], bool]:

@@ -741,6 +741,14 @@ def test_a_commander_placing_charge_counters_wants_their_spenders():
     assert not satisfies(test_card("Talisman of Creativity"), need)
     # "remove a counter", any kind: Inspirit's charge counters pay it too.
     assert satisfies(test_card("Gavel of the Righteous"), need)
+    # And the cards that put more charge counters out, as Inspirit does.
+    places = _need(
+        "Inspirit, Flagship Vessel",
+        "cards that put charge counters on other permanents",
+    )
+    assert satisfies(test_card("Coretapper"), places)
+    assert not satisfies(test_card("Golem Foundry"), places)
+    assert not satisfies(test_card("Talisman of Creativity"), places)
 
 
 def test_a_commanders_own_lifelink_asks_for_no_lifegain_payoffs():

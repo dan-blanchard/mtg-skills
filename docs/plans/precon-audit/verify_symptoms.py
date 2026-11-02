@@ -162,8 +162,11 @@ CHECKS = [
     # A chosen-card-type sweep (artifact or enchantment) is no creature sweeper.
     _check("no_pair", "TinkerTime_MOC", "Junk Winder -> Season of Gathering", batch="16h"),
     # "Remove a counter" (any kind) spends Inspirit's charge counters: the deck keeps them.
-    _check("kept", "CounterIntelligence_EOC", "Pentad Prism", "Long-Range Sensor", batch="16i"),
+    _check("kept", "CounterIntelligence_EOC", "Pentad Prism", batch="16i"),
+    _check("no_pair", "CounterIntelligence_EOC", "Long-Range Sensor -> Umezawa's Jitte", batch="16i"),
     _check("no_pair", "CounterIntelligence_EOC", "Gavel of the Righteous -> Serum Snare", batch="16i"),
+    # A card putting the commander's counter kind on other permanents is kept.
+    _check("no_pair", "CounterIntelligence_EOC", "Coretapper -> Talisman of Creativity", batch="16j"),
     _check("no_trim", "EldraziIncursion_M3C", "Forsaken Monument", batch="14"),
     _check("no_trim", "TrickyTerrain_M3C", "Mana Reflection", batch="14"),
 ]
