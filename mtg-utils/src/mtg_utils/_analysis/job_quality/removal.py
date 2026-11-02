@@ -88,6 +88,7 @@ class _Answer:
     edict_each: bool  # a forced sacrifice on each opponent (not one target player)
     opp_only: bool  # the filter is an opponent's permanents
     until_leaves: bool  # an exile that lasts until the card leaves (CR 610.3)
+    creatures: bool = False  # it can answer a creature
 
 
 def _breadth(types: frozenset[str]) -> int:
@@ -196,6 +197,7 @@ def _answers(card: dict) -> list[_Answer]:
                 opp_only=filter_controller(filt) == "Opponent",
                 until_leaves=unit is not None
                 and effect_owner_duration(unit.node, c.node) == "UntilHostLeavesPlay",
+                creatures=bool({"Creature", "Any", "Permanent"} & set(types)),
             )
         )
     out.extend(_counter_answers(trees))
@@ -311,6 +313,17 @@ def _removal_cost(card: dict, answers: list[_Answer]) -> float:
     if acts and not any(a.kind in ("spell", "etb") for a in answers):
         cost = float(min(acts))
     return cost
+
+
+def answers_creatures(card: dict) -> bool | None:
+    """Whether the card's removal can answer a creature (``None`` when the
+    read sees no removal): Lethal Scheme's "target creature or planeswalker"
+    can, Return to Nature's artifact, enchantment or graveyard card cannot
+    (Sultai Arisen, 2026-11-02)."""
+    answers = _answers(card)
+    if not answers or any(a.mode == "counter" for a in answers):
+        return None  # a counterspell answers a creature spell on the stack
+    return any(a.creatures for a in answers)
 
 
 def features(card: dict) -> dict[str, float] | None:

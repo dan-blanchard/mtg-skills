@@ -379,8 +379,26 @@ def _reads_worse_at_the_job(
         return False
     if job == "ramp" and _one_shot_for_repeatable(read, candidate, cut):
         return True
+    if job == "ramp":
+        # Cheaper is no excuse for half the mana a turn or less: Exploration
+        # Broodship's extra land drop waits on station 3 (a quarter a turn)
+        # and replaced Careful Cultivation's {G}{G} creature (Virtue and
+        # Valor, 2026-11-02).
+        fc, fu = read.features(candidate) or {}, read.features(cut) or {}
+        if fc.get("per_turn", 0) < 0.5 * fu.get("per_turn", 0):
+            return True
     if job == "board_wipe" and _sweeps_fewer_kinds(read, candidate, cut):
         return True
+    if job == "interaction":
+        from mtg_utils._analysis.job_quality import removal
+
+        # Removal that answers creatures is no upgrade to removal that can't:
+        # Lethal Scheme went to Return to Nature (Sultai Arisen, 2026-11-02).
+        if (
+            removal.answers_creatures(cut)
+            and removal.answers_creatures(candidate) is False
+        ):
+            return True
     records = deck or ()
     if (
         job == "board_wipe"
@@ -975,9 +993,15 @@ def dead_payoff(
     # them (2026-11-02). Only a creature-type gate: a type tokens make (Food)
     # is counted off the type line, and the early verdict cost Food and
     # Fellowship's Trail of Crumbs (the 25 -2 adds, fresh -3).
+    # So is one whose only gate is life above the starting total the deck
+    # can't gain (Doctor Strange, Surgeon's pump in Avengers Assemble's three
+    # lifegain cards, 2026-11-02): its own lifelink feeds no "10 life more".
     if (
         gated.gates
-        and all(g.words <= _CREATURE_SUBTYPE_WORDS for g in gated.gates)
+        and all(
+            g.words <= _CREATURE_SUBTYPE_WORDS or g.words == {_LIFE_GATE}
+            for g in gated.gates
+        )
         and gated_without_feed(card, deck_tribes, deck_types, deck_keys)
     ):
         return True
@@ -1066,6 +1090,16 @@ class _UnitGates:
                     word.removeprefix(_NON_PREFIX), 0
                 )
                 if others >= _FEEDER_FLOOR:
+                    return True
+            elif word == _LIFE_GATE:
+                keys = deck_keys or Counter()
+                if keys.get("lifegain_makers", 0) >= _FEEDER_FLOOR:
+                    return True
+            elif word == _TOKENS_GATE:
+                keys = deck_keys or Counter()
+                if self.makes_tokens or (
+                    sum(keys.get(k, 0) for k in _TOKENS_GATE_FEEDERS) >= _FEEDER_FLOOR
+                ):
                     return True
             elif word == _COUNTERS_GATE:
                 keys = deck_keys or Counter()
@@ -1278,6 +1312,27 @@ def _unit_gates(card: Mapping) -> _UnitGates:
             words = _gate_words(filt) if _present(filt) else frozenset()
             if unit.origin == "static":
                 words |= mode_words
+            if any(
+                tag_of(n) == "LifeAboveStarting"
+                for n in iter_typed_nodes(getattr(unit.node, "condition", None))
+            ):
+                # Life above the starting total waits on the deck's lifegain:
+                # Doctor Strange, Surgeon's "at least 10 life more than your
+                # starting life total" closed for Avengers Assemble, which
+                # holds three lifegain cards (2026-11-02).
+                words = words | {_LIFE_GATE}
+            if (
+                unit.origin == "trigger"
+                and not words
+                and (
+                    getattr(unit.node, "mode", None) == "TokenCreated"
+                    or (_present(filt) and "Token" in filter_predicates(filt))
+                )
+            ):
+                # A trigger on a token of any kind made or sacrificed waits on
+                # the deck's token makers: Mirkwood Bats' "Whenever you create
+                # or sacrifice a token" in Endless Punishment (2026-11-02).
+                words = frozenset({_TOKENS_GATE})
             if not words and unit.origin == "trigger":
                 words = _trigger_effect_gate_words(unit)
             if words:
@@ -1293,6 +1348,23 @@ def _unit_gates(card: Mapping) -> _UnitGates:
         tuple(gates), units, activated, frozenset(made), frozenset(tokens), makes_tokens
     )
 
+
+#: A condition on your life above its starting total, fed by lifegain.
+_LIFE_GATE = "life above starting"
+
+#: A trigger on any token made or sacrificed, fed by the deck's makers of
+#: tokens of every kind (:meth:`_UnitGates.fed`).
+_TOKENS_GATE = "any tokens"
+_TOKENS_GATE_FEEDERS = frozenset(
+    {
+        TOKEN_MAKER,
+        "mass_token_makers",
+        "treasure_makers",
+        "clue_makers",
+        "food_makers",
+        "blood_makers",
+    }
+)
 
 #: A gate word for a creature type a filter leaves out (:func:`_gate_words`).
 _NON_PREFIX = "non-"
@@ -1453,9 +1525,12 @@ _MANA_DOUBLER_KEYS = frozenset({"mana_amplifier", "tap_untap_matters"})
 
 
 def _amplifies_mana(card: CardClass) -> bool:
-    """Whether the card is a mana doubler (:data:`_MANA_DOUBLER_KEYS`)."""
+    """Whether the card is a mana doubler (:data:`_MANA_DOUBLER_KEYS`) or a
+    cost reducer for your spells: Ugin, the Ineffable's "Colorless spells you
+    cast cost {2} less" went as Eldrazi Unbound's interaction excess
+    (2026-11-02) — what it saves is mana, as a doubler's is."""
     return any(
-        i.split("|", 1)[0] in _MANA_DOUBLER_KEYS
+        i.split("|", 1)[0] in _MANA_DOUBLER_KEYS or i.startswith("cost_reduction|you|")
         for i in _signal_idents_for(card.record, include_membership=False)
     )
 
@@ -1611,8 +1686,15 @@ def cut_candidates(
             out.extend([(reason, card)] * max(1, card.quantity))
 
     # 1. Filler — do-nothing high-CMC before do-nothing cheap (efficiency-aware).
+    # A card supplying one of the commander's needs is no do-nothing filler:
+    # Evolution Sage's proliferate and Auntie Ool's -1/-1 counters went as
+    # Blight Curse's dead weight (2026-11-02).
     for c in sorted(
-        (c for c in classes if c.bucket == "filler"),
+        (
+            c
+            for c in classes
+            if c.bucket == "filler" and not (needs is not None and needs(c.record) > 0)
+        ),
         key=lambda c: c.cmc,
         reverse=True,
     ):
@@ -2526,6 +2608,15 @@ def propose_swaps(
                     if used_cuts[card.name] >= card.quantity:
                         continue
                     if tribal_cut(card.record) != want:
+                        continue
+                    if any(
+                        (ctx.budgets.get(r) or {}).get("deviation", 0) < 0
+                        for r in card.roles
+                    ):
+                        # Never a card filling a row the deck is short of:
+                        # Titan of Littjara's draw went to Sundial of the
+                        # Infinite while card draw was two short (Sliver
+                        # Swarm, 2026-11-02).
                         continue
                     return reason, card
         return None

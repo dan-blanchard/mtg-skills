@@ -1496,6 +1496,41 @@ proposal as a deckbuilder, fix the structure, the guide score is a yardstick)**
   Mortars' overload is one-sided where The Day of the Doctor exiles your own
   non-Doctors; Virtue and Valor's adds are enchantments Ellivere counts;
   Most Wanted's are outlaws and a guide add (Port Razer).
+- **Batch 16r (2026-11-02; the 25 733 / 341 / 116 → 729 / 339 / 116, held-out
+  562 / 262 / 105 → 562 / 263 / 106, fresh 294 / 126 / 50 → 294 / 126 / 51).**
+  The fourth full 55-deck re-read (five Sonnet reviewers; 24 flags).
+  Fixed: (126) *a permanent's mana value floor reads X as 0* (CR 202.3e):
+  Walking Ballista is no artifact at 4+ for Bello. (127) *a trigger on any
+  token made or sacrificed waits on token makers* (`swaps._TOKENS_GATE`):
+  Mirkwood Bats in Endless Punishment. (128) *removal that answers
+  creatures is no upgrade to removal that can't*
+  (`removal.answers_creatures`; a counterspell is outside it): Lethal Scheme
+  to Return to Nature. (129) *a cheaper ramp card makes at least half the
+  cut's mana a turn*: Exploration Broodship's station-gated land drop for
+  Careful Cultivation. (130) *the lane-ok fallback never cuts a card in a
+  short row*: Titan of Littjara's draw for Sundial of the Infinite while
+  draw was two short. (131) *a cost reducer for your spells trims last*,
+  as a mana doubler does: Ugin, the Ineffable. (132) *blight puts the
+  -1/-1 counters* (CR 701.68a). (133) *a need supplier is no do-nothing
+  filler*: Evolution Sage and Everlasting Torment as Blight Curse's dead
+  weight. (134) *life above the starting total waits on lifegain, and a
+  card gated only so is dead* (`swaps._LIFE_GATE`): Doctor Strange,
+  Surgeon as Avengers Assemble's closer. (135) *a draw on creatures of a
+  power entering runs on the deck's creatures that big, face up*
+  (`card_draw` fuel `power_ge_<n>`): Garruk's Uprising in Deadly Disguise.
+  Open, upstream: phase leaves Sinister Gnarlbark's "draw a card and
+  blight 1" (and three other blight compounds) `Unimplemented`, and drops
+  Everlasting Torment's "as though its source had wither"; the theft lane
+  counts Tasha's Hideous Laughter's opponent exile as theft by design
+  (Grand Larceny under Gonti wants cards it may cast). Verdicts, with the
+  rulings or counts: Akroan Horse (its ruling: you get the Soldiers);
+  Sanguine Bond and Ral, Storm Conduit (theme for theme); Necromantic
+  Selection; Exemplar of Light (a counters deck feeds it); Bolt Bend (a
+  redirect is no removal); Vito (it completes Shard of the Nightbringer);
+  The Indomitable (it supplies Omo's granted-type need); Goblin Bombardment
+  ("1 damage to any target" is interaction); Contaminant Grafter (toxic 1
+  itself); Reconnaissance Mission (18 creatures); Kozilek's Command (eight
+  colorless sources, settled in batch 15). `verify_symptoms.py`: 135.
 
 **From the Jace, Multiverse Architect precon tune and the 25-precon audit (2026-10-17 to 2026-11-01)**
 

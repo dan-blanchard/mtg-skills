@@ -863,3 +863,22 @@ def test_a_sacrifice_of_any_permanent_can_sacrifice_a_land():
     need = _need("Hearthhull, the Worldseed", "land_sacrifice makers")
     assert satisfies(test_card("God-Eternal Bontu"), need)
     assert not satisfies(test_card("Village Rites"), need)
+
+
+def test_a_permanent_floor_reads_x_as_zero():
+    """Bello, Bard of the Brambles animates artifacts "with mana value 4 or
+    greater" on the battlefield, where X is 0 (CR 202.3e): Walking Ballista
+    is none; Outpost Siege is (Animated Army, 2026-11-02)."""
+    need = _need(
+        "Bello, Bard of the Brambles", "artifact or enchantment spells at 4+ mana"
+    )
+    assert not satisfies(test_card("Walking Ballista"), need)
+    assert satisfies(test_card("Outpost Siege"), need)
+
+
+def test_blight_puts_the_minus_counters_auntie_ool_watches():
+    """To blight N is to put N -1/-1 counters on a creature you control (CR
+    701.68a): High Perfect Morcant's "each opponent blights 1" feeds Auntie
+    Ool's trigger on any creature (Blight Curse, 2026-11-02)."""
+    need = _need("Auntie Ool, Cursewretch", "-1/-1 counters put on creatures")
+    assert satisfies(test_card("High Perfect Morcant"), need)

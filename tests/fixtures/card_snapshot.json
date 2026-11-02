@@ -222029,6 +222029,342 @@
     "type_line": "Sorcery"
    }
   },
+  "Careful Cultivation": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "activation_zone": "Hand",
+       "condition": null,
+       "consumes_source": true,
+       "cost": {
+        "costs": [
+         {
+          "cost": {
+           "generic": 1,
+           "shards": [
+            "Green"
+           ],
+           "type": "Cost"
+          },
+          "type": "Mana"
+         },
+         {
+          "count": {
+           "type": "Fixed",
+           "value": 1
+          },
+          "filter": null,
+          "random": false,
+          "self_ref": true,
+          "type": "Discard"
+         }
+        ],
+        "type": "Composite"
+       },
+       "description": "Channel — {1}{G}, Discard this card: Create a 1/1 green Human Monk creature token with \"{T}: Add {G}.\"",
+       "duration": null,
+       "effect": {
+        "colors": [
+         "Green"
+        ],
+        "count": {
+         "type": "Fixed",
+         "value": 1
+        },
+        "enters_attacking": false,
+        "keywords": [],
+        "name": "Human Monk",
+        "owner": {
+         "type": "Controller"
+        },
+        "power": {
+         "type": "Fixed",
+         "value": 1
+        },
+        "static_abilities": [
+         {
+          "active_zones": [],
+          "affected": {
+           "type": "SelfRef"
+          },
+          "affected_zone": null,
+          "characteristic_defining": false,
+          "condition": null,
+          "description": null,
+          "effect_zone": null,
+          "mode": "Continuous",
+          "modifications": [
+           {
+            "definition": {
+             "condition": null,
+             "cost": {
+              "type": "Tap"
+             },
+             "description": "{T}: Add {G}.",
+             "duration": null,
+             "effect": {
+              "produced": {
+               "colors": [
+                "Green"
+               ],
+               "type": "Fixed"
+              },
+              "type": "Mana"
+             },
+             "forward_result": false,
+             "is_mana_ability": true,
+             "kind": "Activated",
+             "optional": false,
+             "optional_targeting": false,
+             "sub_ability": null,
+             "target_prompt": null
+            },
+            "type": "GrantAbility"
+           }
+          ]
+         }
+        ],
+        "tapped": false,
+        "toughness": {
+         "type": "Fixed",
+         "value": 1
+        },
+        "type": "Token",
+        "types": [
+         "Creature",
+         "Human",
+         "Monk"
+        ]
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Enchantment"
+      ],
+      "subtypes": [
+       "Aura"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Green"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [
+      {
+       "Enchant": {
+        "filters": [
+         {
+          "controller": null,
+          "properties": [],
+          "type": "Typed",
+          "type_filters": [
+           "Artifact"
+          ]
+         },
+         {
+          "controller": null,
+          "properties": [],
+          "type": "Typed",
+          "type_filters": [
+           "Creature"
+          ]
+         }
+        ],
+        "type": "Or"
+       }
+      }
+     ],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pauper": "legal",
+      "paupercommander": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 2,
+      "shards": [
+       "Green"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "related_token_ids": [
+       "64544fb1-96f2-59f1-a427-0a8ec477a8c0"
+      ],
+      "source_printing_ids": [
+       "68d56fac-4dca-47b8-b48e-0a3d532004a5",
+       "9e2ebad5-0a56-4166-80af-7ebd20ae565a"
+      ]
+     },
+     "name": "Careful Cultivation",
+     "non_ability_text": null,
+     "oracle_text": "Enchant artifact or creature\nAs long as enchanted permanent is a creature, it gets +1/+3 and has reach and \"{T}: Add {G}{G}.\"\nChannel — {1}{G}, Discard this card: Create a 1/1 green Human Monk creature token with \"{T}: Add {G}.\"",
+     "power": null,
+     "printings": [
+      "NEO",
+      "WOC"
+     ],
+     "rarities": [
+      "common"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2022-02-18",
+       "text": "Discarding the card is part of the cost to activate a channel ability."
+      },
+      {
+       "date": "2022-02-18",
+       "text": "If a channel ability requires a target, you may not activate it without a target just to discard the card."
+      }
+     ],
+     "scryfall_oracle_id": "83959c3d-053c-4d95-a1b0-fe92f2b906db",
+     "static_abilities": [
+      {
+       "active_zones": [],
+       "affected": {
+        "controller": null,
+        "properties": [
+         {
+          "type": "EnchantedBy"
+         }
+        ],
+        "type": "Typed",
+        "type_filters": [
+         "Permanent",
+         "Creature"
+        ]
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": null,
+       "description": "As long as enchanted permanent is a creature, it gets +1/+3 and has reach and \"{T}: Add {G}{G}.\"",
+       "effect_zone": null,
+       "mode": "Continuous",
+       "modifications": [
+        {
+         "type": "AddPower",
+         "value": 1
+        },
+        {
+         "type": "AddToughness",
+         "value": 3
+        },
+        {
+         "definition": {
+          "condition": null,
+          "cost": {
+           "type": "Tap"
+          },
+          "description": "{T}: Add {G}{G}.",
+          "duration": null,
+          "effect": {
+           "produced": {
+            "colors": [
+             "Green",
+             "Green"
+            ],
+            "type": "Fixed"
+           },
+           "type": "Mana"
+          },
+          "forward_result": false,
+          "is_mana_ability": true,
+          "kind": "Activated",
+          "optional": false,
+          "optional_targeting": false,
+          "sub_ability": null,
+          "target_prompt": null
+         },
+         "type": "GrantAbility"
+        },
+        {
+         "keyword": "Reach",
+         "type": "AddKeyword"
+        }
+       ]
+      }
+     ],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "all_parts": [
+     {
+      "component": "token",
+      "id": "86dd086e-c757-4a6a-8838-51860f2095f8",
+      "name": "Human Monk",
+      "oracle_id": "eafd0d76-6fac-4e30-8b2f-6869bbf630d7",
+      "type_line": "Token Creature — Human Monk"
+     }
+    ],
+    "arena_available": true,
+    "cmc": 3.0,
+    "color_identity": [
+     "G"
+    ],
+    "colors": [
+     "G"
+    ],
+    "keywords": [
+     "Channel",
+     "Enchant"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "legal",
+     "paupercommander": "legal",
+     "penny": "not_legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}{G}",
+    "name": "Careful Cultivation",
+    "oracle_id": "83959c3d-053c-4d95-a1b0-fe92f2b906db",
+    "oracle_text": "Enchant artifact or creature\nAs long as enchanted permanent is a creature, it gets +1/+3 and has reach and \"{T}: Add {G}{G}.\"\nChannel — {1}{G}, Discard this card: Create a 1/1 green Human Monk creature token with \"{T}: Add {G}.\"",
+    "produced_mana": [
+     "G"
+    ],
+    "type_line": "Enchantment — Aura"
+   }
+  },
   "Careful Study": {
    "phase_records": [
     {
@@ -358148,6 +358484,243 @@
     "type_line": "Legendary Creature — Human Scientist Villain"
    }
   },
+  "Doctor Strange, Surgeon": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "brawl_commander": true,
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Human",
+       "Doctor",
+       "Hero"
+      ],
+      "supertypes": [
+       "Legendary"
+      ]
+     },
+     "color_identity": [
+      "White"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "is_commander": true,
+     "keywords": [
+      "Lifelink"
+     ],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 4,
+      "shards": [
+       "White"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "f872a2cd-e684-47be-885f-27a4666399fa"
+      ]
+     },
+     "name": "Doctor Strange, Surgeon",
+     "non_ability_text": null,
+     "oracle_text": "Lifelink\nIf you would gain life, you gain twice that much life instead.\nAt the beginning of each combat, if you have at least 10 life more than your starting life total, creatures you control get +2/+2 and gain vigilance until end of turn.",
+     "power": {
+      "type": "Fixed",
+      "value": 2
+     },
+     "printings": [
+      "MSC"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [
+      {
+       "condition": null,
+       "description": "If you would gain life, you gain twice that much life instead.",
+       "event": "GainLife",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "amount": {
+          "factor": 2,
+          "inner": {
+           "qty": {
+            "type": "EventContextAmount"
+           },
+           "type": "Ref"
+          },
+          "type": "Multiply"
+         },
+         "type": "GainLife"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": {
+        "type": "Mandatory"
+       },
+       "valid_card": null
+      }
+     ],
+     "scryfall_oracle_id": "43c31a03-2bbd-49a6-8b78-c5f3cab04a07",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 5
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": {
+        "comparator": "GE",
+        "lhs": {
+         "qty": {
+          "type": "LifeAboveStarting"
+         },
+         "type": "Ref"
+        },
+        "rhs": {
+         "type": "Fixed",
+         "value": 10
+        },
+        "type": "QuantityComparison"
+       },
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "At the beginning of each combat, if you have at least 10 life more than your starting life total, creatures you control get +2/+2 and gain vigilance until end of turn.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": "UntilEndOfTurn",
+        "effect": {
+         "duration": "UntilEndOfTurn",
+         "static_abilities": [
+          {
+           "active_zones": [],
+           "affected": {
+            "controller": "You",
+            "properties": [],
+            "type": "Typed",
+            "type_filters": [
+             "Creature"
+            ]
+           },
+           "affected_zone": null,
+           "characteristic_defining": false,
+           "condition": null,
+           "description": "get +2/+2 and gain vigilance",
+           "effect_zone": null,
+           "mode": "Continuous",
+           "modifications": [
+            {
+             "type": "AddPower",
+             "value": 2
+            },
+            {
+             "type": "AddToughness",
+             "value": 2
+            },
+            {
+             "keyword": "Vigilance",
+             "type": "AddKeyword"
+            }
+           ]
+          }
+         ],
+         "target": null,
+         "type": "GenericEffect"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "Phase",
+       "optional": false,
+       "origin": null,
+       "phase": "BeginCombat",
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": null,
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 5.0,
+    "color_identity": [
+     "W"
+    ],
+    "colors": [
+     "W"
+    ],
+    "keywords": [
+     "Lifelink"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{4}{W}",
+    "name": "Doctor Strange, Surgeon",
+    "oracle_id": "43c31a03-2bbd-49a6-8b78-c5f3cab04a07",
+    "oracle_text": "Lifelink\nIf you would gain life, you gain twice that much life instead.\nAt the beginning of each combat, if you have at least 10 life more than your starting life total, creatures you control get +2/+2 and gain vigilance until end of turn.",
+    "power": "2",
+    "toughness": "5",
+    "type_line": "Legendary Creature — Human Doctor Hero"
+   }
+  },
   "Dodecapod": {
    "phase_records": [
     {
@@ -426403,6 +426976,258 @@
     "oracle_id": "0c2841bb-038c-4fbf-8360-bc0a1522b58d",
     "oracle_text": "You may play an additional land on each of your turns.",
     "type_line": "Enchantment"
+   }
+  },
+  "Exploration Broodship": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Artifact"
+      ],
+      "subtypes": [
+       "Spacecraft"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Green"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [
+      "Station"
+     ],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 0,
+      "shards": [
+       "Green"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "3410f9c6-ac11-4e7f-aefd-69fba43e1315",
+       "61596da3-2a0e-47d9-b707-8db4cce2479d"
+      ]
+     },
+     "name": "Exploration Broodship",
+     "non_ability_text": null,
+     "oracle_text": "Station (Tap another creature you control: Put charge counters equal to its power on this Spacecraft. Station only as a sorcery. It's an artifact creature at 8+.)\n3+ | You may play an additional land on each of your turns.\n8+ | Flying\nOnce during each of your turns, you may cast a permanent spell from your graveyard by sacrificing a land in addition to paying its other costs.",
+     "power": {
+      "type": "Fixed",
+      "value": 4
+     },
+     "printings": [
+      "EOC"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2025-07-25",
+       "text": "You pay all costs and follow all timing rules for cards cast with the permission granted by Exploration Broodship’s last ability. For example, you may cast a creature spell from your graveyard only during your main phase while the stack is empty."
+      }
+     ],
+     "scryfall_oracle_id": "8a83ecee-092b-456c-803f-a9aaa17c4da9",
+     "static_abilities": [
+      {
+       "active_zones": [],
+       "affected": {
+        "controller": "You",
+        "properties": [],
+        "type": "Typed",
+        "type_filters": []
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": {
+        "counters": {
+         "data": "charge",
+         "type": "OfType"
+        },
+        "minimum": 3,
+        "type": "HasCounters"
+       },
+       "description": "You may play an additional land on each of your turns.",
+       "effect_zone": null,
+       "mode": "MayPlayAdditionalLand",
+       "modifications": []
+      },
+      {
+       "active_zones": [],
+       "affected": {
+        "type": "SelfRef"
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": {
+        "counters": {
+         "data": "charge",
+         "type": "OfType"
+        },
+        "minimum": 8,
+        "type": "HasCounters"
+       },
+       "description": "8+ | Flying",
+       "effect_zone": null,
+       "mode": "Continuous",
+       "modifications": [
+        {
+         "keyword": "Flying",
+         "type": "AddKeyword"
+        }
+       ]
+      },
+      {
+       "active_zones": [],
+       "affected": {
+        "controller": null,
+        "properties": [],
+        "type": "Typed",
+        "type_filters": [
+         "Permanent"
+        ]
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": {
+        "conditions": [
+         {
+          "counters": {
+           "data": "charge",
+           "type": "OfType"
+          },
+          "minimum": 8,
+          "type": "HasCounters"
+         },
+         {
+          "type": "DuringYourTurn"
+         }
+        ],
+        "type": "And"
+       },
+       "description": "Once during each of your turns, you may cast a permanent spell from your graveyard by sacrificing a land in addition to paying its other costs.",
+       "effect_zone": null,
+       "mode": {
+        "GraveyardCastPermission": {
+         "extra_cost": {
+          "cost": {
+           "count": 1,
+           "target": {
+            "controller": null,
+            "properties": [],
+            "type": "Typed",
+            "type_filters": [
+             "Land"
+            ]
+           },
+           "type": "Sacrifice"
+          },
+          "mode": "Additional"
+         },
+         "frequency": "OncePerTurn",
+         "play_mode": "Cast"
+        }
+       },
+       "modifications": []
+      },
+      {
+       "active_zones": [],
+       "affected": {
+        "type": "SelfRef"
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": {
+        "counters": {
+         "data": "charge",
+         "type": "OfType"
+        },
+        "minimum": 8,
+        "type": "HasCounters"
+       },
+       "description": "CR 721.2b: Spacecraft is an artifact creature at 8+",
+       "effect_zone": null,
+       "mode": "Continuous",
+       "modifications": [
+        {
+         "core_type": "Creature",
+         "type": "AddType"
+        },
+        {
+         "type": "SetPower",
+         "value": 4
+        },
+        {
+         "type": "SetToughness",
+         "value": 4
+        }
+       ]
+      }
+     ],
+     "toughness": {
+      "type": "Fixed",
+      "value": 4
+     },
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 1.0,
+    "color_identity": [
+     "G"
+    ],
+    "colors": [
+     "G"
+    ],
+    "keywords": [
+     "Station"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{G}",
+    "name": "Exploration Broodship",
+    "oracle_id": "8a83ecee-092b-456c-803f-a9aaa17c4da9",
+    "oracle_text": "Station (Tap another creature you control: Put charge counters equal to its power on this Spacecraft. Station only as a sorcery. It's an artifact creature at 8+.)\n3+ | You may play an additional land on each of your turns.\n8+ | Flying\nOnce during each of your turns, you may cast a permanent spell from your graveyard by sacrificing a land in addition to paying its other costs.",
+    "power": "4",
+    "toughness": "4",
+    "type_line": "Artifact — Spacecraft"
    }
   },
   "Explore": {
@@ -707061,6 +707886,241 @@
     "type_line": "Instant"
    }
   },
+  "Lethal Scheme": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Destroy target creature or planeswalker. Each creature that convoked this spell connives.",
+       "duration": null,
+       "effect": {
+        "cant_regenerate": false,
+        "target": {
+         "filters": [
+          {
+           "controller": null,
+           "properties": [],
+           "type": "Typed",
+           "type_filters": [
+            "Creature"
+           ]
+          },
+          {
+           "controller": null,
+           "properties": [],
+           "type": "Typed",
+           "type_filters": [
+            "Planeswalker"
+           ]
+          }
+         ],
+         "type": "Or"
+        },
+        "type": "Destroy"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "target": {
+          "controller": null,
+          "properties": [
+           {
+            "type": "ConvokedSource"
+           }
+          ],
+          "type": "Typed",
+          "type_filters": [
+           "Creature"
+          ]
+         },
+         "type": "Connive"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "sub_link": "SequentialSibling",
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Instant"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Black"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [
+      "Convoke"
+     ],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 2,
+      "shards": [
+       "Black",
+       "Black"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "0802be9f-686f-4321-afa4-d472241de653",
+       "1b2c44f7-7b54-4cdf-8f53-ab78c515795b",
+       "3e449c2b-39a5-48c8-b6a5-60e16306e38a",
+       "4a7c7321-9d14-4940-8d59-4ffc7abdab07",
+       "59c4f0f7-b952-49cc-85cc-152d12597995",
+       "65864680-9520-4eb3-9774-fa478e54a290",
+       "9806c0bf-d94a-4e01-9c86-b53dfaf6a223",
+       "9b1e7289-6681-4b32-8ee6-035d24cc0263",
+       "a132a71e-f173-47bc-a014-444e3fd7c122",
+       "b2d9c467-6e56-401c-ade1-95dad7e4e766",
+       "d31e4679-e594-4907-8bef-acff38b856a3",
+       "e765f41c-54b7-447e-853a-8453b44747b2"
+      ]
+     },
+     "name": "Lethal Scheme",
+     "non_ability_text": null,
+     "oracle_text": "Convoke (Your creatures can help cast this spell. Each creature you tap while casting this spell pays for {1} or one mana of that creature's color.)\nDestroy target creature or planeswalker. Each creature that convoked this spell connives. (Draw a card, then discard a card. If you discarded a nonland card, put a +1/+1 counter on that creature.)",
+     "power": null,
+     "printings": [
+      "FIC",
+      "LCC",
+      "MSC",
+      "NCC",
+      "PIP",
+      "PNCC",
+      "SLD",
+      "TDC"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2022-04-29",
+       "text": "If a resolving spell or ability instructs a specific creature to connive but that creature has left the battlefield, the creature still connives. If you discard a nonland card this way, you won't put a +1/+1 counter on anything. Abilities that trigger \"when [that creature] connives\" will trigger."
+      },
+      {
+       "date": "2022-04-29",
+       "text": "If no card is discarded, most likely because that player's hand is empty and an effect says they can't draw cards, the conniving creature does not receive a +1/+1 counter."
+      },
+      {
+       "date": "2022-04-29",
+       "text": "Once an ability that causes a creature to connive begins to resolve, no player may take any other actions until it's done. Notably, opponents can't try to remove the conniving creature after you discard a nonland card but before it receives a counter."
+      },
+      {
+       "date": "2022-04-29",
+       "text": "When multiple creatures are instructed to connive simultaneously, they connive one at a time in the order of their controller's choice."
+      },
+      {
+       "date": "2022-04-29",
+       "text": "You can't tap more creatures to convoke Lethal Scheme than it takes to pay for its total cost. This means that normally no more than four creatures can convoke it."
+      },
+      {
+       "date": "2024-01-12",
+       "text": "Because convoke isn't an alternative cost, it can be used in conjunction with alternative costs."
+      },
+      {
+       "date": "2024-01-12",
+       "text": "If a creature you control has a mana ability with {T} in the cost, activating that ability while casting a spell with convoke will result in the creature being tapped before you pay the spell's costs. You won't be able to tap it again for convoke. Similarly, if you sacrifice a creature to activate a mana ability while casting a spell with convoke, that creature won't be on the battlefield when you pay the spell's costs, so you won't be able to tap it for convoke."
+      },
+      {
+       "date": "2024-01-12",
+       "text": "Tapping a multicolored creature using convoke will pay for {1} or one mana of your choice of any of that creature's colors."
+      },
+      {
+       "date": "2024-01-12",
+       "text": "Tapping an untapped creature that's attacking or blocking to convoke a spell won't cause that creature to stop attacking or blocking."
+      },
+      {
+       "date": "2024-01-12",
+       "text": "When calculating a spell's total cost, include any alternative costs, additional costs, or anything else that increases or reduces the cost to cast the spell. Convoke applies after the total cost is calculated. Convoke doesn't change a spell's mana cost or mana value."
+      },
+      {
+       "date": "2024-01-12",
+       "text": "You can tap any untapped creature you control to convoke a spell, even one you haven't controlled continuously since the beginning of your most recent turn."
+      }
+     ],
+     "scryfall_oracle_id": "c4660b3c-a234-4a3e-83e7-e2fa9d556685",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 4.0,
+    "color_identity": [
+     "B"
+    ],
+    "colors": [
+     "B"
+    ],
+    "keywords": [
+     "Connive",
+     "Convoke"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}{B}{B}",
+    "name": "Lethal Scheme",
+    "oracle_id": "c4660b3c-a234-4a3e-83e7-e2fa9d556685",
+    "oracle_text": "Convoke (Your creatures can help cast this spell. Each creature you tap while casting this spell pays for {1} or one mana of that creature's color.)\nDestroy target creature or planeswalker. Each creature that convoked this spell connives. (Draw a card, then discard a card. If you discarded a nonland card, put a +1/+1 counter on that creature.)",
+    "type_line": "Instant"
+   }
+  },
   "Lethal Throwdown": {
    "phase_records": [
     {
@@ -862809,6 +863869,311 @@
     "type_line": "Instant"
    }
   },
+  "Outpost Siege": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Enchantment"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Red"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 3,
+      "shards": [
+       "Red"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "516a2034-25bf-4b42-9f47-a2418d48286c",
+       "51f8c63e-8778-43c5-9093-f419442295cf",
+       "880f6602-f335-4ad8-9e2f-f32b6d715f72",
+       "a8645f34-b830-4429-8fca-9458d1e3dccc",
+       "a9f75fce-f0a1-4dec-982d-a86925c6e9d4",
+       "ad63f120-f6d0-4394-b12a-f3e1cf728a2f",
+       "b909b8bc-667b-4784-979f-093029b5a156",
+       "ed9f3f18-c1fe-4ec9-bf06-eb73751c5d22",
+       "fc21a97a-5ad6-42b5-8c98-f6e50dc9914c"
+      ]
+     },
+     "name": "Outpost Siege",
+     "non_ability_text": null,
+     "oracle_text": "As this enchantment enters, choose Khans or Dragons.\n• Khans — At the beginning of your upkeep, exile the top card of your library. Until end of turn, you may play that card.\n• Dragons — Whenever a creature you control leaves the battlefield, this enchantment deals 1 damage to any target.",
+     "power": null,
+     "printings": [
+      "AFC",
+      "BLC",
+      "C17",
+      "C20",
+      "CLB",
+      "FDC",
+      "FRF",
+      "NCC",
+      "PIO"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [
+      {
+       "condition": null,
+       "description": "As ~ enters, choose Khans or Dragons.",
+       "destination_zone": "Battlefield",
+       "event": "Moved",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "choice_type": {
+          "Labeled": {
+           "options": [
+            "Khans",
+            "Dragons"
+           ]
+          }
+         },
+         "persist": true,
+         "type": "Choose"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": {
+        "type": "Mandatory"
+       },
+       "valid_card": {
+        "type": "SelfRef"
+       }
+      }
+     ],
+     "rulings": [
+      {
+       "date": "2014-11-24",
+       "text": "Each Siege will have one of the two listed abilities, depending on your choice as it enters the battlefield."
+      },
+      {
+       "date": "2014-11-24",
+       "text": "Each of the last two abilities is linked to the first ability. They each refer only to the choice made as a result of the first ability. If a permanent enters the battlefield as a copy of one of the Sieges, its controller will make a new choice for that Siege. Which ability the copy has won't depend on the choice made for the original permanent."
+      },
+      {
+       "date": "2014-11-24",
+       "text": "If a noncreature card is manifested and then leaves the battlefield while face down, the \"Dragons\" ability will trigger."
+      },
+      {
+       "date": "2014-11-24",
+       "text": "If you exile a land card using the \"Khans\" ability, you may play that land only if you have any available land plays. Normally, this means you can play the land only if you haven't played a land yet that turn."
+      },
+      {
+       "date": "2014-11-24",
+       "text": "The card exiled by the \"Khans\" ability is exiled face up. Playing a card exiled with the \"Khans\" ability follows the normal rules for playing the card. You must pay its costs, and you must follow all applicable timing rules. For example, if it's a creature card, you can cast it only during your main phase while the stack is empty."
+      },
+      {
+       "date": "2014-11-24",
+       "text": "The words \"Khans\" and \"Dragons\" are anchor words, connecting your choice to the appropriate ability. Anchor words are a new rules concept. \"[Anchor word] — [Ability]\" means \"As long as you chose [anchor word] as this permanent entered the battlefield, this permanent has [ability].\" Notably, the anchor word \"Dragons\" has no connection to the creature type Dragon."
+      }
+     ],
+     "scryfall_oracle_id": "ebb24fc7-dc71-4712-8c2a-b5920f78e55d",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": [
+      {
+       "batched": false,
+       "condition": {
+        "label": "Khans",
+        "type": "ChosenLabelIs"
+       },
+       "constraint": {
+        "type": "OnlyDuringYourTurn"
+       },
+       "damage_kind": "Any",
+       "description": "At the beginning of your upkeep, exile the top card of your library. Until end of turn, you may play that card.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "player": {
+          "type": "Controller"
+         },
+         "position": {
+          "type": "Top"
+         },
+         "type": "ExileTop"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": "UntilEndOfTurn",
+         "effect": {
+          "permission": {
+           "duration": "UntilEndOfTurn",
+           "granted_to": 0,
+           "type": "PlayFromExile"
+          },
+          "target": {
+           "id": 0,
+           "type": "TrackedSet"
+          },
+          "type": "GrantCastingPermission"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": null,
+         "sub_link": "SequentialSibling",
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "mode": "Phase",
+       "optional": false,
+       "origin": null,
+       "phase": "Upkeep",
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": null,
+       "valid_source": null,
+       "valid_target": null
+      },
+      {
+       "batched": false,
+       "condition": {
+        "label": "Dragons",
+        "type": "ChosenLabelIs"
+       },
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever a creature you control leaves the battlefield, ~ deals 1 damage to any target.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "amount": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "target": {
+          "type": "Any"
+         },
+         "type": "DealDamage"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "LeavesBattlefield",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "controller": "You",
+        "properties": [],
+        "type": "Typed",
+        "type_filters": [
+         "Creature"
+        ]
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 4.0,
+    "color_identity": [
+     "R"
+    ],
+    "colors": [
+     "R"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{3}{R}",
+    "name": "Outpost Siege",
+    "oracle_id": "ebb24fc7-dc71-4712-8c2a-b5920f78e55d",
+    "oracle_text": "As this enchantment enters, choose Khans or Dragons.\n• Khans — At the beginning of your upkeep, exile the top card of your library. Until end of turn, you may play that card.\n• Dragons — Whenever a creature you control leaves the battlefield, this enchantment deals 1 damage to any target.",
+    "type_line": "Enchantment"
+   }
+  },
   "Overabundance": {
    "phase_records": [
     {
@@ -953578,6 +954943,223 @@
     "name": "Return of the Wildspeaker",
     "oracle_id": "2b76f9e9-cd28-4eaf-8674-215c34263f96",
     "oracle_text": "Choose one —\n• Draw cards equal to the greatest power among non-Human creatures you control.\n• Non-Human creatures you control get +3/+3 until end of turn.",
+    "type_line": "Instant"
+   }
+  },
+  "Return to Nature": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": null,
+       "duration": null,
+       "effect": {
+        "cant_regenerate": false,
+        "target": {
+         "controller": null,
+         "properties": [],
+         "type": "Typed",
+         "type_filters": [
+          "Artifact"
+         ]
+        },
+        "type": "Destroy"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      },
+      {
+       "condition": null,
+       "cost": null,
+       "description": null,
+       "duration": null,
+       "effect": {
+        "cant_regenerate": false,
+        "target": {
+         "controller": null,
+         "properties": [],
+         "type": "Typed",
+         "type_filters": [
+          "Enchantment"
+         ]
+        },
+        "type": "Destroy"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      },
+      {
+       "condition": null,
+       "cost": null,
+       "description": null,
+       "duration": null,
+       "effect": {
+        "destination": "Exile",
+        "enter_tapped": false,
+        "enter_transformed": false,
+        "enters_attacking": false,
+        "origin": "Graveyard",
+        "owner_library": false,
+        "target": {
+         "controller": null,
+         "properties": [
+          {
+           "type": "InZone",
+           "zone": "Graveyard"
+          }
+         ],
+         "type": "Typed",
+         "type_filters": [
+          "Card"
+         ]
+        },
+        "type": "ChangeZone"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Instant"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Green"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pauper": "legal",
+      "paupercommander": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "Green"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "085e3129-591b-46ec-ac8b-cff428927c01",
+       "3f1b4490-d96d-4448-835b-6cc453c1f344",
+       "4bebe9fa-1697-48fc-9044-cd58a3eab836",
+       "6e25c252-4177-4193-914c-b6933d9c0d7d",
+       "6f68ce77-b581-465c-9532-69df6de7827b",
+       "7e99f99a-68a1-4f35-853c-794630d313fc",
+       "a4515a76-53f0-40a2-8b88-70b73447d1e6",
+       "c3d5088e-21d0-4255-a14c-ad950133a90e",
+       "e4d0b641-5126-4786-8924-8916bc1d2f40"
+      ]
+     },
+     "modal": {
+      "allow_repeat_modes": false,
+      "chooser": {
+       "type": "Controller"
+      },
+      "max_choices": 1,
+      "min_choices": 1,
+      "mode_count": 3,
+      "mode_descriptions": [
+       "Destroy target artifact.",
+       "Destroy target enchantment.",
+       "Exile target card from a graveyard."
+      ]
+     },
+     "name": "Return to Nature",
+     "non_ability_text": null,
+     "oracle_text": "Choose one —\n• Destroy target artifact.\n• Destroy target enchantment.\n• Exile target card from a graveyard.",
+     "power": null,
+     "printings": [
+      "AFC",
+      "DBL",
+      "ELD",
+      "M21",
+      "MID",
+      "MOC",
+      "PLST",
+      "SCD",
+      "THB",
+      "WAR"
+     ],
+     "rarities": [
+      "common"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "777b8ec4-a783-4297-96b7-4f200d0eb734",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 2.0,
+    "color_identity": [
+     "G"
+    ],
+    "colors": [
+     "G"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "legal",
+     "paupercommander": "legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}{G}",
+    "name": "Return to Nature",
+    "oracle_id": "777b8ec4-a783-4297-96b7-4f200d0eb734",
+    "oracle_text": "Choose one —\n• Destroy target artifact.\n• Destroy target enchantment.\n• Exile target card from a graveyard.",
     "type_line": "Instant"
    }
   },

@@ -230,3 +230,15 @@ def test_a_draw_on_pumped_creatures_runs_on_the_decks_pumps():
     assert card_draw.draw_fuel(test_card("Kutzil, Malamet Exemplar")) == "pumped"
     rocks = [test_card("Mind Stone")] * 20
     assert card_draw.deck_fit(test_card("Kutzil, Malamet Exemplar"), rocks) == 0.0
+
+
+def test_a_draw_on_big_creatures_entering_runs_on_the_decks_big_creatures():
+    """Garruk's Uprising draws when "a creature you control with power 4 or
+    greater enters": a deck of 2/2s feeds none of it (Deadly Disguise,
+    2026-11-02)."""
+    uprising = test_card("Garruk's Uprising")
+    assert card_draw.draw_fuel(uprising) == "power_ge_4"
+    bears = [test_card("Grizzly Bears")] * 20
+    assert card_draw.deck_fit(uprising, bears) == 0.0
+    dreadmaws = [test_card("Colossal Dreadmaw")] * 20
+    assert card_draw.deck_fit(uprising, dreadmaws) == 1.0

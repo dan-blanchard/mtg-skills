@@ -4151,3 +4151,52 @@ def test_an_equipment_back_face_is_equipment():
 
     assert _is_equipment(test_card("Harvest Hand // Scrounged Scythe"))
     assert not _is_equipment(test_card("Snake Umbra"))
+
+
+def test_a_trigger_on_any_token_waits_on_token_makers():
+    """Mirkwood Bats drains "whenever you create or sacrifice a token":
+    dead without token makers (Endless Punishment, 2026-11-02)."""
+    from collections import Counter
+
+    from mtg_utils._tuner.swaps import gated_without_feed
+
+    bats = test_card("Mirkwood Bats")
+    assert gated_without_feed(bats, Counter(), Counter(), Counter({"token_maker": 2}))
+    assert not gated_without_feed(
+        bats, Counter(), Counter(), Counter({"treasure_makers": 6})
+    )
+
+
+def test_creature_removal_and_ramp_are_held_to_what_the_cut_does():
+    """Return to Nature answers no creature, so it is no upgrade of Lethal
+    Scheme (Sultai Arisen); Exploration Broodship's station-gated land drop
+    is a quarter of Careful Cultivation's mana a turn (Virtue and Valor,
+    2026-11-02). A counterspell is outside the creature test."""
+    from mtg_utils._tuner.swaps import _reads_worse_at_the_job
+
+    assert _reads_worse_at_the_job(
+        test_card("Return to Nature"), test_card("Lethal Scheme"), "interaction", []
+    )
+    assert not _reads_worse_at_the_job(
+        test_card("Counterspell"), test_card("Lethal Scheme"), "interaction", []
+    )
+    assert _reads_worse_at_the_job(
+        test_card("Exploration Broodship"), test_card("Careful Cultivation"), "ramp", []
+    )
+
+
+def test_life_above_the_starting_total_waits_on_lifegain():
+    """Doctor Strange, Surgeon pumps only "if you have at least 10 life more
+    than your starting life total": dead under three lifegain cards
+    (Avengers Assemble, 2026-11-02)."""
+    from collections import Counter
+
+    from mtg_utils._tuner.swaps import gated_without_feed
+
+    strange = test_card("Doctor Strange, Surgeon")
+    assert gated_without_feed(
+        strange, Counter(), Counter(), Counter({"lifegain_makers": 3})
+    )
+    assert not gated_without_feed(
+        strange, Counter(), Counter(), Counter({"lifegain_makers": 9})
+    )

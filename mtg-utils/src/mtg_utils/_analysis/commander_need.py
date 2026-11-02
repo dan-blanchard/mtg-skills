@@ -576,10 +576,14 @@ def _filter_colorless(filt: object) -> bool:
     return False
 
 
-def _spell_floor_need(filt: object, floor: int, desc: str) -> Need | None:
+def _spell_floor_need(
+    filt: object, floor: int, desc: str, *, on_battlefield: bool = False
+) -> Need | None:
     """The need for spells the filter admits at mana value ``floor`` or more:
     the filter's types and colour, the floor from its ``Cmc`` bound or the
-    caller's line."""
+    caller's line. ``on_battlefield``: the filter reads permanents, whose X is
+    0 (CR 202.3e) — Walking Ballista is no artifact at 4+ for Bello, Bard of
+    the Brambles (Animated Army, 2026-11-02)."""
     if floor <= 0:
         return None
 
@@ -611,6 +615,8 @@ def _spell_floor_need(filt: object, floor: int, desc: str) -> Need | None:
             return False
         if colorless and c.get("colors"):
             return False
+        if on_battlefield:
+            return float(c.get("cmc") or 0) >= floor
         return _mana_value_reaches(c, floor)
 
     kinds = (" or ".join(sorted(words)) + " ") if words else ""
@@ -1111,7 +1117,7 @@ def _static_needs(node: object, desc: str) -> Iterator[Need]:
         return
     floor = filter_mana_value_floor(aff)
     if floor is not None:
-        need = _spell_floor_need(aff, floor, desc)
+        need = _spell_floor_need(aff, floor, desc, on_battlefield=True)
         if need is not None:
             yield need
     if _animates_attackers(node):
@@ -1332,7 +1338,9 @@ def _puts_minus_counters(card: dict) -> bool:
                 if (
                     tag_of(n) in ("PutCounter", "PutCounterAll")
                     and counter_kind_any(n) == "M1M1"
-                ):
+                ) or tag_of(n) == "BlightEffect":
+                    # To blight N is to put N -1/-1 counters on a creature
+                    # you control (CR 701.68a).
                     return True
     return False
 

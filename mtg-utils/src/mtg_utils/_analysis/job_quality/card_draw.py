@@ -239,6 +239,9 @@ class _Source:
     # A trigger watching only creatures pumped past their base power
     # (Kutzil's "each with power greater than its base power").
     pumped: bool = False
+    # A trigger watching only creatures of at least this power entering
+    # (Garruk's Uprising's "a creature you control with power 4 or greater").
+    min_power: int | None = None
 
 
 def _count(c: ConceptNode, field: str = "count") -> int:
@@ -263,6 +266,29 @@ def _scaling_qty(c: ConceptNode, field: str = "count") -> tuple[str | None, bool
     named = filt is not None and "Named" in filter_predicates(filt)
     board = t in _BOARD_QTY and not named and filter_controller(filt) == "You"
     return t, named, board
+
+
+#: The fuel of a draw on creatures of at least a power: ``power_ge_<n>``.
+_POWER_FUEL = "power_ge_"
+#: The keywords that cast a creature face down, a 2/2 (CR 708.2a).
+_FACE_DOWN = frozenset({"Morph", "Megamorph", "Disguise", "Cloak", "Manifest"})
+
+
+def _watched_min_power(unit: AbilityUnit) -> int | None:
+    """The power a trigger's watched creature must have at least (a fixed
+    ``PtComparison`` power GE bound on its ``valid_card``), else ``None``."""
+    if unit.origin != "trigger":
+        return None
+    for n in iter_typed_nodes(getattr(unit.node, "valid_card", None)):
+        if (
+            tag_of(n) == "PtComparison"
+            and getattr(n, "stat", None) == "Power"
+            and getattr(n, "comparator", None) == "GE"
+        ):
+            value = getattr(getattr(n, "value", None), "value", None)
+            if isinstance(value, int) and value > 0:
+                return value
+    return None
 
 
 def _counts_countered(c: ConceptNode) -> bool:
@@ -549,6 +575,7 @@ def _sources(card: dict) -> list[_Source]:
                     tag_of(n) == "IsChosenCreatureType"
                     for n in iter_typed_nodes(getattr(unit.node, "valid_card", None))
                 ),
+                min_power=_watched_min_power(unit),
                 pumped=unit.origin == "trigger"
                 and any(
                     tag_of(n) == "PowerExceedsBase"
@@ -779,6 +806,8 @@ def _source_fuel(s: _Source) -> str | None:
         return "chosen_type"
     if s.pumped:
         return "pumped"
+    if s.min_power is not None:
+        return f"{_POWER_FUEL}{s.min_power}"
     if s.fuel == "equipped_dies":
         return "x1_creatures_or_tokens"
     if s.fuel == "graveyard_leave":
@@ -840,6 +869,16 @@ def _feeds(record: dict, fuel: str) -> bool:
         return "Enchantment" in face
     if fuel == "artifacts":
         return "Artifact" in face
+    if fuel.startswith(_POWER_FUEL):
+        # A creature card entering at least that big, face up: Deadly
+        # Disguise's face-down 2/2s feed no "power 4 or greater" (2026-11-02).
+        power = fixed_stat(record.get("power"))
+        return (
+            "Creature" in face
+            and isinstance(power, int)
+            and power >= int(fuel.removeprefix(_POWER_FUEL))
+            and not set(record.get("keywords") or ()) & _FACE_DOWN
+        )
     keys = signal_keys_for(record)
     if fuel == "countered":
         return bool(keys & _COUNTER_PLACER_KEYS)
@@ -895,4 +934,5 @@ def deck_fit(card: dict, deck_records: Sequence[dict]) -> float:
     fuel = draw_fuel(card)
     if fuel is None or not deck_records:
         return 1.0
-    return min(1.0, _fuel_share(deck_records, fuel) / _FUEL_REFERENCE[fuel])
+    reference = _FUEL_REFERENCE.get(fuel, _FUEL_REFERENCE["creatures"])
+    return min(1.0, _fuel_share(deck_records, fuel) / reference)
