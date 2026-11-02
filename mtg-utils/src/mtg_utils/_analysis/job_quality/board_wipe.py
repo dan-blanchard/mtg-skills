@@ -145,7 +145,7 @@ from mtg_utils.card_classify import classifying_keywords
 from mtg_utils.type_line import split_type_line
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
+    from collections.abc import Mapping, Sequence
 
     from mtg_utils._card_ir.crosswalk import (
         AbilityUnit,
@@ -835,10 +835,49 @@ def _spared_power(node: object, filt: object) -> tuple[str, int] | None:
             and getattr(n, "stat", None) == "Power"
             and getattr(n, "comparator", None) == "GE"
         ):
-            value = getattr(getattr(n, "value", None), "value", None)
+            bound = getattr(n, "value", None)
+            value = getattr(bound, "value", None)
             if isinstance(value, int):
                 return ("below", value)
+            if _caster_picked(bound):
+                return ("chosen", _CHOSEN_POWER_BOUND)
     return None
+
+
+#: The bound a caster-picked power line is read at: Dusk's printed "power 3
+#: or greater", the line the read already takes as sparing a small deck.
+_CHOSEN_POWER_BOUND = 3
+
+
+def _caster_picked(bound: object) -> bool:
+    """Whether a power bound is the caster's to set: a chosen number (Expel
+    the Interlopers' "the chosen number") or the power of a creature the
+    caster targets (Fell the Mighty's "greater than target creature's
+    power")."""
+    for n in iter_typed_nodes(bound):
+        tag = tag_of(n)
+        if tag == "ChosenNumber":
+            return True
+        if tag == "Power" and tag_of(getattr(n, "scope", None)) == "Target":
+            return True
+    return False
+
+
+def power_bound_hits(card: dict, record: Mapping) -> bool:
+    """Whether a fixed power bound on ``card``'s sweep destroys ``record``
+    (its printed power at or over the bound, or over a total cap): Dusk kills
+    Ellivere of the Wild Court, a 4-power commander, whatever else of her
+    deck it spares. A caster-picked bound is set above it."""
+    power = fixed_stat(record.get("power"))
+    if not isinstance(power, int):
+        return False
+    for s in _sweeps(card):
+        if s.spared_power is None:
+            continue
+        kind, bound = s.spared_power
+        if (kind == "below" and power >= bound) or (kind == "total" and power > bound):
+            return True
+    return False
 
 
 def _deck_spares_power(deck: Sequence[dict], spared: tuple[str, int]) -> bool:
@@ -857,7 +896,7 @@ def _deck_spares_power(deck: Sequence[dict], spared: tuple[str, int]) -> bool:
         value = fixed_stat(r.get("power"))
         return value if isinstance(value, int) else None
 
-    if kind == "below":
+    if kind in ("below", "chosen"):
         kept = sum(1 for r in creatures if (pw := power(r)) is not None and pw < bound)
     else:
         kept = sum(1 for r in creatures if power(r) == 0)

@@ -358,7 +358,11 @@ def _does_the_job(
 
 
 def _reads_worse_at_the_job(
-    candidate: dict, cut: dict, job: str, deck: Sequence[dict] | None
+    candidate: dict,
+    cut: dict,
+    job: str,
+    deck: Sequence[dict] | None,
+    commanders: Sequence[Mapping] = (),
 ) -> bool:
     """Whether the job's card read (``job_quality``) scores ``candidate`` below
     ``cut`` in ``deck`` at no lower mana value. The read decides membership
@@ -379,7 +383,7 @@ def _reads_worse_at_the_job(
     if (
         job == "board_wipe"
         and records
-        and _spares_less_of_the_deck(candidate, cut, records)
+        and _spares_less_of_the_deck(candidate, cut, records, commanders)
     ):
         return True
     if _one_shot_for_an_engine(read, candidate, cut, records):
@@ -414,19 +418,33 @@ def _one_shot_for_an_engine(
 
 
 def _spares_less_of_the_deck(
-    candidate: dict, cut: Mapping, deck: Sequence[dict]
+    candidate: dict,
+    cut: Mapping,
+    deck: Sequence[dict],
+    commanders: Sequence[Mapping] = (),
 ) -> bool:
     """Whether a wipe candidate is symmetric in ``deck`` where the cut spares
     the deck's own board (``board_wipe.features``' deck-read ``one_sided``):
     Winds of Rath under twenty Auras, Dusk under face-down 2/2s, Slaughter the
     Strong under 0-power walls all went to Wrath of God or Damn, the read's
-    weight on sparing too small to hold them (2026-11-02)."""
+    weight on sparing too small to hold them (2026-11-02). A power line that
+    kills a commander spares nothing that matters: Dusk spares most of
+    Virtue and Valor's creatures by printed power, but not Ellivere of the
+    Wild Court, a 4-power commander — Winds of Rath went to it (2026-11-02)."""
     from mtg_utils._analysis.job_quality import board_wipe
 
-    a, b = board_wipe.features(candidate, deck), board_wipe.features(dict(cut), deck)
-    if not a or not b:
+    def one_sided(card: dict) -> bool | None:
+        f = board_wipe.features(card, deck)
+        if not f:
+            return None
+        return f.get("one_sided", 0) > 0 and not any(
+            board_wipe.power_bound_hits(card, c) for c in commanders
+        )
+
+    a, b = one_sided(candidate), one_sided(dict(cut))
+    if a is None or b is None:
         return False
-    return b.get("one_sided", 0) > 0 and a.get("one_sided", 0) == 0
+    return b and not a
 
 
 def _one_shot_mana(card: dict) -> bool:
@@ -550,6 +568,7 @@ def _upgrades(
     draw_engine: bool = False,
     needs: Callable[[Mapping], int] | None = None,
     needs_kept: Callable[[Mapping], int] | None = None,
+    commanders: Sequence[Mapping] = (),
 ) -> bool:
     """Whether ``candidate`` is an upgrade of ``cut``: it costs no higher
     mana-value band, or for a job one band higher at most (:func:`over_band` — a
@@ -608,7 +627,7 @@ def _upgrades(
         job if job is not None or off_theme else upgrade_job(cut.roles, cut.record)
     )
     if read_job is not None and _reads_worse_at_the_job(
-        candidate, cut.record, read_job, deck
+        candidate, cut.record, read_job, deck, commanders
     ):
         return False
     if read_job is not None and _lateral_at_the_job(candidate, cut.record, read_job):
@@ -1034,13 +1053,22 @@ def _ability_gate_words(node: object, effects: Sequence) -> frozenset[str]:
     permanents of YOURS does (Brass Squire's Equipment you control, Inspiring
     Call's creatures with +1/+1 counters, Krenko's Goblins) — never a target
     among anyone's (Vandalblast's artifacts, Asceticism's creature)."""
-    # A cost gates the whole ability (it has to be paid: Sai's two artifacts).
+    # A cost gates the whole ability (it has to be paid: Sai's two artifacts,
+    # High Perfect Morcant's "tap three untapped Elves you control" — Blight
+    # Curse holds three Elves, 2026-11-02), whatever its effects reach.
     cost_words: set[str] = set()
     for leaf in iter_cost_leaves(getattr(node, "cost", None)):
-        if tag_of(leaf) == "Sacrifice":
+        tag = tag_of(leaf)
+        if tag == "Sacrifice":
             target = getattr(leaf, "target", None)
             if _present(target):
                 cost_words |= _gate_words(target)
+        elif tag == "TapCreatures":
+            filt = getattr(leaf, "filter", None)
+            if _present(filt):
+                cost_words |= _gate_words(filt)
+    if cost_words:
+        return frozenset(cost_words)
     # The effects gate it only when every one that stands on its own is
     # gated: Tezzeret's Gambit draws two whatever its proliferate finds, where
     # Ripples of Potential's phase-out reaches only what it proliferated.
@@ -1072,7 +1100,7 @@ def _ability_gate_words(node: object, effects: Sequence) -> frozenset[str]:
             effect_words |= words
         else:
             ungated = True
-    return frozenset(cost_words | (set() if ungated else effect_words))
+    return frozenset(set() if ungated else effect_words)
 
 
 def _unit_gates(card: Mapping) -> _UnitGates:
@@ -2044,6 +2072,9 @@ class SwapContext:
     #: ones the pages skip included: an upgrade keeps the needs its cut
     #: supplies (``_upgrades``). Empty: the pages' needs are every need.
     needs: Sequence[Need] = ()
+    #: The commanders' records: a power-bound sweep that kills one is no
+    #: one-sided sweep in its deck (:func:`_spares_less_of_the_deck`).
+    commanders: Sequence[Mapping] = ()
     #: The mana-base plan (``mana_base.land_plan``, Phase C of the 2026-10-30
     #: plan) and the identity's lands in play-rate order: the land swaps made
     #: first, within their own purse. ``None``: no land swaps.
@@ -2969,6 +3000,7 @@ def propose_swaps(
                 draw_engine=ctx.draw_engine_commander,
                 needs=needs_supplied if built_needs else None,
                 needs_kept=needs_kept if kept_needs else None,
+                commanders=ctx.commanders,
             ):
                 continue
             if upgrade_of is None and not _does_the_job(card, job, deck_records):

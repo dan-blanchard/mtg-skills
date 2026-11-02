@@ -1380,6 +1380,26 @@ proposal as a deckbuilder, fix the structure, the guide score is a yardstick)**
   size-anti-synergy rule); Thunderherd Migration for Wrath of God (wipe row
   short, ramp over band); Bitter Triumph (job row full); Commit // Memory
   (Memory's half is MV 6). `verify_symptoms.py`: 99.
+- **Batch 16o (2026-11-02; the 25 733 / 339 / 119 → 732 / 339 / 120, held-out
+  565 / 262 / 106 → 564 / 261 / 107, fresh unchanged at 293 / 125 / 53).** The
+  re-read of batch 16n's ten proposals (a Sonnet reviewer, every card looked
+  up). Fixed: (101) *a power line the caster sets spares a small deck*
+  (`job_quality.board_wipe._caster_picked`: Expel the Interlopers' "the
+  chosen number", Fell the Mighty's "target creature's power", read at Dusk's
+  line of 3): Expel no longer goes to White Sun's Twilight under Felothar's
+  0-power walls, nor Fell the Mighty to Martial Coup in Food and Fellowship
+  or Deadly Disguise. (102) *a power line that kills the commander is no
+  one-sided sweep* (`board_wipe.power_bound_hits`, `SwapContext.commanders`):
+  Dusk spares most of Virtue and Valor by printed power but kills Ellivere
+  of the Wild Court (power 4), so Winds of Rath no longer goes to it. (103)
+  *a "tap N creatures of a type" cost gates the ability on that type*
+  (`swaps._ability_gate_words`; a cost's words now stand alone, since it has
+  to be paid): High Perfect Morcant's proliferate taps three Elves and its
+  trigger waits on another Elf; Blight Curse holds three, so it is dead
+  there and Village Pillagers goes to Murderous Redcap. Verdict: Whisperwood
+  Elemental for Hauntwoods Shrieker in Deadly Disguise (Kaust turns
+  face-down *attackers* face up, so an attack trigger is on the plan, at two
+  less mana). `verify_symptoms.py`: 103.
 
 **From the Jace, Multiverse Architect precon tune and the 25-precon audit (2026-10-17 to 2026-11-01)**
 

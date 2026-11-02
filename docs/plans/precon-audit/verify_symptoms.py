@@ -182,6 +182,12 @@ CHECKS = [
     _check("no_pair", "AbzanArmor_TDC", "Slaughter the Strong -> Damn", batch="16n"),
     _check("no_pair", "AnimatedArmy_BLC", "Starstorm -> Contagion Engine", batch="16n"),
     _check("never", "NecronDynasties_40K", "Gravecrawler", batch="16n"),
+    # A caster-picked power line spares a small deck; a line killing the commander spares nothing.
+    _check("no_pair", "AbzanArmor_TDC", "Expel the Interlopers -> White Sun's Twilight", batch="16o"),
+    _check("no_pair", "FoodAndFellowship_LTC", "Fell the Mighty -> Martial Coup", batch="16o"),
+    _check("no_pair", "VirtueAndValor_WOC", "Winds of Rath -> Dusk // Dawn", batch="16o"),
+    # A tap-three-Elves cost gates on Elves (Blight Curse holds three).
+    _check("never", "BlightCurse_ECC", "High Perfect Morcant", batch="16o"),
     _check("no_pair", "CreativeEnergy_M3C", "Silverquill Lecturer -> Boromir, Warden of the Tower", batch="16n"),
     _check("no_pair", "TinkerTime_MOC", "Feldon of the Third Path -> Skullclamp", batch="16n"),
     _check("no_trim", "EldraziIncursion_M3C", "Forsaken Monument", batch="14"),

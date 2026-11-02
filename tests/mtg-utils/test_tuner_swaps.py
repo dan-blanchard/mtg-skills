@@ -4015,3 +4015,32 @@ def test_a_static_working_only_beside_a_type_is_gated_on_it():
     crawler = test_card("Gravecrawler")
     assert gated_without_feed(crawler, Counter(), Counter())
     assert not gated_without_feed(crawler, Counter({"zombie": 12}), Counter())
+
+
+def test_a_power_line_that_kills_the_commander_is_no_one_sided_sweep():
+    """Dusk spares a deck of small creatures but kills Ellivere of the Wild
+    Court: under her, Winds of Rath (one-sided under ten Auras) is not
+    upgraded to it (Virtue and Valor, 2026-11-02). Under Kaust, Eyes of the
+    Glade (power 2) Dusk stays one-sided."""
+    from mtg_utils._tuner.swaps import _spares_less_of_the_deck
+
+    deck = [test_card("Ethereal Armor")] * 10 + [test_card("Wall of Omens")] * 10
+    dusk, winds = test_card("Dusk // Dawn"), test_card("Winds of Rath")
+    ellivere = test_card("Ellivere of the Wild Court")
+    assert _spares_less_of_the_deck(dusk, winds, deck, [ellivere])
+    assert not _spares_less_of_the_deck(
+        dusk, winds, deck, [test_card("Kaust, Eyes of the Glade")]
+    )
+
+
+def test_a_tap_creatures_cost_gates_the_ability_on_their_type():
+    """High Perfect Morcant's proliferate costs "tap three untapped Elves you
+    control", and its trigger waits on another Elf entering: a deck of three
+    Elves feeds neither (Blight Curse, 2026-11-02)."""
+    from collections import Counter
+
+    from mtg_utils._tuner.swaps import gated_without_feed
+
+    morcant = test_card("High Perfect Morcant")
+    assert gated_without_feed(morcant, Counter({"elf": 3}), Counter())
+    assert not gated_without_feed(morcant, Counter({"elf": 12}), Counter())

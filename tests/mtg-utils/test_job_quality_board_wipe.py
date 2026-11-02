@@ -489,3 +489,29 @@ def test_a_power_bound_sweep_is_one_sided_in_a_deck_it_spares():
     slaughter = test_card("Slaughter the Strong")
     walls = [test_card("Wall of Roots")] * 10
     assert board_wipe.features(slaughter, walls)["one_sided"] == 1.0
+
+
+def test_a_caster_picked_power_line_spares_a_small_deck():
+    """Expel the Interlopers destroys power "greater than or equal to the
+    chosen number" and Fell the Mighty power "greater than target creature's
+    power": the caster sets the line, so a deck of small creatures keeps its
+    board (Abzan Armor, Food and Fellowship, 2026-11-02)."""
+    small = [test_card("Wall of Omens")] * 10
+    big = [test_card("Colossal Dreadmaw")] * 10
+    for name in ("Expel the Interlopers", "Fell the Mighty"):
+        sweep = test_card(name)
+        assert board_wipe.features(sweep, small)["one_sided"] == 1.0, name
+        assert board_wipe.features(sweep, big)["one_sided"] == 0.0, name
+
+
+def test_a_power_line_hits_a_commander_at_or_over_it():
+    """Dusk destroys "creatures with power 3 or greater": Ellivere of the Wild
+    Court (power 4) dies, Kaust, Eyes of the Glade (power 2) does not; a
+    caster-picked line is set above the commander."""
+    dusk = test_card("Dusk // Dawn")
+    assert board_wipe.power_bound_hits(dusk, test_card("Ellivere of the Wild Court"))
+    assert not board_wipe.power_bound_hits(dusk, test_card("Kaust, Eyes of the Glade"))
+    expel = test_card("Expel the Interlopers")
+    assert not board_wipe.power_bound_hits(
+        expel, test_card("Ellivere of the Wild Court")
+    )

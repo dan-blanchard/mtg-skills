@@ -598,6 +598,7 @@ def tune(
             deck_signals=deck_signals,
             commander_idents=read.commander_idents,
             emitters=read.emitters,
+            commanders=commander_records,
             search_fn=search_fn,
             identity=identity,
             fmt=fmt,
