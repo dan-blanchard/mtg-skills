@@ -3430,9 +3430,9 @@ def test_a_need_count_admission_never_trades_down_a_card_that_already_served():
     4) to Zetalpa, Primal Dawn's one (toughness 8), and four times fewer decks
     play it: no upgrade, since Zetalpa already served the commander and the
     card-quality read rates the Sentinel far below it. Jaddi Offshoot's slot
-    goes to Stalwart Shield-Bearers (two boxes, no weaker a card), and a slot
-    that served nothing — Gray Merchant's — goes to Wall of Souls however it
-    reads."""
+    goes to Stalwart Shield-Bearers (two boxes, no weaker a card). A jobless
+    cut is never traded down, whatever it serves: Gray Merchant's slot (no
+    need of Felothar's) is no Wall of Souls either."""
     zetalpa = _real_cc("Zetalpa, Primal Dawn", "engine", edhrec_rank=1630)
     jaddi = _real_cc("Jaddi Offshoot", "engine", edhrec_rank=4000)
     gary = _real_cc("Gray Merchant of Asphodel", "engine", edhrec_rank=300)
@@ -3450,8 +3450,17 @@ def test_a_need_count_admission_never_trades_down_a_card_that_already_served():
     assert not _upgrades(
         _played("Shield-Wall Sentinel", 6071), zetalpa, None, needs=needs
     )
+    # Off the deck's main lanes too: moving the slot onto the theme is no
+    # reason to trade Zetalpa down.
+    assert not _upgrades(
+        _played("Shield-Wall Sentinel", 6071),
+        zetalpa,
+        None,
+        off_theme=True,
+        needs=needs,
+    )
     assert _upgrades(_played("Stalwart Shield-Bearers", 6000), jaddi, None, needs=needs)
-    assert _upgrades(_played("Wall of Souls", 9000), gary, None, needs=needs)
+    assert not _upgrades(_played("Wall of Souls", 9000), gary, None, needs=needs)
 
 
 def test_a_led_page_is_sorted_whole_before_it_is_cut():

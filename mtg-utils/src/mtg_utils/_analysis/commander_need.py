@@ -186,8 +186,22 @@ _COUNTER_GROWTH_KEYS: frozenset[str] = frozenset(
 #:   which the landfall lane folds into its umbrella key). The first adds Desert
 #:   Bloom's guides make, while the tuner trimmed Oracle of Mul Daya as surplus
 #:   ramp (2026-11-01).
+#: * ``plus_one_makers`` also: the doublers, the replacement bonuses and the
+#:   proliferators, which multiply the counters the commander places (a
+#:   proliferate adds a counter of a kind already there, CR 701.34a) — the
+#:   adds every +1/+1 counters guide makes (Doubling Season, Hardened Scales,
+#:   Evolution Sage), which Bright-Palm's consumers need left out while its
+#:   two-need obscurities led his page (Call for Backup, 2026-11-02).
 _EXTRA_CONSUMER_KEYS: Mapping[str, frozenset[str]] = {
-    "plus_one_makers": frozenset({"counter_grants_kw", "counter_move"}),
+    "plus_one_makers": frozenset(
+        {
+            "counter_grants_kw",
+            "counter_move",
+            "counter_doubling",
+            "counter_replace_bonus",
+            "proliferate_makers",
+        }
+    ),
     "token_copy_makers": frozenset({"tokens_matter", "token_doubling"}),
     "land_sacrifice_makers": frozenset({"extra_land_drop"}),
 }
@@ -827,7 +841,7 @@ def _static_needs(node: object, desc: str) -> Iterator[Need]:
             "event",
             "support for the attackers the commander makes",
             desc,
-            keys=_ATTACKER_SUPPORT_KEYS,
+            predicate=_supports_attackers,
         )
 
 
@@ -837,6 +851,16 @@ def _static_needs(node: object, desc: str) -> Iterator[Need]:
 _ATTACKER_SUPPORT_KEYS: frozenset[str] = frozenset(
     {"team_buff", "anthem_static", "board_protection", "team_evasion_grant"}
 )
+
+
+def _supports_attackers(card: dict) -> bool:
+    """A card with one of :data:`_ATTACKER_SUPPORT_KEYS` that is not an
+    Equipment: a piece of gear helps one creature at a time (Hammer of Nazahn
+    led Bello's page as "support" for its indestructible), where the deck
+    animates a board."""
+    if "equipment" in _type_words(card):
+        return False
+    return any(i.split("|", 1)[0] in _ATTACKER_SUPPORT_KEYS for i in _card_idents(card))
 
 
 def _animates_attackers(node: object) -> bool:
@@ -1126,6 +1150,8 @@ def _drains_on_opponents_turns(card: dict) -> bool:
         key, scope, _subject = ident.split("|", 2)
         if key.startswith("opponent_") or key == "stax_taxes":
             return True
+        if key in _OWN_COMBAT_KEYS:
+            continue  # the card's own attack connecting is your turn's work
         if key.endswith("_matters") and scope in ("opponents", "each", "any"):
             return True
         if key not in _EVENT_MAKER_KEYS["life_lost"] and scope in ("opponents", "each"):
@@ -1145,6 +1171,12 @@ def _drains_on_opponents_turns(card: dict) -> bool:
                 return True
     return False
 
+
+#: Payoff keys for the card's OWN combat damage to opponents (Sword of Fire and
+#: Ice, Rankle): scoped "opponents" by the victim, fired on your turn.
+_OWN_COMBAT_KEYS: frozenset[str] = frozenset(
+    {"combat_damage_matters", "combat_damage_to_opp", "damage_to_opp_matters"}
+)
 
 #: The trigger events that are a player's own action (``trigger_def_event``):
 #: one by an opponent happens on their turn, as a rule.

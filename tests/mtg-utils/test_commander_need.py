@@ -137,8 +137,8 @@ def test_bello_wants_big_non_equipment_artifacts_and_non_aura_enchantments():
     assert support.kind == "event"
     for name in ("Asceticism", "Glorious Sunrise", "Sight of the Scalelords"):
         assert satisfies(test_card(name), support), name
-    for name in ("Panharmonicon", "Mystic Forge"):
-        assert not satisfies(test_card(name), support), name
+    for name in ("Panharmonicon", "Mystic Forge", "Hammer of Nazahn"):
+        assert not satisfies(test_card(name), support), name  # gear helps one
     assert "support for the attackers the commander makes" not in _labels(
         _needs("Zhulodok, Void Gorger")
     )
@@ -206,6 +206,7 @@ def test_an_opponents_turn_drain_trigger_wants_makers_that_fire_on_their_turns()
         "Myr Battlesphere",
         "Crypt Ghast",
         "Toxic Deluge",
+        "Sword of Fire and Ice",  # its own combat damage, your turn's work
     ):
         assert not satisfies(test_card(name), need), name
 
@@ -654,3 +655,13 @@ def test_a_payoff_with_no_maker_lane_is_its_own_redundancy():
     assert satisfies(test_card("Desecrated Tomb"), redundancy)
     assert satisfies(test_card("Tormod, the Desecrator"), redundancy)
     assert not satisfies(test_card("Reanimate"), redundancy)
+
+
+def test_a_counter_commanders_consumers_include_the_doublers_and_proliferators():
+    """Bright-Palm places +1/+1 counters: Doubling Season doubles them,
+    Evolution Sage proliferates them, Hardened Scales adds one more — the adds
+    every counters guide makes, all consumers of what he places."""
+    consumers = _need("Bright-Palm, Soul Awakener", "plus one consumers")
+    for name in ("Doubling Season", "Evolution Sage", "Hardened Scales", "The Ozolith"):
+        assert satisfies(test_card(name), consumers), name
+    assert not satisfies(test_card("Counterspell"), consumers)

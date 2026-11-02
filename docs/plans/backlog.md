@@ -431,9 +431,18 @@ headroom and parked items.
 proposal as a deckbuilder, fix the structure, the guide score is a yardstick)**
 
 - **The 25-precon pass is closed (2026-11-02): every flaw its reads found has
-  a fix in the tree.** The approaches measured and rejected along the way
-  (listed under Settled with their numbers) were alternative routes to flaws
-  fixed by other means, not open flaws.
+  a fix in the tree, verified card by card on the latest run (the symptom
+  checks in batch 10's entry) and on the fresh 10-deck set never used for
+  design** (`~/mtg/tuner-work/fresh/root`; its pre-pass baseline is
+  `w41/misses-fresh-N16.json`). The approaches measured and rejected along
+  the way (listed under Settled with their numbers) were alternative routes
+  to flaws fixed by other means, not open flaws. Two residues the reads
+  judge right and the guides' lists disagree with: Explorers of the Deep
+  keeps Tributary Instructor and Sage of Fables (they feed Hakbal's counters
+  and no Merfolk on the page supplies as much while better played; 26 swaps
+  to the baseline's 29), and Counter Intelligence proposes 24 swaps on its
+  $40.69 (the counters consumers now reach Inexorable Tide and Metastatic
+  Evangel instead of fifty-cent rocks; 30 on an unlimited budget).
 
 ## Settled: don't re-suggest
 
@@ -632,6 +641,32 @@ proposal as a deckbuilder, fix the structure, the guide score is a yardstick)**
   cards (constellation) kept Hardened Scales and Branching Evolution alive on
   her enchantments page; now dead there, while Hazel's eighteen token makers
   keep Doubling Season and Parallel Lives.
+- **Batch 10 (2026-11-02; the 25 730 / 340 / 120 → 732 / 341 / 121,
+  held-out 577 / 259 / 104 → 571 / 255 / 103, fresh 10 — pre-pass baseline
+  295 / 130 / 38 → 291 / 126 / 37).** The pass re-read against the fresh
+  set and a card-by-card check of every earlier flaw. (32) *A counter
+  commander's consumers include the doublers, replacement bonuses and
+  proliferators* (`commander_need._EXTRA_CONSUMER_KEYS["plus_one_makers"]`):
+  Call for Backup had lost Doubling Season, Evolution Sage, Ozolith and
+  Hardened Scales to two-need obscurities (Sphere Grid, Lion Sash) — 8 → 3 →
+  7 guide adds. (33) *A jobless cut is never traded down* (`_upgrades`:
+  both play-rate-free admissions, off-theme and need-count, stop at a
+  candidate the card-quality read rates below a cut with no template job or
+  protection): Zetalpa, Primal Dawn stays in Abzan Armor (his toughness need
+  is too broad to page, so neither earlier guard reached him). (34) *A tribe
+  slot falls back to the main theme when the tribe's page holds nothing
+  better* (never a flip's). (35) *The attacker-support need excludes
+  Equipment* (gear helps one creature; Hammer of Nazahn led Bello's page as
+  support), and (36) *a card's own combat damage is not an opponents'-turn
+  drain* (`_OWN_COMBAT_KEYS`: Sword of Fire and Ice, Rankle). Verified on
+  the latest run: Bello's page holds Asceticism and none of the banners,
+  Coat of Arms or gear; Endless Punishment has 30 swaps with no Guttersnipe,
+  Dragon Tempest or own-combat gear and keeps Blood Seeker, Harsh Mentor and
+  Stormfist Crusader; Living Death, Squirrel Nest, Deep Forest Hermit,
+  Oracle of Mul Daya and Zetalpa are kept; Squirrel makers are added;
+  Anikthea's page has no counter doublers; Aryel stays a Knight; Cavalier of
+  Thorns and Kwain are no trims; Mirko opens no payload page; Bright-Palm's
+  counters staples are back.
 
 **From the Jace, Multiverse Architect precon tune and the 25-precon audit (2026-10-17 to 2026-11-01)**
 

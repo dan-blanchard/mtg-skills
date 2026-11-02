@@ -193885,6 +193885,511 @@
     "type_line": "Sorcery"
    }
   },
+  "Bright-Palm, Soul Awakener": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "brawl_commander": true,
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Fox",
+       "Shaman"
+      ],
+      "supertypes": [
+       "Legendary"
+      ]
+     },
+     "color_identity": [
+      "Green",
+      "Red",
+      "White"
+     ],
+     "color_override": [
+      "Green",
+      "Red",
+      "White"
+     ],
+     "defense": null,
+     "flavor_name": null,
+     "is_commander": true,
+     "keywords": [
+      {
+       "Backup": 1
+      }
+     ],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "Red",
+       "Green",
+       "White"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "03056df6-ae03-40ce-be4b-96d8061b12d3",
+       "15a64f1c-b5f9-48cb-b497-6fd70bced8ab",
+       "a485c2c3-c90b-43b4-bb00-c1b811b4b392"
+      ]
+     },
+     "name": "Bright-Palm, Soul Awakener",
+     "non_ability_text": null,
+     "oracle_text": "Backup 1 (When this creature enters, put a +1/+1 counter on target creature. If that's another creature, it gains the following ability until end of turn.)\nWhenever this creature attacks, double the number of +1/+1 counters on target creature. That creature can't be blocked by creatures with power 2 or less this turn.",
+     "power": {
+      "type": "Fixed",
+      "value": 4
+     },
+     "printings": [
+      "MOC"
+     ],
+     "rarities": [
+      "mythic"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2023-04-14",
+       "text": "Backup confers only abilities that are actually printed below it. Any abilities that are gained by the permanent are ignored, including abilities gained due to a resolving spell or ability or copy effects."
+      },
+      {
+       "date": "2023-04-14",
+       "text": "If a backup ability causes another creature to gain abilities, the creature with backup will still have those abilities."
+      },
+      {
+       "date": "2023-04-14",
+       "text": "If a backup ability targets the creature with backup, that creature will get +1/+1 counters, but it won’t gain additional abilities."
+      },
+      {
+       "date": "2023-04-14",
+       "text": "If a permanent enters the battlefield as a copy of a card with a backup ability or a token is created that is a copy of that card, the order of the printed abilities is maintained."
+      },
+      {
+       "date": "2023-04-14",
+       "text": "The abilities that backup grants to the target creature are determined only once, at the time the ability triggers. They won’t change if the permanent with backup loses any abilities before the backup ability resolves."
+      }
+     ],
+     "scryfall_oracle_id": "f74888ee-5086-49a6-ae74-fd9894f46332",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 3
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever ~ attacks, double the number of +1/+1 counters on target creature. That creature can't be blocked by creatures with power 2 or less this turn.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "counter_type": "P1P1",
+         "multiplier": 2,
+         "target": {
+          "controller": null,
+          "properties": [],
+          "type": "Typed",
+          "type_filters": [
+           "Creature"
+          ]
+         },
+         "type": "MultiplyCounter"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": "UntilEndOfTurn",
+         "effect": {
+          "duration": "UntilEndOfTurn",
+          "static_abilities": [
+           {
+            "active_zones": [],
+            "affected": {
+             "type": "ParentTarget"
+            },
+            "affected_zone": null,
+            "characteristic_defining": false,
+            "condition": null,
+            "description": "can't be blocked by creatures with power 2 or less",
+            "effect_zone": null,
+            "mode": {
+             "CantBeBlockedBy": {
+              "filter": {
+               "controller": null,
+               "properties": [
+                {
+                 "comparator": "LE",
+                 "scope": "Current",
+                 "stat": "Power",
+                 "type": "PtComparison",
+                 "value": {
+                  "type": "Fixed",
+                  "value": 2
+                 }
+                }
+               ],
+               "type": "Typed",
+               "type_filters": [
+                "Creature"
+               ]
+              }
+             }
+            },
+            "modifications": [
+             {
+              "mode": {
+               "CantBeBlockedBy": {
+                "filter": {
+                 "controller": null,
+                 "properties": [
+                  {
+                   "comparator": "LE",
+                   "scope": "Current",
+                   "stat": "Power",
+                   "type": "PtComparison",
+                   "value": {
+                    "type": "Fixed",
+                    "value": 2
+                   }
+                  }
+                 ],
+                 "type": "Typed",
+                 "type_filters": [
+                  "Creature"
+                 ]
+                }
+               }
+              },
+              "type": "AddStaticMode"
+             }
+            ]
+           }
+          ],
+          "target": null,
+          "type": "GenericEffect"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": null,
+         "sub_link": "SequentialSibling",
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "mode": "Attacks",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": null
+      },
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "CR 702.165: Backup 1 — when this creature enters, put 1 +1/+1 counter on target creature. If that's another creature, it gains this creature's non-backup abilities printed below backup until end of turn.",
+       "destination": "Battlefield",
+       "execute": {
+        "ability_tag": {
+         "type": "Backup"
+        },
+        "condition": null,
+        "cost": null,
+        "description": "Put 1 +1/+1 counter on target creature",
+        "duration": null,
+        "effect": {
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "counter_type": "P1P1",
+         "target": {
+          "controller": null,
+          "properties": [],
+          "type": "Typed",
+          "type_filters": [
+           "Creature"
+          ]
+         },
+         "type": "PutCounter"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": {
+          "condition": {
+           "filter": {
+            "type": "SelfRef"
+           },
+           "type": "TargetMatchesFilter",
+           "use_lki": false
+          },
+          "type": "Not"
+         },
+         "cost": null,
+         "description": "If that's another creature, it gains this creature's non-backup abilities printed below backup until end of turn.",
+         "duration": null,
+         "effect": {
+          "duration": "UntilEndOfTurn",
+          "static_abilities": [
+           {
+            "active_zones": [],
+            "affected": {
+             "type": "ParentTarget"
+            },
+            "affected_zone": null,
+            "characteristic_defining": false,
+            "condition": null,
+            "description": null,
+            "effect_zone": null,
+            "mode": "Continuous",
+            "modifications": [
+             {
+              "trigger": {
+               "batched": false,
+               "condition": null,
+               "constraint": null,
+               "damage_kind": "Any",
+               "description": "Whenever ~ attacks, double the number of +1/+1 counters on target creature. That creature can't be blocked by creatures with power 2 or less this turn.",
+               "destination": null,
+               "execute": {
+                "condition": null,
+                "cost": null,
+                "description": null,
+                "duration": null,
+                "effect": {
+                 "counter_type": "P1P1",
+                 "multiplier": 2,
+                 "target": {
+                  "controller": null,
+                  "properties": [],
+                  "type": "Typed",
+                  "type_filters": [
+                   "Creature"
+                  ]
+                 },
+                 "type": "MultiplyCounter"
+                },
+                "forward_result": false,
+                "kind": "Spell",
+                "optional": false,
+                "optional_targeting": false,
+                "sub_ability": {
+                 "condition": null,
+                 "cost": null,
+                 "description": null,
+                 "duration": "UntilEndOfTurn",
+                 "effect": {
+                  "duration": "UntilEndOfTurn",
+                  "static_abilities": [
+                   {
+                    "active_zones": [],
+                    "affected": {
+                     "type": "ParentTarget"
+                    },
+                    "affected_zone": null,
+                    "characteristic_defining": false,
+                    "condition": null,
+                    "description": "can't be blocked by creatures with power 2 or less",
+                    "effect_zone": null,
+                    "mode": {
+                     "CantBeBlockedBy": {
+                      "filter": {
+                       "controller": null,
+                       "properties": [
+                        {
+                         "comparator": "LE",
+                         "scope": "Current",
+                         "stat": "Power",
+                         "type": "PtComparison",
+                         "value": {
+                          "type": "Fixed",
+                          "value": 2
+                         }
+                        }
+                       ],
+                       "type": "Typed",
+                       "type_filters": [
+                        "Creature"
+                       ]
+                      }
+                     }
+                    },
+                    "modifications": [
+                     {
+                      "mode": {
+                       "CantBeBlockedBy": {
+                        "filter": {
+                         "controller": null,
+                         "properties": [
+                          {
+                           "comparator": "LE",
+                           "scope": "Current",
+                           "stat": "Power",
+                           "type": "PtComparison",
+                           "value": {
+                            "type": "Fixed",
+                            "value": 2
+                           }
+                          }
+                         ],
+                         "type": "Typed",
+                         "type_filters": [
+                          "Creature"
+                         ]
+                        }
+                       }
+                      },
+                      "type": "AddStaticMode"
+                     }
+                    ]
+                   }
+                  ],
+                  "target": null,
+                  "type": "GenericEffect"
+                 },
+                 "forward_result": false,
+                 "kind": "Spell",
+                 "optional": false,
+                 "optional_targeting": false,
+                 "sub_ability": null,
+                 "sub_link": "SequentialSibling",
+                 "target_prompt": null
+                },
+                "target_prompt": null
+               },
+               "mode": "Attacks",
+               "optional": false,
+               "origin": null,
+               "phase": null,
+               "secondary": false,
+               "trigger_zones": [
+                "Battlefield"
+               ],
+               "valid_card": {
+                "type": "SelfRef"
+               },
+               "valid_source": null,
+               "valid_target": null
+              },
+              "type": "GrantTrigger"
+             }
+            ]
+           }
+          ],
+          "target": null,
+          "type": "GenericEffect"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": null,
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "mode": "ChangesZone",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 4.0,
+    "color_identity": [
+     "G",
+     "R",
+     "W"
+    ],
+    "colors": [
+     "G",
+     "R",
+     "W"
+    ],
+    "keywords": [
+     "Backup",
+     "Double"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}{R}{G}{W}",
+    "name": "Bright-Palm, Soul Awakener",
+    "oracle_id": "f74888ee-5086-49a6-ae74-fd9894f46332",
+    "oracle_text": "Backup 1 (When this creature enters, put a +1/+1 counter on target creature. If that's another creature, it gains the following ability until end of turn.)\nWhenever this creature attacks, double the number of +1/+1 counters on target creature. That creature can't be blocked by creatures with power 2 or less this turn.",
+    "power": "4",
+    "toughness": "3",
+    "type_line": "Legendary Creature — Fox Shaman"
+   }
+  },
   "Brighthearth Banneret": {
    "phase_records": [
     {

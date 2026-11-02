@@ -385,20 +385,28 @@ def _upgrades(
         return False
     if needs is not None and needs(candidate) < needs(cut.record):
         return False
-    if job is None and off_theme:
+    # A jobless cut (a theme card, a body) is never traded down: the two
+    # admissions below that ignore play-rate — moving an off-theme slot onto
+    # the theme, and more of what the commander asks — both stop at a
+    # candidate the card-quality read rates below it. Zetalpa, Primal Dawn
+    # (toughness 8, off Felothar's defender lane, his toughness need too broad
+    # to page) went to Shield-Wall Sentinel by each in turn (2026-11-02);
+    # Jaddi Offshoot's Stalwart Shield-Bearers reads no weaker and still
+    # moves. A job card's quality (``upgrade_job``: a template role or
+    # protection) is read against its job, so a full job's slot moving onto
+    # the theme is not held to it.
+    trades_down = (
+        job is None
+        and upgrade_job(cut.roles, cut.record) is None
+        and _weaker_on_its_text(candidate, cut.record)
+    )
+    if job is None and off_theme and not trades_down:
         return True
-    # More of what the commander asks admits the candidate however few decks
-    # play it — unless the slot already served the commander and the candidate
-    # is the weaker card on its own text (``card_quality``): Zetalpa, Primal
-    # Dawn (toughness 8) went to Shield-Wall Sentinel, a defender with
-    # toughness 4, for ticking two of Felothar's boxes (Abzan Armor,
-    # 2026-11-01). Gray Merchant's slot served none, so Wall of Souls still
-    # takes it; Jaddi Offshoot's Stalwart Shield-Bearers reads no weaker.
     if (
         job is None
         and needs is not None
         and needs(candidate) > needs(cut.record)
-        and (needs(cut.record) == 0 or not _weaker_on_its_text(candidate, cut.record))
+        and not trades_down
     ):
         return True
     if (
@@ -2452,6 +2460,27 @@ def propose_swaps(
                         # reaches past popularity.
                         limit=_JOB_READ_PAGE if job_read else _PAGE,
                     )
+                    if (
+                        picked is None
+                        and source.job is None
+                        and source.what not in (None, FLIP_SLOT)
+                    ):
+                        # A tribe slot stays the tribe's while the tribe's page
+                        # holds a better card; past that the main theme takes
+                        # it, as any theme cut's does (Explorers of the Deep's
+                        # Merfolk page ran dry and four swaps went unmade,
+                        # 2026-11-02). A flip's slot stays a flip's.
+                        theme = sourcing.theme()
+                        if theme:
+                            picked, avenue = find_theme_add(
+                                theme,
+                                synergy_first=True,
+                                nonland_only=True,
+                                upgrade_of=cut,
+                                job=None,
+                            )
+                            if picked is not None:
+                                source = UpgradeSource(theme, None)
                     # A full job's slot moves onto the theme (the docstring) when
                     # the theme's add costs no more than the job's would — or,
                     # for a polymorph deck's flip, onto the flips' page.
