@@ -430,17 +430,21 @@ headroom and parked items.
 **From the 25-precon deckbuilder pass (2026-11-01; Dan's call: read each
 proposal as a deckbuilder, fix the structure, the guide score is a yardstick)**
 
-- **Bello's artifact page is still popularity among the live cards.** With the
-  dead payoffs gone (Banner of Kinship, Door of Destinies, Coat of Arms:
-  `swaps.dead_payoff`), the page by play-rate is Panharmonicon, Mystic Forge,
-  Maskwood Nexus, Giggling Skitterspike, Vedalken Orrery, The Regalia —
-  artifacts that do something, just not much here; the guides' Asceticism,
-  Glorious Sunrise and Sight of the Scalelords are the ones that also protect
-  or pump. The remaining gap is card fit, the ranker's territory (ADR-0063), not
-  a structural key: the short-role lead was measured and held back (above), and
-  Anikthea's Hardened Scales and Branching Evolution stay because her deck
-  places counters on five or more cards (constellation), so they are alive
-  there by the deck's own content.
+- **Bello's artifact page is popularity among the live cards.** With the
+  dead payoffs gone (`swaps.dead_payoff`, `chooses_a_type_without_tribe`),
+  the page by play-rate is Panharmonicon, Mystic Forge, Maskwood Nexus,
+  Giggling Skitterspike, Vedalken Orrery, Silent Arbiter — artifacts that do
+  something, just not much here; the guides' Asceticism, Glorious Sunrise and
+  Sight of the Scalelords are the ones that also protect or pump. The
+  remaining gap is card fit, the ranker's territory (ADR-0063), not a
+  structural key: the short-role lead was measured and held back (above).
+  Two residues of the dead-payoff read, by design: a payoff whose doer key is
+  gated on the mechanic (Dragon Tempest's damage on Dragons entering) reads
+  alive, since the gate lives in the IR, not the key (the ranker's
+  `_gate_penalty` reads it; a doer-side gate read would be the next step);
+  and Anikthea's Hardened Scales and Branching Evolution stay because her
+  deck places counters on five or more cards (constellation), alive by the
+  deck's own content.
 
 ## Settled: don't re-suggest
 
@@ -585,6 +589,23 @@ proposal as a deckbuilder, fix the structure, the guide score is a yardstick)**
   as surplus draw under Ms. Bumbleflower). Dance of the Elements takes
   Cavalier of Night, Solitude and Animar; Animated Army takes Fiery
   Emancipation and Guardian Project again.
+- **Batch 6 (2026-11-02; the 25 729 / 340 / 120 → 730 / 340 / 120, held-out
+  577 / 259 / 104 unchanged).** The dead-payoff read tightened on its own
+  misfires: (25) *a `subtype_ref` is a care only for a creature type among
+  YOUR permanents* — Farseek's Plains, Scourge of Fleets' Islands and Sram's
+  Auras are no tribe the deck fields; (26) *a life payment and an untapper are
+  not what the card is for* (`metrics.NO_FEEDER_READ`: Black Market
+  Connections' `wants_lifegain`, Teferi, Hero of Dominaria's `untap_engine`);
+  (27) *a card with an independent doer is never dead* (`metrics.NEUTRAL_KEYS`
+  names what a card IS rather than does; a multiplier's own feeder tag —
+  Hardened Scales' extra counter — and the umbrella payoffs don't count):
+  Birgi's boast unfed, her mana a doer; (28) *a choose-a-creature-type card
+  is tribal through and through* (`chooses_a_type_without_tribe`): no tribe of
+  ten, dead on every page — Vanquisher's Banner drew nothing for Bello's deck
+  as a card-draw upgrade. Measured and held back on the way: the whole
+  dead-payoff read on job pages (the 25 120 → 116 guide adds: Farseek,
+  Scourge of Fleets, Black Market Connections, Teferi all vetoed, and the
+  banner still through on its draw key).
 
 **From the Jace, Multiverse Architect precon tune and the 25-precon audit (2026-10-17 to 2026-11-01)**
 

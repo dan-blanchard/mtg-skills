@@ -319,7 +319,7 @@ def _cares_keys(key: str) -> tuple[str, ...]:
 #: them, not the reverse), and the suit-up payoffs the voltron package reads
 #: by its own gear. A payoff whose feeders :func:`payoff_feeders` cannot name
 #: is never dead.
-_NO_FEEDER_READ: frozenset[str] = frozenset(
+NO_FEEDER_READ: frozenset[str] = frozenset(
     {
         "graveyard_matters",
         "graveyard_makers",
@@ -334,7 +334,38 @@ _NO_FEEDER_READ: frozenset[str] = frozenset(
         "spellcast_matters",
         "combat_damage_matters",
         "voltron_matters",
+        # A life payment is read as wanting life gain (Black Market
+        # Connections); an untapper as caring about activated abilities
+        # (Teferi, Hero of Dominaria): neither is what the card is for.
+        "wants_lifegain",
+        "untap_engine",
         *signal_keys.STEP_TRIGGER_KEYS.values(),
+    }
+)
+#: Keys that say what a card IS, not what it does on its own — its types, a
+#: body's keywords, a static pump — so they never make a payoff "alive" by
+#: themselves (``swaps.dead_payoff``'s doer test).
+NEUTRAL_KEYS: frozenset[str] = frozenset(
+    {
+        "permanent_etb",
+        "activated_ability",
+        "keyword_bodies",
+        "type_matters",
+        "subtype_ref",
+        "anthem_static",
+        "count_anthem",
+        "scaling_pump",
+        "team_buff",
+        "evasion_self",
+        "self_etb_payload",
+        "variable_pt",
+        "has_changeling",
+        "creatures_matter",
+        "artifacts_matter",
+        "enchantments_matter",
+        "lands_matter",
+        "historic_matters",
+        "legends_matter",
     }
 )
 #: The feeders the cares map does not name: a counter doubler is fed by the
@@ -363,7 +394,7 @@ def payoff_feeders() -> Mapping[str, frozenset[str]]:
     """Payoff key → the served doer keys that feed it: the inverse of
     :func:`_cares_keys` over every served key (``plus_one_matters`` ←
     ``plus_one_makers``, ``wants_fodder`` ← the token makers), plus
-    :data:`_EXTRA_FEEDERS`; :data:`_NO_FEEDER_READ` left out. The tuner's
+    :data:`_EXTRA_FEEDERS`; :data:`NO_FEEDER_READ` left out. The tuner's
     dead-payoff read (``swaps.dead_payoff``) counts a deck's feeders by it."""
     from mtg_utils._analysis.lanes import SERVED_SIGNAL_KEYS
 
@@ -377,7 +408,7 @@ def payoff_feeders() -> Mapping[str, frozenset[str]]:
     return {
         key: frozenset(f for f in feeders if f in SERVED_SIGNAL_KEYS)
         for key, feeders in inverse.items()
-        if key not in _NO_FEEDER_READ and feeders & SERVED_SIGNAL_KEYS
+        if key not in NO_FEEDER_READ and feeders & SERVED_SIGNAL_KEYS
     }
 
 

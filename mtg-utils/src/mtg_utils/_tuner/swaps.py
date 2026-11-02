@@ -22,6 +22,7 @@ from collections.abc import Callable, Collection, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Protocol
 
+from mtg_utils._analysis._subtypes import CREATURE_SUBTYPES
 from mtg_utils._analysis.budgets import COMMANDER_TEMPLATE, Template
 from mtg_utils._analysis.card_quality import quality
 from mtg_utils._analysis.card_reads import has_trees
@@ -58,7 +59,7 @@ from mtg_utils._tuner.issues import (
     upgrade_job,
 )
 from mtg_utils._tuner.mana_base import LandPlan
-from mtg_utils._tuner.metrics import payoff_feeders
+from mtg_utils._tuner.metrics import NEUTRAL_KEYS, NO_FEEDER_READ, payoff_feeders
 from mtg_utils.card_classify import (
     extract_price,
     is_basic_land,
@@ -447,6 +448,7 @@ def _fills_short_role(card: CardClass, budgets: dict) -> bool:
 #: there; a tribe needs twice as many creatures sharing the type for a
 #: choose-a-type payoff (Door of Destinies). The ``_NEED_BUILT_FLOOR`` line.
 _FEEDER_FLOOR = 5
+_CREATURE_SUBTYPE_WORDS = frozenset(s.lower() for s in CREATURE_SUBTYPES)
 #: The payoffs that multiply what the deck already does, and so never feed
 #: themselves (:func:`dead_payoff`).
 _MULTIPLIER_KEYS = frozenset(
@@ -469,42 +471,78 @@ def deck_profile(classes: Sequence[CardClass]) -> tuple[Counter, Counter]:
 
 
 def dead_payoff(card: Mapping, deck_keys: Counter, deck_tribes: Counter) -> bool:
-    """Whether every mechanic ``card`` cares about has fewer than
-    :data:`_FEEDER_FLOOR` doers in the deck (``metrics.payoff_feeders``) and
-    the card feeds none of them itself: a choose-a-creature-type payoff with no
-    tribe in the deck (Banner of Kinship, Door of Destinies, Coat of Arms under
-    Bello), a counter doubler where nothing places counters. Not Etali, whose
-    poison payoff its own poison feeds; not Myr Battlesphere, whose Myr
-    reference is its own tokens; a card caring about nothing the read names
-    is never dead (2026-11-02)."""
+    """Whether ``card`` is a payoff for what the deck doesn't do: every
+    mechanic it cares about has fewer than :data:`_FEEDER_FLOOR` doers in the
+    deck (``metrics.payoff_feeders``), the card feeds none of them itself, and
+    it does nothing else on its own (no doer key beyond the structural ones,
+    :data:`metrics.NEUTRAL_KEYS`, and the feeders of its own multipliers —
+    Hardened Scales' extra counter is tagged a counter maker). A
+    choose-a-creature-type payoff with no tribe of ten in the deck (Banner of
+    Kinship, Door of Destinies, Coat of Arms under Bello), a counter doubler
+    where nothing places counters. Not Etali (its poison payoff fed by its own
+    poison, and a doer besides), Myr Battlesphere (its Myr are its own
+    tokens), Birgi (boast unfed, but a mana doer), Farseek (a Plains is no
+    tribe); a card caring about nothing the read names is never dead
+    (2026-11-02)."""
     idents = _signal_idents_for(dict(card), include_membership=False)
     own_keys = {i.split("|", 1)[0] for i in idents}
     makes_tokens = any(i.startswith(f"{TOKEN_MAKER}|") for i in idents)
     own_subtypes = {w.lower() for w in split_type_line(card.get("type_line") or "")[1]}
     feeders = payoff_feeders()
     verdicts: list[bool] = []
+    cares: set[str] = set()
     for ident in idents:
-        key, _scope, subject = ident.split("|", 2)
-        if key == "chosen_type_matters" or (
+        key, scope, subject = ident.split("|", 2)
+        chooses_a_type = key == "chosen_type_matters" or (
             key == "subtype_ref" and subject == "shared"
-        ):
-            verdicts.append(max(deck_tribes.values(), default=0) >= 2 * _FEEDER_FLOOR)
+        )
+        if chooses_a_type:
+            cares.add(key)
+            biggest_tribe = max(deck_tribes.values(), default=0)
+            verdicts.append(biggest_tribe >= 2 * _FEEDER_FLOOR)
         elif key == "subtype_ref":
+            # A creature type the card names among YOUR permanents (Dragon
+            # Tempest's Dragons); a land type (Farseek's Plains), a gear type
+            # (Sram's Auras) or another player's is no tribe the deck fields.
             sub = subject.lower()
+            if scope != "you" or sub not in _CREATURE_SUBTYPE_WORDS:
+                continue
+            cares.add(key)
             verdicts.append(
                 makes_tokens
                 or sub in own_subtypes
                 or deck_tribes.get(sub, 0) >= _FEEDER_FLOOR
             )
         elif (fed_by := feeders.get(key)) is not None:
-            # A card feeds its own payoff (Etali's poison), unless the payoff
-            # is a multiplier: Hardened Scales' extra counter is tagged a
-            # counter maker, and a doubler of nothing is still nothing.
+            cares.add(key)
             self_fed = key not in _MULTIPLIER_KEYS and bool(fed_by & own_keys)
             verdicts.append(
                 self_fed or sum(deck_keys.get(f, 0) for f in fed_by) >= _FEEDER_FLOOR
             )
-    return bool(verdicts) and not any(verdicts)
+    if not verdicts or any(verdicts):
+        return False
+    if chooses_a_type_without_tribe(card, deck_tribes):
+        return True
+    multiplier_feeders = frozenset().union(
+        *(feeders.get(k, frozenset()) for k in cares & _MULTIPLIER_KEYS)
+    )
+    # The umbrella payoffs (Door of Destinies' "whenever you cast a spell of
+    # the chosen type" is ``spellcast_matters``) are no doing of their own.
+    doers = own_keys - cares - NEUTRAL_KEYS - NO_FEEDER_READ - multiplier_feeders
+    return not doers
+
+
+def chooses_a_type_without_tribe(card: Mapping, deck_tribes: Counter) -> bool:
+    """A choose-a-creature-type card (``chosen_type_matters``: Vanquisher's
+    Banner, Kindred Discovery, Herald's Horn) in a deck with no tribe of
+    ``2 * _FEEDER_FLOOR`` creatures: every ability it has hangs on the choice,
+    its draw and its anthem alike, so it is dead whatever page asks for it —
+    Vanquisher's Banner drew nothing for Bello's deck as a card-draw upgrade
+    (2026-11-02)."""
+    idents = _signal_idents_for(dict(card), include_membership=False)
+    if not any(i.startswith("chosen_type_matters|") for i in idents):
+        return False
+    return max(deck_tribes.values(), default=0) < 2 * _FEEDER_FLOOR
 
 
 def _is_fixing(card: CardClass) -> bool:
@@ -1983,8 +2021,17 @@ def propose_swaps(
                 and not fodder_serve.matches(card)
             ):
                 continue  # the docstring: a maker's job upgrade makes fodder too
-            if job is None and not spec.get("name") and dead_here(card):
-                continue  # a payoff for something this deck doesn't do
+            if not spec.get("name") and (
+                dead_here(card)
+                if job is None
+                else chooses_a_type_without_tribe(card, deck_tribe_counts)
+            ):
+                # A payoff for something this deck doesn't do: the theme page's
+                # whole read, a job page's choose-a-type rule alone (the whole
+                # read misfired there — Farseek's Plains, Teferi's untap — and a
+                # job card's job is its own; the banners' is not). A named add
+                # is the line's (2026-11-02).
+                continue
             if upgrade_of is not None and not _upgrades(
                 card,
                 upgrade_of,

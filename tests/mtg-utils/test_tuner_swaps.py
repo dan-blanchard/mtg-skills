@@ -3590,5 +3590,14 @@ def test_a_payoff_for_what_the_deck_does_not_do_is_dead_there():
         "Myr Battlesphere",
         "Panharmonicon",
         "Asceticism",
+        "Farseek",  # a Plains is no tribe
+        "Black Market Connections",  # a life payment wants no life gain
     ):
         assert not dead_payoff(test_card(name), none, no_tribe), name
+    # A choose-a-type card is tribal through and through: Vanquisher's Banner
+    # draws nothing without a tribe, whatever page asks for it.
+    from mtg_utils._tuner.swaps import chooses_a_type_without_tribe
+
+    assert chooses_a_type_without_tribe(test_card("Vanquisher's Banner"), no_tribe)
+    assert not chooses_a_type_without_tribe(test_card("Vanquisher's Banner"), dinos)
+    assert not chooses_a_type_without_tribe(test_card("Farseek"), no_tribe)
