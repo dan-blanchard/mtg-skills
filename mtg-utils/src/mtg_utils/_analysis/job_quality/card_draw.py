@@ -236,6 +236,9 @@ class _Source:
     # A trigger watching only creatures of the chosen type (Vanquisher's
     # Banner's "a creature spell of the chosen type").
     chosen: bool = False
+    # A trigger watching only creatures pumped past their base power
+    # (Kutzil's "each with power greater than its base power").
+    pumped: bool = False
 
 
 def _count(c: ConceptNode, field: str = "count") -> int:
@@ -546,6 +549,12 @@ def _sources(card: dict) -> list[_Source]:
                     tag_of(n) == "IsChosenCreatureType"
                     for n in iter_typed_nodes(getattr(unit.node, "valid_card", None))
                 ),
+                pumped=unit.origin == "trigger"
+                and any(
+                    tag_of(n) == "PowerExceedsBase"
+                    for f in ("valid_source", "valid_card")
+                    for n in iter_typed_nodes(getattr(unit.node, f, None))
+                ),
                 fuel=fuel,
                 narrow=_narrow(unit) if unit.origin == "trigger" else 1.0,
                 self_watch=unit.origin == "trigger"
@@ -725,6 +734,9 @@ _FUEL_REFERENCE: dict[str, float] = {
     # on the chosen type runs on one tribe (Vanquisher's Banner drew for
     # Tricky Terrain's four Hydras, 2026-11-02).
     "chosen_type": 1 / 4,
+    # The cards that grow your creatures past their base power: counters,
+    # anthems, pumps (Kutzil drew for Deadly Disguise's four, 2026-11-02).
+    "pumped": 1 / 4,
     "creatures": 1 / 3,
     "instants_sorceries": 1 / 3,
     "enchantments": 1 / 3,
@@ -739,6 +751,20 @@ _GRAVEYARD_LEAVE_KEYS = frozenset(
 )
 #: The counter placers a draw counting your countered creatures runs on.
 _COUNTER_PLACER_KEYS = frozenset({"plus_one_makers", "any_counter_makers"})
+#: The cards that grow a creature past its base power.
+_PUMP_KEYS = _COUNTER_PLACER_KEYS | frozenset(
+    {
+        "anthem_static",
+        "team_buff",
+        "pump_makers",
+        "combat_buff_engine",
+        "voltron_makers",
+        "self_counter_grow",
+        "self_pump",
+        "count_anthem",
+        "scaling_pump",
+    }
+)
 #: Makers of the predefined artifact tokens a sacrifice-draw eats (Deadly
 #: Dispute's "artifact or creature").
 _FODDER_TOKEN_KEYS = frozenset({"treasure_makers", "clue_makers", "food_makers"})
@@ -751,6 +777,8 @@ def _source_fuel(s: _Source) -> str | None:
         return None
     if s.chosen:
         return "chosen_type"
+    if s.pumped:
+        return "pumped"
     if s.fuel == "equipped_dies":
         return "x1_creatures_or_tokens"
     if s.fuel == "graveyard_leave":
@@ -815,6 +843,8 @@ def _feeds(record: dict, fuel: str) -> bool:
     keys = signal_keys_for(record)
     if fuel == "countered":
         return bool(keys & _COUNTER_PLACER_KEYS)
+    if fuel == "pumped":
+        return bool(keys & _PUMP_KEYS)
     if fuel == "graveyard_leave":
         return bool(keys & _GRAVEYARD_LEAVE_KEYS)
     makes_bodies = "token_maker" in keys

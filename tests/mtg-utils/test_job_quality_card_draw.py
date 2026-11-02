@@ -222,3 +222,11 @@ def test_a_draw_on_countered_creatures_or_a_chosen_type_runs_on_the_deck():
     assert card_draw.deck_fit(test_card("Inspiring Call"), rocks) == 0.0
     elves = [test_card("Llanowar Elves")] * 20
     assert card_draw.deck_fit(test_card("Vanquisher's Banner"), elves) == 1.0
+
+
+def test_a_draw_on_pumped_creatures_runs_on_the_decks_pumps():
+    """Kutzil, Malamet Exemplar draws when creatures "each with power greater
+    than its base power" connect: fed by counters, anthems and pumps."""
+    assert card_draw.draw_fuel(test_card("Kutzil, Malamet Exemplar")) == "pumped"
+    rocks = [test_card("Mind Stone")] * 20
+    assert card_draw.deck_fit(test_card("Kutzil, Malamet Exemplar"), rocks) == 0.0

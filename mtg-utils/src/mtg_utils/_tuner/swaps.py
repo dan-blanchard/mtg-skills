@@ -451,7 +451,17 @@ def _spares_less_of_the_deck(
     a, b = one_sided(candidate), one_sided(dict(cut))
     if a is None or b is None:
         return False
-    return b and not a
+    if b and not a:
+        return True
+    # Nor a wipe the commander survives for one that kills it: The Day of the
+    # Doctor keeps up to three chosen Doctors, the Tenth Doctor among them,
+    # and went to The Battle of Bywater, which kills him (Timey Wimey,
+    # 2026-11-02).
+    return any(
+        board_wipe.keeps_commander(dict(cut), c)
+        and board_wipe.kills_commander(candidate, c)
+        for c in commanders
+    )
 
 
 def _one_shot_mana(card: dict) -> bool:
@@ -1303,6 +1313,9 @@ def _trigger_effect_gate_words(unit: AbilityUnit) -> frozenset[str]:
     tags = [tag_of(c.node) for c in unit.effects]
     if "OpenAttractions" in tags:
         return frozenset({_ATTRACTION_GATE})
+    counted = _counted_gate_words(unit)
+    if counted:
+        return counted
     if not tags or any(t != "GenericEffect" for t in tags):
         return frozenset()
     words: set[str] = set()
@@ -1318,6 +1331,29 @@ def _trigger_effect_gate_words(unit: AbilityUnit) -> frozenset[str]:
             if not got:
                 return frozenset()
             words |= got
+    return frozenset(words)
+
+
+def _counted_gate_words(unit: AbilityUnit) -> frozenset[str]:
+    """The gate words of a trigger every effect of which is sized by a count
+    of your permanents of some type: Valley Rotcaller's "X is the number of
+    other Squirrels, Bats, Lizards, and Rats you control" drains nothing in
+    Most Wanted, which holds two changelings (2026-11-02). Empty when an
+    effect is sized otherwise, or names no type."""
+    words: set[str] = set()
+    for c in unit.effects:
+        got: frozenset[str] = frozenset()
+        for n in iter_typed_nodes(c.node):
+            if tag_of(n) != "ObjectCount":
+                continue
+            filt = getattr(n, "filter", None)
+            if _present(filt) and filter_controller(filt) == "You":
+                got = _gate_words(filt) & _CREATURE_SUBTYPE_WORDS
+                if got:
+                    break
+        if not got:
+            return frozenset()
+        words |= got
     return frozenset(words)
 
 
@@ -3093,7 +3129,12 @@ def propose_swaps(
             }:
                 # A trim's add is no member of the row it trims: Wizard Class
                 # went to Deep Analysis for "card draw over by 9" (Peace
-                # Offering, 2026-11-02).
+                # Offering, 2026-11-02). Holding a trim's add out of every
+                # over row was measured and reverted: Peace Offering's plan is
+                # draw, so its ramp trims found nothing to add and two guide
+                # cuts went unmade (held-out 563 / 262 / 105 → 562 / 260 /
+                # 105); held to every theme add, eight swaps and seven guide
+                # cuts (→ 554 / 255 / 105).
                 continue
             cost = acquire_cost(card)
             if cost is None:

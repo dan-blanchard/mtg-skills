@@ -535,3 +535,11 @@ def test_a_sweep_leaving_out_a_type_spares_a_deck_of_it():
     assert not board_wipe.type_bound_hits(
         test_card("One Ring to Rule Them All"), anikthea
     )
+
+
+def test_a_sweep_that_gives_your_creatures_back_is_one_sided():
+    """Ceaseless Conflict makes "a 3/2 red and white Spirit creature token
+    for each nontoken creature you controlled that was destroyed this way"
+    (Lorehold Spirit, 2026-11-02); Wrath of God does not."""
+    assert board_wipe.features(test_card("Ceaseless Conflict"))["one_sided"] == 1.0
+    assert board_wipe.features(test_card("Wrath of God"))["one_sided"] == 0.0

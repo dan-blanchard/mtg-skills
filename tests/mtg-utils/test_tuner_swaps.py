@@ -4111,3 +4111,43 @@ def test_a_tribe_slot_takes_only_creatures():
     member = _tribe_member_filter("Wizard")
     assert not member(test_card("Diviner's Wand"))
     assert member(test_card("Archmage Emeritus"))
+
+
+def test_a_wipe_the_commander_survives_is_never_traded_for_one_that_kills_it():
+    """The Day of the Doctor's chapter IV: "Choose up to three Doctors. You
+    may exile all other creatures" keeps the Tenth Doctor; The Battle of
+    Bywater's "power 3 or greater" kills him (Timey Wimey, 2026-11-02). Under
+    a commander that is no Doctor the Day keeps nothing of note."""
+    from mtg_utils._tuner.swaps import _spares_less_of_the_deck
+
+    deck = [test_card("Colossal Dreadmaw")] * 20
+    day, battle = test_card("The Day of the Doctor"), test_card("The Battle of Bywater")
+    tenth = test_card("The Tenth Doctor")
+    assert _spares_less_of_the_deck(battle, day, deck, [tenth])
+    # "Destroy all other creatures" spares its own Soldiers, not the Doctor.
+    assert _spares_less_of_the_deck(test_card("Martial Coup"), day, deck, [tenth])
+    assert not _spares_less_of_the_deck(
+        battle, day, deck, [test_card("Ellivere of the Wild Court")]
+    )
+
+
+def test_a_count_sized_trigger_is_gated_on_the_counted_types():
+    """Valley Rotcaller drains for "the number of other Squirrels, Bats,
+    Lizards, and Rats you control": dead without them (Most Wanted),
+    live in a Squirrel deck (Squirreled Away, 2026-11-02)."""
+    from collections import Counter
+
+    from mtg_utils._tuner.swaps import gated_without_feed
+
+    rotcaller = test_card("Valley Rotcaller")
+    assert gated_without_feed(rotcaller, Counter({"rat": 1}), Counter())
+    assert not gated_without_feed(rotcaller, Counter({"squirrel": 12}), Counter())
+
+
+def test_an_equipment_back_face_is_equipment():
+    """Harvest Hand returns as Scrounged Scythe, an Equipment: a voltron page
+    under an Aura commander drops it (Virtue and Valor, 2026-11-02)."""
+    from mtg_utils._tuner.issues import _is_equipment
+
+    assert _is_equipment(test_card("Harvest Hand // Scrounged Scythe"))
+    assert not _is_equipment(test_card("Snake Umbra"))

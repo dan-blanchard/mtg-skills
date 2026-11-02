@@ -1455,6 +1455,42 @@ proposal as a deckbuilder, fix the structure, the guide score is a yardstick)**
   Bywater in Timey Wimey — chapter IV keeps up to three chosen Doctors (a
   tracked set the read can't resolve), and the Battle kills the Tenth
   Doctor. `verify_symptoms.py`: 122.
+- **Batch 16q (2026-11-02; the 25 732 / 340 / 116 → 733 / 341 / 116, held-out
+  563 / 262 / 105 → 562 / 262 / 105, fresh unchanged at 294 / 126 / 50).**
+  The re-read of batch 16p's 26 changed proposals (three Sonnet reviewers,
+  every card looked up; 15 flags). Fixed: (121) *a wipe the commander
+  survives is never traded for one that kills it*
+  (`board_wipe.keeps_commander` / `kills_commander`; a chosen set kept out
+  of the sweep — `ChooseObjectsIntoTrackedSet` before `Not InTrackedSet` —
+  is read): The Day of the Doctor keeps the Tenth Doctor and went to The
+  Battle of Bywater, then Martial Coup ("all other creatures" spares its own
+  Soldiers, never the commander); it now goes to Mizzium Mortars, closing
+  16p's open item. (122) *an Equipment on any face is Equipment*: Harvest
+  Hand's Scrounged Scythe off Ellivere's Aura page. (123) *a trigger sized
+  only by a count of creature types is gated on them*: Valley Rotcaller in
+  Most Wanted. (124) *a draw on creatures past their base power runs on the
+  deck's pumps* (`card_draw` fuel `pumped`): Kutzil (Deadly Disguise has
+  twenty, so it stays). (125) *a sweep that gives you a token for each of
+  your creatures it destroyed is one-sided* (`board_wipe._replaces_yours`):
+  Ceaseless Conflict no longer goes to Waltz of Rage. Measured and reverted:
+  holding a theme add out of every row over its band (Peace Offering, whose
+  plan is draw, lost eight swaps and seven guide cuts: held-out → 554 / 255
+  / 105), and holding a trim's add so (two guide cuts: → 562 / 260 / 105);
+  16p's narrower rule — a trim's add is no member of the row it trims —
+  stays. Verdicts, with the card text or count: Tempt with Discovery and
+  Managorger Hydra to Deep Analysis and Ancestral Vision (draw is Peace
+  Offering's plan, above); Horde of Notions to the main theme (the tribe
+  page held no better Elemental; the fallback is measured); Flamebraider on
+  the Elemental page (a tribe member keeps its slot while its ramp row is
+  in band); Mechanized Production (it completes Ant-Man's win); Veiled
+  Ascension, Persistent Constrictor and Tenuous Truce (theme for theme; the
+  Truce's Aura still fires Killian's enchantment trigger); Calix for Swords
+  to Plowshares (interaction staple); Afterlife from the Loam (a fill cut
+  from need suppliers, as Kulrath Knight); Gallifrey Falls // No More (one-
+  sided only cast as two halves); Sylvan Scrying (lower confidence);
+  Vanquisher's Banner for Painful Truths in Most Wanted (it names Human, of
+  which the deck holds twelve: 0.44 against 0.16 on the draw read).
+  `verify_symptoms.py`: 126.
 
 **From the Jace, Multiverse Architect precon tune and the 25-precon audit (2026-10-17 to 2026-11-01)**
 

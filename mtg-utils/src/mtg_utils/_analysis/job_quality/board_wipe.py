@@ -315,6 +315,12 @@ class _Sweep:
     x_cards: bool = False  # an X paid in cards (a discard of X, CR 107.3a)
     drawback: bool = False  # keeps your lands tapped (CR 502.3)
     refills: bool = False  # the wiped players get tokens back (CR 111.2)
+    # You get a token back for each of your own creatures it destroyed
+    # (Ceaseless Conflict's Spirits): your board comes back, theirs doesn't.
+    replaces_yours: bool = False
+    # It spares more than "other" creatures (its own tokens, its source): a
+    # type left out, a choice kept, an attachment, a pile.
+    spares_kept: bool = False
     # The attachment whose creatures it spares ("creatures that aren't
     # enchanted" — Winds of Rath: ``Aura``), read against the deck.
     spares_attached: str | None = None
@@ -329,6 +335,11 @@ class _Sweep:
     # ("nonenchantment creatures", "nonartifact creatures"): read against the
     # deck's own creatures (:func:`_deck_spared_by_type`).
     type_spared: object = field(default=None, compare=False, repr=False)
+    # What the caster keeps out of the sweep by choosing it first: The Day of
+    # the Doctor's "Choose up to three Doctors. You may exile all other
+    # creatures" (a ``ChooseObjectsIntoTrackedSet`` the sweep's ``Not
+    # InTrackedSet`` spares).
+    keeps_chosen: object = field(default=None, compare=False, repr=False)
 
 
 #: The field a sweep effect's size sits on: a damage amount, a shrink's
@@ -794,6 +805,12 @@ def _tree_sweeps(tree: ConceptTree, *, walker: bool) -> list[_Sweep]:
                     spares_attached=_spared_attachment(filt),
                     spared_power=_spared_power(c.node, filt),
                     type_spared=filt if _spares_a_type(filt) else None,
+                    keeps_chosen=_kept_choice(u, filt),
+                    replaces_yours=_replaces_yours(u),
+                    spares_kept=bool(non - _CORE_TYPES)
+                    or any(tag_of(n) == "Not" for n in iter_typed_nodes(filt))
+                    or tag == "ChooseAndSacrificeRest"
+                    or choice in ("spares", "pile"),
                 )
             )
     return out
@@ -915,6 +932,80 @@ def _deck_spares_power(deck: Sequence[dict], spared: tuple[str, int]) -> bool:
     else:
         kept = sum(1 for r in creatures if power(r) == 0)
     return kept / len(creatures) >= _DECK_SPARED_SHARE
+
+
+def _replaces_yours(u: AbilityUnit) -> bool:
+    """Whether the unit makes you a token for each creature of yours its
+    sweep destroyed: Ceaseless Conflict's "a 3/2 ... Spirit creature token
+    for each nontoken creature you controlled that was destroyed this way"
+    (a ``FilteredTrackedSetSize`` over your creatures) — one-sided, as the
+    tuner traded it for Waltz of Rage, which kills the Spirits (Lorehold
+    Spirit, 2026-11-02)."""
+    for n in iter_typed_nodes(u.node):
+        if tag_of(n) != "Token":
+            continue
+        qty = getattr(getattr(n, "count", None), "qty", None)
+        if (
+            tag_of(qty) == "FilteredTrackedSetSize"
+            and filter_controller(getattr(qty, "filter", None)) == "You"
+        ):
+            return True
+    return False
+
+
+def _kept_choice(u: AbilityUnit, filt: object) -> object:
+    """The filter of what the caster chose to keep out of a sweep: a
+    ``ChooseObjectsIntoTrackedSet`` the caster makes in the sweep's unit when
+    the sweep spares the tracked set (``Not InTrackedSet``)."""
+    if not any(
+        tag_of(n) == "Not" and tag_of(getattr(n, "prop", None)) == "InTrackedSet"
+        for n in iter_typed_nodes(filt)
+    ):
+        return None
+    for n in iter_typed_nodes(u.node):
+        if tag_of(n) == "ChooseObjectsIntoTrackedSet" and tag_of(
+            getattr(n, "chooser", None)
+        ) in ("Controller", None):
+            return getattr(n, "filter", None)
+    return None
+
+
+def keeps_commander(card: dict, record: Mapping) -> bool:
+    """Whether a sweep of ``card``'s lets its caster keep ``record``: a
+    chosen set it may hold (The Day of the Doctor's Doctors, the Tenth
+    Doctor among them), or a type it leaves out (Extinguish All Hope and an
+    enchantment commander)."""
+    facts = object_facts(dict(record), zone="battlefield")
+    for s in _sweeps(card):
+        if s.keeps_chosen is not None and filter_admits(s.keeps_chosen, facts):
+            return True
+        if s.type_spared is not None and filter_admits(s.type_spared, facts) is False:
+            return True
+    return False
+
+
+def kills_commander(card: dict, record: Mapping) -> bool:
+    """Whether ``card``'s sweep destroys ``record`` for sure: a power line or
+    a type line it crosses (:func:`power_bound_hits`, :func:`type_bound_hits`),
+    or a lethal sweep of every creature on its caster's side too (The Battle
+    of Bywater kills the Tenth Doctor; Wrath of God anyone)."""
+    if power_bound_hits(card, record) or type_bound_hits(card, record):
+        return True
+    sweeps = _sweeps(card)
+    if not sweeps:
+        return False
+    best = _best(sweeps)
+    # "All other creatures" spares the sweep's own tokens or source, never
+    # the commander: Martial Coup kills the Tenth Doctor as surely as The
+    # Battle of Bywater does (Timey Wimey, 2026-11-02).
+    return (
+        _lethal(best)
+        and "Creature" in best.types
+        and best.ctrl not in ("Opponent", "TargetPlayer")
+        and not best.spares_kept
+        and not best.preds
+        and best.spared_power is None
+    )
 
 
 def _spares_a_type(filt: object) -> bool:
@@ -1209,7 +1300,9 @@ def features(card: dict, deck: Sequence[dict] | None = None) -> dict[str, float]
         "lethal": kill,
         "bounce": float(best.mode == "bounce"),
         "small": (1.0 - kill) if sized else 0.0,
-        "one_sided": float(best.ctrl in ("Opponent", "TargetPlayer") or kept),
+        "one_sided": float(
+            best.ctrl in ("Opponent", "TargetPlayer") or kept or best.replaces_yours
+        ),
         "spares": float(best.spares or bool(best.preds & _SPARES)),
         "narrow": float(bool(best.preds & _NARROW)),
         "flexible": float(best.modal or best.overload or x or best.x_bound),

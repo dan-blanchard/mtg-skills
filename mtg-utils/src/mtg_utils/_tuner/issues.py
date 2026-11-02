@@ -97,10 +97,16 @@ def _tribe_source(tribe: tuple[str, dict]) -> UpgradeSource:
     return UpgradeSource(tribe[1], None, f"{article} {kind}")
 
 
-#: An Equipment-typed card: what a voltron page drops under a commander whose
-#: own suit is Auras (:meth:`Sourcing.avenue`).
+#: An Equipment-typed card on any face: what a voltron page drops under a
+#: commander whose own suit is Auras (:meth:`Sourcing.avenue`). Every face:
+#: Harvest Hand is a voltron card for its back face, Scrounged Scythe, an
+#: Equipment, and took Snake Umbra's slot under Ellivere (Virtue and Valor,
+#: 2026-11-02).
 def _is_equipment(card: Mapping, **_kw: object) -> bool:
-    return "Equipment" in classifying_type_line(dict(card))
+    faces = card.get("card_faces") or ()
+    return "Equipment" in classifying_type_line(dict(card)) or any(
+        "Equipment" in (f.get("type_line") or "") for f in faces
+    )
 
 
 def _is_voltron_spec(spec: SignalSpec) -> bool:

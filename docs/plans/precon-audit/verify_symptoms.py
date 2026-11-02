@@ -208,6 +208,11 @@ CHECKS = [
     _check("no_pair", "QuandrixUnlimited_SOC", "Stonecoil Serpent -> Badgermole Cub", batch="16p"),
     _check("no_pair", "SilverquillInfluence_SOC", "Winds of Rath -> Dusk // Dawn", batch="16p"),
     _check("no_pair", "WorldShaper_EOC", "God-Eternal Bontu -> Village Rites", batch="16p"),
+    # A wipe the commander survives is never traded for one that kills it.
+    _check("no_pair", "TimeyWimey_WHO", "The Day of the Doctor -> The Battle of Bywater", "The Day of the Doctor -> Martial Coup", batch="16q"),
+    _check("no_pair", "VirtueAndValor_WOC", "Snake Umbra -> Harvest Hand // Scrounged Scythe", batch="16q"),
+    _check("no_pair", "LoreholdSpirit_SOC", "Ceaseless Conflict -> Waltz of Rage", batch="16q"),
+    _check("never", "MostWanted_OTC", "Valley Rotcaller", batch="16q"),
     _check("no_pair", "CreativeEnergy_M3C", "Silverquill Lecturer -> Boromir, Warden of the Tower", batch="16n"),
     _check("no_pair", "TinkerTime_MOC", "Feldon of the Third Path -> Skullclamp", batch="16n"),
     _check("no_trim", "EldraziIncursion_M3C", "Forsaken Monument", batch="14"),

@@ -230617,6 +230617,198 @@
     "type_line": "Instant"
    }
   },
+  "Ceaseless Conflict": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Destroy all creatures. Then create a 3/2 red and white Spirit creature token for each nontoken creature you controlled that was destroyed this way.",
+       "duration": null,
+       "effect": {
+        "cant_regenerate": false,
+        "target": {
+         "controller": null,
+         "properties": [],
+         "type": "Typed",
+         "type_filters": [
+          "Creature"
+         ]
+        },
+        "type": "DestroyAll"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "colors": [
+          "Red",
+          "White"
+         ],
+         "count": {
+          "qty": {
+           "caused_by": "Destroyed",
+           "filter": {
+            "controller": "You",
+            "properties": [
+             {
+              "type": "NonToken"
+             }
+            ],
+            "type": "Typed",
+            "type_filters": [
+             "Creature"
+            ]
+           },
+           "type": "FilteredTrackedSetSize"
+          },
+          "type": "Ref"
+         },
+         "enters_attacking": false,
+         "keywords": [],
+         "name": "Spirit",
+         "owner": {
+          "type": "Controller"
+         },
+         "power": {
+          "type": "Fixed",
+          "value": 3
+         },
+         "tapped": false,
+         "toughness": {
+          "type": "Fixed",
+          "value": 2
+         },
+         "type": "Token",
+         "types": [
+          "Creature",
+          "Spirit"
+         ]
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "sub_link": "SequentialSibling",
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Sorcery"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "White"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 3,
+      "shards": [
+       "White",
+       "White"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "related_token_ids": [
+       "07bf15fe-42d6-55cf-bc81-982b936a68ae"
+      ],
+      "source_printing_ids": [
+       "a0e18f74-7fa6-4e3a-bc80-390a25055205",
+       "f8d6abe4-0008-4cdd-89b5-dfbb9389a587"
+      ]
+     },
+     "name": "Ceaseless Conflict",
+     "non_ability_text": null,
+     "oracle_text": "Destroy all creatures. Then create a 3/2 red and white Spirit creature token for each nontoken creature you controlled that was destroyed this way.",
+     "power": null,
+     "printings": [
+      "SOC"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "2f109125-b743-4ecf-84da-690d8e8ddf9c",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "all_parts": [
+     {
+      "component": "token",
+      "id": "072cd10b-98d3-452e-bf8d-13a75cc3d72e",
+      "name": "Spirit",
+      "oracle_id": "994879c3-48a7-4da5-9a42-46561fafdd69",
+      "type_line": "Token Creature — Spirit"
+     }
+    ],
+    "arena_available": false,
+    "cmc": 5.0,
+    "color_identity": [
+     "W"
+    ],
+    "colors": [
+     "W"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{3}{W}{W}",
+    "name": "Ceaseless Conflict",
+    "oracle_id": "2f109125-b743-4ecf-84da-690d8e8ddf9c",
+    "oracle_text": "Destroy all creatures. Then create a 3/2 red and white Spirit creature token for each nontoken creature you controlled that was destroyed this way.",
+    "type_line": "Sorcery"
+   }
+  },
   "Cecily, Haunted Mage": {
    "phase_records": [
     {
@@ -563726,6 +563918,358 @@
     "power": "2",
     "toughness": "4",
     "type_line": "Creature — Hag"
+   }
+  },
+  "Harvest Hand // Scrounged Scythe": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Artifact",
+       "Creature"
+      ],
+      "subtypes": [
+       "Scarecrow"
+      ],
+      "supertypes": []
+     },
+     "color_override": null,
+     "defense": null,
+     "face_index": 0,
+     "flavor_name": null,
+     "keywords": [],
+     "layout": "transform",
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pauper": "legal",
+      "paupercommander": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 3,
+      "shards": [],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "0d200f98-3377-46a3-9197-3cbd95d03dbf",
+       "6f29b655-f70f-4b30-9253-c7944bfee524"
+      ]
+     },
+     "name": "Harvest Hand",
+     "non_ability_text": null,
+     "oracle_text": "When this creature dies, return it to the battlefield transformed under your control.",
+     "power": {
+      "type": "Fixed",
+      "value": 2
+     },
+     "printings": [
+      "INR",
+      "SIR",
+      "SOI"
+     ],
+     "rarities": [
+      "common",
+      "uncommon"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2016-07-13",
+       "text": "For more information on double-faced cards, see the Shadows over Innistrad mechanics article (http://magic.wizards.com/en/articles/archive/feature/shadows-over-innistrad-mechanics)."
+      }
+     ],
+     "scryfall_oracle_id": "ffd3c928-af42-4d69-8d22-a4c72f93b1c7",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 2
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "When ~ dies, return it to the battlefield transformed under your control.",
+       "destination": "Graveyard",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "destination": "Battlefield",
+         "enter_tapped": false,
+         "enter_transformed": true,
+         "enters_attacking": false,
+         "enters_under": "You",
+         "origin": null,
+         "owner_library": false,
+         "target": {
+          "type": "TriggeringSource"
+         },
+         "type": "ChangeZone"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "ChangesZone",
+       "optional": false,
+       "origin": "Battlefield",
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Graveyard"
+       ],
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    },
+    {
+     "abilities": [
+      {
+       "ability_tag": {
+        "type": "Equip"
+       },
+       "activation_restrictions": [
+        {
+         "type": "AsSorcery"
+        }
+       ],
+       "condition": null,
+       "cost": {
+        "cost": {
+         "generic": 2,
+         "shards": [],
+         "type": "Cost"
+        },
+        "type": "Mana"
+       },
+       "description": "Equip {2}",
+       "duration": null,
+       "effect": {
+        "selection": {
+         "at_resolution": {}
+        },
+        "target": {
+         "controller": "You",
+         "properties": [],
+         "type": "Typed",
+         "type_filters": [
+          "Creature"
+         ]
+        },
+        "type": "Attach"
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Artifact"
+      ],
+      "subtypes": [
+       "Equipment"
+      ],
+      "supertypes": []
+     },
+     "color_override": null,
+     "defense": null,
+     "face_index": 1,
+     "flavor_name": null,
+     "keywords": [],
+     "layout": "transform",
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pauper": "legal",
+      "paupercommander": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "type": "NoCost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "0d200f98-3377-46a3-9197-3cbd95d03dbf",
+       "6f29b655-f70f-4b30-9253-c7944bfee524"
+      ]
+     },
+     "name": "Scrounged Scythe",
+     "non_ability_text": null,
+     "oracle_text": "Equipped creature gets +1/+1.\nAs long as equipped creature is a Human, it has menace. (It can't be blocked except by two or more creatures.)\nEquip {2} ({2}: Attach to target creature you control. Equip only as a sorcery.)",
+     "power": null,
+     "printings": [
+      "INR",
+      "SIR",
+      "SOI"
+     ],
+     "rarities": [
+      "common",
+      "uncommon"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "ffd3c928-af42-4d69-8d22-a4c72f93b1c7",
+     "static_abilities": [
+      {
+       "active_zones": [],
+       "affected": {
+        "controller": null,
+        "properties": [
+         {
+          "type": "EquippedBy"
+         }
+        ],
+        "type": "Typed",
+        "type_filters": [
+         "Creature"
+        ]
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": null,
+       "description": "Equipped creature gets +1/+1.",
+       "effect_zone": null,
+       "mode": "Continuous",
+       "modifications": [
+        {
+         "type": "AddPower",
+         "value": 1
+        },
+        {
+         "type": "AddToughness",
+         "value": 1
+        }
+       ]
+      },
+      {
+       "active_zones": [],
+       "affected": {
+        "controller": null,
+        "properties": [
+         {
+          "type": "EquippedBy"
+         }
+        ],
+        "type": "Typed",
+        "type_filters": [
+         "Creature",
+         {
+          "Subtype": "Human"
+         }
+        ]
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": null,
+       "description": "As long as equipped creature is a Human, it has menace.",
+       "effect_zone": null,
+       "mode": "Continuous",
+       "modifications": [
+        {
+         "keyword": "Menace",
+         "type": "AddKeyword"
+        }
+       ]
+      }
+     ],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "card_faces": [
+     {
+      "colors": [],
+      "keywords": [
+       "Equip",
+       "Transform"
+      ],
+      "mana_cost": "{3}",
+      "name": "Harvest Hand",
+      "oracle_text": "When this creature dies, return it to the battlefield transformed under your control.",
+      "power": "2",
+      "toughness": "2",
+      "type_line": "Artifact Creature — Scarecrow"
+     },
+     {
+      "colors": [],
+      "keywords": [
+       "Equip",
+       "Transform"
+      ],
+      "mana_cost": "",
+      "name": "Scrounged Scythe",
+      "oracle_text": "Equipped creature gets +1/+1.\nAs long as equipped creature is a Human, it has menace. (It can't be blocked except by two or more creatures.)\nEquip {2} ({2}: Attach to target creature you control. Equip only as a sorcery.)",
+      "type_line": "Artifact — Equipment"
+     }
+    ],
+    "cmc": 3.0,
+    "color_identity": [],
+    "keywords": [
+     "Equip",
+     "Transform"
+    ],
+    "layout": "transform",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "legal",
+     "paupercommander": "legal",
+     "penny": "not_legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "name": "Harvest Hand // Scrounged Scythe",
+    "oracle_id": "ffd3c928-af42-4d69-8d22-a4c72f93b1c7",
+    "type_line": "Artifact Creature — Scarecrow // Artifact — Equipment"
    }
   },
   "Harvest Season": {
@@ -1138467,6 +1139011,224 @@
     "type_line": "Enchantment — Saga"
    }
   },
+  "The Battle of Bywater": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Destroy all creatures with power 3 or greater. Then create a Food token for each creature you control.",
+       "duration": null,
+       "effect": {
+        "cant_regenerate": false,
+        "target": {
+         "controller": null,
+         "properties": [
+          {
+           "comparator": "GE",
+           "scope": "Current",
+           "stat": "Power",
+           "type": "PtComparison",
+           "value": {
+            "type": "Fixed",
+            "value": 3
+           }
+          }
+         ],
+         "type": "Typed",
+         "type_filters": [
+          "Creature"
+         ]
+        },
+        "type": "DestroyAll"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "colors": [],
+         "count": {
+          "qty": {
+           "filter": {
+            "controller": "You",
+            "properties": [],
+            "type": "Typed",
+            "type_filters": [
+             "Creature"
+            ]
+           },
+           "type": "ObjectCount"
+          },
+          "type": "Ref"
+         },
+         "enters_attacking": false,
+         "keywords": [],
+         "name": "Food",
+         "owner": {
+          "type": "Controller"
+         },
+         "power": {
+          "type": "Fixed",
+          "value": 0
+         },
+         "tapped": false,
+         "toughness": {
+          "type": "Fixed",
+          "value": 0
+         },
+         "type": "Token",
+         "types": [
+          "Artifact",
+          "Food"
+         ]
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "sub_link": "SequentialSibling",
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Sorcery"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "White"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "White",
+       "White"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "related_token_ids": [
+       "f6e24d97-b7f8-5da8-ab97-978ecbecb85e"
+      ],
+      "source_printing_ids": [
+       "27c57721-547a-405e-931a-bdc6e1950df3",
+       "47c922a8-28b7-4831-8314-2ce41762955f",
+       "81325756-42c6-4e60-b981-cacff8854596",
+       "9bae7a4d-9117-43c5-a048-80a0ddadc034"
+      ]
+     },
+     "name": "The Battle of Bywater",
+     "non_ability_text": null,
+     "oracle_text": "Destroy all creatures with power 3 or greater. Then create a Food token for each creature you control. (It's an artifact with \"{2}, {T}, Sacrifice this token: You gain 3 life.\")",
+     "power": null,
+     "printings": [
+      "LTR",
+      "PLTR"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2024-11-08",
+       "text": "Food is an artifact type. Even though it appears on some creatures, it's never a creature type."
+      },
+      {
+       "date": "2024-11-08",
+       "text": "Whatever you do, don't eat the delicious cards."
+      },
+      {
+       "date": "2024-11-08",
+       "text": "You can't sacrifice a Food to pay multiple costs. For example, you can't sacrifice a Food token to activate its own ability and also to activate Maraleaf Rider's ability."
+      }
+     ],
+     "scryfall_oracle_id": "a94c191d-a938-458e-bc1b-2f44fd8873a3",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "all_parts": [
+     {
+      "component": "token",
+      "id": "280e3af6-7904-4214-8141-e145c48e2687",
+      "name": "Food",
+      "oracle_id": "a468338f-635e-4206-89d6-72d723071d45",
+      "type_line": "Token Artifact — Food"
+     }
+    ],
+    "arena_available": true,
+    "cmc": 3.0,
+    "color_identity": [
+     "W"
+    ],
+    "colors": [
+     "W"
+    ],
+    "keywords": [
+     "Food"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}{W}{W}",
+    "name": "The Battle of Bywater",
+    "oracle_id": "a94c191d-a938-458e-bc1b-2f44fd8873a3",
+    "oracle_text": "Destroy all creatures with power 3 or greater. Then create a Food token for each creature you control. (It's an artifact with \"{2}, {T}, Sacrifice this token: You gain 3 life.\")",
+    "type_line": "Sorcery"
+   }
+  },
   "The Book of Exalted Deeds": {
    "phase_records": [
     {
@@ -1140406,6 +1141168,641 @@
     "oracle_id": "21302f37-0632-4202-9823-f08c5aec016e",
     "oracle_text": "Assist (Another player can pay up to {X} of this spell's cost. You choose the value of X.)\nSupport X. (Put a +1/+1 counter on each of up to X target creatures.)\nEach creature with a +1/+1 counter on it gains trample until end of turn.",
     "type_line": "Sorcery"
+   }
+  },
+  "The Day of the Doctor": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Enchantment"
+      ],
+      "subtypes": [
+       "Saga"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Red",
+      "White"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 3,
+      "shards": [
+       "Red",
+       "White"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "9767f42c-df04-4426-929a-87e51aa2b8a5",
+       "bf289cf8-c792-4198-9310-02a7a02c248f"
+      ]
+     },
+     "name": "The Day of the Doctor",
+     "non_ability_text": null,
+     "oracle_text": "(As this Saga enters and after your draw step, add a lore counter. Sacrifice after IV.)\nI, II, III — Exile cards from the top of your library until you exile a legendary card. You may play that card for as long as this Saga remains on the battlefield. Put the rest of those exiled cards on the bottom of your library in a random order.\nIV — Choose up to three Doctors. You may exile all other creatures. If you do, this Saga deals 13 damage to you.",
+     "power": null,
+     "printings": [
+      "WHO"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [
+      {
+       "condition": null,
+       "description": "Saga ETB lore counter",
+       "destination_zone": "Battlefield",
+       "event": "Moved",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "counter_type": "lore",
+         "target": {
+          "type": "SelfRef"
+         },
+         "type": "PutCounter"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": {
+        "type": "Mandatory"
+       },
+       "valid_card": {
+        "type": "SelfRef"
+       }
+      }
+     ],
+     "rulings": [
+      {
+       "date": "2023-10-13",
+       "text": "As the last chapter ability resolves, you may choose to exile all other creatures even if you didn't choose any Doctors. In that case, all creatures are exiled."
+      }
+     ],
+     "scryfall_oracle_id": "c2ee17b2-6119-4ade-b806-1add64513c3a",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "counter_filter": {
+        "counter_type": "lore",
+        "threshold": 1
+       },
+       "damage_kind": "Any",
+       "description": "Chapter 1",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "player": {
+          "type": "Controller"
+         },
+         "type": "ExileFromTopUntil",
+         "until": {
+          "filter": {
+           "controller": null,
+           "properties": [
+            {
+             "type": "HasSupertype",
+             "value": "Legendary"
+            }
+           ],
+           "type": "Typed",
+           "type_filters": [
+            "Card"
+           ]
+          },
+          "type": "NextMatches"
+         }
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": "WhileHostOnBattlefield",
+         "effect": {
+          "duration": "WhileHostOnBattlefield",
+          "mode": "Play",
+          "target": {
+           "type": "ParentTarget"
+          },
+          "type": "CastFromZone",
+          "without_paying_mana_cost": false
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": {
+          "condition": null,
+          "cost": null,
+          "description": null,
+          "duration": null,
+          "effect": {
+           "count": {
+            "type": "Fixed",
+            "value": 0
+           },
+           "position": {
+            "type": "Bottom"
+           },
+           "target": {
+            "filters": [
+             {
+              "type": "ExiledBySource"
+             },
+             {
+              "controller": null,
+              "properties": [
+               {
+                "reference": {
+                 "type": "ParentTarget"
+                },
+                "type": "DistinctFrom"
+               }
+              ],
+              "type": "Typed",
+              "type_filters": []
+             }
+            ],
+            "type": "And"
+           },
+           "type": "PutAtLibraryPosition"
+          },
+          "forward_result": false,
+          "kind": "Spell",
+          "optional": false,
+          "optional_targeting": false,
+          "sub_ability": null,
+          "sub_link": "SequentialSibling",
+          "target_prompt": null
+         },
+         "sub_link": "SequentialSibling",
+         "target_choice_timing": "Resolution",
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "mode": "CounterAdded",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "saga_chapter": 1,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": null
+      },
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "counter_filter": {
+        "counter_type": "lore",
+        "threshold": 2
+       },
+       "damage_kind": "Any",
+       "description": "Chapter 2",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "player": {
+          "type": "Controller"
+         },
+         "type": "ExileFromTopUntil",
+         "until": {
+          "filter": {
+           "controller": null,
+           "properties": [
+            {
+             "type": "HasSupertype",
+             "value": "Legendary"
+            }
+           ],
+           "type": "Typed",
+           "type_filters": [
+            "Card"
+           ]
+          },
+          "type": "NextMatches"
+         }
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": "WhileHostOnBattlefield",
+         "effect": {
+          "duration": "WhileHostOnBattlefield",
+          "mode": "Play",
+          "target": {
+           "type": "ParentTarget"
+          },
+          "type": "CastFromZone",
+          "without_paying_mana_cost": false
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": {
+          "condition": null,
+          "cost": null,
+          "description": null,
+          "duration": null,
+          "effect": {
+           "count": {
+            "type": "Fixed",
+            "value": 0
+           },
+           "position": {
+            "type": "Bottom"
+           },
+           "target": {
+            "filters": [
+             {
+              "type": "ExiledBySource"
+             },
+             {
+              "controller": null,
+              "properties": [
+               {
+                "reference": {
+                 "type": "ParentTarget"
+                },
+                "type": "DistinctFrom"
+               }
+              ],
+              "type": "Typed",
+              "type_filters": []
+             }
+            ],
+            "type": "And"
+           },
+           "type": "PutAtLibraryPosition"
+          },
+          "forward_result": false,
+          "kind": "Spell",
+          "optional": false,
+          "optional_targeting": false,
+          "sub_ability": null,
+          "sub_link": "SequentialSibling",
+          "target_prompt": null
+         },
+         "sub_link": "SequentialSibling",
+         "target_choice_timing": "Resolution",
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "mode": "CounterAdded",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "saga_chapter": 2,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": null
+      },
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "counter_filter": {
+        "counter_type": "lore",
+        "threshold": 3
+       },
+       "damage_kind": "Any",
+       "description": "Chapter 3",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "player": {
+          "type": "Controller"
+         },
+         "type": "ExileFromTopUntil",
+         "until": {
+          "filter": {
+           "controller": null,
+           "properties": [
+            {
+             "type": "HasSupertype",
+             "value": "Legendary"
+            }
+           ],
+           "type": "Typed",
+           "type_filters": [
+            "Card"
+           ]
+          },
+          "type": "NextMatches"
+         }
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": "WhileHostOnBattlefield",
+         "effect": {
+          "duration": "WhileHostOnBattlefield",
+          "mode": "Play",
+          "target": {
+           "type": "ParentTarget"
+          },
+          "type": "CastFromZone",
+          "without_paying_mana_cost": false
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": {
+          "condition": null,
+          "cost": null,
+          "description": null,
+          "duration": null,
+          "effect": {
+           "count": {
+            "type": "Fixed",
+            "value": 0
+           },
+           "position": {
+            "type": "Bottom"
+           },
+           "target": {
+            "filters": [
+             {
+              "type": "ExiledBySource"
+             },
+             {
+              "controller": null,
+              "properties": [
+               {
+                "reference": {
+                 "type": "ParentTarget"
+                },
+                "type": "DistinctFrom"
+               }
+              ],
+              "type": "Typed",
+              "type_filters": []
+             }
+            ],
+            "type": "And"
+           },
+           "type": "PutAtLibraryPosition"
+          },
+          "forward_result": false,
+          "kind": "Spell",
+          "optional": false,
+          "optional_targeting": false,
+          "sub_ability": null,
+          "sub_link": "SequentialSibling",
+          "target_prompt": null
+         },
+         "sub_link": "SequentialSibling",
+         "target_choice_timing": "Resolution",
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "mode": "CounterAdded",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "saga_chapter": 3,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": null
+      },
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "counter_filter": {
+        "counter_type": "lore",
+        "threshold": 4
+       },
+       "damage_kind": "Any",
+       "description": "Chapter 4",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "chooser": {
+          "type": "Controller"
+         },
+         "filter": {
+          "controller": null,
+          "properties": [],
+          "type": "Typed",
+          "type_filters": [
+           {
+            "Subtype": "Doctor"
+           }
+          ]
+         },
+         "max": 3,
+         "min": 0,
+         "type": "ChooseObjectsIntoTrackedSet"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "destination": "Exile",
+          "origin": null,
+          "target": {
+           "controller": null,
+           "properties": [
+            {
+             "prop": {
+              "id": 0,
+              "type": "InTrackedSet"
+             },
+             "type": "Not"
+            }
+           ],
+           "type": "Typed",
+           "type_filters": [
+            "Creature"
+           ]
+          },
+          "type": "ChangeZoneAll"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": true,
+         "optional_targeting": false,
+         "sub_ability": {
+          "condition": {
+           "signal": "OptionalEffectPerformed",
+           "type": "EffectOutcome"
+          },
+          "cost": null,
+          "description": null,
+          "duration": null,
+          "effect": {
+           "amount": {
+            "type": "Fixed",
+            "value": 13
+           },
+           "target": {
+            "type": "Controller"
+           },
+           "type": "DealDamage"
+          },
+          "forward_result": false,
+          "kind": "Spell",
+          "optional": false,
+          "optional_targeting": false,
+          "sub_ability": null,
+          "sub_link": "SequentialSibling",
+          "target_prompt": null
+         },
+         "sub_link": "SequentialSibling",
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "mode": "CounterAdded",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "saga_chapter": 4,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 5.0,
+    "color_identity": [
+     "R",
+     "W"
+    ],
+    "colors": [
+     "R",
+     "W"
+    ],
+    "keywords": [],
+    "layout": "saga",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{3}{R}{W}",
+    "name": "The Day of the Doctor",
+    "oracle_id": "c2ee17b2-6119-4ade-b806-1add64513c3a",
+    "oracle_text": "(As this Saga enters and after your draw step, add a lore counter. Sacrifice after IV.)\nI, II, III — Exile cards from the top of your library until you exile a legendary card. You may play that card for as long as this Saga remains on the battlefield. Put the rest of those exiled cards on the bottom of your library in a random order.\nIV — Choose up to three Doctors. You may exile all other creatures. If you do, this Saga deals 13 damage to you.",
+    "type_line": "Enchantment — Saga"
    }
   },
   "The Deck of Many Things": {
@@ -1226676,6 +1228073,320 @@
     "oracle_id": "27400927-9aba-4fb3-90c4-490d01969e60",
     "oracle_text": "Whenever a nontoken, non-Angel creature you control dies, return that card to the battlefield under its owner's control with a +1/+1 counter on it. It has flying and is an Angel in addition to its other types.",
     "type_line": "Enchantment"
+   }
+  },
+  "Valley Rotcaller": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Squirrel",
+       "Warlock"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Black"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [
+      "Menace"
+     ],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "standard": "legal",
+      "standardbrawl": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "Black"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "4278a127-5f3c-4948-88bd-2af4f6834a03",
+       "4da80a9a-b1d5-4fc5-92f7-36946195d0c7"
+      ]
+     },
+     "name": "Valley Rotcaller",
+     "non_ability_text": null,
+     "oracle_text": "Menace\nWhenever this creature attacks, each opponent loses X life and you gain X life, where X is the number of other Squirrels, Bats, Lizards, and Rats you control.",
+     "power": {
+      "type": "Fixed",
+      "value": 1
+     },
+     "printings": [
+      "BLB",
+      "PBLB"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2024-07-26",
+       "text": "The value of X is determined as Valley Rotcaller’s triggered ability resolves."
+      }
+     ],
+     "scryfall_oracle_id": "8da0599a-8f63-4dba-857f-b4e10b7191b6",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 3
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever ~ attacks, each opponent loses X life and you gain X life, where X is the number of other Squirrels, Bats, Lizards, and Rats you control.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "amount": {
+          "qty": {
+           "filter": {
+            "filters": [
+             {
+              "controller": "You",
+              "properties": [
+               {
+                "type": "Another"
+               }
+              ],
+              "type": "Typed",
+              "type_filters": [
+               {
+                "Subtype": "Squirrel"
+               }
+              ]
+             },
+             {
+              "controller": "You",
+              "properties": [
+               {
+                "type": "Another"
+               }
+              ],
+              "type": "Typed",
+              "type_filters": [
+               {
+                "Subtype": "Bat"
+               }
+              ]
+             },
+             {
+              "controller": "You",
+              "properties": [
+               {
+                "type": "Another"
+               }
+              ],
+              "type": "Typed",
+              "type_filters": [
+               {
+                "Subtype": "Lizard"
+               }
+              ]
+             },
+             {
+              "controller": "You",
+              "properties": [
+               {
+                "type": "Another"
+               }
+              ],
+              "type": "Typed",
+              "type_filters": [
+               {
+                "Subtype": "Rat"
+               }
+              ]
+             }
+            ],
+            "type": "Or"
+           },
+           "type": "ObjectCount"
+          },
+          "type": "Ref"
+         },
+         "type": "LoseLife"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "player_scope": {
+         "type": "Opponent"
+        },
+        "sub_ability": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "amount": {
+           "qty": {
+            "filter": {
+             "filters": [
+              {
+               "controller": "You",
+               "properties": [
+                {
+                 "type": "Another"
+                }
+               ],
+               "type": "Typed",
+               "type_filters": [
+                {
+                 "Subtype": "Squirrel"
+                }
+               ]
+              },
+              {
+               "controller": "You",
+               "properties": [
+                {
+                 "type": "Another"
+                }
+               ],
+               "type": "Typed",
+               "type_filters": [
+                {
+                 "Subtype": "Bat"
+                }
+               ]
+              },
+              {
+               "controller": "You",
+               "properties": [
+                {
+                 "type": "Another"
+                }
+               ],
+               "type": "Typed",
+               "type_filters": [
+                {
+                 "Subtype": "Lizard"
+                }
+               ]
+              },
+              {
+               "controller": "You",
+               "properties": [
+                {
+                 "type": "Another"
+                }
+               ],
+               "type": "Typed",
+               "type_filters": [
+                {
+                 "Subtype": "Rat"
+                }
+               ]
+              }
+             ],
+             "type": "Or"
+            },
+            "type": "ObjectCount"
+           },
+           "type": "Ref"
+          },
+          "type": "GainLife"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": null,
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "mode": "Attacks",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 2.0,
+    "color_identity": [
+     "B"
+    ],
+    "colors": [
+     "B"
+    ],
+    "keywords": [
+     "Menace"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "legal",
+     "standardbrawl": "legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}{B}",
+    "name": "Valley Rotcaller",
+    "oracle_id": "8da0599a-8f63-4dba-857f-b4e10b7191b6",
+    "oracle_text": "Menace\nWhenever this creature attacks, each opponent loses X life and you gain X life, where X is the number of other Squirrels, Bats, Lizards, and Rats you control.",
+    "power": "1",
+    "toughness": "3",
+    "type_line": "Creature — Squirrel Warlock"
    }
   },
   "Vampire Nighthawk": {
