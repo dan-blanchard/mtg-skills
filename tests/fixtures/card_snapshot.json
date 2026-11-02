@@ -413341,6 +413341,459 @@
     "type_line": "Creature — Human Soldier"
    }
   },
+  "Etali, Primal Conqueror // Etali, Primal Sickness": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "activation_restrictions": [
+        {
+         "type": "AsSorcery"
+        }
+       ],
+       "condition": null,
+       "cost": {
+        "cost": {
+         "generic": 9,
+         "shards": [
+          "PhyrexianGreen"
+         ],
+         "type": "Cost"
+        },
+        "type": "Mana"
+       },
+       "description": "{9}{G/P}: Transform ~. Activate only as a sorcery.",
+       "duration": null,
+       "effect": {
+        "scope": {
+         "type": "Single"
+        },
+        "target": {
+         "type": "SelfRef"
+        },
+        "type": "Transform"
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "brawl_commander": true,
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Elder",
+       "Dinosaur"
+      ],
+      "supertypes": [
+       "Legendary"
+      ]
+     },
+     "color_identity": [
+      "Green",
+      "Red"
+     ],
+     "color_override": null,
+     "defense": null,
+     "face_index": 0,
+     "flavor_name": null,
+     "is_commander": true,
+     "keywords": [
+      "Trample"
+     ],
+     "layout": "transform",
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 5,
+      "shards": [
+       "Red",
+       "Red"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "3e97c609-3932-4428-96d4-1c97e61f0abb",
+       "95c14c4d-6c16-4826-8d93-d89ad04aee09"
+      ]
+     },
+     "name": "Etali, Primal Conqueror",
+     "non_ability_text": null,
+     "oracle_text": "Trample\nWhen Etali enters, each player exiles cards from the top of their library until they exile a nonland card. You may cast any number of spells from among the nonland cards exiled this way without paying their mana costs.\n{9}{G/P}: Transform Etali. Activate only as a sorcery.",
+     "power": {
+      "type": "Fixed",
+      "value": 7
+     },
+     "printings": [
+      "MOM",
+      "PMOM"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2023-04-14",
+       "text": "Any cards not cast, including land cards, remain in exile. They can’t be cast on later turns."
+      },
+      {
+       "date": "2023-04-14",
+       "text": "If an exiled card has {X} in its mana cost, you must choose 0 as the value of X when casting it without paying its mana cost."
+      },
+      {
+       "date": "2023-04-14",
+       "text": "If you cast a card “without paying its mana cost,” you can’t pay any alternative costs. You can, however, pay additional costs. If the card has any mandatory additional costs, those must be paid to cast the card."
+      },
+      {
+       "date": "2023-04-14",
+       "text": "If you cast any of the exiled cards, you do so as part of the resolution of the triggered ability. You can’t wait to cast them later in the turn. Timing restrictions based on a card’s type are ignored."
+      },
+      {
+       "date": "2023-04-14",
+       "text": "If you cast more than one of the exiled cards, you choose the order in which to cast them. A spell you cast this way can be the target of a later spell you cast this way. However, permanent spells cast this way won’t resolve until you’re done casting spells, so the permanents they become can’t be the target of spells cast this way. For example, if you exile Twincast and Lightning Strike, you can cast Lightning Strike and then cast Twincast targeting it; but if you exile a creature card and an Aura card, you can’t cast that Aura targeting that creature."
+      },
+      {
+       "date": "2023-04-14",
+       "text": "In a multiplayer game, if a player leaves the game, all cards that player owns leave as well. If you leave the game, any spells or permanents you control from Etali’s ability are exiled."
+      },
+      {
+       "date": "2023-04-14",
+       "text": "Losing the game because a player (preferably an opponent) has ten or more poison counters is a rule of the game. Etali, Primal Sickness doesn’t have to still be on the battlefield when someone (preferably an opponent) gets their tenth poison counter."
+      }
+     ],
+     "scryfall_oracle_id": "7514e401-7aa1-405d-9f7a-312b4e630cc2",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 7
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "When ~ enters, each player exiles cards from the top of their library until they exile a nonland card. You may cast any number of spells from among the nonland cards exiled this way without paying their mana costs.",
+       "destination": "Battlefield",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "player": {
+          "type": "Controller"
+         },
+         "type": "ExileFromTopUntil",
+         "until": {
+          "filter": {
+           "controller": null,
+           "properties": [],
+           "type": "Typed",
+           "type_filters": [
+            {
+             "Non": "Land"
+            }
+           ]
+          },
+          "type": "NextMatches"
+         }
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "player_scope": {
+         "type": "All"
+        },
+        "sub_ability": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "driver": {
+           "ResolutionWindow": {
+            "bounds": {}
+           }
+          },
+          "mode": "Cast",
+          "target": {
+           "filters": [
+            {
+             "controller": null,
+             "properties": [
+              {
+               "type": "InZone",
+               "zone": "Exile"
+              }
+             ],
+             "type": "Typed",
+             "type_filters": [
+              "Card",
+              {
+               "Non": "Land"
+              }
+             ]
+            },
+            {
+             "type": "ExiledBySource"
+            }
+           ],
+           "type": "And"
+          },
+          "type": "CastFromZone",
+          "without_paying_mana_cost": true
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": null,
+         "sub_link": "SequentialSibling",
+         "target_choice_timing": "Resolution",
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "mode": "ChangesZone",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    },
+    {
+     "abilities": [],
+     "brawl_commander": true,
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Phyrexian",
+       "Elder",
+       "Dinosaur"
+      ],
+      "supertypes": [
+       "Legendary"
+      ]
+     },
+     "color_identity": [
+      "Green",
+      "Red"
+     ],
+     "color_override": [
+      "Green",
+      "Red"
+     ],
+     "defense": null,
+     "face_index": 1,
+     "flavor_name": null,
+     "is_commander": true,
+     "keywords": [
+      "Trample",
+      "Indestructible"
+     ],
+     "layout": "transform",
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "type": "NoCost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "3e97c609-3932-4428-96d4-1c97e61f0abb",
+       "95c14c4d-6c16-4826-8d93-d89ad04aee09"
+      ]
+     },
+     "name": "Etali, Primal Sickness",
+     "non_ability_text": null,
+     "oracle_text": "Trample, indestructible\nWhenever Etali deals combat damage to a player, they get that many poison counters. (A player with ten or more poison counters loses the game.)",
+     "power": {
+      "type": "Fixed",
+      "value": 11
+     },
+     "printings": [
+      "MOM",
+      "PMOM"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "7514e401-7aa1-405d-9f7a-312b4e630cc2",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 11
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "CombatOnly",
+       "description": "Whenever ~ deals combat damage to a player, they get that many poison counters.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "count": {
+          "qty": {
+           "type": "EventContextAmount"
+          },
+          "type": "Ref"
+         },
+         "counter_kind": "Poison",
+         "target": {
+          "type": "TriggeringPlayer"
+         },
+         "type": "GivePlayerCounter"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "DamageDone",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": null,
+       "valid_source": {
+        "type": "SelfRef"
+       },
+       "valid_target": {
+        "type": "Player"
+       }
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "card_faces": [
+     {
+      "colors": [
+       "R"
+      ],
+      "keywords": [
+       "Indestructible",
+       "Trample",
+       "Transform"
+      ],
+      "mana_cost": "{5}{R}{R}",
+      "name": "Etali, Primal Conqueror",
+      "oracle_text": "Trample\nWhen Etali enters, each player exiles cards from the top of their library until they exile a nonland card. You may cast any number of spells from among the nonland cards exiled this way without paying their mana costs.\n{9}{G/P}: Transform Etali. Activate only as a sorcery.",
+      "power": "7",
+      "toughness": "7",
+      "type_line": "Legendary Creature — Elder Dinosaur"
+     },
+     {
+      "colors": [
+       "G",
+       "R"
+      ],
+      "keywords": [
+       "Indestructible",
+       "Trample",
+       "Transform"
+      ],
+      "mana_cost": "",
+      "name": "Etali, Primal Sickness",
+      "oracle_text": "Trample, indestructible\nWhenever Etali deals combat damage to a player, they get that many poison counters. (A player with ten or more poison counters loses the game.)",
+      "power": "11",
+      "toughness": "11",
+      "type_line": "Legendary Creature — Phyrexian Elder Dinosaur"
+     }
+    ],
+    "cmc": 7.0,
+    "color_identity": [
+     "G",
+     "R"
+    ],
+    "keywords": [
+     "Indestructible",
+     "Trample",
+     "Transform"
+    ],
+    "layout": "transform",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "name": "Etali, Primal Conqueror // Etali, Primal Sickness",
+    "oracle_id": "7514e401-7aa1-405d-9f7a-312b4e630cc2",
+    "type_line": "Legendary Creature — Elder Dinosaur // Legendary Creature — Phyrexian Elder Dinosaur"
+   }
+  },
   "Etali, Primal Storm": {
    "phase_records": [
     {

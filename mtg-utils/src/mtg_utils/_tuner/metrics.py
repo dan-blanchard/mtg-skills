@@ -10,6 +10,7 @@ ordering the swap engine acts on (deck-forge CONTEXT.md, "Tune").
 
 from __future__ import annotations
 
+import functools
 import math
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from typing import TYPE_CHECKING
@@ -310,6 +311,74 @@ def _cares_keys(key: str) -> tuple[str, ...]:
 
     payoffs = tuple(k for k in candidates if k in SERVED_SIGNAL_KEYS)
     return payoffs or (key,)
+
+
+#: Payoff keys a feeder count says nothing about: the umbrella payoffs every
+#: deck of the type feeds (an enchantment, a creature), the step triggers (an
+#: upkeep trigger works without an extra upkeep; the step makers CARE about
+#: them, not the reverse), and the suit-up payoffs the voltron package reads
+#: by its own gear. A payoff whose feeders :func:`payoff_feeders` cannot name
+#: is never dead.
+_NO_FEEDER_READ: frozenset[str] = frozenset(
+    {
+        "graveyard_matters",
+        "graveyard_makers",
+        "permanent_etb",
+        "enchantments_matter",
+        "artifacts_matter",
+        "creatures_matter",
+        "attack_matters",
+        "lands_matter",
+        "historic_matters",
+        "legends_matter",
+        "spellcast_matters",
+        "combat_damage_matters",
+        "voltron_matters",
+        *signal_keys.STEP_TRIGGER_KEYS.values(),
+    }
+)
+#: The feeders the cares map does not name: a counter doubler is fed by the
+#: counter makers (CR 122.1: a counter the deck places), a token doubler by
+#: the token makers (a token the deck creates, CR 111.1), a hand-size payoff
+#: by the draw engines beside the hand-size makers.
+_EXTRA_FEEDERS: dict[str, frozenset[str]] = {
+    "counter_doubling": frozenset(
+        {"plus_one_makers", "any_counter_makers", "proliferate_makers"}
+    ),
+    "counter_replace_bonus": frozenset(
+        {"plus_one_makers", "any_counter_makers", "proliferate_makers"}
+    ),
+    "token_doubling": frozenset(
+        {signal_keys.TOKEN_MAKER, "mass_token_makers", "token_copy_makers"}
+    ),
+    "tokens_matter": frozenset(
+        {signal_keys.TOKEN_MAKER, "mass_token_makers", "token_copy_makers"}
+    ),
+    "big_hand_matters": frozenset({"big_hand_makers", "card_draw_engine"}),
+}
+
+
+@functools.cache
+def payoff_feeders() -> Mapping[str, frozenset[str]]:
+    """Payoff key → the served doer keys that feed it: the inverse of
+    :func:`_cares_keys` over every served key (``plus_one_matters`` ←
+    ``plus_one_makers``, ``wants_fodder`` ← the token makers), plus
+    :data:`_EXTRA_FEEDERS`; :data:`_NO_FEEDER_READ` left out. The tuner's
+    dead-payoff read (``swaps.dead_payoff``) counts a deck's feeders by it."""
+    from mtg_utils._analysis.lanes import SERVED_SIGNAL_KEYS
+
+    inverse: dict[str, set[str]] = {}
+    for key in SERVED_SIGNAL_KEYS:
+        for carer in _cares_keys(key):
+            if carer != key:
+                inverse.setdefault(carer, set()).add(key)
+    for key, feeders in _EXTRA_FEEDERS.items():
+        inverse.setdefault(key, set()).update(feeders)
+    return {
+        key: frozenset(f for f in feeders if f in SERVED_SIGNAL_KEYS)
+        for key, feeders in inverse.items()
+        if key not in _NO_FEEDER_READ and feeders & SERVED_SIGNAL_KEYS
+    }
 
 
 def _scopes_apart(ckey: str, emitter_scope: str, avenue_scope: str) -> bool:

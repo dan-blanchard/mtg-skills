@@ -84,6 +84,14 @@ def _tribe_member_filter(kind: str) -> Callable[..., bool]:
     return member
 
 
+def _tribe_source(tribe: tuple[str, dict]) -> UpgradeSource:
+    """The tribe slot's source (:meth:`Sourcing.tribe_spec`): its page, no
+    job, named "a <Kind>"."""
+    kind = tribe[0]
+    article = "an" if kind[:1].lower() in "aeiou" else "a"
+    return UpgradeSource(tribe[1], None, f"{article} {kind}")
+
+
 #: An Equipment-typed card: what a voltron page drops under a commander whose
 #: own suit is Auras (:meth:`Sourcing.avenue`).
 def _is_equipment(card: Mapping, **_kw: object) -> bool:
@@ -771,9 +779,7 @@ class Sourcing:
             # graveyard"'s page — Six, Life from the Loam, Aftermath Analyst —
             # where the guides add Lhurgoyfs and changelings (2026-11-01).
             if (tribe := self.tribe_spec(card.record)) is not None:
-                kind = tribe[0]
-                article = "an" if kind[:1].lower() in "aeiou" else "a"
-                return UpgradeSource(tribe[1], None, f"{article} {kind}")
+                return _tribe_source(tribe)
             # NOT a held-lane slot: routing a cut on one of the commander's own
             # lanes to that lane's page (every held lane, then the primary
             # alone) was measured 2026-11-01 and held back — it kept Winter's
@@ -804,6 +810,17 @@ class Sourcing:
             and (flip := self.flip_spec())
         ):
             return UpgradeSource(flip, None, FLIP_SLOT)
+        elif (
+            job != "protection"
+            and (self._budgets.get(job) or {}).get("deviation", 0) >= 0
+            and (tribe := self.tribe_spec(card.record)) is not None
+        ):
+            # A tribe member WITH a job keeps the tribe's page too while its
+            # row is in band or over, as a flip does: Aryel, Knight of
+            # Windgrace's removal under Sidar Jabari went to An Offer You Can't
+            # Refuse, and the Knights deck lost a Knight (Cavalry Charge,
+            # 2026-11-01); a short row keeps the job page.
+            return _tribe_source(tribe)
         elif job == "protection":
             spec = PROTECTION_SEARCH
         else:

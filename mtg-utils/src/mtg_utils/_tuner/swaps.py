@@ -29,6 +29,7 @@ from mtg_utils._analysis.commander_need import Need, is_broad, need_serve, satis
 from mtg_utils._analysis.job_quality import JobRead, read_for
 from mtg_utils._analysis.ranking import rank_candidates
 from mtg_utils._analysis.roles import DeckMana, protects, role_of
+from mtg_utils._analysis.signal_keys import TOKEN_MAKER
 from mtg_utils._analysis.signal_specs import (
     pages_by_serve,
     serve_page_search,
@@ -57,6 +58,7 @@ from mtg_utils._tuner.issues import (
     upgrade_job,
 )
 from mtg_utils._tuner.mana_base import LandPlan
+from mtg_utils._tuner.metrics import payoff_feeders
 from mtg_utils.card_classify import (
     extract_price,
     is_basic_land,
@@ -66,6 +68,7 @@ from mtg_utils.card_classify import (
 from mtg_utils.card_search import edhrec_popularity
 from mtg_utils.deck import split_type_line
 from mtg_utils.formats import Coverage, Format
+from mtg_utils.theme_presets import _signal_idents_for
 
 
 # Worst-possible play-rate sentinel (an unranked card sorts last on the quality axis).
@@ -440,6 +443,70 @@ def _fills_short_role(card: CardClass, budgets: dict) -> bool:
     )
 
 
+#: The deck cards that do what a payoff cares about for the payoff to be alive
+#: there; a tribe needs twice as many creatures sharing the type for a
+#: choose-a-type payoff (Door of Destinies). The ``_NEED_BUILT_FLOOR`` line.
+_FEEDER_FLOOR = 5
+#: The payoffs that multiply what the deck already does, and so never feed
+#: themselves (:func:`dead_payoff`).
+_MULTIPLIER_KEYS = frozenset(
+    {"counter_doubling", "counter_replace_bonus", "token_doubling"}
+)
+
+
+def deck_profile(classes: Sequence[CardClass]) -> tuple[Counter, Counter]:
+    """What the deck does, for :func:`dead_payoff`: its signal keys by the
+    cards carrying them, and its creatures' subtypes by count."""
+    keys: Counter = Counter()
+    tribes: Counter = Counter()
+    for c in classes:
+        for ident in _signal_idents_for(c.record, include_membership=False):
+            keys[ident.split("|", 1)[0]] += 1
+        if "creature" in (c.record.get("type_line") or "").lower():
+            for sub in split_type_line(c.record.get("type_line") or "")[1]:
+                tribes[sub.lower()] += 1
+    return keys, tribes
+
+
+def dead_payoff(card: Mapping, deck_keys: Counter, deck_tribes: Counter) -> bool:
+    """Whether every mechanic ``card`` cares about has fewer than
+    :data:`_FEEDER_FLOOR` doers in the deck (``metrics.payoff_feeders``) and
+    the card feeds none of them itself: a choose-a-creature-type payoff with no
+    tribe in the deck (Banner of Kinship, Door of Destinies, Coat of Arms under
+    Bello), a counter doubler where nothing places counters. Not Etali, whose
+    poison payoff its own poison feeds; not Myr Battlesphere, whose Myr
+    reference is its own tokens; a card caring about nothing the read names
+    is never dead (2026-11-02)."""
+    idents = _signal_idents_for(dict(card), include_membership=False)
+    own_keys = {i.split("|", 1)[0] for i in idents}
+    makes_tokens = any(i.startswith(f"{TOKEN_MAKER}|") for i in idents)
+    own_subtypes = {w.lower() for w in split_type_line(card.get("type_line") or "")[1]}
+    feeders = payoff_feeders()
+    verdicts: list[bool] = []
+    for ident in idents:
+        key, _scope, subject = ident.split("|", 2)
+        if key == "chosen_type_matters" or (
+            key == "subtype_ref" and subject == "shared"
+        ):
+            verdicts.append(max(deck_tribes.values(), default=0) >= 2 * _FEEDER_FLOOR)
+        elif key == "subtype_ref":
+            sub = subject.lower()
+            verdicts.append(
+                makes_tokens
+                or sub in own_subtypes
+                or deck_tribes.get(sub, 0) >= _FEEDER_FLOOR
+            )
+        elif (fed_by := feeders.get(key)) is not None:
+            # A card feeds its own payoff (Etali's poison), unless the payoff
+            # is a multiplier: Hardened Scales' extra counter is tagged a
+            # counter maker, and a doubler of nothing is still nothing.
+            self_fed = key not in _MULTIPLIER_KEYS and bool(fed_by & own_keys)
+            verdicts.append(
+                self_fed or sum(deck_keys.get(f, 0) for f in fed_by) >= _FEEDER_FLOOR
+            )
+    return bool(verdicts) and not any(verdicts)
+
+
 def _is_fixing(card: CardClass) -> bool:
     """A ramp source that fixes COLORS — a premium dork/rock/land-fetch the deck's mana
     base leans on (Birds of Paradise, Arcane Signet, Kodama's Reach). It reads as ramp,
@@ -528,14 +595,19 @@ def cut_candidates(
     playrate: bool = True,
     playrate_meaningful: bool = True,
     needs: Callable[[Mapping], int] | None = None,
+    tribe_member: Callable[[Mapping], bool] | None = None,
 ) -> list[tuple[str, CardClass]]:
     """Ordered (reason, card) cut candidates, most-cuttable first. Hard floors apply.
 
-    ``needs`` counts the commander's built needs a card supplies
-    (``propose_swaps``' ``needs_supplied``): an over-band row trims a card
-    supplying one after every member supplying none — Oracle of Mul Daya's
-    extra land drops under a land-sacrificing Yuma are what the deck asks for,
-    not surplus ramp (Desert Bloom, 2026-11-01).
+    ``needs`` counts the commander's needs a card supplies (``propose_swaps``'
+    ``supplies_need``, every need the redundancy ones included): an over-band
+    row trims a card supplying one after every member supplying none — Oracle
+    of Mul Daya's extra land drops under a land-sacrificing Yuma are what the
+    deck asks for, not surplus ramp (Desert Bloom, 2026-11-01). ``tribe_member``
+    says the card is one of the commander's tribe (``Sourcing.tribe_spec``):
+    it trims after the row's other members too — Cavalier of Thorns, an
+    Elemental, went as surplus ramp under an Elemental commander whose guides
+    add Cavaliers (Dance of the Elements, 2026-11-01).
 
     ``playrate`` is whether a fringe play-rate may CONDEMN a card
     (``Calibration.playrate_condemns`` — never in a one-on-one game);
@@ -642,6 +714,7 @@ def cut_candidates(
         members.sort(
             key=lambda c: (
                 needs is not None and needs(c.record) > 0,
+                tribe_member is not None and tribe_member(c.record),
                 _is_fixing(c),
                 c.name in focus.commander_cards,
                 viable_served(c),
@@ -1250,6 +1323,21 @@ def propose_swaps(
         if "creature" in (c.record.get("type_line") or "").lower()
         for st in split_type_line(c.record.get("type_line", ""))[1]
     )
+    # What the deck does, for the dead-payoff read (:func:`dead_payoff`): a
+    # theme add that cares about a mechanic the deck lacks is no add — Banner
+    # of Kinship and Coat of Arms on Bello's artifact page, Hardened Scales
+    # on Anikthea's enchantments (2026-11-02). Read once per card.
+    deck_keys, deck_tribe_counts = deck_profile(classes)
+    dead_memo: dict[str, bool] = {}
+
+    def dead_here(card: Mapping) -> bool:
+        key = card.get("oracle_id") or card.get("name", "")
+        verdict = dead_memo.get(key)
+        if verdict is None:
+            verdict = dead_payoff(card, deck_keys, deck_tribe_counts)
+            dead_memo[key] = verdict
+        return verdict
+
     # The commander's specific needs (``commander_need``, ADR-0061), for the
     # job pages' near ties (:func:`_need_ties`).
     needs_here = [
@@ -1315,7 +1403,13 @@ def propose_swaps(
         template=ctx.template,
         playrate=ctx.playrate_condemns,
         playrate_meaningful=ctx.playrate,
-        needs=needs_supplied if built_needs else None,
+        # The trim order spares EVERY need's suppliers, the redundancy needs'
+        # too: a card doing what the commander does (Kwain making opponents
+        # draw under Ms. Bumbleflower) is the plan, whatever the row's band —
+        # Peace Offering trimmed nine draw cards from a group-hug deck whose
+        # guides keep the hug-and-draw core (2026-11-01).
+        needs=(lambda record: int(supplies_need(record))) if needs_here else None,
+        tribe_member=lambda record: sourcing.tribe_spec(record) is not None,
     )
     # Route cuts into the pools a Remedy names: an over-band trim cuts from THAT over
     # role (``over:<role>``); everything else is the generic pool (filler, low-value,
@@ -1889,6 +1983,8 @@ def propose_swaps(
                 and not fodder_serve.matches(card)
             ):
                 continue  # the docstring: a maker's job upgrade makes fodder too
+            if job is None and not spec.get("name") and dead_here(card):
+                continue  # a payoff for something this deck doesn't do
             if upgrade_of is not None and not _upgrades(
                 card,
                 upgrade_of,
@@ -1910,10 +2006,14 @@ def propose_swaps(
             if cost is None:
                 continue
             if (
-                upgrade_of is not None
+                band_cut is not None
                 and cost > share
                 and cost > _PURSE_CAP * share * max(1, ctx.max_swaps - len(swaps))
             ):
+                # An upgrade's or a trim's add past the share takes at most
+                # ``_PURSE_CAP`` of what is left: Sheoldred, the Apocalypse took
+                # half of Endless Punishment's $126 as a trim's add and the
+                # tune ran dry at 20 swaps (2026-11-02).
                 continue
             overshoot = role_of(card, deck_mana=ctx.deck_mana) & full_roles
             if upgrade_of is not None:

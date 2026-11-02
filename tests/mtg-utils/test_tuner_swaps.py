@@ -3500,3 +3500,95 @@ def test_a_led_page_is_sorted_whole_before_it_is_cut():
         s["add"]["name"] for s in _swaps_with_needs([cut, *suit], issue, ctx)["swaps"]
     ]
     assert adds == ["Acorn Maker"]
+
+
+@pytest.mark.parametrize(
+    ("interaction_row", "add"),
+    [(_band(9, 10, 12), "An Offer You Can't Refuse"), (_band(11, 10, 12), "Tarmogoyf")],
+)
+def test_a_tribe_member_with_a_job_keeps_the_tribes_slot_unless_its_row_is_short(
+    interaction_row, add
+):
+    """Aryel, Knight of Windgrace's removal under a Knights commander: with
+    interaction in band, the slot stays a Knight's (as a flip's does); a short
+    row keeps the job page. Here a Lhurgoyf that removes, under Disa."""
+    tribe = Signal(
+        key="type_matters", scope="you", subject="Lhurgoyf", text="", source="x"
+    )
+    tribe_label = spec_for(tribe).label
+    goyf = _real_cc(
+        "Mortivore",
+        "spine",
+        roles=["interaction"],
+        served=(tribe_label,),
+        edhrec_rank=9000,
+    )
+    offer, tarmo = _played("An Offer You Can't Refuse", 34), _played("Tarmogoyf", 500)
+
+    def search(**kw):
+        return [tarmo] if kw.get("card_type") == "Lhurgoyf" else [offer, tarmo]
+
+    ctx = replace(
+        _upgrade_ctx([goyf], [offer, tarmo]),
+        budgets={"interaction": interaction_row},
+        deck_signals=[tribe],
+        search_fn=search,
+    )
+    ctx = replace(
+        ctx,
+        focus_result={
+            **ctx.focus_result,
+            "viable_avenues": [
+                {"label": tribe_label, "tier": "main", "depth": 11, "cards": []}
+            ],
+            "mains": [tribe_label],
+            "commander_tribes": [tribe_label],
+        },
+    )
+    out = _swaps_for_issue_dicts(
+        [goyf], [{"kind": "upgrade", "severity": 1, "count": 1}], ctx
+    )
+    assert [s["add"]["name"] for s in out["swaps"]] == [add]
+
+
+def test_over_band_trim_takes_a_tribe_member_last():
+    """Equal otherwise, an over-band row trims the member of the commander's
+    tribe after the rest (Cavalier of Thorns under an Elemental commander)."""
+    classes = [
+        _cc("Elemental Ramp", "spine", roles=["ramp"], edhrec_rank=1000),
+        _cc("Plain Rock", "spine", roles=["ramp"], edhrec_rank=1000),
+    ]
+    cuts = cut_candidates(
+        classes,
+        budgets={"ramp": _band(2, 0, 1)},
+        focus=CutFocus(),
+        tribe_member=lambda record: record["name"] == "Elemental Ramp",
+    )
+    assert [c.name for _reason, c in cuts] == ["Plain Rock"]
+
+
+def test_a_payoff_for_what_the_deck_does_not_do_is_dead_there():
+    """Banner of Kinship, Door of Destinies and Coat of Arms choose a creature
+    type: dead in a deck with no tribe, alive with twelve Dinosaurs. Hardened
+    Scales doubles counters: dead where nothing places them. Etali's poison
+    payoff is fed by its own poison, Myr Battlesphere's Myr reference by its
+    own tokens, and a card caring about nothing the read names (Panharmonicon)
+    is never dead."""
+    from collections import Counter
+
+    from mtg_utils._tuner.swaps import dead_payoff
+
+    no_tribe, dinos = Counter(), Counter({"dinosaur": 12})
+    none, counters = Counter(), Counter({"plus_one_makers": 6})
+    for name in ("Banner of Kinship", "Door of Destinies", "Coat of Arms"):
+        assert dead_payoff(test_card(name), none, no_tribe), name
+        assert not dead_payoff(test_card(name), none, dinos), name
+    assert dead_payoff(test_card("Hardened Scales"), none, no_tribe)
+    assert not dead_payoff(test_card("Hardened Scales"), counters, no_tribe)
+    for name in (
+        "Etali, Primal Conqueror // Etali, Primal Sickness",
+        "Myr Battlesphere",
+        "Panharmonicon",
+        "Asceticism",
+    ):
+        assert not dead_payoff(test_card(name), none, no_tribe), name

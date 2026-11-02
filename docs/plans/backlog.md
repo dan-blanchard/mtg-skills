@@ -430,23 +430,17 @@ headroom and parked items.
 **From the 25-precon deckbuilder pass (2026-11-01; Dan's call: read each
 proposal as a deckbuilder, fix the structure, the guide score is a yardstick)**
 
-- **Bello's and Anikthea's pages: popular cards of the type whose text does
-  nothing here.** Bello's artifacts at 4+ mana by play-rate are Banner of
-  Kinship, Door of Destinies, Coat of Arms; Anikthea's enchantments Hardened
-  Scales and Branching Evolution. Every candidate supplies the same need; the
-  difference is whether the card's own payoff is fed in THIS deck. **Measured
-  and held back (2026-11-01):** a theme-page candidate that also fills a role
-  the deck is short of leading the rest (meant for Asceticism over
-  Panharmonicon with no protection in the deck) put cycling Dinosaurs over
-  Etali and Gishath on Pantlaza's page and protection Equipment on Bello's:
-  the 25 121 → 109 guide adds. A "dead payoff" veto (a `*_matters` /
-  `wants_*` card whose doer the deck lacks) has no clean key: the junk adds
-  carry `chosen_type_matters`, `subtype_ref|you|shared`, `counter_doubling`,
-  `any_counter_matters` — no one inverse of `metrics._cares_keys`. The
-  ranker's `_gate_penalty` (a tribal gate the deck lacks) is the shape of the
-  right read, widened to a payoff's doer. Idents alone cannot tell it: Etali,
-  Primal Conqueror carries five payoff idents that are its own effects, and
-  Hardened Scales is tagged a counter *maker* (2026-11-01).
+- **Bello's artifact page is still popularity among the live cards.** With the
+  dead payoffs gone (Banner of Kinship, Door of Destinies, Coat of Arms:
+  `swaps.dead_payoff`), the page by play-rate is Panharmonicon, Mystic Forge,
+  Maskwood Nexus, Giggling Skitterspike, Vedalken Orrery, The Regalia —
+  artifacts that do something, just not much here; the guides' Asceticism,
+  Glorious Sunrise and Sight of the Scalelords are the ones that also protect
+  or pump. The remaining gap is card fit, the ranker's territory (ADR-0063), not
+  a structural key: the short-role lead was measured and held back (above), and
+  Anikthea's Hardened Scales and Branching Evolution stay because her deck
+  places counters on five or more cards (constellation), so they are alive
+  there by the deck's own content.
 
 ## Settled: don't re-suggest
 
@@ -568,6 +562,29 @@ proposal as a deckbuilder, fix the structure, the guide score is a yardstick)**
   clause* is read off the ability's description behind a `retirement_canary`
   (`_desc_sizes_the_card`; phase v0.118.0 keeps no residue), so his return
   states its own line and opens no payload page.
+- **Batch 5 (2026-11-02, the pass over batch 4's proposals and the held-out
+  decks' own; the 25 719 / 338 / 117 → 729 / 340 / 120, held-out 574 / 256 /
+  101 → 577 / 259 / 104).** (21) *A payoff for what the deck doesn't do is no
+  add* (`swaps.dead_payoff` over `metrics.payoff_feeders`, the inverse of
+  `_cares_keys` plus the multipliers' feeders): every mechanic the card cares
+  about has fewer than `_FEEDER_FLOOR` (5) doers in the deck and the card
+  feeds none itself — a choose-a-creature-type payoff with no tribe of ten,
+  a counter doubler where nothing places counters. Banner of Kinship, Door
+  of Destinies and Coat of Arms leave Bello's page; Etali (its own poison),
+  Myr Battlesphere (its own Myr) and every card caring about nothing the read
+  names stay. (22) *A trim's add takes at most the purse cap past the share*,
+  as an upgrade's does (`_PURSE_CAP`): Sheoldred, the Apocalypse took half of
+  Endless Punishment's $126 and the tune ran dry at 20 swaps; 30 again, with
+  Razorkin Needlehead. (23) *A tribe member with a job keeps the tribe's slot
+  while its row is in band or over*, as a flip does (`upgrade_spec`: Aryel,
+  Knight of Windgrace's removal went to An Offer You Can't Refuse and
+  Cavalry Charge lost a Knight). (24) *A tribe member and every need's
+  supplier, the redundancy needs' included, trim last from an over-band row*
+  (`cut_candidates`: Cavalier of Thorns went as surplus ramp under an
+  Elemental commander whose guides add Cavaliers; Kwain, Itinerant Meddler
+  as surplus draw under Ms. Bumbleflower). Dance of the Elements takes
+  Cavalier of Night, Solitude and Animar; Animated Army takes Fiery
+  Emancipation and Guardian Project again.
 
 **From the Jace, Multiverse Architect precon tune and the 25-precon audit (2026-10-17 to 2026-11-01)**
 
