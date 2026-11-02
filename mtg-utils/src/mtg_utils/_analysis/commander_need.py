@@ -806,7 +806,14 @@ def _effect_needs(unit_node: object, desc: str) -> Iterator[Need]:
 def _static_needs(node: object, desc: str) -> Iterator[Need]:
     """Needs read off a static ability's ``affected`` filter: your spells or
     permanents at a mana-value floor (Zhulodok's colorless spells with mana
-    value 7 or greater)."""
+    value 7 or greater); and, when the static makes your permanents creatures
+    and sends them into combat — an ``AddType`` of Creature beside a granted
+    combat-damage trigger or haste (Bello's 4/4 Elementals that draw on
+    combat damage) — the support those attackers want
+    (:data:`_ATTACKER_SUPPORT_KEYS`): the anthems, the team protection and the
+    evasion grants Animated Army's guides add (Asceticism, Glorious Sunrise,
+    Sight of the Scalelords, Akroma's Memorial) where play-rate gave
+    Panharmonicon and Mystic Forge (2026-11-02)."""
     aff = getattr(node, "affected", None)
     if not _present(aff) or filter_controller(aff) != "You":
         return
@@ -815,6 +822,44 @@ def _static_needs(node: object, desc: str) -> Iterator[Need]:
         need = _spell_floor_need(aff, floor, desc)
         if need is not None:
             yield need
+    if _animates_attackers(node):
+        yield Need(
+            "event",
+            "support for the attackers the commander makes",
+            desc,
+            keys=_ATTACKER_SUPPORT_KEYS,
+        )
+
+
+#: What a deck whose commander turns its permanents into attackers wants for
+#: them: team pumps and anthems, team protection, and the evasion grants a
+#: "deals combat damage to a player" trigger already asks for.
+_ATTACKER_SUPPORT_KEYS: frozenset[str] = frozenset(
+    {"team_buff", "anthem_static", "board_protection", "team_evasion_grant"}
+)
+
+
+def _animates_attackers(node: object) -> bool:
+    """Whether a static's ``modifications`` make the affected permanents
+    creatures (``AddType`` Creature) and send them into combat: a granted
+    trigger on combat damage (``GrantTrigger`` with ``DamageDone``) or haste
+    (``AddKeyword``)."""
+    mods = getattr(node, "modifications", None) or ()
+    becomes_creature = False
+    attacks = False
+    for mod in mods:
+        tag = tag_of(mod)
+        if tag == "AddType" and getattr(mod, "core_type", None) == "Creature":
+            becomes_creature = True
+        elif (
+            tag == "AddKeyword" and str(getattr(mod, "keyword", "")).lower() == "haste"
+        ):
+            attacks = True
+        elif tag == "GrantTrigger":
+            trig = getattr(mod, "trigger", None)
+            if getattr(trig, "mode", None) == "DamageDone":
+                attacks = True
+    return becomes_creature and attacks
 
 
 def _condition_leaves(cond: object, depth: int) -> Iterator[object]:

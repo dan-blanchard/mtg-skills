@@ -123,7 +123,25 @@ def test_bello_wants_big_non_equipment_artifacts_and_non_aura_enchantments():
     # (its subject is ``Artifact>=4``): it is skipped, so an Equipment at four
     # mana supplies nothing of Bello's.
     assert "noncreature artifact at 4+ mana" not in _labels(needs)
-    assert needs_met(test_card("Hammer of Nazahn"), needs) == ()
+    assert not any(
+        "4+ mana" in need.label
+        for need in needs_met(test_card("Hammer of Nazahn"), needs)
+    )
+    # The static makes those permanents 4/4 creatures with haste and a combat
+    # damage trigger: the deck wants support for the attackers — anthems, team
+    # protection, evasion grants — which Panharmonicon and Mystic Forge are
+    # not. Zhulodok's cascade grant animates nothing, no such need.
+    support = _need(
+        "Bello, Bard of the Brambles", "support for the attackers the commander makes"
+    )
+    assert support.kind == "event"
+    for name in ("Asceticism", "Glorious Sunrise", "Sight of the Scalelords"):
+        assert satisfies(test_card(name), support), name
+    for name in ("Panharmonicon", "Mystic Forge"):
+        assert not satisfies(test_card(name), support), name
+    assert "support for the attackers the commander makes" not in _labels(
+        _needs("Zhulodok, Void Gorger")
+    )
 
 
 def test_a_keyword_lord_wants_bodies_with_the_keyword():

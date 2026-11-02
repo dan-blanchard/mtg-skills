@@ -1744,7 +1744,9 @@ def propose_swaps(
         # Glorious Sunrise over Panharmonicon on Bello's page — cost the 25 six
         # guide adds (120 → 114: Felothar's walls, Anikthea's doublers) and the
         # held-out 20 eleven (104 → 93), Counter Intelligence back to 21
-        # swaps: the second lane's cards are the pricier, less-played ones.
+        # swaps; scoped to a commander whose plan is a mana-value floor it
+        # traded Bello's popular idle artifacts for obscure artifact creatures
+        # (Big Mother Mouser, Lux Artillery), no better by the guides.
 
         def led(c: dict) -> tuple:
             own = lead(c) if lead is not None else ()
@@ -1835,6 +1837,11 @@ def propose_swaps(
                 (led(c) for c in head if not in_deck.get(c.get("name", ""))),
                 default=None,
             )
+            # Strictly ahead of the head's best, never tied with it: deep ties
+            # admitted while the head's best tier was thin (under ten) flooded
+            # Bello's page with obscure artifacts (Gruul War Plow, Horn of
+            # Deafening) and took Counter Intelligence back to 21 swaps
+            # (2026-11-02, measured and held back).
             deep = [c for c in found[limit:] if best is None or led(c) < best]
             keep = {id(c) for c in head} | {id(c) for c in deep}
             ranked = [c for c in ranked if id(c) in keep]

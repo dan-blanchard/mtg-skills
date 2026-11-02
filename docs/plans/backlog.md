@@ -430,21 +430,11 @@ headroom and parked items.
 **From the 25-precon deckbuilder pass (2026-11-01; Dan's call: read each
 proposal as a deckbuilder, fix the structure, the guide score is a yardstick)**
 
-- **Bello's artifact page is popularity among the live cards.** With the
-  dead payoffs gone (`swaps.dead_payoff`, `chooses_a_type_without_tribe`),
-  the page by play-rate is Panharmonicon, Mystic Forge, Maskwood Nexus,
-  Giggling Skitterspike, Vedalken Orrery, Silent Arbiter — artifacts that do
-  something, just not much here; the guides' Asceticism, Glorious Sunrise and
-  Sight of the Scalelords are the ones that also protect or pump. The
-  remaining gap is card fit, the ranker's territory (ADR-0063), not a
-  structural key. **Measured and held back (2026-11-02):** the short-role lead
-  (above), and an other-lanes lead — among a type page's live cards, one that
-  also serves another viable avenue first — which cost the 25 six guide adds
-  (120 → 114: Felothar's walls, Anikthea's doublers) and the held-out 20
-  eleven (104 → 93), Counter Intelligence back to 21 swaps: the second lane's
-  cards are the pricier, less-played ones. One residue by the deck's own
-  content: Anikthea's Hardened Scales and Branching Evolution stay because
-  her deck places counters on five or more cards (constellation).
+- **The 25-precon pass found nothing further that structure can fix
+  (2026-11-02).** Anikthea's Hardened Scales and Branching Evolution stay
+  because her deck places counters on five or more cards (constellation):
+  alive by the deck's own content, the dead-payoff read's line. The leads
+  measured and held back along the way are listed under Settled.
 
 ## Settled: don't re-suggest
 
@@ -619,6 +609,24 @@ proposal as a deckbuilder, fix the structure, the guide score is a yardstick)**
   creature types only (`_card_ir.creature_types`): Ygra, Eater of All's Food
   is an artifact type the deck makes, and the bulk-harvested
   `CREATURE_SUBTYPES` list holds it.
+- **Batch 8 (2026-11-02).** (30) *A commander whose static makes its
+  permanents creatures and sends them into combat wants support for those
+  attackers* (`commander_need._static_needs` → `_animates_attackers`: an
+  `AddType` of Creature beside a granted combat-damage trigger or haste; the
+  need `support for the attackers the commander makes`, keys
+  `_ATTACKER_SUPPORT_KEYS` — team pumps and anthems, team protection, evasion
+  grants). Bello's page now leads with Asceticism, Glorious Sunrise, Sight of
+  the Scalelords and Akroma's Memorial (two of his needs) over Panharmonicon
+  and Mystic Forge (one), the guides' adds where play-rate gave idle
+  artifacts; 6.8% of a Gruul pool, specific. Within the page's play-rate
+  head: Asceticism, Eldrazi Monument, Enduring Courage and The Fire Crystal
+  lead; Glorious Sunrise and Sight of the Scalelords sit past it. Measured
+  and held back first: an other-lanes lead scoped to floor-plan commanders,
+  which traded his idle artifacts for obscure artifact creatures (Big Mother
+  Mouser, Lux Artillery); and deep ties with the head's best tier admitted
+  while that tier is thin, which flooded the page with obscure artifacts
+  (Gruul War Plow, Horn of Deafening) and took Counter Intelligence back to
+  21 swaps.
 
 **From the Jace, Multiverse Architect precon tune and the 25-precon audit (2026-10-17 to 2026-11-01)**
 

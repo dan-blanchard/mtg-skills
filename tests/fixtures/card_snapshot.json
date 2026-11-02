@@ -513519,6 +513519,374 @@
     "type_line": "Enchantment — Plan"
    }
   },
+  "Glorious Sunrise": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Enchantment"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Green"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 3,
+      "shards": [
+       "Green",
+       "Green"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "952bd18f-29f0-422e-a28e-4fc7ce21b9c9",
+       "a2caf73e-c3eb-4fa8-996a-d3d18b2ffaeb"
+      ]
+     },
+     "name": "Glorious Sunrise",
+     "non_ability_text": null,
+     "oracle_text": "At the beginning of combat on your turn, choose one —\n• Creatures you control get +1/+1 and gain trample until end of turn.\n• Target land gains \"{T}: Add {G}{G}{G}\" until end of turn.\n• Draw a card if you control a creature with power 3 or greater.\n• You gain 3 life.",
+     "power": null,
+     "printings": [
+      "DBL",
+      "PRM",
+      "PVOW",
+      "VOW"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2021-11-19",
+       "text": "Glorious Sunrise's third mode may be chosen even if you don't control any creatures with power 3 or greater as the ability goes on the stack. If you control a creature with power 3 or greater when it resolves, you will draw a card. If not, it will do nothing as it resolves."
+      }
+     ],
+     "scryfall_oracle_id": "844c1024-db80-4287-9770-3b10e53d0fc8",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": {
+        "type": "OnlyDuringYourTurn"
+       },
+       "damage_kind": "Any",
+       "description": "At the beginning of combat on your turn",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "duration": null,
+         "static_abilities": [],
+         "target": null,
+         "type": "GenericEffect"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "modal": {
+         "allow_repeat_modes": false,
+         "chooser": {
+          "type": "Controller"
+         },
+         "max_choices": 1,
+         "min_choices": 1,
+         "mode_count": 4,
+         "mode_descriptions": [
+          "Creatures you control get +1/+1 and gain trample until end of turn.",
+          "Target land gains \"{T}: Add {G}{G}{G}\" until end of turn.",
+          "Draw a card if you control a creature with power 3 or greater.",
+          "You gain 3 life."
+         ]
+        },
+        "mode_abilities": [
+         {
+          "condition": null,
+          "cost": null,
+          "description": null,
+          "duration": "UntilEndOfTurn",
+          "effect": {
+           "duration": "UntilEndOfTurn",
+           "static_abilities": [
+            {
+             "active_zones": [],
+             "affected": {
+              "controller": "You",
+              "properties": [],
+              "type": "Typed",
+              "type_filters": [
+               "Creature"
+              ]
+             },
+             "affected_zone": null,
+             "characteristic_defining": false,
+             "condition": null,
+             "description": "get +1/+1 and gain trample",
+             "effect_zone": null,
+             "mode": "Continuous",
+             "modifications": [
+              {
+               "type": "AddPower",
+               "value": 1
+              },
+              {
+               "type": "AddToughness",
+               "value": 1
+              },
+              {
+               "keyword": "Trample",
+               "type": "AddKeyword"
+              }
+             ]
+            }
+           ],
+           "target": null,
+           "type": "GenericEffect"
+          },
+          "forward_result": false,
+          "kind": "Spell",
+          "optional": false,
+          "optional_targeting": false,
+          "sub_ability": null,
+          "target_prompt": null
+         },
+         {
+          "condition": null,
+          "cost": null,
+          "description": null,
+          "duration": "UntilEndOfTurn",
+          "effect": {
+           "duration": "UntilEndOfTurn",
+           "static_abilities": [
+            {
+             "active_zones": [],
+             "affected": {
+              "type": "ParentTarget"
+             },
+             "affected_zone": null,
+             "characteristic_defining": false,
+             "condition": null,
+             "description": "gain \"{T}: Add {G}{G}{G}\"",
+             "effect_zone": null,
+             "mode": "Continuous",
+             "modifications": [
+              {
+               "definition": {
+                "condition": null,
+                "cost": {
+                 "type": "Tap"
+                },
+                "description": "{T}: Add {G}{G}{G}",
+                "duration": null,
+                "effect": {
+                 "produced": {
+                  "colors": [
+                   "Green",
+                   "Green",
+                   "Green"
+                  ],
+                  "type": "Fixed"
+                 },
+                 "type": "Mana"
+                },
+                "forward_result": false,
+                "is_mana_ability": true,
+                "kind": "Activated",
+                "optional": false,
+                "optional_targeting": false,
+                "sub_ability": null,
+                "target_prompt": null
+               },
+               "type": "GrantAbility"
+              }
+             ]
+            }
+           ],
+           "target": {
+            "controller": null,
+            "properties": [],
+            "type": "Typed",
+            "type_filters": [
+             "Land"
+            ]
+           },
+           "type": "GenericEffect"
+          },
+          "forward_result": false,
+          "kind": "Spell",
+          "optional": false,
+          "optional_targeting": false,
+          "sub_ability": null,
+          "target_prompt": null
+         },
+         {
+          "condition": {
+           "comparator": "GE",
+           "lhs": {
+            "qty": {
+             "filter": {
+              "controller": "You",
+              "properties": [
+               {
+                "comparator": "GE",
+                "scope": "Current",
+                "stat": "Power",
+                "type": "PtComparison",
+                "value": {
+                 "type": "Fixed",
+                 "value": 3
+                }
+               },
+               {
+                "type": "InZone",
+                "zone": "Battlefield"
+               }
+              ],
+              "type": "Typed",
+              "type_filters": [
+               "Creature"
+              ]
+             },
+             "type": "ObjectCount"
+            },
+            "type": "Ref"
+           },
+           "rhs": {
+            "type": "Fixed",
+            "value": 1
+           },
+           "type": "QuantityCheck"
+          },
+          "cost": null,
+          "description": null,
+          "duration": null,
+          "effect": {
+           "count": {
+            "type": "Fixed",
+            "value": 1
+           },
+           "target": {
+            "type": "Controller"
+           },
+           "type": "Draw"
+          },
+          "forward_result": false,
+          "kind": "Spell",
+          "optional": false,
+          "optional_targeting": false,
+          "sub_ability": null,
+          "target_prompt": null
+         },
+         {
+          "condition": null,
+          "cost": null,
+          "description": null,
+          "duration": null,
+          "effect": {
+           "amount": {
+            "type": "Fixed",
+            "value": 3
+           },
+           "type": "GainLife"
+          },
+          "forward_result": false,
+          "kind": "Spell",
+          "optional": false,
+          "optional_targeting": false,
+          "sub_ability": null,
+          "target_prompt": null
+         }
+        ],
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "Phase",
+       "optional": false,
+       "origin": null,
+       "phase": "BeginCombat",
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": null,
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 5.0,
+    "color_identity": [
+     "G"
+    ],
+    "colors": [
+     "G"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{3}{G}{G}",
+    "name": "Glorious Sunrise",
+    "oracle_id": "844c1024-db80-4287-9770-3b10e53d0fc8",
+    "oracle_text": "At the beginning of combat on your turn, choose one —\n• Creatures you control get +1/+1 and gain trample until end of turn.\n• Target land gains \"{T}: Add {G}{G}{G}\" until end of turn.\n• Draw a card if you control a creature with power 3 or greater.\n• You gain 3 life.",
+    "produced_mana": [
+     "G"
+    ],
+    "type_line": "Enchantment"
+   }
+  },
   "Glorybringer": {
    "phase_records": [
     {
@@ -795399,6 +795767,238 @@
     "type_line": "World Enchantment"
    }
   },
+  "Mystic Forge": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": {
+        "costs": [
+         {
+          "type": "Tap"
+         },
+         {
+          "amount": {
+           "type": "Fixed",
+           "value": 1
+          },
+          "type": "PayLife"
+         }
+        ],
+        "type": "Composite"
+       },
+       "description": "{T}, Pay 1 life: Exile the top card of your library.",
+       "duration": null,
+       "effect": {
+        "count": {
+         "type": "Fixed",
+         "value": 1
+        },
+        "player": {
+         "type": "Controller"
+        },
+        "position": {
+         "type": "Top"
+        },
+        "type": "ExileTop"
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Artifact"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "restricted"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 4,
+      "shards": [],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "109a6275-331e-4696-85ea-6f7a0a0f865e",
+       "375e6985-e212-4bd0-b06c-0ca7dc1f68e6",
+       "74fd1f7f-4946-4f28-a759-3f73c0473536",
+       "7aac1711-05e3-402a-a7a2-d8eade84ed32",
+       "89f596ee-b551-411f-a460-bfffa89e358e",
+       "924a24e7-91b8-4ceb-a136-7a765d98c994",
+       "a26614a2-b6ce-4161-89ee-d9596a97a146",
+       "bc0de77a-c503-4000-9eb5-aa28a5e91082",
+       "cf56bef3-7f0e-47b4-96f5-325722f7708a"
+      ]
+     },
+     "name": "Mystic Forge",
+     "non_ability_text": null,
+     "oracle_text": "You may look at the top card of your library any time.\nYou may cast artifact spells and colorless spells from the top of your library.\n{T}, Pay 1 life: Exile the top card of your library.",
+     "power": null,
+     "printings": [
+      "40K",
+      "BRR",
+      "CMM",
+      "M20",
+      "M3C",
+      "PIP",
+      "PM20"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2019-07-12",
+       "text": "Because you never \"cast\" a land card, Mystic Forge doesn't allow you to play an artifact land from the top of your library."
+      },
+      {
+       "date": "2019-07-12",
+       "text": "If the top card of your library changes while you're casting a spell, playing a land, or activating an ability, you can't look at the new top card until you finish doing so. This means that if you cast the top card of your library, you can't look at the next one until you're done paying for that spell."
+      },
+      {
+       "date": "2019-07-12",
+       "text": "If the top card of your library has a morph ability, you can cast it face down from the top of your library, even if it's normally not a colorless card."
+      },
+      {
+       "date": "2019-07-12",
+       "text": "Mystic Forge lets you look at the top card of your library whenever you want (with one restriction—see below), even if you don't have priority. This action doesn't use the stack. Knowing what that card is becomes part of the information you have access to, just like you can look at the cards in your hand."
+      },
+      {
+       "date": "2019-07-12",
+       "text": "You must follow the normal timing permissions and restrictions of the spells you cast from your library."
+      },
+      {
+       "date": "2019-07-12",
+       "text": "You still pay all costs for a spell you cast from your library, including additional costs. You may also pay alternative costs."
+      }
+     ],
+     "scryfall_oracle_id": "994bc16d-fdc6-475c-96df-beeb4d5aa03e",
+     "static_abilities": [
+      {
+       "active_zones": [],
+       "affected": {
+        "controller": "You",
+        "properties": [],
+        "type": "Typed",
+        "type_filters": []
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": null,
+       "description": "You may look at the top card of your library any time.",
+       "effect_zone": null,
+       "mode": "MayLookAtTopOfLibrary",
+       "modifications": []
+      },
+      {
+       "active_zones": [],
+       "affected": {
+        "filters": [
+         {
+          "controller": null,
+          "properties": [],
+          "type": "Typed",
+          "type_filters": [
+           "Artifact"
+          ]
+         },
+         {
+          "controller": null,
+          "properties": [
+           {
+            "comparator": "EQ",
+            "count": 0,
+            "type": "ColorCount"
+           }
+          ],
+          "type": "Typed",
+          "type_filters": [
+           "Card"
+          ]
+         }
+        ],
+        "type": "Or"
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": null,
+       "description": "You may cast artifact spells and colorless spells from the top of your library.",
+       "effect_zone": null,
+       "mode": {
+        "TopOfLibraryCastPermission": {
+         "alt_cost": null,
+         "frequency": "Unlimited",
+         "play_mode": "Cast"
+        }
+       },
+       "modifications": []
+      }
+     ],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 4.0,
+    "color_identity": [],
+    "colors": [],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "restricted"
+    },
+    "mana_cost": "{4}",
+    "name": "Mystic Forge",
+    "oracle_id": "994bc16d-fdc6-475c-96df-beeb4d5aa03e",
+    "oracle_text": "You may look at the top card of your library any time.\nYou may cast artifact spells and colorless spells from the top of your library.\n{T}, Pay 1 life: Exile the top card of your library.",
+    "type_line": "Artifact"
+   }
+  },
   "Mystic Remora": {
    "phase_records": [
     {
@@ -1016402,6 +1017002,187 @@
     "power": "5",
     "toughness": "5",
     "type_line": "Legendary Creature — Angel"
+   }
+  },
+  "Sight of the Scalelords": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Enchantment"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Green"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 4,
+      "shards": [
+       "Green"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "b5921758-4e21-4d34-8cf7-b0205d4b0912"
+      ]
+     },
+     "name": "Sight of the Scalelords",
+     "non_ability_text": null,
+     "oracle_text": "At the beginning of combat on your turn, creatures you control with toughness 4 or greater get +2/+2 and gain vigilance until end of turn.",
+     "power": null,
+     "printings": [
+      "DTK"
+     ],
+     "rarities": [
+      "uncommon"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "4f868b9b-42f4-4f74-bce2-3f9c063a572c",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": {
+        "type": "OnlyDuringYourTurn"
+       },
+       "damage_kind": "Any",
+       "description": "At the beginning of combat on your turn, creatures you control with toughness 4 or greater get +2/+2 and gain vigilance until end of turn.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": "UntilEndOfTurn",
+        "effect": {
+         "duration": "UntilEndOfTurn",
+         "static_abilities": [
+          {
+           "active_zones": [],
+           "affected": {
+            "controller": "You",
+            "properties": [
+             {
+              "comparator": "GE",
+              "scope": "Current",
+              "stat": "Toughness",
+              "type": "PtComparison",
+              "value": {
+               "type": "Fixed",
+               "value": 4
+              }
+             }
+            ],
+            "type": "Typed",
+            "type_filters": [
+             "Creature"
+            ]
+           },
+           "affected_zone": null,
+           "characteristic_defining": false,
+           "condition": null,
+           "description": "get +2/+2 and gain vigilance",
+           "effect_zone": null,
+           "mode": "Continuous",
+           "modifications": [
+            {
+             "type": "AddPower",
+             "value": 2
+            },
+            {
+             "type": "AddToughness",
+             "value": 2
+            },
+            {
+             "keyword": "Vigilance",
+             "type": "AddKeyword"
+            }
+           ]
+          }
+         ],
+         "target": null,
+         "type": "GenericEffect"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "Phase",
+       "optional": false,
+       "origin": null,
+       "phase": "BeginCombat",
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": null,
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 5.0,
+    "color_identity": [
+     "G"
+    ],
+    "colors": [
+     "G"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{4}{G}",
+    "name": "Sight of the Scalelords",
+    "oracle_id": "4f868b9b-42f4-4f74-bce2-3f9c063a572c",
+    "oracle_text": "At the beginning of combat on your turn, creatures you control with toughness 4 or greater get +2/+2 and gain vigilance until end of turn.",
+    "type_line": "Enchantment"
    }
   },
   "Sign in Blood": {
