@@ -145,6 +145,10 @@ CHECKS = [
     _check("no_pair", "VirtueAndValor_WOC", "Winds of Rath -> Martial Coup", batch="16"),
     # Inspirit's charge counters: Titan Forge isn't traded for a mana rock.
     _check("no_pair", "CounterIntelligence_EOC", "Titan Forge -> Talisman of Creativity", batch="16"),
+    _check("no_pair", "CounterIntelligence_EOC", "Fumigate -> Aetherize", batch="16b"),
+    _check("never", "MostWanted_OTC", "Dawn-Blessed Pennant", batch="16b"),
+    _check("never", "CavalryCharge_MOC", "Gleaming Overseer", "Chocobo Knights", batch="16b"),
+    _check("never", "SquirreledAway_BLC", "Squirrel Squatters", batch="16b"),
     _check("no_trim", "EldraziIncursion_M3C", "Forsaken Monument", batch="14"),
     _check("no_trim", "TrickyTerrain_M3C", "Mana Reflection", batch="14"),
 ]

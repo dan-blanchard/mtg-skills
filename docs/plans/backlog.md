@@ -1067,8 +1067,40 @@ proposal as a deckbuilder, fix the structure, the guide score is a yardstick)**
   any-tribe read reorder Party Time's Wizard page, and Dark Confidant loses
   its slot; Counter Intelligence's Fumigate goes to Aetherize instead of
   Wrath of God because the purse ($40.69, $40.67 spent) no longer reaches
-  Wrath ($3.49) — isolated by switching each read off in turn.
+  Wrath ($3.49) — both pass the gate (an in-process spy on `_upgrades`;
+  `misses.py`'s workers are spawned, so a patch in the parent never reaches
+  them, and a bisect by patching proves nothing).
   `verify_symptoms.py`: four checks; 73, all passing.
+- **Batch 16b (2026-11-02; the 25 735 / 338 / 116 → 735 / 338 / 118, held-out
+  570 / 262 / 105 → 569 / 262 / 105, fresh 294 / 126 / 48 unchanged).** The
+  re-read of the ten proposals batch 16 changed. Fixed: (71) *a narrow sweep
+  never replaces a sweep of the whole board* (`swaps._sweeps_fewer_kinds`,
+  the wipe read's `narrow` feature): Aetherize ("return all attacking
+  creatures") took Fumigate's and Massacre Wurm's slots as the cheaper card
+  though the read scores it below; Fumigate now goes to Vanquish the Horde.
+  (72) *a listed type choice is fed only by a listed tribe*
+  (`swaps._choosable_types`): Dawn-Blessed Pennant names Elemental, Elf,
+  Faerie, Giant, Goblin, Kithkin, Merfolk or Treefolk, and Most Wanted's
+  twelve Humans fed it. (73) *tokens of a type are fed by their makers*
+  (`_gate_words` turns a `Token` filter's creature type into "<type>
+  tokens", `deck_profile` counts each token kind's makers): Gleaming
+  Overseer's "Zombie tokens you control have hexproof" was fed by Cavalry
+  Charge's seven Zombie cards. (74) *a trigger's effects can be its gate*
+  (`_trigger_effect_gate_words`): opening an Attraction, which a player does
+  only with an Attraction deck (CR 701.51a — Squirrel Squatters), and the
+  filter of a static every effect grants for the turn (Chocobo Knights'
+  "creatures you control with counters on them gain double strike" over
+  three counter makers). Verdicts, with the check: Summon: Titan as a closer
+  (a 7/7 reach-and-trample body whose third chapter gives another creature
+  +X/+X and trample, X its lands); Hangarback Walker for Lulu, Stern
+  Guardian (a theme card for a theme card, each supplying two of Inspirit's
+  needs); Eldrazi Monument under Bello (six creature-token makers feed its
+  upkeep sacrifice). Open, measured next: Pentad Prism for Volt Charge (the
+  need gate counts needs, and each supplies two — Pentad Prism the charge
+  spender, Volt Charge proliferate); Most Wanted's lifegain and aristocrat
+  adds (Olivia's only lifegain is her own lifelink, and her guides say
+  lifegain "only works with Olivia's lifelink").
+  `verify_symptoms.py`: four checks; 77, all passing.
 
 **From the Jace, Multiverse Architect precon tune and the 25-precon audit (2026-10-17 to 2026-11-01)**
 

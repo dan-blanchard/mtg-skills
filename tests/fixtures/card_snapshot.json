@@ -480711,6 +480711,187 @@
     "type_line": "Instant"
    }
   },
+  "Fumigate": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Destroy all creatures. You gain 1 life for each creature destroyed this way.",
+       "duration": null,
+       "effect": {
+        "cant_regenerate": false,
+        "target": {
+         "controller": null,
+         "properties": [],
+         "type": "Typed",
+         "type_filters": [
+          "Creature"
+         ]
+        },
+        "type": "DestroyAll"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "amount": {
+          "qty": {
+           "caused_by": "Destroyed",
+           "filter": {
+            "controller": null,
+            "properties": [],
+            "type": "Typed",
+            "type_filters": [
+             "Creature"
+            ]
+           },
+           "type": "FilteredTrackedSetSize"
+          },
+          "type": "Ref"
+         },
+         "type": "GainLife"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "sub_link": "SequentialSibling",
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Sorcery"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "White"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "standard": "legal",
+      "standardbrawl": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 3,
+      "shards": [
+       "White",
+       "White"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "46356861-5519-4970-87bf-006100ab9a7f",
+       "50a2bca4-8bac-4b8d-970e-1f438c9ee6bb",
+       "976f6850-e646-4b51-a103-25240658672d",
+       "bd6b4bc0-0671-4394-abe4-516d291a74a5",
+       "e2c1e655-1883-428f-abe8-69c011cfbd4b",
+       "f00f27a7-9e92-4fbf-baa8-f47a5eee48a6"
+      ]
+     },
+     "name": "Fumigate",
+     "non_ability_text": null,
+     "oracle_text": "Destroy all creatures. You gain 1 life for each creature destroyed this way.",
+     "power": null,
+     "printings": [
+      "EOC",
+      "FDN",
+      "KLD",
+      "KLR",
+      "LTC",
+      "MKC",
+      "ONC",
+      "PKLD"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2024-11-08",
+       "text": "Creatures destroyed this way count toward the life gained even if they're put into a zone other than a graveyard."
+      },
+      {
+       "date": "2024-11-08",
+       "text": "You won't gain 1 life for a creature that isn't actually destroyed, such as a creature with indestructible."
+      }
+     ],
+     "scryfall_oracle_id": "b17ea905-0696-4e58-b564-557e87236e27",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 5.0,
+    "color_identity": [
+     "W"
+    ],
+    "colors": [
+     "W"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "legal",
+     "standardbrawl": "legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{3}{W}{W}",
+    "name": "Fumigate",
+    "oracle_id": "b17ea905-0696-4e58-b564-557e87236e27",
+    "oracle_text": "Destroy all creatures. You gain 1 life for each creature destroyed this way.",
+    "type_line": "Sorcery"
+   }
+  },
   "Fumiko the Lowblood": {
    "phase_records": [
     {
@@ -1071533,6 +1071714,204 @@
     "oracle_id": "2d584333-b25e-4291-a2c9-80c6d9f8732a",
     "oracle_text": "Enchant land\nEnchanted land has \"{T}: Create a 1/1 green Squirrel creature token.\"",
     "type_line": "Enchantment — Aura"
+   }
+  },
+  "Squirrel Squatters": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Squirrel"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Green"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "banned",
+      "legacy": "banned",
+      "oathbreaker": "banned",
+      "vintage": "banned"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 3,
+      "shards": [
+       "Green",
+       "Green"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "related_token_ids": [
+       "2f870f14-6517-5fcc-8656-66db0fedf25e"
+      ],
+      "source_printing_ids": [
+       "a1ba935d-43b9-4661-8d2c-9e6b457c5b68",
+       "cff9491e-ea18-4b80-ae27-8ce8a8eca9cb"
+      ]
+     },
+     "name": "Squirrel Squatters",
+     "non_ability_text": null,
+     "oracle_text": "When this creature enters, open an Attraction. (Put the top card of your Attraction deck onto the battlefield.)\nWhenever this creature attacks, create a 1/1 green Squirrel creature token that's tapped and attacking for each Attraction you've visited this turn.",
+     "power": {
+      "type": "Fixed",
+      "value": 4
+     },
+     "printings": [
+      "UNF"
+     ],
+     "rarities": [
+      "uncommon"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "7af6b952-9e53-4f5d-ba6f-d31b42e91bbe",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 4
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "When ~ enters, open an Attraction.",
+       "destination": "Battlefield",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "count": 1,
+         "type": "OpenAttractions"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "ChangesZone",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": null
+      },
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever ~ attacks, create a 1/1 green Squirrel creature token that's tapped and attacking for each Attraction you've visited this turn.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": "UntilEndOfTurn",
+        "effect": {
+         "description": "create a 1/1 green Squirrel creature token that's tapped and attacking for each Attraction you've visited",
+         "name": "unparsed_quantity",
+         "type": "Unimplemented"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "Attacks",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "all_parts": [
+     {
+      "component": "token",
+      "id": "aa846cf5-c618-4304-bb92-5df936ebca9b",
+      "name": "Squirrel",
+      "oracle_id": "67f21c0c-2083-4eda-9dc3-cc8aee42289f",
+      "type_line": "Token Creature — Squirrel"
+     }
+    ],
+    "arena_available": false,
+    "cmc": 5.0,
+    "color_identity": [
+     "G"
+    ],
+    "colors": [
+     "G"
+    ],
+    "keywords": [
+     "Open an Attraction"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "banned",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "banned",
+     "modern": "not_legal",
+     "oathbreaker": "banned",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "banned"
+    },
+    "mana_cost": "{3}{G}{G}",
+    "name": "Squirrel Squatters",
+    "oracle_id": "7af6b952-9e53-4f5d-ba6f-d31b42e91bbe",
+    "oracle_text": "When this creature enters, open an Attraction. (Put the top card of your Attraction deck onto the battlefield.)\nWhenever this creature attacks, create a 1/1 green Squirrel creature token that's tapped and attacking for each Attraction you've visited this turn.",
+    "power": "4",
+    "toughness": "4",
+    "type_line": "Creature — Squirrel"
    }
   },
   "Sram's Expertise": {

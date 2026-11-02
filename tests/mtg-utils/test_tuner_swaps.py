@@ -3885,3 +3885,61 @@ def test_a_kinship_trigger_is_gated_on_the_cards_own_types():
     assert gated_without_feed(shaman, squirrels, Counter())
     elves = Counter({"elf": 12})
     assert not gated_without_feed(shaman, elves, Counter())
+
+
+def test_a_listed_type_choice_is_fed_only_by_a_listed_tribe():
+    """Dawn-Blessed Pennant chooses among Elemental, Elf, Faerie, Giant,
+    Goblin, Kithkin, Merfolk and Treefolk: Most Wanted's twelve Humans feed
+    nothing it can name (2026-11-02); a free choice (Vanquisher's Banner)
+    takes any tribe."""
+    from collections import Counter
+
+    from mtg_utils._tuner.swaps import chooses_a_type_without_tribe
+
+    humans, elves = Counter({"human": 12}), Counter({"elf": 12})
+    pennant = test_card("Dawn-Blessed Pennant")
+    assert chooses_a_type_without_tribe(pennant, humans)
+    assert not chooses_a_type_without_tribe(pennant, elves)
+    assert not chooses_a_type_without_tribe(test_card("Vanquisher's Banner"), humans)
+
+
+def test_tokens_of_a_type_are_fed_by_their_makers_not_the_types_cards():
+    """Gleaming Overseer's "Zombie tokens you control have hexproof and
+    menace" waits on Zombie tokens: Cavalry Charge's seven Zombie cards make
+    none (2026-11-02). Six makers of Zombie tokens feed it."""
+    from collections import Counter
+
+    from mtg_utils._tuner.swaps import gated_without_feed
+
+    overseer = test_card("Gleaming Overseer")
+    zombies = Counter({"zombie": 7})
+    assert gated_without_feed(overseer, zombies, Counter())
+    assert not gated_without_feed(overseer, zombies, Counter({"zombie tokens": 6}))
+
+
+def test_a_triggers_granted_static_and_an_attraction_are_its_gates():
+    """Chocobo Knights' attack trigger grants double strike to "creatures you
+    control with counters on them": three counter makers don't feed it
+    (Cavalry Charge, 2026-11-02). Squirrel Squatters opens an Attraction,
+    which a player does only with an Attraction deck (CR 701.51a)."""
+    from collections import Counter
+
+    from mtg_utils._tuner.swaps import gated_without_feed
+
+    knights = test_card("Chocobo Knights")
+    assert gated_without_feed(
+        knights, Counter(), Counter(), Counter({"plus_one_makers": 3})
+    )
+    assert not gated_without_feed(
+        knights, Counter(), Counter(), Counter({"plus_one_makers": 8})
+    )
+    assert gated_without_feed(test_card("Squirrel Squatters"), Counter(), Counter())
+
+
+def test_a_narrow_sweep_is_no_upgrade_of_a_whole_board_one():
+    """Aetherize returns only the attacking creatures: cheaper than Fumigate,
+    it is still no upgrade of a sweep of the whole board (Counter
+    Intelligence, 2026-11-02); Wrath of God is."""
+    fumigate = _real_cc("Fumigate", "spine", roles=["board_wipe"], edhrec_rank=8000)
+    assert not _upgrades(_played("Aetherize", 10), fumigate, "board_wipe")
+    assert _upgrades(_played("Wrath of God", 10), fumigate, "board_wipe")

@@ -59,7 +59,7 @@ from mtg_utils._card_ir.crosswalk.reads import (
     trigger_def_event,
     trigger_scope,
 )
-from mtg_utils._card_ir.mirror.runtime import TypedMirrorNode
+from mtg_utils._card_ir.mirror.runtime import MirrorVariant, TypedMirrorNode
 from mtg_utils._card_ir.trees import trees_for
 from mtg_utils._tuner import mana_base
 from mtg_utils._tuner.ability_quality import grant_grade, outgrades
@@ -404,15 +404,22 @@ def _sweeps_no_creatures(card: dict) -> bool:
 
 
 def _sweeps_fewer_kinds(read: JobRead, candidate: dict, cut: Mapping) -> bool:
-    """Whether a wipe candidate sweeps no creatures where the cut does: the
-    wipe read scores Vandalblast's one-sided artifact sweep above Winds of
-    Rath, but the board-wipe row is there for creature boards — Blame Game,
-    Desert Bloom, Endless Punishment and Timey-Wimey traded creature sweepers
-    for it (2026-11-02)."""
+    """Whether a wipe candidate sweeps no creatures where the cut does, or only
+    a narrow slice where the cut sweeps the board: the wipe read scores
+    Vandalblast's one-sided artifact sweep above Winds of Rath, but the
+    board-wipe row is there for creature boards — Blame Game, Desert Bloom,
+    Endless Punishment and Timey-Wimey traded creature sweepers for it
+    (2026-11-02)."""
     a, b = read.features(candidate), read.features(dict(cut))
     if not a or not b:
         return False
-    return a.get("creatures", 0) == 0 and b.get("creatures", 0) > 0
+    if a.get("creatures", 0) == 0 and b.get("creatures", 0) > 0:
+        return True
+    # A sweep of a narrow slice (the attacking creatures, a power bound)
+    # never replaces one of the whole board: Aetherize's "return all
+    # attacking creatures" took Fumigate's slot as the cheaper card though
+    # the read scores it below (Counter Intelligence, 2026-11-02).
+    return a.get("narrow", 0) > 0 and b.get("narrow", 0) == 0
 
 
 def _one_shot_for_repeatable(read: JobRead, candidate: dict, cut: Mapping) -> bool:
@@ -725,12 +732,15 @@ def deck_profile(classes: Sequence[CardClass]) -> tuple[Counter, Counter, Counte
             s.lower() for s in subs if s.lower() not in _CREATURE_SUBTYPE_WORDS
         }:
             types[word] += 1
-        if any(
-            i.startswith(f"{TOKEN_MAKER}|")
-            and i.split("|", 2)[2].lower() in _CREATURE_SUBTYPE_WORDS
+        token_kinds = {
+            i.split("|", 2)[2].lower()
             for i in _signal_idents_for(c.record, include_membership=False)
-        ):
+            if i.startswith(f"{TOKEN_MAKER}|")
+        } & _CREATURE_SUBTYPE_WORDS
+        if token_kinds:
             types[_CREATURE_TOKENS_GATE] += 1
+        for kind in token_kinds:
+            types[f"{kind} tokens"] += 1
         for color in c.record.get("colors") or ():
             types[f"color:{str(color).lower()}"] += 1
     # A commander that makes permanents every creature type (Omo, Queen of
@@ -783,8 +793,9 @@ def dead_payoff(
         )
         if chooses_a_type:
             cares.add(key)
-            biggest_tribe = max(deck_tribes.values(), default=0)
-            verdicts.append(biggest_tribe >= 2 * _FEEDER_FLOOR)
+            verdicts.append(
+                _biggest_choosable_tribe(card, deck_tribes) >= 2 * _FEEDER_FLOOR
+            )
         elif key == "subtype_ref":
             # A creature type the card names among YOUR permanents (Dragon
             # Tempest's Dragons); a land type (Farseek's Plains), a gear type
@@ -878,7 +889,8 @@ class _UnitGates:
         other subtype, or the creature-tokens gate, by :data:`_FEEDER_FLOOR`
         cards or the kind the card grants."""
         words = gate.words
-        if words & self.granted_words or (not gate.static and words & self.token_words):
+        own_tokens = self.token_words | {f"{w} tokens" for w in self.token_words}
+        if words & self.granted_words or (not gate.static and words & own_tokens):
             return True
         card_types = words & _GATE_TYPE_WORDS
         if (
@@ -933,8 +945,16 @@ def _gate_words(filt: object) -> frozenset[str]:
                 words.add(f"color:{letter}")
     if "Counters" in preds:
         words.add(_COUNTERS_GATE)
-    if "Token" in preds and "creature" in cores:
-        words.add(_CREATURE_TOKENS_GATE)
+    if "Token" in preds:
+        # Tokens of a creature type (Gleaming Overseer's "Zombie tokens you
+        # control have hexproof") are fed by the deck's makers of them, not
+        # by its Zombie cards: Cavalry Charge's seven Zombie cards fed the
+        # protection for tokens it never makes (2026-11-02).
+        tribe_tokens = {f"{w} tokens" for w in words if w in _CREATURE_SUBTYPE_WORDS}
+        if tribe_tokens:
+            words = (words - _CREATURE_SUBTYPE_WORDS) | tribe_tokens
+        elif "creature" in cores:
+            words.add(_CREATURE_TOKENS_GATE)
     return frozenset(words - _LAND_TYPE_WORDS - _GENERIC_TYPE_WORDS)
 
 
@@ -1069,6 +1089,8 @@ def _unit_gates(card: Mapping) -> _UnitGates:
             words = _gate_words(filt) if _present(filt) else frozenset()
             if unit.origin == "static":
                 words |= mode_words
+            if not words and unit.origin == "trigger":
+                words = _trigger_effect_gate_words(unit)
             if words:
                 gates.append(_Gate(words, static=unit.origin == "static"))
             elif unit.origin == "trigger" and (kin := _kinship_words(unit, tree)):
@@ -1081,6 +1103,40 @@ def _unit_gates(card: Mapping) -> _UnitGates:
     return _UnitGates(
         tuple(gates), units, activated, frozenset(made), frozenset(tokens), makes_tokens
     )
+
+
+#: The gate of a card that opens an Attraction (CR 701.51a: only with an
+#: Attraction deck, CR 717): fed only by
+#: Attraction cards, which no Commander precon's deck holds.
+_ATTRACTION_GATE = "attraction"
+
+
+def _trigger_effect_gate_words(unit: AbilityUnit) -> frozenset[str]:
+    """The gate words a trigger's effects carry when its watched object names
+    none: opening an Attraction (Squirrel Squatters' "open an Attraction",
+    dead without an Attraction deck — Squirreled Away, 2026-11-02), or the
+    filter of a static the effect grants for the turn when every effect is
+    such a grant (Chocobo Knights' "creatures you control with counters on
+    them gain double strike", over three counter makers in Cavalry Charge)."""
+    tags = [tag_of(c.node) for c in unit.effects]
+    if "OpenAttractions" in tags:
+        return frozenset({_ATTRACTION_GATE})
+    if not tags or any(t != "GenericEffect" for t in tags):
+        return frozenset()
+    words: set[str] = set()
+    for c in unit.effects:
+        statics = getattr(c.node, "static_abilities", None) or ()
+        if not statics:
+            return frozenset()
+        for sdef in statics:
+            filt = getattr(sdef, "affected", None)
+            if not _present(filt) or filter_controller(filt) != "You":
+                return frozenset()
+            got = _gate_words(filt)
+            if not got:
+                return frozenset()
+            words |= got
+    return frozenset(words)
 
 
 def _kinship_words(unit: AbilityUnit, tree: ConceptTree) -> frozenset[str]:
@@ -1136,7 +1192,38 @@ def chooses_a_type_without_tribe(card: Mapping, deck_tribes: Counter) -> bool:
     idents = _signal_idents_for(dict(card), include_membership=False)
     if not any(i.startswith("chosen_type_matters|") for i in idents):
         return False
-    return max(deck_tribes.values(), default=0) < 2 * _FEEDER_FLOOR
+    return _biggest_choosable_tribe(card, deck_tribes) < 2 * _FEEDER_FLOOR
+
+
+def _choosable_types(card: Mapping) -> frozenset[str] | None:
+    """The creature types a choose-a-type card may name when its choice is a
+    list (Dawn-Blessed Pennant's "choose Elemental, Elf, Faerie, Giant,
+    Goblin, Kithkin, Merfolk, or Treefolk"), lower-cased; ``None`` for a free
+    choice (Vanquisher's Banner)."""
+    for tree in trees_for(dict(card)):
+        for unit in tree.units:
+            for n in unit.iter_typed():
+                if tag_of(n) != "Choose":
+                    continue
+                ct = getattr(n, "choice_type", None)
+                if not (isinstance(ct, MirrorVariant) and ct.key == "CreatureType"):
+                    continue
+                inner = ct.inner
+                if isinstance(inner, MirrorVariant) and inner.key == "options":
+                    opts = inner.inner
+                    if isinstance(opts, list) and opts:
+                        return frozenset(str(o).lower() for o in opts)
+    return None
+
+
+def _biggest_choosable_tribe(card: Mapping, deck_tribes: Counter) -> int:
+    """The deck's biggest tribe the card may choose: any tribe for a free
+    choice, only the listed ones for a listed choice — Most Wanted's twelve
+    Humans fed Dawn-Blessed Pennant, which can't name one (2026-11-02)."""
+    options = _choosable_types(card)
+    if options is None:
+        return max(deck_tribes.values(), default=0)
+    return max((deck_tribes.get(o, 0) for o in options), default=0)
 
 
 #: A mana doubler's keys: a replacement that adds mana (Mana Reflection) or a
