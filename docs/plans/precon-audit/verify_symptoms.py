@@ -150,6 +150,8 @@ CHECKS = [
     _check("never", "CavalryCharge_MOC", "Gleaming Overseer", "Chocobo Knights", batch="16b"),
     _check("never", "SquirreledAway_BLC", "Squirrel Squatters", batch="16b"),
     _check("never", "MostWanted_OTC", "Sanguine Bond", "Vito, Thorn of the Dusk Rose", batch="16c"),
+    # A lane_ok fill takes a non-supplier from either fallback pool before a supplier.
+    _check("no_pair", "VelociRampTor_LCC", "Descendants' Path -> Esper Sentinel", batch="16d"),
     _check("no_trim", "EldraziIncursion_M3C", "Forsaken Monument", batch="14"),
     _check("no_trim", "TrickyTerrain_M3C", "Mana Reflection", batch="14"),
 ]

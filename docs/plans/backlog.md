@@ -1138,6 +1138,32 @@ proposal as a deckbuilder, fix the structure, the guide score is a yardstick)**
   changes (run 68: the 25 735 / 338 / 118, held-out 569 / 262 / 107, fresh
   294 / 126 / 48; 78 checks). With it every flaw this pass's re-reads found
   is fixed or recorded above as a verdict with the check behind it.
+- **Batch 16d (2026-11-02; the 25 735 / 338 / 118 → 735 / 338 / 119, held-out
+  569 / 262 / 107 → 569 / 262 / 106, fresh 294 / 126 / 48 → 294 / 126 / 49).**
+  A last check of every item left as a verdict. Fixed: (77) *a lane-ok
+  fill takes a card that is none of the commander's tribe or its payoffs,
+  across both fallback pools, before one that is* (`swaps.take_lane_ok_cut`,
+  `tribal_cut`): pool by pool, Descendants' Path — a payoff for Pantlaza's
+  Dinosaurs ("cast it without paying its mana cost" when it shares a type
+  with a creature you control) — was the last jobless slot and went as a
+  card-draw fill's cut while Drover of the Mighty and four other guide cuts
+  waited in the lane pool; it now goes to Regal Imperiosaur. Holding back
+  every need supplier that way was measured and narrowed (held-out 569 /
+  262 / 107 → 564 / 260 / 104). Not flaws, with the evidence: Pentad Prism
+  for Volt Charge — the loop the guides finish (Aura of Dominion with Kilo
+  and Pentad Prism, infinite proliferate) is one of Counter Intelligence's
+  forty one-card-away Spellbook combos, below the top five by popularity
+  the tuner completes, and 181 of the 55 proposals' cuts are a piece of such
+  a combo (Faeburrow Elder with Freed from the Real…), so a rule protecting
+  them would freeze the tuner; nothing in the cards marks this loop as the
+  deck's plan. Esper Sentinel as card draw — the card-draw read scores it
+  0.98 beside Rhystic Study's 0.96 (both read "opponents fuel the draw"),
+  and its play rank is 80. Most Wanted's "aristocrat" adds — Zulaport
+  Cutthroat (Human Rogue) and Vengeful Bloodwitch (Vampire Warlock) are
+  outlaws replacing outlaws (Veinwitch Coven, Humble Defector) on the
+  Outlaws page, Olivia's own lane. Blood Rites' Vampires falling from 35 to
+  23 — its guides add 33 cards, four of them Vampires.
+  `verify_symptoms.py`: Descendants' Path never goes to Esper Sentinel; 79.
 
 **From the Jace, Multiverse Architect precon tune and the 25-precon audit (2026-10-17 to 2026-11-01)**
 

@@ -2191,6 +2191,13 @@ def propose_swaps(
             scores=readouts,
         )
 
+    def tribal_cut(record: Mapping) -> bool:
+        """Whether a deck card is one of the commander's tribe or a payoff
+        for it (``Sourcing.tribe_spec`` / ``typal_payoff_for``)."""
+        return sourcing.tribe_spec(record) is not None or typal_payoff_for(
+            record, sourcing.tribe_kinds
+        )
+
     cuts = cut_candidates(
         classes,
         budgets=ctx.budgets,
@@ -2206,10 +2213,7 @@ def propose_swaps(
         # Peace Offering trimmed nine draw cards from a group-hug deck whose
         # guides keep the hug-and-draw core (2026-11-01).
         needs=(lambda record: int(supplies_need(record))) if needs_here else None,
-        tribe_member=lambda record: (
-            sourcing.tribe_spec(record) is not None
-            or typal_payoff_for(record, sourcing.tribe_kinds)
-        ),
+        tribe_member=tribal_cut,
     )
     # Route cuts into the pools a Remedy names: an over-band trim cuts from THAT over
     # role (``over:<role>``); everything else is the generic pool (filler, low-value,
@@ -2262,6 +2266,28 @@ def propose_swaps(
                 continue  # an add the proposal makes needs it
             if used_cuts[card.name] < card.quantity:
                 return reason, card
+        return None
+
+    def take_lane_ok_cut(keep: Collection[str] = ()) -> tuple[str, CardClass] | None:
+        """A ``lane_ok`` remedy's cut once its own pool is dry: the jobless
+        upgrade slots, then the lane's least-played half — every card that is
+        none of the commander's tribe or its payoffs across both before one
+        that is. Pool by pool, Descendants' Path (a payoff for Pantlaza's
+        Dinosaurs, last of the jobless slots) went as a card-draw fill's cut
+        while Drover of the Mighty and four other guide cuts waited in the lane
+        pool (Veloci-Ramp-Tor, 2026-11-02). Holding back every need supplier
+        so was measured and narrowed: held-out 569 / 262 / 107 → 564 / 260 /
+        104."""
+        for want in (False, True):
+            for pool in (CUT_UPGRADE_JOBLESS, CUT_LANE):
+                for reason, card in pools.get(pool, ()):
+                    if card.name in relied_on or card.name in keep:
+                        continue
+                    if used_cuts[card.name] >= card.quantity:
+                        continue
+                    if tribal_cut(card.record) != want:
+                        continue
+                    return reason, card
         return None
 
     used_adds: Counter[str] = Counter()
@@ -3282,9 +3308,7 @@ def propose_swaps(
                 break
             cut_entry = take_cut(remedy.cut_from, issue.relies_on)
             if cut_entry is None and remedy.lane_ok:
-                cut_entry = take_cut(CUT_UPGRADE_JOBLESS, issue.relies_on)
-            if cut_entry is None and remedy.lane_ok:
-                cut_entry = take_cut(CUT_LANE, issue.relies_on)
+                cut_entry = take_lane_ok_cut(issue.relies_on)
             if cut_entry is None:
                 break  # no appropriate cut for this issue — don't grab a wrong one
             reason, cut = cut_entry
