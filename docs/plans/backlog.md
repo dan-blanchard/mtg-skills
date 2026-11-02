@@ -1321,6 +1321,16 @@ proposal as a deckbuilder, fix the structure, the guide score is a yardstick)**
   better-played protection); Hero of Bladehold for Maskwood Nexus (theme
   for theme); Pashalik Mons (it makes its own Goblins). `verify_symptoms.py`:
   92.
+- **The re-read of batch 16l (2026-11-02): no new flaw.** A Sonnet reviewer
+  read the three proposals it changed, every card looked up. Its two flags,
+  checked: Polluted Cistern // Dim Oubliette for Eldrazi Conscription in
+  Death Toll (Eldrazi Conscription is a Kindred Enchantment — two card types
+  for Winter's "card types in your graveyard", a need for a need); Overlord
+  of the Mistmoors for Ancient Stone Idol in Multiverse Reforged (a flip's
+  slot stays a flip under the Jace polymorph commander — the 2026-11-01
+  call). This closes the loop that began with the full 55-deck re-read of
+  batch 16k: every flag each pass raised is fixed above or recorded as a
+  verdict with the card text, deck count or measurement behind it.
 
 **From the Jace, Multiverse Architect precon tune and the 25-precon audit (2026-10-17 to 2026-11-01)**
 
