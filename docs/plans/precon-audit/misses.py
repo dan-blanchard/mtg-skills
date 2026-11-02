@@ -177,8 +177,8 @@ def run_deck(args):
 
     upgrades, gate_fail = S._upgrades, {}
 
-    def rec_upgrades(candidate, cut, job, *, deck_mana=None, deck=None, off_theme=False, draw_engine=False):
-        ok = upgrades(candidate, cut, job, deck_mana=deck_mana, deck=deck, off_theme=off_theme, draw_engine=draw_engine)
+    def rec_upgrades(candidate, cut, job, *, deck_mana=None, deck=None, off_theme=False, draw_engine=False, **kw):
+        ok = upgrades(candidate, cut, job, deck_mana=deck_mana, deck=deck, off_theme=off_theme, draw_engine=draw_engine, **kw)
         if not ok:
             key = norm(candidate.get("name") or "")
             if S.over_band(candidate, cut.record, job, off_theme=off_theme):
@@ -188,7 +188,7 @@ def run_deck(args):
             elif not S._does_the_job(candidate, job, deck or (), cut.record):
                 why = "the job read says it doesn't do the job (or the deck can't fuel it)"
             else:
-                why = "fewer decks play it than the cut"
+                why = "fewer decks play it than the cut (and it supplies no more of the commander's needs)"
             gate_fail.setdefault(key, why)
         return ok
 

@@ -27,6 +27,7 @@ from mtg_utils._analysis.roles import ROLE_SEARCH, protects
 from mtg_utils._analysis.signal_specs import (
     _TOKEN_DOUBLER_EXTRA,
     Serve,
+    SignalSpec,
     avenue_spec_for,
 )
 from mtg_utils._card_ir.crosswalk import token_doubler_kinds
@@ -62,6 +63,39 @@ ROW_SEARCH: dict[str, dict] = {
 # a self-hexproof creature fills no protection slot, so it isn't suggested for one.
 PROTECTION_SEARCH = {"preset_names": ("protects-board",)}
 WINCON_SEARCH = {"oracle": r"wins the game|an additional combat phase|deals damage"}
+
+
+def _subtype_words(record: Mapping) -> frozenset[str]:
+    """The card's front-face subtypes, lower-cased."""
+    _types, subtypes = split_type_line(classifying_type_line(dict(record)))
+    return frozenset(s.lower() for s in subtypes)
+
+
+def _tribe_member_filter(kind: str) -> Callable[..., bool]:
+    """A page filter admitting the tribe's members: a card of the subtype, or a
+    changeling (CR 702.73a: every creature type)."""
+    want = kind.lower()
+
+    def member(card: Mapping, **_kw: object) -> bool:
+        return want in _subtype_words(card) or "Changeling" in (
+            card.get("keywords") or ()
+        )
+
+    return member
+
+
+#: An Equipment-typed card: what a voltron page drops under a commander whose
+#: own suit is Auras (:meth:`Sourcing.avenue`).
+def _is_equipment(card: Mapping, **_kw: object) -> bool:
+    return "Equipment" in classifying_type_line(dict(card))
+
+
+def _is_voltron_spec(spec: SignalSpec) -> bool:
+    """A voltron page: its serve types Equipment, or its search is the ``equip``
+    preset (the gear-attachers' page, whose serve is the attachers' idents)."""
+    return "equipment" in spec.serve.types or "equip" in (
+        spec.search.get("preset_names") or ()
+    )
 
 
 def _fodder_lead(card: Mapping) -> tuple[bool, bool]:
@@ -460,8 +494,25 @@ class Sourcing:
                     and (sig.key, sig.scope, sig.subject) in self._commander_idents
                 ):
                     out["_lead"] = _fodder_lead
+                if _is_voltron_spec(spec) and self.aura_commander:
+                    # A voltron page under a commander whose own suit is Auras
+                    # (Ellivere's Virtuous Roles) holds no Equipment: the page
+                    # by play-rate was Hammer of Nazahn, Thran Power Suit and
+                    # Basilisk Collar where her guides add Auras and
+                    # enchantress draw (Virtue and Valor, 2026-11-01).
+                    out["_filter"] = lambda c, **_kw: not _is_equipment(c)
                 return out
         return None
+
+    @property
+    def aura_commander(self) -> bool:
+        """Whether the commander's own lane is Auras and not Equipment: it emits
+        an ``aura_*`` ident (``aura_matters``: Ellivere's Role tokens) and no
+        ``equipment`` one."""
+        keys = {key for key, _scope, _subject in self._commander_idents}
+        return any(k.startswith("aura_") for k in keys) and not any(
+            "equip" in k for k in keys
+        )
 
     def theme_avenues(self) -> list[tuple[str, int, dict]]:
         """The avenues the deck's theme adds are shared over (``Sourcing.theme``):
@@ -616,6 +667,29 @@ class Sourcing:
         mains = self._focus.get("mains") or ()
         return bool(set(card.served).intersection(mains))
 
+    def tribe_spec(self, record: Mapping) -> tuple[str, dict] | None:
+        """``(subtype, page)`` for a card of one of the commander's tribes
+        (``focus``'s ``commander_tribes``: the tribal avenue the commander
+        holds), the page being that tribe's own search; None for any other
+        card. The tribe is read off the avenue's search (``card_type``), the
+        card off its front-face subtypes."""
+        words = _subtype_words(record)
+        for label in self._focus.get("commander_tribes") or ():
+            spec = self.avenue(label)
+            kind = (spec or {}).get("card_type")
+            if spec is None or not isinstance(kind, str) or kind.lower() not in words:
+                continue
+            if ("token_maker", "you", kind) in self._commander_idents:
+                # A tribe the commander populates by itself (Quintorius makes
+                # the Spirits he buffs) is not a slot to keep: its guides cut
+                # the weak Spirits for engines, not for other Spirits.
+                continue
+            # The tribe's own members (a changeling is every creature type,
+            # CR 702.73a), never the page's support (Herald's Horn took a
+            # Dinosaur's slot, 2026-11-01).
+            return kind, {**spec, "_filter": _tribe_member_filter(kind)}
+        return None
+
     def is_fodder(self, record: Mapping) -> bool:
         """Whether the card is a polymorph commander's fodder (:meth:`fodder_spec`'s
         serve); never under any other commander."""
@@ -657,11 +731,14 @@ class Sourcing:
             types=frozenset().union(*(s.types for s in serves)),
             signal_idents=frozenset().union(*(s.signal_idents for s in serves)),
         )
+        # The flips, less the fodder: a cheap planeswalker that makes a token
+        # every turn (Saheeli, Sublime Artificer) is fodder, and fodder is no
+        # upgrade of a bomb's slot (Archon of Cruelty's, 2026-11-01).
         return {
             **specs[0].search,
             "_serve": serve,
             "_avenue": specs[0].label,
-            "_filter": lambda c, **_kw: is_flip(c, flips),
+            "_filter": lambda c, **_kw: is_flip(c, flips) and not self.is_fodder(c),
         }
 
     def upgrade_spec(self, card: CardClass) -> UpgradeSource | None:
@@ -688,6 +765,15 @@ class Sourcing:
                 and (flip := self.flip_spec())
             ):
                 return UpgradeSource(flip, None, FLIP_SLOT)
+            # A member of the commander's tribe keeps a tribe slot: its upgrade
+            # comes off the tribe's own page (its members, which no other page
+            # holds), never the main theme's. Disa's Lhurgoyfs went to "Your
+            # graveyard"'s page — Six, Life from the Loam, Aftermath Analyst —
+            # where the guides add Lhurgoyfs and changelings (2026-11-01).
+            if (tribe := self.tribe_spec(card.record)) is not None:
+                kind = tribe[0]
+                article = "an" if kind[:1].lower() in "aeiou" else "a"
+                return UpgradeSource(tribe[1], None, f"{article} {kind}")
             # A theme cut that supplies one of the commander's needs is upgraded
             # off that need's page (ADR-0061): the slot keeps doing what the
             # commander asks, with a better card — never the shared cap. A cut
@@ -810,7 +896,8 @@ class Sourcing:
             # held avenue serves — Gimbal's rocks, Morska's Clues, Bello's animated
             # rocks) is a fact to read, never a trim: no remedy, as for a Grant-covered
             # short row.
-            if (self._budgets.get(role) or {}).get("lane_row"):
+            row = self._budgets.get(role) or {}
+            if row.get("lane_row") or row.get("plan_fuel"):
                 return None
             spec = self.fodder_trim_spec()
             held = self._focus.get("commander_avenues") or []
@@ -942,6 +1029,8 @@ def top_issues(
         )
         if b.get("lane_row"):
             message += " — mostly the commander's own lane, not a trim"
+        elif b.get("plan_fuel"):
+            message += " — the plan's top end runs on it, not a trim"
         issues.append(
             sourcing.issue(
                 "role_over",

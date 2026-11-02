@@ -280,6 +280,17 @@ class Need:
     keys: frozenset[str] = frozenset()
     types: frozenset[frozenset[str]] = frozenset()
     predicate: Callable[[dict], bool] | None = field(default=None, compare=False)
+    #: The mana value the need's spells start at, when it asks for big ones
+    #: (Zhulodok's colorless spells at 7+, Bello's artifacts at 4+): a plan
+    #: whose top end is the point, which the tuner reads before trimming ramp.
+    mana_floor: int | None = None
+    #: Whether the need may lead a theme page's order and gate an upgrade
+    #: (``swaps.propose_swaps``' ``built_needs``). A need that is a property of
+    #: the card, not a role in the plan — "cheap spells", "instants and
+    #: sorceries" — is counted on the scoreboard but leads no page: under Ms.
+    #: Bumbleflower it put Forget and Martyr's Cry over the group-hug payoffs
+    #: (2026-11-01).
+    leads: bool = True
 
     @property
     def empty(self) -> bool:
@@ -343,6 +354,12 @@ def need_predicate(needs: Sequence[Need]) -> Callable[[dict], bool]:
 #: fourth or eighth card); the plan-consistency line counts
 #: the specific needs and reports the broad ones beside them.
 BROAD_SHARE = 0.10
+
+#: The toughness a body needs to supply a toughness-reading commander: four,
+#: where the walls Felothar's guides add sit (Wall of Souls, Giant Ox, Flumph
+#: 0/4; Shield Sphere 0/6) and every Dinosaur Pantlaza's guides add clears.
+#: This read's own line, no rule's.
+HIGH_TOUGHNESS = 4
 
 _SHARE_MEMO: dict[tuple, float] = {}
 
@@ -488,7 +505,7 @@ def _spell_floor_need(filt: object, floor: int, desc: str) -> Need | None:
 
     kinds = (" or ".join(sorted(words)) + " ") if words else ""
     label = f"{'colorless ' if colorless else ''}{kinds}spells at {floor}+ mana"
-    return Need("payoff", label, desc, predicate=holds)
+    return Need("payoff", label, desc, predicate=holds, mana_floor=int(floor))
 
 
 def _spells_cast_filter(qty: object) -> object | None:
@@ -839,7 +856,7 @@ def _own_damage_grant_need(desc: str) -> Need:
 
 
 def _cheap_spells_need(desc: str) -> Need:
-    return Need("payoff", "cheap spells", desc, predicate=_cheap_spell)
+    return Need("payoff", "cheap spells", desc, predicate=_cheap_spell, leads=False)
 
 
 def _cast_power_need(cond: object, desc: str) -> Need | None:
@@ -1120,6 +1137,12 @@ def _redundancy_needs(idents: Iterable[str], desc: str) -> Iterator[Need]:
 
 def _payoff_needs(idents: Iterable[str], desc: str) -> Iterator[Need]:
     """A commander payoff with no trigger of its own → what feeds it."""
+    idents = list(idents)
+    keys_held = {ident.split("|", 1)[0] for ident in idents}
+    # The commander's own suit is Auras: an ``aura_*`` ident and no equipment one.
+    aura_only = any(k.startswith("aura_") for k in keys_held) and not any(
+        "equip" in k for k in keys_held
+    )
     for ident in idents:
         key, _scope, subject = ident.split("|", 2)
         if key == "type_matters":
@@ -1129,24 +1152,52 @@ def _payoff_needs(idents: Iterable[str], desc: str) -> Iterator[Need]:
             continue
         if key in _TYPE_PAYOFF_KEYS:
             words = _TYPE_PAYOFF_KEYS[key]
-            types = frozenset({frozenset({w}) for w in words})
+            if key == "voltron_matters" and aura_only:
+                # A voltron commander whose own suit is Auras (Ellivere's
+                # Virtuous Roles) asks for Auras: an Equipment is a suit it
+                # never wears (Virtue and Valor's guides add Auras and
+                # enchantress draw; its pages led with Hammer of Nazahn and
+                # Thran Power Suit, 2026-11-01).
+                words = frozenset({"aura"})
             keys: set[str] = set()
             for w in words:
                 keys |= _TYPE_TOKEN_KEYS.get(w, frozenset())
+            if subject == "token":
+                # A payoff for the type's TOKENS (Gimbal's "artifact tokens you
+                # control with different names"): the token makers alone, never
+                # every card of the type — a mana rock is an artifact, not what
+                # Gimbal counts. Measured 2026-11-01 on Tinker Time: the
+                # Artifacts page led with Fellwar Stone, Mind Stone and Thought
+                # Vessel over Big Score and Idol of Oblivion.
+                if keys:
+                    yield Need(
+                        "payoff",
+                        f"{' '.join(sorted(words))} token makers",
+                        desc,
+                        keys=frozenset(keys),
+                    )
+                continue
             yield Need(
                 "payoff",
                 f"{key.replace('_', ' ')}",
                 desc,
-                types=types,
+                types=frozenset({frozenset({w}) for w in words}),
                 keys=frozenset(keys),
             )
         elif key == "keyword_tribe" and subject:
+            # A lord of a keyword wants bodies with the keyword. Only a few
+            # keywords are a ``keyword_bodies`` lane (evasion, haste); the
+            # rest (defender — Felothar's walls) are read off the card's own
+            # keyword list, the bodies lane's source too.
             kw = subject.lower()
             yield Need(
                 "payoff",
                 f"{kw} bodies",
                 desc,
                 idents=frozenset({f"keyword_bodies|you|{kw}"}),
+                predicate=lambda c, kw=kw: (
+                    kw in {k.lower() for k in c.get("keywords") or ()}
+                ),
             )
         elif key == "animate_makers" and ">=" in subject:
             word, _sep, floor = subject.partition(">=")
@@ -1160,6 +1211,7 @@ def _payoff_needs(idents: Iterable[str], desc: str) -> Iterator[Need]:
                     and "creature" not in _type_words(c)
                     and float(c.get("cmc") or 0) >= n
                 ),
+                mana_floor=n,
             )
         elif key == "colorless_matters":
             yield Need(
@@ -1171,12 +1223,18 @@ def _payoff_needs(idents: Iterable[str], desc: str) -> Iterator[Need]:
                 ),
             )
         elif key == "toughness_combat":
+            # A commander that reads toughness (Felothar assigns combat damage
+            # by it, Pantlaza discovers for it) wants a HIGH toughness, not a
+            # butt: Ghalta, Primal Hunger's 12 serves Pantlaza as Wall of Souls'
+            # 4 serves Felothar. "Toughness over power" put Snubhorn Sentry and
+            # Looming Altisaur ahead of Ghalta and Gishath on the Dinosaur page
+            # (2026-11-01).
             yield Need(
                 "payoff",
-                "toughness over power",
+                "high toughness",
                 desc,
                 predicate=lambda c: (
-                    _stat(c, "toughness") - _stat(c, "power") >= 2
+                    _stat(c, "toughness") >= HIGH_TOUGHNESS
                     and "creature" in _type_words(c)
                 ),
             )
@@ -1196,6 +1254,7 @@ def _payoff_needs(idents: Iterable[str], desc: str) -> Iterator[Need]:
                 "instants and sorceries",
                 desc,
                 types=frozenset({frozenset({"instant"}), frozenset({"sorcery"})}),
+                leads=False,
             )
         elif key == "second_spell_matters":
             yield _cheap_spells_need(desc)

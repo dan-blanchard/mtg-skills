@@ -346,6 +346,86 @@ def test_a_near_miss_short_a_generic_requirement_sources_nothing():
     assert not [i for i in issues if i.kind == "near_miss_combo"]
 
 
+def test_a_tribe_slots_page_holds_the_tribes_members_and_changelings_only():
+    # Disa holds the Lhurgoyf tribe: a cut Lhurgoyf's page is the tribe's own
+    # members (Tarmogoyf) and changelings (Changeling Outcast, CR 702.73a),
+    # never the page's support (Herald's Horn took a Dinosaur's slot under
+    # Pantlaza, 2026-11-01). A card of another type has no tribe slot.
+    from mtg_utils._analysis.signal_specs import spec_for
+
+    tribe = _held_sig("type_matters", "Lhurgoyf")
+    label = spec_for(tribe).label
+    src = Sourcing(_focus(commander_tribes=[label]), [tribe], {})
+    kind, page = src.tribe_spec(test_card("Mortivore"))
+    assert kind == "Lhurgoyf"
+    assert page["_filter"](test_card("Tarmogoyf"))
+    assert page["_filter"](test_card("Changeling Outcast"))
+    assert not page["_filter"](test_card("Herald's Horn"))
+    assert src.tribe_spec(test_card("Life from the Loam")) is None
+    assert Sourcing(_focus(), [tribe], {}).tribe_spec(test_card("Mortivore")) is None
+    # A tribe the commander populates by itself (Quintorius makes the Spirits
+    # he buffs) is no slot to keep: its guides cut the weak Spirits for engines.
+    maker = Sourcing(
+        _focus(commander_tribes=[label]),
+        [tribe],
+        {},
+        commander_idents={("token_maker", "you", "Lhurgoyf")},
+    )
+    assert maker.tribe_spec(test_card("Mortivore")) is None
+
+
+def test_a_voltron_page_under_an_aura_commander_holds_no_equipment():
+    # Ellivere's suit is her Virtuous Role Auras (``aura_matters``): her voltron
+    # page drops Equipment (Basilisk Collar) and keeps the Auras (Rancor). Under
+    # a commander with no aura lane the page is untouched.
+    from mtg_utils._analysis.signal_specs import spec_for
+
+    voltron = _held_sig("voltron_matters")
+    label = spec_for(voltron).label
+    aura = Sourcing(
+        _focus(), [voltron], {}, commander_idents={("aura_matters", "any", "aura")}
+    )
+    page = aura.avenue(label)
+    assert page["_filter"](test_card("Rancor"))
+    assert not page["_filter"](test_card("Basilisk Collar"))
+    assert "_filter" not in Sourcing(_focus(), [voltron], {}).avenue(label)
+    assert "_filter" not in Sourcing(
+        _focus(),
+        [voltron],
+        {},
+        commander_idents={
+            ("aura_matters", "any", "aura"),
+            ("equipment_matters", "you", ""),
+        },
+    ).avenue(label)
+
+
+def test_an_over_ramp_row_that_fuels_the_plans_top_end_is_advisory_and_unsourced():
+    """Zhulodok's deck reads "ramp over by 4": under a commander whose plan is
+    its 7+ spells the rocks are the plan's fuel (``tune.TOP_END_FLOOR``) —
+    reported, never trimmed, as a lane row is."""
+    budgets = {"ramp": {**_band(16, 10, 12), "plan_fuel": True}}
+    focus_r = _focus(viable=[{"label": "Colorless / Eldrazi"}], verdict="FOCUSED")
+    issues = top_issues(
+        efficiency_r={"verdict": "ok"},
+        focus_r=focus_r,
+        template_r={"short": {}, "over": {"ramp": budgets["ramp"]}},
+        wincons_r={
+            "status": "ok",
+            "count": 4,
+            "target": [2, 4],
+            "life": 40,
+            "voltron_needs_real_damage": False,
+        },
+        protection_r={"status": "ok", "count": 5, "target": 5},
+        commander_r=None,
+        sourcing=Sourcing(focus_r, [], budgets),
+    )
+    over = next(i for i in issues if i.kind == "role_over")
+    assert over.remedy is None
+    assert "the plan's top end runs on it, not a trim" in over.message
+
+
 def test_an_over_row_that_is_the_commanders_lane_is_advisory_and_unsourced():
     """Gimbal's rocks read "ramp over by 9": the row is the lane counted by
     another name — reported, never trimmed."""

@@ -147,6 +147,19 @@ _PURSE_CAP = 0.6
 #: four is this lane's own line, no rule's.
 _WHIFF_SHARE = 0.25
 
+#: The most adds completing a combo on the SAME deck card one tune proposes:
+#: Blood Rites took five (Sanguine Bond, Vito, Enduring Tenacity, Marauding
+#: Blight-Priest, Aetherflux Reservoir), every one a partner for Exquisite
+#: Blood, where its guides add two. A second partner is redundancy; a third is
+#: the same slot again (2026-11-01).
+_COMBO_PIECE_ADDS = 2
+
+#: How many deck cards must supply one of the commander's specific needs
+#: (``commander_need``) for the need to order a theme page and gate an upgrade
+#: (``propose_swaps``' ``built_needs``): the focus read's emerging floor, about
+#: five per hundred. Below it the need is a mention, not the plan.
+_NEED_BUILT_FLOOR = 5
+
 #: How close a later candidate's play-rate (log10 EDHREC rank, the job reads'
 #: unit) must be to the first pick's for the cheaper of them to be the add
 #: (``find_add``, :func:`_near_tie`): within a factor of two in rank. A near
@@ -313,6 +326,7 @@ def _upgrades(
     deck: Sequence[dict] | None = None,
     off_theme: bool = False,
     draw_engine: bool = False,
+    needs: Callable[[Mapping], int] | None = None,
 ) -> bool:
     """Whether ``candidate`` is an upgrade of ``cut``: it costs no higher
     mana-value band, or for a job one band higher at most (:func:`over_band` — a
@@ -341,7 +355,15 @@ def _upgrades(
     Granters were graded) at no higher band, however few decks play it (Sliver
     Swarm's Megantic Sliver, an anthem, for Pulmonic Sliver's flying); play-rate
     decides between grants of one grade. Measured on the 25 precons (2026-10-26):
-    two guide cuts more, adds flat."""
+    two guide cuts more, adds flat.
+
+    ``needs`` counts the commander's specific needs a card supplies
+    (``commander_need``, ADR-0061): with no job, a candidate supplying more of
+    them than the cut is an upgrade however few decks play it — Felothar's
+    walls (Stalwart Shield-Bearers, Wall of Souls) over the big-butt staples a
+    toughness page is otherwise ranked by (Gray Merchant of Asphodel), which
+    the guides add and play-rate gated out (Abzan Armor, 2026-11-01). The
+    commander's own text outranks the population's habits on its theme pages."""
     if over_band(candidate, cut.record, job, off_theme=off_theme):
         return False
     if job is not None and (
@@ -351,6 +373,8 @@ def _upgrades(
     if not _does_the_job(candidate, job, deck or (), cut.record):
         return False
     if job is None and off_theme:
+        return True
+    if job is None and needs is not None and needs(candidate) > needs(cut.record):
         return True
     if (
         job is None
@@ -572,15 +596,18 @@ def cut_candidates(
         # single-purpose ramp before a dork the manabase needs), and so does a
         # card that does what the commander's lane does (a card-draw trim under
         # Jace must not pick a polymorph that also draws); then trim the
-        # LEAST-PLAYED excess first; then fewest VIABLE avenues served (a fed
-        # avenue is no reason to keep a card), then highest CMC.
+        # excess serving the FEWEST viable avenues first (a fed avenue is no
+        # reason to keep a card; one on the deck's lands plan is — Desert
+        # Bloom's Oracle of Mul Daya went as its least-played ramp while
+        # Explore and Harrow serve nothing, 2026-11-01), then the least
+        # played, then highest CMC.
         members = [c for c in members if not premium(c)]
         members.sort(
             key=lambda c: (
                 _is_fixing(c),
                 c.name in focus.commander_cards,
-                c.least_played_key,
                 viable_served(c),
+                c.least_played_key,
                 -c.cmc,
             )
         )
@@ -1194,6 +1221,32 @@ def propose_swaps(
     def supplies_need(card: dict) -> bool:
         return any(satisfies(card, need) for need in needs_here)
 
+    # Of those, the needs the deck already builds toward (``_NEED_BUILT_FLOOR``
+    # of its cards supply one): how many of them a card supplies is the theme
+    # pages' first order (``_ranked_pool``) and an upgrade's gate (``_upgrades``).
+    # A need the commander mentions in passing — Commodore Guff's one Wizard
+    # token, two deck cards — must not rank a token-making planeswalker over
+    # Ugin, the Spirit Dragon; nor does more of what the commander already does
+    # every turn (a ``redundancy`` need: Ms. Bumbleflower makes opponents draw
+    # on every spell, and Forget and Martyr's Cry led her page over the
+    # payoffs for it) (2026-11-01). Read once per card.
+    built_needs = [
+        need
+        for need in needs_here
+        if need.kind != "redundancy"
+        and need.leads
+        and sum(1 for c in classes if satisfies(c.record, need)) >= _NEED_BUILT_FLOOR
+    ]
+    needs_count_memo: dict[str, int] = {}
+
+    def needs_supplied(card: Mapping) -> int:
+        key = card.get("oracle_id") or card.get("name", "")
+        n = needs_count_memo.get(key)
+        if n is None:
+            n = sum(1 for need in built_needs if satisfies(card, need))
+            needs_count_memo[key] = n
+        return n
+
     # Every ranking below scores in this one context, so each candidate's
     # readout is computed once (``rank_candidates``' ``scores``) however many
     # pages, ties and theme ties hold it. Lives for this call only.
@@ -1420,11 +1473,18 @@ def propose_swaps(
         if spec_filter is not None:  # tuner-side precision pass (e.g. reliable-ramp)
             pool = [c for c in pool if spec_filter(c, deck_mana=ctx.deck_mana)]
         # A page's own order, ahead of play-rate and synergy (the polymorph
-        # fodder page's repeatable makers first, ``issues._fodder_lead``).
+        # fodder page's repeatable makers first, ``issues._fodder_lead``), then
+        # on a theme page the commander's specific needs the card supplies
+        # (most first): under Morska the Clue makers before a creature-token
+        # anthem, under Ellivere the Auras before the Equipment, under Gimbal
+        # the artifact token makers before the mana rocks (2026-11-01). The
+        # job pages keep their reads' order (``_job_order``).
         lead = spec.get("_lead")
+        by_needs = synergy_first and job is None and avenue is not None and built_needs
 
         def led(c: dict) -> tuple:
-            return lead(c) if lead is not None else ()
+            own = lead(c) if lead is not None else ()
+            return (*own, -needs_supplied(c)) if by_needs else own
 
         if synergy_first and job is not None and ctx.playrate:
             ranked = _job_order(pool, job)
@@ -1722,6 +1782,8 @@ def propose_swaps(
                     break
             if not addable(card):  # every allowed copy taken — the next best
                 continue
+            if spec.get("name") and float(card.get("cmc") or 0.0) > deck_top_mv:
+                continue  # a named add above the deck's top end (``deck_top_mv``)
             if avenue is not None and not support_room(avenue, card):
                 continue
             if not game_changers.allows(card):
@@ -1760,6 +1822,7 @@ def propose_swaps(
                 deck=deck_records,
                 off_theme=off_theme,
                 draw_engine=ctx.draw_engine_commander,
+                needs=needs_supplied if built_needs else None,
             ):
                 continue
             if upgrade_of is None and not _does_the_job(card, job, deck_records):
@@ -2008,6 +2071,15 @@ def propose_swaps(
             return UpgradeSource(flip_page, None, FLIP_SLOT)
         return UpgradeSource(theme, None) if theme else None
 
+    # The adds taken per deck card a combo line relies on (``_COMBO_PIECE_ADDS``).
+    combo_adds: Counter[str] = Counter()
+    # The deck's top nonland mana value: a card asked for by name (a combo's
+    # missing piece) that costs more than anything the deck runs is not a slot
+    # — Blightsteel Colossus for Blade of Selves in Mardu Surge, a token aggro
+    # deck whose top is Myr Battlesphere (2026-11-01). Every other add keeps
+    # its cut's band already (:func:`over_band`).
+    deck_top_mv = max((c.cmc for c in classes if c.bucket != "land"), default=0.0)
+
     for issue in issues:
         if len(swaps) >= ctx.max_swaps:
             break
@@ -2016,6 +2088,10 @@ def propose_swaps(
             continue  # nothing to source — the issue is the builder's to read
         if any(used_cuts[name] for name in issue.relies_on):
             continue  # a piece the add needs is already cut
+        if issue.kind == "near_miss_combo" and any(
+            combo_adds[name] >= _COMBO_PIECE_ADDS for name in issue.relies_on
+        ):
+            continue  # the piece has its partners (``_COMBO_PIECE_ADDS``)
         # Every cut is a NONLAND (cut_candidates never trims lands), so the add must be
         # nonland too — else a theme swap silently adds a value land (e.g. Fountainport
         # on the Aristocrats lane), shifting the land count a swap is meant to
@@ -2107,6 +2183,8 @@ def propose_swaps(
                     continue
                 add_card, cost, off_avenue = picked
                 relied_on.update(issue.relies_on)
+                if issue.kind == "near_miss_combo":
+                    combo_adds.update(issue.relies_on)
                 commit(
                     issue.kind,
                     message,
@@ -2152,6 +2230,8 @@ def propose_swaps(
             reason, cut = cut_entry
             add_card, cost, off_avenue = picked
             relied_on.update(issue.relies_on)
+            if issue.kind == "near_miss_combo":
+                combo_adds.update(issue.relies_on)
             commit(
                 issue.kind,
                 issue.message,

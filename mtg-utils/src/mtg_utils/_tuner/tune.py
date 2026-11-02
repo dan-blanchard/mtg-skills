@@ -38,6 +38,10 @@ if TYPE_CHECKING:
 
 #: The most missing meta-core cards offered as add issues at once.
 META_CORE_ISSUES = 5
+#: The mana value from which a commander's need for big spells (``Need.mana_floor``)
+#: makes the deck's ramp the plan's fuel, never a trim: the top band
+#: (``swaps._MV_BANDS``), six and up.
+TOP_END_FLOOR = 6
 
 
 @dataclass(frozen=True)
@@ -367,6 +371,19 @@ def tune(
             ]
             if members and len(lane_members.intersection(members)) * 2 >= len(members):
                 band["lane_row"] = True
+    # A ramp or card-draw row over its band under a commander whose plan is
+    # its top end (a need for spells at six or more mana: Zhulodok's colorless
+    # 7+ cascades) is the plan's fuel — reported and never trimmed, as a lane
+    # row is. Eldrazi Unbound trimmed four rocks and three draw engines where
+    # its guides add rocks, lands and draw (2026-11-01).
+    if any(
+        (need.mana_floor or 0) >= TOP_END_FLOOR
+        for need in commander_needs(commander_records)
+    ):
+        for role in ("ramp", "card_draw"):
+            row = budgets.get(role)
+            if row is not None and row["deviation"] > 0 and not row.get("advisory"):
+                row["plan_fuel"] = True
     tmpl = metrics.template_deviation(budgets)
     meta_missing = meta.missing_from(c.name for c in classes) if meta else []
     wins = metrics.win_conditions(

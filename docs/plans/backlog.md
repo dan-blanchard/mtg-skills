@@ -427,7 +427,76 @@ Posting them is Dan's.
 **Discovery ranking:** see ADR-0043's terminal-state amendment for the unclaimed
 headroom and parked items.
 
+**From the 25-precon deckbuilder pass (2026-11-01; Dan's call: read each
+proposal as a deckbuilder, fix the structure, the guide score is a yardstick)**
+
+- **Death Toll (Winter): reanimation targets cut for reanimation spells.**
+  Hornet Queen → Life from the Loam, Giant Adephage → Syr Konrad: the payload
+  of a graveyard-to-battlefield commander is its big permanents, as a polymorph
+  deck's flips are (`Sourcing.flip_spec`), and its slot should stay a payload.
+  Winter emits `permanent_recast|you|` with no subject; the lane's subjects
+  (Teval's `reanimate` / `land`) need reading before the flip machinery is
+  generalised to reanimators (no whiff gate: a reanimation target is chosen).
+- **Endless Punishment (Valgavoth): own-turn drainers for an opponents'-turn
+  trigger.** "Whenever an opponent loses life during their turn" is answered
+  with Guttersnipe and Reckless Fireweaver (your spells, your turn) where the
+  guides add Roiling Vortex, Rug of Smothering and Zo-Zu (opponents' upkeeps,
+  spells and land drops). The `lifeloss makers` need wants a "fires on an
+  opponent's turn" arm: a trigger watching an opponent's or each player's
+  action, or an upkeep, read off the maker's trees.
+- **Living Energy (Saheeli): Izzet Generatorium reads as an energy consumer,
+  not a maker** ("whenever you get energy, get one more" is a doubler); with
+  the needs leading the page it fell behind Aether Swooper. A doubler of a
+  resource the commander makes is the strongest maker there is
+  (`multiplier_avenue` knows this for tokens).
+- **Desert Bloom (Yuma): Oracle of Mul Daya trimmed as ramp over.** It serves
+  none of the deck's read avenues (its extra land drop is no Landfall serve)
+  and the ramp job read scores it 0.21 against Explore's 0.52 — the read sees
+  a one-shot as the better ramp. A lands deck's "extra land drops" is a lane
+  the focus read does not have.
+- **Animated Army (Bello): the 4+ artifact/enchantment page by play-rate** is
+  Panharmonicon, Door of Destinies, Roaming Throne; the guides' adds are the
+  ones that also protect, draw or pump (Asceticism, Guardian Project, Glorious
+  Sunrise). Every candidate supplies the same need; the difference is the
+  card's own text — the card-quality read's territory (ADR-0063).
+
 ## Settled: don't re-suggest
+
+**From the 25-precon deckbuilder pass (2026-11-01)**
+
+- **Shipped, keyed on commander structure, measured on the 25 (734 / 339 / 120
+  → 733 / 341 / 121 swaps / guide cuts / guide adds) and the held-out 20 (579
+  / 253 / 83 → 578 / 252 / 101).** (1) *The commander's needs outrank
+  play-rate on its theme pages* (`swaps._ranked_pool`'s need lead,
+  `_upgrades`' need gate; the needs the deck builds toward —
+  `_NEED_BUILT_FLOOR` — that are a role in the plan, not more of what the
+  commander already does (`kind == "redundancy"`: Ms. Bumbleflower's page
+  filled with wheels) nor a property of the card (`Need.leads`: "cheap
+  spells", "instants and sorceries")): Felothar's walls (Abzan Armor 2 → 6
+  guide adds), Morska's Clue makers (Deep Clue Sea 5 → 8), Ellivere's Auras.
+  Need reads fixed on the way: a keyword lord's bodies read off the card's
+  keywords (`defender bodies` matched nothing); an artifact-TOKEN payoff asks
+  for the token makers, not every artifact (Gimbal); a toughness-reading
+  commander wants HIGH toughness (`commander_need.HIGH_TOUGHNESS`), not a butt
+  — "toughness over power" put Snubhorn Sentry over Ghalta on Pantlaza's page;
+  a voltron commander whose own suit is Auras asks for Auras, never Equipment
+  (Ellivere; `Sourcing.aura_commander` filters her voltron pages the same
+  way). (2) *Near-miss combos*: at
+  most two adds completing a line on one deck card (`swaps._COMBO_PIECE_ADDS`;
+  Blood Rites took five Exquisite Blood partners), and never a named add
+  costing more than anything the deck runs (Mardu Surge's Blightsteel
+  Colossus). (3) *A trim takes the card serving the fewest of the deck's
+  themes first*, then the least played (`cut_candidates`). (4) *A tribe
+  member's slot stays the tribe's*, members and changelings only, unless the
+  commander makes that tribe's tokens itself (`Sourcing.tribe_spec`; Disa's
+  Lhurgoyfs went to the graveyard page, Herald's Horn took a Dinosaur's slot,
+  Quintorius's weak Spirits became other Spirits). (5) *Under a commander
+  whose plan is its top end* (a need with `Need.mana_floor` ≥
+  `tune.TOP_END_FLOOR`) the ramp and card-draw rows are the plan's fuel, never
+  a trim (`plan_fuel`; Eldrazi Unbound trimmed four rocks and three draw
+  engines). Guide-score losses taken knowingly: Living Energy 6 → 4 (above),
+  Tinker Time 3 → 2, Graveyard Overdrive 6 → 4 (its Lhurgoyfs are no longer
+  cut at all), Eldrazi Unbound 1 → 0 (its one hit was a draw trim's add).
 
 **From the Jace, Multiverse Architect precon tune and the 25-precon audit (2026-10-17 to 2026-11-01)**
 

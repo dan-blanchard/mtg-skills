@@ -116,6 +116,55 @@ def test_bello_wants_big_non_equipment_artifacts_and_non_aura_enchantments():
     assert not satisfies(test_card("Sol Ring"), big)  # mana value 1
 
 
+def test_a_keyword_lord_wants_bodies_with_the_keyword():
+    # Felothar lets defenders attack: the need is a creature WITH defender,
+    # read off the card's keyword list (no ``keyword_bodies`` lane serves
+    # defender), not a big butt that happens to be popular (Abzan Armor's
+    # guides add Stalwart Shield-Bearers and Wall of Souls; the tuner added
+    # Gray Merchant of Asphodel, 2026-11-01).
+    need = _need("Felothar the Steadfast", "defender bodies")
+    assert satisfies(test_card("Stalwart Shield-Bearers"), need)
+    assert satisfies(test_card("Wall of Souls"), need)
+    assert not satisfies(test_card("Gray Merchant of Asphodel"), need)
+
+
+def test_a_toughness_reading_commander_wants_high_toughness_not_a_butt():
+    # Felothar assigns combat damage by toughness and Pantlaza discovers for
+    # it: the need is a toughness of HIGH_TOUGHNESS or more. Wall of Souls (0/4)
+    # and Ghalta, Primal Hunger (12/12) supply it; Snubhorn Sentry (0/3), a butt,
+    # does not — "toughness over power" ranked it over Ghalta on the Dinosaur
+    # page (2026-11-01).
+    for commander in ("Felothar the Steadfast", "Pantlaza, Sun-Favored"):
+        need = _need(commander, "high toughness")
+        assert satisfies(test_card("Wall of Souls"), need)
+        assert satisfies(test_card("Ghalta, Primal Hunger"), need)
+        assert not satisfies(test_card("Snubhorn Sentry"), need)
+        assert not satisfies(test_card("Lightning Bolt"), need)
+
+
+def test_an_aura_commanders_voltron_need_is_auras_not_equipment():
+    # Ellivere's Virtuous Roles are Auras and she draws per enchantment: her
+    # voltron payoff asks for Auras (Rancor), never an Equipment (Basilisk
+    # Collar) — Virtue and Valor's pages led with Hammer of Nazahn and Thran
+    # Power Suit where the guides add Auras (2026-11-01).
+    need = _need("Ellivere of the Wild Court", "voltron matters")
+    assert satisfies(test_card("Rancor"), need)
+    assert not satisfies(test_card("Basilisk Collar"), need)
+
+
+def test_an_artifact_token_payoff_wants_the_token_makers_not_every_artifact():
+    # Gimbal counts "artifact tokens you control with different names": the
+    # need is the artifact-token makers (Big Score's Treasure), and a mana
+    # rock, an artifact but no token, supplies only the broad artifacts need.
+    needs = _needs("Gimbal, Gremlin Prodigy")
+    tokens = next(n for n in needs if n.label == "artifact token makers")
+    assert satisfies(test_card("Big Score"), tokens)
+    assert not satisfies(test_card("Fellwar Stone"), tokens)
+    assert satisfies(
+        test_card("Fellwar Stone"), _need("Gimbal, Gremlin Prodigy", "artifacts matter")
+    )
+
+
 def test_bumbleflower_wants_opponents_drawing_payoffs_and_makers():
     # "Target opponent draws a card" on every spell: the payoffs that watch
     # opponents draw, more cards that make them draw, and — "if this is the

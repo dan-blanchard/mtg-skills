@@ -426,6 +426,54 @@ def test_role_over_trim_cuts_least_played_excess_not_a_staple():
     assert out["swaps"][0]["cut"]["name"] == "Fringe Rock"
 
 
+def test_role_over_trims_the_card_serving_no_theme_before_the_plans_own():
+    """Ramp over by 1 in a lands deck: Oracle of Mul Daya serves the Landfall
+    main, a plain rock none, and the rock is the more played. The trim takes the
+    card serving the fewest of the deck's themes first (Desert Bloom cut Oracle
+    as its least-played ramp, 2026-11-01), not the least played."""
+    classes = [
+        _cc(
+            "Lands Oracle",
+            "spine",
+            roles=["ramp"],
+            served=("Landfall",),
+            cmc=4.0,
+            edhrec_rank=1000,
+        ),
+        _cc("Plain Rock", "spine", roles=["ramp"], cmc=2.0, edhrec_rank=500),
+    ]
+    budgets = {"ramp": _band(11, 8, 10)}  # over by 1
+    issue = {"kind": "role_over", "role": "ramp", "severity": 1, "message": "ramp over"}
+    add = {
+        "name": "Theme Card",
+        "type_line": "Creature — Bear",
+        "oracle_text": "",
+        "cmc": 2.0,
+        "prices": {"usd": "1.00"},
+        "color_identity": [],
+    }
+    out = _swaps_for_issue_dicts(
+        classes,
+        [issue],
+        SwapContext(
+            budgets=budgets,
+            focus_result=_focus(
+                viable=[{"label": "Landfall", "tier": "main", "depth": 20, "cards": []}]
+            ),
+            deck_signals=[],
+            search_fn=lambda **_: [add],
+            identity="",
+            fmt="commander",
+            paper_only=True,
+            owned={},
+            budget=50.0,
+            max_swaps=1,
+            top_heavy=False,
+        ),
+    )
+    assert [s["cut"]["name"] for s in out["swaps"]] == ["Plain Rock"]
+
+
 def test_role_over_trim_drains_the_whole_excess_and_no_more():
     """A row over its band by two trims two cards, the two least played, and
     stops there with swaps to spare: one trim per issue left Animated Army's
@@ -660,6 +708,89 @@ def _sig_of(key):
     return Signal(
         key=key, scope="you", subject="", text="", source="X", confidence="high"
     )
+
+
+def _near_miss_run(missing: list[str], adds: dict[str, dict], max_swaps: int = 10):
+    """Near-miss issues, one per card in ``missing``, each completing Exquisite
+    Blood, over a deck of filler whose top end is a four-drop; ``adds`` holds
+    the record each name resolves to. The adds taken, in order."""
+    sig = _sig_of("proliferate_matters")
+    classes = [
+        _real_cc("Exquisite Blood", "engine", edhrec_rank=900),
+        *(_cc(f"Junk {i}", "filler", cmc=4.0) for i in range(5)),
+    ]
+    focus_r = _focus(viable=[{"label": spec_for(sig).label, "depth": 20, "cards": []}])
+    sourcing = Sourcing(focus_r, [sig], {})
+    issues = [
+        sourcing.issue(
+            "near_miss_combo",
+            severity=9,
+            message=f"{name} completes Exquisite Blood",
+            label=name,
+            terminal=True,
+            relies_on=("Exquisite Blood",),
+        )
+        for name in missing
+    ]
+    out = propose_swaps(
+        classes,
+        issues,
+        SwapContext(
+            budgets={},
+            focus_result=focus_r,
+            deck_signals=[sig],
+            search_fn=lambda **kw: [adds[kw["name"]]] if kw.get("name") in adds else [],
+            identity="",
+            fmt="commander",
+            paper_only=True,
+            owned={},
+            budget=50.0,
+            max_swaps=max_swaps,
+            top_heavy=False,
+        ),
+    )
+    return [s["add"]["name"] for s in out["swaps"]]
+
+
+def test_a_combo_piece_takes_at_most_two_partners():
+    """Blood Rites took five near-miss adds, every one a partner for Exquisite
+    Blood (its guides add two: Vito and Sanguine Bond). Past
+    ``_COMBO_PIECE_ADDS`` on one deck card, the next line on it is the same slot
+    again and is passed over."""
+    adds = {
+        "Sanguine Bond": {**test_card("Sanguine Bond"), "prices": {"usd": "1.00"}},
+        "Vito, Thorn of the Dusk Rose": {
+            **test_card("Vito, Thorn of the Dusk Rose"),
+            "prices": {"usd": "1.00"},
+        },
+        "Marauding Blight-Priest": {
+            **test_card("Marauding Blight-Priest"),
+            "prices": {"usd": "1.00"},
+        },
+    }
+    assert _near_miss_run(list(adds), adds) == [
+        "Sanguine Bond",
+        "Vito, Thorn of the Dusk Rose",
+    ]
+
+
+def test_a_combo_piece_above_the_decks_top_end_is_no_slot():
+    """Mardu Surge, a token aggro deck topping out at seven, was offered
+    Blightsteel Colossus (twelve) for Blade of Selves. A card asked for by name
+    that costs more than anything the deck runs is passed over; the line's
+    other partner at four mana is taken."""
+    adds = {
+        "Twelve Drop": {
+            "name": "Twelve Drop",
+            "type_line": "Artifact Creature — Golem",
+            "oracle_text": "",
+            "cmc": 12.0,
+            "prices": {"usd": "1.00"},
+            "color_identity": [],
+        },
+        "Sanguine Bond": {**test_card("Sanguine Bond"), "prices": {"usd": "1.00"}},
+    }
+    assert _near_miss_run(["Twelve Drop", "Sanguine Bond"], adds) == ["Sanguine Bond"]
 
 
 def test_top_issues_flags_dead_weight_only_with_a_redeploy_target():
@@ -3114,3 +3245,146 @@ def test_a_flip_with_a_job_keeps_a_flips_slot_unless_its_row_is_short(draw_row, 
         ctx,
     )
     assert [s["add"]["name"] for s in out["swaps"]] == [add]
+
+
+def test_a_tribe_members_slot_stays_the_tribes():
+    """Disa holds the Lhurgoyf tribe beside a "Your graveyard" main: a cut
+    Lhurgoyf's upgrade comes off the tribe's own page (Tarmogoyf), never the
+    main's (Life from the Loam, more played), as the guides add Lhurgoyfs and
+    changelings (2026-11-01). Under a commander holding no tribe the main's
+    page takes the slot."""
+    tribe = Signal(
+        key="type_matters", scope="you", subject="Lhurgoyf", text="", source="x"
+    )
+    graveyard = Signal(
+        key="graveyard_matters", scope="you", subject="", text="", source="x"
+    )
+    tribe_label, main_label = spec_for(tribe).label, spec_for(graveyard).label
+    goyf = _real_cc("Mortivore", "engine", served=(tribe_label,), edhrec_rank=9000)
+    loam, tarmo = _played("Life from the Loam", 10), _played("Tarmogoyf", 500)
+
+    def search(**kw):
+        return [tarmo] if kw.get("card_type") == "Lhurgoyf" else [loam, tarmo]
+
+    focus = {
+        "viable_avenues": [
+            {"label": main_label, "tier": "main", "depth": 28, "cards": []},
+            {"label": tribe_label, "tier": "sub", "depth": 11, "cards": []},
+        ],
+        "mains": [main_label],
+    }
+    ctx = replace(
+        _upgrade_ctx([goyf], [loam, tarmo], focus_extra=focus),
+        deck_signals=[tribe, graveyard],
+        search_fn=search,
+    )
+    issue = [{"kind": "upgrade", "severity": 1, "count": 1}]
+
+    def adds(c):
+        return [
+            (s["add"]["name"], s["reason"])
+            for s in _swaps_for_issue_dicts([goyf], issue, c)["swaps"]
+        ]
+
+    assert adds(ctx) == [
+        (
+            "Life from the Loam",
+            "upgrade the main theme: Life from the Loam — more decks play it",
+        )
+    ]
+    held = replace(
+        ctx, focus_result={**ctx.focus_result, "commander_tribes": [tribe_label]}
+    )
+    assert adds(held) == [
+        ("Tarmogoyf", "upgrade a Lhurgoyf: Tarmogoyf — more decks play it")
+    ]
+
+
+# ── The commander's needs on a theme page ─────────────────────────────────────
+
+
+def _need_page(label: str, need, page) -> tuple[str, int, dict]:
+    """A need page as ``tune`` builds one (``swaps.need_pages``): its suppliers
+    in ``page``, taking no shared add of its own (``_cap`` 0)."""
+    return (label, 1, {"_need": need, "_page": page, "_cap": 0, "_avenue": label})
+
+
+def _swaps_with_needs(classes, issues, ctx):
+    sourcing = Sourcing(
+        ctx.focus_result,
+        ctx.deck_signals,
+        ctx.budgets,
+        need_avenues=ctx.need_avenues,
+    )
+    return propose_swaps(classes, [_issue(sourcing, i) for i in issues], ctx)
+
+
+def test_a_theme_page_puts_the_cards_the_commander_asks_for_first():
+    """Ellivere makes Aura tokens and draws per enchantment: her Voltron page
+    held Equipment by play-rate (Basilisk Collar, Blackblade Reforged) over the
+    Auras the guides add. With the commander's specific needs (enchantments,
+    voltron gear) a card supplying more of them leads the page and is an
+    upgrade of a cut supplying fewer, however few decks play it: Rancor, an
+    Aura, over Basilisk Collar, an Equipment, for Blackblade Reforged's slot
+    (the cut supplies the voltron need, so its slot is upgraded off that need's
+    page — ``Sourcing.upgrade_spec`` — in the needs' order). Without the needs,
+    play-rate picks the Collar."""
+    from mtg_utils._analysis.commander_need import Need
+
+    voltron = Signal(
+        key="voltron_matters", scope="you", subject="", text="", source="x"
+    )
+    label = spec_for(voltron).label
+    blade = _real_cc("Blackblade Reforged", "engine", served=(label,), edhrec_rank=300)
+    # The deck builds toward both needs (``swaps._NEED_BUILT_FLOOR`` cards each):
+    # five Auras and five Equipment beside the cut.
+    suit = []
+    for i in range(5):
+        aura = _cc(f"Aura {i}", "engine", served=(label,))
+        aura.record["type_line"] = "Enchantment — Aura"
+        gear = _cc(f"Gear {i}", "engine", served=(label,))
+        gear.record["type_line"] = "Artifact — Equipment"
+        suit += [aura, gear]
+    pool = [_played("Basilisk Collar", 100), _played("Rancor", 2000)]
+    ctx = _upgrade_ctx(
+        [blade],
+        pool,
+        focus_extra={
+            "viable_avenues": [
+                {"label": label, "tier": "main", "depth": 20, "cards": []}
+            ],
+            "mains": [label],
+        },
+    )
+    ctx = replace(ctx, deck_signals=[voltron])
+    issue = [{"kind": "upgrade", "severity": 1, "count": 1}]
+    assert [
+        s["add"]["name"] for s in _swaps_with_needs([blade, *suit], issue, ctx)["swaps"]
+    ] == ["Basilisk Collar"]
+    needs = (
+        _need_page(
+            "enchantments matter",
+            Need(
+                "payoff",
+                "enchantments matter",
+                "x",
+                types=frozenset({frozenset({"enchantment"})}),
+            ),
+            pool,
+        ),
+        _need_page(
+            "voltron matters",
+            Need(
+                "payoff",
+                "voltron matters",
+                "x",
+                types=frozenset({frozenset({"aura"}), frozenset({"equipment"})}),
+            ),
+            pool,
+        ),
+    )
+    with_needs = replace(ctx, need_avenues=needs)
+    assert [
+        s["add"]["name"]
+        for s in _swaps_with_needs([blade, *suit], issue, with_needs)["swaps"]
+    ] == ["Rancor"]

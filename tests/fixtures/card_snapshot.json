@@ -143916,6 +143916,234 @@
     "type_line": "Creature — Human Rebel Assassin"
    }
   },
+  "Big Score": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Draw two cards and create two Treasure tokens.",
+       "duration": null,
+       "effect": {
+        "count": {
+         "type": "Fixed",
+         "value": 2
+        },
+        "target": {
+         "type": "Controller"
+        },
+        "type": "Draw"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "colors": [],
+         "count": {
+          "type": "Fixed",
+          "value": 2
+         },
+         "enters_attacking": false,
+         "keywords": [],
+         "name": "Treasure",
+         "owner": {
+          "type": "Controller"
+         },
+         "power": {
+          "type": "Fixed",
+          "value": 0
+         },
+         "tapped": false,
+         "toughness": {
+          "type": "Fixed",
+          "value": 0
+         },
+         "type": "Token",
+         "types": [
+          "Artifact",
+          "Treasure"
+         ]
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "additional_cost": {
+      "data": {
+       "count": {
+        "type": "Fixed",
+        "value": 1
+       },
+       "filter": null,
+       "random": false,
+       "self_ref": false,
+       "type": "Discard"
+      },
+      "type": "Required"
+     },
+     "card_type": {
+      "core_types": [
+       "Instant"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Red"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pauper": "legal",
+      "paupercommander": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 3,
+      "shards": [
+       "Red"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "related_token_ids": [
+       "02eda719-658b-52e3-8f94-b66dda715865",
+       "198c5204-6b23-5085-b962-e6db6c948bd6",
+       "3a2e0ac9-54bb-5b35-a4c9-6bad348f7144",
+       "4811acb4-e116-5e6b-8d42-707057b51299",
+       "50aae3ed-fa82-5258-9a21-31f5988f6b8f",
+       "8dc5a01d-0271-51e0-bd2c-423b404802bc",
+       "ab4fcb95-fd1f-522f-9ad6-7f7b7f12947d",
+       "b0e0f943-429b-5075-a61d-22338c7dfcf6",
+       "ce4fe62d-f077-54ec-83ec-f719fbf726a8"
+      ],
+      "source_printing_ids": [
+       "243b460e-e67a-40d7-a874-a61fdb011c5a",
+       "3383a939-4ab3-4546-9995-6c65cd3f4441",
+       "39d1578f-e2cf-4b93-8204-ed5434feb183",
+       "5377da39-2152-414f-8b7e-638cb2e127e3",
+       "67d41ba2-a908-4613-b275-6ffe4165e48a",
+       "8b2699d2-2057-4fbf-8e52-736fcfe2759d",
+       "90f8a36e-2129-4bd4-870a-a998afaec199",
+       "9d934412-6ac9-4605-8675-07f74ed106a0",
+       "c09bb44b-af66-4183-826d-867299dc1b3e",
+       "c0b2deb2-b198-4d79-8cef-5b8a2577c992",
+       "e2b14a8c-2264-4908-8151-da6c8856350e",
+       "f5db8199-22d8-4721-b62b-245ec5e2907a"
+      ]
+     },
+     "name": "Big Score",
+     "non_ability_text": null,
+     "oracle_text": "As an additional cost to cast this spell, discard a card.\nDraw two cards and create two Treasure tokens. (They're artifacts with \"{T}, Sacrifice this token: Add one mana of any color.\")",
+     "power": null,
+     "printings": [
+      "BLC",
+      "FIC",
+      "J22",
+      "MSC",
+      "OTC",
+      "PLST",
+      "SLD",
+      "SNC",
+      "SOA",
+      "SOC",
+      "TDC"
+     ],
+     "rarities": [
+      "common",
+      "rare"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "a5cbd257-c836-493e-bb1a-76242619dea2",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "all_parts": [
+     {
+      "component": "token",
+      "id": "649d42c1-a465-435e-8b67-e901ab9ad8ab",
+      "name": "Treasure",
+      "oracle_id": "3c549374-6c37-42e0-8d88-a8555d46732d",
+      "type_line": "Token Artifact — Treasure"
+     }
+    ],
+    "arena_available": true,
+    "cmc": 4.0,
+    "color_identity": [
+     "R"
+    ],
+    "colors": [
+     "R"
+    ],
+    "keywords": [
+     "Treasure"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "legal",
+     "paupercommander": "legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{3}{R}",
+    "name": "Big Score",
+    "oracle_id": "a5cbd257-c836-493e-bb1a-76242619dea2",
+    "oracle_text": "As an additional cost to cast this spell, discard a card.\nDraw two cards and create two Treasure tokens. (They're artifacts with \"{T}, Sacrifice this token: Add one mana of any color.\")",
+    "produced_mana": [
+     "B",
+     "G",
+     "R",
+     "U",
+     "W"
+    ],
+    "type_line": "Instant"
+   }
+  },
   "Big Spender": {
    "phase_records": [
     {
@@ -443392,6 +443620,487 @@
     "type_line": "Instant // Land"
    }
   },
+  "Fellwar Stone": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": {
+        "type": "Tap"
+       },
+       "description": "{T}: Add one mana of any color that a land an opponent controls could produce.",
+       "duration": null,
+       "effect": {
+        "produced": {
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "type": "OpponentLandColors"
+        },
+        "type": "Mana"
+       },
+       "forward_result": false,
+       "is_mana_ability": true,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Artifact"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pauper": "legal",
+      "paupercommander": "legal",
+      "premodern": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 2,
+      "shards": [],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "07be53ef-c7b7-44fe-9754-b76871c6b55f",
+       "111e4a04-931f-45a1-ab3f-bf5cb22a98fc",
+       "1e24e2bc-b239-4f9a-85c0-5f272f58ed43",
+       "1e60622b-7c25-444d-8eeb-c443acdfc488",
+       "20086120-2e91-4989-b776-7bf6674b91ff",
+       "21755311-ccad-4d86-ba47-0060a6c4cfff",
+       "228933f3-3bca-4417-ab8a-5ccd19829c69",
+       "33ca68a6-474e-4d86-bffa-ee4bddb4a3cf",
+       "385b9f5e-81dd-49f6-a644-59d53245e3dc",
+       "4bca6877-4e1d-4ecb-8812-d75d3470ffee",
+       "57cd70c4-17e9-4bbe-a8f8-2a29450835a9",
+       "5bf29f9d-0745-4aab-b7fc-7b04ba2eeaba",
+       "5c0b0c96-959b-4bf3-b472-9223e0fa0e34",
+       "68c3d065-0519-4472-ae6e-23f58af5e859",
+       "77089d27-c883-41eb-b1ce-77881ba1127c",
+       "8c455dac-f17e-4d55-8190-68c81281204f",
+       "8d73a3c2-ccff-49b6-8e94-7f7d6ad56898",
+       "8f98234e-7376-4953-8985-2d184b1b3fda",
+       "90155322-ffb9-4eeb-ba51-1157ff5d41bc",
+       "9c1832a4-b746-4da8-85b0-7edacf09d11e",
+       "aa15d3b3-c709-4d9b-a9ec-c8d68f805ebf",
+       "ab2b620d-7585-47c4-a876-6d9e85ab889e",
+       "b1914459-b29f-45c3-8def-39d1790a31c3",
+       "b6730423-602b-4a45-9644-c6864f031100",
+       "bb2f8ecb-a2d6-4500-b3c0-3a8a1c55a9fe",
+       "bbfb3591-1f81-4576-828b-fd00fea599dd",
+       "bc99f300-29c0-44e7-9560-7bbd1dda7556",
+       "ce186c37-4a8c-48e5-9a24-69eef4d5be27",
+       "ce55e00c-cd95-48eb-986e-edf5125f3534",
+       "d140a606-e9d0-4fda-af38-1fca5d5c8c17",
+       "e8d569e6-88a6-4001-8096-9e8451fee3b6",
+       "e99c4fec-eb21-4288-a12f-1c58c4946bae",
+       "f13dea5a-f14a-4959-8b2c-8b764c97ecf7",
+       "fa14cba8-7f88-463f-8933-0c14b6f062fb",
+       "fad9cac1-8b2b-42d6-9f0b-d679689ba862"
+      ]
+     },
+     "name": "Fellwar Stone",
+     "non_ability_text": null,
+     "oracle_text": "{T}: Add one mana of any color that a land an opponent controls could produce.",
+     "power": null,
+     "printings": [
+      "4BB",
+      "4ED",
+      "5ED",
+      "9ED",
+      "AFC",
+      "BLC",
+      "BRC",
+      "C15",
+      "C16",
+      "C17",
+      "CLB",
+      "CM2",
+      "CMD",
+      "CMM",
+      "DMC",
+      "DRK",
+      "DSC",
+      "ECC",
+      "FRC",
+      "MBC",
+      "ME3",
+      "MKC",
+      "MOC",
+      "MSC",
+      "NCC",
+      "NEC",
+      "ONC",
+      "OTC",
+      "PLST",
+      "PTC",
+      "REN",
+      "SLD",
+      "SOC",
+      "TDC",
+      "WOC"
+     ],
+     "rarities": [
+      "uncommon",
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2004-10-04",
+       "text": "It only produces one mana even if the land can produce more than one."
+      },
+      {
+       "date": "2004-10-04",
+       "text": "The ability can be activated if the opponent has no lands that produce mana, but the effect will not be able to generate any mana."
+      },
+      {
+       "date": "2004-10-04",
+       "text": "This works even if the opponent's lands are tapped. It only checks what kinds of mana can be produced, not if the abilities that produce them are usable right now."
+      },
+      {
+       "date": "2009-10-01",
+       "text": "Fellwar Stone checks the effects of all mana-producing abilities of lands your opponents control, but it doesn't check their costs. For example, Vivid Crag has the ability \"{T}, Remove a charge counter from Vivid Crag: Add one mana of any color.\" If an opponent controls Vivid Crag and you control Fellwar Stone, you can tap Fellwar Stone for any color of mana. It doesn't matter whether Vivid Crag has a charge counter on it, and it doesn't matter whether it's untapped."
+      },
+      {
+       "date": "2009-10-01",
+       "text": "Fellwar Stone doesn't care about any restrictions or riders your opponents' lands (such as Ancient Ziggurat or Hall of the Bandit Lord) put on the mana they produce. It just cares about colors of mana."
+      },
+      {
+       "date": "2009-10-01",
+       "text": "The colors of mana are white, blue, black, red, and green. Fellwar Stone can't be tapped for colorless mana, even if a land an opponent controls could produce colorless mana."
+      },
+      {
+       "date": "2009-10-01",
+       "text": "When determining what colors of mana your opponents' lands could produce, take into account any applicable replacement effects that would apply to those lands' mana abilities (such as Contamination's effect, for example). If there is more than one, consider them in any possible order."
+      }
+     ],
+     "scryfall_oracle_id": "95560508-7ac9-4be9-8a3f-3c7d5b52807b",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 2.0,
+    "color_identity": [],
+    "colors": [],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "legal",
+     "paupercommander": "legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}",
+    "name": "Fellwar Stone",
+    "oracle_id": "95560508-7ac9-4be9-8a3f-3c7d5b52807b",
+    "oracle_text": "{T}: Add one mana of any color that a land an opponent controls could produce.",
+    "produced_mana": [
+     "B",
+     "G",
+     "R",
+     "U",
+     "W"
+    ],
+    "type_line": "Artifact"
+   }
+  },
+  "Felothar the Steadfast": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": {
+        "costs": [
+         {
+          "cost": {
+           "generic": 3,
+           "shards": [],
+           "type": "Cost"
+          },
+          "type": "Mana"
+         },
+         {
+          "type": "Tap"
+         },
+         {
+          "count": 1,
+          "target": {
+           "controller": null,
+           "properties": [
+            {
+             "type": "Another"
+            }
+           ],
+           "type": "Typed",
+           "type_filters": [
+            "Creature"
+           ]
+          },
+          "type": "Sacrifice"
+         }
+        ],
+        "type": "Composite"
+       },
+       "description": "{3}, {T}, Sacrifice another creature: Draw cards equal to the sacrificed creature's toughness, then discard cards equal to its power.",
+       "duration": null,
+       "effect": {
+        "count": {
+         "qty": {
+          "scope": {
+           "type": "CostPaidObject"
+          },
+          "type": "Toughness"
+         },
+         "type": "Ref"
+        },
+        "target": {
+         "type": "Controller"
+        },
+        "type": "Draw"
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "count": {
+          "qty": {
+           "scope": {
+            "type": "Anaphoric"
+           },
+           "type": "Power"
+          },
+          "type": "Ref"
+         },
+         "target": {
+          "type": "Controller"
+         },
+         "type": "Discard"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "brawl_commander": true,
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Human",
+       "Warrior"
+      ],
+      "supertypes": [
+       "Legendary"
+      ]
+     },
+     "color_identity": [
+      "Black",
+      "Green",
+      "White"
+     ],
+     "color_override": [
+      "Black",
+      "Green",
+      "White"
+     ],
+     "defense": null,
+     "flavor_name": null,
+     "is_commander": true,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "White",
+       "Black",
+       "Green"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "2c3549f6-25df-4ea7-84ad-922ccd4af6b2"
+      ]
+     },
+     "name": "Felothar the Steadfast",
+     "non_ability_text": null,
+     "oracle_text": "Each creature you control assigns combat damage equal to its toughness rather than its power.\nCreatures you control can attack as though they didn't have defender.\n{3}, {T}, Sacrifice another creature: Draw cards equal to the sacrificed creature's toughness, then discard cards equal to its power.",
+     "power": {
+      "type": "Fixed",
+      "value": 0
+     },
+     "printings": [
+      "TDC"
+     ],
+     "rarities": [
+      "mythic"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2025-04-04",
+       "text": "Felothar’s first ability doesn’t actually change any creature’s power. It changes only the amount of combat damage those creatures assign. All other rules and effects that check power or toughness use the real values."
+      }
+     ],
+     "scryfall_oracle_id": "2b3f791a-d672-46fb-a03a-96e19f2c3121",
+     "static_abilities": [
+      {
+       "active_zones": [],
+       "affected": {
+        "controller": "You",
+        "properties": [],
+        "type": "Typed",
+        "type_filters": [
+         "Creature"
+        ]
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": null,
+       "description": "Each creature you control assigns combat damage equal to its toughness rather than its power.",
+       "effect_zone": null,
+       "mode": "Continuous",
+       "modifications": [
+        {
+         "type": "AssignDamageFromToughness"
+        }
+       ]
+      },
+      {
+       "active_zones": [],
+       "affected": {
+        "controller": "You",
+        "properties": [],
+        "type": "Typed",
+        "type_filters": [
+         "Creature"
+        ]
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": null,
+       "description": "Creatures you control can attack as though they didn't have defender.",
+       "effect_zone": null,
+       "mode": "CanAttackWithDefender",
+       "modifications": []
+      }
+     ],
+     "toughness": {
+      "type": "Fixed",
+      "value": 5
+     },
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 4.0,
+    "color_identity": [
+     "B",
+     "G",
+     "W"
+    ],
+    "colors": [
+     "B",
+     "G",
+     "W"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}{W}{B}{G}",
+    "name": "Felothar the Steadfast",
+    "oracle_id": "2b3f791a-d672-46fb-a03a-96e19f2c3121",
+    "oracle_text": "Each creature you control assigns combat damage equal to its toughness rather than its power.\nCreatures you control can attack as though they didn't have defender.\n{3}, {T}, Sacrifice another creature: Draw cards equal to the sacrificed creature's toughness, then discard cards equal to its power.",
+    "power": "0",
+    "toughness": "5",
+    "type_line": "Legendary Creature — Human Warrior"
+   }
+  },
   "Fencing Ace": {
    "phase_records": [
     {
@@ -503016,6 +503725,281 @@
     "power": "6",
     "toughness": "6",
     "type_line": "Legendary Creature — Human Samurai"
+   }
+  },
+  "Gimbal, Gremlin Prodigy": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "brawl_commander": true,
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Gremlin",
+       "Artificer"
+      ],
+      "supertypes": [
+       "Legendary"
+      ]
+     },
+     "color_identity": [
+      "Green",
+      "Red",
+      "Blue"
+     ],
+     "color_override": [
+      "Green",
+      "Red",
+      "Blue"
+     ],
+     "defense": null,
+     "flavor_name": null,
+     "is_commander": true,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 2,
+      "shards": [
+       "Green",
+       "Blue",
+       "Red"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "related_token_ids": [
+       "ab813dd4-69b7-5723-b719-22eaecd6cbee"
+      ],
+      "source_printing_ids": [
+       "30cd6ab7-7235-427e-bc92-c9fe6032ffa1",
+       "4a9aa899-752b-4106-89ba-9475ee777d41",
+       "f4cc58af-1226-4e6b-8f46-d46f3c3068eb"
+      ]
+     },
+     "name": "Gimbal, Gremlin Prodigy",
+     "non_ability_text": null,
+     "oracle_text": "Artifact creatures you control have trample.\nAt the beginning of your end step, create a 0/0 red Gremlin artifact creature token. Put X +1/+1 counters on it, where X is the number of differently named artifact tokens you control.",
+     "power": {
+      "type": "Fixed",
+      "value": 4
+     },
+     "printings": [
+      "MOC"
+     ],
+     "rarities": [
+      "mythic"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2023-04-14",
+       "text": "A token’s name is its subtypes plus the word “Token” unless it’s copying another object or it was given a specific name by the effect that created it. For example, the tokens created by Gimbal’s last ability are named “Gremlin Token.” These tokens have the same name as the 2/2 red Gremlin creature tokens created by Release the Gremlins."
+      },
+      {
+       "date": "2023-04-14",
+       "text": "To determine the number of differently named artifact tokens you control, count each artifact token you control once, but only if its English name isn’t exactly the same as another artifact token you’ve already counted this way."
+      }
+     ],
+     "scryfall_oracle_id": "e7441404-71ff-449e-812b-18cd52eabb98",
+     "static_abilities": [
+      {
+       "active_zones": [],
+       "affected": {
+        "controller": "You",
+        "properties": [],
+        "type": "Typed",
+        "type_filters": [
+         "Creature",
+         "Artifact"
+        ]
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": null,
+       "description": "Artifact creatures you control have trample.",
+       "effect_zone": null,
+       "mode": "Continuous",
+       "modifications": [
+        {
+         "keyword": "Trample",
+         "type": "AddKeyword"
+        }
+       ]
+      }
+     ],
+     "toughness": {
+      "type": "Fixed",
+      "value": 4
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": {
+        "type": "OnlyDuringYourTurn"
+       },
+       "damage_kind": "Any",
+       "description": "At the beginning of your end step, create a 0/0 red Gremlin artifact creature token. Put X +1/+1 counters on it, where X is the number of differently named artifact tokens you control.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "colors": [
+          "Red"
+         ],
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "enters_attacking": false,
+         "keywords": [],
+         "name": "Gremlin",
+         "owner": {
+          "type": "Controller"
+         },
+         "power": {
+          "type": "Fixed",
+          "value": 0
+         },
+         "tapped": false,
+         "toughness": {
+          "type": "Fixed",
+          "value": 0
+         },
+         "type": "Token",
+         "types": [
+          "Artifact",
+          "Creature",
+          "Gremlin"
+         ]
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "count": {
+           "qty": {
+            "filter": {
+             "controller": "You",
+             "properties": [
+              {
+               "type": "Token"
+              }
+             ],
+             "type": "Typed",
+             "type_filters": [
+              "Artifact"
+             ]
+            },
+            "qualities": [
+             "Name"
+            ],
+            "type": "ObjectCountDistinct"
+           },
+           "type": "Ref"
+          },
+          "counter_type": "P1P1",
+          "target": {
+           "type": "LastCreated"
+          },
+          "type": "PutCounter"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": null,
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "mode": "Phase",
+       "optional": false,
+       "origin": null,
+       "phase": "End",
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": null,
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "all_parts": [
+     {
+      "component": "token",
+      "id": "23854999-2691-491c-aa7d-81f269e23b4e",
+      "name": "Gremlin",
+      "oracle_id": "43f1eae8-97e6-43ba-b914-b5872b67d1ee",
+      "type_line": "Token Artifact Creature — Gremlin"
+     }
+    ],
+    "arena_available": false,
+    "cmc": 5.0,
+    "color_identity": [
+     "G",
+     "R",
+     "U"
+    ],
+    "colors": [
+     "G",
+     "R",
+     "U"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}{G}{U}{R}",
+    "name": "Gimbal, Gremlin Prodigy",
+    "oracle_id": "e7441404-71ff-449e-812b-18cd52eabb98",
+    "oracle_text": "Artifact creatures you control have trample.\nAt the beginning of your end step, create a 0/0 red Gremlin artifact creature token. Put X +1/+1 counters on it, where X is the number of differently named artifact tokens you control.",
+    "power": "4",
+    "toughness": "4",
+    "type_line": "Legendary Creature — Gremlin Artificer"
    }
   },
   "Gimli, Mournful Avenger": {
@@ -733755,6 +734739,187 @@
     "type_line": "Legendary Creature — Elf Faerie Noble"
    }
   },
+  "Marauding Blight-Priest": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Vampire",
+       "Cleric"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Black"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pauper": "legal",
+      "paupercommander": "legal",
+      "pioneer": "legal",
+      "standard": "legal",
+      "standardbrawl": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 2,
+      "shards": [
+       "Black"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "5f70dafc-c638-4ec0-ab5b-62998f752720",
+       "730ddbcd-0814-4e22-85e9-78b0878324b6"
+      ]
+     },
+     "name": "Marauding Blight-Priest",
+     "non_ability_text": null,
+     "oracle_text": "Whenever you gain life, each opponent loses 1 life.",
+     "power": {
+      "type": "Fixed",
+      "value": 3
+     },
+     "printings": [
+      "FDN",
+      "J22",
+      "ZNR"
+     ],
+     "rarities": [
+      "common"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2024-11-08",
+       "text": "Each creature with lifelink dealing combat damage causes a separate life-gaining event. For example, if two creatures you control with lifelink deal combat damage at the same time, Marauding Blight-Priest's ability will trigger twice. However, if a single creature you control with lifelink deals combat damage to multiple creatures, players, planeswalkers, and/or battles at the same time (perhaps because it has trample or was blocked by more than one creature), the ability will trigger only once."
+      },
+      {
+       "date": "2024-11-08",
+       "text": "If you gain an amount of life \"for each\" of something or \"equal to the number\" of something, that life is gained as one event and Marauding Blight-Priest's ability will trigger only once."
+      },
+      {
+       "date": "2024-11-08",
+       "text": "In a Two-Headed Giant game, life gained by your teammate won't cause Marauding Blight-Priest's ability to trigger, even though it caused your team's life total to increase."
+      },
+      {
+       "date": "2024-11-08",
+       "text": "Marauding Blight-Priest's ability triggers just once for each life-gaining event, whether it's 1 life from Dazzling Angel or 4 life from Apothecary Stomper."
+      }
+     ],
+     "scryfall_oracle_id": "814b87fe-2a75-4ff2-8637-7e69e3fb285b",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 2
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever you gain life, each opponent loses 1 life.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "amount": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "type": "LoseLife"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "player_scope": {
+         "type": "Opponent"
+        },
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "LifeGained",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": null,
+       "valid_source": null,
+       "valid_target": {
+        "type": "Controller"
+       }
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 3.0,
+    "color_identity": [
+     "B"
+    ],
+    "colors": [
+     "B"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "legal",
+     "paupercommander": "legal",
+     "penny": "not_legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "legal",
+     "standardbrawl": "legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}{B}",
+    "name": "Marauding Blight-Priest",
+    "oracle_id": "814b87fe-2a75-4ff2-8637-7e69e3fb285b",
+    "oracle_text": "Whenever you gain life, each opponent loses 1 life.",
+    "power": "3",
+    "toughness": "2",
+    "type_line": "Creature — Vampire Cleric"
+   }
+  },
   "March Toward Perfection": {
    "phase_records": [
     {
@@ -778821,6 +779986,199 @@
     "power": "1",
     "toughness": "1",
     "type_line": "Creature — Insect"
+   }
+  },
+  "Mortivore": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": {
+        "cost": {
+         "generic": 0,
+         "shards": [
+          "Black"
+         ],
+         "type": "Cost"
+        },
+        "type": "Mana"
+       },
+       "description": "{B}: Regenerate ~.",
+       "duration": null,
+       "effect": {
+        "target": {
+         "type": "SelfRef"
+        },
+        "type": "Regenerate"
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Lhurgoyf"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Black"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "premodern": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 2,
+      "shards": [
+       "Black",
+       "Black"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "2731f8a0-3e9d-43a5-b1a3-28b3a8f1f18c",
+       "8c9c213d-9262-4cba-8bde-161baf8cc0c0",
+       "b0ad89ad-03ee-4227-b2a6-5d5002eecead",
+       "beeaaef1-5cd9-402a-982e-2cb4e69cfaca"
+      ]
+     },
+     "name": "Mortivore",
+     "non_ability_text": null,
+     "oracle_text": "Mortivore's power and toughness are each equal to the number of creature cards in all graveyards.\n{B}: Regenerate this creature. (The next time this creature would be destroyed this turn, instead tap it, remove it from combat, and heal all damage on it.)",
+     "power": {
+      "type": "Variable",
+      "value": "*"
+     },
+     "printings": [
+      "10E",
+      "9ED",
+      "CM2",
+      "CMD",
+      "DPA",
+      "M3C",
+      "ODY",
+      "PS11"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "2f554218-2072-4d9b-b4d4-34f161f1f2a9",
+     "static_abilities": [
+      {
+       "active_zones": [],
+       "affected": {
+        "type": "SelfRef"
+       },
+       "affected_zone": null,
+       "characteristic_defining": true,
+       "condition": null,
+       "description": "~'s power and toughness are each equal to the number of creature cards in all graveyards.",
+       "effect_zone": null,
+       "mode": "Continuous",
+       "modifications": [
+        {
+         "type": "SetDynamicPower",
+         "value": {
+          "qty": {
+           "card_types": [
+            "Creature"
+           ],
+           "scope": "All",
+           "type": "ZoneCardCount",
+           "zone": "Graveyard"
+          },
+          "type": "Ref"
+         }
+        },
+        {
+         "type": "SetDynamicToughness",
+         "value": {
+          "qty": {
+           "card_types": [
+            "Creature"
+           ],
+           "scope": "All",
+           "type": "ZoneCardCount",
+           "zone": "Graveyard"
+          },
+          "type": "Ref"
+         }
+        }
+       ]
+      }
+     ],
+     "toughness": {
+      "type": "Variable",
+      "value": "*"
+     },
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 4.0,
+    "color_identity": [
+     "B"
+    ],
+    "colors": [
+     "B"
+    ],
+    "keywords": [
+     "Heal",
+     "Regenerate"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}{B}{B}",
+    "name": "Mortivore",
+    "oracle_id": "2f554218-2072-4d9b-b4d4-34f161f1f2a9",
+    "oracle_text": "Mortivore's power and toughness are each equal to the number of creature cards in all graveyards.\n{B}: Regenerate this creature. (The next time this creature would be destroyed this turn, instead tap it, remove it from combat, and heal all damage on it.)",
+    "power": "*",
+    "toughness": "*",
+    "type_line": "Creature — Lhurgoyf"
    }
   },
   "Mortuary": {
@@ -854358,6 +855716,249 @@
     "oracle_id": "76678885-3674-443d-b9a2-2a460cf6aac0",
     "oracle_text": "If an artifact or creature entering causes a triggered ability of a permanent you control to trigger, that ability triggers an additional time.",
     "type_line": "Artifact"
+   }
+  },
+  "Pantlaza, Sun-Favored": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "brawl_commander": true,
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Dinosaur"
+      ],
+      "supertypes": [
+       "Legendary"
+      ]
+     },
+     "color_identity": [
+      "Green",
+      "Red",
+      "White"
+     ],
+     "color_override": [
+      "Green",
+      "Red",
+      "White"
+     ],
+     "defense": null,
+     "flavor_name": null,
+     "is_commander": true,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 2,
+      "shards": [
+       "Red",
+       "Green",
+       "White"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "150a35f8-bbdc-4f6e-98e3-3bd6a3b8154a",
+       "2524645e-b066-4351-885b-10faa8d819d7",
+       "5f7045c1-839b-4cc7-a97d-c098edcd770c",
+       "d8fb1ff3-21fb-4bb0-a242-88b018f49845"
+      ]
+     },
+     "name": "Pantlaza, Sun-Favored",
+     "non_ability_text": null,
+     "oracle_text": "Whenever Pantlaza or another Dinosaur you control enters, you may discover X, where X is that creature's toughness. Do this only once each turn. (Exile cards from the top of your library until you exile a nonland card with that mana value or less. Cast it without paying its mana cost or put it into your hand. Put the rest on the bottom in a random order.)",
+     "power": {
+      "type": "Fixed",
+      "value": 4
+     },
+     "printings": [
+      "LCC"
+     ],
+     "rarities": [
+      "mythic"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2023-11-10",
+       "text": "A spell's mana value is determined only by its mana cost. Ignore any alternative costs, additional costs, cost increases, or cost reductions."
+      },
+      {
+       "date": "2023-11-10",
+       "text": "If the discovered card has {X} in its mana cost, you must choose 0 as the value of X when casting it without paying its mana cost."
+      },
+      {
+       "date": "2023-11-10",
+       "text": "If you can't cast the discovered card (perhaps because there are no legal targets for the spell), you'll put it into your hand."
+      },
+      {
+       "date": "2023-11-10",
+       "text": "If you cast a spell \"without paying its mana cost\", you can't choose to cast it for any alternative costs. You can, however, pay additional costs. If the spell has any mandatory additional costs, you must pay those to cast it."
+      },
+      {
+       "date": "2023-11-10",
+       "text": "If you discover an adventurer card, split card, or modal double-faced card, you might be able to cast that card with either set of characteristics depending on the effect's discover value. For example, if you discover 4 and reveal Galvanic Giant (an adventurer card from Wilds of Eldraine with a mana value of 4), you could cast Galvanic Giant, but not Storm Reading (its Adventure, which has a mana value of 7). If you discover 7 and reveal Galvanic Giant, you could cast either Galvanic Giant or Storm Reading."
+      },
+      {
+       "date": "2023-11-10",
+       "text": "Once you decide to discover using Pantlaza's ability, that ability will stop triggering for the duration of that turn."
+      },
+      {
+       "date": "2023-11-10",
+       "text": "Some spells and abilities that cause you to discover may require targets. If each target chosen is an illegal target as that spell or ability tries to resolve, it won't resolve and you won't discover."
+      },
+      {
+       "date": "2023-11-10",
+       "text": "The mana value of a split card is determined by the combined mana cost of its two halves. If discover allows you to cast a split card, you may cast either half (as long as its mana value is less than or equal to the effect's discover value) but not both halves."
+      },
+      {
+       "date": "2023-11-10",
+       "text": "The value of X is calculated only once, as the ability resolves. If the creature has left the battlefield, use its toughness as it last existed on the battlefield."
+      },
+      {
+       "date": "2023-11-10",
+       "text": "When you discover, you must exile cards. The only optional part of the ability is whether you cast the exiled card or put it into your hand."
+      },
+      {
+       "date": "2023-11-10",
+       "text": "You exile the cards face up. All players will be able to see them."
+      }
+     ],
+     "scryfall_oracle_id": "b828ba28-e98d-498b-9ab4-d4aa7143e407",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 4
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": {
+        "type": "OncePerTurn"
+       },
+       "damage_kind": "Any",
+       "description": "Whenever ~ or another Dinosaur you control enters, you may discover X, where X is that creature's toughness. Do this only once each turn.",
+       "destination": "Battlefield",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "mana_value_limit": {
+          "qty": {
+           "scope": {
+            "type": "CostPaidObject"
+           },
+           "type": "Toughness"
+          },
+          "type": "Ref"
+         },
+         "type": "Discover"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": true,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "ChangesZone",
+       "optional": true,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "filters": [
+         {
+          "type": "SelfRef"
+         },
+         {
+          "controller": "You",
+          "properties": [
+           {
+            "type": "Another"
+           }
+          ],
+          "type": "Typed",
+          "type_filters": [
+           {
+            "Subtype": "Dinosaur"
+           }
+          ]
+         }
+        ],
+        "type": "Or"
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 5.0,
+    "color_identity": [
+     "G",
+     "R",
+     "W"
+    ],
+    "colors": [
+     "G",
+     "R",
+     "W"
+    ],
+    "keywords": [
+     "Discover"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}{R}{G}{W}",
+    "name": "Pantlaza, Sun-Favored",
+    "oracle_id": "b828ba28-e98d-498b-9ab4-d4aa7143e407",
+    "oracle_text": "Whenever Pantlaza or another Dinosaur you control enters, you may discover X, where X is that creature's toughness. Do this only once each turn. (Exile cards from the top of your library until you exile a nonland card with that mana value or less. Cast it without paying its mana cost or put it into your hand. Put the rest on the bottom in a random order.)",
+    "power": "4",
+    "toughness": "4",
+    "type_line": "Legendary Creature — Dinosaur"
    }
   },
   "Papalymo Totolymo": {
@@ -1032826,6 +1034427,180 @@
     "type_line": "Basic Snow Land — Forest"
    }
   },
+  "Snubhorn Sentry": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Dinosaur"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "White"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [
+      "Ascend"
+     ],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pauper": "legal",
+      "paupercommander": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 0,
+      "shards": [
+       "White"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "3ee111e7-5309-46d5-b3ea-a049b3962c23",
+       "77642e28-24db-4082-971c-e7137c305a39"
+      ]
+     },
+     "name": "Snubhorn Sentry",
+     "non_ability_text": null,
+     "oracle_text": "Ascend (If you control ten or more permanents, you get the city's blessing for the rest of the game.)\nThis creature gets +3/+0 as long as you have the city's blessing.",
+     "power": {
+      "type": "Fixed",
+      "value": 0
+     },
+     "printings": [
+      "PLST",
+      "RIX"
+     ],
+     "rarities": [
+      "common"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2018-01-19",
+       "text": "A permanent is any object on the battlefield, including tokens and lands. Spells and emblems aren't permanents."
+      },
+      {
+       "date": "2018-01-19",
+       "text": "Ascend on a permanent isn't a triggered ability and doesn't use the stack. Players can respond to a spell that will give you your tenth permanent, but they can't respond to getting the city's blessing once you control that tenth permanent. This means that if your tenth permanent is a land you play, players can't respond before you get the city's blessing."
+      },
+      {
+       "date": "2018-01-19",
+       "text": "If you cast a spell with ascend, you don't get the city's blessing until it resolves. Players may respond to that spell by trying to change whether you get the city's blessing."
+      },
+      {
+       "date": "2018-01-19",
+       "text": "If you control ten permanents but don't control a permanent or resolving spell with ascend, you don't get the city's blessing. For example, if you control ten permanents, lose control of one, then cast Golden Demise, you won't have the city's blessing and the spell will affect creatures you control."
+      },
+      {
+       "date": "2018-01-19",
+       "text": "If your tenth permanent enters the battlefield and then a permanent leaves the battlefield immediately afterwards (most likely due to the \"Legend Rule\" or due to being a creature with 0 toughness), you get the city's blessing before it leaves the battlefield."
+      },
+      {
+       "date": "2018-01-19",
+       "text": "Once you have the city's blessing, you have it for the rest of the game, even if you lose control of some or all of your permanents. The city's blessing isn't a permanent itself and can't be removed by any effect."
+      },
+      {
+       "date": "2018-01-19",
+       "text": "Some cards get power, toughness, and/or abilities once you have the city's blessing. If another card has an ability that triggers when creatures with certain characteristics enter the battlefield (such as Mentor of the Meek or Elemental Bond do), use the entering permanent's characteristics after you have the city's blessing to determine whether those abilities trigger. This is true even if the entering permanent is your tenth permanent."
+      }
+     ],
+     "scryfall_oracle_id": "fc8d3933-f7fe-4849-aae7-737ce6f067de",
+     "static_abilities": [
+      {
+       "active_zones": [],
+       "affected": {
+        "type": "SelfRef"
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": {
+        "type": "HasCityBlessing"
+       },
+       "description": "~ gets +3/+0 as long as you have the city's blessing.",
+       "effect_zone": null,
+       "mode": "Continuous",
+       "modifications": [
+        {
+         "type": "AddPower",
+         "value": 3
+        },
+        {
+         "type": "AddToughness",
+         "value": 0
+        }
+       ]
+      }
+     ],
+     "toughness": {
+      "type": "Fixed",
+      "value": 3
+     },
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 1.0,
+    "color_identity": [
+     "W"
+    ],
+    "colors": [
+     "W"
+    ],
+    "keywords": [
+     "Ascend"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "legal",
+     "paupercommander": "legal",
+     "penny": "not_legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{W}",
+    "name": "Snubhorn Sentry",
+    "oracle_id": "fc8d3933-f7fe-4849-aae7-737ce6f067de",
+    "oracle_text": "Ascend (If you control ten or more permanents, you get the city's blessing for the rest of the game.)\nThis creature gets +3/+0 as long as you have the city's blessing.",
+    "power": "0",
+    "toughness": "3",
+    "type_line": "Creature — Dinosaur"
+   }
+  },
   "Snuff Out": {
    "phase_records": [
     {
@@ -1058599,6 +1060374,165 @@
     "power": "3",
     "toughness": "3",
     "type_line": "Creature — Cat"
+   }
+  },
+  "Stalwart Shield-Bearers": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Human",
+       "Soldier"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "White"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [
+      "Defender"
+     ],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pauper": "legal",
+      "paupercommander": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "White"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "868256bb-d4e2-42eb-a43a-360148aec06f",
+       "8832ab43-317f-46a8-b391-2c6c42d342cc"
+      ]
+     },
+     "name": "Stalwart Shield-Bearers",
+     "non_ability_text": null,
+     "oracle_text": "Defender\nOther creatures you control with defender get +0/+2.",
+     "power": {
+      "type": "Fixed",
+      "value": 0
+     },
+     "printings": [
+      "ROE",
+      "SLD"
+     ],
+     "rarities": [
+      "common",
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2010-06-15",
+       "text": "Stalwart Shield-Bearers continually checks which creatures you control have defender and gives the bonus only to them. If an effect causes a creature with defender to lose defender (as Shoal Serpent does), Stalwart Shield-Bearers stops giving it the bonus for as long as it doesn’t have defender. On the other hand, if a spell or ability causes a creature to be able to attack as though it didn’t have defender (as Warmonger’s Chariot does), Stalwart Shield-Bearers continues to give it the bonus because it never actually loses the defender ability."
+      }
+     ],
+     "scryfall_oracle_id": "55aafc25-76c5-4621-941b-754bd8f13e64",
+     "static_abilities": [
+      {
+       "active_zones": [],
+       "affected": {
+        "controller": "You",
+        "properties": [
+         {
+          "type": "WithKeyword",
+          "value": "Defender"
+         },
+         {
+          "type": "Another"
+         }
+        ],
+        "type": "Typed",
+        "type_filters": [
+         "Creature"
+        ]
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": null,
+       "description": "Other creatures you control with defender get +0/+2.",
+       "effect_zone": null,
+       "mode": "Continuous",
+       "modifications": [
+        {
+         "type": "AddPower",
+         "value": 0
+        },
+        {
+         "type": "AddToughness",
+         "value": 2
+        }
+       ]
+      }
+     ],
+     "toughness": {
+      "type": "Fixed",
+      "value": 3
+     },
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 2.0,
+    "color_identity": [
+     "W"
+    ],
+    "colors": [
+     "W"
+    ],
+    "keywords": [
+     "Defender"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "legal",
+     "paupercommander": "legal",
+     "penny": "legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}{W}",
+    "name": "Stalwart Shield-Bearers",
+    "oracle_id": "55aafc25-76c5-4621-941b-754bd8f13e64",
+    "oracle_text": "Defender\nOther creatures you control with defender get +0/+2.",
+    "power": "0",
+    "toughness": "3",
+    "type_line": "Creature — Human Soldier"
    }
   },
   "Standardize": {
@@ -1224332,6 +1226266,257 @@
     "type_line": "Instant"
    }
   },
+  "Vito, Thorn of the Dusk Rose": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": {
+        "cost": {
+         "generic": 3,
+         "shards": [
+          "Black",
+          "Black"
+         ],
+         "type": "Cost"
+        },
+        "type": "Mana"
+       },
+       "description": "{3}{B}{B}: Creatures you control gain lifelink until end of turn.",
+       "duration": "UntilEndOfTurn",
+       "effect": {
+        "duration": "UntilEndOfTurn",
+        "static_abilities": [
+         {
+          "active_zones": [],
+          "affected": {
+           "controller": "You",
+           "properties": [],
+           "type": "Typed",
+           "type_filters": [
+            "Creature"
+           ]
+          },
+          "affected_zone": null,
+          "characteristic_defining": false,
+          "condition": null,
+          "description": "gain lifelink",
+          "effect_zone": null,
+          "mode": "Continuous",
+          "modifications": [
+           {
+            "keyword": "Lifelink",
+            "type": "AddKeyword"
+           }
+          ]
+         }
+        ],
+        "target": null,
+        "type": "GenericEffect"
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "brawl_commander": true,
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Vampire",
+       "Cleric"
+      ],
+      "supertypes": [
+       "Legendary"
+      ]
+     },
+     "color_identity": [
+      "Black"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "is_commander": true,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 2,
+      "shards": [
+       "Black"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "0fe79ee4-c3f3-4a6b-a967-203ca3b70ee5",
+       "65beff20-a533-44eb-addd-8d6fed02c6a2",
+       "f8a52a83-0087-4df3-995a-45e15bf664b4"
+      ]
+     },
+     "name": "Vito, Thorn of the Dusk Rose",
+     "non_ability_text": null,
+     "oracle_text": "Whenever you gain life, target opponent loses that much life.\n{3}{B}{B}: Creatures you control gain lifelink until end of turn.",
+     "power": {
+      "type": "Fixed",
+      "value": 1
+     },
+     "printings": [
+      "J22",
+      "J25",
+      "M21",
+      "P30A",
+      "PM21",
+      "PRM",
+      "PWCS",
+      "SLD",
+      "SLZ"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2020-06-23",
+       "text": "Because Vito's first ability doesn't deal damage, you won't gain life when it resolves if Vito has lifelink."
+      },
+      {
+       "date": "2020-06-23",
+       "text": "Each creature with lifelink dealing combat damage causes a separate life-gaining event. For example, if two creatures you control with lifelink deal combat damage at the same time, Vito's first ability will trigger twice and you may choose a different opponent for each trigger. However, if a single creature you control with lifelink deals combat damage to multiple creatures, players, and/or planeswalkers at the same time (perhaps because it has trample or was blocked by more than one creature), the ability will trigger only once."
+      },
+      {
+       "date": "2020-06-23",
+       "text": "If an ability triggers whenever an opponent loses life and causes you to gain life, such as the ability of Exquisite Blood, this will loop until either you win the game or a player takes an action to break the loop."
+      },
+      {
+       "date": "2020-06-23",
+       "text": "If you gain an amount of life \"for each\" of something, that life is gained as one event and Vito's first ability triggers only once."
+      },
+      {
+       "date": "2020-06-23",
+       "text": "In a Two-Headed Giant game, life gained by your teammate won't cause the ability to trigger, even though it caused your team's life total to increase."
+      }
+     ],
+     "scryfall_oracle_id": "7336a541-3ae9-4ab2-acb8-f574c0a5b3a9",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 3
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever you gain life, target opponent loses that much life.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "declares_chosen_group": 2147483648,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "amount": {
+          "qty": {
+           "type": "EventContextAmount"
+          },
+          "type": "Ref"
+         },
+         "target": {
+          "controller": "Opponent",
+          "properties": [],
+          "type": "Typed",
+          "type_filters": []
+         },
+         "type": "LoseLife"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "LifeGained",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": null,
+       "valid_source": null,
+       "valid_target": {
+        "type": "Controller"
+       }
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 3.0,
+    "color_identity": [
+     "B"
+    ],
+    "colors": [
+     "B"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}{B}",
+    "name": "Vito, Thorn of the Dusk Rose",
+    "oracle_id": "7336a541-3ae9-4ab2-acb8-f574c0a5b3a9",
+    "oracle_text": "Whenever you gain life, target opponent loses that much life.\n{3}{B}{B}: Creatures you control gain lifelink until end of turn.",
+    "power": "1",
+    "toughness": "3",
+    "type_line": "Legendary Creature — Vampire Cleric"
+   }
+  },
   "Vivien's Invocation": {
    "phase_records": [
     {
@@ -1234208,6 +1236393,181 @@
     "oracle_text": "Defender (This creature can't attack.)\nPrevent all damage that would be dealt to this creature by creatures it's blocking.\nThis creature can't be the target of spells that can target only Walls or of abilities that can target only Walls.",
     "power": "0",
     "toughness": "1",
+    "type_line": "Creature — Wall"
+   }
+  },
+  "Wall of Souls": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Wall"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Black"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [
+      "Defender"
+     ],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "premodern": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "Black"
+      ],
+      "type": "Cost"
+     },
+     "name": "Wall of Souls",
+     "non_ability_text": null,
+     "oracle_text": "Defender (This creature can't attack.)\nWhenever this creature is dealt combat damage, it deals that much damage to target opponent or planeswalker.",
+     "power": {
+      "type": "Fixed",
+      "value": 0
+     },
+     "printings": [
+      "STH",
+      "TPR"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2004-10-04",
+       "text": "Redirected damage is still combat damage, so it will trigger on combat damage that is redirected to it."
+      }
+     ],
+     "scryfall_oracle_id": "2c85c9ea-c3fd-4981-a65c-4405bd87764e",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 4
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "CombatOnly",
+       "description": "Whenever ~ is dealt combat damage, it deals that much damage to target opponent or planeswalker.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "declares_chosen_group": 2147483650,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "amount": {
+          "qty": {
+           "type": "EventContextAmount"
+          },
+          "type": "Ref"
+         },
+         "target": {
+          "filters": [
+           {
+            "controller": "Opponent",
+            "properties": [],
+            "type": "Typed",
+            "type_filters": []
+           },
+           {
+            "controller": null,
+            "properties": [],
+            "type": "Typed",
+            "type_filters": [
+             "Planeswalker"
+            ]
+           }
+          ],
+          "type": "Or"
+         },
+         "type": "DealDamage"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "DamageReceived",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": {
+        "type": "Player"
+       }
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 2.0,
+    "color_identity": [
+     "B"
+    ],
+    "colors": [
+     "B"
+    ],
+    "keywords": [
+     "Defender"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}{B}",
+    "name": "Wall of Souls",
+    "oracle_id": "2c85c9ea-c3fd-4981-a65c-4405bd87764e",
+    "oracle_text": "Defender (This creature can't attack.)\nWhenever this creature is dealt combat damage, it deals that much damage to target opponent or planeswalker.",
+    "power": "0",
+    "toughness": "4",
     "type_line": "Creature — Wall"
    }
   },
