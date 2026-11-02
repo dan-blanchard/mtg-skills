@@ -12835,12 +12835,33 @@ def _subtype_refs(tree: ConceptTree) -> SubtypeRefs:
                 theirs.update(subs)
             else:
                 named.update(subs)
+    # A "shares a creature type" filter that only picks what a mass effect
+    # destroys, exiles or damages is a tribe's hoser, not its payoff: Endemic
+    # Plague ("Destroy all creatures that share a creature type with the
+    # sacrificed creature") went onto a Vampire deck's tribe page as a
+    # Coat of Arms (Blood Rites, 2026-11-02).
+    # Only a harmful mass effect — destroyed, damaged, or moved out of play
+    # to exile or a graveyard; Resplendent Marshal's counters on "each
+    # creature you control that shares a creature type" stay a payoff.
+    swept = {
+        id(m)
+        for n in tree.iter_typed()
+        if tag_of(n) in ("DestroyAll", "DamageAll")
+        or (
+            tag_of(n) == "ChangeZoneAll"
+            and change_zone_dirs(n)[1] in ("Exile", "Graveyard")
+        )
+        for m in iter_typed_nodes(getattr(n, "target", None))
+    }
     shares = any(
         (
-            tag_of(n) in ("SharesQuality", "ObjectsShareQuality")
-            and getattr(n, "quality", None) == "CreatureType"
+            (
+                tag_of(n) in ("SharesQuality", "ObjectsShareQuality")
+                and getattr(n, "quality", None) == "CreatureType"
+            )
+            or tag_of(n) == "SharesCreatureTypeWithCommander"
         )
-        or tag_of(n) == "SharesCreatureTypeWithCommander"
+        and id(n) not in swept
         for n in tree.iter_typed()
     )
     return SubtypeRefs(frozenset(named | theirs | granted), frozenset(named), shares)

@@ -959,6 +959,29 @@ proposal as a deckbuilder, fix the structure, the guide score is a yardstick)**
   A Sonnet re-read of the other 30 proposals found no new flags.
   `verify_symptoms.py` gains the Village Rites keep and a `no_pair` kind
   (Cast Out -> Assassin's Trophy); 66 checks, all passing.
+- **Batch 15d (2026-11-02; the 25 736 / 338 / 116 → 735 / 338 / 116, held-out
+  571 / 261 / 104 and fresh 294 / 126 / 49 unchanged).** The re-read of the
+  three decks batch 15c changed. Fixed: (64) *a "shares a creature type"
+  filter that only picks what a mass effect destroys, damages, or exiles is a
+  tribe's hoser, not its payoff* (`crosswalk._subtype_refs`' `shares_type`
+  skips the filter under a `DestroyAll` / `DamageAll` / `ChangeZoneAll` to
+  exile or a graveyard): Endemic Plague — "destroy all creatures that share
+  a creature type with the sacrificed creature" — went onto Blood Rites'
+  Vampire page as a Coat of Arms, for New Blood. Excluding EVERY mass
+  effect's filter was measured and narrowed: Resplendent Marshal's counters
+  on each creature sharing a type are a payoff, and Party Time lost it as a
+  guide add (fresh 48). Checked and not flaws: Sanguine Bond under Anikthea
+  (nine lifegain makers, and it completes Exquisite Blood); Seize the Spoils
+  is card draw; Cemetery Tampering is on-plan self-mill; Viral Drake for
+  Deepglow Skate supplies the counters need and proliferate besides, as a
+  closer. Verdicts: Cast Out for Greater Good and Font of Fertility for
+  Ghostly Prison (a full job's slot moving onto the theme — `moved_source`,
+  the designed path — keeping the enchantment type); Lux Cannon for Meteor
+  Golem (the one-band-up job rule under the kept artifact type); Pentad
+  Prism for Serum Snare and Hangarback Walker for Metastatic Evangel (the
+  play-rate order; the guides' Prism combo is their knowledge, not the
+  card's text). `verify_symptoms.py`: Endemic Plague never joins Blood
+  Rites; 67 checks, all passing.
 
 **From the Jace, Multiverse Architect precon tune and the 25-precon audit (2026-10-17 to 2026-11-01)**
 

@@ -131,6 +131,8 @@ CHECKS = [
     # An upgrade keeps the broad need its cut supplies: Cast Out, an enchantment
     # Anikthea returns, never goes to a non-enchantment.
     _check("no_pair", "EnduringEnchantments_CMM", "Cast Out -> Assassin's Trophy", batch="15"),
+    # A shared-type sweeper is no tribe payoff: Endemic Plague never joins a Vampire deck.
+    _check("never", "BloodRites_LCC", "Endemic Plague", batch="15"),
     _check("no_trim", "EldraziIncursion_M3C", "Forsaken Monument", batch="14"),
     _check("no_trim", "TrickyTerrain_M3C", "Mana Reflection", batch="14"),
 ]

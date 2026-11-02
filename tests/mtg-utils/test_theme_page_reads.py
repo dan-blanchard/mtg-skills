@@ -526,3 +526,16 @@ def test_splice_cost_in_quality_canary():
         "its cost. Drop the dash split in crosswalk.core._splice_quality and this "
         "canary."
     )
+
+
+def test_a_shared_type_sweeper_is_no_tribe_payoff():
+    """Endemic Plague destroys every creature sharing a type with the one
+    sacrificed: its "shares a creature type" filter is what a mass effect
+    sweeps, so it is a sweeper, not a Coat of Arms — it went onto a Vampire
+    deck's tribe page as one (Blood Rites, 2026-11-02)."""
+    plague = _idents("Endemic Plague")
+    assert "subtype_ref|you|shared" not in plague
+    assert any(i.startswith("mass_removal|") for i in plague)
+    assert "subtype_ref|you|shared" in _idents("Coat of Arms")
+    # counters on each creature sharing a type: a mass effect, a payoff still
+    assert "subtype_ref|you|shared" in _idents("Resplendent Marshal")
