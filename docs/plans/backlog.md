@@ -1110,6 +1110,15 @@ proposal as a deckbuilder, fix the structure, the guide score is a yardstick)**
   Exile and Bitterblossom, both guide adds. Olivia is the only such
   commander in the 55. Its aristocrat adds (Zulaport Cutthroat) remain: the
   deck's death lane is its own, not a reading of Olivia's text — a verdict.
+  Measured and reverted: *an upgrade keeps the same needs, not only as
+  many* (a set test on the built needs beside the count) — Pentad Prism
+  stays as Inspirit's charge spender, but the rule holds back the guides'
+  own one-need-for-another trades (Harrow for Ramunap Excavator, Progenitor's
+  Icon for Hulking Raptor, Raging Swordtooth for Forerunner of the Empire)
+  and sends Village Rites to Deadly Dispute: the 25 735 / 338 / 118 → 728 /
+  334 / 115, held-out 569 / 262 / 107 → 568 / 264 / 110, fresh 294 / 126 / 48
+  → 293 / 127 / 47, and two symptom checks fail. Pentad Prism for Volt
+  Charge is the count test's call — a verdict.
 
 **From the Jace, Multiverse Architect precon tune and the 25-precon audit (2026-10-17 to 2026-11-01)**
 
