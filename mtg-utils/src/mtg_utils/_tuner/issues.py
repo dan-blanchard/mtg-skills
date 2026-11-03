@@ -357,7 +357,11 @@ def incidental_job(record: Mapping, job: str) -> bool:
 
 
 def upgrade_job(
-    roles: Collection[str], record: Mapping, *, on_plan: bool = False
+    roles: Collection[str],
+    record: Mapping,
+    *,
+    on_plan: bool = False,
+    short_rows: Collection[str] = (),
 ) -> str | None:
     """The one job an upgrade keeps: a card's scarcest template role
     (``UPGRADE_ROLE_ORDER``), else protection, else none. Read the same way for
@@ -365,9 +369,14 @@ def upgrade_job(
     a card-draw upgrade. ``on_plan`` says the card serves one of the deck's main
     lanes: then a role it carries only as a trigger rider (:func:`incidental_job`)
     is no job — the card is the plan's payoff with a rider, and its slot is
-    upgraded on the plan (the theme or a need page), not the job page."""
+    upgraded on the plan (the theme or a need page), not the job page —
+    unless that job's own row is short (``short_rows``): Synapse Sliver's
+    combat draw keeps the card-draw page while Sliver Swarm's draw is two
+    short (2026-11-02). Another short row (ramp) says nothing of the rider."""
     for role in UPGRADE_ROLE_ORDER:
-        if role in roles and not (on_plan and incidental_job(record, role)):
+        if role in roles and not (
+            on_plan and role not in short_rows and incidental_job(record, role)
+        ):
             if role == "board_wipe" and not _sweeps_creatures(record):
                 continue
             return role
@@ -837,14 +846,18 @@ class Sourcing:
         Jace, card draw 14 of 10-12: the deck needs no more draw, it needs its
         flip); a short row keeps the job page, since the deck needs the job."""
         # A rider job on a plan card is the plan's (``incidental_job``) —
-        # unless the deck is short of that job, which then keeps its page as
-        # any short row does: Synapse Sliver's combat draw went to Roaming
-        # Throne while Sliver Swarm's card draw was two short (2026-11-02).
-        short = any(
-            (self._budgets.get(r) or {}).get("deviation", 0) < 0 for r in card.roles
-        )
+        # unless the deck is short of that very job (``upgrade_job``'s
+        # ``short_rows``).
+        short_rows = {
+            r
+            for r in card.roles
+            if (self._budgets.get(r) or {}).get("deviation", 0) < 0
+        }
         job = upgrade_job(
-            card.roles, card.record, on_plan=self.on_plan(card) and not short
+            card.roles,
+            card.record,
+            on_plan=self.on_plan(card),
+            short_rows=short_rows,
         )
         if job is None:
             # A flip that is no fodder (Overlord of the Mistmoors makes two

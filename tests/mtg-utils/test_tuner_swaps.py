@@ -4362,3 +4362,56 @@ def test_a_symmetric_bounce_is_no_upgrade_to_a_kill():
     # Wave Goodbye spares creatures with +1/+1 counters: none in a deck of
     # bears (Revenant Recon's three counter cards, 2026-11-02).
     assert _bounces_for_a_kill(test_card("Wave Goodbye"), kill, bears)
+
+
+def test_a_self_mill_deck_holds_mostly_its_own_mill():
+    """A deck milling itself (Stitcher's Supplier) stays one with an
+    opponent-mill card among them; half and half it is no longer
+    (2026-11-02)."""
+    from mtg_utils._tuner.swaps import _self_mill_deck
+
+    own = _real_cc("Stitcher's Supplier", "theme")
+    theirs = _real_cc("Mindcrank", "theme")
+    assert _self_mill_deck([own] * 7 + [theirs])
+    assert not _self_mill_deck([own] * 4 + [theirs] * 4)
+
+
+def test_a_dropped_adds_cut_takes_the_next_fueled_add():
+    """When the whole-proposal recheck drops an add the final deck can't fuel
+    (Losheel, Clockwork Scholar's artifact-creature draw in a deck of bears),
+    its cut takes the search's next add the deck does fuel (2026-11-02)."""
+    from types import SimpleNamespace
+
+    from mtg_utils._tuner.swaps import _next_fueled_add
+
+    deck = [test_card("Grizzly Bears")] * 12
+    order = [test_card("Losheel, Clockwork Scholar"), test_card("Divination")]
+    unfueled: set[str] = set()
+
+    def find_add(_spec, **_options):
+        for card in order:
+            if card["name"] not in unfueled:
+                return card, 0.0, False
+        return None
+
+    cut = SimpleNamespace(name="Grizzly Bears")
+    picked = _next_fueled_add(({}, {}), cut, find_add, [], deck, (), unfueled)
+    assert picked is not None
+    assert picked[0]["name"] == "Divination"
+    assert "Losheel, Clockwork Scholar" in unfueled
+    assert _next_fueled_add(None, cut, find_add, [], deck, (), set()) is None
+
+
+def test_a_return_of_your_gear_waits_on_the_decks_gear():
+    """Forge Anew's "return target Equipment card from your graveyard" (its
+    instant-speed equip unparsed) is dead in a deck with no Equipment —
+    Snake Umbra's slot in Virtue and Valor went to it (2026-11-02)."""
+    from collections import Counter
+
+    from mtg_utils._tuner.swaps import dead_payoff
+
+    forge = test_card("Forge Anew")
+    auras = Counter({"creature": 30, "aura": 20})
+    gear = Counter({"creature": 30, "equipment": 10})
+    assert dead_payoff(forge, Counter(), Counter(), auras)
+    assert not dead_payoff(forge, Counter(), Counter(), gear)

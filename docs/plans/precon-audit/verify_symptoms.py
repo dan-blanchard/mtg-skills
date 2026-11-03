@@ -271,6 +271,9 @@ CHECKS = [
     _check("no_pair", "QuandrixUnlimited_SOC", "Oversimplify -> Slinn Voda, the Rising Deep", batch="17c"),
     _check("no_pair", "RevenantRecon_MKC", "Black Sun's Zenith -> Wave Goodbye", batch="17c"),
     _check("added", "EternalMight_DRC", "Raise the Palisade", batch="17c"),
+    # The code review's fixes (batch 17d).
+    _check("never", "VirtueAndValor_WOC", "Forge Anew", batch="17d"),
+    _check("no_pair", "DeepClueSea_MKC", "Thought Monitor -> Losheel, Clockwork Scholar", batch="17d"),
     _check("no_pair", "DeadlyDisguise_MKC", "Ohran Frostfang -> Kutzil, Malamet Exemplar", batch="16z"),
     _check("no_trim", "EldraziIncursion_M3C", "Forsaken Monument", batch="14"),
     _check("no_trim", "TrickyTerrain_M3C", "Mana Reflection", batch="14"),

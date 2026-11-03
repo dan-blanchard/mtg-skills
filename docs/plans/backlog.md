@@ -10,6 +10,29 @@ The phase-rs parse reports below are packaged as ready-to-post issue files in
 `docs/plans/phase-upstream-issues/` (45, re-verified against v0.118.0; 2026-11-01).
 Posting them is Dan's.
 
+**From a powered-cube draft tune (2026-11-02)**
+
+`deck-tune` on an Arena powered-cube draft deck (`--format draft`, 40 cards, a
+54-card pool; Jeskai with True-Name Nemesis, Ragavan, The Wandering Emperor,
+Balance) gave advice that didn't fit the deck. Swaps stayed inside the pool; the
+problems are what drives them.
+
+- **The limited template is the retail-set template.** It wants 14-17
+  creatures and 3-8 interaction, so a cube control deck with 10 creatures and
+  14 interaction reads as `off-template`. Its `role_short` swap cut True-Name
+  Nemesis for Containment Priest. A cube draft (or a sealed cube pool) needs its
+  own shape bands, or the creature floor read as advisory.
+- **The `upgrade` issue ranks by play rate.** It proposed The Wandering Emperor →
+  Stormchaser's Talent, Ragavan → Talisman of Conviction and Bilbo → Screaming
+  Nemesis as "more decks play it". That rate is EDHREC's, which says nothing about
+  a cube card, and a limited deck should never take an upgrade on it.
+- **Near-miss combo issues aren't scoped to the pool.** `issues.py`'s
+  `near_miss_combo` loop names any missing card, so the scorecard's top issue
+  (severity 9) was "Transcendence completes Fractured Identity" and Felidar
+  Guardian / Knowledge Pool / Omen Machine followed, none of them in the pool.
+  Under a `pool`, a near-miss whose missing card isn't in the pool should be
+  dropped (or reported as information, never as an issue).
+
 **From the Jace, Multiverse Architect precon tune (2026-10-17)**
 
 - **Phase parse gap, worked around locally (2026-10-31): Disa the Restless.** Her
@@ -1829,6 +1852,26 @@ proposal as a deckbuilder, fix the structure, the guide score is a yardstick)**
   its entering goads for Killian, its enchanted attacker draws). Structural
   flaws per full pass since batch 16n: 17, 10, 3, 1, 8, 5, 2, 2, 3 (+2 in
   the moved swaps), 0.
+- **Batch 17d (2026-11-03; the code review of 2971ce9b..HEAD; the 25
+  723 / 335 / 114 → 726 / 337 / 114, held-out 558 / 264 / 108 → 560 / 264 /
+  109, fresh unchanged at 294 / 126 / 48).** (175) *a rider keeps its job page
+  only when its own row is short* (`issues.upgrade_job`'s `short_rows`; fix
+  156 read any short row); (176) *a self-mill deck is one whose mill is at
+  least three quarters its own* (`swaps._SELF_MILL_SHARE`; fix 167 required
+  none); (177) *a dropped add's cut takes its next fuelled add*
+  (`swaps._next_fueled_add`, the add's own search re-run, `unfueled` never
+  re-picked): Thought Monitor → Deduce, Narci → Phyrexian Arena, Snake
+  Umbra → Sphere Grid, Dirgur Focusmage → Thoughtcast, Ribtruss Roaster →
+  Doubling Season; (178) *Mirko's dropped power bound is written back in
+  the correction layer* (`misparsed_shapes._relative_power_return`, its
+  canary `test_relative_power_return_canary`; `commander_need`'s
+  description regex deleted); (179) *a self-entering return of a card of
+  yours gates on its type, and an unparsed ability holds no gate*
+  (`swaps._unit_gates`): Forge Anew is dead without Equipment. Fixes 148 and
+  149 keep their description regex, the census now in their docstrings
+  (4,060 `Unimplemented` bodies, four of them a blight; five scopeless
+  `ManifestDread` subs, four of them yours). Fix 165's non-creature
+  exclusion has its test. `verify_symptoms.py`: 170.
 
 **From the Jace, Multiverse Architect precon tune and the 25-precon audit (2026-10-17 to 2026-11-01)**
 

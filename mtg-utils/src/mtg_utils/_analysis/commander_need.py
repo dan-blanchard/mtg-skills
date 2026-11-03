@@ -700,26 +700,6 @@ def _sizes_the_card(node: object) -> bool:
     return any(tag_of(n) in _SIZE_TAGS for n in iter_typed_nodes(node))
 
 
-#: A size bound in a unit's description: "with power less than", "mana value 3
-#: or less".
-_DESC_SIZE_BOUND = re.compile(
-    r"\bwith (?:power|toughness|mana value) (?:less|greater) than\b"
-    r"|\b(?:power|toughness|mana value) \d+ or (?:less|greater)\b",
-    re.IGNORECASE,
-)
-
-
-def _desc_sizes_the_card(desc: str) -> bool:
-    """Whether the unit's phase description states a size bound on the card.
-
-    The one text read in this module, a phase gap: v0.118.0 silently drops
-    Mirko, Obsessive Theorist's "with power less than Mirko's" (the target
-    filter keeps only InZone Graveyard, Owned You and Creature, no residue
-    node), so :func:`_sizes_the_card` sees no bound. Retired when
-    ``test_mirko_size_bound_canary`` fails."""
-    return bool(_DESC_SIZE_BOUND.search(desc))
-
-
 #: The typed tags that read a card's size: the filter properties and the
 #: object quantities.
 _SIZE_TAGS: frozenset[str] = frozenset(
@@ -1035,7 +1015,7 @@ def _effect_needs(unit_node: object, desc: str) -> Iterator[Need]:
     :func:`_reanimation_target_need`), and a token effect that favours one kind
     of token (Hazel's Squirrels, :func:`_token_kind_needs`)."""
     yield from _graveyard_take_needs(unit_node, desc)
-    if not (_sizes_the_card(unit_node) or _desc_sizes_the_card(desc)):
+    if not _sizes_the_card(unit_node):
         for filt in _graveyard_return_filters(unit_node):
             need = _reanimation_target_need(filt, desc)
             if need is not None:

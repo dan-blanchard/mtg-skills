@@ -53,6 +53,7 @@ from mtg_utils._card_ir.crosswalk.reads import (
     filter_core_types,
     filter_inzone_zones,
     filter_non_types,
+    filter_owners,
     filter_predicates,
     filter_subtypes,
     iter_cost_leaves,
@@ -1025,18 +1026,26 @@ def _mills_only_opponents(card: Mapping) -> bool:
     return "mill_makers|opponents|" in idents and "graveyard_makers|you|" not in idents
 
 
+#: The share of a deck's mill cards that must fill its own graveyard for the
+#: deck to be one milling itself — the read's own call: one opponent-mill card
+#: in four doesn't make a self-mill deck a mill-your-opponents one.
+_SELF_MILL_SHARE = 0.75
+
+
 def _self_mill_deck(classes: Sequence[CardClass]) -> bool:
     """Whether the deck's mill fills its own graveyard: ``_FEEDER_FLOOR`` mill
-    cards and none that only mill opponents — Szarekh, the Silent King's
-    Necron Dynasties (nine), Graveyard Overdrive, Death Toll."""
+    cards, at least ``_SELF_MILL_SHARE`` of them reaching your own library —
+    Szarekh, the Silent King's Necron Dynasties (nine of nine), Graveyard
+    Overdrive, Death Toll."""
     mills = [
         c
         for c in classes
         if "mill_makers|any|" in _signal_idents_for(c.record, include_membership=False)
     ]
-    return len(mills) >= _FEEDER_FLOOR and not any(
-        _mills_only_opponents(c.record) for c in mills
-    )
+    if len(mills) < _FEEDER_FLOOR:
+        return False
+    own = sum(1 for c in mills if not _mills_only_opponents(c.record))
+    return own / len(mills) >= _SELF_MILL_SHARE
 
 
 def _commander_already_grants(card: Mapping, commanders: Sequence[Mapping]) -> bool:
@@ -1397,7 +1406,11 @@ def _ability_gate_words(node: object, effects: Sequence) -> frozenset[str]:
             # Ripples of Potential under four counter makers (Family Matters).
             words.add(_COUNTERS_GATE)
         for n in iter_typed_nodes(c.node):
-            if tag_of(n) == "Typed" and (library or filter_controller(n) == "You"):
+            # Yours: controlled, or owned in a zone (Forge Anew's "Equipment
+            # card from your graveyard").
+            if tag_of(n) == "Typed" and (
+                library or filter_controller(n) == "You" or "You" in filter_owners(n)
+            ):
                 words |= _gate_words(n)
         if words:
             effect_words |= words
@@ -1433,6 +1446,12 @@ def _unit_gates(card: Mapping) -> _UnitGates:
                 # An activated ability or a spell, gated by its cost or its
                 # effects over your permanents (:func:`_ability_gate_words`);
                 # one no gate holds is something to activate whatever the deck.
+                # One phase couldn't parse (``Unimplemented``) says nothing
+                # either way: Forge Anew's instant-speed equip (2026-11-02).
+                if unit.effects and all(
+                    tag_of(c.node) == "Unimplemented" for c in unit.effects
+                ):
+                    continue
                 units += 1
                 words = _ability_gate_words(unit.node, unit.effects)
                 if words:
@@ -1523,13 +1542,26 @@ def _unit_gates(card: Mapping) -> _UnitGates:
                 words = frozenset({_TOKENS_GATE})
             if not words and unit.origin == "trigger":
                 words = _trigger_effect_gate_words(unit)
+            if (
+                not words
+                and unit.origin == "trigger"
+                and tag_of(filt) == "SelfRef"
+                and unit.effects
+                and all(tag_of(c.node) == "ChangeZone" for c in unit.effects)
+            ):
+                # A self-entering trigger that only moves a card of a type of
+                # yours: Forge Anew's "return target Equipment card from your
+                # graveyard" waits on the deck's Equipment (Virtue and Valor,
+                # 2026-11-02).
+                words = _ability_gate_words(unit.node, unit.effects)
             if words:
                 gates.append(
                     _Gate(
                         words,
                         static=unit.origin == "static",
                         entering=unit.origin == "trigger"
-                        and unit.trigger_event == "enters",
+                        and unit.trigger_event == "enters"
+                        and tag_of(filt) != "SelfRef",
                     )
                 )
             elif unit.origin == "trigger" and (kin := _kinship_words(unit, tree)):
@@ -2546,8 +2578,14 @@ def propose_swaps(
     rejected_hits: list[str] = []
     blocked_notes: list[str] = []
 
+    # Adds the whole-proposal recheck dropped (:func:`_unfueled_adds`): never
+    # re-picked for the cut they leave.
+    unfueled: set[str] = set()
+
     def addable(card: dict) -> bool:
         name = card.get("name", "")
+        if name in unfueled:
+            return False
         if name in ctx.exclude:
             rejected_hits.append(name)
             return False  # rejected by the builder: the next-ranked candidate instead
@@ -2883,6 +2921,11 @@ def propose_swaps(
     # Each swap's cut, add record, cost and whether it was charged, in step
     # with ``swaps`` (:func:`_unfueled_adds`).
     committed: list[tuple[CardClass | None, dict, float, bool]] = []
+    # In step with ``committed``: the search that found each add (``find_add``'s
+    # spec and options), so a dropped add's cut can take the next one; None for
+    # an add no search found (the mana base's).
+    searches: list[tuple[dict, dict] | None] = []
+    last_find: list[tuple[dict, dict] | None] = [None]
     ledger: _Purse = (
         _WildcardLedger(ctx.wildcard_budget)
         if ctx.wildcard_budget is not None
@@ -3334,6 +3377,18 @@ def propose_swaps(
         eleven bombs cut). A card asked for by name (a combo's missing piece)
         is the exception: the line is the reason.
         """
+        last_find[0] = (
+            spec,
+            {
+                "synergy_first": synergy_first,
+                "nonland_only": nonland_only,
+                "limit": limit,
+                "role_fix": role_fix,
+                "upgrade_of": upgrade_of,
+                "job": job,
+                "trim_of": trim_of,
+            },
+        )
         ranked = _ranked_pool(
             spec,
             synergy_first=synergy_first,
@@ -3608,6 +3663,8 @@ def propose_swaps(
         if cover.covered_by is None:
             ledger.charge(add_card, cost)
         committed.append((cut, add_card, cost, cover.covered_by is None))
+        searches.append(last_find[0])
+        last_find[0] = None
         game_changers.charge(add_card, cut)
         if cut is not None:
             used_cuts[cut.name] += 1
@@ -4020,10 +4077,42 @@ def propose_swaps(
     # its fuel — Sephara, Sky's Blade's flyers went to six other swaps
     # (Silverquill Influence, 2026-11-02).
     for i in reversed(_unfueled_adds(committed, deck_records, ctx.commanders)):
-        _cut, add_card, cost, charged = committed.pop(i)
-        swaps.pop(i)
+        cut, add_card, cost, charged = committed.pop(i)
+        dropped = swaps.pop(i)
+        search = searches.pop(i)
         if charged:
             ledger.refund(add_card, cost)
+        name = add_card.get("name", "")
+        unfueled.add(name)
+        used_adds[name] -= 1
+        count_jobs(add_card, role_of(add_card, deck_mana=ctx.deck_mana), -1)
+        if cut is None:
+            continue
+        used_cuts[cut.name] -= 1
+        count_jobs(cut.record, cut.roles, 1)
+        # The cut takes its next-best add from the same search, fuelled in the
+        # deck the proposal leaves: four guide cuts fell with their unfuelled
+        # adds before (Thought Monitor, Narci, Eureka Moment, Treasure Cruise,
+        # 2026-11-02).
+        repick = _next_fueled_add(
+            search, cut, find_add, committed, deck_records, ctx.commanders, unfueled
+        )
+        if repick is None:
+            continue
+        new_card, new_cost, off_avenue = repick
+        commit(
+            dropped["issue"],
+            dropped["reason"].replace(name, new_card.get("name", "")),
+            (dropped["cut"] or {}).get("why", ""),
+            cut,
+            new_card,
+            new_cost,
+            off_avenue=off_avenue,
+        )
+        # ``commit`` appends; the swap goes back where the dropped one stood.
+        swaps.insert(i, swaps.pop())
+        committed.insert(i, committed.pop())
+        searches.insert(i, searches.pop())
 
     digital = ctx.wildcard_budget is not None
     raise_budget = "raise your wildcard budget" if digital else "raise the budget"
@@ -4099,6 +4188,37 @@ def _unfueled_adds(
                 out.append(i)
                 break
     return out
+
+
+#: How many of a search's next candidates a dropped add's cut tries.
+_REPICK_TRIES = 3
+
+
+def _next_fueled_add(
+    search: tuple[dict, dict] | None,
+    cut: CardClass,
+    find_add: Callable[..., tuple[dict, float, bool] | None],
+    committed: Sequence[tuple[CardClass | None, dict, float, bool]],
+    deck: Sequence[dict],
+    commanders: Sequence[Mapping],
+    unfueled: set[str],
+) -> tuple[dict, float, bool] | None:
+    """The next add ``search`` finds (``find_add`` skips ``unfueled``) that the
+    deck the proposal leaves fuels (:func:`_unfueled_adds`); a candidate it
+    doesn't joins ``unfueled``. ``None`` after ``_REPICK_TRIES`` or when the
+    search runs dry, or for an add no search found."""
+    if search is None:
+        return None
+    spec, options = search
+    for _ in range(_REPICK_TRIES):
+        picked = find_add(spec, **options)
+        if picked is None:
+            return None
+        trial = [*committed, (cut, picked[0], 0.0, False)]
+        if len(trial) - 1 not in _unfueled_adds(trial, deck, commanders):
+            return picked
+        unfueled.add(picked[0].get("name", ""))
+    return None
 
 
 def _cut_why(reason: str, card: CardClass | None = None) -> str:

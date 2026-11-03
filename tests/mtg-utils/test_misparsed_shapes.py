@@ -275,3 +275,31 @@ def test_umbra_armor_grant_canary():
     grant = fixed["static_abilities"][-1]
     assert grant["modifications"] == [{"type": "AddKeyword", "keyword": "TotemArmor"}]
     assert not fixed["abilities"]
+
+
+@pytest.mark.retirement_canary
+def test_relative_power_return_canary():
+    """Mirko, Obsessive Theorist returns "target creature card with power less
+    than ~'s": phase v0.118.0 keeps only InZone Graveyard and Owned You on the
+    target. The stage adds the ``PtComparison`` power ``LT`` the source's
+    power (Apprentice Sharpshooter's form), so the commander's need reads the
+    bound off the tree (2026-11-02)."""
+    (rec,) = test_phase_records("Mirko, Obsessive Theorist")
+
+    def target(r):
+        (trig,) = [
+            t
+            for t in r.get("triggers") or ()
+            if "power less than" in str(t.get("description") or "")
+        ]
+        return trig["execute"]["effect"]["target"]
+
+    before = target(rec)["properties"]
+    assert not any(p["type"] == "PtComparison" for p in before), (
+        "misparsed_shapes relative power return: RETIRE-READY — phase types "
+        "Mirko's power bound. Delete the power-return row and this canary."
+    )
+    after = target(correct_misparsed_shapes(rec))["properties"]
+    (bound,) = [p for p in after if p["type"] == "PtComparison"]
+    assert bound["comparator"] == "LT"
+    assert bound["stat"] == "Power"

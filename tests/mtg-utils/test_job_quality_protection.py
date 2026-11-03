@@ -77,3 +77,12 @@ def test_a_flyers_only_grant_protects_a_flyers_deck():
     sephara = test_card("Sephara, Sky's Blade")
     assert prot.deck_fit(sephara, [test_card("Serra Angel")] * 6) == 1.0
     assert prot.deck_fit(sephara, [test_card("Grizzly Bears")] * 6) == 0.0
+
+
+def test_a_grant_to_lands_or_artifacts_is_not_read_against_creatures():
+    """Nissa, Who Shakes the World's emblem gives "Lands you control"
+    indestructible and Darksteel Forge "Artifacts you control": no creature
+    grant, so a deck of bears protects as fully as any (2026-11-02)."""
+    bears = [test_card("Grizzly Bears")] * 6
+    assert protection.deck_fit(test_card("Nissa, Who Shakes the World"), bears) == 1.0
+    assert protection.deck_fit(test_card("Darksteel Forge"), bears) == 1.0

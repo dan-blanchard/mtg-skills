@@ -2,19 +2,15 @@
 own text asks the deck for, and whether a card supplies it. Real cards via the
 testkit (ADR-0056); the needs are read off the commander's concept trees."""
 
-import pytest
-
 from mtg_utils._analysis.commander_need import (
     REANIMATION_MV,
     Need,
-    _sizes_the_card,
     card_type_count,
     commander_needs,
     need_predicate,
     needs_met,
     satisfies,
 )
-from mtg_utils._card_ir.trees import trees_for
 from mtg_utils.testkit import test_card, test_card_ir  # noqa: F401  (snapshot usage)
 
 
@@ -682,26 +678,6 @@ def test_mirko_states_its_own_size_line():
     )
     assert any(
         "worth returning" in n.label for n in _needs("Winter, Cynical Opportunist")
-    )
-
-
-@pytest.mark.retirement_canary
-def test_mirko_size_bound_canary():
-    """Retirement canary for ``_desc_sizes_the_card``: phase v0.118.0 drops
-    Mirko's "with power less than Mirko's" from the target filter. When this
-    fails phase carries the bound: delete ``_desc_sizes_the_card`` (and its
-    call in ``_effect_needs``) and this test."""
-    rec = test_card("Mirko, Obsessive Theorist")
-    units = [
-        u
-        for tree in trees_for(dict(rec))
-        for u in tree.units
-        if "power less than" in str(getattr(u.node, "description", "") or "")
-    ]
-    assert units, "Mirko's end-step trigger no longer found"
-    assert not any(_sizes_the_card(u.node) for u in units), (
-        "RETIRE-READY: phase now types Mirko's size bound. Delete "
-        "_desc_sizes_the_card and this canary."
     )
 
 

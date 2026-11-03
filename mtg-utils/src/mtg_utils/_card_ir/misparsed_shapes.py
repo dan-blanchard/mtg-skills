@@ -281,7 +281,9 @@ _DRAW_AND_BLIGHT_RX = re.compile(r"^draw (?:a|one) card and blight (?P<n>\d+)$")
 
 def _draw_and_blight(body: dict) -> int | None:
     """N, for an ``Unimplemented`` effect whose description is "draw a card
-    and blight N"."""
+    and blight N". The description is the only key there is: phase's
+    card-data holds 4,060 ``Unimplemented`` bodies, four of them a blight,
+    and N lives only in the text (census 2026-11-02, v0.118.0)."""
     effect = body["effect"]
     if effect.get("type") != "Unimplemented":
         return None
@@ -297,7 +299,11 @@ _CONTROLLER_MANIFESTS_RX = re.compile(r"\bIts controller manifests dread\b")
 def _bare_target_manifest(body: dict) -> bool:
     """An ability whose ``sub_ability`` is a bare ``ManifestDread`` with no
     ``player_scope``, where the ability's own description says "Its controller
-    manifests dread"."""
+    manifests dread". The structure alone over-matches: five cards carry a
+    scopeless ``ManifestDread`` sub, and four of them (Fear of Impostors,
+    Glitch Interpreter, Stay Hidden, Stay Silent, Unnerving Grasp) have you
+    manifest — only Unwanted Remake names the target's controller (census
+    2026-11-02, v0.118.0)."""
     sub = body.get("sub_ability")
     return (
         isinstance(sub, dict)
@@ -365,6 +371,46 @@ def _umbra_armor_static(description: str) -> dict:
     }
 
 
+#: A trigger returning a creature card "with power less than ~'s" (Mirko,
+#: Obsessive Theorist), whose bound phase v0.118.0 drops from the target.
+_RELATIVE_POWER_RETURN_RX = re.compile(r"\bcreature card with power less than ~'s\b")
+
+
+def _relative_power_return(trig: object) -> dict | None:
+    """The target filter of a trigger's graveyard-to-battlefield return that
+    carries no power bound though its description says "with power less than
+    ~'s", else ``None``."""
+    if not isinstance(trig, dict) or not _RELATIVE_POWER_RETURN_RX.search(
+        str(trig.get("description") or "")
+    ):
+        return None
+    effect = (trig.get("execute") or {}).get("effect") or {}
+    target = effect.get("target") or {}
+    props = target.get("properties") or []
+    if (
+        effect.get("type") != "ChangeZone"
+        or effect.get("destination") != "Battlefield"
+        or target.get("type") != "Typed"
+        or not any(
+            p.get("type") == "InZone" and p.get("zone") == "Graveyard" for p in props
+        )
+        or any(p.get("type") == "PtComparison" for p in props)
+    ):
+        return None
+    return target
+
+
+#: The power bound phase types for "power less than this creature's"
+#: (Apprentice Sharpshooter's form, with ``LT``).
+_LESS_POWER_THAN_SOURCE = {
+    "type": "PtComparison",
+    "stat": "Power",
+    "scope": "Current",
+    "comparator": "LT",
+    "value": {"type": "Ref", "qty": {"type": "Power", "scope": {"type": "Source"}}},
+}
+
+
 def correct_misparsed_shapes(rec: dict) -> dict:
     """``rec`` with each misparsed shape rewritten (a copy when any)."""
     sweeps = [
@@ -397,8 +443,14 @@ def correct_misparsed_shapes(rec: dict) -> dict:
         for body in rec.get("abilities") or ()
         if isinstance(body, dict) and _umbra_armor_grant(body)
     ]
+    power_returns = [
+        filt
+        for trig in rec.get("triggers") or ()
+        if (filt := _relative_power_return(trig)) is not None
+    ]
     if not (
-        sweeps
+        power_returns
+        or sweeps
         or arrivals
         or split_flips
         or chosen_types
@@ -481,6 +533,13 @@ def correct_misparsed_shapes(rec: dict) -> dict:
             "controller": None,
             "properties": [{"type": "HasAttachment", "kind": kind}],
         }
+    for filt in power_returns:
+        target = memo[id(filt)]
+        assert isinstance(target, dict)
+        target["properties"] = [
+            *target.get("properties", []),
+            copy.deepcopy(_LESS_POWER_THAN_SOURCE),
+        ]
     if umbras:
         kept = [
             b

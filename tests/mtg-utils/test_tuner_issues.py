@@ -728,3 +728,17 @@ def test_no_keep_page_for_a_commander_paid_by_its_tokens_leaving():
 
     assert keep_search([test_card("Zurgo Stormrender")]) is None
     assert keep_search([test_card("Saheeli, Radiant Creator")]) is not None
+
+
+def test_a_rider_keeps_its_job_only_when_its_own_row_is_short():
+    """Synapse Sliver's combat-damage draw is a rider on a plan card: it keeps
+    the card-draw page when the deck is short of card draw (Sliver Swarm,
+    2026-11-02), not when some other row (ramp) is short."""
+    sliver = test_card("Synapse Sliver")
+    assert incidental_job(sliver, "card_draw")
+    assert upgrade_job({"card_draw"}, sliver, on_plan=True) is None
+    assert (
+        upgrade_job({"card_draw"}, sliver, on_plan=True, short_rows={"card_draw"})
+        == "card_draw"
+    )
+    assert upgrade_job({"card_draw"}, sliver, on_plan=True, short_rows={"ramp"}) is None
