@@ -1726,7 +1726,7 @@ proposal as a deckbuilder, fix the structure, the guide score is a yardstick)**
   Esper Sentinel: it now goes to Invasion of New Capenna, an outlet too
   ("you may sacrifice an artifact or creature"). `verify_symptoms.py`: 155.
 - **Batch 16z (2026-11-02; the 25 728 / 339 / 113 → 725 / 337 / 114, held-out
-  559 / 264 / 103 → 557 / 264 / 104, fresh unchanged at 294 / 126 / 50).** The
+  559 / 264 / 103 → 557 / 264 / 104, fresh 294 / 126 / 51 → 294 / 126 / 50).** The
   eighth full 55-deck re-read (five Sonnet reviewers; 13 flags, five
   structural), each fix read back on all 55 decks. Fixed: (162) *a land put
   on a later sacrifice is not early ramp* (`ramp._land_only_later`, the
@@ -1754,6 +1754,24 @@ proposal as a deckbuilder, fix the structure, the guide score is a yardstick)**
   Sephara in Silverquill Influence (8 of 17 creatures fly after the whole
   proposal), Inspiring Call under Dina (Dina places +1/+1 counters).
   `verify_symptoms.py`: 160.
+- **Batch 17a (2026-11-02; the 25 unchanged at 725 / 337 / 114, held-out
+  557 / 264 / 104 → 557 / 264 / 105, fresh 294 / 126 / 50 → 294 / 126 / 49).**
+  The ninth full 55-deck re-read (five Sonnet reviewers; 8 flags, two
+  structural — parts 1-3, 35 decks, found none). Fixed: (167) *a self-mill
+  deck takes no card that only mills opponents* (`swaps._self_mill_deck`,
+  `_mills_only_opponents`: `mill_makers|opponents|` without
+  `graveyard_makers|you|`): Szarekh's Necron Dynasties no longer adds
+  Mindcrank and Altar of the Brood, but Perpetual Timepiece and Grinding
+  Station; (168) *a typed combat-damage trigger wants those types to
+  connect* (`commander_need._evasion_for`): Olivia, Opulent Outlaw's
+  outlaws (CR 700.12) — an evasive body outside them supplies nothing (a
+  changeling is every type, CR 702.73a; a grant still feeds it), so
+  Tenured Inkcaster goes to Vadmir, New Blood, not Hangarback Walker.
+  Verdicts: Chandra's Ignition for Blasphemous Act (a guide cut); Redemption
+  Arc for Lightning Bolt (15 other goaders; a redundancy need); Dusk //
+  Dawn under Nalia (a 3/3 whose full-party counters push the small
+  creatures to 3 power); Hofri for Daretti, Scrap Savant (its -2 returns a
+  card from the graveyard for Quintorius). `verify_symptoms.py`: 162.
 
 **From the Jace, Multiverse Architect precon tune and the 25-precon audit (2026-10-17 to 2026-11-01)**
 

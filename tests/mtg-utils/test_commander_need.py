@@ -910,3 +910,15 @@ def test_life_its_controller_gains_is_not_yours():
     (Witherbloom Pestilence, 2026-11-02)."""
     need = _need("Dina, Essence Brewer", "lifegain like the commander")
     assert not satisfies(test_card("Nature's Claim"), need)
+
+
+def test_an_outlaw_combat_trigger_wants_outlaws_to_connect():
+    """Olivia, Opulent Outlaw makes Treasure "whenever one or more outlaws
+    you control deal combat damage to a player" (outlaws, CR 700.12):
+    Hangarback Walker's flying Thopters aren't outlaws (Most Wanted,
+    2026-11-02); Dauthi Voidwalker, a shadow Rogue, is, and a changeling is
+    every creature type (CR 702.73a)."""
+    need = _need("Olivia, Opulent Outlaw", "evasion for your attackers")
+    assert not satisfies(test_card("Hangarback Walker"), need)
+    assert satisfies(test_card("Dauthi Voidwalker"), need)
+    assert satisfies(test_card("Changeling Outcast"), need)

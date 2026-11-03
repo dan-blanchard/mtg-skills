@@ -975,6 +975,29 @@ def _chosen_type_on_battlefield(card: Mapping) -> bool:
     return not found
 
 
+def _mills_only_opponents(card: Mapping) -> bool:
+    """Whether ``card``'s mill reaches only another player's library, filling
+    no graveyard of yours (``mill_makers|opponents|`` without
+    ``graveyard_makers|you|``): Mindcrank's "that player mills that many
+    cards", Altar of the Brood's "each opponent mills a card"."""
+    idents = _signal_idents_for(dict(card), include_membership=False)
+    return "mill_makers|opponents|" in idents and "graveyard_makers|you|" not in idents
+
+
+def _self_mill_deck(classes: Sequence[CardClass]) -> bool:
+    """Whether the deck's mill fills its own graveyard: ``_FEEDER_FLOOR`` mill
+    cards and none that only mill opponents — Szarekh, the Silent King's
+    Necron Dynasties (nine), Graveyard Overdrive, Death Toll."""
+    mills = [
+        c
+        for c in classes
+        if "mill_makers|any|" in _signal_idents_for(c.record, include_membership=False)
+    ]
+    return len(mills) >= _FEEDER_FLOOR and not any(
+        _mills_only_opponents(c.record) for c in mills
+    )
+
+
 def _commander_already_grants(card: Mapping, commanders: Sequence[Mapping]) -> bool:
     """Whether every ability ``card`` has is a static the commander already
     applies to every creature you control: Rolling Stones's "Wall creatures can
@@ -2535,14 +2558,20 @@ def propose_swaps(
         >= _FEEDER_FLOOR
     )
     dead_memo: dict[str, bool] = {}
+    self_mill = _self_mill_deck(classes)
 
     def dead_here(card: Mapping) -> bool:
         key = card.get("oracle_id") or card.get("name", "")
         verdict = dead_memo.get(key)
         if verdict is None:
-            verdict = dead_payoff(
-                card, deck_keys, deck_tribe_counts, deck_type_counts
-            ) or _commander_already_grants(card, ctx.commanders)
+            verdict = (
+                dead_payoff(card, deck_keys, deck_tribe_counts, deck_type_counts)
+                or _commander_already_grants(card, ctx.commanders)
+                # A deck milling itself takes no card that only mills
+                # opponents: Mindcrank and Altar of the Brood went onto Necron
+                # Dynasties' Mill page (2026-11-02).
+                or (self_mill and _mills_only_opponents(card))
+            )
             dead_memo[key] = verdict
         return verdict
 

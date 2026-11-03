@@ -1546,16 +1546,31 @@ def _event_need(node: TypedMirrorNode, desc: str) -> Need | None:
         # Zack Fair's indestructible supplied Ellivere's "enchanted creature
         # ... deals combat damage" and took Gylwain's Roles' slot (Virtue and
         # Valor, 2026-11-02).
+        idents = frozenset(
+            f"{key}|you|{k}"
+            for key in ("keyword_bodies", "keyword_grant_target")
+            for k in _EVASION_KEYWORDS
+        )
+        source_types = filter_subtypes(getattr(node, "valid_source", None))
+        if source_types:
+            # "Whenever one or more outlaws you control deal combat damage"
+            # (Olivia, Opulent Outlaw; outlaws are Assassins, Mercenaries,
+            # Pirates, Rogues and Warlocks, CR 700.12): an evasive body
+            # outside those types connects for nothing — Hangarback Walker's
+            # flying Thopters took Tenured Inkcaster's slot (Most Wanted,
+            # 2026-11-02). A grant to your team or a target still feeds it.
+            return Need(
+                "event",
+                "evasion for your attackers",
+                desc,
+                predicate=partial(_evasion_for, frozenset(source_types)),
+            )
         return Need(
             "event",
             "evasion for your attackers",
             desc,
             keys=_EVASION_KEYS - {"keyword_grant_target"},
-            idents=frozenset(
-                f"{key}|you|{k}"
-                for key in ("keyword_bodies", "keyword_grant_target")
-                for k in _EVASION_KEYWORDS
-            ),
+            idents=idents,
         )
     keys = _EVENT_MAKER_KEYS.get(event)
     if not keys:
@@ -1627,6 +1642,30 @@ def _drains_on_opponents_turns(card: dict) -> bool:
             if _present(valid) and filter_controller(valid) == "Opponent":
                 return True
     return False
+
+
+def _evasion_for(types: frozenset[str], card: dict) -> bool:
+    """Whether ``card`` lets a creature of ``types`` connect: an evasion grant
+    to your team or a target, a lure, or an evasive body of one of them."""
+    idents = _card_idents(card)
+    keys = {i.split("|", 1)[0] for i in idents}
+    if keys & {"team_evasion_grant", "lure_makers"}:
+        return True
+    if any(f"keyword_grant_target|you|{k}" in idents for k in _EVASION_KEYWORDS):
+        return True
+    evasive = "evasion_self" in keys or any(
+        f"keyword_bodies|you|{k}" in idents for k in _EVASION_KEYWORDS
+    )
+    if not evasive:
+        return False
+    words = _type_words(card)
+    if "creature" not in words:
+        # A noncreature card's evasion is a grant: Rogue's Passage,
+        # Whispersilk Cloak's equipped creature.
+        return True
+    # A changeling is every creature type (CR 702.73a).
+    keywords = {str(k).lower() for k in card.get("keywords") or ()}
+    return "changeling" in keywords or bool({t.lower() for t in types} & words)
 
 
 def _drains_only_on_own_combat(card: dict) -> bool:

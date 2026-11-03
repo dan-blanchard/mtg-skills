@@ -4308,3 +4308,14 @@ def test_a_battlefield_chosen_type_draw_is_fed_under_omo():
     ]
     assert _unfueled_adds(add, deck) == [0]
     assert _unfueled_adds(add, deck, [test_card("Omo, Queen of Vesuva")]) == []
+
+
+def test_a_card_milling_only_opponents_fills_no_graveyard_of_yours():
+    """Mindcrank's "that player mills that many cards" reaches only an
+    opponent's library: dead in Szarekh's self-mill deck (Necron Dynasties,
+    2026-11-02); Perpetual Timepiece's "Mill two cards" is yours."""
+    from mtg_utils._tuner.swaps import _mills_only_opponents
+
+    assert _mills_only_opponents(test_card("Mindcrank"))
+    assert _mills_only_opponents(test_card("Altar of the Brood"))
+    assert not _mills_only_opponents(test_card("Perpetual Timepiece"))
