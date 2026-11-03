@@ -1234,7 +1234,13 @@ def _lifegain_makers(tree: ConceptTree) -> list[Signal]:
         for c in unit.effect_concepts("gain_life"):
             if c.scope in ("you", "any"):
                 scope = "you"
-                if recipient_tag(c.node) == "ParentTargetOwner":
+                # "Its controller gains 4 life" (Nature's Claim) as its
+                # owner's: whoever holds the target, an opponent as a rule —
+                # read as yours, it fed Dina's lifegain need (2026-11-02).
+                if recipient_tag(c.node) in (
+                    "ParentTargetOwner",
+                    "ParentTargetController",
+                ):
                     override = _target_owner_beneficiary_scope(unit)
                     if override is not None:
                         scope = override

@@ -836,7 +836,16 @@ class Sourcing:
         its row is in band or over (Niv-Mizzet, Ghost Counsel's draw under
         Jace, card draw 14 of 10-12: the deck needs no more draw, it needs its
         flip); a short row keeps the job page, since the deck needs the job."""
-        job = upgrade_job(card.roles, card.record, on_plan=self.on_plan(card))
+        # A rider job on a plan card is the plan's (``incidental_job``) —
+        # unless the deck is short of that job, which then keeps its page as
+        # any short row does: Synapse Sliver's combat draw went to Roaming
+        # Throne while Sliver Swarm's card draw was two short (2026-11-02).
+        short = any(
+            (self._budgets.get(r) or {}).get("deviation", 0) < 0 for r in card.roles
+        )
+        job = upgrade_job(
+            card.roles, card.record, on_plan=self.on_plan(card) and not short
+        )
         if job is None:
             # A flip that is no fodder (Overlord of the Mistmoors makes two
             # Insects once, and is a seven-mana flip first) keeps a flip's slot,

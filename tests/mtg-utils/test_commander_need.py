@@ -891,3 +891,22 @@ def test_a_land_sacrifice_trigger_is_an_event_need():
     need = _need("Hearthhull, the Worldseed", "lands you sacrifice")
     assert satisfies(test_card("Sprouting Goblin"), need)
     assert not satisfies(test_card("Shadow, Mysterious Assassin"), need)
+
+
+def test_own_combat_damage_drains_on_your_turn_only():
+    """Valgavoth wants life lost "during each of their turns": Rankle's
+    life loss rides its own combat damage to a player, which only the active
+    player's attackers deal (CR 510.1b, 506.2) — it went in for Spiteful
+    Visions, whose draw-step damage hits each player on their own turn
+    (Endless Punishment, 2026-11-02)."""
+    need = _need("Valgavoth, Harrower of Souls", "life loss on opponents' turns")
+    assert not satisfies(test_card("Rankle, Master of Pranks"), need)
+    assert satisfies(test_card("Spiteful Visions"), need)
+
+
+def test_life_its_controller_gains_is_not_yours():
+    """Nature's Claim's "Its controller gains 4 life" goes to whoever holds
+    the destroyed permanent: no lifegain like Dina, Essence Brewer's
+    (Witherbloom Pestilence, 2026-11-02)."""
+    need = _need("Dina, Essence Brewer", "lifegain like the commander")
+    assert not satisfies(test_card("Nature's Claim"), need)

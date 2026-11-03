@@ -77,6 +77,7 @@ from mtg_utils._card_ir.crosswalk.reads import (
     _present,
     counter_kind,
     counter_kind_any,
+    damage_to_player_trigger_kind,
     effect_player_reach,
     filter_controller,
     filter_core_types,
@@ -1600,6 +1601,8 @@ def _drains_on_opponents_turns(card: dict) -> bool:
     keys = {i.split("|", 1)[0] for i in idents}
     if not keys & _EVENT_MAKER_KEYS["life_lost"]:
         return False
+    if _drains_only_on_own_combat(card):
+        return False
     for ident in idents:
         key, scope, _subject = ident.split("|", 2)
         if key.startswith("opponent_") or key == "stax_taxes":
@@ -1624,6 +1627,27 @@ def _drains_on_opponents_turns(card: dict) -> bool:
             if _present(valid) and filter_controller(valid) == "Opponent":
                 return True
     return False
+
+
+def _drains_only_on_own_combat(card: dict) -> bool:
+    """Whether every life loss ``card`` makes rides its own combat damage to a
+    player: Rankle, Master of Pranks's "each player loses 1 life" on "Whenever
+    Rankle deals combat damage to a player". Only an unblocked attacking
+    creature assigns combat damage to a player (CR 510.1b), and only the active
+    player's creatures attack (CR 506.2), so it is your turn's work — its
+    riders' ``opponent_discard|each|`` read it as an opponents'-turn drain, and
+    Valgavoth's Spiteful Visions went to it (Endless Punishment, 2026-11-02)."""
+    loss_units = [
+        unit
+        for tree in trees_for(dict(card))
+        for unit in tree.units
+        if any(c.concept in ("lose_life", "deal_damage") for c in unit.effects)
+    ]
+    return bool(loss_units) and all(
+        unit.origin == "trigger"
+        and damage_to_player_trigger_kind(unit.node) == "CombatOnly"
+        for unit in loss_units
+    )
 
 
 #: Payoff keys for the card's OWN combat damage to opponents (Sword of Fire and

@@ -129,7 +129,10 @@ CHECKS = [
     _check("never", "QuickDraw_OTC", "Jeska's Will", batch="15"),
     _check("never", "RevenantRecon_MKC", "Cabal Ritual", batch="15"),
     _check("never", "FamilyMatters_BLC", "Ripples of Potential", batch="15"),
-    _check("kept", "BloodRites_LCC", "Village Rites", batch="15"),
+    # Village Rites supplies Clavileño's outlet need: never for a card that
+    # supplies none (Esper Sentinel). Invasion of New Capenna, an outlet too
+    # ("you may sacrifice an artifact or creature"), may take it (16y).
+    _check("no_pair", "BloodRites_LCC", "Village Rites -> Esper Sentinel", batch="15"),
     # An upgrade keeps the broad need its cut supplies: Cast Out, an enchantment
     # Anikthea returns, never goes to a non-enchantment.
     _check("no_pair", "EnduringEnchantments_CMM", "Cast Out -> Assassin's Trophy", batch="15"),
@@ -243,6 +246,13 @@ CHECKS = [
     _check("no_pair", "VelociRampTor_LCC", "Fiery Confluence -> Martial Coup", batch="16x"),
     _check("no_pair", "CreativeEnergy_M3C", "Silverquill Lecturer -> Boromir, Warden of the Tower", batch="16n"),
     _check("no_pair", "TinkerTime_MOC", "Feldon of the Third Path -> Skullclamp", batch="16n"),
+    # The seventh full re-read (batch 16y).
+    _check("never", "AbzanArmor_TDC", "Rolling Stones", "Animate Wall", batch="16y"),
+    _check("no_pair", "DeathToll_DSC", "Deluge of Doom -> Phyresis Outbreak", batch="16y"),
+    _check("no_pair", "EndlessPunishment_DSC", "Spiteful Visions -> Rankle, Master of Pranks", batch="16y"),
+    _check("no_pair", "SliverSwarm_CMM", "Synapse Sliver -> Roaming Throne", batch="16y"),
+    _check("no_pair", "SilverquillInfluence_SOC", "Promise of Loyalty -> Damn", batch="16y"),
+    _check("no_pair", "WitherbloomPestilence_SOC", "Pest Infestation -> Nature's Claim", batch="16y"),
     _check("no_trim", "EldraziIncursion_M3C", "Forsaken Monument", batch="14"),
     _check("no_trim", "TrickyTerrain_M3C", "Mana Reflection", batch="14"),
 ]

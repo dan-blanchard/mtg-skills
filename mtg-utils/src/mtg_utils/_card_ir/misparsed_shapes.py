@@ -487,7 +487,7 @@ def correct_misparsed_shapes(rec: dict) -> dict:
             for b in out.get("abilities") or ()
             if b not in [memo[id(u)] for u in umbras]
         ]
-        statics = list(out.get("static_abilities") or ())
+        statics: list[dict] = list(out.get("static_abilities") or ())
         for body in umbras:
             statics.append(
                 _umbra_armor_static(str(body["effect"].get("description") or ""))

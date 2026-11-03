@@ -4235,7 +4235,7 @@ def test_a_card_paying_a_creature_is_no_cheaper():
 
 
 def test_the_answered_targets_controller_acts_by_the_abilitys_scope():
-    """"Destroy target creature or planeswalker. Its controller investigates"
+    """ "Destroy target creature or planeswalker. Its controller investigates"
     (Fateful Absence) is the answered player's, by the ability's
     ``player_scope``; so is Unwanted Remake's manifest dread once corrected;
     Tasha's Hideous Laughter steals nothing you may cast."""
@@ -4256,3 +4256,15 @@ def test_the_answered_targets_controller_acts_by_the_abilitys_scope():
     assert answered(test_card("Unwanted Remake"), "ManifestDread")
     signals = test_signals("Tasha's Hideous Laughter")
     assert not any(sig.key == "theft_makers" for sig in signals)
+
+
+def test_an_add_the_commander_already_grants_is_dead():
+    """Felothar the Steadfast lets "Creatures you control ... attack as
+    though they didn't have defender": Rolling Stones's Walls-only grant does
+    nothing more (Abzan Armor, 2026-11-02); Behind the Scenes's skulk does."""
+    from mtg_utils._tuner.swaps import _commander_already_grants
+
+    felothar = [test_card("Felothar the Steadfast")]
+    assert _commander_already_grants(test_card("Rolling Stones"), felothar)
+    assert _commander_already_grants(test_card("Animate Wall"), felothar)
+    assert not _commander_already_grants(test_card("Behind the Scenes"), felothar)

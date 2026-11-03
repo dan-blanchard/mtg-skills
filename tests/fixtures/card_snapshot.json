@@ -64969,6 +64969,152 @@
     "type_line": "Enchantment — Aura"
    }
   },
+  "Animate Wall": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Enchantment"
+      ],
+      "subtypes": [
+       "Aura"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "White"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "premodern": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 0,
+      "shards": [
+       "White"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "8102657a-bdb1-49e7-94f2-ab885f9ff35a",
+       "eb65e79d-b2ea-4d6d-bb5e-3232259eece9"
+      ]
+     },
+     "name": "Animate Wall",
+     "non_ability_text": null,
+     "oracle_text": "Enchant Wall\nEnchanted Wall can attack as though it didn't have defender.",
+     "power": null,
+     "printings": [
+      "2ED",
+      "30A",
+      "3ED",
+      "4BB",
+      "4ED",
+      "5ED",
+      "6ED",
+      "CED",
+      "CEI",
+      "FBB",
+      "LEA",
+      "LEB",
+      "ME1",
+      "SUM"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2007-09-16",
+       "text": "This is a change from the most recent wording. As was the case in the past, Animate Wall can now enchant only a Wall."
+      }
+     ],
+     "scryfall_oracle_id": "c7a6a165-b709-46e0-ae42-6f69a17c0621",
+     "static_abilities": [
+      {
+       "active_zones": [],
+       "affected": {
+        "controller": null,
+        "properties": [
+         {
+          "type": "EnchantedBy"
+         }
+        ],
+        "type": "Typed",
+        "type_filters": [
+         {
+          "Subtype": "Wall"
+         }
+        ]
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": null,
+       "description": "Enchanted Wall can attack as though it didn't have defender.",
+       "effect_zone": null,
+       "mode": "CanAttackWithDefender",
+       "modifications": []
+      }
+     ],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 1.0,
+    "color_identity": [
+     "W"
+    ],
+    "colors": [
+     "W"
+    ],
+    "keywords": [
+     "Enchant"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{W}",
+    "name": "Animate Wall",
+    "oracle_id": "c7a6a165-b709-46e0-ae42-6f69a17c0621",
+    "oracle_text": "Enchant Wall\nEnchanted Wall can attack as though it didn't have defender.",
+    "type_line": "Enchantment — Aura"
+   }
+  },
   "Anje Falkenrath": {
    "phase_records": [
     {
@@ -139104,6 +139250,183 @@
     "name": "Bedlam",
     "oracle_id": "c28d4caf-9b7c-40b1-9cbe-275ca9dae06a",
     "oracle_text": "Creatures can't block.",
+    "type_line": "Enchantment"
+   }
+  },
+  "Behind the Scenes": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": {
+        "cost": {
+         "generic": 4,
+         "shards": [
+          "White"
+         ],
+         "type": "Cost"
+        },
+        "type": "Mana"
+       },
+       "description": "{4}{W}: Creatures you control get +1/+1 until end of turn.",
+       "duration": "UntilEndOfTurn",
+       "effect": {
+        "power": {
+         "type": "Fixed",
+         "value": 1
+        },
+        "target": {
+         "controller": "You",
+         "properties": [],
+         "type": "Typed",
+         "type_filters": [
+          "Creature"
+         ]
+        },
+        "toughness": {
+         "type": "Fixed",
+         "value": 1
+        },
+        "type": "PumpAll"
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Enchantment"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Black",
+      "White"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 2,
+      "shards": [
+       "Black"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "514d1c07-e559-49c7-a95c-2fa55fa65042",
+       "7fac171d-a8b6-4bb7-a559-473574aa02a8"
+      ]
+     },
+     "name": "Behind the Scenes",
+     "non_ability_text": null,
+     "oracle_text": "Creatures you control have skulk. (They can't be blocked by creatures with greater power.)\n{4}{W}: Creatures you control get +1/+1 until end of turn.",
+     "power": null,
+     "printings": [
+      "SOI",
+      "TDC"
+     ],
+     "rarities": [
+      "uncommon"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2016-04-08",
+       "text": "If you cause a creature to have 0 power or less, use the actual value (which may be negative) to determine whether it can block or be blocked. A creature with skulk and 0 or less power most likely won’t be blocked, but it won’t deal combat damage and won’t trigger any abilities that trigger when combat damage is dealt."
+      },
+      {
+       "date": "2016-04-08",
+       "text": "Skulk matters only as blockers are chosen. Modifying either creature’s power after blockers are chosen won’t cause the attacking creature to become unblocked."
+      }
+     ],
+     "scryfall_oracle_id": "e84837bd-4f94-43e1-876e-d82cae6ee247",
+     "static_abilities": [
+      {
+       "active_zones": [],
+       "affected": {
+        "controller": "You",
+        "properties": [],
+        "type": "Typed",
+        "type_filters": [
+         "Creature"
+        ]
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": null,
+       "description": "Creatures you control have skulk.",
+       "effect_zone": null,
+       "mode": "Continuous",
+       "modifications": [
+        {
+         "keyword": "Skulk",
+         "type": "AddKeyword"
+        }
+       ]
+      }
+     ],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 3.0,
+    "color_identity": [
+     "B",
+     "W"
+    ],
+    "colors": [
+     "B"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}{B}",
+    "name": "Behind the Scenes",
+    "oracle_id": "e84837bd-4f94-43e1-876e-d82cae6ee247",
+    "oracle_text": "Creatures you control have skulk. (They can't be blocked by creatures with greater power.)\n{4}{W}: Creatures you control get +1/+1 until end of turn.",
     "type_line": "Enchantment"
    }
   },
@@ -813848,6 +814171,192 @@
     "oracle_id": "ae0f65b4-3814-45fe-a869-8585f6869278",
     "oracle_text": "{G}{W}, Discard a card: Put a +1/+1 counter on target creature or that creature gains banding, first strike, or trample. (This effect lasts indefinitely. Any creatures with banding, and up to one without, can attack in a band. Bands are blocked as a group. If any creatures with banding a player controls are blocking or being blocked by a creature, that player divides that creature's combat damage, not its controller, among any of the creatures it's being blocked by or is blocking.)",
     "type_line": "Enchantment"
+   }
+  },
+  "Nature's Claim": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Destroy target artifact or enchantment. Its controller gains 4 life.",
+       "duration": null,
+       "effect": {
+        "cant_regenerate": false,
+        "target": {
+         "filters": [
+          {
+           "controller": null,
+           "properties": [],
+           "type": "Typed",
+           "type_filters": [
+            "Artifact"
+           ]
+          },
+          {
+           "controller": null,
+           "properties": [],
+           "type": "Typed",
+           "type_filters": [
+            "Enchantment"
+           ]
+          }
+         ],
+         "type": "Or"
+        },
+        "type": "Destroy"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "amount": {
+          "type": "Fixed",
+          "value": 4
+         },
+         "player": {
+          "type": "ParentTargetController"
+         },
+         "type": "GainLife"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "sub_link": "SequentialSibling",
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Instant"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Green"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pauper": "legal",
+      "paupercommander": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 0,
+      "shards": [
+       "Green"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "07b3c23e-92c4-4376-8108-f2cd15cf3e47",
+       "0faca514-b7f3-4d34-a259-d03bad50611b",
+       "2144f53e-5f3b-4ee4-8b2a-b7cb22fa14ca",
+       "382bfdec-ba99-4bf4-8461-34eee979f9dc",
+       "51027197-55da-45a3-901b-5ccb204095e9",
+       "64ae5a91-ac54-4222-832e-d7a740a3f7cb",
+       "666a8ac9-d21d-4f3e-84a4-117fbeabbe8b",
+       "d24b6640-ef2f-4c92-beb3-afdf78f9c2d5"
+      ]
+     },
+     "name": "Nature's Claim",
+     "non_ability_text": null,
+     "oracle_text": "Destroy target artifact or enchantment. Its controller gains 4 life.",
+     "power": null,
+     "printings": [
+      "CNS",
+      "EMA",
+      "FCA",
+      "IMA",
+      "MB2",
+      "PLST",
+      "SLD",
+      "SLZ",
+      "TSR",
+      "WWK"
+     ],
+     "rarities": [
+      "common",
+      "rare",
+      "special"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2021-03-19",
+       "text": "If the target artifact or enchantment is an illegal target by the time Nature's Claim tries to resolve, the spell doesn't resolve. No player gains 4 life. If the target is legal but not destroyed (most likely because it has indestructible), its controller does gain 4 life."
+      }
+     ],
+     "scryfall_oracle_id": "6d4e558e-9109-4918-a082-fdcbaffd516b",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 1.0,
+    "color_identity": [
+     "G"
+    ],
+    "colors": [
+     "G"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "legal",
+     "paupercommander": "legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{G}",
+    "name": "Nature's Claim",
+    "oracle_id": "6d4e558e-9109-4918-a082-fdcbaffd516b",
+    "oracle_text": "Destroy target artifact or enchantment. Its controller gains 4 life.",
+    "type_line": "Instant"
    }
   },
   "Nature's Lore": {

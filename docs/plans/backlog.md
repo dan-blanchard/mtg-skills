@@ -1690,6 +1690,41 @@ proposal as a deckbuilder, fix the structure, the guide score is a yardstick)**
   Weaving (symmetric for symmetric); Immoral Bargain for Feed the Swarm
   (Dina's sacrifice event is broad, and holding broad event needs was
   measured and reverted in batch 15c). `verify_symptoms.py`: 149.
+- **Batch 16y (2026-11-02; the 25 728 / 340 / 113 → 728 / 339 / 113, held-out
+  561 / 264 / 103 → 559 / 264 / 103, fresh unchanged at 294 / 126 / 51).** The
+  seventh full 55-deck re-read (five Sonnet reviewers; 19 flags, eight
+  structural), each fix read back on all 55 decks. Fixed: (156) *a short
+  row keeps a rider job's page* (`issues`: a plan card whose job is a
+  trigger rider goes to its job page when that row is short — Synapse
+  Sliver's draw no longer goes to Roaming Throne with Sliver Swarm two
+  draws short); (157) *a delirium deck reads its graveyard's card types at
+  four* (`board_wipe._delirium_deck`, six cards counting
+  `DistinctCardTypes`): Death Toll's Deluge of Doom is a -4/-4, no longer
+  traded for Phyresis Outbreak's -1/-1, and a small sweep's spared
+  toughness follows its deck-read size; (158) *own combat damage drains on
+  your turn* (`commander_need._drains_only_on_own_combat`, CR 510.1b /
+  506.2): Rankle feeds no Valgavoth and no longer takes Spiteful Visions'
+  slot; (159) *an add the commander already grants is dead*
+  (`swaps._commander_already_grants`): Rolling Stones and Animate Wall
+  under Felothar; (160) *life a target's controller gains is not yours*
+  (`core_makers`, `ParentTargetController` beside `ParentTargetOwner`):
+  Nature's Claim no longer supplies Dina's lifegain need; (161) *a sweep
+  that keeps your own pick keeps the commander* (`board_wipe.keeps_own_pick`):
+  Promise of Loyalty no longer goes to Damn under Killian. Verdicts, with
+  the card text or counts: Behind the Scenes for Woolly Razorback (theme
+  for theme); Find // Finality for One Ring to Rule Them All (both kill most
+  of Graveyard Overdrive: Finality spares about 11 of 32, the Ring 7);
+  Nightshade Harvester for Agent of the Iron Throne (your creatures die on
+  their turns too); Starfield of Nyx for Sanguine Bond (the same proposal
+  adds three lifegain cards, back to eight); Ferrafor as a protection-fill
+  cut (as Kulrath Knight); the Curses under Killian (an enchantment
+  entering goads); Traxos under Eshki (a 7-power creature spell); Idol of
+  Oblivion in Party Time (Jadar's end-step Zombie); Skullclamp in Tyranid
+  Swarm (its token makers); Magus of the Wheel for Increasing Devotion and
+  Pest Infestation for Withering Torment (Dina's sacrifice event is broad,
+  as batch 16x). Village Rites's batch-15 keep becomes a `no_pair` against
+  Esper Sentinel: it now goes to Invasion of New Capenna, an outlet too
+  ("you may sacrifice an artifact or creature"). `verify_symptoms.py`: 155.
 
 **From the Jace, Multiverse Architect precon tune and the 25-precon audit (2026-10-17 to 2026-11-01)**
 

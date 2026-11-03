@@ -56,8 +56,11 @@ from mtg_utils._card_ir.crosswalk.reads import (
     filter_predicates,
     filter_subtypes,
     iter_cost_leaves,
+    iter_static_defs,
     iter_typed_nodes,
     list_field,
+    static_affected,
+    static_mode_tag,
     tag_of,
     trigger_def_event,
     trigger_scope,
@@ -595,7 +598,7 @@ def _lateral_at_the_job(candidate: dict, cut: Mapping, job: str) -> bool:
     any-color mana is more colors than a Signet's two, so it stays an
     upgrade; a read that differs at all is play-rate's to order."""
     read = read_for(job)
-    if read is None or not has_trees(candidate) or not has_trees(cut):
+    if read is None or not has_trees(candidate) or not has_trees(dict(cut)):
         return False
     sc, su = read.score(candidate), read.score(dict(cut))
     if sc is None or su is None or abs(sc - su) > 1e-9:
@@ -959,6 +962,57 @@ def _chosen_type_on_battlefield(card: Mapping) -> bool:
                 ):
                     return True
     return not found
+
+
+def _commander_already_grants(card: Mapping, commanders: Sequence[Mapping]) -> bool:
+    """Whether every ability ``card`` has is a static the commander already
+    applies to every creature you control: Rolling Stones's "Wall creatures can
+    attack as though they didn't have defender" under Felothar the Steadfast,
+    whose "Creatures you control can attack as though they didn't have
+    defender" leaves it nothing to do (Abzan Armor, 2026-11-02). A
+    ``Continuous`` static is a set of modifications, never compared whole."""
+
+    if not commanders:
+        return False
+    units = [unit for tree in trees_for(dict(card)) for unit in tree.units]
+    own = statics_of(card)
+    if not own or any(unit.origin != "static" for unit in units):
+        return False
+    granted = set()
+    for commander in commanders:
+        for mode, d, unit in statics_of(commander):
+            affected = static_affected(d, unit)
+            if (
+                "Creature" in filter_core_types(affected)
+                and not filter_subtypes(affected)
+                and filter_controller(affected, unit) == "You"
+            ):
+                granted.add(mode)
+    return all(
+        mode != "Continuous"
+        and mode in granted
+        and _affects_creatures(static_affected(d, unit))
+        for mode, d, unit in own
+    )
+
+
+def _affects_creatures(affected: object) -> bool:
+    """Whether a static's affected filter is creatures: by core type, or by a
+    creature subtype alone (Animate Wall's "Enchanted Wall")."""
+    if "Creature" in filter_core_types(affected):
+        return True
+    subtypes = {s.lower() for s in filter_subtypes(affected)}
+    return bool(subtypes) and subtypes <= CREATURE_TYPES
+
+
+def statics_of(rec: Mapping) -> list[tuple[str, object, AbilityUnit]]:
+    """Every static def on ``rec``'s trees, with its mode and unit."""
+    return [
+        (static_mode_tag(d) or "", d, unit)
+        for tree in trees_for(dict(rec))
+        for unit in tree.units
+        for d in iter_static_defs(unit.node)
+    ]
 
 
 def dead_payoff(
@@ -2464,7 +2518,9 @@ def propose_swaps(
         key = card.get("oracle_id") or card.get("name", "")
         verdict = dead_memo.get(key)
         if verdict is None:
-            verdict = dead_payoff(card, deck_keys, deck_tribe_counts, deck_type_counts)
+            verdict = dead_payoff(
+                card, deck_keys, deck_tribe_counts, deck_type_counts
+            ) or _commander_already_grants(card, ctx.commanders)
             dead_memo[key] = verdict
         return verdict
 

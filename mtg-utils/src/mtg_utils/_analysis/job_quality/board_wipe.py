@@ -321,6 +321,10 @@ class _Sweep:
     # It spares more than "other" creatures (its own tokens, its source): a
     # type left out, a choice kept, an attachment, a pile.
     spares_kept: bool = False
+    # Each player keeps creatures of their own choosing and sacrifices the
+    # rest (``ChooseAndSacrificeRest``: Promise of Loyalty, Cataclysm): the
+    # caster keeps whichever they like, the commander among them.
+    keeps_own_pick: bool = False
     # The attachment whose creatures it spares ("creatures that aren't
     # enchanted" — Winds of Rath: ``Aura``), read against the deck.
     spares_attached: str | None = None
@@ -468,6 +472,8 @@ def _deck_amount(c: ConceptNode, unit: AbilityUnit) -> object | None:
         return None
     qty = _amount_qty(c.node, field)
     if tag_of(qty) in _FILLED and quantity_scope(qty) == "you" and _built_around(qty):
+        return qty
+    if tag_of(qty) == "DistinctCardTypes" and quantity_scope(qty) == "you":
         return qty
     return (
         qty
@@ -842,6 +848,7 @@ def _tree_sweeps(tree: ConceptTree, *, walker: bool) -> list[_Sweep]:
                     or any(tag_of(n) == "Not" for n in iter_typed_nodes(filt))
                     or tag == "ChooseAndSacrificeRest"
                     or choice in ("spares", "pile"),
+                    keeps_own_pick=tag == "ChooseAndSacrificeRest",
                 )
             )
     return out
@@ -1026,10 +1033,15 @@ def keeps_commander(card: dict, record: Mapping) -> bool:
     """Whether a sweep of ``card``'s lets its caster keep ``record``: a
     chosen set it may hold (The Day of the Doctor's Doctors, the Tenth
     Doctor among them), or a type it leaves out (Extinguish All Hope and an
-    enchantment commander)."""
+    enchantment commander), or a creature of the caster's own choosing
+    (Promise of Loyalty's vow counter: it went to Damn under Killian,
+    Decisive Mentor, Silverquill Influence, 2026-11-02) unless a power line
+    decides which it may keep (Slaughter the Strong)."""
     facts = object_facts(dict(record), zone="battlefield")
     for s in _sweeps(card):
         if s.keeps_chosen is not None and filter_admits(s.keeps_chosen, facts):
+            return True
+        if s.keeps_own_pick and s.spared_power is None:
             return True
         if s.type_spared is not None and filter_admits(s.type_spared, facts) is False:
             return True
@@ -1093,7 +1105,7 @@ def toughness_spares(card: dict, deck: Sequence[dict]) -> bool:
     sweeps = _sweeps(card)
     if not sweeps or not deck:
         return False
-    best = _best(sweeps)
+    best = _best(_in_deck(sweeps, deck))
     return (
         best.spared_power is not None
         and best.spared_power[0] == "tough_above"
@@ -1451,17 +1463,66 @@ def _deck_magnitude(s: _Sweep, deck: Sequence[dict]) -> float | None:
         # (CR 107.1b) — Ichor Explosion sacrificing a -2/4 gives -0/-0.
         biggest = max(values, default=s.mag)
         return None if biggest is None else max(biggest, 0)
+    if tag_of(s.amount) == "DistinctCardTypes":
+        return float(_DELIRIUM if _delirium_deck(deck) else _NARROW_COUNT)
     filt = getattr(s.amount, "filter", None)
     held = sum(filter_admits(filt, facts) is True for _rec, facts in board)
     return round(_BOARD_CREATURES * held / len(board), 3) if board else 0.0
 
 
+#: The card types a delirium deck's graveyard reaches: "four or more card types
+#: among cards in your graveyard", the threshold its cards share (an ability
+#: word has no rules text of its own, CR 207.2c).
+_DELIRIUM = 4
+#: The cards counting your graveyard's card types a deck holds before it is
+#: built to fill them — the read's own call: Death Toll holds nine (Winter,
+#: Grim Flayer, Ishkanah...), Graveyard Overdrive's four goyfs read narrow.
+_DELIRIUM_CARDS = 6
+
+
+def _delirium_deck(deck: Sequence[dict]) -> bool:
+    """Whether ``deck`` is built to fill its graveyard with card types: it holds
+    ``_DELIRIUM_CARDS`` cards whose trees count them (``DistinctCardTypes``).
+    Deluge of Doom's -X/-X is then a -4/-4, not the deck-free read's narrow 2 —
+    read at 2, Death Toll's Deluge went to Phyresis Outbreak, whose first cast
+    is -1/-1 (2026-11-02)."""
+    key = id(deck)
+    hit = _DELIRIUM_DECKS.get(key)
+    if hit is not None and hit[0] is deck:
+        return hit[1]
+    count = 0
+    for rec in deck:
+        if any(
+            tag_of(n) == "DistinctCardTypes"
+            for t in signal_trees_for(rec, bulk=rec) or ()
+            for u in t.units
+            for n in iter_typed_nodes(u.node)
+        ):
+            count += 1
+    out = count >= _DELIRIUM_CARDS
+    while len(_DELIRIUM_DECKS) >= _BOARDS_MAX:
+        del _DELIRIUM_DECKS[next(iter(_DELIRIUM_DECKS))]
+    _DELIRIUM_DECKS[key] = (deck, out)
+    return out
+
+
+_DELIRIUM_DECKS: dict[int, tuple[Sequence[dict], bool]] = {}
+
+
 def _in_deck(sweeps: Sequence[_Sweep], deck: Sequence[dict]) -> list[_Sweep]:
-    """``sweeps`` with each amount its deck decides read off ``deck``."""
-    return [
-        replace(s, mag=_deck_magnitude(s, deck)) if s.amount is not None else s
-        for s in sweeps
-    ]
+    """``sweeps`` with each amount its deck decides read off ``deck``; a small
+    sweep's spared toughness (``tough_above``) follows its new size."""
+    out = []
+    for s in sweeps:
+        if s.amount is None:
+            out.append(s)
+            continue
+        mag = _deck_magnitude(s, deck)
+        spared = s.spared_power
+        if spared is not None and spared[0] == "tough_above":
+            spared = _spared_toughness(s.mode, mag if mag is None else int(mag))
+        out.append(replace(s, mag=mag, spared_power=spared))
+    return out
 
 
 #: oracle_id -> whether a sweep amount of the card's is its deck's to decide.

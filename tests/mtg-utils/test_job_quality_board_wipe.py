@@ -568,3 +568,24 @@ def test_a_small_sweep_spares_a_tough_deck_and_repeats_its_mode():
     assert not board_wipe.toughness_spares(confluence, bears)
     # A gate read only: the sweep's own score takes no one-sided weight.
     assert board_wipe.features(confluence, tough)["one_sided"] == 0.0
+
+
+def test_a_delirium_deck_reads_deluge_of_doom_at_four():
+    """Deluge of Doom's -X/-X counts "card types among cards in your
+    graveyard": a deck of cards counting them fills four (Death Toll's
+    Deluge went to Phyresis Outbreak read at 2, 2026-11-02); a deck of
+    bears reads the narrow 2."""
+    deluge = test_card("Deluge of Doom")
+    delirium = [test_card("Grim Flayer")] * 6 + [test_card("Grizzly Bears")] * 4
+    bears = [test_card("Grizzly Bears")] * 10
+    assert board_wipe.features(deluge, delirium)["lethal"] == 1.0
+    assert board_wipe.features(deluge, bears)["lethal"] < 1.0
+
+
+def test_a_sweep_that_keeps_your_pick_keeps_the_commander():
+    """Promise of Loyalty has each player keep "a creature they control" and
+    sacrifice the rest: the caster keeps Killian, Decisive Mentor (it went
+    to Damn, Silverquill Influence, 2026-11-02); Damn keeps nothing."""
+    killian = test_card("Killian, Decisive Mentor")
+    assert board_wipe.keeps_commander(test_card("Promise of Loyalty"), killian)
+    assert not board_wipe.keeps_commander(test_card("Damn"), killian)
