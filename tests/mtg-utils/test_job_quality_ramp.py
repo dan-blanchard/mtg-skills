@@ -129,3 +129,10 @@ def test_lands_on_a_later_sacrifice_are_not_early_ramp():
     assert ramp.features(_real("Ordeal of Nylea"))["early"] == 0.0
     assert ramp.features(_real("Rampant Growth"))["early"] == 1.0
     assert _score("Ordeal of Nylea") < _score("Careful Cultivation")
+
+
+def test_a_land_sacrificed_by_the_effect_counts_as_one_paid():
+    """Harrow sacrifices a land as its cost, Cycle of Renewal as its effect:
+    both net one land, and Cycle's enter tapped (World Shaper, 2026-11-02)."""
+    assert ramp.features(_real("Cycle of Renewal"))["per_turn"] == 1.0
+    assert _score("Cycle of Renewal") < _score("Harrow")

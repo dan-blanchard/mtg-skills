@@ -3852,13 +3852,15 @@ def test_a_payoff_for_what_the_deck_does_not_do_is_dead_there():
         test_card("Sram, Senior Edificer"), no_tribe, Counter({"aura": 6})
     )
     # A commander that makes permanents every creature type fields every
-    # tribe: Coat of Arms and Dragon Tempest are alive under Omo, Queen of
-    # Vesuva, dead under Bello.
+    # tribe on the battlefield: Coat of Arms is alive under Omo, Queen of
+    # Vesuva, dead under Bello. Dragon Tempest's triggers wait on a Dragon
+    # or flyer entering, and Omo's everything counters are on creatures
+    # already out: dead under both (2026-11-02).
     from mtg_utils._tuner.swaps import deck_profile
 
     for commander, alive in (
-        ("Omo, Queen of Vesuva", True),
-        ("Bello, Bard of the Brambles", False),
+        ("Omo, Queen of Vesuva", {"Coat of Arms"}),
+        ("Bello, Bard of the Brambles", set()),
     ):
         keys, tribes, types = deck_profile(
             [
@@ -3867,10 +3869,8 @@ def test_a_payoff_for_what_the_deck_does_not_do_is_dead_there():
             ]
         )
         for name in ("Coat of Arms", "Dragon Tempest"):
-            assert dead_payoff(test_card(name), keys, tribes, types) is not alive, (
-                commander,
-                name,
-            )
+            dead = dead_payoff(test_card(name), keys, tribes, types)
+            assert dead is (name not in alive), (commander, name)
 
 
 def test_a_kinship_trigger_is_gated_on_the_cards_own_types():
@@ -4319,3 +4319,20 @@ def test_a_card_milling_only_opponents_fills_no_graveyard_of_yours():
     assert _mills_only_opponents(test_card("Mindcrank"))
     assert _mills_only_opponents(test_card("Altar of the Brood"))
     assert not _mills_only_opponents(test_card("Perpetual Timepiece"))
+
+
+def test_an_entering_tribe_trigger_counts_printed_types_under_omo():
+    """Dragon Tempest deals damage "whenever a Dragon you control enters":
+    Omo's everything counters are on creatures already out, so under Omo the
+    trigger waits on the deck's printed Dragons — Elvish Warmaster's Elves
+    went to Tricky Terrain so (2026-11-02)."""
+    from collections import Counter
+
+    from mtg_utils._tuner.swaps import _Tribes, _unit_gates
+
+    gated = _unit_gates(test_card("Dragon Tempest"))
+    gate = next(g for g in gated.gates if g.entering and "dragon" in g.words)
+    tribes = _Tribes({"dragon": 20})
+    tribes.printed = Counter({"dragon": 2})
+    assert not gated.fed(gate, tribes, Counter(), Counter())
+    assert gated.fed(gate, Counter({"dragon": 20}), Counter(), Counter())

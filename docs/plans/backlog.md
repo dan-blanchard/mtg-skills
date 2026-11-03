@@ -1772,6 +1772,28 @@ proposal as a deckbuilder, fix the structure, the guide score is a yardstick)**
   Dawn under Nalia (a 3/3 whose full-party counters push the small
   creatures to 3 power); Hofri for Daretti, Scrap Savant (its -2 returns a
   card from the graveyard for Quintorius). `verify_symptoms.py`: 162.
+- **Batch 17b (2026-11-02; the 25 unchanged at 725 / 337 / 114, held-out
+  557 / 264 / 105 → 557 / 264 / 103, fresh unchanged at 294 / 126 / 49).**
+  The tenth full 55-deck re-read (five Sonnet reviewers; 13 flags, two
+  structural). Fixed: (169) *a land a spell sacrifices as its effect is a
+  land paid* (`ramp._lands`, costs and effects alike): Cycle of Renewal's
+  "Sacrifice a land. Search ... tapped" netted a land more than Harrow's
+  additional cost and replaced it — Harrow now goes to Edge of Autumn
+  (World Shaper); (170) *an entering creature has only its printed types*
+  (`swaps._Gate.entering`): under Omo, whose everything counters are on
+  creatures already out, a trigger on a tribe entering waits on the deck's
+  printed members — Dragon Tempest is dead under Omo (an old test said
+  alive; Omo's text says otherwise), Elvish Warmaster keeps its slot on its
+  Elf pump, which the countered creatures do get. The held-out's two lost
+  guide adds are World Shaper's Sakura-Tribe Elder and Elvish Reclaimer,
+  their slots reordered by Cycle of Renewal's lower read (theme-page order,
+  not a gate). Verdicts: Camellia, the Seedmiser (a Squirrel lord);
+  Lathliss, Dragon Queen as a closer (a 6/6 flier pumping itself);
+  Inspiring Statuary for Mirrorworks (17 nontoken artifacts); Voracious
+  Bibliophile for Kraum (each opponent's second spell); Eight-and-a-Half-
+  Tails for Duty Beyond Death (protection for protection); Advanced
+  Reconstruction for Soul Separator and Hammer of Purphoros for Entish
+  Restoration (theme for theme, the same need). `verify_symptoms.py`: 163.
 
 **From the Jace, Multiverse Architect precon tune and the 25-precon audit (2026-10-17 to 2026-11-01)**
 

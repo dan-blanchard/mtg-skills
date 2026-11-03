@@ -1163,6 +1163,9 @@ class _Gate:
 
     words: frozenset[str]
     static: bool
+    # A trigger on a creature entering (``enters``): what enters is a card's
+    # printed types, no type a grant on the battlefield gives (Omo).
+    entering: bool = False
 
 
 @dataclass(frozen=True)
@@ -1243,12 +1246,19 @@ class _UnitGates:
                 if sum(keys.get(k, 0) for k in _COUNTER_GATE_FEEDERS) >= _FEEDER_FLOOR:
                     return True
             elif word in _CREATURE_SUBTYPE_WORDS:
+                # A creature entering has only its printed types: Omo's
+                # everything counters are on creatures already out, so Elvish
+                # Warmaster's "other Elves you control enter" waits on the
+                # deck's printed Elves (Tricky Terrain, 2026-11-02).
+                tribes = deck_tribes
+                if gate.entering and (printed := getattr(tribes, "printed", None)):
+                    tribes = printed
                 # Its own tokens feed a trigger's creature-type gate only when
                 # they are of the type (``token_words``, above) or of a kind the
                 # read can't name: Invisible Woman's Walls feed no "other Heroes"
                 # in a deck with none (Abzan Armor, 2026-11-02).
                 unnamed_tokens = self.makes_tokens and not self.token_words
-                if (not gate.static and unnamed_tokens) or deck_tribes.get(
+                if (not gate.static and unnamed_tokens) or tribes.get(
                     word, 0
                 ) >= _FEEDER_FLOOR:
                     return True
@@ -1473,7 +1483,14 @@ def _unit_gates(card: Mapping) -> _UnitGates:
             if not words and unit.origin == "trigger":
                 words = _trigger_effect_gate_words(unit)
             if words:
-                gates.append(_Gate(words, static=unit.origin == "static"))
+                gates.append(
+                    _Gate(
+                        words,
+                        static=unit.origin == "static",
+                        entering=unit.origin == "trigger"
+                        and unit.trigger_event == "enters",
+                    )
+                )
             elif unit.origin == "trigger" and (kin := _kinship_words(unit, tree)):
                 # Kinship pays off only when the revealed card shares a type
                 # with this one: its gate is its own creature types, fed by the

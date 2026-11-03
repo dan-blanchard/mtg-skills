@@ -261,6 +261,8 @@ CHECKS = [
     # The ninth full re-read (batch 17a).
     _check("never", "NecronDynasties_40K", "Mindcrank", "Altar of the Brood", batch="17a"),
     _check("no_pair", "MostWanted_OTC", "Tenured Inkcaster -> Hangarback Walker", batch="17a"),
+    # The tenth full re-read (batch 17b).
+    _check("no_pair", "WorldShaper_EOC", "Harrow -> Cycle of Renewal", batch="17b"),
     _check("no_pair", "DeadlyDisguise_MKC", "Ohran Frostfang -> Kutzil, Malamet Exemplar", batch="16z"),
     _check("no_trim", "EldraziIncursion_M3C", "Forsaken Monument", batch="14"),
     _check("no_trim", "TrickyTerrain_M3C", "Mana Reflection", batch="14"),

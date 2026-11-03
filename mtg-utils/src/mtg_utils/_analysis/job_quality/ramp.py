@@ -343,8 +343,15 @@ def _lands(r: _Read, tree: ConceptTree, unit: AbilityUnit, *, sc: bool) -> None:
     a land a turn; once (an enters put, a spell) a quarter."""
     one = one_unit(tree, unit)
     if unit.origin == "ability" and unit.kind == "Spell":
+        # A land the spell sacrifices, as its cost (Harrow's "As an additional
+        # cost ... sacrifice a land") or as its effect (Cycle of Renewal's
+        # "Sacrifice a land. Search ..."): read only off the cost, Cycle netted
+        # a land more than Harrow and replaced it, its lands tapped (World
+        # Shaper, 2026-11-02).
         sacrificed = [
-            c for c in unit.costs if c.concept == "sacrifice" and "Land" in c.subject
+            c
+            for c in (*unit.costs, *unit.effects)
+            if c.concept == "sacrifice" and "Land" in c.subject
         ]
         r.land_sac = max(r.land_sac, len(sacrificed))
     if any(tag_of(c.node) == "SearchLibrary" for c in unit.effects):
