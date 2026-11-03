@@ -325,6 +325,10 @@ class _Sweep:
     # rest (``ChooseAndSacrificeRest``: Promise of Loyalty, Cataclysm): the
     # caster keeps whichever they like, the commander among them.
     keeps_own_pick: bool = False
+    # Swept only when the card was kicked ("if it was kicked":
+    # ``AdditionalCostPaid`` from ``Kicker``): the kicker's mana is the
+    # sweep's too (Slinn Voda's {1}{U} on top of its eight).
+    kicked: bool = False
     # The attachment whose creatures it spares ("creatures that aren't
     # enchanted" — Winds of Rath: ``Aura``), read against the deck.
     spares_attached: str | None = None
@@ -822,6 +826,8 @@ def _tree_sweeps(tree: ConceptTree, *, walker: bool) -> list[_Sweep]:
                     mag=mag,
                     kind=_unit_kind(u, walker=walker),
                     gated=id(c.node) in gated or tag_of(cond) is not None or unparsed,
+                    kicked=tag_of(cond) == "AdditionalCostPaid"
+                    and getattr(cond, "source", None) == "Kicker",
                     delayed=id(c.node) in delayed,
                     x_floor=_x_floor(u),
                     x_bound=x_bound,
@@ -1266,6 +1272,20 @@ def _cost_leaves(cost: object) -> list[dict]:
     return [cost]
 
 
+def _kicker_mana(card: dict) -> int:
+    """The mana in the card's kicker cost, off phase's face record (its
+    ``Kicker`` keyword's ``generic`` and ``shards``)."""
+    for face in phase_records_for(card.get("oracle_id") or ""):
+        for kw in face.get("keywords") or ():
+            kicker = kw.get("Kicker") if isinstance(kw, dict) else None
+            if isinstance(kicker, dict):
+                generic = kicker.get("generic")
+                return (generic if isinstance(generic, int) else 0) + len(
+                    kicker.get("shards") or ()
+                )
+    return 0
+
+
 def _cost(card: dict, best: _Sweep, *, x: bool) -> float:
     """The mana the sweep costs as cast: the card's cast cost
     (``_common.cast_cost``; a card with no mana cost keeps that fixed cost); a
@@ -1301,6 +1321,8 @@ def _cost(card: dict, best: _Sweep, *, x: bool) -> float:
         # weren't tapped (its ruling): the next turn's mana, read as the
         # sweep's own cost again — the read's own call.
         cost *= 2
+    if best.kicked:
+        cost += _kicker_mana(card)
     if best.kind == "activated" and best.act_mana is not None:
         # Activating an ability pays its costs (CR 602.2; the activation cost is
         # everything before the colon, 602.1a), a creature's too: Jaya Ballard,
@@ -1385,7 +1407,22 @@ def features(card: dict, deck: Sequence[dict] | None = None) -> dict[str, float]
         "one_sided": float(
             best.ctrl in ("Opponent", "TargetPlayer") or kept or best.replaces_yours
         ),
-        "spares": float(best.spares or bool(best.preds & _SPARES)),
+        # A fixed list of types left out spares the deck only as far as it
+        # holds them: Slinn Voda's Merfolk, Krakens, Leviathans, Octopuses
+        # and Serpents spare nothing of Quandrix Unlimited's Fractals, and
+        # read as sparing it took Oversimplify's slot (2026-11-02).
+        # So does a class a deck fills only by playing it: Wave Goodbye's
+        # creatures "without a +1/+1 counter" spare Revenant Recon's board,
+        # three counter cards in thirty creatures, of nothing (2026-11-02).
+        "spares": float(
+            (best.spares or bool(best.preds & _SPARES))
+            and not (
+                deck is not None
+                and best.type_spared is not None
+                and not _deck_spared_by_type(deck, best.type_spared)
+            )
+            and (deck is None or _deck_fills_spared(deck, best.preds))
+        ),
         "narrow": float(bool(best.preds & _NARROW)),
         "flexible": float(best.modal or best.overload or x or best.x_bound),
         "cost": min(max(cost, 1.0), 9.0),
@@ -1438,6 +1475,51 @@ def _size(rec: dict, facts: ObjectFacts, size: str) -> int | None:
         return facts.mana_value
     face = rec if size in rec else (rec.get("card_faces") or [{}])[0]
     return fixed_stat(face.get(size))
+
+
+#: The share of a deck's nonland cards making what a sweep spares (+1/+1
+#: counters, tokens) before the class it leaves standing is the deck's — the
+#: read's own call: a card in eight.
+_SPARED_MAKERS_SHARE = 1 / 8
+#: The pred a sweep spares by, and the signal keys whose cards fill it.
+_SPARED_MAKER_KEYS = {
+    "Counters": frozenset({"plus_one_makers"}),
+    "NonToken": frozenset({"token_maker", "mass_token_makers"}),
+}
+
+
+def _deck_fills_spared(deck: Sequence[dict], preds: frozenset[str]) -> bool:
+    """Whether ``deck`` holds what a sweep's sparing preds leave standing: a
+    card in ``_SPARED_MAKERS_SHARE`` making +1/+1 counters (``Counters``) or
+    tokens (``NonToken``), historic creatures at ``_DECK_SPARED_SHARE``
+    (``NotHistoric``). Any other pred is the deck-free read's."""
+    from mtg_utils.theme_presets import signal_keys_for
+
+    nonland = [
+        r for r in deck if "land" not in split_type_line(r.get("type_line") or "")[0]
+    ]
+    if not nonland:
+        return True
+    for pred, keys in _SPARED_MAKER_KEYS.items():
+        if pred in preds:
+            makers = sum(1 for r in nonland if signal_keys_for(r) & keys)
+            if makers / len(nonland) < _SPARED_MAKERS_SHARE:
+                return False
+    if "NotHistoric" in preds:
+        creatures = [
+            r
+            for r in nonland
+            if "creature" in split_type_line(r.get("type_line") or "")[0]
+        ]
+        historic = sum(
+            1
+            for r in creatures
+            if {"legendary", "artifact"}
+            & set(split_type_line(r.get("type_line") or "")[0])
+        )
+        if creatures and historic / len(creatures) < _DECK_SPARED_SHARE:
+            return False
+    return True
 
 
 def _deck_magnitude(s: _Sweep, deck: Sequence[dict]) -> float | None:

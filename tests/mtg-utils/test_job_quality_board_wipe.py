@@ -398,7 +398,9 @@ def test_a_count_of_a_type_the_deck_holds_reads_what_it_has_out():
     vampires = board_wipe.features(wrath, _deck(*["Sengir Vampire"] * 36))
     assert vampires["lethal"] == pytest.approx(0.72)
     assert vampires["small"] == pytest.approx(0.28)
-    assert job_score(wrath, "board_wipe", _deck()) == job_score(wrath, "board_wipe")
+    # A deck of none has no Vampires out and none the sweep spares: no more
+    # than the deck-free read (2026-11-02, the deck-read spares).
+    assert job_score(wrath, "board_wipe", _deck()) <= job_score(wrath, "board_wipe")
     lethal = [
         board_wipe.features(gates, _deck(*["Gateway Plaza"] * n))["lethal"]
         for n in (0, 3, 7, 8, 15, 50)
@@ -589,3 +591,14 @@ def test_a_sweep_that_keeps_your_pick_keeps_the_commander():
     killian = test_card("Killian, Decisive Mentor")
     assert board_wipe.keeps_commander(test_card("Promise of Loyalty"), killian)
     assert not board_wipe.keeps_commander(test_card("Damn"), killian)
+
+
+def test_a_kicked_sweep_costs_its_kicker_and_spares_only_the_deck_s_types():
+    """Slinn Voda sweeps "if it was kicked": its {1}{U} kicker is on top of
+    its eight; and the Merfolk, Krakens, Leviathans, Octopuses and Serpents
+    it leaves spare a deck of bears nothing (2026-11-02)."""
+    slinn = test_card("Slinn Voda, the Rising Deep")
+    bears = [test_card("Grizzly Bears")] * 10
+    assert board_wipe.features(slinn)["cost"] == 9.0
+    assert board_wipe.features(slinn)["spares"] == 1.0
+    assert board_wipe.features(slinn, bears)["spares"] == 0.0

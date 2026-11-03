@@ -4336,3 +4336,29 @@ def test_an_entering_tribe_trigger_counts_printed_types_under_omo():
     tribes.printed = Counter({"dragon": 2})
     assert not gated.fed(gate, tribes, Counter(), Counter())
     assert gated.fed(gate, Counter({"dragon": 20}), Counter(), Counter())
+
+
+def test_a_mono_colour_dork_is_no_upgrade_to_a_fixer_in_three_colours():
+    """Ignoble Hierarch taps for {B}, {R} or {G}; Llanowar Elves only {G}:
+    no upgrade under a three-colour commander (Graveyard Overdrive's Disa,
+    2026-11-02), whatever the read's small weight on fixing says."""
+    from mtg_utils._tuner.swaps import _reads_worse_at_the_job
+
+    hierarch, elves = test_card("Ignoble Hierarch"), test_card("Llanowar Elves")
+    jund = [test_card("Disa the Restless")]
+    assert _reads_worse_at_the_job(elves, hierarch, "ramp", None, jund)
+
+
+def test_a_symmetric_bounce_is_no_upgrade_to_a_kill():
+    """Slinn Voda's kicked "return all creatures to their owners' hands" for
+    Oversimplify's "Exile all creatures" (Quandrix Unlimited, 2026-11-02):
+    the creatures come back. Cyclonic Rift's overload bounces only theirs."""
+    from mtg_utils._tuner.swaps import _bounces_for_a_kill
+
+    kill = test_card("Oversimplify")
+    bears = [test_card("Grizzly Bears")] * 10
+    assert _bounces_for_a_kill(test_card("Slinn Voda, the Rising Deep"), kill, bears)
+    assert not _bounces_for_a_kill(test_card("Cyclonic Rift"), kill, bears)
+    # Wave Goodbye spares creatures with +1/+1 counters: none in a deck of
+    # bears (Revenant Recon's three counter cards, 2026-11-02).
+    assert _bounces_for_a_kill(test_card("Wave Goodbye"), kill, bears)

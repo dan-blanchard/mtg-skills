@@ -869318,6 +869318,254 @@
     "type_line": "Legendary Creature — Human Advisor"
    }
   },
+  "Oversimplify": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Exile all creatures. Each player creates a 0/0 green and blue Fractal creature token and puts a number of +1/+1 counters on it equal to the total power of creatures they controlled that were exiled this way.",
+       "duration": null,
+       "effect": {
+        "destination": "Exile",
+        "origin": null,
+        "target": {
+         "controller": null,
+         "properties": [],
+         "type": "Typed",
+         "type_filters": [
+          "Creature"
+         ]
+        },
+        "type": "ChangeZoneAll"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "colors": [
+          "Green",
+          "Blue"
+         ],
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "enters_attacking": false,
+         "keywords": [],
+         "name": "Fractal",
+         "owner": {
+          "type": "Controller"
+         },
+         "power": {
+          "type": "Fixed",
+          "value": 0
+         },
+         "tapped": false,
+         "toughness": {
+          "type": "Fixed",
+          "value": 0
+         },
+         "type": "Token",
+         "types": [
+          "Creature",
+          "Fractal"
+         ]
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "player_scope": {
+         "type": "All"
+        },
+        "sub_ability": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "count": {
+           "qty": {
+            "function": "Sum",
+            "property": "Power",
+            "source": {
+             "filter": {
+              "filters": [
+               {
+                "controller": "ScopedPlayer",
+                "properties": [],
+                "type": "Typed",
+                "type_filters": [
+                 "Creature"
+                ]
+               },
+               {
+                "type": "ExiledBySource"
+               }
+              ],
+              "type": "And"
+             },
+             "type": "Objects"
+            },
+            "type": "PropertyAggregate"
+           },
+           "type": "Ref"
+          },
+          "counter_type": "P1P1",
+          "target": {
+           "type": "LastCreated"
+          },
+          "type": "PutCounter"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "player_scope": {
+          "type": "All"
+         },
+         "sub_ability": null,
+         "target_prompt": null
+        },
+        "sub_link": "SequentialSibling",
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Sorcery"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Green",
+      "Blue"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 3,
+      "shards": [
+       "Green",
+       "Blue"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "related_token_ids": [
+       "ad44b516-28bf-5949-b591-ea9cd4767bcd",
+       "cf9d8cf5-80c9-5720-aa4c-e788ba3e23ed"
+      ],
+      "source_printing_ids": [
+       "0baba16f-086f-4051-9e86-527e45c0f367",
+       "4bfc75ff-3213-495d-9e46-3ba5e8b7b5d3",
+       "56eae179-f850-4661-b3f0-4d10be77ed8a",
+       "db0e1886-fe98-48a3-aa9c-8255c02c0604"
+      ]
+     },
+     "name": "Oversimplify",
+     "non_ability_text": null,
+     "oracle_text": "Exile all creatures. Each player creates a 0/0 green and blue Fractal creature token and puts a number of +1/+1 counters on it equal to the total power of creatures they controlled that were exiled this way.",
+     "power": null,
+     "printings": [
+      "C21",
+      "DSC",
+      "PRM",
+      "SOC"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2021-04-16",
+       "text": "If a commander is exiled this way, its power will be counted along with the other creatures. Once Oversimplify finishes resolving, that commander's owner may move it to the command zone."
+      },
+      {
+       "date": "2021-04-16",
+       "text": "Oversimplify counts the total power of the creatures as they last existed on the battlefield, not the power of those cards in exile."
+      }
+     ],
+     "scryfall_oracle_id": "25e1d5fe-c2d8-4a11-ad54-bf1626f9ab45",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "all_parts": [
+     {
+      "component": "token",
+      "id": "05386ae8-7b94-4820-9e2a-b9da41edd8f0",
+      "name": "Fractal",
+      "oracle_id": "23c6a041-b8ff-449c-8a2c-e3939668c017",
+      "type_line": "Token Creature — Fractal"
+     }
+    ],
+    "arena_available": false,
+    "cmc": 5.0,
+    "color_identity": [
+     "G",
+     "U"
+    ],
+    "colors": [
+     "G",
+     "U"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{3}{G}{U}",
+    "name": "Oversimplify",
+    "oracle_id": "25e1d5fe-c2d8-4a11-ad54-bf1626f9ab45",
+    "oracle_text": "Exile all creatures. Each player creates a 0/0 green and blue Fractal creature token and puts a number of +1/+1 counters on it equal to the total power of creatures they controlled that were exiled this way.",
+    "type_line": "Sorcery"
+   }
+  },
   "Overwrite the Multiverse": {
    "phase_records": [
     {
@@ -1050848,6 +1051096,253 @@
     "oracle_id": "99dba614-40d3-41c1-a3b2-edc8777b010f",
     "oracle_text": "Change the text of target spell or permanent by replacing all instances of one color word with another. (For example, you may change \"target black spell\" to \"target blue spell.\" This effect lasts indefinitely.)",
     "type_line": "Instant"
+   }
+  },
+  "Slinn Voda, the Rising Deep": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "additional_cost": {
+      "data": {
+       "costs": [
+        {
+         "cost": {
+          "generic": 1,
+          "shards": [
+           "Blue"
+          ],
+          "type": "Cost"
+         },
+         "type": "Mana"
+        }
+       ]
+      },
+      "type": "Kicker"
+     },
+     "brawl_commander": true,
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Leviathan"
+      ],
+      "supertypes": [
+       "Legendary"
+      ]
+     },
+     "color_identity": [
+      "Blue"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "is_commander": true,
+     "keywords": [
+      {
+       "Kicker": {
+        "generic": 1,
+        "shards": [
+         "Blue"
+        ],
+        "type": "Cost"
+       }
+      }
+     ],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 6,
+      "shards": [
+       "Blue",
+       "Blue"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "c92b4581-fe4a-498d-af58-c1e453235df8",
+       "cebf2c16-bd9d-4a8f-a1b6-6e0c393178bc"
+      ]
+     },
+     "name": "Slinn Voda, the Rising Deep",
+     "non_ability_text": null,
+     "oracle_text": "Kicker {1}{U} (You may pay an additional {1}{U} as you cast this spell.)\nWhen Slinn Voda enters, if it was kicked, return all creatures to their owners' hands except for Merfolk, Krakens, Leviathans, Octopuses, and Serpents.",
+     "power": {
+      "type": "Fixed",
+      "value": 8
+     },
+     "printings": [
+      "CMR",
+      "DOM",
+      "PDOM"
+     ],
+     "rarities": [
+      "uncommon"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2024-11-08",
+       "text": "If a card or token enters as a copy of a permanent, the new permanent isn't kicked, even if the original was."
+      },
+      {
+       "date": "2024-11-08",
+       "text": "If a spell's kicker cost was paid, the spell is \"kicked.\""
+      },
+      {
+       "date": "2024-11-08",
+       "text": "If you copy a kicked spell on the stack, the copy is also kicked. If the copied spell is a permanent spell, the token the copy of that spell becomes when it enters is also kicked."
+      },
+      {
+       "date": "2024-11-08",
+       "text": "If you put a permanent with a kicker ability onto the battlefield without casting it, you can't kick it."
+      },
+      {
+       "date": "2024-11-08",
+       "text": "The kicker ability doesn't let you pay a kicker cost more than once."
+      },
+      {
+       "date": "2024-11-08",
+       "text": "To determine a spell's total cost, start with the mana cost (or an alternative cost if another card's effect allows you to pay one instead), add any cost increases (such as kicker), then apply any cost reductions. The spell's mana value remains unchanged, no matter what the total cost to cast it was."
+      }
+     ],
+     "scryfall_oracle_id": "753d98d3-d534-42c1-b728-a4f14c7f29ec",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 8
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": {
+        "source": "Kicker",
+        "type": "AdditionalCostPaid"
+       },
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "When ~ enters, if it was kicked, return all creatures to their owners' hands except for Merfolk, Krakens, Leviathans, Octopuses, and Serpents.",
+       "destination": "Battlefield",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "target": {
+          "controller": null,
+          "properties": [],
+          "type": "Typed",
+          "type_filters": [
+           "Creature",
+           {
+            "Non": {
+             "Subtype": "Merfolk"
+            }
+           },
+           {
+            "Non": {
+             "Subtype": "Kraken"
+            }
+           },
+           {
+            "Non": {
+             "Subtype": "Leviathan"
+            }
+           },
+           {
+            "Non": {
+             "Subtype": "Octopus"
+            }
+           },
+           {
+            "Non": {
+             "Subtype": "Serpent"
+            }
+           }
+          ]
+         },
+         "type": "BounceAll"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "ChangesZone",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 8.0,
+    "color_identity": [
+     "U"
+    ],
+    "colors": [
+     "U"
+    ],
+    "keywords": [
+     "Kicker"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{6}{U}{U}",
+    "name": "Slinn Voda, the Rising Deep",
+    "oracle_id": "753d98d3-d534-42c1-b728-a4f14c7f29ec",
+    "oracle_text": "Kicker {1}{U} (You may pay an additional {1}{U} as you cast this spell.)\nWhen Slinn Voda enters, if it was kicked, return all creatures to their owners' hands except for Merfolk, Krakens, Leviathans, Octopuses, and Serpents.",
+    "power": "8",
+    "toughness": "8",
+    "type_line": "Legendary Creature — Leviathan"
    }
   },
   "Slippery Bogle": {
@@ -1273305,6 +1273800,143 @@
     "oracle_id": "3d28886c-46bf-4d2e-a257-cb9016cc3573",
     "oracle_text": "Draw three cards. Then discard a card unless you waterbend {2}. (While paying a waterbend cost, you can tap your artifacts and creatures to help. Each one pays for {1}.)",
     "type_line": "Sorcery — Lesson"
+   }
+  },
+  "Wave Goodbye": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Return each creature without a +1/+1 counter on it to its owner's hand.",
+       "duration": null,
+       "effect": {
+        "target": {
+         "controller": null,
+         "properties": [
+          {
+           "comparator": "EQ",
+           "count": {
+            "type": "Fixed",
+            "value": 0
+           },
+           "counters": {
+            "data": "P1P1",
+            "type": "OfType"
+           },
+           "type": "Counters"
+          }
+         ],
+         "type": "Typed",
+         "type_filters": [
+          "Creature"
+         ]
+        },
+        "type": "BounceAll"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Sorcery"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Blue"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 2,
+      "shards": [
+       "Blue",
+       "Blue"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "1c6fb343-02f0-476f-ac3b-7880b11c447f",
+       "45803e98-5d99-4bd9-adac-37c854649167",
+       "8fb141d9-addd-47ad-bfc1-b5b376d4c950"
+      ]
+     },
+     "name": "Wave Goodbye",
+     "non_ability_text": null,
+     "oracle_text": "Return each creature without a +1/+1 counter on it to its owner's hand.",
+     "power": null,
+     "printings": [
+      "LCC",
+      "TMC"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "06ef46c6-00ba-40e6-b866-d0095ab83749",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 4.0,
+    "color_identity": [
+     "U"
+    ],
+    "colors": [
+     "U"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}{U}{U}",
+    "name": "Wave Goodbye",
+    "oracle_id": "06ef46c6-00ba-40e6-b866-d0095ab83749",
+    "oracle_text": "Return each creature without a +1/+1 counter on it to its owner's hand.",
+    "type_line": "Sorcery"
    }
   },
   "Wave of Rats": {

@@ -115,7 +115,9 @@ CHECKS = [
     _check("never", "MultiverseReforged_FRC", "Waste Not", "Dark Ritual", batch="14"),
     _check("never", "DeadlyDisguise_MKC", "Lotus Petal", batch="14"),
     _check("never", "LoreholdSpirit_SOC", "Simian Spirit Guide", batch="14"),
-    _check("never", "LivingEnergy_DRC", "Talisman of Creativity", batch="14"),
+    # The lateral Talisman (batch 14); Cultivator's Caravan's five mana for
+    # Talisman of Creativity's two is a tempo trade (17c).
+    _check("no_pair", "LivingEnergy_DRC", "Talisman of Curiosity -> Talisman of Creativity", batch="14"),
     _check("never", "ExplorersOfTheDeep_LCC", "Pongify", batch="14"),
     # batch 15 (the closing reviews of the committed tree)
     _check("kept", "QuickDraw_OTC", "Niv-Mizzet, Parun", batch="15"),
@@ -263,6 +265,12 @@ CHECKS = [
     _check("no_pair", "MostWanted_OTC", "Tenured Inkcaster -> Hangarback Walker", batch="17a"),
     # The tenth full re-read (batch 17b).
     _check("no_pair", "WorldShaper_EOC", "Harrow -> Cycle of Renewal", batch="17b"),
+    # The eleventh full re-read (batch 17c).
+    _check("no_pair", "GraveyardOverdrive_M3C", "Ignoble Hierarch -> Llanowar Elves", batch="17c"),
+    _check("no_pair", "CounterIntelligence_EOC", "Solar Array -> Thought Vessel", batch="17c"),
+    _check("no_pair", "QuandrixUnlimited_SOC", "Oversimplify -> Slinn Voda, the Rising Deep", batch="17c"),
+    _check("no_pair", "RevenantRecon_MKC", "Black Sun's Zenith -> Wave Goodbye", batch="17c"),
+    _check("added", "EternalMight_DRC", "Raise the Palisade", batch="17c"),
     _check("no_pair", "DeadlyDisguise_MKC", "Ohran Frostfang -> Kutzil, Malamet Exemplar", batch="16z"),
     _check("no_trim", "EldraziIncursion_M3C", "Forsaken Monument", batch="14"),
     _check("no_trim", "TrickyTerrain_M3C", "Mana Reflection", batch="14"),

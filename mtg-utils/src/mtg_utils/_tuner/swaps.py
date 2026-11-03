@@ -124,6 +124,8 @@ _MV_BANDS: tuple[float, ...] = (3.0, 5.0)
 #: 0.58 (Quick Draw) and above, where every guide that adds it sits, so any floor
 #: in that gap reads the same; 0.5 is its middle, not a tuned value.
 _DECK_FIT_FLOOR = 0.5
+#: The colours a deck's identity holds before fixing is a ramp card's job.
+_FIXING_COLORS = 3
 #: The job a Spine issue fills when it is not its row's role.
 _SPINE_JOBS = {"protection_short": "protection"}
 
@@ -421,7 +423,20 @@ def _reads_worse_at_the_job(
         fc, fu = read.features(candidate) or {}, read.features(cut) or {}
         if fc.get("per_turn", 0) < 0.5 * fu.get("per_turn", 0):
             return True
+        # Nor is a one-colour source an upgrade to one that fixes in a deck of
+        # three colours or more: Ignoble Hierarch's {B}, {R} or {G} went to
+        # Llanowar Elves' {G} in Jund Graveyard Overdrive (2026-11-02) — the
+        # read's fitted weight on fixing is small, the deck's need is not.
+        identity = {c for cmd in commanders for c in cmd.get("color_identity") or ()}
+        if (
+            len(identity) >= _FIXING_COLORS
+            and fu.get("fixes", 0) > 0
+            and fc.get("fixes", 0) < fu.get("fixes", 0)
+        ):
+            return True
     if job == "board_wipe" and _sweeps_fewer_kinds(read, candidate, cut):
+        return True
+    if job == "board_wipe" and _bounces_for_a_kill(candidate, cut, deck):
         return True
     if job == "card_draw":
         from mtg_utils._analysis.job_quality import card_draw
@@ -536,6 +551,32 @@ def _spares_less_of_the_deck(
         board_wipe.keeps_commander(dict(cut), c)
         and board_wipe.kills_commander(candidate, c)
         for c in commanders
+    )
+
+
+def _bounces_for_a_kill(
+    candidate: dict, cut: Mapping, deck: Sequence[dict] | None
+) -> bool:
+    """Whether ``candidate`` returns creatures to hand where ``cut`` destroys
+    or exiles them, and spares the deck's own board no more: they come back
+    next turn. Slinn Voda's kicked "return all creatures to their owners'
+    hands" went in for Oversimplify's "Exile all creatures" (Quandrix
+    Unlimited, 2026-11-02) — the read's fitted weight on bounce is
+    Cyclonic Rift's, a one-sided one."""
+    from mtg_utils._analysis.job_quality import board_wipe
+
+    records = deck or None
+    fc = board_wipe.features(candidate, records)
+    fu = board_wipe.features(dict(cut), records)
+    if not fc or not fu:
+        return False
+    # A bounce leaving a class standing the cut doesn't (Raise the Palisade's
+    # chosen type for Dusk // Dawn under Zombies) spares the deck's board.
+    return (
+        fc.get("bounce", 0) > 0
+        and fu.get("lethal", 0) >= 1
+        and fc.get("one_sided", 0) <= fu.get("one_sided", 0)
+        and fc.get("spares", 0) <= fu.get("spares", 0)
     )
 
 

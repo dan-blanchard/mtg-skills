@@ -875,7 +875,9 @@ def _best_engine(sources: Sequence[_Source]) -> _Source | None:
         for s in sources
         if s.got > 0 and s.kind in _ENGINE_KINDS and _advantage(s) > 0
     ]
-    return max(engines, key=lambda s: _advantage(s) * s.rate, default=None)
+    if not engines:
+        return None
+    return max(engines, key=lambda s: _advantage(s) * s.rate)
 
 
 def _narrowed(s: _Source) -> bool:

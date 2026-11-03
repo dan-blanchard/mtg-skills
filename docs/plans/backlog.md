@@ -1794,6 +1794,29 @@ proposal as a deckbuilder, fix the structure, the guide score is a yardstick)**
   Tails for Duty Beyond Death (protection for protection); Advanced
   Reconstruction for Soul Separator and Hammer of Purphoros for Entish
   Restoration (theme for theme, the same need). `verify_symptoms.py`: 163.
+- **Batch 17c (2026-11-02; the 25 725 / 337 / 114 → 723 / 335 / 114, held-out
+  557 / 264 / 103 → 558 / 264 / 108, fresh 294 / 126 / 49 → 294 / 126 / 48).**
+  The eleventh full 55-deck re-read (five Sonnet reviewers; 9 flags, three
+  structural), and the re-read of the swaps its fixes moved (two more).
+  Fixed: (171) *in a deck of three colours or more a one-colour source is no
+  upgrade to a fixer* (`swaps._FIXING_COLORS`, the ramp read's `fixes`):
+  Ignoble Hierarch for Llanowar Elves (Graveyard Overdrive), Solar Array
+  for Thought Vessel (Counter Intelligence — now Chromatic Lantern); (172)
+  *a kicked sweep costs its kicker* (`board_wipe._kicker_mana`); (173) *what
+  a sweep leaves standing spares the deck only if the deck holds it*
+  (`board_wipe` deck-read `spares`: a fixed type list by the deck's
+  creatures, +1/+1 counters and tokens by a card in eight making them,
+  historic by `_DECK_SPARED_SHARE`): Slinn Voda's Merfolk-and-Krakens for
+  Quandrix's Fractals, Wave Goodbye's countered creatures for Revenant
+  Recon's three counter cards; (174) *a bounce is no upgrade to a kill
+  unless it spares more* (`swaps._bounces_for_a_kill`): Slinn Voda for
+  Oversimplify, Wave Goodbye for Black Sun's Zenith — Cyclonic Rift's
+  one-sided overload and Raise the Palisade's chosen type still pass. The
+  batch-14 `never Talisman of Creativity` check narrows to its lateral pair
+  (Cultivator's Caravan's five mana for the Talisman's two is a tempo
+  trade). Verdicts: Shadowmage Infiltrator for Dead Man's Chest (a
+  different Gonti need); Fell the Mighty for In Garruk's Wake (one-sided
+  for one-sided). `verify_symptoms.py`: 168.
 
 **From the Jace, Multiverse Architect precon tune and the 25-precon audit (2026-10-17 to 2026-11-01)**
 
