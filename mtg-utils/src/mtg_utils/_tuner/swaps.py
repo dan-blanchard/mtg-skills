@@ -38,6 +38,7 @@ from mtg_utils._analysis.costs import effective_mana_value
 from mtg_utils._analysis.job_quality import JobRead, read_for
 from mtg_utils._analysis.ranking import rank_candidates
 from mtg_utils._analysis.roles import DeckMana, protects, role_of
+from mtg_utils._analysis.signal_base import Ident, ident_key
 from mtg_utils._analysis.signal_keys import TOKEN_MAKER
 from mtg_utils._analysis.signal_specs import (
     pages_by_serve,
@@ -95,6 +96,7 @@ from mtg_utils.card_classify import (
     color_sources,
     extract_price,
     is_basic_land,
+    is_creature,
     is_land,
     land_search_fixes,
 )
@@ -933,7 +935,7 @@ def deck_profile(classes: Sequence[CardClass]) -> tuple[Counter, Counter, Counte
     types: Counter = Counter()
     for c in classes:
         for ident in _signal_idents_for(c.record, include_membership=False):
-            keys[ident.split("|", 1)[0]] += 1
+            keys[ident_key(ident)] += 1
         words, subs = split_type_line(c.record.get("type_line") or "")
         lowered = {w.lower() for w in words}
         if "creature" in lowered:
@@ -944,7 +946,7 @@ def deck_profile(classes: Sequence[CardClass]) -> tuple[Counter, Counter, Counte
         }:
             types[word] += 1
         token_kinds = {
-            i.split("|", 2)[2].lower()
+            Ident.parse(i).subject.lower()
             for i in _signal_idents_for(c.record, include_membership=False)
             if i.startswith(f"{TOKEN_MAKER}|")
         } & _CREATURE_SUBTYPE_WORDS
@@ -1122,7 +1124,7 @@ def dead_payoff(
     Equipment a Humans deck holds two of, Death Baron's anthem on Zombies a
     Party deck has none of (2026-11-02)."""
     idents = _signal_idents_for(dict(card), include_membership=False)
-    own_keys = {i.split("|", 1)[0] for i in idents}
+    own_keys = {ident_key(i) for i in idents}
     makes_tokens = any(i.startswith(f"{TOKEN_MAKER}|") for i in idents)
     own_subtypes = {w.lower() for w in split_type_line(card.get("type_line") or "")[1]}
     feeders = payoff_feeders()
@@ -1130,7 +1132,7 @@ def dead_payoff(
     cares: set[str] = set()
     gated = _unit_gates(card)
     for ident in idents:
-        key, scope, subject = ident.split("|", 2)
+        key, scope, subject = Ident.parse(ident)
         chooses_a_type = key == "chosen_type_matters" or (
             key == "subtype_ref" and subject == "shared"
         )
@@ -1435,7 +1437,7 @@ def _unit_gates(card: Mapping) -> _UnitGates:
     idents = _signal_idents_for(dict(card), include_membership=False)
     makes_tokens = False
     for ident in idents:
-        key, _scope, subject = ident.split("|", 2)
+        key, _scope, subject = Ident.parse(ident)
         if key == TOKEN_MAKER:
             makes_tokens = True
             if subject:
@@ -1757,7 +1759,7 @@ def _amplifies_mana(card: CardClass) -> bool:
     cast cost {2} less" went as Eldrazi Unbound's interaction excess
     (2026-11-02) — what it saves is mana, as a doubler's is."""
     return any(
-        i.split("|", 1)[0] in _MANA_DOUBLER_KEYS or i.startswith("cost_reduction|you|")
+        ident_key(i) in _MANA_DOUBLER_KEYS or i.startswith("cost_reduction|you|")
         for i in _signal_idents_for(card.record, include_membership=False)
     )
 
@@ -2639,7 +2641,7 @@ def propose_swaps(
     deck_tribes = frozenset(
         st.lower()
         for c in classes
-        if "creature" in (c.record.get("type_line") or "").lower()
+        if is_creature(c.record)
         for st in split_type_line(c.record.get("type_line", ""))[1]
     )
     # What the deck does, for the dead-payoff read (:func:`dead_payoff`): a

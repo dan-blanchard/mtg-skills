@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
+from typing import NamedTuple
 
 from mtg_utils._analysis._subtypes import (
     CARD_TYPE_SUBJECTS,
@@ -15,6 +16,26 @@ from mtg_utils._analysis._subtypes import (
     NON_CREATURE_TOKEN,
     NON_SUBJECT_WORDS,
 )
+
+
+class Ident(NamedTuple):
+    """A signal ident (``key|scope|subject``, a :class:`Signal`'s three
+    fields) read back into its parts; a missing part reads ""."""
+
+    key: str
+    scope: str
+    subject: str
+
+    @classmethod
+    def parse(cls, ident: str) -> Ident:
+        parts = ident.split("|", 2)
+        parts += [""] * (3 - len(parts))
+        return cls(parts[0], parts[1], parts[2])
+
+
+def ident_key(ident: str) -> str:
+    """The signal key of a ``key|scope|subject`` ident."""
+    return ident.split("|", 1)[0]
 
 
 @dataclass(frozen=True)

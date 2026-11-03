@@ -71,6 +71,7 @@ from typing import TYPE_CHECKING
 from mtg_utils._analysis._subtypes import LAND_SUBTYPES
 from mtg_utils._analysis.card_reads import plays_extra_lands
 from mtg_utils._analysis.multipliers import Commander, multiplier_reasons
+from mtg_utils._analysis.signal_base import Ident, ident_key
 from mtg_utils._analysis.signal_keys import TOKEN_MAKER
 from mtg_utils._card_ir.creature_types import CREATURE_TYPES
 from mtg_utils._card_ir.crosswalk.reads import (
@@ -399,7 +400,7 @@ def satisfies(card: Mapping, need: Need) -> bool:
         idents = _card_idents(card)
         if need.idents & idents:
             return True
-        if need.keys and any(i.split("|", 1)[0] in need.keys for i in idents):
+        if need.keys and any(ident_key(i) in need.keys for i in idents):
             return True
     return False
 
@@ -1127,7 +1128,7 @@ def _supports_attackers(card: dict) -> bool:
     animates a board."""
     if "equipment" in _type_words(card):
         return False
-    return any(i.split("|", 1)[0] in _ATTACKER_SUPPORT_KEYS for i in _card_idents(card))
+    return any(ident_key(i) in _ATTACKER_SUPPORT_KEYS for i in _card_idents(card))
 
 
 #: The CR's creature types (CR 205.3m), lower-cased: what a tribal payoff
@@ -1147,7 +1148,7 @@ def _typal_payoff(card: dict) -> bool:
     (Roaming Throne, Coat of Arms). A reference to a gear or land type is not
     one."""
     for ident in _card_idents(card, membership=False):
-        key, _scope, subject = ident.split("|", 2)
+        key, _scope, subject = Ident.parse(ident)
         if key in _TYPAL_PAYOFF_KEYS and (key != "anthem_static" or subject):
             return True
         if key == "subtype_ref" and (
@@ -1169,10 +1170,10 @@ def typal_payoff_for(card: Mapping, kinds: Collection[str]) -> bool:
         return False
     wanted = {k.lower() for k in kinds}
     idents = _card_idents(card, membership=False)
-    keys = {i.split("|", 1)[0] for i in idents}
+    keys = {ident_key(i) for i in idents}
     pays_off = bool(keys - _RIDER_KEYS)
     for ident in idents:
-        key, _scope, subject = ident.split("|", 2)
+        key, _scope, subject = Ident.parse(ident)
         if key == "chosen_type_matters":
             return True
         if key == "anthem_static" and subject.lower() in wanted:
@@ -1220,7 +1221,7 @@ def _tribe_payoff_needs(idents: Iterable[str], source: str) -> Iterator[Need]:
     then keep — Merfolk Mistbinder went to Triton Shorestalker (Explorers of
     the Deep, 2026-11-02)."""
     for ident in sorted(set(idents)):
-        key, scope, subject = ident.split("|", 2)
+        key, scope, subject = Ident.parse(ident)
         if key == "subtype_ref" and scope == "you":
             kind = subject.lower()
             if kind in _CREATURE_TYPE_WORDS:
@@ -1593,13 +1594,13 @@ def _drains_on_opponents_turns(card: dict) -> bool:
     removal spell's "any" scope (Toxic Deluge) — the first widening admitted
     them (2026-11-01)."""
     idents = _card_idents(card)
-    keys = {i.split("|", 1)[0] for i in idents}
+    keys = {ident_key(i) for i in idents}
     if not keys & _EVENT_MAKER_KEYS["life_lost"]:
         return False
     if _drains_only_on_own_combat(card):
         return False
     for ident in idents:
-        key, scope, _subject = ident.split("|", 2)
+        key, scope, _subject = Ident.parse(ident)
         if key.startswith("opponent_") or key == "stax_taxes":
             return True
         if key in _OWN_COMBAT_KEYS:
@@ -1628,7 +1629,7 @@ def _evasion_for(types: frozenset[str], card: dict) -> bool:
     """Whether ``card`` lets a creature of ``types`` connect: an evasion grant
     to your team or a target, a lure, or an evasive body of one of them."""
     idents = _card_idents(card)
-    keys = {i.split("|", 1)[0] for i in idents}
+    keys = {ident_key(i) for i in idents}
     if keys & {"team_evasion_grant", "lure_makers"}:
         return True
     if any(f"keyword_grant_target|you|{k}" in idents for k in _EVASION_KEYWORDS):
@@ -1936,12 +1937,12 @@ def _resource_needs(
     # payoffs (Clavileño's Vampires AND Demons): one consumers need over all
     # of them, whatever order the idents came in.
     token_kinds = frozenset(
-        ident.split("|", 2)[2]
+        Ident.parse(ident).subject
         for ident in idents
-        if ident.startswith(f"{TOKEN_MAKER}|") and ident.split("|", 2)[2]
+        if ident.startswith(f"{TOKEN_MAKER}|") and Ident.parse(ident).subject
     )
     for ident in idents:
-        key = ident.split("|", 1)[0]
+        key = ident_key(ident)
         if key == "plus_one_makers" and self_grow:
             continue
         if _self_life_payment(ident):
@@ -1971,9 +1972,7 @@ def _resource_needs(
                 idents=idents_,
                 predicate=_EXTRA_CONSUMER_PREDICATES.get(key),
             )
-            if key == TOKEN_MAKER and any(
-                i.split("|", 1)[0] in _DEATH_KEYS for i in idents
-            ):
+            if key == TOKEN_MAKER and any(ident_key(i) in _DEATH_KEYS for i in idents):
                 # The outlets on their own: the consumers need bundles every
                 # token payoff and reads as broad in most pools (over
                 # ``BROAD_SHARE``), so it leads no page and gates no upgrade —
@@ -2032,7 +2031,7 @@ def _redundancy_needs(idents: Iterable[str], desc: str) -> Iterator[Need]:
     mill under Winter, Warrior tokens under Zurgo). The specificity floor
     keeps a generic doer (an attack trigger) from becoming a need."""
     for ident in idents:
-        key, _scope, subject = ident.split("|", 2)
+        key, _scope, subject = Ident.parse(ident)
         if key in _UMBRELLA_KEYS and subject in _TYPE_EVENT_SUBJECTS:
             # The commander's own trigger on a card type entering or being cast
             # ("Whenever an enchantment you control enters" — Killian: the
@@ -2108,13 +2107,13 @@ def _payoff_needs(
     with both, Hammer of Nazahn and Leyline Axe led Animated Army's page as
     artifacts at 4+ mana Bello never animates (2026-11-01)."""
     idents = list(idents)
-    keys_held = {ident.split("|", 1)[0] for ident in idents}
+    keys_held = {ident_key(ident) for ident in idents}
     # The commander's own suit is Auras: an ``aura_*`` ident and no equipment one.
     aura_only = any(k.startswith("aura_") for k in keys_held) and not any(
         "equip" in k for k in keys_held
     )
     for ident in idents:
-        key, _scope, subject = ident.split("|", 2)
+        key, _scope, subject = Ident.parse(ident)
         if key == "type_matters":
             # A tribe the commander pays off is the tribal avenue's page already
             # (its members, plus changelings); a need page of it would add the
@@ -2406,7 +2405,7 @@ def _multiplier_need(rec: Mapping) -> Need | None:
         return None
 
     def multiplies(card: dict) -> bool:
-        keys = {i.split("|", 1)[0] for i in _card_idents(card)}
+        keys = {ident_key(i) for i in _card_idents(card)}
         if not keys & _MULTIPLIER_KEYS:
             return False
         return any(

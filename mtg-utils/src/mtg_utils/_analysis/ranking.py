@@ -36,6 +36,7 @@ from mtg_utils._analysis.ident_provenance import emitting_units
 from mtg_utils._analysis.pair_reads import PairContext, pair_score
 from mtg_utils._analysis.rate import RateIndex, rate_for
 from mtg_utils._analysis.roles import DeckMana, role_of
+from mtg_utils._analysis.signal_base import Ident
 from mtg_utils._analysis.signal_keys import DOER_SUBJECTS
 from mtg_utils._analysis.signal_specs import (
     Serve,
@@ -372,7 +373,7 @@ def _unit_role(origin: str, emitted: frozenset[str]) -> str | None:
     deck makes, Hardened Scales every +1/+1 counter it places — a payoff for that
     lane, which no single trigger or activation shows to the clause test. The
     read's own call (2026-10-24)."""
-    pairs = {tuple(i.split("|")[0::2]) for i in emitted}
+    pairs = {(p.key, p.subject) for p in map(Ident.parse, emitted)}
     if pairs and pairs <= DOER_SUBJECTS:
         return "enabler"
     if origin == "replacement":

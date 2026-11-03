@@ -64,7 +64,7 @@ from mtg_utils._card_ir.crosswalk.reads import (
     unit_own_mana,
     watches_itself,
 )
-from mtg_utils.card_classify import color_sources
+from mtg_utils.card_classify import color_sources, is_land
 from mtg_utils.theme_presets import signal_keys_for
 from mtg_utils.type_line import split_type_line
 
@@ -491,7 +491,7 @@ def deck_fit(card: dict, deck_records: Sequence[dict]) -> float:
         # "Whenever you tap a Forest for mana, add an additional {G}") runs on
         # the deck's lands of it, against half its lands: it read four mana a
         # turn in Dance of the Elements, eight Forests of 38 (2026-11-02).
-        lands = [d for d in deck_records if "Land" in (d.get("type_line") or "")]
+        lands = [d for d in deck_records if is_land(d)]
         if not lands:
             return 1.0
         typed = sum(

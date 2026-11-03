@@ -112,6 +112,7 @@ from types import MappingProxyType
 from typing import TYPE_CHECKING
 
 from mtg_utils import _gc
+from mtg_utils._analysis.signal_base import ident_key
 from mtg_utils._analysis.signal_keys import wildcard_counts_ident
 from mtg_utils.card_classify import (
     classifying_keywords,
@@ -414,9 +415,7 @@ def remember_signal_idents(oid: str, idents: Iterable[str]) -> None:
     the idents it just extracted so the concept arms it evaluates next (the ramp
     arm reads :func:`signal_keys_for`) don't run a second extraction per card."""
     frozen = frozenset(idents)
-    _SIGNAL_KEY_INDEX.setdefault(
-        oid, frozenset(ident.split("|", 1)[0] for ident in frozen)
-    )
+    _SIGNAL_KEY_INDEX.setdefault(oid, frozenset(ident_key(ident) for ident in frozen))
     _SIGNAL_IDENT_INDEX.setdefault(oid, frozen)
 
 

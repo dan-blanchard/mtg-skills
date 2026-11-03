@@ -30,6 +30,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from mtg_utils import theme_presets
+from mtg_utils._analysis.signal_base import Ident
 from mtg_utils._analysis.signal_specs import Serve, avenue_spec_for
 from mtg_utils._analysis.signals import extract_signals
 from mtg_utils._sidecar import atomic_write_json, sha_keyed_path
@@ -431,7 +432,7 @@ def _signal_key_subjects(rec: dict, index: dict[str, tuple[str, ...]] | None) ->
     if index is not None and oid in index:
         out = set()
         for ident in index[oid]:
-            key, _scope, subject = ident.split("|", 2)
+            key, _scope, subject = Ident.parse(ident)
             out.add((key, subject))
         return out
     return {(s.key, s.subject) for s in _signals(rec)}

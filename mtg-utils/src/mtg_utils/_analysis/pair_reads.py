@@ -38,6 +38,7 @@ from collections import Counter
 from collections.abc import Callable
 from dataclasses import dataclass, field
 
+from mtg_utils._analysis.signal_base import Ident
 from mtg_utils._analysis.signal_keys import wildcard_counts
 
 # A BODY-cheating commander anchor: a creature-typed or untyped cheat (subject
@@ -698,8 +699,7 @@ def build_pair_context(
 
 
 def _subject_of(ident: str) -> str:
-    parts = ident.split("|")
-    return parts[2] if len(parts) > 2 else ""
+    return Ident.parse(ident).subject
 
 
 def _matches_any(ident: str, patterns: tuple[str, ...]) -> bool:

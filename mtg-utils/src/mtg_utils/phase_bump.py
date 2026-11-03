@@ -56,6 +56,7 @@ from typing import TYPE_CHECKING
 import click
 
 from mtg_utils import _phase
+from mtg_utils._analysis.signal_base import ident_key
 from mtg_utils.deck_cli import bulk_data_option
 
 if TYPE_CHECKING:
@@ -366,9 +367,9 @@ def signal_diff(
         after = set(new_index[oid])
         name = names_by_oid.get(oid, oid)
         for ident in before - after:
-            lost.setdefault(ident.split("|", 1)[0], set()).add(name)
+            lost.setdefault(ident_key(ident), set()).add(name)
         for ident in after - before:
-            gained.setdefault(ident.split("|", 1)[0], set()).add(name)
+            gained.setdefault(ident_key(ident), set()).add(name)
     out = [
         KeyDiff(
             key=k,

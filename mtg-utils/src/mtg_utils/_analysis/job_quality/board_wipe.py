@@ -611,17 +611,21 @@ def _board_count(lhs: object) -> bool:
     return "Creature" in cores or "Permanent" in cores
 
 
+def _own_face(tree: ConceptTree) -> dict:
+    """``tree``'s own face record in phase's card-data (the face of its name),
+    else ``{}``."""
+    for face in phase_records_for(tree.oracle_id):
+        if face.get("name") == tree.name:
+            return face
+    return {}
+
+
 def _repeat_choices(tree: ConceptTree) -> int:
     """How many times a modal face lets one mode be chosen (``modal``'s
     ``max_choices`` when ``allow_repeat_modes``), else 1."""
-    for face in phase_records_for(tree.oracle_id):
-        if face.get("name") != tree.name:
-            continue
-        modal = face.get("modal") or {}
-        if modal.get("allow_repeat_modes") and isinstance(
-            modal.get("max_choices"), int
-        ):
-            return max(1, modal["max_choices"])
+    modal = _own_face(tree).get("modal") or {}
+    if modal.get("allow_repeat_modes") and isinstance(modal.get("max_choices"), int):
+        return max(1, modal["max_choices"])
     return 1
 
 
@@ -639,11 +643,8 @@ def _spared_toughness(mode: str, mag: object) -> tuple[str, int] | None:
 def _face_generic(tree: ConceptTree) -> int:
     """The generic mana in ``tree``'s face's printed cost, off phase's own face
     record (its ``mana_cost.generic``)."""
-    for face in phase_records_for(tree.oracle_id):
-        if face.get("name") == tree.name:
-            generic = (face.get("mana_cost") or {}).get("generic")
-            return generic if isinstance(generic, int) else 0
-    return 0
+    generic = (_own_face(tree).get("mana_cost") or {}).get("generic")
+    return generic if isinstance(generic, int) else 0
 
 
 def _x_in_cards(u: AbilityUnit) -> bool:
