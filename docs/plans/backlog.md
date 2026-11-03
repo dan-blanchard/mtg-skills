@@ -1817,6 +1817,18 @@ proposal as a deckbuilder, fix the structure, the guide score is a yardstick)**
   trade). Verdicts: Shadowmage Infiltrator for Dead Man's Chest (a
   different Gonti need); Fell the Mighty for In Garruk's Wake (one-sided
   for one-sided). `verify_symptoms.py`: 168.
+- **Twelfth full re-read (2026-11-02, over batch 17c's proposals): no
+  structural flaw.** Five Sonnet reviewers over all 55 decks raised 7 flags,
+  each settled on card text: Garruk, Cursed Huntsman for Orcish Bowmasters
+  (removal for removal; Bowmasters amasses an Army token for Hazel);
+  Warping Wail for Null Elemental Blast (both narrow answers); Expressive
+  Iteration for Negate (an instant on Prismari's spells theme); Faerie
+  Mastermind for Brainstorm and Revenant Recon's Village Rites / Deadly
+  Dispute (draw for draw); Nils, Discipline Enforcer for Windborn Muse
+  (both attack taxes); Scriv, the Obligator for Cathar's Call (an Aura:
+  its entering goads for Killian, its enchanted attacker draws). Structural
+  flaws per full pass since batch 16n: 17, 10, 3, 1, 8, 5, 2, 2, 3 (+2 in
+  the moved swaps), 0.
 
 **From the Jace, Multiverse Architect precon tune and the 25-precon audit (2026-10-17 to 2026-11-01)**
 
