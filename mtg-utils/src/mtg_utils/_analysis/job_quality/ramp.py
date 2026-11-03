@@ -79,7 +79,11 @@ if TYPE_CHECKING:
 _SCALING = 2
 _BASIC_TYPES = frozenset({"Plains", "Island", "Swamp", "Mountain", "Forest"})
 #: Events where the card itself leaves: a dies trigger's mana comes once, later.
-_LEAVES = frozenset({"dies", "leaves", "leavesbattlefield", "ltb"})
+#: A card's own leaving, sacrifice included: Ordeal of Nylea's "When you
+#: sacrifice this Aura" lands come after three attacks, not on cast — read
+#: as early as Rampant Growth, it took Careful Cultivation's ramp slot
+#: (Virtue and Valor, 2026-11-02).
+_LEAVES = frozenset({"dies", "leaves", "leavesbattlefield", "ltb", "sacrificed"})
 #: A land put by a condition or a dies trigger may never come.
 _LAND_WEIGHT = {"turn": 1.0, "now": 1.0, "cond": 0.5, "late": 0.5}
 #: Replacements that only set the card up as it enters (tapped, a chosen color,
@@ -95,6 +99,9 @@ class _Read:
     tap_best: float = 0.0  # its best {T} mana ability (they share one tap)
     cond: bool = False  # a source that needs something else to happen
     land_bf: float = 0.0  # lands it puts onto your battlefield
+    # A land it puts there when cast or every turn, not on a condition or its
+    # own leaving (``_LAND_WEIGHT``'s ``cond`` / ``late``).
+    land_soon: bool = False
     land_sac: int = 0  # lands its spell sacrifices as a cost (Harrow)
     land_tapped: bool = False
     land_untapped: bool = False
@@ -347,6 +354,7 @@ def _lands(r: _Read, tree: ConceptTree, unit: AbilityUnit, *, sc: bool) -> None:
             k = _unit_class(unit, spell_card=sc)
             r.cond |= k == "cond"
             r.land_bf = max(r.land_bf, s.count * _LAND_WEIGHT[k])
+            r.land_soon |= k in ("now", "turn")
             r.land_tapped |= s.enters_tapped
             r.land_untapped |= not s.enters_tapped
             if unit.origin == "ability" and unit.kind == "Activated":
@@ -512,6 +520,18 @@ def _ramp_cost(card: dict, r: _Read) -> float:
     return cost
 
 
+def _land_only_later(r: _Read) -> bool:
+    """Whether ``r``'s only ramp is a land put on a condition or the card's own
+    leaving: no mana a turn, no extra land drop, no land put soon."""
+    return bool(
+        r.land_bf
+        and not r.land_soon
+        and not r.turn
+        and not r.extra_land
+        and not r.granted
+    )
+
+
 def features(card: dict) -> dict[str, float] | None:
     """The ramp read's features for ``card``, or ``None`` when it is not ramp
     (``roles.is_ramp`` — the shared ramp answer, so a doubler or a Powerstone maker
@@ -551,7 +571,11 @@ def features(card: dict) -> dict[str, float] | None:
         fixes *= 0.5
     return {
         "cost": min(cost, 7.0),
-        "early": float(cost <= 2),
+        # Cheap ramp is early only when its mana comes soon: Ordeal of
+        # Nylea's two lands wait on three attacks, and read as early as
+        # Rampant Growth it took Careful Cultivation's slot (Virtue and Valor,
+        # 2026-11-02).
+        "early": float(cost <= 2 and not _land_only_later(r)),
         "per_turn": min(turn, 4.0),
         "payback": min(turn / max(cost, 1.0), 2.0),
         "cond_engine": float(r.cond and not turn),

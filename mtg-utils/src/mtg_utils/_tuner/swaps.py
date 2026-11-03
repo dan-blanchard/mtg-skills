@@ -423,6 +423,11 @@ def _reads_worse_at_the_job(
             return True
     if job == "board_wipe" and _sweeps_fewer_kinds(read, candidate, cut):
         return True
+    if job == "card_draw":
+        from mtg_utils._analysis.job_quality import card_draw
+
+        if card_draw.narrower_engine(candidate, cut):
+            return True
     if job == "interaction":
         from mtg_utils._analysis.job_quality import removal
 
@@ -455,6 +460,12 @@ def _reads_worse_at_the_job(
         # "sacrifice a creature" for Fiend Hunter (Riders of Rohan,
         # 2026-11-02).
         and not _pays_a_sacrifice_more(read, candidate, cut)
+        # Nor is ramp cheaper whose mana comes late: Ordeal of Nylea's lands
+        # wait on three attacks (``early`` 0) and took Careful Cultivation's
+        # slot (Virtue and Valor, 2026-11-02).
+        and not (
+            read.job == "ramp" and (read.features(candidate) or {}).get("early") == 0
+        )
     ):
         return False
     return sc is not None and su is not None and sc < su - 1e-9
@@ -2014,6 +2025,8 @@ class _Purse(Protocol):
 
     def charge(self, record: dict, cost: float) -> None: ...
 
+    def refund(self, record: dict, cost: float) -> None: ...
+
     def share(self, adds: int) -> float:
         """An even share of what is left over ``adds`` more adds: an add priced
         within it leaves every later add the same, so the budget binds only
@@ -2044,6 +2057,9 @@ class _UsdLedger:
 
     def charge(self, record: dict, cost: float) -> None:
         self.spent += cost
+
+    def refund(self, record: dict, cost: float) -> None:
+        self.spent -= cost
 
     def share(self, adds: int) -> float:
         if self.budget is None:  # owned-only: every add it can make is free
@@ -2081,6 +2097,12 @@ class _WildcardLedger:
         if rarity in self.remaining:
             self.remaining[rarity] -= 1
             self.spent[rarity] += 1
+
+    def refund(self, record: dict, cost: float) -> None:
+        rarity = record.get("rarity")
+        if rarity in self.remaining:
+            self.remaining[rarity] += 1
+            self.spent[rarity] -= 1
 
     def share(self, adds: int) -> float:
         return math.inf  # one wildcard of its rarity, whatever the card
@@ -2771,6 +2793,9 @@ def propose_swaps(
 
     game_changers = _GameChangerRoom(ctx.game_changer_room)
     swaps: list[dict] = []
+    # Each swap's cut, add record, cost and whether it was charged, in step
+    # with ``swaps`` (:func:`_unfueled_adds`).
+    committed: list[tuple[CardClass | None, dict, float, bool]] = []
     ledger: _Purse = (
         _WildcardLedger(ctx.wildcard_budget)
         if ctx.wildcard_budget is not None
@@ -3495,6 +3520,7 @@ def propose_swaps(
         cover = coverage(add_card)
         if cover.covered_by is None:
             ledger.charge(add_card, cost)
+        committed.append((cut, add_card, cost, cover.covered_by is None))
         game_changers.charge(add_card, cut)
         if cut is not None:
             used_cuts[cut.name] += 1
@@ -3901,6 +3927,17 @@ def propose_swaps(
             msg="fill open slots with in-identity cards",
         )
 
+    # The proposal read whole: an add whose job runs on the deck (a draw
+    # engine's fuel, a narrow team's protection) is read again against the
+    # deck the proposal leaves, and dropped when the same proposal's cuts took
+    # its fuel — Sephara, Sky's Blade's flyers went to six other swaps
+    # (Silverquill Influence, 2026-11-02).
+    for i in reversed(_unfueled_adds(committed, deck_records, ctx.commanders)):
+        _cut, add_card, cost, charged = committed.pop(i)
+        swaps.pop(i)
+        if charged:
+            ledger.refund(add_card, cost)
+
     digital = ctx.wildcard_budget is not None
     raise_budget = "raise your wildcard budget" if digital else "raise the budget"
     note = None
@@ -3926,6 +3963,55 @@ def propose_swaps(
         "wildcards_spent": ledger.wildcards_spent,
         "note": note,
     }
+
+
+#: The jobs whose read scales by what the deck fuels (``JobRead.fit``) and that
+#: the whole proposal is read again for (:func:`_unfueled_adds`).
+_FUELED_JOBS = ("card_draw", "protection")
+
+
+def _unfueled_adds(
+    committed: Sequence[tuple[CardClass | None, dict, float, bool]],
+    deck: Sequence[dict],
+    commanders: Sequence[Mapping] = (),
+) -> list[int]:
+    """The indexes of ``committed`` swaps whose add does a fueled job
+    (``_FUELED_JOBS``) below ``_DECK_FIT_FLOOR`` in the deck the whole
+    proposal leaves (every cut out, every add in): its fuel cut by the same
+    proposal, or never there — Losheel, Clockwork Scholar went onto Deep Clue
+    Sea's theme page with five artifact creatures to draw on (2026-11-02).
+    Under a commander making its creatures every type (Omo), a draw on a
+    chosen type the battlefield shows is fed whatever the type lines say:
+    Kindred Discovery's "enters or attacks" (Tricky Terrain)."""
+    from mtg_utils._analysis.job_quality import card_draw
+
+    every_type = any(grants_all_creature_types(dict(c)) for c in commanders)
+    after = list(deck)
+    for cut, _add, _cost, _charged in committed:
+        if cut is None:
+            continue
+        for i, rec in enumerate(after):
+            if rec.get("name") == cut.name:
+                del after[i]
+                break
+    after.extend(add for _cut, add, _cost, _charged in committed)
+    out = []
+    for i, (_cut, add, _cost, _charged) in enumerate(committed):
+        for job in _FUELED_JOBS:
+            read = read_for(job)
+            if read is None or not has_trees(add) or read.score(add) is None:
+                continue
+            if (
+                job == "card_draw"
+                and every_type
+                and card_draw.draw_fuel(add) == "chosen_type"
+                and _chosen_type_on_battlefield(add)
+            ):
+                continue
+            if read.deck_fit(add, after) < _DECK_FIT_FLOOR:
+                out.append(i)
+                break
+    return out
 
 
 def _cut_why(reason: str, card: CardClass | None = None) -> str:

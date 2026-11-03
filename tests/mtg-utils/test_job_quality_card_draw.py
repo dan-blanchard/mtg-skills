@@ -242,3 +242,25 @@ def test_a_draw_on_big_creatures_entering_runs_on_the_decks_big_creatures():
     assert card_draw.deck_fit(uprising, bears) == 0.0
     dreadmaws = [test_card("Colossal Dreadmaw")] * 20
     assert card_draw.deck_fit(uprising, dreadmaws) == 1.0
+
+
+def test_an_artifact_creature_draw_runs_on_artifact_creatures():
+    """Losheel, Clockwork Scholar draws when "one or more artifact creatures
+    you control enter": a deck of bears fuels none of it (Deep Clue Sea's
+    five artifact creatures, 2026-11-02), a deck of Thopter makers does."""
+    losheel = _real("Losheel, Clockwork Scholar")
+    assert card_draw.draw_fuel(losheel) == "artifact_creatures"
+    bears = [_real("Grizzly Bears")] * 12
+    thopters = [_real("Whirler Rogue")] * 12
+    assert card_draw.deck_fit(losheel, bears) < 0.5
+    assert card_draw.deck_fit(losheel, thopters) == 1.0
+
+
+def test_a_pumped_combat_draw_is_narrower_than_any_combat_draw():
+    """Kutzil, Malamet Exemplar draws for creatures "each with power greater
+    than its base power"; Ohran Frostfang for any creature of yours dealing
+    combat damage to a player (Deadly Disguise, 2026-11-02)."""
+    kutzil = _real("Kutzil, Malamet Exemplar")
+    frostfang = _real("Ohran Frostfang")
+    assert card_draw.narrower_engine(kutzil, frostfang)
+    assert not card_draw.narrower_engine(frostfang, kutzil)

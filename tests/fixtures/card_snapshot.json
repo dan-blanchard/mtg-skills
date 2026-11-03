@@ -727579,6 +727579,205 @@
     "type_line": "Legendary Creature — Elder Dragon"
    }
   },
+  "Losheel, Clockwork Scholar": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "brawl_commander": true,
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Elephant",
+       "Artificer"
+      ],
+      "supertypes": [
+       "Legendary"
+      ]
+     },
+     "color_identity": [
+      "White"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "is_commander": true,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 2,
+      "shards": [
+       "White"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "92bc35a8-1337-43da-a002-71f5a85e8853",
+       "da01e447-ac5b-447a-b94c-6db3320d196f",
+       "db1d67fe-bffe-45ad-af6a-cb131ddb1a12",
+       "ee6b54de-8e79-4f60-b642-3d259bf74ea0"
+      ]
+     },
+     "name": "Losheel, Clockwork Scholar",
+     "non_ability_text": null,
+     "oracle_text": "Prevent all combat damage that would be dealt to attacking artifact creatures you control.\nWhenever one or more artifact creatures you control enter, draw a card. This ability triggers only once each turn.",
+     "power": {
+      "type": "Fixed",
+      "value": 2
+     },
+     "printings": [
+      "BRC",
+      "C21",
+      "CMM",
+      "PRM"
+     ],
+     "rarities": [
+      "uncommon",
+      "rare"
+     ],
+     "replacements": [
+      {
+       "combat_scope": "CombatOnly",
+       "condition": null,
+       "description": "Prevent all combat damage that would be dealt to attacking artifact creatures you control.",
+       "event": "DamageDone",
+       "execute": null,
+       "mode": {
+        "type": "Mandatory"
+       },
+       "shield_kind": {
+        "Prevention": {
+         "amount": "All"
+        }
+       },
+       "valid_card": {
+        "controller": "You",
+        "properties": [
+         {
+          "type": "Attacking"
+         }
+        ],
+        "type": "Typed",
+        "type_filters": [
+         "Artifact",
+         "Creature"
+        ]
+       }
+      }
+     ],
+     "scryfall_oracle_id": "f8c2a972-e38f-47e5-a355-6f30ad09b1ae",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 4
+     },
+     "triggers": [
+      {
+       "batched": true,
+       "condition": null,
+       "constraint": {
+        "type": "OncePerTurn"
+       },
+       "damage_kind": "Any",
+       "description": "Whenever one or more artifact creatures you control enter, draw a card. This ability triggers only once each turn.",
+       "destination": "Battlefield",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "target": {
+          "type": "Controller"
+         },
+         "type": "Draw"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "ChangesZone",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "controller": "You",
+        "properties": [],
+        "type": "Typed",
+        "type_filters": [
+         "Artifact",
+         "Creature"
+        ]
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 3.0,
+    "color_identity": [
+     "W"
+    ],
+    "colors": [
+     "W"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}{W}",
+    "name": "Losheel, Clockwork Scholar",
+    "oracle_id": "f8c2a972-e38f-47e5-a355-6f30ad09b1ae",
+    "oracle_text": "Prevent all combat damage that would be dealt to attacking artifact creatures you control.\nWhenever one or more artifact creatures you control enter, draw a card. This ability triggers only once each turn.",
+    "power": "2",
+    "toughness": "4",
+    "type_line": "Legendary Creature — Elephant Artificer"
+   }
+  },
   "Lost in Thought": {
    "phase_records": [
     {
@@ -846628,6 +846827,218 @@
     "type_line": "Creature — Ogre Warrior"
    }
   },
+  "Ohran Frostfang": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Snake"
+      ],
+      "supertypes": [
+       "Snow"
+      ]
+     },
+     "color_identity": [
+      "Green"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 3,
+      "shards": [
+       "Green",
+       "Green"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "05b5e975-bd75-4f7c-829d-e87f8b24bc2f",
+       "0693bcd2-8a3d-4dcf-8360-5b9891044dfe",
+       "0d2fbeb1-6446-48ca-afe1-d1869a36e389",
+       "4825bc98-5274-4ede-8fa0-368b1153a83a",
+       "55fb93e6-d057-4b70-ad12-e98291fd4a2c",
+       "9476de52-c9d0-4161-bdb9-7818153db0c2",
+       "9eb08e11-c247-404c-9f40-a12cb7087d0c",
+       "f08736a3-2a53-45c0-8ede-5207ffbea32c",
+       "fc9b8337-5e55-4f6b-a5c5-ecbd112408eb"
+      ]
+     },
+     "name": "Ohran Frostfang",
+     "non_ability_text": null,
+     "oracle_text": "Attacking creatures you control have deathtouch.\nWhenever a creature you control deals combat damage to a player, draw a card.",
+     "power": {
+      "type": "Fixed",
+      "value": 2
+     },
+     "printings": [
+      "C19",
+      "CMM",
+      "MKC",
+      "OTC",
+      "PLST",
+      "SLD",
+      "SOC"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2019-08-23",
+       "text": "If one or more creatures you control deal combat damage to players at the same time that lethal damage is dealt to Ohran Frostfang, its ability triggers for each of those creatures."
+      },
+      {
+       "date": "2019-08-23",
+       "text": "Snow is a supertype, not a card type. It has no rules meaning or function by itself, but other cards and abilities may refer to it."
+      }
+     ],
+     "scryfall_oracle_id": "b99ada26-9a61-4175-9fb8-15a106960220",
+     "static_abilities": [
+      {
+       "active_zones": [],
+       "affected": {
+        "controller": "You",
+        "properties": [
+         {
+          "type": "Attacking"
+         }
+        ],
+        "type": "Typed",
+        "type_filters": [
+         "Creature"
+        ]
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": null,
+       "description": "Attacking creatures you control have deathtouch.",
+       "effect_zone": null,
+       "mode": "Continuous",
+       "modifications": [
+        {
+         "keyword": "Deathtouch",
+         "type": "AddKeyword"
+        }
+       ]
+      }
+     ],
+     "toughness": {
+      "type": "Fixed",
+      "value": 6
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "CombatOnly",
+       "description": "Whenever a creature you control deals combat damage to a player, draw a card.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "target": {
+          "type": "Controller"
+         },
+         "type": "Draw"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "DamageDone",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": null,
+       "valid_source": {
+        "controller": "You",
+        "properties": [],
+        "type": "Typed",
+        "type_filters": [
+         "Creature"
+        ]
+       },
+       "valid_target": {
+        "type": "Player"
+       }
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 5.0,
+    "color_identity": [
+     "G"
+    ],
+    "colors": [
+     "G"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{3}{G}{G}",
+    "name": "Ohran Frostfang",
+    "oracle_id": "b99ada26-9a61-4175-9fb8-15a106960220",
+    "oracle_text": "Attacking creatures you control have deathtouch.\nWhenever a creature you control deals combat damage to a player, draw a card.",
+    "power": "2",
+    "toughness": "6",
+    "type_line": "Snow Creature — Snake"
+   }
+  },
   "Oil-Gorger Troll": {
    "phase_records": [
     {
@@ -860767,6 +861178,322 @@
     "power": "1",
     "toughness": "1",
     "type_line": "Creature — Orc Rogue"
+   }
+  },
+  "Ordeal of Nylea": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Enchantment"
+      ],
+      "subtypes": [
+       "Aura"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Green"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [
+      {
+       "Enchant": {
+        "controller": null,
+        "properties": [],
+        "type": "Typed",
+        "type_filters": [
+         "Creature"
+        ]
+       }
+      }
+     ],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "standard": "legal",
+      "standardbrawl": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "Green"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "1a70424d-86a7-44a3-acda-4463d7ac503b",
+       "e5c48950-c246-47ad-94e1-bf42a62c2fe7",
+       "ea175de9-15c2-4d08-ae0e-0427a0b8069b",
+       "fdbbbe4a-976c-4eb3-b32c-eef892b7699d"
+      ]
+     },
+     "name": "Ordeal of Nylea",
+     "non_ability_text": null,
+     "oracle_text": "Enchant creature\nWhenever enchanted creature attacks, put a +1/+1 counter on it. Then if it has three or more +1/+1 counters on it, sacrifice this Aura.\nWhen you sacrifice this Aura, search your library for up to two basic land cards, put them onto the battlefield tapped, then shuffle.",
+     "power": null,
+     "printings": [
+      "CMR",
+      "FDN",
+      "J22",
+      "NEC",
+      "THS"
+     ],
+     "rarities": [
+      "uncommon"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2024-11-08",
+       "text": "Ordeal of Nylea's last ability will trigger when you sacrifice it for any reason, not just when you sacrifice it because of the effect of its second ability."
+      },
+      {
+       "date": "2024-11-08",
+       "text": "The check of whether the enchanted creature has three or more +1/+1 counters on it happens as part of the resolution of the attack triggered ability. If the third +1/+1 counter is put on the enchanted creature any other way, you won't sacrifice Ordeal of Nylea until the next time the creature attacks."
+      }
+     ],
+     "scryfall_oracle_id": "5fff2bf4-9e26-4815-9bf6-672ed7e55b96",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever enchanted creature attacks, put a +1/+1 counter on it. Then if it has three or more +1/+1 counters on it, sacrifice ~.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "counter_type": "P1P1",
+         "target": {
+          "type": "TriggeringSource"
+         },
+         "type": "PutCounter"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": {
+          "comparator": "GE",
+          "lhs": {
+           "qty": {
+            "counter_type": "P1P1",
+            "scope": {
+             "type": "Source"
+            },
+            "type": "CountersOn"
+           },
+           "type": "Ref"
+          },
+          "rhs": {
+           "type": "Fixed",
+           "value": 3
+          },
+          "type": "QuantityCheck"
+         },
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "count": {
+           "type": "Fixed",
+           "value": 1
+          },
+          "target": {
+           "type": "SelfRef"
+          },
+          "type": "Sacrifice"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": null,
+         "sub_link": "SequentialSibling",
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "mode": "Attacks",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "type": "AttachedTo"
+       },
+       "valid_source": null,
+       "valid_target": null
+      },
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "When you sacrifice ~, search your library for up to two basic land cards, put them onto the battlefield tapped, then shuffle.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "count": {
+          "max": {
+           "type": "Fixed",
+           "value": 2
+          },
+          "type": "UpTo"
+         },
+         "filter": {
+          "controller": null,
+          "properties": [
+           {
+            "type": "HasSupertype",
+            "value": "Basic"
+           }
+          ],
+          "type": "Typed",
+          "type_filters": [
+           "Land"
+          ]
+         },
+         "reveal": false,
+         "type": "SearchLibrary"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "destination": "Battlefield",
+          "enter_tapped": true,
+          "enter_transformed": false,
+          "enters_attacking": false,
+          "origin": "Library",
+          "owner_library": false,
+          "target": {
+           "type": "Any"
+          },
+          "type": "ChangeZone"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": {
+          "condition": null,
+          "cost": null,
+          "description": null,
+          "duration": null,
+          "effect": {
+           "target": {
+            "type": "Controller"
+           },
+           "type": "Shuffle"
+          },
+          "forward_result": false,
+          "kind": "Spell",
+          "optional": false,
+          "optional_targeting": false,
+          "sub_ability": null,
+          "target_prompt": null
+         },
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "mode": "Sacrificed",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 2.0,
+    "color_identity": [
+     "G"
+    ],
+    "colors": [
+     "G"
+    ],
+    "keywords": [
+     "Enchant"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "legal",
+     "standardbrawl": "legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}{G}",
+    "name": "Ordeal of Nylea",
+    "oracle_id": "5fff2bf4-9e26-4815-9bf6-672ed7e55b96",
+    "oracle_text": "Enchant creature\nWhenever enchanted creature attacks, put a +1/+1 counter on it. Then if it has three or more +1/+1 counters on it, sacrifice this Aura.\nWhen you sacrifice this Aura, search your library for up to two basic land cards, put them onto the battlefield tapped, then shuffle.",
+    "type_line": "Enchantment — Aura"
    }
   },
   "Ore-Rich Stalactite // Cosmium Catalyst": {

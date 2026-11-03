@@ -66,3 +66,14 @@ def test_a_conditional_grant_reads_as_soft():
     assert features["indestructible"] == 0.0
     assert features["soft_only"] == 1.0
     assert _score("Eater of Virtue") < _score("Swiftfoot Boots")
+
+
+def test_a_flyers_only_grant_protects_a_flyers_deck():
+    """Sephara, Sky's Blade gives "Other creatures you control with flying"
+    indestructible: a deck of Serra Angels uses all of it, a deck of bears
+    none (2026-11-02)."""
+    from mtg_utils._analysis.job_quality import protection as prot
+
+    sephara = test_card("Sephara, Sky's Blade")
+    assert prot.deck_fit(sephara, [test_card("Serra Angel")] * 6) == 1.0
+    assert prot.deck_fit(sephara, [test_card("Grizzly Bears")] * 6) == 0.0

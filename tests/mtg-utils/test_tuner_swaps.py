@@ -4268,3 +4268,43 @@ def test_an_add_the_commander_already_grants_is_dead():
     assert _commander_already_grants(test_card("Rolling Stones"), felothar)
     assert _commander_already_grants(test_card("Animate Wall"), felothar)
     assert not _commander_already_grants(test_card("Behind the Scenes"), felothar)
+
+
+def test_an_add_whose_fuel_the_proposal_cuts_is_dropped():
+    """Losheel, Clockwork Scholar draws when artifact creatures enter: added
+    to a deck of Ornithopters, it runs; when the same proposal cuts the
+    Ornithopters for bears, it doesn't (2026-11-02)."""
+    from types import SimpleNamespace
+
+    from mtg_utils._tuner.swaps import _unfueled_adds
+
+    thopter, bear = test_card("Ornithopter"), test_card("Grizzly Bears")
+    losheel = test_card("Losheel, Clockwork Scholar")
+    deck = [thopter] * 8 + [bear] * 8
+    cut = SimpleNamespace(name="Ornithopter")
+    keep = [(cut, losheel, 0.0, False)]
+    assert _unfueled_adds(keep, deck) == []
+    gut = keep + [(cut, bear, 0.0, False)] * 7
+    assert _unfueled_adds(gut, deck) == [0]
+
+
+def test_a_battlefield_chosen_type_draw_is_fed_under_omo():
+    """Kindred Discovery draws when "a creature you control of the chosen
+    type enters or attacks": no tribe in a deck of spells feeds it, unless
+    Omo, Queen of Vesuva makes its creatures every type (Tricky Terrain,
+    2026-11-02)."""
+    from types import SimpleNamespace
+
+    from mtg_utils._tuner.swaps import _unfueled_adds
+
+    deck = [test_card("Lightning Bolt")] * 30 + [test_card("Grizzly Bears")]
+    add = [
+        (
+            SimpleNamespace(name="Lightning Bolt"),
+            test_card("Kindred Discovery"),
+            0.0,
+            False,
+        )
+    ]
+    assert _unfueled_adds(add, deck) == [0]
+    assert _unfueled_adds(add, deck, [test_card("Omo, Queen of Vesuva")]) == []

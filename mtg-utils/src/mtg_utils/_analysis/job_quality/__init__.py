@@ -171,7 +171,13 @@ READS: dict[str, JobRead] = {
             orders=False,
             whole_job=False,
         ),
-        JobRead("protection", protection.features, protection.WEIGHTS, orders=True),
+        JobRead(
+            "protection",
+            protection.features,
+            protection.WEIGHTS,
+            orders=True,
+            fit=protection.deck_fit,
+        ),
         JobRead(
             "board_wipe",
             board_wipe.features,

@@ -119,3 +119,13 @@ def test_a_bonus_on_tapping_forests_runs_on_the_decks_forests():
     nissa = test_card("Nissa, Who Shakes the World")
     assert ramp.deck_fit(nissa, [test_card("Forest")] * 20) == 1.0
     assert ramp.deck_fit(nissa, [test_card("Island")] * 20) == 0.0
+
+
+def test_lands_on_a_later_sacrifice_are_not_early_ramp():
+    """Ordeal of Nylea's "When you sacrifice this Aura, search your library
+    for up to two basic land cards" comes after three attacks: not early,
+    and below Careful Cultivation's "{T}: Add {G}{G}" (Virtue and Valor,
+    2026-11-02); Rampant Growth's land comes on cast."""
+    assert ramp.features(_real("Ordeal of Nylea"))["early"] == 0.0
+    assert ramp.features(_real("Rampant Growth"))["early"] == 1.0
+    assert _score("Ordeal of Nylea") < _score("Careful Cultivation")

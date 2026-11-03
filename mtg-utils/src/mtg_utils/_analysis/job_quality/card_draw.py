@@ -131,7 +131,7 @@ from mtg_utils._card_ir.crosswalk import (
 from mtg_utils._card_ir.mirror.runtime import TypedMirrorNode
 from mtg_utils._card_ir.trees import fixed_stat
 from mtg_utils.card_classify import classifying_keywords
-from mtg_utils.theme_presets import signal_keys_for
+from mtg_utils.theme_presets import _signal_idents_for, signal_keys_for
 from mtg_utils.type_line import split_type_line
 
 if TYPE_CHECKING:
@@ -795,6 +795,8 @@ _FUEL_REFERENCE: dict[str, float] = {
     # anthems, pumps (Kutzil drew for Deadly Disguise's four, 2026-11-02).
     "pumped": 1 / 4,
     "creatures": 1 / 3,
+    # Artifact creature cards (an artifact-creature deck holds a quarter).
+    "artifact_creatures": 1 / 4,
     "instants_sorceries": 1 / 3,
     "enchantments": 1 / 3,
     "artifacts": 1 / 3,
@@ -848,6 +850,11 @@ def _source_fuel(s: _Source) -> str | None:
         return None
     if s.watched & {"Instant", "Sorcery"} and not s.watched - {"Instant", "Sorcery"}:
         return "instants_sorceries"
+    if {"Artifact", "Creature"} <= s.watched:
+        # Losheel, Clockwork Scholar's "one or more artifact creatures you
+        # control enter": read as any creature, it drew for Deep Clue Sea's
+        # five (2026-11-02).
+        return "artifact_creatures"
     if "Creature" in s.watched or s.fuel in ("deaths", "creature_cast", "combat"):
         return "creatures"
     if s.watched == {"Enchantment"}:
@@ -861,6 +868,34 @@ def _source_fuel(s: _Source) -> str | None:
 _FUELS = JOB_READS.memo("draw_fuel")
 
 
+def _best_engine(sources: Sequence[_Source]) -> _Source | None:
+    """The draw engine among ``sources`` that flows the most cards."""
+    engines = [
+        s
+        for s in sources
+        if s.got > 0 and s.kind in _ENGINE_KINDS and _advantage(s) > 0
+    ]
+    return max(engines, key=lambda s: _advantage(s) * s.rate, default=None)
+
+
+def _narrowed(s: _Source) -> bool:
+    """Whether a draw trigger watches only a slice of what fires it: a chosen
+    type, a pumped creature, a power floor, an attachment."""
+    return bool(s.chosen or s.pumped or s.min_power is not None or s.attached)
+
+
+def narrower_engine(card: dict, than: dict) -> bool:
+    """Whether ``card``'s draw engine fires on the event ``than``'s does, but
+    only for a slice of it: Kutzil draws when "creatures you control each
+    with power greater than its base power" connect, Ohran Frostfang when any
+    creature of yours does — a face-down 2/2 deck's Frostfang went to Kutzil
+    (Deadly Disguise, 2026-11-02)."""
+    a, b = _best_engine(_sources(card)), _best_engine(_sources(than))
+    if a is None or b is None or a.fuel is None:
+        return False
+    return a.fuel == b.fuel and _narrowed(a) and not _narrowed(b)
+
+
 def draw_fuel(card: dict) -> str | None:
     """What ``card``'s draw engine needs its deck to be full of
     (``_FUEL_REFERENCE``'s keys), or ``None`` when it runs in any deck: no
@@ -870,12 +905,7 @@ def draw_fuel(card: dict) -> str | None:
     if oid and (hit := _FUELS.get(oid)) is not MISSING:
         return cast("str | None", hit)
     sources = _sources(card)
-    engines = [
-        s
-        for s in sources
-        if s.got > 0 and s.kind in _ENGINE_KINDS and _advantage(s) > 0
-    ]
-    best = max(engines, key=lambda s: _advantage(s) * s.rate, default=None)
+    best = _best_engine(sources)
     fuel = _source_fuel(best) if best is not None else None
     mine = [s for s in sources if s.got > 0 and s.kind != "cycling"]
     if best is None and mine and all(s.fodder for s in mine):
@@ -901,6 +931,13 @@ def _feeds(record: dict, fuel: str) -> bool:
         return "Enchantment" in face
     if fuel == "artifacts":
         return "Artifact" in face
+    if fuel == "artifact_creatures":
+        # Or an artifact creature token maker: a token maker making artifact
+        # tokens (``artifacts_matter|you|token``: Whirler Rogue's Thopters).
+        return ("Artifact" in face and "Creature" in face) or (
+            _ARTIFACT_TOKEN_IDENT in _signal_idents_for(record)
+            and "token_maker" in signal_keys_for(record)
+        )
     if fuel.startswith(_ATTACHED_FUEL):
         kind = fuel.removeprefix(_ATTACHED_FUEL).lower()
         return kind in {
@@ -932,6 +969,10 @@ def _feeds(record: dict, fuel: str) -> bool:
         return cheap_body or bool(keys & _FODDER_TOKEN_KEYS)
     return cheap_body
 
+
+#: The ident a maker of artifact tokens carries (``artifacts_matter`` on a
+#: token subject).
+_ARTIFACT_TOKEN_IDENT = "artifacts_matter|you|token"
 
 #: (the deck's oracle ids, fuel) -> the share of its nonland cards feeding it.
 #: The deck's fuel shares, keyed by the deck sequence's identity and the fuel;
@@ -970,6 +1011,14 @@ def deck_fit(card: dict, deck_records: Sequence[dict]) -> float:
     deck-dependent fuel, or with no deck to read."""
     fuel = draw_fuel(card)
     if fuel is None or not deck_records:
+        return 1.0
+    if (
+        fuel == "artifact_creatures"
+        and _feeds(card, fuel)
+        and "Creature" not in faces(card)[0]
+    ):
+        # An engine making its own: Thopter Shop's "{2}{W}, {T}: Create a 1/1
+        # colorless Thopter artifact creature token" feeds its draw.
         return 1.0
     reference = _FUEL_REFERENCE.get(
         fuel,

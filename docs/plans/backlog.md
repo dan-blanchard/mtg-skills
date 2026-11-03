@@ -1725,6 +1725,35 @@ proposal as a deckbuilder, fix the structure, the guide score is a yardstick)**
   as batch 16x). Village Rites's batch-15 keep becomes a `no_pair` against
   Esper Sentinel: it now goes to Invasion of New Capenna, an outlet too
   ("you may sacrifice an artifact or creature"). `verify_symptoms.py`: 155.
+- **Batch 16z (2026-11-02; the 25 728 / 339 / 113 → 725 / 337 / 114, held-out
+  559 / 264 / 103 → 557 / 264 / 104, fresh unchanged at 294 / 126 / 50).** The
+  eighth full 55-deck re-read (five Sonnet reviewers; 13 flags, five
+  structural), each fix read back on all 55 decks. Fixed: (162) *a land put
+  on a later sacrifice is not early ramp* (`ramp._land_only_later`, the
+  self-`sacrificed` trigger beside `_LEAVES`), nor a tempo upgrade: Ordeal
+  of Nylea's lands wait on three attacks and no longer take Careful
+  Cultivation's slot; (163) *a narrower draw trigger is no upgrade at the
+  same job* (`card_draw.narrower_engine`): Kutzil's pumped-creature combat
+  draw for Ohran Frostfang's any-creature one; (164) *an artifact-creature
+  draw runs on artifact creatures* (`card_draw` fuel `artifact_creatures`,
+  artifact-token makers included; an engine making its own fuels itself —
+  Thopter Shop); (165) *a narrow team grant protects the creatures it
+  names* (`protection.deck_fit`, creature grants only — Nissa's lands and
+  Darksteel Forge's artifacts are not read against creatures); (166) *the
+  proposal is read whole* (`swaps._unfueled_adds`): an add whose draw fuel
+  or narrow protection the deck the whole proposal leaves can't feed is
+  dropped and refunded — Losheel in Deep Clue Sea, Skullclamp in Prismari
+  Artistry, Garruk's Uprising in two decks — except a battlefield
+  chosen-type draw under Omo (Kindred Discovery). Its cost: a dropped add's
+  cut stays in the deck, so four guide cuts fall with their bad adds; *a
+  dropped swap could take its cut's next-best add* is open. Verdicts:
+  Admiral Beckett Brass for Edward Kenway, Aligned Heart for Unbreakable
+  Formation (an instant for flurry), Anger in Family Matters, Fumigate for
+  Damn under Frodo (the lifegain need is broad, batch 15c), Wave of
+  Reckoning for Contagion Engine (proliferate twice grows its counters),
+  Sephara in Silverquill Influence (8 of 17 creatures fly after the whole
+  proposal), Inspiring Call under Dina (Dina places +1/+1 counters).
+  `verify_symptoms.py`: 160.
 
 **From the Jace, Multiverse Architect precon tune and the 25-precon audit (2026-10-17 to 2026-11-01)**
 

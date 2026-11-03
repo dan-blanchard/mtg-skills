@@ -253,6 +253,12 @@ CHECKS = [
     _check("no_pair", "SliverSwarm_CMM", "Synapse Sliver -> Roaming Throne", batch="16y"),
     _check("no_pair", "SilverquillInfluence_SOC", "Promise of Loyalty -> Damn", batch="16y"),
     _check("no_pair", "WitherbloomPestilence_SOC", "Pest Infestation -> Nature's Claim", batch="16y"),
+    # The eighth full re-read (batch 16z).
+    _check("no_pair", "VirtueAndValor_WOC", "Careful Cultivation -> Ordeal of Nylea", batch="16z"),
+    _check("never", "DeepClueSea_MKC", "Losheel, Clockwork Scholar", batch="16z"),
+    _check("added", "TrickyTerrain_M3C", "Kindred Discovery", batch="16z"),
+    _check("added", "DanceOfTheElements_ECC", "Nissa, Who Shakes the World", batch="16z"),
+    _check("no_pair", "DeadlyDisguise_MKC", "Ohran Frostfang -> Kutzil, Malamet Exemplar", batch="16z"),
     _check("no_trim", "EldraziIncursion_M3C", "Forsaken Monument", batch="14"),
     _check("no_trim", "TrickyTerrain_M3C", "Mana Reflection", batch="14"),
 ]

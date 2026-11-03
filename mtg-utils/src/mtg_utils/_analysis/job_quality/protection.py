@@ -50,7 +50,10 @@ from mtg_utils._analysis.signal_trees import signal_trees_for
 from mtg_utils._card_ir.crosswalk import (
     at_instant_speed,
     attack_deterrent,
+    filter_admits,
     filter_controller,
+    filter_core_types,
+    filter_keywords,
     filter_predicates,
     filter_subtypes,
     iter_cost_leaves,
@@ -65,9 +68,12 @@ from mtg_utils._card_ir.crosswalk import (
     tag_of,
     unit_keyword_grants,
 )
+from mtg_utils._card_ir.trees import object_facts
 from mtg_utils.card_classify import FRONT_FACE_LAYOUTS, classifying_keywords
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
     from mtg_utils._card_ir.crosswalk import AbilityUnit, ConceptTree
 
 #: What survives a destroy-wipe: indestructible ("can't be destroyed", CR
@@ -133,6 +139,9 @@ class _Unit:
     upkeep_sac: bool  # an upkeep trigger that sacrifices
     face_cmc: int | None  # the face's own printed mana value
     equip_cost: int | None  # the card's cheapest equip
+    # The recipient filters of its team grants narrower than the whole team
+    # (``team_narrow``: Sephara's "Other creatures you control with flying").
+    narrow_filters: tuple = ()
 
 
 def _list(x: object) -> list:
@@ -267,6 +276,7 @@ def _read_unit(tree: ConceptTree, u: AbilityUnit) -> _Unit | None:
     kws: set[str] = set()
     scopes: set[str] = set()
     pump, narrow = 0, []
+    narrow_filters: list = []
     conditional = _conditional_defs(u.node)
     held, cond_held = set(), set()
     # The scope of each grant the walk found: the same mod sites, read for their
@@ -295,6 +305,7 @@ def _read_unit(tree: ConceptTree, u: AbilityUnit) -> _Unit | None:
         scope = _filter_scope(affected, targeted=id(mod) in targeted, multi=multi)
         if scope == "team" and not _broad(affected):
             scope = "team_narrow"  # a tribe, lands only, a strive pick
+            narrow_filters.append(affected)
         scopes.add(scope)
         for m2 in _list(getattr(sdef, "modifications", None)):
             if tag_of(m2) == "AddPower":
@@ -395,6 +406,7 @@ def _read_unit(tree: ConceptTree, u: AbilityUnit) -> _Unit | None:
         and u.has_effect("sacrifice"),
         face_cmc=tree.cmc if tree.has_printed_cost else None,
         equip_cost=None,
+        narrow_filters=tuple(narrow_filters),
     )
 
 
@@ -454,6 +466,48 @@ def _timely(u: _Unit) -> bool:
         or u.kind == "static"
         or u.duration in _LONG
     )
+
+
+#: The share of a deck's creatures a narrow team grant must cover to protect
+#: at full rate — the read's own call: half the board.
+_NARROW_REFERENCE = 0.5
+
+
+def deck_fit(card: dict, deck_records: Sequence[dict]) -> float:
+    """The share of ``card``'s protection its deck can use, in [0, 1]: for a
+    grant only to a slice of the team (``team_narrow``) and no whole-team one,
+    the deck's creatures its filter admits against half the board, capped at
+    1. Sephara, Sky's Blade's "Other creatures you control with flying have
+    indestructible" protects a flyers deck, not Silverquill Influence once the
+    proposal cut six of its ten flyers (2026-11-02). 1.0 for any other card or
+    no deck."""
+    units = _units(card)
+    if not deck_records or not units:
+        return 1.0
+    if any("team" in u.scopes or "one" in u.scopes for u in units):
+        return 1.0
+    # Only a grant to creatures is read against the deck's creatures: Nissa,
+    # Who Shakes the World's "Lands you control have indestructible" is no
+    # creature's (Dance of the Elements, 2026-11-02).
+    filters = [
+        f for u in units for f in u.narrow_filters if "Creature" in filter_core_types(f)
+    ]
+    if not filters:
+        return 1.0
+    creatures = [r for r in deck_records if "Creature" in faces(r)[0]]
+    if not creatures:
+        return 0.0
+
+    def admits(f: object, rec: dict) -> bool:
+        # ``filter_admits`` reads no keyword, so a "with flying" is checked
+        # against the card's own printed keywords.
+        held = set(rec.get("keywords") or ())
+        return filter_admits(f, object_facts(rec, zone="battlefield")) is not (
+            False
+        ) and all(k in held for k in filter_keywords(f))
+
+    covered = sum(1 for r in creatures if any(admits(f, r) for f in filters))
+    return min(1.0, covered / len(creatures) / _NARROW_REFERENCE)
 
 
 def features(card: dict) -> dict[str, float] | None:
