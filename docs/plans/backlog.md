@@ -264,6 +264,19 @@ problems are what drives them.
   (it includes your teammate). phase doesn't support team formats yet, so this isn't
   reported upstream for now. `twohg_scan` vetoes it with an oracle-text check guarded by
   a `retirement_canary` test; delete the veto when the canary fails.
+- **phase writes "target opponent may …" as each opponent** (found 2026-11-07,
+  v0.118.0; not yet reported upstream). The punisher "target opponent may have you
+  draw a card. If they don't, …" (Tell Me What You See, Risk Factor, Combustible
+  Gearhulk, Palantír of Orthanc, Rakdos, Patron of Chaos; 13 abilities) carries
+  `player_scope: Opponent` and no target. `crosswalk.targets_one_opponent` reads
+  the parked clause for it (`test_target_opponent_may_canary`), and only
+  `twohg_scan` asks it; every other lane still sees phase's "each opponent"
+  (Rakdos's sacrifice as an each-opponent edict, unverified). A `misparsed_shapes`
+  row was considered and held back: phase has no form for one opponent's option,
+  and dropping the scope makes the opponent's own action read as yours (Rakdos's
+  sacrifice, Gravestorm's exile). A row that writes the actor as a targeted
+  opponent (Farsight Adept's `TargetOnly{Typed{Opponent}}` head) is the next step
+  if another lane needs it; otherwise the fix is upstream.
 - **`twohg-scan --shadow`.** Listing IR-vs-text disagreements (information only, never
   merged) would calibrate the text fallback and surface phase misparses. Deferred until
   a set arrives that phase hasn't parsed. Baseline from FRA with the IR stripped: the

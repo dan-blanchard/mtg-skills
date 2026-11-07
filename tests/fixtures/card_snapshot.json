@@ -88578,6 +88578,225 @@
     "type_line": "Creature — Cat Knight"
    }
   },
+  "Armus, Skin of Evil": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "activation_zone": "Hand",
+       "condition": null,
+       "consumes_source": true,
+       "cost": {
+        "costs": [
+         {
+          "cost": {
+           "generic": 2,
+           "shards": [
+            "Black"
+           ],
+           "type": "Cost"
+          },
+          "type": "Mana"
+         },
+         {
+          "count": {
+           "type": "Fixed",
+           "value": 1
+          },
+          "filter": null,
+          "random": false,
+          "self_ref": true,
+          "type": "Discard"
+         }
+        ],
+        "type": "Composite"
+       },
+       "description": "{2}{B}, Discard this card: Target creature gets -4/-4 until end of turn.",
+       "duration": "UntilEndOfTurn",
+       "effect": {
+        "power": {
+         "type": "Fixed",
+         "value": -4
+        },
+        "target": {
+         "controller": null,
+         "properties": [],
+         "type": "Typed",
+         "type_filters": [
+          "Creature"
+         ]
+        },
+        "toughness": {
+         "type": "Fixed",
+         "value": -4
+        },
+        "type": "Pump"
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "brawl_commander": true,
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Ooze",
+       "Horror"
+      ],
+      "supertypes": [
+       "Legendary"
+      ]
+     },
+     "color_identity": [
+      "Black"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "is_commander": true,
+     "keywords": [
+      "Menace"
+     ],
+     "legalities": {},
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 5,
+      "shards": [
+       "Black",
+       "Black"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "c3ba1e0d-5e3d-4fa7-9b58-5b90944b43c5",
+       "c709714b-ae51-4006-8873-05f1d71a447c"
+      ]
+     },
+     "name": "Armus, Skin of Evil",
+     "non_ability_text": null,
+     "oracle_text": "Menace\nAt the beginning of your end step, target opponent discards two cards.\n{2}{B}, Discard this card: Target creature gets -4/-4 until end of turn.",
+     "power": {
+      "type": "Fixed",
+      "value": 6
+     },
+     "printings": [
+      "TRK"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "42c77c4d-90bb-45d6-a9e0-36704b5a2b11",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 6
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": {
+        "type": "OnlyDuringYourTurn"
+       },
+       "damage_kind": "Any",
+       "description": "At the beginning of your end step, target opponent discards two cards.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "declares_chosen_group": 2147483648,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "count": {
+          "type": "Fixed",
+          "value": 2
+         },
+         "target": {
+          "controller": "Opponent",
+          "properties": [],
+          "type": "Typed",
+          "type_filters": []
+         },
+         "type": "Discard"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "Phase",
+       "optional": false,
+       "origin": null,
+       "phase": "End",
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": null,
+       "valid_source": null,
+       "valid_target": {
+        "type": "Player"
+       }
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 7.0,
+    "color_identity": [
+     "B"
+    ],
+    "colors": [
+     "B"
+    ],
+    "keywords": [
+     "Menace"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "not_legal",
+     "competitivebrawl": "not_legal",
+     "duel": "not_legal",
+     "future": "legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "not_legal",
+     "modern": "not_legal",
+     "oathbreaker": "not_legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "not_legal"
+    },
+    "mana_cost": "{5}{B}{B}",
+    "name": "Armus, Skin of Evil",
+    "oracle_id": "42c77c4d-90bb-45d6-a9e0-36704b5a2b11",
+    "oracle_text": "Menace\nAt the beginning of your end step, target opponent discards two cards.\n{2}{B}, Discard this card: Target creature gets -4/-4 until end of turn.",
+    "power": "6",
+    "toughness": "6",
+    "type_line": "Legendary Creature — Ooze Horror"
+   }
+  },
   "Army of the Damned": {
    "phase_records": [
     {
@@ -552552,6 +552771,53 @@
     "type_line": "Enchantment"
    }
   },
+  "Gul Dukat, Colonial Prefect": {
+   "phase_records": [],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 7.0,
+    "color_identity": [
+     "B"
+    ],
+    "colors": [
+     "B"
+    ],
+    "keywords": [
+     "Menace"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "not_legal",
+     "competitivebrawl": "not_legal",
+     "duel": "not_legal",
+     "future": "legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "not_legal",
+     "modern": "not_legal",
+     "oathbreaker": "not_legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "not_legal"
+    },
+    "mana_cost": "{4}{B}{B}{B}",
+    "name": "Gul Dukat, Colonial Prefect",
+    "oracle_id": "f41f0290-0f9d-4c51-935e-f69d2120e4a7",
+    "oracle_text": "Menace\nAt the beginning of each end step, each opponent loses life equal to the life that player lost this turn. You gain life equal to the life lost this way. (Damage causes loss of life.)",
+    "power": "6",
+    "toughness": "6",
+    "type_line": "Legendary Creature — Cardassian Rogue"
+   }
+  },
   "Gut, Fanatical Priestess": {
    "phase_records": [
     {
@@ -744636,6 +744902,233 @@
     "power": "4",
     "toughness": "4",
     "type_line": "Legendary Creature — Human Wizard"
+   }
+  },
+  "Make It So": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": null,
+       "duration": null,
+       "effect": {
+        "scope": {
+         "type": "Single"
+        },
+        "state": {
+         "type": "Untap"
+        },
+        "target": {
+         "controller": "You",
+         "properties": [],
+         "type": "Typed",
+         "type_filters": [
+          "Permanent"
+         ]
+        },
+        "type": "SetTapState"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "declares_chosen_group": 2147483648,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "count": {
+          "type": "Fixed",
+          "value": 2
+         },
+         "target": {
+          "type": "Player"
+         },
+         "type": "Draw"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "sub_link": "SequentialSibling",
+        "target_prompt": null
+       },
+       "target_prompt": null
+      },
+      {
+       "condition": null,
+       "cost": null,
+       "description": null,
+       "duration": null,
+       "effect": {
+        "colors": [
+         "Red"
+        ],
+        "count": {
+         "type": "Fixed",
+         "value": 1
+        },
+        "enters_attacking": false,
+        "keywords": [],
+        "name": "Officer",
+        "owner": {
+         "type": "Controller"
+        },
+        "power": {
+         "type": "Fixed",
+         "value": 1
+        },
+        "tapped": false,
+        "toughness": {
+         "type": "Fixed",
+         "value": 1
+        },
+        "type": "Token",
+        "types": [
+         "Creature",
+         "Officer"
+        ]
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "count": {
+          "type": "Fixed",
+          "value": 2
+         },
+         "target": {
+          "type": "Controller"
+         },
+         "type": "Draw"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Sorcery"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Blue"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {},
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 3,
+      "shards": [
+       "Blue"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "7149df19-4833-47ca-8add-b897f55b930c"
+      ]
+     },
+     "modal": {
+      "allow_repeat_modes": false,
+      "chooser": {
+       "type": "Controller"
+      },
+      "max_choices": 1,
+      "min_choices": 1,
+      "mode_count": 2,
+      "mode_descriptions": [
+       "Untap target permanent you control. Target player draws two cards.",
+       "Create a 1/1 red Officer creature token and draw two cards."
+      ]
+     },
+     "name": "Make It So",
+     "non_ability_text": null,
+     "oracle_text": "Choose one —\n• Untap target permanent you control. Target player draws two cards.\n• Create a 1/1 red Officer creature token and draw two cards.",
+     "power": null,
+     "printings": [
+      "TRK"
+     ],
+     "rarities": [
+      "common"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "a9368972-4697-4a10-97e3-324149a26fba",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "all_parts": [
+     {
+      "component": "token",
+      "id": "d676cbef-8e31-4ae6-8dfe-6b84160f71e0",
+      "name": "Officer",
+      "oracle_id": "e9452def-ea12-4262-9714-86e5cfffaadc",
+      "type_line": "Token Creature — Officer"
+     }
+    ],
+    "arena_available": true,
+    "cmc": 4.0,
+    "color_identity": [
+     "U"
+    ],
+    "colors": [
+     "U"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "not_legal",
+     "competitivebrawl": "not_legal",
+     "duel": "not_legal",
+     "future": "legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "not_legal",
+     "modern": "not_legal",
+     "oathbreaker": "not_legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "not_legal"
+    },
+    "mana_cost": "{3}{U}",
+    "name": "Make It So",
+    "oracle_id": "a9368972-4697-4a10-97e3-324149a26fba",
+    "oracle_text": "Choose one —\n• Untap target permanent you control. Target player draws two cards.\n• Create a 1/1 red Officer creature token and draw two cards.",
+    "type_line": "Sorcery"
    }
   },
   "Make an Example": {
@@ -985885,6 +986378,224 @@
     "type_line": "Legendary Creature — Squid Pirate"
    }
   },
+  "Salt Vampire": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Vampire",
+       "Shapeshifter"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Black"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [
+      "Lifelink"
+     ],
+     "legalities": {},
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "Black"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "5ad670fc-85ef-4f9b-9b5b-bac20f080bf5",
+       "78faba81-01a3-489f-927e-1adaa8fe4436",
+       "d633a0bf-bb3a-471f-a286-7686da81bb01"
+      ]
+     },
+     "name": "Salt Vampire",
+     "non_ability_text": null,
+     "oracle_text": "Lifelink\nWhen this creature enters, look at target opponent's hand. You may choose a nonland card from it. If you do, that player exiles that card, then draws a card.",
+     "power": {
+      "type": "Fixed",
+      "value": 2
+     },
+     "printings": [
+      "TRK"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "31c7453e-33b8-4eb6-abac-28cdb35fb993",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 2
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "When ~ enters, look at target opponent's hand. You may choose a nonland card from it. If you do, that player exiles that card, then draws a card.",
+       "destination": "Battlefield",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "declares_chosen_group": 2147483648,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "card_filter": {
+          "controller": null,
+          "properties": [],
+          "type": "Typed",
+          "type_filters": [
+           {
+            "Non": "Land"
+           }
+          ]
+         },
+         "choice_optional": true,
+         "count": null,
+         "reveal": false,
+         "target": {
+          "controller": "Opponent",
+          "properties": [],
+          "type": "Typed",
+          "type_filters": []
+         },
+         "type": "RevealHand"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": {
+          "signal": "OptionalEffectPerformed",
+          "type": "EffectOutcome"
+         },
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "destination": "Exile",
+          "enter_tapped": false,
+          "enter_transformed": false,
+          "enters_attacking": false,
+          "origin": null,
+          "owner_library": false,
+          "target": {
+           "type": "ParentTarget"
+          },
+          "type": "ChangeZone"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": {
+          "condition": {
+           "signal": "OptionalEffectPerformed",
+           "type": "EffectOutcome"
+          },
+          "cost": null,
+          "description": null,
+          "duration": null,
+          "effect": {
+           "count": {
+            "type": "Fixed",
+            "value": 1
+           },
+           "target": {
+            "group": 2147483648,
+            "type": "DeclaredPlayer"
+           },
+           "type": "Draw"
+          },
+          "forward_result": false,
+          "kind": "Spell",
+          "optional": false,
+          "optional_targeting": false,
+          "sub_ability": null,
+          "target_prompt": null
+         },
+         "sub_link": "SequentialSibling",
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "mode": "ChangesZone",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": {
+        "type": "Player"
+       }
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 2.0,
+    "color_identity": [
+     "B"
+    ],
+    "colors": [
+     "B"
+    ],
+    "keywords": [
+     "Lifelink"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "not_legal",
+     "competitivebrawl": "not_legal",
+     "duel": "not_legal",
+     "future": "legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "not_legal",
+     "modern": "not_legal",
+     "oathbreaker": "not_legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "not_legal"
+    },
+    "mana_cost": "{1}{B}",
+    "name": "Salt Vampire",
+    "oracle_id": "31c7453e-33b8-4eb6-abac-28cdb35fb993",
+    "oracle_text": "Lifelink\nWhen this creature enters, look at target opponent's hand. You may choose a nonland card from it. If you do, that player exiles that card, then draws a card.",
+    "power": "2",
+    "toughness": "2",
+    "type_line": "Creature — Vampire Shapeshifter"
+   }
+  },
   "Salvage Slasher": {
    "phase_records": [
     {
@@ -1070360,6 +1071071,53 @@
     "type_line": "Land"
    }
   },
+  "Species 8472": {
+   "phase_records": [],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 6.0,
+    "color_identity": [
+     "G"
+    ],
+    "colors": [
+     "G"
+    ],
+    "keywords": [
+     "Strange new worlds"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "not_legal",
+     "competitivebrawl": "not_legal",
+     "duel": "not_legal",
+     "future": "legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "not_legal",
+     "modern": "not_legal",
+     "oathbreaker": "not_legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "not_legal"
+    },
+    "mana_cost": "{4}{G}{G}",
+    "name": "Species 8472",
+    "oracle_id": "645a5619-d0b2-4153-aae0-ca2adc6f5e3d",
+    "oracle_text": "Strange new worlds — When this creature enters, you gain life equal to the number of differently named lands you control.\nThis creature can't be blocked by artifact creatures.\nThis creature can't be the target of abilities from artifact sources your opponents control.",
+    "power": "7",
+    "toughness": "5",
+    "type_line": "Creature — Insect Beast"
+   }
+  },
   "Species Specialist": {
    "phase_records": [
     {
@@ -1128504,6 +1129262,234 @@
     "type_line": "Legendary Creature — Human Warrior"
    }
   },
+  "Tea, Earl Grey, Hot": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": {
+        "costs": [
+         {
+          "cost": {
+           "generic": 2,
+           "shards": [],
+           "type": "Cost"
+          },
+          "type": "Mana"
+         },
+         {
+          "type": "Tap"
+         },
+         {
+          "count": 1,
+          "target": {
+           "type": "SelfRef"
+          },
+          "type": "Sacrifice"
+         }
+        ],
+        "type": "Composite"
+       },
+       "description": null,
+       "duration": null,
+       "effect": {
+        "duration": null,
+        "static_abilities": [],
+        "target": null,
+        "type": "GenericEffect"
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "modal": {
+        "allow_repeat_modes": false,
+        "chooser": {
+         "type": "Controller"
+        },
+        "max_choices": 1,
+        "min_choices": 1,
+        "mode_count": 2,
+        "mode_descriptions": [
+         "~ deals 2 damage to target opponent.",
+         "You gain 3 life."
+        ]
+       },
+       "mode_abilities": [
+        {
+         "condition": null,
+         "cost": null,
+         "declares_chosen_group": 2147483648,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "amount": {
+           "type": "Fixed",
+           "value": 2
+          },
+          "target": {
+           "controller": "Opponent",
+           "properties": [],
+           "type": "Typed",
+           "type_filters": []
+          },
+          "type": "DealDamage"
+         },
+         "forward_result": false,
+         "kind": "Activated",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": null,
+         "target_prompt": null
+        },
+        {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "amount": {
+           "type": "Fixed",
+           "value": 3
+          },
+          "type": "GainLife"
+         },
+         "forward_result": false,
+         "kind": "Activated",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": null,
+         "target_prompt": null
+        }
+       ],
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Artifact"
+      ],
+      "subtypes": [
+       "Food"
+      ],
+      "supertypes": []
+     },
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {},
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 2,
+      "shards": [],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "289e8ebe-ab0f-466b-a4e6-d5cf8411e724"
+      ]
+     },
+     "name": "Tea, Earl Grey, Hot",
+     "non_ability_text": null,
+     "oracle_text": "When this artifact enters, draw a card.\n{2}, {T}, Sacrifice this artifact: Choose one —\n• This artifact deals 2 damage to target opponent.\n• You gain 3 life.",
+     "power": null,
+     "printings": [
+      "TRK"
+     ],
+     "rarities": [
+      "common"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "6f2e8083-29af-4cdb-a2cb-216b2f3f5616",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "When ~ enters, draw a card.",
+       "destination": "Battlefield",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "target": {
+          "type": "Controller"
+         },
+         "type": "Draw"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "ChangesZone",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 2.0,
+    "color_identity": [],
+    "colors": [],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "not_legal",
+     "competitivebrawl": "not_legal",
+     "duel": "not_legal",
+     "future": "legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "not_legal",
+     "modern": "not_legal",
+     "oathbreaker": "not_legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "not_legal"
+    },
+    "mana_cost": "{2}",
+    "name": "Tea, Earl Grey, Hot",
+    "oracle_id": "6f2e8083-29af-4cdb-a2cb-216b2f3f5616",
+    "oracle_text": "When this artifact enters, draw a card.\n{2}, {T}, Sacrifice this artifact: Choose one —\n• This artifact deals 2 damage to target opponent.\n• You gain 3 life.",
+    "type_line": "Artifact — Food"
+   }
+  },
   "Technomancer": {
    "phase_records": [
     {
@@ -1133169,6 +1134155,237 @@
     "name": "Telepathy",
     "oracle_id": "d2e647ac-717f-46e6-baa8-6a793e7bdc32",
     "oracle_text": "Your opponents play with their hands revealed.",
+    "type_line": "Enchantment"
+   }
+  },
+  "Tell Me What You See": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Enchantment"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Black"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {},
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "Black"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "e339c8fb-26d2-4514-aeb7-014274df0c9c"
+      ]
+     },
+     "name": "Tell Me What You See",
+     "non_ability_text": null,
+     "oracle_text": "When this enchantment enters, target opponent may have you draw a card. If they don't, they lose 4 life and you surveil 1.\nWhenever you face a dilemma, you may return this enchantment to its owner's hand. (You face a dilemma as you choose one or more modes for a spell or ability.)",
+     "power": null,
+     "printings": [
+      "TRK"
+     ],
+     "rarities": [
+      "uncommon"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "abfdfae5-61aa-42d6-9c8e-83fda59de233",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "When ~ enters, target opponent may have you draw a card. If they don't, they lose 4 life and you surveil 1.",
+       "destination": "Battlefield",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "target": {
+          "type": "OriginalController"
+         },
+         "type": "Draw"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": true,
+        "optional_targeting": false,
+        "player_scope": {
+         "type": "Opponent"
+        },
+        "sub_ability": {
+         "condition": {
+          "condition": {
+           "signal": "OptionalEffectPerformed",
+           "type": "EffectOutcome"
+          },
+          "type": "Not"
+         },
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "amount": {
+           "type": "Fixed",
+           "value": 4
+          },
+          "target": {
+           "type": "ParentTarget"
+          },
+          "type": "LoseLife"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": {
+          "condition": null,
+          "cost": null,
+          "description": null,
+          "duration": null,
+          "effect": {
+           "count": {
+            "type": "Fixed",
+            "value": 1
+           },
+           "target": {
+            "type": "Controller"
+           },
+           "type": "Surveil"
+          },
+          "forward_result": false,
+          "kind": "Spell",
+          "optional": false,
+          "optional_targeting": false,
+          "sub_ability": null,
+          "target_prompt": null
+         },
+         "sub_link": "SequentialSibling",
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "mode": "ChangesZone",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": {
+        "type": "Player"
+       }
+      },
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever you face a dilemma, you may return ~ to its owner's hand.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "destination": null,
+         "target": {
+          "type": "SelfRef"
+         },
+         "type": "Bounce"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": true,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": {
+        "Unknown": "Whenever you face a dilemma"
+       },
+       "optional": true,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": null,
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 2.0,
+    "color_identity": [
+     "B"
+    ],
+    "colors": [
+     "B"
+    ],
+    "keywords": [
+     "Face a dilemma",
+     "Surveil"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "not_legal",
+     "competitivebrawl": "not_legal",
+     "duel": "not_legal",
+     "future": "legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "not_legal",
+     "modern": "not_legal",
+     "oathbreaker": "not_legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "not_legal"
+    },
+    "mana_cost": "{1}{B}",
+    "name": "Tell Me What You See",
+    "oracle_id": "abfdfae5-61aa-42d6-9c8e-83fda59de233",
+    "oracle_text": "When this enchantment enters, target opponent may have you draw a card. If they don't, they lose 4 life and you surveil 1.\nWhenever you face a dilemma, you may return this enchantment to its owner's hand. (You face a dilemma as you choose one or more modes for a spell or ability.)",
     "type_line": "Enchantment"
    }
   },
@@ -1139070,6 +1140287,189 @@
     "power": "0",
     "toughness": "0",
     "type_line": "Creature — Tyranid"
+   }
+  },
+  "Test of Conviction": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": null,
+       "duration": null,
+       "effect": {
+        "count": {
+         "type": "Fixed",
+         "value": 1
+        },
+        "counter_type": "P1P1",
+        "target": {
+         "controller": "You",
+         "properties": [],
+         "type": "Typed",
+         "type_filters": [
+          "Creature"
+         ]
+        },
+        "type": "PutCounterAll"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      },
+      {
+       "condition": null,
+       "cost": null,
+       "declares_chosen_group": 2147483648,
+       "description": null,
+       "duration": null,
+       "effect": {
+        "count": {
+         "type": "Fixed",
+         "value": 1
+        },
+        "target": {
+         "controller": "Opponent",
+         "properties": [],
+         "type": "Typed",
+         "type_filters": []
+        },
+        "type": "Draw"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "count": {
+          "type": "Fixed",
+          "value": 2
+         },
+         "target": {
+          "type": "Controller"
+         },
+         "type": "Draw"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "sub_link": "SequentialSibling",
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Sorcery"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "White"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {},
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "White"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "837d7cec-f3f8-4555-86f2-c5ea1849d7d1"
+      ]
+     },
+     "modal": {
+      "allow_repeat_modes": false,
+      "chooser": {
+       "type": "Controller"
+      },
+      "max_choices": 1,
+      "min_choices": 1,
+      "mode_count": 2,
+      "mode_descriptions": [
+       "Battle Stations — Put a +1/+1 counter on each creature you control.",
+       "Begin Negotiations — Target opponent draws a card. You draw two cards."
+      ]
+     },
+     "name": "Test of Conviction",
+     "non_ability_text": null,
+     "oracle_text": "Choose one —\n• Battle Stations — Put a +1/+1 counter on each creature you control.\n• Begin Negotiations — Target opponent draws a card. You draw two cards.",
+     "power": null,
+     "printings": [
+      "TRK"
+     ],
+     "rarities": [
+      "uncommon"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "beffaea5-beeb-4d4e-aca3-82c698caf6f8",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 2.0,
+    "color_identity": [
+     "W"
+    ],
+    "colors": [
+     "W"
+    ],
+    "keywords": [
+     "Battle Stations",
+     "Begin Negotiations"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "not_legal",
+     "competitivebrawl": "not_legal",
+     "duel": "not_legal",
+     "future": "legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "not_legal",
+     "modern": "not_legal",
+     "oathbreaker": "not_legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "not_legal"
+    },
+    "mana_cost": "{1}{W}",
+    "name": "Test of Conviction",
+    "oracle_id": "beffaea5-beeb-4d4e-aca3-82c698caf6f8",
+    "oracle_text": "Choose one —\n• Battle Stations — Put a +1/+1 counter on each creature you control.\n• Begin Negotiations — Target opponent draws a card. You draw two cards.",
+    "type_line": "Sorcery"
    }
   },
   "Test of Endurance": {
@@ -1279218,6 +1280618,53 @@
     "type_line": "Creature — Human Werewolf // Creature — Werewolf"
    }
   },
+  "Wesley Crusher, Starfleet Cadet": {
+   "phase_records": [],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 4.0,
+    "color_identity": [
+     "U"
+    ],
+    "colors": [
+     "U"
+    ],
+    "keywords": [
+     "Flash"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "not_legal",
+     "competitivebrawl": "not_legal",
+     "duel": "not_legal",
+     "future": "legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "not_legal",
+     "modern": "not_legal",
+     "oathbreaker": "not_legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "not_legal"
+    },
+    "mana_cost": "{2}{U}{U}",
+    "name": "Wesley Crusher, Starfleet Cadet",
+    "oracle_id": "5c3cbb08-cbe1-42f5-9ac7-e558b85648bb",
+    "oracle_text": "Flash\nWhen Wesley Crusher enters, choose two —\n• Counter target noncreature spell unless its controller pays {2}.\n• Return target creature with mana value 2 or less to its owner's hand.\n• Target creature can't be blocked this turn.\n• Target player draws two cards, then discards two cards.",
+    "power": "2",
+    "toughness": "2",
+    "type_line": "Legendary Creature — Human Officer"
+   }
+  },
   "Westfold Rider": {
    "phase_records": [
     {
@@ -1314004,6 +1315451,258 @@
     "power": "3",
     "toughness": "4",
     "type_line": "Legendary Creature — Griffin"
+   }
+  },
+  "Zero, Incorporeal Sensate": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "brawl_commander": true,
+     "card_type": {
+      "core_types": [
+       "Artifact",
+       "Creature"
+      ],
+      "subtypes": [
+       "Medusan",
+       "Scientist"
+      ],
+      "supertypes": [
+       "Legendary"
+      ]
+     },
+     "color_identity": [
+      "Black",
+      "White"
+     ],
+     "color_override": [
+      "Black",
+      "White"
+     ],
+     "defense": null,
+     "flavor_name": null,
+     "is_commander": true,
+     "keywords": [
+      "Lifelink"
+     ],
+     "legalities": {},
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "WhiteBlack",
+       "WhiteBlack"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "93f616fe-6906-4e5d-b9fe-b432cccdb0ec"
+      ]
+     },
+     "name": "Zero, Incorporeal Sensate",
+     "non_ability_text": null,
+     "oracle_text": "Lifelink\nWhen Zero enters, look at target opponent's hand. You may exile a nonland card from it. For as long as that card remains exiled, its owner may play it. A spell cast this way costs {2} more to cast.",
+     "power": {
+      "type": "Fixed",
+      "value": 2
+     },
+     "printings": [
+      "TRK"
+     ],
+     "rarities": [
+      "uncommon"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "746e494e-fdc4-415e-8a82-d35e11ebeccb",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 2
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "When ~ enters, look at target opponent's hand. You may exile a nonland card from it. For as long as that card remains exiled, its owner may play it. A spell cast this way costs {2} more to cast.",
+       "destination": "Battlefield",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "declares_chosen_group": 2147483648,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "card_filter": {
+          "controller": null,
+          "properties": [],
+          "type": "Typed",
+          "type_filters": [
+           "Card",
+           {
+            "Non": "Land"
+           }
+          ]
+         },
+         "choice_optional": true,
+         "count": null,
+         "reveal": false,
+         "target": {
+          "controller": "Opponent",
+          "properties": [],
+          "type": "Typed",
+          "type_filters": []
+         },
+         "type": "RevealHand"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "destination": "Exile",
+          "enter_tapped": false,
+          "enter_transformed": false,
+          "enters_attacking": false,
+          "origin": null,
+          "owner_library": false,
+          "target": {
+           "controller": null,
+           "properties": [],
+           "type": "Typed",
+           "type_filters": [
+            "Card",
+            {
+             "Non": "Land"
+            }
+           ]
+          },
+          "type": "ChangeZone"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": {
+          "condition": null,
+          "cost": null,
+          "description": null,
+          "duration": {
+           "ForAsLongAs": {
+            "condition": {
+             "text": "that card remains exiled",
+             "type": "Unrecognized"
+            }
+           }
+          },
+          "effect": {
+           "grantee": {
+            "type": "ObjectOwner"
+           },
+           "permission": {
+            "cast_cost_modifier": {
+             "amount": {
+              "generic": 2,
+              "shards": [],
+              "type": "Cost"
+             },
+             "mode": "Raise"
+            },
+            "duration": "Permanent",
+            "granted_to": 0,
+            "type": "PlayFromExile"
+           },
+           "target": {
+            "id": 0,
+            "type": "TrackedSet"
+           },
+           "type": "GrantCastingPermission"
+          },
+          "forward_result": false,
+          "kind": "Spell",
+          "optional": false,
+          "optional_targeting": false,
+          "sub_ability": null,
+          "sub_link": "SequentialSibling",
+          "target_prompt": null
+         },
+         "sub_link": "SequentialSibling",
+         "target_choice_timing": "Resolution",
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "mode": "ChangesZone",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": {
+        "type": "Player"
+       }
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 3.0,
+    "color_identity": [
+     "B",
+     "W"
+    ],
+    "colors": [
+     "B",
+     "W"
+    ],
+    "keywords": [
+     "Lifelink"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "not_legal",
+     "competitivebrawl": "not_legal",
+     "duel": "not_legal",
+     "future": "legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "not_legal",
+     "modern": "not_legal",
+     "oathbreaker": "not_legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "not_legal"
+    },
+    "mana_cost": "{1}{W/B}{W/B}",
+    "name": "Zero, Incorporeal Sensate",
+    "oracle_id": "746e494e-fdc4-415e-8a82-d35e11ebeccb",
+    "oracle_text": "Lifelink\nWhen Zero enters, look at target opponent's hand. You may exile a nonland card from it. For as long as that card remains exiled, its owner may play it. A spell cast this way costs {2} more to cast.",
+    "power": "2",
+    "toughness": "2",
+    "type_line": "Legendary Artifact Creature — Medusan Scientist"
    }
   },
   "Zetalpa, Primal Dawn": {

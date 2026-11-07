@@ -86,7 +86,7 @@ Work in the session scratchpad. Launch these together:
      3. `get_page_text` for the page summary: match count, the "Early Access" note, color tiers with 6+ win rates, top commons, signpost uncommons.
      4. In the tab, run:
         ```js
-        const r = await fetch('https://api.mtga.untapped.gg/api/v1/analytics/query/card_stats_limited_by_set/premium?CardSetFilter=<CODE>&LimitedEventTypeFilter=PREMIER_DRAFT', {credentials: 'include'});
+        const r = await fetch('https://api.mtga.untapped.gg/api/v1/analytics/query/card_stats_limited_by_set_v2/premium?CardSetFilter=<CODE>&LimitedEventTypeFilter=PREMIER_DRAFT&LimitedEventTimeIntervalFilter=LATEST_EVENT', {credentials: 'include'});
         const t = await r.text();
         document.getElementById('__out')?.remove();
         const pre = Object.assign(document.createElement('pre'), {id: '__out', textContent: t});
@@ -101,6 +101,7 @@ Work in the session scratchpad. Launch these together:
      - Each rank holds three arrays: games/wins in deck, drawn-or-in-hand ("GIH"), and opening hand.
      - The free tier truncates these arrays and omits diamond/mythic. `metadata.fields` names the positions.
    - The page's `?eventType=SEALED` view is usually empty before release; say so rather than guessing.
+   - The query is `card_stats_limited_by_set_v2` (the v1 path answers 204 for every set since 2026-11). If `limited-stats` reports an empty answer while the set-guide page shows stats, Untapped has moved it again: read the page's network calls (`read_network_requests`, filter `card_stats`) for the new path, then update `API_URL` in `limited_stats.py`.
 4. **Web research subagent** (general-purpose, background). It gathers:
    - the WPN prerelease page (the 2HG product);
    - the official release notes and mechanics article;

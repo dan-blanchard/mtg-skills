@@ -24,6 +24,7 @@ from mtg_utils._card_ir.crosswalk import (
     refers_to_scoped_player,
     scoped_player_scope,
     tag_of,
+    targets_one_opponent,
     trigger_phase,
 )
 from mtg_utils.testkit import test_card, test_phase_records, test_signals
@@ -90,6 +91,26 @@ def _no_ir_row(name):
 def test_effect_player_reach(name, concept, reach):
     unit, c = _effect(name, concept)
     assert effect_player_reach(unit.node, c.node) == reach
+
+
+@pytest.mark.parametrize(
+    ("name", "concept", "one_opponent"),
+    [
+        ("Armus, Skin of Evil", "discard", True),  # a Typed{Opponent} recipient
+        ("Salt Vampire", "reveal_hand", True),
+        ("Zero, Incorporeal Sensate", "reveal_hand", True),
+        ("Tea, Earl Grey, Hot", "deal_damage", True),
+        ("Test of Conviction", "draw", True),
+        # "target opponent may have you draw": phase's player_scope Opponent.
+        ("Tell Me What You See", "draw", True),
+        ("Make It So", "draw", False),  # target player
+        ("Sign in Blood", "draw", False),
+        ("Rank Rat", "discard", False),  # each opponent
+    ],
+)
+def test_targets_one_opponent(name, concept, one_opponent):
+    unit, c = _effect(name, concept)
+    assert targets_one_opponent(unit.node, c.node) is one_opponent
 
 
 def test_step_trigger_reads():
@@ -205,6 +226,10 @@ def test_target_player(name, what):
         ("Sheoldred, Whispering One", "Upkeep", "each_opponent", "per_head"),
         ("Lavaborn Muse", "Upkeep", "each_opponent", "per_head"),
         ("Pestilence", "End", "each", "once"),
+        # "each opponent loses life equal to the life they lost this turn": the
+        # "they" is the effect's each-opponent player, not the step's.
+        ("Wound Reflection", "End", "each", "once"),
+        ("Archfiend of Despair", "End", "each", "once"),
         ("Verdant Kraken", "Upkeep", "each", "once"),
         ("The Theorist, Jace Beleren", "Draw", "each_opponent", "once"),
         ("Bloodline Recollector // Ancestral Craving", "End", "each", "once"),
@@ -219,6 +244,45 @@ def test_step_triggers(name, step, whose, fires):
 
 def test_no_row_for_a_card_2hg_does_not_change():
     assert classify_card(test_card("Phyrexian Arena")) is None  # your upkeep, you draw
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Armus, Skin of Evil",
+        "Salt Vampire",
+        "Zero, Incorporeal Sensate",
+        "Tea, Earl Grey, Hot",
+        "Test of Conviction",
+        "Tell Me What You See",
+    ],
+)
+def test_a_target_opponent_is_one_head(name):
+    """A target opponent is one player and never your teammate (CR 102.3): it
+    is neither aimable at your partner nor doubled."""
+    row = classify_card(test_card(name))
+    if row is not None:
+        assert row["path"] == "ir"
+        assert row["target_player"] == []
+        assert row["doubles"] == []
+
+
+@pytest.mark.retirement_canary
+def test_target_opponent_may_canary():
+    """Retirement canary for ``targets_one_opponent``'s "target opponent may"
+    read, a phase-misparse workaround. Phase v0.118.0 writes Tell Me What You
+    See's "target opponent may have you draw a card" with ``player_scope:
+    Opponent`` (each opponent) on the trigger and no target. When phase types
+    the target, this fails RETIRE-READY."""
+    (rec,) = test_phase_records("Tell Me What You See")
+    execute = rec["triggers"][0]["execute"]
+    assert execute.get("player_scope") == {"type": "Opponent"}, (
+        "targets_one_opponent: RETIRE-READY — phase no longer writes Tell Me What "
+        "You See's 'target opponent may' as player_scope Opponent. Delete the "
+        "clause read in targets_one_opponent (keep the Typed{Opponent} arm if "
+        "phase's new form uses it) and this canary."
+    )
+    assert execute["effect"]["target"] == {"type": "OriginalController"}
 
 
 @pytest.mark.parametrize(
@@ -410,6 +474,32 @@ def test_text_path_agrees_with_the_ir(name):
     text = _no_ir_row(name)
     assert text["path"] == "text"
     assert _shape(text) == _shape(_row(name))
+
+
+def test_text_path_target_opponent_and_target_player():
+    """Only "target player" can be aimed at your partner, on the text path too."""
+    armus = classify_card(_no_ir("Armus, Skin of Evil"))
+    assert armus is None or armus["target_player"] == []
+    hows = {r["how"] for r in _no_ir_row("Make It So")["target_player"]}
+    assert hows == {"target player"}
+    assert _no_ir_row("Wesley Crusher, Starfleet Cadet")["target_player"]
+
+
+def test_text_path_each_step_fires_once():
+    """CR 805.4d: "at the beginning of each end step" is no player's step, so
+    Gul Dukat's "that player" (bound by "each opponent") fires it once and
+    doesn't reach your partner."""
+    row = _no_ir_row("Gul Dukat, Colonial Prefect")
+    assert row["step_triggers"] == [
+        {"what": "lose_life", "step": "End", "whose": "each", "fires": "once"}
+    ]
+    assert row["hits_partner"] == []
+
+
+def test_text_path_restriction_on_your_own_permanent_does_not_double():
+    """Species 8472's "can't be the target of abilities from artifact sources
+    your opponents control" protects your creature; nothing doubles."""
+    assert classify_card(_no_ir("Species 8472")) is None
 
 
 def test_text_path_labels():

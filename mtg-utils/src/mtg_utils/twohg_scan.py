@@ -10,7 +10,8 @@ ways a 1v1 read misses. ``twohg_scan`` sorts a set's cards into five buckets:
 * ``hits_partner`` — the card also hits your teammate: "each player" effects,
   sweepers, symmetric taxes. Each row's ``what`` tells symmetric help (each
   player draws) from symmetric harm.
-* ``target_player`` — the card can be aimed at your partner ("target player").
+* ``target_player`` — the card can be aimed at your partner ("target player";
+  a "target opponent" is one head, never your partner, so no bucket holds it).
 * ``step_triggers`` — a "beginning of each player's / each opponent's [step]"
   trigger. It fires once per head only when it refers to "that player" (CR
   805.4d); otherwise it fires once for the step.
@@ -52,11 +53,9 @@ from mtg_utils._card_ir.crosswalk import (
     DAMAGE_PERMANENT_TYPES,
     AbilityUnit,
     ConceptNode,
-    _node_raw,
     damage_filter_scope,
     effect_filter,
     effect_owner_player_scope,
-    effect_owner_raw,
     effect_player_reach,
     filter_controller,
     filter_core_types,
@@ -64,10 +63,12 @@ from mtg_utils._card_ir.crosswalk import (
     is_opponent_cast_trigger_def,
     iter_nested_granted_effect_concepts,
     modify_cost_mode,
+    opponent_scope_clause,
     player_filter_tag,
     recipient_tag,
     refers_to_scoped_player,
     scoped_player_scope,
+    targets_one_opponent,
     trigger_phase,
     trigger_scope,
     trigger_subject_scope,
@@ -139,19 +140,7 @@ def _vetoed(unit: AbilityUnit, c: ConceptNode) -> bool:
     but at a 2HG table "each other player" includes your partner."""
     if effect_owner_player_scope(unit.node, c.node) != _OPPONENT:
         return False
-    clause = effect_owner_raw(unit.node, c.node)
-    if not clause:
-        # No clause of its own (Grave Pact's trigger ``execute``): the whole
-        # ability's text speaks for this effect only when no sibling effect is
-        # opponent-owned too, so a sibling's "each other player" can't be
-        # pinned on an "each opponent" effect.
-        if any(
-            e is not c and effect_owner_player_scope(unit.node, e.node) == _OPPONENT
-            for e in _unit_effects(unit)
-        ):
-            return False
-        clause = _node_raw(unit.node)
-    return "each other player" in clause.lower()
+    return "each other player" in opponent_scope_clause(unit.node, c.node).lower()
 
 
 def _reach_how(unit: AbilityUnit, c: ConceptNode, reach: str) -> str:
@@ -169,7 +158,8 @@ def _reach_how(unit: AbilityUnit, c: ConceptNode, reach: str) -> str:
 def _effect_rows(unit: AbilityUnit, rows: _Rows) -> None:
     for c in _unit_effects(unit):
         reach = effect_player_reach(unit.node, c.node)
-        if reach is None:
+        if reach is None or targets_one_opponent(unit.node, c.node):
+            # A target opponent is one head, and never your partner (CR 102.3).
             continue
         if reach == "scoped":
             # "that player" of an each-player / each-opponent step trigger.
@@ -307,7 +297,13 @@ _EACH_OTHER_PLAYER = re.compile(r"\beach other player\b")
 _TEXT_DOUBLES = (
     (re.compile(r"\bfor each opponent\b"), "for each opponent"),
     (re.compile(r"\beach opponent\b(?!'s)"), "each opponent"),
-    (re.compile(r"\byour opponents control\b"), "your opponents' permanents"),
+    # Not a restriction on your own permanent naming its opponents' sources
+    # ("can't be the target of abilities from artifact sources your opponents
+    # control" — Species 8472): only an effect on their permanents doubles.
+    (
+        re.compile(r"^(?!.*\bcan't be the targets? of\b).*\byour opponents control\b"),
+        "your opponents' permanents",
+    ),
     (re.compile(r"\byour opponents cast\b"), "your opponents' spells"),
     (re.compile(r"\bwhenever an opponent\b"), "opponent trigger"),
     (
@@ -341,6 +337,7 @@ _TEXT_STEP_NAMES = {
     "postcombat main phase": "PostCombatMain",
 }
 _THAT_PLAYER = re.compile(r"\bthat (?:player|opponent)\b")
+_PER_PLAYER_STEPS = frozenset({"each player's", "each opponent's"})
 _TEXT_WHAT = (
     (re.compile(r"\bdiscards?\b"), "discard"),
     (re.compile(r"\bsacrifices?\b"), "sacrifice"),
@@ -378,7 +375,10 @@ def _text_step_row(clause: str, rows: _Rows) -> bool:
     if m is None:
         return False
     whose = "each_opponent" if m.group(1) == "each opponent's" else "each"
-    per_head = m.group(1) != "the" and bool(_THAT_PLAYER.search(clause))
+    # CR 805.4d: only an "each player's" / "each opponent's" step triggers per
+    # player; "each end step" has no player for a "that player" to name (Gul
+    # Dukat's "each opponent loses life equal to the life that player lost").
+    per_head = m.group(1) in _PER_PLAYER_STEPS and bool(_THAT_PLAYER.search(clause))
     what = _text_what(clause[m.end() :])
     rows.add(
         "step_triggers",

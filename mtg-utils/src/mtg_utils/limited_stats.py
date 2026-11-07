@@ -37,9 +37,12 @@ from mtg_utils._http import BROWSER_HEADERS, HttpFetcher, cache_root, is_fresh
 from mtg_utils._sidecar import atomic_write_bytes
 from mtg_utils.arena_card_db import arena_title
 
+# The v2 query (2026-11: the v1 ``card_stats_limited_by_set`` answers 204 for every
+# set). The payload shape is unchanged; the time interval is the page's own default.
 API_URL = (
-    "https://api.mtga.untapped.gg/api/v1/analytics/query/card_stats_limited_by_set"
+    "https://api.mtga.untapped.gg/api/v1/analytics/query/card_stats_limited_by_set_v2"
 )
+TIME_INTERVAL = "LATEST_EVENT"
 CARDS_URL = "https://mtgajson.untapped.gg/v1/latest/cards.json"
 LOC_URL = "https://mtgajson.untapped.gg/v1/latest/loc_en.json"
 
@@ -437,12 +440,21 @@ def fetch_card_stats(set_code: str, event: str) -> tuple[dict, str]:
     if not is_fresh(path):
         resp = requests.get(
             f"{API_URL}/free",
-            params={"CardSetFilter": set_code, "LimitedEventTypeFilter": event},
+            params={
+                "CardSetFilter": set_code,
+                "LimitedEventTypeFilter": event,
+                "LimitedEventTimeIntervalFilter": TIME_INTERVAL,
+            },
             headers=HEADERS,
             timeout=_TIMEOUT,
         )
         if resp.status_code == 204 or not resp.content.strip():
-            raise click.ClickException(f"no Untapped data yet for {set_code}/{event}")
+            raise click.ClickException(
+                f"no Untapped data yet for {set_code}/{event}: an empty answer "
+                f"(HTTP {resp.status_code}) from {API_URL}. If the set-guide page "
+                "shows stats, Untapped has moved the query again; read the page's "
+                "network calls for the new path"
+            )
         if resp.status_code >= 400:
             raise _rejected(set_code, event, _server_message(resp))
         payload = _check_data(resp.json(), set_code, event)
@@ -591,7 +603,7 @@ def render_text(report: dict) -> str:
 @click.option(
     "--premium-json",
     type=click.Path(exists=True, dir_okay=False, path_type=Path),
-    help="A saved card_stats_limited_by_set payload (e.g. the premium one).",
+    help="A saved card_stats_limited_by_set_v2 payload (e.g. the premium one).",
 )
 @click.option(
     "--min-games",

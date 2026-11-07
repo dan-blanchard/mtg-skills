@@ -333,9 +333,11 @@ class TestCli:
         get.assert_called_once()
         args, kwargs = get.call_args
         assert args[0] == f"{ls.API_URL}/free"
+        assert args[0].endswith("/card_stats_limited_by_set_v2/free")
         assert kwargs["params"] == {
             "CardSetFilter": "TST",
             "LimitedEventTypeFilter": "PREMIER_DRAFT",
+            "LimitedEventTimeIntervalFilter": "LATEST_EVENT",
         }
         assert kwargs["headers"]["User-Agent"].startswith("Mozilla/")
         assert json.loads(first.output)["summary"]["source"] == "free"
@@ -378,3 +380,16 @@ class TestCli:
         ):
             ls.fetch_card_stats("tst", "sealed")
         assert not (cache / "card_stats_TST_SEALED.json").exists()
+
+    def test_empty_204_names_the_query(self, cache):
+        """A 204 says which query answered empty, so a moved path is spotted."""
+        with patch(
+            "mtg_utils.limited_stats.requests.get",
+            return_value=_response(None, status=204),
+        ):
+            result = CliRunner().invoke(ls.main, ["--set", "TST"])
+        assert result.exit_code == 1
+        assert "no Untapped data yet for TST/PREMIER_DRAFT" in result.output
+        assert "HTTP 204" in result.output
+        assert ls.API_URL in result.output
+        assert not (cache / "card_stats_TST_PREMIER_DRAFT.json").exists()

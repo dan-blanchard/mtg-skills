@@ -432,8 +432,38 @@ def refers_to_scoped_player(node: object) -> bool:
     (Lavaborn Muse: "if that player has two or fewer cards in hand") counts, as
     does a filter controlled by them (Braids: "that player sacrifices"). CR
     805.4d keys a Two-Headed Giant step trigger's per-player firing on exactly
-    this reference."""
-    return any(_names_scoped_player(n) for n in _iter_typed_nodes(node))
+    this reference.
+
+    A reference under a wrapper that binds its own ``player_scope`` is that
+    scope's player, not the step's: Wound Reflection's "at the beginning of each
+    end step, each opponent loses life equal to the life they lost this turn"
+    names each opponent of the effect (phase writes both as ``ScopedPlayer``),
+    so the trigger fires once."""
+    return _scoped_player_outside_scopes(node, root=node)
+
+
+def _scoped_player_outside_scopes(node: object, *, root: object) -> bool:
+    """The :func:`refers_to_scoped_player` walk: :func:`_names_scoped_player`
+    anywhere under ``node``, pruning every subtree (below ``root``) whose
+    wrapper carries a ``player_scope`` of its own."""
+    seen: set[int] = set()
+    stack: list[object] = [node]
+    while stack:
+        cur = stack.pop()
+        if id(cur) in seen:
+            continue
+        seen.add(id(cur))
+        if isinstance(cur, TypedMirrorNode):
+            if cur is not root and _present(getattr(cur, "player_scope", MISSING)):
+                continue
+            if _names_scoped_player(cur):
+                return True
+            stack.extend(getattr(cur, f) for f in _field_names(type(cur)))
+        elif isinstance(cur, MirrorVariant):
+            stack.append(cur.inner)
+        elif isinstance(cur, list):
+            stack.extend(cur)
+    return False
 
 
 def _names_scoped_player(n: TypedMirrorNode) -> bool:
@@ -6135,6 +6165,57 @@ def effect_player_reach(root: object, effect_node: TypedMirrorNode) -> str | Non
         if ctrl in OPPONENT_ACTOR_TAGS:
             return "opponents"
     return None
+
+
+_TARGET_OPPONENT_MAY = "target opponent may"
+
+
+def opponent_scope_clause(root: object, effect_node: object) -> str:
+    """The clause that speaks for an opponent-scoped effect's ``player_scope``:
+    the clause phase parked on the wrapper that owns it, else the whole
+    ability's, but only when no other effect of the ability is opponent-scoped
+    too (Grave Pact's trigger ``execute`` has no clause of its own), so a
+    sibling's words are never pinned on it; ``""`` when neither speaks. The
+    phase-misparse reads over ``player_scope: Opponent`` (:func:`targets_one_opponent`,
+    twohg_scan's "each other player" veto) read this clause."""
+    own = effect_owner_raw(root, effect_node)
+    if own:
+        return own
+    owners = _owner_index(root).owners
+    if any(
+        key != id(effect_node) and _owner_scope_tag(actor, root) == "Opponent"
+        for key, (_, actor) in owners.items()
+    ):
+        return ""
+    ability = getattr(root, "description", None)
+    return ability if isinstance(ability, str) else ""
+
+
+def targets_one_opponent(root: object, effect_node: TypedMirrorNode) -> bool:
+    """Whether the one player ``effect_node`` reaches is a target opponent:
+    a single opponent the caster chooses, never a teammate (CR 102.3), so
+    "target opponent" is neither every opponent nor a player the caster can aim
+    at anyone. :func:`effect_player_reach` reads both shapes below as a reach
+    of their own (``"target"``, ``"opponents"``); this read tells them apart.
+
+    * Phase writes "target opponent" as a typeless ``Typed`` recipient an
+      opponent controls (Armus, Skin of Evil's "target opponent discards two
+      cards"; 503 clauses at v0.118.0), and "target player" as a ``Player``
+      recipient (Make It So; 728).
+    * Phase-misparse workaround: "target opponent may have you draw a card. If
+      they don't, …" (Tell Me What You See, Risk Factor, Combustible Gearhulk;
+      13 abilities at v0.118.0) is written with the wrapper's ``player_scope:
+      Opponent`` — phase's "each opponent" — and no target. Phase has no form
+      for one opponent's option, so :func:`opponent_scope_clause` is read for
+      "target opponent may", unless it also says "each opponent".
+      ``test_target_opponent_may_canary`` fails once phase types the target.
+    """
+    if _typed_player_recipient(effect_node) in OPPONENT_ACTOR_TAGS:
+        return True
+    if effect_owner_player_scope(root, effect_node) != "Opponent":
+        return False
+    clause = opponent_scope_clause(root, effect_node).lower()
+    return _TARGET_OPPONENT_MAY in clause and "each opponent" not in clause
 
 
 def reveal_until_player(node: TypedMirrorNode) -> str | None:
