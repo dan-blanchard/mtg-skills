@@ -50,11 +50,17 @@ the ability refers to "that player" or "that opponent"; otherwise once per step
 
 **Paper report**:
 A result posted by someone who played the paper prerelease (Reddit threads Dan saves with
-Cmd+S, read with `thread-extract`). The primary evidence for Sealed.
+Cmd+S, read with `thread-extract`). Paper prereleases are almost always sealed, so these sit
+with Arena Sealed as the primary evidence; draft is the cross-check.
 
 **Arena stats**:
-Untapped.gg's MTGA limited card stats (`limited-stats`). Usually Premier Draft from the
-Early Access event before release, so it's draft data, not Sealed.
+Untapped.gg's MTGA limited card stats (`limited-stats`): Arena Sealed and Premier Draft
+(before release, the Early Access events), pooled with each measured against its own
+format's average. 2HG is sealed, but Sealed alone is too thin to rank most pairs or cards.
+
+**Reviewer consensus**:
+chunk.science's aggregate of reviewers' grades for the set. It names the bombs the Arena
+data has too few games to judge (an A− average or better).
 
 **Win rate when drawn**:
 Untapped's games-in-hand win rate: games the card was drawn or in the opening hand. Shown

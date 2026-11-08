@@ -1,7 +1,9 @@
 """Untapped.gg MTG Arena limited card stats, turned into guide-ready numbers.
 
-    limited-stats --set FRA [--event PREMIER_DRAFT] [--premium-json PATH]
+    limited-stats --set FRA [--premium-sealed PATH] [--premium-draft PATH]
+                  [--pool-min-games 60] [--margin 10] [--tier-gap 5] [--clash 10]
                   [--min-games 30] [--json]
+    limited-stats --set FRA --event SEALED [--premium-json PATH] [--json]
 
 Untapped.gg publishes per-card limited stats for every Arena set, keyed by the
 card's Arena **titleId** (not its grpid), split by deck archetype (a WUBRG
@@ -10,6 +12,13 @@ payload and computes the numbers a set guide quotes: each card's games-in-hand
 win rate (GIH WR), not-drawn win rate (GNS WR) and the improvement when drawn
 (IWD), card-weighted colour-pair win rates, the best commons per colour, bomb
 candidates and hyped-but-losing rares.
+
+With no ``--event`` it reads both Arena Sealed and Premier Draft and puts a
+**pooled view** first (:func:`build_pooled`): every pair and card is measured
+against its own format's average, then pooled across the formats by games, so
+the two formats' different baselines don't mix. That is the view a 2HG
+prerelease guide reads: 2HG is sealed, but Sealed alone is too thin to rank most
+pairs or cards. ``--event`` keeps the single-format report.
 
 Computation is pure (:func:`build_report` over a payload + a titleId index);
 fetching is separate (:func:`fetch_card_stats`, :func:`fetch_card_index`) and
@@ -26,6 +35,7 @@ and a missing not-drawn count is derived as ``games - available_games``.
 from __future__ import annotations
 
 import json
+import math
 import statistics
 from datetime import UTC, datetime
 from pathlib import Path
@@ -87,6 +97,11 @@ _RANK_ORDER = ("bronze", "silver", "gold", "platinum", "diamond", "mythic", "all
 _SMALL_SAMPLE_FLOOR = 10
 _UNDERPERFORM_WR = 50.0
 _EXAMPLE_EVENTS = "PREMIER_DRAFT, QUICK_DRAFT, SEALED"
+# The formats the pooled view reads, Sealed first (the closer format for 2HG).
+POOL_EVENTS = ("SEALED", "PREMIER_DRAFT")
+# A card needs this many games drawn in each format before a gap between the
+# formats is listed as a disagreement.
+_CLASH_FLOOR = 20
 
 
 # --- Pure helpers --------------------------------------------------------------
@@ -411,6 +426,222 @@ def build_report(
     }
 
 
+# --- The pooled view ---------------------------------------------------------------
+
+
+def _mean(values: list[float]) -> float | None:
+    return statistics.fmean(values) if values else None
+
+
+def average_iwd(rows: list[dict], min_games: int) -> float | None:
+    """The average card's IWD in one format: the mean over cards with a full
+    sample (every card with an IWD when none has one)."""
+    rated = [r for r in rows if r["iwd"] is not None]
+    full = [r["iwd"] for r in rated if r["gih"] >= min_games]
+    return _mean(full or [r["iwd"] for r in rated])
+
+
+def _average_pair(pairs: list[dict]) -> float | None:
+    """The games-weighted average two-colour pair rate of one format."""
+    total = sum(p["games"] for p in pairs)
+    return sum(p["games"] * p["win_rate"] for p in pairs) / total if total else None
+
+
+def pair_tiers(
+    reports: dict[str, dict], *, tier_gap: float = 5.0, clash: float = 10.0
+) -> list[dict]:
+    """Two-colour pairs pooled across formats.
+
+    Each format's pair rate is taken against that format's games-weighted
+    average pair, then the formats are pooled by deck games. ``tier`` is
+    ``top`` / ``bottom`` at ``tier_gap`` points either side of average, else
+    ``middle``. ``error`` is a rough one-sigma (binomial at 50% over the pooled
+    games). ``clash`` marks a pair whose formats are ``clash`` or more points
+    apart.
+    """
+    per: dict[str, dict[str, dict]] = {}
+    for event, report in reports.items():
+        pairs = [
+            p
+            for p in report["color_pairs"]["two_color"]
+            if p["games"] and p["win_rate"] is not None
+        ]
+        base = _average_pair(pairs)
+        if base is None:
+            continue
+        for p in pairs:
+            per.setdefault(p["colors"], {})[event] = {
+                "games": p["games"],
+                "win_rate": p["win_rate"],
+                "vs_average": p["win_rate"] - base,
+            }
+    out = []
+    for colors, by_event in per.items():
+        games = sum(e["games"] for e in by_event.values())
+        rel = sum(e["games"] * e["vs_average"] for e in by_event.values()) / games
+        rels = [e["vs_average"] for e in by_event.values()]
+        tier = "top" if rel >= tier_gap else "bottom" if rel <= -tier_gap else "middle"
+        out.append(
+            {
+                "colors": colors,
+                "games": games,
+                "vs_average": round(rel, 1),
+                "error": round(50 / math.sqrt(games), 1),
+                "tier": tier,
+                "clash": len(rels) > 1 and max(rels) - min(rels) >= clash,
+                "events": {
+                    ev: {**e, "vs_average": round(e["vs_average"], 1)}
+                    for ev, e in by_event.items()
+                },
+            }
+        )
+    out.sort(key=lambda e: (-e["vs_average"], -e["games"]))
+    return out
+
+
+def pooled_cards(reports: dict[str, dict], *, min_games: int = 30) -> list[dict]:
+    """One row per card: IWD pooled across formats by games drawn.
+
+    ``iwd`` is the pooled IWD itself; ``vs_average`` pools each format's IWD
+    minus that format's average card (:func:`average_iwd`), the number the
+    thresholds read. ``events`` keeps each format's own figures.
+    """
+    averages = {
+        ev: average_iwd(report["cards"], min_games) for ev, report in reports.items()
+    }
+    cards: dict[str, dict] = {}
+    for event, report in reports.items():
+        avg = averages[event]
+        for row in report["cards"]:
+            if row["iwd"] is None or not row["gih"] or avg is None:
+                continue
+            card = cards.setdefault(
+                row["title_id"],
+                {k: row[k] for k in ("title_id", "name", "rarity", "colors", "set")}
+                | {"events": {}},
+            )
+            card["events"][event] = {
+                "gih": row["gih"],
+                "iwd": row["iwd"],
+                "vs_average": round(row["iwd"] - avg, 1),
+            }
+    out = []
+    for card in cards.values():
+        events = card["events"].values()
+        drawn = sum(e["gih"] for e in events)
+        iwd = sum(e["gih"] * e["iwd"] for e in events) / drawn
+        rel = sum(e["gih"] * e["vs_average"] for e in events) / drawn
+        out.append(
+            card | {"gih": drawn, "iwd": round(iwd, 1), "vs_average": round(rel, 1)}
+        )
+    out.sort(key=lambda c: (-c["vs_average"], -c["gih"]))
+    return out
+
+
+def color_depth(cards: list[dict], pool_min_games: int) -> dict[str, dict]:
+    """Per mono colour: the commons' mean pooled IWD against the average card,
+    over commons with ``pool_min_games`` drawn."""
+    out = {}
+    for color in _COLORS:
+        rels = [
+            c["vs_average"]
+            for c in cards
+            if c["rarity"] == "common"
+            and c["colors"] == color
+            and c["gih"] >= pool_min_games
+        ]
+        mean = _mean(rels)
+        out[color] = {
+            "vs_average": None if mean is None else round(mean, 1),
+            "commons": len(rels),
+        }
+    return out
+
+
+def format_disagreements(cards: list[dict], *, clash: float = 10.0) -> list[dict]:
+    """Cards whose formats are ``clash`` or more points apart against their own
+    averages, each with ``_CLASH_FLOOR`` games drawn per format: where a card
+    plays differently in sealed (a copy-count card like a draft-collected
+    package, say). Widest gap first."""
+    out = []
+    for card in cards:
+        rels = [
+            e["vs_average"] for e in card["events"].values() if e["gih"] >= _CLASH_FLOOR
+        ]
+        if len(rels) > 1 and max(rels) - min(rels) >= clash:
+            out.append(card | {"gap": round(max(rels) - min(rels), 1)})
+    out.sort(key=lambda c: -c["gap"])
+    return out
+
+
+def build_pooled(
+    reports: dict[str, dict],
+    *,
+    missing: dict[str, str] | None = None,
+    min_games: int = 30,
+    pool_min_games: int = 60,
+    margin: float = 10.0,
+    tier_gap: float = 5.0,
+    clash: float = 10.0,
+) -> dict:
+    """The pooled view over each format's :func:`build_report`.
+
+    A standout or underperformer is ``margin`` points from the average card
+    with ``pool_min_games`` drawn across the formats; the data bombs are the
+    rares / mythics among the standouts, and every rare / mythic under that
+    sample is listed as thin (a reviewer's call, not the data's), special
+    guests from other sets included (they're in the set's boosters), once a
+    handful have been drawn so a card seen once doesn't crowd the list.
+    """
+    cards = pooled_cards(reports, min_games=min_games)
+    sampled = [c for c in cards if c["gih"] >= pool_min_games]
+    standouts = [c for c in sampled if c["vs_average"] >= margin]
+    rare = {"rare", "mythic"}
+    formats = {}
+    for event, report in reports.items():
+        pairs = [
+            p
+            for p in report["color_pairs"]["two_color"]
+            if p["games"] and p["win_rate"] is not None
+        ]
+        avg_pair = _average_pair(pairs)
+        avg_iwd = average_iwd(report["cards"], min_games)
+        formats[event] = {
+            "source": report["summary"]["source"],
+            "fetched_at": report["summary"]["fetched_at"],
+            "games": report["summary"]["games"]["total"],
+            "average_pair": None if avg_pair is None else round(avg_pair, 1),
+            "average_iwd": None if avg_iwd is None else round(avg_iwd, 1),
+        }
+    return {
+        "events": list(reports),
+        "missing": missing or {},
+        "thresholds": {
+            "pool_min_games": pool_min_games,
+            "margin": margin,
+            "tier_gap": tier_gap,
+            "clash": clash,
+            "clash_floor": _CLASH_FLOOR,
+        },
+        "formats": formats,
+        "pairs": pair_tiers(reports, tier_gap=tier_gap, clash=clash),
+        "color_depth": color_depth(cards, pool_min_games),
+        "standouts": standouts,
+        "data_bombs": [c for c in standouts if c["rarity"] in rare],
+        "underperformers": sorted(
+            (c for c in sampled if c["vs_average"] <= -margin),
+            key=lambda c: c["vs_average"],
+        ),
+        "thin_rares": [
+            c
+            for c in cards
+            if c["rarity"] in rare and _SMALL_SAMPLE_FLOOR <= c["gih"] < pool_min_games
+        ],
+        "disagreements": format_disagreements(cards, clash=clash),
+        "cards": cards,
+    }
+
+
 # --- Fetching --------------------------------------------------------------------
 
 
@@ -589,54 +820,276 @@ def render_text(report: dict) -> str:
     return "\n".join(lines)
 
 
+def _signed(value: float | None) -> str:
+    return "--" if value is None else f"{value:+.1f}"
+
+
+def _per_event(events: dict[str, dict], count: str) -> str:
+    return " · ".join(
+        f"{ev} {_signed(e['vs_average'])} ({e[count]})" for ev, e in events.items()
+    )
+
+
+def _card_line(card: dict, code: str, *, bracket: bool = False) -> str:
+    iwd = _signed(card["iwd"])
+    iwd = f"[{iwd}]" if bracket else iwd
+    return (
+        f"  {iwd:>7}  {_label(card, code)}  vs avg {_signed(card['vs_average'])},"
+        f" {card['gih']} drawn  ({_per_event(card['events'], 'gih')})"
+    )
+
+
+def render_pooled(pooled: dict, set_code: str) -> str:
+    code = set_code.upper()
+    th = pooled["thresholds"]
+    lines = [
+        f"# {code} pooled — {' + '.join(pooled['events'])} (Untapped.gg)",
+        "Each pair and card is measured against its own format's average, then",
+        "pooled across the formats by games.",
+        "",
+        "## Formats",
+    ]
+    for event, f in pooled["formats"].items():
+        lines.append(
+            f"  {event}: {f['source']}, fetched {f['fetched_at']}, {f['games']} games;"
+            f" average pair {_fmt(f['average_pair'])},"
+            f" average card IWD {_signed(f['average_iwd'])}"
+        )
+    for event, reason in pooled["missing"].items():
+        lines.append(f"  {event}: missing ({reason})")
+    lines += [
+        "",
+        f"## Colour pairs (vs the average pair; tiers at ±{th['tier_gap']:g})",
+    ]
+    for e in pooled["pairs"]:
+        flag = "  <- formats clash" if e["clash"] else ""
+        lines.append(
+            f"  {e['tier']:<6}  {e['colors']:<3} {_signed(e['vs_average']):>6}"
+            f" (±{e['error']:.1f}, {e['games']} games)"
+            f"  {_per_event(e['events'], 'games')}{flag}"
+        )
+    lines += [
+        "",
+        (
+            "## Colour depth at common (mean IWD vs the average card;"
+            f" commons with {th['pool_min_games']}+ drawn)"
+        ),
+        "  "
+        + " · ".join(
+            f"{color} {_signed(d['vs_average'])} ({d['commons']})"
+            for color, d in pooled["color_depth"].items()
+        ),
+    ]
+    sections = (
+        (
+            (
+                f"## Standouts (IWD {th['margin']:g}+ over the average card,"
+                f" {th['pool_min_games']}+ drawn)"
+            ),
+            pooled["standouts"],
+            False,
+        ),
+        (
+            "## Data bombs (rares / mythics among the standouts)",
+            pooled["data_bombs"],
+            False,
+        ),
+        (
+            f"## Underperformers (IWD {th['margin']:g}+ under the average card)",
+            pooled["underperformers"],
+            False,
+        ),
+        (
+            (
+                f"## Thin rares (under {th['pool_min_games']} drawn: a reviewer's"
+                " call; [bracketed])"
+            ),
+            pooled["thin_rares"],
+            True,
+        ),
+    )
+    for heading, cards, bracket in sections:
+        lines += ["", heading]
+        lines.extend(_card_line(c, code, bracket=bracket) for c in cards)
+        if not cards:
+            lines.append("  none")
+    lines += [
+        "",
+        (
+            f"## Formats disagree ({th['clash']:g}+ points apart,"
+            f" {th['clash_floor']}+ drawn in each)"
+        ),
+    ]
+    lines.extend(
+        f"  {c['gap']:>5.1f}  {_label(c, code)}  {_per_event(c['events'], 'gih')}"
+        for c in pooled["disagreements"]
+    )
+    if not pooled["disagreements"]:
+        lines.append("  none")
+    return "\n".join(lines)
+
+
 # --- CLI -------------------------------------------------------------------------
+
+
+def _load(set_code: str, event: str, premium: Path | None) -> tuple[dict, str, str]:
+    """One format's payload, its source and when it was fetched."""
+    if premium is not None:
+        raw = json.loads(premium.read_text(encoding="utf-8"))
+        payload = _check_data(raw, set_code, event)
+        return payload, payload_source(payload), _mtime_iso(premium)
+    payload, fetched_at = fetch_card_stats(set_code, event)
+    return payload, "free", fetched_at
+
+
+def _report(
+    payload: dict,
+    index: dict,
+    set_code: str,
+    event: str,
+    source: str,
+    fetched_at: str,
+    min_games: int,
+) -> dict:
+    return build_report(
+        payload,
+        index,
+        set_code=set_code,
+        event=event,
+        source=source,
+        fetched_at=fetched_at,
+        min_games=min_games,
+    )
 
 
 @click.command()
 @click.option("--set", "set_code", required=True, help="Arena set code, e.g. FRA.")
 @click.option(
     "--event",
-    default="PREMIER_DRAFT",
-    show_default=True,
-    help=f"Untapped limited event type ({_EXAMPLE_EVENTS}).",
+    default=None,
+    help=(
+        f"One Untapped limited event type ({_EXAMPLE_EVENTS}). Omit it for the"
+        " pooled Sealed + Premier Draft view."
+    ),
 )
 @click.option(
     "--premium-json",
     type=click.Path(exists=True, dir_okay=False, path_type=Path),
-    help="A saved card_stats_limited_by_set_v2 payload (e.g. the premium one).",
+    help="A saved card_stats_limited_by_set_v2 payload for --event.",
+)
+@click.option(
+    "--premium-sealed",
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    help="A saved SEALED payload for the pooled view (else the free one).",
+)
+@click.option(
+    "--premium-draft",
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    help="A saved PREMIER_DRAFT payload for the pooled view (else the free one).",
 )
 @click.option(
     "--min-games",
     default=30,
     show_default=True,
     type=click.IntRange(min=1),
-    help="GIH floor for a full-sample stat.",
+    help="GIH floor for a full-sample stat within one format.",
+)
+@click.option(
+    "--pool-min-games",
+    default=60,
+    show_default=True,
+    type=click.IntRange(min=1),
+    help="Games drawn, across the formats, before a card is a standout or not.",
+)
+@click.option(
+    "--margin",
+    default=10.0,
+    show_default=True,
+    type=click.FloatRange(min=0),
+    help="IWD points from the average card for a standout / underperformer.",
+)
+@click.option(
+    "--tier-gap",
+    default=5.0,
+    show_default=True,
+    type=click.FloatRange(min=0),
+    help="Points from the average pair for a top / bottom pair.",
+)
+@click.option(
+    "--clash",
+    default=10.0,
+    show_default=True,
+    type=click.FloatRange(min=0),
+    help="Points apart before the formats count as disagreeing.",
 )
 @click.option("--json", "as_json", is_flag=True, help="Print the full structure.")
 def main(
     set_code: str,
-    event: str,
+    event: str | None,
     premium_json: Path | None,
+    premium_sealed: Path | None,
+    premium_draft: Path | None,
     min_games: int,
+    pool_min_games: int,
+    margin: float,
+    tier_gap: float,
+    clash: float,
     as_json: bool,  # noqa: FBT001 — a click flag
 ) -> None:
-    """Untapped.gg limited card stats for SET as guide-ready numbers."""
+    """Untapped.gg limited card stats for SET as guide-ready numbers.
+
+    With no --event: Arena Sealed and Premier Draft, pooled view first."""
+    if event is not None:
+        if premium_sealed or premium_draft:
+            raise click.UsageError(
+                "--premium-sealed / --premium-draft are for the pooled view; with"
+                " --event, pass --premium-json"
+            )
+        event = event.upper()
+        payload, source, fetched_at = _load(set_code, event, premium_json)
+        index = fetch_card_index(set_code, set(payload["data"]))
+        report = _report(payload, index, set_code, event, source, fetched_at, min_games)
+        click.echo(json.dumps(report, indent=2) if as_json else render_text(report))
+        return
     if premium_json is not None:
-        raw = json.loads(premium_json.read_text(encoding="utf-8"))
-        payload = _check_data(raw, set_code, event)
-        source = payload_source(payload)
-        fetched_at = _mtime_iso(premium_json)
-    else:
-        payload, fetched_at = fetch_card_stats(set_code, event)
-        source = "free"
-    index = fetch_card_index(set_code, set(payload["data"]))
-    report = build_report(
-        payload,
-        index,
-        set_code=set_code,
-        event=event.upper(),
-        source=source,
-        fetched_at=fetched_at,
-        min_games=min_games,
+        raise click.UsageError(
+            "--premium-json needs --event; for the pooled view pass"
+            " --premium-sealed / --premium-draft"
+        )
+    premium = dict(zip(POOL_EVENTS, (premium_sealed, premium_draft), strict=True))
+    loaded: dict[str, tuple[dict, str, str]] = {}
+    missing: dict[str, str] = {}
+    for ev in POOL_EVENTS:
+        try:
+            loaded[ev] = _load(set_code, ev, premium[ev])
+        except click.ClickException as exc:
+            missing[ev] = exc.message
+    if not loaded:
+        raise click.ClickException("; ".join(missing.values()))
+    index = fetch_card_index(
+        set_code, {tid for payload, _, _ in loaded.values() for tid in payload["data"]}
     )
-    click.echo(json.dumps(report, indent=2) if as_json else render_text(report))
+    reports = {
+        ev: _report(payload, index, set_code, ev, source, fetched_at, min_games)
+        for ev, (payload, source, fetched_at) in loaded.items()
+    }
+    pooled = build_pooled(
+        reports,
+        missing=missing,
+        min_games=min_games,
+        pool_min_games=pool_min_games,
+        margin=margin,
+        tier_gap=tier_gap,
+        clash=clash,
+    )
+    if as_json:
+        click.echo(json.dumps({"pooled": pooled, "events": reports}, indent=2))
+        return
+    click.echo(
+        "\n\n".join(
+            [
+                render_pooled(pooled, set_code),
+                *(render_text(r) for r in reports.values()),
+            ]
+        )
+    )

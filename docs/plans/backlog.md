@@ -283,6 +283,20 @@ problems are what drives them.
   text path misses Tomik, Izzet Sparkmage (a damage *replacement*, not an "each
   opponent" clause), reads Cruel Calculations as target-player (phase drops its player
   target), and differs on removal reach for about 18 cards.
+- **Reviewer consensus by hand.** The evidence rules (SKILL.md, "Reading the evidence")
+  let chunk.science's reviewer aggregate name the bombs the Arena data is too thin for,
+  but reading it is a manual curl of the page (`https://chunk.science/<CODE>` redirects to it) and its `data/<code>.<hash>.js` and a parse of
+  `cards[].consensus`. If it proves useful for a second set, give `limited-stats` a
+  `--reviews` input so its `thin_rares` carry the reviewer mean beside the bracketed IWD.
+- **Special guests get no card hovers.** `guide-card-hovers` resolves names (and
+  `--alias` targets) among the set's own printings, and the local MTGJSON has no TRK
+  printing of the bonus-sheet guests (Sheoldred, the Apocalypse's newest is DMU), so the
+  TRK sheet's guests render as plain names. Let it fall back to the card's newest
+  printing for a name the set's Arena data lists (`limited-stats` sees them, with their
+  home set).
+- **The pooled view's error bar is rough.** `pair_tiers.error` is a binomial σ at 50%
+  over deck games, but the pair rate is card-weighted (each deck counts once per card),
+  so the true spread is wider. Good enough to say "±3–4"; not a significance test.
 
 **From walking phase's branch shapes (2026-10-09)**
 

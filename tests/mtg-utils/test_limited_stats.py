@@ -292,7 +292,15 @@ class TestCli:
         ):
             result = CliRunner().invoke(
                 ls.main,
-                ["--set", "tst", "--premium-json", str(premium_file), "--json"],
+                [
+                    "--set",
+                    "tst",
+                    "--event",
+                    "premier_draft",
+                    "--premium-json",
+                    str(premium_file),
+                    "--json",
+                ],
             )
         assert result.exit_code == 0, result.output
         get.assert_not_called()
@@ -306,9 +314,11 @@ class TestCli:
     def test_human_output_sections(self, premium_file, cache):
         _seed_card_files(cache)
         result = CliRunner().invoke(
-            ls.main, ["--set", "TST", "--premium-json", str(premium_file)]
+            ls.main,
+            ["--set", "TST", "--event", "SEALED", "--premium-json", str(premium_file)],
         )
         assert result.exit_code == 0, result.output
+        assert result.output.startswith("# TST SEALED")
         for heading in (
             "## Summary",
             "## Colour pairs",
@@ -326,8 +336,12 @@ class TestCli:
             "mtg_utils.limited_stats.requests.get",
             return_value=_response(FREE_PAYLOAD),
         ) as get:
-            first = CliRunner().invoke(ls.main, ["--set", "tst", "--json"])
-            second = CliRunner().invoke(ls.main, ["--set", "TST", "--json"])
+            first = CliRunner().invoke(
+                ls.main, ["--set", "tst", "--event", "PREMIER_DRAFT", "--json"]
+            )
+            second = CliRunner().invoke(
+                ls.main, ["--set", "TST", "--event", "PREMIER_DRAFT", "--json"]
+            )
         assert first.exit_code == 0, first.output
         assert second.exit_code == 0, second.output
         get.assert_called_once()
@@ -387,9 +401,235 @@ class TestCli:
             "mtg_utils.limited_stats.requests.get",
             return_value=_response(None, status=204),
         ):
-            result = CliRunner().invoke(ls.main, ["--set", "TST"])
+            result = CliRunner().invoke(
+                ls.main, ["--set", "TST", "--event", "PREMIER_DRAFT"]
+            )
         assert result.exit_code == 1
         assert "no Untapped data yet for TST/PREMIER_DRAFT" in result.output
         assert "HTTP 204" in result.output
         assert ls.API_URL in result.output
         assert not (cache / "card_stats_TST_PREMIER_DRAFT.json").exists()
+
+
+# --- The pooled view ---------------------------------------------------------------
+
+
+def _pair(colors, games, win_rate):
+    return {"colors": colors, "games": games, "win_rate": win_rate}
+
+
+def _card(title_id, gih, iwd, *, rarity="common", colors="W", card_set="TST"):
+    return {
+        "title_id": title_id,
+        "name": f"Card {title_id}",
+        "rarity": rarity,
+        "colors": colors,
+        "set": card_set,
+        "gih": gih,
+        "iwd": iwd,
+    }
+
+
+def _report(pairs=(), cards=()):
+    return {
+        "summary": {"source": "free", "fetched_at": "t", "games": {"total": 9}},
+        "color_pairs": {"two_color": list(pairs)},
+        "cards": list(cards),
+    }
+
+
+class TestPairTiers:
+    def test_each_format_against_its_own_average(self):
+        # Sealed averages 60% (two pairs, equal games), draft 50%: the same
+        # +5 in each pools to +5, whatever the raw rates.
+        reports = {
+            "SEALED": _report([_pair("WR", 10, 65.0), _pair("UB", 10, 55.0)]),
+            "PREMIER_DRAFT": _report([_pair("WR", 30, 55.0), _pair("UB", 30, 45.0)]),
+        }
+        tiers = {e["colors"]: e for e in ls.pair_tiers(reports, tier_gap=5.0)}
+        assert tiers["WR"]["vs_average"] == 5.0
+        assert tiers["WR"]["tier"] == "top"
+        assert tiers["UB"]["tier"] == "bottom"
+        assert tiers["WR"]["games"] == 40
+        assert tiers["WR"]["error"] == pytest.approx(50 / 40**0.5, abs=0.05)
+        assert tiers["WR"]["events"]["SEALED"]["vs_average"] == 5.0
+
+    def test_pooled_by_games_and_clash(self):
+        # WR is +10 in Sealed (10 games) and -2 in draft (40): pooled
+        # (10*10 + 40*-2) / 50 = +0.4, a middle pair whose formats clash.
+        reports = {
+            "SEALED": _report([_pair("WR", 10, 70.0), _pair("UB", 10, 50.0)]),
+            "PREMIER_DRAFT": _report([_pair("WR", 40, 48.0), _pair("UB", 40, 52.0)]),
+        }
+        wr = next(e for e in ls.pair_tiers(reports, clash=10.0) if e["colors"] == "WR")
+        assert wr["vs_average"] == pytest.approx(0.4)
+        assert wr["tier"] == "middle"
+        assert wr["clash"] is True
+
+    def test_one_format_alone(self):
+        tiers = ls.pair_tiers({"SEALED": _report([_pair("WR", 10, 60.0)])})
+        assert tiers[0]["vs_average"] == 0.0
+        assert tiers[0]["clash"] is False
+
+
+class TestPooledCards:
+    def test_iwd_against_each_format_average(self):
+        # Sealed's average card is +5 (cards 1 and 2 at 30+ drawn), draft's +0.
+        reports = {
+            "SEALED": _report(cards=[_card("1", 30, 15.0), _card("2", 30, -5.0)]),
+            "PREMIER_DRAFT": _report(
+                cards=[_card("1", 90, 10.0), _card("2", 90, -10.0)]
+            ),
+        }
+        cards = {c["title_id"]: c for c in ls.pooled_cards(reports, min_games=30)}
+        one = cards["1"]
+        assert one["gih"] == 120
+        # IWD (30*15 + 90*10) / 120; vs average (30*10 + 90*10) / 120.
+        assert one["iwd"] == pytest.approx(11.2, abs=0.05)
+        assert one["vs_average"] == 10.0
+        assert one["events"]["SEALED"] == {"gih": 30, "iwd": 15.0, "vs_average": 10.0}
+
+    def test_card_without_iwd_skipped(self):
+        reports = {"SEALED": _report(cards=[_card("1", 0, None), _card("2", 40, 5.0)])}
+        assert [c["title_id"] for c in ls.pooled_cards(reports)] == ["2"]
+
+
+class TestBuildPooled:
+    def _reports(self):
+        sealed = [
+            _card("bomb", 40, 30.0, rarity="rare", colors="G"),
+            _card("good", 40, 20.0),
+            _card("flop", 40, -20.0, colors="B"),
+            _card("avg", 40, 5.0),
+            _card("thin", 20, 50.0, rarity="mythic"),
+            _card("guest", 20, 50.0, rarity="rare", card_set="OLD"),
+            _card("tiny", 3, 90.0, rarity="rare"),
+            _card("swing", 25, -15.0, colors="W"),
+        ]
+        draft = [
+            _card("bomb", 40, 30.0, rarity="rare", colors="G"),
+            _card("good", 40, 20.0),
+            _card("flop", 40, -20.0, colors="B"),
+            _card("avg", 40, 5.0),
+            _card("swing", 25, 25.0, colors="W"),
+        ]
+        return {
+            "SEALED": _report([_pair("WR", 10, 60.0)], sealed),
+            "PREMIER_DRAFT": _report([_pair("WR", 10, 50.0)], draft),
+        }
+
+    def test_selections(self):
+        pooled = ls.build_pooled(self._reports(), pool_min_games=60, margin=10.0)
+        names = {
+            k: [c["title_id"] for c in pooled[k]]
+            for k in pooled
+            if k
+            in {
+                "standouts",
+                "data_bombs",
+                "underperformers",
+                "thin_rares",
+                "disagreements",
+            }
+        }
+        # Average card: +8.75 in each format (bomb, good, flop, avg).
+        assert names["standouts"] == ["bomb", "good"]
+        assert names["data_bombs"] == ["bomb"]
+        assert names["underperformers"] == ["flop"]
+        # A special guest from another set is thin too; "tiny" is under the floor.
+        assert names["thin_rares"] == ["thin", "guest"]
+        assert names["disagreements"] == ["swing"]
+        assert pooled["disagreements"][0]["gap"] == 40.0
+        # W commons with 60+ drawn: good (+11.25) and avg (-3.75); swing has 50.
+        assert pooled["color_depth"]["W"]["commons"] == 2
+        assert pooled["color_depth"]["W"]["vs_average"] == pytest.approx(3.75, abs=0.06)
+        assert pooled["color_depth"]["U"] == {"vs_average": None, "commons": 0}
+        assert pooled["formats"]["SEALED"]["average_pair"] == 60.0
+        assert pooled["formats"]["SEALED"]["average_iwd"] == 8.8
+        assert pooled["thresholds"]["clash_floor"] == ls._CLASH_FLOOR
+
+    def test_render_has_every_section(self):
+        pooled = ls.build_pooled(self._reports(), missing={"X": "no data"})
+        text = ls.render_pooled(pooled, "tst")
+        for heading in (
+            "# TST pooled — SEALED + PREMIER_DRAFT",
+            "## Formats",
+            "X: missing (no data)",
+            "## Colour pairs",
+            "## Colour depth at common",
+            "## Standouts",
+            "## Data bombs",
+            "## Underperformers",
+            "## Thin rares",
+            "## Formats disagree",
+        ):
+            assert heading in text
+
+
+class TestPooledCli:
+    def test_fetches_both_formats_sealed_first(self, cache):
+        _seed_card_files(cache)
+        with patch(
+            "mtg_utils.limited_stats.requests.get",
+            return_value=_response(FREE_PAYLOAD),
+        ) as get:
+            result = CliRunner().invoke(ls.main, ["--set", "TST", "--json"])
+        assert result.exit_code == 0, result.output
+        events = [
+            c.kwargs["params"]["LimitedEventTypeFilter"] for c in get.call_args_list
+        ]
+        assert events == ["SEALED", "PREMIER_DRAFT"]
+        out = json.loads(result.output)
+        assert list(out["events"]) == ["SEALED", "PREMIER_DRAFT"]
+        assert out["pooled"]["missing"] == {}
+
+    def test_text_puts_pooled_view_first(self, cache):
+        _seed_card_files(cache)
+        with patch(
+            "mtg_utils.limited_stats.requests.get",
+            return_value=_response(FREE_PAYLOAD),
+        ):
+            result = CliRunner().invoke(ls.main, ["--set", "TST"])
+        assert result.exit_code == 0, result.output
+        assert result.output.startswith("# TST pooled")
+        assert result.output.index("# TST SEALED") < result.output.index(
+            "# TST PREMIER_DRAFT"
+        )
+
+    def test_one_format_missing_still_pools(self, cache, premium_file):
+        _seed_card_files(cache)
+        with patch(
+            "mtg_utils.limited_stats.requests.get",
+            return_value=_response(None, status=204),
+        ):
+            result = CliRunner().invoke(
+                ls.main,
+                ["--set", "TST", "--premium-draft", str(premium_file), "--json"],
+            )
+        assert result.exit_code == 0, result.output
+        pooled = json.loads(result.output)["pooled"]
+        assert pooled["events"] == ["PREMIER_DRAFT"]
+        assert "no Untapped data yet for TST/SEALED" in pooled["missing"]["SEALED"]
+
+    def test_both_missing_fails(self, cache):
+        with patch(
+            "mtg_utils.limited_stats.requests.get",
+            return_value=_response(None, status=204),
+        ):
+            result = CliRunner().invoke(ls.main, ["--set", "TST"])
+        assert result.exit_code == 1
+        assert "TST/SEALED" in result.output
+        assert "TST/PREMIER_DRAFT" in result.output
+
+    @pytest.mark.parametrize(
+        "args",
+        [
+            ["--premium-json", "{f}"],
+            ["--event", "SEALED", "--premium-sealed", "{f}"],
+        ],
+    )
+    def test_premium_flags_match_the_mode(self, premium_file, args):
+        args = [a.format(f=premium_file) for a in args]
+        result = CliRunner().invoke(ls.main, ["--set", "TST", *args])
+        assert result.exit_code == 2
+        assert "--premium" in result.output
