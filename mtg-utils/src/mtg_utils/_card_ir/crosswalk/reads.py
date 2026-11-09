@@ -6005,6 +6005,27 @@ def effect_owner_optional(root: object, effect_node: object) -> bool:
     return getattr(owner, "optional", None) is True
 
 
+def effect_conditional(root: object, effect_node: object) -> bool:
+    """Whether ``effect_node`` happens only under a condition: its own wrapper's
+    ("When you do, …"; "If that spell is countered this way, …") or its whole
+    ability's (a trigger's "unless it escaped")."""
+    owner = _find_owner_wrapper(root, effect_node)
+    return any(
+        _present(c := getattr(node, "condition", MISSING)) and c is not None
+        for node in (owner, root)
+    )
+
+
+def effect_targets_optional(root: object, effect_node: object) -> bool:
+    """Whether ``effect_node`` may have no target: "up to one target creature"
+    (the effect's own ``up_to``) or a wrapper whose targeting is optional, so the
+    effect can do nothing at all."""
+    if getattr(effect_node, "up_to", None) is True:
+        return True
+    owner = _find_owner_wrapper(root, effect_node)
+    return getattr(owner, "optional_targeting", None) is True
+
+
 def sacrifice_names_no_player(root: object, node: TypedMirrorNode) -> bool:
     """Whether a ``Sacrifice`` effect of a typed permanent names no player at all:
     no controller on the sacrificed filter, no ``player_scope`` on the wrapper

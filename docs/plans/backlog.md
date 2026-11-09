@@ -12,6 +12,17 @@ Posting them is Dan's.
 
 **From comparing Arena game logs with phase (2026-11-09)**
 
+- **`arena-crosscheck` checks a trigger one way only (ADR-0064).** It checks that
+  each trigger Arena fired watches the event logged before it; a trigger phase
+  predicts that Arena never fired (a condition or limit phase misses: Nadu, Winged
+  Wisdom's "only twice each turn" is `Unimplemented`) needs every permanent's
+  triggers walked against the logged events. Also not checked yet: amounts phase
+  writes as variable (X, "equal to the number of …") evaluated against the logged
+  board, continuous effects (an object's P/T and abilities before and after its
+  resolution), and the costs and alternative costs in Arena's legal-action lists.
+  Unscored today: keyword abilities phase writes no ability for (warp's delayed exile,
+  ninjutsu, persist) and a saga chapter phase writes with no text ("Chapter 3"),
+  which Arena's chapter order could pair.
 - **The graveyard lane's text mirror reads a replaced graveyard as a graveyard
   card.** `text_reads._graveyard_matters_clauses` fires `graveyard_matters` on
   any clause holding the word "graveyard", including "… instead of putting it into

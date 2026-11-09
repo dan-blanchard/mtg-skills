@@ -1,0 +1,7 @@
+# Arena's mistakes, checked against the Comprehensive Rules with /rules-lawyer, that
+# arena-crosscheck shouldn't flag again (ADR-0064). One table per ability:
+#
+# [[ignore]]
+# card = "Card Name"
+# ability = "When CARDNAME enters"   # a prefix of Arena's ability text; "" for any
+# reason = "Arena ...; CR NNN.Na says ..."

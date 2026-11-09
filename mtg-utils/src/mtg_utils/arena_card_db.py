@@ -24,16 +24,23 @@ import os
 import re
 import sqlite3
 import sys
+from dataclasses import dataclass
 from pathlib import Path
 
 from mtg_utils.names import normalize_card_name
 
 __all__ = [
+    "ACTIVATED",
     "ENV_VAR",
+    "TRIGGERED",
+    "ArenaAbility",
+    "ArenaCard",
+    "CardText",
     "clear_memo",
     "find_card_db",
     "player_log_path",
     "primary_rarities",
+    "strip_markup",
 ]
 
 ENV_VAR = "MTG_SKILLS_ARENA_CARD_DB"
@@ -187,3 +194,105 @@ def primary_rarities(path: Path) -> dict[str, str]:
 def clear_memo() -> None:
     """Drop the memoized database read (test hygiene)."""
     _MEMO.clear()
+
+
+#: Arena's ability categories (``Abilities.Category``): an activated ability and a
+#: triggered one (3 is static, keywords included).
+ACTIVATED, TRIGGERED = 1, 2
+
+
+@dataclass(frozen=True)
+class ArenaCard:
+    """One Arena printing's name (``"A-"`` kept on a rebalanced one) and flags."""
+
+    name: str | None
+    rebalanced: bool
+    token: bool
+
+    @property
+    def paper_name(self) -> str | None:
+        """The name without a rebalanced card's ``"A-"``: the card phase parses."""
+        if self.name and self.rebalanced:
+            return self.name.removeprefix("A-")
+        return self.name
+
+
+@dataclass(frozen=True)
+class ArenaAbility:
+    """One Arena ability: its category, its text (``CARDNAME`` for the card), the
+    keyword it is an instance of (``BaseId``: "Fading 5" is Fading), and the ability
+    a reflexive "When you do" or delayed trigger belongs to (``HiddenByAbilityIds``)."""
+
+    category: int | None
+    text: str | None
+    keyword: str | None = None
+    parent: int | None = None
+
+
+class CardText:
+    """The names and rules text Arena's game log refers to by number: a card by
+    ``grpId``, an ability by its id, a counter type by its enum value. Read once
+    from the database at ``path``."""
+
+    def __init__(self, path: Path) -> None:
+        con = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
+        try:
+            loc: dict[tuple[int, int], str] = {
+                (loc_id, formatted): text
+                for loc_id, formatted, text in con.execute(
+                    "SELECT LocId, Formatted, Loc FROM Localizations_enUS"
+                )
+            }
+
+            def text(loc_id: int | None) -> str | None:
+                if loc_id is None:
+                    return None
+                return arena_title(loc.get((loc_id, 0)), loc.get((loc_id, 1)))
+
+            self._cards = {
+                grp: ArenaCard(text(title), bool(rebalanced), bool(token))
+                for grp, title, rebalanced, token in con.execute(
+                    "SELECT GrpId, TitleId, IsRebalanced, IsToken FROM Cards"
+                )
+            }
+            rows = con.execute(
+                "SELECT Id, Category, TextId, BaseId, HiddenByAbilityIds FROM Abilities"
+            ).fetchall()
+            texts = {ab_id: text(text_id) for ab_id, _, text_id, _, _ in rows}
+            self._abilities = {
+                ab_id: ArenaAbility(
+                    category,
+                    texts[ab_id],
+                    texts.get(base) if base else None,
+                    int(str(hidden).split(",")[0]) if hidden else None,
+                )
+                for ab_id, category, _, base, hidden in rows
+            }
+            self._counters = {
+                value: text(loc_id)
+                for value, loc_id in con.execute(
+                    "SELECT Value, LocId FROM Enums WHERE Type = 'CounterType'"
+                )
+            }
+        finally:
+            con.close()
+
+    def card(self, grp_id: int | None) -> ArenaCard | None:
+        return self._cards.get(grp_id) if grp_id is not None else None
+
+    def ability(self, ability_id: int | None) -> ArenaAbility:
+        """The ability, or an empty one for an id the database lacks."""
+        return (
+            self._abilities.get(ability_id, ArenaAbility(None, None))
+            if ability_id is not None
+            else ArenaAbility(None, None)
+        )
+
+    def counter(self, value: int | None) -> str | None:
+        """A counter type's name (``"+1/+1"``, ``"Stun"``)."""
+        return self._counters.get(value) if value is not None else None
+
+
+def strip_markup(text: str) -> str:
+    """Arena's text with its markup (``<nobr>``, sprites) removed."""
+    return _MARKUP.sub("", text)
