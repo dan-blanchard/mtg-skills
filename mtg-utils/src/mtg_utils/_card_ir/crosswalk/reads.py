@@ -10111,7 +10111,8 @@ def diverts_from_graveyard(unit: AbilityUnit) -> bool:
     (:func:`_exiles_countered_spell`), a cast trigger exiling the spell it watches
     "instead of putting it into your graveyard as it resolves" (Goliath
     Daydreamer), phase's ``ExileResolvingSpellInsteadOfGraveyard`` anywhere in the
-    unit (Feather, the Redeemed; Forger's Foundry's mana rider), and a replacement
+    unit (Feather, the Redeemed) or the clause phase parks, as the recovery grammar
+    reads it (``exile_instead``: Forger's Foundry's mana rider), and a replacement
     of this card's own discard ("put it onto the battlefield instead of putting it
     into your graveyard" — Loxodon Smiter; madness's own, which "exiles it instead
     of putting it into their graveyard", CR 702.35a). A replacement of any card's
@@ -10127,6 +10128,8 @@ def diverts_from_graveyard(unit: AbilityUnit) -> bool:
         tag_of(n) == "ExileResolvingSpellInsteadOfGraveyard" for n in unit.iter_typed()
     ):
         return True
+    if any(c.recovered_by == "exile_instead" for c in unit.effects):
+        return True  # the same clause phase parked, read by the recovery grammar
     return (
         unit.origin == "replacement"
         and replacement_event_tag(unit.node) == "Discard"

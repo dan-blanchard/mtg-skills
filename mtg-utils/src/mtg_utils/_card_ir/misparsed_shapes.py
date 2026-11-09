@@ -131,22 +131,6 @@ taught a special case. Keyed on phase's structure, never the card's name or text
   ``test_countered_exile_instead_canary`` and
   ``test_cast_trigger_exile_instead_canary`` fail once phase types them.
 
-* **A mana rider exiling the spell it pays for, left unparsed.** "{T}: Add {U}.
-  When you spend this mana to cast an instant or sorcery spell with mana value 3
-  or less, you may exile that spell instead of putting it into its owner's
-  graveyard as it resolves" (Forger's Foundry) parks the rider as an
-  ``Unimplemented`` ``unrecognized_clause_head`` sub-ability whose description is
-  the clause. Phase types a mana ability's spend rider as a ``TriggerOnSpend``
-  grant on the ``Mana`` effect, its filter the spells and its ability the rider
-  (Primal Wellspring, Pyromancer's Goggles), and a spell exiled instead of going
-  to the graveyard as ``ExileResolvingSpellInsteadOfGraveyard`` (Rod of
-  Absorption): the rider is written so, its filter instants and sorceries of mana
-  value N or less (``Cmc`` ``LE``), its ability optional. One card, but a correction
-  row, not a ledger row: every lane must see the grant (the mana read, the
-  graveyard lane, the cards it exiles for its second ability). The description is
-  the only key: one card carries it (census 2026-11-09, v0.118.0).
-  ``test_mana_spent_exile_canary`` fails once phase types it.
-
 Pure functions over plain dicts; nothing here reads the mirror or a tree.
 """
 
@@ -481,34 +465,11 @@ def _cast_trigger_graveyard_exile(trig: object) -> dict | None:
     return effect if _graveyard_exile_of_parent(effect) else None
 
 
-#: A mana ability's unparsed rider exiling the spell its mana pays for.
-_MANA_SPENT_EXILE_RX = re.compile(
-    r"^When you spend this mana to cast an instant or sorcery spell with mana value "
-    r"(?P<n>\d+) or less, you may exile that spell instead of putting it into its "
-    r"owner's graveyard as it resolves$"
-)
-
-
-def _mana_spent_exile(body: dict) -> int | None:
-    """N, for a ``Mana`` ability whose ``sub_ability`` is the ``Unimplemented``
-    rider "When you spend this mana to cast an instant or sorcery spell with mana
-    value N or less, you may exile that spell instead ..."."""
-    if body["effect"].get("type") != "Mana":
-        return None
-    rider = (body.get("sub_ability") or {}).get("effect") or {}
-    if rider.get("type") != "Unimplemented":
-        return None
-    m = _MANA_SPENT_EXILE_RX.match(str(rider.get("description") or ""))
-    return int(m.group("n")) if m else None
-
-
-def _ability_body(
-    effect: dict, *, kind: str = "Spell", optional: bool = False, **extra: object
-) -> dict:
+def _ability_body(effect: dict, **extra: object) -> dict:
     """An ability body as phase writes one: ``effect`` with every other field at
     its default, ``extra`` (a ``sub_ability``, a ``sub_link``) on top."""
     return {
-        "kind": kind,
+        "kind": "Spell",
         "effect": effect,
         "cost": None,
         "sub_ability": None,
@@ -517,37 +478,9 @@ def _ability_body(
         "target_prompt": None,
         "condition": None,
         "optional_targeting": False,
-        "optional": optional,
+        "optional": False,
         "forward_result": False,
         **extra,
-    }
-
-
-def _spend_exile_grant(n: int) -> dict:
-    """The ``TriggerOnSpend`` grant phase types for a mana rider (Primal
-    Wellspring's form): on instants and sorceries of mana value N or less, an
-    optional ``ExileResolvingSpellInsteadOfGraveyard``."""
-    cheap = {"type": "Cmc", "comparator": "LE", "value": {"type": "Fixed", "value": n}}
-    return {
-        "TriggerOnSpend": {
-            "filter": {
-                "type": "Or",
-                "filters": [
-                    {
-                        "type": "Typed",
-                        "type_filters": [kind],
-                        "controller": None,
-                        "properties": [dict(cheap)],
-                    }
-                    for kind in ("Instant", "Sorcery")
-                ],
-            },
-            "ability": _ability_body(
-                {"type": "ExileResolvingSpellInsteadOfGraveyard"},
-                kind="Activated",
-                optional=True,
-            ),
-        }
     }
 
 
@@ -594,9 +527,6 @@ def correct_misparsed_shapes(rec: dict) -> dict:
         for trig in rec.get("triggers") or ()
         if (effect := _cast_trigger_graveyard_exile(trig)) is not None
     ]
-    spend_exiles = [
-        (body, n) for body in bodies if (n := _mana_spent_exile(body)) is not None
-    ]
     found = (
         sweeps,
         arrivals,
@@ -608,7 +538,6 @@ def correct_misparsed_shapes(rec: dict) -> dict:
         umbras,
         power_returns,
         countered_exiles,
-        spend_exiles,
     )
     if not any(found):
         return rec
@@ -687,12 +616,6 @@ def correct_misparsed_shapes(rec: dict) -> dict:
         target = memo[id(sub)]
         assert isinstance(target, dict)
         target["origin"] = None
-    for body, n in spend_exiles:
-        target = memo[id(body)]
-        assert isinstance(target, dict)
-        mana = target["effect"]
-        mana["grants"] = [*(mana.get("grants") or []), _spend_exile_grant(n)]
-        target["sub_ability"] = target["sub_ability"].get("sub_ability")
     if umbras:
         kept = [
             b

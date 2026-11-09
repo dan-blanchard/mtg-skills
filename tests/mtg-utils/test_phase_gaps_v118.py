@@ -166,3 +166,41 @@ def test_mill_until_creature_steals_it():
     """Helm of Obedience puts a milled creature card of the opponent's onto the
     battlefield under your control (CR 110.2: you control it)."""
     assert ("gain_control", "you", "") in _idents("Helm of Obedience")
+
+
+# ── exile_instead: a mana rider exiling the spell it pays for, parked ─────────
+
+
+def _forgers_foundry_rider() -> dict:
+    (rec,) = test_phase_records("Forger's Foundry")
+    return (rec["abilities"][0].get("sub_ability") or {}).get("effect") or {}
+
+
+@pytest.mark.retirement_canary
+def test_mana_spent_exile_is_still_a_residue_canary():
+    """Forger's Foundry's "When you spend this mana to cast …, you may exile that
+    spell instead of putting it into its owner's graveyard as it resolves": phase
+    parks the rider, which the recovery grammar reads as ``exile_instead``."""
+    rider = _forgers_foundry_rider()
+    retire = (
+        "Forger's Foundry: RETIRE-READY — phase types its mana rider. Once no "
+        "residue carries it, delete the exile_instead row of "
+        "clause_grammar.REPLACEMENT_TOKENS and its recovery.ALLOWLIST entry, and "
+        "check that crosswalk.diverts_from_graveyard reads phase's new form."
+    )
+    assert rider.get("type") == "Unimplemented", retire
+    assert "instead of putting it into" in (rider.get("description") or ""), retire
+
+
+def test_a_parked_exile_instead_recovers_and_reads_no_graveyard_card():
+    from mtg_utils._card_ir.trees import trees_for
+    from mtg_utils.testkit import test_card, test_card_ir
+
+    test_card_ir("Forger's Foundry")  # seeds the trees from the snapshot
+    tokens = [
+        c.recovered_by
+        for t in trees_for(test_card("Forger's Foundry"))
+        for c in t.iter_concepts()
+    ]
+    assert "exile_instead" in tokens
+    assert "graveyard_matters" not in {s.key for s in test_signals("Forger's Foundry")}

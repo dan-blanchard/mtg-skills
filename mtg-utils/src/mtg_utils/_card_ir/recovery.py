@@ -536,8 +536,8 @@ ALLOWLIST: dict[str, TokenRule] = {
 }
 
 
-# ── The redirect, the counter bonus and the shrink ──────────────────────────────
-# Three idioms phase v0.104.0 parks whole (``clause_grammar.REPLACEMENT_TOKENS`` /
+# ── The redirect, the counter bonus, the exile instead and the shrink ───────────
+# Four idioms phase parks whole (``clause_grammar.REPLACEMENT_TOKENS`` /
 # its ``debuff`` static row; each row states its corpus precision). Each earns a
 # concept of its own that only its lane reads (``recovered_by``), so no other
 # ``deal_damage`` / ``place_counter`` / ``pump`` reader picks it up — a redirect
@@ -556,6 +556,11 @@ ALLOWLIST.update(
             other_player=(
                 r"\bdealt to (?:its|that (?:creature|permanent)'s) controller\b"
             ),
+        ),
+        # A spell exiled instead of going to a graveyard (CR 614.1a):
+        # ``crosswalk.diverts_from_graveyard`` reads it.
+        "exile_instead": TokenRule(
+            concept="exile_instead", category="exile_instead", in_replacements=True
         ),
         # A "that many plus N" counter-placement bonus (CR 122.1, 614.1a):
         # ``counter_replace_bonus`` / ``counter_doubling`` read it, beside their

@@ -370,31 +370,6 @@ def test_cast_trigger_exile_instead_canary(name):
     assert after["enter_with_counters"] == before["enter_with_counters"]
 
 
-@pytest.mark.retirement_canary
-def test_mana_spent_exile_canary():
-    """Forger's Foundry's "When you spend this mana to cast an instant or sorcery
-    spell with mana value 3 or less, you may exile that spell instead …" is an
-    ``Unimplemented`` rider. The stage writes it as phase's ``TriggerOnSpend``
-    grant of an optional ``ExileResolvingSpellInsteadOfGraveyard``."""
-    (rec,) = test_phase_records("Forger's Foundry")
-    body = rec["abilities"][0]
-    rider = (body.get("sub_ability") or {}).get("effect") or {}
-    assert rider.get("type") == "Unimplemented", (
-        "misparsed_shapes mana-spent exile: RETIRE-READY — phase types Forger's "
-        "Foundry's mana rider. Delete the mana-rider row and this canary."
-    )
-    after = correct_misparsed_shapes(rec)["abilities"][0]
-    assert after["sub_ability"] is None
-    (grant,) = after["effect"]["grants"]
-    spend = grant["TriggerOnSpend"]
-    assert spend["ability"]["effect"] == {
-        "type": "ExileResolvingSpellInsteadOfGraveyard"
-    }
-    assert spend["ability"]["optional"] is True
-    cheap = spend["filter"]["filters"][0]["properties"][0]
-    assert (cheap["comparator"], cheap["value"]["value"]) == ("LE", 3)
-
-
 @pytest.mark.parametrize(
     "name",
     [
@@ -406,7 +381,7 @@ def test_mana_spent_exile_canary():
         "Lilah, Undefeated Slickshot",
         "River Song's Diary",
         "Rod of Absorption",
-        # the mana rider (corrected)
+        # the mana rider phase parks (the recovery grammar's exile_instead)
         "Forger's Foundry",
         # a replacement of its own discard
         "Dodecapod",

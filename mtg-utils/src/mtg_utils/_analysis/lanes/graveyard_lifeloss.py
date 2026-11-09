@@ -1358,14 +1358,12 @@ def _graveyard_matters(tree: ConceptTree) -> list[Signal]:
     # the spell instead, a self-discard replacement), by its own description or,
     # for a modal spell's mode, the card's (Defabricate).
     claimed = [tree.units[i].node for i in sorted(hate_units - own_exile)]
-    diverted: list[str] = []
-    if "graveyard" in (tree.oracle or "").lower():  # else the mirror reads nothing
-        diverted = [
-            getattr(unit.node, "description", None)
-            or modal_mode_description(unit, unit.node, tree)
-            for unit in tree.units
-            if diverts_from_graveyard(unit)
-        ]
+    diverted = [
+        getattr(unit.node, "description", None)
+        or modal_mode_description(unit, unit.node, tree)
+        for unit in tree.units
+        if diverts_from_graveyard(unit)
+    ]
     for _gy_key, _gy_scope_v in _graveyard_matters_clauses(
         " ".join(unclaimed_clauses(tree, claimed, diverted)), tree.name
     ):

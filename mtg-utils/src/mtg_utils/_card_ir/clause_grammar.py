@@ -802,8 +802,8 @@ def static_token(text: str) -> str | None:
     return None
 
 
-# ── Replacement idioms: the redirect and the counter bonus ──────────────────────
-# Two replacement idioms whose effect IS the replacement (CR 614.1a), so the verb
+# ── Replacement idioms: the redirect, the counter bonus, the exile instead ──────
+# Replacement idioms whose effect IS the replacement (CR 614.1a), so the verb
 # inside them ("put … counters", "dealt to") names the replaced event, not an
 # instruction the imperative grammar should read. Each is anchored to its own
 # sentence: a clause that OPENS on one reads as the idiom (Prairie Dog's "if you
@@ -846,6 +846,21 @@ REPLACEMENT_TOKENS: tuple[tuple[re.Pattern[str], str], ...] = (
             re.IGNORECASE,
         ),
         "counter_bonus",
+    ),
+    # A spell exiled instead of going to a graveyard (CR 614.1a): "you may exile
+    # that spell instead of putting it into its owner's graveyard as it resolves"
+    # (Forger's Foundry's mana rider). The graveyard is the destination the
+    # replacement takes the card away from, so ``crosswalk.diverts_from_graveyard``
+    # reads the token and the graveyard lane's text mirror leaves the clause alone.
+    # Corpus precision (all of card-data, phase v0.118.0): exactly 1 residue,
+    # Forger's Foundry; phase types the other forms (``Counter`` + ``ChangeZone``,
+    # ``ExileResolvingSpellInsteadOfGraveyard``).
+    (
+        re.compile(
+            r"\bexiles?\b[^.]*\binstead of (?:putting|being put)\b[^.]*\bgraveyard\b",
+            re.IGNORECASE,
+        ),
+        "exile_instead",
     ),
 )
 
