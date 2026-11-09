@@ -7,8 +7,28 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
 ## Open
 
 The phase-rs parse reports below are packaged as ready-to-post issue files in
-`docs/plans/phase-upstream-issues/` (45, re-verified against v0.118.0; 2026-11-01).
+`docs/plans/phase-upstream-issues/` (45, re-verified against v0.118.0; 2026-11-01, issue 25 2026-11-09).
 Posting them is Dan's.
+
+**From comparing Arena game logs with phase (2026-11-09)**
+
+- **The graveyard lane's text mirror reads a replaced graveyard as a graveyard
+  card.** `text_reads._graveyard_matters_clauses` fires `graveyard_matters` on
+  any clause holding the word "graveyard", including "… instead of putting it into
+  its owner's graveyard", where the graveyard is the destination a replacement
+  effect takes the card away from (CR 614.1a). The countered-exile counterspells
+  are claimed out of the mirror (`crosswalk.exiles_countered_spell`), but 14 cards
+  of the same class still fire it, the mirror their only source: Defabricate (phase
+  writes no description for its modes, so its clause can't be claimed), Dodecapod,
+  Feather, the Redeemed, Forger's Foundry, Gandalf of the Secret Fire, Goliath
+  Daydreamer, Lilah, Undefeated Slickshot, Loxodon Smiter, Miku, the Renowned,
+  Nullhide Ferox, Obstinate Baloth, River Song's Diary, Rod of Absorption and
+  Wilt-Leaf Liege (code review 2026-11-09). Two ways to close it: claim, in the
+  lane, the clauses of every replacement whose replaced move ends in a graveyard
+  (typed, but Rest in Peace's "would be put into a graveyard … exile it instead" is
+  real graveyard hate and must keep its signal; Defabricate stays open); or drop
+  the replaced-destination phrase from each clause inside the mirror (closes all 14,
+  Defabricate included, but it's a new oracle-text pattern).
 
 **From a powered-cube draft tune (2026-11-02)**
 

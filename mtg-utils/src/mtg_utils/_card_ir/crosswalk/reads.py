@@ -10053,6 +10053,29 @@ def _picks_other_players_card(unit: AbilityUnit) -> bool:
     return False
 
 
+def exiles_countered_spell(unit: AbilityUnit) -> bool:
+    """Whether the unit counters a spell and exiles it instead of putting it into
+    its owner's graveyard (Dissipate, Force of Negation): a ``Counter`` followed by
+    a ``ChangeZone`` that exiles its ``ParentTarget`` from no named zone, the form
+    ``misparsed_shapes`` writes the "instead" in. A countered spell goes to its
+    owner's graveyard (CR 701.6a); "instead" replaces that (614.1a), so the
+    clause's "graveyard" names a zone the spell never reaches."""
+    countered = False
+    for c in unit.effects:
+        tag = tag_of(c.node)
+        if tag == "Counter":
+            countered = True
+        elif countered and tag == "ChangeZone":
+            origin, dest = change_zone_dirs(c.node)
+            if (
+                dest == "Exile"
+                and origin is None
+                and tag_of(getattr(c.node, "target", None)) == "ParentTarget"
+            ):
+                return True
+    return False
+
+
 def _exiles_other_players_card(unit: AbilityUnit, node: TypedMirrorNode) -> bool:
     """Whether a ``ChangeZone`` / ``ChangeZoneAll`` to exile takes a card you
     don't own (or needn't own): out of an opponent's hand, graveyard or

@@ -2,7 +2,7 @@
 
 Ready-to-post issue bodies generated from `docs/plans/phase-upstream-reports.md` and re-verified against phase v0.118.0's own card-data (`card-data-v0.118.0.json`). Nothing here has been posted. Each file: title as the `#` heading, the phase tag, the cards with oracle text from the local MTGJSON bulk, the trimmed face-record fragment phase emits (null/false/empty fields and the noise keys `kind`, `trigger_zones`, `damage_kind`, `sub_link`, `target_choice_timing` dropped; `…` marks an elided sub-tree), the expected structure, and why it matters.
 
-Numbering: `NN` is the report section. Sections 12, 15, 16 and 24 hold several unrelated shapes, so they are split into letter-suffixed files (12a-d, 15a-i, 16a-b, 24a-h). Cards the report names only as "also" / "ledger" / "backlog, not re-checked" are mentioned in an issue's text as "the same shape appears on these cards, not re-quoted here"; Appendix A (ledger rows) and the "Not drafted" list are out of scope here.
+Numbering: `NN` is the report section; issues found after the report (25 on, from the Arena game-log comparison) take the next number, and the table's last column names their source. Sections 12, 15, 16 and 24 hold several unrelated shapes, so they are split into letter-suffixed files (12a-d, 15a-i, 16a-b, 24a-h). Cards the report names only as "also" / "ledger" / "backlog, not re-checked" are mentioned in an issue's text as "the same shape appears on these cards, not re-quoted here"; Appendix A (ledger rows) and the "Not drafted" list are out of scope here.
 
 ## Issues
 
@@ -52,6 +52,7 @@ Numbering: `NN` is the report section. Sections 12, 15, 16 and 24 hold several u
 | 24h-vibranium-token-no-mana-ability.md | Vibranium token has no mana ability | Shuri's Fabricator (and four other makers) | 24 |
 | 24i-kaust-face-up-combat-damage-unknown-mode.md | Face-up-this-turn combat-damage trigger is an `Unknown` mode | Kaust, Eyes of the Glade | 24 (triage pass) |
 | 24j-mirrormind-crown-token-copy-replacement-parked.md | Token-copy replacement parked as `as_long_as_gate` | Mirrormind Crown | 24 (triage pass) |
+| 25-countered-spell-exiled-instead-typed-from-graveyard.md | "Exile it instead" of the graveyard typed as a move out of the graveyard | Dissipate (control: Memory Lapse); 20 more listed | Arena log comparison, 2026-11-09 |
 
 ## Not reproduced at v0.118.0
 

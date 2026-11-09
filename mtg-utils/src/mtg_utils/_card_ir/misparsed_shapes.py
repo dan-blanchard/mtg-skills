@@ -109,6 +109,24 @@ taught a special case. Keyed on phase's structure, never the card's name or text
   Equipment): the ability is rewritten as that static over the Auras you
   control. ``test_umbra_armor_grant_canary`` fails once phase types the static.
 
+* **A countered spell exiled "instead" read as a move out of the graveyard.**
+  "Counter target spell. If that spell is countered this way, exile it instead
+  of putting it into its owner's graveyard" (Dissipate, Force of Negation, No
+  More Lies; 21 cards in v0.118.0, every one with that "instead") is parsed as
+  the ``Counter`` followed by a ``ChangeZone`` of its ``ParentTarget`` with
+  ``origin: Graveyard``, ``destination: Exile``. A countered spell is put into
+  its owner's graveyard (CR 701.6a), and an effect that uses "instead" is a
+  replacement effect (614.1a): the spell goes from the stack to exile and never
+  reaches the graveyard, as Arena logs it (one ``Countered`` move, Stack to
+  Exile). Read as written, every graveyard read sees a card that exiles from a
+  graveyard (``graveyard_matters``, the signal Rest in Peace carries). Phase
+  types a spell leaving the stack with no ``origin`` and the spell as its target
+  (Unsubstantiate's ``Bounce`` of a ``StackSpell``), so the ``origin`` is
+  cleared: the move keeps its exile, of the countered spell, from no other
+  zone. Phase's own form for the replacement, ``Counter.countered_spell_zone``,
+  holds only ``Hand`` and ``Library``. ``test_countered_exile_instead_canary``
+  fails once phase types it.
+
 Pure functions over plain dicts; nothing here reads the mirror or a tree.
 """
 
@@ -411,6 +429,23 @@ _LESS_POWER_THAN_SOURCE = {
 }
 
 
+def _countered_graveyard_exile(body: dict) -> dict | None:
+    """The ``sub_ability`` effect of a ``Counter`` that exiles its
+    ``ParentTarget`` (the countered spell) with ``origin: Graveyard``, else
+    ``None``. The structure is the key: all 21 cards carrying it say "exile it
+    instead" (census 2026-11-09, v0.118.0)."""
+    sub = (body.get("sub_ability") or {}).get("effect") or {}
+    if (
+        body["effect"].get("type") == "Counter"
+        and sub.get("type") == "ChangeZone"
+        and sub.get("origin") == "Graveyard"
+        and sub.get("destination") == "Exile"
+        and (sub.get("target") or {}).get("type") == "ParentTarget"
+    ):
+        return sub
+    return None
+
+
 def correct_misparsed_shapes(rec: dict) -> dict:
     """``rec`` with each misparsed shape rewritten (a copy when any)."""
     sweeps = [
@@ -421,18 +456,17 @@ def correct_misparsed_shapes(rec: dict) -> dict:
         for trig in rec.get("triggers") or ()
         if (subtype := _graveyard_arrival_subtype(trig)) is not None
     ]
-    split_flips = [body for body in _ability_bodies(rec) if _is_split_flip(body)]
+    bodies = list(_ability_bodies(rec))
+    split_flips = [body for body in bodies if _is_split_flip(body)]
     chosen_types = [
         (body, types)
-        for body in _ability_bodies(rec)
+        for body in bodies
         if (types := _chosen_card_type_sweep(body)) is not None
     ]
     blights = [
-        (body, n)
-        for body in _ability_bodies(rec)
-        if (n := _draw_and_blight(body)) is not None
+        (body, n) for body in bodies if (n := _draw_and_blight(body)) is not None
     ]
-    manifests = [body for body in _ability_bodies(rec) if _bare_target_manifest(body)]
+    manifests = [body for body in bodies if _bare_target_manifest(body)]
     attacks = [
         (trig, kind)
         for trig in rec.get("triggers") or ()
@@ -448,8 +482,12 @@ def correct_misparsed_shapes(rec: dict) -> dict:
         for trig in rec.get("triggers") or ()
         if (filt := _relative_power_return(trig)) is not None
     ]
+    countered_exiles = [
+        sub for body in bodies if (sub := _countered_graveyard_exile(body)) is not None
+    ]
     if not (
-        power_returns
+        countered_exiles
+        or power_returns
         or sweeps
         or arrivals
         or split_flips
@@ -540,6 +578,10 @@ def correct_misparsed_shapes(rec: dict) -> dict:
             *target.get("properties", []),
             copy.deepcopy(_LESS_POWER_THAN_SOURCE),
         ]
+    for sub in countered_exiles:
+        target = memo[id(sub)]
+        assert isinstance(target, dict)
+        target["origin"] = None
     if umbras:
         kept = [
             b

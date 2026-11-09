@@ -343984,6 +343984,239 @@
     "type_line": "Sorcery"
    }
   },
+  "Devious Cover-Up": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Counter target spell. If that spell is countered this way, exile it instead of putting it into its owner's graveyard. You may shuffle up to four target cards from your graveyard into your library.",
+       "duration": null,
+       "effect": {
+        "target": {
+         "type": "StackSpell"
+        },
+        "type": "Counter"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": {
+         "filter": {
+          "controller": null,
+          "properties": [],
+          "type": "Typed",
+          "type_filters": [
+           "Card"
+          ]
+         },
+         "type": "ZoneChangedThisWay"
+        },
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "destination": "Exile",
+         "enter_tapped": false,
+         "enter_transformed": false,
+         "enters_attacking": false,
+         "origin": "Graveyard",
+         "owner_library": false,
+         "target": {
+          "type": "ParentTarget"
+         },
+         "type": "ChangeZone"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "destination": "Library",
+          "enter_tapped": false,
+          "enter_transformed": false,
+          "enters_attacking": false,
+          "origin": "Graveyard",
+          "owner_library": false,
+          "target": {
+           "controller": "You",
+           "properties": [
+            {
+             "type": "InZone",
+             "zone": "Graveyard"
+            }
+           ],
+           "type": "Typed",
+           "type_filters": [
+            "Card"
+           ]
+          },
+          "type": "ChangeZone"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "multi_target": {
+          "max": {
+           "type": "Fixed",
+           "value": 4
+          },
+          "min": 0
+         },
+         "optional": true,
+         "optional_targeting": false,
+         "sub_ability": {
+          "condition": null,
+          "cost": null,
+          "description": null,
+          "duration": null,
+          "effect": {
+           "target": {
+            "type": "Controller"
+           },
+           "type": "Shuffle"
+          },
+          "forward_result": false,
+          "kind": "Spell",
+          "optional": false,
+          "optional_targeting": false,
+          "sub_ability": null,
+          "target_prompt": null
+         },
+         "sub_link": "SequentialSibling",
+         "target_prompt": null
+        },
+        "sub_link": "SequentialSibling",
+        "target_choice_timing": "Resolution",
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Instant"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Blue"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pauper": "legal",
+      "paupercommander": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 2,
+      "shards": [
+       "Blue",
+       "Blue"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "21ac6b0a-b1a5-439d-b65e-5f04e1826c80",
+       "648281fe-89fb-4d8d-b944-3af28fb044f6"
+      ]
+     },
+     "name": "Devious Cover-Up",
+     "non_ability_text": null,
+     "oracle_text": "Counter target spell. If that spell is countered this way, exile it instead of putting it into its owner's graveyard. You may shuffle up to four target cards from your graveyard into your library.",
+     "power": null,
+     "printings": [
+      "DBL",
+      "GRN",
+      "MID"
+     ],
+     "rarities": [
+      "common"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2018-10-05",
+       "text": "A spell that can't be countered is a legal target for Devious Cover-Up. The spell won't be countered when Devious Cover-Up resolves, but you'll still shuffle cards into your library."
+      },
+      {
+       "date": "2018-10-05",
+       "text": "Devious Cover-Up can't target itself at all. You can't try to counter it with itself and shuffle cards in, and you can't use its effect to shuffle itself into your library."
+      },
+      {
+       "date": "2018-10-05",
+       "text": "You may target zero cards in your graveyard and still shuffle your library."
+      }
+     ],
+     "scryfall_oracle_id": "feb221fb-59bf-4671-a53f-1bbe8e9c2ca9",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 4.0,
+    "color_identity": [
+     "U"
+    ],
+    "colors": [
+     "U"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "legal",
+     "paupercommander": "legal",
+     "penny": "not_legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}{U}{U}",
+    "name": "Devious Cover-Up",
+    "oracle_id": "feb221fb-59bf-4671-a53f-1bbe8e9c2ca9",
+    "oracle_text": "Counter target spell. If that spell is countered this way, exile it instead of putting it into its owner's graveyard. You may shuffle up to four target cards from your graveyard into your library.",
+    "type_line": "Instant"
+   }
+  },
   "Devoted Druid": {
    "phase_records": [
     {
@@ -354068,6 +354301,190 @@
     "name": "Dissension in the Ranks",
     "oracle_id": "717266b6-2bbc-4a04-8f30-e3eaf0283acd",
     "oracle_text": "Target blocking creature fights another target blocking creature.",
+    "type_line": "Instant"
+   }
+  },
+  "Dissipate": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Counter target spell. If that spell is countered this way, exile it instead of putting it into its owner's graveyard.",
+       "duration": null,
+       "effect": {
+        "target": {
+         "type": "StackSpell"
+        },
+        "type": "Counter"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": {
+         "filter": {
+          "controller": null,
+          "properties": [],
+          "type": "Typed",
+          "type_filters": [
+           "Card"
+          ]
+         },
+         "type": "ZoneChangedThisWay"
+        },
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "destination": "Exile",
+         "enter_tapped": false,
+         "enter_transformed": false,
+         "enters_attacking": false,
+         "origin": "Graveyard",
+         "owner_library": false,
+         "target": {
+          "type": "ParentTarget"
+         },
+         "type": "ChangeZone"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "sub_link": "SequentialSibling",
+        "target_choice_timing": "Resolution",
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Instant"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Blue"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "premodern": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "Blue",
+       "Blue"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "00ff9f72-b6da-426b-8f27-77aa79e7b75a",
+       "1e9318fb-148c-4aa4-960f-60714a4aab92",
+       "4689b3f2-e4b7-448e-b3d4-ab33194aafb2",
+       "5d778082-bcdb-423a-b16f-57ac0d4dace7",
+       "d811ff0b-53f0-4408-b63a-c5da2eeb9964",
+       "dbcc571a-6d9c-4408-a352-ff96f9472b44",
+       "f5f81747-5710-4029-99e7-8bf69f796b35"
+      ]
+     },
+     "name": "Dissipate",
+     "non_ability_text": null,
+     "oracle_text": "Counter target spell. If that spell is countered this way, exile it instead of putting it into its owner's graveyard.",
+     "power": null,
+     "printings": [
+      "DBL",
+      "DDJ",
+      "F02",
+      "ISD",
+      "M15",
+      "MID",
+      "MIR",
+      "OLEP",
+      "PLST",
+      "PRM",
+      "WC97",
+      "WC98"
+     ],
+     "rarities": [
+      "uncommon"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2004-10-04",
+       "text": "If the spell is not countered (because the spell it targets can't be countered), then it does not get exiled."
+      },
+      {
+       "date": "2004-10-04",
+       "text": "The card does not go to the graveyard before being exiled."
+      }
+     ],
+     "scryfall_oracle_id": "4b2e9aa9-6f91-41de-84b6-e9a89be06a53",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 3.0,
+    "color_identity": [
+     "U"
+    ],
+    "colors": [
+     "U"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "legal",
+     "predh": "legal",
+     "premodern": "legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}{U}{U}",
+    "name": "Dissipate",
+    "oracle_id": "4b2e9aa9-6f91-41de-84b6-e9a89be06a53",
+    "oracle_text": "Counter target spell. If that spell is countered this way, exile it instead of putting it into its owner's graveyard.",
     "type_line": "Instant"
    }
   },
@@ -474447,6 +474864,219 @@
     "power": "8",
     "toughness": "8",
     "type_line": "Creature — Elemental"
+   }
+  },
+  "Force of Negation": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Counter target noncreature spell. If that spell is countered this way, exile it instead of putting it into its owner's graveyard.",
+       "duration": null,
+       "effect": {
+        "target": {
+         "filters": [
+          {
+           "type": "StackSpell"
+          },
+          {
+           "controller": null,
+           "properties": [],
+           "type": "Typed",
+           "type_filters": [
+            {
+             "Non": "Creature"
+            }
+           ]
+          }
+         ],
+         "type": "And"
+        },
+        "type": "Counter"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": {
+         "filter": {
+          "controller": null,
+          "properties": [],
+          "type": "Typed",
+          "type_filters": [
+           "Card"
+          ]
+         },
+         "type": "ZoneChangedThisWay"
+        },
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "destination": "Exile",
+         "enter_tapped": false,
+         "enter_transformed": false,
+         "enters_attacking": false,
+         "origin": "Graveyard",
+         "owner_library": false,
+         "target": {
+          "type": "ParentTarget"
+         },
+         "type": "ChangeZone"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "sub_link": "SequentialSibling",
+        "target_choice_timing": "Resolution",
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Instant"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "casting_options": [
+      {
+       "condition": {
+        "condition": {
+         "type": "IsYourTurn"
+        },
+        "type": "Not"
+       },
+       "cost": {
+        "count": 1,
+        "filter": {
+         "controller": "You",
+         "properties": [
+          {
+           "color": "Blue",
+           "type": "HasColor"
+          },
+          {
+           "type": "InZone",
+           "zone": "Hand"
+          }
+         ],
+         "type": "Typed",
+         "type_filters": [
+          "Card"
+         ]
+        },
+        "type": "Exile",
+        "zone": "Hand"
+       },
+       "kind": "AlternativeCost"
+      }
+     ],
+     "color_identity": [
+      "Blue"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "Blue",
+       "Blue"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "0d840284-ce56-4e4f-822f-8b237a261d1e",
+       "1825a719-1b2a-4af9-9cd2-7cb497cd0317",
+       "5396b405-6fa0-43d7-a8f6-f64154e95e98",
+       "cb795f86-3721-4ae5-9893-49d7d9973f86",
+       "e9be371c-c688-44ad-ab71-bd4c9f242d58"
+      ]
+     },
+     "name": "Force of Negation",
+     "non_ability_text": null,
+     "oracle_text": "If it's not your turn, you may exile a blue card from your hand rather than pay this spell's mana cost.\nCounter target noncreature spell. If that spell is countered this way, exile it instead of putting it into its owner's graveyard.",
+     "power": null,
+     "printings": [
+      "2X2",
+      "H1R",
+      "MH1",
+      "PRM",
+      "RFIN",
+      "TLE"
+     ],
+     "rarities": [
+      "rare",
+      "mythic"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "ac2173f9-f223-440a-9231-fd98762bdc6f",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 3.0,
+    "color_identity": [
+     "U"
+    ],
+    "colors": [
+     "U"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}{U}{U}",
+    "name": "Force of Negation",
+    "oracle_id": "ac2173f9-f223-440a-9231-fd98762bdc6f",
+    "oracle_text": "If it's not your turn, you may exile a blue card from your hand rather than pay this spell's mana cost.\nCounter target noncreature spell. If that spell is countered this way, exile it instead of putting it into its owner's graveyard.",
+    "type_line": "Instant"
    }
   },
   "Force of Savagery": {
@@ -834395,6 +835025,184 @@
     "oracle_id": "b9538d53-480b-481a-abbf-83ab17e1a45b",
     "oracle_text": "Whenever a creature deals damage to you, destroy it.",
     "type_line": "Enchantment"
+   }
+  },
+  "No More Lies": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Counter target spell unless its controller pays {3}. If that spell is countered this way, exile it instead of putting it into its owner's graveyard.",
+       "duration": null,
+       "effect": {
+        "target": {
+         "type": "StackSpell"
+        },
+        "type": "Counter"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": {
+         "filter": {
+          "controller": null,
+          "properties": [],
+          "type": "Typed",
+          "type_filters": [
+           "Card"
+          ]
+         },
+         "type": "ZoneChangedThisWay"
+        },
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "destination": "Exile",
+         "enter_tapped": false,
+         "enter_transformed": false,
+         "enters_attacking": false,
+         "origin": "Graveyard",
+         "owner_library": false,
+         "target": {
+          "type": "ParentTarget"
+         },
+         "type": "ChangeZone"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "sub_link": "SequentialSibling",
+        "target_choice_timing": "Resolution",
+        "target_prompt": null
+       },
+       "target_prompt": null,
+       "unless_pay": {
+        "cost": {
+         "cost": {
+          "generic": 3,
+          "shards": [],
+          "type": "Cost"
+         },
+         "type": "Mana"
+        },
+        "payer": {
+         "type": "ParentTargetController"
+        }
+       }
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Instant"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Blue",
+      "White"
+     ],
+     "color_override": [
+      "Blue",
+      "White"
+     ],
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "standard": "legal",
+      "standardbrawl": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 0,
+      "shards": [
+       "White",
+       "Blue"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "1e0c695d-62f9-4805-9e2f-7032e8464136",
+       "7c882d46-c26c-47f1-96ce-b0676f345b89"
+      ]
+     },
+     "name": "No More Lies",
+     "non_ability_text": null,
+     "oracle_text": "Counter target spell unless its controller pays {3}. If that spell is countered this way, exile it instead of putting it into its owner's graveyard.",
+     "power": null,
+     "printings": [
+      "MKM"
+     ],
+     "rarities": [
+      "uncommon"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "ead1ee6a-e0da-46d5-89e8-31e8c0270bc2",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 2.0,
+    "color_identity": [
+     "U",
+     "W"
+    ],
+    "colors": [
+     "U",
+     "W"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "legal",
+     "standardbrawl": "legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{W}{U}",
+    "name": "No More Lies",
+    "oracle_id": "ead1ee6a-e0da-46d5-89e8-31e8c0270bc2",
+    "oracle_text": "Counter target spell unless its controller pays {3}. If that spell is countered this way, exile it instead of putting it into its owner's graveyard.",
+    "type_line": "Instant"
    }
   },
   "No One Will Hear Your Cries": {

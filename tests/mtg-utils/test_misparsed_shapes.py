@@ -303,3 +303,44 @@ def test_relative_power_return_canary():
     (bound,) = [p for p in after if p["type"] == "PtComparison"]
     assert bound["comparator"] == "LT"
     assert bound["stat"] == "Power"
+
+
+@pytest.mark.retirement_canary
+def test_countered_exile_instead_canary():
+    """Dissipate's "If that spell is countered this way, exile it instead of
+    putting it into its owner's graveyard": phase types the exile as a move
+    ``origin: Graveyard``. "Instead" makes it a replacement (CR 614.1a), so the
+    spell goes from the stack to exile and the stage clears the ``origin``."""
+    (rec,) = test_phase_records("Dissipate")
+    (body,) = rec["abilities"]
+    assert body["effect"]["type"] == "Counter"
+    before = (body.get("sub_ability") or {}).get("effect") or {}
+    assert before.get("origin") == "Graveyard", (
+        "misparsed_shapes countered exile: RETIRE-READY — phase no longer types "
+        "Dissipate's exile as a move out of the graveyard. Delete the countered-"
+        "exile row of misparsed_shapes and this canary, and check that "
+        "crosswalk.exiles_countered_spell still reads phase's new form."
+    )
+    assert before["destination"] == "Exile"
+    after = correct_misparsed_shapes(rec)["abilities"][0]["sub_ability"]["effect"]
+    assert after["origin"] is None
+    assert after["destination"] == "Exile"
+    assert after["target"] == {"type": "ParentTarget"}
+    assert before["origin"] == "Graveyard"  # the input is untouched
+
+
+@pytest.mark.parametrize("name", ["Dissipate", "Force of Negation", "No More Lies"])
+def test_countered_exile_is_no_graveyard_card(name):
+    """The graveyard the countered spell is kept out of is no graveyard the card
+    plays with: no ``graveyard_matters``, still a counterspell."""
+    keys = _keys(name)
+    assert "graveyard_matters" not in keys
+    assert "counter_control" in keys
+
+
+def test_countered_exile_keeps_a_real_graveyard_clause():
+    """Devious Cover-Up exiles the countered spell instead AND returns cards from
+    your graveyard to your library: the second clause still reads."""
+    assert ("graveyard_matters", "you") in {
+        (s.key, s.scope) for s in test_signals("Devious Cover-Up")
+    }

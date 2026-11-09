@@ -54,6 +54,7 @@ from mtg_utils._card_ir.crosswalk import (
     effect_owner_optional,
     effect_owner_player_scope,
     effect_trigger_def,
+    exiles_countered_spell,
     explicit_recipient_scope,
     fights_between_blockers,
     filter_controller,
@@ -1004,6 +1005,8 @@ def _graveyard_matters(tree: ConceptTree) -> list[Signal]:
     # first unless it is also the second (see its gate).
     hate_units: set[int] = set()
     own_exile: set[int] = set()
+    # Counterspells whose "graveyard" the spell never reaches.
+    countered_exiles: set[int] = set()
 
     def fire(scope: str, raw: str) -> None:
         if scope not in seen:
@@ -1012,6 +1015,8 @@ def _graveyard_matters(tree: ConceptTree) -> list[Signal]:
 
     for unit_index, unit in enumerate(tree.units):
         node = unit.node
+        if exiles_countered_spell(unit):
+            countered_exiles.add(unit_index)
         if unit.origin == "trigger":
             # ADR-0038 W5b: ``origin is None`` is phase's shape for an
             # EXPLICITLY unrestricted "from anywhere" arrival (Kozilek /
@@ -1351,8 +1356,11 @@ def _graveyard_matters(tree: ConceptTree) -> list[Signal]:
     # (:func:`unclaimed_clauses`): it read "exile target player's graveyard"
     # (Bojuka Bog) and "from a graveyard" (Afterthought Sentry) as 'you'. A
     # unit that also exiles out of your own graveyard (Spelltwine) stays
-    # unclaimed.
-    claimed = (tree.units[i].node for i in sorted(hate_units - own_exile))
+    # unclaimed. A counterspell exiling "instead" is claimed too
+    # (:func:`exiles_countered_spell`).
+    claimed = (
+        tree.units[i].node for i in sorted((hate_units - own_exile) | countered_exiles)
+    )
     for _gy_key, _gy_scope_v in _graveyard_matters_clauses(
         " ".join(unclaimed_clauses(tree, claimed)), tree.name
     ):
