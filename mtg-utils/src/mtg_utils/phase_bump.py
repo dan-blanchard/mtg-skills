@@ -26,6 +26,10 @@ Steps:
                         tagged (reads the old tag's cached card-data + the tests)
   8 graduation          RETIRE-READY rows: test_bridge_ledger.py + every
                         ``retirement_canary``-marked test; bridge corpus reach
+  9 arena               arena-crosscheck under the new pin over the Arena log
+                        archive, diffed against the old pin's report (ADR-0064);
+                        advisory: a missing archive, Arena card database or old
+                        report, or a failed run, is a note, never a failure
 
 (The crosswalk suites' own fixture — step 5 until ADR-0056 merged it into the card
 snapshot — is re-resolved by step 6's ``build-card-snapshot`` with everything else;
@@ -838,6 +842,21 @@ class ReportData:
     reach: tuple[BridgeReach, ...] = ()
     corpus: int = 0
     recovery: RecoveryCounts | None = None
+    #: Rows whose verdict against Arena's logged games changed
+    #: (``report.diff_reports``), ``None`` when the step had nothing to compare.
+    arena: list[dict] | None = None
+
+
+def render_arena(changes: list[dict] | None) -> list[str]:
+    """What the new pin's parse changed against Arena's logged games (ADR-0064).
+    Advisory: check a change with ``/rules-lawyer`` before calling it a fix or a
+    regression."""
+    if changes is None:
+        return []
+    from mtg_utils._arena_crosscheck.report import render_changes
+
+    lines = render_changes(changes) or ["- no verdict changed on the logged games"]
+    return ["## Against Arena's game logs", *lines]
 
 
 def render_report(data: ReportData) -> str:
@@ -854,6 +873,7 @@ def render_report(data: ReportData) -> str:
         render_graduation(data.graduation),
         render_bridge_reach(data.reach, data.corpus),
         render_recovery(data.recovery, data.corpus),
+        render_arena(data.arena),
         ["## Notes", *(f"- {n}" for n in data.notes)] if data.notes else [],
     ]
     return "\n\n".join("\n".join(s) for s in sections if s) + "\n"
@@ -879,6 +899,8 @@ class BumpContext:
     card_data_path: Callable[[], Path]
     bulk_path: Path | None
     install_phase: bool = False
+    #: The Arena log archive the ``arena`` step reads (ADR-0064); ``None`` skips it.
+    arena_archive: Path | None = None
     report: ReportData = field(init=False)
 
     def __post_init__(self) -> None:
@@ -926,10 +948,15 @@ def step_card_data(ctx: BumpContext) -> None:
 
 
 def _run(ctx: BumpContext, *argv: str) -> str:
-    proc = ctx.runner([sys.executable, "-m", *argv])
+    proc = _try_run(ctx, *argv)
     if proc.returncode != 0:
         raise RuntimeError(f"`{' '.join(argv)}` failed:\n{proc.stdout}\n{proc.stderr}")
     return proc.stdout or ""
+
+
+def _try_run(ctx: BumpContext, *argv: str) -> subprocess.CompletedProcess:
+    """``python -m <argv>`` through the bump's runner; the caller reads its failure."""
+    return ctx.runner([sys.executable, "-m", *argv])
 
 
 def step_substrate(ctx: BumpContext) -> None:
@@ -1078,13 +1105,13 @@ def step_graduation(ctx: BumpContext) -> None:
     # file, then only the marker-selected canaries. Their outputs are read as one.
     # ``--color=no``: a colored run (FORCE_COLOR / PY_COLORS in the caller's
     # environment) wraps names in ANSI codes RETIRE_READY would misread.
-    pytest = [sys.executable, "-m", "pytest", "-q", "--color=no"]
+    pytest = ("pytest", "-q", "--color=no")
     out = ""
     for argv in (
-        [*pytest, str(ctx.repo / BRIDGE_LEDGER_TEST)],
-        [*pytest, str(ctx.repo / CANARY_TESTS), "-m", CANARY_MARKER],
+        (*pytest, str(ctx.repo / BRIDGE_LEDGER_TEST)),
+        (*pytest, str(ctx.repo / CANARY_TESTS), "-m", CANARY_MARKER),
     ):
-        proc = ctx.runner(argv)
+        proc = _try_run(ctx, *argv)
         out += (proc.stdout or "") + (proc.stderr or "")
     ctx.report.graduation = graduation_rows(out)
     # Every row's corpus reach: a row that fires nowhere, or a narrow gap that
@@ -1112,6 +1139,48 @@ def step_graduation(ctx: BumpContext) -> None:
     )
 
 
+def step_arena(ctx: BumpContext) -> None:
+    """Rerun ``arena-crosscheck`` under the new pin over the log archive and diff its
+    report against the old pin's (ADR-0064). Skipped, with a note, when there is no
+    archive, no Arena card database or no report for the old pin; never fails.
+
+    A subprocess, unlike step 8's in-process walk: it imports the regenerated sources
+    (rosters, corrections) fresh, and its memory is its own."""
+    from mtg_utils._arena_crosscheck.report import (
+        diff_reports,
+        load_report,
+        report_path,
+    )
+    from mtg_utils.arena_card_db import find_card_db
+
+    archive = ctx.arena_archive
+    if archive is None or not archive.is_dir() or find_card_db() is None:
+        ctx.report.notes.append("arena: no log archive or Arena card database; skipped")
+        return
+    # archive games only (rows are keyed by game, so games the old report read from
+    # a live log simply don't pair); the run keeps <archive>/reports/<new tag>.json
+    proc = _try_run(
+        ctx, "mtg_utils.arena_crosscheck", "--archive", str(archive), "--no-live"
+    )
+    (ctx.report_dir / "arena-crosscheck.md").write_text(proc.stdout or "")
+    new = report_path(archive, ctx.new_tag)
+    if proc.returncode != 0 or not new.is_file():
+        tail = (proc.stderr or proc.stdout or "").strip().splitlines()[-1:]
+        ctx.report.notes.append(f"arena: crosscheck failed ({'; '.join(tail)})")
+        return
+    baseline = report_path(archive, ctx.old_tag)
+    if not baseline.is_file():
+        ctx.report.notes.append(
+            f"arena: no report for {ctx.old_tag} under {archive}; this run's is the "
+            "baseline from now on"
+        )
+        return
+    try:
+        ctx.report.arena = diff_reports(load_report(baseline), load_report(new))
+    except (OSError, ValueError, KeyError) as exc:  # a damaged report: a note
+        ctx.report.notes.append(f"arena: could not diff the reports ({exc!r})")
+
+
 STEPS: tuple[tuple[str, Callable[[BumpContext], None]], ...] = (
     ("pin", step_pin),
     ("variants", step_variants),
@@ -1121,6 +1190,7 @@ STEPS: tuple[tuple[str, Callable[[BumpContext], None]], ...] = (
     ("rebuild", step_rebuild),
     ("signal-diff", step_signal_diff),
     ("graduation", step_graduation),
+    ("arena", step_arena),
 )
 
 
@@ -1228,6 +1298,8 @@ def main(
                 f"--from-step N (its report dir is {report_dir}), or restore "
                 "PHASE_TAG and the generated rosters (git checkout) to start over"
             )
+    from mtg_utils._arena_crosscheck.report import ARCHIVE
+
     ctx = BumpContext(
         repo=_repo_root(),
         old_tag=old_tag,
@@ -1238,6 +1310,7 @@ def main(
         card_data_path=_phase.ensure_card_data,
         bulk_path=bulk_data,
         install_phase=install_phase,
+        arena_archive=ARCHIVE,
     )
     if from_step > 1:
         _phase.PHASE_TAG = tag

@@ -90,6 +90,16 @@ uv run bump-phase-pin <tag> --install-phase # also move the cargo clone (playtes
     node") that holds on almost every card by design, so sampling its gap-only cards
     says nothing. Each gets one summary line (gap count, fires count) so no row is
     hidden; a wide gap only matters if its fires count moves unexpectedly.
+- **Against Arena's game logs.** Step 9 reruns `arena-crosscheck` (ADR-0064) over the
+  archived Arena games and lists every row whose verdict the new pin changed, old
+  verdict then new. A row that moved to `agree`, or a strict check that now passes, is
+  phase fixing a parse (retire its workaround, if it has one); one that moved away is a
+  regression to check with `/rules-lawyer` before calling it phase's. A row can also
+  move because the crosscheck itself, its ignore list or Arena's card database changed
+  since the old report was saved, so read the commit log for those too. The section is
+  missing when the machine has no archive or no Arena card database, and a note says so
+  when there is no report for the old pin yet (every crosscheck run keeps one, so run
+  `arena-crosscheck` before a bump to have a baseline).
 - **Roster counts.** Step 4 rewrites the counts `tests/mtg-utils/test_card_ir_mirror.py`
   pins (its generated block: the Effect roster, zero-instance and observed variants,
   the tagged + struct mirror classes) from the rosters and the substrate fixtures; a

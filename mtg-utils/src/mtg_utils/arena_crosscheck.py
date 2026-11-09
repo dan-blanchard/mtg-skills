@@ -21,14 +21,13 @@ from pathlib import Path
 
 from mtg_utils._arena_crosscheck.check import Checker, crosscheck, load_ignores
 from mtg_utils._arena_crosscheck.report import (
+    ARCHIVE,
     render_markdown,
     report_path,
     write_report,
 )
 from mtg_utils._phase import PHASE_TAG
 from mtg_utils.arena_card_db import CardText, find_card_db, player_log_path
-
-ARCHIVE = Path("/Users/Shared/mtg-arena-logs")
 
 
 def log_paths(given: list[Path], archive: Path | None, *, live: bool) -> list[Path]:

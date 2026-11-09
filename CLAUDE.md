@@ -15,7 +15,7 @@ uv run ruff format src/ ../tests/mtg-utils/  # Format
 uvx ty check src/                    # Type check (CI runs it; unpinned by design, see ci.yml)
 uv run download-mtgjson              # Card-data source: MTGJSON AllPrintings + AllPricesToday (ADR-0033; ~609MB; first-run only)
 uv run build-card-snapshot           # Regen the committed test card snapshot (gated; needs local MTGJSON bulk + phase card-data — auto-fetched via the phase release-server manifest, no cargo; NEVER CI)
-uv run bump-phase-pin <tag>          # The scripted phase-rs pin bump (ADR-0049): edits PHASE_TAG + the generated Effect rosters, regenerates substrate / fixtures / snapshot / sidecar / signals index, writes one triage report (work it with docs/phase-pin-bump.md); --from-step N resumes; NEVER CI
+uv run bump-phase-pin <tag>          # The scripted phase-rs pin bump (ADR-0049): edits PHASE_TAG + the generated Effect rosters, regenerates substrate / fixtures / snapshot / sidecar / signals index, writes one triage report (work it with docs/phase-pin-bump.md; step 9 diffs arena-crosscheck's per-pin report, ADR-0064); --from-step N resumes; NEVER CI
 uv run arena-crosscheck               # Arena's game logs (the /Users/Shared/mtg-arena-logs archive + live Player.log) against phase's parse (ADR-0064); keeps <archive>/reports/<PHASE_TAG>.json, the pin-bump baseline; NEVER CI
 ```
 

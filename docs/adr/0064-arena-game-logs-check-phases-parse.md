@@ -58,9 +58,11 @@ resolution and fired trigger against phase's parse of the same ability.
 - **The logs are kept.** Arena overwrites `Player-prev.log` each launch, so each account
   on the Mac runs a LaunchAgent (machine setup, not in the repo) that gzips it into
   `/Users/Shared/mtg-arena-logs/<user>/` and keeps Detailed Logs on.
-- **Per-pin reports.** Each run keeps `<archive>/reports/<PHASE_TAG>.json` (unless `--no-save-report`); rows
-  are keyed by game and order, so `report.diff_reports` lists what a new pin's parse
-  changed against the same games.
+- **Per-pin reports.** Each run keeps `<archive>/reports/<PHASE_TAG>.json` (unless
+  `--no-save-report`); rows are keyed by game and order, so `report.diff_reports` lists
+  what a new pin's parse changed against the same games. `bump-phase-pin`'s step 9 reruns
+  the crosscheck under the new pin over the archive alone (`--no-live`) and puts that
+  diff in its triage report, advisory only: it never fails the bump.
 
 **Consequences.** A phase misparse that changes what a card does in play can now be found
 from games already played, at the cost of a fuzzy text pairing, kept honest by scoring

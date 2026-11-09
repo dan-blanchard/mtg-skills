@@ -2,7 +2,7 @@
 
 A report is saved per phase pin as ``<archive>/reports/<PHASE_TAG>.json``, so a run
 under a new pin can list what its parse changed against the same logged games
-(:func:`diff_reports`).
+(:func:`diff_reports`, :func:`render_changes`; ``bump-phase-pin``'s step 9).
 Rows are keyed by game and their order in it, which the same logs reproduce exactly.
 """
 
@@ -14,13 +14,18 @@ from collections.abc import Sequence
 from pathlib import Path
 
 __all__ = [
+    "ARCHIVE",
     "build_report",
     "diff_reports",
     "load_report",
+    "render_changes",
     "render_markdown",
     "report_path",
     "write_report",
 ]
+
+#: Where the Arena logs are archived, one folder per account, with the reports.
+ARCHIVE = Path("/Users/Shared/mtg-arena-logs")
 
 #: Statuses that are findings to look at.
 RESOLUTION_FINDINGS = ("arena-extra", "phase-extra")
@@ -180,3 +185,17 @@ def diff_reports(old: dict, new: dict) -> list[dict]:
                 }
             )
     return changes
+
+
+def _verdict_text(verdict: dict) -> str:
+    failed = verdict["failed"]
+    return verdict["status"] + (f" (failed: {', '.join(failed)})" if failed else "")
+
+
+def render_changes(changes: Sequence[dict]) -> list[str]:
+    """One markdown line per :func:`diff_reports` change, old verdict then new."""
+    return [
+        f"- **{c['card']}** ({c['section']}): {c.get('arena_text') or '(spell)'} — "
+        f"{_verdict_text(c['before'])} → {_verdict_text(c['after'])}"
+        for c in changes
+    ]

@@ -64,3 +64,8 @@ ordering stays in a memory note); loading the rosters from a JSON fixture at imp
 (no source edits, but the roster leaves the code and every import pays a read);
 rewriting `_IMPOSTOR_RECORDS` from the census (the v0.23.0 census had eight
 errata-drift false positives a text gate would wrongly drop).
+
+**Amended (ADR-0064).** Step 9 `arena` reruns `arena-crosscheck` under the new pin over
+the Arena log archive and lists, in the report, every row whose verdict changed against
+the old pin's saved report. Advisory: a missing archive, card database or old report,
+or a failed run, is a note, never a failure.

@@ -791,3 +791,113 @@ def test_render_recovery_all_firing():
     counts = phase_bump.RecoveryCounts({"destroy": 2}, {"Self": 1})
     text = "\n".join(phase_bump.render_recovery(counts, 10))
     assert "every token and decoration mark fires" in text
+
+
+def _arena_ctx(tmp_path, monkeypatch, runner):
+    archive = tmp_path / "arena"
+    (archive / "reports").mkdir(parents=True)
+    db = tmp_path / "Raw_CardDatabase_x.mtga"
+    db.write_bytes(b"")
+    monkeypatch.setenv("MTG_SKILLS_ARENA_CARD_DB", str(db))
+    ctx = BumpContext(
+        repo=tmp_path,
+        old_tag="v0.66.0",
+        new_tag="v0.70.0",
+        report_dir=tmp_path / "report",
+        runner=runner,
+        fetch=lambda _url: pytest.fail("no fetch"),
+        card_data_path=lambda: pytest.fail("no card data"),
+        bulk_path=None,
+        arena_archive=archive,
+    )
+    ctx.report_dir.mkdir()
+    return ctx, archive
+
+
+def _arena_report(status: str) -> dict:
+    row = {
+        "key": "m#1#0",
+        "card": "Lightning Bolt",
+        "arena_text": None,
+        "status": status,
+        "checks": [],
+    }
+    return {"resolutions": [row], "triggers": []}
+
+
+def _crosscheck_writing(report: dict, seen: list):
+    """A runner standing in for the crosscheck: it keeps the new pin's report."""
+
+    def runner(argv):
+        seen.append(list(argv))
+        archive = Path(argv[argv.index("--archive") + 1])
+        (archive / "reports" / "v0.70.0.json").write_text(json.dumps(report))
+        return subprocess.CompletedProcess(argv, 0, stdout="# summary\n", stderr="")
+
+    return runner
+
+
+def test_arena_step_lists_the_rows_the_new_pin_changed(tmp_path, monkeypatch):
+    seen: list = []
+    runner = _crosscheck_writing(_arena_report("arena-extra"), seen)
+    ctx, archive = _arena_ctx(tmp_path, monkeypatch, runner)
+    old = archive / "reports" / "v0.66.0.json"
+    old.write_text(json.dumps(_arena_report("agree")))
+    phase_bump.step_arena(ctx)
+    assert "--no-live" in seen[0]  # archive games only, on both sides of the diff
+    (change,) = ctx.report.arena
+    assert change["before"]["status"] == "agree"
+    assert change["after"]["status"] == "arena-extra"
+    text = phase_bump.render_report(ctx.report)
+    assert "## Against Arena's game logs" in text
+    assert "Lightning Bolt** (resolutions): (spell) — agree → arena-extra" in text
+    assert (ctx.report_dir / "arena-crosscheck.md").read_text() == "# summary\n"
+
+
+def test_arena_step_without_a_baseline_notes_it(tmp_path, monkeypatch):
+    runner = _crosscheck_writing(_arena_report("agree"), [])
+    ctx, _ = _arena_ctx(tmp_path, monkeypatch, runner)
+    phase_bump.step_arena(ctx)
+    assert ctx.report.arena is None
+    assert any("no report for v0.66.0" in n for n in ctx.report.notes)
+
+
+def test_arena_step_without_an_archive_is_skipped(tmp_path, monkeypatch):
+    ctx, _ = _arena_ctx(tmp_path, monkeypatch, lambda _argv: pytest.fail("ran"))
+    ctx.arena_archive = None
+    phase_bump.step_arena(ctx)
+    assert ctx.report.arena is None
+    assert "## Against Arena's game logs" not in phase_bump.render_report(ctx.report)
+
+
+def test_arena_step_with_no_changes_says_so(tmp_path, monkeypatch):
+    runner = _crosscheck_writing(_arena_report("agree"), [])
+    ctx, archive = _arena_ctx(tmp_path, monkeypatch, runner)
+    (archive / "reports" / "v0.66.0.json").write_text(
+        json.dumps(_arena_report("agree"))
+    )
+    phase_bump.step_arena(ctx)
+    assert ctx.report.arena == []
+    assert "- no verdict changed on the logged games" in phase_bump.render_report(
+        ctx.report
+    )
+
+
+def test_arena_step_survives_a_failed_crosscheck(tmp_path, monkeypatch):
+    def runner(argv):
+        return subprocess.CompletedProcess(argv, 2, stdout="", stderr="no logs to read")
+
+    ctx, archive = _arena_ctx(tmp_path, monkeypatch, runner)
+    (archive / "reports" / "v0.66.0.json").write_text("{not json")
+    phase_bump.step_arena(ctx)
+    assert ctx.report.arena is None
+    assert any("crosscheck failed (no logs to read)" in n for n in ctx.report.notes)
+
+
+def test_arena_step_survives_a_damaged_baseline(tmp_path, monkeypatch):
+    runner = _crosscheck_writing(_arena_report("agree"), [])
+    ctx, archive = _arena_ctx(tmp_path, monkeypatch, runner)
+    (archive / "reports" / "v0.66.0.json").write_text("{not json")
+    phase_bump.step_arena(ctx)
+    assert ctx.report.arena is None
+    assert any("could not diff the reports" in n for n in ctx.report.notes)
