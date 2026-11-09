@@ -10074,27 +10074,64 @@ def _picks_other_players_card(unit: AbilityUnit) -> bool:
     return False
 
 
-def exiles_countered_spell(unit: AbilityUnit) -> bool:
+def _exiles_countered_spell(unit: AbilityUnit) -> bool:
     """Whether the unit counters a spell and exiles it instead of putting it into
     its owner's graveyard (Dissipate, Force of Negation): a ``Counter`` followed by
     a ``ChangeZone`` that exiles its ``ParentTarget`` from no named zone, the form
     ``misparsed_shapes`` writes the "instead" in. A countered spell goes to its
     owner's graveyard (CR 701.6a); "instead" replaces that (614.1a), so the
     clause's "graveyard" names a zone the spell never reaches."""
-    countered = False
-    for c in unit.effects:
-        tag = tag_of(c.node)
-        if tag == "Counter":
-            countered = True
-        elif countered and tag == "ChangeZone":
-            origin, dest = change_zone_dirs(c.node)
-            if (
-                dest == "Exile"
-                and origin is None
-                and tag_of(getattr(c.node, "target", None)) == "ParentTarget"
-            ):
-                return True
+    first = next(
+        (i for i, c in enumerate(unit.effects) if tag_of(c.node) == "Counter"), None
+    )
+    return first is not None and _exiles_its_spell(unit.effects[first + 1 :])
+
+
+def _exiles_its_spell(effects: Iterable[ConceptNode]) -> bool:
+    """A ``ChangeZone`` that exiles its ``ParentTarget`` (a countered or cast
+    spell) from no named zone: the form ``misparsed_shapes`` writes an "exile it
+    instead" in."""
+    for c in effects:
+        if tag_of(c.node) != "ChangeZone":
+            continue
+        origin, dest = change_zone_dirs(c.node)
+        if (
+            dest == "Exile"
+            and origin is None
+            and tag_of(getattr(c.node, "target", None)) == "ParentTarget"
+        ):
+            return True
     return False
+
+
+def diverts_from_graveyard(unit: AbilityUnit) -> bool:
+    """Whether the unit's "graveyard" is one a card never reaches: a destination a
+    replacement (CR 614.1a, "instead") takes its card or spell away from, not a
+    graveyard the card plays with. A counterspell exiling what it counters
+    (:func:`_exiles_countered_spell`), a cast trigger exiling the spell it watches
+    "instead of putting it into your graveyard as it resolves" (Goliath
+    Daydreamer), phase's ``ExileResolvingSpellInsteadOfGraveyard`` anywhere in the
+    unit (Feather, the Redeemed; Forger's Foundry's mana rider), and a replacement
+    of this card's own discard ("put it onto the battlefield instead of putting it
+    into your graveyard" — Loxodon Smiter; madness's own, which "exiles it instead
+    of putting it into their graveyard", CR 702.35a). A replacement of any card's
+    move to a graveyard (Rest in Peace, Leyline of the Void) is graveyard hate, not
+    this."""
+    if _exiles_countered_spell(unit):
+        return True
+    # the cast spell is the trigger's own object only for its first effect; a later
+    # ParentTarget names that effect's object (Spellweaver Volute's enchanted card)
+    if unit.trigger_event == "cast_spell" and _exiles_its_spell(unit.effects[:1]):
+        return True
+    if any(
+        tag_of(n) == "ExileResolvingSpellInsteadOfGraveyard" for n in unit.iter_typed()
+    ):
+        return True
+    return (
+        unit.origin == "replacement"
+        and replacement_event_tag(unit.node) == "Discard"
+        and tag_of(getattr(unit.node, "valid_card", None)) == "SelfRef"
+    )
 
 
 def _exiles_other_players_card(unit: AbilityUnit, node: TypedMirrorNode) -> bool:

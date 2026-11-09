@@ -49,12 +49,12 @@ from mtg_utils._card_ir.crosswalk import (
     counter_kind,
     damage_drains_opponent,
     damage_to_player_trigger_kind,
+    diverts_from_graveyard,
     effect_actor_scope,
     effect_filter,
     effect_owner_optional,
     effect_owner_player_scope,
     effect_trigger_def,
-    exiles_countered_spell,
     explicit_recipient_scope,
     fights_between_blockers,
     filter_controller,
@@ -78,6 +78,7 @@ from mtg_utils._card_ir.crosswalk import (
     lifeloss_recipient_is_degraded_typed,
     lifeloss_recipient_scope,
     mod_value,
+    modal_mode_description,
     names_attached_object,
     negative_pt_field,
     node_lure_mode,
@@ -1005,8 +1006,6 @@ def _graveyard_matters(tree: ConceptTree) -> list[Signal]:
     # first unless it is also the second (see its gate).
     hate_units: set[int] = set()
     own_exile: set[int] = set()
-    # Counterspells whose "graveyard" the spell never reaches.
-    countered_exiles: set[int] = set()
 
     def fire(scope: str, raw: str) -> None:
         if scope not in seen:
@@ -1015,8 +1014,6 @@ def _graveyard_matters(tree: ConceptTree) -> list[Signal]:
 
     for unit_index, unit in enumerate(tree.units):
         node = unit.node
-        if exiles_countered_spell(unit):
-            countered_exiles.add(unit_index)
         if unit.origin == "trigger":
             # ADR-0038 W5b: ``origin is None`` is phase's shape for an
             # EXPLICITLY unrestricted "from anywhere" arrival (Kozilek /
@@ -1356,13 +1353,21 @@ def _graveyard_matters(tree: ConceptTree) -> list[Signal]:
     # (:func:`unclaimed_clauses`): it read "exile target player's graveyard"
     # (Bojuka Bog) and "from a graveyard" (Afterthought Sentry) as 'you'. A
     # unit that also exiles out of your own graveyard (Spelltwine) stays
-    # unclaimed. A counterspell exiling "instead" is claimed too
-    # (:func:`exiles_countered_spell`).
-    claimed = (
-        tree.units[i].node for i in sorted((hate_units - own_exile) | countered_exiles)
-    )
+    # unclaimed. An ability whose "graveyard" its card never reaches is claimed
+    # too (:func:`diverts_from_graveyard`: a counterspell or cast trigger exiling
+    # the spell instead, a self-discard replacement), by its own description or,
+    # for a modal spell's mode, the card's (Defabricate).
+    claimed = [tree.units[i].node for i in sorted(hate_units - own_exile)]
+    diverted: list[str] = []
+    if "graveyard" in (tree.oracle or "").lower():  # else the mirror reads nothing
+        diverted = [
+            getattr(unit.node, "description", None)
+            or modal_mode_description(unit, unit.node, tree)
+            for unit in tree.units
+            if diverts_from_graveyard(unit)
+        ]
     for _gy_key, _gy_scope_v in _graveyard_matters_clauses(
-        " ".join(unclaimed_clauses(tree, claimed)), tree.name
+        " ".join(unclaimed_clauses(tree, claimed, diverted)), tree.name
     ):
         fire(_gy_scope_v, "")
 

@@ -52,7 +52,8 @@ Numbering: `NN` is the report section; issues found after the report (25 on, fro
 | 24h-vibranium-token-no-mana-ability.md | Vibranium token has no mana ability | Shuri's Fabricator (and four other makers) | 24 |
 | 24i-kaust-face-up-combat-damage-unknown-mode.md | Face-up-this-turn combat-damage trigger is an `Unknown` mode | Kaust, Eyes of the Glade | 24 (triage pass) |
 | 24j-mirrormind-crown-token-copy-replacement-parked.md | Token-copy replacement parked as `as_long_as_gate` | Mirrormind Crown | 24 (triage pass) |
-| 25-countered-spell-exiled-instead-typed-from-graveyard.md | "Exile it instead" of the graveyard typed as a move out of the graveyard | Dissipate (control: Memory Lapse); 20 more listed | Arena log comparison, 2026-11-09 |
+| 25-countered-spell-exiled-instead-typed-from-graveyard.md | "Exile it instead" of the graveyard typed as a move out of the graveyard | Dissipate (control: Memory Lapse); 20 more listed; the cast-trigger form: Goliath Daydreamer, Gandalf of the Secret Fire | Arena log comparison, 2026-11-09 |
+| 26-mana-spend-rider-exile-instead-parked.md | A mana rider exiling the spell it pays for parked as `Unimplemented` | Forger's Foundry (control: Primal Wellspring) | the graveyard-mirror follow-up, 2026-11-09 |
 
 ## Not reproduced at v0.118.0
 

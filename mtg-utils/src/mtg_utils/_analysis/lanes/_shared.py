@@ -267,10 +267,13 @@ def _self_ref_key(text: str, self_refs: Sequence[str]) -> str:
     return key
 
 
-def unclaimed_clauses(tree: ConceptTree, claimed: Iterable[object]) -> list[str]:
+def unclaimed_clauses(
+    tree: ConceptTree, claimed: Iterable[object], descriptions: Iterable[str] = ()
+) -> list[str]:
     """The card's kept clauses (:func:`_kept`, split by ``_clauses``) minus each
     clause a typed read already claimed: one that sits inside the description
-    of a ``claimed`` node (an ability unit's node, a static def). A text
+    of a ``claimed`` node (an ability unit's node, a static def), or inside one
+    of ``descriptions`` (a modal mode's, which its node doesn't carry). A text
     mirror reads only what's left, so a typed reading of an ability wins over
     the mirror's reading of the same words.
 
@@ -283,6 +286,7 @@ def unclaimed_clauses(tree: ConceptTree, claimed: Iterable[object]) -> list[str]
         for node in claimed
         if isinstance(d := getattr(node, "description", None), str)
     ]
+    descs += [d for d in descriptions if d]
     if not descs:
         return clauses
     name = (tree.name or "").lower()

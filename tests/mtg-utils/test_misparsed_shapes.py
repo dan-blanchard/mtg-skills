@@ -319,7 +319,7 @@ def test_countered_exile_instead_canary():
         "misparsed_shapes countered exile: RETIRE-READY — phase no longer types "
         "Dissipate's exile as a move out of the graveyard. Delete the countered-"
         "exile row of misparsed_shapes and this canary, and check that "
-        "crosswalk.exiles_countered_spell still reads phase's new form."
+        "crosswalk.diverts_from_graveyard still reads phase's new form."
     )
     assert before["destination"] == "Exile"
     after = correct_misparsed_shapes(rec)["abilities"][0]["sub_ability"]["effect"]
@@ -344,3 +344,114 @@ def test_countered_exile_keeps_a_real_graveyard_clause():
     assert ("graveyard_matters", "you") in {
         (s.key, s.scope) for s in test_signals("Devious Cover-Up")
     }
+
+
+@pytest.mark.retirement_canary
+@pytest.mark.parametrize("name", ["Goliath Daydreamer", "Gandalf of the Secret Fire"])
+def test_cast_trigger_exile_instead_canary(name):
+    """Goliath Daydreamer's "exile that card with a dream counter on it instead of
+    putting it into your graveyard as it resolves" (Gandalf's, with three time
+    counters): phase types the exile of the cast spell as a move ``origin:
+    Graveyard``. The stage clears the ``origin`` and keeps the counters."""
+    (rec,) = test_phase_records(name)
+    cast = next(t for t in rec["triggers"] if t["mode"] == "SpellCast")
+    before = cast["execute"]["effect"]
+    assert before.get("origin") == "Graveyard", (
+        f"misparsed_shapes cast-trigger exile: RETIRE-READY — phase no longer types "
+        f"{name}'s exile as a move out of the graveyard. Delete the "
+        "SpellCast arm of the spell-exiled-instead row and this canary, and check "
+        "that crosswalk.diverts_from_graveyard still reads phase's new form."
+    )
+    after = next(
+        t for t in correct_misparsed_shapes(rec)["triggers"] if t["mode"] == "SpellCast"
+    )["execute"]["effect"]
+    assert after["origin"] is None
+    assert after["destination"] == "Exile"
+    assert after["enter_with_counters"] == before["enter_with_counters"]
+
+
+@pytest.mark.retirement_canary
+def test_mana_spent_exile_canary():
+    """Forger's Foundry's "When you spend this mana to cast an instant or sorcery
+    spell with mana value 3 or less, you may exile that spell instead …" is an
+    ``Unimplemented`` rider. The stage writes it as phase's ``TriggerOnSpend``
+    grant of an optional ``ExileResolvingSpellInsteadOfGraveyard``."""
+    (rec,) = test_phase_records("Forger's Foundry")
+    body = rec["abilities"][0]
+    rider = (body.get("sub_ability") or {}).get("effect") or {}
+    assert rider.get("type") == "Unimplemented", (
+        "misparsed_shapes mana-spent exile: RETIRE-READY — phase types Forger's "
+        "Foundry's mana rider. Delete the mana-rider row and this canary."
+    )
+    after = correct_misparsed_shapes(rec)["abilities"][0]
+    assert after["sub_ability"] is None
+    (grant,) = after["effect"]["grants"]
+    spend = grant["TriggerOnSpend"]
+    assert spend["ability"]["effect"] == {
+        "type": "ExileResolvingSpellInsteadOfGraveyard"
+    }
+    assert spend["ability"]["optional"] is True
+    cheap = spend["filter"]["filters"][0]["properties"][0]
+    assert (cheap["comparator"], cheap["value"]["value"]) == ("LE", 3)
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        # a cast trigger exiling its spell (corrected)
+        "Goliath Daydreamer",
+        "Gandalf of the Secret Fire",
+        # phase's own ExileResolvingSpellInsteadOfGraveyard
+        "Feather, the Redeemed",
+        "Lilah, Undefeated Slickshot",
+        "River Song's Diary",
+        "Rod of Absorption",
+        # the mana rider (corrected)
+        "Forger's Foundry",
+        # a replacement of its own discard
+        "Dodecapod",
+        "Loxodon Smiter",
+        "Nullhide Ferox",
+        "Obstinate Baloth",
+        "Wilt-Leaf Liege",
+        # modal: claimed by its mode's description
+        "Defabricate",
+    ],
+)
+def test_a_graveyard_the_card_never_reaches_is_no_graveyard_card(name):
+    """ "Instead of putting it into … graveyard" names a destination a replacement
+    takes the card away from (CR 614.1a): no ``graveyard_matters``."""
+    assert "graveyard_matters" not in _keys(name)
+
+
+@pytest.mark.parametrize(
+    ("name", "scope"),
+    [
+        ("Rest in Peace", "any"),  # any card's move to a graveyard: graveyard hate
+        ("Leyline of the Void", "opponents"),
+        ("Spellweaver Volute", "you"),  # its cast trigger exiles another object
+    ],
+)
+def test_a_graveyard_replacement_that_is_hate_keeps_its_signal(name, scope):
+    assert ("graveyard_matters", scope) in {
+        (s.key, s.scope) for s in test_signals(name)
+    }
+
+
+@pytest.mark.parametrize(
+    ("name", "diverts"),
+    [
+        ("Loxodon Smiter", True),  # its own discard, onto the battlefield instead
+        ("Goliath Daydreamer", True),  # its cast trigger exiles the spell instead
+        ("Rest in Peace", False),  # any card's move to a graveyard: hate
+        ("Spellweaver Volute", False),  # its cast trigger exiles another object
+    ],
+)
+def test_diverts_from_graveyard_reads_the_ability(name, diverts):
+    from mtg_utils._card_ir.crosswalk import diverts_from_graveyard
+    from mtg_utils._card_ir.trees import trees_for
+    from mtg_utils.testkit import test_card_ir
+
+    test_card_ir(name)  # seeds the card's trees from the snapshot
+    units = [u for t in trees_for(test_card(name)) for u in t.units]
+    assert any(diverts_from_graveyard(u) for u in units) is diverts

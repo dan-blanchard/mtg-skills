@@ -109,23 +109,43 @@ taught a special case. Keyed on phase's structure, never the card's name or text
   Equipment): the ability is rewritten as that static over the Auras you
   control. ``test_umbra_armor_grant_canary`` fails once phase types the static.
 
-* **A countered spell exiled "instead" read as a move out of the graveyard.**
-  "Counter target spell. If that spell is countered this way, exile it instead
-  of putting it into its owner's graveyard" (Dissipate, Force of Negation, No
-  More Lies; 21 cards in v0.118.0, every one with that "instead") is parsed as
-  the ``Counter`` followed by a ``ChangeZone`` of its ``ParentTarget`` with
-  ``origin: Graveyard``, ``destination: Exile``. A countered spell is put into
-  its owner's graveyard (CR 701.6a), and an effect that uses "instead" is a
-  replacement effect (614.1a): the spell goes from the stack to exile and never
-  reaches the graveyard, as Arena logs it (one ``Countered`` move, Stack to
-  Exile). Read as written, every graveyard read sees a card that exiles from a
-  graveyard (``graveyard_matters``, the signal Rest in Peace carries). Phase
-  types a spell leaving the stack with no ``origin`` and the spell as its target
-  (Unsubstantiate's ``Bounce`` of a ``StackSpell``), so the ``origin`` is
-  cleared: the move keeps its exile, of the countered spell, from no other
-  zone. Phase's own form for the replacement, ``Counter.countered_spell_zone``,
-  holds only ``Hand`` and ``Library``. ``test_countered_exile_instead_canary``
-  fails once phase types it.
+* **A spell exiled "instead" read as a move out of the graveyard.** "Counter
+  target spell. If that spell is countered this way, exile it instead of putting
+  it into its owner's graveyard" (Dissipate, Force of Negation, No More Lies; 21
+  cards in v0.118.0, every one with that "instead") is parsed as the ``Counter``
+  followed by a ``ChangeZone`` of its ``ParentTarget`` with ``origin: Graveyard``,
+  ``destination: Exile``. A countered spell is put into its owner's graveyard
+  (CR 701.6a), and an effect that uses "instead" is a replacement effect (614.1a):
+  the spell goes from the stack to exile and never reaches the graveyard, as
+  Arena logs it (one ``Countered`` move, Stack to Exile). A cast trigger's "exile
+  that card instead of putting it into your graveyard as it resolves" (Gandalf of
+  the Secret Fire, Goliath Daydreamer: the 2 ``SpellCast`` triggers carrying a
+  ``ChangeZone`` of the cast spell out of the graveyard, both with that
+  "instead") is the same misread. Phase types a spell leaving the stack with no
+  ``origin`` and the spell as its target (Unsubstantiate's ``Bounce`` of a
+  ``StackSpell``), so the ``origin`` is cleared: the move keeps its exile, and
+  Goliath's dream counter, from no other zone. Phase's own forms hold neither:
+  ``Counter.countered_spell_zone`` takes only ``Hand`` and ``Library``, and
+  ``ExileResolvingSpellInsteadOfGraveyard`` (Feather, the Redeemed) no counters.
+  ``crosswalk.diverts_from_graveyard`` reads the corrected shapes.
+  ``test_countered_exile_instead_canary`` and
+  ``test_cast_trigger_exile_instead_canary`` fail once phase types them.
+
+* **A mana rider exiling the spell it pays for, left unparsed.** "{T}: Add {U}.
+  When you spend this mana to cast an instant or sorcery spell with mana value 3
+  or less, you may exile that spell instead of putting it into its owner's
+  graveyard as it resolves" (Forger's Foundry) parks the rider as an
+  ``Unimplemented`` ``unrecognized_clause_head`` sub-ability whose description is
+  the clause. Phase types a mana ability's spend rider as a ``TriggerOnSpend``
+  grant on the ``Mana`` effect, its filter the spells and its ability the rider
+  (Primal Wellspring, Pyromancer's Goggles), and a spell exiled instead of going
+  to the graveyard as ``ExileResolvingSpellInsteadOfGraveyard`` (Rod of
+  Absorption): the rider is written so, its filter instants and sorceries of mana
+  value N or less (``Cmc`` ``LE``), its ability optional. One card, but a correction
+  row, not a ledger row: every lane must see the grant (the mana read, the
+  graveyard lane, the cards it exiles for its second ability). The description is
+  the only key: one card carries it (census 2026-11-09, v0.118.0).
+  ``test_mana_spent_exile_canary`` fails once phase types it.
 
 Pure functions over plain dicts; nothing here reads the mirror or a tree.
 """
@@ -435,15 +455,100 @@ def _countered_graveyard_exile(body: dict) -> dict | None:
     ``None``. The structure is the key: all 21 cards carrying it say "exile it
     instead" (census 2026-11-09, v0.118.0)."""
     sub = (body.get("sub_ability") or {}).get("effect") or {}
-    if (
-        body["effect"].get("type") == "Counter"
-        and sub.get("type") == "ChangeZone"
-        and sub.get("origin") == "Graveyard"
-        and sub.get("destination") == "Exile"
-        and (sub.get("target") or {}).get("type") == "ParentTarget"
-    ):
+    if body["effect"].get("type") == "Counter" and _graveyard_exile_of_parent(sub):
         return sub
     return None
+
+
+def _graveyard_exile_of_parent(effect: dict) -> bool:
+    """A ``ChangeZone`` exiling its ``ParentTarget`` with ``origin: Graveyard``."""
+    return (
+        effect.get("type") == "ChangeZone"
+        and effect.get("origin") == "Graveyard"
+        and effect.get("destination") == "Exile"
+        and (effect.get("target") or {}).get("type") == "ParentTarget"
+    )
+
+
+def _cast_trigger_graveyard_exile(trig: object) -> dict | None:
+    """The effect of a ``SpellCast`` trigger that exiles its ``ParentTarget``
+    (the cast spell) with ``origin: Graveyard``, else ``None``: the 2 cards
+    carrying it say "exile that card ... instead of putting it into your
+    graveyard as it resolves" (census 2026-11-09, v0.118.0)."""
+    if not isinstance(trig, dict) or trig.get("mode") != "SpellCast":
+        return None
+    effect = (trig.get("execute") or {}).get("effect") or {}
+    return effect if _graveyard_exile_of_parent(effect) else None
+
+
+#: A mana ability's unparsed rider exiling the spell its mana pays for.
+_MANA_SPENT_EXILE_RX = re.compile(
+    r"^When you spend this mana to cast an instant or sorcery spell with mana value "
+    r"(?P<n>\d+) or less, you may exile that spell instead of putting it into its "
+    r"owner's graveyard as it resolves$"
+)
+
+
+def _mana_spent_exile(body: dict) -> int | None:
+    """N, for a ``Mana`` ability whose ``sub_ability`` is the ``Unimplemented``
+    rider "When you spend this mana to cast an instant or sorcery spell with mana
+    value N or less, you may exile that spell instead ..."."""
+    if body["effect"].get("type") != "Mana":
+        return None
+    rider = (body.get("sub_ability") or {}).get("effect") or {}
+    if rider.get("type") != "Unimplemented":
+        return None
+    m = _MANA_SPENT_EXILE_RX.match(str(rider.get("description") or ""))
+    return int(m.group("n")) if m else None
+
+
+def _ability_body(
+    effect: dict, *, kind: str = "Spell", optional: bool = False, **extra: object
+) -> dict:
+    """An ability body as phase writes one: ``effect`` with every other field at
+    its default, ``extra`` (a ``sub_ability``, a ``sub_link``) on top."""
+    return {
+        "kind": kind,
+        "effect": effect,
+        "cost": None,
+        "sub_ability": None,
+        "duration": None,
+        "description": None,
+        "target_prompt": None,
+        "condition": None,
+        "optional_targeting": False,
+        "optional": optional,
+        "forward_result": False,
+        **extra,
+    }
+
+
+def _spend_exile_grant(n: int) -> dict:
+    """The ``TriggerOnSpend`` grant phase types for a mana rider (Primal
+    Wellspring's form): on instants and sorceries of mana value N or less, an
+    optional ``ExileResolvingSpellInsteadOfGraveyard``."""
+    cheap = {"type": "Cmc", "comparator": "LE", "value": {"type": "Fixed", "value": n}}
+    return {
+        "TriggerOnSpend": {
+            "filter": {
+                "type": "Or",
+                "filters": [
+                    {
+                        "type": "Typed",
+                        "type_filters": [kind],
+                        "controller": None,
+                        "properties": [dict(cheap)],
+                    }
+                    for kind in ("Instant", "Sorcery")
+                ],
+            },
+            "ability": _ability_body(
+                {"type": "ExileResolvingSpellInsteadOfGraveyard"},
+                kind="Activated",
+                optional=True,
+            ),
+        }
+    }
 
 
 def correct_misparsed_shapes(rec: dict) -> dict:
@@ -484,19 +589,28 @@ def correct_misparsed_shapes(rec: dict) -> dict:
     ]
     countered_exiles = [
         sub for body in bodies if (sub := _countered_graveyard_exile(body)) is not None
+    ] + [
+        effect
+        for trig in rec.get("triggers") or ()
+        if (effect := _cast_trigger_graveyard_exile(trig)) is not None
     ]
-    if not (
-        countered_exiles
-        or power_returns
-        or sweeps
-        or arrivals
-        or split_flips
-        or chosen_types
-        or blights
-        or manifests
-        or attacks
-        or umbras
-    ):
+    spend_exiles = [
+        (body, n) for body in bodies if (n := _mana_spent_exile(body)) is not None
+    ]
+    found = (
+        sweeps,
+        arrivals,
+        split_flips,
+        chosen_types,
+        blights,
+        manifests,
+        attacks,
+        umbras,
+        power_returns,
+        countered_exiles,
+        spend_exiles,
+    )
+    if not any(found):
         return rec
     memo: dict[int, object] = {}
     out = copy.deepcopy(rec, memo)
@@ -544,20 +658,11 @@ def correct_misparsed_shapes(rec: dict) -> dict:
             "count": {"type": "Fixed", "value": 1},
             "target": {"type": "Controller"},
         }
-        target["sub_ability"] = {
-            "kind": "Spell",
-            "effect": {"type": "BlightEffect", "count": n},
-            "cost": None,
-            "sub_ability": target.get("sub_ability"),
-            "duration": None,
-            "description": None,
-            "target_prompt": None,
-            "condition": None,
-            "optional_targeting": False,
-            "optional": False,
-            "forward_result": False,
-            "sub_link": "SequentialSibling",
-        }
+        target["sub_ability"] = _ability_body(
+            {"type": "BlightEffect", "count": n},
+            sub_ability=target.get("sub_ability"),
+            sub_link="SequentialSibling",
+        )
     for body in manifests:
         target = memo[id(body)]
         assert isinstance(target, dict)
@@ -582,6 +687,12 @@ def correct_misparsed_shapes(rec: dict) -> dict:
         target = memo[id(sub)]
         assert isinstance(target, dict)
         target["origin"] = None
+    for body, n in spend_exiles:
+        target = memo[id(body)]
+        assert isinstance(target, dict)
+        mana = target["effect"]
+        mana["grants"] = [*(mana.get("grants") or []), _spend_exile_grant(n)]
+        target["sub_ability"] = target["sub_ability"].get("sub_ability")
     if umbras:
         kept = [
             b

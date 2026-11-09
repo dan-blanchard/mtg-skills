@@ -12,6 +12,13 @@ Phase tag: v0.118.0 (`card-data-v0.118.0.json`; face record as the card-data hol
 
 The same shape appears on these cards, not re-quoted here (21 in all, every one with "exile it instead"): Assert Authority, Defabricate, Delay, Deny Existence, Deny the Divine, Devious Cover-Up, Faerie Trickery, Force of Negation, Horribly Awry, Kheru Spellsnatcher, Liquify, No Escape, No More Lies, Reject, Spell Shrivel, Spelljack, Syncopate, Thranduil's Decree, Transcendent Dragon, Void Shatter.
 
+The same misread on a cast trigger (2 cards, both "instead"): **Goliath Daydreamer**
+("exile that card with a dream counter on it instead of putting it into your graveyard
+as it resolves") and **Gandalf of the Secret Fire** ("… with three time counters on it
+instead of …"), typed as a `ChangeZone` of the cast spell with `origin: Graveyard`,
+where phase types the same clause on Feather, the Redeemed and Rod of Absorption as
+`ExileResolvingSpellInsteadOfGraveyard`.
+
 ## Observed at v0.118.0
 
 Dissipate counters, then moves the countered spell from the graveyard to exile:

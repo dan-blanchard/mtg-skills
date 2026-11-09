@@ -331865,6 +331865,244 @@
     "type_line": "Creature — Elf Warrior"
    }
   },
+  "Defabricate": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": null,
+       "duration": null,
+       "effect": {
+        "target": {
+         "filters": [
+          {
+           "filters": [
+            {
+             "type": "StackSpell"
+            },
+            {
+             "controller": null,
+             "properties": [],
+             "type": "Typed",
+             "type_filters": [
+              "Artifact"
+             ]
+            }
+           ],
+           "type": "And"
+          },
+          {
+           "filters": [
+            {
+             "type": "StackSpell"
+            },
+            {
+             "controller": null,
+             "properties": [],
+             "type": "Typed",
+             "type_filters": [
+              "Enchantment"
+             ]
+            }
+           ],
+           "type": "And"
+          }
+         ],
+         "type": "Or"
+        },
+        "type": "Counter"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": {
+         "filter": {
+          "controller": null,
+          "properties": [],
+          "type": "Typed",
+          "type_filters": [
+           "Card"
+          ]
+         },
+         "type": "ZoneChangedThisWay"
+        },
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "destination": "Exile",
+         "enter_tapped": false,
+         "enter_transformed": false,
+         "enters_attacking": false,
+         "origin": "Graveyard",
+         "owner_library": false,
+         "target": {
+          "type": "ParentTarget"
+         },
+         "type": "ChangeZone"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "sub_link": "SequentialSibling",
+        "target_choice_timing": "Resolution",
+        "target_prompt": null
+       },
+       "target_prompt": null
+      },
+      {
+       "condition": null,
+       "cost": null,
+       "description": null,
+       "duration": null,
+       "effect": {
+        "target": {
+         "type": "StackAbility"
+        },
+        "type": "Counter"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Instant"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Blue"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "Blue"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "7dd32168-0b9c-4633-adec-d41cf125cc35"
+      ]
+     },
+     "modal": {
+      "allow_repeat_modes": false,
+      "chooser": {
+       "type": "Controller"
+      },
+      "max_choices": 1,
+      "min_choices": 1,
+      "mode_count": 2,
+      "mode_descriptions": [
+       "Counter target artifact or enchantment spell. If that spell is countered this way, exile it instead of putting it into its owner's graveyard.",
+       "Counter target activated or triggered ability."
+      ]
+     },
+     "name": "Defabricate",
+     "non_ability_text": null,
+     "oracle_text": "Choose one —\n• Counter target artifact or enchantment spell. If that spell is countered this way, exile it instead of putting it into its owner's graveyard.\n• Counter target activated or triggered ability.",
+     "power": null,
+     "printings": [
+      "BRO"
+     ],
+     "rarities": [
+      "uncommon"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2022-10-14",
+       "text": "Activated abilities contain a colon. They're generally written \"[Cost]: [Effect].\" Some keyword abilities (such as equip and unearth) are activated abilities and will have colons in their reminder text."
+      },
+      {
+       "date": "2022-10-14",
+       "text": "The last mode can target delayed triggered abilities. Notably, it can target the delayed triggered ability that exiles an unearthed permanent at the beginning of the next end step. If that delayed triggered ability is countered, the unearthed permanent remains on the battlefield indefinitely. It will still be exiled, however, if it would die or otherwise leave the battlefield for any other reason."
+      },
+      {
+       "date": "2022-10-14",
+       "text": "Triggered abilities use the word \"when,\" \"whenever,\" or \"at.\" They're often written as \"[Trigger condition], [effect].\""
+      },
+      {
+       "date": "2022-10-14",
+       "text": "Turn-based actions and special actions like the normal card draw, combat damage, or turning a face-down creature face up can't be targeted. Mana abilities also can't be targeted."
+      }
+     ],
+     "scryfall_oracle_id": "60fc5eb0-95d6-49b0-a538-945ef599e484",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 2.0,
+    "color_identity": [
+     "U"
+    ],
+    "colors": [
+     "U"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}{U}",
+    "name": "Defabricate",
+    "oracle_id": "60fc5eb0-95d6-49b0-a538-945ef599e484",
+    "oracle_text": "Choose one —\n• Counter target artifact or enchantment spell. If that spell is countered this way, exile it instead of putting it into its owner's graveyard.\n• Counter target activated or triggered ability.",
+    "type_line": "Instant"
+   }
+  },
   "Defiant Strike": {
    "phase_records": [
     {
@@ -477176,6 +477414,238 @@
     "type_line": "Artifact Creature — Equipment Phoenix"
    }
   },
+  "Forger's Foundry": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": {
+        "type": "Tap"
+       },
+       "description": "{T}: Add {U}. When you spend this mana to cast an instant or sorcery spell with mana value 3 or less, you may exile that spell instead of putting it into its owner's graveyard as it resolves.",
+       "duration": null,
+       "effect": {
+        "produced": {
+         "colors": [
+          "Blue"
+         ],
+         "type": "Fixed"
+        },
+        "type": "Mana"
+       },
+       "forward_result": false,
+       "is_mana_ability": true,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "description": "When you spend this mana to cast an instant or sorcery spell with mana value 3 or less, you may exile that spell instead of putting it into its owner's graveyard as it resolves",
+         "name": "unrecognized_clause_head",
+         "type": "Unimplemented"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "sub_link": "SequentialSibling",
+        "target_prompt": null
+       },
+       "target_prompt": null
+      },
+      {
+       "activation_restrictions": [
+        {
+         "type": "AsSorcery"
+        }
+       ],
+       "condition": null,
+       "cost": {
+        "costs": [
+         {
+          "cost": {
+           "generic": 3,
+           "shards": [
+            "Blue",
+            "Blue"
+           ],
+           "type": "Cost"
+          },
+          "type": "Mana"
+         },
+         {
+          "type": "Tap"
+         }
+        ],
+        "type": "Composite"
+       },
+       "description": "{3}{U}{U}, {T}: You may cast any number of spells from among cards exiled with ~ without paying their mana costs. Activate only as a sorcery.",
+       "duration": null,
+       "effect": {
+        "mode": "Cast",
+        "target": {
+         "filters": [
+          {
+           "controller": null,
+           "properties": [
+            {
+             "type": "InZone",
+             "zone": "Exile"
+            }
+           ],
+           "type": "Typed",
+           "type_filters": []
+          },
+          {
+           "type": "ExiledBySource"
+          }
+         ],
+         "type": "And"
+        },
+        "type": "CastFromZone",
+        "without_paying_mana_cost": true
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": true,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_choice_timing": "Resolution",
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Artifact"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Blue"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 2,
+      "shards": [
+       "Blue"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "16c32c5a-e011-4729-a4a0-b2deac7d5056",
+       "4ac1b6e1-f606-46a4-8f0e-efbbabe88185"
+      ]
+     },
+     "name": "Forger's Foundry",
+     "non_ability_text": null,
+     "oracle_text": "{T}: Add {U}. When you spend this mana to cast an instant or sorcery spell with mana value 3 or less, you may exile that spell instead of putting it into its owner's graveyard as it resolves.\n{3}{U}{U}, {T}: You may cast any number of spells from among cards exiled with this artifact without paying their mana costs. Activate only as a sorcery.",
+     "power": null,
+     "printings": [
+      "OTC"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2024-04-12",
+       "text": "If a spell you cast has {X} in its mana cost, you must choose 0 as the value of X when casting it without paying its mana cost."
+      },
+      {
+       "date": "2024-04-12",
+       "text": "If you cast a spell \"without paying its mana cost,\" you can't choose to cast it for any alternative costs. You can, however, pay additional costs, such as kicker costs. If the spell has any mandatory additional costs, those must be paid to cast the spell."
+      },
+      {
+       "date": "2024-04-12",
+       "text": "The delayed triggered ability will trigger whether Forger's Foundry is still on the battlefield or not."
+      },
+      {
+       "date": "2024-04-12",
+       "text": "The mana added by Forger's Foundry can be spent on anything, not just instant and sorcery spells with mana value 3 or less."
+      },
+      {
+       "date": "2024-04-12",
+       "text": "When casting an instant or sorcery spell with {X} in its mana cost using the mana added by Forger's Foundry, use the value of X chosen when you cast that spell to determine whether or not the delayed triggered ability triggers."
+      },
+      {
+       "date": "2024-04-12",
+       "text": "You cast the spells one at a time as Forger's Foundry's last ability is resolving, choosing modes, targets, and so on. The last spell you cast will be the first one to resolve. Ignore timing restrictions based on the cards' types. Other timing restrictions, such as \"Cast [this spell] only during combat,\" must be followed."
+      },
+      {
+       "date": "2024-04-12",
+       "text": "You choose which spells (if any) to cast as Forger's Foundry's last ability resolves. If you do, you do so as part of the resolution of that ability. You can't wait to cast them later in the turn."
+      }
+     ],
+     "scryfall_oracle_id": "118da256-d1ea-44e8-9026-317e49694d29",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 3.0,
+    "color_identity": [
+     "U"
+    ],
+    "colors": [
+     "U"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}{U}",
+    "name": "Forger's Foundry",
+    "oracle_id": "118da256-d1ea-44e8-9026-317e49694d29",
+    "oracle_text": "{T}: Add {U}. When you spend this mana to cast an instant or sorcery spell with mana value 3 or less, you may exile that spell instead of putting it into its owner's graveyard as it resolves.\n{3}{U}{U}, {T}: You may cast any number of spells from among cards exiled with this artifact without paying their mana costs. Activate only as a sorcery.",
+    "produced_mana": [
+     "U"
+    ],
+    "type_line": "Artifact"
+   }
+  },
   "Forget": {
    "phase_records": [
     {
@@ -535293,6 +535763,277 @@
      "G"
     ],
     "type_line": "Artifact"
+   }
+  },
+  "Goliath Daydreamer": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Giant",
+       "Wizard"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Red"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "standard": "legal",
+      "standardbrawl": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 2,
+      "shards": [
+       "Red",
+       "Red"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "88e8cd13-2a29-4df6-937c-1bed68fbeafa",
+       "b5e1905d-4fd8-4923-8612-75678aa3f212"
+      ]
+     },
+     "name": "Goliath Daydreamer",
+     "non_ability_text": null,
+     "oracle_text": "Whenever you cast an instant or sorcery spell from your hand, exile that card with a dream counter on it instead of putting it into your graveyard as it resolves.\nWhenever this creature attacks, you may cast a spell from among cards you own in exile with dream counters on them without paying its mana cost.",
+     "power": {
+      "type": "Fixed",
+      "value": 4
+     },
+     "printings": [
+      "ECL",
+      "PECL"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2025-11-17",
+       "text": "Goliath Daydreamer's last ability allows you to cast an exiled card with a dream counter on it only while the ability is resolving and still on the stack. You can't wait to cast the spell later in the turn. Timing restrictions based on the card's type are ignored."
+      },
+      {
+       "date": "2025-11-17",
+       "text": "If a spell is countered or otherwise fails to resolve, Goliath Daydreamer's first ability won't exile it."
+      },
+      {
+       "date": "2025-11-17",
+       "text": "If the spell you cast has {X} in its mana cost, you must choose 0 as the value of X when casting it without paying its mana cost."
+      },
+      {
+       "date": "2025-11-17",
+       "text": "Since you are using an alternative cost to cast the spell, you can't pay any other alternative costs. You can, however, pay additional costs, such as kicker costs. If the card has any mandatory additional costs, you must pay those."
+      },
+      {
+       "date": "2025-11-17",
+       "text": "The spell will have all of its normal effects before being exiled. If the spell's normal effects include exiling itself, the effect of Goliath Daydreamer's first ability won't apply to it."
+      }
+     ],
+     "scryfall_oracle_id": "9207facd-fbf9-4faa-ac44-6c0bcac81551",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 4
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever you cast an instant or sorcery spell from your hand, exile that card with a dream counter on it instead of putting it into your graveyard as it resolves.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "destination": "Exile",
+         "enter_tapped": false,
+         "enter_transformed": false,
+         "enter_with_counters": [
+          [
+           "dream",
+           {
+            "type": "Fixed",
+            "value": 1
+           }
+          ]
+         ],
+         "enters_attacking": false,
+         "origin": "Graveyard",
+         "owner_library": false,
+         "target": {
+          "type": "ParentTarget"
+         },
+         "type": "ChangeZone"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_choice_timing": "Resolution",
+        "target_prompt": null
+       },
+       "mode": "SpellCast",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "spell_cast_origin": {
+        "data": "Hand",
+        "type": "Equals"
+       },
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "filters": [
+         {
+          "controller": null,
+          "properties": [],
+          "type": "Typed",
+          "type_filters": [
+           "Instant"
+          ]
+         },
+         {
+          "controller": null,
+          "properties": [],
+          "type": "Typed",
+          "type_filters": [
+           "Sorcery"
+          ]
+         }
+        ],
+        "type": "Or"
+       },
+       "valid_source": null,
+       "valid_target": {
+        "type": "Controller"
+       }
+      },
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever ~ attacks, you may cast a spell from among cards you own in exile with dream counters on them without paying its mana cost.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "mode": "Cast",
+         "target": {
+          "controller": null,
+          "properties": [
+           {
+            "type": "InZone",
+            "zone": "Exile"
+           }
+          ],
+          "type": "Typed",
+          "type_filters": [
+           "Card"
+          ]
+         },
+         "type": "CastFromZone",
+         "without_paying_mana_cost": true
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": true,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_choice_timing": "Resolution",
+        "target_prompt": null
+       },
+       "mode": "Attacks",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 4.0,
+    "color_identity": [
+     "R"
+    ],
+    "colors": [
+     "R"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "legal",
+     "standardbrawl": "legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}{R}{R}",
+    "name": "Goliath Daydreamer",
+    "oracle_id": "9207facd-fbf9-4faa-ac44-6c0bcac81551",
+    "oracle_text": "Whenever you cast an instant or sorcery spell from your hand, exile that card with a dream counter on it instead of putting it into your graveyard as it resolves.\nWhenever this creature attacks, you may cast a spell from among cards you own in exile with dream counters on them without paying its mana cost.",
+    "power": "4",
+    "toughness": "4",
+    "type_line": "Creature — Giant Wizard"
    }
   },
   "Gonti, Canny Acquisitor": {
@@ -719235,6 +719976,246 @@
     "type_line": "Kindred Enchantment — Treefolk Aura"
    }
   },
+  "Lilah, Undefeated Slickshot": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "brawl_commander": true,
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Human",
+       "Rogue"
+      ],
+      "supertypes": [
+       "Legendary"
+      ]
+     },
+     "color_identity": [
+      "Red",
+      "Blue"
+     ],
+     "color_override": [
+      "Red",
+      "Blue"
+     ],
+     "defense": null,
+     "flavor_name": null,
+     "is_commander": true,
+     "keywords": [
+      "Prowess"
+     ],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "standard": "legal",
+      "standardbrawl": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "Blue",
+       "Red"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "95efd401-579e-448b-9655-31311c0ae41e",
+       "e21f90ea-5934-4757-8515-38ef116afac1"
+      ]
+     },
+     "name": "Lilah, Undefeated Slickshot",
+     "non_ability_text": null,
+     "oracle_text": "Prowess (Whenever you cast a noncreature spell, this creature gets +1/+1 until end of turn.)\nWhenever you cast a multicolored instant or sorcery spell from your hand, exile that spell instead of putting it into your graveyard as it resolves. If you do, it becomes plotted. (You may cast it as a sorcery on a later turn without paying its mana cost.)",
+     "power": {
+      "type": "Fixed",
+      "value": 3
+     },
+     "printings": [
+      "OTJ",
+      "POTJ"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2024-04-12",
+       "text": "Exiling a card using its plot ability is a special action. Once you announce you're taking that action, no other player can respond by trying to remove that card from your hand."
+      },
+      {
+       "date": "2024-04-12",
+       "text": "If a plotted card has {X} in its mana cost, you must choose 0 as the value of X when casting it without paying its mana cost."
+      },
+      {
+       "date": "2024-04-12",
+       "text": "If a spell is countered or it never resolves, Lilah, Undefeated Slickshot will not exile it."
+      },
+      {
+       "date": "2024-04-12",
+       "text": "If you're casting a plotted card from exile without paying its mana cost, you can't choose to cast it for any other alternative costs. You can, however, pay additional costs, such as kicker costs. If the plotted card has any mandatory additional costs, those must still be paid to cast the spell."
+      },
+      {
+       "date": "2024-04-12",
+       "text": "Plot abilities are written \"Plot [cost],\" which means \"Any time you have priority during your main phase while the stack is empty, you may pay [cost] and exile this card from your hand. It becomes plotted.\""
+      },
+      {
+       "date": "2024-04-12",
+       "text": "The spell will have all its normal effects before being exiled. If the spell's normal effects include exiling itself, Lilah's effect won't apply to it and it won't become plotted."
+      },
+      {
+       "date": "2024-04-12",
+       "text": "You can't cast a plotted card on the same turn it became plotted. On any future turn, you may cast that card from exile without paying its mana cost during your main phase while the stack is empty."
+      },
+      {
+       "date": "2024-06-07",
+       "text": "If an instant or a card with flash is plotted this way, you can still cast it only when you have priority during your main phase while the stack is empty."
+      }
+     ],
+     "scryfall_oracle_id": "0757c5a7-e51b-4c39-bb4d-b32657c10cb4",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 3
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever you cast a multicolored instant or sorcery spell from your hand, exile that spell instead of putting it into your graveyard as it resolves. If you do, it becomes plotted.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "on_exile": "BecomePlotted",
+         "type": "ExileResolvingSpellInsteadOfGraveyard"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "SpellCast",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "spell_cast_origin": {
+        "data": "Hand",
+        "type": "Equals"
+       },
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "filters": [
+         {
+          "controller": null,
+          "properties": [
+           {
+            "comparator": "GE",
+            "count": 2,
+            "type": "ColorCount"
+           }
+          ],
+          "type": "Typed",
+          "type_filters": [
+           "Instant"
+          ]
+         },
+         {
+          "controller": null,
+          "properties": [
+           {
+            "comparator": "GE",
+            "count": 2,
+            "type": "ColorCount"
+           }
+          ],
+          "type": "Typed",
+          "type_filters": [
+           "Sorcery"
+          ]
+         }
+        ],
+        "type": "Or"
+       },
+       "valid_source": null,
+       "valid_target": {
+        "type": "Controller"
+       }
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 3.0,
+    "color_identity": [
+     "R",
+     "U"
+    ],
+    "colors": [
+     "R",
+     "U"
+    ],
+    "keywords": [
+     "Plot",
+     "Prowess"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "legal",
+     "standardbrawl": "legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}{U}{R}",
+    "name": "Lilah, Undefeated Slickshot",
+    "oracle_id": "0757c5a7-e51b-4c39-bb4d-b32657c10cb4",
+    "oracle_text": "Prowess (Whenever you cast a noncreature spell, this creature gets +1/+1 until end of turn.)\nWhenever you cast a multicolored instant or sorcery spell from your hand, exile that spell instead of putting it into your graveyard as it resolves. If you do, it becomes plotted. (You may cast it as a sorcery on a later turn without paying its mana cost.)",
+    "power": "3",
+    "toughness": "3",
+    "type_line": "Legendary Creature — Human Rogue"
+   }
+  },
   "Liliana of the Dark Realms": {
    "phase_records": [
     {
@@ -731835,6 +732816,182 @@
     "power": "4",
     "toughness": "6",
     "type_line": "Creature — Elephant Cleric"
+   }
+  },
+  "Loxodon Smiter": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Elephant",
+       "Soldier"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Green",
+      "White"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "Green",
+       "White"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "69247168-2bfb-4cce-a2a6-61459a0fbce4"
+      ]
+     },
+     "name": "Loxodon Smiter",
+     "non_ability_text": null,
+     "oracle_text": "This spell can't be countered.\nIf a spell or ability an opponent controls causes you to discard this card, put it onto the battlefield instead of putting it into your graveyard.",
+     "power": {
+      "type": "Fixed",
+      "value": 4
+     },
+     "printings": [
+      "PIO",
+      "RTR"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [
+      {
+       "condition": {
+        "controller": "Opponent",
+        "type": "EventSourceControlledBy"
+       },
+       "description": "If a spell or ability an opponent controls causes you to discard this card, put it onto the battlefield instead of putting it into your graveyard.",
+       "event": "Discard",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "destination": "Battlefield",
+         "enter_tapped": false,
+         "enter_transformed": false,
+         "enters_attacking": false,
+         "origin": null,
+         "owner_library": false,
+         "target": {
+          "type": "ParentTarget"
+         },
+         "type": "ChangeZone"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": {
+        "type": "Mandatory"
+       },
+       "valid_card": {
+        "type": "SelfRef"
+       }
+      }
+     ],
+     "rulings": [
+      {
+       "date": "2012-10-01",
+       "text": "If you discard Loxodon Smiter and put it onto the battlefield, you've still discarded a card. Abilities that trigger when you discard a card (such as the one from Liliana's Caress) will still trigger."
+      }
+     ],
+     "scryfall_oracle_id": "18ac2282-83af-4acc-b20b-6a95771da688",
+     "static_abilities": [
+      {
+       "active_zones": [],
+       "affected": {
+        "type": "SelfRef"
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": null,
+       "description": "This spell can't be countered.",
+       "effect_zone": null,
+       "mode": "CantBeCountered",
+       "modifications": []
+      }
+     ],
+     "toughness": {
+      "type": "Fixed",
+      "value": 4
+     },
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 3.0,
+    "color_identity": [
+     "G",
+     "W"
+    ],
+    "colors": [
+     "G",
+     "W"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}{G}{W}",
+    "name": "Loxodon Smiter",
+    "oracle_id": "18ac2282-83af-4acc-b20b-6a95771da688",
+    "oracle_text": "This spell can't be countered.\nIf a spell or ability an opponent controls causes you to discard this card, put it onto the battlefield instead of putting it into your graveyard.",
+    "power": "4",
+    "toughness": "4",
+    "type_line": "Creature — Elephant Soldier"
    }
   },
   "Loyal Apprentice": {
@@ -840105,6 +841262,249 @@
     "type_line": "Artifact"
    }
   },
+  "Nullhide Ferox": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "activator_filter": {
+        "type": "All"
+       },
+       "condition": null,
+       "cost": {
+        "cost": {
+         "generic": 2,
+         "shards": [],
+         "type": "Cost"
+        },
+        "type": "Mana"
+       },
+       "description": "{2}: ~ loses all abilities until end of turn. Any player may activate this ability.",
+       "duration": "UntilEndOfTurn",
+       "effect": {
+        "duration": "UntilEndOfTurn",
+        "static_abilities": [
+         {
+          "active_zones": [],
+          "affected": {
+           "type": "SelfRef"
+          },
+          "affected_zone": null,
+          "characteristic_defining": false,
+          "condition": null,
+          "description": "lose all abilities",
+          "effect_zone": null,
+          "mode": "Continuous",
+          "modifications": [
+           {
+            "type": "RemoveAllAbilities"
+           }
+          ]
+         }
+        ],
+        "target": null,
+        "type": "GenericEffect"
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Beast"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Green"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [
+      "Hexproof"
+     ],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 2,
+      "shards": [
+       "Green",
+       "Green"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "24c30bb0-06ba-432b-a20c-6fa79b0dc68a",
+       "6c9273e1-7482-41c7-aa72-15c827b15238"
+      ]
+     },
+     "name": "Nullhide Ferox",
+     "non_ability_text": null,
+     "oracle_text": "Hexproof\nYou can't cast noncreature spells.\n{2}: This creature loses all abilities until end of turn. Any player may activate this ability.\nIf a spell or ability an opponent controls causes you to discard this card, put it onto the battlefield instead of putting it into your graveyard.",
+     "power": {
+      "type": "Fixed",
+      "value": 6
+     },
+     "printings": [
+      "GRN",
+      "PLST"
+     ],
+     "rarities": [
+      "mythic"
+     ],
+     "replacements": [
+      {
+       "condition": {
+        "controller": "Opponent",
+        "type": "EventSourceControlledBy"
+       },
+       "description": "If a spell or ability an opponent controls causes you to discard this card, put it onto the battlefield instead of putting it into your graveyard.",
+       "event": "Discard",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "destination": "Battlefield",
+         "enter_tapped": false,
+         "enter_transformed": false,
+         "enters_attacking": false,
+         "origin": null,
+         "owner_library": false,
+         "target": {
+          "type": "ParentTarget"
+         },
+         "type": "ChangeZone"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": {
+        "type": "Mandatory"
+       },
+       "valid_card": {
+        "type": "SelfRef"
+       }
+      }
+     ],
+     "rulings": [
+      {
+       "date": "2018-10-05",
+       "text": "Nullhide Ferox's activated ability can be activated only while it's on the battlefield. Players can't, for example, activate it to try to stop its replacement effect from putting it onto the battlefield."
+      },
+      {
+       "date": "2018-10-05",
+       "text": "Once Nullhide Ferox has lost its activated ability that makes it lose its abilities, that ability can't be activated again until the turn's over."
+      },
+      {
+       "date": "2018-10-05",
+       "text": "Once Nullhide Ferox's activated ability has resolved, it can gain new abilities. It won't lose those abilities."
+      }
+     ],
+     "scryfall_oracle_id": "5b04a337-3152-481e-973f-a11dbd615f93",
+     "static_abilities": [
+      {
+       "active_zones": [],
+       "affected": {
+        "controller": null,
+        "properties": [],
+        "type": "Typed",
+        "type_filters": [
+         {
+          "Non": "Creature"
+         }
+        ]
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": null,
+       "description": "You can't cast noncreature spells.",
+       "effect_zone": null,
+       "mode": {
+        "CantBeCast": {
+         "who": "Controller"
+        }
+       },
+       "modifications": []
+      }
+     ],
+     "toughness": {
+      "type": "Fixed",
+      "value": 6
+     },
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 4.0,
+    "color_identity": [
+     "G"
+    ],
+    "colors": [
+     "G"
+    ],
+    "keywords": [
+     "Hexproof"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}{G}{G}",
+    "name": "Nullhide Ferox",
+    "oracle_id": "5b04a337-3152-481e-973f-a11dbd615f93",
+    "oracle_text": "Hexproof\nYou can't cast noncreature spells.\n{2}: This creature loses all abilities until end of turn. Any player may activate this ability.\nIf a spell or ability an opponent controls causes you to discard this card, put it onto the battlefield instead of putting it into your graveyard.",
+    "power": "6",
+    "toughness": "6",
+    "type_line": "Creature — Beast"
+   }
+  },
   "Numot, the Devastator": {
    "phase_records": [
     {
@@ -846456,6 +847856,222 @@
      "W"
     ],
     "type_line": "Artifact"
+   }
+  },
+  "Obstinate Baloth": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Beast"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Green"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 2,
+      "shards": [
+       "Green",
+       "Green"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "6694496c-45b9-4ddf-bfcd-b632441b8811",
+       "98d12669-ca08-4a3c-b30f-15168b75abe4",
+       "e1b7809f-f3a3-439e-8bae-c083842de1bf"
+      ]
+     },
+     "name": "Obstinate Baloth",
+     "non_ability_text": null,
+     "oracle_text": "When this creature enters, you gain 4 life.\nIf a spell or ability an opponent controls causes you to discard this card, put it onto the battlefield instead of putting it into your graveyard.",
+     "power": {
+      "type": "Fixed",
+      "value": 4
+     },
+     "printings": [
+      "BRO",
+      "IMA",
+      "J25",
+      "M11"
+     ],
+     "rarities": [
+      "uncommon",
+      "rare"
+     ],
+     "replacements": [
+      {
+       "condition": {
+        "controller": "Opponent",
+        "type": "EventSourceControlledBy"
+       },
+       "description": "If a spell or ability an opponent controls causes you to discard this card, put it onto the battlefield instead of putting it into your graveyard.",
+       "event": "Discard",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "destination": "Battlefield",
+         "enter_tapped": false,
+         "enter_transformed": false,
+         "enters_attacking": false,
+         "origin": null,
+         "owner_library": false,
+         "target": {
+          "type": "ParentTarget"
+         },
+         "type": "ChangeZone"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": {
+        "type": "Mandatory"
+       },
+       "valid_card": {
+        "type": "SelfRef"
+       }
+      }
+     ],
+     "rulings": [
+      {
+       "date": "2017-11-17",
+       "text": "If a spell or ability an opponent controls causes you to discard Obstinate Baloth, and both Obstinate Baloth's ability and another ability (such as that of an opponent's Leyline of the Void) instruct you to put Obstinate Baloth somewhere else instead of putting it into your graveyard, you choose which one to apply."
+      },
+      {
+       "date": "2017-11-17",
+       "text": "If you discard Obstinate Baloth and put it onto the battlefield, you've still discarded it. Abilities that trigger when you discard a card (such as that of Raiders' Wake) will still trigger."
+      },
+      {
+       "date": "2022-10-14",
+       "text": "If a spell or ability an opponent controls causes you to discard Obstinate Baloth, and both Obstinate Baloth's ability and another ability (such as that of an opponent's Leyline of the Void) instruct you to put Obstinate Baloth somewhere else instead of putting it into your graveyard, you choose which one to apply."
+      },
+      {
+       "date": "2022-10-14",
+       "text": "If you discard Obstinate Baloth and put it onto the battlefield, you've still discarded it. Abilities that trigger when you discard a card will still trigger."
+      }
+     ],
+     "scryfall_oracle_id": "ee2ab1ab-be1e-4e56-99f2-7784f7350b41",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 4
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "When ~ enters, you gain 4 life.",
+       "destination": "Battlefield",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "amount": {
+          "type": "Fixed",
+          "value": 4
+         },
+         "type": "GainLife"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "ChangesZone",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 4.0,
+    "color_identity": [
+     "G"
+    ],
+    "colors": [
+     "G"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}{G}{G}",
+    "name": "Obstinate Baloth",
+    "oracle_id": "ee2ab1ab-be1e-4e56-99f2-7784f7350b41",
+    "oracle_text": "When this creature enters, you gain 4 life.\nIf a spell or ability an opponent controls causes you to discard this card, put it onto the battlefield instead of putting it into your graveyard.",
+    "power": "4",
+    "toughness": "4",
+    "type_line": "Creature — Beast"
    }
   },
   "Occult Epiphany": {
@@ -968581,6 +970197,242 @@
     "type_line": "Legendary Creature — Human Time Lord Rogue"
    }
   },
+  "River Song's Diary": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Artifact"
+      ],
+      "subtypes": [
+       "Book"
+      ],
+      "supertypes": []
+     },
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 3,
+      "shards": [],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "96476a30-72b0-4f91-9d2d-85fc196f89c5",
+       "98833afa-fc8a-4c1b-b670-b772bde076bb",
+       "ad8baa1c-7dd4-46b0-824f-405b44829caa",
+       "e0c73ab0-79ed-44cd-90bf-b0debdc04fad"
+      ]
+     },
+     "name": "River Song's Diary",
+     "non_ability_text": null,
+     "oracle_text": "Imprint — Whenever a player casts an instant or sorcery spell from their hand, exile it instead of putting it into a graveyard as it resolves.\nAt the beginning of your upkeep, if there are four or more cards exiled with this artifact, choose one of them at random. You may cast it without paying its mana cost.",
+     "power": null,
+     "printings": [
+      "WHO"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2023-10-13",
+       "text": "You cast the spell as part of the resolution of the last ability. You can't wait and cast the spell at a later time."
+      }
+     ],
+     "scryfall_oracle_id": "60a63eb4-b0f7-4930-9bf6-afd42261d4d0",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever a player casts an instant or sorcery spell from their hand, exile it instead of putting it into a graveyard as it resolves.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "type": "ExileResolvingSpellInsteadOfGraveyard"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "SpellCast",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "spell_cast_origin": {
+        "data": "Hand",
+        "type": "Equals"
+       },
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "filters": [
+         {
+          "controller": null,
+          "properties": [],
+          "type": "Typed",
+          "type_filters": [
+           "Instant"
+          ]
+         },
+         {
+          "controller": null,
+          "properties": [],
+          "type": "Typed",
+          "type_filters": [
+           "Sorcery"
+          ]
+         }
+        ],
+        "type": "Or"
+       },
+       "valid_source": null,
+       "valid_target": null
+      },
+      {
+       "batched": false,
+       "condition": {
+        "comparator": "GE",
+        "lhs": {
+         "qty": {
+          "type": "CardsExiledBySource"
+         },
+         "type": "Ref"
+        },
+        "rhs": {
+         "type": "Fixed",
+         "value": 4
+        },
+        "type": "QuantityComparison"
+       },
+       "constraint": {
+        "type": "OnlyDuringYourTurn"
+       },
+       "damage_kind": "Any",
+       "description": "At the beginning of your upkeep, if there are four or more cards exiled with ~, choose one of them at random. You may cast it without paying its mana cost.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "chooser": "Controller",
+         "count": 1,
+         "random": true,
+         "type": "ChooseFromZone",
+         "up_to": false,
+         "zone": "Exile",
+         "zone_owner": "Controller"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "driver": "DuringResolution",
+          "mode": "Cast",
+          "target": {
+           "type": "ParentTarget"
+          },
+          "type": "CastFromZone",
+          "without_paying_mana_cost": true
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": true,
+         "optional_targeting": false,
+         "sub_ability": null,
+         "sub_link": "SequentialSibling",
+         "target_choice_timing": "Resolution",
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "mode": "Phase",
+       "optional": false,
+       "origin": null,
+       "phase": "Upkeep",
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": null,
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 3.0,
+    "color_identity": [],
+    "colors": [],
+    "keywords": [
+     "Imprint"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{3}",
+    "name": "River Song's Diary",
+    "oracle_id": "60a63eb4-b0f7-4930-9bf6-afd42261d4d0",
+    "oracle_text": "Imprint — Whenever a player casts an instant or sorcery spell from their hand, exile it instead of putting it into a graveyard as it resolves.\nAt the beginning of your upkeep, if there are four or more cards exiled with this artifact, choose one of them at random. You may cast it without paying its mana cost.",
+    "type_line": "Artifact — Book"
+   }
+  },
   "Riveteers Confluence": {
    "phase_records": [
     {
@@ -970847,6 +972699,259 @@
     "oracle_id": "fd85db70-8616-42df-9dac-bad7923f88d7",
     "oracle_text": "Target creature you control deals damage equal to its power to target creature an opponent controls.",
     "type_line": "Instant"
+   }
+  },
+  "Rod of Absorption": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": {
+        "costs": [
+         {
+          "cost": {
+           "generic": 0,
+           "shards": [
+            "X"
+           ],
+           "type": "Cost"
+          },
+          "type": "Mana"
+         },
+         {
+          "type": "Tap"
+         },
+         {
+          "count": 1,
+          "target": {
+           "type": "SelfRef"
+          },
+          "type": "Sacrifice"
+         }
+        ],
+        "type": "Composite"
+       },
+       "description": "{X}, {T}, Sacrifice ~: You may cast any number of spells from among cards exiled with ~ with total mana value X or less without paying their mana costs.",
+       "duration": null,
+       "effect": {
+        "mode": "Cast",
+        "target": {
+         "filters": [
+          {
+           "controller": null,
+           "properties": [
+            {
+             "type": "InZone",
+             "zone": "Exile"
+            }
+           ],
+           "type": "Typed",
+           "type_filters": []
+          },
+          {
+           "type": "ExiledBySource"
+          }
+         ],
+         "type": "And"
+        },
+        "type": "CastFromZone",
+        "without_paying_mana_cost": true
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": true,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_choice_timing": "Resolution",
+       "target_constraints": [
+        {
+         "comparator": "LE",
+         "type": "TotalManaValue",
+         "value": {
+          "qty": {
+           "name": "X",
+           "type": "Variable"
+          },
+          "type": "Ref"
+         }
+        }
+       ],
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Artifact"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Blue"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 2,
+      "shards": [
+       "Blue"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "3d1fc4cc-182a-4cd8-bd5a-3cc16257044a",
+       "59e9e244-bb8e-4346-b06b-4af987473442"
+      ]
+     },
+     "name": "Rod of Absorption",
+     "non_ability_text": null,
+     "oracle_text": "Whenever a player casts an instant or sorcery spell, exile it instead of putting it into a graveyard as it resolves.\n{X}, {T}, Sacrifice this artifact: You may cast any number of spells from among cards exiled with this artifact with total mana value X or less without paying their mana costs.",
+     "power": null,
+     "printings": [
+      "AFC"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2021-07-23",
+       "text": "Each Rod of Absorption tracks the cards it has exiled separately. If Rod of Absorption is destroyed and then later brought back to the battlefield, it will not be able to access any of the cards that it had exiled before."
+      },
+      {
+       "date": "2021-07-23",
+       "text": "If a spell is countered or it never resolves, Rod of Absorption will not exile it."
+      },
+      {
+       "date": "2021-07-23",
+       "text": "If multiple Rods of Absorption are on the battlefield at the same time, any player casting an instant or sorcery spell will cause all of them to trigger. As the spell resolves, its controller will choose which of the Rods gets to exile it."
+      },
+      {
+       "date": "2021-07-23",
+       "text": "If the card has {X} in its mana cost, you must choose 0 as the value of X when casting it without paying its mana cost."
+      },
+      {
+       "date": "2021-07-23",
+       "text": "If you cast a spell “without paying its mana cost,” you can't choose to cast it for any alternative costs. You can, however, pay additional costs. If the card has any mandatory additional costs, you must pay those to cast the spell."
+      },
+      {
+       "date": "2021-07-23",
+       "text": "When Rod of Absorption's last ability resolves, you cast as many spells with total mana value X or less from among the exiled cards as you would like in any order you choose. Cards not cast this way will remain in exile indefinitely."
+      }
+     ],
+     "scryfall_oracle_id": "d32345c1-ed20-4bfc-a5fa-6ac7b99542ec",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever a player casts an instant or sorcery spell, exile it instead of putting it into a graveyard as it resolves.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "type": "ExileResolvingSpellInsteadOfGraveyard"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "SpellCast",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "filters": [
+         {
+          "controller": null,
+          "properties": [],
+          "type": "Typed",
+          "type_filters": [
+           "Instant"
+          ]
+         },
+         {
+          "controller": null,
+          "properties": [],
+          "type": "Typed",
+          "type_filters": [
+           "Sorcery"
+          ]
+         }
+        ],
+        "type": "Or"
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 3.0,
+    "color_identity": [
+     "U"
+    ],
+    "colors": [
+     "U"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}{U}",
+    "name": "Rod of Absorption",
+    "oracle_id": "d32345c1-ed20-4bfc-a5fa-6ac7b99542ec",
+    "oracle_text": "Whenever a player casts an instant or sorcery spell, exile it instead of putting it into a graveyard as it resolves.\n{X}, {T}, Sacrifice this artifact: You may cast any number of spells from among cards exiled with this artifact with total mana value X or less without paying their mana costs.",
+    "type_line": "Artifact"
    }
   },
   "Rogue Kavu": {
@@ -1075320,6 +1077425,265 @@
     "oracle_id": "9aa8eef1-fc67-4d54-9783-4d0175a76741",
     "oracle_text": "Imprint — When this artifact enters, you may exile two target sorcery cards from a single graveyard.\nWhenever a player casts a card, if it has the same name as one of the cards exiled with this artifact, you may copy the other. If you do, you may cast the copy without paying its mana cost.",
     "type_line": "Artifact"
+   }
+  },
+  "Spellweaver Volute": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Enchantment"
+      ],
+      "subtypes": [
+       "Aura"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Blue"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [
+      {
+       "Enchant": {
+        "controller": null,
+        "properties": [
+         {
+          "type": "InZone",
+          "zone": "Graveyard"
+         }
+        ],
+        "type": "Typed",
+        "type_filters": [
+         "Instant"
+        ]
+       }
+      }
+     ],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 3,
+      "shards": [
+       "Blue",
+       "Blue"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "e1f68dbf-81f2-4c81-af93-92c9a28693eb"
+      ]
+     },
+     "name": "Spellweaver Volute",
+     "non_ability_text": null,
+     "oracle_text": "Enchant instant card in a graveyard\nWhenever you cast a sorcery spell, copy the enchanted instant card. You may cast the copy without paying its mana cost. If you do, exile the enchanted card and attach this Aura to another instant card in a graveyard.",
+     "power": null,
+     "printings": [
+      "FUT",
+      "PLST"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2007-05-01",
+       "text": "If the enchanted card changes zones (due to being cast with flashback, or being exiled with Cremate, for example), Spellweaver Volute \"falls off\" and is put into its owner's graveyard as a state-based action."
+      },
+      {
+       "date": "2007-05-01",
+       "text": "Say Spellweaver Volute's ability triggers, then Spellweaver Volute leaves the battlefield in response. Then the instant card that was enchanted is removed from the graveyard in response. When the Volute's ability resolves, it will check its last existence on the battlefield and identify the \"enchanted card\" as that instant card, so the card is copied and controller of the triggered ability may cast it."
+      },
+      {
+       "date": "2007-05-01",
+       "text": "Say Spellweaver Volute's ability triggers, then the enchanted instant card is exiled in response. Spellweaver Volute, which is now enchanting nothing, is put into its owner's graveyard as a state-based action. When the Volute's ability resolves, it will check its last existence on the battlefield and identify the \"enchanted card\" as \"nothing,\" so no copy is created."
+      },
+      {
+       "date": "2007-05-01",
+       "text": "The Aura will be on the battlefield attached to a card in a different zone. The Aura won't be in the graveyard. The enchanted card won't be on the battlefield."
+      },
+      {
+       "date": "2007-05-01",
+       "text": "This Aura targets, and enchants, an instant card in a graveyard. This is the first Aura that enchants something that's neither a permanent nor a player."
+      },
+      {
+       "date": "2007-05-01",
+       "text": "When you cast a sorcery spell, Spellweaver Volute's ability triggers. It will make a copy of the enchanted card. The copy will exist in the graveyard. You'll have the option to cast the copy. If you don't, the copy remains in the graveyard and ceases to exist the next time state-based actions are checked. If you do cast the copy, the copy is cast from the graveyard. After you finish casting it, the enchanted card is exiled and you must choose a new instant card in a graveyard to attach Spellweaver Volute to. If you can't, Spellweaver Volute remains on the battlefield attached to nothing and is then put into the graveyard the next time state-based actions are checked."
+      }
+     ],
+     "scryfall_oracle_id": "3d92e5ce-9d30-4203-9f84-6c36117440cf",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever you cast a sorcery spell, copy the enchanted instant card. You may cast the copy without paying its mana cost. If you do, exile the enchanted card and attach ~ to another instant card in a graveyard.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "cost": {
+          "generic": 0,
+          "shards": [],
+          "type": "Cost"
+         },
+         "count": null,
+         "target": {
+          "id": 0,
+          "type": "TrackedSet"
+         },
+         "type": "CastCopyOfCard"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": {
+          "signal": "OptionalEffectPerformed",
+          "type": "EffectOutcome"
+         },
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "destination": "Exile",
+          "enter_tapped": false,
+          "enter_transformed": false,
+          "enters_attacking": false,
+          "origin": null,
+          "owner_library": false,
+          "target": {
+           "type": "ParentTarget"
+          },
+          "type": "ChangeZone"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": {
+          "condition": null,
+          "cost": null,
+          "description": null,
+          "duration": null,
+          "effect": {
+           "selection": {
+            "at_resolution": {}
+           },
+           "target": {
+            "controller": null,
+            "properties": [
+             {
+              "type": "Another"
+             },
+             {
+              "type": "InZone",
+              "zone": "Graveyard"
+             }
+            ],
+            "type": "Typed",
+            "type_filters": [
+             "Instant"
+            ]
+           },
+           "type": "Attach"
+          },
+          "forward_result": false,
+          "kind": "Spell",
+          "optional": false,
+          "optional_targeting": false,
+          "sub_ability": null,
+          "target_prompt": null
+         },
+         "sub_link": "SequentialSibling",
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "mode": "SpellCast",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "controller": null,
+        "properties": [],
+        "type": "Typed",
+        "type_filters": [
+         "Sorcery"
+        ]
+       },
+       "valid_source": null,
+       "valid_target": {
+        "type": "Controller"
+       }
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 5.0,
+    "color_identity": [
+     "U"
+    ],
+    "colors": [
+     "U"
+    ],
+    "keywords": [
+     "Enchant"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{3}{U}{U}",
+    "name": "Spellweaver Volute",
+    "oracle_id": "3d92e5ce-9d30-4203-9f84-6c36117440cf",
+    "oracle_text": "Enchant instant card in a graveyard\nWhenever you cast a sorcery spell, copy the enchanted instant card. You may cast the copy without paying its mana cost. If you do, exile the enchanted card and attach this Aura to another instant card in a graveyard.",
+    "type_line": "Enchantment — Aura"
    }
   },
   "Sphere of Resistance": {
@@ -1291337,6 +1293701,256 @@
     "power": "2",
     "toughness": "2",
     "type_line": "Legendary Creature — Bear Warrior"
+   }
+  },
+  "Wilt-Leaf Liege": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Elf",
+       "Knight"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Green",
+      "White"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "standard": "legal",
+      "standardbrawl": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "GreenWhite",
+       "GreenWhite",
+       "GreenWhite"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "0a0bcfad-cb7e-4b12-b308-a4a1245bd835",
+       "4928cb86-6971-458b-ad74-1b39c0e1c177",
+       "4d383bbf-6bb1-4c2c-899b-65d8df9d0889",
+       "e6a2881f-e771-47d7-a39e-692054ee727f",
+       "ed350949-34b3-485d-99bb-d084006b4dcd"
+      ]
+     },
+     "name": "Wilt-Leaf Liege",
+     "non_ability_text": null,
+     "oracle_text": "({G/W} can be paid with either {G} or {W}.)\nOther green creatures you control get +1/+1.\nOther white creatures you control get +1/+1.\nIf a spell or ability an opponent controls causes you to discard this card, put it onto the battlefield instead of putting it into your graveyard.",
+     "power": {
+      "type": "Fixed",
+      "value": 4
+     },
+     "printings": [
+      "2X2",
+      "FDN",
+      "MM2",
+      "SHM"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [
+      {
+       "condition": {
+        "controller": "Opponent",
+        "type": "EventSourceControlledBy"
+       },
+       "description": "If a spell or ability an opponent controls causes you to discard this card, put it onto the battlefield instead of putting it into your graveyard.",
+       "event": "Discard",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "destination": "Battlefield",
+         "enter_tapped": false,
+         "enter_transformed": false,
+         "enters_attacking": false,
+         "origin": null,
+         "owner_library": false,
+         "target": {
+          "type": "ParentTarget"
+         },
+         "type": "ChangeZone"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": {
+        "type": "Mandatory"
+       },
+       "valid_card": {
+        "type": "SelfRef"
+       }
+      }
+     ],
+     "rulings": [
+      {
+       "date": "2024-11-08",
+       "text": "If a spell or ability an opponent controls causes you to discard Wilt-Leaf Liege, and both Wilt-Leaf Liege's ability and another ability (such as that of an opponent's Leyline of the Void) instruct you to put Wilt-Leaf Liege somewhere else instead of putting it into your graveyard, you choose which one to apply."
+      },
+      {
+       "date": "2024-11-08",
+       "text": "If you discard Wilt-Leaf Liege and put it onto the battlefield, you've still discarded it. Abilities that trigger when you discard a card will still trigger."
+      },
+      {
+       "date": "2024-11-08",
+       "text": "Wilt-Leaf Liege's first two abilities are separate and cumulative. If another creature you control is both of the listed colors, it will get a total of +2/+2."
+      }
+     ],
+     "scryfall_oracle_id": "2441696b-a9ba-4813-ba2e-e71f85281d05",
+     "static_abilities": [
+      {
+       "active_zones": [],
+       "affected": {
+        "controller": "You",
+        "properties": [
+         {
+          "color": "Green",
+          "type": "HasColor"
+         },
+         {
+          "type": "Another"
+         }
+        ],
+        "type": "Typed",
+        "type_filters": [
+         "Creature"
+        ]
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": null,
+       "description": "green creatures you control get +1/+1.",
+       "effect_zone": null,
+       "mode": "Continuous",
+       "modifications": [
+        {
+         "type": "AddPower",
+         "value": 1
+        },
+        {
+         "type": "AddToughness",
+         "value": 1
+        }
+       ]
+      },
+      {
+       "active_zones": [],
+       "affected": {
+        "controller": "You",
+        "properties": [
+         {
+          "color": "White",
+          "type": "HasColor"
+         },
+         {
+          "type": "Another"
+         }
+        ],
+        "type": "Typed",
+        "type_filters": [
+         "Creature"
+        ]
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": null,
+       "description": "white creatures you control get +1/+1.",
+       "effect_zone": null,
+       "mode": "Continuous",
+       "modifications": [
+        {
+         "type": "AddPower",
+         "value": 1
+        },
+        {
+         "type": "AddToughness",
+         "value": 1
+        }
+       ]
+      }
+     ],
+     "toughness": {
+      "type": "Fixed",
+      "value": 4
+     },
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 4.0,
+    "color_identity": [
+     "G",
+     "W"
+    ],
+    "colors": [
+     "G",
+     "W"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "legal",
+     "premodern": "not_legal",
+     "standard": "legal",
+     "standardbrawl": "legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}{G/W}{G/W}{G/W}",
+    "name": "Wilt-Leaf Liege",
+    "oracle_id": "2441696b-a9ba-4813-ba2e-e71f85281d05",
+    "oracle_text": "({G/W} can be paid with either {G} or {W}.)\nOther green creatures you control get +1/+1.\nOther white creatures you control get +1/+1.\nIf a spell or ability an opponent controls causes you to discard this card, put it onto the battlefield instead of putting it into your graveyard.",
+    "power": "4",
+    "toughness": "4",
+    "type_line": "Creature — Elf Knight"
    }
   },
   "Wind Drake": {
