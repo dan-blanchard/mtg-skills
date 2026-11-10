@@ -39,10 +39,11 @@ taught a special case. Keyed on phase's structure, never the card's name or text
   arrival it over-admits is a Lhurgoyf dying, which Disa's text excludes. The
   structural gate (an ``Unknown`` mode whose body returns the ``ParentTarget`` to
   the battlefield) also fits three death and land-destruction triggers (Graceful
-  Reprieve, Scythe of the Wretched, Sacred Ground), so this row alone reads the
-  ``Unknown`` mode's own clause for its "put into your graveyard from anywhere
-  other than the battlefield" and the watched subtype — the text phase itself
-  parked in the mode, never the card's name or oracle text. The watched filter is
+  Reprieve, Scythe of the Wretched, Sacred Ground), so this row also parses the
+  ``Unknown`` mode's own clause, the text phase itself parked in the mode (never
+  the card's name or oracle text), with the shared clause grammar
+  (``clause_grammar.graveyard_arrival_subtype``: the arrival and the watched
+  subtype, from the CR's subtype lists). The watched filter is
   written in the form ``shape_compat`` (which ran already) gives a graveyard
   watcher: the owner on ``controller`` beside the ``Owned`` property.
   ``test_graveyard_arrival_unknown_mode_canary`` fails once phase types the
@@ -73,15 +74,6 @@ taught a special case. Keyed on phase's structure, never the card's name or text
   Season of Gathering as a creature sweeper (2026-11-02).
   ``test_chosen_card_type_sweep_canary`` fails once phase types the choice.
 
-* **A draw and a blight left unparsed.** "At the beginning of your end step,
-  draw a card and blight 1" (Sinister Gnarlbark) is an ``Unimplemented``
-  ``unparsed_verb_arguments`` effect whose own description is "draw a card and
-  blight N". Phase types a draw as ``Draw`` and a blight as ``BlightEffect``
-  (High Perfect Morcant), and to blight N is to put N -1/-1 counters on a
-  creature you control (CR 701.68a): the two are written as a ``Draw`` with a
-  ``BlightEffect`` sub-ability. ``test_draw_and_blight_canary`` fails once phase
-  types the clause.
-
 * **"Its controller manifests dread" with no player.** "Destroy target
   creature. Its controller manifests dread" (Unwanted Remake) types the
   manifest as a bare ``ManifestDread`` sub-ability, so every read takes it as
@@ -101,13 +93,17 @@ taught a special case. Keyed on phase's structure, never the card's name or text
   trigger's own description names. ``test_equipped_attack_canary`` fails once
   phase types the filter.
 
-* **"Auras ... have umbra armor" left unparsed.** "Auras attached to
-  permanents you control have umbra armor" (Umbra Mystic) is an
-  ``Unimplemented`` ``static_structure`` ability. Phase types umbra armor as the
-  ``TotemArmor`` keyword (Hyena Umbra) and a keyword your permanents of a
-  subtype have as a ``Continuous`` static adding it (Puresteel Paladin's
-  Equipment): the ability is rewritten as that static over the Auras you
-  control. ``test_umbra_armor_grant_canary`` fails once phase types the static.
+* **A keyword grant to a subtype you control left unparsed.** "Auras attached
+  to permanents you control have umbra armor" (Umbra Mystic) is an
+  ``Unimplemented`` ``static_structure`` ability: phase's static parser failed
+  on the line. Phase types umbra armor as the ``TotemArmor`` keyword (Hyena
+  Umbra) and a keyword your permanents of a subtype have as a ``Continuous``
+  static adding it (Puresteel Paladin's Equipment): a parked line the shared
+  clause grammar reads as such a grant, and nothing else
+  (``clause_grammar.subtype_keyword_grant``), is rewritten as that static over
+  the subtype's permanents you control (an Aura attached to your permanent is
+  read as yours). ``test_umbra_armor_grant_canary`` fails once phase types the
+  static.
 
 * **A spell exiled "instead" read as a move out of the graveyard.** "Counter
   target spell. If that spell is countered this way, exile it instead of putting
@@ -139,6 +135,12 @@ from __future__ import annotations
 import copy
 import re
 from collections.abc import Iterator
+
+from mtg_utils._card_ir.clause_grammar import (
+    graveyard_arrival_subtype,
+    subtype_keyword_grant,
+)
+from mtg_utils._card_ir.dropped_keywords import add_keyword, static_def
 
 #: The fields that hold an ability's head body: a face's ``abilities`` entries
 #: and a trigger's ``execute``. A ``sub_ability`` follows an earlier effect, whose
@@ -182,14 +184,6 @@ def _is_self_damage_sweep(effect: object) -> bool:
     )
 
 
-#: The clause an ``Unknown`` trigger mode holds for an arrival into your graveyard
-#: from any zone but the battlefield, with the watched subtype.
-_GRAVEYARD_ARRIVAL_RX = re.compile(
-    r"^Whenever an? (?P<subtype>[A-Z][a-z]+) permanent card is put into your "
-    r"graveyard from anywhere other than the battlefield$"
-)
-
-
 def _graveyard_arrival_subtype(trig: object) -> str | None:
     """The watched subtype of a trigger phase left as an ``Unknown`` mode for
     "<Subtype> permanent card is put into your graveyard from anywhere other than
@@ -206,8 +200,7 @@ def _graveyard_arrival_subtype(trig: object) -> str | None:
         and (effect.get("target") or {}).get("type") == "ParentTarget"
     ):
         return None
-    m = _GRAVEYARD_ARRIVAL_RX.match(mode["Unknown"])
-    return m.group("subtype") if m else None
+    return graveyard_arrival_subtype(mode["Unknown"])
 
 
 def _graveyard_arrival_fields(subtype: str) -> dict:
@@ -297,22 +290,6 @@ def _chosen_card_type_sweep(body: dict) -> list[str] | None:
     return list(options)
 
 
-#: An unparsed draw-and-blight's own description (:func:`_draw_and_blight`).
-_DRAW_AND_BLIGHT_RX = re.compile(r"^draw (?:a|one) card and blight (?P<n>\d+)$")
-
-
-def _draw_and_blight(body: dict) -> int | None:
-    """N, for an ``Unimplemented`` effect whose description is "draw a card
-    and blight N". The description is the only key there is: phase's
-    card-data holds 4,060 ``Unimplemented`` bodies, four of them a blight,
-    and N lives only in the text (census 2026-11-02, v0.118.0)."""
-    effect = body["effect"]
-    if effect.get("type") != "Unimplemented":
-        return None
-    m = _DRAW_AND_BLIGHT_RX.match(str(effect.get("description") or ""))
-    return int(m.group("n")) if m else None
-
-
 #: A parent ability's description naming its target's controller as the one
 #: who manifests (:func:`_bare_target_manifest`).
 _CONTROLLER_MANIFESTS_RX = re.compile(r"\bIts controller manifests dread\b")
@@ -355,42 +332,33 @@ def _attached_attack_kind(trig: object) -> str | None:
     return "Equipment" if m.group("kind") == "equipped" else "Aura"
 
 
-#: An unparsed static granting umbra armor to the Auras on your permanents.
-_UMBRA_GRANT_RX = re.compile(
-    r"Auras attached to permanents you control have umbra armor\.?$"
-)
-
-
-def _umbra_armor_grant(body: dict) -> bool:
-    """An ``Unimplemented`` ``static_structure`` ability whose description is
-    "Auras attached to permanents you control have umbra armor"."""
+def _parked_subtype_grant(body: dict) -> dict | None:
+    """The ``Continuous`` static phase types for a keyword grant to a subtype you
+    control (Puresteel Paladin's form), for an ``Unimplemented``
+    ``static_structure`` ability whose line the clause grammar reads as one
+    (:func:`~mtg_utils._card_ir.clause_grammar.subtype_keyword_grant`); else
+    ``None``. Of the 16 parked keyword-grant statics in phase v0.118.0's
+    card-data, only Umbra Mystic's grants to one subtype you control and nothing
+    else (census 2026-11-09)."""
     effect = body.get("effect") or {}
-    return (
-        effect.get("type") == "Unimplemented"
-        and effect.get("name") == "static_structure"
-        and bool(_UMBRA_GRANT_RX.search(str(effect.get("description") or "")))
+    if effect.get("type") != "Unimplemented" or effect.get("name") != (
+        "static_structure"
+    ):
+        return None
+    line = str(effect.get("description") or "")
+    grant = subtype_keyword_grant(line)
+    adds = (
+        [a for kw in sorted(grant[1]) if (a := add_keyword(kw, line))] if grant else []
     )
-
-
-def _umbra_armor_static(description: str) -> dict:
-    """The ``Continuous`` static phase types for a keyword the Auras you
-    control have (Puresteel Paladin's form), adding ``TotemArmor``."""
-    return {
-        "mode": "Continuous",
-        "affected": {
-            "type": "Typed",
-            "type_filters": [{"Subtype": "Aura"}],
-            "controller": "You",
-            "properties": [],
-        },
-        "modifications": [{"type": "AddKeyword", "keyword": "TotemArmor"}],
-        "condition": None,
-        "affected_zone": None,
-        "effect_zone": None,
-        "active_zones": [],
-        "characteristic_defining": False,
-        "description": description,
+    if not grant or not adds:
+        return None
+    affected = {
+        "type": "Typed",
+        "type_filters": [{"Subtype": grant[0]}],
+        "controller": "You",
+        "properties": [],
     }
+    return static_def(affected, adds, line)
 
 
 #: A trigger returning a creature card "with power less than ~'s" (Mirko,
@@ -465,25 +433,6 @@ def _cast_trigger_graveyard_exile(trig: object) -> dict | None:
     return effect if _graveyard_exile_of_parent(effect) else None
 
 
-def _ability_body(effect: dict, **extra: object) -> dict:
-    """An ability body as phase writes one: ``effect`` with every other field at
-    its default, ``extra`` (a ``sub_ability``, a ``sub_link``) on top."""
-    return {
-        "kind": "Spell",
-        "effect": effect,
-        "cost": None,
-        "sub_ability": None,
-        "duration": None,
-        "description": None,
-        "target_prompt": None,
-        "condition": None,
-        "optional_targeting": False,
-        "optional": False,
-        "forward_result": False,
-        **extra,
-    }
-
-
 def correct_misparsed_shapes(rec: dict) -> dict:
     """``rec`` with each misparsed shape rewritten (a copy when any)."""
     sweeps = [
@@ -501,19 +450,16 @@ def correct_misparsed_shapes(rec: dict) -> dict:
         for body in bodies
         if (types := _chosen_card_type_sweep(body)) is not None
     ]
-    blights = [
-        (body, n) for body in bodies if (n := _draw_and_blight(body)) is not None
-    ]
     manifests = [body for body in bodies if _bare_target_manifest(body)]
     attacks = [
         (trig, kind)
         for trig in rec.get("triggers") or ()
         if (kind := _attached_attack_kind(trig)) is not None
     ]
-    umbras = [
-        body
+    grants = [
+        (body, static)
         for body in rec.get("abilities") or ()
-        if isinstance(body, dict) and _umbra_armor_grant(body)
+        if isinstance(body, dict) and (static := _parked_subtype_grant(body))
     ]
     power_returns = [
         filt
@@ -532,10 +478,9 @@ def correct_misparsed_shapes(rec: dict) -> dict:
         arrivals,
         split_flips,
         chosen_types,
-        blights,
         manifests,
         attacks,
-        umbras,
+        grants,
         power_returns,
         countered_exiles,
     )
@@ -579,19 +524,6 @@ def correct_misparsed_shapes(rec: dict) -> dict:
                 for t in types
             ],
         }
-    for body, n in blights:
-        target = memo[id(body)]
-        assert isinstance(target, dict)
-        target["effect"] = {
-            "type": "Draw",
-            "count": {"type": "Fixed", "value": 1},
-            "target": {"type": "Controller"},
-        }
-        target["sub_ability"] = _ability_body(
-            {"type": "BlightEffect", "count": n},
-            sub_ability=target.get("sub_ability"),
-            sub_link="SequentialSibling",
-        )
     for body in manifests:
         target = memo[id(body)]
         assert isinstance(target, dict)
@@ -616,17 +548,13 @@ def correct_misparsed_shapes(rec: dict) -> dict:
         target = memo[id(sub)]
         assert isinstance(target, dict)
         target["origin"] = None
-    if umbras:
-        kept = [
-            b
-            for b in out.get("abilities") or ()
-            if b not in [memo[id(u)] for u in umbras]
+    if grants:
+        parked = {id(memo[id(body)]) for body, _static in grants}
+        out["abilities"] = [
+            b for b in out.get("abilities") or () if id(b) not in parked
         ]
-        statics: list[dict] = list(out.get("static_abilities") or ())
-        for body in umbras:
-            statics.append(
-                _umbra_armor_static(str(body["effect"].get("description") or ""))
-            )
-        out["abilities"] = kept
-        out["static_abilities"] = statics
+        out["static_abilities"] = [
+            *(out.get("static_abilities") or ()),
+            *(static for _body, static in grants),
+        ]
     return out

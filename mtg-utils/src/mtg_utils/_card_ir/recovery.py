@@ -530,6 +530,22 @@ ALLOWLIST: dict[str, TokenRule] = {
         concept="sacrifice", category="sacrifice", reads_clause=True
     ),
     "mill": TokenRule(concept="mill", category="mill", reads_clause=True),
+    # Blight (CR 701.68a: put N -1/-1 counters on a creature you control):
+    # Sinister Gnarlbark's "draw a card and blight 1", parked whole as an
+    # ``unparsed_verb_arguments`` residue, its blight the clause's later
+    # instruction. ``crosswalk.blight_placements`` reads it beside phase's own
+    # ``BlightEffect``; ``OTHER_PLAYER``: another player blights ("each opponent
+    # blights 1" — High Perfect Morcant, whose blight phase types). Census
+    # (phase v0.118.0): 1 residue.
+    "blight": TokenRule(
+        concept="blight",
+        category="blight",
+        reads_clause=True,
+        other_player=(
+            r"\b(?:each opponent|target (?:player|opponent)|that player|they)"
+            r"\s+blights\b"
+        ),
+    ),
     "lose_game": TokenRule(
         concept="lose_game", category="lose_game", reads_clause=True
     ),

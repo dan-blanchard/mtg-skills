@@ -13,6 +13,7 @@ from mtg_utils._analysis.signal_keys import TOKEN_MAKER
 from mtg_utils._card_ir.creature_types import CREATURE_TYPES
 from mtg_utils._card_ir.crosswalk.reads import (
     _present,
+    blight_placements,
     counter_kind_any,
     damage_to_player_trigger_kind,
     filter_controller,
@@ -446,13 +447,15 @@ def _puts_minus_counters(card: dict) -> bool:
         if {k.lower() for k in tree.card_keywords} & {"wither", "infect"}:
             return True
         for unit in tree.units:
+            # To blight N is to put N -1/-1 counters on a creature you
+            # control (CR 701.68a).
+            if blight_placements(unit, costs=False):
+                return True
             for n in unit.iter_typed():
                 if (
                     tag_of(n) in ("PutCounter", "PutCounterAll")
                     and counter_kind_any(n) == "M1M1"
-                ) or tag_of(n) == "BlightEffect":
-                    # To blight N is to put N -1/-1 counters on a creature
-                    # you control (CR 701.68a).
+                ):
                     return True
     return False
 

@@ -77,7 +77,8 @@ def test_graveyard_arrival_unknown_mode_canary():
     assert isinstance(before["mode"], dict), (
         "misparsed_shapes graveyard arrival: RETIRE-READY — phase types Disa the "
         "Restless's Lhurgoyf graveyard trigger. Delete the arrival row of "
-        "misparsed_shapes and this canary."
+        "misparsed_shapes, clause_grammar.graveyard_arrival_subtype (and _SUBTYPE "
+        "if subtype_keyword_grant is gone too) and this canary."
     )
     assert "Unknown" in before["mode"]
     assert before["destination"] is None
@@ -213,21 +214,6 @@ def test_chosen_card_type_sweep_canary():
 
 
 @pytest.mark.retirement_canary
-def test_draw_and_blight_canary():
-    """Sinister Gnarlbark's "draw a card and blight 1": phase leaves it
-    unparsed. The stage writes a Draw and a BlightEffect (CR 701.68a)."""
-    (rec,) = test_phase_records("Sinister Gnarlbark")
-    effect = rec["triggers"][0]["execute"]["effect"]
-    assert effect["type"] == "Unimplemented", (
-        "misparsed_shapes draw-and-blight: RETIRE-READY — phase types Sinister "
-        "Gnarlbark's clause. Delete the draw-and-blight row and this canary."
-    )
-    fixed = correct_misparsed_shapes(rec)["triggers"][0]["execute"]
-    assert fixed["effect"]["type"] == "Draw"
-    assert fixed["sub_ability"]["effect"] == {"type": "BlightEffect", "count": 1}
-
-
-@pytest.mark.retirement_canary
 def test_its_controller_manifests_canary():
     """Unwanted Remake's "Its controller manifests dread": phase drops the
     player. The stage writes Fateful Absence's ``ParentObjectTargetController``."""
@@ -269,12 +255,76 @@ def test_umbra_armor_grant_canary():
         for b in rec.get("abilities") or ()
     ), (
         "misparsed_shapes umbra armor grant: RETIRE-READY — phase types Umbra "
-        "Mystic's static. Delete the row and this canary."
+        "Mystic's static. Once no parked line reads as a grant, delete the "
+        "parked-grant row, clause_grammar.subtype_keyword_grant (and _SUBTYPE if "
+        "graveyard_arrival_subtype is gone too) and this canary; keep the umbra "
+        "armor keyword in GRANT_KEYWORDS."
     )
     fixed = correct_misparsed_shapes(rec)
     grant = fixed["static_abilities"][-1]
     assert grant["modifications"] == [{"type": "AddKeyword", "keyword": "TotemArmor"}]
+    assert grant["affected"] == {
+        "type": "Typed",
+        "type_filters": [{"Subtype": "Aura"}],
+        "controller": "You",
+        "properties": [],
+    }
+    assert grant["description"] == rec["abilities"][0]["effect"]["description"]
     assert not fixed["abilities"]
+
+
+@pytest.mark.parametrize(
+    "line",
+    [
+        # synthetic lines: a grantee that isn't yours alone, and grants beside
+        # a pump, which the rewrite would drop
+        "Wizards your team controls have flying.",
+        "Enchanted creatures each get +1/+1 and have hexproof.",
+        "Equipment you control have hexproof and get +1/+1.",
+    ],
+)
+def test_only_a_bare_grant_to_your_subtype_is_rebuilt(line):
+    from mtg_utils._card_ir.clause_grammar import subtype_keyword_grant
+
+    assert subtype_keyword_grant(line) is None
+
+
+def test_a_parked_grant_reads_its_subtype_and_keywords():
+    from mtg_utils._card_ir.clause_grammar import subtype_keyword_grant
+
+    line = (
+        "Static pattern matched but line failed static parser: "
+        "Auras attached to permanents you control have umbra armor."
+    )
+    assert subtype_keyword_grant(line) == ("Aura", frozenset({"totem armor"}))
+    assert subtype_keyword_grant("Equipment you control have hexproof.") == (
+        "Equipment",
+        frozenset({"hexproof"}),
+    )
+
+
+_ANYWHERE_BUT_BATTLEFIELD = (
+    "permanent card is put into your graveyard from anywhere other than the battlefield"
+)
+# synthetic: another zone change
+_PUT_FROM_BATTLEFIELD = (
+    "Whenever an Elf permanent card is put into your graveyard from the battlefield"
+)
+
+
+@pytest.mark.parametrize(
+    ("line", "subtype"),
+    [
+        (f"Whenever a Lhurgoyf {_ANYWHERE_BUT_BATTLEFIELD}", "Lhurgoyf"),
+        (f"Whenever an Elf {_ANYWHERE_BUT_BATTLEFIELD}", "Elf"),
+        (_PUT_FROM_BATTLEFIELD, None),
+        (f"Whenever a Lhurgoyf {_ANYWHERE_BUT_BATTLEFIELD}, or leaves it", None),
+    ],
+)
+def test_graveyard_arrival_grammar(line, subtype):
+    from mtg_utils._card_ir.clause_grammar import graveyard_arrival_subtype
+
+    assert graveyard_arrival_subtype(line) == subtype
 
 
 @pytest.mark.retirement_canary

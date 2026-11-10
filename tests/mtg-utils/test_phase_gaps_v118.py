@@ -204,3 +204,47 @@ def test_a_parked_exile_instead_recovers_and_reads_no_graveyard_card():
     ]
     assert "exile_instead" in tokens
     assert "graveyard_matters" not in {s.key for s in test_signals("Forger's Foundry")}
+
+
+# ── blight: a draw and a blight parked as one clause ──────────────────────────
+
+
+@pytest.mark.retirement_canary
+def test_draw_and_blight_is_still_a_residue_canary():
+    """Sinister Gnarlbark's "draw a card and blight 1": phase parks the clause,
+    whose blight (CR 701.68a) the recovery grammar reads as ``blight``."""
+    (rec,) = test_phase_records("Sinister Gnarlbark")
+    effect = rec["triggers"][0]["execute"]["effect"]
+    assert effect["type"] == "Unimplemented", (
+        "Sinister Gnarlbark: RETIRE-READY — phase types its draw and blight. Once "
+        "no residue carries a blight, delete the blight verb of "
+        "clause_grammar._SIMPLE_VERB, its recovery.ALLOWLIST entry and the "
+        "recovered arm of crosswalk.blight_placements."
+    )
+
+
+def test_a_parked_blight_recovers_as_a_blight():
+    from mtg_utils._card_ir.crosswalk import blight_placements
+    from mtg_utils._card_ir.trees import trees_for
+    from mtg_utils.testkit import test_card, test_card_ir
+
+    test_card_ir("Sinister Gnarlbark")  # seeds the trees from the snapshot
+    (unit,) = [u for t in trees_for(test_card("Sinister Gnarlbark")) for u in t.units]
+    assert [c.recovered_by for c in unit.effects] == ["draw", "blight"]
+    assert blight_placements(unit)
+    assert ("minus_counters_matter", "you", "") in _idents("Sinister Gnarlbark")
+
+
+@pytest.mark.parametrize(
+    ("clause", "token"),
+    [
+        ("blight 1", "blight"),
+        ("each opponent blights X", "blight"),
+        # Rottenmouth Viper: a counter named blight is no blight
+        ("for each blight counter on it", None),
+    ],
+)
+def test_blight_verb_takes_its_count(clause, token):
+    from mtg_utils._card_ir.clause_grammar import parse_clause, scan_clause
+
+    assert (parse_clause(clause) or scan_clause(clause)) == token

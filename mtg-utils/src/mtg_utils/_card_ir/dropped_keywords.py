@@ -92,7 +92,7 @@ def _typed_keywords(rec: dict) -> set[str]:
     return out
 
 
-def _add_keyword(kw: str, text: str) -> dict | None:
+def add_keyword(kw: str, text: str) -> dict | None:
     """Phase's ``AddKeyword`` for a keyword ``text`` grants: the bare keyword, or
     ward with the generic mana cost ``text`` states ("ward {1}" — phase's
     ``{"Ward": {"type": "Mana", …}}``, CR 702.21a); ``None`` for a parameter it
@@ -154,7 +154,7 @@ def _dropped_grants(rec: dict) -> list[tuple[dict, str, list[dict]]]:
             continue
         if typed is None:
             typed = _typed_keywords(rec)
-        adds = [a for kw in sorted(kws - typed) if (a := _add_keyword(kw, desc))]
+        adds = [a for kw in sorted(kws - typed) if (a := add_keyword(kw, desc))]
         if adds:
             out.append((node, field, adds))
     return out
@@ -173,7 +173,9 @@ _ENCHANTED_CREATURE = {
 }
 
 
-def _static_def(affected: dict, modifications: list, description: str) -> dict:
+def static_def(affected: dict, modifications: list, description: str) -> dict:
+    """A ``Continuous`` static def as phase writes one: ``affected`` gets
+    ``modifications``, every other field at its default."""
     return {
         "mode": "Continuous",
         "affected": affected,
@@ -222,7 +224,7 @@ def _role_grants(rec: dict) -> list[tuple[dict, list[dict]]]:
             continue
         text = found[0]["rules_text"]
         adds = [
-            a for kw in sorted(keyword_grants(text)) if (a := _add_keyword(kw, text))
+            a for kw in sorted(keyword_grants(text)) if (a := add_keyword(kw, text))
         ]
         if adds:
             out.append((d, adds))
@@ -232,9 +234,9 @@ def _role_grants(rec: dict) -> list[tuple[dict, list[dict]]]:
 def _role_static(adds: list[dict]) -> dict:
     grant = {
         "type": "GrantStaticAbility",
-        "definition": _static_def(_ENCHANTED_CREATURE, adds, "Enchanted creature"),
+        "definition": static_def(_ENCHANTED_CREATURE, adds, "Enchanted creature"),
     }
-    return _static_def({"type": "SelfRef"}, [grant], "The token has its ability")
+    return static_def({"type": "SelfRef"}, [grant], "The token has its ability")
 
 
 def _subtype_keyword(mod: object) -> str | None:

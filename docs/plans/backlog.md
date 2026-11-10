@@ -23,6 +23,15 @@ Posting them is Dan's.
   Unscored today: keyword abilities phase writes no ability for (warp's delayed exile,
   ninjutsu, persist) and a saga chapter phase writes with no text ("Chapter 3"),
   which Arena's chapter order could pair.
+- **Three `misparsed_shapes` rows still check phase's own ability text with a
+  regex (2026-11-09).** Unwanted Remake's "Its controller manifests dread", Akiri's
+  "attack with one or more equipped creatures" and Mirko's "power less than ~'s".
+  Each fixes a node phase typed but left a player or filter out of, and the text
+  only tells the misread apart from look-alike structures (each row's docstring has
+  the census). There is no parked clause for the recovery grammar, so they stay
+  as they are; Dan's call, 2026-11-09. If one is redone, parse the description with
+  `clause_grammar` the way `subtype_keyword_grant` and `graveyard_arrival_subtype`
+  read Umbra Mystic's and Disa's parked lines.
 **From a powered-cube draft tune (2026-11-02)**
 
 `deck-tune` on an Arena powered-cube draft deck (`--format draft`, 40 cards, a

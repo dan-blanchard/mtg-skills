@@ -11652,7 +11652,9 @@ def mill_reaches_opponent(unit: AbilityUnit, node: TypedMirrorNode) -> bool:
     return filter_controller(getattr(node, "target", None)) == "Opponent"
 
 
-def blight_placements(unit: AbilityUnit) -> tuple[TypedMirrorNode, ...]:
+def blight_placements(
+    unit: AbilityUnit, *, costs: bool = True
+) -> tuple[TypedMirrorNode, ...]:
     """The blight actions of one unit (CR 701.68a: "To 'blight N' means to put
     N -1/-1 counters on a creature you control"): phase's ``BlightEffect``
     anywhere under the unit, a granted ability's included — "each opponent
@@ -11660,11 +11662,17 @@ def blight_placements(unit: AbilityUnit) -> tuple[TypedMirrorNode, ...]:
     player's creature — and a ``Blight`` leaf of a cost the unit's controller
     pays (:func:`controller_paid_cost_leaves`: Gristle Glutton's "{T}, Blight
     1:", Evershrike's Gift's graveyard ability, a spell's merged additional
-    cost). phase types neither as the ``PutCounter`` the counter lanes read."""
+    cost). phase types neither as the ``PutCounter`` the counter lanes read. A
+    blight phase parks is the residue the recovery grammar reads as ``blight``
+    (Sinister Gnarlbark's "draw a card and blight 1"). Without ``costs``, only
+    the blights the unit's effects perform."""
     out: dict[int, TypedMirrorNode] = {
         id(n): n for n in unit.iter_typed() if tag_of(n) == "BlightEffect"
     }
-    for paid in controller_paid_cost_leaves(unit):
+    for c in unit.effects:
+        if c.recovered_by == "blight":
+            out.setdefault(id(c.node), c.node)
+    for paid in controller_paid_cost_leaves(unit) if costs else ():
         if tag_of(paid.leaf) == "Blight":
             out.setdefault(id(paid.leaf), paid.leaf)
     return tuple(out.values())

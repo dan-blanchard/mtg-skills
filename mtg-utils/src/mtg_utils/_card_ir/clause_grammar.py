@@ -13,6 +13,8 @@ import re
 from typing import Literal
 
 from mtg_utils._card_ir import _combinators as comb
+from mtg_utils._card_ir.card_subtypes import ARTIFACT_TYPES, ENCHANTMENT_TYPES
+from mtg_utils._card_ir.creature_types import CREATURE_TYPES
 
 # phase tags a line its OWN parser choked on with a diagnostic prefix
 # ("Static pattern matched but line failed static parser: <LINE>"); strip it so the
@@ -338,6 +340,10 @@ _DIG_UNTIL = comb.value(
     ),
 )
 
+# The N a "blight N" may spell out (CR 701.68a): a digit, X, or a number word
+# (the corpus's blights spell none past "two").
+_BLIGHT_COUNTS = frozenset({"x", "one", "two", "three", "four", "five"})
+
 # Single-word imperative verbs (word-boundary-safe via `keyword`, so "draw" doesn't
 # fire on "drawback"); plural/3rd-person forms included for triggered phrasings.
 _SIMPLE_VERB = comb.alt(
@@ -476,6 +482,16 @@ _SIMPLE_VERB = comb.alt(
     # X") recovers to the action itself.
     comb.value("connive", comb.keyword({"connive", "connives"})),
     comb.value("amass", comb.keyword({"amass", "amasses"})),
+    # Blight (CR 701.68a: "To 'blight N' means to put N -1/-1 counters on a
+    # creature you control"): the verb takes its N, so a "blight counter"
+    # (Rottenmouth Viper's "for each blight counter on it") is no blight.
+    comb.value(
+        "blight",
+        comb.seq2(
+            comb.keyword({"blight", "blights"}),
+            comb.satisfy(lambda w: w.isdigit() or w in _BLIGHT_COUNTS),
+        ),
+    ),
 )
 # Multi-word verb phrases (order: most specific first).
 _VERB = comb.alt(
@@ -665,7 +681,7 @@ _VERB_PRESENT = re.compile(
     r"|shuffles?|loses?|reveals?|proliferates?|returns?|conjures?|chooses?"
     r"|goads?|rolls?|prevents?|enters?|enter|moves?|plays?|casts?|removes?"
     r"|fights?|switch|switches|adds?|foretells?|adapts?|crews?|stations?|soulshift"
-    r"|regenerates?|converts?|ends?|phases?|connives?|amass(?:es)?|investigates?)\b",
+    r"|regenerates?|converts?|ends?|phases?|connives?|amass(?:es)?|investigates?|blights?)\b",
     re.IGNORECASE,
 )
 
@@ -948,7 +964,12 @@ GRANT_KEYWORDS: tuple[str, ...] = (
     "prowess",
     "shadow",
     "ward",
+    # Umbra armor (CR 702.89a), in phase's spelling: its ``TotemArmor``, the
+    # keyword's old name, which :data:`_KEYWORD_ALIASES` reads it by too.
+    "totem armor",
 )
+#: A keyword's other name, read as its :data:`GRANT_KEYWORDS` spelling.
+_KEYWORD_ALIASES: dict[str, str] = {"umbra armor": "totem armor"}
 
 
 def ward_generic_cost(text: str) -> int | None:
@@ -968,14 +989,22 @@ def ward_generic_cost(text: str) -> int | None:
 
 
 _KEYWORD_ITEM = comb.alt(
-    *(comb.value(kw, comb.phrase(*({w} for w in kw.split()))) for kw in GRANT_KEYWORDS)
+    *(
+        comb.value(kw, comb.phrase(*({w} for w in name.split())))
+        for name, kw in (
+            *((kw, kw) for kw in GRANT_KEYWORDS),
+            *_KEYWORD_ALIASES.items(),
+        )
+    )
 )
 
 
 _WORD = comb.word()
 # The words a keyword grant can't be read without (``keyword_grants``' cheap
 # exit): each vocabulary keyword's last word.
-_KEYWORD_WORDS = frozenset(kw.split()[-1] for kw in GRANT_KEYWORDS)
+_KEYWORD_WORDS = frozenset(
+    kw.split()[-1] for kw in (*GRANT_KEYWORDS, *_KEYWORD_ALIASES)
+)
 
 
 def _keyword_item(*, counter: bool) -> comb.Parser[str]:
@@ -1240,3 +1269,82 @@ def keyword_grants(
             becoming = becoming or word in _BECOMING
         rest = w[1]
     return frozenset(out)
+
+
+# ── Lines phase parks that the correction layer rebuilds ───────────────────────
+# Two clauses phase leaves as text with no typed node, which ``misparsed_shapes``
+# writes back in the form phase types the same meaning elsewhere: a keyword grant
+# to the permanents of one subtype you control, parked when its static parser
+# fails on the line, and a graveyard arrival "from anywhere other than the
+# battlefield", parked as an ``Unknown`` trigger mode. Each reads its line word
+# by word, the subtype from the CR's own lists (CR 205.3).
+_SUBTYPES = ARTIFACT_TYPES | ENCHANTMENT_TYPES | CREATURE_TYPES
+
+
+def _subtype(s: str) -> tuple[str, str] | None:
+    """A subtype by its word, singular ("Lhurgoyf") or with a plural "s"
+    ("Auras"), in phase's spelling (``Aura``, ``Assembly-Worker``). An
+    irregular plural ("Elves") or a two-word subtype ("Time Lord") is not read."""
+    w = _WORD.run(s)
+    if w is None:
+        return None
+    word = comb.norm_word(w[0])
+    for stem in (word, word.removesuffix("s")):
+        if stem in _SUBTYPES:
+            return ("-".join(p.capitalize() for p in stem.split("-")), w[1])
+    return None
+
+
+_SUBTYPE = comb.Parser(_subtype)
+# "Auras attached to permanents you control", "Equipment you control".
+_YOUR_SUBTYPE = comb.seq3(
+    _SUBTYPE,
+    comb.opt(comb.phrase({"attached"}, {"to"}, {"permanents"})),
+    comb.phrase({"you"}, {"control"}),
+).map(lambda r: r[0])
+
+
+def subtype_keyword_grant(text: str) -> tuple[str, frozenset[str]] | None:
+    """``(subtype, keywords)`` for a line granting keywords, and nothing else,
+    to the permanents of one subtype you control: "Auras attached to
+    permanents you control have umbra armor" (Umbra Mystic). ``None`` for any
+    other line, one that also pumps or conditions the grant included."""
+    s = _FAILED_PREFIX.sub("", text).strip()
+    subject = _YOUR_SUBTYPE.run(s)
+    if subject is None:
+        return None
+    grant = _GRANT.run(subject[1])
+    if grant is None or grant[1].strip(" .") or not grant[0]:
+        return None
+    return subject[0], frozenset(grant[0])
+
+
+# "Whenever a Lhurgoyf permanent card is put into your graveyard from anywhere
+# other than the battlefield" (Disa the Restless).
+_ARRIVAL_ANYWHERE_BUT_BATTLEFIELD = comb.seq3(
+    comb.preceded(comb.phrase({"whenever"}, {"a", "an"}), _SUBTYPE),
+    comb.phrase({"permanent"}, {"card"}),
+    comb.phrase(
+        {"is"},
+        {"put"},
+        {"into"},
+        {"your"},
+        {"graveyard"},
+        {"from"},
+        {"anywhere"},
+        {"other"},
+        {"than"},
+        {"the"},
+        {"battlefield"},
+    ),
+)
+
+
+def graveyard_arrival_subtype(text: str) -> str | None:
+    """The watched subtype of a trigger line whose event is a permanent card of
+    that subtype put into your graveyard from anywhere other than the
+    battlefield (Disa the Restless's Lhurgoyf), else ``None``."""
+    r = _ARRIVAL_ANYWHERE_BUT_BATTLEFIELD.run(text.strip())
+    if r is None or r[1].strip(" ,."):
+        return None
+    return r[0][0]
