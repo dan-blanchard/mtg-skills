@@ -7,7 +7,9 @@ Two modes selected by ``--kind``:
   produced by the deck.
 
 Both modes share a single render template:
-name banner / ASCII art / type banner / oracle text / P/T. Card data is pulled
+name banner / ASCII art / type banner / oracle text / P/T. Mana, tap and other
+``{CODE}`` symbols are drawn as Scryfall's symbol images (``card_symbols``), or
+left as text with ``--text-symbols`` or when they can't be fetched. Card data is pulled
 from the Scryfall bulk file; ASCII art is keyed by card subtype (with
 card-type and ultimate-generic fallbacks) from the on-disk catalog at
 ``mtg_utils/data/card_art/``.
@@ -28,6 +30,7 @@ import click
 
 from mtg_utils._http import cache_root
 from mtg_utils.bulk_loader import default_bulk_path
+from mtg_utils.card_symbols import NO_SYMBOLS, SymbolSet, find_symbols
 from mtg_utils.deck import (
     CARD_TYPE_WORDS,
     discover_tokens,
@@ -437,6 +440,7 @@ def compute_layout(
     is_token: bool,
     measure_width: MeasureWidth,
     art_lookup: tuple[str, str, str, str] | None = None,
+    symbols: SymbolSet = NO_SYMBOLS,
 ) -> ProxyLayout:
     """Pure(ish) layout computation. No drawing — only measurement.
 
@@ -450,7 +454,12 @@ def compute_layout(
     ``build_pdf`` pre-resolves art across the whole batch (so it can
     detect duplicates and try name-keyed differentiation) and passes
     the result in.
+
+    ``symbols`` is the set of ``{CODE}`` symbols the emit phase will draw
+    as images; text is measured and wrapped at their drawn width. The
+    layout's strings keep the ``{CODE}`` form either way.
     """
+    measure_width = symbols.measurer(measure_width)
     x, y = _slot_xy(slot, page_w, page_h)
 
     name = card.get("name") or "?"
@@ -642,6 +651,7 @@ def _draw_proxy(
     page_h: float,
     is_token: bool,
     art_lookup: tuple[str, str, str, str] | None = None,
+    symbols: SymbolSet = NO_SYMBOLS,
 ) -> tuple[str, str]:
     """Render one card or token into ``slot``. Returns (art_tier, art_key)."""
     layout = compute_layout(
@@ -652,16 +662,20 @@ def _draw_proxy(
         is_token=is_token,
         measure_width=c.stringWidth,
         art_lookup=art_lookup,
+        symbols=symbols,
     )
-    _emit_proxy(c, layout)
+    _emit_proxy(c, layout, symbols)
     return layout.art_tier, layout.art_key
 
 
-def _emit_proxy(c: Canvas, layout: ProxyLayout) -> None:
+def _emit_proxy(
+    c: Canvas, layout: ProxyLayout, symbols: SymbolSet = NO_SYMBOLS
+) -> None:
     """Translate ``layout`` into reportlab canvas calls. No measurement, no math.
 
     Every position and size has already been decided in
-    :func:`compute_layout`.
+    :func:`compute_layout`. ``symbols`` must be the set the layout was
+    computed with, so each line is as wide as it was measured.
     """
     inner_x = layout.x + PAD
     inner_w = CARD_W - 2 * PAD
@@ -680,8 +694,15 @@ def _emit_proxy(c: Canvas, layout: ProxyLayout) -> None:
     else:
         c.drawString(inner_x + 3, name_text_y, layout.name_text)
         if layout.mana_cost_text:
-            c.setFont("Helvetica-Bold", 9.5)
-            c.drawRightString(inner_x + inner_w - 3, name_text_y, layout.mana_cost_text)
+            symbols.draw_text(
+                c,
+                inner_x + inner_w - 3,
+                name_text_y,
+                layout.mana_cost_text,
+                "Helvetica-Bold",
+                9.5,
+                align_right=True,
+            )
 
     # P/T box.
     if layout.pt_text:
@@ -710,17 +731,23 @@ def _emit_proxy(c: Canvas, layout: ProxyLayout) -> None:
     type_text_y = layout.type_banner_y + 3
     c.setFont("Helvetica-Bold", layout.type_text_size)
     c.drawString(inner_x + 3, type_text_y, layout.type_text)
-    c.setFont("Helvetica-Bold", 7.5)
-    c.drawRightString(inner_x + inner_w - 3, type_text_y, layout.color_tag)
+    symbols.draw_text(
+        c,
+        inner_x + inner_w - 3,
+        type_text_y,
+        layout.color_tag,
+        "Helvetica-Bold",
+        7.5,
+        align_right=True,
+    )
 
     # Oracle text.
     if layout.oracle_lines:
-        c.setFont("Helvetica", layout.oracle_size)
         cy = layout.oracle_top - layout.oracle_size
         for line in layout.oracle_lines:
             if cy < layout.oracle_bottom:
                 break
-            c.drawString(inner_x, cy, line)
+            symbols.draw_text(c, inner_x, cy, line, "Helvetica", layout.oracle_size)
             cy -= layout.oracle_leading
 
 
@@ -832,6 +859,7 @@ def build_pdf(
     is_token: bool,
     title: str,
     coverage: list[dict] | None = None,
+    symbols: SymbolSet = NO_SYMBOLS,
 ) -> None:
     from reportlab.pdfgen import canvas
 
@@ -851,6 +879,7 @@ def build_pdf(
             slot,
             card,
             art_lookup=art_resolutions[i],
+            symbols=symbols,
             page_w=page_w,
             page_h=page_h,
             is_token=is_token,
@@ -866,6 +895,16 @@ def build_pdf(
 
     c.showPage()
     c.save()
+
+
+def _symbol_codes(items: list[tuple[dict, list[str] | None]]) -> set[str]:
+    """Every ``{CODE}`` symbol the items' proxies print: in mana costs, in
+    oracle text, and in the type banner's color tag."""
+    texts: list[str] = []
+    for card, _sources in items:
+        texts += [card.get("mana_cost") or "", card.get("oracle_text") or ""]
+        texts.append(_color_tag(card))
+    return find_symbols(texts)
 
 
 # --- Bulk-data discovery ---------------------------------------------------
@@ -933,6 +972,14 @@ def _log_warn(msg: str) -> None:
         "catalog tier hit."
     ),
 )
+@click.option(
+    "--text-symbols",
+    is_flag=True,
+    help=(
+        "Print mana and tap symbols as {W}/{T} text and skip fetching "
+        "Scryfall's symbol images."
+    ),
+)
 def main(
     kind: str,
     deck_path: Path,
@@ -943,6 +990,7 @@ def main(
     *,
     include_sideboard: bool,
     report_art_coverage: bool,
+    text_symbols: bool,
 ) -> None:
     # Resolve bulk path
     if bulk_path is None:
@@ -1017,6 +1065,8 @@ def main(
         [] if (report_art_coverage and kind == "tokens") else None
     )
 
+    symbols = NO_SYMBOLS if text_symbols else SymbolSet.load(_symbol_codes(items))
+
     try:
         build_pdf(
             out_path,
@@ -1025,6 +1075,7 @@ def main(
             is_token=(kind == "tokens"),
             title=title,
             coverage=coverage,
+            symbols=symbols,
         )
     except Exception as e:  # noqa: BLE001 — surface any reportlab error
         click.echo(f"ERROR: rendering failed: {e}", err=True)

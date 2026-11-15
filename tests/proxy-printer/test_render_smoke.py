@@ -7,6 +7,7 @@ from unittest.mock import patch
 
 from pypdf import PdfReader
 
+from mtg_utils.card_symbols import SymbolSet, parse_svg
 from mtg_utils.deck import hydrate
 from mtg_utils.proxy_print import build_pdf
 
@@ -68,6 +69,40 @@ def test_render_cards_pdf_has_expected_pages_and_text(tmp_path: Path) -> None:
     assert "Forest" in text
     assert "{R}" in text  # mana cost rendered as braces
     assert "Lightning Bolt deals 3 damage" in text  # oracle text
+
+
+def test_render_with_symbols_draws_them_in_place_of_their_text(tmp_path: Path) -> None:
+    square = parse_svg(
+        "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'>"
+        "<circle fill='#A3C095' cx='50' cy='50' r='50'/>"
+        "<path d='M20 20h60v60H20z' fill='#0D0F0F'/></svg>"
+    )
+    symbols = SymbolSet({"{G}": square, "{T}": square})
+    card = _make_card(
+        "Llanowar Elves",
+        type_line="Creature — Elf Druid",
+        mana_cost="{G}",
+        oracle="{T}: Add {G}. {Q} stays text.",
+        power="1",
+        toughness="1",
+        colors=["G"],
+    )
+    out = tmp_path / "symbols.pdf"
+    build_pdf(
+        out,
+        [(card, None)],
+        page_size="letter",
+        is_token=False,
+        title="Test",
+        symbols=symbols,
+    )
+    text = PdfReader(str(out)).pages[0].extract_text()
+    assert "Llanowar Elves" in text
+    assert "Add" in text
+    assert "{G}" not in text
+    assert "{T}" not in text
+    # A symbol the set does not hold is still printed as its text.
+    assert "{Q}" in text
 
 
 def test_render_tokens_pdf_drops_source_text(tmp_path: Path) -> None:

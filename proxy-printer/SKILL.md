@@ -104,6 +104,7 @@ proxy-print --kind {cards,tokens} --deck DECK.json --out OUT.pdf [options]
 | `--include-sideboard`          | no  | on     | cards mode; flip with `--no-sideboard` |
 | `--no-sideboard`               | no  | off    | cards mode |
 | `--report-art-coverage`        | no  | off    | tokens mode; emits per-token JSON to stderr |
+| `--text-symbols`               | no  | off    | print mana / tap symbols as `{W}` / `{T}` text; skips fetching Scryfall's symbol images |
 
 Exit codes: `0` ok, `1` bulk missing/stale, `2` deck JSON invalid, `3` output
 unwritable, `4` rendering error.

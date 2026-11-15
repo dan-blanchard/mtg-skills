@@ -47,6 +47,18 @@ so `write_art` writes different third-header lines accordingly.
 _Avoid_: "site" (ambiguous; the attributed catalog itself isn't on the
 internet), "provider" (overloaded with payment / oauth).
 
+**Symbol set**:
+The card symbols (`{W}`, `{T}`, `{2/U}`, …) one print run can draw as
+images. Built once per run from the symbols the run's cards actually
+use, by fetching Scryfall's symbol SVGs into
+`$MTG_SKILLS_CACHE_DIR/card-symbols/`. Layout measures text through
+the set and emission draws through the same set, so a wrapped line is
+as wide on paper as it was measured. A symbol the set does not hold
+(offline, `--text-symbols`, an unknown code) stays as its `{CODE}`
+text.
+_Avoid_: "mana font" (the symbols are drawn outlines, not glyphs of a
+font), "icons".
+
 **Fetcher**:
 The seam between art-fetching logic and HTTP. A `Fetcher` is anything
 satisfying `fetch(url, cache_key, *, throttle, max_retries) -> bytes`.
