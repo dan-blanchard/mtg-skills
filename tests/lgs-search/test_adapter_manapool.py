@@ -221,3 +221,24 @@ class TestAwaitOptimizedAlternatives:
             stable_needed=3,
         )
         assert alts == []
+
+
+class TestChooseAmbiguous:
+    """Two different cards can share a name; Mana Pool then asks which one
+    and disables its Optimize button. The adapter picks the option that is
+    a printing of the card the card pool means by the name.
+    """
+
+    LABELS = ["Joven and Chandler\nMBC #24", "Joven and Chandler\nUNK #UR05"]
+
+    def test_picks_the_known_printing(self):
+        from mtg_utils._stores.manapool import _choose_ambiguous
+
+        assert _choose_ambiguous(self.LABELS, {("mbc", "24")}) == 0
+        assert _choose_ambiguous(self.LABELS, {("unk", "ur05")}) == 1
+
+    def test_none_when_no_option_is_a_known_printing(self):
+        from mtg_utils._stores.manapool import _choose_ambiguous
+
+        assert _choose_ambiguous(self.LABELS, {("lea", "1")}) is None
+        assert _choose_ambiguous(self.LABELS, set()) is None

@@ -4,13 +4,20 @@ Live-discovered flow (2026-05):
 1. POST list → `https://manapool.com/add-deck`
    - Fill the single `<textarea>` with `qty CardName` lines
      (format: `quantity name [set] number`; bracketed set is optional).
+   - A name two different cards share ("Joven and Chandler": MBC #24
+     and the playtest card UNK #UR05) renders a "Multiple matches —
+     choose a card" box of option buttons and DISABLES Optimize Price
+     until one is clicked (seen 2026-11). The adapter clicks the option
+     whose `SET #number` is a printing of the card our card pool means
+     by that name.
    - Click `button:has-text("Optimize Price")` → /optimizer.
 2. On `/optimizer`:
    - Click `button:has-text("Optimize N items")` to start the optimization.
    - The page renders three alternative carts: "Lowest price",
      "Fewest packages", "Balanced". Each populates a Total ($X.XX),
      Packages (N), Subtotal ($X.XX), Shipping ($X.XX), Singles fee.
-3. Pick the cheapest by Total, click its `Accept` button to commit.
+3. Pick the cheapest by Total, click its `Select` button to commit
+   (labelled `Accept` before 2026-11).
 
 The optimizer is asynchronous; the "Still searching" placeholder text
 remains even after numeric values populate. The adapter polls for
@@ -47,6 +54,43 @@ if TYPE_CHECKING:
 _BASE_URL = "https://manapool.com"
 
 _OPTIMIZE_BTN_RE = re.compile(r"Optimize \d+ items?")
+_COMMIT_BTN_RE = re.compile(r"^\s*(Select|Accept)\s*$")
+_PARSED_RE = re.compile(r"\d+/\d+ in stock")
+_AMBIGUOUS_TEXT = "Multiple matches"
+_OPTION_RE = re.compile(r"(\S+)\s+#(\S+)\s*$")
+_QTY_PREFIX_RE = re.compile(r"^\s*\d+\s*[\u00d7x]\s*")
+
+
+def _known_printings(card_name: str) -> set[tuple[str, str]]:
+    """Every (set, collector number) of the card our card pool means by
+    `card_name`, lowercased. Empty when there is no bulk or no such card.
+    """
+    from mtg_utils.card_pool import CardPool, NoBulkError
+
+    try:
+        pool = CardPool.load(None)
+    except NoBulkError:
+        return set()
+    record = pool.by_name.get(card_name.lower())
+    if record is None:
+        return set()
+    printings = pool.printings_by_oracle.get(record.get("oracle_id"), [record])
+    return {
+        (str(p["set"]).lower(), str(p["collector_number"]).lower()) for p in printings
+    }
+
+
+def _choose_ambiguous(
+    option_labels: list[str], printings: set[tuple[str, str]]
+) -> int | None:
+    """Index of the option whose trailing `SET #number` is one of
+    `printings`, or None when no option matches.
+    """
+    for i, label in enumerate(option_labels):
+        m = _OPTION_RE.search(label.strip())
+        if m and (m.group(1).lower(), m.group(2).lower()) in printings:
+            return i
+    return None
 
 
 def _parse_optimizer_alternatives(html: str) -> list[dict]:
@@ -212,7 +256,9 @@ class _ManaPoolAdapter(HeadedWindows):
             f"{ln['qty']} {self.name_for_search(ln['card_name'])}" for ln in lines
         )
         page.locator("textarea").first.fill(bulk_text)
-        page.wait_for_timeout(300)
+        # The list is parsed asynchronously; the stock count marks the end.
+        page.get_by_text(_PARSED_RE).first.wait_for(timeout=30000)
+        self._resolve_ambiguous(page)
         page.locator('button:has-text("Optimize Price")').first.click()
         page.wait_for_url("**/optimizer", timeout=30000)
         page.wait_for_timeout(2000)
@@ -239,10 +285,13 @@ class _ManaPoolAdapter(HeadedWindows):
         # Each Accept follows its alternative's heading; selecting by index
         # under the heading position is safest.
         cheapest_idx = alternatives.index(cheapest)
-        accept_btns = page.locator('button:has-text("Accept")')
-        if cheapest_idx < accept_btns.count():
-            accept_btns.nth(cheapest_idx).click()
-            page.wait_for_timeout(3000)
+        commit_btns = page.locator("button").filter(has_text=_COMMIT_BTN_RE)
+        if cheapest_idx >= commit_btns.count():
+            # Without this click the cart keeps its unoptimized sellers, so
+            # the reported total would not be the cart's.
+            raise StoreSelectorError(self.name, "Select button", page.url)
+        commit_btns.nth(cheapest_idx).click()
+        page.wait_for_timeout(3000)
 
         return OptimizedCart(
             store=self.name,
@@ -253,6 +302,32 @@ class _ManaPoolAdapter(HeadedWindows):
             unfound=[],  # MP flags unmatched lines on /add-deck; v1 tolerates loss.
             cart_url=self.cart_url,
         )
+
+    def _resolve_ambiguous(self, page: Page) -> None:
+        """Click a card for every "Multiple matches" box on /add-deck.
+
+        Mana Pool disables Optimize Price until each is resolved. A box
+        disappears once its option is clicked, so always take the first.
+        """
+        boxes = page.locator("p").filter(has_text=_AMBIGUOUS_TEXT)
+        for _ in range(200):
+            if boxes.count() == 0:
+                return
+            box = boxes.first.locator("xpath=../../..")
+            card_name = _QTY_PREFIX_RE.sub("", box.locator("p").first.inner_text())
+            options = box.locator("button")
+            labels = [options.nth(i).inner_text() for i in range(options.count())]
+            choice = _choose_ambiguous(labels, _known_printings(card_name.strip()))
+            if choice is None:
+                raise StoreSelectorError(
+                    self.name,
+                    f"a printing of ambiguous name {card_name.strip()!r} among "
+                    f"{[' '.join(label.split()) for label in labels]}",
+                    page.url,
+                )
+            options.nth(choice).click()
+            page.wait_for_timeout(500)
+        raise StoreSelectorError(self.name, "ambiguous entries to clear", page.url)
 
     def get_existing_cart(self, page: Page) -> list[Listing]:
         if hasattr(page, "goto"):
