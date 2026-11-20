@@ -61,7 +61,12 @@ the password until the session expires. The profile dirs are owner-only
 
 If you skip the explicit logins, the orchestrator will pop a headed
 window the first time it detects "not logged in" — slightly more
-disruptive but functionally equivalent.
+disruptive but functionally equivalent. **TGP needs this every run:**
+its signed-in cookie is session-only, so a `login --store tgp` window
+signs in only until it closes. At cart build the run opens TGP's
+sign-in page in the cart window and watches it (`await_login`, up to
+10 minutes, no stdin), so tell the user to sign in there when the
+window appears.
 
 ## Workflow
 
@@ -73,13 +78,38 @@ lands (Plains, Island, Swamp, Mountain, Forest, Wastes) are filtered
 out by default and surfaced in the summary; pass `--include-basics`
 to override. Snow basics (Snow-Covered Plains etc.) are NOT skipped.
 
+**Exact printings.** Pass `--exact-printings` when the user wants the
+printings their list names. A line's `(set) number` and `*F*` / `*E*`
+then pin that printing; Moxfield's lowercase codes and trailing
+category tags (`[Sac Outlet]`) are read too. Two printings of one card
+stay two lines. A store's copy counts when it is that printing, or
+another printing with the same art and style (same illustration,
+frame, border, frame effects, stamps and foil treatment; The List's
+THB-9 Daxos is Theros Beyond Death's 9). TGP gives set and number, so
+its matches are exact; Atomic Empire gives no number, so its matches
+are by set and variant labels ("Showcase"), and a set with several
+look-alike printings (most tokens) is rejected rather than guessed.
+Mana Pool gets `qty name [SET] number *F*` lines with its Exact tab
+selected, and the summary lists the lines its Exact tab can't fill.
+TCGPlayer's Mass Entry can't take a collector number, so it is skipped
+whenever any line is pinned. Without the flag, printings are ignored
+and the cheapest copy of each card is bought.
+
 ### Phase 2 — LGS sweep
 
-Both LGS are queried for every card in parallel via a thread pool
-with per-store concurrency caps. Results are kept as the cheapest
-listing matching the user's preferences (condition, foil, preferred
-set). Failures fall through to None and that store is treated as
-"not in stock" for the card.
+Both LGS are queried for every card name once (a card's pinned
+printings share the search). Results are kept as the cheapest listing
+matching the user's preferences (condition, foil, preferred set, and
+a pinned printing). A failed search counts as "not in stock" at that
+store; the first failure per store is printed, so a broken adapter
+shows.
+
+TGP is searched through the LGS Companion API its search page reads
+(`lgsc-search.lgs-companion.com`), one listing per in-stock English
+condition with its own price and stock. It allows about 15 searches a
+minute and answers 429 with `Retry-After: 60`; the adapter waits and
+retries, so a long list takes a few minutes at TGP. TGP prices a row
+it won't sell at $9,999.00; those rows are dropped.
 
 ### Phase 3 — Allocate
 
@@ -100,7 +130,8 @@ face — "Brazen Borrower" — is priced too), not the default printing's
 USD. Default-printing prices often miss cheap
 reprints (e.g. Beast Within's default has no `usd`, but its cheap
 reprint is $0.50; Kessig Wolf Run's default is ~$15, cheapest
-reprint $0.30). Without bulk data the proxy is 0.0 — the spill check
+reprint $0.30). For a pinned printing the proxy is the cheapest
+printing that counts as it, in its finish. Without bulk data the proxy is 0.0 — the spill check
 goes silent and every in-stock LGS listing wins, even when MP/TCG
 would be 5-30x cheaper.
 
@@ -171,6 +202,7 @@ lgs-search \
   [--condition {nm,lp,mp,hp,any}]   # default: lp (worst condition allowed)
   [--allow-foil]
   [--prefer-set <SET>]
+  [--exact-printings]
   [--lgs-online-threshold-pct 20]
   [--lgs-online-threshold-usd 2.00]
   [--consolidate-threshold-pct 10]
@@ -190,12 +222,17 @@ lgs-search \
 ## Failure modes
 
 - **Site selectors changed.** Adapter raises `StoreSelectorError` with
-  the failed selector and the URL where it was missed. The orchestrator
-  surfaces the error and aborts the sweep for that store; it does NOT
-  silently skip cards.
-- **Login expired.** Detected per-store via `is_logged_in`. The lazy
-  fallback launches a headed login window mid-run; close it once
-  signed in and the run resumes.
+  the failed selector and the URL where it was missed. The sweep prints
+  the first such error per store (`[tgp] search failed (...)`) and
+  counts that store out of stock for every card whose search failed.
+  If you see it, the store's results are incomplete: say so in the
+  report rather than treating its misses as real stock-outs. (TGP's
+  move to a client-side search page, 2026-11, broke every TGP search
+  silently before this was printed.)
+- **Login expired.** Detected per-store via `is_logged_in`. At cart
+  build the store's window opens on its sign-in page and the run waits
+  until the page shows the user signed in (up to 10 minutes; leave the
+  window open — it becomes the cart window).
 - **Marketplace cart pollution.** `bulk_submit_and_optimize` raises
   `CartNotEmptyError` if the Marketplace's cart already has items
   (Phase 4 would mix the user's pre-existing items into the optimizer

@@ -37,8 +37,9 @@ from mtg_utils._sidecar import load_pickle_sidecar, write_pickle_sidecar
 # ``promo`` / ``promo_types``) for the special-basic-printing rule (ADR-0058). v5:
 # records carry ``arena_id`` (MTGJSON ``identifiers.mtgArenaId``), which mtga-import
 # resolves Player.log card ids through (``CardPool.by_arena_id``). v6: legalities carry
-# ``competitivebrawl`` (MTGJSON's Competitive Brawl key).
-SIDECAR_VERSION = 6
+# ``competitivebrawl`` (MTGJSON's Competitive Brawl key). v7: records carry
+# ``illustration_id`` and ``frame`` (art identity, lgs-search's printing equivalence).
+SIDECAR_VERSION = 7
 SIDECAR_SUFFIX = ".idx.pkl"
 
 

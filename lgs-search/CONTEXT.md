@@ -71,6 +71,16 @@ scratch.
 _Avoid_: "checkpoint", "state file" (implies resume capability that
 doesn't exist).
 
+**Pinned printing**:
+A want-list line's exact printing under `--exact-printings`: its set,
+collector number and finish ("Citizen (TFRC) 11 *F*"). A store's copy
+is that printing when it matches **exact**ly (set and number), is an
+**equivalent** (another printing with the same art and style), or
+matches by **set+style** (the store gives a set and variant labels but
+no number, and every printing of the card that fits them counts).
+`_stores/printing.PrintingSpec` decides.
+_Avoid_: "variant" (the stores use it for condition and language rows).
+
 **Cheapest-printing proxy**:
 The minimum non-foil non-digital USD across all printings of a card
 in the Scryfall bulk dump, used as the "online price" in the spill

@@ -201,10 +201,50 @@ def _await_optimized_alternatives(
     return alternatives
 
 
+_EXACT_TAB = 'button[role=tab][data-value="exactMatch"]'
+_AVAILABLE_RE = re.compile(r"(\d+)\s*x\s*$")
+
+
+def exact_tab_active(html: str) -> bool:
+    """Whether /add-deck has its Exact tab selected (``data-state="active"``,
+    the bits-ui tab state) rather than Any Printing."""
+    tab = BeautifulSoup(html, "html.parser").select_one(_EXACT_TAB)
+    return tab is not None and tab.get("data-state") == "active"
+
+
+def exact_shortfalls(html: str, lines: list[Line]) -> list[str]:
+    """The lines the Exact tab can't fill, read off its panel: one row per
+    submitted line, in order, whose quantity badge reads `Nx` (the copies in
+    stock) after a struck-through requested count when short. A short line is
+    reported as `<qty> <line>` with the copies MP has, e.g.
+    "Zombie [TSOC] 12 (0 of 1)"."""
+    soup = BeautifulSoup(html, "html.parser")
+    panel = soup.select_one('[role=tabpanel][data-value="exactMatch"]')
+    if panel is None:
+        return []
+    rows = [
+        row
+        for row in panel.select("div.flex.flex-row")
+        if row.select_one("span.rounded-full")
+    ]
+    short: list[str] = []
+    for line, row in zip(lines, rows, strict=False):
+        badge = row.select_one("span.rounded-full")
+        if badge is None or badge.select_one(".line-through") is None:
+            continue
+        match = _AVAILABLE_RE.search(badge.get_text(" ", strip=True))
+        have = int(match.group(1)) if match else 0
+        label = ADAPTER.line_text(line).split(" ", 1)[1]
+        short.append(f"{label} ({have} of {line['qty']})")
+    return short
+
+
 class _ManaPoolAdapter(HeadedWindows):
     name = "manapool"
     display_name = "Mana Pool"
     kind: Literal["marketplace"] = "marketplace"
+    # /add-deck reads `qty name [SET] number *F*` and has an Exact tab.
+    pins_printings = True
     base_url = _BASE_URL
     cart_path = "/cart"
     login_path = "/sign-in"
@@ -252,13 +292,22 @@ class _ManaPoolAdapter(HeadedWindows):
         )
         page.wait_for_selector("textarea", timeout=15000)
         page.wait_for_timeout(500)
-        bulk_text = "\n".join(
-            f"{ln['qty']} {self.name_for_search(ln['card_name'])}" for ln in lines
-        )
+        bulk_text = "\n".join(self.line_text(ln) for ln in lines)
         page.locator("textarea").first.fill(bulk_text)
         # The list is parsed asynchronously; the stock count marks the end.
         page.get_by_text(_PARSED_RE).first.wait_for(timeout=30000)
         self._resolve_ambiguous(page)
+        unfound: list[str] = []
+        if any(ln.get("printing") for ln in lines):
+            # The Exact tab makes the optimizer buy the printing each line
+            # names; Any Printing (the default) would buy the cheapest.
+            page.locator(_EXACT_TAB).click()
+            page.wait_for_timeout(1500)
+            html = page.content()
+            if not exact_tab_active(html):
+                # Optimizing now would buy any printing of the pinned lines.
+                raise StoreSelectorError(self.name, f"{_EXACT_TAB} active", page.url)
+            unfound = exact_shortfalls(html, lines)
         page.locator('button:has-text("Optimize Price")').first.click()
         page.wait_for_url("**/optimizer", timeout=30000)
         page.wait_for_timeout(2000)
@@ -299,8 +348,22 @@ class _ManaPoolAdapter(HeadedWindows):
             items_subtotal=cheapest["subtotal"],
             shipping=cheapest["shipping"],
             lines=[],  # Per-line breakdown not extracted in v1.
-            unfound=[],  # MP flags unmatched lines on /add-deck; v1 tolerates loss.
+            # Pinned lines the Exact tab can't fill; an unpinned line MP
+            # can't match is still lost silently.
+            unfound=unfound,
             cart_url=self.cart_url,
+        )
+
+    def line_text(self, line: Line) -> str:
+        """One /add-deck line: `qty name`, and for a pinned printing
+        `qty name [SET] number`, with `*F*` / `*E*` for a foil / etched one."""
+        text = f"{line['qty']} {self.name_for_search(line['card_name'])}"
+        printing = line.get("printing")
+        if not printing:
+            return text
+        marker = {"foil": " *F*", "etched": " *E*"}.get(printing["finish"], "")
+        return (
+            f"{text} [{printing['set'].upper()}] {printing['collector_number']}{marker}"
         )
 
     def _resolve_ambiguous(self, page: Page) -> None:

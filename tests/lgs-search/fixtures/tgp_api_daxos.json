@@ -1,0 +1,84 @@
+{
+ "products": [
+  {
+   "name": "Daxos, Blessed by the Sun (THB) (Full Art) (#258)",
+   "card_name": "Daxos, Blessed by the Sun",
+   "card_code": "THB258N",
+   "card_number": "258",
+   "set_name": "Theros Beyond Death",
+   "finish": "Normal",
+   "variant": "Full Art",
+   "is_in_stock": true,
+   "product_url": "/theros-beyond-death/daxos-blessed-by-the-sun-thb-full-art-258/",
+   "bc_product_id": 146265,
+   "product_name": "Daxos, Blessed by the Sun (THB) (Full Art) (#258)",
+   "available_variants": [
+    {
+     "sku": "THB258N-LP-EN",
+     "language": "English",
+     "condition": "Lightly-Played",
+     "price": 0.5,
+     "inventory_level": 4,
+     "is_purchasable": true,
+     "bc_product_id": 146265,
+     "bc_variant_id": 875540
+    }
+   ]
+  },
+  {
+   "name": "Sun-Blessed Healer (FDN) (#25)",
+   "card_name": "Sun-Blessed Healer",
+   "card_code": "FDN25N",
+   "card_number": "25",
+   "set_name": "Foundations",
+   "finish": "Normal",
+   "variant": "None",
+   "is_in_stock": true,
+   "product_url": "/foundations/sun-blessed-healer-fdn-25/",
+   "bc_product_id": 157867,
+   "product_name": "Sun-Blessed Healer (FDN) (#25)",
+   "available_variants": [
+    {
+     "sku": "FDN25N-LP-EN",
+     "language": "English",
+     "condition": "Lightly-Played",
+     "price": 0.5,
+     "inventory_level": 4,
+     "is_purchasable": true,
+     "bc_product_id": 157867,
+     "bc_variant_id": 944656
+    }
+   ]
+  },
+  {
+   "name": "Sun-Blessed Mount (XLN) (#288)",
+   "card_name": "Sun-Blessed Mount",
+   "card_code": "XLN288N",
+   "card_number": "288",
+   "set_name": "Ixalan",
+   "finish": "Normal",
+   "variant": "None",
+   "is_in_stock": true,
+   "product_url": "/ixalan/sun-blessed-mount-xln-288/",
+   "bc_product_id": 139478,
+   "product_name": "Sun-Blessed Mount (XLN) (#288)",
+   "available_variants": [
+    {
+     "sku": "XLN288N-LP-EN",
+     "language": "English",
+     "condition": "Lightly-Played",
+     "price": 0.5,
+     "inventory_level": 1,
+     "is_purchasable": true,
+     "bc_product_id": 139478,
+     "bc_variant_id": 834818
+    }
+   ]
+  }
+ ],
+ "pagination": {
+  "page": 1,
+  "limit": 48,
+  "total": 3
+ }
+}

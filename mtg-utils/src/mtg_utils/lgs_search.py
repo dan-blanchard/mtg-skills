@@ -11,10 +11,11 @@ from collections.abc import Callable, Generator
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Literal, TypedDict, cast
+from typing import TYPE_CHECKING, Literal, NotRequired, TypedDict, cast
 
 from mtg_utils._sidecar import atomic_write_json
-from mtg_utils._stores._common import Line, Listing
+from mtg_utils._stores._common import Line, Listing, PrintingRequest
+from mtg_utils._stores.printing import PrintingSpec, records_by_name
 from mtg_utils.card_classify import BASIC_LAND_NAMES
 from mtg_utils.card_pool import CardPool, NoBulkError
 from mtg_utils.formats import PAPER, Format
@@ -23,47 +24,90 @@ from mtg_utils.names import normalize_card_name
 if TYPE_CHECKING:
     from playwright.sync_api import Page
 
+    from mtg_utils._stores._common import LGSAdapter
+
 
 class NeededCard(TypedDict):
     card_name: str
     qty: int
+    # Set only under --exact-printings, for a line that pins one.
+    printing: NotRequired[PrintingRequest]
 
 
-def _parse_text_line(line: str) -> NeededCard | None:
-    from mtg_utils.parse_deck import _strip_set_code
+def card_key(card: NeededCard | AllocatedCard | SearchResultRow) -> str:
+    """One want-list line's identity: its name, or for a pinned printing the
+    line as a want-list writes it ("Citizen (TFRC) 11 *F*"), so two printings
+    of one card stay two lines."""
+    printing = card.get("printing")
+    if not printing:
+        return card["card_name"]
+    marker = {"foil": " *F*", "etched": " *E*"}.get(printing["finish"], "")
+    return (
+        f"{card['card_name']} ({printing['set'].upper()}) "
+        f"{printing['collector_number']}{marker}"
+    )
+
+
+def _printing_request(extras: dict) -> PrintingRequest | None:
+    """A parsed line's printing keys as a request, when it pins a printing."""
+    if not extras.get("set") or not extras.get("collector_number"):
+        return None
+    return PrintingRequest(
+        set=str(extras["set"]).lower(),
+        collector_number=str(extras["collector_number"]),
+        finish=str(extras.get("finish") or "nonfoil"),
+    )
+
+
+def _needed(name: str, qty: int, extras: dict, *, exact: bool) -> NeededCard:
+    card = NeededCard(card_name=name, qty=qty)
+    if exact and (printing := _printing_request(extras)):
+        card["printing"] = printing
+    return card
+
+
+def _parse_text_line(line: str, *, exact: bool = False) -> NeededCard | None:
+    from mtg_utils.parse_deck import _extract_printing
 
     line = line.strip()
     if not line or line.startswith(("#", "//")):
         return None
+    qty, rest = 1, line
     parts = line.split(maxsplit=1)
-    if len(parts) == 1:
-        return NeededCard(card_name=_strip_set_code(parts[0]), qty=1)
-    head, rest = parts
-    if head.rstrip("xX").isdigit():
-        qty = int(head.rstrip("xX"))
-        return NeededCard(card_name=_strip_set_code(rest.strip()), qty=qty)
-    return NeededCard(card_name=_strip_set_code(line), qty=1)
+    if len(parts) == 2 and parts[0].rstrip("xX").isdigit():
+        qty, rest = int(parts[0].rstrip("xX")), parts[1].strip()
+    name, extras = _extract_printing(rest)
+    return _needed(name.strip(), qty, extras, exact=exact)
 
 
-def _read_text_list(path: Path) -> list[NeededCard]:
-    cards: dict[str, int] = {}
-    for line in path.read_text(encoding="utf-8").splitlines():
-        parsed = _parse_text_line(line)
-        if parsed is None:
-            continue
-        cards[parsed["card_name"]] = cards.get(parsed["card_name"], 0) + parsed["qty"]
-    return [NeededCard(card_name=n, qty=q) for n, q in cards.items()]
+def _merge_lines(cards: list[NeededCard]) -> list[NeededCard]:
+    """Sum quantities of the same line (same name, same pinned printing),
+    first-appearance order."""
+    merged: dict[str, NeededCard] = {}
+    for card in cards:
+        key = card_key(card)
+        if key in merged:
+            merged[key]["qty"] += card["qty"]
+        else:
+            merged[key] = NeededCard(**card)
+    return list(merged.values())
 
 
-def _read_deck_json(path: Path) -> list[NeededCard]:
+def _read_text_list(path: Path, *, exact: bool = False) -> list[NeededCard]:
+    lines = path.read_text(encoding="utf-8").splitlines()
+    parsed = [_parse_text_line(line, exact=exact) for line in lines]
+    return _merge_lines([c for c in parsed if c is not None])
+
+
+def _read_deck_json(path: Path, *, exact: bool = False) -> list[NeededCard]:
     data = json.loads(path.read_text(encoding="utf-8"))
-    cards: dict[str, int] = {}
+    cards: list[NeededCard] = []
 
     def _add(entry: object) -> None:
         # parse-deck emits [{"name", "quantity"}]; tolerate bare strings, and skip
         # entries with no name, so one malformed row doesn't abort the whole read.
         if isinstance(entry, str):
-            cards[entry] = cards.get(entry, 0) + 1
+            cards.append(NeededCard(card_name=entry, qty=1))
             return
         if not isinstance(entry, dict):
             return
@@ -72,13 +116,13 @@ def _read_deck_json(path: Path) -> list[NeededCard]:
             return
         raw_qty = entry.get("quantity", entry.get("qty", 1))
         qty = int(raw_qty) if isinstance(raw_qty, (int, str)) else 1
-        cards[name] = cards.get(name, 0) + qty
+        cards.append(_needed(name, qty, entry, exact=exact))
 
     for entry in data.get("commanders") or []:
         _add(entry)
     for entry in (data.get("cards") or []) + (data.get("sideboard") or []):
         _add(entry)
-    return [NeededCard(card_name=n, qty=q) for n, q in cards.items()]
+    return _merge_lines(cards)
 
 
 def _looks_like_json(path: Path) -> bool:
@@ -114,14 +158,14 @@ def _subtract_collection(
         owned[key] = owned.get(key, 0) + qty
     result: list[NeededCard] = []
     for c in cards:
+        key = normalize_card_name(c["card_name"])
         remaining = Format.copies_short(
-            PAPER,
-            c["card_name"],
-            c["qty"],
-            owned.get(normalize_card_name(c["card_name"]), 0),
+            PAPER, c["card_name"], c["qty"], owned.get(key, 0)
         )
+        # Two lines of one card (two pinned printings) share its owned copies.
+        owned[key] = max(0, owned.get(key, 0) - (c["qty"] - remaining))
         if remaining > 0:
-            result.append(NeededCard(card_name=c["card_name"], qty=remaining))
+            result.append(NeededCard(**{**c, "qty": remaining}))
     return result
 
 
@@ -130,6 +174,7 @@ def resolve_input(
     *,
     collection_path: Path | None,
     include_basics: bool,
+    exact_printings: bool = False,
 ) -> tuple[list[NeededCard], dict[str, int]]:
     """Resolve input → (cards-to-buy, basic-lands-needed-summary).
 
@@ -140,12 +185,13 @@ def resolve_input(
     (or a list of `{"name": ..., "qty": ...}` rows), owned copies are
     subtracted before returning. Basic lands are filtered out and surfaced
     in the second return value unless `include_basics` is True. Snow basics
-    are not filtered.
+    are not filtered. With `exact_printings`, a line's set code and collector
+    number (and *F* / *E* finish) pin that printing (`NeededCard.printing`).
     """
     if _looks_like_json(input_path):
-        raw = _read_deck_json(input_path)
+        raw = _read_deck_json(input_path, exact=exact_printings)
     else:
-        raw = _read_text_list(input_path)
+        raw = _read_text_list(input_path, exact=exact_printings)
     if include_basics:
         # The flag wins: basics stay on the list to buy even when the collection
         # covers them (the ownership rule counts them as owned), so only the rest
@@ -184,6 +230,7 @@ class SearchResultRow(TypedDict):
     qty: int
     by_store: dict[str, Listing | None]  # registry-keyed: one entry per LGS_STORES
     scryfall_usd: float
+    printing: NotRequired[PrintingRequest]
 
 
 class AllocatedCard(TypedDict):
@@ -191,6 +238,18 @@ class AllocatedCard(TypedDict):
     qty: int
     store: str  # "tgp" | "atomic_empire" | "marketplace"
     listing: Listing | None  # None for online (resolved in Step 4)
+    printing: NotRequired[PrintingRequest]
+
+
+def _allocated(
+    row: SearchResultRow, qty: int, store: str, listing: Listing | None
+) -> AllocatedCard:
+    out = AllocatedCard(
+        card_name=row["card_name"], qty=qty, store=store, listing=listing
+    )
+    if printing := row.get("printing"):
+        out["printing"] = printing
+    return out
 
 
 @dataclass(frozen=True)
@@ -260,26 +319,10 @@ def allocate(
             candidates[sorted_keys[0]]["price"] if sorted_keys else float("inf")
         )
 
-        if _spill_triggered(cheapest_lgs, row["scryfall_usd"], cfg):
-            out.append(
-                AllocatedCard(
-                    card_name=row["card_name"],
-                    qty=row["qty"],
-                    store="marketplace",
-                    listing=None,
-                )
-            )
-            continue
-
-        if not sorted_keys:
-            out.append(
-                AllocatedCard(
-                    card_name=row["card_name"],
-                    qty=row["qty"],
-                    store="marketplace",
-                    listing=None,
-                )
-            )
+        if _spill_triggered(cheapest_lgs, row["scryfall_usd"], cfg) or (
+            not sorted_keys
+        ):
+            out.append(_allocated(row, row["qty"], "marketplace", None))
             continue
 
         # Trip-consolidation tie-break: among LGS prices that are "close",
@@ -301,26 +344,12 @@ def allocate(
             take = min(avail, remaining)
             if take <= 0:
                 continue
-            out.append(
-                AllocatedCard(
-                    card_name=row["card_name"],
-                    qty=take,
-                    store=key,
-                    listing=candidates[key],
-                )
-            )
+            out.append(_allocated(row, take, key, candidates[key]))
             running_totals[key] += take * candidates[key]["price"]
             remaining -= take
 
         if remaining > 0:
-            out.append(
-                AllocatedCard(
-                    card_name=row["card_name"],
-                    qty=remaining,
-                    store="marketplace",
-                    listing=None,
-                )
-            )
+            out.append(_allocated(row, remaining, "marketplace", None))
 
     return out
 
@@ -330,12 +359,13 @@ def assert_no_duplicates_invariant(
     allocated: list[AllocatedCard],
 ) -> None:
     """Each (card, copy) is assigned to exactly one store. Sum-of-qtys per
-    card name must equal the requested qty.
+    line (`card_key`: two pinned printings of a card are two lines) must
+    equal the requested qty.
     """
-    needed_qty = {c["card_name"]: c["qty"] for c in needed}
+    needed_qty = {card_key(c): c["qty"] for c in needed}
     actual: dict[str, int] = {}
     for a in allocated:
-        actual[a["card_name"]] = actual.get(a["card_name"], 0) + a["qty"]
+        actual[card_key(a)] = actual.get(card_key(a), 0) + a["qty"]
     if needed_qty != actual:
         diff = {
             k: (needed_qty.get(k, 0), actual.get(k, 0))
@@ -409,6 +439,7 @@ def sweep_lgs(
     *,
     scryfall_usd_lookup: dict[str, float],
     prefs: SearchPrefs,
+    specs: dict[str, PrintingSpec] | None = None,
     max_workers: int = 8,
     per_store_concurrency: int = 4,
     page_factory: Callable[[str], Page | None] | None = None,
@@ -416,6 +447,12 @@ def sweep_lgs(
     progress: Callable[[str, str, Listing | None], None] | None = None,
 ) -> list[SearchResultRow]:
     """Search every LGS for every card; return one SearchResultRow per card.
+
+    Each (card name, store) pair is searched once, however many lines name
+    the card. A line that pins a printing (`specs`, keyed by `card_key`)
+    keeps only the listings that are that printing, each marked with how it
+    matched (`Listing.printing_match`), before the best is picked.
+    `scryfall_usd_lookup` is keyed by `card_key` too.
 
     `page_factory` is a callable `(store_name) -> Page-like` injected for
     testability. In production the orchestrator passes a real Playwright
@@ -427,63 +464,90 @@ def sweep_lgs(
     (card, store) search in the caller's thread. Use this when the
     page_factory hands out sync-Playwright pages — sync Playwright is
     not safe to use across threads.
-    """
 
-    def _search_one(card: NeededCard, store: str) -> tuple[str, str, Listing | None]:
+    A search that raises counts as "not in stock" at that store; the first
+    failure per store is reported on stderr so a broken adapter is visible.
+    """
+    specs = specs or {}
+    reported: set[str] = set()
+
+    def _search(name: str, qty: int, store: str) -> list[Listing]:
         adapter = LGS_ADAPTERS[store]
         try:
             page = page_factory(store) if page_factory else None
-            listings = adapter.search(
-                cast("Page", page),
-                card["card_name"],
-                qty=card["qty"],
-                prefs=prefs,
-            )
-        except Exception:  # noqa: BLE001
-            return card["card_name"], store, None
-        chosen = pick_best_listing(listings, qty=card["qty"], prefs=prefs)
-        return card["card_name"], store, chosen
+            return adapter.search(cast("Page", page), name, qty=qty, prefs=prefs)
+        except Exception as exc:  # noqa: BLE001
+            if store not in reported:
+                reported.add(store)
+                click.echo(
+                    f"[{store}] search failed ({name}): "
+                    f"{str(exc).splitlines()[0][:200]}",
+                    err=True,
+                )
+            return []
 
-    results: dict[tuple[str, str], Listing | None] = {}
+    def _choose(card: NeededCard, listings: list[Listing]) -> Listing | None:
+        spec = specs.get(card_key(card))
+        if spec is not None:
+            listings = [
+                Listing(**{**x, "printing_match": how})
+                for x in listings
+                if (how := spec.match(x))
+            ]
+        return pick_best_listing(listings, qty=card["qty"], prefs=prefs)
+
+    # The largest quantity any line wants of a name, per search.
+    wanted: dict[str, int] = {}
+    for card in cards:
+        name = card["card_name"]
+        wanted[name] = max(wanted.get(name, 0), card["qty"])
+
+    lines_of: dict[str, list[NeededCard]] = {}
+    for card in cards:
+        lines_of.setdefault(card["card_name"], []).append(card)
+
+    found: dict[tuple[str, str], list[Listing]] = {}
     if sequential:
-        for card in cards:
+        for name, qty in wanted.items():
             for store in LGS_STORES:
-                name, store_, listing = _search_one(card, store)
-                results[(name, store_)] = listing
+                found[(name, store)] = listings = _search(name, qty, store)
                 if progress:
-                    progress(name, store_, listing)
+                    for card in lines_of[name]:
+                        progress(card_key(card), store, _choose(card, listings))
     else:
         semaphores = {name: Semaphore(per_store_concurrency) for name in LGS_STORES}
 
-        def _search_one_locked(
-            card: NeededCard, store: str
-        ) -> tuple[str, str, Listing | None]:
+        def _search_locked(name: str, qty: int, store: str) -> list[Listing]:
             with semaphores[store]:
-                return _search_one(card, store)
+                return _search(name, qty, store)
 
         with ThreadPoolExecutor(max_workers=max_workers) as ex:
-            futures = [
-                ex.submit(_search_one_locked, card, store)
-                for card in cards
+            futures = {
+                ex.submit(_search_locked, name, qty, store): (name, store)
+                for name, qty in wanted.items()
                 for store in LGS_STORES
-            ]
+            }
             for fut in as_completed(futures):
-                name, store, listing = fut.result()
-                results[(name, store)] = listing
+                found[futures[fut]] = fut.result()
 
     rows: list[SearchResultRow] = []
     for card in cards:
-        rows.append(
-            SearchResultRow(
-                card_name=card["card_name"],
-                qty=card["qty"],
-                by_store={
-                    store: results.get((card["card_name"], store))
-                    for store in LGS_STORES
-                },
-                scryfall_usd=scryfall_usd_lookup.get(card["card_name"], 0.0),
-            )
+        by_store = {
+            store: _choose(card, found.get((card["card_name"], store), []))
+            for store in LGS_STORES
+        }
+        if progress and not sequential:
+            for store, listing in by_store.items():
+                progress(card_key(card), store, listing)
+        row = SearchResultRow(
+            card_name=card["card_name"],
+            qty=card["qty"],
+            by_store=by_store,
+            scryfall_usd=scryfall_usd_lookup.get(card_key(card), 0.0),
         )
+        if printing := card.get("printing"):
+            row["printing"] = printing
+        rows.append(row)
     return rows
 
 
@@ -513,8 +577,17 @@ def optimize_marketplace(
     """
     if not marketplace_lines:
         return None
+    pinned = any(line.get("printing") for line in marketplace_lines)
     results: dict[str, OptimizedCart] = {}
     for store, adapter in MARKETPLACE_ADAPTERS.items():
+        if pinned and not adapter.pins_printings:
+            # Its bulk entry can't hold a collector number, so its optimizer
+            # would buy any printing of a pinned line.
+            click.echo(
+                f"[{store}] skipped: its bulk entry can't pin a printing.",
+                err=True,
+            )
+            continue
         page = page_factory(store) if page_factory else None
         try:
             results[store] = adapter.bulk_submit_and_optimize(
@@ -598,6 +671,29 @@ def handoff_to_browsers(targets: list[tuple]) -> None:
         adapter.open_handoff(profile_dir)
 
 
+def await_login(
+    adapter: LGSAdapter,
+    page: Page,
+    *,
+    timeout_s: int = 600,
+    poll_ms: int = 3000,
+) -> bool:
+    """Watch the open headed window until the user has signed in, then put
+    it back on the store's home page. Polls the page itself, never stdin, so
+    a run with no terminal (an agent's background run) can still wait for a
+    sign-in. A store's signed-in cookie can be session-only (TGP's is), so
+    the sign-in has to happen in the window that builds the cart; a separate
+    `lgs-search login` doesn't carry over. False after `timeout_s`."""
+    for _ in range(max(1, timeout_s * 1000 // poll_ms)):
+        page.wait_for_timeout(poll_ms)
+        with contextlib.suppress(Exception):  # mid-navigation reads can fail
+            if adapter.is_logged_in(page):
+                page.goto(adapter.base_url, wait_until="domcontentloaded")
+                page.wait_for_timeout(500)
+                return True
+    return False
+
+
 def _build_lgs_carts_and_handoff(
     allocation: list[AllocatedCard],
     *,
@@ -646,13 +742,14 @@ def _build_lgs_carts_and_handoff(
             page.wait_for_timeout(500)
             if not adapter.is_logged_in(page):
                 click.echo(
-                    f"[{store}] not logged in. Sign in via the open window, "
-                    "then press Enter here to continue.",
+                    f"[{store}] not logged in. Sign in via the open window; "
+                    "the run continues once you're signed in.",
                 )
-                input()
-                page.reload(wait_until="domcontentloaded")
-                page.wait_for_timeout(500)
-                if not adapter.is_logged_in(page):
+                page.goto(
+                    f"{adapter.base_url}{adapter.login_path}",
+                    wait_until="domcontentloaded",
+                )
+                if not await_login(adapter, page):
                     click.echo(
                         f"[{store}] still not logged in; skipping cart build "
                         "for this store. Re-run after fixing.",
@@ -755,6 +852,12 @@ from mtg_utils._stores._common import profile_dir_for, profiles_root  # noqa: E4
 )
 @click.option("--allow-foil", is_flag=True)
 @click.option("--prefer-set", default=None)
+@click.option(
+    "--exact-printings",
+    is_flag=True,
+    help="Buy the printing each line names: '(SET) number' and *F*/*E*, or "
+    "another printing with the same art and style.",
+)
 @click.option("--lgs-online-threshold-pct", default=20.0, type=float)
 @click.option("--lgs-online-threshold-usd", default=2.00, type=float)
 @click.option("--consolidate-threshold-pct", default=10.0, type=float)
@@ -920,6 +1023,40 @@ def _cheapest_usd(pool: CardPool | None, names: list[str]) -> dict[str, float]:
     return out
 
 
+def printing_specs(
+    pool: CardPool | None, cards: list[NeededCard]
+) -> dict[str, PrintingSpec]:
+    """A PrintingSpec per pinned line, keyed by `card_key`. Without a card
+    pool each one matches only its exact set and number."""
+    pinned = [c for c in cards if c.get("printing")]
+    if not pinned:
+        return {}
+    records = records_by_name(
+        pool.cards if pool is not None else [],
+        sorted({c["card_name"] for c in pinned}),
+    )
+    return {
+        card_key(c): PrintingSpec(
+            c["card_name"], c["printing"], tuple(records[c["card_name"]])
+        )
+        for c in pinned
+    }
+
+
+def _line(allocated: AllocatedCard) -> Line:
+    line = Line(card_name=allocated["card_name"], qty=allocated["qty"])
+    if printing := allocated.get("printing"):
+        line["printing"] = printing
+    return line
+
+
+def _unfound(marketplace: dict | None) -> list[str]:
+    """The chosen Marketplace's lines it can't fill."""
+    if not marketplace or not marketplace.get("chosen"):
+        return []
+    return list(marketplace[marketplace["chosen"]].get("unfound") or [])
+
+
 def _positive_price(raw: str | float | None) -> float | None:
     """A listed price as a float, or None when it is missing, malformed or zero."""
     if not raw:
@@ -952,6 +1089,19 @@ def _load_pool(bulk_data: Path | None) -> CardPool | None:
     return pool
 
 
+def _match_note(listing: Listing | dict) -> str:
+    """How a store's copy matched a pinned printing, for the summary."""
+    how = listing.get("printing_match")
+    if not how or how == "exact":
+        return ""
+    set_name = listing.get("set_name") or listing.get("set_code", "")
+    if how == "equivalent":
+        number = listing.get("collector_number")
+        where = f"{listing.get('set_code', '')} {number}" if number else set_name
+        return f", same art and style: {where}"
+    return f", {set_name} by set and style"
+
+
 def _render_summary(
     allocation: list[AllocatedCard], marketplace: dict | None, basics: dict[str, int]
 ) -> str:
@@ -970,8 +1120,8 @@ def _render_summary(
         for a in items:
             li = a["listing"] or {}
             lines.append(
-                f"  + {a['card_name']} ({li.get('condition', '?')}) - "
-                f"${li.get('price', 0):.2f}",
+                f"  + {card_key(a)} x{a['qty']} ({li.get('condition', '?')}"
+                f"{_match_note(li)}) - ${li.get('price', 0):.2f}",
             )
     spillover_items = by_store.get("marketplace", [])
     if spillover_items and not marketplace:
@@ -983,7 +1133,7 @@ def _render_summary(
             "(price TBD; re-run without --dry-run for optimizer totals)",
         )
         for a in spillover_items:
-            lines.append(f"  + {a['card_name']} x{a['qty']}")
+            lines.append(f"  + {card_key(a)} x{a['qty']}")
     if marketplace and marketplace.get("chosen"):
         chosen = marketplace["chosen"]
         result = marketplace[chosen]
@@ -1007,6 +1157,14 @@ def _render_summary(
             f"\n{MARKETPLACE_ADAPTERS[chosen].display_name} "
             f"({comparison}) - items+shipping; tax computed at checkout",
         )
+        for a in spillover_items:
+            lines.append(f"  + {card_key(a)} x{a['qty']}")
+        if unfound := _unfound(marketplace):
+            lines.append(
+                f"\nNot in stock as that printing at "
+                f"{MARKETPLACE_ADAPTERS[chosen].display_name} - {len(unfound)} lines",
+            )
+            lines.extend(f"  - {u}" for u in unfound)
     if basics:
         lines.append("")
         lines.append(summarize_basics(basics))
@@ -1021,6 +1179,7 @@ def _run_orchestrator(
     condition: Literal["nm", "lp", "mp", "hp", "any"],
     allow_foil: bool,
     prefer_set: str | None,
+    exact_printings: bool,
     lgs_online_threshold_pct: float,
     lgs_online_threshold_usd: float,
     consolidate_threshold_pct: float,
@@ -1065,9 +1224,19 @@ def _run_orchestrator(
         input_path,
         collection_path=collection,
         include_basics=include_basics,
+        exact_printings=exact_printings,
     )
-    names = [c["card_name"] for c in cards]
-    usd_lookup = _cheapest_usd(_load_pool(bulk_data), names)
+    pool = _load_pool(bulk_data)
+    specs = printing_specs(pool, cards)
+    by_name = _cheapest_usd(pool, sorted({c["card_name"] for c in cards}))
+    usd_lookup = {
+        card_key(c): (
+            specs[card_key(c)].usd()
+            if card_key(c) in specs
+            else by_name.get(c["card_name"], 0.0)
+        )
+        for c in cards
+    }
 
     prefs: SearchPrefs = {
         "max_condition": condition,
@@ -1106,6 +1275,7 @@ def _run_orchestrator(
             cards,
             scryfall_usd_lookup=usd_lookup,
             prefs=prefs,
+            specs=specs,
             page_factory=page_factory,
             sequential=True,
             progress=_progress,
@@ -1120,9 +1290,7 @@ def _run_orchestrator(
         assert_no_duplicates_invariant(cards, allocation)
 
         marketplace_lines: list[Line] = [
-            {"card_name": a["card_name"], "qty": a["qty"]}
-            for a in allocation
-            if a["store"] == "marketplace"
+            _line(a) for a in allocation if a["store"] == "marketplace"
         ]
         if dry_run:
             marketplace = None  # do not touch Marketplace carts in dry-run
@@ -1137,14 +1305,7 @@ def _run_orchestrator(
         "generated_at": now_iso(),
         "allocation": [dict(a) for a in allocation],
         "online_optimizer_results": marketplace,
-        "unfindable": [
-            a["card_name"]
-            for a in allocation
-            if a["store"] == "marketplace"
-            and marketplace
-            and a["card_name"]
-            in marketplace.get(marketplace["chosen"], {}).get("unfound", [])
-        ],
+        "unfindable": _unfound(marketplace),
         "basic_lands_needed": basics,
     }
     write_sidecar(sidecar_path, sc)

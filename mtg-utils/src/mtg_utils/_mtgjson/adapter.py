@@ -326,6 +326,10 @@ def translate_card(
         "frame_effects": front.get("frameEffects") or [],
         "promo": bool(front.get("isPromo")),
         "promo_types": front.get("promoTypes") or [],
+        # Art identity — two printings sharing both have the same art and frame
+        # (lgs-search's printing equivalence, ``_stores.printing``).
+        "illustration_id": ids.get("scryfallIllustrationId"),
+        "frame": front.get("frameVersion"),
         "game_changer": bool(front.get("isGameChanger")),
         # Pre-split arrays — new, used to harden the _subtypes precision gate.
         "types": front.get("types") or [],

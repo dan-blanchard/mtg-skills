@@ -60,6 +60,44 @@ class TestParseTitle:
         assert name == "Sol Ring"
 
 
+class TestPrintingDetails:
+    """What a row says about its printing: the image folder's set code, the
+    title's variant labels, the finish."""
+
+    def _listings(self, fixture: str, name: str) -> list:
+        html = (FIXTURE_DIR / fixture).read_text(encoding="utf-8")
+        prefs = {"max_condition": "any", "allow_foil": True, "prefer_set": None}
+        return ADAPTER.search(_mock_page(html), name, qty=1, prefs=prefs)
+
+    def test_set_code_name_and_finish(self):
+        (daxos,) = self._listings("ae_search_daxos.html", "Daxos, Blessed by the Sun")
+        assert daxos["set_code"] == "THB"
+        assert daxos["set_name"] == "Theros Beyond Death"
+        assert daxos["finish"] == "nonfoil"
+        assert daxos["variant_labels"] == []
+        assert daxos["qty_available"] == 1  # no Qty dropdown: one copy
+
+    def test_token_title_matches_the_token_name(self):
+        listings = self._listings("ae_search_elemental_token.html", "Elemental")
+        by_id = {x["listing_id"]: x for x in listings}
+        voice = by_id["17866"]  # "Elemental Token (created by Voice of Resurgence)"
+        assert voice["card_name"] == "Elemental"
+        assert voice["set_code"] == "DGM"
+        assert voice["variant_labels"] == ["created by Voice of Resurgence"]
+        unstable = by_id["63190"]  # "[FOIL] Elemental Token (011)"
+        assert unstable["finish"] == "foil"
+        assert unstable["variant_labels"] == ["011"]
+
+    def test_variant_labels_and_image_set_code(self):
+        from mtg_utils._stores.atomic_empire import image_set_code, variant_labels
+
+        title = "Daxos, Blessed by the Sun (Showcase) (THB)"
+        assert variant_labels(title) == ["Showcase", "THB"]
+        assert _parse_title(title)[0] == "Daxos, Blessed by the Sun"
+        src = "https://d3coyyctchxonz.cloudfront.net/2020/PLST/130449.100.jpg"
+        assert image_set_code(src) == "PLST"
+
+
 class TestSearch:
     def test_returns_only_in_stock_listings(self):
         html = (FIXTURE_DIR / "ae_search_sol_ring.html").read_text(encoding="utf-8")
@@ -70,11 +108,13 @@ class TestSearch:
         only = listings[0]
         assert only["store"] == "atomic_empire"
         assert only["card_name"] == "Sol Ring"
-        assert only["set_code"] == "Mystery Booster 2"
+        assert only["set_code"] == "MB2"  # the image folder's code
+        assert only["set_name"] == "Mystery Booster 2"
         assert only["price"] == 5.35
         assert only["condition"] == "NM"  # SP/NM → NM (better end of range)
         assert only["foil"] is False
         assert only["listing_id"] == "172135"
+        assert only["qty_available"] == 2  # its Qty dropdown runs 1-2
 
     def test_navigates_to_correct_url(self):
         html = (FIXTURE_DIR / "ae_search_sol_ring.html").read_text(encoding="utf-8")

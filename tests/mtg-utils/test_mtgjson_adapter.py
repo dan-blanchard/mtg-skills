@@ -208,6 +208,22 @@ def test_translate_carries_printing_style():
     assert rec["promo_types"] == ["boosterfun"]
 
 
+def test_translate_carries_art_identity():
+    """The illustration and frame version ride onto the record: two printings with
+    the same art and style (lgs-search's printing equivalence) share both."""
+    plain = adapter.translate_card([_sunfall()])
+    assert plain["illustration_id"] is None
+    assert plain["frame"] is None
+    face = _sunfall()
+    face["identifiers"] = {
+        **face["identifiers"],
+        "scryfallIllustrationId": "be2f7173-c8b7-4172-a388-9b2c6b3c16e5",
+    }
+    rec = adapter.translate_card([{**face, "frameVersion": "2015"}])
+    assert rec["illustration_id"] == "be2f7173-c8b7-4172-a388-9b2c6b3c16e5"
+    assert rec["frame"] == "2015"
+
+
 def test_translate_single_face_has_image_uris():
     rec = adapter.translate_card([_sunfall()])
     assert rec["image_uris"]["normal"].startswith(

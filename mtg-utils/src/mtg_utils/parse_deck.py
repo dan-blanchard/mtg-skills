@@ -265,8 +265,12 @@ def _parse_plain(content: str) -> dict:
 # or " (SET) 123a", plus any trailing foil/etched markers ("*F*", "*E*") those
 # exporters append after the collector number, e.g. "Sol Ring (C21) 263 *F*".
 # Groups: 1 = set code, 2 = collector number (kept as a string — may be
-# non-numeric like "263a", "CMR-99", or "263★"), 3 = the marker tail.
-_SET_CODE_PATTERN = re.compile(r"\s+\(([A-Z0-9]+)\)\s+(\S+?)((?:\s+\*\w+\*)*)$")
+# non-numeric like "263a", "CMR-99", or "263★"), 3 = the marker tail. The set
+# code may be lowercase ("(otj) 189", a Moxfield copy-with-tags line).
+_SET_CODE_PATTERN = re.compile(r"\s+\(([A-Za-z0-9]+)\)\s+(\S+?)((?:\s+\*\w+\*)*)$")
+# Moxfield's category tags after a line: "... (otj) 189 [Sac Outlet]",
+# "... [Tokens & Extras{noDeck}]". No card name holds a square bracket.
+_CATEGORY_TAGS_PATTERN = re.compile(r"(?:\s+\[[^\[\]]*\])+$")
 
 _FINISH_MARKERS = {"f": "foil", "e": "etched"}
 
@@ -277,8 +281,10 @@ def _extract_printing(name: str) -> tuple[str, dict]:
     Returns ``(clean_name, extras)`` where ``extras`` carries the optional
     output keys — ``"set"`` (lowercased), ``"collector_number"`` (string, as
     written), and ``"finish"`` (``"foil"``/``"etched"`` from a ``*F*``/``*E*``
-    marker) — each present only when found on the line.
+    marker) — each present only when found on the line. Trailing Moxfield
+    category tags ("[Sac Outlet]") are dropped first.
     """
+    name = _CATEGORY_TAGS_PATTERN.sub("", name)
     match = _SET_CODE_PATTERN.search(name)
     if not match:
         return name, {}

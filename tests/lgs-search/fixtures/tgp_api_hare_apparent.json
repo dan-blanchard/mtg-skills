@@ -1,0 +1,59 @@
+{
+ "products": [
+  {
+   "name": "Hare Apparent (FDN) (#15)",
+   "card_name": "Hare Apparent",
+   "card_code": "FDN15N",
+   "card_number": "15",
+   "set_name": "Foundations",
+   "finish": "Normal",
+   "variant": "None",
+   "is_in_stock": true,
+   "product_url": "/foundations/hare-apparent-fdn-15/",
+   "bc_product_id": 151920,
+   "product_name": "Hare Apparent (FDN) (#15)",
+   "available_variants": [
+    {
+     "sku": "FDN15N-LP-EN",
+     "language": "English",
+     "condition": "Lightly-Played",
+     "price": 9999,
+     "inventory_level": 32,
+     "is_purchasable": true,
+     "bc_product_id": 151920,
+     "bc_variant_id": 909279
+    }
+   ]
+  },
+  {
+   "name": "Hare Apparent (FDN) (Foil) (#15)",
+   "card_name": "Hare Apparent",
+   "card_code": "FDN15F",
+   "card_number": "15",
+   "set_name": "Foundations",
+   "finish": "Foil",
+   "variant": "None",
+   "is_in_stock": true,
+   "product_url": "/foundations/hare-apparent-fdn-foil-15/",
+   "bc_product_id": 159700,
+   "product_name": "Hare Apparent (FDN) (Foil) (#15)",
+   "available_variants": [
+    {
+     "sku": "FDN15F-NM-EN",
+     "language": "English",
+     "condition": "Near-Mint",
+     "price": 3.91,
+     "inventory_level": 3,
+     "is_purchasable": true,
+     "bc_product_id": 159700,
+     "bc_variant_id": 955628
+    }
+   ]
+  }
+ ],
+ "pagination": {
+  "page": 1,
+  "limit": 48,
+  "total": 2
+ }
+}

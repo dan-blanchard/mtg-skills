@@ -1,0 +1,509 @@
+{
+ "products": [
+  {
+   "name": "Zombie (TAFR) (#9)",
+   "card_name": "Zombie",
+   "card_code": "TAFR9N",
+   "card_number": "9",
+   "set_name": "Adventures in the Forgotten Realms Tokens",
+   "finish": "Normal",
+   "variant": "None",
+   "is_in_stock": true,
+   "product_url": "/adventures-in-the-forgotten-realms-tokens/zombie-tafr-9/",
+   "bc_product_id": 162594,
+   "product_name": "Zombie (TAFR) (#9)",
+   "available_variants": [
+    {
+     "sku": "TAFR9N-LP-EN",
+     "language": "English",
+     "condition": "Lightly-Played",
+     "price": 0.5,
+     "inventory_level": 1,
+     "is_purchasable": true,
+     "bc_product_id": 162594,
+     "bc_variant_id": 972859
+    }
+   ]
+  },
+  {
+   "name": "Zombie (TEMN) (#5)",
+   "card_name": "Zombie",
+   "card_code": "TEMN5N",
+   "card_number": "5",
+   "set_name": "Eldritch Moon Tokens",
+   "finish": "Normal",
+   "variant": "None",
+   "is_in_stock": true,
+   "product_url": "/eldritch-moon-tokens/zombie-temn-5/",
+   "bc_product_id": 154664,
+   "product_name": "Zombie (TEMN) (#5)",
+   "available_variants": [
+    {
+     "sku": "TEMN5N-LP-EN",
+     "language": "English",
+     "condition": "Lightly-Played",
+     "price": 0.5,
+     "inventory_level": 1,
+     "is_purchasable": true,
+     "bc_product_id": 154664,
+     "bc_variant_id": 925683
+    }
+   ]
+  },
+  {
+   "name": "Zombie (TMMA) (#8)",
+   "card_name": "Zombie",
+   "card_code": "TMMA8N",
+   "card_number": "8",
+   "set_name": "Modern Masters Tokens",
+   "finish": "Normal",
+   "variant": "None",
+   "is_in_stock": true,
+   "product_url": "/modern-masters-tokens/zombie-tmma-8/",
+   "bc_product_id": 153482,
+   "product_name": "Zombie (TMMA) (#8)",
+   "available_variants": [
+    {
+     "sku": "TMMA8N-LP-EN",
+     "language": "English",
+     "condition": "Lightly-Played",
+     "price": 0.5,
+     "inventory_level": 1,
+     "is_purchasable": true,
+     "bc_product_id": 153482,
+     "bc_variant_id": 918646
+    }
+   ]
+  },
+  {
+   "name": "Zombie Knight (TDOM) (#5)",
+   "card_name": "Zombie Knight",
+   "card_code": "TDOM5N",
+   "card_number": "5",
+   "set_name": "Dominaria Tokens",
+   "finish": "Normal",
+   "variant": "None",
+   "is_in_stock": true,
+   "product_url": "/dominaria-tokens/zombie-knight-tdom-5/",
+   "bc_product_id": 136367,
+   "product_name": "Zombie Knight (TDOM) (#5)",
+   "available_variants": [
+    {
+     "sku": "TDOM5N-LP-EN",
+     "language": "English",
+     "condition": "Lightly-Played",
+     "price": 1.48,
+     "inventory_level": 4,
+     "is_purchasable": true,
+     "bc_product_id": 136367,
+     "bc_variant_id": 816152
+    }
+   ]
+  },
+  {
+   "name": "Zombie Master (3ED) (#138)",
+   "card_name": "Zombie Master",
+   "card_code": "3ED138N",
+   "card_number": "138",
+   "set_name": "Revised Edition",
+   "finish": "Normal",
+   "variant": "None",
+   "is_in_stock": true,
+   "product_url": "/revised-edition/zombie-master-3ed-138/",
+   "bc_product_id": 132586,
+   "product_name": "Zombie Master (3ED) (#138)",
+   "available_variants": [
+    {
+     "sku": "3ED138N-LP-EN",
+     "language": "English",
+     "condition": "Lightly-Played",
+     "price": 5.56,
+     "inventory_level": 3,
+     "is_purchasable": true,
+     "bc_product_id": 132586,
+     "bc_variant_id": 793466
+    }
+   ]
+  },
+  {
+   "name": "Zombie Master (5ED) (#207)",
+   "card_name": "Zombie Master",
+   "card_code": "5ED207N",
+   "card_number": "207",
+   "set_name": "Fifth Edition",
+   "finish": "Normal",
+   "variant": "None",
+   "is_in_stock": true,
+   "product_url": "/fifth-edition/zombie-master-5ed-207/",
+   "bc_product_id": 161925,
+   "product_name": "Zombie Master (5ED) (#207)",
+   "available_variants": [
+    {
+     "sku": "5ED207N-LP-EN",
+     "language": "English",
+     "condition": "Lightly-Played",
+     "price": 2.91,
+     "inventory_level": 1,
+     "is_purchasable": true,
+     "bc_product_id": 161925,
+     "bc_variant_id": 968876
+    }
+   ]
+  },
+  {
+   "name": "Zombie Warrior (TWAR) (#11)",
+   "card_name": "Zombie Warrior",
+   "card_code": "TWAR11N",
+   "card_number": "11",
+   "set_name": "War of the Spark Tokens",
+   "finish": "Normal",
+   "variant": "None",
+   "is_in_stock": true,
+   "product_url": "/war-of-the-spark-tokens/zombie-warrior-twar-11/",
+   "bc_product_id": 154784,
+   "product_name": "Zombie Warrior (TWAR) (#11)",
+   "available_variants": [
+    {
+     "sku": "TWAR11N-LP-EN",
+     "language": "English",
+     "condition": "Lightly-Played",
+     "price": 0.8,
+     "inventory_level": 3,
+     "is_purchasable": true,
+     "bc_product_id": 154784,
+     "bc_variant_id": 926403
+    }
+   ]
+  },
+  {
+   "name": "Zombie (T10E) (Full Art) (#2)",
+   "card_name": "Zombie",
+   "card_code": "T10E2N",
+   "card_number": "2",
+   "set_name": "Tenth Edition Tokens",
+   "finish": "Normal",
+   "variant": "Full Art",
+   "is_in_stock": true,
+   "product_url": "/tenth-edition-tokens/zombie-t10e-full-art-2/",
+   "bc_product_id": 154718,
+   "product_name": "Zombie (T10E) (Full Art) (#2)",
+   "available_variants": [
+    {
+     "sku": "T10E2N-LP-EN",
+     "language": "English",
+     "condition": "Lightly-Played",
+     "price": 3.62,
+     "inventory_level": 1,
+     "is_purchasable": true,
+     "bc_product_id": 154718,
+     "bc_variant_id": 926007
+    }
+   ]
+  },
+  {
+   "name": "Zombie Cannibal (ODY) (#169)",
+   "card_name": "Zombie Cannibal",
+   "card_code": "ODY169N",
+   "card_number": "169",
+   "set_name": "Odyssey",
+   "finish": "Normal",
+   "variant": "None",
+   "is_in_stock": true,
+   "product_url": "/odyssey/zombie-cannibal-ody-169/",
+   "bc_product_id": 156360,
+   "product_name": "Zombie Cannibal (ODY) (#169)",
+   "available_variants": [
+    {
+     "sku": "ODY169N-LP-EN",
+     "language": "English",
+     "condition": "Lightly-Played",
+     "price": 0.5,
+     "inventory_level": 1,
+     "is_purchasable": true,
+     "bc_product_id": 156360,
+     "bc_variant_id": 935779
+    }
+   ]
+  },
+  {
+   "name": "Zombie Apocalypse (DKA) (#80)",
+   "card_name": "Zombie Apocalypse",
+   "card_code": "DKA80N",
+   "card_number": "80",
+   "set_name": "Dark Ascension",
+   "finish": "Normal",
+   "variant": "None",
+   "is_in_stock": true,
+   "product_url": "/dark-ascension/zombie-apocalypse-dka-80/",
+   "bc_product_id": 150232,
+   "product_name": "Zombie Apocalypse (DKA) (#80)",
+   "available_variants": [
+    {
+     "sku": "DKA80N-LP-EN",
+     "language": "English",
+     "condition": "Lightly-Played",
+     "price": 1.3,
+     "inventory_level": 2,
+     "is_purchasable": true,
+     "bc_product_id": 150232,
+     "bc_variant_id": 899181
+    }
+   ]
+  },
+  {
+   "name": "Zombie Infestation (M12) (#120)",
+   "card_name": "Zombie Infestation",
+   "card_code": "M12120N",
+   "card_number": "120",
+   "set_name": "Magic 2012",
+   "finish": "Normal",
+   "variant": "None",
+   "is_in_stock": true,
+   "product_url": "/magic-2012/zombie-infestation-m12-120/",
+   "bc_product_id": 140468,
+   "product_name": "Zombie Infestation (M12) (#120)",
+   "available_variants": [
+    {
+     "sku": "M12120N-LP-EN",
+     "language": "English",
+     "condition": "Lightly-Played",
+     "price": 0.5,
+     "inventory_level": 8,
+     "is_purchasable": true,
+     "bc_product_id": 140468,
+     "bc_variant_id": 840758
+    }
+   ]
+  },
+  {
+   "name": "Zombie Outlander (CON) (Foil) (#133)",
+   "card_name": "Zombie Outlander",
+   "card_code": "CON133F",
+   "card_number": "133",
+   "set_name": "Conflux",
+   "finish": "Foil",
+   "variant": "None",
+   "is_in_stock": true,
+   "product_url": "/conflux/zombie-outlander-con-foil-133/",
+   "bc_product_id": 135447,
+   "product_name": "Zombie Outlander (CON) (Foil) (#133)",
+   "available_variants": [
+    {
+     "sku": "CON133F-LP-EN",
+     "language": "English",
+     "condition": "Lightly-Played",
+     "price": 0.5,
+     "inventory_level": 2,
+     "is_purchasable": true,
+     "bc_product_id": 135447,
+     "bc_variant_id": 810632
+    }
+   ]
+  },
+  {
+   "name": "Pyre Zombie (DMR) (#362)",
+   "card_name": "Pyre Zombie",
+   "card_code": "DMR362N",
+   "card_number": "362",
+   "set_name": "Dominaria Remastered",
+   "finish": "Normal",
+   "variant": "None",
+   "is_in_stock": true,
+   "product_url": "/dominaria-remastered/pyre-zombie-dmr-362/",
+   "bc_product_id": 136313,
+   "product_name": "Pyre Zombie (DMR) (#362)",
+   "available_variants": [
+    {
+     "sku": "DMR362N-LP-EN",
+     "language": "English",
+     "condition": "Lightly-Played",
+     "price": 0.5,
+     "inventory_level": 2,
+     "is_purchasable": true,
+     "bc_product_id": 136313,
+     "bc_variant_id": 815828
+    }
+   ]
+  },
+  {
+   "name": "Gnawing Zombie (M14) (#99)",
+   "card_name": "Gnawing Zombie",
+   "card_code": "M1499N",
+   "card_number": "99",
+   "set_name": "Magic 2014",
+   "finish": "Normal",
+   "variant": "None",
+   "is_in_stock": true,
+   "product_url": "/magic-2014/gnawing-zombie-m14-99/",
+   "bc_product_id": 162282,
+   "product_name": "Gnawing Zombie (M14) (#99)",
+   "available_variants": [
+    {
+     "sku": "M1499N-LP-EN",
+     "language": "English",
+     "condition": "Lightly-Played",
+     "price": 0.5,
+     "inventory_level": 1,
+     "is_purchasable": true,
+     "bc_product_id": 162282,
+     "bc_variant_id": 971013
+    }
+   ]
+  },
+  {
+   "name": "Gnawing Zombie (MM3) (#71)",
+   "card_name": "Gnawing Zombie",
+   "card_code": "MM371N",
+   "card_number": "71",
+   "set_name": "Modern Masters 2017",
+   "finish": "Normal",
+   "variant": "None",
+   "is_in_stock": true,
+   "product_url": "/modern-masters-2017/gnawing-zombie-mm3-71/",
+   "bc_product_id": 157004,
+   "product_name": "Gnawing Zombie (MM3) (#71)",
+   "available_variants": [
+    {
+     "sku": "MM371N-LP-EN",
+     "language": "English",
+     "condition": "Lightly-Played",
+     "price": 0.5,
+     "inventory_level": 1,
+     "is_purchasable": true,
+     "bc_product_id": 157004,
+     "bc_variant_id": 939643
+    }
+   ]
+  },
+  {
+   "name": "Shivan Zombie (INV) (#271)",
+   "card_name": "Shivan Zombie",
+   "card_code": "INV271N",
+   "card_number": "271",
+   "set_name": "Invasion",
+   "finish": "Normal",
+   "variant": "None",
+   "is_in_stock": true,
+   "product_url": "/invasion/shivan-zombie-inv-271/",
+   "bc_product_id": 139359,
+   "product_name": "Shivan Zombie (INV) (#271)",
+   "available_variants": [
+    {
+     "sku": "INV271N-LP-EN",
+     "language": "English",
+     "condition": "Lightly-Played",
+     "price": 0.5,
+     "inventory_level": 1,
+     "is_purchasable": true,
+     "bc_product_id": 139359,
+     "bc_variant_id": 834104
+    }
+   ]
+  },
+  {
+   "name": "Lifebane Zombie (M14) (#101)",
+   "card_name": "Lifebane Zombie",
+   "card_code": "M14101N",
+   "card_number": "101",
+   "set_name": "Magic 2014",
+   "finish": "Normal",
+   "variant": "None",
+   "is_in_stock": true,
+   "product_url": "/magic-2014/lifebane-zombie-m14-101/",
+   "bc_product_id": 157087,
+   "product_name": "Lifebane Zombie (M14) (#101)",
+   "available_variants": [
+    {
+     "sku": "M14101N-LP-EN",
+     "language": "English",
+     "condition": "Lightly-Played",
+     "price": 0.55,
+     "inventory_level": 3,
+     "is_purchasable": true,
+     "bc_product_id": 157087,
+     "bc_variant_id": 940141
+    }
+   ]
+  },
+  {
+   "name": "Scathe Zombies (2ED) (#126)",
+   "card_name": "Scathe Zombies",
+   "card_code": "2ED126N",
+   "card_number": "126",
+   "set_name": "Unlimited Edition",
+   "finish": "Normal",
+   "variant": "None",
+   "is_in_stock": true,
+   "product_url": "/unlimited-edition/scathe-zombies-2ed-126/",
+   "bc_product_id": 160426,
+   "product_name": "Scathe Zombies (2ED) (#126)",
+   "available_variants": [
+    {
+     "sku": "2ED126N-LP-EN",
+     "language": "English",
+     "condition": "Lightly-Played",
+     "price": 0.77,
+     "inventory_level": 1,
+     "is_purchasable": true,
+     "bc_product_id": 160426,
+     "bc_variant_id": 960005
+    }
+   ]
+  },
+  {
+   "name": "Scathe Zombies (3ED) (#127)",
+   "card_name": "Scathe Zombies",
+   "card_code": "3ED127N",
+   "card_number": "127",
+   "set_name": "Revised Edition",
+   "finish": "Normal",
+   "variant": "None",
+   "is_in_stock": true,
+   "product_url": "/revised-edition/scathe-zombies-3ed-127/",
+   "bc_product_id": 132548,
+   "product_name": "Scathe Zombies (3ED) (#127)",
+   "available_variants": [
+    {
+     "sku": "3ED127N-LP-EN",
+     "language": "English",
+     "condition": "Lightly-Played",
+     "price": 0.5,
+     "inventory_level": 2,
+     "is_purchasable": true,
+     "bc_product_id": 132548,
+     "bc_variant_id": 793238
+    }
+   ]
+  },
+  {
+   "name": "Lifebane Zombie (M14) (Foil) (#101)",
+   "card_name": "Lifebane Zombie",
+   "card_code": "M14101F",
+   "card_number": "101",
+   "set_name": "Magic 2014",
+   "finish": "Foil",
+   "variant": "None",
+   "is_in_stock": true,
+   "product_url": "/magic-2014/lifebane-zombie-m14-foil-101/",
+   "bc_product_id": 140560,
+   "product_name": "Lifebane Zombie (M14) (Foil) (#101)",
+   "available_variants": [
+    {
+     "sku": "M14101F-LP-EN",
+     "language": "English",
+     "condition": "Lightly-Played",
+     "price": 0.69,
+     "inventory_level": 1,
+     "is_purchasable": true,
+     "bc_product_id": 140560,
+     "bc_variant_id": 841310
+    }
+   ]
+  }
+ ],
+ "pagination": {
+  "page": 1,
+  "limit": 48,
+  "total": 20
+ }
+}

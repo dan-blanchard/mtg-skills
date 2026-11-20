@@ -405,6 +405,23 @@ class TestPrintingRetention:
         assert card["collector_number"] == "117"
         assert card["finish"] == "foil"
 
+    def test_lowercase_set_and_category_tags(self):
+        """Moxfield's copy-with-tags lines: a lowercase set code, then the
+        card's categories in square brackets."""
+        text = (
+            "// Deck\n"
+            "1 Akul the Unrepentant (otj) 189 [Sac Outlet]\n"
+            "1 Citizen (tfrc) 11 *F* [Tokens & Extras{noDeck}]\n"
+            "1 Command Tower [Land]\n"
+        )
+        by_name = {c["name"]: c for c in parse_deck_text(text)["cards"]}
+        akul = by_name["Akul the Unrepentant"]
+        assert (akul["set"], akul["collector_number"]) == ("otj", "189")
+        citizen = by_name["Citizen"]
+        assert (citizen["set"], citizen["collector_number"]) == ("tfrc", "11")
+        assert citizen["finish"] == "foil"
+        assert by_name["Command Tower"] == {"name": "Command Tower", "quantity": 1}
+
     def test_etched_marker_sets_finish(self):
         text = "// Deck\n1 Sol Ring (C21) 263 *E*\n"
         card = parse_deck_text(text)["cards"][0]

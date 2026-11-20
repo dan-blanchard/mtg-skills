@@ -1,11 +1,16 @@
-"""Tests for the TGP adapter. Uses captured HTML fixtures, not live HTTP."""
+"""Tests for the TGP adapter. Uses captured search-API and HTML fixtures, not
+live HTTP."""
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from unittest.mock import MagicMock
 
-from mtg_utils._stores.tgp import ADAPTER
+import pytest
+
+from mtg_utils._stores._common import StoreSelectorError
+from mtg_utils._stores.tgp import ADAPTER, _set_code, parse_products
 
 FIXTURE_DIR = Path(__file__).parent / "fixtures"
 
@@ -27,10 +32,8 @@ class TestNameForSearch:
     def test_passthrough(self):
         assert ADAPTER.name_for_search("Sol Ring") == "Sol Ring"
 
-    def test_split_card_keeps_double_slash(self):
-        # TGP's BigCommerce search likely accepts both halves; keep canonical
-        # name for now and let the search degrade gracefully if needed.
-        assert ADAPTER.name_for_search("Fire // Ice") == "Fire // Ice"
+    def test_two_faced_card_searches_its_front_face(self):
+        assert ADAPTER.name_for_search("Fire // Ice") == "Fire"
 
 
 class TestAdapterMetadata:
@@ -47,102 +50,128 @@ class TestAdapterMetadata:
         assert ADAPTER.base_url == "https://the-gathering-place.mybigcommerce.com"
 
 
-class TestSearchParse:
-    def test_returns_only_in_stock_listings(self):
-        html = (FIXTURE_DIR / "tgp_search_sol_ring.html").read_text(encoding="utf-8")
-        page = _mock_page(html)
-        listings = ADAPTER.search(page, "Sol Ring", qty=1, prefs=PREFS_LP_NOFOIL)
-        # Of the 12 article.cards in the fixture, only 1 (3ED) is in stock.
-        # We expect exactly one in-stock Listing back.
-        assert len(listings) == 1
+def _api(name: str) -> dict:
+    return json.loads((FIXTURE_DIR / f"tgp_api_{name}.json").read_text("utf-8"))
+
+
+def _api_page(*payloads: dict):
+    """A page whose request context answers each search call with the next
+    payload."""
+    page = MagicMock()
+    responses = []
+    for payload in payloads:
+        response = MagicMock(ok=True, status=200)
+        response.json.return_value = payload
+        responses.append(response)
+    page.request.get.side_effect = responses
+    return page
+
+
+class TestParseProducts:
+    def test_one_listing_per_condition_row_with_its_printing(self):
+        listings = parse_products(_api("daxos"), "Daxos, Blessed by the Sun")
+        assert len(listings) == 1  # the two Sun-Blessed cards don't match
         only = listings[0]
         assert only["store"] == "tgp"
-        assert only["card_name"] == "Sol Ring"
-        assert only["set_code"] == "3ED"
-        assert (
-            only["price"] == 22.58
-        )  # data-product-price (cart-time price for the in-stock variant)
-        assert only["qty_available"] >= 1
+        assert only["card_name"] == "Daxos, Blessed by the Sun"
+        assert only["set_code"] == "THB"
+        assert only["collector_number"] == "258"
+        assert only["set_name"] == "Theros Beyond Death"
+        assert only["variant_labels"] == ["Full Art"]
+        assert only["finish"] == "nonfoil"
         assert only["foil"] is False
-
-    def test_listing_url_points_at_product_page(self):
-        html = (FIXTURE_DIR / "tgp_search_sol_ring.html").read_text(encoding="utf-8")
-        page = _mock_page(html)
-        listings = ADAPTER.search(page, "Sol Ring", qty=1, prefs=PREFS_LP_NOFOIL)
-        assert listings[0]["url"].startswith(
-            "https://the-gathering-place.mybigcommerce.com/"
+        assert only["condition"] == "LP"
+        assert only["price"] == 0.5
+        assert only["qty_available"] == 4
+        assert only["listing_id"] == "146265:875540"
+        assert only["url"] == (
+            "https://the-gathering-place.mybigcommerce.com"
+            "/theros-beyond-death/daxos-blessed-by-the-sun-thb-full-art-258/"
         )
-        # listing_id should be the BigCommerce product entity-id (used by add_to_cart later)
-        assert listings[0]["listing_id"]  # non-empty
 
-    def test_navigates_to_search_url_when_given_real_page(self):
-        # When the page object is a real Playwright Page (has .goto), search should
-        # call it. Mock pages skip navigation.
+    def test_placeholder_price_is_not_a_listing(self):
+        """TGP prices a row it won't sell at $9,999.00 (32 LP Hare Apparent)."""
+        listings = parse_products(_api("hare_apparent"), "Hare Apparent")
+        assert [(x["finish"], x["price"]) for x in listings] == [("foil", 3.91)]
+        assert listings[0]["condition"] == "NM"
+
+    def test_token_set_code_and_number(self):
+        listings = parse_products(_api("zombie"), "Zombie")
+        printings = {(x["set_code"], x["collector_number"]) for x in listings}
+        assert ("TAFR", "9") in printings
+        assert ("T10E", "2") in printings
+        assert all(x["card_name"] == "Zombie" for x in listings)
+
+    def test_set_code_from_product_name_without_card_code(self):
+        assert _set_code({"product_name": "Sol Ring (C20) (#252)"}) == "C20"
+
+    def test_non_english_row_is_dropped(self):
+        payload = _api("daxos")
+        row = payload["products"][0]["available_variants"][0]
+        row["language"] = "Japanese"
+        assert parse_products(payload, "Daxos, Blessed by the Sun") == []
+
+
+class TestSearch:
+    def test_reads_the_search_api(self):
+        page = _api_page(_api("daxos"))
+        listings = ADAPTER.search(
+            page, "Daxos, Blessed by the Sun", qty=1, prefs=PREFS_LP_NOFOIL
+        )
+        assert len(listings) == 1
+        url = page.request.get.call_args[0][0]
+        assert url.startswith("https://lgsc-search.lgs-companion.com/search-name?")
+        assert "q=Daxos%2C+Blessed+by+the+Sun" in url
+        assert "stock_filter=in_stock" in url
+
+    def test_pages_until_the_total_is_read(self):
+        first = {"products": [], "pagination": {"page": 1, "limit": 48, "total": 60}}
+        second = _api("daxos")
+        second["pagination"] = {"page": 2, "limit": 48, "total": 60}
+        page = _api_page(first, second)
+        listings = ADAPTER.search(
+            page, "Daxos, Blessed by the Sun", qty=1, prefs=PREFS_LP_NOFOIL
+        )
+        assert len(listings) == 1
+        assert page.request.get.call_count == 2
+        assert "page=2" in page.request.get.call_args[0][0]
+
+    def test_rate_limit_waits_retry_after_and_retries(self):
+        limited = MagicMock(ok=False, status=429, headers={"retry-after": "7"})
+        good = MagicMock(ok=True, status=200)
+        good.json.return_value = _api("daxos")
         page = MagicMock()
-        page.content.return_value = (
-            FIXTURE_DIR / "tgp_search_sol_ring.html"
-        ).read_text(encoding="utf-8")
-        page.url = "https://the-gathering-place.mybigcommerce.com/search.php?search_query=sol+ring"
-        ADAPTER.search(page, "Sol Ring", qty=1, prefs=PREFS_LP_NOFOIL)
-        page.goto.assert_called_once()
-        called_url = page.goto.call_args[0][0]
-        assert (
-            "search_query=sol+ring" in called_url.lower()
-            or "search_query=Sol+Ring" in called_url
+        page.request.get.side_effect = [limited, good]
+        listings = ADAPTER.search(
+            page, "Daxos, Blessed by the Sun", qty=1, prefs=PREFS_LP_NOFOIL
         )
+        assert len(listings) == 1
+        page.wait_for_timeout.assert_called_once_with(7000)
+
+    def test_http_error_raises_selector_error(self):
+        page = MagicMock()
+        page.request.get.return_value = MagicMock(ok=False, status=503)
+        with pytest.raises(StoreSelectorError):
+            ADAPTER.search(page, "Sol Ring", qty=1, prefs=PREFS_LP_NOFOIL)
 
 
-class TestParseDataName:
-    def test_strips_set_and_collector_number(self):
-        from mtg_utils._stores.tgp import _parse_data_name
+class TestAddToCart:
+    def test_posts_the_listing_variant(self):
+        page = MagicMock()
+        page.evaluate.return_value = 200
+        listing = parse_products(_api("daxos"), "Daxos, Blessed by the Sun")[0]
+        result = ADAPTER.add_to_cart(page, listing, 2)
+        assert result["success"] is True
+        assert result["qty_added"] == 2
+        assert page.evaluate.call_args[0][1] == [146265, 875540, 2]
 
-        name, set_code, foil = _parse_data_name("Sol Ring (C20) (#252)")
-        assert name == "Sol Ring"
-        assert set_code == "C20"
-        assert foil is False
-
-    def test_detects_foil(self):
-        from mtg_utils._stores.tgp import _parse_data_name
-
-        # BigCommerce convention: "(Foil)" or "Foil" prefix in title
-        name, set_code, foil = _parse_data_name("Sol Ring (Foil) (CMD) (#XXX)")
-        assert name == "Sol Ring"
-        # set_code is "CMD" — the "(Foil)" should be recognized as a foil marker, not the set
-        assert set_code == "CMD"
-        assert foil is True
-
-    def test_handles_missing_collector_number(self):
-        from mtg_utils._stores.tgp import _parse_data_name
-
-        name, set_code, _foil = _parse_data_name("Counterspell (ICE)")
-        assert name == "Counterspell"
-        assert set_code == "ICE"
-
-
-class TestParseProductVariants:
-    def test_parses_in_stock_variant_from_fixture(self):
-        html = (FIXTURE_DIR / "tgp_product_sol_ring_3ed.html").read_text(
-            encoding="utf-8"
-        )
-        variants = ADAPTER.parse_product_variants(html)
-        assert len(variants) >= 1
-        v = variants[0]
-        assert v["condition"] in {"NM", "LP", "MP", "HP"}
-        assert v["price"] > 0
-        assert v["qty_available"] >= 1
-        assert v["data_index"] == "0"
-
-    def test_filters_by_max_condition(self):
-        html = (FIXTURE_DIR / "tgp_product_sol_ring_3ed.html").read_text(
-            encoding="utf-8"
-        )
-        # Fixture has only LP. Asking for NM should return nothing.
-        variants = ADAPTER.parse_product_variants(html, max_condition="NM")
-        assert variants == []
-        # Asking for LP includes LP.
-        variants = ADAPTER.parse_product_variants(html, max_condition="LP")
-        assert len(variants) == 1
-        assert variants[0]["condition"] == "LP"
+    def test_failed_post_is_not_success(self):
+        page = MagicMock()
+        page.evaluate.return_value = 422
+        listing = parse_products(_api("daxos"), "Daxos, Blessed by the Sun")[0]
+        result = ADAPTER.add_to_cart(page, listing, 1)
+        assert result["success"] is False
+        assert result["qty_added"] == 0
 
 
 class TestIsLoggedIn:

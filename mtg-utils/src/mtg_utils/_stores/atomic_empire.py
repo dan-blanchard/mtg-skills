@@ -63,7 +63,7 @@ def _parse_title(title: str) -> tuple[str, bool, bool]:
 
     Returns the cleaned card name (set/parens stripped, foil prefix stripped),
     the foil flag, and an etched-foil flag (etched is treated like foil for
-    pricing but tracked separately for the future).
+    pricing; ``Listing.finish`` keeps it apart).
     """
     foil = False
     etched = False
@@ -80,9 +80,39 @@ def _parse_title(title: str) -> tuple[str, bool, bool]:
             etched = True
             foil = True  # Etched foil counts as foil for our purposes
         cleaned = cleaned[idx + 1 :].strip()
-    # Strip trailing parenthetical (set or variant marker)
-    cleaned = re.sub(r"\s*\([^()]*\)\s*$", "", cleaned).strip()
+    # Strip trailing parentheticals (set or variant markers)
+    cleaned = _TRAILING_PARENS_RE.sub("", cleaned).strip()
     return cleaned, foil, etched
+
+
+_TRAILING_PARENS_RE = re.compile(r"(?:\s*\([^()]*\))+\s*$")
+_LABEL_RE = re.compile(r"\(([^()]*)\)")
+# A token's title: "Elemental Token", "Elemental // Thopter Double-sided Token".
+_TOKEN_SUFFIX_RE = re.compile(r"\s+(?:Double-sided\s+)?Token$")
+# The printing's set code is the folder of its image: /2020/PLST/130449.100.jpg
+_IMAGE_SET_RE = re.compile(r"/\d{4}/([A-Za-z0-9]+)/\d+\.")
+
+
+def _stock(row: Tag) -> int:
+    """The copies in stock: the row's quantity dropdown runs 1..stock (seen
+    1-5, 1-12); an in-stock row with no dropdown has one copy."""
+    values = [
+        int(v)
+        for option in row.select("select option")
+        if (v := attr_str(option.get("value")).strip()).isdigit()
+    ]
+    return max(values, default=1)
+
+
+def variant_labels(title: str) -> list[str]:
+    """The parentheticals of an AE title: "(Showcase)", "(Extended Art)", a
+    List card's origin set "(THB)", a token's "(created by ...)"."""
+    return [m.strip() for m in _LABEL_RE.findall(title)]
+
+
+def image_set_code(src: str) -> str:
+    match = _IMAGE_SET_RE.search(src)
+    return match.group(1).upper() if match else ""
 
 
 class _AtomicEmpireAdapter(HeadedWindows):
@@ -144,12 +174,17 @@ class _AtomicEmpireAdapter(HeadedWindows):
         if not title_el:
             return None
         full_title = title_el.get_text(strip=True)
-        name, foil, _etched = _parse_title(full_title)
-        if not name_matches(requested_name, name):
+        name, foil, etched = _parse_title(full_title)
+        token_name = _TOKEN_SUFFIX_RE.sub("", name)
+        if name_matches(requested_name, token_name) and token_name != name:
+            name = token_name
+        elif not name_matches(requested_name, name):
             return None
         # Set link example: <a href="/Card/List?set=Mystery Booster 2">...</a>
         set_el = row.select_one('a[href*="/Card/List?set="]')
         set_text = set_el.get_text(strip=True) if set_el else ""
+        image = row.select_one("img.card-img")
+        set_code = image_set_code(attr_str(image.get("src"))) if image else ""
         # Price text: "SP/NM - $5.35" embedded in a <strong> in the row.
         price_strong = row.find("strong", string=_PRICE_RE)  # ty: ignore[no-matching-overload]
         if not price_strong:
@@ -167,13 +202,18 @@ class _AtomicEmpireAdapter(HeadedWindows):
         return Listing(
             store=self.name,
             card_name=name,
-            set_code=set_text,  # AE uses set NAME, not 3-letter code; fine as-is
+            # The image folder's code (PLST, not The List's "The List & Mystery
+            # Booster" name); the set name when a row has no image.
+            set_code=set_code or set_text,
             condition=condition,
             foil=foil,
             price=price,
-            qty_available=999,  # AE doesn't expose qty cap on search; default high
+            qty_available=_stock(row),
             listing_id=itemid,
             url=f"{self.base_url}/Card/{itemid}",
+            set_name=set_text,
+            finish="etched" if etched else "foil" if foil else "nonfoil",
+            variant_labels=variant_labels(full_title),
         )
 
     def add_to_cart(self, page: Page, listing: Listing, qty: int) -> AddToCartResult:

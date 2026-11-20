@@ -133,6 +133,8 @@ class _TCGPlayerAdapter(HeadedWindows):
     name = "tcgplayer"
     display_name = "TCGPlayer"
     kind: Literal["marketplace"] = "marketplace"
+    # Mass Entry takes a set code but no collector number.
+    pins_printings = False
     base_url = _BASE_URL
     cart_path = "/cart"
     login_path = "/login"

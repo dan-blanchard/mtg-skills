@@ -189,3 +189,24 @@ def test_build_lgs_carts_clears_pollution_when_flagged(monkeypatch, tmp_path):
     )
     tgp.clear_cart.assert_called_once()
     tgp.add_to_cart.assert_called_once()
+
+
+def test_await_login_polls_the_window_until_signed_in():
+    from mtg_utils.lgs_search import await_login
+
+    adapter = MagicMock(base_url="http://tgp.test")
+    adapter.is_logged_in.side_effect = [False, False, True]
+    page = MagicMock()
+    assert await_login(adapter, page, timeout_s=60, poll_ms=10) is True
+    assert adapter.is_logged_in.call_count == 3
+    page.goto.assert_called_once_with("http://tgp.test", wait_until="domcontentloaded")
+
+
+def test_await_login_gives_up_after_the_timeout():
+    from mtg_utils.lgs_search import await_login
+
+    adapter = MagicMock(base_url="http://tgp.test")
+    adapter.is_logged_in.return_value = False
+    page = MagicMock()
+    assert await_login(adapter, page, timeout_s=1, poll_ms=250) is False
+    assert adapter.is_logged_in.call_count == 4

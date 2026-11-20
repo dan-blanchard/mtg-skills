@@ -4,7 +4,14 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
-from typing import TYPE_CHECKING, Literal, Protocol, TypedDict, runtime_checkable
+from typing import (
+    TYPE_CHECKING,
+    Literal,
+    NotRequired,
+    Protocol,
+    TypedDict,
+    runtime_checkable,
+)
 
 from mtg_utils._http import cache_root
 
@@ -69,11 +76,33 @@ class Listing(TypedDict):
     qty_available: int
     listing_id: str
     url: str
+    # What a store says about the printing, where it says it: the collector
+    # number (TGP), the set's name, the finish ("nonfoil" / "foil" /
+    # "etched") and the store's variant labels ("Showcase", "Extended Art").
+    collector_number: NotRequired[str]
+    set_name: NotRequired[str]
+    finish: NotRequired[str]
+    variant_labels: NotRequired[list[str]]
+    # How the listing matched a pinned printing (``printing.PrintingSpec``):
+    # "exact" (that set and number), "equivalent" (same art and style),
+    # "set+style" (the set and variant labels; the store gives no number).
+    printing_match: NotRequired[str]
+
+
+class PrintingRequest(TypedDict):
+    """One exact printing a want-list line pins: a set code (lowercase), its
+    collector number as written, and the finish ("nonfoil" / "foil" /
+    "etched")."""
+
+    set: str
+    collector_number: str
+    finish: str
 
 
 class Line(TypedDict):
     card_name: str
     qty: int
+    printing: NotRequired[PrintingRequest]
 
 
 class AddToCartResult(TypedDict):
@@ -149,6 +178,7 @@ class StoreSession(Protocol):
     name: str
     display_name: str
     base_url: str
+    login_path: str  # the sign-in page, relative to base_url
 
     # Read-only so the two sub-Protocols can narrow it: a mutable
     # attribute can't be overridden with a narrower type (writes of the
@@ -229,6 +259,11 @@ class MarketplaceAdapter(StoreSession, Protocol):
 
     @property
     def kind(self) -> Literal["marketplace"]: ...
+
+    #: Whether its bulk entry can hold a line's exact printing (set, number
+    #: and finish); one that can't is skipped when any line pins one.
+    @property
+    def pins_printings(self) -> bool: ...
 
     def bulk_submit_and_optimize(
         self,
@@ -313,16 +348,16 @@ def pick_best_listing(
     # else: keep both (allow_foil) or only foils (no non_foil exists) — price wins
 
     if prefer_set := prefs.get("prefer_set"):
-        # Atomic Empire reports set_code as the full set NAME, not a 3-letter code,
-        # so accept an exact (case-insensitive) match OR the preference appearing as
-        # a substring of the listing's set name ("Neon Dynasty" in "Kamigawa: Neon
+        # Accept the set code exactly (case-insensitive), OR the preference
+        # appearing in the listing's set name ("Neon Dynasty" in "Kamigawa: Neon
         # Dynasty"). Substring is one-directional to avoid a short code spuriously
         # matching an unrelated name.
         prefer = prefer_set.strip().upper()
         in_set = [
             x
             for x in pool
-            if prefer == x["set_code"].upper() or prefer in x["set_code"].upper()
+            if prefer == x["set_code"].upper()
+            or prefer in (x.get("set_name") or x["set_code"]).upper()
         ]
         if in_set:
             pool = in_set
