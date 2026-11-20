@@ -1089,6 +1089,24 @@ def _load_pool(bulk_data: Path | None) -> CardPool | None:
     return pool
 
 
+def _option_note(cart: dict) -> str:
+    """Which optimizer cart was selected, beside the others it offered:
+    "Balanced: 10 packages (Lowest price $110.56 in 17; Fewest packages ...)"."""
+    if not cart.get("option"):
+        return ""
+
+    def packages(n: object) -> str:
+        return f"{n} packages" if n is not None else "? packages"
+
+    others = "; ".join(
+        f"{a['name']} ${a['total']:.2f} in {packages(a.get('packages'))}"
+        for a in cart.get("alternatives") or []
+        if a["name"] != cart["option"]
+    )
+    note = f"  {cart['option']}: {packages(cart.get('packages'))}"
+    return f"{note} ({others})" if others else note
+
+
 def _match_note(listing: Listing | dict) -> str:
     """How a store's copy matched a pinned printing, for the summary."""
     how = listing.get("printing_match")
@@ -1157,6 +1175,8 @@ def _render_summary(
             f"\n{MARKETPLACE_ADAPTERS[chosen].display_name} "
             f"({comparison}) - items+shipping; tax computed at checkout",
         )
+        if option := _option_note(result):
+            lines.append(option)
         for a in spillover_items:
             lines.append(f"  + {card_key(a)} x{a['qty']}")
         if unfound := _unfound(marketplace):

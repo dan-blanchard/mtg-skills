@@ -16,7 +16,9 @@ Live-discovered flow (2026-05):
    - The page renders three alternative carts: "Lowest price",
      "Fewest packages", "Balanced". Each populates a Total ($X.XX),
      Packages (N), Subtotal ($X.XX), Shipping ($X.XX), Singles fee.
-3. Pick the cheapest by Total, click its `Select` button to commit
+3. Wait for the optimizer to finish (its button stops reading
+   "Optimizing"), pick Balanced unless Lowest price saves enough
+   (`choose_alternative`), click its `Select` button to commit
    (labelled `Accept` before 2026-11).
 
 The optimizer is asynchronous; the "Still searching" placeholder text
@@ -151,52 +153,88 @@ def _parse_optimizer_alternatives(html: str) -> list[dict]:
         else:
             # Optimizer still searching; this alternative isn't ready.
             continue
+        # Packages is the one bare integer among the values.
+        counts = [x for x in lines[i + 1 : end] if x.strip().isdigit()]
         alternatives.append(
             {
                 "name": line.strip(),
                 "total": total,
                 "subtotal": subtotal,
                 "shipping": shipping,
+                "packages": int(counts[0]) if counts else None,
             }
         )
     return alternatives
+
+
+_RUNNING_RE = re.compile(r"^\s*Optimizing\b")
+
+#: Mana Pool's "Balanced" option is taken unless "Lowest price" saves at least
+#: this much — in dollars AND as a share of Balanced's total. A few dollars
+#: aren't worth a cart split into twice the packages (the user's rule).
+BALANCED_MIN_SAVINGS_USD = 5.0
+BALANCED_MIN_SAVINGS_PCT = 10.0
+
+
+def optimizer_running(html: str) -> bool:
+    """Whether the optimizer is still working: its button reads "Optimizing"
+    (with a spinner) until it is done, then "Optimize N items" again."""
+    soup = BeautifulSoup(html, "html.parser")
+    return any(
+        _RUNNING_RE.match(b.get_text(" ", strip=True)) for b in soup.select("button")
+    )
+
+
+def choose_alternative(alternatives: list[dict]) -> dict:
+    """Balanced, unless Lowest price saves ``BALANCED_MIN_SAVINGS_USD`` and
+    ``BALANCED_MIN_SAVINGS_PCT`` of Balanced's total; Lowest price when there
+    is no Balanced option."""
+    lowest = min(alternatives, key=lambda a: a["total"])
+    balanced = next((a for a in alternatives if a["name"] == "Balanced"), None)
+    if balanced is None:
+        return lowest
+    savings = balanced["total"] - lowest["total"]
+    if (
+        savings >= BALANCED_MIN_SAVINGS_USD
+        and savings / balanced["total"] * 100 >= BALANCED_MIN_SAVINGS_PCT
+    ):
+        return lowest
+    return balanced
 
 
 def _await_optimized_alternatives(
     read_html: Callable[[], str],
     sleep_ms: Callable[[int], None],
     *,
-    max_polls: int = 45,
-    stable_needed: int = 3,
+    max_polls: int = 300,
+    start_polls: int = 5,
     poll_ms: int = 2000,
 ) -> list[dict]:
-    """Poll the optimizer page until its cheapest total *settles*.
+    """Poll the optimizer page until the optimizer is DONE, then read its
+    alternatives.
 
-    Mana Pool's optimizer is asynchronous and can take ~60s: it progressively
-    consolidates sellers, and the cheapest total drops as it works. Reading the
-    first parsed value grabs the pre-consolidation baseline (cheapest-per-card
-    scattered across many sellers, so shipping is inflated). Instead we wait
-    until the cheapest total stops changing across ``stable_needed`` consecutive
-    reads before returning.
+    Mana Pool's optimizer keeps refining all three alternatives for a while
+    (22 s for a 113-item cart, 2026-11): Lowest price settled at 18 s while
+    Balanced still moved at 20 s and Fewest packages at 22 s, so a quiet
+    spell in one total is not the end. The end is the button: it reads
+    "Optimizing" with a spinner while it works and "Optimize N items" again
+    once it is done. Waits for the run to start (up to ``start_polls``
+    reads), then for it to stop; ``max_polls`` caps the wait (10 minutes at
+    the default 2 s poll), after which the last alternatives read are
+    returned.
 
     ``read_html()`` returns the current page HTML; ``sleep_ms(ms)`` waits.
     """
     alternatives: list[dict] = []
-    prev_cheapest: float | None = None
-    stable = 0
-    for _ in range(max_polls):
+    started = False
+    for poll in range(max_polls):
         sleep_ms(poll_ms)
-        parsed = _parse_optimizer_alternatives(read_html())
-        if not parsed:
+        html = read_html()
+        alternatives = _parse_optimizer_alternatives(html) or alternatives
+        if optimizer_running(html):
+            started = True
             continue
-        cheapest = min(a["total"] for a in parsed)
-        if prev_cheapest is not None and abs(cheapest - prev_cheapest) < 0.01:
-            stable += 1
-        else:
-            stable = 0
-        prev_cheapest = cheapest
-        alternatives = parsed
-        if stable >= stable_needed:
+        if (started or poll + 1 >= start_polls) and alternatives:
             break
     return alternatives
 
@@ -260,9 +298,10 @@ class _ManaPoolAdapter(HeadedWindows):
     ) -> OptimizedCart:
         """Submit the line list and run Mana Pool's optimizer.
 
-        Returns an OptimizedCart with the cheapest alternative's totals
-        and selects it on the live page so the user's checkout cart
-        reflects the optimized basket.
+        Returns an OptimizedCart with the chosen alternative's totals
+        (``choose_alternative``: Balanced unless Lowest price saves
+        enough) and selects it on the live page so the user's checkout
+        cart reflects the optimized basket.
 
         The MP /add-deck submit *appends* to the existing cart rather
         than replacing it, and the resulting optimizer page totals
@@ -318,35 +357,38 @@ class _ManaPoolAdapter(HeadedWindows):
             raise StoreSelectorError(self.name, "Optimize N items button", page.url)
         go_btn.click()
 
-        # Step 3 — Wait for the async optimizer to SETTLE. It consolidates
-        # sellers over ~60s and the cheapest total drops as it works; reading
-        # the first parsed value grabs the pre-consolidation baseline (inflated
-        # shipping). Poll until the cheapest total stops changing.
+        # Step 3 — Wait for the async optimizer to finish. Its totals drop
+        # as it consolidates sellers, so an early read gets the
+        # pre-consolidation baseline (inflated shipping); the button says
+        # when it is done.
         alternatives = _await_optimized_alternatives(
             page.content, page.wait_for_timeout
         )
         if not alternatives:
             raise StoreSelectorError(self.name, "optimizer alternatives", page.url)
 
-        cheapest = min(alternatives, key=lambda a: a["total"])
+        chosen = choose_alternative(alternatives)
 
-        # Step 4 — Click the Accept button under the cheapest alternative.
-        # Each Accept follows its alternative's heading; selecting by index
+        # Step 4 — Click the Select button under the chosen alternative.
+        # Each Select follows its alternative's heading; selecting by index
         # under the heading position is safest.
-        cheapest_idx = alternatives.index(cheapest)
+        chosen_idx = alternatives.index(chosen)
         commit_btns = page.locator("button").filter(has_text=_COMMIT_BTN_RE)
-        if cheapest_idx >= commit_btns.count():
+        if chosen_idx >= commit_btns.count():
             # Without this click the cart keeps its unoptimized sellers, so
             # the reported total would not be the cart's.
             raise StoreSelectorError(self.name, "Select button", page.url)
-        commit_btns.nth(cheapest_idx).click()
+        commit_btns.nth(chosen_idx).click()
         page.wait_for_timeout(3000)
 
         return OptimizedCart(
             store=self.name,
-            total=cheapest["total"],
-            items_subtotal=cheapest["subtotal"],
-            shipping=cheapest["shipping"],
+            total=chosen["total"],
+            items_subtotal=chosen["subtotal"],
+            shipping=chosen["shipping"],
+            option=chosen["name"],
+            packages=chosen.get("packages"),
+            alternatives=alternatives,
             lines=[],  # Per-line breakdown not extracted in v1.
             # Pinned lines the Exact tab can't fill; an unpinned line MP
             # can't match is still lost silently.

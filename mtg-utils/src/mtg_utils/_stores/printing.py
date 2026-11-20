@@ -5,8 +5,9 @@ A want-list line can pin a printing — "Daxos, Blessed by the Sun (plst) THB-9"
 store listing is that printing, by what the store says about it:
 
 * **exact** — the listing names the set and collector number (TGP does).
-* **equivalent** — the listing is another printing with the same art and style:
-  the same illustration, frame version, border, full-art flag, frame effects and
+* **equivalent** — the listing is another printing of the same card (oracle id:
+  the same rules text, power/toughness, colors) with the same art and style: the
+  same illustration, frame version, border, full-art flag, frame effects and
   visual promo treatment (a stamp, a foil treatment). The List's THB-9 Daxos and
   Theros Beyond Death's 9 are one card to look at.
 * **set+style** — the store gives no collector number (Atomic Empire), so the
@@ -209,6 +210,10 @@ class PrintingSpec:
                 for r in self.records
                 if r is not exact
                 and r.get("illustration_id") == reference["illustration_id"]
+                # The same game object too: one name and one art can be two
+                # tokens (Bloomburrow Commander's Wolf has a dies trigger,
+                # Double Masters' is vanilla; 19 such pairs, 2026-11).
+                and r.get("oracle_id") == reference.get("oracle_id")
                 and style(r) == style(reference)
                 and finish in _record_finishes(r)
             ]

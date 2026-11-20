@@ -192,12 +192,27 @@ class TestAwaitOptimizedAlternatives:
             f"<div>${subtotal}</div><div>${shipping}</div>"
         )
 
-    def test_waits_for_total_to_settle(self):
+    RUNNING = "<button>Optimizing</button>"
+    DONE = "<button>Optimize 113 items</button>"
+
+    def test_waits_for_the_button_to_stop_optimizing(self):
+        """A total that holds still for a few reads is not the end: Balanced
+        kept moving after Lowest price settled (2026-11). Done is the button
+        going back from "Optimizing" to "Optimize N items"."""
         from mtg_utils._stores.manapool import _await_optimized_alternatives
 
-        baseline = self._alt("64.97", "45.38", "17.69")  # pre-consolidation
-        optimized = self._alt("54.81", "51.36", "1.30")  # sellers consolidated
-        seq = [baseline, baseline, optimized, optimized, optimized, optimized]
+        baseline = self._alt("64.97", "45.38", "17.69")
+        settling = self._alt("54.81", "51.36", "1.30")
+        final = self._alt("53.10", "50.00", "1.30")
+        seq = [
+            self.RUNNING + baseline,
+            self.RUNNING + settling,
+            self.RUNNING + settling,
+            self.RUNNING + settling,
+            self.RUNNING + settling,
+            self.RUNNING + final,
+            self.DONE + final,
+        ]
         state = {"i": 0}
 
         def read_html() -> str:
@@ -205,11 +220,9 @@ class TestAwaitOptimizedAlternatives:
             state["i"] += 1
             return html
 
-        alts = _await_optimized_alternatives(
-            read_html, lambda _ms: None, max_polls=30, stable_needed=3
-        )
-        # Settled value, NOT the first-seen $64.97 baseline.
-        assert min(a["total"] for a in alts) == 54.81
+        alts = _await_optimized_alternatives(read_html, lambda _ms: None)
+        assert min(a["total"] for a in alts) == 53.10
+        assert state["i"] == len(seq)
 
     def test_empty_when_never_populates(self):
         from mtg_utils._stores.manapool import _await_optimized_alternatives
@@ -218,9 +231,64 @@ class TestAwaitOptimizedAlternatives:
             lambda: "<html><body>Still searching</body></html>",
             lambda _ms: None,
             max_polls=4,
-            stable_needed=3,
         )
         assert alts == []
+
+    def test_running_detection(self):
+        from mtg_utils._stores.manapool import optimizer_running
+
+        assert optimizer_running(self.RUNNING) is True
+        assert optimizer_running(self.DONE) is False
+
+
+class TestChooseAlternative:
+    """Balanced wins unless Lowest price saves at least $5 AND 10% of
+    Balanced's total: a few dollars aren't worth twice the packages."""
+
+    @staticmethod
+    def _alts(lowest: float, balanced: float) -> list[dict]:
+        return [
+            {"name": "Lowest price", "total": lowest, "packages": 17},
+            {"name": "Fewest packages", "total": 131.98, "packages": 7},
+            {"name": "Balanced", "total": balanced, "packages": 10},
+        ]
+
+    def test_small_saving_takes_balanced(self):
+        from mtg_utils._stores.manapool import choose_alternative
+
+        # The live 2026-11 cart: $6.07 (5.2%) for 7 more packages.
+        chosen = choose_alternative(self._alts(110.56, 116.63))
+        assert chosen["name"] == "Balanced"
+
+    def test_big_saving_takes_lowest_price(self):
+        from mtg_utils._stores.manapool import choose_alternative
+
+        assert choose_alternative(self._alts(90.0, 116.63))["name"] == ("Lowest price")
+
+    def test_both_bars_must_clear(self):
+        from mtg_utils._stores.manapool import choose_alternative
+
+        # 20% but only $2: still Balanced.
+        assert choose_alternative(self._alts(8.0, 10.0))["name"] == "Balanced"
+
+    def test_no_balanced_option_takes_lowest(self):
+        from mtg_utils._stores.manapool import choose_alternative
+
+        alts = [{"name": "Lowest price", "total": 10.0}]
+        assert choose_alternative(alts)["name"] == "Lowest price"
+
+    def test_packages_parsed_from_the_live_page(self):
+        html = (
+            "<div>Balanced</div><div>Total</div><div>Packages</div>"
+            "<div>$116.63</div><div>10</div><div>$98.97</div>"
+            "<div>$13.50</div><div>$4.16</div>"
+        )
+        (alt,) = _parse_optimizer_alternatives(html)
+        assert (alt["total"], alt["packages"], alt["shipping"]) == (
+            116.63,
+            10,
+            13.50,
+        )
 
 
 class TestChooseAmbiguous:

@@ -149,6 +149,15 @@ Pool's `/add-deck`. Each site's optimizer runs (consolidates
 sellers, computes shipping). The cart with the lower **items +
 shipping** total is selected. Tax is computed at checkout.
 
+Mana Pool's optimizer keeps refining for a while (22 s for a
+113-item cart), and its three options settle at different times. The
+adapter waits until the button stops reading "Optimizing" (the
+spinner), not for one total to hold still. It then takes **Balanced**
+unless Lowest price saves at least $5 AND 10% of Balanced's total
+(`manapool.BALANCED_MIN_SAVINGS_USD` / `_PCT`), since a few dollars
+aren't worth a cart split into twice the packages. The summary shows
+the option taken with its package count beside the others.
+
 Both Marketplaces' bulk-submit endpoints **append to the existing
 cart** rather than replacing it, so the optimizer's totals reflect
 the WHOLE cart (pre-existing items + new submission). The adapter

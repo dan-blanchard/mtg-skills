@@ -89,6 +89,20 @@ class TestEquivalence:
         foil = _spec("abc", "9", "foil")
         assert [r["set"] for r in foil.acceptable] == ["abc"]
 
+    def test_same_art_on_a_different_token_is_not_equivalent(self):
+        """One name and one art can be two tokens (a vanilla 2/2 Wolf and one
+        with a dies trigger): an equivalent must be the same oracle object."""
+        vanilla = {**_printing("tqrs", "19"), "layout": "token", "oracle_id": "a"}
+        trigger = {**_printing("txyz", "35"), "layout": "token", "oracle_id": "b"}
+        reprint = {**_printing("tuvw", "2"), "layout": "token", "oracle_id": "a"}
+        spec = PrintingSpec(
+            "Testcard Paragon",
+            {"set": "tqrs", "collector_number": "19", "finish": "nonfoil"},
+            (vanilla, trigger, reprint),
+        )
+        assert [r["set"] for r in spec.acceptable] == ["tqrs", "tuvw"]
+        assert spec.match(_listing("TXYZ", "35")) is None
+
     def test_marketing_promo_tags_dont_change_style(self):
         bundle = _printing("xyz", "1", promo_types=["bundle", "universesbeyond"])
         spec = PrintingSpec(

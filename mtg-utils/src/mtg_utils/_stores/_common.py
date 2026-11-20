@@ -126,6 +126,11 @@ class OptimizedCart(TypedDict):
     lines: list[OptimizedLine]
     unfound: list[str]
     cart_url: str
+    # Which of the optimizer's carts was selected ("Balanced"), its package
+    # count, and every option it offered (name / total / packages).
+    option: NotRequired[str]
+    packages: NotRequired[int | None]
+    alternatives: NotRequired[list[dict]]
 
 
 class StoreSelectorError(Exception):
