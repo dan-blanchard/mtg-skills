@@ -7,14 +7,15 @@ diff were re-derived by hand). This CLI runs the whole recipe in order and stops
 the first failure; ``--from-step N`` resumes. The script edits the pin and the
 generated rosters, regenerates every artifact that has a builder, and writes ONE
 markdown report that pre-sorts the triage: the impostor census (each row classified,
-plus dead ``_IMPOSTOR_RECORDS`` rows), the per-key signal diff (every loss bucketed,
-gains on already-parsed cards tagged), the losses still needing a verdict, the
-RETIRE-READY rows, and every bridge row's corpus reach. How a person works the report
-is ``docs/phase-pin-bump.md``.
+plus dead ``_IMPOSTOR_RECORDS`` rows), the cards with a face that builds no tree, the
+per-key signal diff (every loss bucketed, gains on already-parsed cards tagged), the
+losses still needing a verdict, the RETIRE-READY rows, and every bridge row's corpus
+reach. How a person works the report is ``docs/phase-pin-bump.md``.
 
 Steps:
   1 pin                 PHASE_TAG, CLAUDE.md's "currently" mentions, the pin test
-                        (live sites only — dated history mentions are kept)
+                        (live sites only — dated history mentions are kept); first,
+                        the old pin's tree coverage, kept as ``trees-<old>.json``
   2 variants            EFFECT_VARIANTS from phase's ``ability.rs`` at the tag
   3 card-data           fetch + cache card-data.json for the tag
   4 substrate           build-card-ir-substrate; ZERO_INSTANCE_EFFECTS from the zeros;
@@ -22,11 +23,14 @@ Steps:
   5 impostor-census     card-data records whose text matches no bulk face, each
                         classified; dead ``_IMPOSTOR_RECORDS`` rows
   6 rebuild             copy the signals .pkl aside; snapshot, sidecar, signals index
-  7 signal-diff         old vs new signals index, per key; losses bucketed, gains
+  7 tree-coverage       every card with a face record that builds no tree; FAILS
+                        when a card has fewer trees than at the old pin (or, with
+                        no baseline, when any card is short)
+  8 signal-diff         old vs new signals index, per key; losses bucketed, gains
                         tagged (reads the old tag's cached card-data + the tests)
-  8 graduation          RETIRE-READY rows: test_bridge_ledger.py + every
+  9 graduation          RETIRE-READY rows: test_bridge_ledger.py + every
                         ``retirement_canary``-marked test; bridge corpus reach
-  9 arena               arena-crosscheck under the new pin over the Arena log
+ 10 arena               arena-crosscheck under the new pin over the Arena log
                         archive, diffed against the old pin's report (ADR-0064);
                         advisory: a missing archive, Arena card database or old
                         report, or a failed run, is a note, never a failure
@@ -65,6 +69,7 @@ from mtg_utils.deck_cli import bulk_data_option
 
 if TYPE_CHECKING:
     from mtg_utils._analysis.bridge_ledger import Bridge
+    from mtg_utils._card_ir.mirror.schema import MirrorSchema
     from mtg_utils._card_ir.trees import ConceptTree
 
 PHASE_RAW = "https://raw.githubusercontent.com/phase-rs/phase"
@@ -821,6 +826,128 @@ def render_recovery(counts: RecoveryCounts | None, corpus: int) -> list[str]:
     return lines
 
 
+@dataclass(frozen=True)
+class ShortCard:
+    """A card with a phase face record that builds no tree: its name, how many face
+    records it has, and the faces that drift (``trees.drifted_faces``)."""
+
+    name: str
+    faces: int
+    drifted: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class TreeCoverage:
+    """One pin's tree coverage over phase's card-data: every oracle id with face
+    records, and the cards among them a face of which builds no tree. Healthy is
+    an empty ``short``: at v0.131.0 every one of the 36,391 face records loads."""
+
+    cards: frozenset[str]
+    short: Mapping[str, ShortCard]
+
+    def to_json(self) -> dict:
+        return {
+            "cards": sorted(self.cards),
+            "short": {
+                oid: {"name": s.name, "faces": s.faces, "drifted": list(s.drifted)}
+                for oid, s in sorted(self.short.items())
+            },
+        }
+
+    @classmethod
+    def from_json(cls, data: Mapping) -> TreeCoverage:
+        return cls(
+            frozenset(data["cards"]),
+            {
+                oid: ShortCard(s["name"], s["faces"], tuple(s["drifted"]))
+                for oid, s in data["short"].items()
+            },
+        )
+
+
+def tree_coverage(card_data: object, schema: MirrorSchema) -> TreeCoverage:
+    """The tree coverage of ``card_data`` (phase's card-data document): its records
+    grouped by oracle id as every reader groups them (``build._group_by_oracle_id``,
+    impostors and meld copies dropped), each group's faces checked against the
+    committed mirror ``schema`` after the record-level corrections."""
+    from mtg_utils._card_ir.build import _group_by_oracle_id
+    from mtg_utils._card_ir.trees import drifted_faces
+
+    groups = _group_by_oracle_id(card_data)
+    short = {}
+    for oid, recs in groups.items():
+        drifted = drifted_faces(recs, schema)
+        if drifted:
+            short[oid] = ShortCard(recs[0].get("name") or oid, len(recs), drifted)
+    return TreeCoverage(frozenset(groups), short)
+
+
+class TreeLossKind(Enum):
+    """Why a short card is short, against the old pin's coverage. The first two
+    fail the tree-coverage step; the others are listed for a look."""
+
+    REGRESSED = "fewer trees than at the old pin"
+    NO_BASELINE = "no old-pin coverage to compare with"
+    ALREADY_SHORT = "as short at the old pin"
+    NEW_CARD = "no record at the old pin"
+
+    @property
+    def fails(self) -> bool:
+        return self in (TreeLossKind.REGRESSED, TreeLossKind.NO_BASELINE)
+
+
+@dataclass(frozen=True)
+class TreeLoss:
+    card: ShortCard
+    kind: TreeLossKind
+
+
+def tree_losses(old: TreeCoverage | None, new: TreeCoverage) -> tuple[TreeLoss, ...]:
+    """Every short card at the new pin, each judged against the old pin: a card
+    with records at both pins that now has more faces without a tree REGRESSED (a
+    correction that loaded at the old pin no longer does: Doran, Besieged by Time
+    at v0.131.0). With no old coverage every short card fails, since the healthy
+    state is none. Failing ones first, then by name."""
+    out = []
+    for oid, card in new.short.items():
+        if old is None:
+            kind = TreeLossKind.NO_BASELINE
+        elif oid not in old.cards:
+            kind = TreeLossKind.NEW_CARD
+        else:
+            before = old.short.get(oid)
+            had = len(before.drifted) if before is not None else 0
+            regressed = len(card.drifted) > had
+            kind = TreeLossKind.REGRESSED if regressed else TreeLossKind.ALREADY_SHORT
+        out.append(TreeLoss(card, kind))
+    return tuple(sorted(out, key=lambda t: (not t.kind.fails, t.card.name)))
+
+
+def render_tree_coverage(
+    losses: Sequence[TreeLoss] | None, cards: int, old_tag: str
+) -> list[str]:
+    if losses is None:
+        return []
+    lines = [f"## Face records with no tree (over {cards} cards)"]
+    if not losses:
+        lines.append("- every face record builds its tree")
+        return lines
+    lines.append(
+        "- a face whose corrected record fails the strict load builds no tree, so "
+        "the card loses its signals; a correction wrote a node the mirror does not "
+        "take (phase's own records always load)"
+    )
+    for t in losses:
+        mark = "FAILS: " if t.kind.fails else ""
+        faces = ", ".join(t.card.drifted)
+        lines.append(
+            f"- {mark}{t.card.name}: {len(t.card.drifted)} of {t.card.faces} "
+            f"face(s) without a tree ({faces}) — {t.kind.value}"
+            + (f" ({old_tag})" if t.kind is TreeLossKind.REGRESSED else "")
+        )
+    return lines
+
+
 @dataclass
 class ReportData:
     """Everything the report renders — the steps fill it in, :func:`render_report`
@@ -834,6 +961,10 @@ class ReportData:
     zero_instance: tuple[str, ...] = ()
     census: tuple[ImpostorRow, ...] = ()
     dead_impostors: tuple[tuple[str, str], ...] = ()
+    #: The short cards at the new pin (``tree_losses``), ``None`` when the
+    #: tree-coverage step did not run; ``tree_cards`` is the cards it checked.
+    tree_losses: tuple[TreeLoss, ...] | None = None
+    tree_cards: int = 0
     diff: tuple[KeyDiff, ...] = ()
     residue_backed: Mapping[str, Sequence[str]] = field(default_factory=dict)
     facts: Mapping[str, CardFacts] = field(default_factory=dict)
@@ -867,6 +998,7 @@ def render_report(data: ReportData) -> str:
         [f"# phase pin bump {data.old_tag} → {data.new_tag}"],
         render_rosters(data.variants_before, data.variants_after, data.zero_instance),
         render_census(data.census, data.dead_impostors),
+        render_tree_coverage(data.tree_losses, data.tree_cards, data.old_tag),
         render_signal_diff(triaged),
         render_needs_verdict(triaged),
         render_gains_to_check(triaged),
@@ -920,7 +1052,45 @@ def _write(ctx: BumpContext, rel: Path, text: str) -> None:
     (ctx.repo / rel).write_text(text, encoding="utf-8")
 
 
+class StepFailed(click.ClickException):
+    """A step found something the bump must not go past. Unlike any other error,
+    :func:`run` writes the report first, so the step's section shows what it found."""
+
+
+def _tree_baseline_path(ctx: BumpContext) -> Path:
+    return ctx.report_dir / f"trees-{ctx.old_tag}.json"
+
+
+def _card_data_coverage(path: Path) -> TreeCoverage:
+    from mtg_utils._card_ir.mirror.build import load_committed_schema
+
+    data = json.loads(path.read_text(encoding="utf-8"))
+    return tree_coverage(data, load_committed_schema())
+
+
+def capture_tree_baseline(ctx: BumpContext) -> None:
+    """The old pin's tree coverage, kept in the report dir for the tree-coverage
+    step. Only step 1 can take it: this process still holds the old pin, the old
+    mirror and the old correction layers, all of which the later steps replace.
+    Skipped, with a note, when the old tag's card-data can't be had."""
+    try:
+        old = ctx.old_card_data_path()  # still the pinned tag's: fetched if absent
+    except (RuntimeError, OSError):
+        old = None
+    if old is None or not old.is_file():
+        ctx.report.notes.append(
+            f"no card-data for {ctx.old_tag}: no tree-coverage baseline, so the "
+            "tree-coverage step fails on any card with a face that builds no tree"
+        )
+        return
+    ctx.report_dir.mkdir(parents=True, exist_ok=True)
+    _tree_baseline_path(ctx).write_text(
+        json.dumps(_card_data_coverage(old).to_json()), encoding="utf-8"
+    )
+
+
 def step_pin(ctx: BumpContext) -> None:
+    capture_tree_baseline(ctx)
     for rel in (PIN_FILE, *PIN_MENTION_FILES):
         text, n = rewrite_pin(_read(ctx, rel), ctx.old_tag, ctx.new_tag)
         if n == 0:
@@ -1052,6 +1222,34 @@ def step_rebuild(ctx: BumpContext) -> None:
         ctx.report.notes.append("phase clone moved to the new tag and rebuilt")
 
 
+def step_tree_coverage(ctx: BumpContext) -> None:
+    """Every card with a phase face record that builds no tree at the new pin,
+    against step 1's baseline (:func:`tree_losses`). Fails when a card lost a tree
+    it had at the old pin, or, with no baseline, when any card is short: a strict
+    load that fails after a correction drops the card's tree silently, and the
+    signal diff shows it only as one more lost card (Doran, Besieged by Time at
+    v0.131.0). The escape hatch is resuming at the next step."""
+    baseline = _tree_baseline_path(ctx)
+    old = None
+    if baseline.is_file():
+        old = TreeCoverage.from_json(json.loads(baseline.read_text(encoding="utf-8")))
+    new = _card_data_coverage(ctx.card_data_path())
+    losses = tree_losses(old, new)
+    ctx.report.tree_losses = losses
+    ctx.report.tree_cards = len(new.cards)
+    failing = [t.card.name for t in losses if t.kind.fails]
+    if failing:
+        here = _step_number("tree-coverage")
+        raise StepFailed(
+            f"{len(failing)} card(s) have a face that builds no tree at "
+            f"{ctx.new_tag} ({', '.join(failing[:5])}"
+            f"{', …' if len(failing) > 5 else ''}): a correction under _card_ir/ "
+            "writes a node the mirror does not take. Fix it and resume with "
+            f"--from-step {here}, or go on without the check with --from-step "
+            f"{here + 1}."
+        )
+
+
 def _load_index(path: Path) -> dict[str, tuple[str, ...]]:
     with path.open("rb") as f:
         payload = pickle.load(f)
@@ -1144,7 +1342,7 @@ def step_arena(ctx: BumpContext) -> None:
     report against the old pin's (ADR-0064). Skipped, with a note, when there is no
     archive, no Arena card database or no report for the old pin; never fails.
 
-    A subprocess, unlike step 8's in-process walk: it imports the regenerated sources
+    A subprocess, unlike step 9's in-process walk: it imports the regenerated sources
     (rosters, corrections) fresh, and its memory is its own."""
     from mtg_utils._arena_crosscheck.report import (
         diff_reports,
@@ -1188,10 +1386,16 @@ STEPS: tuple[tuple[str, Callable[[BumpContext], None]], ...] = (
     ("substrate", step_substrate),
     ("impostor-census", step_impostor_census),
     ("rebuild", step_rebuild),
+    ("tree-coverage", step_tree_coverage),
     ("signal-diff", step_signal_diff),
     ("graduation", step_graduation),
     ("arena", step_arena),
 )
+
+
+def _step_number(name: str) -> int:
+    """The 1-based ``--from-step`` number of the step called *name*."""
+    return next(i for i, (n, _) in enumerate(STEPS, start=1) if n == name)
 
 
 OLD_TAG_MARKER = "old-tag"
@@ -1219,8 +1423,9 @@ def resume_old_tag(report_dir: Path) -> str:
 #: load records with the OLD classes (v0.104.0: ``KeyError: ('recipient',
 #: 'NoPlayer')`` in the signal diff).
 GENERATED_MIRROR_DIR = Path("mtg-utils/src/mtg_utils/_card_ir/mirror/generated")
-#: The first step that reads trees in this process.
-IN_PROCESS_TREE_STEP = "signal-diff"
+#: The first step that reads trees in this process (after step 1's baseline,
+#: which reads them at the old pin, before anything is regenerated).
+IN_PROCESS_TREE_STEP = "tree-coverage"
 
 
 def _generated_fingerprint(repo: Path) -> tuple[tuple[str, int, int], ...]:
@@ -1253,7 +1458,15 @@ def run(ctx: BumpContext, *, from_step: int = 1, echo: Callable[[str], None]) ->
                 f"still holds the old classes: resume with --from-step {i}"
             )
         echo(f"[{i}/{len(STEPS)}] {name}")
-        fn(ctx)
+        try:
+            fn(ctx)
+        except StepFailed as exc:
+            exc.message += f"\nreport: {_write_report(ctx)}"
+            raise
+    return _write_report(ctx)
+
+
+def _write_report(ctx: BumpContext) -> Path:
     ctx.report_dir.mkdir(parents=True, exist_ok=True)
     report = ctx.report_dir / "report.md"
     report.write_text(render_report(ctx.report), encoding="utf-8")

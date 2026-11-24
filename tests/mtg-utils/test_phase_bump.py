@@ -14,7 +14,7 @@ import click
 import pytest
 from click.testing import CliRunner
 
-from mtg_utils import _phase, phase_bump
+from mtg_utils import _phase, phase_bump, testkit
 from mtg_utils.phase_bump import (
     STEPS,
     BridgeReach,
@@ -23,6 +23,7 @@ from mtg_utils.phase_bump import (
     KeyDiff,
     LossBucket,
     ReportData,
+    TreeLossKind,
     bridge_reach,
     card_facts,
     classify_loss,
@@ -496,6 +497,11 @@ def test_dry_run_executes_every_step_in_order_and_writes_the_report(
             }
         )
     )
+    # The old tag's cached card-data, which step 1 takes the tree baseline from.
+    # Neither fake record strict-loads, so the card is short at both pins: listed,
+    # not failed.
+    old_card_data = tmp_path / "card-data-v0.66.0.json"
+    old_card_data.write_text(card_data.read_text())
     bulk = tmp_path / "bulk.json"  # a Scryfall-shaped list, not an MTGJSON file
     bulk.write_text(
         json.dumps(
@@ -616,12 +622,17 @@ def test_dry_run_executes_every_step_in_order_and_writes_the_report(
     assert "## Bridge reach" in text
     # the fake card-data carries none of the real table's rows: each reads DEAD
     assert "DEAD `_IMPOSTOR_RECORDS` row" in text
+    # step 1 kept the old pin's tree coverage; step 7 lists the short card
+    assert (tmp_path / "report" / "trees-v0.66.0.json").exists()
+    assert "## Face records with no tree (over 1 cards)" in text
+    assert "- Test Relic: 2 of 2 face(s) without a tree" in text
+    assert "as short at the old pin" in text
 
 
 def test_from_step_skips_earlier_steps(tmp_path, monkeypatch):
     repo = _fake_repo(tmp_path)
     monkeypatch.setattr(_phase, "PHASE_TAG", "v0.66.0")
-    # Step 8's bridge reach reads the corpus; this test is about step skipping, so
+    # Step 9's bridge reach reads the corpus; this test is about step skipping, so
     # it runs over no cards rather than whatever bulk the machine happens to have.
     monkeypatch.setattr(phase_bump, "_bulk_records", lambda _ctx: [])
     calls: list[list[str]] = []
@@ -638,9 +649,123 @@ def test_from_step_skips_earlier_steps(tmp_path, monkeypatch):
         card_data_path=lambda: pytest.fail("step 3 must not run"),
         bulk_path=None,
     )
-    run(ctx, from_step=8, echo=lambda _s: None)
+    run(ctx, from_step=phase_bump._step_number("graduation"), echo=lambda _s: None)
     assert (repo / phase_bump.PIN_FILE).read_text() == 'PHASE_TAG = "v0.66.0"\n'
     assert [c[2] for c in calls] == ["pytest", "pytest"]  # ledger + canaries
+
+
+# ── tree coverage: a face that builds no tree fails the bump ───────────────────
+
+
+def _short(name: str, faces: int, *drifted: str) -> phase_bump.ShortCard:
+    return phase_bump.ShortCard(name, faces, drifted)
+
+
+def test_tree_losses_judge_each_short_card_against_the_old_pin():
+    old = phase_bump.TreeCoverage(
+        frozenset({"oid-doran", "oid-dfc", "oid-odd"}),
+        {"oid-odd": _short("Odd Card", 1, "Odd Card")},
+    )
+    new = phase_bump.TreeCoverage(
+        frozenset({"oid-doran", "oid-dfc", "oid-odd", "oid-new"}),
+        {
+            "oid-doran": _short(
+                "Doran, Besieged by Time", 1, "Doran, Besieged by Time"
+            ),
+            "oid-dfc": _short("Front // Back", 2, "Back"),
+            "oid-odd": _short("Odd Card", 1, "Odd Card"),
+            "oid-new": _short("Brand New", 1, "Brand New"),
+        },
+    )
+    got = [(t.card.name, t.kind) for t in phase_bump.tree_losses(old, new)]
+    assert got == [
+        ("Doran, Besieged by Time", TreeLossKind.REGRESSED),  # failing ones first
+        ("Front // Back", TreeLossKind.REGRESSED),  # one face of two is enough
+        ("Brand New", TreeLossKind.NEW_CARD),
+        ("Odd Card", TreeLossKind.ALREADY_SHORT),
+    ]
+    # with no baseline, every short card fails: the healthy state is none
+    assert {t.kind for t in phase_bump.tree_losses(None, new)} == {
+        TreeLossKind.NO_BASELINE
+    }
+    assert all(t.kind.fails for t in phase_bump.tree_losses(None, new))
+
+
+def test_tree_coverage_round_trips_through_its_baseline_file():
+    cov = phase_bump.TreeCoverage(
+        frozenset({"a", "b"}), {"b": _short("Front // Back", 2, "Back")}
+    )
+    back = phase_bump.TreeCoverage.from_json(json.loads(json.dumps(cov.to_json())))
+    assert back == cov
+
+
+def test_render_tree_coverage_healthy_and_not_run():
+    assert phase_bump.render_tree_coverage(None, 0, "v0.66.0") == []
+    text = "\n".join(phase_bump.render_tree_coverage((), 12, "v0.66.0"))
+    assert "## Face records with no tree (over 12 cards)" in text
+    assert "every face record builds its tree" in text
+
+
+def _tree_ctx(tmp_path, card_data: dict) -> BumpContext:
+    path = tmp_path / "card-data-v0.70.0.json"
+    path.write_text(json.dumps(card_data))
+    return BumpContext(
+        repo=_fake_repo(tmp_path),
+        old_tag="v0.66.0",
+        new_tag="v0.70.0",
+        report_dir=tmp_path / "report",
+        runner=lambda argv: pytest.fail(f"ran {argv}"),
+        fetch=lambda _url: pytest.fail("no fetch"),
+        card_data_path=lambda: path,
+        bulk_path=None,
+    )
+
+
+def _drifting(name: str) -> dict:
+    """*name*'s real phase record with a field the mirror has never seen: what a
+    correction writing a misplaced node leaves the strict load."""
+    (rec,) = testkit.test_phase_records(name)
+    return {**rec, "not_a_mirror_field": 1}
+
+
+def test_tree_coverage_step_regression_fails_and_still_writes_the_report(tmp_path):
+    (seer,) = testkit.test_phase_records("Viscera Seer")
+    doran = _drifting("Doran, Besieged by Time")
+    ctx = _tree_ctx(tmp_path, {"seer": seer, "doran": doran})
+    # the old pin's baseline: both cards present, every face building its tree
+    old = phase_bump.TreeCoverage(
+        frozenset({seer["scryfall_oracle_id"], doran["scryfall_oracle_id"]}), {}
+    )
+    ctx.report_dir.mkdir()
+    (ctx.report_dir / "trees-v0.66.0.json").write_text(json.dumps(old.to_json()))
+    here = phase_bump._step_number("tree-coverage")
+    with pytest.raises(phase_bump.StepFailed) as exc:
+        run(ctx, from_step=here, echo=lambda _s: None)
+    assert "Doran, Besieged by Time" in exc.value.message
+    assert f"--from-step {here + 1}" in exc.value.message  # the escape hatch
+    text = (ctx.report_dir / "report.md").read_text()
+    assert "## Face records with no tree (over 2 cards)" in text
+    assert (
+        "- FAILS: Doran, Besieged by Time: 1 of 1 face(s) without a tree "
+        "(Doran, Besieged by Time) — fewer trees than at the old pin (v0.66.0)"
+    ) in text
+    assert "Viscera Seer" not in text
+
+
+def test_tree_coverage_step_passes_a_healthy_corpus(tmp_path):
+    (seer,) = testkit.test_phase_records("Viscera Seer")
+    ctx = _tree_ctx(tmp_path, {"seer": seer})
+    phase_bump.step_tree_coverage(ctx)  # no baseline, nothing short: no failure
+    assert ctx.report.tree_losses == ()
+    assert ctx.report.tree_cards == 1
+
+
+def test_tree_coverage_step_without_a_baseline_fails_on_any_short_card(tmp_path):
+    ctx = _tree_ctx(tmp_path, {"doran": _drifting("Doran, Besieged by Time")})
+    with pytest.raises(phase_bump.StepFailed, match="1 card"):
+        phase_bump.step_tree_coverage(ctx)
+    (loss,) = ctx.report.tree_losses
+    assert loss.kind is TreeLossKind.NO_BASELINE
 
 
 def test_rebuild_resume_keeps_the_first_runs_pre_bump_index(tmp_path):

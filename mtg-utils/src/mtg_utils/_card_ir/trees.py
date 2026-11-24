@@ -885,21 +885,13 @@ def face_tree(rec: dict, schema: MirrorSchema, *, oracle_id: str) -> ConceptTree
     — the honest "nothing structured survives" answer, never a crash. The one
     place the substrate stages are composed; every product below is built from it.
     """
-    from mtg_utils._card_ir.branches import apply_misreads
     from mtg_utils._card_ir.crosswalk import build_concept_tree
-    from mtg_utils._card_ir.dropped_keywords import restore_dropped_keywords
     from mtg_utils._card_ir.mirror.loader import MirrorDriftError, strict_load_card
-    from mtg_utils._card_ir.misparsed_shapes import correct_misparsed_shapes
     from mtg_utils._card_ir.overlay_corrections import apply_overlay_corrections
-    from mtg_utils._card_ir.shape_compat import restore_renamed_shapes
 
     nm = rec.get("name") or ""
-    rec = apply_misreads(rec)  # drop the branches phase misparses (registry rows)
-    rec = restore_dropped_keywords(rec)  # the keywords phase drops (shape rows)
-    rec = restore_renamed_shapes(rec)  # shapes phase renamed, in their old form
-    rec = correct_misparsed_shapes(rec)  # shapes phase misparses, rewritten
     try:
-        root = strict_load_card(rec, schema, name=nm)
+        root = strict_load_card(corrected_record(rec), schema, name=nm)
     except MirrorDriftError:
         return None
     if root is None:
@@ -907,6 +899,45 @@ def face_tree(rec: dict, schema: MirrorSchema, *, oracle_id: str) -> ConceptTree
     return apply_overlay_corrections(
         build_concept_tree(root, name=nm, oracle_id=oracle_id)
     )
+
+
+def corrected_record(rec: dict) -> dict:
+    """ONE phase face record with the record-level corrections applied, in the
+    order :func:`face_tree` strict-loads it: drop the branches phase misreads, put
+    back the keywords it drops, write renamed shapes back in their old form, then
+    rewrite the shapes it misparses."""
+    from mtg_utils._card_ir.branches import apply_misreads
+    from mtg_utils._card_ir.dropped_keywords import restore_dropped_keywords
+    from mtg_utils._card_ir.misparsed_shapes import correct_misparsed_shapes
+    from mtg_utils._card_ir.shape_compat import restore_renamed_shapes
+
+    rec = apply_misreads(rec)  # drop the branches phase misparses (registry rows)
+    rec = restore_dropped_keywords(rec)  # the keywords phase drops (shape rows)
+    rec = restore_renamed_shapes(rec)  # shapes phase renamed, in their old form
+    return correct_misparsed_shapes(rec)  # shapes phase misparses, rewritten
+
+
+def drifted_faces(recs: Sequence[dict], schema: MirrorSchema) -> tuple[str, ...]:
+    """The names of the face records among ``recs`` that build no tree: their
+    corrected record (:func:`corrected_record`) does not strict-load against
+    ``schema``, so :func:`face_tree` answers ``None`` for them. Validated without
+    building the typed tree, so a scan of every card stays cheap.
+
+    Phase's own records always load: the mirror is generated from them. A face
+    that drifts is a correction that wrote a node where the mirror does not take
+    it, and the card silently keeps no tree for that face. The v0.131.0 bump's
+    ``ClampMin`` unwrap left Doran, Besieged by Time's ``Difference`` amount where
+    only some shapes take one, and Doran lost every signal."""
+    from mtg_utils._card_ir.mirror.loader import MirrorDriftError, strict_load_card
+
+    drifted = []
+    for rec in recs:
+        nm = rec.get("name") or ""
+        try:
+            strict_load_card(corrected_record(rec), schema, name=nm, build=False)
+        except MirrorDriftError:
+            drifted.append(nm)
+    return tuple(drifted)
 
 
 def build_trees(

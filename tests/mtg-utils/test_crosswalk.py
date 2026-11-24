@@ -65,7 +65,13 @@ from mtg_utils._card_ir.overlay_corrections import (
     l1_bytes,
 )
 from mtg_utils._card_ir.shape_compat import restore_renamed_shapes
-from mtg_utils._card_ir.trees import _face_names, _text_only_trees, trees_for
+from mtg_utils._card_ir.trees import (
+    _face_names,
+    _text_only_trees,
+    drifted_faces,
+    face_tree,
+    trees_for,
+)
 from mtg_utils.testkit import snapshot_records, test_card, test_phase_records
 
 
@@ -16097,6 +16103,47 @@ def test_fixture_corpus_emits_only_manifest_served_keys():
         tree = as_signal_tree(build_concept_tree(root, name=rec["name"]))
         keys = {s.key for s in extract_crosswalk_signals(tree, keywords=_kw(card))}
         assert keys <= SERVED_SIGNAL_KEYS, rec["name"]
+
+
+def test_every_snapshot_face_record_builds_its_face_tree():
+    """Every phase face record the snapshot stores builds its own face tree once
+    the record-level corrections run: ``face_tree`` never answers ``None``, and
+    ``drifted_faces`` (what ``bump-phase-pin``'s tree-coverage step scans the
+    corpus with) agrees.
+
+    The invariant is per face record, not "a card has at least as many trees as
+    records": ``build_trees`` adds a tree for a predefined token whose text phase
+    left blank and one for a bulk face phase has no record for, so its count can
+    pass while a face is missing. Phase's raw records always strict-load (the
+    mirror is generated from them), so a face that drifts is a correction writing
+    a node the mirror does not take. That is how Doran, Besieged by Time lost every
+    signal at v0.131.0: the ``ClampMin`` unwrap exposed a ``Difference`` amount
+    where its slot takes only some shapes, the strict load failed, and the card
+    kept no tree, silently."""
+    schema = _schema()
+    lost = [
+        rec["name"]
+        for _card, rec in _corpus()
+        if face_tree(rec, schema, oracle_id=rec.get("scryfall_oracle_id") or "") is None
+    ]
+    assert lost == []
+    drifted = [n for _card, rec in _corpus() for n in drifted_faces([rec], schema)]
+    assert drifted == lost
+
+
+def test_drifted_faces_names_a_face_a_correction_breaks(monkeypatch):
+    """The scan's failure path fires: a correction that writes an unknown node
+    makes the face drift, and ``face_tree`` builds nothing for it."""
+    from mtg_utils._card_ir import misparsed_shapes
+
+    (rec,) = test_phase_records("Viscera Seer")
+    schema = _schema()
+    assert drifted_faces([rec], schema) == ()
+    monkeypatch.setattr(
+        misparsed_shapes, "correct_misparsed_shapes", lambda r: {**r, "bad": 1}
+    )
+    assert drifted_faces([rec], schema) == ("Viscera Seer",)
+    assert face_tree(rec, schema, oracle_id=rec["scryfall_oracle_id"]) is None
 
 
 # ── ADR-0035 Stage-3b (b) — overlay-correction stage + substrate-purity ───────

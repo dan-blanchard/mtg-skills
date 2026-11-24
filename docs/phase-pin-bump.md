@@ -8,7 +8,7 @@ report leaves to a person. Work its sections top to bottom.
 ```bash
 cd mtg-utils
 uv run bump-phase-pin <tag>                 # the whole bump
-uv run bump-phase-pin <tag> --from-step 6   # after a lane fix: rebuild + signal diff + graduation
+uv run bump-phase-pin <tag> --from-step 6   # after a lane fix: rebuild + tree coverage + signal diff + graduation
 uv run bump-phase-pin <tag> --install-phase # also move the cargo clone (playtesting only)
 ```
 
@@ -22,6 +22,20 @@ uv run bump-phase-pin <tag> --install-phase # also move the cargo clone (playtes
   by (oracle id, exact text) so it retires itself. A **DEAD** row line means the
   upstream join was fixed *or flipped*: the Fast // Furious mis-join has changed
   direction between pins, so look for the flipped record before deleting the row.
+- **Face records with no tree.** Step 7 strict-loads every phase face record after
+  the record-level corrections (`trees.drifted_faces`: `branches`, `dropped_keywords`,
+  `shape_compat`, `misparsed_shapes`). Phase's own records always load, since the
+  mirror is generated from them, so a face that fails is a correction writing a node
+  the mirror doesn't take, and the card keeps no tree and no signals. At v0.131.0 the
+  `ClampMin` unwrap left Doran, Besieged by Time's `Difference` amount where its slot
+  doesn't take it, which showed up only as one more lost card in the signal diff.
+  Step 1 records the old pin's coverage (`trees-<old>.json` in the report dir) before
+  it rewrites the pin, and step 7 **fails** on a card with fewer trees than it had
+  then. Cards that were as short at the old pin, or have no record there, are listed
+  without failing. With no baseline (no old card-data at step 1), every short card
+  fails. The report is still written. Fix the correction and resume with
+  `--from-step 7`; `--from-step 8` goes on without the check. Healthy is an empty
+  list: at v0.131.0 all 36,391 face records load.
 - **Signal diff.** The "old" side is the signals index already on disk, so it is only
   a clean baseline if it was built at the commit you are bumping from. Signal-changing
   commits since its last build show up as phase changes (v0.104.0: 1,152
@@ -90,7 +104,7 @@ uv run bump-phase-pin <tag> --install-phase # also move the cargo clone (playtes
     node") that holds on almost every card by design, so sampling its gap-only cards
     says nothing. Each gets one summary line (gap count, fires count) so no row is
     hidden; a wide gap only matters if its fires count moves unexpectedly.
-- **Against Arena's game logs.** Step 9 reruns `arena-crosscheck` (ADR-0064) over the
+- **Against Arena's game logs.** Step 10 reruns `arena-crosscheck` (ADR-0064) over the
   archived Arena games and lists every row whose verdict the new pin changed, old
   verdict then new. A row that moved to `agree`, or a strict check that now passes, is
   phase fixing a parse (retire its workaround, if it has one); one that moved away is a

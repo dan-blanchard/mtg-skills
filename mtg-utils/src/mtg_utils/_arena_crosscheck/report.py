@@ -2,7 +2,7 @@
 
 A report is saved per phase pin as ``<archive>/reports/<PHASE_TAG>.json``, so a run
 under a new pin can list what its parse changed against the same logged games
-(:func:`diff_reports`, :func:`render_changes`; ``bump-phase-pin``'s step 9).
+(:func:`diff_reports`, :func:`render_changes`; ``bump-phase-pin``'s step 10).
 Rows are keyed by game and their order in it, which the same logs reproduce exactly.
 """
 

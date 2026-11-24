@@ -69,3 +69,13 @@ errata-drift false positives a text gate would wrongly drop).
 the Arena log archive and lists, in the report, every row whose verdict changed against
 the old pin's saved report. Advisory: a missing archive, card database or old report,
 or a failed run, is a note, never a failure.
+
+**Amended (the v0.131.0 review).** A correction that rewrites a raw record into a node
+the mirror doesn't take makes the strict load fail, and the card keeps no tree: Doran,
+Besieged by Time lost every signal at v0.131.0 and surfaced only as a signal-diff
+loss. Step 1 now records the old pin's tree coverage before it rewrites the pin (the
+only point where the old pin, mirror and corrections are all still loaded), and a new
+step 7 `tree-coverage` lists every card with a face record that builds no tree and
+fails when one has fewer trees than at the old pin (any short card, with no
+baseline). Unlike the other steps it writes the report before stopping. Steps 7–9
+are now 8–10.
