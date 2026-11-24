@@ -139,6 +139,9 @@ _SCALING_QTY_TAGS: frozenset[str] = frozenset(
         "ObjectCountBySharedQuality",
         "CountersOn",
         "CountersOnObjects",
+        # "for each kind of counter on it" (Blitzball Stadium), a ``CountersOn``
+        # with a junk kind through phase v0.118.0.
+        "DistinctCounterKindsAmong",
         "Devotion",
         "PartySize",
         "BasicLandTypeCount",
@@ -1370,7 +1373,14 @@ def _is_mass_removal(tree: ConceptTree, unit: AbilityUnit, c: ConceptNode) -> bo
         return True
     if t == "ChangeZoneAll" and ctrl != "You":
         origin, dest = change_zone_dirs(c.node)
-        gy = origin == "Graveyard" or ("Graveyard" in filter_inzone_zones(sub))
+        # Cards in a graveyard only: an exile that sweeps the battlefield and
+        # the graveyards alike is still a sweep ("Exile all creatures and
+        # planeswalkers with mana value 3 or less from the battlefield and all
+        # … cards … from all graveyards" — Shadows' Verdict).
+        zones = filter_inzone_zones(sub)
+        gy = origin == "Graveyard" or (
+            "Graveyard" in zones and "Battlefield" not in zones
+        )
         if dest == "Exile" and not gy and cores & SWEPT_PERMANENT_TYPES:
             return True
         # task #88 — mass TUCK (Terminus, Hallowed Burial, Harmonic

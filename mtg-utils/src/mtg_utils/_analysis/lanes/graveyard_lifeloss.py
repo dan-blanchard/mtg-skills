@@ -2064,6 +2064,24 @@ def _granted_edict_scope(
     return None
 
 
+def _edict_targets_its_player(unit: AbilityUnit, sacrificed: object) -> bool:
+    """Whether an edict's player is one the ability targets: the sacrificed
+    filter's ``TargetPlayer`` / ``TargetOpponent`` controller, or the "that
+    player" of a head that only chooses a player (``TargetOnly`` over a filter
+    naming no card type — "Target opponent sacrifices a creature with the
+    greatest power among creatures they control", Will of the Abzan)."""
+    controller = filter_controller(sacrificed)
+    if controller in ("TargetPlayer", "TargetOpponent"):
+        return True
+    return controller == "ScopedPlayer" and any(
+        tag_of(n) == "TargetOnly"
+        and tag_of(chosen := getattr(n, "target", None)) == "Typed"
+        and not filter_core_types(chosen)
+        and not filter_subtypes(chosen)
+        for n in unit.iter_typed()
+    )
+
+
 def _edict_makers(tree: ConceptTree) -> list[Signal]:
     """edict_makers — a FORCED player sacrifice (CR 701.21a / 800.4a). The INVERSE of
     the ``sacrifice_outlets`` you-sac gate. Two structural tells, each reading the
@@ -2120,8 +2138,7 @@ def _edict_makers(tree: ConceptTree) -> list[Signal]:
             if (
                 scope
                 and "target" not in seen
-                and filter_controller(effect_filter(c.node))
-                in ("TargetPlayer", "TargetOpponent")
+                and _edict_targets_its_player(unit, effect_filter(c.node))
             ):
                 seen.add("target")
                 out.append(

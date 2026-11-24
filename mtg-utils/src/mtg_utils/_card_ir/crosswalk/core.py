@@ -612,6 +612,12 @@ class ConceptTree:
     # Feast of Blood's "Cast this spell only if you control two or more
     # Vampires". Raw condition nodes, read like ``card_modal_conditions``.
     card_cast_conditions: tuple[object, ...] = ()
+    # The condition of each card-root ``casting_options`` entry that offers an
+    # alternative cost only while it holds (``kind='AlternativeCost'``, CR
+    # 118.9): Invigorate's "If you control a Forest, rather than pay this
+    # spell's mana cost, you may have an opponent gain 3 life". Raw condition
+    # nodes, read like ``card_cast_conditions``.
+    card_alt_cost_conditions: tuple[object, ...] = ()
     # One entry per card-root ``casting_options`` entry that lets you cast the
     # card as though it had flash (``kind='AsThoughHadFlash'``, CR 702.8a: flash
     # lets you cast it "any time you could cast an instant"): its condition node,
@@ -1823,6 +1829,13 @@ def build_concept_tree(
     # A bare ``{kind: AsThoughHadFlash}`` (no condition, no cost — Necromancy)
     # strict-loads as a ``MirrorVariant`` keyed ``kind``.
     casting_options = getattr(root, "casting_options", None)
+    card_alt_cost_conditions = tuple(
+        cond
+        for o in (casting_options if isinstance(casting_options, list) else ())
+        if isinstance(o, TypedMirrorNode)
+        and getattr(o, "kind", None) == "AlternativeCost"
+        and isinstance(cond := getattr(o, "condition", None), TypedMirrorNode)
+    )
     card_flash_options = tuple(
         cond
         if isinstance(o, TypedMirrorNode)
@@ -2031,6 +2044,7 @@ def build_concept_tree(
         card_enchant_filter=card_enchant_filter,
         card_modal_conditions=tuple(card_modal_conditions),
         card_cast_conditions=tuple(card_cast_conditions),
+        card_alt_cost_conditions=card_alt_cost_conditions,
         card_flash_options=card_flash_options,
         card_curve_costs=tuple(card_curve_costs),
         card_alt_costs=tuple(card_alt_costs),

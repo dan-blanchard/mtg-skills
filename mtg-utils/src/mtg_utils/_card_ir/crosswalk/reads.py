@@ -423,11 +423,12 @@ def scoped_player_scope(unit: AbilityUnit | None) -> str | None:
     "your upkeep, you sacrifice" self-sac) → ``None``. A non-trigger ScopedPlayer
     keeps the opponent default. The player a creature of yours dealt combat damage
     to is an opponent (:func:`combat_damage_hits_opponent` — Demon of Loathing's
-    "that player sacrifices a creature of their choice").
+    "that player sacrifices a creature of their choice"), as is the one who took
+    a choice only an opponent is offered (:func:`_an_opponent_may`).
     """
     if unit is None or getattr(unit, "origin", None) != "trigger":
         return "opponents"
-    if combat_damage_hits_opponent(unit.node):
+    if combat_damage_hits_opponent(unit.node) or _an_opponent_may(unit.node):
         return "opponents"
     c = trigger_turn_constraint(unit.node)
     if c == "OnlyDuringOpponentsTurn":
@@ -435,6 +436,16 @@ def scoped_player_scope(unit: AbilityUnit | None) -> str | None:
     if c == "OnlyDuringYourTurn":
         return None
     return "each"
+
+
+def _an_opponent_may(trigger: object) -> bool:
+    """Whether a trigger offers its choice to an opponent ("Any opponent may
+    have you put that card into your graveyard. If a player does, ~ deals
+    damage to that player" — Sin Prodder): the player who took it is one."""
+    return any(
+        getattr(n, "optional_for", None) == "AnyOpponent"
+        for n in iter_typed_nodes(trigger)
+    )
 
 
 def refers_to_scoped_player(node: object) -> bool:
@@ -3713,7 +3724,7 @@ def filter_named_zones(filt: object) -> tuple[str, ...]:
     return (*filter_inzone_zones(filt), *filter_inanyzone_zones(filt))
 
 
-def zone_change_origins(node: object) -> tuple[str, ...]:
+def zone_change_origins(node: TypedMirrorNode) -> tuple[str, ...]:
     """The zones a zone-change effect takes its object from: its own
     ``origin``, or, when phase names none, the zones the object's filter says
     it is in (:func:`filter_named_zones` — "from your hand or from the command
@@ -7815,6 +7826,22 @@ TEAM_BUFF_GRANT_KW: frozenset[str] = frozenset(
 _TEAM_BUFF_OK_PREDS: frozenset[str] = frozenset({"NonToken", "Another", "Other"})
 
 
+def _team_narrowing_predicates(filt: object) -> set[str]:
+    """A filter's predicates less "each other" beside a chosen one, which
+    leaves the rest of the team: a ``DistinctFrom`` the ability's target
+    ("Target creature you control gets +2/+1 until end of turn. Each other
+    creature you control gets +1/+1" — Phalanx Tactics; phase wrote ``Another``
+    through v0.118.0)."""
+    preds = set(filter_predicates(filt))
+    if all(
+        tag_of(getattr(n, "reference", None)) == "ParentTarget"
+        for n in iter_typed_nodes(filt)
+        if tag_of(n) == "DistinctFrom"
+    ):
+        preds.discard("DistinctFrom")
+    return preds
+
+
 def _names_every_creature(filt: object) -> bool:
     """Whether a filter holds creatures as a whole: a ``Typed`` whose only core
     type is Creature, or an ``Or`` with such an arm ("creatures and
@@ -7830,14 +7857,16 @@ def is_team_buff_filter(filt: object) -> bool:
     """The team_buff anthem subject (CR 604.3): GENERIC creatures YOU control
     — every creature, not a card-type subset (:func:`_names_every_creature`),
     no subtypes (tribal is type_matters), predicates at most
-    NonToken/Another/Other (Always Watching stays in; an Attacking / colour /
-    chosen-type / keyword / equipped narrowing fails). The one whole-team test,
+    NonToken/Another/Other or "each other" beside the ability's target
+    (:func:`_team_narrowing_predicates`; Always Watching stays in; an
+    Attacking / colour / chosen-type / keyword / equipped narrowing fails). The
+    one whole-team test,
     for a keyword grant and a static anthem alike."""
     return (
         filter_controller(filt) == "You"
         and _names_every_creature(filt)
         and not filter_subtypes(filt)
-        and set(filter_predicates(filt)) <= _TEAM_BUFF_OK_PREDS
+        and _team_narrowing_predicates(filt) <= _TEAM_BUFF_OK_PREDS
     )
 
 
@@ -7993,6 +8022,21 @@ ALL_VARIANT_EFFECT_TAGS: frozenset[str] = frozenset(
         "UnattachAll",
     }
 )
+
+
+def iter_named_object_statics(
+    ability_like: object,
+) -> Iterator[tuple[object, TypedMirrorNode]]:
+    """``(object filter, static def)`` per static an ability lands on an object
+    it named earlier: a chosen target's "it" (``ParentTarget`` —
+    :func:`iter_threaded_target_statics`: "target Forest becomes a 4/5
+    creature", Awakener Druid) and a mass effect's "they" (``TrackedSet`` —
+    :func:`group_grant_statics`: "untap all Forests put onto the battlefield
+    this way. They become 3/3 green creatures", Hunting Wilds)."""
+    yield from iter_threaded_target_statics(ability_like)
+    yield from iter_threaded_target_statics(
+        ability_like, affected_tag="TrackedSet", groups=True
+    )
 
 
 def ends_target_thread(eff: TypedMirrorNode) -> bool:
@@ -13214,7 +13258,9 @@ def _subtype_refs(tree: ConceptTree) -> SubtypeRefs:
         m for unit in tree.units for c in unit.costs for m in iter_typed_nodes(c.node)
     ]
     cast_nodes = [
-        m for cond in tree.card_cast_conditions for m in iter_typed_nodes(cond)
+        m
+        for cond in (*tree.card_cast_conditions, *tree.card_alt_cost_conditions)
+        for m in iter_typed_nodes(cond)
     ]
     for n in (*tree.iter_typed(), *cost_nodes, *cast_nodes):
         tag = tag_of(n)

@@ -25,8 +25,6 @@ category on about 2,500 records now, so many of these are already known to it.
   - Gains kept (Dan, 2026-11-24; don't re-suggest): Din of the Fireherd
     `mass_land_denial|each|sacrifice`, Sunset Revelry `cantrip`, Mirror-Mad
     Phantasm `permanent_etb|put`, Words of Wind `bounce_tempo`.
-  - Will of the Abzan's edict mode is a `TargetOnly` + `Sacrifice{ScopedPlayer}`
-    now; `edict_makers|opponents` stays, its `target` subject is gone.
 - **Phase gaps the bump found** (report upstream, Dan posts; none worked around
   unless a canary is named): Danse Macabre's non-targeting "return up to two
   creature cards" carries a `multi_target` (reads `per_target_payoff|variable`);
@@ -42,26 +40,9 @@ category on about 2,500 records now, so many of these are already known to it.
   now park as `mode: {Other: text}` (Fiendslayer Paladin, Gaea's Revenge, Dense
   Foliage); `ConceptTree.other_static_modes()` lists them, read so far only by
   Tomik's ledger row.
-- **Signals lost at v0.131.0 to a shape no read has learned yet** (each one or a
-  few cards; the old read is named by its key):
-  - `DistinctFrom{reference: ParentTarget}` for "each other creature you control"
-    beside a targeted one, where phase wrote `Another`: Phalanx Tactics
-    (`team_buff`).
-  - `Owned{controller: DefendingPlayer}` on a graveyard filter: Graven Abomination,
-    Rysorian Badger (`opponent_exile_makers`).
-  - "Those lands become creatures" on a `TrackedSet` (was `ParentTarget`): Hunting
-    Wilds (`land_creatures_matter`, `land_protection`).
-  - A four-arm `Or` over battlefield and graveyard: Shadows' Verdict
-    (`mass_removal`).
-  - Damage to a `ScopedPlayer` ("any opponent may … If a player does, ~ deals
-    damage to that player"): Sin Prodder (`lifeloss_makers`).
-  - An alternative cost's condition on `casting_options` ("If you control a
-    Forest, rather than pay …"): Invigorate, Reverent Silence
-    (`subtype_ref|Forest`).
-  - "For each kind of counter on ~" as `DistinctCounterKindsAmong` (was a
-    `CountersOn` with a junk kind): Blitzball Stadium (`draw_for_each`).
-  - Phase now leaves "When you attack enchanted opponent" an `Unknown` trigger
-    mode: Tenuous Truce (`attack_matters`).
+- **Phase now leaves "When you attack enchanted opponent" an `Unknown` trigger
+  mode**: Tenuous Truce lost `attack_matters` (upstream draft 30; no read can
+  recover it without matching phase's text).
 - **Losses the bump did not examine card by card** (each one card, a key or a
   subject gone; none pinned by a failing test): Thought Dissector
   `cheat_into_play|Artifact` (its clause parks as `compound_reveal_until`), Peace

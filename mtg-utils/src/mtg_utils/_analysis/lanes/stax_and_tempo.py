@@ -74,10 +74,10 @@ from mtg_utils._card_ir.crosswalk import (
     hand_count_scopes,
     has_filter_property,
     iter_mod_sites,
+    iter_named_object_statics,
     iter_nested_spellcast_static_modes,
     iter_nested_trigger_defs,
     iter_static_defs,
-    iter_threaded_target_statics,
     iter_typed_nodes,
     lets_you_play_exiled,
     library_search_restriction_side,
@@ -1472,7 +1472,7 @@ def _land_protection(tree: ConceptTree) -> list[Signal]:
         # The threaded one-shot animate ("target Forest becomes a 4/5 …
         # creature" — Awakener Druid: a GenericEffect whose resolved target is
         # the land, mods AddType Creature).
-        for resolved, sdef in iter_threaded_target_statics(unit.node):
+        for resolved, sdef in iter_named_object_statics(unit.node):
             landish = "Land" in filter_core_types(resolved) or (
                 {t.lower() for t in filter_subtypes(resolved)} & _LAND_SUBTYPE_WORDS
             )

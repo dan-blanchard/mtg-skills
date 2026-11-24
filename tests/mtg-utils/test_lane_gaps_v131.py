@@ -176,3 +176,41 @@ def test_a_put_from_hand_or_graveyard_is_both_a_cheat_and_a_reanimation():
     idents = _idents("Swift Warkite")
     assert ("cheat_into_play", "you", "Creature") in idents
     assert ("creature_recursion", "you", "battlefield") in idents
+
+
+# ── Shapes phase v0.131.0 wrote anew, each read where the old one was ───────────
+
+
+@pytest.mark.parametrize(
+    ("name", "ident"),
+    [
+        # "Each other creature you control gets +1/+1": ``DistinctFrom`` the
+        # ability's target, the rest of the team.
+        ("Phalanx Tactics", ("team_buff", "you", "pump")),
+        # "exile target card from defending player's graveyard": the owner typed.
+        ("Graven Abomination", ("opponent_exile_makers", "opponents", "")),
+        ("Rysorian Badger", ("opponent_exile_makers", "opponents", "")),
+        # "untap all Forests put onto the battlefield this way. They become 3/3
+        # green creatures": a ``TrackedSet`` after a mass effect.
+        ("Hunting Wilds", ("land_creatures_matter", "you", "animator")),
+        ("Hunting Wilds", ("land_protection", "you", "")),
+        # an exile over the battlefield and the graveyards alike
+        ("Shadows' Verdict", ("mass_removal", "you", "")),
+        # "Any opponent may … If a player does, ~ deals damage to that player"
+        ("Sin Prodder", ("lifeloss_makers", "opponents", "")),
+        # "If you control a Forest, rather than pay this spell's mana cost, …"
+        ("Invigorate", ("subtype_ref", "you", "Forest")),
+        ("Reverent Silence", ("subtype_ref", "you", "Forest")),
+        # "draw a card for each kind of counter on it"
+        ("Blitzball Stadium", ("draw_for_each", "you", "")),
+        # "Target opponent sacrifices a creature with the greatest power …"
+        ("Will of the Abzan", ("edict_makers", "opponents", "target")),
+    ],
+)
+def test_a_new_shape_is_read_where_the_old_one_was(name, ident):
+    assert ident in _idents(name)
+
+
+def test_an_exile_of_graveyard_cards_alone_is_no_sweep():
+    # Bojuka Bog: "exile target player's graveyard" — no battlefield arm.
+    assert "mass_removal" not in {i[0] for i in _idents("Bojuka Bog")}

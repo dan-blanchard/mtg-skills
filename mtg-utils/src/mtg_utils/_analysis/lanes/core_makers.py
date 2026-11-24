@@ -85,11 +85,11 @@ from mtg_utils._card_ir.crosswalk import (
     is_self_discard_cost,
     iter_granted_triggers,
     iter_mod_sites,
+    iter_named_object_statics,
     iter_nested_granted_effect_concepts,
     iter_nested_token_effects,
     iter_nested_trigger_defs,
     iter_static_defs,
-    iter_threaded_target_statics,
     iter_typed_nodes,
     iter_unit_trigger_defs,
     keyword_action_events,
@@ -854,7 +854,7 @@ def _land_creatures_matter(tree: ConceptTree) -> list[Signal]:
                         "high",
                     )
                 )
-        for resolved, sdef in iter_threaded_target_statics(unit.node):
+        for resolved, sdef in iter_named_object_statics(unit.node):
             landish = "Land" in filter_core_types(resolved) or (
                 {t.lower() for t in filter_subtypes(resolved)} & _LAND_SUBTYPE_WORDS
             )

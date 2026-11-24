@@ -554086,6 +554086,168 @@
     "type_line": "Creature — Zombie"
    }
   },
+  "Graven Abomination": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Artifact",
+       "Creature"
+      ],
+      "subtypes": [
+       "Horror"
+      ],
+      "supertypes": []
+     },
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pauper": "legal",
+      "paupercommander": "legal",
+      "pioneer": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 3,
+      "shards": [],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "89880f30-aa38-4231-8d16-25c644bde6bf"
+      ]
+     },
+     "name": "Graven Abomination",
+     "non_ability_text": null,
+     "oracle_text": "Whenever this creature attacks, exile target card from defending player's graveyard.",
+     "power": {
+      "type": "Fixed",
+      "value": 3
+     },
+     "printings": [
+      "HOU"
+     ],
+     "rarities": [
+      "common"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "2590801e-0de0-4933-be2d-96a1d3cb4585",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 1
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever ~ attacks, exile target card from defending player's graveyard.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "destination": "Exile",
+         "enter_tapped": false,
+         "enter_transformed": false,
+         "enters_attacking": false,
+         "origin": "Graveyard",
+         "owner_library": false,
+         "target": {
+          "controller": null,
+          "properties": [
+           {
+            "controller": "DefendingPlayer",
+            "type": "Owned"
+           },
+           {
+            "type": "InZone",
+            "zone": "Graveyard"
+           }
+          ],
+          "type": "Typed",
+          "type_filters": [
+           "Card"
+          ]
+         },
+         "type": "ChangeZone"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "Attacks",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 3.0,
+    "color_identity": [],
+    "colors": [],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "legal",
+     "paupercommander": "legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{3}",
+    "name": "Graven Abomination",
+    "oracle_id": "2590801e-0de0-4933-be2d-96a1d3cb4585",
+    "oracle_text": "Whenever this creature attacks, exile target card from defending player's graveyard.",
+    "power": "3",
+    "toughness": "1",
+    "type_line": "Artifact Creature — Horror"
+   }
+  },
   "Gravepurge": {
    "phase_records": [
     {
@@ -905363,6 +905525,187 @@
     "type_line": "Creature — Human Soldier"
    }
   },
+  "Phalanx Tactics": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Target creature you control gets +2/+1 until end of turn. Each other creature you control gets +1/+1 until end of turn.",
+       "duration": "UntilEndOfTurn",
+       "effect": {
+        "power": {
+         "type": "Fixed",
+         "value": 2
+        },
+        "target": {
+         "controller": "You",
+         "properties": [],
+         "type": "Typed",
+         "type_filters": [
+          "Creature"
+         ]
+        },
+        "toughness": {
+         "type": "Fixed",
+         "value": 1
+        },
+        "type": "Pump"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": "UntilEndOfTurn",
+        "effect": {
+         "power": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "target": {
+          "controller": "You",
+          "properties": [
+           {
+            "reference": {
+             "type": "ParentTarget"
+            },
+            "type": "DistinctFrom"
+           }
+          ],
+          "type": "Typed",
+          "type_filters": [
+           "Creature"
+          ]
+         },
+         "toughness": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "type": "PumpAll"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "sub_link": "SequentialSibling",
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Instant"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "White"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "White"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "0b13f82e-bbad-46c0-9047-627cf4e55540",
+       "5f114a10-0b00-4f3a-bd73-d4c791fbf4d5",
+       "944c5ac7-09ab-4b6f-b809-5422c22ea6a1"
+      ]
+     },
+     "name": "Phalanx Tactics",
+     "non_ability_text": null,
+     "oracle_text": "Target creature you control gets +2/+1 until end of turn. Each other creature you control gets +1/+1 until end of turn.",
+     "power": null,
+     "printings": [
+      "J22",
+      "PIO",
+      "THB"
+     ],
+     "rarities": [
+      "uncommon"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2020-01-24",
+       "text": "If the target creature is an illegal target by the time Phalanx Tactics tries to resolve, the spell won’t resolve. No creatures get +1/+1."
+      }
+     ],
+     "scryfall_oracle_id": "9962a9cc-6e9f-461e-a9d3-8c28ec34caf1",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 2.0,
+    "color_identity": [
+     "W"
+    ],
+    "colors": [
+     "W"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}{W}",
+    "name": "Phalanx Tactics",
+    "oracle_id": "9962a9cc-6e9f-461e-a9d3-8c28ec34caf1",
+    "oracle_text": "Target creature you control gets +2/+1 until end of turn. Each other creature you control gets +1/+1 until end of turn.",
+    "type_line": "Instant"
+   }
+  },
   "Phantasmal Bear": {
    "phase_records": [
     {
@@ -1042493,6 +1042836,224 @@
     "power": "8",
     "toughness": "4",
     "type_line": "Creature — Demon"
+   }
+  },
+  "Shadows' Verdict": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Exile all creatures and planeswalkers with mana value 3 or less from the battlefield and all creature and planeswalker cards with mana value 3 or less from all graveyards.",
+       "duration": null,
+       "effect": {
+        "destination": "Exile",
+        "origin": null,
+        "target": {
+         "filters": [
+          {
+           "controller": null,
+           "properties": [
+            {
+             "comparator": "LE",
+             "type": "Cmc",
+             "value": {
+              "type": "Fixed",
+              "value": 3
+             }
+            },
+            {
+             "type": "InZone",
+             "zone": "Battlefield"
+            }
+           ],
+           "type": "Typed",
+           "type_filters": [
+            "Creature"
+           ]
+          },
+          {
+           "controller": null,
+           "properties": [
+            {
+             "comparator": "LE",
+             "type": "Cmc",
+             "value": {
+              "type": "Fixed",
+              "value": 3
+             }
+            },
+            {
+             "type": "InZone",
+             "zone": "Battlefield"
+            }
+           ],
+           "type": "Typed",
+           "type_filters": [
+            "Planeswalker"
+           ]
+          },
+          {
+           "controller": null,
+           "properties": [
+            {
+             "comparator": "LE",
+             "type": "Cmc",
+             "value": {
+              "type": "Fixed",
+              "value": 3
+             }
+            },
+            {
+             "type": "InZone",
+             "zone": "Graveyard"
+            }
+           ],
+           "type": "Typed",
+           "type_filters": [
+            "Creature"
+           ]
+          },
+          {
+           "controller": null,
+           "properties": [
+            {
+             "comparator": "LE",
+             "type": "Cmc",
+             "value": {
+              "type": "Fixed",
+              "value": 3
+             }
+            },
+            {
+             "type": "InZone",
+             "zone": "Graveyard"
+            }
+           ],
+           "type": "Typed",
+           "type_filters": [
+            "Planeswalker"
+           ]
+          }
+         ],
+         "type": "Or"
+        },
+        "type": "ChangeZoneAll"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Sorcery"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Black"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 3,
+      "shards": [
+       "Black",
+       "Black"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "31c1e4ca-4528-4637-9452-cc3e5da75456",
+       "52470883-b44d-415b-9324-8074e66f79ae"
+      ]
+     },
+     "name": "Shadows' Verdict",
+     "non_ability_text": null,
+     "oracle_text": "Exile all creatures and planeswalkers with mana value 3 or less from the battlefield and all creature and planeswalker cards with mana value 3 or less from all graveyards.",
+     "power": null,
+     "printings": [
+      "PRM",
+      "PZNR",
+      "ZNR"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2020-09-25",
+       "text": "If a permanent on the battlefield or a card in a graveyard has {X} in its mana cost, X is considered to be 0."
+      }
+     ],
+     "scryfall_oracle_id": "83e99691-bc25-4b3e-b828-670ef2027592",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 5.0,
+    "color_identity": [
+     "B"
+    ],
+    "colors": [
+     "B"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{3}{B}{B}",
+    "name": "Shadows' Verdict",
+    "oracle_id": "83e99691-bc25-4b3e-b828-670ef2027592",
+    "oracle_text": "Exile all creatures and planeswalkers with mana value 3 or less from the battlefield and all creature and planeswalker cards with mana value 3 or less from all graveyards.",
+    "type_line": "Sorcery"
    }
   },
   "Shadrix Silverquill": {
@@ -1318097,6 +1318658,278 @@
     "power": "3",
     "toughness": "3",
     "type_line": "Legendary Creature — Zombie Warrior"
+   }
+  },
+  "Will of the Abzan": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "declares_chosen_group": 0,
+       "description": null,
+       "duration": null,
+       "effect": {
+        "target": {
+         "controller": "Opponent",
+         "properties": [],
+         "type": "Typed",
+         "type_filters": []
+        },
+        "type": "TargetOnly"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "multi_target": {
+        "max": null,
+        "min": 0
+       },
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "target": {
+          "controller": "ScopedPlayer",
+          "properties": [
+           {
+            "comparator": "EQ",
+            "scope": "Current",
+            "stat": "Power",
+            "type": "PtComparison",
+            "value": {
+             "qty": {
+              "function": "Max",
+              "property": "Power",
+              "source": {
+               "filter": {
+                "controller": "ScopedPlayer",
+                "properties": [],
+                "type": "Typed",
+                "type_filters": [
+                 "Creature"
+                ]
+               },
+               "type": "Objects"
+              },
+              "type": "PropertyAggregate"
+             },
+             "type": "Ref"
+            }
+           }
+          ],
+          "type": "Typed",
+          "type_filters": [
+           "Creature"
+          ]
+         },
+         "type": "Sacrifice"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "amount": {
+           "type": "Fixed",
+           "value": 3
+          },
+          "target": {
+           "type": "ScopedPlayer"
+          },
+          "type": "LoseLife"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": null,
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "target_prompt": null
+      },
+      {
+       "condition": null,
+       "cost": null,
+       "description": null,
+       "duration": null,
+       "effect": {
+        "destination": "Battlefield",
+        "enter_tapped": false,
+        "enter_transformed": false,
+        "enters_attacking": false,
+        "origin": "Graveyard",
+        "owner_library": false,
+        "target": {
+         "controller": "You",
+         "properties": [
+          {
+           "type": "InZone",
+           "zone": "Graveyard"
+          }
+         ],
+         "type": "Typed",
+         "type_filters": [
+          "Creature"
+         ]
+        },
+        "type": "ChangeZone"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Sorcery"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Black"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 3,
+      "shards": [
+       "Black"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "b322ba2f-8474-4c73-b2fb-0f2e380a4e04",
+       "e7e92b6b-ec63-477b-8a83-18c0e52615cc"
+      ]
+     },
+     "modal": {
+      "allow_repeat_modes": false,
+      "chooser": {
+       "type": "Controller"
+      },
+      "constraints": [
+       {
+        "condition": {
+         "condition": {
+          "ownership": "Any",
+          "type": "ControlsCommander"
+         },
+         "type": "Static"
+        },
+        "max_choices": 2,
+        "otherwise_max_choices": 1,
+        "type": "ConditionalMaxChoices"
+       }
+      ],
+      "max_choices": 1,
+      "min_choices": 1,
+      "mode_count": 2,
+      "mode_descriptions": [
+       "Any number of target opponents each sacrifice a creature with the greatest power among creatures that player controls and lose 3 life.",
+       "Return target creature card from your graveyard to the battlefield."
+      ]
+     },
+     "name": "Will of the Abzan",
+     "non_ability_text": null,
+     "oracle_text": "Choose one. If you control a commander as you cast this spell, you may choose both instead.\n• Any number of target opponents each sacrifice a creature with the greatest power among creatures that player controls and lose 3 life.\n• Return target creature card from your graveyard to the battlefield.",
+     "power": null,
+     "printings": [
+      "TDC"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2025-04-04",
+       "text": "Once you’ve announced that you’re casting this spell, players can’t take any actions until you’ve finished doing so. Notably, opponents can’t try to remove your commander to change how many modes you may choose."
+      },
+      {
+       "date": "2025-04-04",
+       "text": "The commander you control doesn’t have to be your commander."
+      },
+      {
+       "date": "2025-04-04",
+       "text": "Whether or not you control a commander is determined only once, as you choose the modes for this spell. If you somehow lose control of that commander before you finish casting the spell (perhaps because you sacrifice it to activate a mana ability), it won’t change the number of modes chosen."
+      }
+     ],
+     "scryfall_oracle_id": "1ae29791-aa7c-4050-bf72-dd0f739b11b8",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 4.0,
+    "color_identity": [
+     "B"
+    ],
+    "colors": [
+     "B"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{3}{B}",
+    "name": "Will of the Abzan",
+    "oracle_id": "1ae29791-aa7c-4050-bf72-dd0f739b11b8",
+    "oracle_text": "Choose one. If you control a commander as you cast this spell, you may choose both instead.\n• Any number of target opponents each sacrifice a creature with the greatest power among creatures that player controls and lose 3 life.\n• Return target creature card from your graveyard to the battlefield.",
+    "type_line": "Sorcery"
    }
   },
   "Will of the Jeskai": {
