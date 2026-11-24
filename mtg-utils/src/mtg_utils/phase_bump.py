@@ -883,17 +883,19 @@ def tree_coverage(card_data: object, schema: MirrorSchema) -> TreeCoverage:
 
 
 class TreeLossKind(Enum):
-    """Why a short card is short, against the old pin's coverage. The first two
-    fail the tree-coverage step; the others are listed for a look."""
+    """Why a short card is short, against the old pin's coverage. All but a
+    card that was already as short fail the tree-coverage step: phase's raw
+    records always load, so a card new at this pin that is short is a
+    correction's doing too, and the list has grown."""
 
     REGRESSED = "fewer trees than at the old pin"
     NO_BASELINE = "no old-pin coverage to compare with"
-    ALREADY_SHORT = "as short at the old pin"
     NEW_CARD = "no record at the old pin"
+    ALREADY_SHORT = "as short at the old pin"
 
     @property
     def fails(self) -> bool:
-        return self in (TreeLossKind.REGRESSED, TreeLossKind.NO_BASELINE)
+        return self is not TreeLossKind.ALREADY_SHORT
 
 
 @dataclass(frozen=True)

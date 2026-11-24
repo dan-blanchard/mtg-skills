@@ -678,11 +678,17 @@ def test_tree_losses_judge_each_short_card_against_the_old_pin():
         },
     )
     got = [(t.card.name, t.kind) for t in phase_bump.tree_losses(old, new)]
-    assert got == [
-        ("Doran, Besieged by Time", TreeLossKind.REGRESSED),  # failing ones first
+    assert got == [  # failing ones first, then by name
+        ("Brand New", TreeLossKind.NEW_CARD),  # a new short card grows the list
+        ("Doran, Besieged by Time", TreeLossKind.REGRESSED),
         ("Front // Back", TreeLossKind.REGRESSED),  # one face of two is enough
-        ("Brand New", TreeLossKind.NEW_CARD),
         ("Odd Card", TreeLossKind.ALREADY_SHORT),
+    ]
+    assert [t.kind.fails for t in phase_bump.tree_losses(old, new)] == [
+        True,
+        True,
+        True,
+        False,
     ]
     # with no baseline, every short card fails: the healthy state is none
     assert {t.kind for t in phase_bump.tree_losses(None, new)} == {

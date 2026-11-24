@@ -31,9 +31,9 @@ uv run bump-phase-pin <tag> --install-phase # also move the cargo clone (playtes
   doesn't take it, which showed up only as one more lost card in the signal diff.
   Step 1 records the old pin's coverage (`trees-<old>.json` in the report dir) before
   it rewrites the pin, and step 7 **fails** on a card with fewer trees than it had
-  then. Cards that were as short at the old pin, or have no record there, are listed
-  without failing. With no baseline (no old card-data at step 1), every short card
-  fails. The report is still written. Fix the correction and resume with
+  then, or one new at this pin that is short. Cards that were as short at the old
+  pin are listed without failing. With no baseline (no old card-data at step 1),
+  every short card fails. The report is still written. Fix the correction and resume with
   `--from-step 7`; `--from-step 8` goes on without the check. Healthy is an empty
   list: at v0.131.0 all 36,391 face records load.
 - **Signal diff.** The "old" side is the signals index already on disk, so it is only

@@ -97,12 +97,6 @@ category on about 2,500 records now, so many of these are already known to it.
     `protection`'s `DEFENDED_YOU` comparisons read the raw field (harmless while
     only `Planeswalker` has the variant form), and the two modules each keep an
     `_ATTACK_RECIPIENT_FIELDS` table.
-- **A correction that breaks strict load fails silently.** A `shape_compat` /
-  `misparsed_shapes` rewrite that puts a node where the mirror doesn't take it
-  leaves the card with no tree and no signals, and nothing says so: this bump's
-  first zero-floor row unwrapped a floored `Difference` and Doran, Besieged by
-  Time went blank until the second signal diff showed it as a loss. The bump
-  report could list every card with phase records and fewer trees than records.
 
 **From comparing Arena game logs with phase (2026-11-09)**
 
