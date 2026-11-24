@@ -145479,6 +145479,257 @@
     "type_line": "Creature — Djinn"
    }
   },
+  "Berserk": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Target creature gains trample and gets +X/+0 until end of turn, where X is its power. At the beginning of the next end step, destroy that creature if it attacked this turn.",
+       "duration": "UntilEndOfTurn",
+       "effect": {
+        "duration": "UntilEndOfTurn",
+        "static_abilities": [
+         {
+          "active_zones": [],
+          "affected": {
+           "type": "ParentTarget"
+          },
+          "affected_zone": null,
+          "characteristic_defining": false,
+          "condition": null,
+          "description": "gain trample and gets +X/+0",
+          "effect_zone": null,
+          "mode": "Continuous",
+          "modifications": [
+           {
+            "type": "AddDynamicPower",
+            "value": {
+             "inner": {
+              "qty": {
+               "scope": {
+                "type": "Target"
+               },
+               "type": "Power"
+              },
+              "type": "Ref"
+             },
+             "minimum": 0,
+             "type": "ClampMin"
+            }
+           },
+           {
+            "keyword": "Trample",
+            "type": "AddKeyword"
+           }
+          ]
+         }
+        ],
+        "target": {
+         "controller": null,
+         "properties": [],
+         "type": "Typed",
+         "type_filters": [
+          "Creature"
+         ]
+        },
+        "type": "GenericEffect"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": {
+         "filter": {
+          "controller": null,
+          "properties": [
+           {
+            "type": "AttackedThisTurn"
+           }
+          ],
+          "type": "Typed",
+          "type_filters": [
+           "Creature"
+          ]
+         },
+         "type": "TargetMatchesFilter",
+         "use_lki": false
+        },
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "condition": {
+          "phase": "End",
+          "type": "AtNextPhase"
+         },
+         "effect": {
+          "condition": null,
+          "cost": null,
+          "description": null,
+          "duration": null,
+          "effect": {
+           "cant_regenerate": false,
+           "target": {
+            "type": "ParentTarget"
+           },
+           "type": "Destroy"
+          },
+          "forward_result": false,
+          "kind": "Spell",
+          "optional": false,
+          "optional_targeting": false,
+          "sub_ability": null,
+          "target_prompt": null
+         },
+         "type": "CreateDelayedTrigger",
+         "uses_tracked_set": false
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "sub_link": "SequentialSibling",
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Instant"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "casting_restrictions": [
+      {
+       "type": "BeforeCombatDamage"
+      }
+     ],
+     "color_identity": [
+      "Green"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 0,
+      "shards": [
+       "Green"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "confirmed_misparse": "condition_wrong",
+      "source_printing_ids": [
+       "0fe6e7d3-7e33-4e6b-91c8-47fd4ba3cb5b",
+       "56f2998c-a309-4a56-91c5-d717e7366a7d",
+       "62bc9bff-89bd-4454-a876-53822cf48546",
+       "86ec6360-d69d-41b8-bfca-2c1a3aea2272",
+       "872fc8cb-8066-4b14-b921-182ee6f40339",
+       "88d6f431-a7ea-4508-a52c-86d33e12e4e4",
+       "9866e64e-308b-4920-a76b-ddea0c6bc830",
+       "a3c671da-27a6-43a1-8294-c14cea0e5140",
+       "b5474dc6-d81e-4d10-81b9-84135ae8dd21",
+       "ce109f77-1633-43f5-9682-b355209c3e45",
+       "e173c8ce-2352-405e-ad00-e3bb94ced1ad",
+       "f11665b3-00d6-4912-ac1a-06d6ed50a01c",
+       "fd082697-493f-48e3-a41f-123700435025"
+      ]
+     },
+     "name": "Berserk",
+     "non_ability_text": null,
+     "oracle_text": "Cast this spell only before the combat damage step.\nTarget creature gains trample and gets +X/+0 until end of turn, where X is its power. At the beginning of the next end step, destroy that creature if it attacked this turn.",
+     "power": null,
+     "printings": [
+      "2ED",
+      "30A",
+      "CED",
+      "CEI",
+      "CN2",
+      "LEA",
+      "LEB",
+      "ME1",
+      "SLD",
+      "SOA",
+      "V09",
+      "VMA"
+     ],
+     "rarities": [
+      "uncommon",
+      "rare",
+      "mythic"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2026-03-20",
+       "text": "If the target permanent stops being a creature before the next end step, it is still destroyed when the delayed trigger resolves."
+      }
+     ],
+     "scryfall_oracle_id": "8b67d192-9a05-4a47-82ae-5fc4b7834d88",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 1.0,
+    "color_identity": [
+     "G"
+    ],
+    "colors": [
+     "G"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{G}",
+    "name": "Berserk",
+    "oracle_id": "8b67d192-9a05-4a47-82ae-5fc4b7834d88",
+    "oracle_text": "Cast this spell only before the combat damage step.\nTarget creature gains trample and gets +X/+0 until end of turn, where X is its power. At the beginning of the next end step, destroy that creature if it attacked this turn.",
+    "type_line": "Instant"
+   }
+  },
   "Berserker's Frenzy": {
    "phase_records": [
     {
@@ -474095,6 +474346,214 @@
     "oracle_id": "6fd5e591-fae8-4128-a4d3-a848c8a8ffda",
     "oracle_text": "You may pay {W}{U}{B}{R}{G} rather than pay the mana cost for spells you cast.",
     "type_line": "Artifact"
+   }
+  },
+  "Fists of Flame": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Draw a card. Until end of turn, target creature gains trample and gets +1/+0 for each card you've drawn this turn.",
+       "duration": null,
+       "effect": {
+        "count": {
+         "type": "Fixed",
+         "value": 1
+        },
+        "target": {
+         "type": "Controller"
+        },
+        "type": "Draw"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": "UntilEndOfTurn",
+        "effect": {
+         "duration": "UntilEndOfTurn",
+         "static_abilities": [
+          {
+           "active_zones": [],
+           "affected": {
+            "type": "ParentTarget"
+           },
+           "affected_zone": null,
+           "characteristic_defining": false,
+           "condition": null,
+           "description": "gain trample and gets +1/+0 for each card you've drawn this turn",
+           "effect_zone": null,
+           "mode": "Continuous",
+           "modifications": [
+            {
+             "type": "AddDynamicPower",
+             "value": {
+              "qty": {
+               "player": {
+                "type": "Controller"
+               },
+               "type": "CardsDrawnThisTurn"
+              },
+              "type": "Ref"
+             }
+            },
+            {
+             "keyword": "Trample",
+             "type": "AddKeyword"
+            }
+           ]
+          }
+         ],
+         "target": {
+          "controller": null,
+          "properties": [],
+          "type": "Typed",
+          "type_filters": [
+           "Creature"
+          ]
+         },
+         "type": "GenericEffect"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "sub_link": "SequentialSibling",
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Instant"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Red"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pauper": "legal",
+      "paupercommander": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "Red"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "0e7c9403-fb7f-4334-a3b2-0932b4a13eb8",
+       "1897b60d-7e15-488c-84d5-505187739b00",
+       "45c118b4-7460-4a96-8a54-3c5974232203",
+       "4fa3c0d8-0a3e-43b0-b81e-a3d22ce6a4b2",
+       "6b34af88-bc4e-4ca8-8662-7dc4050c62c5",
+       "aeb9fde6-4445-4e24-891d-cfc2e7b5c6f2",
+       "c06d88b3-d882-4c98-8f70-fed67b772386",
+       "d058192d-f43f-471b-88ce-7b800f71f014"
+      ]
+     },
+     "name": "Fists of Flame",
+     "non_ability_text": null,
+     "oracle_text": "Draw a card. Until end of turn, target creature gains trample and gets +1/+0 for each card you've drawn this turn. (A creature with trample can deal excess combat damage to the player or planeswalker it's attacking.)",
+     "power": null,
+     "printings": [
+      "CMM",
+      "CMR",
+      "J21",
+      "J25",
+      "MH1",
+      "PLST",
+      "TLE"
+     ],
+     "rarities": [
+      "common"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2019-06-14",
+       "text": "If a spell or ability causes you to put cards into your hand without specifically using the word \"draw,\" Fists of Flame's effect doesn't count them."
+      },
+      {
+       "date": "2019-06-14",
+       "text": "If the target creature is an illegal target by the time Fists of Flame tries to resolve, the spell doesn't resolve. You won't draw a card."
+      },
+      {
+       "date": "2019-06-14",
+       "text": "The bonus that the target creature receives is locked in as Fists of Flame resolves, counting the card drawn during its first effect. The creature won't get an additional +1/+0 if you draw another card later in the turn."
+      }
+     ],
+     "scryfall_oracle_id": "e05abb6b-e9f4-4d9e-ad1e-7805ebc09914",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 2.0,
+    "color_identity": [
+     "R"
+    ],
+    "colors": [
+     "R"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "legal",
+     "paupercommander": "legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}{R}",
+    "name": "Fists of Flame",
+    "oracle_id": "e05abb6b-e9f4-4d9e-ad1e-7805ebc09914",
+    "oracle_text": "Draw a card. Until end of turn, target creature gains trample and gets +1/+0 for each card you've drawn this turn. (A creature with trample can deal excess combat damage to the player or planeswalker it's attacking.)",
+    "type_line": "Instant"
    }
   },
   "Five Hundred Year Diary": {
@@ -896316,6 +896775,251 @@
     "type_line": "Instant"
    }
   },
+  "Pathbreaker Ibex": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Goat"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Green"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 4,
+      "shards": [
+       "Green",
+       "Green"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "4608ea44-e1b2-42de-a0a2-e6d6d24d89d0",
+       "a9dd9868-f0c5-452c-9619-a8f3bbf5ea69",
+       "b5118bab-a940-4549-8173-a467bc38193e",
+       "e8072a06-0652-4a38-89b0-fbe1b29d6a8f",
+       "f5c839b9-612e-4482-ac47-dd3578c9e25f"
+      ]
+     },
+     "name": "Pathbreaker Ibex",
+     "non_ability_text": null,
+     "oracle_text": "Whenever this creature attacks, creatures you control gain trample and get +X/+X until end of turn, where X is the greatest power among creatures you control.",
+     "power": {
+      "type": "Fixed",
+      "value": 3
+     },
+     "printings": [
+      "C15",
+      "CMA",
+      "PZ1",
+      "SLD",
+      "SPG"
+     ],
+     "rarities": [
+      "rare",
+      "mythic"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2017-07-14",
+       "text": "If this creature's power is negative as its ability resolves, X is considered to be 0."
+      },
+      {
+       "date": "2025-02-07",
+       "text": "If the greatest power among creatures you control is negative as this creature’s ability resolves, X is considered to be 0."
+      }
+     ],
+     "scryfall_oracle_id": "7e52e91b-70e6-4f26-a5d4-b8e33d1debbf",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 3
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever ~ attacks, creatures you control gain trample and get +X/+X until end of turn, where X is the greatest power among creatures you control.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": "UntilEndOfTurn",
+        "effect": {
+         "duration": "UntilEndOfTurn",
+         "static_abilities": [
+          {
+           "active_zones": [],
+           "affected": {
+            "controller": "You",
+            "properties": [],
+            "type": "Typed",
+            "type_filters": [
+             "Creature"
+            ]
+           },
+           "affected_zone": null,
+           "characteristic_defining": false,
+           "condition": null,
+           "description": "gain trample and get +X/+X",
+           "effect_zone": null,
+           "mode": "Continuous",
+           "modifications": [
+            {
+             "type": "AddDynamicPower",
+             "value": {
+              "inner": {
+               "qty": {
+                "function": "Max",
+                "property": "Power",
+                "source": {
+                 "filter": {
+                  "controller": "You",
+                  "properties": [],
+                  "type": "Typed",
+                  "type_filters": [
+                   "Creature"
+                  ]
+                 },
+                 "type": "Objects"
+                },
+                "type": "PropertyAggregate"
+               },
+               "type": "Ref"
+              },
+              "minimum": 0,
+              "type": "ClampMin"
+             }
+            },
+            {
+             "type": "AddDynamicToughness",
+             "value": {
+              "inner": {
+               "qty": {
+                "function": "Max",
+                "property": "Power",
+                "source": {
+                 "filter": {
+                  "controller": "You",
+                  "properties": [],
+                  "type": "Typed",
+                  "type_filters": [
+                   "Creature"
+                  ]
+                 },
+                 "type": "Objects"
+                },
+                "type": "PropertyAggregate"
+               },
+               "type": "Ref"
+              },
+              "minimum": 0,
+              "type": "ClampMin"
+             }
+            },
+            {
+             "keyword": "Trample",
+             "type": "AddKeyword"
+            }
+           ]
+          }
+         ],
+         "target": null,
+         "type": "GenericEffect"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "Attacks",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 6.0,
+    "color_identity": [
+     "G"
+    ],
+    "colors": [
+     "G"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{4}{G}{G}",
+    "name": "Pathbreaker Ibex",
+    "oracle_id": "7e52e91b-70e6-4f26-a5d4-b8e33d1debbf",
+    "oracle_text": "Whenever this creature attacks, creatures you control gain trample and get +X/+X until end of turn, where X is the greatest power among creatures you control.",
+    "power": "3",
+    "toughness": "3",
+    "type_line": "Creature — Goat"
+   }
+  },
   "Pathrazer of Ulamog": {
    "phase_records": [
     {
@@ -1224960,6 +1225664,394 @@
     "type_line": "Sorcery"
    }
   },
+  "Toxrill, the Corrosive": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": {
+        "costs": [
+         {
+          "cost": {
+           "generic": 0,
+           "shards": [
+            "Blue",
+            "Black"
+           ],
+           "type": "Cost"
+          },
+          "type": "Mana"
+         },
+         {
+          "count": 1,
+          "target": {
+           "controller": null,
+           "properties": [],
+           "type": "Typed",
+           "type_filters": [
+            {
+             "Subtype": "Slug"
+            }
+           ]
+          },
+          "type": "Sacrifice"
+         }
+        ],
+        "type": "Composite"
+       },
+       "description": "{U}{B}, Sacrifice a Slug: Draw a card.",
+       "duration": null,
+       "effect": {
+        "count": {
+         "type": "Fixed",
+         "value": 1
+        },
+        "target": {
+         "type": "Controller"
+        },
+        "type": "Draw"
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "brawl_commander": true,
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Slug",
+       "Horror"
+      ],
+      "supertypes": [
+       "Legendary"
+      ]
+     },
+     "color_identity": [
+      "Black",
+      "Blue"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "is_commander": true,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 5,
+      "shards": [
+       "Black",
+       "Black"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "related_token_ids": [
+       "5c80ec44-74e2-5bfc-824f-275b73753026",
+       "dba7c9be-15ad-5b29-92c4-0109d3037fc2"
+      ],
+      "source_printing_ids": [
+       "3bf11c3b-53ff-4b22-97a4-45b5f00cc7a3",
+       "78808d46-a3a7-4598-bddf-a302977808fb",
+       "84e64f38-b1f3-47cd-8cfb-a4861369aca3",
+       "d8f8567a-7fb3-43f5-88c8-f403cc85fc25",
+       "dc04312f-3838-4e5e-bb9e-52bcf8049d09"
+      ]
+     },
+     "name": "Toxrill, the Corrosive",
+     "non_ability_text": null,
+     "oracle_text": "At the beginning of each end step, put a slime counter on each creature you don't control.\nCreatures you don't control get -1/-1 for each slime counter on them.\nWhenever a creature you don't control with a slime counter on it dies, create a 1/1 black Slug creature token.\n{U}{B}, Sacrifice a Slug: Draw a card.",
+     "power": {
+      "type": "Fixed",
+      "value": 7
+     },
+     "printings": [
+      "DBL",
+      "PLST",
+      "PVOW",
+      "SLD",
+      "VOW"
+     ],
+     "rarities": [
+      "mythic"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2021-11-19",
+       "text": "Another card, Sludge Monster, causes non-Horror creatures with slime counters on them to lose all abilities and have base power and toughness 2/2. If you control both Toxrill and Sludge Monster, those non-Horror creatures are 2/2 creatures with no abilities that also get -1/-1 for each slime counter."
+      },
+      {
+       "date": "2021-11-19",
+       "text": "Toxrill's third ability triggers when a creature an opponent controls with a slime counter on it dies for any reason, not just due to its toughness being decreased by Toxrill's second ability."
+      },
+      {
+       "date": "2021-11-19",
+       "text": "Toxrill. the Corrosive's second and third abilities apply to all creatures you don't control with slime counters, even if those slime counters came from a source other than Toxrill's first ability."
+      }
+     ],
+     "scryfall_oracle_id": "c71b2325-bde6-4364-a93b-8477ffeb25d8",
+     "static_abilities": [
+      {
+       "active_zones": [],
+       "affected": {
+        "controller": "Opponent",
+        "properties": [],
+        "type": "Typed",
+        "type_filters": [
+         "Creature"
+        ]
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": null,
+       "description": "Creatures you don't control get -1/-1 for each slime counter on them.",
+       "effect_zone": null,
+       "mode": "Continuous",
+       "modifications": [
+        {
+         "type": "AddDynamicPower",
+         "value": {
+          "factor": -1,
+          "inner": {
+           "qty": {
+            "counter_type": "slime",
+            "scope": {
+             "type": "Recipient"
+            },
+            "type": "CountersOn"
+           },
+           "type": "Ref"
+          },
+          "type": "Multiply"
+         }
+        },
+        {
+         "type": "AddDynamicToughness",
+         "value": {
+          "factor": -1,
+          "inner": {
+           "qty": {
+            "counter_type": "slime",
+            "scope": {
+             "type": "Recipient"
+            },
+            "type": "CountersOn"
+           },
+           "type": "Ref"
+          },
+          "type": "Multiply"
+         }
+        }
+       ]
+      }
+     ],
+     "toughness": {
+      "type": "Fixed",
+      "value": 7
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "At the beginning of each end step, put a slime counter on each creature you don't control.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "counter_type": "slime",
+         "target": {
+          "controller": "Opponent",
+          "properties": [],
+          "type": "Typed",
+          "type_filters": [
+           "Creature"
+          ]
+         },
+         "type": "PutCounterAll"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "Phase",
+       "optional": false,
+       "origin": null,
+       "phase": "End",
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": null,
+       "valid_source": null,
+       "valid_target": null
+      },
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever a creature you don't control with a slime counter on it dies, create a 1/1 black Slug creature token.",
+       "destination": "Graveyard",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "colors": [
+          "Black"
+         ],
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "enters_attacking": false,
+         "keywords": [],
+         "name": "Slug",
+         "owner": {
+          "type": "Controller"
+         },
+         "power": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "tapped": false,
+         "toughness": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "type": "Token",
+         "types": [
+          "Creature",
+          "Slug"
+         ]
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "ChangesZone",
+       "optional": false,
+       "origin": "Battlefield",
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "controller": "Opponent",
+        "properties": [
+         {
+          "comparator": "GE",
+          "count": {
+           "type": "Fixed",
+           "value": 1
+          },
+          "counters": {
+           "data": "slime",
+           "type": "OfType"
+          },
+          "type": "Counters"
+         }
+        ],
+        "type": "Typed",
+        "type_filters": [
+         "Creature"
+        ]
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "all_parts": [
+     {
+      "component": "token",
+      "id": "381c156f-7a9b-45df-b09e-6559c8c36280",
+      "name": "Slug",
+      "oracle_id": "dfa4ad2d-3ef2-4863-a9d7-340d8ca8d3d9",
+      "type_line": "Token Creature — Slug"
+     }
+    ],
+    "arena_available": true,
+    "cmc": 7.0,
+    "color_identity": [
+     "B",
+     "U"
+    ],
+    "colors": [
+     "B"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{5}{B}{B}",
+    "name": "Toxrill, the Corrosive",
+    "oracle_id": "c71b2325-bde6-4364-a93b-8477ffeb25d8",
+    "oracle_text": "At the beginning of each end step, put a slime counter on each creature you don't control.\nCreatures you don't control get -1/-1 for each slime counter on them.\nWhenever a creature you don't control with a slime counter on it dies, create a 1/1 black Slug creature token.\n{U}{B}, Sacrifice a Slug: Draw a card.",
+    "power": "7",
+    "toughness": "7",
+    "type_line": "Legendary Creature — Slug Horror"
+   }
+  },
   "Tractor Beam": {
    "phase_records": [
     {
@@ -1329932,6 +1331024,333 @@
     "power": "7",
     "toughness": "7",
     "type_line": "Creature — Demon"
+   }
+  },
+  "Xenagos, God of Revels": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "brawl_commander": true,
+     "card_type": {
+      "core_types": [
+       "Enchantment",
+       "Creature"
+      ],
+      "subtypes": [
+       "God"
+      ],
+      "supertypes": [
+       "Legendary"
+      ]
+     },
+     "color_identity": [
+      "Green",
+      "Red"
+     ],
+     "color_override": [
+      "Green",
+      "Red"
+     ],
+     "defense": null,
+     "flavor_name": null,
+     "is_commander": true,
+     "keywords": [
+      "Indestructible"
+     ],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 3,
+      "shards": [
+       "Red",
+       "Green"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "3184b138-1109-4195-9d96-4f190164e98b",
+       "4e905fb4-7b6b-4030-b991-905150f65400",
+       "5943d27d-6db2-422d-97f5-ae98270a2556",
+       "66581b3b-4e5b-4580-8fec-9684f0168cdb",
+       "6f1bc3bb-46da-492a-850c-f1f588ad8d18",
+       "e144aa4d-3ea7-44fb-b1cb-ad51cf84bba2"
+      ]
+     },
+     "name": "Xenagos, God of Revels",
+     "non_ability_text": null,
+     "oracle_text": "Indestructible\nAs long as your devotion to red and green is less than seven, Xenagos isn't a creature.\nAt the beginning of combat on your turn, another target creature you control gains haste and gets +X/+X until end of turn, where X is that creature's power.",
+     "power": {
+      "type": "Fixed",
+      "value": 6
+     },
+     "printings": [
+      "BNG",
+      "CMR",
+      "EA3",
+      "LCC",
+      "PIO",
+      "PRM",
+      "SLD"
+     ],
+     "rarities": [
+      "mythic"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2013-09-15",
+       "text": "Hybrid mana symbols, monocolored hybrid mana symbols, and Phyrexian mana symbols do count toward your devotion to their color(s)."
+      },
+      {
+       "date": "2013-09-15",
+       "text": "If an activated ability or triggered ability has an effect that depends on your devotion to a color, you count the number of mana symbols of that color among the mana costs of permanents you control as the ability resolves. The permanent with that ability will be counted if it's still on the battlefield at that time."
+      },
+      {
+       "date": "2013-09-15",
+       "text": "Mana symbols in the text boxes of permanents you control don't count toward your devotion to any color."
+      },
+      {
+       "date": "2013-09-15",
+       "text": "Numeric mana symbols ({0}, {1}, and so on) in mana costs of permanents you control don't count toward your devotion to any color."
+      },
+      {
+       "date": "2014-02-01",
+       "text": "The value of X is calculated only once, as the ability resolves."
+      },
+      {
+       "date": "2020-11-10",
+       "text": "As Xenagos enters the battlefield, your devotion to red and green will determine whether any replacement effects that affect creatures entering the battlefield apply. Because replacement effects are considered before Xenagos is on the battlefield, the mana symbols in its mana cost won't be counted when determining this."
+      },
+      {
+       "date": "2020-11-10",
+       "text": "Counters put on Xenagos remain on it while it's not a creature, even if they have no effect."
+      },
+      {
+       "date": "2020-11-10",
+       "text": "If Xenagos is attacking or blocking and it stops being a creature, it will be removed from combat. It won't rejoin combat if it resumes being a creature later during that combat."
+      },
+      {
+       "date": "2020-11-10",
+       "text": "If Xenagos stops being a creature, it loses the type creature and the creature type God. It continues to be a legendary enchantment."
+      },
+      {
+       "date": "2020-11-10",
+       "text": "If an effect causes Xenagos to lose all abilities, its ability that causes it to stop being a creature still applies if appropriate."
+      },
+      {
+       "date": "2020-11-10",
+       "text": "The type-changing ability that can make Xenagos not be a creature functions only on the battlefield. It's always a creature card in other zones, regardless of your devotion to red and green. It's always a creature spell while it's on the stack."
+      },
+      {
+       "date": "2020-11-10",
+       "text": "When Xenagos enters the battlefield, your devotion to red and green will determine if a creature entered the battlefield or not for abilities that trigger whenever a creature enters the battlefield. The mana symbols in Xenagos's own mana cost are counted when determining this."
+      },
+      {
+       "date": "2020-11-10",
+       "text": "Xenagos's abilities function as long as it's on the battlefield, regardless of whether it's a creature."
+      },
+      {
+       "date": "2020-11-10",
+       "text": "Your devotion to two colors is the number of mana symbols among mana costs of permanents you control that are the first color, the second, or both. If an effect counts your devotion to two colors, a hybrid symbol that is both of those colors is counted just once."
+      }
+     ],
+     "scryfall_oracle_id": "cb15a8dd-57fe-466f-847e-66476b690a1f",
+     "static_abilities": [
+      {
+       "active_zones": [],
+       "affected": {
+        "type": "SelfRef"
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": {
+        "condition": {
+         "colors": [
+          "Red",
+          "Green"
+         ],
+         "threshold": 7,
+         "type": "DevotionGE"
+        },
+        "type": "Not"
+       },
+       "description": "As long as your devotion to red and green is less than seven, ~ isn't a creature.",
+       "effect_zone": null,
+       "mode": "Continuous",
+       "modifications": [
+        {
+         "core_type": "Creature",
+         "type": "RemoveType"
+        }
+       ]
+      }
+     ],
+     "toughness": {
+      "type": "Fixed",
+      "value": 5
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": {
+        "type": "OnlyDuringYourTurn"
+       },
+       "damage_kind": "Any",
+       "description": "At the beginning of combat on your turn, another target creature you control gains haste and gets +X/+X until end of turn, where X is that creature's power.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": "UntilEndOfTurn",
+        "effect": {
+         "duration": "UntilEndOfTurn",
+         "static_abilities": [
+          {
+           "active_zones": [],
+           "affected": {
+            "type": "ParentTarget"
+           },
+           "affected_zone": null,
+           "characteristic_defining": false,
+           "condition": null,
+           "description": "gain haste and gets +X/+X",
+           "effect_zone": null,
+           "mode": "Continuous",
+           "modifications": [
+            {
+             "type": "AddDynamicPower",
+             "value": {
+              "inner": {
+               "qty": {
+                "scope": {
+                 "type": "Target"
+                },
+                "type": "Power"
+               },
+               "type": "Ref"
+              },
+              "minimum": 0,
+              "type": "ClampMin"
+             }
+            },
+            {
+             "type": "AddDynamicToughness",
+             "value": {
+              "inner": {
+               "qty": {
+                "scope": {
+                 "type": "Target"
+                },
+                "type": "Power"
+               },
+               "type": "Ref"
+              },
+              "minimum": 0,
+              "type": "ClampMin"
+             }
+            },
+            {
+             "keyword": "Haste",
+             "type": "AddKeyword"
+            }
+           ]
+          }
+         ],
+         "target": {
+          "controller": "You",
+          "properties": [
+           {
+            "type": "Another"
+           }
+          ],
+          "type": "Typed",
+          "type_filters": [
+           "Creature"
+          ]
+         },
+         "type": "GenericEffect"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "Phase",
+       "optional": false,
+       "origin": null,
+       "phase": "BeginCombat",
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": null,
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 5.0,
+    "color_identity": [
+     "G",
+     "R"
+    ],
+    "colors": [
+     "G",
+     "R"
+    ],
+    "keywords": [
+     "Indestructible"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{3}{R}{G}",
+    "name": "Xenagos, God of Revels",
+    "oracle_id": "cb15a8dd-57fe-466f-847e-66476b690a1f",
+    "oracle_text": "Indestructible\nAs long as your devotion to red and green is less than seven, Xenagos isn't a creature.\nAt the beginning of combat on your turn, another target creature you control gains haste and gets +X/+X until end of turn, where X is that creature's power.",
+    "power": "6",
+    "toughness": "5",
+    "type_line": "Legendary Enchantment Creature — God"
    }
   },
   "Xenagos, the Reveler": {

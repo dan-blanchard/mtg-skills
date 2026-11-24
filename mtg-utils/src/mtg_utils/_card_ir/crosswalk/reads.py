@@ -8930,6 +8930,19 @@ def pt_mod_signs(static_def: object) -> tuple[int, int]:
     return net(signs["power"]), net(signs["toughness"])
 
 
+def static_def_scales_up(static_def: object) -> bool:
+    """Whether a continuous effect raises power or toughness by a counted
+    amount (CR 613.4c): an ``AddDynamicPower`` / ``AddDynamicToughness`` phase
+    doesn't negate ("gets +1/+0 for each card you've drawn this turn" — Fists
+    of Flame; "+X/+X, where X is the number of creatures you control" —
+    Craterhoof Behemoth), never a scaling shrink (Toxrill, the Corrosive)."""
+    return any(
+        tag_of(mod) in ("AddDynamicPower", "AddDynamicToughness")
+        and _pt_mod_sign(mod) > 0
+        for mod in getattr(static_def, "modifications", None) or ()
+    )
+
+
 # ── Granted alternative costs, time-counter references, modified permanents ──
 
 

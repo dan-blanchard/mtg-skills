@@ -39,6 +39,7 @@ from mtg_utils._card_ir.crosswalk import (
     picked_by_caster,
     pump_is_negative,
     quantity_referent,
+    static_def_scales_up,
     tag_of,
 )
 from mtg_utils._card_ir.crosswalk.reads import drawback_outcome_node_ids
@@ -592,8 +593,9 @@ def has_structural_pump_makers(tree: ConceptTree, *, targeted: bool = False) -> 
     """A duration-scoped ``Pump``/``PumpAll`` effect with a positive fixed
     power OR toughness (widened from power-only), a "+"-grounded dynamic
     amount, OR a nested ``GenericEffect``/``Continuous``-static
-    ``AddPower``/``AddToughness`` grant (the firebreathing self-buff
-    excluded via the ``SelfRef``-affected veto). With ``targeted`` — asked of a
+    ``AddPower``/``AddToughness`` grant or its counted form
+    (:func:`static_def_scales_up`; the firebreathing self-buff excluded via
+    the ``SelfRef``-affected veto). With ``targeted`` — asked of a
     card already a pump maker — whether one of its pumps lands on ONE chosen
     creature that isn't an opponent's (CR 115.1a: "target creature gets +3/+3"
     — Brute Force), never a ``PumpAll`` or a grant to a group (Charge's
@@ -664,6 +666,10 @@ def has_structural_pump_makers(tree: ConceptTree, *, targeted: bool = False) -> 
                     if tag_of(m) in ("AddPower", "AddToughness")
                 )
                 if any(isinstance(v, int) and v > 0 for v in vals):
+                    return True
+                # … or a counted raise ("gets +1/+0 for each card you've drawn
+                # this turn" — Fists of Flame; Berserk's "+X/+0").
+                if static_def_scales_up(st):
                     return True
     return False
 

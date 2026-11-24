@@ -21,16 +21,6 @@ category on about 2,500 records now, so many of these are already known to it.
     the nine tucks phase types as `PutAtLibraryPosition` (Natural Obsolescence,
     Disempower, and since v0.131.0 Rebuking Ceremony) never had it. Either every
     targeted artifact tuck is an artifacts payoff or none is.
-  - `combat_buff_engine` reads a fixed combat pump only; a combat-keyed pump that
-    scales (`AddDynamicPower` — Ursine Monstrosity, once phase typed its scale)
-    carries `scaling_pump` alone.
-  - `pump_makers` reads a scaling pump on a `Pump` effect (its "+"-grounded arm)
-    but not one nested as a granted static (`AddDynamicPower` under a
-    `GenericEffect`): Craterhoof Behemoth, Berserk, Xenagos, God of Revels and
-    43 more carry `scaling_pump` alone. Fists of Flame and Algorithmic Ferocity
-    joined them once phase typed their "for each" (they had `pump_makers` off
-    the fixed `AddPower` phase wrote before). Reading the nested form was tried
-    and backed out of the bump: 46 new cards is a lane decision.
   - "Those creatures gain [keyword]" after a mass effect is a `TrackedSet` grant
     no keyword-grant read resolves to the mass effect's filter, so it is neither
     `keyword_grant_target` (correctly: no target) nor `team_buff`: Ajani
