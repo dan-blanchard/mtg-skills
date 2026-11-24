@@ -22,10 +22,6 @@ category on about 2,500 records now, so many of these are already known to it.
     Insurrection) and one with no controller ("each attacking creature" —
     Captain America, Skybound; "all attacking creatures" — Najeela, the
     Blade-Blossom).
-  - Garth One-Eye's "Create a copy of the card with the chosen name. You may
-    cast the copy" is a `CreateCardCopyByName` now; a copy of a permanent spell
-    that resolves enters as a token (CR 707.10f), which `permanent_etb|put`
-    doesn't read off that effect.
   - Gains kept (Dan, 2026-11-24; don't re-suggest): Din of the Fireherd
     `mass_land_denial|each|sacrifice`, Sunset Revelry `cantrip`, Mirror-Mad
     Phantasm `permanent_etb|put`, Words of Wind `bounce_tempo`.
@@ -112,9 +108,6 @@ category on about 2,500 records now, so many of these are already known to it.
   first zero-floor row unwrapped a floored `Difference` and Doran, Besieged by
   Time went blank until the second signal diff showed it as a loss. The bump
   report could list every card with phase records and fewer trees than records.
-- **Retire-ready, not retired:** `tree_synthesis/mechanics_misc._arm_curse_matters`
-  fires only on Blue Screen of Death (legal nowhere) now that Curse of
-  Misfortunes, Bitterheart Witch and Lynde are structural.
 
 **From comparing Arena game logs with phase (2026-11-09)**
 

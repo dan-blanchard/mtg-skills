@@ -137,9 +137,9 @@ from mtg_utils._card_ir.text_idioms import _LIB_SEARCH_PLAYER_ACTIONS
 
 # ── Batch 13 lanes (ADR-0035 Stage 2): the field-lookup wholesale batch ──────
 
-# (island_matters / suspend_matters / curse_matters were ADR-0036/0037
-# folded to bucket-B ``tree_synthesis`` arms; see ``_arm_island_matters`` /
-# ``_arm_suspend_matters`` / ``_arm_curse_matters``.)
+# (island_matters / suspend_matters were ADR-0036/0037 folded to bucket-B
+# ``tree_synthesis`` arms; see ``_arm_island_matters`` /
+# ``_arm_suspend_matters``.)
 
 # The batch-13 Scryfall-keyword rows (lowercased-membership → lane key; every
 # row scope "you", subject ""). These ARE membership lanes — the BEARER fires
@@ -372,20 +372,11 @@ def _convoke_matters(tree: ConceptTree) -> list[Signal]:
 def _curse_matters(tree: ConceptTree) -> list[Signal]:
     """curse_matters (§C) — CR 205.3h: a card that REFERENCES the Curse
     subtype — a trigger watching Curses (Lynde's dies filter), an effect
-    acting on a Curse subject (Witchbane Orb's DestroyAll). Tier-1
-    (ADR-0036/0037 fold): the residual bare-reference idiom ("curse
-    spells", "curses you cast/control/own", the search-filter drop — Curse
-    of Misfortunes [P11]; the acknowledged "a curse counter" quirk, Blue
-    Screen of Death, not-cl) reads the ``synth_curse_matters`` bucket-B
-    node (:func:`_arm_curse_matters`), gap-gated against the SAME two
-    structural arms below — zero oracle text/regex at LANE time.
-    MEMBERSHIP stays OUT: BEING an Aura — Curse (Cruel Reality) never
-    fires (the live :2509-2510 deferral)."""
+    acting on a Curse subject (Curse of Misfortunes' and Bitterheart Witch's
+    search for a Curse card): :func:`has_structural_curse_matters`.
+    MEMBERSHIP stays OUT: BEING an Aura — Curse (Cruel Reality) never fires."""
     if has_structural_curse_matters(tree):
         return [Signal("curse_matters", "you", "", "", tree.name, "high")]
-    for c in tree.iter_concepts():
-        if c.concept == "synth_curse_matters":
-            return [Signal("curse_matters", "you", "", "", tree.name, "high")]
     return []
 
 

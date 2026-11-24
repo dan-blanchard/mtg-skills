@@ -32,7 +32,6 @@ from mtg_utils._analysis.tree_synthesis import (
     _arm_convoke_matters,
     _arm_creature_cast_trigger,
     _arm_crimes_matter,
-    _arm_curse_matters,
     _arm_dice_makers,
     _arm_discover_makers,
     _arm_dont_own,
@@ -4035,17 +4034,14 @@ def test_curse_matters_structural_gate_true_on_existing_arm():
     genuinely structural arms. (Witchbane Orb's Curse-subtype DestroyAll was the
     pin until phase v0.104.0 parked it as a residue; a ledger bridge serves it.)"""
     assert has_structural_curse_matters(_fixture_tree("Bitterheart Witch"))
-    assert _arm_curse_matters(_fixture_tree("Bitterheart Witch")) is None
 
 
-def test_curse_matters_synth_stands_down_for_the_typed_search():
+def test_curse_matters_reads_the_typed_search():
     """Curse of Misfortunes' search for "a Curse card": its SearchLibrary filter
-    was empty through v0.118.0 (the synth arm served it); since phase v0.131.0
-    the filter carries the Curse subtype, so the structural effect-target arm
-    reads it and the gap-gated synth stands down."""
-    tree = _fixture_tree("Curse of Misfortunes")
-    assert has_structural_curse_matters(tree) is True
-    assert _arm_curse_matters(tree) is None
+    was empty through v0.118.0 (a text arm served it); since phase v0.131.0 the
+    filter carries the Curse subtype, the structural effect-target arm reads
+    it, and the text arm is gone."""
+    assert has_structural_curse_matters(_fixture_tree("Curse of Misfortunes")) is True
 
 
 def test_curse_matters_no_fire_on_membership_only():
@@ -4053,39 +4049,6 @@ def test_curse_matters_no_fire_on_membership_only():
     :2509-2510 deferral) — neither the structural gate nor the synth."""
     tree = _fixture_tree("Cruel Reality")
     assert has_structural_curse_matters(tree) is False
-    assert _arm_curse_matters(tree) is None
-
-
-def test_curse_matters_synth_registered():
-    assert "curse_matters" in SYNTHESIS_ARM_IDS
-
-
-def test_curse_matters_lane_reads_synth_node_end_to_end():
-    from mtg_utils._analysis.lanes import _curse_matters
-
-    synth = ConceptNode(
-        concept="synth_curse_matters",
-        node=SynthesizedNode(arm_id="curse_matters", description="x"),
-        role="effect",
-        scope="you",
-        subject=(),
-        raw="",
-    )
-    unit = AbilityUnit(
-        origin="synth",
-        index=0,
-        node=SynthesizedNode(arm_id="_unit", description="u"),
-        kind=None,
-        trigger_event=None,
-        effects=(synth,),
-        costs=(),
-        statics=(),
-    )
-    tree = ConceptTree(
-        name="X", oracle_id="x", oracle="Do something unrelated.", units=(unit,)
-    )
-    sigs = _curse_matters(tree)
-    assert any(s.key == "curse_matters" for s in sigs)
 
 
 # ── batch T4-mechanic-kw: suspend_matters ────────────────────────────────────

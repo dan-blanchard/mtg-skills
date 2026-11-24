@@ -218,28 +218,16 @@ def _arm_outlaw_matters(tree: ConceptTree) -> ConceptNode | None:
     )
 
 
-# ── batch T4-mechanic-kw (ADR-0036/0037 Stage 5): curse_matters bucket-B ─────
-# CR 205.3h: curse_matters' two structural arms (a Curse-subtype
-# ``valid_card`` trigger watch, a Curse-subtype effect-filter target —
-# ``_curse_matters`` in crosswalk_signals.py) miss the remaining bare
-# REFERENCE idioms ("curse spells", "curses you cast/control/own",
-# "target/each/another/your curse", "curse cards") — no clean structural
-# anchor exists for a reference that is neither a trigger watch nor an
-# effect target. Relocates the deleted ``_CURSE_MATTERS_MIRROR`` verbatim,
-# gap-gated against :func:`has_structural_curse_matters` (the SAME two arms
-# the lane tries first, GAP-GATE-ALIGNMENT). Measured byte-identical over
-# the commander-legal corpus (4/4 union, 0 drops, 0 adds).
-_CURSE_MATTERS_SYNTH_RX = re.compile(
-    r"curse spells?|curses? you (?:cast|control|own)"
-    r"|(?:\ba|target|each|another|your) curse\b|curse cards?",
-    re.IGNORECASE,
-)
+# ── curse_matters: the structural gate (CR 205.3h) ───────────────────────────
+# The lane's two arms. The text arm that stood beside them served the bare
+# references phase didn't type ("a Curse card" — Curse of Misfortunes' search
+# filter, typed since phase v0.131.0) and was deleted once it fired on no card
+# legal in any format.
 
 
 def has_structural_curse_matters(tree: ConceptTree) -> bool:
     """Whether phase carries a typed Curse-subtype trigger-watch / effect-
-    target node — the curse_matters lane's two structural arms (mirrors
-    them exactly) — the synth gap-gate."""
+    target node — the curse_matters lane's two structural arms."""
     for unit in tree.units:
         vc = getattr(unit.node, "valid_card", None)
         if vc is not None and "Curse" in filter_subtypes(vc):
@@ -249,27 +237,6 @@ def has_structural_curse_matters(tree: ConceptTree) -> bool:
             if filt is not None and "Curse" in filter_subtypes(filt):
                 return True
     return False
-
-
-def _matches_curse_matters_idiom(oracle: str) -> bool:
-    return bool(_CURSE_MATTERS_SYNTH_RX.search(_REMINDER.sub(" ", oracle or "")))
-
-
-def _arm_curse_matters(tree: ConceptTree) -> ConceptNode | None:
-    """Synthesize a ``curse_matters`` node for the bucket-B Curse-subtype
-    reference residue (the deleted ``_CURSE_MATTERS_MIRROR`` relocated,
-    gap-gated against :func:`has_structural_curse_matters`)."""
-    if has_structural_curse_matters(tree):
-        return None
-    if not _matches_curse_matters_idiom(tree.oracle or ""):
-        return None
-    return _synthetic_concept(
-        arm_id="curse_matters",
-        concept="synth_curse_matters",
-        scope="you",
-        subject=(),
-        desc="bucket-B Curse-subtype reference residue (CR 205.3h)",
-    )
 
 
 # ── arm: token_subtype_own_ref, the SHARED food/clue OWN-REF residual
