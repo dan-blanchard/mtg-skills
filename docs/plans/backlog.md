@@ -56,12 +56,16 @@ category on about 2,500 records now, so many of these are already known to it.
   Thought Dissector's `cheat_into_play|Artifact` waits on phase (upstream draft
   34): its reveal parks as `compound_reveal_until`, and the `dig_until` recovery
   token reads only "your library".
-- **Deeper fixes the bump's quality review named** (each changes which cards
-  emit a signal, so none was folded into the bump):
-  - A spell's `SelfRef` bound to the object it acted on is guarded read-side in
-    three places (`protection._filter_recipient`, `attack_deterrent`,
-    `has_structural_self_counter_grow`); one `misparsed_shapes` row rebinding
-    it would reach every lane.
+- **A spell's `SelfRef` bound to the object it acted on stays guarded
+  read-side** (`protection._filter_recipient`, `attack_deterrent`,
+  `has_structural_self_counter_grow`, each with its canary). One
+  `misparsed_shapes` row rebinding it was tried on paper and dropped
+  (2026-11-24): at v0.131.0 the instants and sorceries carry 72 nested statics
+  with `affected: SelfRef` and 45 `PutCounter`s on `SelfRef`. Some are the card
+  itself (suspend's time counters — Ancestral Vision), and the rest need three
+  different rebinds (`ParentTarget` — Blizzard Brawl; `TrackedSet` — Promise of
+  Loyalty; the token just made), which the structure alone doesn't tell apart.
+  Upstream draft 28 reports the shape.
 
 **From comparing Arena game logs with phase (2026-11-09)**
 
