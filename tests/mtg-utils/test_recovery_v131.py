@@ -211,3 +211,30 @@ def test_a_parked_sacrifice_of_forests_sacrifices_lands():
     # Wood Elemental: "As this creature enters, sacrifice any number of
     # untapped Forests."
     assert ("land_sacrifice_makers", "you", "") in _idents("Wood Elemental")
+
+
+# ── A player's board named beside the player is a sweep ─────────────────────────
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        # "deals 2 damage to target player and each creature that player controls"
+        "Chandra's Flame Wave",
+        # "to that player and each creature that player controls" (two ledger
+        # rows before the seam marked the board)
+        "Mob Verdict",
+        "Incite Rebellion",
+        # "to target player or planeswalker and each creature that player or
+        # that planeswalker's controller controls"
+        "Flame Wave",
+    ],
+)
+def test_a_parked_burn_over_a_players_board_is_a_sweep(name):
+    assert ("mass_removal", "you", "") in _idents(name)
+
+
+def test_an_ultimates_sweep_is_out_of_reach():
+    # Chandra, Flame's Fury's -8 is the same clause on a planeswalker's
+    # ultimate, which mass_removal leaves out (a ledger row served it before).
+    assert "mass_removal" not in {i[0] for i in _idents("Chandra, Flame's Fury")}

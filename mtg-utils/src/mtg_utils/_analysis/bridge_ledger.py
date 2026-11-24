@@ -4234,24 +4234,13 @@ _BURN_PLANESWALKER_RX = re.compile(
     r"planeswalker\b",
     re.IGNORECASE,
 )
-# One player's board swept by damage, the creature half dropped: "~ deals 2 damage
-# to target player and each creature that player controls" (Chandra's Flame Wave,
-# Chandra, Flame's Fury's -8 — only the player half is typed); Path of Mettle's
-# "it deals 1 damage to each creature that doesn't have first strike, …" parsed as
-# keyword grants.
+# A sweep by damage parsed as keyword grants: Path of Mettle's "it deals 1 damage
+# to each creature that doesn't have first strike, double strike, vigilance, or
+# haste". (The row's other shape, "~ deals N damage to target player and each
+# creature that player controls" with the creature half dropped, is parked whole
+# since phase v0.131.0 and read by the recovery stage's swept-board mark.)
 _ONE_SIDED_SWEEP_RX = re.compile(
-    r"\bdeals \d+ damage to target player and each creature that player "
-    r"controls\b|\bdeals \d+ damage to each creature that doesn't have\b",
-    re.IGNORECASE,
-)
-# Mob Verdict's "For each vote an opponent received, ~ deals 2 damage to that player
-# and each creature that player controls": the player half alone typed through
-# v0.118.0; phase v0.131.0 parks the whole sentence as an ``unparsed_quantity``
-# residue, which the recovery stage reads as a ``damage`` clause without the
-# swept-board mark (``EACH_PERMANENT``) ``removal_tutors.recovered_sweep`` reads.
-_VOTED_SWEEP_RX = re.compile(
-    r"\bdeals \d+ damage to that player and each creature that player controls\b",
-    re.IGNORECASE,
+    r"\bdeals \d+ damage to each creature that doesn't have\b", re.IGNORECASE
 )
 # A shrink phase drops with no node: Decimator Beetle's attack trigger keeps only
 # its "remove a -1/-1 counter" half; Zealous Persecution keeps only its anthem
@@ -4469,48 +4458,20 @@ BRIDGES.update(
                 key="mass_removal",
                 kind="dropped_clause",
                 todo=(
-                    "upstream phase-rs report candidate (Dan posts): '~ deals N "
-                    "damage to target player and each creature that player "
-                    "controls' keeps only the player half (Chandra's Flame Wave, "
-                    "Chandra, Flame's Fury), "
-                    "and Path of Mettle's 'deals 1 damage to each creature that "
-                    "doesn't have first strike, …' parses as keyword grants. "
-                    "Retires on the bump that types the DamageAll"
+                    "upstream phase-rs report candidate (Dan posts): Path of "
+                    "Mettle's 'deals 1 damage to each creature that doesn't have "
+                    "first strike, …' parses as keyword grants. Retires on the "
+                    "bump that types the DamageAll"
                 ),
                 census=(
-                    "3 hits / the legal corpus (Chandra's Flame Wave, Chandra, "
-                    "Flame's Fury's -8, Path of Mettle) @ phase v0.131.0; Mob "
-                    "Verdict, the fourth at v0.104.0, parks since v0.131.0 "
-                    "(one_sided_sweep_creature_half_parked)"
+                    "1 hit / the legal corpus (Path of Mettle) @ phase v0.131.0, "
+                    "2026-11-24; Chandra's Flame Wave, Chandra, Flame's Fury and "
+                    "Mob Verdict park whole since v0.131.0 and are read by "
+                    "recovery's EACH_PERMANENT mark"
                 ),
-                pins=(
-                    "Chandra's Flame Wave",
-                    "Chandra, Flame's Fury",
-                    "Path of Mettle // Metzali, Tower of Triumph",
-                ),
+                pins=("Path of Mettle // Metzali, Tower of Triumph",),
                 gap=_no_damage_all_node,
                 match=_oracle_match(_ONE_SIDED_SWEEP_RX),
-            ),
-            Bridge(
-                bridge_id="one_sided_sweep_creature_half_parked",
-                key="mass_removal",
-                kind="upstream_parse_failure",
-                todo=(
-                    "upstream phase-rs report candidate (Dan posts): Mob Verdict's "
-                    "'For each vote an opponent received, ~ deals 2 damage to that "
-                    "player and each creature that player controls' parks whole "
-                    "(unparsed_quantity) — retires on the bump that types the "
-                    "DamageAll, or once the recovery stage marks the clause's "
-                    "'each creature that player controls' as a swept board "
-                    "(EACH_PERMANENT), which removal_tutors.recovered_sweep reads"
-                ),
-                census=(
-                    "1 hit / the legal corpus (Mob Verdict), MTGJSON @ phase "
-                    "v0.131.0, 2026-11-24"
-                ),
-                pins=("Mob Verdict",),
-                gap=_no_damage_all_node,
-                match=_oracle_match(_VOTED_SWEEP_RX),
             ),
             Bridge(
                 bridge_id="shrink_clause_dropped",

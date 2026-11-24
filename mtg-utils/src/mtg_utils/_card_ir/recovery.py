@@ -1035,6 +1035,16 @@ _EACH_PERMANENT_OBJECT = (
     rf"{_PERMANENT_TYPE}(?:(?:\s*,\s*|\s+)(?:(?:and|or)\s+)?{_PERMANENT_TYPE})*+\b"
     r"(?!\s+(?:cards?|blocking|blocked|attacking)\b)"
 )
+# A player and their board as one object: "deal 2 damage to target player and
+# each creature that player controls" (Chandra's Flame Wave, Mob Verdict; Flame
+# Wave's "that player or that planeswalker's controller controls") — the second
+# recipient is a swept board too.
+_PLAYERS_BOARD_TOO_RX = re.compile(
+    r"\band\s+"
+    + _EACH_PERMANENT_OBJECT
+    + r"\s+(?:that player(?: or that planeswalker's controller)?|they) controls?\b",
+    re.IGNORECASE,
+)
 # "choose an opponent [at random]" names a player for a later instruction, not
 # the side the clause acts on ("mill a card and choose an opponent at random" —
 # Ursine Monstrosity's own mill).
@@ -1190,7 +1200,9 @@ def read_clause(
             subject.append(YOUR_TARGET)
         if re.search(head + r"(?:each|all)\b", text, re.IGNORECASE):
             subject.append(EACH_OBJECT)
-        if re.search(head + _EACH_PERMANENT_OBJECT, text, re.IGNORECASE):
+        if re.search(head + _EACH_PERMANENT_OBJECT, text, re.IGNORECASE) or (
+            _PLAYERS_BOARD_TOO_RX.search(text)
+        ):
             subject.append(EACH_PERMANENT)
         if re.search(
             head + r"each (?:other )?creature you control\s*(?:$|[.,;])",

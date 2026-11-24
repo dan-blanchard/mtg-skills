@@ -58,12 +58,6 @@ category on about 2,500 records now, so many of these are already known to it.
   token reads only "your library".
 - **Deeper fixes the bump's quality review named** (each changes which cards
   emit a signal, so none was folded into the bump):
-  - The seam's `EACH_PERMANENT` mark needs "each" right after the verb's head.
-    Marking the "… and each creature that player controls" conjunct too would
-    let `recovered_sweep` serve Chandra's Flame Wave, Flame Wave, Incite
-    Rebellion and Mob Verdict, and retire both `one_sided_sweep_creature_half_*`
-    ledger rows (the `_dropped` one still says the clause is dropped; since
-    v0.131.0 it is parked).
   - A parked "discard …" with no subject after a typed `RevealHand` could take
     that reveal's player in `recovery.read_clause`; today `_discard_outlet`
     vetoes it lane-side (Shatter Assumptions), and no other discard lane sees it.
