@@ -140,3 +140,12 @@ def test_a_harm_in_one_mode_of_several_is_no_drawback(name):
 def test_modes_that_each_come_up_in_turn_keep_the_drawback():
     # Demonic Pact: "choose one that hasn't been chosen — … • You lose the game."
     assert ("self_drawback", "you", "harm") in _idents("Demonic Pact")
+
+
+# ── A cast copy of a named card can be a permanent ──────────────────────────────
+
+
+def test_a_cast_copy_of_a_named_card_is_a_battlefield_put():
+    # Garth One-Eye: "Create a copy of the card with the chosen name. You may
+    # cast the copy" — Shivan Dragon and Black Lotus among the names.
+    assert ("permanent_etb", "you", "put") in _idents("Garth One-Eye")

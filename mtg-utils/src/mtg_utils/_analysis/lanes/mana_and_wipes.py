@@ -3407,14 +3407,29 @@ def _searched_by_another(unit: AbilityUnit) -> bool:
     )
 
 
+def _casts_a_named_copy(unit: AbilityUnit) -> bool:
+    """A copy of a card the ability names, created and then cast ("Create a copy
+    of the card with the chosen name. You may cast the copy" — Garth One-Eye,
+    whose names include Shivan Dragon and Black Lotus): a copy of a permanent
+    spell "becomes a token permanent" as it resolves (CR 707.10f). Phase lists
+    the names, not their types; the lane takes any such copy."""
+    tags = {tag_of(c.node): c.node for c in unit.effects}
+    cast = tags.get("CastFromZone")
+    return (
+        "CreateCardCopyByName" in tags
+        and tag_of(getattr(cast, "target", None)) == "LastCreated"
+    )
+
+
 def _battlefield_put(tree: ConceptTree) -> list[Signal]:
     """``permanent_etb|you|put`` — the card makes a card or permanent other than
     itself enter the battlefield under your control: it puts one there
     (:func:`_puts_a_card_for_you`, a parked put — :func:`_recovered_put_for_you`),
-    makes a token (:func:`_makes_token_for_you`), or grants or carries a
-    token-copy keyword (:func:`_grants_token_keyword`); a granted ability's
-    included. What a "whenever a permanent you control enters" engine
-    (Amareth, Amulet of Vigor) wants. A page-only doer
+    makes a token (:func:`_makes_token_for_you`), casts a copy of a named card
+    (:func:`_casts_a_named_copy`), or grants or carries a token-copy keyword
+    (:func:`_grants_token_keyword`); a granted ability's included. What a
+    "whenever a permanent you control enters" engine (Amareth, Amulet of Vigor)
+    wants. A page-only doer
     (``signal_keys.PAGE_ONLY_SUBJECTS``): every ramp spell, token maker and
     reanimation carries it, so it opens no avenue."""
     if _TOKEN_KEYWORDS & set(tree.card_keywords):
@@ -3422,7 +3437,7 @@ def _battlefield_put(tree: ConceptTree) -> list[Signal]:
     for unit in tree.units:
         if unit.kind == "BeginGame":
             continue
-        if _grants_token_keyword(unit):
+        if _grants_token_keyword(unit) or _casts_a_named_copy(unit):
             return [Signal("permanent_etb", "you", "put", "", tree.name, "high")]
         searched = _searched_by_another(unit)
         own = ((c, False) for c in unit.effects)
