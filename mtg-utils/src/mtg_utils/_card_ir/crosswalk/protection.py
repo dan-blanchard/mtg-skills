@@ -701,7 +701,7 @@ def attack_recipient(value: object) -> str | None:
 #: trigger's ``attack_target_filter``, a static's ``attack_defended``, an
 #: ``AttackTarget`` quantity's ``attacked``, and the ``defended`` of an
 #: ``UnlessPay`` condition or a prohibited ``Attack`` activity.
-ATTACK_RECIPIENT_FIELDS: tuple[str, ...] = (
+_ATTACK_RECIPIENT_FIELDS: tuple[str, ...] = (
     "attack_target_filter",
     "attack_defended",
     "attacked",
@@ -711,10 +711,10 @@ ATTACK_RECIPIENT_FIELDS: tuple[str, ...] = (
 
 def attack_recipients(node: object) -> tuple[str, ...]:
     """The attack recipients a node names (:func:`attack_recipient` of each of
-    :data:`ATTACK_RECIPIENT_FIELDS` it carries)."""
+    :data:`_ATTACK_RECIPIENT_FIELDS` it carries)."""
     return tuple(
         recipient
-        for field in ATTACK_RECIPIENT_FIELDS
+        for field in _ATTACK_RECIPIENT_FIELDS
         if (recipient := attack_recipient(getattr(node, field, None))) is not None
     )
 

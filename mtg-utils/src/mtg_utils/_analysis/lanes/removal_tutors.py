@@ -101,6 +101,7 @@ from mtg_utils._card_ir.crosswalk import (
     pt_mod_signs,
     recipient_tag,
     recovered_each_permanent,
+    recovered_land_sweep,
     recursion_card_types,
     replays_own_permanent,
     sacrifice_names_no_player,
@@ -769,8 +770,6 @@ def _recovered_removal(c: ConceptNode) -> bool:
 #: ones whose swept creatures die.
 _RECOVERED_SWEEP_VERBS = frozenset({"destroy", "exile", "damage"})
 _RECOVERED_KILL_VERBS = frozenset({"destroy", "damage"})
-_RECOVERED_DESTROY = frozenset({"destroy"})
-_LAND_SUBJECT = frozenset({"Land"})
 
 
 def recovered_sweep(
@@ -2706,10 +2705,7 @@ def _land_destruction(tree: ConceptTree) -> list[Signal]:
             kinds.add(kind)
     # a parked destroy over lands as a class ("destroy all Plains that weren't
     # chosen this way" — Raiding Party)
-    if any(
-        recovered_sweep(c, verbs=_RECOVERED_DESTROY, types=_LAND_SUBJECT)
-        for c in tree.iter_concepts()
-    ):
+    if any(recovered_land_sweep(c) for c in tree.iter_concepts()):
         kinds.add("destroy")
     if any("Land" in types for _c, types in _edict_answers(tree)):
         kinds.add("sacrifice")

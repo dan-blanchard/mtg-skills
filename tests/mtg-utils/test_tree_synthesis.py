@@ -4045,8 +4045,7 @@ def test_curse_matters_reads_the_typed_search():
 
 
 def test_curse_matters_no_fire_on_membership_only():
-    """Cruel Reality IS an Aura — Curse; BEING one never fires (the live
-    :2509-2510 deferral) — neither the structural gate nor the synth."""
+    """Cruel Reality IS an Aura — Curse; BEING one never fires."""
     tree = _fixture_tree("Cruel Reality")
     assert has_structural_curse_matters(tree) is False
 

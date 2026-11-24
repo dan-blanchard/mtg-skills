@@ -538,12 +538,6 @@ def _arm_self_animation(_tree: ConceptTree, unit: AbilityUnit) -> list[FieldCorr
     ]
 
 
-def _ends_thread(eff: TypedMirrorNode) -> bool:
-    """A mass effect ends the chosen-target thread: Chimeric Idol's "tap all lands
-    you control. ~ becomes a 3/3" animates the card, not the lands."""
-    return ends_target_thread(eff) or tag_of(getattr(eff, "scope", None)) == "All"
-
-
 def _enchanted_filter(cond: object) -> object | None:
     """The ``EnchantedBy`` filter an Aura's static condition names ("as long as
     enchanted artifact isn't a creature") — never one under a ``Not``."""
@@ -570,8 +564,10 @@ def _enchanted_filter(cond: object) -> object | None:
 def _arm_animated_object(tree: ConceptTree, unit: AbilityUnit) -> list[FieldCorrection]:
     out = [
         FieldCorrection(sdef, "affected", target, "animated_object")
+        # A mass effect ends the thread: Chimeric Idol's "tap all lands you
+        # control. ~ becomes a 3/3" animates the card, not the lands.
         for target, sdef in iter_threaded_target_statics(
-            unit.node, affected_tag="SelfRef", resets_thread=_ends_thread
+            unit.node, affected_tag="SelfRef", resets_thread=ends_target_thread
         )
         if adds_creature_type(sdef)
     ]

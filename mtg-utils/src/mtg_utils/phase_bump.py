@@ -840,7 +840,7 @@ class ShortCard:
 class TreeCoverage:
     """One pin's tree coverage over phase's card-data: every oracle id with face
     records, and the cards among them a face of which builds no tree. Healthy is
-    an empty ``short``: at v0.131.0 every one of the 36,391 face records loads."""
+    an empty ``short``: phase's raw records always load."""
 
     cards: frozenset[str]
     short: Mapping[str, ShortCard]

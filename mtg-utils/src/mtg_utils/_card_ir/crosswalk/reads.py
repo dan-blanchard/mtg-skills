@@ -2553,10 +2553,7 @@ def graveyard_recursion(node: object) -> RecursionHit | None:
         origin, dest = change_zone_dirs(node)
         # "from your hand or graveyard" (Swift Warkite) is an ``InAnyZone``
         # choice that a graveyard is among.
-        if origin is None and "Graveyard" in (
-            *filter_inzone_zones(sub),
-            *filter_inanyzone_zones(sub),
-        ):
+        if origin is None and "Graveyard" in filter_named_zones(sub):
             origin = "Graveyard"
         if origin != "Graveyard" or dest not in GRAVEYARD_RECURSION_ZONES:
             return None
@@ -4964,7 +4961,6 @@ def iter_threaded_target_statics(
     affected_tag: str = "ParentTarget",
     resets_thread: Callable[[TypedMirrorNode], bool] | None = None,
     effect_tags: frozenset[str] = frozenset(),
-    groups: bool = False,
 ) -> Iterator[tuple[object, TypedMirrorNode]]:
     """``(resolved_target_filter, static_def)`` pairs for every
     ``affected_tag``-affected (default ``ParentTarget``) nested static in one
@@ -4993,12 +4989,8 @@ def iter_threaded_target_statics(
     Arm the Cathars). ``resets_thread`` names the effects that END the thread
     (the caller's call: e.g. a token producer or a mass effect, after which
     "it" / "those" no longer names a chosen target); such an effect clears
-    the tracked target instead of supplying one.
-
-    ``groups`` threads the other half: only the group a mass effect acted on
-    (:func:`acts_on_a_group` — "Put a +1/+1 counter on each creature you
-    control. Those creatures gain vigilance", Ajani Goldmane), which a chosen
-    target or a token producer ends.
+    the tracked target instead of supplying one. :func:`ends_group_thread`
+    threads the other half: only the group a mass effect acted on.
     """
     tracked: object | None = None
     seen: set[int] = set()
@@ -5015,13 +5007,9 @@ def iter_threaded_target_statics(
         if isinstance(eff, TypedMirrorNode) and id(eff) not in seen:
             seen.add(id(eff))
             tgt = getattr(eff, "target", MISSING)
-            names_objects = _present(tgt) and tag_of(tgt) in ("Typed", "Or", "And")
-            if groups:
-                if names_objects or tag_of(eff) in _TRACKED_SET_PRODUCER_TAGS:
-                    tracked = tgt if acts_on_a_group(eff) else None
-            elif resets_thread is not None and resets_thread(eff):
+            if resets_thread is not None and resets_thread(eff):
                 tracked = None
-            elif names_objects:
+            elif _names_objects(tgt):
                 tracked = tgt
             if (
                 tag_of(eff) in effect_tags
@@ -7408,8 +7396,6 @@ _BASIC_LAND_TYPES: frozenset[str] = frozenset(BASIC_LAND_TYPE_COLORS)
 # with an activated ability, Freyalise's Radiance's snow permanents) is not
 # every land a player controls.
 _MASS_LAND_SUPERTYPE_PROPS = frozenset({"NotSupertype", "HasSupertype"})
-_DESTROY_TOKEN: frozenset[str] = frozenset({"destroy"})
-_LAND_SUBJECT: frozenset[str] = frozenset({"Land"})
 _MASS_LAND_REMOVAL_KIND: dict[str, LandDenialKind] = {
     "DestroyAll": "destroy",
     "BounceAll": "bounce",
@@ -7622,10 +7608,7 @@ def _unit_land_denial(
                 found.append("sacrifice")  # Cataclysm: one land kept, the rest go
     # A destroy over lands as a class that phase parks (Raiding Party's "destroy
     # all Plains that weren't chosen this way by any player").
-    if any(
-        recovered_each_permanent(c, verbs=_DESTROY_TOKEN, types=_LAND_SUBJECT)
-        for c in unit.effects
-    ):
+    if any(recovered_land_sweep(c) for c in unit.effects):
         found.append("destroy")
     # The removal first, in LAND_DENIAL_KINDS order (the deep walk's order is not
     # the card's): Omen of Fire bounces every Island before its Plains sacrifice.
@@ -7641,12 +7624,22 @@ def recovered_each_permanent(
     Mercy; "destroy all Plains that weren't chosen this way" — Raiding Party):
     a sweep affects every object it describes (CR 115.10). Not one naming only
     your own objects."""
-    from mtg_utils._card_ir.recovery import EACH_PERMANENT, YOURS
-
     if c.recovered_by not in verbs:
         return False
+    from mtg_utils._card_ir.recovery import EACH_PERMANENT, YOURS
+
     subject = set(c.subject)
     return EACH_PERMANENT in subject and YOURS not in subject and bool(subject & types)
+
+
+def recovered_land_sweep(c: ConceptNode) -> bool:
+    """A parked destroy over lands as a class (:func:`recovered_each_permanent`:
+    "destroy all Plains that weren't chosen this way by any player" — Raiding
+    Party), the one read behind ``land_destruction`` and
+    :func:`mass_land_denial`."""
+    return recovered_each_permanent(
+        c, verbs=frozenset({"destroy"}), types=frozenset({"Land"})
+    )
 
 
 def mass_land_denial(tree: ConceptTree) -> LandDenialKind | None:
@@ -7859,7 +7852,7 @@ def _team_narrowing_predicates(filt: object) -> set[str]:
     creature you control gets +1/+1" — Phalanx Tactics; phase wrote ``Another``
     through v0.118.0)."""
     preds = set(filter_predicates(filt))
-    if all(
+    if "DistinctFrom" in preds and all(
         tag_of(getattr(n, "reference", None)) == "ParentTarget"
         for n in iter_typed_nodes(filt)
         if tag_of(n) == "DistinctFrom"
@@ -7939,7 +7932,6 @@ def team_buff_sites(
     static's own ``affected`` or the group a mass effect before it acted on
     (:func:`group_grant_statics`)."""
     for unit in tree.units:
-        groups = group_grant_statics(unit.node)
         for sdef, mod in iter_mod_sites(unit.node):
             if tag_of(mod) not in ("AddKeyword", "AddKeywordUntilEndOfTurn"):
                 continue
@@ -7949,7 +7941,9 @@ def team_buff_sites(
             if kw.lower().replace(" ", "") not in TEAM_BUFF_GRANT_KW:
                 continue
             # "Those creatures", after a mass effect over your team, is the team.
-            grantee = groups.get(id(sdef), getattr(sdef, "affected", None))
+            grantee = group_grant_statics(unit.node).get(
+                id(sdef), getattr(sdef, "affected", None)
+            )
             if is_team_buff_filter(grantee):
                 yield unit, sdef
 
@@ -8060,15 +8054,29 @@ def iter_named_object_statics(
     :func:`group_grant_statics`: "untap all Forests put onto the battlefield
     this way. They become 3/3 green creatures", Hunting Wilds)."""
     yield from iter_threaded_target_statics(ability_like)
-    yield from iter_threaded_target_statics(
-        ability_like, affected_tag="TrackedSet", groups=True
-    )
+    yield from _group_statics(ability_like)
 
 
 def ends_target_thread(eff: TypedMirrorNode) -> bool:
     """A token producer or a mass effect (:func:`acts_on_a_group`) ends the
     chosen-target thread."""
     return tag_of(eff) in _TRACKED_SET_PRODUCER_TAGS or acts_on_a_group(eff)
+
+
+def _names_objects(target: object) -> bool:
+    """Whether an effect's ``target`` is an object filter of its own, not a
+    back-reference."""
+    return _present(target) and tag_of(target) in ("Typed", "Or", "And")
+
+
+def ends_group_thread(eff: TypedMirrorNode) -> bool:
+    """A token producer or a chosen target ends the thread of the group a mass
+    effect acted on ("Put a +1/+1 counter on each creature you control. Those
+    creatures gain vigilance" — Ajani Goldmane): the mirror of
+    :func:`ends_target_thread`."""
+    return tag_of(eff) in _TRACKED_SET_PRODUCER_TAGS or (
+        _names_objects(getattr(eff, "target", None)) and not acts_on_a_group(eff)
+    )
 
 
 def acts_on_a_group(eff: object) -> bool:
@@ -8089,12 +8097,23 @@ def group_grant_statics(ability_like: object) -> dict[int, object]:
     control. Those creatures gain vigilance" — Ajani Goldmane; "Untap all
     creatures you control. They gain hexproof and indestructible" — Join
     Shields). The chosen-target half is :func:`iter_tracked_set_target_grants`."""
-    return {
-        id(st): group
-        for group, st in iter_threaded_target_statics(
-            ability_like, affected_tag="TrackedSet", groups=True
-        )
-    }
+    return {id(st): group for group, st in _group_statics(ability_like)}
+
+
+def _group_statics(ability_like: object) -> tuple[tuple[object, TypedMirrorNode], ...]:
+    """The ``(group filter, static def)`` pairs behind
+    :func:`group_grant_statics`, walked once per ability node."""
+    if not isinstance(ability_like, TypedMirrorNode):
+        return ()
+    return memo_on(
+        ability_like,
+        "_xw_group_statics",
+        lambda node: tuple(
+            iter_threaded_target_statics(
+                node, affected_tag="TrackedSet", resets_thread=ends_group_thread
+            )
+        ),
+    )
 
 
 def iter_tracked_set_target_grants(
@@ -11259,10 +11278,7 @@ def puts_commander_into_hand(tree: ConceptTree) -> bool:
         filt = getattr(node, "target", None)
         if "IsCommander" not in filter_predicates(filt):
             continue
-        if getattr(node, "origin", None) == "Command" or "Command" in (
-            *filter_inzone_zones(filt),
-            *filter_inanyzone_zones(filt),
-        ):
+        if "Command" in zone_change_origins(node):
             return True
     return False
 

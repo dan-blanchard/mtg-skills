@@ -56,6 +56,25 @@ category on about 2,500 records now, so many of these are already known to it.
   Thought Dissector's `cheat_into_play|Artifact` waits on phase (upstream draft
   34): its reveal parks as `compound_reveal_until`, and the `dig_until` recovery
   token reads only "your library".
+- **Cleanups the follow-up review named and left** (2026-11-24):
+  - `AddDynamicPower` / `AddDynamicToughness` aren't `pump` concepts where the
+    fixed `AddPower` / `AddToughness` are (`core._MOD_CONCEPTS`), so
+    `static_def_scales_up` is asked in two lanes; mapping them there would reach
+    every lane that reads a static pump, and changes signals. Beside it,
+    `static_def_adds_power` counts a negated dynamic amount as a raise, where
+    `static_def_scales_up` reads the sign: one predicate should stand.
+  - `opponent_exile_makers`' owner test repeats part of `graveyard_exile_kind`,
+    which treats a chosen player's graveyard as an opponent's too: calling it
+    would change signals.
+  - The "resolve a static's back-referenced grantee through the thread" map is
+    built in five places (`iter_granted_triggers`, the animate read,
+    `team_buff_sites`, the keyword-grant lane, `iter_named_object_statics`); one
+    `threaded_grantees` would serve them.
+  - `has_structural_curse_matters` still lives in `tree_synthesis` though its
+    synth arm is gone and only `removal_tutors._curse_matters` reads it.
+  - `mirror.build._group_by_oracle_id` is private with three outside importers.
+  - `bump-phase-pin` parses each pin's card-data JSON twice (tree coverage, then
+    the signal diff's oracle ids).
 - **A spell's `SelfRef` bound to the object it acted on stays guarded
   read-side** (`protection._filter_recipient`, `attack_deterrent`,
   `has_structural_self_counter_grow`, each with its canary). One

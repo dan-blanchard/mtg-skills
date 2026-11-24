@@ -122,7 +122,7 @@ def _is_death_payoff_effect(e: ConceptNode) -> bool:
         dest = change_zone_dirs(e.node)[1]
         return (
             dest == "Battlefield"
-            and bool({"Hand", "Graveyard"} & set(zone_change_origins(e.node)))
+            and not {"Hand", "Graveyard"}.isdisjoint(zone_change_origins(e.node))
             and "Creature" in e.subject
         )
     return False

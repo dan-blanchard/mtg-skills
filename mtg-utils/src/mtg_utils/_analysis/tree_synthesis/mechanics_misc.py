@@ -218,11 +218,7 @@ def _arm_outlaw_matters(tree: ConceptTree) -> ConceptNode | None:
     )
 
 
-# ── curse_matters: the structural gate (CR 205.3h) ───────────────────────────
-# The lane's two arms. The text arm that stood beside them served the bare
-# references phase didn't type ("a Curse card" — Curse of Misfortunes' search
-# filter, typed since phase v0.131.0) and was deleted once it fired on no card
-# legal in any format.
+# ── curse_matters: the lane's two structural arms (CR 205.3h) ────────────────
 
 
 def has_structural_curse_matters(tree: ConceptTree) -> bool:

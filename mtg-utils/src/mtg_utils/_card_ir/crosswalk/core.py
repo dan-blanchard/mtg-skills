@@ -1258,6 +1258,18 @@ def _spell_additional_cost_concepts(root: TypedMirrorNode) -> tuple[ConceptNode,
     return tuple(out)
 
 
+def _alt_cost_options(root: object) -> Iterator[TypedMirrorNode]:
+    """The card-root ``casting_options`` entries that offer an alternative cost
+    (``kind='AlternativeCost'``, CR 118.9)."""
+    opts = getattr(root, "casting_options", None)
+    for opt in opts if isinstance(opts, list) else ():
+        if (
+            isinstance(opt, TypedMirrorNode)
+            and getattr(opt, "kind", None) == "AlternativeCost"
+        ):
+            yield opt
+
+
 def _casting_option_cost_leaves(
     root: TypedMirrorNode, *, alternative: bool
 ) -> Iterator[TypedMirrorNode]:
@@ -1831,10 +1843,8 @@ def build_concept_tree(
     casting_options = getattr(root, "casting_options", None)
     card_alt_cost_conditions = tuple(
         cond
-        for o in (casting_options if isinstance(casting_options, list) else ())
-        if isinstance(o, TypedMirrorNode)
-        and getattr(o, "kind", None) == "AlternativeCost"
-        and isinstance(cond := getattr(o, "condition", None), TypedMirrorNode)
+        for o in _alt_cost_options(root)
+        if isinstance(cond := getattr(o, "condition", None), TypedMirrorNode)
     )
     card_flash_options = tuple(
         cond
@@ -1934,18 +1944,7 @@ def build_concept_tree(
         # merge above already reaches — but the fallback keeps this reader
         # symmetric with the additional-cost carrier rather than silently
         # dropping a future such card).
-        opts = getattr(root, "casting_options", MISSING)
-        alt_node = None
-        if _present(opts) and isinstance(opts, list):
-            alt_node = next(
-                (
-                    o
-                    for o in opts
-                    if isinstance(o, TypedMirrorNode)
-                    and getattr(o, "kind", None) == "AlternativeCost"
-                ),
-                None,
-            )
+        alt_node = next(_alt_cost_options(root), None)
         if alt_node is not None:
             units.append(
                 AbilityUnit(

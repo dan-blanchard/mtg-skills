@@ -74,6 +74,7 @@ from mtg_utils._card_ir.crosswalk import (
     filter_core_types,
     filter_inanyzone_zones,
     filter_inzone_zones,
+    filter_named_zones,
     filter_names_creatures,
     filter_owned_controller,
     filter_predicates,
@@ -1706,7 +1707,7 @@ def _type_changer_zone(affected: object, preds: set[str]) -> str | None:
     anyzones = set(filter_inanyzone_zones(affected))
     if "InAnyZone" in preds and not anyzones:
         return "all_zones"
-    zones = set(filter_inzone_zones(affected)) | anyzones
+    zones = set(filter_named_zones(affected))
     beyond = zones - {"Battlefield"}
     if not beyond:
         return "battlefield"
