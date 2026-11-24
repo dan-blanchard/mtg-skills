@@ -58,9 +58,6 @@ category on about 2,500 records now, so many of these are already known to it.
   token reads only "your library".
 - **Deeper fixes the bump's quality review named** (each changes which cards
   emit a signal, so none was folded into the bump):
-  - A parked "discard …" with no subject after a typed `RevealHand` could take
-    that reveal's player in `recovery.read_clause`; today `_discard_outlet`
-    vetoes it lane-side (Shatter Assumptions), and no other discard lane sees it.
   - A spell's `SelfRef` bound to the object it acted on is guarded read-side in
     three places (`protection._filter_recipient`, `attack_deterrent`,
     `has_structural_self_counter_grow`); one `misparsed_shapes` row rebinding

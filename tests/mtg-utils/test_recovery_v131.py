@@ -238,3 +238,24 @@ def test_an_ultimates_sweep_is_out_of_reach():
     # Chandra, Flame's Fury's -8 is the same clause on a planeswalker's
     # ultimate, which mass_removal leaves out (a ledger row served it before).
     assert "mass_removal" not in {i[0] for i in _idents("Chandra, Flame's Fury")}
+
+
+def test_a_parked_discard_after_anothers_revealed_hand_is_theirs():
+    """Shatter Assumptions: "Target opponent reveals their hand and discards
+    all multicolored cards" — each mode is a typed reveal plus a parked,
+    subject-less "discard …"; the seam reads the revealing player as its
+    actor, so it is no discard outlet of yours."""
+    from mtg_utils._card_ir.recovery import OTHER_PLAYER
+    from mtg_utils._card_ir.trees import trees_for
+    from mtg_utils.testkit import test_card
+
+    discards = [
+        c
+        for tree in trees_for(test_card("Shatter Assumptions"))
+        for unit in tree.units
+        for c in unit.effects
+        if c.recovered_by == "discard"
+    ]
+    assert discards
+    assert all(OTHER_PLAYER in c.reading for c in discards)
+    assert "discard_outlet" not in {i[0] for i in _idents("Shatter Assumptions")}

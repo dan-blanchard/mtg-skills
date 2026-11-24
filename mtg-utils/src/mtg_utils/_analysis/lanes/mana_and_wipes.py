@@ -1018,15 +1018,6 @@ def _discard_outlet(tree: ConceptTree) -> list[Signal]:
             # precedent: a wheel hits you too).
             if c.recovered_by == "discard" and OTHER_PLAYER in c.reading:
                 continue
-            # … or follows an opponent's revealed hand in a mode whose own
-            # text the unit doesn't carry ("Target opponent reveals their hand
-            # and discards all multicolored cards" — Shatter Assumptions): the
-            # revealing player discards.
-            if c.recovered_by == "discard" and any(
-                discard_recipient_scope(r.node) == "opponents"
-                for r in unit.effect_concepts("reveal_hand")
-            ):
-                continue
             return [Signal("discard_outlet", "you", "", c.raw, tree.name, "high")]
         # The unit's own node, plus the casting costs merged onto it; a cost
         # both reach (a top-level activation cost, a carrier unit's own node) is

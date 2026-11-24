@@ -48,6 +48,7 @@ from mtg_utils._card_ir.crosswalk import (
     ConceptTree,
     counter_keyword,
     counter_kind,
+    discard_recipient_scope,
     iter_mod_sites,
     iter_nested_granted_bodies,
     keyword_subject,
@@ -1106,6 +1107,18 @@ def _peeled_subject(text: str, unit: AbilityUnit | None) -> str:
     return "that player" if who == "they" else who
 
 
+def _after_anothers_revealed_hand(unit: AbilityUnit | None) -> bool:
+    """Whether the unit has another player reveal their hand: a "discard …" it
+    parks with no subject is that player's ("Target opponent reveals their hand
+    and discards all multicolored cards" — Shatter Assumptions, a mode whose
+    own text the unit doesn't carry for :func:`_peeled_subject`)."""
+    return unit is not None and any(
+        tag_of(c.node) == "RevealHand"
+        and discard_recipient_scope(c.node) == "opponents"
+        for c in walk_effect_chain(unit.node)
+    )
+
+
 def _it_names_self(unit: AbilityUnit) -> bool:
     """Whether "it" in the unit's clause starts out as the card: a trigger or
     replacement watching the card itself, a step trigger watching nothing (Pyre
@@ -1210,7 +1223,10 @@ def read_clause(
             re.IGNORECASE,
         ):
             subject.append(TEAM_OBJECT)
-    if other_player and _row_rx(other_player).search(text):
+    if other_player and (
+        _row_rx(other_player).search(text)
+        or (rule.concept == "discard" and _after_anothers_revealed_hand(unit))
+    ):
         subject.append(OTHER_PLAYER)
     for m in _COUNTER_KIND_RX.finditer(text):
         kind = f"{m.group(1).lower()} counter"
