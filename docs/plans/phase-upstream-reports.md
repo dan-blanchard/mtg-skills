@@ -483,7 +483,7 @@ Moved, still a phase gap: Akiri, Fearless Voyager's attack trigger is an `Unknow
 writes the mode back too); Time to Reflect parks whole as `block_history_partner`; Mob Verdict's sweep parks as
 `unparsed_quantity` (read by the recovery stage's swept-board mark); Tomik's lands shield is an `Other` static mode.
 New this bump: `docs/plans/backlog.md`, "From the phase v0.131.0 pin bump"; its phase gaps are drafted as
-issues 27 to 35 (Mob Verdict in 33, Tomik in 31). Changed shape in the re-verified issues: Cleansing
+issues 27 to 36 (Mob Verdict in 33, Tomik in 31). Changed shape in the re-verified issues: Cleansing
 Meditation's return (issue 03) and Teferi, Temporal Pilgrim's −12 (issue 12a) are parked now, Well-Laid Plans
 parks as `prevention_source_scope` (issue 11).
 

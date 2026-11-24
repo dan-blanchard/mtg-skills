@@ -3421,8 +3421,9 @@ def _searched_by_another(unit: AbilityUnit) -> bool:
 def _casts_a_named_copy(unit: AbilityUnit) -> bool:
     """A copy of a card the ability names, created and then cast ("Create a copy
     of the card with the chosen name. You may cast the copy" — Garth One-Eye,
-    whose names include Shivan Dragon and Black Lotus): a copy of a permanent
-    spell "becomes a token permanent" as it resolves (CR 707.10f). Phase lists
+    whose names include Shivan Dragon and Black Lotus): the copy is cast as a
+    spell (CR 707.12), and a resolving copy of a permanent spell "will become a
+    token permanent as it is put onto the battlefield" (CR 608.3f). Phase lists
     the names, not their types; the lane takes any such copy."""
     tags = {tag_of(c.node): c.node for c in unit.effects}
     cast = tags.get("CastFromZone")

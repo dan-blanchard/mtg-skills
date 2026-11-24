@@ -418,6 +418,13 @@ def _is_self_etb_payload(unit: AbilityUnit, c: ConceptNode) -> bool:
         return True
     if c.concept == "make_token" and c.scope == "opponents":
         return False
+    # A permission to play a card that another player gets ("each opponent
+    # exiles a card from their hand and may play that card" — Lightstall
+    # Inquisitor's ``grantee: ObjectOwner``) is no value of yours.
+    if c.concept == "grant_cast_permission" and (
+        tag_of(getattr(c.node, "grantee", None)) is not None
+    ):
+        return False
     return effect_actor_scope(unit, c.node) != "opponents"
 
 

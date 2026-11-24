@@ -72,9 +72,11 @@ category on about 2,500 records now, so many of these are already known to it.
     `threaded_grantees` would serve them.
   - `has_structural_curse_matters` still lives in `tree_synthesis` though its
     synth arm is gone and only `removal_tutors._curse_matters` reads it.
-  - `mirror.build._group_by_oracle_id` is private with three outside importers.
+  - `_card_ir.build._group_by_oracle_id` is private with three outside importers.
   - `bump-phase-pin` parses each pin's card-data JSON twice (tree coverage, then
     the signal diff's oracle ids).
+  - Resuming `bump-phase-pin` with `--from-step 8` (past a failed tree-coverage
+    step) leaves the "Face records with no tree" section out of the final report.
 - **A spell's `SelfRef` bound to the object it acted on stays guarded
   read-side** (`protection._filter_recipient`, `attack_deterrent`,
   `has_structural_self_counter_grow`, each with its canary). One

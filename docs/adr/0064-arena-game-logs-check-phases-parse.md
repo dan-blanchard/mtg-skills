@@ -60,7 +60,7 @@ resolution and fired trigger against phase's parse of the same ability.
   `/Users/Shared/mtg-arena-logs/<user>/` and keeps Detailed Logs on.
 - **Per-pin reports.** Each run keeps `<archive>/reports/<PHASE_TAG>.json` (unless
   `--no-save-report`); rows are keyed by game and order, so `report.diff_reports` lists
-  what a new pin's parse changed against the same games. `bump-phase-pin`'s step 9 reruns
+  what a new pin's parse changed against the same games. `bump-phase-pin`'s step 10 (step 9 until the tree-coverage step was added) reruns
   the crosscheck under the new pin over the archive alone (`--no-live`) and puts that
   diff in its triage report, advisory only: it never fails the bump.
 

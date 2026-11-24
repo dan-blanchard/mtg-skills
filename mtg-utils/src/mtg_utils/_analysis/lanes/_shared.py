@@ -245,6 +245,14 @@ _REMINDER_RX = re.compile(r"\([^)]*\)")
 _LAND_SUBTYPE_WORDS: frozenset[str] = LAND_SUBTYPE_WORDS - {"planet", "town"}
 
 
+def _names_lands(filt: object) -> bool:
+    """Whether an object filter names lands: the Land card type, or a land
+    subtype (:data:`_LAND_SUBTYPE_WORDS` — "target Forest", "all Forests")."""
+    return "Land" in filter_core_types(filt) or bool(
+        {t.lower() for t in filter_subtypes(filt)} & _LAND_SUBTYPE_WORDS
+    )
+
+
 def _kept(tree: ConceptTree) -> str:
     """The reminder-stripped face oracle — the b12 mirror ports' scan text."""
     return _REMINDER_RX.sub(" ", tree.oracle or "")

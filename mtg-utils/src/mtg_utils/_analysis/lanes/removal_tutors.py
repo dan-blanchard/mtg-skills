@@ -783,7 +783,8 @@ def recovered_sweep(
     seam's ``EACH_PERMANENT``: "Destroy all creatures that aren't of a type
     chosen this way" — Harsh Mercy; "deal 2 damage to each white creature" —
     Disorder; "exile each creature not chosen …" — Sculpted Sunburst): a sweep
-    affects every object it describes (CR 115.10), the typed ``DestroyAll`` /
+    reaches every object it describes, none of them a target (CR 115.10a), the
+    typed ``DestroyAll`` /
     ``ChangeZoneAll`` / ``DamageAll`` arms' parked twin. Not one naming only
     your own objects (the typed arms' ``You`` controller veto). ``verbs`` and
     ``types`` read another mass verb the same way (a parked mass bounce)."""

@@ -1024,11 +1024,30 @@ _PERMANENT_TYPE = (
     r"(?:creatures?|artifacts?|enchantments?|planeswalkers?|permanents?|battles?"
     rf"|lands?|{_BASIC_LAND_TYPE})"
 )
-# A basic land type names a land (CR 205.3i: "Forest, Island, Mountain, Plains,
-# and Swamp are the basic land types"): "destroy all Plains" (Raiding Party).
+# A basic land type (CR 205.3i: "Forest, Island, Mountain, Plains, and Swamp
+# are the basic land types").
 _BASIC_LAND_TYPE_RX = re.compile(
     rf"(?<!non)(?<!non-)\b{_BASIC_LAND_TYPE}\b", re.IGNORECASE
 )
+# Where a clause stops naming its object and starts counting.
+_COUNT_PHRASE_RX = re.compile(
+    r"\b(?:where|for each|equal to|the number of)\b", re.IGNORECASE
+)
+
+
+def _names_a_land_type(text: str) -> bool:
+    """Whether a clause's object is named by a basic land type, which names a
+    land: "destroy all Plains that weren't chosen this way" (Raiding Party),
+    "sacrifice any number of untapped Forests" (Wood Elemental) — never a count
+    after it ("…, where X is the number of Plains you control", Quarry
+    Colossus)."""
+    named = _BASIC_LAND_TYPE_RX.search(text)
+    if named is None:
+        return False
+    counted = _COUNT_PHRASE_RX.search(text)
+    return counted is None or named.start() < counted.start()
+
+
 _EACH_PERMANENT_OBJECT = (
     r"(?:each|all)\s+"
     r"(?:(?!(?:opponents?|players?|of|target|cards?|attacking|blocking)\b)"
@@ -1167,7 +1186,7 @@ def read_clause(
         word = words[m.group(1).lower()]
         if word not in subject:
             subject.append(word)
-    if "Land" not in subject and _BASIC_LAND_TYPE_RX.search(text):
+    if "Land" not in subject and _names_a_land_type(text):
         subject.append("Land")
     if re.search(r"\bcards?\b", text, re.IGNORECASE):
         subject.append(CARD)

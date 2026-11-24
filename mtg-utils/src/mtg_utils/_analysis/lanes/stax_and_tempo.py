@@ -14,6 +14,7 @@ from mtg_utils._analysis.lanes._shared import (
     _SELF_BLINK_RETURN_TAGS,
     _TAP_EVENTS,
     _kept,
+    _names_lands,
     _site_raw,
 )
 from mtg_utils._analysis.signal_base import (
@@ -1473,10 +1474,7 @@ def _land_protection(tree: ConceptTree) -> list[Signal]:
         # creature" — Awakener Druid: a GenericEffect whose resolved target is
         # the land, mods AddType Creature).
         for resolved, sdef in iter_named_object_statics(unit.node):
-            landish = "Land" in filter_core_types(resolved) or (
-                {t.lower() for t in filter_subtypes(resolved)} & _LAND_SUBTYPE_WORDS
-            )
-            if not landish:
+            if not _names_lands(resolved):
                 continue
             for _sd, mod in iter_mod_sites(sdef):
                 if (

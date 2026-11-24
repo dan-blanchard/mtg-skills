@@ -2,7 +2,7 @@
 
 Ready-to-post issue bodies generated from `docs/plans/phase-upstream-reports.md`, drafted against phase v0.118.0 and re-verified card by card against phase v0.131.0's own card-data (`card-data-v0.131.0.json`) after the pin bump of 2026-11-24. Nothing here has been posted. Each file: title as the `#` heading, the phase tag, the cards with oracle text from the local MTGJSON bulk, the trimmed face-record fragment phase emits (null/false/empty fields and the noise keys `kind`, `trigger_zones`, `damage_kind`, `sub_link`, `target_choice_timing` dropped; `…` marks an elided sub-tree), the expected structure, and why it matters. Where v0.131.0 added `metadata.confirmed_misparse` to a record, the file says so.
 
-Numbering: `NN` is the report section; issues found after the report (25 on: the Arena game-log comparison, the graveyard-mirror follow-up, and 27 to 35 from the v0.131.0 pin bump) take the next number, and the table's last column names their source. Sections 12, 15, 16 and 24 hold several unrelated shapes, so they are split into letter-suffixed files (12a-d, 15a-i, 16a-b, 24a-j). Files are never renumbered: a number whose issue phase fixed is retired, not reused. Cards the report names only as "also" / "ledger" / "backlog, not re-checked" are mentioned in an issue's text as "the same shape appears on these cards, not re-quoted here"; Appendix A (ledger rows) and the "Not drafted" list are out of scope here.
+Numbering: `NN` is the report section; issues found after the report (25 on: the Arena game-log comparison, the graveyard-mirror follow-up, and 27 to 36 from the v0.131.0 pin bump) take the next number, and the table's last column names their source. Sections 12, 15, 16 and 24 hold several unrelated shapes, so they are split into letter-suffixed files (12a-d, 15a-i, 16a-b, 24a-j). Files are never renumbered: a number whose issue phase fixed is retired, not reused. Cards the report names only as "also" / "ledger" / "backlog, not re-checked" are mentioned in an issue's text as "the same shape appears on these cards, not re-quoted here"; Appendix A (ledger rows) and the "Not drafted" list are out of scope here.
 
 ## Issues
 
@@ -60,6 +60,7 @@ Numbering: `NN` is the report section; issues found after the report (25 on: the
 | 33-damage-to-creatures-and-players-parked.md | Damage to a player and their creatures in one clause parked | Disorder, Incite Rebellion, Mob Verdict | v0.131.0 pin bump |
 | 34-thought-dissector-compound-reveal-until.md | Reveal-until with two stop conditions parked as `compound_reveal_until` | Thought Dissector | v0.131.0 pin bump |
 | 35-this-way-set-reference-parked.md | A clause over the cards chosen or moved "this way" parked | Revivify, Raiding Party (fragments); 15 more listed | v0.131.0 pin bump |
+| 36-revealed-hand-discard-parked.md | "Reveals their hand and discards all … cards": the discard parked, its player cut | Amnesia, Persecute, Shatter Assumptions (fragments); 12 more listed | v0.131.0 pin bump |
 
 ## Fixed at v0.131.0
 

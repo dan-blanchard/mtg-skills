@@ -259,3 +259,25 @@ def test_a_parked_discard_after_anothers_revealed_hand_is_theirs():
     assert discards
     assert all(OTHER_PLAYER in c.reading for c in discards)
     assert "discard_outlet" not in {i[0] for i in _idents("Shatter Assumptions")}
+
+
+@pytest.mark.parametrize(
+    ("clause", "land"),
+    [
+        ("destroy all Plains that weren't chosen this way", True),
+        ("sacrifice any number of untapped Forests", True),
+        # a count beside the object names no land (Quarry Colossus)
+        ("put it beneath the top X, where X is the number of Plains", False),
+        ("destroy target non-Island land", False),
+    ],
+)
+def test_a_land_type_names_a_land_only_as_the_object(clause, land):
+    from mtg_utils._card_ir.recovery import _names_a_land_type
+
+    assert _names_a_land_type(clause) is land
+
+
+def test_a_permission_another_player_gets_is_no_enters_payload():
+    # Lightstall Inquisitor: "each opponent exiles a card from their hand and
+    # may play that card for as long as it remains exiled" — theirs, not yours.
+    assert "self_etb_payload" not in {i[0] for i in _idents("Lightstall Inquisitor")}

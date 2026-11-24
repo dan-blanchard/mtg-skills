@@ -7622,8 +7622,8 @@ def recovered_each_permanent(
     every permanent of one of ``types`` (the seam's ``EACH_PERMANENT`` mark:
     "Destroy all creatures that aren't of a type chosen this way" — Harsh
     Mercy; "destroy all Plains that weren't chosen this way" — Raiding Party):
-    a sweep affects every object it describes (CR 115.10). Not one naming only
-    your own objects."""
+    the read takes a sweep to reach every object its text describes, none of
+    them a target (CR 115.10a). Not one naming only your own objects."""
     if c.recovered_by not in verbs:
         return False
     from mtg_utils._card_ir.recovery import EACH_PERMANENT, YOURS
@@ -8084,9 +8084,12 @@ def acts_on_a_group(eff: object) -> bool:
     chosen target: an ``*All`` variant (``PutCounterAll``, ``PumpAll``), or one
     phase scopes ``All`` ("Untap all creatures you control" — Join Shields'
     ``SetTapState``)."""
+    if tag_of(eff) in ALL_VARIANT_EFFECT_TAGS:
+        return True
+    # ``ChangeTargets`` scopes ``All`` too, meaning every target of one spell
+    # ("change the targets of target spell" — Redirect), no group of objects.
     return (
-        tag_of(eff) in ALL_VARIANT_EFFECT_TAGS
-        or tag_of(getattr(eff, "scope", None)) == "All"
+        tag_of(getattr(eff, "scope", None)) == "All" and tag_of(eff) != "ChangeTargets"
     )
 
 
@@ -9078,8 +9081,8 @@ def pt_mod_signs(static_def: object) -> tuple[int, int]:
 
 
 def static_def_scales_up(static_def: object) -> bool:
-    """Whether a continuous effect raises power or toughness by a counted
-    amount (CR 613.4c): an ``AddDynamicPower`` / ``AddDynamicToughness`` phase
+    """Whether a continuous effect raises power or toughness (CR 613.4c) by a
+    counted amount: an ``AddDynamicPower`` / ``AddDynamicToughness`` phase
     doesn't negate ("gets +1/+0 for each card you've drawn this turn" — Fists
     of Flame; "+X/+X, where X is the number of creatures you control" —
     Craterhoof Behemoth), never a scaling shrink (Toxrill, the Corrosive)."""
@@ -13025,17 +13028,18 @@ class SelfDrawbacks(NamedTuple):
 def _declinable_modes(trigger: object) -> tuple[object, ...]:
     """The modes of a modal trigger whose controller picks freely among them
     (CR 700.2b: "The controller of a modal triggered ability chooses the
-    mode(s) as part of putting that ability on the stack"), or ``()``: fewer choices
-    than modes, and no rule that every mode comes up in turn ("choose one that
-    hasn't been chosen" — Demonic Pact, Captive Audience: ``NoRepeatThisGame``)
-    or that an opponent picks."""
+    mode(s) as part of putting that ability on the stack"), or ``()``: it need
+    not choose every mode, and no rule says every mode comes up in turn
+    ("choose one that hasn't been chosen" — Demonic Pact, Captive Audience:
+    ``NoRepeatThisGame``) or that an opponent picks."""
     execute = getattr(trigger, "execute", None)
     modal = getattr(execute, "modal", None)
     modes = getattr(execute, "mode_abilities", None)
     if not isinstance(modal, TypedMirrorNode) or not isinstance(modes, list):
         return ()
-    most = getattr(modal, "max_choices", None)
-    if not isinstance(most, int) or most >= len(modes):
+    # "Choose one or more" still lets a mode go unchosen; "choose both" does not.
+    least = getattr(modal, "min_choices", None)
+    if not isinstance(least, int) or least >= len(modes):
         return ()
     if tag_of(getattr(modal, "chooser", None)) != "Controller":
         return ()
