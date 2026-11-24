@@ -65,3 +65,55 @@ def test_a_counted_shrink_is_no_raise():
         static_def_scales_up(d) for d in _static_defs("Toxrill, the Corrosive")
     )
     assert any(static_def_scales_up(d) for d in _static_defs("Craterhoof Behemoth"))
+
+
+# ── "Those creatures gain X" after a mass effect lands on that group ────────────
+
+
+@pytest.mark.parametrize(
+    ("name", "keyword"),
+    [
+        # "Put a +1/+1 counter on each creature you control. Those creatures
+        # gain vigilance until end of turn."
+        ("Ajani Goldmane", "vigilance"),
+        # "Untap all creatures you control. They gain hexproof and
+        # indestructible until end of turn."
+        ("Join Shields", "hexproof"),
+        # "Creatures you control get +1/+1 … those creatures gain indestructible"
+        ("Break of Day", "indestructible"),
+    ],
+)
+def test_a_grant_to_the_team_a_mass_effect_named_is_a_team_buff(name, keyword):
+    idents = _idents(name)
+    assert ("team_buff", "you", "") in idents
+    assert ("team_buff", "you", keyword) in idents
+    assert ("keyword_grant_target", "you", "") not in idents
+
+
+def test_a_grant_to_part_of_the_team_names_its_keyword_only():
+    # Sandstorm Salvager: "Put a +1/+1 counter on each creature token you
+    # control. Those creatures gain trample" — your tokens, not the whole team.
+    idents = _idents("Sandstorm Salvager")
+    assert ("team_buff", "you", "trample") in idents
+    assert ("team_buff", "you", "") not in idents
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        # "Gain control of all creatures with power 4 or greater … Untap those
+        # creatures. They gain haste": creatures you take, not your team.
+        "Mob Rule",
+        # "each attacking creature": no controller named.
+        "Captain America, Skybound",
+    ],
+)
+def test_a_grant_to_a_group_that_is_not_your_team_is_no_team_buff(name):
+    assert not {i for i in _idents(name) if i[0] == "team_buff"}
+
+
+def test_those_creatures_after_chosen_targets_stays_a_targeted_grant():
+    # Arm the Cathars: three targeted pumps, then "Those creatures gain vigilance".
+    idents = _idents("Arm the Cathars")
+    assert ("keyword_grant_target", "you", "vigilance") in idents
+    assert not {i for i in idents if i[0] == "team_buff"}

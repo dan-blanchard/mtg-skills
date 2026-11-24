@@ -65,6 +65,7 @@ from mtg_utils._card_ir.crosswalk import (
     filter_predicates,
     filter_subtypes,
     granted_next_spell_keyword,
+    group_grant_statics,
     is_bite,
     is_creature_cast_trigger_def,
     is_creature_etb_trigger_def,
@@ -1496,11 +1497,19 @@ def _keyword_grant_lanes(tree: ConceptTree) -> list[Signal]:
         # Right — is the ledger row conditional_threaten_haste_parked: the
         # grant is the clause's second verb, not the gain_control the recovery
         # stage reads.)
+        # "Those creatures gain X" after a mass effect over creatures you
+        # control lands on that group (Ajani Goldmane, Join Shields); one over
+        # creatures you take (Mob Rule, Insurrection) is left a ``TrackedSet``.
+        groups = {
+            site: group
+            for site, group in group_grant_statics(unit.node).items()
+            if filter_controller(group) == "You"
+        }
         for sdef, mod in iter_mod_sites(unit.node):
             if tag_of(mod) != "AddKeyword":
                 continue
             kw = normalised_keyword_name(mod_keyword_name(mod) or "")
-            affected = getattr(sdef, "affected", None)
+            affected = groups.get(id(sdef), getattr(sdef, "affected", None))
             atag = tag_of(affected)
             if atag in ("SelfRef", "ParentTarget"):
                 continue  # self-grant / the single-target arm above
@@ -1512,7 +1521,7 @@ def _keyword_grant_lanes(tree: ConceptTree) -> list[Signal]:
         for sdef, mod in iter_mod_sites(unit.node, deep=True):
             if tag_of(mod) != "AddKeyword":
                 continue
-            affected = getattr(sdef, "affected", None)
+            affected = groups.get(id(sdef), getattr(sdef, "affected", None))
             raw = _site_raw(sdef)
             atag = tag_of(affected)
             if atag == "SourceOrPaired":

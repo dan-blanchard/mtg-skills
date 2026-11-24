@@ -225790,6 +225790,224 @@
     "type_line": "Legendary Creature — Human Soldier Hero"
    }
   },
+  "Captain America, Skybound": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "brawl_commander": true,
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Human",
+       "Soldier",
+       "Hero"
+      ],
+      "supertypes": [
+       "Legendary"
+      ]
+     },
+     "color_identity": [
+      "White"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "is_commander": true,
+     "keywords": [
+      "Flying",
+      "Vigilance"
+     ],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 3,
+      "shards": [
+       "White",
+       "White"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "49d952d9-8584-435a-bf45-62bf13887083"
+      ]
+     },
+     "name": "Captain America, Skybound",
+     "non_ability_text": null,
+     "oracle_text": "Flying, vigilance\nBattalion — Whenever Captain America and at least two other creatures attack, put a +1/+1 counter on each attacking creature. They gain indestructible until end of turn. (Damage and effects that say \"destroy\" don't destroy them.)",
+     "power": {
+      "type": "Fixed",
+      "value": 3
+     },
+     "printings": [
+      "MSC"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "e9566303-15cf-4444-a044-fc19540f21b6",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 5
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": {
+        "minimum": 2,
+        "type": "MinCoAttackers"
+       },
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever ~ and at least two other creatures attack, put a +1/+1 counter on each attacking creature. They gain indestructible until end of turn.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "counter_type": "P1P1",
+         "target": {
+          "controller": null,
+          "properties": [
+           {
+            "type": "Attacking"
+           }
+          ],
+          "type": "Typed",
+          "type_filters": [
+           "Creature"
+          ]
+         },
+         "type": "PutCounterAll"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": "UntilEndOfTurn",
+         "effect": {
+          "duration": "UntilEndOfTurn",
+          "static_abilities": [
+           {
+            "active_zones": [],
+            "affected": {
+             "id": 0,
+             "type": "TrackedSet"
+            },
+            "affected_zone": null,
+            "characteristic_defining": false,
+            "condition": null,
+            "description": "gain indestructible",
+            "effect_zone": null,
+            "mode": "Continuous",
+            "modifications": [
+             {
+              "keyword": "Indestructible",
+              "type": "AddKeyword"
+             }
+            ]
+           }
+          ],
+          "target": null,
+          "type": "GenericEffect"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": null,
+         "sub_link": "SequentialSibling",
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "mode": "Attacks",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 5.0,
+    "color_identity": [
+     "W"
+    ],
+    "colors": [
+     "W"
+    ],
+    "keywords": [
+     "Battalion",
+     "Flying",
+     "Vigilance"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{3}{W}{W}",
+    "name": "Captain America, Skybound",
+    "oracle_id": "e9566303-15cf-4444-a044-fc19540f21b6",
+    "oracle_text": "Flying, vigilance\nBattalion — Whenever Captain America and at least two other creatures attack, put a +1/+1 counter on each attacking creature. They gain indestructible until end of turn. (Damage and effects that say \"destroy\" don't destroy them.)",
+    "power": "3",
+    "toughness": "5",
+    "type_line": "Legendary Creature — Human Soldier Hero"
+   }
+  },
   "Captain America, Team Leader": {
    "phase_records": [
     {
@@ -660833,6 +661051,191 @@
     "type_line": "Legendary Creature — Human Wizard"
    }
   },
+  "Join Shields": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Untap all creatures you control. They gain hexproof and indestructible until end of turn.",
+       "duration": null,
+       "effect": {
+        "scope": {
+         "type": "All"
+        },
+        "state": {
+         "type": "Untap"
+        },
+        "target": {
+         "controller": "You",
+         "properties": [],
+         "type": "Typed",
+         "type_filters": [
+          "Creature"
+         ]
+        },
+        "type": "SetTapState"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": "UntilEndOfTurn",
+        "effect": {
+         "duration": "UntilEndOfTurn",
+         "static_abilities": [
+          {
+           "active_zones": [],
+           "affected": {
+            "id": 0,
+            "type": "TrackedSet"
+           },
+           "affected_zone": null,
+           "characteristic_defining": false,
+           "condition": null,
+           "description": "gain hexproof and indestructible",
+           "effect_zone": null,
+           "mode": "Continuous",
+           "modifications": [
+            {
+             "keyword": "Hexproof",
+             "type": "AddKeyword"
+            },
+            {
+             "keyword": "Indestructible",
+             "type": "AddKeyword"
+            }
+           ]
+          }
+         ],
+         "target": null,
+         "type": "GenericEffect"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "sub_link": "SequentialSibling",
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Instant"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Green",
+      "White"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 3,
+      "shards": [
+       "Green",
+       "White"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "91898d8a-589d-43db-8dc4-0ec6a3bd6d49",
+       "d3a5c2e5-7914-4edc-960a-75f3dfb5afc4"
+      ]
+     },
+     "name": "Join Shields",
+     "non_ability_text": null,
+     "oracle_text": "Untap all creatures you control. They gain hexproof and indestructible until end of turn. (They can't be the targets of spells or abilities your opponents control. Damage and effects that say \"destroy\" don't destroy them.)",
+     "power": null,
+     "printings": [
+      "GRN",
+      "PLST"
+     ],
+     "rarities": [
+      "uncommon"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2018-10-05",
+       "text": "Untapped creatures you control can’t be untapped again, but those creatures still gain hexproof and indestructible."
+      }
+     ],
+     "scryfall_oracle_id": "1102524d-7287-496f-a18a-5fdae6d4c271",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 5.0,
+    "color_identity": [
+     "G",
+     "W"
+    ],
+    "colors": [
+     "G",
+     "W"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{3}{G}{W}",
+    "name": "Join Shields",
+    "oracle_id": "1102524d-7287-496f-a18a-5fdae6d4c271",
+    "oracle_text": "Untap all creatures you control. They gain hexproof and indestructible until end of turn. (They can't be the targets of spells or abilities your opponents control. Damage and effects that say \"destroy\" don't destroy them.)",
+    "type_line": "Instant"
+   }
+  },
   "Joiner Adept": {
    "phase_records": [
     {
@@ -804458,6 +804861,333 @@
     "name": "Mob Justice",
     "oracle_id": "0ff97869-f27c-4379-92fd-605062aa5418",
     "oracle_text": "Mob Justice deals damage to target player or planeswalker equal to the number of creatures you control.",
+    "type_line": "Sorcery"
+   }
+  },
+  "Mob Rule": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": null,
+       "duration": "UntilEndOfTurn",
+       "effect": {
+        "target": {
+         "controller": null,
+         "properties": [
+          {
+           "comparator": "GE",
+           "scope": "Current",
+           "stat": "Power",
+           "type": "PtComparison",
+           "value": {
+            "type": "Fixed",
+            "value": 4
+           }
+          }
+         ],
+         "type": "Typed",
+         "type_filters": [
+          "Creature"
+         ]
+        },
+        "type": "GainControlAll"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "scope": {
+          "type": "Single"
+         },
+         "state": {
+          "type": "Untap"
+         },
+         "target": {
+          "id": 0,
+          "type": "TrackedSet"
+         },
+         "type": "SetTapState"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": "UntilEndOfTurn",
+         "effect": {
+          "duration": "UntilEndOfTurn",
+          "static_abilities": [
+           {
+            "active_zones": [],
+            "affected": {
+             "id": 0,
+             "type": "TrackedSet"
+            },
+            "affected_zone": null,
+            "characteristic_defining": false,
+            "condition": null,
+            "description": "gain haste",
+            "effect_zone": null,
+            "mode": "Continuous",
+            "modifications": [
+             {
+              "keyword": "Haste",
+              "type": "AddKeyword"
+             }
+            ]
+           }
+          ],
+          "target": null,
+          "type": "GenericEffect"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": null,
+         "sub_link": "SequentialSibling",
+         "target_prompt": null
+        },
+        "sub_link": "SequentialSibling",
+        "target_prompt": null
+       },
+       "target_prompt": null
+      },
+      {
+       "condition": null,
+       "cost": null,
+       "description": null,
+       "duration": "UntilEndOfTurn",
+       "effect": {
+        "target": {
+         "controller": null,
+         "properties": [
+          {
+           "comparator": "LE",
+           "scope": "Current",
+           "stat": "Power",
+           "type": "PtComparison",
+           "value": {
+            "type": "Fixed",
+            "value": 3
+           }
+          }
+         ],
+         "type": "Typed",
+         "type_filters": [
+          "Creature"
+         ]
+        },
+        "type": "GainControlAll"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "scope": {
+          "type": "Single"
+         },
+         "state": {
+          "type": "Untap"
+         },
+         "target": {
+          "id": 0,
+          "type": "TrackedSet"
+         },
+         "type": "SetTapState"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": "UntilEndOfTurn",
+         "effect": {
+          "duration": "UntilEndOfTurn",
+          "static_abilities": [
+           {
+            "active_zones": [],
+            "affected": {
+             "id": 0,
+             "type": "TrackedSet"
+            },
+            "affected_zone": null,
+            "characteristic_defining": false,
+            "condition": null,
+            "description": "gain haste",
+            "effect_zone": null,
+            "mode": "Continuous",
+            "modifications": [
+             {
+              "keyword": "Haste",
+              "type": "AddKeyword"
+             }
+            ]
+           }
+          ],
+          "target": null,
+          "type": "GenericEffect"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": null,
+         "sub_link": "SequentialSibling",
+         "target_prompt": null
+        },
+        "sub_link": "SequentialSibling",
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Sorcery"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Red"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 4,
+      "shards": [
+       "Red",
+       "Red"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "1d76845f-c827-4cb4-b2d0-3f2cf5ee0e81",
+       "8b04c928-9ee5-4e39-962e-4686e25b5c33"
+      ]
+     },
+     "modal": {
+      "allow_repeat_modes": false,
+      "chooser": {
+       "type": "Controller"
+      },
+      "max_choices": 1,
+      "min_choices": 1,
+      "mode_count": 2,
+      "mode_descriptions": [
+       "Gain control of all creatures with power 4 or greater until end of turn. Untap those creatures. They gain haste until end of turn.",
+       "Gain control of all creatures with power 3 or less until end of turn. Untap those creatures. They gain haste until end of turn."
+      ]
+     },
+     "name": "Mob Rule",
+     "non_ability_text": null,
+     "oracle_text": "Choose one —\n• Gain control of all creatures with power 4 or greater until end of turn. Untap those creatures. They gain haste until end of turn.\n• Gain control of all creatures with power 3 or less until end of turn. Untap those creatures. They gain haste until end of turn.",
+     "power": null,
+     "printings": [
+      "FRF",
+      "VOC"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2014-11-24",
+       "text": "Gaining control of a creature doesn't cause you to gain control of any Auras or Equipment attached to it."
+      },
+      {
+       "date": "2014-11-24",
+       "text": "Mob Rule can affect creatures you already control or ones that are already untapped. It will untap them if applicable and give them haste."
+      },
+      {
+       "date": "2014-11-24",
+       "text": "Once you gain control of a creature, it doesn't matter what happens to its power."
+      },
+      {
+       "date": "2014-11-24",
+       "text": "You choose which mode you're using as you cast Mob Rule. Once it's cast, you can't change its mode, even if creatures' powers change in response."
+      }
+     ],
+     "scryfall_oracle_id": "acca2128-6ebb-48a5-a6a2-1bc5e4aa86ce",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 6.0,
+    "color_identity": [
+     "R"
+    ],
+    "colors": [
+     "R"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{4}{R}{R}",
+    "name": "Mob Rule",
+    "oracle_id": "acca2128-6ebb-48a5-a6a2-1bc5e4aa86ce",
+    "oracle_text": "Choose one —\n• Gain control of all creatures with power 4 or greater until end of turn. Untap those creatures. They gain haste until end of turn.\n• Gain control of all creatures with power 3 or less until end of turn. Untap those creatures. They gain haste until end of turn.",
     "type_line": "Sorcery"
    }
   },
@@ -1010866,6 +1011596,289 @@
     "power": "2",
     "toughness": "2",
     "type_line": "Creature — Dog Scout"
+   }
+  },
+  "Sandstorm Salvager": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": {
+        "costs": [
+         {
+          "cost": {
+           "generic": 2,
+           "shards": [],
+           "type": "Cost"
+          },
+          "type": "Mana"
+         },
+         {
+          "type": "Tap"
+         }
+        ],
+        "type": "Composite"
+       },
+       "description": "{2}, {T}: Put a +1/+1 counter on each creature token you control. They gain trample until end of turn.",
+       "duration": null,
+       "effect": {
+        "count": {
+         "type": "Fixed",
+         "value": 1
+        },
+        "counter_type": "P1P1",
+        "target": {
+         "controller": "You",
+         "properties": [
+          {
+           "type": "Token"
+          }
+         ],
+         "type": "Typed",
+         "type_filters": [
+          "Creature"
+         ]
+        },
+        "type": "PutCounterAll"
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": "UntilEndOfTurn",
+        "effect": {
+         "duration": "UntilEndOfTurn",
+         "static_abilities": [
+          {
+           "active_zones": [],
+           "affected": {
+            "id": 0,
+            "type": "TrackedSet"
+           },
+           "affected_zone": null,
+           "characteristic_defining": false,
+           "condition": null,
+           "description": "gain trample",
+           "effect_zone": null,
+           "mode": "Continuous",
+           "modifications": [
+            {
+             "keyword": "Trample",
+             "type": "AddKeyword"
+            }
+           ]
+          }
+         ],
+         "target": null,
+         "type": "GenericEffect"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "sub_link": "SequentialSibling",
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Human",
+       "Artificer"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Green"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "standard": "legal",
+      "standardbrawl": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 2,
+      "shards": [
+       "Green"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "related_token_ids": [
+       "a890ea09-dc01-5f95-8ccd-bbcae0d2bb9c"
+      ],
+      "source_printing_ids": [
+       "13b0f27c-a359-4702-833a-82fec161eeec",
+       "82613173-2892-47d7-8a09-2102f2f0965f",
+       "84c96b72-b0e1-4ea3-9984-5a67718d070d"
+      ]
+     },
+     "name": "Sandstorm Salvager",
+     "non_ability_text": null,
+     "oracle_text": "When this creature enters, create a 3/3 colorless Golem artifact creature token.\n{2}, {T}: Put a +1/+1 counter on each creature token you control. They gain trample until end of turn.",
+     "power": {
+      "type": "Fixed",
+      "value": 1
+     },
+     "printings": [
+      "BIG",
+      "PBIG"
+     ],
+     "rarities": [
+      "mythic"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2024-04-12",
+       "text": "In the rare case where +1/+1 counters can’t be put on one or more creature tokens you control, those creature tokens still gain trample until end of turn."
+      }
+     ],
+     "scryfall_oracle_id": "ec19a9bc-6fc1-4150-976b-37a47b165016",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 1
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "When ~ enters, create a 3/3 colorless Golem artifact creature token.",
+       "destination": "Battlefield",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "colors": [],
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "enters_attacking": false,
+         "keywords": [],
+         "name": "Golem",
+         "owner": {
+          "type": "Controller"
+         },
+         "power": {
+          "type": "Fixed",
+          "value": 3
+         },
+         "tapped": false,
+         "toughness": {
+          "type": "Fixed",
+          "value": 3
+         },
+         "type": "Token",
+         "types": [
+          "Artifact",
+          "Creature",
+          "Golem"
+         ]
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "ChangesZone",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "all_parts": [
+     {
+      "component": "token",
+      "id": "7becaa04-f142-4163-9286-00018b95c4ca",
+      "name": "Golem",
+      "oracle_id": "9859c54d-695b-4bb1-940e-cfd1c3301e89",
+      "type_line": "Token Artifact Creature — Golem"
+     }
+    ],
+    "arena_available": true,
+    "cmc": 3.0,
+    "color_identity": [
+     "G"
+    ],
+    "colors": [
+     "G"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "legal",
+     "standardbrawl": "legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}{G}",
+    "name": "Sandstorm Salvager",
+    "oracle_id": "ec19a9bc-6fc1-4150-976b-37a47b165016",
+    "oracle_text": "When this creature enters, create a 3/3 colorless Golem artifact creature token.\n{2}, {T}: Put a +1/+1 counter on each creature token you control. They gain trample until end of turn.",
+    "power": "1",
+    "toughness": "1",
+    "type_line": "Creature — Human Artificer"
    }
   },
   "Sanguine Bond": {

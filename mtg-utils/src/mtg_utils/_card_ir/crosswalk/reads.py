@@ -4934,6 +4934,7 @@ def iter_threaded_target_statics(
     affected_tag: str = "ParentTarget",
     resets_thread: Callable[[TypedMirrorNode], bool] | None = None,
     effect_tags: frozenset[str] = frozenset(),
+    groups: bool = False,
 ) -> Iterator[tuple[object, TypedMirrorNode]]:
     """``(resolved_target_filter, static_def)`` pairs for every
     ``affected_tag``-affected (default ``ParentTarget``) nested static in one
@@ -4963,6 +4964,11 @@ def iter_threaded_target_statics(
     (the caller's call: e.g. a token producer or a mass effect, after which
     "it" / "those" no longer names a chosen target); such an effect clears
     the tracked target instead of supplying one.
+
+    ``groups`` threads the other half: only the group a mass effect acted on
+    (:func:`acts_on_a_group` — "Put a +1/+1 counter on each creature you
+    control. Those creatures gain vigilance", Ajani Goldmane), which a chosen
+    target or a token producer ends.
     """
     tracked: object | None = None
     seen: set[int] = set()
@@ -4979,9 +4985,13 @@ def iter_threaded_target_statics(
         if isinstance(eff, TypedMirrorNode) and id(eff) not in seen:
             seen.add(id(eff))
             tgt = getattr(eff, "target", MISSING)
-            if resets_thread is not None and resets_thread(eff):
+            names_objects = _present(tgt) and tag_of(tgt) in ("Typed", "Or", "And")
+            if groups:
+                if names_objects or tag_of(eff) in _TRACKED_SET_PRODUCER_TAGS:
+                    tracked = tgt if acts_on_a_group(eff) else None
+            elif resets_thread is not None and resets_thread(eff):
                 tracked = None
-            elif _present(tgt) and tag_of(tgt) in ("Typed", "Or", "And"):
+            elif names_objects:
                 tracked = tgt
             if (
                 tag_of(eff) in effect_tags
@@ -7851,8 +7861,11 @@ def team_buff_sites(
 ) -> Iterator[tuple[AbilityUnit, TypedMirrorNode]]:
     """Every ``(unit, static def)`` granting the team an evergreen keyword — the
     one walk behind the ``team_buff`` lane and the tuner's closer read, which asks
-    the unit's ``origin`` (a one-shot pump vs a static anthem)."""
+    the unit's ``origin`` (a one-shot pump vs a static anthem). The team is the
+    static's own ``affected`` or the group a mass effect before it acted on
+    (:func:`group_grant_statics`)."""
     for unit in tree.units:
+        groups = group_grant_statics(unit.node)
         for sdef, mod in iter_mod_sites(unit.node):
             if tag_of(mod) not in ("AddKeyword", "AddKeywordUntilEndOfTurn"):
                 continue
@@ -7861,7 +7874,9 @@ def team_buff_sites(
                 continue
             if kw.lower().replace(" ", "") not in TEAM_BUFF_GRANT_KW:
                 continue
-            if is_team_buff_filter(getattr(sdef, "affected", None)):
+            # "Those creatures", after a mass effect over your team, is the team.
+            grantee = groups.get(id(sdef), getattr(sdef, "affected", None))
+            if is_team_buff_filter(grantee):
                 yield unit, sdef
 
 
@@ -7959,14 +7974,38 @@ ALL_VARIANT_EFFECT_TAGS: frozenset[str] = frozenset(
         "UnattachAll",
     }
 )
-_THREAD_ENDING_TAGS: frozenset[str] = (
-    _TRACKED_SET_PRODUCER_TAGS | ALL_VARIANT_EFFECT_TAGS
-)
 
 
 def ends_target_thread(eff: TypedMirrorNode) -> bool:
-    """A token producer or a mass effect ends the chosen-target thread."""
-    return tag_of(eff) in _THREAD_ENDING_TAGS
+    """A token producer or a mass effect (:func:`acts_on_a_group`) ends the
+    chosen-target thread."""
+    return tag_of(eff) in _TRACKED_SET_PRODUCER_TAGS or acts_on_a_group(eff)
+
+
+def acts_on_a_group(eff: object) -> bool:
+    """Whether an effect acts on every object its filter matches, never a
+    chosen target: an ``*All`` variant (``PutCounterAll``, ``PumpAll``), or one
+    phase scopes ``All`` ("Untap all creatures you control" — Join Shields'
+    ``SetTapState``)."""
+    return (
+        tag_of(eff) in ALL_VARIANT_EFFECT_TAGS
+        or tag_of(getattr(eff, "scope", None)) == "All"
+    )
+
+
+def group_grant_statics(ability_like: object) -> dict[int, object]:
+    """The group each "those creatures gain X" static of one ability lands on,
+    as ``{id(static def): the mass effect's filter}``: a ``TrackedSet``-affected
+    static after a mass effect ("Put a +1/+1 counter on each creature you
+    control. Those creatures gain vigilance" — Ajani Goldmane; "Untap all
+    creatures you control. They gain hexproof and indestructible" — Join
+    Shields). The chosen-target half is :func:`iter_tracked_set_target_grants`."""
+    return {
+        id(st): group
+        for group, st in iter_threaded_target_statics(
+            ability_like, affected_tag="TrackedSet", groups=True
+        )
+    }
 
 
 def iter_tracked_set_target_grants(

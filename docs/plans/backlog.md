@@ -21,12 +21,12 @@ category on about 2,500 records now, so many of these are already known to it.
     the nine tucks phase types as `PutAtLibraryPosition` (Natural Obsolescence,
     Disempower, and since v0.131.0 Rebuking Ceremony) never had it. Either every
     targeted artifact tuck is an artifacts payoff or none is.
-  - "Those creatures gain [keyword]" after a mass effect is a `TrackedSet` grant
-    no keyword-grant read resolves to the mass effect's filter, so it is neither
-    `keyword_grant_target` (correctly: no target) nor `team_buff`: Ajani
-    Goldmane before the bump, and since v0.131.0 Now for Wrath, Now for Ruin!,
-    Sandstorm Salvager, Overseer of Vault 76, Captain America, Skybound, Mob
-    Rule, Call for Aid (phase wrote `ParentTarget` there before).
+  - "Those creatures gain [keyword]" after a mass effect over creatures you
+    control is the team's now (`crosswalk.group_grant_statics`). Left out by
+    Dan's rule (2026-11-24): a group you take (Mob Rule, Call for Aid,
+    Insurrection) and one with no controller ("each attacking creature" —
+    Captain America, Skybound; "all attacking creatures" — Najeela, the
+    Blade-Blossom).
   - Garth One-Eye's "Create a copy of the card with the chosen name. You may
     cast the copy" is a `CreateCardCopyByName` now; a copy of a permanent spell
     that resolves enters as a token (CR 707.10f), which `permanent_etb|put`
@@ -67,9 +67,7 @@ category on about 2,500 records now, so many of these are already known to it.
   - `Owned{controller: DefendingPlayer}` on a graveyard filter: Graven Abomination,
     Rysorian Badger (`opponent_exile_makers`).
   - "Those lands become creatures" on a `TrackedSet` (was `ParentTarget`): Hunting
-    Wilds (`land_creatures_matter`, `land_protection`). The same rename took
-    `keyword_grant_target` off the mass grants (Mob Rule, Call for Aid, Mutinous
-    Massacre), which that lane's own rule leaves out.
+    Wilds (`land_creatures_matter`, `land_protection`).
   - A four-arm `Or` over battlefield and graveyard: Shadows' Verdict
     (`mass_removal`).
   - Damage to a `ScopedPlayer` ("any opponent may … If a player does, ~ deals
