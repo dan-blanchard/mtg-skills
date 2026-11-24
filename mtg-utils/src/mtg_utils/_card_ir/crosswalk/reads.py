@@ -7408,6 +7408,8 @@ _BASIC_LAND_TYPES: frozenset[str] = frozenset(BASIC_LAND_TYPE_COLORS)
 # with an activated ability, Freyalise's Radiance's snow permanents) is not
 # every land a player controls.
 _MASS_LAND_SUPERTYPE_PROPS = frozenset({"NotSupertype", "HasSupertype"})
+_DESTROY_TOKEN: frozenset[str] = frozenset({"destroy"})
+_LAND_SUBJECT: frozenset[str] = frozenset({"Land"})
 _MASS_LAND_REMOVAL_KIND: dict[str, LandDenialKind] = {
     "DestroyAll": "destroy",
     "BounceAll": "bounce",
@@ -7618,9 +7620,33 @@ def _unit_land_denial(
         elif tag == "ChooseAndSacrificeRest":
             if "Land" in (getattr(n, "categories", None) or ()):
                 found.append("sacrifice")  # Cataclysm: one land kept, the rest go
+    # A destroy over lands as a class that phase parks (Raiding Party's "destroy
+    # all Plains that weren't chosen this way by any player").
+    if any(
+        recovered_each_permanent(c, verbs=_DESTROY_TOKEN, types=_LAND_SUBJECT)
+        for c in unit.effects
+    ):
+        found.append("destroy")
     # The removal first, in LAND_DENIAL_KINDS order (the deep walk's order is not
     # the card's): Omen of Fire bounces every Island before its Plains sacrifice.
     return min(found, key=LAND_DENIAL_KINDS.index, default=None)
+
+
+def recovered_each_permanent(
+    c: ConceptNode, *, verbs: frozenset[str], types: frozenset[str]
+) -> bool:
+    """A recovered residue (one of the ``verbs`` tokens) whose own object is
+    every permanent of one of ``types`` (the seam's ``EACH_PERMANENT`` mark:
+    "Destroy all creatures that aren't of a type chosen this way" — Harsh
+    Mercy; "destroy all Plains that weren't chosen this way" — Raiding Party):
+    a sweep affects every object it describes (CR 115.10). Not one naming only
+    your own objects."""
+    from mtg_utils._card_ir.recovery import EACH_PERMANENT, YOURS
+
+    if c.recovered_by not in verbs:
+        return False
+    subject = set(c.subject)
+    return EACH_PERMANENT in subject and YOURS not in subject and bool(subject & types)
 
 
 def mass_land_denial(tree: ConceptTree) -> LandDenialKind | None:

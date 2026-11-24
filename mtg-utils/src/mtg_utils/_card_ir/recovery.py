@@ -1018,8 +1018,15 @@ _YOUR_CREATURE_COUNT_RX = re.compile(
 # qualifiers ("white", "non-Clown", "nonland"), then a battlefield permanent type,
 # or a run of them ("artifact and enchantment", "artifact creature"), never a
 # card in a zone, a player, a choice "of" a set or one combat's creatures.
+_BASIC_LAND_TYPE = r"(?:plains|islands?|swamps?|mountains?|forests?)"
 _PERMANENT_TYPE = (
-    r"(?:creatures?|artifacts?|enchantments?|planeswalkers?|permanents?|battles?)"
+    r"(?:creatures?|artifacts?|enchantments?|planeswalkers?|permanents?|battles?"
+    rf"|lands?|{_BASIC_LAND_TYPE})"
+)
+# A basic land type names a land (CR 205.3i: "Forest, Island, Mountain, Plains,
+# and Swamp are the basic land types"): "destroy all Plains" (Raiding Party).
+_BASIC_LAND_TYPE_RX = re.compile(
+    rf"(?<!non)(?<!non-)\b{_BASIC_LAND_TYPE}\b", re.IGNORECASE
 )
 _EACH_PERMANENT_OBJECT = (
     r"(?:each|all)\s+"
@@ -1137,6 +1144,8 @@ def read_clause(
         word = words[m.group(1).lower()]
         if word not in subject:
             subject.append(word)
+    if "Land" not in subject and _BASIC_LAND_TYPE_RX.search(text):
+        subject.append("Land")
     if re.search(r"\bcards?\b", text, re.IGNORECASE):
         subject.append(CARD)
     if _SELF_NAMED_RX.search(text) or (

@@ -557,7 +557,9 @@ def test_each_object_is_bound_to_the_tokens_verb():
         ("exile all creature cards from graveyards", "exile", False),
         ("exile all cards from that player's hand", "exile", False),
         ("destroy each of the chosen creatures that didn't attack", "destroy", False),
-        ("destroy all Plains that weren't chosen this way", "destroy", False),
+        # a basic land type names a land (CR 205.3i): Raiding Party
+        ("destroy all Plains that weren't chosen this way", "destroy", True),
+        ("destroy all nonbasic lands", "destroy", True),
     ],
 )
 def test_each_permanent_is_the_verbs_own_board_object(raw, token, held):

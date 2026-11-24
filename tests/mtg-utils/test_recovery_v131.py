@@ -194,3 +194,20 @@ def test_a_parked_burn_on_each_players_step_hits_you_too(name):
     idents = _idents(name)
     assert ("lifeloss_makers", "each", "") in idents
     assert ("lifeloss_makers", "opponents", "") not in idents
+
+
+# ── A basic land type names a land (CR 205.3i) ──────────────────────────────────
+
+
+def test_a_parked_destroy_of_all_plains_is_land_destruction():
+    """Raiding Party: "Then destroy all Plains that weren't chosen this way by
+    any player" — parked, read as a sweep over lands (two ledger rows before)."""
+    idents = _idents("Raiding Party")
+    assert ("land_destruction", "you", "destroy") in idents
+    assert ("mass_land_denial", "each", "destroy") in idents
+
+
+def test_a_parked_sacrifice_of_forests_sacrifices_lands():
+    # Wood Elemental: "As this creature enters, sacrifice any number of
+    # untapped Forests."
+    assert ("land_sacrifice_makers", "you", "") in _idents("Wood Elemental")

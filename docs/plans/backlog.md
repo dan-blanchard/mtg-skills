@@ -64,9 +64,6 @@ category on about 2,500 records now, so many of these are already known to it.
     Rebellion and Mob Verdict, and retire both `one_sided_sweep_creature_half_*`
     ledger rows (the `_dropped` one still says the clause is dropped; since
     v0.131.0 it is parked).
-  - The recovery type words have no basic land types (CR 205.3i), so Raiding
-    Party's parked "destroy all Plains" names no land and needs its two
-    `all_plains_destroy_parked_*` rows.
   - A parked "discard …" with no subject after a typed `RevealHand` could take
     that reveal's player in `recovery.read_clause`; today `_discard_outlet`
     vetoes it lane-side (Shatter Assumptions), and no other discard lane sees it.

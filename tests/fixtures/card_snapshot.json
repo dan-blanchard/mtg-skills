@@ -1329081,6 +1329081,155 @@
     "type_line": "Creature — Moonfolk Wizard"
    }
   },
+  "Wood Elemental": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "As ~ enters, sacrifice any number of untapped Forests.",
+       "duration": null,
+       "effect": {
+        "description": "As ~ enters, sacrifice any number of untapped Forests.",
+        "name": "unknown",
+        "type": "Unimplemented"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      },
+      {
+       "condition": null,
+       "cost": null,
+       "description": "~'s power and toughness are each equal to the number of Forests sacrificed as it entered.",
+       "duration": null,
+       "effect": {
+        "description": "Static pattern matched but line failed static parser: ~'s power and toughness are each equal to the number of Forests sacrificed as it entered.",
+        "name": "static_structure",
+        "type": "Unimplemented"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Elemental"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Green"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 3,
+      "shards": [
+       "Green"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "71ced69c-921c-4a31-a213-0faf927134ef",
+       "edc71122-2951-43eb-8ca8-1cda6d231013"
+      ]
+     },
+     "name": "Wood Elemental",
+     "non_ability_text": null,
+     "oracle_text": "As this creature enters, sacrifice any number of untapped Forests.\nWood Elemental's power and toughness are each equal to the number of Forests sacrificed as it entered.",
+     "power": {
+      "type": "Variable",
+      "value": "*"
+     },
+     "printings": [
+      "LEG",
+      "ME4"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2004-10-04",
+       "text": "The Forests are sacrificed to define the power/toughness of this card right before it enters. You have to do this sacrifice no matter how this card enters."
+      }
+     ],
+     "scryfall_oracle_id": "2b6da458-e075-4696-a74f-c8846e0cc370",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Variable",
+      "value": "*"
+     },
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 4.0,
+    "color_identity": [
+     "G"
+    ],
+    "colors": [
+     "G"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{3}{G}",
+    "name": "Wood Elemental",
+    "oracle_id": "2b6da458-e075-4696-a74f-c8846e0cc370",
+    "oracle_text": "As this creature enters, sacrifice any number of untapped Forests.\nWood Elemental's power and toughness are each equal to the number of Forests sacrificed as it entered.",
+    "power": "*",
+    "toughness": "*",
+    "type_line": "Creature — Elemental"
+   }
+  },
   "Wood Elves": {
    "phase_records": [
     {

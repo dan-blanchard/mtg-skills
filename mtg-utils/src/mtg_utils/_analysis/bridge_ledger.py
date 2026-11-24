@@ -7449,18 +7449,6 @@ def _those_cards_reanimation_parked(tree: ConceptTree) -> bool:
     ) and _oracle_says(tree, _CREATURE_CARDS_ANTECEDENT_RX)
 
 
-# Raiding Party's "Then destroy all Plains that weren't chosen this way by any
-# player" (``unparsed_verb_arguments``): the recovered destroy names no card type
-# (Plains is a land type, CR 205.3i), so neither land read sees a land.
-_ALL_PLAINS_DESTROYED_RX = re.compile(
-    r"\bdestroy all Plains that weren't chosen this way\b", re.IGNORECASE
-)
-
-
-def _all_plains_destroy_parked(tree: ConceptTree) -> bool:
-    return _says(_ALL_PLAINS_DESTROYED_RX, tree.residues("unparsed_verb_arguments"))
-
-
 # "Creatures you control can't be the targets of blue or black spells" (Autumn's
 # Veil) / "Permanents you control can't be the targets of blue or black spells
 # your opponents control" (Display of Dominance): a targeting restriction over
@@ -7517,31 +7505,6 @@ BRIDGES.update(
                 for key, subject in (
                     ("permanent_recast", "reanimate"),
                     ("creature_recursion", "battlefield"),
-                )
-            ),
-            *(
-                Bridge(
-                    bridge_id=f"all_plains_destroy_parked_{key}",
-                    key=key,
-                    kind="upstream_parse_failure",
-                    todo=_upstream(
-                        "Raiding Party's 'Then destroy all Plains that weren't "
-                        "chosen this way by any player', an unparsed_verb_arguments "
-                        "residue (no DestroyAll over the Plains). Retires on the "
-                        "bump that types it"
-                    ),
-                    census=(
-                        f"1 hit / the legal corpus (Raiding Party), {_V0_131_CENSUS}"
-                    ),
-                    pins=("Raiding Party",),
-                    gap=_all_plains_destroy_parked,
-                    match=_oracle_match(_ALL_PLAINS_DESTROYED_RX),
-                    scope=scope,
-                    subject="destroy",
-                )
-                for key, scope in (
-                    ("land_destruction", "you"),
-                    ("mass_land_denial", "each"),
                 )
             ),
             Bridge(
