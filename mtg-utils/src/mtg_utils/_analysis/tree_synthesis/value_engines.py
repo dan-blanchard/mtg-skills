@@ -305,6 +305,9 @@ _SELF_ETB_PAYLOAD_CONCEPTS = frozenset(
         "explore",
         "connive",
         "cast_from_zone",
+        # "You may play the chosen cards for as long as they remain exiled"
+        # (Ensign Pavel Chekov; a ``CastFromZone`` through phase v0.118.0)
+        "grant_cast_permission",
         "exile_top",
         "conjure",
         "seek",

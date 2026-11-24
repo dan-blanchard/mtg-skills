@@ -43,16 +43,19 @@ category on about 2,500 records now, so many of these are already known to it.
 - **Phase now leaves "When you attack enchanted opponent" an `Unknown` trigger
   mode**: Tenuous Truce lost `attack_matters` (upstream draft 30; no read can
   recover it without matching phase's text).
-- **Losses the bump did not examine card by card** (each one card, a key or a
-  subject gone; none pinned by a failing test): Thought Dissector
-  `cheat_into_play|Artifact` (its clause parks as `compound_reveal_until`), Peace
-  in Our Time `pillowfort` / `stax_taxes`, Ensign Pavel Chekov
-  `self_etb_payload`, Those Old Scientists `sacrifice_outlets`, Soundwave, Sonic
-  Spy `spellcast_matters`, Plunderer's Prize and Teferi's Contingency
-  `stax_taxes` / `symmetric_stax` (perpetual "costs more" riders), Trenzalore
-  Clocktower `activated_draw` (its exile cost is typed now), Campfire
-  `graveyard_makers`, Nahiri, Storm of Stone's `equip` subject on
-  `keyword_bodies` / `team_buff`.
+- **Losses at v0.131.0 examined after the bump, which stand** (don't
+  re-suggest): Those Old Scientists `sacrifice_outlets` (a Saga's own "Sacrifice
+  after III", parked junk before), Plunderer's Prize and Teferi's Contingency
+  `stax_taxes` / `symmetric_stax` (a perpetual "costs {2} more" on one spell's
+  namesakes, misread as a static tax on every card), Campfire `graveyard_makers`
+  (it empties the graveyard), Nahiri, Storm of Stone's `equip` subject (an
+  equip discount misread as a keyword grant), Trenzalore Clocktower
+  `activated_draw` (it exiles itself as a cost, typed now), Peace in Our Time
+  `stax_taxes` (it keeps `pillowfort`), Soundwave, Sonic Spy's `spellcast_matters`
+  subject (`any` to `other`: the watched spell has a mana-value qualifier).
+  Thought Dissector's `cheat_into_play|Artifact` waits on phase (upstream draft
+  34): its reveal parks as `compound_reveal_until`, and the `dig_until` recovery
+  token reads only "your library".
 - **Deeper fixes the bump's quality review named** (each changes which cards
   emit a signal, so none was folded into the bump):
   - The seam's `EACH_PERMANENT` mark needs "each" right after the verb's head.

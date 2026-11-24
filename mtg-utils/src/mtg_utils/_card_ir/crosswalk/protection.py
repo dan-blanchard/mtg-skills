@@ -719,7 +719,8 @@ def attack_deterrent(tree: ConceptTree) -> AttackDeterrentKind | None:
     * ``"attack_ban"`` — creatures can't attack you (Blazing Archon), or a
       creature can't (the Vow cycle's "can't attack you or planeswalkers you
       control"), or a player's creatures can't for a turn (The Second Doctor,
-      Orzhov Advokist, Willie Lumpkin — a ``ProhibitActivity`` on attacking you);
+      Orzhov Advokist, Willie Lumpkin — a ``ProhibitActivity`` on attacking you;
+      Peace in Our Time's "they can't attack this turn");
     * ``"attack_limit"`` — no more than N creatures can attack (Crawlspace's
       "attack you", Silent Arbiter's "each combat").
 
@@ -761,6 +762,11 @@ def attack_deterrent(tree: ConceptTree) -> AttackDeterrentKind | None:
             and not granted.get(id(n))
         ):
             continue
+        # A player a trigger names can't attack at all, you included ("that
+        # player may draw a card. If they do, they can't attack this turn" —
+        # Peace in Our Time; a ``ProhibitActivity`` through phase v0.118.0).
+        if mode == "CantAttack" and tag_of(affected) == "ScopedPlayer":
+            return "attack_ban"
         if _taxes_attacks_on_you(getattr(n, "condition", MISSING)):
             return "attack_tax"
         if getattr(n, "attack_defended", None) in DEFENDED_YOU:

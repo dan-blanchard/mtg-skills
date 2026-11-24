@@ -214,3 +214,15 @@ def test_a_new_shape_is_read_where_the_old_one_was(name, ident):
 def test_an_exile_of_graveyard_cards_alone_is_no_sweep():
     # Bojuka Bog: "exile target player's graveyard" — no battlefield arm.
     assert "mass_removal" not in {i[0] for i in _idents("Bojuka Bog")}
+
+
+def test_a_player_who_cannot_attack_this_turn_is_a_pillowfort():
+    # Peace in Our Time: "that player may draw a card. If they do, they can't
+    # attack this turn" — a ``CantAttack`` on the trigger's player.
+    assert ("pillowfort", "you", "") in _idents("Peace in Our Time")
+
+
+def test_a_play_permission_is_an_enters_payload():
+    # Ensign Pavel Chekov: "When ~ enters, each opponent exiles … You may play
+    # the chosen cards for as long as they remain exiled."
+    assert ("self_etb_payload", "you", "") in _idents("Ensign Pavel Chekov")
