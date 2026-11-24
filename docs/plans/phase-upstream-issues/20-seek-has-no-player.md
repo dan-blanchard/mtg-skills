@@ -1,6 +1,6 @@
 # Variable Solutions: `Seek` carries no player, then an extra `ChangeZone` moves the result
 
-Phase tag: v0.118.0 (`card-data-v0.118.0.json`; face record as the card-data holds it, null/false/empty fields and noise keys dropped).
+Phase tag: v0.131.0 (`card-data-v0.131.0.json`; face record as the card-data holds it, null/false/empty fields and noise keys dropped).
 
 ## Cards
 
@@ -10,7 +10,7 @@ Phase tag: v0.118.0 (`card-data-v0.118.0.json`; face record as the card-data hol
 > If X is 3, conjure a random creature card with mana value X onto the battlefield.
 > If X is 4 or more, you gain 2 life. Then do all of the above.
 
-## Observed at v0.118.0
+## Observed at v0.131.0
 
 "seek a basic land card and put it onto the battlefield tapped": `Seek` has `destination: Hand` and no player, then a `ChangeZone` to the battlefield of `ParentTarget`. The conjure clause is `unrecognized_clause_head` and "do all of the above" is a residue:
 

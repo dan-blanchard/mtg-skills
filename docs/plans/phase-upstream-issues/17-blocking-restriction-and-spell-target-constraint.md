@@ -1,6 +1,6 @@
 # Glorfindel Dauntless Rescuer, Wyll's Reversal: "can't be blocked by more than one creature" typed as a typeless filter; "with one or more targets" dropped
 
-Phase tag: v0.118.0 (`card-data-v0.118.0.json`; face record as the card-data holds it, null/false/empty fields and noise keys dropped).
+Phase tag: v0.131.0 (`card-data-v0.131.0.json`; face record as the card-data holds it, null/false/empty fields and noise keys dropped).
 
 ## Cards
 
@@ -14,7 +14,7 @@ Phase tag: v0.118.0 (`card-data-v0.118.0.json`; face record as the card-data hol
 > 1—14 | You may choose new targets for that spell or ability.
 > 15+ | You may choose new targets for that spell or ability. Then copy it. You may choose new targets for the copy.
 
-## Observed at v0.118.0
+## Observed at v0.131.0
 
 Glorfindel, mode 2: `CantBeBlockedBy` with a typeless `Typed` filter, which reads as "can't be blocked by any creature":
 

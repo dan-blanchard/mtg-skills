@@ -1,6 +1,6 @@
 # Fraying Line, Worms of the Earth: a payment or choice made by another player is stamped `Controller`
 
-Phase tag: v0.118.0 (`card-data-v0.118.0.json`; face record as the card-data holds it, null/false/empty fields and noise keys dropped).
+Phase tag: v0.131.0 (`card-data-v0.131.0.json`; face record as the card-data holds it, null/false/empty fields and noise keys dropped).
 
 ## Cards
 
@@ -13,7 +13,7 @@ Phase tag: v0.118.0 (`card-data-v0.118.0.json`; face record as the card-data hol
 > Lands can't enter the battlefield.
 > At the beginning of each upkeep, any player may sacrifice two lands of their choice or have this enchantment deal 5 damage to that player. If a player does either, destroy this enchantment.
 
-## Observed at v0.118.0
+## Observed at v0.131.0
 
 Fraying Line ("that player may pay {2}"): `PayCost.payer` is `Controller`; the counter placed is correctly `ScopedPlayer`:
 

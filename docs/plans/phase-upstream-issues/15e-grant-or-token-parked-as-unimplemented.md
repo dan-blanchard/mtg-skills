@@ -1,6 +1,6 @@
 # Reaper of Night, Inventive Wingsmith, Genku Future Shaper: a keyword grant, keyword counter or token is parked as `Unimplemented`
 
-Phase tag: v0.118.0 (`card-data-v0.118.0.json`; face record as the card-data holds it, null/false/empty fields and noise keys dropped).
+Phase tag: v0.131.0 (`card-data-v0.131.0.json`; face record as the card-data holds it, null/false/empty fields and noise keys dropped).
 
 ## Cards
 
@@ -20,7 +20,7 @@ Phase tag: v0.118.0 (`card-data-v0.118.0.json`; face record as the card-data hol
 > • 1/1 black Rat with lifelink.
 > {3}{W}{U}: Put a +1/+1 counter on each creature you control.
 
-## Observed at v0.118.0
+## Observed at v0.131.0
 
 Reaper of Night (Harvest Fear half is typed as discard; the attack trigger is one residue):
 

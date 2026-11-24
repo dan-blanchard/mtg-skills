@@ -1,6 +1,6 @@
 # Bestial Fury, Blood Lust, Stunning Shot and others: anaphora ("it", "that creature") bound to the wrong object
 
-Phase tag: v0.118.0 (`card-data-v0.118.0.json`; face record as the card-data holds it, null/false/empty fields and noise keys dropped).
+Phase tag: v0.131.0 (`card-data-v0.131.0.json`; face record as the card-data holds it, null/false/empty fields and noise keys dropped).
 
 ## Cards
 
@@ -15,7 +15,7 @@ Phase tag: v0.118.0 (`card-data-v0.118.0.json`; face record as the card-data hol
 **Stunning Shot** (MSC):
 > Put two +1/+1 counters on up to one target creature you control. Tap up to one target creature an opponent controls and put a stun counter on it. (If a permanent with a stun counter would become untapped, remove one from it instead.)
 
-## Observed at v0.118.0
+## Observed at v0.131.0
 
 Bestial Fury ("it gets +4/+0" -- `it` is the enchanted creature; `ParentTarget` names nothing in this trigger):
 
@@ -35,11 +35,12 @@ Stunning Shot ("Tap up to one target creature an opponent controls" is a fresh t
 {"type": "SetTapState", "target": {"type": "ParentTarget"}, "scope": {"type": "Single"}, "state": {"type": "Tap"}}
 ```
 
-Same family (re-checked at v0.118.0):
+Same family (re-checked at v0.131.0):
 
 - **Six-Sided Die**: "4 -- It gets -4/-4 until end of turn." is `Pump {-4/-4, target: SelfRef}` instead of the chosen creature (likewise the other results).
-- **Ojutai Exemplars**, third mode: "Exile this creature, then return it to the battlefield tapped" returns `TriggeringSource`, which is the cast spell.
 - **Fatespinner**: "The player skips each instance of the chosen step or phase this turn" is an `unbound_subject` residue after a typed `Choose`.
+
+Ojutai Exemplars, listed here at v0.118.0, is fixed at v0.131.0 (the third mode's return names `SelfRef`). Blood Lust's else branch now wraps its X in a `ClampMin {minimum: 0}`; the `SelfRef` target and the `otherwise` residue are unchanged. Stunning Shot's record is marked `confirmed_misparse: "target_wrong"`.
 
 ## Expected
 

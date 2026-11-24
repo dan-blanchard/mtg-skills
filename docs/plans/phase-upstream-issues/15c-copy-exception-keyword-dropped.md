@@ -1,6 +1,6 @@
 # Irenicus's Vile Duplication, Will of the Temur: a copy's "except ... has flying" exception is dropped or misread as a subtype
 
-Phase tag: v0.118.0 (`card-data-v0.118.0.json`; face record as the card-data holds it, null/false/empty fields and noise keys dropped).
+Phase tag: v0.131.0 (`card-data-v0.131.0.json`; face record as the card-data holds it, null/false/empty fields and noise keys dropped).
 
 ## Cards
 
@@ -12,7 +12,7 @@ Phase tag: v0.118.0 (`card-data-v0.118.0.json`; face record as the card-data hol
 > • Create a token that's a copy of target permanent, except it's a 4/4 Dragon creature with flying in addition to its other types.
 > • Target player draws cards equal to the greatest mana value among permanents you control.
 
-## Observed at v0.118.0
+## Observed at v0.131.0
 
 Irenicus's Vile Duplication ("except the token has flying and it isn't legendary"): only the legendary removal survives:
 

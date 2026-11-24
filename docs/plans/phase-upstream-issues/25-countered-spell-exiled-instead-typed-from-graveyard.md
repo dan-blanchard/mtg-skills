@@ -1,6 +1,6 @@
 # "Exile it instead of putting it into its owner's graveyard" typed as a second move out of the graveyard
 
-Phase tag: v0.118.0 (`card-data-v0.118.0.json`; face record as the card-data holds it, null/false/empty fields and noise keys dropped).
+Phase tag: v0.131.0 (`card-data-v0.131.0.json`; face record as the card-data holds it, null/false/empty fields and noise keys dropped).
 
 ## Cards
 
@@ -19,7 +19,7 @@ instead of …"), typed as a `ChangeZone` of the cast spell with `origin: Gravey
 where phase types the same clause on Feather, the Redeemed and Rod of Absorption as
 `ExileResolvingSpellInsteadOfGraveyard`.
 
-## Observed at v0.118.0
+## Observed at v0.131.0
 
 Dissipate counters, then moves the countered spell from the graveyard to exile:
 

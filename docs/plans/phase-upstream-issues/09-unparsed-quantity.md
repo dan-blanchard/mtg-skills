@@ -1,6 +1,6 @@
 # Within Range, Soulblast, Overclocked Electromancer, Tar Fiend, Notorious Throng: damage, life loss and counts "equal to ..." parked as `unparsed_quantity`
 
-Phase tag: v0.118.0 (`card-data-v0.118.0.json`; face record as the card-data holds it, null/false/empty fields and noise keys dropped).
+Phase tag: v0.131.0 (`card-data-v0.131.0.json`; face record as the card-data holds it, null/false/empty fields and noise keys dropped).
 
 ## Cards
 
@@ -25,7 +25,7 @@ Phase tag: v0.118.0 (`card-data-v0.118.0.json`; face record as the card-data hol
 > Prowl {5}{U} (You may cast this for its prowl cost if you dealt combat damage to a player this turn with a Rogue.)
 > Create X 1/1 black Faerie Rogue creature tokens with flying, where X is the damage dealt to your opponents this turn. If this spell's prowl cost was paid, take an extra turn after this one.
 
-## Observed at v0.118.0
+## Observed at v0.131.0
 
 Within Range:
 
@@ -33,7 +33,7 @@ Within Range:
 {"effect": {"type": "Unimplemented", "name": "unparsed_quantity", "description": "lose life equal to the number of creatures attacking them"}, "player_scope": {"type": "Opponent"}}
 ```
 
-Soulblast:
+Soulblast (v0.131.0 types the additional cost as a `Sacrifice` with `requirement: all`, where v0.118.0 had `count: 1`; the damage is still parked):
 
 ```json
 {"effect": {"type": "Unimplemented", "name": "unparsed_quantity", "description": "deal damage to any target equal to the total power of the sacrificed creatures"}}
@@ -63,4 +63,4 @@ The verb typed (`LoseLife`, `DealDamage`, `GainEnergy`, `Discard`, `Token`) with
 
 ## Why it matters
 
-212 commander-legal cards (279 records in card-data) carry `unparsed_quantity`; each loses its verb as well as its number.
+198 commander-legal cards (by the records' own `legalities`; 284 records in card-data) carry `unparsed_quantity` at v0.131.0; each loses its verb as well as its number.

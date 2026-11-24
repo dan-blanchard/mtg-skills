@@ -1,6 +1,6 @@
 # Grim Reminder, Chaos Mutation: a reveal-only search is typed as a move to hand
 
-Phase tag: v0.118.0 (`card-data-v0.118.0.json`; face record as the card-data holds it, null/false/empty fields and noise keys dropped).
+Phase tag: v0.131.0 (`card-data-v0.131.0.json`; face record as the card-data holds it, null/false/empty fields and noise keys dropped).
 
 ## Cards
 
@@ -11,7 +11,7 @@ Phase tag: v0.118.0 (`card-data-v0.118.0.json`; face record as the card-data hol
 **Chaos Mutation** (40K):
 > Exile any number of target creatures controlled by different players. For each creature exiled this way, its controller reveals cards from the top of their library until they reveal a creature card, puts that card onto the battlefield, then puts the rest on the bottom of their library in a random order.
 
-## Observed at v0.118.0
+## Observed at v0.131.0
 
 Grim Reminder: `SearchLibrary {reveal: true}` is followed by a `ChangeZone` Library->Hand (the card is only revealed), and the per-opponent life loss is parked as `unbound_subject`:
 
@@ -19,10 +19,10 @@ Grim Reminder: `SearchLibrary {reveal: true}` is followed by a `ChangeZone` Libr
 {"effect": {"type": "SearchLibrary", "filter": {"type": "Typed", "type_filters": ["Card", {"Non": "Land"}]}, "count": {"type": "Fixed", "value": 1}, "reveal": true}, "sub_ability": {"effect": {"type": "ChangeZone", "origin": "Library", "destination": "Hand", "target": {"type": "Any"}}, "sub_ability": {"effect": {"type": "Unimplemented", "name": "unbound_subject", "description": "who cast a spell this turn with the same name as that card loses 6 life"}, "sub_ability": {"effect": {"type": "Shuffle", "target": {"type": "Controller"}}}, "player_scope": {"type": "Opponent"}}}}
 ```
 
-Chaos Mutation: "its controller reveals ... until they reveal a creature card, puts that card onto the battlefield" -- `kept_destination` is `Hand`:
+Chaos Mutation: "its controller reveals ... until they reveal a creature card, puts that card onto the battlefield" -- `kept_destination` is `Hand` (v0.131.0 added `repeat_timing` and marks the record `confirmed_misparse: "wrong_zone"`):
 
 ```json
-{"effect": {"type": "RevealUntil", "player": {"type": "ParentTargetController"}, "filter": {"type": "Typed", "type_filters": ["Creature"]}, "count": {"type": "Fixed", "value": 1}, "kept_destination": "Hand", "rest_destination": "Library", "rest_order": "random"}, "repeat_for": {"type": "Ref", "qty": {"type": "FilteredTrackedSetSize", "filter": {"type": "Typed", "type_filters": ["Creature"]}, "caused_by": "Exiled"}}}
+{"effect": {"type": "RevealUntil", "player": {"type": "ParentTargetController"}, "filter": {"type": "Typed", "type_filters": ["Creature"]}, "count": {"type": "Fixed", "value": 1}, "kept_destination": "Hand", "rest_destination": "Library", "rest_order": "random"}, "repeat_for": {"type": "Ref", "qty": {"type": "FilteredTrackedSetSize", "filter": {"type": "Typed", "type_filters": ["Creature"]}, "caused_by": "Exiled"}}, "repeat_timing": "SimultaneousInstances"}
 ```
 
 ## Expected

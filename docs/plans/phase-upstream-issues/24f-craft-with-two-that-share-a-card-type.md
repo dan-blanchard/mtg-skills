@@ -1,6 +1,6 @@
 # Eye of Ojer Taq: "Craft with two that share a card type {6}" parked as `unknown`
 
-Phase tag: v0.118.0 (`card-data-v0.118.0.json`; face record as the card-data holds it, null/false/empty fields and noise keys dropped).
+Phase tag: v0.131.0 (`card-data-v0.131.0.json`; face record as the card-data holds it, null/false/empty fields and noise keys dropped).
 
 ## Cards
 
@@ -12,7 +12,7 @@ Phase tag: v0.118.0 (`card-data-v0.118.0.json`; face record as the card-data hol
 > This artifact enters tapped. As it enters, choose a card type shared among two exiled cards used to craft it.
 > {T}: The next spell you cast this turn of the chosen type can be cast without paying its mana cost.
 
-## Observed at v0.118.0
+## Observed at v0.131.0
 
 Back face (`Eye of Ojer Taq`) second ability:
 

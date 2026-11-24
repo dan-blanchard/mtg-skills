@@ -1,6 +1,6 @@
 # Eye of Singularity, Ranar the Ever-Watchful, Nicanzil and others: trigger events phase can't type are parked as `mode.Unknown`
 
-Phase tag: v0.118.0 (`card-data-v0.118.0.json`; face record as the card-data holds it, null/false/empty fields and noise keys dropped).
+Phase tag: v0.131.0 (`card-data-v0.131.0.json`; face record as the card-data holds it, null/false/empty fields and noise keys dropped).
 
 ## Cards
 
@@ -13,7 +13,7 @@ Phase tag: v0.118.0 (`card-data-v0.118.0.json`; face record as the card-data hol
 > The first card you foretell each turn costs {0} to foretell.
 > Whenever one or more cards are put into exile from your hand or a spell or ability you control exiles one or more permanents from the battlefield, create a 1/1 white Spirit creature token with flying.
 
-## Observed at v0.118.0
+## Observed at v0.131.0
 
 Eye of Singularity, second trigger ("a permanent other than a basic land enters"):
 
@@ -42,4 +42,4 @@ A typed event for each: an enters watcher with an excluded-basic-land filter (Ey
 
 ## Why it matters
 
-172 commander-legal cards (298 records in card-data) carry an `Unknown` trigger mode. The effect is typed, so the card looks implemented while never firing.
+167 commander-legal cards (by the records' own `legalities`; 299 records in card-data) carry an `Unknown` trigger mode at v0.131.0. The effect is typed, so the card looks implemented while never firing.

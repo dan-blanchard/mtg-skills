@@ -1,6 +1,6 @@
 # Sproutback Trudge, Syrix, Worldheart Phoenix, Nether Shadow: "cast/return this card from your graveyard" typed as any card, or on the wrong zone
 
-Phase tag: v0.118.0 (`card-data-v0.118.0.json`; face record as the card-data holds it, null/false/empty fields and noise keys dropped).
+Phase tag: v0.131.0 (`card-data-v0.131.0.json`; face record as the card-data holds it, null/false/empty fields and noise keys dropped).
 
 ## Cards
 
@@ -22,7 +22,7 @@ Phase tag: v0.118.0 (`card-data-v0.118.0.json`; face record as the card-data hol
 > Haste
 > At the beginning of your upkeep, if this card is in your graveyard with three or more creature cards above it, you may put this card onto the battlefield.
 
-## Observed at v0.118.0
+## Observed at v0.131.0
 
 Sproutback Trudge ("you may cast this creature from your graveyard"): `CastFromZone` with `target: Any`:
 

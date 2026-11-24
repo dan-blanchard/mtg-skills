@@ -1,6 +1,6 @@
 # Kaust, Eyes of the Glade: "a creature you control that was turned face up this turn deals combat damage to a player" is an `Unknown` trigger mode
 
-Phase tag: v0.118.0 (`card-data-v0.118.0.json`).
+Phase tag: v0.131.0 (`card-data-v0.131.0.json`).
 
 ## Card
 
@@ -8,7 +8,7 @@ Phase tag: v0.118.0 (`card-data-v0.118.0.json`).
 > Whenever a creature you control that was turned face up this turn deals combat damage to a player, draw a card.
 > {T}: Turn target face-down attacking creature you control face up.
 
-## Observed at v0.118.0
+## Observed at v0.131.0
 
 The first ability's trigger keeps the whole trigger line as `mode.Unknown`; `valid_source` and `valid_target` are absent, while the body (draw a card) is typed:
 

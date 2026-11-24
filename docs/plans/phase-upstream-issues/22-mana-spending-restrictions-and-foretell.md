@@ -1,6 +1,6 @@
 # Karfell Harbinger, Ethereal Valkyrie: "Spend this mana only to ..." and foretell clauses parked
 
-Phase tag: v0.118.0 (`card-data-v0.118.0.json`; face record as the card-data holds it, null/false/empty fields and noise keys dropped).
+Phase tag: v0.131.0 (`card-data-v0.131.0.json`; face record as the card-data holds it, null/false/empty fields and noise keys dropped).
 
 ## Cards
 
@@ -11,7 +11,7 @@ Phase tag: v0.118.0 (`card-data-v0.118.0.json`; face record as the card-data hol
 > Flying
 > Whenever this creature enters or attacks, draw a card, then exile a card from your hand face down. It becomes foretold. Its foretell cost is its mana cost reduced by {2}. (On a later turn, you may cast it for its foretell cost, even if this creature has left the battlefield.)
 
-## Observed at v0.118.0
+## Observed at v0.131.0
 
 Karfell Harbinger: the mana is typed; the spending restriction is a residue `sub_ability` of the mana ability:
 

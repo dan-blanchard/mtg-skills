@@ -1,6 +1,6 @@
 # Forger's Foundry: a mana ability's "when you spend this mana … exile that spell instead" parked as `Unimplemented`
 
-Phase tag: v0.118.0 (`card-data-v0.118.0.json`; face record as the card-data holds it, null/false/empty fields and noise keys dropped).
+Phase tag: v0.131.0 (`card-data-v0.131.0.json`; face record as the card-data holds it, null/false/empty fields and noise keys dropped).
 
 ## Cards
 
@@ -11,7 +11,7 @@ Phase tag: v0.118.0 (`card-data-v0.118.0.json`; face record as the card-data hol
 **Primal Amulet // Primal Wellspring** (XLN), the back face for comparison:
 > {T}: Add one mana of any color. When that mana is spent to cast an instant or sorcery spell, copy that spell and you may choose new targets for the copy.
 
-## Observed at v0.118.0
+## Observed at v0.131.0
 
 The rider is a residue on the mana ability:
 

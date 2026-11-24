@@ -1,6 +1,6 @@
 # Geistlight Snare, Blackmail, Mana Clash, Even the Odds, Turtles Forever, Ludevic: second sentences, casting restrictions and reflexive effects parked
 
-Phase tag: v0.118.0 (`card-data-v0.118.0.json`; face record as the card-data holds it, null/false/empty fields and noise keys dropped).
+Phase tag: v0.131.0 (`card-data-v0.131.0.json`; face record as the card-data holds it, null/false/empty fields and noise keys dropped).
 
 ## Cards
 
@@ -25,7 +25,7 @@ Phase tag: v0.118.0 (`card-data-v0.118.0.json`; face record as the card-data hol
 > At the beginning of each player's end step, that player may draw a card if a player other than you lost life this turn.
 > Partner (You can have two commanders if both have partner.)
 
-## Observed at v0.118.0
+## Observed at v0.131.0
 
 Geistlight Snare ("This spell costs {1} less ... It also costs {1} less ..."): each sentence is an `unbound_subject` residue ahead of the typed `Counter`:
 

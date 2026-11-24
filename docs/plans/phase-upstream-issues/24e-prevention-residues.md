@@ -1,6 +1,6 @@
 # Dark Sphere, Torrent of Lava, Blinding Powder: damage-prevention clauses parked
 
-Phase tag: v0.118.0 (`card-data-v0.118.0.json`; face record as the card-data holds it, null/false/empty fields and noise keys dropped).
+Phase tag: v0.131.0 (`card-data-v0.131.0.json`; face record as the card-data holds it, null/false/empty fields and noise keys dropped).
 
 ## Cards
 
@@ -15,7 +15,7 @@ Phase tag: v0.118.0 (`card-data-v0.118.0.json`; face record as the card-data hol
 > Equipped creature has "Unattach Blinding Powder: Prevent all combat damage that would be dealt to this creature this turn."
 > Equip {2} ({2}: Attach to target creature you control. Equip only as a sorcery.)
 
-## Observed at v0.118.0
+## Observed at v0.131.0
 
 Dark Sphere ("prevent half that damage, rounded down"):
 

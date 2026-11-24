@@ -1,6 +1,6 @@
 # Woolly Razorback, Wakanda Forever!, Hide in Plain Sight: a clause is swallowed beside an effect phase types
 
-Phase tag: v0.118.0 (`card-data-v0.118.0.json`; face record as the card-data holds it, null/false/empty fields and noise keys dropped).
+Phase tag: v0.131.0 (`card-data-v0.131.0.json`; face record as the card-data holds it, null/false/empty fields and noise keys dropped).
 
 ## Cards
 
@@ -15,7 +15,7 @@ Phase tag: v0.118.0 (`card-data-v0.118.0.json`; face record as the card-data hol
 **Hide in Plain Sight** (MKM):
 > Look at the top five cards of your library, cloak two of them, and put the rest on the bottom of your library in a random order. (To cloak a card, put it onto the battlefield face down as a 2/2 creature with ward {2}. Turn it face up any time for its mana cost if it's a creature card.)
 
-## Observed at v0.118.0
+## Observed at v0.131.0
 
 Woolly Razorback ("prevent all combat damage it would deal and it has defender"): the whole static is `prevention_conjunct`:
 

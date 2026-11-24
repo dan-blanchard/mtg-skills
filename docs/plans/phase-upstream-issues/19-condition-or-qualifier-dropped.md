@@ -1,6 +1,6 @@
 # Phyrexian Unlife, Eye of Singularity, Herald of Vengeance: a condition or same-name qualifier dropped from a static or effect
 
-Phase tag: v0.118.0 (`card-data-v0.118.0.json`; face record as the card-data holds it, null/false/empty fields and noise keys dropped).
+Phase tag: v0.131.0 (`card-data-v0.131.0.json`; face record as the card-data holds it, null/false/empty fields and noise keys dropped).
 
 ## Cards
 
@@ -16,7 +16,7 @@ Phase tag: v0.118.0 (`card-data-v0.118.0.json`; face record as the card-data hol
 > Flying
 > When Herald of Vengeance enters the battlefield, destroy each permanent you don't control that has the same name as a permanent that dealt damage to you last turn.
 
-## Observed at v0.118.0
+## Observed at v0.131.0
 
 Phyrexian Unlife: the first sentence's `CantLoseTheGame` is right (it is unconditional), but the second sentence's static keeps only its condition (`LifeTotal <= 0`) and has no modifications -- the as-though-infect damage effect is gone:
 

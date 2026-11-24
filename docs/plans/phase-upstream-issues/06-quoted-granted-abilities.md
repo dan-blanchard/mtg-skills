@@ -1,6 +1,6 @@
 # Frodo, Sauron's Bane; Nicol Bolas, Dragon-God; Forgeborn Phoenix: quoted or granted abilities dropped, parked, or typed as the wrong effect
 
-Phase tag: v0.118.0 (`card-data-v0.118.0.json`; face record as the card-data holds it, null/false/empty fields and noise keys dropped).
+Phase tag: v0.131.0 (`card-data-v0.131.0.json`; face record as the card-data holds it, null/false/empty fields and noise keys dropped).
 
 ## Cards
 
@@ -20,7 +20,7 @@ Phase tag: v0.118.0 (`card-data-v0.118.0.json`; face record as the card-data hol
 > Whenever Forgeborn Phoenix or equipped creature dies, it perpetually gains "Whenever an equipped creature you control deals combat damage to a player or planeswalker, return this card from your graveyard to battlefield tapped."
 > Reconfigure {R} ({R}: Attach to target creature you control; or unattach from a creature. Reconfigure only as a sorcery. While attached, this isn't a creature.)
 
-## Observed at v0.118.0
+## Observed at v0.131.0
 
 Frodo's second ability keeps `RingTemptsYou` (condition: is a Scout) but the "becomes a Halfling Rogue with '<quoted trigger>'" part is gone: no type change, no granted trigger (the first ability, Citizen->Scout, is typed fully):
 

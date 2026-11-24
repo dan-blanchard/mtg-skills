@@ -1,6 +1,6 @@
 # Garza's Assassin, Salvation Colossus, Oscorp Industries, Dusk // Dawn: recover, unearth, mayhem and aftermath not typed
 
-Phase tag: v0.118.0 (`card-data-v0.118.0.json`; face record as the card-data holds it, null/false/empty fields and noise keys dropped).
+Phase tag: v0.131.0 (`card-data-v0.131.0.json`; face record as the card-data holds it, null/false/empty fields and noise keys dropped).
 
 ## Cards
 
@@ -26,7 +26,7 @@ Phase tag: v0.118.0 (`card-data-v0.118.0.json`; face record as the card-data hol
 > Aftermath (Cast this spell only from your graveyard. Then exile it.)
 > Return all creature cards with power 2 or less from your graveyard to your hand.
 
-## Observed at v0.118.0
+## Observed at v0.131.0
 
 Garza's Assassin ("Recover--Pay half your life, rounded up.") is an `unknown` residue and the record has no `Recover` keyword:
 

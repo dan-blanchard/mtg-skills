@@ -454,8 +454,11 @@ Nothing else failed: all 166 `retirement_canary` tests and all 931 bridge-ledger
 
 ## Fixed at v0.131.0 — workaround retired (pin bump of 2026-11-24)
 
-The bump re-checked only what its own tests and report touched; the numbered sections above and the issue
-files were **not** re-read against v0.131.0. Where the section's lead card is fixed, the section is named.
+The bump re-checked only what its own tests and report touched; the numbered sections above were **not**
+re-read against v0.131.0. The issue files in `phase-upstream-issues/` were, card by card, after the bump:
+issues 01, 10 and 24b are deleted (every card fixed), 04, 11, 12b, 13 and 14 are trimmed, and the rows below
+marked "issue NN" come from that pass (no workaround of ours read those cards, so nothing was retired).
+Where the section's lead card is fixed, the section is named.
 
 | Card | What phase v0.131.0 emits | What was retired |
 |---|---|---|
@@ -472,11 +475,17 @@ files were **not** re-read against v0.131.0. Where the section's lead card is fi
 | Deepwood Denizen | the ability's `cost_reduction.count` over `CountersOnObjects{P1P1}` | the `counter_cost_reduction` recovery token |
 | Moira Brown, Guide Author | the made token's static scales by a `CountersOnObjects` count | the text fallback in `_any_counter_matters` |
 | Words of Waste (and the Words cycle) | `CreateDrawReplacement` with a typed `replacement_effect` | the lane's one-card "next time you would draw" regex |
+| Rune Snag (§4, issue 04) | `Counter` with `unless_pay.cost: ManaDynamic`, a `Sum` of `Fixed 2` and `2 x ObjectCount` of cards named Rune Snag in graveyards, payer `ParentTargetController` | nothing (trimmed from issue 04) |
+| Priest of Forgotten Gods (§12b, issue 12b) | the `Sacrifice` filter's `controller` is `ScopedPlayer`, the per-target binding of "any number of target players each" (as on Tinybones Joins Up) | nothing (trimmed from issue 12b; Variable Solutions stays) |
+| Canopy Cover (§13, issue 13) | static mode `CantBeTargeted {who: Opponents}` on `Typed[Creature] + EnchantedBy` | nothing in issue 13 (our `shape_compat` row writes the mode back as `Hexproof`) |
 
 Moved, still a phase gap: Akiri, Fearless Voyager's attack trigger is an `Unknown` mode now (the `misparsed_shapes` row
 writes the mode back too); Time to Reflect parks whole as `block_history_partner`; Mob Verdict's sweep parks as
 `unparsed_quantity` (new row `one_sided_sweep_creature_half_parked`); Tomik's lands shield is an `Other` static mode.
-New this bump: `docs/plans/backlog.md`, "From the phase v0.131.0 pin bump".
+New this bump: `docs/plans/backlog.md`, "From the phase v0.131.0 pin bump"; its phase gaps are drafted as
+issues 27 to 35 (Mob Verdict in 33, Tomik in 31). Changed shape in the re-verified issues: Cleansing
+Meditation's return (issue 03) and Teferi, Temporal Pilgrim's −12 (issue 12a) are parked now, Well-Laid Plans
+parks as `prevention_source_scope` (issue 11).
 
 ## Named in the backlog without a shape — not drafted
 

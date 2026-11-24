@@ -1,6 +1,6 @@
 # Rootwater Shaman, Aluren: "as though it had flash" permissions typed as a one-shot cast, or parked
 
-Phase tag: v0.118.0 (`card-data-v0.118.0.json`; face record as the card-data holds it, null/false/empty fields and noise keys dropped).
+Phase tag: v0.131.0 (`card-data-v0.131.0.json`; face record as the card-data holds it, null/false/empty fields and noise keys dropped).
 
 ## Cards
 
@@ -10,7 +10,7 @@ Phase tag: v0.118.0 (`card-data-v0.118.0.json`; face record as the card-data hol
 **Aluren** (TMP):
 > Any player may cast creature spells with mana value 3 or less without paying their mana costs and as though they had flash.
 
-## Observed at v0.118.0
+## Observed at v0.131.0
 
 Rootwater Shaman ("You may cast Aura spells with enchant creature as though they had flash"): an `optional` `CastFromZone` ability of `Typed[Subtype Aura]`, with no static permission and no `casting_options`:
 

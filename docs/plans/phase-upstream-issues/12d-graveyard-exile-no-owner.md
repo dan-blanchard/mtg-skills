@@ -1,6 +1,6 @@
 # Rooting Moloch, Grime Gorger, Skullsnatcher: a graveyard exile with no owner on the filter
 
-Phase tag: v0.118.0 (`card-data-v0.118.0.json`; face record as the card-data holds it, null/false/empty fields and noise keys dropped).
+Phase tag: v0.131.0 (`card-data-v0.131.0.json`; face record as the card-data holds it, null/false/empty fields and noise keys dropped).
 
 ## Cards
 
@@ -16,7 +16,7 @@ Phase tag: v0.118.0 (`card-data-v0.118.0.json`; face record as the card-data hol
 > Ninjutsu {B} ({B}, Return an unblocked attacker you control to hand: Put this card onto the battlefield from your hand tapped and attacking.)
 > Whenever this creature deals combat damage to a player, exile up to two target cards from that player's graveyard.
 
-## Observed at v0.118.0
+## Observed at v0.131.0
 
 Rooting Moloch ("from your graveyard"); the permission that follows is on a `TrackedSet`:
 

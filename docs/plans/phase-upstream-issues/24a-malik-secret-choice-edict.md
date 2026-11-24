@@ -1,6 +1,6 @@
 # Malik, Grim Manipulator: "you and target opponent each secretly choose a creature that player controls" parked, leaving the sacrifice
 
-Phase tag: v0.118.0 (`card-data-v0.118.0.json`; face record as the card-data holds it, null/false/empty fields and noise keys dropped).
+Phase tag: v0.131.0 (`card-data-v0.131.0.json`; face record as the card-data holds it, null/false/empty fields and noise keys dropped).
 
 ## Cards
 
@@ -8,7 +8,7 @@ Phase tag: v0.118.0 (`card-data-v0.118.0.json`; face record as the card-data hol
 > When Malik, Grim Manipulator enters, you and target opponent each secretly choose a creature that player controls. Then those choices are revealed, and that player sacrifices those creatures.
 > Whenever an opponent sacrifices a creature, you create a Treasure token.
 
-## Observed at v0.118.0
+## Observed at v0.131.0
 
 Both choice sentences are `unrecognized_clause_head`; the `Sacrifice` of a `TrackedSet` that nothing filled survives with no player:
 

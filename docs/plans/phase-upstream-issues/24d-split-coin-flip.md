@@ -1,6 +1,6 @@
 # Desperate Gambit, Goblin Kites, Fickle Efreet: one "Flip a coin. If you win ... If you lose ..." typed as two flips
 
-Phase tag: v0.118.0 (`card-data-v0.118.0.json`; face record as the card-data holds it, null/false/empty fields and noise keys dropped).
+Phase tag: v0.131.0 (`card-data-v0.131.0.json`; face record as the card-data holds it, null/false/empty fields and noise keys dropped).
 
 ## Cards
 
@@ -13,7 +13,7 @@ Phase tag: v0.118.0 (`card-data-v0.118.0.json`; face record as the card-data hol
 **Fickle Efreet** (PCY):
 > Whenever this creature attacks or blocks, flip a coin at end of combat. If you lose the flip, an opponent gains control of this creature.
 
-## Observed at v0.118.0
+## Observed at v0.131.0
 
 Desperate Gambit: a win-only `FlipCoins` whose `sub_ability` is a second, lose-only one (so two independent flips). The "choose a source you control" is also a bare `TargetOnly {target: Any}`; "you control" is lost:
 

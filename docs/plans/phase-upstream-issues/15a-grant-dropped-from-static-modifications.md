@@ -1,6 +1,6 @@
 # Chariot of the Sun, Valkyrie's Call: a keyword grant is left out of the effect's modifications
 
-Phase tag: v0.118.0 (`card-data-v0.118.0.json`; face record as the card-data holds it, null/false/empty fields and noise keys dropped).
+Phase tag: v0.131.0 (`card-data-v0.131.0.json`; face record as the card-data holds it, null/false/empty fields and noise keys dropped).
 
 ## Cards
 
@@ -10,7 +10,7 @@ Phase tag: v0.118.0 (`card-data-v0.118.0.json`; face record as the card-data hol
 **Valkyrie's Call** (FDN):
 > Whenever a nontoken, non-Angel creature you control dies, return that card to the battlefield under its owner's control with a +1/+1 counter on it. It has flying and is an Angel in addition to its other types.
 
-## Observed at v0.118.0
+## Observed at v0.131.0
 
 Chariot of the Sun ("gains flying and has base toughness 1"): only `SetToughness` survives; the description keeps the whole phrase:
 

@@ -1,13 +1,13 @@
 # Monstrous Rage: a Role token has no ability ("Enchanted creature gets +1/+1 and has trample")
 
-Phase tag: v0.118.0 (`card-data-v0.118.0.json`; face record as the card-data holds it, null/false/empty fields and noise keys dropped).
+Phase tag: v0.131.0 (`card-data-v0.131.0.json`; face record as the card-data holds it, null/false/empty fields and noise keys dropped).
 
 ## Cards
 
 **Monstrous Rage** (SOA):
 > Target creature gets +2/+0 until end of turn. Create a Monster Role token attached to it. (If you control another Role on it, put that one into the graveyard. Enchanted creature gets +1/+1 and has trample.)
 
-## Observed at v0.118.0
+## Observed at v0.131.0
 
 The `Token` is typed `[Enchantment, Aura, Role]` with `attach_to: ParentTarget`, and carries no `static_abilities`/`keywords`:
 

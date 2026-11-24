@@ -1,6 +1,6 @@
-# Delirium, Mana Web, Devastating Mastery, Teferi Temporal Pilgrim: "that player controls" / "they control" stamped `controller: You`
+# Delirium, Mana Web, Devastating Mastery: "that player controls" / "they control" stamped `controller: You` (Teferi, Temporal Pilgrim's -12 now parked instead)
 
-Phase tag: v0.118.0 (`card-data-v0.118.0.json`; face record as the card-data holds it, null/false/empty fields and noise keys dropped).
+Phase tag: v0.131.0 (`card-data-v0.131.0.json`; face record as the card-data holds it, null/false/empty fields and noise keys dropped).
 
 ## Cards
 
@@ -22,7 +22,7 @@ Phase tag: v0.118.0 (`card-data-v0.118.0.json`; face record as the card-data hol
 > [−2]: Create a 2/2 blue Spirit creature token with vigilance and "Whenever you draw a card, put a +1/+1 counter on this token."
 > [−12]: Target opponent chooses a permanent they control and returns it to its owner's hand. Then they shuffle each nonland permanent they control into its owner's library.
 
-## Observed at v0.118.0
+## Observed at v0.131.0
 
 Delirium ("Tap target creature that player controls"):
 
@@ -42,16 +42,16 @@ Devastating Mastery ("an opponent chooses up to two nonland permanents they cont
 {"type": "TargetOnly", "target": {"type": "Typed", "type_filters": ["Permanent", {"Non": "Land"}], "controller": "You"}}
 ```
 
-Teferi -12, last step ("they shuffle each nonland permanent they control into its owner's library"); the opening `TargetOnly` correctly carries `controller: TargetOpponent`:
+Teferi -12 changed shape at v0.131.0: the `controller: You` stamp is gone because both sentences are now parked (at v0.118.0 the opening `TargetOnly` carried `controller: TargetOpponent` and the final `ChangeZone` to `Library` carried `controller: You`). The record is marked `confirmed_misparse: "wrong_player"`:
 
 ```json
-{"type": "ChangeZone", "destination": "Library", "target": {"type": "Typed", "type_filters": ["Permanent", {"Non": "Land"}], "controller": "You"}, "owner_library": true}
+{"effect": {"type": "Unimplemented", "name": "target-opponent permanent choice", "description": "Target opponent chooses a permanent they control and returns it to its owner's hand."}, "declares_chosen_group": 0, "cost": {"type": "Loyalty", "amount": -12}, "sub_ability": {"effect": {"type": "Unimplemented", "name": "shuffle", "description": "shuffle each nonland permanent they control into its owner's library"}}, "activation_restrictions": [{"type": "AsSorcery"}]}
 ```
 
 ## Expected
 
-The filter's controller is the anaphoric player the earlier clause or trigger named (`TriggeringPlayer` / `ScopedPlayer` / `TargetOpponent`; `DeclaredPlayer` is already used this way for The Fall of Kroog).
+The filter's controller is the anaphoric player the earlier clause or trigger named (`TriggeringPlayer` / `ScopedPlayer` / `TargetOpponent`; `DeclaredPlayer` is already used this way for The Fall of Kroog). For Teferi, the two sentences typed again (a chosen-permanent bounce by the target opponent, then a `ChangeZone` to its owner's library over that opponent's nonland permanents).
 
 ## Why it matters
 
-Stamped `You`, the clause targets the caster's own permanents: Delirium taps your creature, Devastating Mastery bounces your permanents.
+Stamped `You`, the clause targets the caster's own permanents: Delirium taps your creature, Devastating Mastery bounces your permanents. Teferi's ultimate now does nothing at all.

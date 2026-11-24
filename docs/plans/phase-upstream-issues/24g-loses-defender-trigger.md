@@ -1,6 +1,6 @@
 # Guardian of the Ages: "it loses defender and gains trample" parked as `unparsed_condition`
 
-Phase tag: v0.118.0 (`card-data-v0.118.0.json`; face record as the card-data holds it, null/false/empty fields and noise keys dropped).
+Phase tag: v0.131.0 (`card-data-v0.131.0.json`; face record as the card-data holds it, null/false/empty fields and noise keys dropped).
 
 ## Cards
 
@@ -8,7 +8,7 @@ Phase tag: v0.118.0 (`card-data-v0.118.0.json`; face record as the card-data hol
 > Defender (This creature can't attack.)
 > When a creature attacks you or a planeswalker you control, if this creature has defender, it loses defender and gains trample.
 
-## Observed at v0.118.0
+## Observed at v0.131.0
 
 The attack-watcher is typed (`Attacks` on a creature attacking you or a planeswalker you control); its body is a residue:
 

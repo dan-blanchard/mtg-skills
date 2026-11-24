@@ -1,6 +1,6 @@
 # Mask of the Schemer, Officious Interrogation, Thromok the Insatiable: `where X is ...` binding residue swallows the whole effect
 
-Phase tag: v0.118.0 (`card-data-v0.118.0.json`; face record as the card-data holds it, null/false/empty fields and noise keys dropped).
+Phase tag: v0.131.0 (`card-data-v0.131.0.json`; face record as the card-data holds it, null/false/empty fields and noise keys dropped).
 
 ## Cards
 
@@ -15,7 +15,7 @@ Phase tag: v0.118.0 (`card-data-v0.118.0.json`; face record as the card-data hol
 **Thromok the Insatiable** (PCA):
 > Devour X, where X is the number of creatures devoured this way (As this creature enters, you may sacrifice any number of creatures. It enters with X +1/+1 counters on it for each of those creatures.)
 
-## Observed at v0.118.0
+## Observed at v0.131.0
 
 Mask of the Schemer ("it connives X, where X is the amount of damage it dealt to that player"): the trigger body is only the residue, no `Connive`:
 
@@ -41,4 +41,4 @@ The verb typed (`Connive`, `Investigate`) with its count as a `QuantityRef` (dam
 
 ## Why it matters
 
-A parked `where X` clause removes the verb and its object, not just the number. 41 commander-legal cards (57 records in card-data) carry `where_x_binding`.
+A parked `where X` clause removes the verb and its object, not just the number. 41 commander-legal cards (by the records' own `legalities`; 58 records in card-data) carry `where_x_binding` at v0.131.0.

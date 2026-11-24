@@ -1,6 +1,6 @@
 # Mirrormind Crown: the token-copy replacement is parked as an `as_long_as_gate` residue
 
-Phase tag: v0.118.0 (`card-data-v0.118.0.json`).
+Phase tag: v0.131.0 (`card-data-v0.131.0.json`).
 
 ## Card
 
@@ -8,7 +8,7 @@ Phase tag: v0.118.0 (`card-data-v0.118.0.json`).
 > As long as this Equipment is attached to a creature, the first time you would create one or more tokens each turn, you may instead create that many tokens that are copies of equipped creature.
 > Equip {2}
 
-## Observed at v0.118.0
+## Observed at v0.131.0
 
 The first ability is emitted as a Spell ability whose effect is a residue:
 

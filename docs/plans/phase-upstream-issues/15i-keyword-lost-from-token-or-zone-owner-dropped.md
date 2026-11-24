@@ -1,6 +1,6 @@
 # Furygale Flocking, Case of the Stashed Skeleton, Soovril: token keyword, suspect and zone owner dropped
 
-Phase tag: v0.118.0 (`card-data-v0.118.0.json`; face record as the card-data holds it, null/false/empty fields and noise keys dropped).
+Phase tag: v0.131.0 (`card-data-v0.131.0.json`; face record as the card-data holds it, null/false/empty fields and noise keys dropped).
 
 ## Cards
 
@@ -17,7 +17,7 @@ Phase tag: v0.118.0 (`card-data-v0.118.0.json`; face record as the card-data hol
 > Vigilance
 > {T}: Put two time counters on target nonland card in exile that was put there from your graveyard this turn. If it doesn't have suspend, it gains suspend.
 
-## Observed at v0.118.0
+## Observed at v0.131.0
 
 Furygale Flocking ("two 3/3 ... Elemental creature tokens with flying that attack that opponent"): `Token` has no `keywords`, and the record carries a `SwallowedClause` warning:
 
