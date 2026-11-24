@@ -183,3 +183,45 @@ Each has a comment at the read that learned it.
   description (canary `test_peeled_subject_canary`). The seam gained the `ForEach`
   mark and grammar rows for "reveal N cards from their hand", "pay … {E}" and a
   self-discount's "It also costs … less" (`self_discount`).
+
+- **v0.131.0:** thirteen releases in one bump. Upstream moved the `Effect` enum to
+  `crates/phase-ast/src/types/ability.rs` (`phase_bump.ABILITY_RS`). Written back
+  on the raw records by `_card_ir/shape_compat.py`, each with its canary: a counted
+  amount wrapped in `ClampMin{minimum: 0}` (about 530 sites; a floored expression
+  stays); hexproof spelled out as a `CantBeTargeted{who: Opponents}` static mode
+  (alone or under `AddStaticMode`); "the owner of target permanent shuffles it into
+  their library" as `TargetOnly` + `ChangeZoneAll{ParentTarget}` + an owner
+  `TrackedSetPossessor` scope on `ScopedPlayer` (was a targeted `ChangeZone` and
+  `ParentTargetOwner`); "this creature is put into your graveyard" as
+  `And[SelfRef, a card you own]`; Disa the Restless's graveyard arrival, now typed,
+  with its watched card on the one `zone_change_clauses` entry (the
+  `misparsed_shapes` row and its grammar reader are gone). Learned by the reads:
+  `SpellsCastThisTurn` / `SpellsCastLastTurn` → `SpellsCast{scope, window?}` and
+  `LifeLostThisTurn` → `LifeLost{window?}` (`reads.spells_cast_this_turn`); flash's
+  static → the bare mode `"CastWithFlash"` (`reads.cast_with_keyword_name`); the
+  Oblivion Ring pair lost its `UntilHostLeavesPlay` duration, its leaves trigger now
+  a `ChangeZoneAll` of `ExiledBySource` (`reads.exiles_until_host_leaves`); a
+  self-return's `TriggeringSource` / `ParentTarget` → `SelfRef` with `origin:
+  Graveyard` (a granted one names the creature it was granted to); the Words
+  cycle's `CreateDrawReplacement.replacement_effect` (walked as the ability's
+  effect); an attack recipient `"Planeswalker"` → `{Planeswalker: {subtype}}`
+  (`crosswalk.attack_recipient`); "each creature blocking it" → a `BlockingSource`
+  filter property; "anywhere other than your hand" → `Not{InZone: Hand}`
+  (`reads.filter_excluded_zones`); a face-up filter → `Not{FaceDown}`; a chained
+  edict's player → the sacrificed filter's `controller` (`TargetPlayer` /
+  `DeclaredPlayer`); "that player" of a replaced event →
+  `PostReplacementDamageTarget`; a {0} equip → an `AlternativeKeywordCost` static;
+  Edgar's coin → `WinFirstCoinFlipSetEachTurn`; an activation cost reduction that
+  counts counters → `cost_reduction.count` over `CountersOnObjects`
+  (`reads.cost_reduction_counters`). Phase also separates a replacement of damage
+  ("put that many counters … instead" — no `shield_kind`) from a prevention, and
+  stopped calling a conditional "as long as" P/T characteristic-defining (CR
+  604.3a). New fail-closed residues: `prevention_listed_rider`,
+  `block_history_partner`, and static lines as `mode: {Other: text}`; the seam
+  gained the `EACH_PERMANENT` mark (a parked sweep), a `remove_counter` token, the
+  "and"-joined peeled subject, and reads a whole parked self-discount
+  (`self_discount`). Retired: the chained-sacrifice actor read, Boxing Ring's
+  activation gate, the cast-trigger blink arm, the flanking / blocking-it
+  misparse vetoes, the `counter_cost_reduction` token, and eleven ledger rows.
+  Phase now publishes its own `metadata.confirmed_misparse` category on about
+  2,500 records — unread here so far.

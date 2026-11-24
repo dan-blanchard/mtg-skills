@@ -32,6 +32,7 @@ from mtg_utils._card_ir.crosswalk import (
     counter_kind_any,
     distribute_counter_kind,
     filter_controller,
+    is_spell_card,
     keyword_counter_placements,
     tag_of,
 )
@@ -347,8 +348,12 @@ def has_structural_self_counter_grow(tree: ConceptTree) -> bool:
     An "Otherwise, put a +1/+1 counter on ~" branch (Shelinda, Yevon Acolyte's
     ``else_ability``) is one of the unit's effects: the shared effect walk reads
     "otherwise" branches.
+
+    An instant or sorcery grows nothing of its own: phase binds Emergent
+    Sequence's "Put a +1/+1 counter on it" (the land it fetched) to the spell
+    (``test_spell_self_counter_misbinding_canary``).
     """
-    for unit in tree.units:
+    for unit in () if is_spell_card(tree) else tree.units:
         for c in unit.effect_concepts("place_counter"):
             node = c.node
             if tag_of(node) != "PutCounter":

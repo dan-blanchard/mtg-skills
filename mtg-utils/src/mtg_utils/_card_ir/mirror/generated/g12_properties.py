@@ -4,8 +4,8 @@ Codegen'd from ``tests/fixtures/phase_mirror_schema.json`` by
 ``mtg_utils._card_ir.mirror.codegen`` (run via ``build-card-ir-substrate``).
 
 Part of the generated typed-mirror package (see this directory's
-``__init__.py``). This module holds content keys ``properties`` .. ``props`` (2
-keys).
+``__init__.py``). This module holds content keys ``properties`` ..
+``protected_scope`` (3 keys).
 
 Class naming: ``S_<ckey>`` for a struct shape, ``T_<ckey>__<tag>`` for a tagged
 shape, ``U_<ckey>`` for the union of all tagged shapes at one content_key.
@@ -41,14 +41,14 @@ if TYPE_CHECKING:
     from mtg_utils._card_ir.mirror.generated.g13_qty import (
         U_recipient,
     )
-    from mtg_utils._card_ir.mirror.generated.g14_redirect_target import (
+    from mtg_utils._card_ir.mirror.generated.g14_recipient_scope import (
         U_reference,
     )
-    from mtg_utils._card_ir.mirror.generated.g15_spell_filter import (
+    from mtg_utils._card_ir.mirror.generated.g15_sources import (
         U_target,
         U_to,
     )
-    from mtg_utils._card_ir.mirror.generated.g16_triggers import (
+    from mtg_utils._card_ir.mirror.generated.g16_toughness import (
         U_value,
     )
 
@@ -123,6 +123,12 @@ class T_properties__CanEnchant(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_properties__CastThisTurn(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "CastThisTurn"
+    caster: str
+
+
+@dataclass(frozen=True)
 class T_properties__Cmc(TypedMirrorNode):
     _tag: ClassVar[str | None] = "Cmc"
     comparator: str
@@ -139,7 +145,7 @@ class T_properties__ColorCount(TypedMirrorNode):
 @dataclass(frozen=True)
 class T_properties__CombatRelation(TypedMirrorNode):
     _tag: ClassVar[str | None] = "CombatRelation"
-    relation: str | MirrorVariant
+    relation: MirrorVariant
     subject: str
 
 
@@ -235,6 +241,11 @@ class T_properties__FaceDown(TypedMirrorNode):
 @dataclass(frozen=True)
 class T_properties__Foretold(TypedMirrorNode):
     _tag: ClassVar[str | None] = "Foretold"
+
+
+@dataclass(frozen=True)
+class T_properties__FoughtThisTurn(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "FoughtThisTurn"
 
 
 @dataclass(frozen=True)
@@ -636,6 +647,11 @@ class T_props__PtComparison(TypedMirrorNode):
     value: U_value
 
 
+@dataclass(frozen=True)
+class T_protected_scope__ParentTargetedPlayer(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "ParentTargetedPlayer"
+
+
 # --- discriminated-union aliases (one per tagged content_key) ---
 
 type U_properties = (
@@ -651,6 +667,7 @@ type U_properties = (
     | T_properties__Blocking
     | T_properties__BlockingSource
     | T_properties__CanEnchant
+    | T_properties__CastThisTurn
     | T_properties__Cmc
     | T_properties__ColorCount
     | T_properties__CombatRelation
@@ -670,6 +687,7 @@ type U_properties = (
     | T_properties__EquippedBy
     | T_properties__FaceDown
     | T_properties__Foretold
+    | T_properties__FoughtThisTurn
     | T_properties__Goaded
     | T_properties__HasAdventure
     | T_properties__HasAnyAttachmentOf
@@ -744,3 +762,4 @@ type U_props = (
     | T_props__HasColor
     | T_props__PtComparison
 )
+type U_protected_scope = T_protected_scope__ParentTargetedPlayer

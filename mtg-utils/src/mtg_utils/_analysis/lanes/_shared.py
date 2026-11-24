@@ -18,7 +18,6 @@ from mtg_utils._card_ir.crosswalk import (
     AbilityUnit,
     ConceptNode,
     ConceptTree,
-    detriment_directed_scope,
     effect_facing_player,
     effect_filter,
     effect_owner_optional,
@@ -31,12 +30,10 @@ from mtg_utils._card_ir.crosswalk import (
     filter_subtypes,
     iter_typed_nodes,
     root_target_filter,
-    sacrifice_names_no_player,
     scoped_player_scope,
     tag_of,
     trigger_scope,
     trigger_subject_scope,
-    walk_effect_chain,
 )
 from mtg_utils._card_ir.crosswalk.reads import chooses
 from mtg_utils._card_ir.mirror.runtime import (
@@ -449,6 +446,11 @@ def _sac_actor_scope(
         "EachOpponent",
         "TargetPlayer",
         "TargetOpponent",
+        # "that player … then sacrifices" after an effect aimed at them (Nicol
+        # Bolas, Planeswalker's "that player … discards seven cards, then
+        # sacrifices seven permanents"): phase v0.131.0 names the player on
+        # the sacrificed filter.
+        "DeclaredPlayer",
     ):
         return "opponents"
     if ctrl in ("All", "EachPlayer", "Each"):
@@ -507,10 +509,7 @@ def sacrifice_actor_scope(unit: AbilityUnit, node: TypedMirrorNode) -> str | Non
         # Hellion's ruling: "If everyone controls the same number of lands,
         # everyone sacrifices two lands") — you can be among them.
         return "each"
-    scope = _sac_actor_scope(node, unit)
-    if scope is None and sacrifice_names_no_player(unit.node, node):
-        return _chained_sacrifice_actor(unit, node)
-    return scope
+    return _sac_actor_scope(node, unit)
 
 
 def _punisher_choice(unit: AbilityUnit, node: TypedMirrorNode) -> bool:
@@ -561,46 +560,6 @@ def _looped_object_controller(unit: AbilityUnit, node: TypedMirrorNode) -> str |
     if ctrl in OPPONENT_ACTOR_TAGS:
         return "opponents"
     return None
-
-
-def _chained_sacrifice_actor(unit: AbilityUnit, node: TypedMirrorNode) -> str | None:
-    """Phase v0.104.0 drops the subject of a chained "…, then sacrifices …" clause:
-    the ``Sacrifice`` of a typed permanent names no controller and no player, though
-    the sentence's subject is the player an earlier effect in the chain aimed at —
-    Undercity Plague's "Target player loses 1 life, discards a card, then
-    sacrifices a permanent", Priest of Forgotten Gods' "any number of target
-    players each lose 2 life and sacrifice a creature", Din of the Fireherd's
-    "Target opponent sacrifices a creature …, then sacrifices a land". That player
-    is the actor (CR 701.21a); an effect on you in between (a draw, your mana)
-    hands the sentence back to you. The direction is ``detriment_directed_scope``'s
-    read of each earlier detriment (:data:`_PLAYER_DETRIMENTS`). Sacrificing the
-    card itself (Vexing Devil's
-    "If a player does, sacrifice ~") is always its controller's (a ``SelfRef``,
-    never read here). ``test_chained_sacrifice_actor_dropped_canary`` retires this
-    once phase carries the actor."""
-    actor: str | None = None
-    for c in walk_effect_chain(unit.node):
-        if c.node is node:
-            return actor
-        if tag_of(c.node) == "Sacrifice":
-            actor = sacrifice_actor_scope(unit, c.node)
-        else:
-            direction = detriment_directed_scope(c.node)
-            if direction == "you":
-                actor = None
-            elif direction is not None and c.concept in _PLAYER_DETRIMENTS:
-                actor = direction
-    return None
-
-
-#: The detrimental effects whose recipient is the chained clause's subject — the
-#: consumer's own set, as ``detriment_directed_scope`` asks ("grows per
-#: consumer"): life loss (Undercity Plague, Priest of Forgotten Gods) and discard
-#: (Nicol Bolas, Planeswalker's "that player … discards seven cards, then
-#: sacrifices"). Damage can be aimed at a permanent (Redcap Melee's "4 damage to
-#: target creature or planeswalker. … you sacrifice a land"), and a zone move on
-#: a card the chain found (Variable Solutions' sought land) names no player.
-_PLAYER_DETRIMENTS: frozenset[str] = frozenset({"discard", "lose_life"})
 
 
 def _sac_is_edict(unit: AbilityUnit, sac_node: TypedMirrorNode) -> bool:
@@ -1059,14 +1018,22 @@ def recovered_card_recursion(c: ConceptNode, card_types: Iterable[str]) -> bool:
     card of one of ``card_types`` picked out of a graveyard — a target, or one
     from your own — that is not the card itself (its own return is
     self-recursion) and not only an opponent's (graveyard hate, the typed
-    arm's ``Opponent`` controller gate)."""
+    arm's ``Opponent`` controller gate). A reanimation needs no target: one
+    you perform (``IMPERATIVE`` — "return a creature card put into a graveyard
+    this way to the battlefield under your control", Necromantic Selection) or
+    each player performs on their own graveyard (scope ``each`` — Patriarch's
+    Bidding) puts the card onto the battlefield under its performer's control
+    (CR 110.2a), as the typed arm reads a ``ChangeZone`` to the battlefield."""
     subject = c.subject
+    performed = c.recovered_by == "reanimate" and (
+        IMPERATIVE in subject or c.scope == "each"
+    )
     return (
         c.recovered_by in ("reanimate", "graveyard_return")
         and any(t in subject for t in card_types)
         and CARD in subject
         and "Graveyard" in c.zones
-        and (TARGETED in subject or YOURS in subject)
+        and (TARGETED in subject or YOURS in subject or performed)
         and SELF not in subject
         and THEIRS not in subject
         and c.scope != "opponents"

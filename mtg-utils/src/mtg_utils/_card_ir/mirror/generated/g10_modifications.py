@@ -5,7 +5,7 @@ Codegen'd from ``tests/fixtures/phase_mirror_schema.json`` by
 
 Part of the generated typed-mirror package (see this directory's
 ``__init__.py``). This module holds content keys ``modifications`` ..
-``pile_source`` (26 keys).
+``pile_source`` (27 keys).
 
 Class naming: ``S_<ckey>`` for a struct shape, ``T_<ckey>__<tag>`` for a tagged
 shape, ``U_<ckey>`` for the union of all tagged shapes at one content_key.
@@ -23,13 +23,13 @@ from mtg_utils._card_ir.mirror.runtime import (
 )
 
 if TYPE_CHECKING:
-    from mtg_utils._card_ir.mirror.generated.g03_additional_modificat import (
-        S_cast_cost_modifier,
+    from mtg_utils._card_ir.mirror.generated.g03_additional_cost import (
         U_alt_ability_cost,
+    )
+    from mtg_utils._card_ir.mirror.generated.g04_candidate_filter import (
+        S_cast_cost_modifier,
         U_cap,
         U_card_filter,
-    )
-    from mtg_utils._card_ir.mirror.generated.g04_casting_restrictions import (
         U_colors,
         U_condition,
     )
@@ -40,6 +40,7 @@ if TYPE_CHECKING:
         S_data,
         S_definition,
         U_data,
+        U_designation,
     )
     from mtg_utils._card_ir.mirror.generated.g07_dynamic_count import (
         U_effect,
@@ -59,17 +60,17 @@ if TYPE_CHECKING:
     from mtg_utils._card_ir.mirror.generated.g12_properties import (
         U_properties,
     )
-    from mtg_utils._card_ir.mirror.generated.g14_redirect_target import (
+    from mtg_utils._card_ir.mirror.generated.g14_recipient_scope import (
         S_replacement,
         U_rhs,
         U_source,
     )
-    from mtg_utils._card_ir.mirror.generated.g15_spell_filter import (
+    from mtg_utils._card_ir.mirror.generated.g15_sources import (
         S_sub_ability,
-        S_trigger,
         U_substitution,
     )
-    from mtg_utils._card_ir.mirror.generated.g16_triggers import (
+    from mtg_utils._card_ir.mirror.generated.g16_toughness import (
+        S_trigger,
         S_unit_span,
         U_valid_card,
         U_valid_target,
@@ -278,6 +279,12 @@ class T_modifications__ChangeController(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_modifications__ChangeControllerToDesignation(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "ChangeControllerToDesignation"
+    designation: U_designation
+
+
+@dataclass(frozen=True)
 class T_modifications__CopyChosen(TypedMirrorNode):
     _tag: ClassVar[str | None] = "CopyChosen"
 
@@ -464,6 +471,11 @@ class T_n__Fixed(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_no_maximum_deck_size__NoMaximum(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "NoMaximum"
+
+
+@dataclass(frozen=True)
 class T_noun__Typed(TypedMirrorNode):
     _tag: ClassVar[str | None] = "Typed"
     controller: None
@@ -630,8 +642,19 @@ class T_owner__Typed(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_parity__Fixed(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "Fixed"
+    value: str
+
+
+@dataclass(frozen=True)
 class T_parity__LastNamedChoice(TypedMirrorNode):
     _tag: ClassVar[str | None] = "LastNamedChoice"
+
+
+@dataclass(frozen=True)
+class T_parity__SourceChosen(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "SourceChosen"
 
 
 @dataclass(frozen=True)
@@ -705,6 +728,11 @@ class T_payer__EventTargetController(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_payer__Opponent(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "Opponent"
+
+
+@dataclass(frozen=True)
 class T_payer__ParentTargetController(TypedMirrorNode):
     _tag: ClassVar[str | None] = "ParentTargetController"
 
@@ -732,7 +760,7 @@ class T_payer__TriggeringSpellController(TypedMirrorNode):
 @dataclass(frozen=True)
 class T_payer__Typed(TypedMirrorNode):
     _tag: ClassVar[str | None] = "Typed"
-    controller: str | None
+    controller: str | MirrorVariant | None
     properties: list[U_properties]
     type_filters: list[MirrorVariant]
 
@@ -841,6 +869,7 @@ type U_modifications = (
     | T_modifications__AssignDamageFromToughness
     | T_modifications__AssignNoCombatDamage
     | T_modifications__ChangeController
+    | T_modifications__ChangeControllerToDesignation
     | T_modifications__CopyChosen
     | T_modifications__GrantAbility
     | T_modifications__GrantAllActivatedAbilitiesOf
@@ -876,6 +905,7 @@ type U_modifier = (
     | T_modifier__WithoutPayingManaCost
 )
 type U_n = T_n__Fixed
+type U_no_maximum_deck_size = T_no_maximum_deck_size__NoMaximum
 type U_noun = T_noun__Typed
 type U_object_filter = T_object_filter__Any | T_object_filter__Typed
 type U_object_source = T_object_source__ParentTarget | T_object_source__TrackedSet
@@ -905,7 +935,7 @@ type U_owner = (
     | T_owner__TriggeringSource
     | T_owner__Typed
 )
-type U_parity = T_parity__LastNamedChoice
+type U_parity = T_parity__Fixed | T_parity__LastNamedChoice | T_parity__SourceChosen
 type U_parse_warnings = (
     T_parse_warnings__IgnoredRemainder
     | T_parse_warnings__SwallowedClause
@@ -920,6 +950,7 @@ type U_payer = (
     | T_payer__Controller
     | T_payer__DefendingPlayer
     | T_payer__EventTargetController
+    | T_payer__Opponent
     | T_payer__ParentTargetController
     | T_payer__Player
     | T_payer__ScopedPlayer

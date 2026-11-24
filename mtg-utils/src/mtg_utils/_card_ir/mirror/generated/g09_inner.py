@@ -23,10 +23,10 @@ from mtg_utils._card_ir.mirror.runtime import (
 )
 
 if TYPE_CHECKING:
-    from mtg_utils._card_ir.mirror.generated.g03_additional_modificat import (
+    from mtg_utils._card_ir.mirror.generated.g03_additional_cost import (
         U_amount,
     )
-    from mtg_utils._card_ir.mirror.generated.g04_casting_restrictions import (
+    from mtg_utils._card_ir.mirror.generated.g04_candidate_filter import (
         U_chooser,
         U_condition,
     )
@@ -64,21 +64,21 @@ if TYPE_CHECKING:
     from mtg_utils._card_ir.mirror.generated.g13_qty import (
         U_qty,
     )
-    from mtg_utils._card_ir.mirror.generated.g14_redirect_target import (
+    from mtg_utils._card_ir.mirror.generated.g14_recipient_scope import (
         U_repeat_for,
         U_rhs,
         U_right,
         U_selection,
         U_source_filter,
     )
-    from mtg_utils._card_ir.mirror.generated.g15_spell_filter import (
+    from mtg_utils._card_ir.mirror.generated.g15_sources import (
         S_sub_ability,
         U_subtype_filter,
         U_target_constraints,
-        U_toughness,
     )
-    from mtg_utils._card_ir.mirror.generated.g16_triggers import (
+    from mtg_utils._card_ir.mirror.generated.g16_toughness import (
         S_unless_pay,
+        U_toughness,
     )
 
 
@@ -129,8 +129,10 @@ class S_lose_effect(TypedMirrorNode):
 
 @dataclass(frozen=True)
 class S_metadata(TypedMirrorNode):
-    related_token_ids: list[object]
-    source_printing_ids: list[object]
+    confirmed_misparse: str = MISSING
+    related_token_ids: list[object] = MISSING
+    source_printing_ids: list[object] = MISSING
+    spellbook: list[object] = MISSING
 
 
 @dataclass(frozen=True)
@@ -249,6 +251,21 @@ class T_inner__DayNightIs(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_inner__Difference(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "Difference"
+    left: U_left
+    right: U_right
+
+
+@dataclass(frozen=True)
+class T_inner__DivideRounded(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "DivideRounded"
+    divisor: int
+    inner: U_inner
+    rounding: str
+
+
+@dataclass(frozen=True)
 class T_inner__EventOutcomeWon(TypedMirrorNode):
     _tag: ClassVar[str | None] = "EventOutcomeWon"
 
@@ -267,6 +284,12 @@ class T_inner__HasCityBlessing(TypedMirrorNode):
 @dataclass(frozen=True)
 class T_inner__IsMonarch(TypedMirrorNode):
     _tag: ClassVar[str | None] = "IsMonarch"
+
+
+@dataclass(frozen=True)
+class T_inner__Max(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "Max"
+    exprs: list[U_exprs]
 
 
 @dataclass(frozen=True)
@@ -491,6 +514,12 @@ class T_library_position__Bottom(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_library_position__NthFromTop(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "NthFromTop"
+    n: int
+
+
+@dataclass(frozen=True)
 class T_library_position__RandomWithinTop(TypedMirrorNode):
     _tag: ClassVar[str | None] = "RandomWithinTop"
     n: U_n
@@ -696,10 +725,13 @@ type U_inner = (
     | T_inner__ControllerControlledMatchingAsCast
     | T_inner__CostPaidObjectMatchesFilter
     | T_inner__DayNightIs
+    | T_inner__Difference
+    | T_inner__DivideRounded
     | T_inner__EventOutcomeWon
     | T_inner__Fixed
     | T_inner__HasCityBlessing
     | T_inner__IsMonarch
+    | T_inner__Max
     | T_inner__Multiply
     | T_inner__Not
     | T_inner__Offset
@@ -736,6 +768,7 @@ type U_lhs = T_lhs__Difference | T_lhs__Fixed | T_lhs__Ref | T_lhs__Sum
 type U_library_players = T_library_players__All
 type U_library_position = (
     T_library_position__Bottom
+    | T_library_position__NthFromTop
     | T_library_position__RandomWithinTop
     | T_library_position__Top
 )

@@ -282,20 +282,6 @@ def test_static_token_matches_coin_flip_idiom():
     )
 
 
-def test_coin_flip_promoted_via_production_allowlist_static():
-    """Edgar, King of Figaro's "Two-Headed Coin" flip-fixing static lands
-    as an Unimplemented effect (no SIMPLE_VERB "flip" arm exists); the
-    production ALLOWLIST's "coin_flip" token entry (matched via
-    ``static_token``, NOT the imperative-verb grammar) re-decorates it to
-    the native "flip_coin" concept (CR 705.3)."""
-    tree = _fixture_tree("Edgar, King of Figaro")
-    nodes = tree.effect_concepts("flip_coin")
-    assert len(nodes) == 1
-    assert nodes[0].concept == "flip_coin"
-    assert nodes[0].recovered_by == "coin_flip"
-    assert tag_of(nodes[0].node) == "Unimplemented"
-
-
 def test_coin_flip_promoted_via_production_allowlist_modal():
     """Molten Sentry's modal ETB flip ("As ~ enters, flip a coin. ...")
     lands as an Unimplemented effect; the same ALLOWLIST row recovers it
@@ -426,6 +412,7 @@ from mtg_utils._card_ir.recovery import (  # noqa: E402
     ANY_TARGET,
     CLAUSE_MARKS,
     EACH_OBJECT,
+    EACH_PERMANENT,
     IMPERATIVE,
     MANY,
     ON_SELF,
@@ -535,6 +522,57 @@ def test_each_object_is_bound_to_the_tokens_verb():
     assert EACH_OBJECT not in _subject(
         "Put a +1/+1 counter on ~ for each strength vote", "place_counter"
     )
+
+
+@pytest.mark.parametrize(
+    ("raw", "token", "held"),
+    [
+        (
+            "Destroy all creatures that aren't of a type chosen this way",
+            "destroy",
+            True,
+        ),
+        (
+            (
+                "deal 2 damage to each white creature and each player who controls "
+                "a white creature"
+            ),
+            "damage",
+            True,
+        ),
+        ("exile each permanent unless it's colorless", "exile", True),
+        ("Return all nonland permanents not chosen this way", "bounce", True),
+        # each player, not each creature: the count names the creatures
+        (
+            (
+                "deal damage to each opponent equal to the number of tapped "
+                "creatures that opponent controls"
+            ),
+            "damage",
+            False,
+        ),
+        # one combat's creatures
+        ("it deals 2 damage to each creature blocking it", "damage", False),
+        # cards in a zone, a chosen set, a land type
+        ("exile all creature cards from graveyards", "exile", False),
+        ("exile all cards from that player's hand", "exile", False),
+        ("destroy each of the chosen creatures that didn't attack", "destroy", False),
+        ("destroy all Plains that weren't chosen this way", "destroy", False),
+    ],
+)
+def test_each_permanent_is_the_verbs_own_board_object(raw, token, held):
+    """The sweep object ``recovered_sweep`` and the parked mass bounce read."""
+    assert (EACH_PERMANENT in _subject(raw, token)) is held
+
+
+def test_a_counter_removal_is_its_own_token_no_doer_concept():
+    from mtg_utils._card_ir.clause_grammar import parse_clause
+
+    raw = "remove a time counter from each other card you own in exile"
+    assert parse_clause(raw) == "remove_counter"
+    # no kindless counter doer: the removed kind isn't on a parked node
+    assert ALLOWLIST["remove_counter"].concept == OTHER
+    assert "Exile" in read_clause(raw, None, ALLOWLIST["remove_counter"])[2]
 
 
 @pytest.mark.parametrize(

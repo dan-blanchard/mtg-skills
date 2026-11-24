@@ -23,10 +23,10 @@ from mtg_utils._card_ir.mirror.runtime import (
 )
 
 if TYPE_CHECKING:
-    from mtg_utils._card_ir.mirror.generated.g03_additional_modificat import (
+    from mtg_utils._card_ir.mirror.generated.g03_additional_cost import (
         U_attr,
     )
-    from mtg_utils._card_ir.mirror.generated.g04_casting_restrictions import (
+    from mtg_utils._card_ir.mirror.generated.g04_candidate_filter import (
         U_colors,
     )
     from mtg_utils._card_ir.mirror.generated.g06_costs import (
@@ -41,19 +41,22 @@ if TYPE_CHECKING:
     from mtg_utils._card_ir.mirror.generated.g09_inner import (
         U_land_filter,
     )
+    from mtg_utils._card_ir.mirror.generated.g10_modifications import (
+        U_parity,
+    )
     from mtg_utils._card_ir.mirror.generated.g12_properties import (
         U_properties,
     )
     from mtg_utils._card_ir.mirror.generated.g13_qty import (
         U_qty,
     )
-    from mtg_utils._card_ir.mirror.generated.g14_redirect_target import (
+    from mtg_utils._card_ir.mirror.generated.g14_recipient_scope import (
         U_reference,
         U_relation,
         U_scope,
         U_source,
     )
-    from mtg_utils._card_ir.mirror.generated.g16_triggers import (
+    from mtg_utils._card_ir.mirror.generated.g16_toughness import (
         U_value,
     )
 
@@ -71,6 +74,17 @@ class S_profile(TypedMirrorNode):
 
 
 # --- tagged shapes (discriminated enum nodes) ---
+
+
+@dataclass(frozen=True)
+class T_player__All(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "All"
+
+
+@dataclass(frozen=True)
+class T_player__AllExcept(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "AllExcept"
+    exclude: U_exclude
 
 
 @dataclass(frozen=True)
@@ -130,13 +144,19 @@ class T_player__Opponent(TypedMirrorNode):
 class T_player__OpponentDealtDamage(TypedMirrorNode):
     _tag: ClassVar[str | None] = "OpponentDealtDamage"
     kind: str
-    min_sources: int
+    relation: U_relation
     source: U_source
+    min_sources: int = MISSING
 
 
 @dataclass(frozen=True)
 class T_player__OpponentOfTriggeringPlayer(TypedMirrorNode):
     _tag: ClassVar[str | None] = "OpponentOfTriggeringPlayer"
+
+
+@dataclass(frozen=True)
+class T_player__Owner(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "Owner"
 
 
 @dataclass(frozen=True)
@@ -172,6 +192,12 @@ class T_player__PlayerAttribute(TypedMirrorNode):
     comparator: str
     relation: U_relation
     value: U_value
+
+
+@dataclass(frozen=True)
+class T_player__PlayerMatching(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "PlayerMatching"
+    player: U_player
 
 
 @dataclass(frozen=True)
@@ -241,6 +267,13 @@ class T_player_filter__All(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_player_filter__AllExcept(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "AllExcept"
+    exclude: U_exclude
+    relation: U_relation
+
+
+@dataclass(frozen=True)
 class T_player_filter__Controller(TypedMirrorNode):
     _tag: ClassVar[str | None] = "Controller"
 
@@ -273,6 +306,7 @@ class T_player_scope__All(TypedMirrorNode):
 class T_player_scope__AllExcept(TypedMirrorNode):
     _tag: ClassVar[str | None] = "AllExcept"
     exclude: U_exclude
+    relation: U_relation = MISSING
 
 
 @dataclass(frozen=True)
@@ -556,6 +590,11 @@ class T_prop__EnteredThisTurn(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_prop__FaceDown(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "FaceDown"
+
+
+@dataclass(frozen=True)
 class T_prop__HasAttachment(TypedMirrorNode):
     _tag: ClassVar[str | None] = "HasAttachment"
     kind: str
@@ -565,6 +604,18 @@ class T_prop__HasAttachment(TypedMirrorNode):
 class T_prop__InTrackedSet(TypedMirrorNode):
     _tag: ClassVar[str | None] = "InTrackedSet"
     id: int
+
+
+@dataclass(frozen=True)
+class T_prop__InZone(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "InZone"
+    zone: str
+
+
+@dataclass(frozen=True)
+class T_prop__ManaValueParity(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "ManaValueParity"
+    parity: U_parity
 
 
 @dataclass(frozen=True)
@@ -600,7 +651,9 @@ class T_prop__ZoneChangedThisTurn(TypedMirrorNode):
 # --- discriminated-union aliases (one per tagged content_key) ---
 
 type U_player = (
-    T_player__AllPlayers
+    T_player__All
+    | T_player__AllExcept
+    | T_player__AllPlayers
     | T_player__Any
     | T_player__AnyTurn
     | T_player__Controller
@@ -611,12 +664,14 @@ type U_player = (
     | T_player__Opponent
     | T_player__OpponentDealtDamage
     | T_player__OpponentOfTriggeringPlayer
+    | T_player__Owner
     | T_player__ParentObjectTarget
     | T_player__ParentTarget
     | T_player__ParentTargetController
     | T_player__ParentTargetOwner
     | T_player__Player
     | T_player__PlayerAttribute
+    | T_player__PlayerMatching
     | T_player__PostReplacementDamageTarget
     | T_player__RecipientController
     | T_player__ScopedPlayer
@@ -629,6 +684,7 @@ type U_player_a = T_player_a__Controller | T_player_a__Player
 type U_player_b = T_player_b__Player | T_player_b__Typed
 type U_player_filter = (
     T_player_filter__All
+    | T_player_filter__AllExcept
     | T_player_filter__Controller
     | T_player_filter__Opponent
     | T_player_filter__OpponentOtherThanTriggering
@@ -685,8 +741,11 @@ type U_prop = (
     | T_prop__AttackedThisTurn
     | T_prop__EnchantedBy
     | T_prop__EnteredThisTurn
+    | T_prop__FaceDown
     | T_prop__HasAttachment
     | T_prop__InTrackedSet
+    | T_prop__InZone
+    | T_prop__ManaValueParity
     | T_prop__Named
     | T_prop__SameName
     | T_prop__SharesQuality

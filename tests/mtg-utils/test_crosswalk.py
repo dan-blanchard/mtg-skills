@@ -41,7 +41,6 @@ from mtg_utils._card_ir.crosswalk import (
     CIRCLED_COLORS_RESIDUE,
     OTHER,
     PARTNER_GROUPS_PHASE_COLLAPSES,
-    UNPARSED_ACTIVATION_GATE,
     AbilityUnit,
     ConceptTree,
     build_concept_tree,
@@ -2684,18 +2683,15 @@ def test_plus_one_matters_rumbling_ruin_count_operand_recovered():
     assert ("plus_one_matters", "you", "") in _idents("Rumbling Ruin")
 
 
-def test_plus_one_matters_deepwood_denizen_cost_reduction_recovered():
-    """Deepwood Denizen (ADR-0039 grammar sprint task #82, CR 118.7 /
-    122.1): "{5}{G}, {T}: Draw a card. This ability costs {1} less to
-    activate for each +1/+1 counter on creatures you control" — phase
-    structures the mana/tap cost and the Draw payoff but drops the
-    cost-reduction sub-clause as ``Unimplemented(name='this')``.
-    ``clause_grammar``'s ``counter_cost_reduction`` verb + ``recovery.
-    ALLOWLIST`` now re-decorate the residue
-    (``recovered_by="counter_cost_reduction"``), read via the SAME
-    dedicated arm as Rumbling Ruin's ``count_operand``. Formerly the
-    ``plus_one_deepwood_denizen_cost_reduction_unimplemented`` bridge
-    (retired this sprint)."""
+def test_plus_one_matters_deepwood_denizen_cost_reduction():
+    """Deepwood Denizen (CR 118.7 / 122.1): "{5}{G}, {T}: Draw a card. This
+    ability costs {1} less to activate for each +1/+1 counter on creatures you
+    control". Through v0.118.0 the reduction parked as a residue the
+    ``counter_cost_reduction`` recovery token re-decorated; since phase v0.131.0
+    it is the ability's own ``cost_reduction``, whose ``count`` is a
+    ``Ref{CountersOnObjects{counter_type: P1P1}}`` over creatures you control —
+    read beside the ``cost_reduction_count_filters`` arm (a counted filter
+    carrying a +1/+1-counter predicate)."""
     assert ("plus_one_matters", "you", "") in _idents("Deepwood Denizen")
 
 
@@ -2834,17 +2830,12 @@ def test_any_counter_matters_excludes_experience_counter(name):
     assert "any_counter_matters" not in _keys(name)
 
 
-def test_any_counter_matters_buried_token_static_text_idiom():
-    """Moira Brown, Guide Author (CR 122.1): the granted token's OWN static
-    ability ("Equipped creature gets +1/+1 for each quest counter among
-    permanents you control") is buried two levels deep (trigger → make_token
-    effect → the token's own static_abilities), and phase's parse of that
-    buried def drops the "for each quest counter" scale to a FIXED
-    ``AddPower(value=1)``/``AddToughness(value=1)`` pair — no ``Ref``/
-    ``dynamic_count`` for :func:`count_operand_qty` to read. A bucket-B
-    text-idiom fallback on the def's own ``description`` (gated on
-    count_operand_qty finding NOTHING, so a genuine structured scale is never
-    double-read) recovers it."""
+def test_any_counter_matters_reads_a_made_tokens_static():
+    """Moira Brown, Guide Author (CR 122.1): the made token's own static
+    ("Equipped creature gets +1/+1 for each quest counter among permanents you
+    control") sits two levels under the unit (trigger → make_token effect → the
+    token's ``static_abilities``); its ``CountersOnObjects`` scale is read
+    there."""
     assert ("any_counter_matters", "you", "") in _idents("Moira Brown, Guide Author")
 
 
@@ -3334,14 +3325,14 @@ def test_voltron_matters_bridge_warchanter_skald_condition_dropped():
     assert ("voltron_matters", "you", "") in _idents("Warchanter Skald")
 
 
-def test_voltron_matters_bridge_forge_anew_paycost_unlinked():
-    """ADR-0039 W7 endgame: PROMOTED via the ``forge_anew_equip_cost_
-    paycost_unlinked`` ledgered bridge — "pay {0} rather than pay the
-    equip cost" parses as a bare unlinked ``PayCost`` node with no
-    reachable Equipment/equip-keyword tag tying it to the granted timing
-    permission (CR 601.2f/702.6c). Bruenor Battlehammer's structurally
-    identical clause is correctly served through its OWN structural
-    ObjectCount arm instead (never reaches the bridge)."""
+def test_voltron_matters_forge_anew_free_equip():
+    """Forge Anew's "pay {0} rather than pay the equip cost of the first equip
+    ability you activate": through v0.118.0 a bare unlinked ``PayCost`` the
+    ``forge_anew_equip_cost_paycost_unlinked`` bridge served; since phase
+    v0.131.0 a static ``AlternativeKeywordCost{keyword: Equip}`` mode, which
+    the voltron read of equip-cost reducers keys on (beside
+    ``ReduceAbilityCost``). Bruenor Battlehammer carries the same mode and is
+    served through its own ObjectCount arm."""
     assert ("voltron_matters", "you", "") in _idents("Forge Anew")
     assert ("voltron_matters", "you", "") in _idents("Bruenor Battlehammer")
 
@@ -3646,32 +3637,6 @@ def test_edict_makers_excludes_you_sac(name):
     COST, never an effect; Vexing Devil's "If a player does, sacrifice ~" after an
     effect aimed at an opponent) is NOT an edict (CR 701.21a)."""
     assert "edict_makers" not in _keys(name)
-
-
-@pytest.mark.retirement_canary
-@pytest.mark.parametrize(
-    "name",
-    [
-        "Undercity Plague",
-        "Din of the Fireherd",
-        "Nicol Bolas, Planeswalker",
-    ],
-)
-def test_chained_sacrifice_actor_dropped_canary(name):
-    """Retirement canary for ``lanes._shared._chained_sacrifice_actor``: phase
-    v0.104.0 drops the subject of a chained "…, then sacrifices …" clause (a
-    sacrifice naming no player — ``sacrifice_names_no_player``). Once phase
-    carries the actor, delete the chained read."""
-    from mtg_utils._card_ir.crosswalk import sacrifice_names_no_player
-
-    dropped = [
-        c
-        for t in trees_for(test_card(name))
-        for u in t.units
-        for c in u.effects
-        if c.concept == "sacrifice" and sacrifice_names_no_player(u.node, c.node)
-    ]
-    assert dropped, f"{name}: RETIRE-READY — phase now names the sacrificing player"
 
 
 def test_land_sacrifice_makers_fires():
@@ -3992,11 +3957,11 @@ def test_lifeloss_makers_defiler_cost_reduction():
         "Anavolver",  # same APC "Volver" cycle idiom
     ],
 )
-def test_lifeloss_makers_degavolver_bridge_membership(name):
-    """MEMBERSHIP pins (survive graduation): the degavolver_kicker_
-    paylife_regen ledgered bridge (bridge_ledger.BRIDGES) — the granted
-    "Pay N life: <ability>" half of a kicked replacement is dropped with
-    ZERO trace (no PayLife/GrantAbility node anywhere)."""
+def test_lifeloss_makers_degavolver_kicked_grant(name):
+    """The granted "Pay N life: <ability>" half of a kicked replacement: since
+    phase v0.131.0 a ``GenericEffect`` static carrying a ``GrantAbility`` whose
+    activated ability costs ``PayLife`` (it was dropped whole before, served by
+    the retired ``degavolver_kicker_paylife_regen`` bridge)."""
     assert ("lifeloss_makers", "you", "") in _idents(name)
 
 
@@ -5190,13 +5155,17 @@ def test_dice_makers_reroll_only_synthesis():
     assert ("dice_makers", "you", "") in _idents("Monitor Monitor")
 
 
-def test_coin_flip_recovers_flip_fixing_static():
-    """ADR-0038 recovery: Edgar, King of Figaro's "Two-Headed Coin — The
-    first time you flip one or more coins each turn, those coins come up
-    heads and you win those flips." lands as an Unimplemented node with no
-    SIMPLE_VERB "flip" arm; the shared grammar's STATIC_TOKENS "coin_flip"
-    row re-decorates it to the native "flip_coin" concept (CR 705.3)."""
-    assert ("coin_flip", "you", "") in _idents("Edgar, King of Figaro")
+def test_coin_flip_reads_the_flip_fixing_static():
+    """Edgar, King of Figaro's "Two-Headed Coin — The first time you flip one or
+    more coins each turn, those coins come up heads and you win those flips" (a
+    flip whose result an effect states, CR 705.3): through v0.118.0 an
+    Unimplemented residue the recovery stage's "coin_flip" token re-decorated
+    (and the ``flip_result_fixer_parse_failure`` bridge gave the ``fixer``
+    subject); since phase v0.131.0 a typed ``WinFirstCoinFlipSetEachTurn``
+    static mode, which the coin_flip lane reads as a flip fixer."""
+    idents = _idents("Edgar, King of Figaro")
+    assert ("coin_flip", "you", "") in idents
+    assert ("coin_flip", "you", "fixer") in idents
 
 
 def test_coin_flip_recovers_modal_etb_flip():
@@ -6447,19 +6416,13 @@ def test_opponent_discard_tk_sticker_recovered():
     assert ("opponent_discard", "opponents", "") in _idents("Yawgmoth Merfolk Soul")
 
 
-def test_opponent_discard_words_of_waste_promoted_structural():
-    """PROMOTED off the ``opp_discard_words_of_waste_replacement_the_
-    residue`` ledgered bridge (ADR-0039 grammar sprint, task #82): Words
-    of Waste's "{1}: The next time you would draw a card this turn, each
-    opponent discards a card instead." — a REPLACEMENT-idiom "the next
-    time ... instead" clause (CR 614.1) has no imperative verb to peel,
-    so phase's dominant-token residue falls back to the sentence's
-    leading determiner ("the"). The clause still recovers a
-    concept="discard" node via the ADR-0038 ALLOWLIST token, but with no
-    recipient field of its own — ``_opponent_discard``'s ``fire()`` now
-    resolves the direction in-line off the residue's own preserved text
-    (``_OPP_DISCARD_REPLACEMENT_NEXT_TIME_RX``), scope "opponents" (CR
-    701.9)."""
+def test_opponent_discard_words_of_waste_replacement_effect():
+    """Words of Waste's "{1}: The next time you would draw a card this turn,
+    each opponent discards a card instead." (CR 614.1a): a
+    ``CreateDrawReplacement`` whose ``replacement_effect`` is a ``Discard``
+    under an ``Opponent`` ``player_scope`` — one of the ability's effects, the
+    opponents', never your own discard outlet (CR 701.9)."""
+    assert "discard_outlet" not in _keys("Words of Waste")
     assert ("opponent_discard", "opponents", "") in _idents("Words of Waste")
 
 
@@ -7589,14 +7552,10 @@ def test_mass_removal_reads_a_one_sided_shrink():
 
 def test_mass_removal_combat_debuff_vetoes():
     """A flanking-style -1/-1 hits one combat's blockers, never the board
-    (CR 702.25a) — but phase drops the "blocking it" clause from the PumpAll
-    filter (phase_parse_bug [P12]), leaving Knight of Valor a bare
-    WithoutKeyword:Flanking sweep and Baneblade Scoundrel a bare
-    Typed[Creature] sweep. Two vetoes restore the scope: the
-    WithoutKeyword:Flanking predicate (the flanking template's blocker
-    filter) and the becomes_blocked/blocks trigger unit. The combat payoff
-    itself still reads (blocked_matters). The vetoes retire through
-    ``test_phase_gaps_dropped.test_combat_scope_shrinks_parse_as_board_sweeps``."""
+    (CR 702.25a): the mass effect's filter names the creatures blocking its
+    source (``BlockingSource`` — Knight of Valor's activated shrink, Baneblade
+    Scoundrel's trigger). The combat payoff itself still reads
+    (blocked_matters)."""
     assert "mass_removal" not in _keys("Knight of Valor")
     assert "mass_removal" not in _keys("Baneblade Scoundrel")
     assert "blocked_matters" in _keys("Baneblade Scoundrel")
@@ -8145,7 +8104,6 @@ def test_dies_recursion_add_keyword_grant_arm(name):
         "Fungal Fortitude",  # returns the enchanted CREATURE, tapped
         "Journey to Eternity",  # returns the creature, then flips itself
         "Abduction",  # returns the enchanted creature (control-theft Aura)
-        "Avatar Destiny",  # returns the enchanted creature
         "False Demise",  # returns the ENCHANTED CARD (Aura self-return)
         "Fool's Demise",  # returns the ENCHANTED CARD
         "Ghoulish Impetus",  # returns the ENCHANTED CARD
@@ -10261,10 +10219,6 @@ def test_cheat_into_play_bridge_player_prefix(name, subjects):
             "Eladamri, Korvecdal",
             {""},
         ),  # dropped "if you reveal a creature card" condition
-        (
-            "Curse of Misfortunes",
-            {""},
-        ),  # SearchLibrary filter emptied (self-ref "Curse")
         ("Empty the Laboratory", {""}),  # RevealUntil filter/count emptied (dynamic X)
         (
             "Wakanda Forever!",
@@ -10280,6 +10234,14 @@ def test_cheat_into_play_bridge_dropped_clause(name, subjects):
     filter/count, a swallowed condition with zero residue, or the reveal/
     put mechanism itself never becoming a node). CR 601.2/400.7."""
     assert _cheat_subjects_of(name) == subjects
+
+
+def test_cheat_into_play_reads_curse_of_misfortunes_typed_search():
+    """Curse of Misfortunes' "search your library for a Curse card … put it onto
+    the battlefield attached to that player": since phase v0.131.0 the
+    SearchLibrary filter is a typed Enchantment — Curse (empty before, served by
+    ``cheat_dropped_clause_zero_residue``), so the put names its card type."""
+    assert _cheat_subjects_of("Curse of Misfortunes") == {"Enchantment"}
 
 
 @pytest.mark.parametrize(
@@ -10736,7 +10698,7 @@ def test_second_spell_matters_condition_arm():
 def test_second_spell_matters_static_condition_arm():
     """The static-continuous CONDITION form (b3 recall): Brightspear Zealot's
     "+2/+0 as long as you've cast two or more spells this turn" hangs a
-    ``QuantityComparison`` over ``SpellsCastThisTurn`` (GE 2) on a
+    ``QuantityComparison`` over this turn's ``SpellsCast`` (GE 2) on a
     continuous ability — a spell-velocity payoff (CR 603.2). A "three or
     more spells" static (Arclight Phoenix — a broader velocity lane, not
     the second-spell counter) never fires."""
@@ -10794,7 +10756,7 @@ def test_second_spell_matters_excludes_unrelated_two_spells_text(name):
     """Two legacy over-fires the ``"cast two or more spells"`` bare-text regex
     catches but which are NOT the spell-velocity build-around (ADJUDICATED
     SHEDS, ADR-0038 W3 batch 3): Ertai's Scorn's cost reduction counts the
-    OPPONENT's spell count (``SpellsCastThisTurn scope=Opponents``), excluded by
+    OPPONENT's spell count (``SpellsCast scope=Opponents``), excluded by
     :func:`~mtg_utils._card_ir.crosswalk.spell_velocity_static_two`'s own
     Controller-scope gate (a documented b3 design boundary, not this session's
     call); Call of the Full Moon's "if a player cast two or more spells LAST
@@ -10817,9 +10779,9 @@ def test_second_spell_matters_excludes_werewolf_transform_class(name):
     more spells last turn, transform this creature." Legacy's bare
     ``"cast two or more spells"`` regex over-fires on all ~32; the crosswalk
     correctly excludes them on TWO independent grounds, not just wording
-    luck: (1) the condition's qty node is ``SpellsCastLastTurn``, not
+    luck: (1) the condition's qty counts ``window: LastTurn``, not
     :func:`~mtg_utils._card_ir.crosswalk.spell_velocity_static_two`'s
-    required ``SpellsCastThisTurn``; (2) the werewolf's OWN generated
+    required this-turn ``SpellsCast``; (2) the werewolf's OWN generated
     description never contains "you cast" or an ordinal word, so
     ``_second_spell_node_text`` doesn't match either. A genuine crosswalk
     precision gain over the legacy byte mirror, not an over-fire risk."""
@@ -15460,7 +15422,7 @@ def test_free_creature_payoff_etb_gate():
 def test_free_spell_storm_selfref_scaler_shapes():
     """CR 601.2f/118.7: a SelfRef ModifyCost{Reduce} static whose
     dynamic_count is the cast-this-turn shape fires — the ObjectCount-with-
-    Another form (Thrasta) and the SpellsCastThisTurn{Controller} form
+    Another form (Thrasta) and the this-turn SpellsCast{Controller} form
     (Demilich); an opponent-cast scaler is excluded by the same gate
     (Delightful Discovery — pop False)."""
     assert ("free_spell_storm", "you", "") in _idents("Thrasta, Tempest's Roar")
@@ -16661,13 +16623,16 @@ def test_artifacts_matter_excludes_symmetric_death_punisher():
 
 
 def test_artifacts_matter_battlefield_library_bounce():
-    """Rebuking Ceremony's "Put two target artifacts on top of their
-    owners' libraries." is a BATTLEFIELD-sourced library-position tuck (CR
-    401.4), not graveyard recursion (CR 400.7) — a DIFFERENT provision
-    from the existing GY-recursion arm but the SAME broad "cares about the
-    Artifact type" tell (CR 301). The origin is ``None`` (a targeted
-    spell's implicit battlefield source), not ``Graveyard``."""
-    assert ("artifacts_matter", "you", "") in _idents("Rebuking Ceremony")
+    """A battlefield-sourced library tuck phase types as a targeted
+    ``ChangeZone`` (Zoyowa's Justice's "The owner of target artifact or
+    creature … shuffles it into their library") carries the same "cares
+    about the Artifact type" tell as the graveyard-recursion arm. Phase v0.131.0
+    types Rebuking Ceremony's "Put two target artifacts on top of their owners'
+    libraries" as the ``PutAtLibraryPosition`` it writes for every other such
+    tuck (Natural Obsolescence, Disempower), which this arm never read: plain
+    removal."""
+    assert ("artifacts_matter", "you", "") in _idents("Zoyowa's Justice")
+    assert _keys("Rebuking Ceremony") == {"removal"}
 
 
 def test_artifacts_matter_search_outside_game():
@@ -18935,39 +18900,6 @@ def test_cryptic_spires_mana_is_still_a_residue_canary():
 
 
 @pytest.mark.retirement_canary
-def test_boxing_ring_gate_is_still_a_residue_canary():
-    """Retirement canary for ``crosswalk.reads.UNPARSED_ACTIVATION_GATE``. Phase
-    v0.94.0 parks Boxing Ring's "Activate only if you control a creature that fought
-    this turn" as an ``unparsed_condition`` residue in its Treasure ability's effect
-    chain, with no ``activation_restrictions`` entry."""
-    units = [
-        u
-        for tree in trees_for(test_card("Boxing Ring"))
-        for u in tree.units
-        if any(c.concept == "make_token" for c in u.effects)
-    ]
-    typed = any(
-        tag_of(a) == "RequiresCondition"
-        for u in units
-        if isinstance(ars := getattr(u.node, "activation_restrictions", None), list)
-        for a in ars
-    )
-    residue = any(
-        (getattr(c.node, "description", "") or "").startswith(UNPARSED_ACTIVATION_GATE)
-        for u in units
-        for c in u.effects
-        if tag_of(c.node) == "Unimplemented"
-    )
-    retire = (
-        "crosswalk.reads._unit_activation_gated: RETIRE-READY — phase now carries "
-        "Boxing Ring's activation condition. Delete UNPARSED_ACTIVATION_GATE, its "
-        "residue arm in _unit_activation_gated and this canary."
-    )
-    assert residue, retire
-    assert not typed, retire
-
-
-@pytest.mark.retirement_canary
 def test_verdant_mastery_piles_are_still_lost_canary():
     """Retirement canary for ``crosswalk.reads.lost_pile_count``. Phase v0.94.0
     loses Verdant Mastery's piles ("Put two of them onto the battlefield tapped
@@ -19203,7 +19135,8 @@ def _trigger_events(name: str) -> set[str]:
     [
         "The Gitrog Monster",  # "land cards … into your graveyard from anywhere"
         "Emrakul, the Aeons Torn",  # "~ is put into a graveyard from anywhere"
-        "Patron of the Nezumi",  # owner-scoped like Moonshadow's "permanent cards"
+        # "from anywhere other than the battlefield": the clause's origin.
+        "Disa the Restless",
     ],
 )
 def test_graveyard_arrival_with_no_origin_is_not_a_death(name):
@@ -19219,6 +19152,9 @@ def test_graveyard_arrival_with_no_origin_is_not_a_death(name):
     "name",
     [
         "Aetherworks Marvel",  # "a permanent you control is put into a graveyard"
+        # "a permanent is put into an opponent's graveyard": phase v0.131.0
+        # writes the battlefield origin (CR 110.1: a permanent is on it).
+        "Patron of the Nezumi",
         "Genju of the Cedars",  # "enchanted Forest is put into a graveyard"
         "Tezzeret's Touch",  # "enchanted artifact is put into a graveyard"
         "Silent-Chant Zubera",  # origin Battlefield: a plain "dies"

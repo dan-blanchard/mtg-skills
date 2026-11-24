@@ -55,6 +55,7 @@ from mtg_utils._card_ir.crosswalk import (
     MASS_FILTER_EFFECT_TAGS,
     PERMANENT_CARD_TYPES,
     SUSPENDED_CARD,
+    SWEPT_PERMANENT_TYPES,
     AbilityUnit,
     ConceptNode,
     ConceptTree,
@@ -123,9 +124,13 @@ from mtg_utils._card_ir.mirror.runtime import (
 )
 from mtg_utils._card_ir.recovery import (
     ANY_TARGET,
+    EACH_PERMANENT,
+    FOR_EACH,
+    MASS,
     ON_SELF,
     TARGET_OBJECT,
     YOUR_TARGET,
+    YOURS,
     done_by_another,
 )
 from mtg_utils._card_ir.text_idioms import _LIB_SEARCH_PLAYER_ACTIONS
@@ -768,6 +773,33 @@ def _recovered_removal(c: ConceptNode) -> bool:
             ANY_TARGET in subject or any(t in _RECOVERED_BURN_TYPES for t in subject)
         )
     return False
+
+
+#: The recovered verbs a sweep is read off (:func:`recovered_sweep`), and the
+#: ones whose swept creatures die.
+_RECOVERED_SWEEP_VERBS = frozenset({"destroy", "exile", "damage"})
+_RECOVERED_KILL_VERBS = frozenset({"destroy", "damage"})
+
+
+def recovered_sweep(
+    c: ConceptNode,
+    *,
+    verbs: frozenset[str] = _RECOVERED_SWEEP_VERBS,
+    types: frozenset[str] = SWEPT_PERMANENT_TYPES,
+) -> bool:
+    """A recovered destroy / exile / burn residue (tokens ``destroy`` / ``exile``
+    / ``damage``) whose own object is every permanent of a swept type (the
+    seam's ``EACH_PERMANENT``: "Destroy all creatures that aren't of a type
+    chosen this way" — Harsh Mercy; "deal 2 damage to each white creature" —
+    Disorder; "exile each creature not chosen …" — Sculpted Sunburst): a sweep
+    affects every object it describes (CR 115.10), the typed ``DestroyAll`` /
+    ``ChangeZoneAll`` / ``DamageAll`` arms' parked twin. Not one naming only
+    your own objects (the typed arms' ``You`` controller veto). ``verbs`` and
+    ``types`` read another mass verb the same way (a parked mass bounce)."""
+    if c.recovered_by not in verbs:
+        return False
+    subject = set(c.subject)
+    return EACH_PERMANENT in subject and YOURS not in subject and bool(subject & types)
 
 
 #: The single-target damage shapes (never a ``DamageAll`` / ``DamageEachPlayer``
@@ -2689,7 +2721,8 @@ def _land_destruction(tree: ConceptTree) -> list[Signal]:
         vc = getattr(unit.node, "valid_card", None)
         if (
             unit.origin != "trigger"
-            or filter_core_types(vc) != ("Land",)
+            # "a land card" names the card too (``Card``, phase v0.131.0)
+            or set(filter_core_types(vc)) - {"Card"} != {"Land"}
             or filter_controller(vc) == "You"
         ):
             continue
@@ -2774,6 +2807,12 @@ def kills_creatures_en_masse(tree: ConceptTree) -> bool:
                 set(filter_core_types(effect_filter(c.node))) & CREATURE_OR_PERMANENT
             ):
                 return True
+            # a parked destroy or burn sweep (:func:`recovered_sweep`) over
+            # creatures; a parked exile sweep moves them without their dying
+            if recovered_sweep(c, verbs=_RECOVERED_KILL_VERBS) and (
+                set(c.subject) & CREATURE_OR_PERMANENT
+            ):
+                return True
     return False
 
 
@@ -2782,9 +2821,19 @@ def _returns_graveyard_creatures_en_masse(unit: AbilityUnit) -> bool:
     battlefield (CR 700.4's reverse — the board refill after a wipe): a
     ``ChangeZoneAll`` graveyard → battlefield of creature cards not limited to an
     opponent's (Storm of Souls, Raise the Past, Patriarch's Bidding), or of the
-    set an earlier clause exiled from graveyards (Living Death, Living End)."""
+    set an earlier clause exiled from graveyards (Living Death, Living End). A
+    parked one reads the seam's marks: a recovered reanimation of creature cards
+    (:func:`recovered_card_recursion`) over "all" / "each" of them (``MASS``),
+    not one per player or object (``FOR_EACH``)."""
     exiled_creatures = False
     for c in unit.effects:
+        if (
+            c.recovered_by == "reanimate"
+            and recovered_card_recursion(c, ("Creature",))
+            and MASS in c.subject
+            and FOR_EACH not in c.subject
+        ):
+            return True
         if tag_of(c.node) != "ChangeZoneAll":
             continue
         origin, dest = change_zone_dirs(c.node)

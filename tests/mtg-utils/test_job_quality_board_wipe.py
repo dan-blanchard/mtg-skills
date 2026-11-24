@@ -196,7 +196,8 @@ def test_a_draw_each_player_may_get_is_no_rider():
 
 def test_a_choice_the_filter_never_reads_limits_the_sweep():
     """Phase keeps Harsh Mercy's "each player chooses a creature type" and Sudden
-    Demise's "choose a color" as a Choose node but drops the clause the choice
+    Demise's "choose a color" as a Choose node but drops (Sudden Demise) or parks
+    (Harsh Mercy, read through the recovery stage) the clause the choice
     limits: each player keeps their type (a spare), Sudden Demise reaches one
     colour (narrow). Kindred Dominance's filter reads its choice."""
     mercy = board_wipe.features(_real("Harsh Mercy"))
@@ -208,14 +209,17 @@ def test_a_choice_the_filter_never_reads_limits_the_sweep():
 
 @pytest.mark.retirement_canary
 def test_harsh_mercy_chosen_type_dropped_canary():
-    """Phase (v0.104.0) drops Harsh Mercy's "that aren't of a type chosen this
-    way": its DestroyAll's filter carries no predicate. RETIRE-READY when this
-    fails: ``board_wipe._dropped_choice`` then reads nothing for it (the filter
-    reads the choice) and pins nothing; keep it for the next drop or delete it."""
+    """Phase parks Harsh Mercy's "Destroy all creatures that aren't of a type
+    chosen this way" whole (v0.131.0; through v0.118.0 a ``DestroyAll`` whose
+    filter carried no predicate), so no filter reads the choice. RETIRE-READY
+    when this fails: ``board_wipe._dropped_choice`` then reads nothing for it
+    (the filter reads the choice) and pins nothing; keep it for the next drop or
+    delete it."""
     (face,) = test_phase_records("Harsh Mercy")
     (spell,) = face["abilities"]
     assert spell["effect"]["type"] == "Choose"
-    assert spell["sub_ability"]["effect"]["target"]["properties"] == []
+    sweep = spell["sub_ability"]["effect"]
+    assert sweep["type"] == "Unimplemented" or sweep["target"]["properties"] == []
 
 
 @pytest.mark.parametrize(

@@ -26,7 +26,10 @@ from mtg_utils._analysis.lanes._shared import (
     _target_owner_beneficiary_scope,
     _tuck_preceded_by_selection,
 )
-from mtg_utils._analysis.lanes.removal_tutors import kills_creatures_en_masse
+from mtg_utils._analysis.lanes.removal_tutors import (
+    kills_creatures_en_masse,
+    recovered_sweep,
+)
 from mtg_utils._analysis.signal_base import (
     Signal,
     _clauses,
@@ -36,6 +39,7 @@ from mtg_utils._analysis.tree_synthesis import (
     untaps_your_lands,
 )
 from mtg_utils._card_ir.crosswalk import (
+    BLOCK_EVENTS,
     CREATURE_OR_PERMANENT,
     DYNAMIC_PT_SET_MODS,
     SWEPT_PERMANENT_TYPES,
@@ -69,7 +73,6 @@ from mtg_utils._card_ir.crosswalk import (
     filter_owned_controller,
     filter_predicates,
     filter_subtypes,
-    filter_without_keywords,
     gives_each_player_ramp,
     is_attacking_team_filter,
     is_creature_population,
@@ -1011,6 +1014,15 @@ def _discard_outlet(tree: ConceptTree) -> list[Signal]:
             # precedent: a wheel hits you too).
             if c.recovered_by == "discard" and OTHER_PLAYER in c.reading:
                 continue
+            # … or follows an opponent's revealed hand in a mode whose own
+            # text the unit doesn't carry ("Target opponent reveals their hand
+            # and discards all multicolored cards" — Shatter Assumptions): the
+            # revealing player discards.
+            if c.recovered_by == "discard" and any(
+                discard_recipient_scope(r.node) == "opponents"
+                for r in unit.effect_concepts("reveal_hand")
+            ):
+                continue
             return [Signal("discard_outlet", "you", "", c.raw, tree.name, "high")]
         # The unit's own node, plus the casting costs merged onto it; a cost
         # both reach (a top-level activation cost, a carrier unit's own node) is
@@ -1110,17 +1122,11 @@ def _mass_removal(tree: ConceptTree) -> list[Signal]:
 
     The type gate (:data:`SWEPT_PERMANENT_TYPES`) keeps "destroy all LANDS"
     (Armageddon) in land_destruction; a controller-You mass exile (Day of the
-    Dragons' own-board swap) is a drawback, not removal (checklist #6). Two
-    COMBAT-SCOPE vetoes keep the debuff arm off one-combat tricks phase
-    flattens to a bare board sweep by dropping the "blocking it" clause
-    (phase_parse_bug [P12]): a ``becomes_blocked``/``blocks`` trigger unit
-    (Baneblade Scoundrel) and a ``WithoutKeyword:Flanking`` blocker filter —
-    the flanking template, whose -1/-1 hits only blocking creatures per CR
-    702.25a (Knight of Valor). The trigger-unit veto
-    (:func:`_combat_scoped`) holds for the ``DamageAll`` arm too: "Whenever
-    this creature becomes blocked, it deals 1 damage to each creature blocking
-    it" (Battle-Scarred Goblin, Fire Juggler) is typed as damage to every
-    creature. Scope "you".
+    Dragons' own-board swap) is a drawback, not removal (checklist #6). A
+    one-combat trick is no sweep (:func:`_combat_scoped`): "each creature
+    blocking it" gets -1/-1 (Baneblade Scoundrel; Knight of Valor's flanking
+    template, CR 702.25a) or is dealt damage (Battle-Scarred Goblin, Fire
+    Juggler). Scope "you".
     An overload spell's targeted destroy / damage / exile is a sweep when
     overloaded (``crosswalk.overload_sweep``, CR 702.96a — Damn, Mizzium
     Mortars). A sweep the card GRANTS reads the same as its own (Noxious
@@ -1164,13 +1170,9 @@ def _mass_shrink(unit: AbilityUnit, c: ConceptNode) -> bool:
     negative (:func:`negative_pt_field` — the lethality tell, CR 704.5f; a
     "-2/-0" combat dip never kills) over creatures not limited to yours,
     whether every player's (Languish, Toxic Deluge) or only the opponents'
-    (Massacre Wurm, Cower in Fear). Three vetoes keep it a board: two
-    COMBAT-SCOPE ones for one-combat tricks phase flattens to a bare board
-    sweep by dropping the "blocking it" clause (phase_parse_bug [P12];
-    ``retirement_canary``: ``test_combat_scope_shrinks_parse_as_board_sweeps``)
-    — a ``becomes_blocked`` / ``blocks`` trigger unit (Baneblade Scoundrel) and
-    a ``WithoutKeyword:Flanking`` blocker filter, the flanking template whose
-    -1/-1 hits only the creatures blocking it (CR 702.25a, Knight of Valor) —
+    (Massacre Wurm, Cower in Fear). Two vetoes keep it a board: a one-combat
+    trick (:func:`_combat_scoped` — Baneblade Scoundrel's "each creature
+    blocking it gets -1/-1", Knight of Valor's flanking template, CR 702.25a)
     and the creature an Equipment or Aura is attached to
     (:func:`names_attached_object`, CR 301.5a / 303.4b: one creature, not a
     board)."""
@@ -1188,33 +1190,27 @@ def _mass_shrink(unit: AbilityUnit, c: ConceptNode) -> bool:
     return (
         "Creature" in filter_core_types(sub)
         and filter_controller(sub) != "You"
-        and not _combat_scoped(unit)
-        and "Flanking" not in filter_without_keywords(sub)
+        and not _combat_scoped(unit, sub)
         and not names_attached_object(sub)
     )
 
 
-#: The trigger events whose mass effect phase may have flattened from "each
-#: creature blocking it" / "each creature it blocks" to every creature by
-#: dropping the combat scope (phase_parse_bug [P12]).
-_COMBAT_SCOPE_EVENTS = frozenset({"becomes_blocked", "blocks"})
-
-
-def _combat_scoped(unit: AbilityUnit) -> bool:
-    """Whether ``unit`` triggers on its source becoming blocked or blocking, so a
-    mass effect it holds hits the creatures in that combat, not the board
-    (CR 509.3c: "becomes blocked" triggers once per combat, for the creatures
-    declared as its blockers). The combat-scope veto of :func:`_mass_shrink`
-    and of the ``DamageAll`` arm of :func:`_is_mass_removal` (Baneblade
-    Scoundrel's -1/-1, Battle-Scarred Goblin's and Fire Juggler's damage to
-    "each creature blocking it"; ``retirement_canary``:
-    ``test_combat_scope_shrinks_parse_as_board_sweeps`` and
-    ``test_combat_scope_damage_parses_as_board_sweep``). It holds for a typed
-    combat scope as well: Goblin Swine-Rider's "each attacking creature and each
-    blocking creature" is one combat's creatures, not the board. A recovered
-    "… to each creature blocking it" (Ib Halfheart, Trailblazer's Torch) never
-    reaches the sweep arms at all."""
-    return unit.trigger_event in _COMBAT_SCOPE_EVENTS
+def _combat_scoped(unit: AbilityUnit, filt: object = None) -> bool:
+    """Whether a mass effect hits the creatures of one combat, not the board:
+    its filter names the creatures blocking the source (phase's
+    ``BlockingSource`` — "each creature blocking it", Baneblade Scoundrel's
+    -1/-1, Fire Juggler's damage, Knight of Valor's activated flanking shrink),
+    or ``unit`` triggers on its source becoming blocked or blocking — the
+    lanes' own rule that such a trigger's mass effect is a combat trick (a
+    "becomes blocked" ability triggers once per combat, CR 509.3c): Goblin
+    Swine-Rider's damage to "each attacking creature and each blocking
+    creature", Hezrou's -1/-1 on "each blocking creature". The veto of
+    :func:`_mass_shrink` and of the ``DamageAll`` arm of
+    :func:`_is_mass_removal`. A recovered "… to each creature blocking it" (Ib
+    Halfheart, Trailblazer's Torch) never reaches the sweep arms at all."""
+    if "BlockingSource" in filter_predicates(filt):
+        return True
+    return unit.trigger_event in BLOCK_EVENTS
 
 
 def mass_shrink_effects(tree: ConceptTree) -> SweepEffects:
@@ -1397,7 +1393,14 @@ def _is_mass_removal(tree: ConceptTree, unit: AbilityUnit, c: ConceptNode) -> bo
             and cores & SWEPT_PERMANENT_TYPES
         ):
             return True
-    if t == "DamageAll" and cores & _DAMAGE_SWEPT_TYPES and not _combat_scoped(unit):
+    if (
+        t == "DamageAll"
+        and cores & _DAMAGE_SWEPT_TYPES
+        and not _combat_scoped(unit, effect_filter(c.node))
+    ):
+        return True
+    # The three arms above when phase parks the sweep (``recovered_sweep``).
+    if recovered_sweep(c) and not _combat_scoped(unit):
         return True
     # A one-shot mass shrink over creatures not limited to yours (Languish's
     # "all creatures get -4/-4", Toxic Deluge's "-X/-X", Massacre Wurm's
@@ -1442,11 +1445,24 @@ def mass_bounce_effects(tree: ConceptTree) -> SweepEffects:
     )
 
 
+#: The recovered verb of a parked mass bounce (:func:`recovered_sweep`).
+_BOUNCE_VERB: frozenset[str] = frozenset({"bounce"})
+
+
 def _walk_mass_bounce(
     tree: ConceptTree,
 ) -> Iterator[tuple[AbilityUnit, ConceptNode]]:
     """The walk behind :func:`mass_bounce_effects`."""
     for unit in tree.units:
+        # A parked one (token ``bounce``, concept ``change_zone``): a return to
+        # hands whose own object is every creature or permanent of a type
+        # (``EACH_PERMANENT`` — Consuming Tide's "Return all nonland permanents
+        # not chosen this way to their owners' hands"), not only yours.
+        for c in unit.effect_concepts("change_zone"):
+            if "Hand" in c.zones and recovered_sweep(
+                c, verbs=_BOUNCE_VERB, types=CREATURE_OR_PERMANENT
+            ):
+                yield unit, c
         for c in unit.effect_concepts("bounce"):
             sub = effect_filter(c.node)
             if (
@@ -3270,7 +3286,9 @@ def _unit_targets_player(unit: AbilityUnit) -> bool:
     )
 
 
-def _puts_a_card_for_you(unit: AbilityUnit, node: object) -> bool:
+def _puts_a_card_for_you(
+    unit: AbilityUnit, node: object, *, granted: bool = False
+) -> bool:
     """Whether one effect puts a card or permanent other than this one onto the
     battlefield under your control (:func:`crosswalk.puts_under_your_control`,
     CR 110.2a: the player the effect instructs controls it): a ``ChangeZone`` /
@@ -3283,9 +3301,12 @@ def _puts_a_card_for_you(unit: AbilityUnit, node: object) -> bool:
     (CR 701.71a: "If you don't control a Jace planeswalker token, create" one).
 
     Out: the card putting itself (``SelfRef`` — Nether Shadow, Mox Diamond's
-    alternative), and a put another player makes (an opponent actor, another
-    player's reveal, a search another player is told to make — Path to Exile's,
-    Settle the Wreckage's; the cheat lane reads Arcum Dagsson's)."""
+    alternative; in a ``granted`` ability the ``SelfRef`` is the permanent the
+    ability was granted to, another one — Feign Death's "When this creature
+    dies, return it to the battlefield"), and a put another player makes (an
+    opponent actor, another player's reveal, a search another player is told to
+    make — Path to Exile's, Settle the Wreckage's; the cheat lane reads Arcum
+    Dagsson's)."""
     if not isinstance(node, TypedMirrorNode):
         return False
     tag = tag_of(node)
@@ -3305,7 +3326,7 @@ def _puts_a_card_for_you(unit: AbilityUnit, node: object) -> bool:
         return False
     if change_zone_dirs(node)[1] != "Battlefield":
         return False
-    if tag_of(getattr(node, "target", None)) == "SelfRef":
+    if not granted and tag_of(getattr(node, "target", None)) == "SelfRef":
         return False
     if filter_controller(effect_filter(node)) == "Opponent":
         return False
@@ -3404,12 +3425,15 @@ def _battlefield_put(tree: ConceptTree) -> list[Signal]:
         if _grants_token_keyword(unit):
             return [Signal("permanent_etb", "you", "put", "", tree.name, "high")]
         searched = _searched_by_another(unit)
-        granted = iter_nested_granted_effect_concepts(unit.node)
-        for c in chain(unit.effects, granted):
+        own = ((c, False) for c in unit.effects)
+        lent = ((c, True) for c in iter_nested_granted_effect_concepts(unit.node))
+        for c, granted in chain(own, lent):
             if (
                 _makes_token_for_you(unit, c)
                 or _recovered_put_for_you(c)
-                or (not searched and _puts_a_card_for_you(unit, c.node))
+                or (
+                    not searched and _puts_a_card_for_you(unit, c.node, granted=granted)
+                )
             ):
                 return [Signal("permanent_etb", "you", "put", c.raw, tree.name, "high")]
     return []

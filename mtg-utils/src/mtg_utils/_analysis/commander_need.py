@@ -37,7 +37,7 @@ Three reads go past the trigger's mode (added 2026-10-30, after the plan):
   floor; an X spell counts, since X is the number chosen while it is on the
   stack (CR 202.3e).
 * **spells-per-turn conditions** — a condition or an "activate only if"
-  restriction comparing ``SpellsCastThisTurn`` to two or more (Stella Lee's
+  restriction comparing this turn's ``SpellsCast`` to two or more (Stella Lee's
   copy), or a cast trigger's "second time this ability has resolved this turn"
   (``AbilityUseCountThisTurn``, Ms. Bumbleflower): the need is cheap spells,
   the same read as the ``second_spell_matters`` payoff.

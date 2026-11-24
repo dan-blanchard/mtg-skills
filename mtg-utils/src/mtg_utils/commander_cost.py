@@ -109,8 +109,9 @@ def read_self_discount(record: Mapping) -> SelfDiscount | str:
     Reads phase's ``ModifyCost{Reduce}`` static over ``SelfRef`` — the node the
     build-around ``cost_reduction`` lane deliberately skips — through the same
     structural helpers the lanes use. The first unsupported feature met wins the
-    status, so a Karador reads ``unmodelled (ZoneCardCount)`` and Gwaihir
-    ``unmodelled (conditional)``.
+    status, so a Karador reads ``unmodelled (ZoneCardCount)``, Gwaihir
+    ``unmodelled (conditional)`` and a discount phase parks ``unmodelled
+    (parked)``.
     """
     trees = trees_for(dict(record))
     if not trees:
@@ -125,6 +126,16 @@ def read_self_discount(record: Mapping) -> SelfDiscount | str:
                 if tag_of(getattr(node, "affected", None)) != "SelfRef":
                     continue
                 return _discount_from_node(node)
+    # A discount phase parks whole ("This spell costs {3} less to cast for each
+    # other spell cast this turn" — Thrasta, Tempest's Roar), read by the
+    # recovery stage's ``self_discount`` token: there, with no operand to price.
+    if any(
+        c.recovered_by == "self_discount"
+        for tree in trees
+        for unit in tree.units
+        for c in unit.effects
+    ):
+        return "unmodelled (parked)"
     return STATUS_NONE
 
 

@@ -129,6 +129,7 @@ from mtg_utils._card_ir.mirror.runtime import (
 )
 from mtg_utils._card_ir.recovery import (
     ANY_TARGET,
+    EACH_PERMANENT,
     MASS,
     OWN_POWER,
     OWN_POWER_RX,
@@ -1119,7 +1120,7 @@ def _second_spell_matters(tree: ConceptTree) -> list[Signal]:
     the activation-restriction CONDITION form ``YouCastSpellCountAtLeast
     count ≥ 2`` ("Activate only if you've cast two or more spells this turn" —
     Xerex Strobe-Knight); the static/replacement-CONDITION form — a
-    ``QuantityComparison``/``OnlyIfQuantity`` over ``SpellsCastThisTurn`` gating a
+    ``QuantityComparison``/``OnlyIfQuantity`` over this turn's ``SpellsCast`` gating a
     payoff on "two or more spells this turn" (Brightspear Zealot, b3 recall;
     Effortless Master's ETB counters, ADR-0038 W3 batch 3 — both share the
     identical comparator/lhs/rhs shape, :func:`spell_velocity_static_two`); and the
@@ -1242,7 +1243,9 @@ def _bounce_tempo(tree: ConceptTree) -> list[Signal]:
     # targeted permanent (Psychic Pickpocket — ``TARGET_OBJECT`` and a type
     # word, so a spell bounce, Remand's shape, stays out). The card returning
     # itself (``SELF`` — Imaginary Pet, Shatterskull Charger) is your own
-    # permanent, never tempo (the typed arm's SelfRef veto).
+    # permanent, never tempo (the typed arm's SelfRef veto). A mass one
+    # (``EACH_PERMANENT`` — Consuming Tide) co-fires as the typed mass bounce
+    # does.
     for unit in tree.units:
         for c in unit.effect_concepts("change_zone"):
             if c.recovered_by != "bounce":
@@ -1250,7 +1253,7 @@ def _bounce_tempo(tree: ConceptTree) -> list[Signal]:
             subject = c.subject
             if "Hand" not in c.zones or YOURS in subject or SELF in subject:
                 continue
-            if TARGET_OBJECT in subject and any(
+            if (TARGET_OBJECT in subject or EACH_PERMANENT in subject) and any(
                 t in _BOUNCE_TYPE_WORDS for t in subject
             ):
                 return [Signal("bounce_tempo", "you", "", c.raw, tree.name, "high")]

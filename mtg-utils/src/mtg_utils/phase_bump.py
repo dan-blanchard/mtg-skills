@@ -68,7 +68,7 @@ if TYPE_CHECKING:
     from mtg_utils._card_ir.trees import ConceptTree
 
 PHASE_RAW = "https://raw.githubusercontent.com/phase-rs/phase"
-ABILITY_RS = "crates/engine/src/types/ability.rs"
+ABILITY_RS = "crates/phase-ast/src/types/ability.rs"
 
 VARIANTS_BEGIN = "# BEGIN GENERATED EFFECT_VARIANTS"
 VARIANTS_END = "# END GENERATED EFFECT_VARIANTS"

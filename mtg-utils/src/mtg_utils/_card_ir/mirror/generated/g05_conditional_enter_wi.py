@@ -23,11 +23,11 @@ from mtg_utils._card_ir.mirror.runtime import (
 )
 
 if TYPE_CHECKING:
-    from mtg_utils._card_ir.mirror.generated.g03_additional_modificat import (
+    from mtg_utils._card_ir.mirror.generated.g03_additional_cost import (
         U_amount,
         U_base,
     )
-    from mtg_utils._card_ir.mirror.generated.g04_casting_restrictions import (
+    from mtg_utils._card_ir.mirror.generated.g04_candidate_filter import (
         U_color,
         U_condition,
     )
@@ -58,12 +58,13 @@ if TYPE_CHECKING:
         U_quality,
         U_quantity,
     )
-    from mtg_utils._card_ir.mirror.generated.g14_redirect_target import (
+    from mtg_utils._card_ir.mirror.generated.g14_recipient_scope import (
         S_requirement,
+        U_reference,
         U_rhs,
         U_scaling,
     )
-    from mtg_utils._card_ir.mirror.generated.g15_spell_filter import (
+    from mtg_utils._card_ir.mirror.generated.g15_sources import (
         U_subject,
         U_target,
     )
@@ -258,6 +259,14 @@ class T_conditions__Not(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_conditions__ObjectsShareQuality(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "ObjectsShareQuality"
+    quality: str
+    reference: U_reference
+    subject: U_subject
+
+
+@dataclass(frozen=True)
 class T_conditions__OpponentPoisonAtLeast(TypedMirrorNode):
     _tag: ClassVar[str | None] = "OpponentPoisonAtLeast"
     count: int
@@ -303,6 +312,11 @@ class T_conditions__QuantityQuality(TypedMirrorNode):
 class T_conditions__ScopedPlayerMatches(TypedMirrorNode):
     _tag: ClassVar[str | None] = "ScopedPlayerMatches"
     filter: U_filter
+
+
+@dataclass(frozen=True)
+class T_conditions__SourceAttackedThisCombat(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "SourceAttackedThisCombat"
 
 
 @dataclass(frozen=True)
@@ -455,6 +469,7 @@ class T_constraint__MaxTimesPerTurn(TypedMirrorNode):
 class T_constraint__NthDrawThisTurn(TypedMirrorNode):
     _tag: ClassVar[str | None] = "NthDrawThisTurn"
     n: int
+    comparator: str = MISSING
 
 
 @dataclass(frozen=True)
@@ -478,6 +493,7 @@ class T_constraint__OncePerOpponentPerTurn(TypedMirrorNode):
 @dataclass(frozen=True)
 class T_constraint__OncePerTurn(TypedMirrorNode):
     _tag: ClassVar[str | None] = "OncePerTurn"
+    spent_by: str = MISSING
 
 
 @dataclass(frozen=True)
@@ -706,6 +722,12 @@ class T_cost__Sacrifice(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_cost__SayPhrase(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "SayPhrase"
+    phrase: str
+
+
+@dataclass(frozen=True)
 class T_cost__SelfManaCost(TypedMirrorNode):
     _tag: ClassVar[str | None] = "SelfManaCost"
 
@@ -778,6 +800,7 @@ type U_conditions = (
     | T_conditions__ManaColorSpent
     | T_conditions__ManaSpentCondition
     | T_conditions__Not
+    | T_conditions__ObjectsShareQuality
     | T_conditions__OpponentPoisonAtLeast
     | T_conditions__Or
     | T_conditions__PreviousEffectAmount
@@ -785,6 +808,7 @@ type U_conditions = (
     | T_conditions__QuantityComparison
     | T_conditions__QuantityQuality
     | T_conditions__ScopedPlayerMatches
+    | T_conditions__SourceAttackedThisCombat
     | T_conditions__SourceEnteredThisTurn
     | T_conditions__SourceInZone
     | T_conditions__SourceIsAttacking
@@ -855,6 +879,7 @@ type U_cost = (
     | T_cost__ReturnToHand
     | T_cost__Reveal
     | T_cost__Sacrifice
+    | T_cost__SayPhrase
     | T_cost__SelfManaCost
     | T_cost__SelfManaCostReduced
     | T_cost__SelfManaValue

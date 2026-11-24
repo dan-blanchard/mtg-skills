@@ -4,8 +4,8 @@ Codegen'd from ``tests/fixtures/phase_mirror_schema.json`` by
 ``mtg_utils._card_ir.mirror.codegen`` (run via ``build-card-ir-substrate``).
 
 Part of the generated typed-mirror package (see this directory's
-``__init__.py``). This module holds content keys ``triggers`` ..
-``zone_change_clauses`` (16 keys).
+``__init__.py``). This module holds content keys ``toughness`` ..
+``zone_change_clauses`` (19 keys).
 
 Class naming: ``S_<ckey>`` for a struct shape, ``T_<ckey>__<tag>`` for a tagged
 shape, ``U_<ckey>`` for the union of all tagged shapes at one content_key.
@@ -23,10 +23,11 @@ from mtg_utils._card_ir.mirror.runtime import (
 )
 
 if TYPE_CHECKING:
-    from mtg_utils._card_ir.mirror.generated.g03_additional_modificat import (
+    from mtg_utils._card_ir.mirror.generated.g03_additional_cost import (
+        S_blocker_count,
         U_attack_cost_condition,
     )
-    from mtg_utils._card_ir.mirror.generated.g04_casting_restrictions import (
+    from mtg_utils._card_ir.mirror.generated.g04_candidate_filter import (
         U_condition,
     )
     from mtg_utils._card_ir.mirror.generated.g05_conditional_enter_wi import (
@@ -47,10 +48,10 @@ if TYPE_CHECKING:
         U_exprs,
         U_filter,
         U_filters,
+        U_gotcha_condition,
     )
     from mtg_utils._card_ir.mirror.generated.g09_inner import (
         U_inner,
-        U_left,
         U_mana_ability_produced,
     )
     from mtg_utils._card_ir.mirror.generated.g10_modifications import (
@@ -66,18 +67,41 @@ if TYPE_CHECKING:
     from mtg_utils._card_ir.mirror.generated.g13_qty import (
         U_qty,
     )
-    from mtg_utils._card_ir.mirror.generated.g14_redirect_target import (
-        U_right,
-        U_spell_cast_origin,
-    )
-    from mtg_utils._card_ir.mirror.generated.g15_spell_filter import (
+    from mtg_utils._card_ir.mirror.generated.g15_sources import (
         S_sub_ability,
+        U_spell_cast_origin,
         U_tag,
         U_threshold,
     )
 
 
 # --- struct shapes (untagged records, one per content_key) ---
+
+
+@dataclass(frozen=True)
+class S_trigger(TypedMirrorNode):
+    batched: bool
+    condition: U_condition | None
+    constraint: U_constraint | None
+    damage_kind: str
+    description: str | None
+    destination: str | None
+    execute: S_execute | None
+    mode: str | MirrorVariant
+    optional: bool
+    origin: str | None
+    phase: str | None
+    secondary: bool
+    trigger_zones: list[object]
+    valid_card: U_valid_card | None
+    valid_source: U_valid_source | None
+    valid_target: U_valid_target | None
+    attack_target_filter: str = MISSING
+    coin_flip_result: str = MISSING
+    counter_filter: S_counter_filter | MirrorVariant = MISSING
+    spell_cast_origin: U_spell_cast_origin = MISSING
+    unless_pay: S_unless_pay = MISSING
+    zone_change_clauses: list[S_zone_change_clauses] = MISSING
 
 
 @dataclass(frozen=True)
@@ -99,7 +123,8 @@ class S_triggers(TypedMirrorNode):
     valid_source: U_valid_source | None
     valid_target: U_valid_target | None
     attack_cost_condition: U_attack_cost_condition = MISSING
-    attack_target_filter: str = MISSING
+    attack_target_filter: str | MirrorVariant = MISSING
+    blocker_count: S_blocker_count | MirrorVariant = MISSING
     clash_result: str = MISSING
     coin_flip_result: str = MISSING
     counter_filter: S_counter_filter | MirrorVariant = MISSING
@@ -107,7 +132,9 @@ class S_triggers(TypedMirrorNode):
     destination_constraint: U_destination_constraint = MISSING
     die_result: MirrorVariant = MISSING
     expend_threshold: int = MISSING
+    gotcha_condition: U_gotcha_condition = MISSING
     life_amount: list[object] = MISSING
+    limit_leader_offset: int = MISSING
     mana_ability_produced: U_mana_ability_produced = MISSING
     origin_zones: list[object] = MISSING
     player_actions: list[object] = MISSING
@@ -202,6 +229,38 @@ class S_zone_change_clauses(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_toughness__Fixed(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "Fixed"
+    value: int
+
+
+@dataclass(frozen=True)
+class T_toughness__Quantity(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "Quantity"
+    value: U_value
+
+
+@dataclass(frozen=True)
+class T_toughness__Ref(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "Ref"
+    qty: U_qty
+
+
+@dataclass(frozen=True)
+class T_toughness__Variable(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "Variable"
+    value: str
+
+
+@dataclass(frozen=True)
+class T_trigger_source_filter__Typed(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "Typed"
+    controller: str
+    properties: list[U_properties]
+    type_filters: list[MirrorVariant]
+
+
+@dataclass(frozen=True)
 class T_unless_filter__Or(TypedMirrorNode):
     _tag: ClassVar[str | None] = "Or"
     filters: list[U_filters]
@@ -271,6 +330,12 @@ class T_valid_card__ParentTargetSlot(TypedMirrorNode):
 @dataclass(frozen=True)
 class T_valid_card__SelfRef(TypedMirrorNode):
     _tag: ClassVar[str | None] = "SelfRef"
+
+
+@dataclass(frozen=True)
+class T_valid_card__SpecificObject(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "SpecificObject"
+    id: int
 
 
 @dataclass(frozen=True)
@@ -410,10 +475,10 @@ class T_valid_target__Typed(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
-class T_value__Difference(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "Difference"
-    left: U_left
-    right: U_right
+class T_value__ClampMin(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "ClampMin"
+    inner: U_inner
+    minimum: int
 
 
 @dataclass(frozen=True)
@@ -489,6 +554,13 @@ class T_voter_scope__EachOpponent(TypedMirrorNode):
 
 # --- discriminated-union aliases (one per tagged content_key) ---
 
+type U_toughness = (
+    T_toughness__Fixed
+    | T_toughness__Quantity
+    | T_toughness__Ref
+    | T_toughness__Variable
+)
+type U_trigger_source_filter = T_trigger_source_filter__Typed
 type U_unless_filter = T_unless_filter__Or | T_unless_filter__Typed
 type U_until = T_until__CumulativeThreshold | T_until__NextMatches
 type U_valid_card = (
@@ -500,6 +572,7 @@ type U_valid_card = (
     | T_valid_card__ParentTarget
     | T_valid_card__ParentTargetSlot
     | T_valid_card__SelfRef
+    | T_valid_card__SpecificObject
     | T_valid_card__Typed
 )
 type U_valid_source = (
@@ -531,7 +604,7 @@ type U_valid_target = (
     | T_valid_target__Typed
 )
 type U_value = (
-    T_value__Difference
+    T_value__ClampMin
     | T_value__DivideRounded
     | T_value__Fixed
     | T_value__Max

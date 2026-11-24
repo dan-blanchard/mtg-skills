@@ -4,8 +4,8 @@ Codegen'd from ``tests/fixtures/phase_mirror_schema.json`` by
 ``mtg_utils._card_ir.mirror.codegen`` (run via ``build-card-ir-substrate``).
 
 Part of the generated typed-mirror package (see this directory's
-``__init__.py``). This module holds content keys ``<root>`` .. ``Mobilize`` (73
-keys).
+``__init__.py``). This module holds content keys ``<root>`` ..
+``MaxUntapPerType`` (72 keys).
 
 Class naming: ``S_<ckey>`` for a struct shape, ``T_<ckey>__<tag>`` for a tagged
 shape, ``U_<ckey>`` for the union of all tagged shapes at one content_key.
@@ -23,17 +23,17 @@ from mtg_utils._card_ir.mirror.runtime import (
 )
 
 if TYPE_CHECKING:
-    from mtg_utils._card_ir.mirror.generated.g02_modifyactivationlimi import (
+    from mtg_utils._card_ir.mirror.generated.g02_mayhem import (
         S_abilities,
-        U_additional_cost,
     )
-    from mtg_utils._card_ir.mirror.generated.g03_additional_modificat import (
+    from mtg_utils._card_ir.mirror.generated.g03_additional_cost import (
         S_bracket_signals,
-        S_card_type,
-        S_casting_options,
+        U_additional_cost,
         U_amount,
     )
-    from mtg_utils._card_ir.mirror.generated.g04_casting_restrictions import (
+    from mtg_utils._card_ir.mirror.generated.g04_candidate_filter import (
+        S_card_type,
+        S_casting_options,
         S_cleave_variant,
         U_casting_restrictions,
     )
@@ -64,6 +64,7 @@ if TYPE_CHECKING:
         U_materials,
     )
     from mtg_utils._card_ir.mirror.generated.g10_modifications import (
+        U_no_maximum_deck_size,
         U_once_per_turn,
         U_parse_warnings,
     )
@@ -76,7 +77,7 @@ if TYPE_CHECKING:
     from mtg_utils._card_ir.mirror.generated.g13_qty import (
         U_qty,
     )
-    from mtg_utils._card_ir.mirror.generated.g14_redirect_target import (
+    from mtg_utils._card_ir.mirror.generated.g14_recipient_scope import (
         S_reduction,
         S_replacements,
         S_requirement,
@@ -85,15 +86,15 @@ if TYPE_CHECKING:
         U_solve_condition,
         U_source_filter,
     )
-    from mtg_utils._card_ir.mirror.generated.g15_spell_filter import (
+    from mtg_utils._card_ir.mirror.generated.g15_sources import (
         S_static_abilities,
         U_spell_filter,
         U_strive_cost,
         U_target,
-        U_toughness,
     )
-    from mtg_utils._card_ir.mirror.generated.g16_triggers import (
+    from mtg_utils._card_ir.mirror.generated.g16_toughness import (
         S_triggers,
+        U_toughness,
     )
 
 
@@ -135,6 +136,7 @@ class S_Root(TypedMirrorNode):
     layout: str = MISSING
     metadata: S_metadata | MirrorVariant = MISSING
     modal: S_modal = MISSING
+    no_maximum_deck_size: U_no_maximum_deck_size = MISSING
     parse_warnings: list[U_parse_warnings] = MISSING
     rarities: list[object] = MISSING
     rulings: list[S_rulings] = MISSING
@@ -183,6 +185,12 @@ class S_BattlefieldTransition(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class S_BlockPairing(TypedMirrorNode):
+    direction: str
+    scope: str
+
+
+@dataclass(frozen=True)
 class S_CantActivateDuring(TypedMirrorNode):
     exemption: str
     when: str
@@ -213,6 +221,12 @@ class S_CantCauseForcedAction(TypedMirrorNode):
 class S_CantPayCost(TypedMirrorNode):
     cost: str | MirrorVariant
     who: str
+
+
+@dataclass(frozen=True)
+class S_CardName(TypedMirrorNode):
+    distinctness: str
+    options: list[MirrorVariant]
 
 
 @dataclass(frozen=True)
@@ -280,6 +294,12 @@ class S_Emerge(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class S_EntersBattlefield(TypedMirrorNode):
+    core_types: list[object]
+    entrant: str
+
+
+@dataclass(frozen=True)
 class S_EntersWithAdditionalCounters(TypedMirrorNode):
     count: int
     counter_type: str
@@ -310,9 +330,13 @@ class S_ExileCastPermission(TypedMirrorNode):
 class S_GraveyardCastPermission(TypedMirrorNode):
     frequency: str
     play_mode: str
+    cast_limit: str = MISSING
+    enter_tapped: str = MISSING
+    enters_modifications: MirrorVariant = MISSING
     enters_with_counter: str = MISSING
     extra_cost: S_extra_cost = MISSING
     graveyard_destination_replacement: str = MISSING
+    mana_spend_permission: str = MISSING
     pool: str = MISSING
     required_cast_keyword: str = MISSING
 
@@ -445,6 +469,12 @@ class T_Companion__MaxPermanentManaValue(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_Companion__MinDeckSizeOver(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "MinDeckSizeOver"
+    data: int
+
+
+@dataclass(frozen=True)
 class T_Companion__MinManaValue(TypedMirrorNode):
     _tag: ClassVar[str | None] = "MinManaValue"
     data: int
@@ -468,6 +498,11 @@ class T_Companion__PermanentsHaveActivatedAbilities(TypedMirrorNode):
 @dataclass(frozen=True)
 class T_Companion__SharedCardType(TypedMirrorNode):
     _tag: ClassVar[str | None] = "SharedCardType"
+
+
+@dataclass(frozen=True)
+class T_Companion__Singleton(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "Singleton"
 
 
 @dataclass(frozen=True)
@@ -616,10 +651,15 @@ class T_Encore__SelfManaValue(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
-class T_Entwine__Cost(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "Cost"
-    generic: int
-    shards: list[object]
+class T_Entwine__Mana(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "Mana"
+    data: U_data
+
+
+@dataclass(frozen=True)
+class T_Entwine__NonMana(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "NonMana"
+    data: U_data
 
 
 @dataclass(frozen=True)
@@ -858,50 +898,6 @@ class T_Madness__Cost(TypedMirrorNode):
     shards: list[object]
 
 
-@dataclass(frozen=True)
-class T_Mayhem__Cost(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "Cost"
-    generic: int
-    shards: list[object]
-
-
-@dataclass(frozen=True)
-class T_Mayhem__SelfManaCost(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "SelfManaCost"
-
-
-@dataclass(frozen=True)
-class T_Megamorph__Cost(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "Cost"
-    generic: int
-    shards: list[object]
-
-
-@dataclass(frozen=True)
-class T_Miracle__Cost(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "Cost"
-    generic: int
-    shards: list[object]
-
-
-@dataclass(frozen=True)
-class T_Miracle__SelfManaCostReduced(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "SelfManaCostReduced"
-    reduction: int
-
-
-@dataclass(frozen=True)
-class T_Mobilize__Fixed(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "Fixed"
-    value: int
-
-
-@dataclass(frozen=True)
-class T_Mobilize__Ref(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "Ref"
-    qty: U_qty
-
-
 # --- discriminated-union aliases (one per tagged content_key) ---
 
 type U_ActivateTagged = T_ActivateTagged__Equip | T_ActivateTagged__PowerUp
@@ -914,11 +910,13 @@ type U_CommanderNinjutsu = T_CommanderNinjutsu__Cost
 type U_Companion = (
     T_Companion__EvenManaValues
     | T_Companion__MaxPermanentManaValue
+    | T_Companion__MinDeckSizeOver
     | T_Companion__MinManaValue
     | T_Companion__NoRepeatedManaSymbols
     | T_Companion__OddManaValues
     | T_Companion__PermanentsHaveActivatedAbilities
     | T_Companion__SharedCardType
+    | T_Companion__Singleton
 )
 type U_CumulativeUpkeep = (
     T_CumulativeUpkeep__Discard
@@ -943,7 +941,7 @@ type U_Enchant = (
     | T_Enchant__Typed
 )
 type U_Encore = T_Encore__Cost | T_Encore__SelfManaCost | T_Encore__SelfManaValue
-type U_Entwine = T_Entwine__Cost
+type U_Entwine = T_Entwine__Mana | T_Entwine__NonMana
 type U_EqualTo = T_EqualTo__Fixed | T_EqualTo__Ref
 type U_Equip = T_Equip__Cost | T_Equip__SelfManaValue
 type U_Escalate = T_Escalate__Discard | T_Escalate__Mana | T_Escalate__TapCreatures
@@ -979,7 +977,3 @@ type U_KeywordAbilityActivated = (
 type U_Kicker = T_Kicker__Cost
 type U_LevelUp = T_LevelUp__Cost
 type U_Madness = T_Madness__Cost
-type U_Mayhem = T_Mayhem__Cost | T_Mayhem__SelfManaCost
-type U_Megamorph = T_Megamorph__Cost
-type U_Miracle = T_Miracle__Cost | T_Miracle__SelfManaCostReduced
-type U_Mobilize = T_Mobilize__Fixed | T_Mobilize__Ref

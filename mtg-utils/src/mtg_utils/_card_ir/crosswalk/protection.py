@@ -33,6 +33,7 @@ from typing import TYPE_CHECKING, Literal
 from mtg_utils._card_ir.crosswalk.reads import (
     _GRANTED_ABILITY_TAGS,
     _GRANTED_TRIGGER_TAGS,
+    BACK_REFERENCE_TARGETS,
     PROTECTIVE_KEYWORDS,
     _present,
     _variant_field,
@@ -225,6 +226,11 @@ def _triggering_recipient(
     return _filter_recipient(tree, watched)
 
 
+#: The recipient tags that name an object by reference: the card itself and the
+#: back-references :func:`_recipient` resolves.
+_REFERENCE_TAGS: frozenset[str] = BACK_REFERENCE_TARGETS | {"SelfRef"}
+
+
 def _recipient(
     tree: ConceptTree,
     unit: AbilityUnit,
@@ -235,8 +241,14 @@ def _recipient(
     resolving the back-references: ``ParentTarget`` / ``TrackedSet`` through the
     threaded target ``resolved`` or :func:`_back_reference_recipient`,
     ``TriggeringSource`` / ``EventTarget`` through the trigger
-    (:func:`_triggering_recipient`)."""
+    (:func:`_triggering_recipient`). An ``Or`` of references alone names each
+    of them ("this creature and that creature phase out" — Dream Fighter: the
+    card and the creature it blocked, neither a permanent of yours it saves)."""
     tag = tag_of(filt)
+    arms = getattr(filt, "filters", None) if tag == "Or" else None
+    if arms and all(tag_of(arm) in _REFERENCE_TAGS for arm in arms):
+        named = [_recipient(tree, unit, arm, resolved) for arm in arms]
+        return next((who for who in named if who is not None), None)
     if tag in ("ParentTarget", "TrackedSet"):
         if resolved is not None:
             return _filter_recipient(tree, resolved)
@@ -442,9 +454,7 @@ def _symmetric_static_shield(node: TypedMirrorNode, *, static: bool) -> bool:
     if not isinstance(damaged, MirrorVariant):
         # No recipient named: symmetric only when a class of SOURCES defines the
         # shield ("damage that spells would deal" — Plated Pegasus, Energy
-        # Storm). With neither, phase dropped the recipient ("If damage would be
-        # dealt to you" — Delaying Shield, Nefarious Lich), so it isn't read as
-        # symmetric.
+        # Storm). With neither it isn't read as symmetric.
         return not _present(damaged) and _present(source)
     return damaged.key == "Player" and tag_of(
         _variant_field(damaged.inner, "player")
@@ -527,6 +537,29 @@ def _life_floor_for_you(node: TypedMirrorNode) -> bool:
     )
 
 
+def _replaces_damage_to_you(node: TypedMirrorNode) -> bool:
+    """A replacement (CR 614.1a) that has something else happen in place of
+    damage dealt to you — "If damage would be dealt to you, put that many delay
+    counters on this enchantment instead" (Delaying Shield, Force Bubble),
+    "… exile that many cards from your graveyard instead" (Nefarious Lich). It
+    uses no "prevent", so it is no prevention effect (CR 615.1a; phase typed it
+    as one before v0.131.0), but the damage is not dealt to you all the same."""
+    if getattr(node, "event", None) != "DamageDone":
+        return False
+    if _present(getattr(node, "shield_kind", MISSING)) or _present(
+        getattr(node, "damage_modification", MISSING)
+    ):
+        return False
+    if not isinstance(getattr(node, "execute", None), TypedMirrorNode):
+        return False
+    damaged = getattr(node, "damage_target_filter", MISSING)
+    return (
+        isinstance(damaged, MirrorVariant)
+        and damaged.key == "Player"
+        and tag_of(_variant_field(damaged.inner, "player")) == "Controller"
+    )
+
+
 def _hostile_damage_source(node: TypedMirrorNode) -> bool:
     """Whether a prevention names the damage an OPPONENT's object would deal
     (Dovin, Hand of Control's and Kiora, the Crashing Wave's "prevent all damage
@@ -577,12 +610,14 @@ def protective_saves(tree: ConceptTree) -> Iterator[tuple[str, ProtectionRecipie
     Last Troll; Frenetic Efreet's coin-flip phase-out), and a pacifying
     prevention (:func:`_prevention_shield_recipient`)."""
     for unit in tree.units:
-        # the parked preventions' readings, decorated by the recovery seam
-        parked_reading = {
-            id(c.node): c.subject
-            for c in unit.iter_concepts()
-            if parked_prevention(c.node) and c.recovered_by
-        }
+        # the parked preventions' readings, decorated by the recovery seam: the
+        # node's first recovered concept, the prevention's own; a later
+        # instruction of the same residue ("…, and create that many 1/1 …
+        # tokens" — Sekki, Seasons' Guide) reads its own clause
+        parked_reading: dict[int, tuple[str, ...]] = {}
+        for c in unit.iter_concepts():
+            if parked_prevention(c.node) and c.recovered_by:
+                parked_reading.setdefault(id(c.node), c.subject)
         granted = _granted_recipients(tree, unit)
         in_token, _ = _token_nodes(unit.node)
         # a coin flip's losing outcome against you is no save (Desperate Gambit)
@@ -599,6 +634,8 @@ def protective_saves(tree: ConceptTree) -> Iterator[tuple[str, ProtectionRecipie
             who = _prevention_shield_recipient(tree, n, static=static)
             if who is not None:
                 yield "prevent_damage", who
+            elif _replaces_damage_to_you(n):
+                yield "prevent_damage", "player"
             parked = parked_prevention(n)
             # a shield of the card alone ("dealt to ~ by creatures it's blocking"
             # — Wall of Shadows) is a save of itself
@@ -648,6 +685,18 @@ DEFENDED_YOU: frozenset[str] = frozenset(
 )
 
 
+def attack_recipient(value: object) -> str | None:
+    """The name of an attack recipient (:data:`DEFENDED_YOU`'s fields): the
+    plain string phase writes, or the key of its ``{Planeswalker: {subtype}}``
+    variant (phase v0.131.0 — "planeswalkers you control", Onakke Oathkeeper;
+    with a subtype, "Jace planeswalkers", Jace, Multiverse Architect)."""
+    if isinstance(value, str):
+        return value
+    if isinstance(value, MirrorVariant):
+        return value.key
+    return None
+
+
 def _taxes_attacks_on_you(cond: object) -> bool:
     """Whether an attack restriction's condition is "unless their controller
     pays" for attacking you, alone or beside another condition (Archangel of
@@ -676,7 +725,9 @@ def attack_deterrent(tree: ConceptTree) -> AttackDeterrentKind | None:
 
     Not a deterrent: a restriction on the card's own attacks (Alexios, Deimos of
     Kosmos — :func:`_filter_recipient` keeps a spell's misbound ``SelfRef``,
-    Promise of Loyalty), or a limit on attacking the card itself (The Eternal
+    Promise of Loyalty) or on yours (Call for Aid's "You can't attack that
+    player this turn": a ``ProhibitActivity`` whose ``affected_players`` is the
+    ``SourceController``), or a limit on attacking the card itself (The Eternal
     Wanderer, a planeswalker that only protects itself). Inside a granted ability
     "this planeswalker" is the permanent it is granted to (Tomik, Orzhov
     Lawmage's "Planeswalkers you control have 'No more than one creature can
@@ -697,6 +748,7 @@ def attack_deterrent(tree: ConceptTree) -> AttackDeterrentKind | None:
             if (
                 tag_of(activity) == "Attack"
                 and getattr(activity, "defended", None) in DEFENDED_YOU
+                and tag_of(getattr(n, "affected_players", None)) != "SourceController"
             ):
                 return "attack_ban"
             continue

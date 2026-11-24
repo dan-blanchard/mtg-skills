@@ -1516,9 +1516,9 @@ SERVED_SIGNAL_KEYS: frozenset[str] = frozenset(
 # non-ramp-gate exemption (Phyrexian Scuta's cost-only carrier), a
 # Ward-keyword exclusion (CR 702.21a — the TARGETING player pays,
 # not the controller), a token-attach-opponent bleed guard (Scriv,
-# the SequentialSibling raw-bleed family), and five ledgered
-# bridges (bridge_ledger.BRIDGES: degavolver_kicker_paylife_regen,
-# withercrown_unless_lose_life, keyword_dropped_paylife
+# the SequentialSibling raw-bleed family), and four ledgered
+# bridges (bridge_ledger.BRIDGES: withercrown_unless_lose_life,
+# keyword_dropped_paylife
 # [Warp/Blitz/Morph], night_shift_optional_paylife_dieroll,
 # zuko_modal_unconditional_paylife).
 # opponent_discard PROMOTED (ADR-0039 W7, 2026-07-12) — landfall
@@ -1548,8 +1548,8 @@ SERVED_SIGNAL_KEYS: frozenset[str] = frozenset(
 # is kind-agnostic, no "+1/+1" anywhere on the card). Grammar sprint
 # task #82 (2026-07-12) GRADUATED 3 of the 5: Rumbling Ruin /
 # Deepwood Denizen off recovered-node arms (``clause_grammar``'s
-# ``count_operand`` / ``counter_cost_reduction`` tokens +
-# ``recovery.ALLOWLIST``) and Tetravus off a fully-typed
+# ``count_operand`` token + ``recovery.ALLOWLIST``; Deepwood Denizen's
+# cost reduction is typed since phase v0.131.0) and Tetravus off a fully-typed
 # RemoveCounter/Token pairing arm — all inline in
 # :func:`_plus_one_matters` now, no bridge lookup. Rock Hydra stays a
 # bridge. See :func:`_plus_one_matters`'s own docstring.
@@ -1646,12 +1646,10 @@ SERVED_SIGNAL_KEYS: frozenset[str] = frozenset(
 # bare "equipment you control" branch, which over-fires on
 # Affinity-for-Equipment reminder text and attach-ACTION clauses),
 # ``warchanter_skald_condition_dropped`` (a Taps-trigger's
-# condition=None, the clause surviving only in ``description``),
-# ``forge_anew_equip_cost_paycost_unlinked`` (an unlinked
-# PayCost({0}); Bruenor Battlehammer's identical clause is served
-# through its OWN structural ObjectCount arm before the bridge is
-# ever reached). CR 301.5/303.4/107.3/601.2f/702.6c verified this
-# session.
+# condition=None, the clause surviving only in ``description``).
+# (``forge_anew_equip_cost_paycost_unlinked`` retired at phase v0.131.0,
+# which types the {0} equip as an ``AlternativeKeywordCost`` static.)
+# CR 301.5/303.4/107.3/601.2f/702.6c verified this session.
 
 # Below this point: per-key promotion / recall-widening history for the keys
 # ABOVE (the ``SERVED_SIGNAL_KEYS`` literal at the top of this region), continuing the
@@ -1715,7 +1713,7 @@ SERVED_SIGNAL_KEYS: frozenset[str] = frozenset(
 # scoped discount, already adjudicated batch 3) — none is a genuine spell-
 # velocity build-around. The crosswalk excludes the werewolf class on TWO
 # independent structural grounds (spell_velocity_static_two's qty-type gate
-# requires SpellsCastThisTurn, not the werewolves' SpellsCastLastTurn; the
+# requires this turn's SpellsCast, not the werewolves' window: LastTurn; the
 # node-text bridge requires "you cast" or an ordinal word, neither present in
 # the werewolves' own description). Also widened the node-text bridge with a
 # THIRD phrasing (CR 601) for a kind-agnostic, ANY-PLAYER ordinal count

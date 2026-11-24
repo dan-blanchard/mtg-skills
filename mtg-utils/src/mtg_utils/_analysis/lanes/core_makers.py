@@ -129,7 +129,13 @@ from mtg_utils._card_ir.mirror.runtime import (
     MISSING,
     TypedMirrorNode,
 )
-from mtg_utils._card_ir.recovery import ANY_TARGET, OTHER_PLAYER, YOUR_CREATURE_COUNT
+from mtg_utils._card_ir.recovery import (
+    ANY_TARGET,
+    CARD,
+    OTHER_PLAYER,
+    SELF,
+    YOUR_CREATURE_COUNT,
+)
 
 
 def _win_lose_game(tree: ConceptTree) -> list[Signal]:
@@ -1284,6 +1290,18 @@ def _reanimator(tree: ConceptTree) -> list[Signal]:
         return []
     for unit in tree.units:
         for c in unit.effect_concepts("change_zone"):
+            # a parked one: the seam's reading of a creature card put onto the
+            # battlefield out of a graveyard, not the card's own return
+            if c.recovered_by == "reanimate":
+                s = c.subject
+                if (
+                    "Creature" in s
+                    and CARD in s
+                    and SELF not in s
+                    and "Graveyard" in c.zones
+                ):
+                    return [Signal("reanimator", "you", "", c.raw, tree.name, "high")]
+                continue
             origin, dest = change_zone_dirs(c.node)
             if origin != "Graveyard" or dest != "Battlefield":
                 continue

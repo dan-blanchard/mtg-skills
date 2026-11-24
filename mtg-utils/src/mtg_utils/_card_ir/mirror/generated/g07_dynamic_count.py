@@ -23,27 +23,29 @@ from mtg_utils._card_ir.mirror.runtime import (
 )
 
 if TYPE_CHECKING:
-    from mtg_utils._card_ir.mirror.generated.g02_modifyactivationlimi import (
+    from mtg_utils._card_ir.mirror.generated.g02_mayhem import (
         U_action,
-        U_additional_cost,
     )
-    from mtg_utils._card_ir.mirror.generated.g03_additional_modificat import (
+    from mtg_utils._card_ir.mirror.generated.g03_additional_cost import (
         S_branches,
-        S_cards,
-        S_cast_cost_modifier,
+        U_additional_cost,
         U_additional_modifications,
         U_after,
         U_alt_ability_cost,
         U_amount,
         U_amount_dynamic,
+        U_arranger,
         U_attach_to,
         U_attachment,
+        U_attack_destination,
         U_attacker,
         U_attacker_restriction,
-        U_card_filter,
     )
-    from mtg_utils._card_ir.mirror.generated.g04_casting_restrictions import (
+    from mtg_utils._card_ir.mirror.generated.g04_candidate_filter import (
+        S_cards,
+        S_cast_cost_modifier,
         S_chosen_pile_effect,
+        U_card_filter,
         U_choose_filter,
         U_choose_scope,
         U_chooser,
@@ -65,6 +67,7 @@ if TYPE_CHECKING:
         U_domain,
     )
     from mtg_utils._card_ir.mirror.generated.g08_else_ability import (
+        S_else_ability,
         S_face_down_profile,
         U_enchant_filter,
         U_end_cost,
@@ -86,6 +89,8 @@ if TYPE_CHECKING:
     from mtg_utils._card_ir.mirror.generated.g09_inner import (
         S_keeper_counter,
         S_lose_effect,
+        S_modal,
+        S_mode_abilities,
         S_modification,
         U_keep_count_expr,
         U_keep_on_top,
@@ -133,15 +138,16 @@ if TYPE_CHECKING:
         U_qty,
         U_recipient,
         U_recipient_object_filter,
-        U_recipient_scope,
-        U_redirect_lifetime,
-        U_redirect_object_filter,
     )
-    from mtg_utils._card_ir.mirror.generated.g14_redirect_target import (
+    from mtg_utils._card_ir.mirror.generated.g14_recipient_scope import (
         S_replacement,
+        S_replacement_effect,
         S_results,
         S_rider,
         S_scale,
+        U_recipient_scope,
+        U_redirect_lifetime,
+        U_redirect_object_filter,
         U_redirect_to,
         U_relation,
         U_repeat_for,
@@ -160,16 +166,15 @@ if TYPE_CHECKING:
         U_source_filter,
         U_source_pool,
         U_source_rider,
-        U_sources,
     )
-    from mtg_utils._card_ir.mirror.generated.g15_spell_filter import (
+    from mtg_utils._card_ir.mirror.generated.g15_sources import (
         S_split,
         S_static_abilities,
         S_statics,
         S_sub_ability,
         S_target,
         S_target_condition,
-        S_trigger,
+        U_sources,
         U_spell_filter,
         U_state,
         U_step,
@@ -181,15 +186,17 @@ if TYPE_CHECKING:
         U_target_kind,
         U_target_player,
         U_target_selection_mode,
+        U_top_position,
         U_total_power_cap,
-        U_toughness,
     )
-    from mtg_utils._card_ir.mirror.generated.g16_triggers import (
+    from mtg_utils._card_ir.mirror.generated.g16_toughness import (
+        S_trigger,
         S_triggers,
         S_unchosen_pile_effect,
         S_unless_pay,
         S_win_effect,
         S_winner_effect,
+        U_toughness,
         U_unless_filter,
         U_until,
         U_value,
@@ -215,7 +222,11 @@ class S_effect(TypedMirrorNode):
     sub_ability: S_sub_ability | None
     target_prompt: None
     declares_chosen_group: int = MISSING
+    else_ability: S_else_ability = MISSING
+    instruction_join: str = MISSING
     is_mana_ability: bool = MISSING
+    modal: S_modal = MISSING
+    mode_abilities: list[S_mode_abilities] = MISSING
     multi_target: S_multi_target = MISSING
     optional_player: U_optional_player = MISSING
     player_scope: U_player_scope = MISSING
@@ -299,6 +310,11 @@ class T_dynamic_count__DistinctColorsAmong(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_dynamic_count__EnergyPaidOrLostThisTurn(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "EnergyPaidOrLostThisTurn"
+
+
+@dataclass(frozen=True)
 class T_dynamic_count__FilteredTrackedSetSize(TypedMirrorNode):
     _tag: ClassVar[str | None] = "FilteredTrackedSetSize"
     filter: U_filter
@@ -312,8 +328,8 @@ class T_dynamic_count__LifeGainedThisTurn(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
-class T_dynamic_count__LifeLostThisTurn(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "LifeLostThisTurn"
+class T_dynamic_count__LifeLost(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "LifeLost"
     player: U_player
 
 
@@ -376,8 +392,8 @@ class T_dynamic_count__Speed(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
-class T_dynamic_count__SpellsCastThisTurn(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "SpellsCastThisTurn"
+class T_dynamic_count__SpellsCast(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "SpellsCast"
     scope: str
     filter: U_filter = MISSING
 
@@ -411,6 +427,11 @@ class T_dynamic_max_choices__Ref(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_effect__AbandonScheme(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "AbandonScheme"
+
+
+@dataclass(frozen=True)
 class T_effect__Adapt(TypedMirrorNode):
     _tag: ClassVar[str | None] = "Adapt"
     count: U_count
@@ -426,7 +447,7 @@ class T_effect__AddPendingETBCounters(TypedMirrorNode):
 @dataclass(frozen=True)
 class T_effect__AddPendingEntersModifications(TypedMirrorNode):
     _tag: ClassVar[str | None] = "AddPendingEntersModifications"
-    rider: S_rider | MirrorVariant
+    rider: S_rider
 
 
 @dataclass(frozen=True)
@@ -627,11 +648,13 @@ class T_effect__ChangeZone(TypedMirrorNode):
     origin: str | None
     owner_library: bool
     target: U_target
+    actor: str | MirrorVariant = MISSING
     conditional_enter_with_counters: list[U_conditional_enter_with_counters] = MISSING
     enter_with_counters: list[U_enter_with_counters] = MISSING
     enters_modified_if: U_enters_modified_if = MISSING
     enters_under: str = MISSING
     face_down_profile: S_face_down_profile | MirrorVariant = MISSING
+    library_shuffle: U_library_shuffle = MISSING
     up_to: bool = MISSING
 
 
@@ -641,6 +664,7 @@ class T_effect__ChangeZoneAll(TypedMirrorNode):
     destination: str
     origin: str | None
     target: U_target
+    actor: MirrorVariant = MISSING
     enter_tapped: bool = MISSING
     enter_with_counters: list[U_enter_with_counters] = MISSING
     enters_under: str = MISSING
@@ -660,6 +684,7 @@ class T_effect__Choose(TypedMirrorNode):
     _tag: ClassVar[str | None] = "Choose"
     choice_type: str | MirrorVariant
     persist: bool
+    chooser: str = MISSING
     selection: U_selection = MISSING
 
 
@@ -688,6 +713,8 @@ class T_effect__ChooseCounterAdjustment(TypedMirrorNode):
     _tag: ClassVar[str | None] = "ChooseCounterAdjustment"
     adjustment: str
     count: U_count
+    counter_type: str = MISSING
+    target: U_target = MISSING
 
 
 @dataclass(frozen=True)
@@ -718,6 +745,7 @@ class T_effect__ChooseFromZone(TypedMirrorNode):
     candidate_source: str = MISSING
     constraint: U_constraint = MISSING
     filter: U_filter = MISSING
+    gather_role: str = MISSING
     random: bool = MISSING
     reciprocal_role: str = MISSING
 
@@ -825,6 +853,7 @@ class T_effect__CopyTokenOf(TypedMirrorNode):
     tapped: bool
     target: U_target
     additional_modifications: list[U_additional_modifications] = MISSING
+    attack_destination: U_attack_destination = MISSING
     extra_keywords: list[MirrorVariant] = MISSING
     source_filter: U_source_filter = MISSING
 
@@ -848,6 +877,12 @@ class T_effect__CreateBoon(TypedMirrorNode):
     _tag: ClassVar[str | None] = "CreateBoon"
     recipient: U_recipient
     trigger: S_trigger
+
+
+@dataclass(frozen=True)
+class T_effect__CreateCardCopyByName(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "CreateCardCopyByName"
+    count: U_count
 
 
 @dataclass(frozen=True)
@@ -875,7 +910,7 @@ class T_effect__CreateDelayedTrigger(TypedMirrorNode):
 @dataclass(frozen=True)
 class T_effect__CreateDrawReplacement(TypedMirrorNode):
     _tag: ClassVar[str | None] = "CreateDrawReplacement"
-    replacement_effect: U_replacement_effect
+    replacement_effect: S_replacement_effect
 
 
 @dataclass(frozen=True)
@@ -951,6 +986,7 @@ class T_effect__Dig(TypedMirrorNode):
     up_to: bool
     keep_count_expr: U_keep_count_expr = MISSING
     rest_order: str = MISSING
+    rest_remainder: str = MISSING
     rest_split_top_count: U_rest_split_top_count = MISSING
     source: str = MISSING
 
@@ -1006,7 +1042,7 @@ class T_effect__DoublePTAll(TypedMirrorNode):
 class T_effect__DraftFromSpellbook(TypedMirrorNode):
     _tag: ClassVar[str | None] = "DraftFromSpellbook"
     destination: str
-    random: bool
+    selection: str
     tapped: bool
 
 
@@ -1118,7 +1154,7 @@ class T_effect__ExileTop(TypedMirrorNode):
     count: U_count
     player: U_player
     position: U_position
-    actor: str = MISSING
+    actor: str | MirrorVariant = MISSING
     face_down: bool = MISSING
 
 
@@ -1416,6 +1452,7 @@ class T_effect__Mill(TypedMirrorNode):
     count: U_count
     destination: str
     target: U_target
+    position: U_position = MISSING
 
 
 @dataclass(frozen=True)
@@ -1580,6 +1617,7 @@ class T_effect__PutAtLibraryPosition(TypedMirrorNode):
     count: U_count
     position: U_position
     target: U_target
+    arranger: U_arranger = MISSING
 
 
 @dataclass(frozen=True)
@@ -1611,6 +1649,7 @@ class T_effect__PutOnTopOrBottom(TypedMirrorNode):
     _tag: ClassVar[str | None] = "PutOnTopOrBottom"
     target: U_target
     chooser: U_chooser = MISSING
+    top_position: U_top_position = MISSING
 
 
 @dataclass(frozen=True)
@@ -1672,6 +1711,7 @@ class T_effect__RemoveCounter(TypedMirrorNode):
     count: U_count
     counter_type: str | None
     target: U_target
+    scope: U_scope = MISSING
 
 
 @dataclass(frozen=True)
@@ -1726,6 +1766,7 @@ class T_effect__RevealHand(TypedMirrorNode):
     count: U_count | None
     reveal: bool
     target: U_target
+    cardinality: str = MISSING
     choice_optional: bool = MISSING
     random: bool = MISSING
 
@@ -1971,6 +2012,7 @@ class T_effect__Token(TypedMirrorNode):
     toughness: U_toughness
     types: list[object]
     attach_to: U_attach_to = MISSING
+    attack_destination: U_attack_destination = MISSING
     enter_with_counters: list[U_enter_with_counters] = MISSING
     static_abilities: list[S_static_abilities] = MISSING
     supertypes: list[object] = MISSING
@@ -2060,9 +2102,10 @@ type U_dynamic_count = (
     | T_dynamic_count__Devotion
     | T_dynamic_count__DistinctCardTypes
     | T_dynamic_count__DistinctColorsAmong
+    | T_dynamic_count__EnergyPaidOrLostThisTurn
     | T_dynamic_count__FilteredTrackedSetSize
     | T_dynamic_count__LifeGainedThisTurn
-    | T_dynamic_count__LifeLostThisTurn
+    | T_dynamic_count__LifeLost
     | T_dynamic_count__ObjectCount
     | T_dynamic_count__ObjectCountDistinct
     | T_dynamic_count__PartySize
@@ -2072,14 +2115,15 @@ type U_dynamic_count = (
     | T_dynamic_count__PropertyAggregate
     | T_dynamic_count__SharedCardTypes
     | T_dynamic_count__Speed
-    | T_dynamic_count__SpellsCastThisTurn
+    | T_dynamic_count__SpellsCast
     | T_dynamic_count__TrackedSetSize
     | T_dynamic_count__ZoneCardCount
     | T_dynamic_count__ZoneChangeCountThisTurn
 )
 type U_dynamic_max_choices = T_dynamic_max_choices__Ref
 type U_effect = (
-    T_effect__Adapt
+    T_effect__AbandonScheme
+    | T_effect__Adapt
     | T_effect__AddPendingETBCounters
     | T_effect__AddPendingEntersModifications
     | T_effect__AddRestriction
@@ -2132,6 +2176,7 @@ type U_effect = (
     | T_effect__Counter
     | T_effect__CounterAll
     | T_effect__CreateBoon
+    | T_effect__CreateCardCopyByName
     | T_effect__CreateDamageReplacement
     | T_effect__CreateDelayedTrigger
     | T_effect__CreateDrawReplacement

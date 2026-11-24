@@ -7,7 +7,6 @@ from __future__ import annotations
 
 import pytest
 
-from mtg_utils._card_ir.crosswalk import tag_of
 from mtg_utils._card_ir.trees import trees_for
 from mtg_utils.testkit import test_card, test_signals
 
@@ -44,20 +43,12 @@ def test_an_etb_body_keeps_the_bare_blink_ident(name):
     assert "blink_flicker|you|enabler" not in idents
 
 
-@pytest.mark.retirement_canary
 @pytest.mark.parametrize("name", ["Ojutai Exemplars", "Djinn of the Fountain"])
-def test_cast_trigger_self_return_is_bound_to_the_triggering_source(name):
-    """Phase binds the self-blink mode's "Return it" to ``TriggeringSource`` (the
-    cast spell) instead of the exiled creature. Once phase binds it to the card
-    itself for both, the ``TriggeringSource`` arm of ``_blink_flicker`` can go."""
-    tags = {
-        tag_of(getattr(c.node, "target", None))
-        for tree in trees_for(test_card(name))
-        for unit in tree.units
-        for c in unit.effects
-        if c.concept == "change_zone"
-    }
-    assert "TriggeringSource" in tags
+def test_cast_trigger_self_exile_and_return_is_a_blink(name):
+    """A cast trigger's mode "Exile this creature, then return it": the return
+    names the card itself (``SelfRef``; phase bound it to the cast spell before
+    v0.131.0)."""
+    assert "blink_flicker|you|enabler" in _idents(name)
 
 
 # ── (2) power_matters: board-power thresholds ────────────────────────────────

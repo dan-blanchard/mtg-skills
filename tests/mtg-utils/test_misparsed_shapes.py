@@ -67,42 +67,6 @@ def test_one_creature_damaging_itself_is_no_sweep(name):
 
 
 @pytest.mark.retirement_canary
-def test_graveyard_arrival_unknown_mode_canary():
-    """Disa the Restless's "Whenever a Lhurgoyf permanent card is put into your
-    graveyard from anywhere other than the battlefield": phase leaves the trigger
-    mode ``Unknown`` with no zone fields. The stage rewrites it to the
-    ``ChangesZone`` → Graveyard form of every other "from anywhere" arrival."""
-    (rec,) = test_phase_records("Disa the Restless")
-    before = rec["triggers"][0]
-    assert isinstance(before["mode"], dict), (
-        "misparsed_shapes graveyard arrival: RETIRE-READY — phase types Disa the "
-        "Restless's Lhurgoyf graveyard trigger. Delete the arrival row of "
-        "misparsed_shapes, clause_grammar.graveyard_arrival_subtype (and _SUBTYPE "
-        "if subtype_keyword_grant is gone too) and this canary."
-    )
-    assert "Unknown" in before["mode"]
-    assert before["destination"] is None
-    after = correct_misparsed_shapes(rec)["triggers"][0]
-    assert after["mode"] == "ChangesZone"
-    assert after["destination"] == "Graveyard"
-    assert after["origin"] is None  # phase has no "other than the battlefield"
-    assert {"Subtype": "Lhurgoyf"} in after["valid_card"]["type_filters"]
-    assert after["valid_card"]["properties"] == [{"type": "Owned", "controller": "You"}]
-    assert after["execute"] == before["execute"]  # the typed body is kept
-    assert isinstance(rec["triggers"][0]["mode"], dict)  # the input is untouched
-    assert {"subtype_ref|you|Lhurgoyf"} <= {
-        f"{s.key}|{s.scope}|{s.subject}" for s in test_signals("Disa the Restless")
-    }
-
-
-def test_other_unknown_mode_returns_are_not_graveyard_arrivals():
-    # "When target creature dies this turn, return that card to the battlefield"
-    # (Graceful Reprieve) has the same typed body under an Unknown mode: a death.
-    (rec,) = test_phase_records("Graceful Reprieve")
-    assert correct_misparsed_shapes(rec) is rec
-
-
-@pytest.mark.retirement_canary
 def test_split_coin_flip_canary():
     """Desperate Gambit's "flip a coin. If you win the flip, … If you lose the
     flip, …": phase types two flips, the first with only its ``win_effect`` and
@@ -230,12 +194,14 @@ def test_its_controller_manifests_canary():
 @pytest.mark.retirement_canary
 def test_equipped_attack_canary():
     """Akiri, Fearless Voyager's "attack a player with one or more equipped
-    creatures": phase drops the attackers. The stage writes them back."""
+    creatures": phase leaves the trigger's mode ``Unknown``. The stage writes
+    the attack and its attackers back."""
     (rec,) = test_phase_records("Akiri, Fearless Voyager")
-    trig = next(t for t in rec["triggers"] if t["mode"] == "YouAttack")
-    assert not trig.get("valid_card"), (
+    parked = [t for t in rec["triggers"] if isinstance(t["mode"], dict)]
+    assert parked, (
         "misparsed_shapes equipped attack: RETIRE-READY — phase types Akiri's "
-        "attackers. Delete the row and this canary."
+        "attack trigger. Delete the row and this canary if it names the "
+        "attackers on valid_card; else narrow the row back to a YouAttack mode."
     )
     fixed = next(
         t for t in correct_misparsed_shapes(rec)["triggers"] if t["mode"] == "YouAttack"
@@ -243,6 +209,28 @@ def test_equipped_attack_canary():
     assert fixed["valid_card"]["properties"] == [
         {"type": "HasAttachment", "kind": "Equipment"}
     ]
+    assert ("voltron_matters", "you") in {
+        (s.key, s.scope) for s in test_signals("Akiri, Fearless Voyager")
+    }
+
+
+@pytest.mark.parametrize(
+    ("line", "kind"),
+    [
+        (
+            "Whenever you attack a player with one or more equipped creatures",
+            "Equipment",
+        ),
+        # synthetic: the Aura form, and two lines that are other events
+        ("Whenever you attack with one or more enchanted creatures", "Aura"),
+        ("Whenever you attack with one or more Zombies", None),
+        ("Whenever you attack with one or more equipped creatures and a Knight", None),
+    ],
+)
+def test_attached_attackers_grammar(line, kind):
+    from mtg_utils._card_ir.clause_grammar import attached_attackers_kind
+
+    assert attached_attackers_kind(line) == kind
 
 
 @pytest.mark.retirement_canary
@@ -256,9 +244,8 @@ def test_umbra_armor_grant_canary():
     ), (
         "misparsed_shapes umbra armor grant: RETIRE-READY — phase types Umbra "
         "Mystic's static. Once no parked line reads as a grant, delete the "
-        "parked-grant row, clause_grammar.subtype_keyword_grant (and _SUBTYPE if "
-        "graveyard_arrival_subtype is gone too) and this canary; keep the umbra "
-        "armor keyword in GRANT_KEYWORDS."
+        "parked-grant row, clause_grammar.subtype_keyword_grant (and _SUBTYPE) "
+        "and this canary; keep the umbra armor keyword in GRANT_KEYWORDS."
     )
     fixed = correct_misparsed_shapes(rec)
     grant = fixed["static_abilities"][-1]
@@ -301,30 +288,6 @@ def test_a_parked_grant_reads_its_subtype_and_keywords():
         "Equipment",
         frozenset({"hexproof"}),
     )
-
-
-_ANYWHERE_BUT_BATTLEFIELD = (
-    "permanent card is put into your graveyard from anywhere other than the battlefield"
-)
-# synthetic: another zone change
-_PUT_FROM_BATTLEFIELD = (
-    "Whenever an Elf permanent card is put into your graveyard from the battlefield"
-)
-
-
-@pytest.mark.parametrize(
-    ("line", "subtype"),
-    [
-        (f"Whenever a Lhurgoyf {_ANYWHERE_BUT_BATTLEFIELD}", "Lhurgoyf"),
-        (f"Whenever an Elf {_ANYWHERE_BUT_BATTLEFIELD}", "Elf"),
-        (_PUT_FROM_BATTLEFIELD, None),
-        (f"Whenever a Lhurgoyf {_ANYWHERE_BUT_BATTLEFIELD}, or leaves it", None),
-    ],
-)
-def test_graveyard_arrival_grammar(line, subtype):
-    from mtg_utils._card_ir.clause_grammar import graveyard_arrival_subtype
-
-    assert graveyard_arrival_subtype(line) == subtype
 
 
 @pytest.mark.retirement_canary

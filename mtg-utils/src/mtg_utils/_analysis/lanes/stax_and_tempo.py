@@ -43,6 +43,7 @@ from mtg_utils._card_ir.crosswalk import (
     AbilityUnit,
     ConceptTree,
     affected_tag,
+    cast_with_keyword_name,
     change_zone_dirs,
     color_keyed_sites,
     controller_side,
@@ -54,11 +55,11 @@ from mtg_utils._card_ir.crosswalk import (
     double_target_kind,
     dynamic_pt_mod_sites,
     effect_filter,
-    effect_owner_duration,
     effect_owner_player_scope,
     effect_owner_raw,
     effect_owner_targets_per_opponent,
     effect_reaches_player,
+    exiles_until_host_leaves,
     explicit_recipient_scope,
     filter_controller,
     filter_controller_side,
@@ -98,7 +99,7 @@ from mtg_utils._card_ir.crosswalk import (
     trigger_counter_filter,
     trigger_scope,
 )
-from mtg_utils._card_ir.mirror.runtime import MirrorVariant, TypedMirrorNode
+from mtg_utils._card_ir.mirror.runtime import TypedMirrorNode
 from mtg_utils._card_ir.recovery import EACH_OBJECT, TARGET_OBJECT, is_theirs
 
 
@@ -701,10 +702,11 @@ def _dig_until(tree: ConceptTree) -> list[Signal]:
 
 def _exile_until_leaves(tree: ConceptTree) -> list[Signal]:
     """exile_until_leaves — the O-Ring exile (CR 611.2b durations + 603.6c):
-    a ``ChangeZone {destination: Exile}`` whose OWNING wrapper carries the
-    ``UntilHostLeavesPlay`` duration (Banisher Priest; Oblivion Ring's ETB
-    trigger — the duration on the FIRST trigger alone suffices, no
-    cross-ability join). Checklist #5 zone/dest ([P2]/[P4] family): the
+    a ``ChangeZone {destination: Exile}`` that lasts until its card leaves
+    (:func:`crosswalk.exiles_until_host_leaves` — Banisher Priest's
+    ``UntilHostLeavesPlay`` duration; Oblivion Ring's enters trigger beside the
+    leaves trigger that returns the exiled card). Checklist #5 zone/dest
+    ([P2]/[P4] family): the
     destination must be Exile with the duration on the same node chain — a
     permanent exile (no duration → the ported ``exile_removal``) and the LTB
     return trigger alone (TrackedSet → Battlefield; CR 603.6c's
@@ -717,7 +719,7 @@ def _exile_until_leaves(tree: ConceptTree) -> list[Signal]:
                 continue
             if change_zone_dirs(c.node)[1] != "Exile":
                 continue
-            if effect_owner_duration(unit.node, c.node) == "UntilHostLeavesPlay":
+            if exiles_until_host_leaves(tree, unit, c.node):
                 return [
                     Signal("exile_until_leaves", "you", "", c.raw, tree.name, "high")
                 ]
@@ -823,8 +825,7 @@ def _typed_spellcast_lane(tree: ConceptTree) -> list[Signal]:
                 continue  # a self-discount (A-Demilich) is not a cast payoff
             if filter_controller(affected) != "You":
                 continue  # the "you cast" coupling (checklist #6)
-            mode = getattr(n, "mode", None)
-            if isinstance(mode, MirrorVariant) and mode.key == "CastWithKeyword":
+            if cast_with_keyword_name(n) is not None:
                 for s in filter_subtypes(affected):
                     emit(s)
             elif modify_cost_mode(n) == "Reduce":

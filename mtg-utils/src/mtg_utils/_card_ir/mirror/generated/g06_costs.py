@@ -5,7 +5,7 @@ Codegen'd from ``tests/fixtures/phase_mirror_schema.json`` by
 
 Part of the generated typed-mirror package (see this directory's
 ``__init__.py``). This module holds content keys ``costs`` .. ``duplicate_of``
-(24 keys).
+(25 keys).
 
 Class naming: ``S_<ckey>`` for a struct shape, ``T_<ckey>__<tag>`` for a tagged
 shape, ``U_<ckey>`` for the union of all tagged shapes at one content_key.
@@ -23,16 +23,16 @@ from mtg_utils._card_ir.mirror.runtime import (
 )
 
 if TYPE_CHECKING:
-    from mtg_utils._card_ir.mirror.generated.g02_modifyactivationlimi import (
+    from mtg_utils._card_ir.mirror.generated.g02_mayhem import (
         U_ability_tag,
         U_activation_restrictions,
     )
-    from mtg_utils._card_ir.mirror.generated.g03_additional_modificat import (
+    from mtg_utils._card_ir.mirror.generated.g03_additional_cost import (
         U_affected,
         U_amount,
-        U_candidate_filter,
     )
-    from mtg_utils._card_ir.mirror.generated.g04_casting_restrictions import (
+    from mtg_utils._card_ir.mirror.generated.g04_candidate_filter import (
+        U_candidate_filter,
         U_condition,
     )
     from mtg_utils._card_ir.mirror.generated.g05_conditional_enter_wi import (
@@ -69,15 +69,15 @@ if TYPE_CHECKING:
     from mtg_utils._card_ir.mirror.generated.g13_qty import (
         U_qty,
     )
-    from mtg_utils._card_ir.mirror.generated.g14_redirect_target import (
+    from mtg_utils._card_ir.mirror.generated.g14_recipient_scope import (
         S_requirement,
         U_right,
     )
-    from mtg_utils._card_ir.mirror.generated.g15_spell_filter import (
+    from mtg_utils._card_ir.mirror.generated.g15_sources import (
         S_sub_ability,
         U_target,
     )
-    from mtg_utils._card_ir.mirror.generated.g16_triggers import (
+    from mtg_utils._card_ir.mirror.generated.g16_toughness import (
         S_unless_pay,
         S_value,
         U_value,
@@ -115,11 +115,15 @@ class S_data(TypedMirrorNode):
     maximum: int = MISSING
     minimum: int = MISSING
     outcome_template: S_outcome_template = MISSING
+    player: str = MISSING
+    pool: str = MISSING
     repeatable: bool = MISSING
+    scope: str = MISSING
     selection: str = MISSING
     stop_on_duplicate_exiled_names: bool = MISSING
     stop_on_put_to_hand: bool = MISSING
     value: U_value = MISSING
+    zones: list[object] = MISSING
 
 
 @dataclass(frozen=True)
@@ -292,13 +296,21 @@ class T_costs__Reveal(TypedMirrorNode):
     _tag: ClassVar[str | None] = "Reveal"
     count: U_count
     filter: U_filter = MISSING
+    shared_quality: str = MISSING
 
 
 @dataclass(frozen=True)
 class T_costs__Sacrifice(TypedMirrorNode):
     _tag: ClassVar[str | None] = "Sacrifice"
-    count: int
     target: U_target
+    count: int = MISSING
+    requirement: MirrorVariant = MISSING
+
+
+@dataclass(frozen=True)
+class T_costs__SayPhrase(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "SayPhrase"
+    phrase: str
 
 
 @dataclass(frozen=True)
@@ -537,6 +549,11 @@ class T_damage_source_filter__ChosenDamageSource(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_damage_source_filter__HasChosenName(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "HasChosenName"
+
+
+@dataclass(frozen=True)
 class T_damage_source_filter__Or(TypedMirrorNode):
     _tag: ClassVar[str | None] = "Or"
     filters: list[U_filters]
@@ -674,8 +691,9 @@ class T_data__Reveal(TypedMirrorNode):
 @dataclass(frozen=True)
 class T_data__Sacrifice(TypedMirrorNode):
     _tag: ClassVar[str | None] = "Sacrifice"
-    count: int
     target: U_target
+    count: int = MISSING
+    requirement: MirrorVariant = MISSING
 
 
 @dataclass(frozen=True)
@@ -698,7 +716,7 @@ class T_data__TriggeringSource(TypedMirrorNode):
 @dataclass(frozen=True)
 class T_data__Typed(TypedMirrorNode):
     _tag: ClassVar[str | None] = "Typed"
-    controller: str
+    controller: str | None
     properties: list[U_properties]
     type_filters: list[MirrorVariant]
 
@@ -727,6 +745,11 @@ class T_deck_copy_limit__UpTo(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_defender__Controller(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "Controller"
+
+
+@dataclass(frozen=True)
 class T_defender__Matching(TypedMirrorNode):
     _tag: ClassVar[str | None] = "Matching"
     filter: U_filter
@@ -736,6 +759,11 @@ class T_defender__Matching(TypedMirrorNode):
 class T_depth__Ref(TypedMirrorNode):
     _tag: ClassVar[str | None] = "Ref"
     qty: U_qty
+
+
+@dataclass(frozen=True)
+class T_designation__Monarch(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "Monarch"
 
 
 @dataclass(frozen=True)
@@ -843,6 +871,7 @@ type U_costs = (
     | T_costs__ReturnToHand
     | T_costs__Reveal
     | T_costs__Sacrifice
+    | T_costs__SayPhrase
     | T_costs__Tap
     | T_costs__TapCreatures
     | T_costs__Unattach
@@ -887,6 +916,7 @@ type U_damage_source_filter = (
     T_damage_source_filter__And
     | T_damage_source_filter__AttachedTo
     | T_damage_source_filter__ChosenDamageSource
+    | T_damage_source_filter__HasChosenName
     | T_damage_source_filter__Or
     | T_damage_source_filter__ParentTarget
     | T_damage_source_filter__SelfRef
@@ -919,8 +949,9 @@ type U_data = (
     | T_data__Waterbend
 )
 type U_deck_copy_limit = T_deck_copy_limit__Unlimited | T_deck_copy_limit__UpTo
-type U_defender = T_defender__Matching
+type U_defender = T_defender__Controller | T_defender__Matching
 type U_depth = T_depth__Ref
+type U_designation = T_designation__Monarch
 type U_destination = T_destination__AnyDefender
 type U_destination_constraint = T_destination_constraint__NotEquals
 type U_die_ignore_rule = T_die_ignore_rule__Lowest

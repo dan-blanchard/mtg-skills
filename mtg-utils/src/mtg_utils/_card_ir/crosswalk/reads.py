@@ -72,6 +72,19 @@ def tag_of(node: object) -> str | None:
     return None
 
 
+def spells_cast_this_turn(node: object) -> bool:
+    """Whether ``node`` is a count of spells cast this turn ("if you've cast two
+    or more spells this turn"): phase's ``SpellsCast`` quantity with a ``scope``
+    and no ``window`` (``SpellsCastThisTurn`` before v0.131.0). The werewolves'
+    "last turn" count carries ``window: LastTurn``; a ``TurnJournal``'s
+    ``SpellsCast`` journal has no scope."""
+    return (
+        tag_of(node) == "SpellsCast"
+        and _present(getattr(node, "scope", None))
+        and not _present(getattr(node, "window", None))
+    )
+
+
 def residue_is(node: object, name: str) -> bool:
     """Whether an ``Unimplemented`` residue is the one a read keys on by ``name``.
 
@@ -1426,9 +1439,9 @@ def _watches_a_permanent(trig: TypedMirrorNode) -> bool:
     to ("enchanted artifact", Tezzeret's Touch; the bare ``AttachedTo``, Genju of
     the Cedars) watches a permanent. The card itself (``SelfRef``) is a permanent
     only when the trigger works from the battlefield; Emrakul's "is put into a
-    graveyard from anywhere" works from the graveyard. The one shape the filter
-    cannot split is "a permanent is put into an opponent's graveyard" (Patron of
-    the Nezumi, owner-scoped like Moonshadow's "permanent cards"), read as a card.
+    graveyard from anywhere" works from the graveyard. ("A permanent is put into
+    an opponent's graveyard" — Patron of the Nezumi — is owner-scoped like
+    Moonshadow's "permanent cards"; phase writes its battlefield origin.)
     """
     vc = getattr(trig, "valid_card", MISSING)
     if not _present(vc):
@@ -1639,33 +1652,11 @@ def filter_predicates(filt: object) -> tuple[str, ...]:
     return tuple(out)
 
 
-def filter_without_keywords(filt: object) -> tuple[str, ...]:
-    """The keyword names a typed filter EXCLUDES via ``WithoutKeyword``
-    properties ("creature without flanking" — the flanking template's blocker
-    filter, CR 702.25a). The value-level companion to
-    :func:`filter_predicates`, which returns only the property TAGS. Recurses
-    ``Or`` / ``And`` like the other filter reads.
-    """
-    out: list[str] = []
-    t = tag_of(filt)
-    if t == "Typed":
-        for prop in getattr(filt, "properties", ()) or ():
-            if tag_of(prop) == "WithoutKeyword":
-                v = getattr(prop, "value", None)
-                if isinstance(v, str):
-                    out.append(v)
-    elif t in ("Or", "And"):
-        for sub in getattr(filt, "filters", ()) or ():
-            out.extend(filter_without_keywords(sub))
-    return tuple(out)
-
-
 def filter_keywords(filt: object) -> tuple[str, ...]:
     """The ability-keyword names a typed filter REQUIRES via ``WithKeyword``
     properties ("creatures you control with flying" → ``("Flying",)``; the
-    keyword-tribe payoff population, CR 109.3 / 702). The mirror of
-    :func:`filter_without_keywords` (which reads the ``WithoutKeyword``
-    exclusion side). Recurses ``Or`` / ``And`` like the other filter reads.
+    keyword-tribe payoff population, CR 109.3 / 702). Recurses ``Or`` / ``And``
+    like the other filter reads.
     """
     out: list[str] = []
     t = tag_of(filt)
@@ -3356,6 +3347,10 @@ def ref_count_filter(node: object, field: str) -> object | None:
 # Gold Saucer's Treasure, Invert Polarity's theft or counter, Winter Sky's sweep.
 # Like a die-roll row, each is one possible outcome; the walk skips an outcome
 # that is the card's own drawback (:func:`is_own_drawback`).
+# ``replacement_effect``: what a ``CreateDrawReplacement`` does in place of your
+# next draw (the Words cycle, typed since phase v0.131.0 — "The next time you
+# would draw a card this turn, each opponent discards a card instead", Words of
+# Waste, CR 614.1a): the ability's payoff, under its own ``player_scope``.
 _FLIP_OUTCOME_FIELDS = ("win_effect", "lose_effect")
 _EFFECT_CHILD_FIELDS = (
     "effect",
@@ -3364,6 +3359,7 @@ _EFFECT_CHILD_FIELDS = (
     "chosen_pile_effect",
     "unchosen_pile_effect",
     "else_ability",
+    "replacement_effect",
     *_FLIP_OUTCOME_FIELDS,
 )
 # The LIST-valued branch fields, each entry one alternative outcome of the
@@ -3742,6 +3738,25 @@ def named_permanent_refs(nodes: Iterable[object]) -> tuple[str, ...]:
     return tuple(out)
 
 
+def filter_excluded_zones(filt: object) -> tuple[str, ...]:
+    """The zones a filter's ``Not{InZone}`` properties rule out, recursing
+    ``Or`` / ``And`` — "from anywhere other than your hand" (Spider-Man 2099's
+    ``Not{InZone: Hand}``, phase v0.131.0; an ``InAnyZone`` of the other zones
+    before)."""
+    out: list[str] = []
+    t = tag_of(filt)
+    if t == "Typed":
+        for prop in getattr(filt, "properties", ()) or ():
+            inner = getattr(prop, "prop", None) if tag_of(prop) == "Not" else None
+            zone = getattr(inner, "zone", None) if tag_of(inner) == "InZone" else None
+            if isinstance(zone, str):
+                out.append(zone)
+    elif t in ("Or", "And"):
+        for sub in getattr(filt, "filters", ()) or ():
+            out.extend(filter_excluded_zones(sub))
+    return tuple(out)
+
+
 def filter_inanyzone_zones(filt: object) -> tuple[str, ...]:
     """The zones named by a filter's ``InAnyZone`` properties, recursing
     ``Or`` / ``And``. Parameterized since phase v0.35.2: the same-is-true
@@ -4009,9 +4024,13 @@ def cast_with_keyword_name(static_node: TypedMirrorNode) -> str | None:
     ``{CastWithKeyword: {keyword: …}}`` variant (Leyline of Anticipation —
     ``Flash``; Chief Engineer — ``Convoke``). The keyword itself is a plain
     string or a parameterized variant (``{Affinity: …}``) — the KEY is the
-    name. ``None`` for any other static mode (CR 601.3e).
+    name. Flash has its own bare mode since v0.131.0, ``"CastWithFlash"``
+    (Vedalken Orrery, Leyline of Anticipation). ``None`` for any other static
+    mode (CR 601.3e).
     """
     mode = getattr(static_node, "mode", MISSING)
+    if mode == "CastWithFlash":
+        return "Flash"
     if not (isinstance(mode, MirrorVariant) and mode.key == "CastWithKeyword"):
         return None
     kw = _variant_field(mode.inner, "keyword")
@@ -4697,14 +4716,11 @@ def iter_granted_triggers(unit: AbilityUnit) -> Iterator[GrantedTrigger]:
 # :func:`_iter_typed_nodes`'s deep walk covers all three tree positions.
 def iter_nested_spellcast_static_modes(node: object) -> Iterator[TypedMirrorNode]:
     """Every node reachable under ``node`` whose ``.mode`` field is a
-    ``CastWithKeyword`` or ``ModifyCost`` variant — the typed_spellcast
+    ``CastWithKeyword`` or ``ModifyCost`` variant, or the bare
+    ``"CastWithFlash"`` (:func:`cast_with_keyword_name`) — the typed_spellcast
     lane's structural source (see module note above)."""
     for n in _iter_typed_nodes(node):
-        mode = getattr(n, "mode", MISSING)
-        if isinstance(mode, MirrorVariant) and mode.key in (
-            "CastWithKeyword",
-            "ModifyCost",
-        ):
+        if static_mode_tag(n) in ("CastWithKeyword", "CastWithFlash", "ModifyCost"):
             yield n
 
 
@@ -5108,8 +5124,8 @@ def spell_velocity_static_two(root: object) -> bool:
     condition variant sharing the identical comparator/lhs/rhs shape — Effortless
     Master's ETB "enters with two +1/+1 counters if you've cast two or more spells
     this turn") gates a payoff on "you've cast two or more spells this turn" —
-    ``lhs`` a ``Ref`` over ``SpellsCastThisTurn`` (``scope: Controller``), comparator
-    ``GE`` with ``rhs == 2`` (or the equivalent ``GT`` / ``rhs == 1``).
+    ``lhs`` a ``Ref`` over this turn's ``SpellsCast`` (``scope: Controller``),
+    comparator ``GE`` with ``rhs == 2`` (or the equivalent ``GT`` / ``rhs == 1``).
 
     The STATIC-CONDITION form of second_spell_matters (b3 recall): Brightspear
     Zealot's "gets +2/+0 as long as you've cast two or more spells this turn"
@@ -5128,7 +5144,7 @@ def spell_velocity_static_two(root: object) -> bool:
             continue
         lhs = getattr(n, "lhs", None)
         qty = getattr(lhs, "qty", None) if lhs is not None else None
-        if qty is None or tag_of(qty) != "SpellsCastThisTurn":
+        if qty is None or not spells_cast_this_turn(qty):
             continue
         if getattr(qty, "scope", None) != "Controller":
             continue
@@ -5803,7 +5819,10 @@ def effect_actor_scope(unit: AbilityUnit, node: object) -> str | None:
       Tome) → :data:`ENCHANTED_PLAYER_SCOPE`;
     * the ``TriggeringPlayer`` of a trigger watching opponents ("Whenever an
       opponent loses life, that player mills that many cards" — Mindcrank)
-      → ``"opponents"`` (:func:`triggering_player_side`).
+      → ``"opponents"`` (:func:`triggering_player_side`);
+    * "that player" of a replacement of your creatures' combat damage
+      (``PostReplacementDamageTarget`` — Szadek, Lord of Secrets)
+      → ``"opponents"`` (:func:`_replaces_your_combat_damage`).
     """
     owner = effect_owner_player_scope(unit.node, node)
     if owner is None and id(node) not in _owner_index(unit.node).owners:
@@ -5835,7 +5854,25 @@ def effect_actor_scope(unit: AbilityUnit, node: object) -> str | None:
         return ENCHANTED_PLAYER_SCOPE
     if recipient == "TriggeringPlayer" and triggering_player_side(unit) == "opponents":
         return "opponents"
+    if recipient == "PostReplacementDamageTarget" and _replaces_your_combat_damage(
+        unit
+    ):
+        return "opponents"
     return None
+
+
+def _replaces_your_combat_damage(unit: AbilityUnit) -> bool:
+    """Whether ``unit`` replaces combat damage the card itself or a creature
+    you control would deal ("If Szadek would deal combat damage to a player,
+    instead … that player mills that many cards" — Szadek, Lord of Secrets;
+    Undead Alchemist's Zombies): its "that player" is the player that creature
+    attacked (CR 510.1b), another player (CR 508.1b)."""
+    if unit.origin != "replacement" or (
+        getattr(unit.node, "combat_scope", None) != "CombatOnly"
+    ):
+        return False
+    source = getattr(unit.node, "damage_source_filter", None)
+    return tag_of(source) == "SelfRef" or filter_controller_side(source) == "you"
 
 
 def effects_by_actor(
@@ -6099,6 +6136,32 @@ def effect_owner_duration(root: object, effect_node: object) -> str | None:
     """
     owner = _find_owner_wrapper(root, effect_node)
     return node_duration(owner) if owner is not None else None
+
+
+def exiles_until_host_leaves(
+    tree: ConceptTree | None, unit: AbilityUnit, effect_node: object
+) -> bool:
+    """Whether an exile lasts until the card that made it leaves the battlefield
+    (CR 610.3: a zone change "until" a specified event): the wrapper owning it
+    carries ``UntilHostLeavesPlay`` ("until this creature leaves the
+    battlefield" — Banisher Priest), or it is the
+    card's own enters trigger and the card's own leaves trigger returns what it
+    exiled — the two triggers the older wording prints ("When this enchantment
+    leaves the battlefield, return the exiled card to the battlefield under its
+    owner's control" — Oblivion Ring, Fiend Hunter, Journey to Nowhere), which
+    phase types as a ``ChangeZoneAll`` of ``ExiledBySource`` since v0.131.0."""
+    if effect_owner_duration(unit.node, effect_node) == "UntilHostLeavesPlay":
+        return True
+    if tree is None or not is_self_enters_trigger(unit):
+        return False
+    return any(
+        tag_of(c.node) == "ChangeZoneAll"
+        and getattr(c.node, "destination", None) == "Battlefield"
+        and tag_of(getattr(c.node, "target", None)) == "ExiledBySource"
+        for other in tree.units
+        if is_self_leaves_trigger(other)
+        for c in other.effects
+    )
 
 
 # A chosen player the caster may aim anywhere — at an opponent, themself or
@@ -6392,6 +6455,29 @@ def cost_reduction_count_filters(node: object) -> Iterator[object]:
         filt = ref_count_filter(site, field)
         if filt is not None:
             yield filt
+
+
+def cost_reduction_counters(node: object) -> str | None:
+    """The kind of counter an activated ability's own ``cost_reduction`` counts
+    across objects that aren't an opponent's (a ``CountersOnObjects`` count —
+    "This ability costs {1} less to activate for each +1/+1 counter on creatures
+    you control", Deepwood Denizen), or ``None``. CR 602.2b."""
+    reduction = getattr(node, "cost_reduction", MISSING)
+    if not isinstance(reduction, TypedMirrorNode):
+        return None
+    return counters_on_your_objects(count_operand_qty(reduction, fields=("count",)))
+
+
+def counters_on_your_objects(qty: object) -> str | None:
+    """The counter kind a ``CountersOnObjects`` quantity counts across objects
+    that aren't an opponent's ("for each +1/+1 counter on other creatures you
+    control" — Gleam of Authority), or ``None`` for any other quantity."""
+    if tag_of(qty) != "CountersOnObjects":
+        return None
+    if filter_controller(getattr(qty, "filter", None)) == "Opponent":
+        return None
+    kind = getattr(qty, "counter_type", None)
+    return kind if isinstance(kind, str) else None
 
 
 def static_mode_field(node: object, field: str) -> object:
@@ -7198,13 +7284,17 @@ def _own_mana_effects(tree: ConceptTree) -> Iterator[TypedMirrorNode]:
 #: the last chosen color"). Each is still a prevention effect
 #: (CR 615.1a: effects that use the word "prevent"), so the ``damage_prevention``
 #: lane and ``protection.protective_saves`` read the residue's name. Guarded by
-#: ``test_parked_prevention_residues_canary``.
+#: ``test_parked_prevention_residues_canary``. Phase v0.131.0 adds a prevention
+#: followed by a listed rider (``prevention_listed_rider``: Bloatfly Swarm's and
+#: Sekki, Seasons' Guide's "If damage would be dealt to ~, prevent that damage,
+#: remove that many +1/+1 counters from it, …"), a shield of the card alone.
 PARKED_PREVENTION_RESIDUES: frozenset[str] = frozenset(
     {
         "prevent_damage_recipient_target_role",
         "prevent_damage_dealt_by_target",
         "bidirectional_prevent_declared_target",
         "prevention_source_scope",
+        "prevention_listed_rider",
     }
 )
 
@@ -7218,32 +7308,15 @@ def parked_prevention(node: object) -> str | None:
     return name if name in PARKED_PREVENTION_RESIDUES else None
 
 
-#: Phase v0.94.0 parks Boxing Ring's "Activate only if you control a creature that
-#: fought this turn" as an ``unparsed_condition`` residue in the ability's effect
-#: chain instead of an ``activation_restrictions`` entry, so the gate is invisible
-#: to the typed read. Guarded by ``test_boxing_ring_gate_is_still_a_residue_canary``.
-UNPARSED_ACTIVATION_GATE = "Activate only if"
-
-
 def _unit_activation_gated(unit: AbilityUnit) -> bool:
     """Whether an ability may be activated only while a condition holds ("Activate
     only if you control three or more artifacts", "… during an opponent's turn"):
     a ``RequiresCondition`` activation restriction (CR 602.5 — a player can't begin
-    to activate a prohibited ability), or the residue phase parks one as
-    (:data:`UNPARSED_ACTIVATION_GATE`). Phase files a max speed ability the same
+    to activate a prohibited ability). Phase files a max speed ability the same
     way; by the rules it is a static that grants the ability only while your speed
     is 4 (CR 702.178a), which comes to the same thing here. Timing-only and per-turn
     limits ("as a sorcery", "once each turn") aren't conditions."""
-    if next(activation_restriction_conditions(unit.node), MISSING) is not MISSING:
-        return True
-    return any(
-        tag_of(c.node) == "Unimplemented"
-        and residue_is(c.node, "unparsed_condition")
-        and (getattr(c.node, "description", "") or "").startswith(
-            UNPARSED_ACTIVATION_GATE
-        )
-        for c in unit.effects
-    )
+    return next(activation_restriction_conditions(unit.node), MISSING) is not MISSING
 
 
 def mana_ability_gates(tree: ConceptTree) -> tuple[bool, ...]:
@@ -9254,6 +9327,11 @@ _TARGET_OWNER_REFS: frozenset[str] = PLAYER_BACK_REFERENCES | {
 }
 
 
+#: The derived trigger events of one block: the source becoming blocked, or
+#: blocking (CR 509).
+BLOCK_EVENTS: frozenset[str] = frozenset({"becomes_blocked", "blocks"})
+
+
 def token_creator_side(unit: AbilityUnit, node: object) -> TokenCreatorSide | None:
     """The side of the player who creates the token a ``Token`` /
     ``CopyTokenOf`` effect ``node`` of ``unit`` makes — its owner and
@@ -9339,6 +9417,13 @@ def token_creator_side(unit: AbilityUnit, node: object) -> TokenCreatorSide | No
             and unit.origin == "trigger"
             and watches_itself(unit.node)
         ):
+            if unit.trigger_event in BLOCK_EVENTS:
+                # "Whenever ~ becomes blocked by a creature, that creature's
+                # controller … create[s] a 0/2 … Wall" (Basalt Golem): "that
+                # creature" is the one on the other side of the block, the
+                # other player's (CR 509.1a: the defending player's creatures
+                # block the creatures attacking them).
+                return "opponents"
             # "When ~ leaves the battlefield, its owner creates …" (Yes Man,
             # Personal Securitron): "it" is the card itself, and it is yours.
             return "you"
@@ -9477,7 +9562,8 @@ def damage_drains_opponent(unit: AbilityUnit, node: TypedMirrorNode) -> bool:
 
 def life_lost_this_turn_sides(node: object) -> frozenset[str]:
     """The sides whose "life lost this turn" ``node`` reads (CR 119.3): every
-    ``LifeLostThisTurn`` quantity under it, by its ``player`` — ``"you"``
+    ``LifeLost`` quantity under it (this turn's, or with ``window: LastTurn`` the
+    last turn's — Feast on the Fallen), by its ``player`` — ``"you"``
     ("the life you've lost this turn" — Children of Korlis), ``"opponents"``
     ("if an opponent lost life this turn" — Stromkirk Bloodthief, Bat
     Whisperer; "for each 1 life your opponents have lost this turn" — Rakdos,
@@ -9495,7 +9581,7 @@ def life_lost_this_turn_sides(node: object) -> frozenset[str]:
         t = tag_of(n)
         if t == "OpponentLostLife":
             out.add("opponents")
-        elif t == "LifeLostThisTurn" and id(n) not in negated:
+        elif t == "LifeLost" and id(n) not in negated:
             out.add(_scope_from_player_node(getattr(n, "player", None)) or "each")
     return frozenset(out)
 
@@ -10611,7 +10697,7 @@ BackReferenceKind = Literal["chosen", "event", "self", "linked", "unknown"]
 
 #: The back-reference targets :func:`effect_back_reference` resolves: "it" /
 #: "those cards", and a trigger's "it" / "that permanent".
-_BACK_REFERENCE_TARGETS: frozenset[str] = frozenset(
+BACK_REFERENCE_TARGETS: frozenset[str] = frozenset(
     {"ParentTarget", "TrackedSet", "TriggeringSource", "EventTarget"}
 )
 
@@ -10663,7 +10749,7 @@ def effect_back_reference(
       follows (Decoy Gambit's per-opponent choice)."""
     target = getattr(node, "target", None)
     tag = tag_of(target) or ""
-    if tag not in _BACK_REFERENCE_TARGETS:
+    if tag not in BACK_REFERENCE_TARGETS:
         return None
     if tag in ("ParentTarget", "TrackedSet"):
         for tracked, eff in iter_threaded_target_statics(
@@ -11019,9 +11105,9 @@ def puts_commander_into_hand(tree: ConceptTree) -> bool:
     zone (Command Beacon, Netherborn Altar, Road of Return's second mode,
     Campfire): a ``ChangeZone`` / ``ChangeZoneAll`` to ``Hand`` whose filter
     names a commander (``IsCommander``) and whose origin is the command zone —
-    the node's ``origin``, or an ``InZone: Command`` on the filter (Campfire's
-    "from the command zone and from your graveyard", which phase writes with a
-    graveyard origin). A commander put onto the battlefield from the command
+    the node's ``origin``, or a zone property on the filter (Campfire's "from
+    the command zone and from your graveyard": an ``InAnyZone`` of the two
+    since phase v0.131.0). A commander put onto the battlefield from the command
     zone (Derevi, Hellkite Courser) is not cast, so it is not this read."""
     for node in tree.iter_typed():
         if tag_of(node) not in ("ChangeZone", "ChangeZoneAll"):
@@ -11032,7 +11118,8 @@ def puts_commander_into_hand(tree: ConceptTree) -> bool:
         if "IsCommander" not in filter_predicates(filt):
             continue
         if getattr(node, "origin", None) == "Command" or "Command" in (
-            filter_inzone_zones(filt)
+            *filter_inzone_zones(filt),
+            *filter_inanyzone_zones(filt),
         ):
             return True
     return False

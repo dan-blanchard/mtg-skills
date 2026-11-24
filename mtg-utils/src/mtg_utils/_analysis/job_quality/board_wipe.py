@@ -775,6 +775,12 @@ def _tree_sweeps(tree: ConceptTree, *, walker: bool) -> list[_Sweep]:
                 else effect_filter(c.node)
             )
             cores = set(filter_core_types(filt))
+            if c.recovered_by:
+                # A sweep phase parks whole ("Destroy all creatures that aren't
+                # of a type chosen this way" — Harsh Mercy, phase v0.131.0) has
+                # no filter: the seam's reading names what it sweeps, and the
+                # unit's residue marks it gated.
+                cores = set(c.subject) & _SWEEP_TYPES
             ctrl = filter_controller(filt, u)
             if (
                 not cores & _SWEEP_TYPES

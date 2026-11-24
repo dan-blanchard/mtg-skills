@@ -28,13 +28,16 @@ from mtg_utils._card_ir.crosswalk import (
     aggregate_filter,
     attachment_kinds,
     blight_placements,
+    cast_with_keyword_name,
     controller_paid_cost_leaves,
     cost_reduction_count_filters,
+    cost_reduction_counters,
     count_operand_filter,
     count_operand_qty,
     counter_kind,
     counter_kind_any,
     counter_pred_kinds,
+    counters_on_your_objects,
     drains_opponents,
     effect_filter,
     effect_owner_player_scope,
@@ -616,11 +619,12 @@ def _plus_one_matters(tree: ConceptTree) -> list[Signal]:
       counters (Hierophant Bio-Titan's additional cost) is read off
       :func:`controller_paid_cost_leaves` below.
     * **3 cards — served structurally, grammar sprint task #82**: Rumbling
-      Ruin / Deepwood Denizen — ``clause_grammar``'s ``count_operand`` /
-      ``counter_cost_reduction`` verbs + ``recovery.ALLOWLIST`` re-decorate
-      the Unimplemented residue, read here via a ``recovered_by``-gated
-      arm (kind-checked on the raw, same precedent as "draw"/"discard"/
-      "damage"); Tetravus — a fully-typed P1P1 ``RemoveCounter`` EFFECT
+      Ruin — ``clause_grammar``'s ``count_operand`` verb +
+      ``recovery.ALLOWLIST`` re-decorate the Unimplemented residue, read here
+      via a ``recovered_by``-gated arm (kind-checked on the raw, same
+      precedent as "draw"/"discard"/"damage"); Deepwood Denizen — its typed
+      ``cost_reduction`` (:func:`cost_reduction_counters`, phase v0.131.0);
+      Tetravus — a fully-typed P1P1 ``RemoveCounter`` EFFECT
       paired with a Token count Ref'd to the same removed amount, a
       counter-to-token CONVERSION idiom read via a dedicated pairing arm
       (narrowly scoped: a corpus check found 39 commander-legal cards
@@ -903,23 +907,20 @@ def _plus_one_matters(tree: ConceptTree) -> list[Signal]:
                 filt
             ):
                 return [Signal("plus_one_matters", "you", "", "", tree.name, "high")]
-        # ADR-0039 W8 grammar sprint (task #82) — two recovered-node arms,
-        # both kind-gated on the raw (the "draw"/"discard"/"damage"
-        # recovered-node raw-read precedent: a recovered node carries no
-        # typed counter-kind field to re-check):
-        # * ``count_operand`` — a counter TALLY clause (CR 122.1/701.6a):
-        #   "count the number of +1/+1 counters on <filter>" (Rumbling
-        #   Ruin's ETB), recovered by ``clause_grammar``'s ``count_operand``
-        #   token + ``recovery.ALLOWLIST``.
-        # * ``counter_cost_reduction`` — an activated ability's OWN
-        #   "costs {N} less to activate for each +1/+1 counter" scaler (CR
-        #   118.7/122.1, Deepwood Denizen), recovered by the
-        #   ``counter_cost_reduction`` token.
+        # … or counting the +1/+1 counters themselves ("costs {1} less to
+        # activate for each +1/+1 counter on creatures you control" — Deepwood
+        # Denizen, typed since phase v0.131.0; CR 602.2b).
+        if cost_reduction_counters(unit.node) == "P1P1":
+            return [Signal("plus_one_matters", "you", "", "", tree.name, "high")]
+        # ADR-0039 W8 grammar sprint (task #82) — a recovered-node arm,
+        # kind-gated on the raw (the "draw"/"discard"/"damage" recovered-node
+        # raw-read precedent: a recovered node carries no typed counter-kind
+        # field to re-check): ``count_operand`` — a counter TALLY clause (CR
+        # 122.1/701.6a), "count the number of +1/+1 counters on <filter>"
+        # (Rumbling Ruin's ETB), recovered by ``clause_grammar``'s
+        # ``count_operand`` token + ``recovery.ALLOWLIST``.
         for cn in unit.effects:
-            if cn.recovered_by in (
-                "count_operand",
-                "counter_cost_reduction",
-            ) and _P1P1_COND_TEXT_RX.search(cn.raw):
+            if cn.recovered_by == "count_operand" and _P1P1_COND_TEXT_RX.search(cn.raw):
                 return [
                     Signal("plus_one_matters", "you", "", cn.raw, tree.name, "high")
                 ]
@@ -1051,6 +1052,8 @@ def _plus_one_matters(tree: ConceptTree) -> list[Signal]:
         p1p1_qty = False
         if q is not None and qtag == "CountersOn":
             p1p1_qty = str(getattr(q, "counter_type", "")).upper() == "P1P1"
+        elif q is not None and qtag == "CountersOnObjects":
+            p1p1_qty = counters_on_your_objects(q) == "P1P1"
         elif q is not None and qtag == "CounterAddedThisTurn":
             counters = getattr(q, "counters", None)
             p1p1_qty = str(getattr(counters, "data", "") or "").upper() == "P1P1"
@@ -1086,19 +1089,25 @@ _PT_PUMP_TAGS: frozenset[str] = frozenset(
     }
 )
 
-# ADR-0038 W3 batch 4 — Moira Brown, Guide Author's granted TOKEN ability
-# ("Equipped creature gets +1/+1 for each quest counter among permanents you
-# control") buries a genuine dynamic scale two levels deep (trigger →
-# make_token effect → the token's OWN static_abilities), and phase's parse of
-# that buried def drops the "for each quest counter" scale to a FIXED
-# ``AddPower(value=1)``/``AddToughness(value=1)`` pair — :func:`count_operand_qty`
-# finds no ``Ref``/``dynamic_count`` to read. A bucket-B text-idiom fallback on
-# the def's OWN ``description`` (never the whole tree/card) recovers it,
-# excluding "+1/+1 counter" wording (that scale already routes to
-# plus_one_matters via the SAME def shape elsewhere). CR 122.1.
-_ANY_COUNTER_SCALE_TEXT_RX = re.compile(
-    r"for each(?:(?!\+1/\+1)[^.]){0,40}\bcounter\b", re.IGNORECASE
-)
+
+def _scales_by_any_counter(mod: TypedMirrorNode) -> bool:
+    """Whether a P/T pump scales by a count of counters this catch-all takes
+    (:func:`count_operand_qty`): counters on permanents of any kind but +1/+1
+    (``CountersOn`` / ``CountersOnObjects`` — plus_one_matters reads that one),
+    the number of different kinds (``DistinctCounterKindsAmong`` — Perrie, the
+    Pulverizer), or a player's counters other than experience
+    (``PlayerCounter`` — poison: Mycosynth Fiend; experience has its own lane,
+    ADR-0034). CR 122.1."""
+    q = count_operand_qty(mod)
+    qtag = tag_of(q) if q is not None else None
+    if qtag in ("CountersOn", "CountersOnObjects"):
+        return str(getattr(q, "counter_type", "") or "").upper() != "P1P1"
+    if qtag == "DistinctCounterKindsAmong":
+        return True
+    if qtag == "PlayerCounter":
+        kind = str(getattr(q, "kind", "") or "").upper()
+        return kind not in ("P1P1", "EXPERIENCE")
+    return False
 
 
 def _any_counter_matters(tree: ConceptTree) -> list[Signal]:
@@ -1156,73 +1165,27 @@ def _any_counter_matters(tree: ConceptTree) -> list[Signal]:
                 and "Any" in counter_pred_kinds(vc)
             ):
                 return [Signal("any_counter_matters", "you", "", "", tree.name, "high")]
-        # A granted-TOKEN static def whose "for each <kind> counter" scale
-        # phase dropped to a fixed P/T value (Moira Brown — see
-        # ``_ANY_COUNTER_SCALE_TEXT_RX`` above). Skip the unit's OWN top-level
-        # def (``sd is unit.node``) — a real ``Ref``-carrying scale there is
-        # already read by the ``tree.iter_concepts()`` pass below; re-reading
-        # it here via text would double-fire on (and never exclude) the
-        # dedicated-lane Experience scale (Kalemne, Kelsien, Minthara, Azula).
-        # Gate per-modification on :func:`count_operand_qty` finding NOTHING
-        # (the genuine buried-parse-drop signature) so a nested def that DOES
-        # carry a proper structured scale is left to its own accessor.
+        # A static a made token carries (Moira Brown, Guide Author's Wasteland
+        # Survival Guide: "Equipped creature gets +1/+1 for each quest counter
+        # among permanents you control") sits two levels under the unit, where
+        # the concept pass below never walks. The unit's own static is that
+        # pass's.
         for sd in iter_static_defs(unit.node):
             if sd is unit.node:
                 continue
             mods = getattr(sd, "modifications", None)
-            if not isinstance(mods, list) or not any(
-                isinstance(m, TypedMirrorNode)
-                and tag_of(m) in _PT_PUMP_TAGS
-                and count_operand_qty(m) is None
-                for m in mods
+            if isinstance(mods, list) and any(
+                tag_of(m) in _PT_PUMP_TAGS and _scales_by_any_counter(m) for m in mods
             ):
-                continue
-            desc = getattr(sd, "description", "") or ""
-            if _ANY_COUNTER_SCALE_TEXT_RX.search(desc):
+                desc = getattr(sd, "description", "") or ""
                 return [
                     Signal("any_counter_matters", "you", "", desc, tree.name, "high")
                 ]
     for c in tree.iter_concepts():
         if c.role == "cost":
             continue
-        if tag_of(c.node) in _PT_PUMP_TAGS:
-            q = count_operand_qty(c.node)
-            qtag = tag_of(q) if q is not None else None
-            # ADR-0038 W3 batch 4 — a PLAYER-counter scale ("gets +1/+1 for
-            # each poison counter your opponents have" — Mycosynth Fiend,
-            # Vishgraz, the Doomhive) is a distinct qty node
-            # (``PlayerCounter``, ``kind`` field) from the permanent-scoped
-            # ``CountersOn``/``CountersOnObjects`` (``counter_type`` field);
-            # same kind-agnostic-catch-all taxonomy, different node shape.
-            if q is not None and qtag in ("CountersOn", "CountersOnObjects"):
-                kind = str(getattr(q, "counter_type", "") or "").upper()
-                if kind != "P1P1":
-                    return [
-                        Signal(
-                            "any_counter_matters", "you", "", c.raw, tree.name, "high"
-                        )
-                    ]
-            elif q is not None and qtag == "DistinctCounterKindsAmong":
-                # phase v0.31.0 routes "the number of different kinds of
-                # counters among permanents you control" (Perrie, the
-                # Pulverizer) to its own qty node — kind-agnostic by
-                # definition, so no P1P1 carve-out applies.
-                return [
-                    Signal("any_counter_matters", "you", "", c.raw, tree.name, "high")
-                ]
-            elif q is not None and qtag == "PlayerCounter":
-                # Experience carries its OWN dedicated lane (experience_matters,
-                # ADR-0034 — Kalemne, Kelsien, Minthara, Azula) and is EXCLUDED
-                # here exactly like P1P1 is above; the corpus's only other
-                # PlayerCounter kind is Poison, which legacy DOES route through
-                # this kind-agnostic catch-all.
-                kind = str(getattr(q, "kind", "") or "").upper()
-                if kind not in ("P1P1", "EXPERIENCE"):
-                    return [
-                        Signal(
-                            "any_counter_matters", "you", "", c.raw, tree.name, "high"
-                        )
-                    ]
+        if tag_of(c.node) in _PT_PUMP_TAGS and _scales_by_any_counter(c.node):
+            return [Signal("any_counter_matters", "you", "", c.raw, tree.name, "high")]
         filters = [effect_filter(c.node), count_operand_filter(c.node)]
         # A one-shot conferred grant ("Each creature you control with a counter
         # on it gains flying" — Baxter; "…has hexproof and indestructible" —
@@ -2276,7 +2239,14 @@ def _voltron_matters(tree: ConceptTree) -> list[Signal]:
                 {s.lower() for s in filter_subtypes(spell_filt)} & _VOLTRON_SUBTYPES
             ):
                 return [Signal("voltron_matters", "you", "", "", tree.name, "high")]
-        if static_mode_tag(unit.node) == "ReduceAbilityCost":
+        # An equip cost made cheaper (``ReduceAbilityCost``) or free ("you may
+        # pay {0} rather than pay the equip cost of the first equip ability you
+        # activate" — Forge Anew, Bruenor Battlehammer: phase v0.131.0's
+        # ``AlternativeKeywordCost``). CR 702.6a.
+        if static_mode_tag(unit.node) in (
+            "ReduceAbilityCost",
+            "AlternativeKeywordCost",
+        ):
             kw = static_mode_field(unit.node, "keyword")
             if isinstance(kw, str) and kw.lower() in {
                 "equip",
@@ -2284,7 +2254,7 @@ def _voltron_matters(tree: ConceptTree) -> list[Signal]:
                 "fortify",
             }:
                 return [Signal("voltron_matters", "you", "", "", tree.name, "high")]
-        if static_mode_tag(unit.node) == "CastWithKeyword":
+        if cast_with_keyword_name(unit.node) is not None:
             cwk_filt = effect_filter(unit.node)
             if cwk_filt is not None and (
                 {s.lower() for s in filter_subtypes(cwk_filt)} & _VOLTRON_SUBTYPES

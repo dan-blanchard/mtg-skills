@@ -1,6 +1,6 @@
 """Closed-union arm for phase's ``Effect`` enum (ADR-0035, Stage 1).
 
-The ``Effect`` enum in phase's ``crates/engine/src/types/ability.rs`` declares
+The ``Effect`` enum in phase's ``crates/phase-ast/src/types/ability.rs`` declares
 232 variants at the v0.66.0 pin (a cheap variant-**name** grep — names only,
 never the Rust field shapes; 207 at v0.9.0 + 8 v0.15.0 + 1 v0.16.0
 (``BecomeBlocked``) + 8 v0.20.0 additions + 1 v0.28.0
@@ -34,6 +34,7 @@ EFFECT_VARIANTS: tuple[str, ...] = (
     "ChangeSpeed",
     "DealDamage",
     "ApplyPostReplacementDamage",
+    "ResumeDamageBatch",
     "EachDealsDamageEqualToPower",
     "EachSourceDealsDamage",
     "Draw",
@@ -179,6 +180,7 @@ EFFECT_VARIANTS: tuple[str, ...] = (
     "TakeTheInitiative",
     "ArrangePlanarDeckTop",
     "Planeswalk",
+    "AbandonScheme",
     "ChaosEnsues",
     "ReverseTurnOrder",
     "RedistributeLifeTotals",
@@ -242,6 +244,7 @@ EFFECT_VARIANTS: tuple[str, ...] = (
     "Amass",
     "EmpowerJace",
     "Monstrosity",
+    "HordePlayCard",
     "Specialize",
     "Renown",
     "Bolster",
@@ -262,6 +265,7 @@ EFFECT_VARIANTS: tuple[str, ...] = (
     "RemoveFromCombat",
     "BecomeBlocked",
     "Conjure",
+    "CreateCardCopyByName",
     "ApplyPerpetual",
     "Intensify",
     "DraftFromSpellbook",
@@ -292,9 +296,11 @@ ZERO_INSTANCE_EFFECTS: frozenset[str] = frozenset(
         "ExileFaceDownPile",
         "Exploit",
         "HeistExile",
+        "HordePlayCard",
         "MiracleCast",
         "ProcessRadCounters",
         "ReassembleContraptionOnSprocket",
+        "ResumeDamageBatch",
         "Ripple",
         "VentureInto",
     }

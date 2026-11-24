@@ -1042,22 +1042,7 @@ def _blink_flicker(tree: ConceptTree) -> list[Signal]:
                 # …but never unearth's Graveyard→Battlefield self-return whose "exile
                 # it" is the delayed cleanup (Anathemancer, Hell's Thunder — CR
                 # 702.84a): graveyard recursion, not a blink.
-                self_exile
-                and origin != "Graveyard"
-                # A self-exile's "Return it" can come back as a cast trigger's
-                # ``TriggeringSource`` (Ojutai Exemplars, Djinn of the Fountain:
-                # phase binds "it" to the spell cast, a misparse a
-                # ``retirement_canary`` test pins); the object is still the one
-                # this ability exiled. Only a ``SpellCast`` trigger: its source
-                # is a spell, which no exile-and-return puts onto the
-                # battlefield.
-                and (
-                    tgt == "SelfRef"
-                    or (
-                        tgt == "TriggeringSource"
-                        and getattr(unit.node, "mode", None) == "SpellCast"
-                    )
-                )
+                self_exile and origin != "Graveyard" and tgt == "SelfRef"
             ):
                 return [
                     Signal("blink_flicker", "you", "enabler", "", tree.name, "high")

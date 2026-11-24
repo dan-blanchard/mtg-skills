@@ -403,7 +403,11 @@ def test_owners_in_disagreeing_sentences_stand_the_arm_down():
 
 
 def test_cards_put_into_graveyards_this_way_name_no_owner():
-    assert {c.scope for c in _effects("Stitcher Geralf", "ChangeZone")} == {"each"}
+    # "Exile creature cards put into graveyards this way" (parked whole since
+    # phase v0.131.0): every player's graveyard, not the opponents' alone.
+    idents = _idents("Stitcher Geralf")
+    assert "graveyard_matters|any|" in idents
+    assert "graveyard_matters|opponents|" not in idents
 
 
 # ── player_counter_kind: "whenever you get one or more {E}" ───────────────────

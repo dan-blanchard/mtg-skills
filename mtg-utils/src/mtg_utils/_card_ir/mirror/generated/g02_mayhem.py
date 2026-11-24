@@ -4,8 +4,8 @@ Codegen'd from ``tests/fixtures/phase_mirror_schema.json`` by
 ``mtg_utils._card_ir.mirror.codegen`` (run via ``build-card-ir-substrate``).
 
 Part of the generated typed-mirror package (see this directory's
-``__init__.py``). This module holds content keys ``ModifyActivationLimit`` ..
-``additional_filter`` (65 keys).
+``__init__.py``). This module holds content keys ``Mayhem`` .. ``activity`` (69
+keys).
 
 Class naming: ``S_<ckey>`` for a struct shape, ``T_<ckey>__<tag>`` for a tagged
 shape, ``U_<ckey>`` for the union of all tagged shapes at one content_key.
@@ -23,12 +23,12 @@ from mtg_utils._card_ir.mirror.runtime import (
 )
 
 if TYPE_CHECKING:
-    from mtg_utils._card_ir.mirror.generated.g03_additional_modificat import (
+    from mtg_utils._card_ir.mirror.generated.g03_additional_cost import (
         U_alt_cost,
         U_amount,
         U_announced_x,
     )
-    from mtg_utils._card_ir.mirror.generated.g04_casting_restrictions import (
+    from mtg_utils._card_ir.mirror.generated.g04_candidate_filter import (
         U_condition,
     )
     from mtg_utils._card_ir.mirror.generated.g05_conditional_enter_wi import (
@@ -65,14 +65,17 @@ if TYPE_CHECKING:
     )
     from mtg_utils._card_ir.mirror.generated.g12_properties import (
         U_properties,
+        U_protected_scope,
     )
-    from mtg_utils._card_ir.mirror.generated.g14_redirect_target import (
-        U_reference,
+    from mtg_utils._card_ir.mirror.generated.g13_qty import (
+        U_qty,
+    )
+    from mtg_utils._card_ir.mirror.generated.g14_recipient_scope import (
         U_repeat_for,
         U_repeat_until,
         U_source_filter,
     )
-    from mtg_utils._card_ir.mirror.generated.g15_spell_filter import (
+    from mtg_utils._card_ir.mirror.generated.g15_sources import (
         S_sub_ability,
         U_spell_filter,
         U_target,
@@ -81,11 +84,10 @@ if TYPE_CHECKING:
         U_target_selection_mode,
         U_targets,
         U_timing,
-        U_trigger_source_filter,
     )
-    from mtg_utils._card_ir.mirror.generated.g16_triggers import (
+    from mtg_utils._card_ir.mirror.generated.g16_toughness import (
         S_unless_pay,
-        U_value,
+        U_trigger_source_filter,
     )
 
 
@@ -120,6 +122,12 @@ class S_NumberRange(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class S_Opponent(TypedMirrorNode):
+    distinctness: str
+    restriction: None
+
+
+@dataclass(frozen=True)
 class S_PerTurnCastLimit(TypedMirrorNode):
     max: int
     spell_filter: U_spell_filter | None
@@ -130,6 +138,12 @@ class S_PerTurnCastLimit(TypedMirrorNode):
 class S_PerTurnDrawLimit(TypedMirrorNode):
     max: int
     who: str
+
+
+@dataclass(frozen=True)
+class S_PlayerAction(TypedMirrorNode):
+    action: str
+    player: U_player
 
 
 @dataclass(frozen=True)
@@ -310,6 +324,7 @@ class S_abilities(TypedMirrorNode):
     optional_for: str = MISSING
     player_scope: U_player_scope = MISSING
     repeat_for: U_repeat_for = MISSING
+    repeat_timing: str = MISSING
     repeat_until: U_repeat_until = MISSING
     starting_with: str = MISSING
     sub_link: str = MISSING
@@ -339,6 +354,50 @@ class S_ability(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_Mayhem__Cost(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "Cost"
+    generic: int
+    shards: list[object]
+
+
+@dataclass(frozen=True)
+class T_Mayhem__SelfManaCost(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "SelfManaCost"
+
+
+@dataclass(frozen=True)
+class T_Megamorph__Cost(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "Cost"
+    generic: int
+    shards: list[object]
+
+
+@dataclass(frozen=True)
+class T_Miracle__Cost(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "Cost"
+    generic: int
+    shards: list[object]
+
+
+@dataclass(frozen=True)
+class T_Miracle__SelfManaCostReduced(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "SelfManaCostReduced"
+    reduction: int
+
+
+@dataclass(frozen=True)
+class T_Mobilize__Fixed(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "Fixed"
+    value: int
+
+
+@dataclass(frozen=True)
+class T_Mobilize__Ref(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "Ref"
+    qty: U_qty
+
+
+@dataclass(frozen=True)
 class T_MoreThanMeetsTheEye__Cost(TypedMirrorNode):
     _tag: ClassVar[str | None] = "Cost"
     generic: int
@@ -346,10 +405,15 @@ class T_MoreThanMeetsTheEye__Cost(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
-class T_Morph__Cost(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "Cost"
-    generic: int
-    shards: list[object]
+class T_Morph__Mana(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "Mana"
+    data: U_data
+
+
+@dataclass(frozen=True)
+class T_Morph__NonMana(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "NonMana"
+    data: U_data
 
 
 @dataclass(frozen=True)
@@ -794,7 +858,8 @@ class T_activity__ActivateAbilities(TypedMirrorNode):
 @dataclass(frozen=True)
 class T_activity__Attack(TypedMirrorNode):
     _tag: ClassVar[str | None] = "Attack"
-    defended: str
+    defended: str | MirrorVariant
+    protected_scope: U_protected_scope = MISSING
 
 
 @dataclass(frozen=True)
@@ -821,65 +886,14 @@ class T_activity__ProhibitPlayFromZone(TypedMirrorNode):
     zone: str
 
 
-@dataclass(frozen=True)
-class T_additional_cost__Choice(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "Choice"
-    data: list[U_data | S_data | MirrorVariant]
-
-
-@dataclass(frozen=True)
-class T_additional_cost__Cost(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "Cost"
-    generic: int
-    shards: list[object]
-
-
-@dataclass(frozen=True)
-class T_additional_cost__Kicker(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "Kicker"
-    data: S_data | MirrorVariant
-
-
-@dataclass(frozen=True)
-class T_additional_cost__Optional(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "Optional"
-    data: S_data | MirrorVariant
-
-
-@dataclass(frozen=True)
-class T_additional_cost__Required(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "Required"
-    data: U_data
-
-
-@dataclass(frozen=True)
-class T_additional_filter__Cmc(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "Cmc"
-    comparator: str
-    value: U_value
-
-
-@dataclass(frozen=True)
-class T_additional_filter__IsChosenCreatureType(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "IsChosenCreatureType"
-
-
-@dataclass(frozen=True)
-class T_additional_filter__MatchesLastChosenCardPredicate(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "MatchesLastChosenCardPredicate"
-
-
-@dataclass(frozen=True)
-class T_additional_filter__SharesQuality(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "SharesQuality"
-    quality: str
-    reference: U_reference
-
-
 # --- discriminated-union aliases (one per tagged content_key) ---
 
+type U_Mayhem = T_Mayhem__Cost | T_Mayhem__SelfManaCost
+type U_Megamorph = T_Megamorph__Cost
+type U_Miracle = T_Miracle__Cost | T_Miracle__SelfManaCostReduced
+type U_Mobilize = T_Mobilize__Fixed | T_Mobilize__Ref
 type U_MoreThanMeetsTheEye = T_MoreThanMeetsTheEye__Cost
-type U_Morph = T_Morph__Cost
+type U_Morph = T_Morph__Mana | T_Morph__NonMana
 type U_Mutate = T_Mutate__Cost
 type U_Ninjutsu = T_Ninjutsu__Cost
 type U_Offspring = T_Offspring__Cost
@@ -962,17 +976,4 @@ type U_activity = (
     | T_activity__CastSpells
     | T_activity__PlayLands
     | T_activity__ProhibitPlayFromZone
-)
-type U_additional_cost = (
-    T_additional_cost__Choice
-    | T_additional_cost__Cost
-    | T_additional_cost__Kicker
-    | T_additional_cost__Optional
-    | T_additional_cost__Required
-)
-type U_additional_filter = (
-    T_additional_filter__Cmc
-    | T_additional_filter__IsChosenCreatureType
-    | T_additional_filter__MatchesLastChosenCardPredicate
-    | T_additional_filter__SharesQuality
 )

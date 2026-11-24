@@ -27,28 +27,6 @@ taught a special case. Keyed on phase's structure, never the card's name or text
   record; it is read as every creature, which is a sweep either way.
   ``test_self_damage_sweep_canary`` fails once phase types the population itself.
 
-* **A graveyard arrival "from anywhere other than the battlefield".** "Whenever a
-  Lhurgoyf permanent card is put into your graveyard from anywhere other than the
-  battlefield, put it onto the battlefield" (Disa the Restless) is a trigger whose
-  ``mode`` is ``Unknown`` (the clause's text) with no zone fields; only its effect
-  (a ``ChangeZone`` of the ``ParentTarget`` to the battlefield) is typed. Phase
-  types every other arrival into your graveyard as ``ChangesZone`` with
-  ``destination: Graveyard``, the watched card ``Owned`` by you, and no ``origin``
-  for "from anywhere" (Countryside Crusher, The Gitrog Monster); it has no form
-  for "other than the battlefield", so that is the form written here — the one
-  arrival it over-admits is a Lhurgoyf dying, which Disa's text excludes. The
-  structural gate (an ``Unknown`` mode whose body returns the ``ParentTarget`` to
-  the battlefield) also fits three death and land-destruction triggers (Graceful
-  Reprieve, Scythe of the Wretched, Sacred Ground), so this row also parses the
-  ``Unknown`` mode's own clause, the text phase itself parked in the mode (never
-  the card's name or oracle text), with the shared clause grammar
-  (``clause_grammar.graveyard_arrival_subtype``: the arrival and the watched
-  subtype, from the CR's subtype lists). The watched filter is
-  written in the form ``shape_compat`` (which ran already) gives a graveyard
-  watcher: the owner on ``controller`` beside the ``Owned`` property.
-  ``test_graveyard_arrival_unknown_mode_canary`` fails once phase types the
-  trigger.
-
 * **A coin flip split in two.** "Flip a coin. If you win the flip, … If you lose
   the flip, …" (Desperate Gambit) is parsed as two flips: a ``FlipCoins`` with
   only its ``win_effect``, then, as its ``sub_ability``, a second ``FlipCoins``
@@ -85,13 +63,15 @@ taught a special case. Keyed on phase's structure, never the card's name or text
 
 * **"Attack with one or more equipped creatures" with no filter.** "Whenever
   you attack a player with one or more equipped creatures, draw a card"
-  (Akiri, Fearless Voyager) is a ``YouAttack`` trigger with no ``valid_card``,
-  read as any attack. Phase types "Whenever you attack with one or more
-  Zombies" with the attackers on ``valid_card`` (Varina, Lich Queen) and an
-  equipped creature as ``HasAttachment{Equipment}`` (Stone Haven Outfitter):
-  that filter is written on, for an equipped or enchanted attacker the
-  trigger's own description names. ``test_equipped_attack_canary`` fails once
-  phase types the filter.
+  (Akiri, Fearless Voyager) is a trigger whose mode phase leaves ``Unknown``
+  (the clause's text), so no attack trigger at all. Phase types "Whenever you
+  attack with one or more Zombies" with the attackers on ``valid_card``
+  (Varina, Lich Queen) and an equipped creature as
+  ``HasAttachment{Equipment}`` (Stone Haven Outfitter):
+  that filter and the ``YouAttack`` mode are written on, for an equipped or
+  enchanted attacker the parked clause names (read by the shared clause
+  grammar, ``clause_grammar.attached_attackers_kind``).
+  ``test_equipped_attack_canary`` fails once phase types the trigger.
 
 * **A keyword grant to a subtype you control left unparsed.** "Auras attached
   to permanents you control have umbra armor" (Umbra Mystic) is an
@@ -137,7 +117,7 @@ import re
 from collections.abc import Iterator
 
 from mtg_utils._card_ir.clause_grammar import (
-    graveyard_arrival_subtype,
+    attached_attackers_kind,
     subtype_keyword_grant,
 )
 from mtg_utils._card_ir.dropped_keywords import add_keyword, static_def
@@ -182,49 +162,6 @@ def _is_self_damage_sweep(effect: object) -> bool:
         and (effect.get("target") or {}).get("type") == "ParentTarget"
         and effect.get("amount") == _OWN_POWER
     )
-
-
-def _graveyard_arrival_subtype(trig: object) -> str | None:
-    """The watched subtype of a trigger phase left as an ``Unknown`` mode for
-    "<Subtype> permanent card is put into your graveyard from anywhere other than
-    the battlefield", whose body returns the ``ParentTarget`` to the battlefield."""
-    if not isinstance(trig, dict):
-        return None
-    mode = trig.get("mode")
-    if not (isinstance(mode, dict) and isinstance(mode.get("Unknown"), str)):
-        return None
-    effect = (trig.get("execute") or {}).get("effect") or {}
-    if not (
-        effect.get("type") == "ChangeZone"
-        and effect.get("destination") == "Battlefield"
-        and (effect.get("target") or {}).get("type") == "ParentTarget"
-    ):
-        return None
-    return graveyard_arrival_subtype(mode["Unknown"])
-
-
-def _graveyard_arrival_fields(subtype: str) -> dict:
-    """The ``ChangesZone`` fields phase writes for "a <Subtype> card is put into
-    your graveyard from anywhere" (Countryside Crusher's form, the watcher's owner on
-    ``controller`` as ``shape_compat`` leaves it)."""
-    return {
-        "mode": "ChangesZone",
-        "origin": None,
-        "destination": "Graveyard",
-        "batched": False,
-        "valid_card": {
-            "type": "Typed",
-            "type_filters": ["Permanent", {"Subtype": subtype}],
-            "controller": "You",
-            "properties": [{"type": "Owned", "controller": "You"}],
-        },
-        "valid_target": {
-            "type": "Typed",
-            "type_filters": [],
-            "controller": "You",
-            "properties": [],
-        },
-    }
 
 
 def _ability_bodies(node: object) -> Iterator[dict]:
@@ -312,24 +249,16 @@ def _bare_target_manifest(body: dict) -> bool:
     )
 
 
-#: An attack trigger's description naming its attackers' attachment.
-_ATTACHED_ATTACK_RX = re.compile(
-    r"^Whenever you attack (?:a player )?with one or more "
-    r"(?P<kind>equipped|enchanted) creatures\b"
-)
-
-
 def _attached_attack_kind(trig: object) -> str | None:
-    """``Equipment`` / ``Aura`` for a ``YouAttack`` trigger with no
-    ``valid_card`` whose description watches equipped / enchanted attackers."""
-    if not isinstance(trig, dict) or trig.get("mode") != "YouAttack":
+    """``Equipment`` / ``Aura`` for a trigger phase left an ``Unknown`` mode,
+    with no ``valid_card``, whose parked clause watches equipped / enchanted
+    attackers
+    (:func:`~mtg_utils._card_ir.clause_grammar.attached_attackers_kind`)."""
+    if not isinstance(trig, dict) or trig.get("valid_card"):
         return None
-    if trig.get("valid_card"):
-        return None
-    m = _ATTACHED_ATTACK_RX.match(str(trig.get("description") or ""))
-    if not m:
-        return None
-    return "Equipment" if m.group("kind") == "equipped" else "Aura"
+    mode = trig.get("mode")
+    clause = mode.get("Unknown") if isinstance(mode, dict) else None
+    return attached_attackers_kind(clause) if isinstance(clause, str) else None
 
 
 def _parked_subtype_grant(body: dict) -> dict | None:
@@ -438,11 +367,6 @@ def correct_misparsed_shapes(rec: dict) -> dict:
     sweeps = [
         body for body in _head_bodies(rec) if _is_self_damage_sweep(body.get("effect"))
     ]
-    arrivals = [
-        (trig, subtype)
-        for trig in rec.get("triggers") or ()
-        if (subtype := _graveyard_arrival_subtype(trig)) is not None
-    ]
     bodies = list(_ability_bodies(rec))
     split_flips = [body for body in bodies if _is_split_flip(body)]
     chosen_types = [
@@ -475,7 +399,6 @@ def correct_misparsed_shapes(rec: dict) -> dict:
     ]
     found = (
         sweeps,
-        arrivals,
         split_flips,
         chosen_types,
         manifests,
@@ -498,10 +421,6 @@ def correct_misparsed_shapes(rec: dict) -> dict:
             "target": copy.deepcopy(_EACH_CREATURE),
             "damage_source": effect["damage_source"],
         }
-    for trig, subtype in arrivals:
-        target = memo[id(trig)]
-        assert isinstance(target, dict)
-        target.update(_graveyard_arrival_fields(subtype))
     for body in split_flips:
         target = memo[id(body)]
         assert isinstance(target, dict)
@@ -531,6 +450,7 @@ def correct_misparsed_shapes(rec: dict) -> dict:
     for trig, kind in attacks:
         target = memo[id(trig)]
         assert isinstance(target, dict)
+        target["mode"] = "YouAttack"
         target["valid_card"] = {
             "type": "Typed",
             "type_filters": ["Creature"],

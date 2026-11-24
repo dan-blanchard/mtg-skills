@@ -914,7 +914,9 @@ def test_creature_recursion_serve_is_the_self_sacrifice_outlets():
             "extra_draw_step",
             "draw_step_triggers",
             "Sphinx of the Second Sun",
-            "Omen Machine",
+            # (Omen Machine's "that player exiles" is typed on the step's
+            # player since phase v0.131.0: every player alike, no payoff.)
+            "Sylvan Library",
             "Mana Vault",
         ),
     ],

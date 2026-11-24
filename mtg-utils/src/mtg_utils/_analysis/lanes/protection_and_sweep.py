@@ -74,6 +74,7 @@ from mtg_utils._card_ir.crosswalk import (
     self_drawbacks,
     silences_own_enter_triggers,
     spell_has_variable_target_count,
+    spells_cast_this_turn,
     static_mode_field,
     static_mode_player_sides,
     subtype_refs,
@@ -1071,7 +1072,7 @@ def _free_spell_storm(tree: ConceptTree) -> list[Signal]:
     Re-derives the live project marker's gate VERBATIM over the mirror
     nodes (never re-implemented from scratch): a ``ModifyCost{Reduce}``
     static whose ``affected`` is SelfRef AND whose ``dynamic_count`` is one
-    of the two corpus-unique cast-this-turn shapes — ``SpellsCastThisTurn{
+    of the two corpus-unique cast-this-turn shapes — a this-turn ``SpellsCast{
     scope: Controller}`` (Demilich) or an ``ObjectCount`` whose filter
     carries an ``Another`` property (Thrasta). An opponent-cast scaler
     (Delightful Discovery — ObjectCount with NO Another) is excluded by the
@@ -1086,7 +1087,7 @@ def _free_spell_storm(tree: ConceptTree) -> list[Signal]:
             continue
         dc = static_mode_field(unit.node, "dynamic_count")
         t = tag_of(dc)
-        if t == "SpellsCastThisTurn" and getattr(dc, "scope", None) == "Controller":
+        if spells_cast_this_turn(dc) and getattr(dc, "scope", None) == "Controller":
             return [Signal("free_spell_storm", "you", "", "", tree.name, "high")]
         if t == "ObjectCount" and has_filter_property(
             getattr(dc, "filter", None), "Another"

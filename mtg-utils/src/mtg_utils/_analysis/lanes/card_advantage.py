@@ -3229,6 +3229,13 @@ def _exile_matters(tree: ConceptTree) -> list[Signal]:
             continue  # the Suspend-mechanic reuse — never guess
         if "Exile" in filter_inzone_zones(target):
             return [Signal("exile_matters", "you", "", "", tree.name, "high")]
+    # The same removal parked (phase v0.131.0's ``unparsed_verb_arguments``,
+    # token ``remove_counter``): the clause names the exile zone itself ("from
+    # each other card you own in exile" — Alaundo the Seer); a suspended card's
+    # removal names no zone ("from each suspended card you own").
+    for c in tree.iter_concepts():
+        if c.recovered_by == "remove_counter" and "Exile" in c.zones:
+            return [Signal("exile_matters", "you", "", c.raw, tree.name, "high")]
     # ADR-0039 W7 (2026-07-12) — the order-sensitive "for each card exiled
     # this way" TrackedSetSize arm (:func:`_exile_then_tracked_set_size`):
     # Rysorian Badger's own life-gain scales off a bare ``TrackedSetSize``
@@ -3565,10 +3572,15 @@ def _facedown_has_marker(node: object) -> bool:
     predicate tag (a target/affected filter's ``properties``) or a
     ``Subtype: Face-down`` type-filter word — the structural read of
     legacy's ``_is_facedown_subject`` (Nosy Goblin's ``Destroy`` target,
-    Etrata's granted-ability ``affected``, Kadena's ETB ``valid_card``).
+    Etrata's granted-ability ``affected``, Kadena's ETB ``valid_card``). A
+    ``Not{FaceDown}`` property names a face-UP object ("face-up nontoken
+    creatures you control" — Whisperwood Elemental; "target face-up exiled
+    card" — Pull from Eternity) and is no marker.
     """
-    for n in iter_typed_nodes(node):
-        if tag_of(n) == "FaceDown":
+    nodes = list(iter_typed_nodes(node))
+    face_up = {id(getattr(n, "prop", None)) for n in nodes if tag_of(n) == "Not"}
+    for n in nodes:
+        if tag_of(n) == "FaceDown" and id(n) not in face_up:
             return True
         if "Face-down" in filter_subtypes(n):
             return True

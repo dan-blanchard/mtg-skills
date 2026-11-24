@@ -5,7 +5,7 @@ Codegen'd from ``tests/fixtures/phase_mirror_schema.json`` by
 
 Part of the generated typed-mirror package (see this directory's
 ``__init__.py``). This module holds content keys ``qty`` ..
-``redirect_object_filter`` (10 keys).
+``recipient_object_filter`` (7 keys).
 
 Class naming: ``S_<ckey>`` for a struct shape, ``T_<ckey>__<tag>`` for a tagged
 shape, ``U_<ckey>`` for the union of all tagged shapes at one content_key.
@@ -23,7 +23,7 @@ from mtg_utils._card_ir.mirror.runtime import (
 )
 
 if TYPE_CHECKING:
-    from mtg_utils._card_ir.mirror.generated.g04_casting_restrictions import (
+    from mtg_utils._card_ir.mirror.generated.g04_candidate_filter import (
         U_colors,
     )
     from mtg_utils._card_ir.mirror.generated.g06_costs import (
@@ -51,12 +51,12 @@ if TYPE_CHECKING:
     from mtg_utils._card_ir.mirror.generated.g12_properties import (
         U_properties,
     )
-    from mtg_utils._card_ir.mirror.generated.g14_redirect_target import (
+    from mtg_utils._card_ir.mirror.generated.g14_recipient_scope import (
         U_relation,
         U_scope,
         U_source,
     )
-    from mtg_utils._card_ir.mirror.generated.g15_spell_filter import (
+    from mtg_utils._card_ir.mirror.generated.g15_sources import (
         U_stickers,
         U_target,
     )
@@ -114,8 +114,22 @@ class T_qty__BendTypesThisTurn(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_qty__CardsCycled(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "CardsCycled"
+    scope: str
+    window: str
+    name: str = MISSING
+
+
+@dataclass(frozen=True)
 class T_qty__CardsDiscardedThisTurn(TypedMirrorNode):
     _tag: ClassVar[str | None] = "CardsDiscardedThisTurn"
+    player: U_player
+
+
+@dataclass(frozen=True)
+class T_qty__CardsDrawnLastTurn(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "CardsDrawnLastTurn"
     player: U_player
 
 
@@ -282,6 +296,7 @@ class T_qty__FilteredTrackedSetSize(TypedMirrorNode):
     _tag: ClassVar[str | None] = "FilteredTrackedSetSize"
     filter: U_filter
     caused_by: str = MISSING
+    destination: str = MISSING
 
 
 @dataclass(frozen=True)
@@ -326,9 +341,10 @@ class T_qty__LifeGainedThisTurn(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
-class T_qty__LifeLostThisTurn(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "LifeLostThisTurn"
+class T_qty__LifeLost(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "LifeLost"
     player: U_player
+    window: str = MISSING
 
 
 @dataclass(frozen=True)
@@ -415,6 +431,12 @@ class T_qty__ObjectTypelineComponentCount(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_qty__OpponentSpellsCastSinceLastTurn(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "OpponentSpellsCastSinceLastTurn"
+    player: U_player
+
+
+@dataclass(frozen=True)
 class T_qty__PartySize(TypedMirrorNode):
     _tag: ClassVar[str | None] = "PartySize"
     player: U_player
@@ -491,15 +513,18 @@ class T_qty__Speed(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_qty__SpellsCast(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "SpellsCast"
+    scope: str
+    filter: U_filter = MISSING
+    window: str = MISSING
+
+
+@dataclass(frozen=True)
 class T_qty__SpellsCastBeforeTriggeringSpell(TypedMirrorNode):
     _tag: ClassVar[str | None] = "SpellsCastBeforeTriggeringSpell"
     filter: U_filter
     scope: str
-
-
-@dataclass(frozen=True)
-class T_qty__SpellsCastLastTurn(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "SpellsCastLastTurn"
 
 
 @dataclass(frozen=True)
@@ -510,10 +535,8 @@ class T_qty__SpellsCastThisGame(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
-class T_qty__SpellsCastThisTurn(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "SpellsCastThisTurn"
-    scope: str
-    filter: U_filter = MISSING
+class T_qty__StartingDeckSize(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "StartingDeckSize"
 
 
 @dataclass(frozen=True)
@@ -715,6 +738,12 @@ class T_recipient__All(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_recipient__ChoiceAssignment(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "ChoiceAssignment"
+    side: str
+
+
+@dataclass(frozen=True)
 class T_recipient__Controller(TypedMirrorNode):
     _tag: ClassVar[str | None] = "Controller"
 
@@ -837,34 +866,6 @@ class T_recipient_object_filter__Typed(TypedMirrorNode):
     type_filters: list[MirrorVariant]
 
 
-@dataclass(frozen=True)
-class T_recipient_scope__All(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "All"
-
-
-@dataclass(frozen=True)
-class T_recipient_scope__Single(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "Single"
-
-
-@dataclass(frozen=True)
-class T_redirect_lifetime__Continuous(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "Continuous"
-
-
-@dataclass(frozen=True)
-class T_redirect_object_filter__Any(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "Any"
-
-
-@dataclass(frozen=True)
-class T_redirect_object_filter__Typed(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "Typed"
-    controller: str | None
-    properties: list[U_properties]
-    type_filters: list[MirrorVariant]
-
-
 # --- discriminated-union aliases (one per tagged content_key) ---
 
 type U_qty = (
@@ -874,7 +875,9 @@ type U_qty = (
     | T_qty__BasicLandTypeCount
     | T_qty__BattlefieldEntriesThisTurn
     | T_qty__BendTypesThisTurn
+    | T_qty__CardsCycled
     | T_qty__CardsDiscardedThisTurn
+    | T_qty__CardsDrawnLastTurn
     | T_qty__CardsDrawnThisTurn
     | T_qty__CardsExiledBySource
     | T_qty__ChosenNumber
@@ -909,7 +912,7 @@ type U_qty = (
     | T_qty__LandsPlayedThisTurn
     | T_qty__LifeAboveStarting
     | T_qty__LifeGainedThisTurn
-    | T_qty__LifeLostThisTurn
+    | T_qty__LifeLost
     | T_qty__LifeTotal
     | T_qty__LoyaltyAbilitiesActivatedThisTurn
     | T_qty__ManaSpentToCast
@@ -923,6 +926,7 @@ type U_qty = (
     | T_qty__ObjectManaValue
     | T_qty__ObjectNameWordCount
     | T_qty__ObjectTypelineComponentCount
+    | T_qty__OpponentSpellsCastSinceLastTurn
     | T_qty__PartySize
     | T_qty__PlayerActionsThisTurn
     | T_qty__PlayerChosenNumber
@@ -935,10 +939,10 @@ type U_qty = (
     | T_qty__SacrificedThisTurn
     | T_qty__SelfManaValue
     | T_qty__Speed
+    | T_qty__SpellsCast
     | T_qty__SpellsCastBeforeTriggeringSpell
-    | T_qty__SpellsCastLastTurn
     | T_qty__SpellsCastThisGame
-    | T_qty__SpellsCastThisTurn
+    | T_qty__StartingDeckSize
     | T_qty__StartingLifeTotal
     | T_qty__TargetControllerCounter
     | T_qty__TargetObjectManaValue
@@ -977,6 +981,7 @@ type U_quantity_modification = (
 )
 type U_recipient = (
     T_recipient__All
+    | T_recipient__ChoiceAssignment
     | T_recipient__Controller
     | T_recipient__DefendingPlayer
     | T_recipient__EachController
@@ -1001,9 +1006,4 @@ type U_recipient_object_filter = (
     T_recipient_object_filter__Or
     | T_recipient_object_filter__SelfRef
     | T_recipient_object_filter__Typed
-)
-type U_recipient_scope = T_recipient_scope__All | T_recipient_scope__Single
-type U_redirect_lifetime = T_redirect_lifetime__Continuous
-type U_redirect_object_filter = (
-    T_redirect_object_filter__Any | T_redirect_object_filter__Typed
 )

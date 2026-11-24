@@ -78,7 +78,9 @@ def test_bounce_tempo_answers_a_permanent(name):
         ("Dragon Mask", "chosen"),
         ("Kaijin of the Vanishing Touch", "event"),
         ("Cactuar", "self"),
-        ("Tidehollow Sculler", "linked"),
+        # "When ~ leaves the battlefield, return the exiled cards" (phase names
+        # Tidehollow Sculler's with ``ExiledBySource`` since v0.131.0).
+        ("Angel of Serenity", "linked"),
     ],
 )
 def test_effect_back_reference_kind(name, kind):

@@ -397,15 +397,6 @@ ALLOWLIST: dict[str, TokenRule] = {
     # (the "draw"/"discard"/"damage" recovered-node raw-read precedent — a
     # recovered node carries no typed counter-kind field to re-check).
     "count_operand": TokenRule(concept="count_operand", category="count_operand"),
-    # ADR-0039 W8 grammar sprint (task #82): an activated ability's OWN
-    # "costs {N} less to activate for each X counter" cost-reduction
-    # sub-clause (CR 118.7/122.1): Deepwood Denizen's "This ability costs
-    # {1} less to activate for each +1/+1 counter on creatures you
-    # control." Generic across counter kind, same raw-read kind gate as
-    # ``count_operand`` above.
-    "counter_cost_reduction": TokenRule(
-        concept="counter_cost_reduction", category="counter_cost_reduction"
-    ),
     # ADR-0039 grammar sprint (task #82): the ellipsis REPEAT-for-another-
     # player construct (CR 608.2h): "<player> does the same" (The Wedding
     # of River Song's "Draw two cards, then you may exile a nonland card
@@ -521,6 +512,20 @@ ALLOWLIST: dict[str, TokenRule] = {
     ),
     "counter_move": TokenRule(
         concept="move_counters", category="counter_move", reads_clause=True
+    ),
+    # A counter removal the clause performs ("remove a time counter from each
+    # other card you own in exile" — Alaundo the Seer, parked by phase v0.131.0
+    # as ``unparsed_verb_arguments``); ``zones`` names where the objects sit
+    # (``Exile`` for a card in exile). It earns no concept a doer lane reads
+    # (``OTHER``): the native ``remove_counter`` readers gate on the removed
+    # counter's kind, which a parked node doesn't carry (``any_counter_makers``
+    # would read every niche removal as a kindless one). ``exile_matters`` reads
+    # the token itself.
+    "remove_counter": TokenRule(
+        concept=OTHER,
+        category="remove_counter",
+        reads_clause=True,
+        object_verb=r"counters? from",
     ),
     "cast_from_zone": TokenRule(
         concept="cast_from_zone", category="cast_from_zone", reads_clause=True
@@ -684,6 +689,9 @@ def _recover_binding_sentence(
 
 
 _NON_DRAW_SENSE = re.compile(r"\bgame is a draw\b|\bdraw step\b", re.IGNORECASE)
+# The prevention a parked-prevention residue's own clause states (CR 615.1a:
+# effects that use the word "prevent").
+_PREVENT_RX = re.compile(r"\bprevent", re.IGNORECASE)
 # "damage"'s grammar token also matches two NON-burn-effect senses: a
 # face-up REPLACEMENT clause that merely LISTS "deals damage" among several
 # conditions a face-down creature would trigger (Illusionary Mask's "...
@@ -801,6 +809,13 @@ YOUR_CREATURE_COUNT = "YourCreatureCount"
 #: further qualifier ("a +1/+1 counter on each other creature you control" —
 #: Wakka): the whole team, not a tribe or a "with modular" subset.
 TEAM_OBJECT = "TeamObject"
+#: The recovered verb's own object is every permanent of a type on the
+#: battlefield ("destroy all creatures that aren't of a type chosen this way",
+#: "deal 2 damage to each white creature", "exile each permanent unless …"): a
+#: sweep's object (CR 115.10), not each player, each card in a zone ("exile all
+#: creature cards from …") or one combat's creatures ("each creature blocking
+#: it").
+EACH_PERMANENT = "EachPermanent"
 
 #: Every mark :func:`read_clause` can put in ``subject`` (beside the type words and
 #: the free-form "<kind> counter" marks).
@@ -829,6 +844,7 @@ CLAUSE_MARKS: tuple[str, ...] = (
     TAP_ACTIVATION,
     YOUR_CREATURE_COUNT,
     TEAM_OBJECT,
+    EACH_PERMANENT,
 )
 
 
@@ -998,6 +1014,20 @@ _YOUR_CREATURE_COUNT_RX = re.compile(
     r"|\bany target equal to \w+ times the number of creatures tapped this way\b",
     re.IGNORECASE,
 )
+# The ``EACH_PERMANENT`` object after the row's verb: "each" / "all", up to three
+# qualifiers ("white", "non-Clown", "nonland"), then a battlefield permanent type,
+# or a run of them ("artifact and enchantment", "artifact creature"), never a
+# card in a zone, a player, a choice "of" a set or one combat's creatures.
+_PERMANENT_TYPE = (
+    r"(?:creatures?|artifacts?|enchantments?|planeswalkers?|permanents?|battles?)"
+)
+_EACH_PERMANENT_OBJECT = (
+    r"(?:each|all)\s+"
+    r"(?:(?!(?:opponents?|players?|of|target|cards?|attacking|blocking)\b)"
+    r"[\w'/+-]+\s+){0,3}?"
+    rf"{_PERMANENT_TYPE}(?:(?:\s*,\s*|\s+)(?:(?:and|or)\s+)?{_PERMANENT_TYPE})*+\b"
+    r"(?!\s+(?:cards?|blocking|blocked|attacking)\b)"
+)
 # "choose an opponent [at random]" names a player for a later instruction, not
 # the side the clause acts on ("mill a card and choose an opponent at random" —
 # Ursine Monstrosity's own mill).
@@ -1023,10 +1053,14 @@ _ZONE_RX = {
 }
 
 
-# The player a clause's verb belongs to, at the end of the words before it.
+# The player a clause's verb belongs to, at the end of the words before it: the
+# verb's own subject, or the subject of the verb it is joined to by one "and"
+# with no other subject between ("Target player reveals their hand and discards
+# all nonland cards" — Amnesia, parked as "discard all nonland cards").
 _PEELED_SUBJECT_RX = re.compile(
     r"\b(target player|target opponent|that player|each opponent|each player"
-    r"|defending player|its controller|they)\s+\w+\s*$",
+    r"|defending player|its controller|they)\s+\w+"
+    r"(?:(?:\s+(?!(?:you|they|it|and)\b)[\w']+)+?\s+and\s+\w+)?\s*$",
     re.IGNORECASE,
 )
 
@@ -1147,6 +1181,8 @@ def read_clause(
             subject.append(YOUR_TARGET)
         if re.search(head + r"(?:each|all)\b", text, re.IGNORECASE):
             subject.append(EACH_OBJECT)
+        if re.search(head + _EACH_PERMANENT_OBJECT, text, re.IGNORECASE):
+            subject.append(EACH_PERMANENT)
         if re.search(
             head + r"each (?:other )?creature you control\s*(?:$|[.,;])",
             text,
@@ -1183,10 +1219,12 @@ def _recover(
     raw = c.raw if text is None else text
     if not raw:
         return None
-    if parked_prevention(c.node):
+    if parked_prevention(c.node) and _PREVENT_RX.search(raw):
         # A prevention phase parks whole (``reads.PARKED_PREVENTION_RESIDUES``):
         # its clause's reading, read once here — whose damage it prevents
-        # (:data:`TO_SELF`: the card's own).
+        # (:data:`TO_SELF`: the card's own). A later instruction of the same
+        # residue ("… and create that many 1/1 colorless Spirit creature
+        # tokens" — Sekki, Seasons' Guide) recovers as its own verb.
         _scope, subject, _zones = read_clause(raw, unit)
         return replace(c, recovered_by=PARKED_PREVENTION, subject=subject)
     # A clause opening on a replacement idiom reads as the idiom over its own
@@ -1605,6 +1643,7 @@ __all__ = [
     "CARD",
     "CLAUSE_MARKS",
     "EACH_OBJECT",
+    "EACH_PERMANENT",
     "FOR_EACH",
     "IMPERATIVE",
     "MANY",

@@ -58,6 +58,7 @@ from mtg_utils._card_ir.crosswalk import (
     exiled_library_side,
     filter_controller,
     filter_core_types,
+    filter_excluded_zones,
     filter_inanyzone_zones,
     filter_inzone_zones,
     filter_predicates,
@@ -89,6 +90,7 @@ from mtg_utils._card_ir.crosswalk import (
     residue_is,
     rewards_opponent_small_hand,
     spell_filter_class,
+    spells_cast_this_turn,
     static_mode_tag,
     tag_of,
     token_creator_side,
@@ -99,7 +101,12 @@ from mtg_utils._card_ir.crosswalk import (
 from mtg_utils._card_ir.mirror.runtime import (
     TypedMirrorNode,
 )
-from mtg_utils._card_ir.recovery import done_by_another
+from mtg_utils._card_ir.recovery import (
+    IMPERATIVE,
+    YOURS,
+    done_by_another,
+    is_theirs,
+)
 from mtg_utils._card_ir.text_idioms import _CAST_FROM_EXILE_P
 
 _RING_BEARER_REF = re.compile(r"\bring-bearer\b", re.IGNORECASE)
@@ -504,6 +511,14 @@ def _cast_from_exile_unit_sources(unit: AbilityUnit) -> set[str]:
     )
     scan = effs if grant_idx is None else effs[: grant_idx + 1]
     for c in scan:
+        if c.recovered_by == "exile" and IMPERATIVE in c.subject:
+            # a parked exile the ability performs (phase v0.131.0: Elder Brain's
+            # "exile all cards from that player's hand"; not Bell Borca's "Note
+            # the mana value of each card as it's put into exile"), the top of
+            # your own library the impulse one
+            top = "Library" in c.zones and YOURS in c.subject and not is_theirs(c)
+            out.add("top" if top else "other")
+            continue
         kind = _exile_source(unit, c.node)
         if kind is not None:
             out.add(kind)
@@ -519,13 +534,17 @@ _BEYOND_HAND_ZONES = frozenset({"Graveyard", "Library", "Exile"})
 def _counts_casts_beyond_hand(tree: ConceptTree) -> bool:
     """Whether the card counts your spells cast this turn from anywhere other
     than your hand ("if you've played a land or cast a spell this turn from
-    anywhere other than your hand" — Spider-Man 2099): a ``SpellsCastThisTurn``
-    whose filter's ``InAnyZone`` takes every zone but your hand."""
+    anywhere other than your hand" — Spider-Man 2099): a this-turn ``SpellsCast``
+    whose filter rules out your hand (``Not{InZone: Hand}``) or lists every
+    other zone (``InAnyZone``)."""
     for n in tree.iter_typed():
-        if tag_of(n) != "SpellsCastThisTurn":
+        if not spells_cast_this_turn(n):
             continue
-        zones = set(filter_inanyzone_zones(getattr(n, "filter", None)))
+        filt = getattr(n, "filter", None)
+        zones = set(filter_inanyzone_zones(filt))
         if zones >= _BEYOND_HAND_ZONES and "Hand" not in zones:
+            return True
+        if "Hand" in filter_excluded_zones(filt):
             return True
     return False
 
@@ -1369,9 +1388,9 @@ def _coin_flip(tree: ConceptTree) -> list[Signal]:
     """coin_flip — a ``FlipCoins`` DOER (CR
     705.1), OR a flip-FIXING static (CR 705.3 — "the first time you flip ...,
     those coins come up heads and you win those flips", Edgar, King of
-    Figaro's "Two-Headed Coin"; both land as an Unimplemented node the ADR-
-    0038 clause-grammar STATIC_TOKENS recovery re-decorates to the native
-    "flip_coin" concept, so this read covers them with no special-case).
+    Figaro's "Two-Headed Coin": phase's ``WinFirstCoinFlipSetEachTurn`` static
+    mode; a parked one the ADR-0038 clause-grammar STATIC_TOKENS recovery
+    re-decorates to the native "flip_coin" concept — Molten Sentry).
     Mirrors the legacy category's own conflated scope (``_sweep_detectors``
     labels it "coin-flip payoffs plus flip-fixing"; ``project.
     _narrow_trigger_other_refs`` folds the "win/lose a coin flip" trigger
@@ -1396,7 +1415,13 @@ def _coin_flip(tree: ConceptTree) -> list[Signal]:
         out.append(Signal("coin_flip", "you", "", flip.raw, tree.name, "high"))
     elif any(has_nested_flip_coin(unit.node) for unit in tree.units):
         out.append(Signal("coin_flip", "you", "", "", tree.name, "high"))
-    if any(
+    # "The first time you flip one or more coins each turn, those coins come
+    # up heads and you win those flips" (Edgar, King of Figaro, CR 705.3): a
+    # static mode of its own since phase v0.131.0 — a coin-flip card and a fixer.
+    stated = tree.has_static_mode("WinFirstCoinFlipSetEachTurn")
+    if stated and not out:
+        out.append(Signal("coin_flip", "you", "", "", tree.name, "high"))
+    if stated or any(
         unit.origin == "replacement" and replacement_event_tag(unit.node) == "CoinFlip"
         for unit in tree.units
     ):
@@ -1564,11 +1589,6 @@ _OPP_DISCARD_YOU_AND_EACH_RX = re.compile(
 _OPP_DISCARD_SCALING_PREFIX_RX = re.compile(
     r"each opponent discards a card\s*$", re.IGNORECASE
 )
-_OPP_DISCARD_REPLACEMENT_NEXT_TIME_RX = re.compile(
-    r"next time you would draw a card this turn, each opponent discards "
-    r"a card instead",
-    re.IGNORECASE,
-)
 
 
 def _opponent_discard(tree: ConceptTree) -> list[Signal]:
@@ -1698,11 +1718,11 @@ def _opponent_discard(tree: ConceptTree) -> list[Signal]:
     read, so the direction resolves in-line inside ``fire()``'s own
     fallback chain instead (each read site's own comment for detail): a
     "for"-dominant scaling-prefix straggler (Bladecoil Serpent's
-    mana-spent idiom, CR 601.2f) and a replacement-idiom determiner-token
-    residue (Words of Waste's "next time ... instead" clause, CR 614.1)
-    both resolve via :data:`_OPP_DISCARD_SCALING_PREFIX_RX` /
-    :data:`_OPP_DISCARD_REPLACEMENT_NEXT_TIME_RX` — tight, idiom-specific
-    anchors over the residue's own preserved description. A combat-
+    mana-spent idiom, CR 601.2f) resolves via
+    :data:`_OPP_DISCARD_SCALING_PREFIX_RX` — a tight, idiom-specific
+    anchor over the residue's own preserved description. (Words of Waste's
+    "next time … instead" clause, CR 614.1a, is typed since phase v0.131.0: a
+    ``CreateDrawReplacement`` whose own effect the unit walk reads.) A combat-
     damage-trigger Player-vs-Opponent scope ambiguity (Jagged Poppet's
     Hellbent "that player discards cards equal to the damage") resolves
     the same way: a combat-damage-to-a-player trigger's recipient can
@@ -1835,11 +1855,9 @@ def _opponent_discard(tree: ConceptTree) -> list[Signal]:
                 "T_effect__Unimplemented"
             ):
                 desc = getattr(node, "description", "") or ""
-                if (
-                    _OPP_DISCARD_SCALING_PREFIX_RX.search(desc)
-                    or _OPP_DISCARD_REPLACEMENT_NEXT_TIME_RX.search(desc)
-                    or _OPP_DISCARD_YOU_AND_EACH_RX.search(desc)
-                ):
+                if _OPP_DISCARD_SCALING_PREFIX_RX.search(
+                    desc
+                ) or _OPP_DISCARD_YOU_AND_EACH_RX.search(desc):
                     sc = "opponents"
             # The Cephalid-Looter loot veto is a discriminator for THIS
             # branch's typed-recipient inference only (a targeted "target

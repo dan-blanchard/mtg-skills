@@ -312,63 +312,34 @@ def test_overload_sweep_is_read_from_the_base_mode(name, mass_tag):
     )
 
 
-@pytest.mark.retirement_canary
 @pytest.mark.parametrize(
-    ("name", "preds"),
+    ("name", "tag"),
     [
         # "{1}{W}: Each creature without flanking blocking this creature gets
-        # -1/-1" — phase keeps "without flanking" and drops "blocking it".
-        ("Knight of Valor", ("WithoutKeyword",)),
+        # -1/-1" (CR 702.25a: flanking's -1/-1 hits only the blocking creature).
+        ("Knight of Valor", "PumpAll"),
         # "Whenever this creature becomes blocked, each creature blocking it
-        # gets -1/-1" — phase types a bare creature sweep.
-        ("Baneblade Scoundrel", ()),
+        # gets -1/-1".
+        ("Baneblade Scoundrel", "PumpAll"),
+        # "… it deals N damage to each creature blocking it".
+        ("Battle-Scarred Goblin", "DamageAll"),
+        ("Fire Juggler", "DamageAll"),
     ],
 )
-def test_combat_scope_shrinks_parse_as_board_sweeps(name, preds):
-    """Retirement canary for the combat-scope vetoes in
-    ``lanes.mana_and_wipes._mass_shrink`` (phase_parse_bug [P12]): phase
-    v0.104.0 drops the "blocking it" clause from these one-combat shrinks
-    (CR 702.25a: flanking's -1/-1 hits only the blocking creature), leaving a
-    ``PumpAll`` over the board, so the shrink walk vetoes a ``becomes_blocked``
-    / ``blocks`` trigger unit and a ``WithoutKeyword:Flanking`` filter. Once
-    phase types the combat scope the filter changes shape — retire the
-    vetoes."""
-    filters = [
-        effect_filter(c.node)
-        for tree in trees_for(test_card(name))
-        for u in tree.units
-        for c in u.effects
-        if tag_of(c.node) == "PumpAll"
-    ]
-    assert filters
-    assert all(filter_predicates(f) == preds for f in filters), (
-        f"{name}: RETIRE-READY — phase types the combat scope of this shrink; "
-        "drop _mass_shrink's becomes_blocked / blocks and WithoutKeyword:Flanking "
-        "vetoes (lanes/mana_and_wipes.py) and check the board-wipe preset still "
-        "excludes the card."
-    )
-
-
-@pytest.mark.retirement_canary
-@pytest.mark.parametrize("name", ["Battle-Scarred Goblin", "Fire Juggler"])
-def test_combat_scope_damage_parses_as_board_sweep(name):
-    """Retirement canary for the combat-scope veto on the ``DamageAll`` arm of
-    ``lanes.mana_and_wipes._is_mass_removal`` (phase_parse_bug [P12]): "Whenever
-    this creature becomes blocked, it deals N damage to each creature blocking
-    it" types a ``DamageAll`` over every creature, with no blocking predicate.
-    Once phase types the combat scope, retire the veto."""
+def test_each_creature_blocking_it_is_one_combats_creatures(name, tag):
+    """A mass effect over "each creature blocking it" carries phase's
+    ``BlockingSource`` predicate (v0.131.0; phase dropped the clause before),
+    which the sweep lanes read as one combat's creatures, not the board."""
     filters = [
         effect_filter(c.node)
         for tree in trees_for(test_card(name))
         for u in tree.units
         for c in u.iter_concepts()
-        if tag_of(c.node) == "DamageAll"
+        if tag_of(c.node) == tag
     ]
     assert filters
-    assert all(filter_predicates(f) == () for f in filters), (
-        f"{name}: RETIRE-READY — phase types the blockers this damage hits; drop "
-        "the DamageAll arm's _combat_scoped veto (lanes/mana_and_wipes.py)."
-    )
+    assert all("BlockingSource" in filter_predicates(f) for f in filters)
+    assert not {"mass_removal", "board_wipe"} & {s.key for s in test_signals(name)}
 
 
 @pytest.mark.parametrize("name", ["Battle-Scarred Goblin", "Fire Juggler"])

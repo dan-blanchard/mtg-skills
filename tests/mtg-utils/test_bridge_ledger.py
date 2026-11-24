@@ -270,16 +270,12 @@ def _fixed_view(tree, carriers: list[str]) -> ConceptTree:
 # names the wrong node; the check below fails if a listed row ever does carry
 # its clause in a residue (the entry is then stale).
 _MISPARSE_ROWS = {
-    "mass_token_static_misparse": (
-        "the token clause parsed as a static def with no Token node"
-    ),
     "orphan_double_strike_grant": (
         "the delirium grant parsed onto a back-reference with no target"
     ),
     "aura_untap_back_reference_unbound": (
         "the untap parsed onto a back-reference with no target"
     ),
-    "enters_drain_recipient_dropped": "the life loss parsed with no recipient",
     "quoted_grant_read_as_token_replacement": (
         "the quoted grant parsed as a token replacement with no target"
     ),
@@ -291,7 +287,8 @@ _MISPARSE_ROWS = {
         "the cast permission parsed as an empty Unimplemented effect"
     ),
     "land_shield_misscoped_selfref": (
-        "the lands' hexproof parsed as a SelfRef grant to the card itself"
+        "the lands' shield left an unmodelled Other static mode (a SelfRef "
+        "Hexproof grant to the card itself before phase v0.131.0)"
     ),
     "sokrates_granted_prevention_misparse": (
         "the granted prevention parsed as a CreateToken replacement"
@@ -311,12 +308,6 @@ _MISPARSE_ROWS = {
     ),
     "opponent_sacrifice_actor_dropped": (
         "'each opponent sacrifices' parsed as a Sacrifice naming no player"
-    ),
-    "creature_spell_discount_filter_dropped": (
-        "a creature-spell discount parsed as a ModifyCost with no spell filter"
-    ),
-    "target_players_drain_target_dropped": (
-        "the targeted players' life loss parsed as a LoseLife with no target"
     ),
     "team_indestructible_misbound": (
         "a team indestructible grant parsed onto the player (Controller) or with "

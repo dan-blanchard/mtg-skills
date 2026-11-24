@@ -219,7 +219,7 @@ def _choices(name: str) -> set[Choice]:
     ],
 )
 def test_choice_of_reads_what_a_choose_effect_chooses(name, kind):
-    assert Choice(kind) in _choices(name)
+    assert kind in {choice.kind for choice in _choices(name)}
 
 
 def test_choice_of_lists_a_restricted_choices_options():

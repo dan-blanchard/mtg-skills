@@ -593,24 +593,6 @@ _VERB = comb.alt(
         "count_operand",
         comb.seq2(comb.keyword({"count", "counts"}), comb.take_until("counter")),
     ),
-    # "This ability costs {N} less to activate for each X counter (on …)" —
-    # an activated ability's OWN cost-reduction sub-clause scaled by a
-    # counter tally (CR 118.7/122.1): Deepwood Denizen's "This ability
-    # costs {1} less to activate for each +1/+1 counter on creatures you
-    # control." Self-contained (matches the literal "this ability costs"
-    # opener directly) rather than widening the shared subject-prefix table
-    # — narrowly scoped to this exact idiom, no blast radius on unrelated
-    # "this ability …" residues. Generic across counter kind, same
-    # lane-level P1P1 gate as ``count_operand`` above.
-    comb.value(
-        "counter_cost_reduction",
-        comb.seq(
-            comb.tag("this ability costs"),
-            comb.take_until("less to activate"),
-            comb.tag("less to activate"),
-            comb.take_until("counter"),
-        ),
-    ),
     # extra land drops ("play an additional land", "play two additional lands") — its
     # own category; the count word between "play" and "additional land" is consumed.
     comb.value(
@@ -623,10 +605,11 @@ _VERB = comb.alt(
     # "cast … from the top/graveyard/exile" — casting from a non-hand zone (the "from"
     # gate keeps "cast a copy" out). cast_from_zone.
     comb.value("cast_from_zone", comb.seq2(comb.tag("cast"), comb.take_until("from"))),
-    # "remove a/the … counter (from …)" — counter manipulation → place_counter
-    # (plus_one_matters); the take_until("counter") gate keeps "remove from combat" out.
+    # "remove a/the … counter (from …)" — a counter removal, the native
+    # ``RemoveCounter``'s own token (never a placement); the take_until("counter")
+    # gate keeps "remove from combat" out.
     comb.value(
-        "place_counter", comb.seq2(comb.tag("remove"), comb.take_until("counter"))
+        "remove_counter", comb.seq2(comb.tag("remove"), comb.take_until("counter"))
     ),
     # "flip it" / "flip ~" — turn the permanent over (flip card / face-down): transform.
     comb.value("transform", comb.tag("flip it")),
@@ -920,14 +903,21 @@ STATIC_TOKENS = (
 )
 
 
-# ── A self-discount's later sentence ───────────────────────────────────────────
+# ── A self-discount phase parks ────────────────────────────────────────────────
 # "This spell costs {1} less to cast if you control a Spirit. It also costs {1}
 # less to cast if you control an enchantment." (Geistlight Snare): phase parks the
 # second sentence as its own residue, "It also costs {1} less to cast", whose "it"
-# is the spell.
+# is the spell. A whole discount its static parser fails on parks the same way
+# ("This spell costs {3} less to cast for each other spell cast this turn" —
+# Thrasta, Tempest's Roar; Korvold, Gleeful Glutton; The Balrog, Durin's Bane).
 STATIC_TOKENS = (
     *STATIC_TOKENS,
-    (re.compile(r"^it also costs\b[^.]*\bless\b", re.IGNORECASE), "self_discount"),
+    (
+        re.compile(
+            r"^(?:it also|this spell) costs\b[^.]*\bless(?: to cast)?\b", re.IGNORECASE
+        ),
+        "self_discount",
+    ),
 )
 
 
@@ -1272,12 +1262,11 @@ def keyword_grants(
 
 
 # ── Lines phase parks that the correction layer rebuilds ───────────────────────
-# Two clauses phase leaves as text with no typed node, which ``misparsed_shapes``
+# A clause phase leaves as text with no typed node, which ``misparsed_shapes``
 # writes back in the form phase types the same meaning elsewhere: a keyword grant
 # to the permanents of one subtype you control, parked when its static parser
-# fails on the line, and a graveyard arrival "from anywhere other than the
-# battlefield", parked as an ``Unknown`` trigger mode. Each reads its line word
-# by word, the subtype from the CR's own lists (CR 205.3).
+# fails on the line. It reads its line word by word, the subtype from the CR's
+# own lists (CR 205.3).
 _SUBTYPES = ARTIFACT_TYPES | ENCHANTMENT_TYPES | CREATURE_TYPES
 
 
@@ -1319,32 +1308,24 @@ def subtype_keyword_grant(text: str) -> tuple[str, frozenset[str]] | None:
     return subject[0], frozenset(grant[0])
 
 
-# "Whenever a Lhurgoyf permanent card is put into your graveyard from anywhere
-# other than the battlefield" (Disa the Restless).
-_ARRIVAL_ANYWHERE_BUT_BATTLEFIELD = comb.seq3(
-    comb.preceded(comb.phrase({"whenever"}, {"a", "an"}), _SUBTYPE),
-    comb.phrase({"permanent"}, {"card"}),
-    comb.phrase(
-        {"is"},
-        {"put"},
-        {"into"},
-        {"your"},
-        {"graveyard"},
-        {"from"},
-        {"anywhere"},
-        {"other"},
-        {"than"},
-        {"the"},
-        {"battlefield"},
+# "Whenever you attack a player with one or more equipped creatures" (Akiri,
+# Fearless Voyager): the clause phase leaves in an ``Unknown`` trigger mode.
+_ATTACK_WITH_ATTACHED = comb.seq3(
+    comb.phrase({"when", "whenever"}, {"you"}, {"attack"}),
+    comb.opt(comb.phrase({"a"}, {"player"})),
+    comb.preceded(
+        comb.phrase({"with"}, {"one"}, {"or"}, {"more"}),
+        comb.seq2(comb.keyword({"equipped", "enchanted"}), comb.keyword({"creatures"})),
     ),
 )
 
 
-def graveyard_arrival_subtype(text: str) -> str | None:
-    """The watched subtype of a trigger line whose event is a permanent card of
-    that subtype put into your graveyard from anywhere other than the
-    battlefield (Disa the Restless's Lhurgoyf), else ``None``."""
-    r = _ARRIVAL_ANYWHERE_BUT_BATTLEFIELD.run(text.strip())
+def attached_attackers_kind(text: str) -> str | None:
+    """``"Equipment"`` / ``"Aura"`` for a trigger line whose event is your
+    attack with one or more equipped / enchanted creatures, and nothing more
+    (CR 301.5, 303.4: an equipped creature has an Equipment attached, an
+    enchanted one an Aura); else ``None``."""
+    r = _ATTACK_WITH_ATTACHED.run(text.strip())
     if r is None or r[1].strip(" ,."):
         return None
-    return r[0][0]
+    return "Equipment" if r[0][2][0] == "equipped" else "Aura"

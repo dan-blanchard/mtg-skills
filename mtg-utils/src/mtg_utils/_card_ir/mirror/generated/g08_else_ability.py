@@ -5,7 +5,7 @@ Codegen'd from ``tests/fixtures/phase_mirror_schema.json`` by
 
 Part of the generated typed-mirror package (see this directory's
 ``__init__.py``). This module holds content keys ``else_ability`` ..
-``illegal_targets_disposition`` (31 keys).
+``illegal_targets_disposition`` (32 keys).
 
 Class naming: ``S_<ckey>`` for a struct shape, ``T_<ckey>__<tag>`` for a tagged
 shape, ``U_<ckey>`` for the union of all tagged shapes at one content_key.
@@ -23,13 +23,13 @@ from mtg_utils._card_ir.mirror.runtime import (
 )
 
 if TYPE_CHECKING:
-    from mtg_utils._card_ir.mirror.generated.g02_modifyactivationlimi import (
+    from mtg_utils._card_ir.mirror.generated.g02_mayhem import (
         U_ability_tag,
     )
-    from mtg_utils._card_ir.mirror.generated.g03_additional_modificat import (
+    from mtg_utils._card_ir.mirror.generated.g03_additional_cost import (
         U_attr,
     )
-    from mtg_utils._card_ir.mirror.generated.g04_casting_restrictions import (
+    from mtg_utils._card_ir.mirror.generated.g04_candidate_filter import (
         S_characteristics,
         U_condition,
     )
@@ -63,20 +63,22 @@ if TYPE_CHECKING:
     from mtg_utils._card_ir.mirror.generated.g13_qty import (
         U_qty,
     )
-    from mtg_utils._card_ir.mirror.generated.g14_redirect_target import (
+    from mtg_utils._card_ir.mirror.generated.g14_recipient_scope import (
         U_relation,
         U_repeat_for,
         U_repeat_until,
         U_source,
     )
-    from mtg_utils._card_ir.mirror.generated.g15_spell_filter import (
+    from mtg_utils._card_ir.mirror.generated.g15_sources import (
         S_static_abilities,
         S_sub_ability,
+        U_spell_cast_origin,
+        U_target,
         U_target_chooser,
         U_target_constraints,
         U_target_selection_mode,
     )
-    from mtg_utils._card_ir.mirror.generated.g16_triggers import (
+    from mtg_utils._card_ir.mirror.generated.g16_toughness import (
         S_unless_pay,
         U_valid_card,
         U_value,
@@ -99,6 +101,7 @@ class S_else_ability(TypedMirrorNode):
     optional_targeting: bool
     sub_ability: S_sub_ability | None
     target_prompt: None
+    declares_chosen_group: int = MISSING
     multi_target: S_multi_target = MISSING
     optional_player: U_optional_player = MISSING
     player_scope: U_player_scope = MISSING
@@ -137,6 +140,7 @@ class S_event(TypedMirrorNode):
     valid_card: U_valid_card
     valid_source: None
     valid_target: None
+    spell_cast_origin: U_spell_cast_origin = MISSING
 
 
 @dataclass(frozen=True)
@@ -166,6 +170,7 @@ class S_execute(TypedMirrorNode):
     optional_player: U_optional_player = MISSING
     player_scope: U_player_scope = MISSING
     repeat_for: U_repeat_for = MISSING
+    repeat_timing: str = MISSING
     repeat_until: U_repeat_until = MISSING
     starting_with: str = MISSING
     target_choice_timing: str = MISSING
@@ -269,16 +274,27 @@ class T_entry_payment_max__Sum(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
-class T_entwine_cost__Cost(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "Cost"
-    generic: int
-    shards: list[object]
+class T_entwine_cost__Mana(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "Mana"
+    cost: U_cost
+
+
+@dataclass(frozen=True)
+class T_entwine_cost__Sacrifice(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "Sacrifice"
+    count: int
+    target: U_target
 
 
 @dataclass(frozen=True)
 class T_excess__TargetController(TypedMirrorNode):
     _tag: ClassVar[str | None] = "TargetController"
     source_keyword: str = MISSING
+
+
+@dataclass(frozen=True)
+class T_exclude__Controller(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "Controller"
 
 
 @dataclass(frozen=True)
@@ -308,8 +324,18 @@ class T_exclude__ParentObjectTargetOwner(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_exclude__TargetPlayer(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "TargetPlayer"
+
+
+@dataclass(frozen=True)
 class T_exclude__TriggeringPlayer(TypedMirrorNode):
     _tag: ClassVar[str | None] = "TriggeringPlayer"
+
+
+@dataclass(frozen=True)
+class T_expiry__EndOfCombat(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "EndOfCombat"
 
 
 @dataclass(frozen=True)
@@ -507,9 +533,9 @@ class T_filter__TrackedSet(TypedMirrorNode):
 @dataclass(frozen=True)
 class T_filter__TrackedSetFiltered(TypedMirrorNode):
     _tag: ClassVar[str | None] = "TrackedSetFiltered"
-    caused_by: str
     filter: U_filter
     id: int
+    caused_by: str = MISSING
 
 
 @dataclass(frozen=True)
@@ -518,6 +544,7 @@ class T_filter__TrackedSetPossessor(TypedMirrorNode):
     filter: U_filter
     possession: str
     relation: U_relation
+    caused_by: str = MISSING
 
 
 @dataclass(frozen=True)
@@ -582,6 +609,11 @@ class T_filters__Not(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_filters__Opponent(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "Opponent"
+
+
+@dataclass(frozen=True)
 class T_filters__OpponentAttacked(TypedMirrorNode):
     _tag: ClassVar[str | None] = "OpponentAttacked"
     scope: str
@@ -624,12 +656,6 @@ class T_filters__PlayerMatching(TypedMirrorNode):
 @dataclass(frozen=True)
 class T_filters__SelfRef(TypedMirrorNode):
     _tag: ClassVar[str | None] = "SelfRef"
-
-
-@dataclass(frozen=True)
-class T_filters__SpecificObject(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "SpecificObject"
-    id: int
 
 
 @dataclass(frozen=True)
@@ -706,8 +732,35 @@ class T_forced_to__SelfRef(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_gotcha_condition__Physical(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "Physical"
+    data: str
+
+
+@dataclass(frozen=True)
+class T_gotcha_condition__SaysAnyOf(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "SaysAnyOf"
+    data: MirrorVariant
+
+
+@dataclass(frozen=True)
+class T_gotcha_condition__SaysNumber(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "SaysNumber"
+
+
+@dataclass(frozen=True)
+class T_gotcha_condition__SaysWordInGraveyardCardName(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "SaysWordInGraveyardCardName"
+
+
+@dataclass(frozen=True)
 class T_grantee__AbilityController(TypedMirrorNode):
     _tag: ClassVar[str | None] = "AbilityController"
+
+
+@dataclass(frozen=True)
+class T_grantee__ObjectExiler(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "ObjectExiler"
 
 
 @dataclass(frozen=True)
@@ -777,17 +830,21 @@ type U_enter_with_counters = (
 type U_enters_modified_if = T_enters_modified_if__Typed
 type U_entry = T_entry__Normal | T_entry__TappedAndAttacking
 type U_entry_payment_max = T_entry_payment_max__Sum
-type U_entwine_cost = T_entwine_cost__Cost
+type U_entwine_cost = T_entwine_cost__Mana | T_entwine_cost__Sacrifice
 type U_excess = T_excess__TargetController
 type U_exclude = (
-    T_exclude__CreatureTypes
+    T_exclude__Controller
+    | T_exclude__CreatureTypes
     | T_exclude__None
     | T_exclude__ParentObjectTarget
     | T_exclude__ParentObjectTargetController
     | T_exclude__ParentObjectTargetOwner
+    | T_exclude__TargetPlayer
     | T_exclude__TriggeringPlayer
 )
-type U_expiry = T_expiry__EndOfTurn | T_expiry__UntilHostLeavesPlay
+type U_expiry = (
+    T_expiry__EndOfCombat | T_expiry__EndOfTurn | T_expiry__UntilHostLeavesPlay
+)
 type U_exponent = T_exponent__Ref
 type U_exprs = T_exprs__Fixed | T_exprs__Multiply | T_exprs__Ref
 type U_extra_source = T_extra_source__Typed
@@ -833,6 +890,7 @@ type U_filters = (
     | T_filters__HasChosenName
     | T_filters__LastCreated
     | T_filters__Not
+    | T_filters__Opponent
     | T_filters__OpponentAttacked
     | T_filters__Or
     | T_filters__ParentObjectTargetController
@@ -841,7 +899,6 @@ type U_filters = (
     | T_filters__Player
     | T_filters__PlayerMatching
     | T_filters__SelfRef
-    | T_filters__SpecificObject
     | T_filters__StackAbility
     | T_filters__StackSpell
     | T_filters__TargetPlayer
@@ -854,8 +911,15 @@ type U_flipper = T_flipper__TriggeringPlayer
 type U_flips = T_flips__Exactly | T_flips__UntilLoss
 type U_followed_by = T_followed_by__Phase
 type U_forced_to = T_forced_to__ParentTarget | T_forced_to__SelfRef
+type U_gotcha_condition = (
+    T_gotcha_condition__Physical
+    | T_gotcha_condition__SaysAnyOf
+    | T_gotcha_condition__SaysNumber
+    | T_gotcha_condition__SaysWordInGraveyardCardName
+)
 type U_grantee = (
     T_grantee__AbilityController
+    | T_grantee__ObjectExiler
     | T_grantee__ObjectOwner
     | T_grantee__ParentTargetController
     | T_grantee__TriggeringSourceController

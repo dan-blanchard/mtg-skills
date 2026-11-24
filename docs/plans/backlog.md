@@ -8,7 +8,133 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
 
 The phase-rs parse reports below are packaged as ready-to-post issue files in
 `docs/plans/phase-upstream-issues/` (46, re-verified against v0.118.0; 2026-11-01, issues 25-26 2026-11-09).
-Posting them is Dan's.
+Posting them is Dan's. **Re-verify them against v0.131.0 before posting**: the bump of
+2026-11-24 found several fixed upstream (`docs/plans/phase-upstream-reports.md`, "Fixed at
+v0.131.0") and did not re-read the rest. Phase also publishes a `metadata.confirmed_misparse`
+category on about 2,500 records now, so many of these are already known to it.
+
+**From the phase v0.131.0 pin bump (2026-11-24)**
+
+- **Reads the bump left as they were** (each a decision, not a regression):
+  - `artifacts_matter`'s battlefield-tuck arm (`board_and_ramp`, "bf_library_bounce")
+    fires only on a tuck phase types as a targeted `ChangeZone` (Zoyowa's Justice);
+    the nine tucks phase types as `PutAtLibraryPosition` (Natural Obsolescence,
+    Disempower, and since v0.131.0 Rebuking Ceremony) never had it. Either every
+    targeted artifact tuck is an artifacts payoff or none is.
+  - `combat_buff_engine` reads a fixed combat pump only; a combat-keyed pump that
+    scales (`AddDynamicPower` — Ursine Monstrosity, once phase typed its scale)
+    carries `scaling_pump` alone.
+  - `pump_makers` reads a scaling pump on a `Pump` effect (its "+"-grounded arm)
+    but not one nested as a granted static (`AddDynamicPower` under a
+    `GenericEffect`): Craterhoof Behemoth, Berserk, Xenagos, God of Revels and
+    43 more carry `scaling_pump` alone. Fists of Flame and Algorithmic Ferocity
+    joined them once phase typed their "for each" (they had `pump_makers` off
+    the fixed `AddPower` phase wrote before). Reading the nested form was tried
+    and backed out of the bump: 46 new cards is a lane decision.
+  - "Those creatures gain [keyword]" after a mass effect is a `TrackedSet` grant
+    no keyword-grant read resolves to the mass effect's filter, so it is neither
+    `keyword_grant_target` (correctly: no target) nor `team_buff`: Ajani
+    Goldmane before the bump, and since v0.131.0 Now for Wrath, Now for Ruin!,
+    Sandstorm Salvager, Overseer of Vault 76, Captain America, Skybound, Mob
+    Rule, Call for Aid (phase wrote `ParentTarget` there before).
+  - Garth One-Eye's "Create a copy of the card with the chosen name. You may
+    cast the copy" is a `CreateCardCopyByName` now; a copy of a permanent spell
+    that resolves enters as a token (CR 707.10f), which `permanent_etb|put`
+    doesn't read off that effect.
+  - Gains kept (Dan, 2026-11-24; don't re-suggest): Din of the Fireherd
+    `mass_land_denial|each|sacrifice`, Sunset Revelry `cantrip`, Mirror-Mad
+    Phantasm `permanent_etb|put`, Words of Wind `bounce_tempo`.
+  - Will of the Abzan's edict mode is a `TargetOnly` + `Sacrifice{ScopedPlayer}`
+    now; `edict_makers|opponents` stays, its `target` subject is gone.
+  - A harm inside a chosen mode of an enters trigger reads as `self_drawback`
+    (Orcus, Ghastly Death Tyrant, and now Commander Raffi Musiker's "Investigate.
+    You lose 2 life"), though the controller picks the mode.
+- **Phase gaps the bump found** (report upstream, Dan posts; none worked around
+  unless a canary is named): Danse Macabre's non-targeting "return up to two
+  creature cards" carries a `multi_target` (reads `per_target_payoff|variable`);
+  Emergent Sequence's "Put a +1/+1 counter on it" binds the fetched land to the
+  sorcery (`test_spell_self_counter_misbinding_canary`); Veiling Oddity's
+  "creatures can't be blocked this turn" parks as `broadcast_static_mode_live_set`
+  (reads `evasion_self` off the text arm, should be a team grant); Crabomination's
+  three-zone exile is a `ChooseFromZone` chain with a `TargetedPlayer` zone owner,
+  which the `theft_makers` / `opp_top_exile` reads don't follow; Battlefield
+  Thaumaturge's and Disorder's qualifiers park (`cost_reduction`'s instant/sorcery
+  subject, `color_hoser`); Cocoon's comma-joined instruction list isn't split by
+  the recovery stage. About twenty "can't be the target of [some] spells" statics
+  now park as `mode: {Other: text}` (Fiendslayer Paladin, Gaea's Revenge, Dense
+  Foliage); `ConceptTree.other_static_modes()` lists them, read so far only by
+  Tomik's ledger row.
+- **Signals lost at v0.131.0 to a shape no read has learned yet** (each one or a
+  few cards; the old read is named by its key):
+  - A zone list on the filter (`InAnyZone[…]`, no `origin` / `InZone`): Huskburster
+    Swarm's and Sailors' Bane's "you own in exile and in your graveyard"
+    (`exile_matters`), Next of Kin's "from your hand or the command zone"
+    (`cheat_into_play`, `death_matters`). `puts_commander_into_hand` already reads
+    both properties (Campfire).
+  - `DistinctFrom{reference: ParentTarget}` for "each other creature you control"
+    beside a targeted one, where phase wrote `Another`: Phalanx Tactics
+    (`team_buff`).
+  - `Owned{controller: DefendingPlayer}` on a graveyard filter: Graven Abomination,
+    Rysorian Badger (`opponent_exile_makers`).
+  - "Those lands become creatures" on a `TrackedSet` (was `ParentTarget`): Hunting
+    Wilds (`land_creatures_matter`, `land_protection`). The same rename took
+    `keyword_grant_target` off the mass grants (Mob Rule, Call for Aid, Mutinous
+    Massacre), which that lane's own rule leaves out.
+  - A four-arm `Or` over battlefield and graveyard: Shadows' Verdict
+    (`mass_removal`).
+  - Damage to a `ScopedPlayer` ("any opponent may … If a player does, ~ deals
+    damage to that player"): Sin Prodder (`lifeloss_makers`).
+  - An alternative cost's condition on `casting_options` ("If you control a
+    Forest, rather than pay …"): Invigorate, Reverent Silence
+    (`subtype_ref|Forest`).
+  - "For each kind of counter on ~" as `DistinctCounterKindsAmong` (was a
+    `CountersOn` with a junk kind): Blitzball Stadium (`draw_for_each`).
+  - Phase now leaves "When you attack enchanted opponent" an `Unknown` trigger
+    mode: Tenuous Truce (`attack_matters`).
+- **Losses the bump did not examine card by card** (each one card, a key or a
+  subject gone; none pinned by a failing test): Thought Dissector
+  `cheat_into_play|Artifact` (its clause parks as `compound_reveal_until`), Peace
+  in Our Time `pillowfort` / `stax_taxes`, Ensign Pavel Chekov
+  `self_etb_payload`, Those Old Scientists `sacrifice_outlets`, Soundwave, Sonic
+  Spy `spellcast_matters`, Plunderer's Prize and Teferi's Contingency
+  `stax_taxes` / `symmetric_stax` (perpetual "costs more" riders), Trenzalore
+  Clocktower `activated_draw` (its exile cost is typed now), Campfire
+  `graveyard_makers`, Nahiri, Storm of Stone's `equip` subject on
+  `keyword_bodies` / `team_buff`.
+- **Deeper fixes the bump's quality review named** (each changes which cards
+  emit a signal, so none was folded into the bump):
+  - The seam's `EACH_PERMANENT` mark needs "each" right after the verb's head.
+    Marking the "… and each creature that player controls" conjunct too would
+    let `recovered_sweep` serve Chandra's Flame Wave, Flame Wave, Incite
+    Rebellion and Mob Verdict, and retire both `one_sided_sweep_creature_half_*`
+    ledger rows (the `_dropped` one still says the clause is dropped; since
+    v0.131.0 it is parked).
+  - The recovery type words have no basic land types (CR 205.3i), so Raiding
+    Party's parked "destroy all Plains" names no land and needs its two
+    `all_plains_destroy_parked_*` rows.
+  - A parked "discard …" with no subject after a typed `RevealHand` could take
+    that reveal's player in `recovery.read_clause`; today `_discard_outlet`
+    vetoes it lane-side (Shatter Assumptions), and no other discard lane sees it.
+  - `effect_back_reference`'s `"linked"` kind doesn't know `ExiledBySource`,
+    the tag phase now writes for "return the exiled card" (Tidehollow Sculler);
+    `exiles_until_host_leaves` keys the tag itself.
+  - A spell's `SelfRef` bound to the object it acted on is guarded read-side in
+    three places (`protection._filter_recipient`, `attack_deterrent`,
+    `has_structural_self_counter_grow`); one `misparsed_shapes` row rebinding
+    it would reach every lane.
+  - `crosswalk.attack_recipient` is applied by the superfriends reads only;
+    `protection`'s `DEFENDED_YOU` comparisons read the raw field (harmless while
+    only `Planeswalker` has the variant form), and the two modules each keep an
+    `_ATTACK_RECIPIENT_FIELDS` table.
+- **A correction that breaks strict load fails silently.** A `shape_compat` /
+  `misparsed_shapes` rewrite that puts a node where the mirror doesn't take it
+  leaves the card with no tree and no signals, and nothing says so: this bump's
+  first zero-floor row unwrapped a floored `Difference` and Doran, Besieged by
+  Time went blank until the second signal diff showed it as a loss. The bump
+  report could list every card with phase records and fewer trees than records.
+- **Retire-ready, not retired:** `tree_synthesis/mechanics_misc._arm_curse_matters`
+  fires only on Blue Screen of Death (legal nowhere) now that Curse of
+  Misfortunes, Bitterheart Witch and Lynde are structural.
 
 **From comparing Arena game logs with phase (2026-11-09)**
 
@@ -23,15 +149,17 @@ Posting them is Dan's.
   Unscored today: keyword abilities phase writes no ability for (warp's delayed exile,
   ninjutsu, persist) and a saga chapter phase writes with no text ("Chapter 3"),
   which Arena's chapter order could pair.
-- **Three `misparsed_shapes` rows still check phase's own ability text with a
-  regex (2026-11-09).** Unwanted Remake's "Its controller manifests dread", Akiri's
-  "attack with one or more equipped creatures" and Mirko's "power less than ~'s".
+- **Two `misparsed_shapes` rows still check phase's own ability text with a
+  regex (2026-11-09).** Unwanted Remake's "Its controller manifests dread" and
+  Mirko's "power less than ~'s".
   Each fixes a node phase typed but left a player or filter out of, and the text
   only tells the misread apart from look-alike structures (each row's docstring has
   the census). There is no parked clause for the recovery grammar, so they stay
   as they are; Dan's call, 2026-11-09. If one is redone, parse the description with
-  `clause_grammar` the way `subtype_keyword_grant` and `graveyard_arrival_subtype`
-  read Umbra Mystic's and Disa's parked lines.
+  `clause_grammar` the way `subtype_keyword_grant` reads Umbra Mystic's parked
+  line. (Akiri's row was the third until phase v0.131.0 left her trigger an
+  `Unknown` mode holding the clause; `clause_grammar.attached_attackers_kind`
+  reads it now.)
 **From a powered-cube draft tune (2026-11-02)**
 
 `deck-tune` on an Arena powered-cube draft deck (`--format draft`, 40 cards, a
@@ -57,29 +185,18 @@ problems are what drives them.
 
 **From the Jace, Multiverse Architect precon tune (2026-10-17)**
 
-- **Phase parse gap, worked around locally (2026-10-31): Disa the Restless.** Her
-  "Whenever a Lhurgoyf permanent card is put into your graveyard from anywhere
-  other than the battlefield" is a trigger with mode `Unknown` and no zone
-  fields (its effect is a `ChangeZone` to the battlefield of the
-  `ParentTarget`); `misparsed_shapes`' graveyard-arrival row rewrites it to the
-  `ChangesZone` → Graveyard form (`test_graveyard_arrival_unknown_mode_canary`
-  retires it). Upstream report, ready to file against phase-rs/phase: *"Disa the
-  Restless (DSK): the first triggered ability parses with `mode: {Unknown: "Whenever
-  a Lhurgoyf permanent card is put into your graveyard from anywhere other than
-  the battlefield"}`, `origin`/`destination`/`valid_card` null, while the body is
-  typed (`ChangeZone` of `ParentTarget` to `Battlefield`). Expected: `mode:
-  ChangesZone`, `destination: Graveyard`, `valid_card: Typed[Permanent,
-  {Subtype: Lhurgoyf}] + Owned You`. Note the grammar has no origin for 'from
-  anywhere other than the battlefield' (origin null today means 'from anywhere',
-  as on Countryside Crusher); an `origin: NotBattlefield` or an excluded-origin
-  field would let the clause be typed exactly."* (drafted: `docs/plans/phase-upstream-reports.md` §1) Beside it, the crosswalk's
-  `trigger_def_event` no longer reads every null-origin graveyard arrival as a
-  death: 49 of the 61 null-origin `ChangesZone` → Graveyard triggers are "from
-  anywhere" watchers (Gitrog, Titania, Sefris, Yuma), told from the 12 permanent
-  watchers by their filter (an owner, no controller — CR 108.4; a controller or
-  an attached object is a permanent — CR 110.1). The one filter the shape cannot
-  split: Patron of the Nezumi's "a permanent is put into an opponent's
-  graveyard" (owner-scoped like Moonshadow's "permanent cards"), read as a card.
+- **Graveyard arrivals "from anywhere" (2026-10-31; Disa the Restless typed at
+  phase v0.131.0).** Phase now types Disa's "from anywhere other than the
+  battlefield" trigger (`ChangesZone` → Graveyard, the watched card and a
+  `NotEquals: Battlefield` origin on its one `zone_change_clauses` entry);
+  `shape_compat` copies the watched card onto the trigger
+  (`test_single_clause_arrival_canary`), and the `misparsed_shapes` row is gone.
+  The crosswalk's `trigger_def_event` doesn't read every null-origin graveyard
+  arrival as a death: the "from anywhere" watchers (Gitrog, Titania, Sefris,
+  Yuma) are told from the permanent watchers by their filter (an owner, no
+  controller — CR 108.4; a controller or an attached object is a permanent — CR
+  110.1). Patron of the Nezumi's "a permanent is put into an opponent's
+  graveyard" carries a battlefield origin since v0.131.0.
 - **Pass D: the serves still on a regex** (2026-10-23;
   `docs/plans/serve-idents-and-avenue-support.md` "Pass D"; each spec's comment
   names its remainder). Regex-only, measured over the legal corpus:
@@ -235,12 +352,6 @@ problems are what drives them.
     `attached_to_qualifier` residue since v0.104.0); Burning of Xinye's "destroys
     four lands" is a residue
     and Global Ruin's sacrifice a tracked set (both ledger bridges).
-- **Phase gap behind the tuner's ramp sourcing** (found 2026-10-08, phase v0.94.0;
-  report upstream, Dan posts) (drafted: `docs/plans/phase-upstream-reports.md` §10). Boxing Ring's "Activate only if you control a
-  creature that fought this turn" is an `unparsed_condition` residue, not an
-  activation restriction — the only legal card whose mana or Treasure ability is
-  gated that way (`reads.UNPARSED_ACTIVATION_GATE`,
-  `test_boxing_ring_gate_is_still_a_residue_canary`).
 - **Phase misparses behind cut-check reads** (found 2026-10-08; report upstream,
   Dan posts) (drafted: `docs/plans/phase-upstream-reports.md` §14, §16, §17). Each has a canary: Glorfindel, Dauntless Rescuer's "can't be blocked
   by more than one creature each combat" parses as `CantBeBlockedBy` a typeless
@@ -273,12 +384,12 @@ problems are what drives them.
 **From the twohg-guide skill (2026-09-27)**
 
 - **Phase drops the player behind edicts** (found 2026-10-09, phase v0.104.0;
-  report upstream, Dan posts) (drafted: `docs/plans/phase-upstream-reports.md` §12b). Each is read with a workaround that retires itself:
-  a chained "…, then sacrifices" loses its subject (Undercity Plague, Priest of
-  Forgotten Gods, Din of the Fireherd's land half, Nicol Bolas, Planeswalker's −9 —
-  `test_chained_sacrifice_actor_dropped_canary`); "each opponent [who …]
+  report upstream, Dan posts) (drafted: `docs/plans/phase-upstream-reports.md` §12b). "Each opponent [who …]
   sacrifices" parses with no player at all (Variable Solutions — ledger row
-  `opponent_sacrifice_actor_dropped`). Fixed at v0.118.0: Davriel, Soul Broker's
+  `opponent_sacrifice_actor_dropped`, which retires itself). Fixed at v0.131.0: a
+  chained "…, then sacrifices" names its player on the sacrificed filter's
+  `controller` (Undercity Plague, Din of the Fireherd's land half, Nicol Bolas,
+  Planeswalker's −9), so the chained-actor read is gone. Fixed at v0.118.0: Davriel, Soul Broker's
   sacrifice now sits in its delayed trigger; Papalymo Totolymo's clause is parked
   whole as an `unbound_subject` residue instead.
 - **phase tags "each other player" as `Opponent`.** Grave Pact and Syphon Mind carry
@@ -1416,7 +1527,7 @@ proposal as a deckbuilder, fix the structure, the guide score is a yardstick)**
   until end of combat (CR 702.189a), so it doesn't speed up the curve.
 - **Symmetric shields aren't protection** (Dan, 2026-10-08): `roles.protects` is
   protecting YOUR board, so a permanent's shield over every player's objects alike
-  (Crumbling Sanctuary, Plated Pegasus, Well-Laid Plans' residue) stays out; a fog
+  (Crumbling Sanctuary, Plated Pegasus, Well-Laid Plans' parked prevention) stays out; a fog
   you cast and an optional shield you aim stay in.
 - **Every strong candidate from the 2026-09-12 review shipped** (ADR-0045 to 0050,
   plus ADR-0041 and ADR-0013 finished).

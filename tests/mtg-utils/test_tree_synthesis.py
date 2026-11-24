@@ -4003,15 +4003,21 @@ def test_land_creatures_subtype_animate_ambush_commander():
     assert any(s.key == "land_creatures_matter" for s in _land_creatures_matter(synth))
 
 
-def test_land_creatures_dynamic_animate_primal_adversary_and_sage():
-    """Primal Adversary's deferred repeat-count animate and Sage of the
-    Maze's formula-X animate both park wholesale as Unimplemented."""
-    for name in ("Primal Adversary", "Sage of the Maze"):
-        tree = _fixture_tree(name)
-        assert has_structural_land_creatures_animate(tree) is False, name
-        node = _arm_land_creatures_dynamic_animate(tree)
-        assert node is not None, name
-        assert node.concept == "synth_land_creatures_dynamic_animate"
+def test_land_creatures_dynamic_animate_primal_adversary():
+    """Primal Adversary's deferred repeat-count animate parks wholesale as
+    Unimplemented."""
+    tree = _fixture_tree("Primal Adversary")
+    assert has_structural_land_creatures_animate(tree) is False
+    node = _arm_land_creatures_dynamic_animate(tree)
+    assert node is not None
+    assert node.concept == "synth_land_creatures_dynamic_animate"
+
+
+def test_land_creatures_formula_animate_is_typed():
+    """Sage of the Maze's "target land you control becomes an X/X Citizen
+    creature …, where X is twice the number of Gates you control" is a typed
+    animation since phase v0.131.0 (parked before): no synthesis."""
+    assert has_structural_land_creatures_animate(_fixture_tree("Sage of the Maze"))
 
 
 def test_land_creatures_animate_synth_registered():
@@ -4032,14 +4038,14 @@ def test_curse_matters_structural_gate_true_on_existing_arm():
     assert _arm_curse_matters(_fixture_tree("Bitterheart Witch")) is None
 
 
-def test_curse_matters_bucket_b_synth_gap_gated():
-    """Curse of Misfortunes' search-filter drop — the residual bare-
-    reference idiom the two structural arms miss."""
+def test_curse_matters_synth_stands_down_for_the_typed_search():
+    """Curse of Misfortunes' search for "a Curse card": its SearchLibrary filter
+    was empty through v0.118.0 (the synth arm served it); since phase v0.131.0
+    the filter carries the Curse subtype, so the structural effect-target arm
+    reads it and the gap-gated synth stands down."""
     tree = _fixture_tree("Curse of Misfortunes")
-    assert has_structural_curse_matters(tree) is False
-    node = _arm_curse_matters(tree)
-    assert node is not None
-    assert node.concept == "synth_curse_matters"
+    assert has_structural_curse_matters(tree) is True
+    assert _arm_curse_matters(tree) is None
 
 
 def test_curse_matters_no_fire_on_membership_only():

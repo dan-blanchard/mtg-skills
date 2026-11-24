@@ -29,6 +29,7 @@ from mtg_utils._card_ir.crosswalk import (
     AbilityUnit,
     ConceptNode,
     ConceptTree,
+    attack_recipient,
     change_zone_dirs,
     counter_kind,
     counter_kind_any,
@@ -715,7 +716,7 @@ def _attack_recipient_tell(node: TypedMirrorNode) -> bool | None:
     field = _ATTACK_RECIPIENT_FIELDS.get(tag_of(node) or "")
     if field is None:
         return None
-    recipient = getattr(node, field, None)
+    recipient = attack_recipient(getattr(node, field, None))
     if recipient in DEFENDED_YOU:
         return False
     if recipient in _PW_ATTACK_RECIPIENTS:
@@ -754,7 +755,7 @@ def _superfriends_typed_ref(node: object, depth: int = 0) -> bool:
         trig = getattr(node, "trigger", None)
         if not isinstance(trig, TypedMirrorNode):
             return False
-        atf = getattr(trig, "attack_target_filter", None)
+        atf = attack_recipient(getattr(trig, "attack_target_filter", None))
         return atf in _PW_ATTACK_RECIPIENTS and trigger_scope(trig) == "you"
     tell = _attack_recipient_tell(node)
     if tell is not None:
@@ -827,11 +828,12 @@ def has_structural_superfriends(tree: ConceptTree) -> bool:
         for site in iter_condition_sites(node):
             if _superfriends_typed_ref(site):
                 return True
-        atf = getattr(node, "attack_target_filter", None)
+        atf = attack_recipient(getattr(node, "attack_target_filter", None))
         if atf in _PW_ATTACK_RECIPIENTS and trigger_scope(node) == "you":
             return True
         for sdef in iter_static_defs(node):
-            if getattr(sdef, "attack_defended", None) in _PW_ATTACK_RECIPIENTS:
+            defended = attack_recipient(getattr(sdef, "attack_defended", None))
+            if defended in _PW_ATTACK_RECIPIENTS:
                 return True
             aff = getattr(sdef, "affected", None)
             if aff is not None and _superfriends_typed_ref(aff):

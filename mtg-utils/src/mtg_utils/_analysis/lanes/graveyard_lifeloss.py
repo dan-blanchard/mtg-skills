@@ -1914,15 +1914,30 @@ def _lifeloss_makers(tree: ConceptTree) -> list[Signal]:
         # A damage clause phase parks, recovered by the seam, drains the same
         # way when it names an opponent's side and a player, never "any target"
         # ("it deals 1 damage to defending player" — Simian Sling, Tormentor's
-        # Helm; Iron Mastiff's "to each opponent" row).
+        # Helm; Iron Mastiff's "to each opponent" row), or a player other than you
+        # it names (``OTHER_PLAYER``: "to target player and each creature that
+        # player controls" — Chandra's Flame Wave, as the typed read takes a
+        # ``Player`` recipient). An untargeted "that player" of a trigger is the
+        # player the trigger watches, you included when it watches every
+        # player's step ("At the beginning of each player's end step, ~ deals 2
+        # damage to that player unless …" — Antagonism, Impatience):
+        # :func:`scoped_player_scope`.
         for c in unit.effect_concepts("deal_damage"):
-            if (
+            if not (
                 c.recovered_by == "damage"
-                and c.scope == "opponents"
+                and (c.scope == "opponents" or OTHER_PLAYER in c.reading)
                 and PLAYER in c.reading
                 and ANY_TARGET not in c.reading
             ):
-                fire("opponents", c.raw)
+                continue
+            watched = (
+                c.scope != "opponents"
+                and unit.origin == "trigger"
+                and TARGETED not in c.reading
+            )
+            scope = scoped_player_scope(unit) if watched else "opponents"
+            if scope is not None:
+                fire(scope, c.raw)
     if not tree.is_type("Land"):
         for unit in tree.units:
             paylife = any(cost_has_paylife(cc.node) for cc in unit.costs) or any(

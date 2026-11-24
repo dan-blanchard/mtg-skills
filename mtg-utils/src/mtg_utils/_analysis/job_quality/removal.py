@@ -41,8 +41,8 @@ from mtg_utils._card_ir.crosswalk import (
     at_instant_speed,
     change_zone_dirs,
     effect_filter,
-    effect_owner_duration,
     effect_player_reach,
+    exiles_until_host_leaves,
     filter_controller,
     filter_mana_value_floor,
     filter_predicates,
@@ -196,7 +196,7 @@ def _answers(card: dict) -> list[_Answer]:
                 edict_each=reach in ("opponents", "per_opponent", "each"),
                 opp_only=filter_controller(filt) == "Opponent",
                 until_leaves=unit is not None
-                and effect_owner_duration(unit.node, c.node) == "UntilHostLeavesPlay",
+                and exiles_until_host_leaves(tree, unit, c.node),
                 creatures=bool({"Creature", "Any", "Permanent"} & set(types)),
             )
         )

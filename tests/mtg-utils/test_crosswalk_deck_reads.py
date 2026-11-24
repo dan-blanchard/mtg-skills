@@ -341,7 +341,6 @@ def test_recovered_warp_reaches_the_curve():
 @pytest.mark.parametrize(
     ("name", "key"),
     [
-        ("Zombie Cutthroat", "Morph"),
         ("Timeline Culler", "Warp"),
         ("Shadowgrange Archfiend", "Madness"),
         ("Escape Velocity", "Escape"),

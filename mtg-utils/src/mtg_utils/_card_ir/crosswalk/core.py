@@ -824,6 +824,17 @@ class ConceptTree:
                     continue
                 yield getattr(sdef, "description", "") or ""
 
+    def other_static_modes(self) -> Iterator[str]:
+        """The descriptions of the static defs phase leaves as an ``Other``
+        mode: a line it names but doesn't model, the clause only in the def's
+        ``description`` (phase v0.131.0's fail-closed form of "can't be the
+        target of [some] spells" — Tomik, Distinguished Advokist's lands shield,
+        Fiendslayer Paladin). A sibling of :meth:`hollow_statics`."""
+        for unit in self.units:
+            for sdef in unit.static_defs():
+                if static_mode_tag(sdef) == "Other":
+                    yield getattr(sdef, "description", "") or ""
+
     def hollow_emblem_statics(self) -> Iterator[str]:
         """The descriptions of an emblem's UNPARSED statics: phase's placeholder
         ``EmblemStatic`` mode with no ``affected`` and no modifications, the

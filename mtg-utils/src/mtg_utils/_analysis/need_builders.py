@@ -27,6 +27,7 @@ from mtg_utils._card_ir.crosswalk.reads import (
     filter_subtypes,
     iter_typed_nodes,
     or_arms,
+    spells_cast_this_turn,
     tag_of,
     trigger_def_event,
     trigger_scope,
@@ -310,10 +311,10 @@ def _spell_floor_need(
 
 
 def _spells_cast_filter(qty: object) -> object | None:
-    """The spell filter of a ``SpellsCastThisTurn`` quantity or a ``TurnJournal``
+    """The spell filter of a this-turn ``SpellsCast`` quantity or a ``TurnJournal``
     of ``SpellsCast`` (``None`` when it counts every spell)."""
     tag = tag_of(qty)
-    if tag == "SpellsCastThisTurn":
+    if spells_cast_this_turn(qty):
         filt = getattr(qty, "filter", None)
         return filt if _present(filt) else None
     if tag == "TurnJournal" and tag_of(getattr(qty, "journal", None)) == "SpellsCast":
@@ -1038,7 +1039,7 @@ def _condition_need(
     if qty is None:
         return None
     qtag = tag_of(qty)
-    if qtag == "SpellsCastThisTurn":
+    if spells_cast_this_turn(qty):
         rhs = getattr(cond, "rhs", None)
         n = int(getattr(rhs, "value", 0) or 0) if tag_of(rhs) == "Fixed" else 0
         if n >= 2:

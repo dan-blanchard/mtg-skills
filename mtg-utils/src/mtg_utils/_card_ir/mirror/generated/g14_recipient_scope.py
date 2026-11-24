@@ -4,8 +4,8 @@ Codegen'd from ``tests/fixtures/phase_mirror_schema.json`` by
 ``mtg_utils._card_ir.mirror.codegen`` (run via ``build-card-ir-substrate``).
 
 Part of the generated typed-mirror package (see this directory's
-``__init__.py``). This module holds content keys ``redirect_target`` ..
-``spell_cast_origin`` (35 keys).
+``__init__.py``). This module holds content keys ``recipient_scope`` ..
+``source_rider`` (36 keys).
 
 Class naming: ``S_<ckey>`` for a struct shape, ``T_<ckey>__<tag>`` for a tagged
 shape, ``U_<ckey>`` for the union of all tagged shapes at one content_key.
@@ -23,18 +23,16 @@ from mtg_utils._card_ir.mirror.runtime import (
 )
 
 if TYPE_CHECKING:
-    from mtg_utils._card_ir.mirror.generated.g02_modifyactivationlimi import (
+    from mtg_utils._card_ir.mirror.generated.g02_mayhem import (
         U_activity,
     )
-    from mtg_utils._card_ir.mirror.generated.g03_additional_modificat import (
+    from mtg_utils._card_ir.mirror.generated.g03_additional_cost import (
         S_additional_token_spec,
         U_affected_players,
-        U_amount,
         U_attr,
-        U_cast_filter,
     )
-    from mtg_utils._card_ir.mirror.generated.g04_casting_restrictions import (
-        U_colors,
+    from mtg_utils._card_ir.mirror.generated.g04_candidate_filter import (
+        U_cast_filter,
         U_condition,
     )
     from mtg_utils._card_ir.mirror.generated.g06_costs import (
@@ -47,6 +45,7 @@ if TYPE_CHECKING:
     )
     from mtg_utils._card_ir.mirror.generated.g07_dynamic_count import (
         S_effect,
+        U_effect,
     )
     from mtg_utils._card_ir.mirror.generated.g08_else_ability import (
         S_ensure_token_specs,
@@ -66,10 +65,9 @@ if TYPE_CHECKING:
     )
     from mtg_utils._card_ir.mirror.generated.g10_modifications import (
         U_modifications,
-        U_owner,
     )
     from mtg_utils._card_ir.mirror.generated.g11_player import (
-        U_power,
+        U_player_scope,
     )
     from mtg_utils._card_ir.mirror.generated.g12_properties import (
         U_properties,
@@ -78,12 +76,11 @@ if TYPE_CHECKING:
         U_qty,
         U_quantity_modification,
     )
-    from mtg_utils._card_ir.mirror.generated.g15_spell_filter import (
+    from mtg_utils._card_ir.mirror.generated.g15_sources import (
         S_static_def,
-        U_target,
-        U_toughness,
+        U_sources,
     )
-    from mtg_utils._card_ir.mirror.generated.g16_triggers import (
+    from mtg_utils._card_ir.mirror.generated.g16_toughness import (
         U_valid_card,
         U_value,
     )
@@ -117,6 +114,22 @@ class S_replacement(TypedMirrorNode):
     shield_kind: MirrorVariant = MISSING
     token_owner_redirect: str = MISSING
     token_owner_scope: str = MISSING
+
+
+@dataclass(frozen=True)
+class S_replacement_effect(TypedMirrorNode):
+    condition: None
+    cost: None
+    description: None
+    duration: None
+    effect: U_effect
+    forward_result: bool
+    kind: str
+    optional: bool
+    optional_targeting: bool
+    sub_ability: None
+    target_prompt: None
+    player_scope: U_player_scope = MISSING
 
 
 @dataclass(frozen=True)
@@ -155,6 +168,7 @@ class S_replacements(TypedMirrorNode):
 @dataclass(frozen=True)
 class S_requirement(TypedMirrorNode):
     requirement: str
+    collective: bool = MISSING
     comparator: str = MISSING
     count: int = MISSING
     stat: str = MISSING
@@ -187,6 +201,34 @@ class S_scale(TypedMirrorNode):
 
 
 # --- tagged shapes (discriminated enum nodes) ---
+
+
+@dataclass(frozen=True)
+class T_recipient_scope__All(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "All"
+
+
+@dataclass(frozen=True)
+class T_recipient_scope__Single(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "Single"
+
+
+@dataclass(frozen=True)
+class T_redirect_lifetime__Continuous(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "Continuous"
+
+
+@dataclass(frozen=True)
+class T_redirect_object_filter__Any(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "Any"
+
+
+@dataclass(frozen=True)
+class T_redirect_object_filter__Typed(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "Typed"
+    controller: str | None
+    properties: list[U_properties]
+    type_filters: list[MirrorVariant]
 
 
 @dataclass(frozen=True)
@@ -225,6 +267,11 @@ class T_redirect_to__SourceObject(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_reference__CastingSpell(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "CastingSpell"
+
+
+@dataclass(frozen=True)
 class T_reference__CostPaidObject(TypedMirrorNode):
     _tag: ClassVar[str | None] = "CostPaidObject"
 
@@ -242,6 +289,11 @@ class T_reference__ExiledBySource(TypedMirrorNode):
 @dataclass(frozen=True)
 class T_reference__GrantingObject(TypedMirrorNode):
     _tag: ClassVar[str | None] = "GrantingObject"
+
+
+@dataclass(frozen=True)
+class T_reference__LastRevealed(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "LastRevealed"
 
 
 @dataclass(frozen=True)
@@ -360,31 +412,8 @@ class T_replacement_effect__ChaosEnsues(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
-class T_replacement_effect__DealDamage(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "DealDamage"
-    amount: U_amount
-    target: U_target
-
-
-@dataclass(frozen=True)
-class T_replacement_effect__GainLife(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "GainLife"
-    amount: U_amount
-
-
-@dataclass(frozen=True)
-class T_replacement_effect__Token(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "Token"
-    colors: list[U_colors]
-    count: U_count
-    enters_attacking: bool
-    keywords: list[MirrorVariant]
-    name: str
-    owner: U_owner
-    power: U_power
-    tapped: bool
-    toughness: U_toughness
-    types: list[object]
+class T_required_defender__AffectedObjectOwner(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "AffectedObjectOwner"
 
 
 @dataclass(frozen=True)
@@ -657,15 +686,16 @@ class T_selection__Random(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
-class T_selection_constraint__DistinctQualities(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "DistinctQualities"
-    qualities: list[object]
-
-
-@dataclass(frozen=True)
 class T_selection_constraint__MatchEachFilter(TypedMirrorNode):
     _tag: ClassVar[str | None] = "MatchEachFilter"
     filters: list[U_filters]
+
+
+@dataclass(frozen=True)
+class T_selection_constraint__SharesQualities(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "SharesQualities"
+    qualities: list[object]
+    relation: str
 
 
 @dataclass(frozen=True)
@@ -740,6 +770,11 @@ class T_source__SelfRef(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_source__TargetedObjects(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "TargetedObjects"
+
+
+@dataclass(frozen=True)
 class T_source__ThisObject(TypedMirrorNode):
     _tag: ClassVar[str | None] = "ThisObject"
 
@@ -748,6 +783,7 @@ class T_source__ThisObject(TypedMirrorNode):
 class T_source__TrackedSet(TypedMirrorNode):
     _tag: ClassVar[str | None] = "TrackedSet"
     caused_by: str = MISSING
+    filter: U_filter = MISSING
     set: str = MISSING
 
 
@@ -840,46 +876,13 @@ class T_source_rider__LosesAbilities(TypedMirrorNode):
     static_def: S_static_def
 
 
-@dataclass(frozen=True)
-class T_sources__Objects(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "Objects"
-    filter: U_filter
-
-
-@dataclass(frozen=True)
-class T_sources__ParentTarget(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "ParentTarget"
-
-
-@dataclass(frozen=True)
-class T_sources__TurnJournal(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "TurnJournal"
-    journal: U_journal
-    scope: str
-
-
-@dataclass(frozen=True)
-class T_sources__Typed(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "Typed"
-    controller: str | None
-    properties: list[U_properties]
-    type_filters: list[MirrorVariant]
-
-
-@dataclass(frozen=True)
-class T_spell_cast_origin__Equals(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "Equals"
-    data: str
-
-
-@dataclass(frozen=True)
-class T_spell_cast_origin__NotEquals(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "NotEquals"
-    data: str
-
-
 # --- discriminated-union aliases (one per tagged content_key) ---
 
+type U_recipient_scope = T_recipient_scope__All | T_recipient_scope__Single
+type U_redirect_lifetime = T_redirect_lifetime__Continuous
+type U_redirect_object_filter = (
+    T_redirect_object_filter__Any | T_redirect_object_filter__Typed
+)
 type U_redirect_target = T_redirect_target__AttachedTo | T_redirect_target__SelfRef
 type U_redirect_to = (
     T_redirect_to__AttachedToSource
@@ -889,10 +892,12 @@ type U_redirect_to = (
     | T_redirect_to__SourceObject
 )
 type U_reference = (
-    T_reference__CostPaidObject
+    T_reference__CastingSpell
+    | T_reference__CostPaidObject
     | T_reference__EventTarget
     | T_reference__ExiledBySource
     | T_reference__GrantingObject
+    | T_reference__LastRevealed
     | T_reference__Or
     | T_reference__ParentTarget
     | T_reference__SelfRef
@@ -915,14 +920,10 @@ type U_repeat_until = (
     | T_repeat_until__UntilStopConditions
     | T_repeat_until__WhileCondition
 )
-type U_replacement_effect = (
-    T_replacement_effect__ChaosEnsues
-    | T_replacement_effect__DealDamage
-    | T_replacement_effect__GainLife
-    | T_replacement_effect__Token
-)
+type U_replacement_effect = T_replacement_effect__ChaosEnsues
 type U_required_defender = (
-    T_required_defender__Controller
+    T_required_defender__AffectedObjectOwner
+    | T_required_defender__Controller
     | T_required_defender__SelfRef
     | T_required_defender__Typed
 )
@@ -972,8 +973,8 @@ type U_scope = (
 type U_segment = T_segment__CreatedPhase | T_segment__Phase | T_segment__Step
 type U_selection = T_selection__Random
 type U_selection_constraint = (
-    T_selection_constraint__DistinctQualities
-    | T_selection_constraint__MatchEachFilter
+    T_selection_constraint__MatchEachFilter
+    | T_selection_constraint__SharesQualities
     | T_selection_constraint__TotalManaValue
 )
 type U_solve_condition = (
@@ -990,6 +991,7 @@ type U_source = (
     | T_source__Objects
     | T_source__Or
     | T_source__SelfRef
+    | T_source__TargetedObjects
     | T_source__ThisObject
     | T_source__TrackedSet
     | T_source__TriggeringSource
@@ -1008,10 +1010,3 @@ type U_source_filter = (
 type U_source_filters = T_source_filters__Typed
 type U_source_pool = T_source_pool__SideboardAndFaceUpExile
 type U_source_rider = T_source_rider__Destroy | T_source_rider__LosesAbilities
-type U_sources = (
-    T_sources__Objects
-    | T_sources__ParentTarget
-    | T_sources__TurnJournal
-    | T_sources__Typed
-)
-type U_spell_cast_origin = T_spell_cast_origin__Equals | T_spell_cast_origin__NotEquals

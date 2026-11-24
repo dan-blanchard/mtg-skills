@@ -95,7 +95,6 @@ from mtg_utils._card_ir.crosswalk import (
     root_target_filter,
     sacrifice_names_no_player,
     settap_state,
-    static_mode_field,
     subtype_refs,
     tag_of,
     trigger_turn_constraint,
@@ -168,23 +167,6 @@ def _static_parse_failure_descs(tree: ConceptTree) -> Iterator[str]:
     return tree.residues("static_structure")
 
 
-# ── Degavolver / Anavolver (the APC "Volver" cycle) → lifeloss_makers ────────
-# "If this creature was kicked with its {1}{B} kicker, it enters with two
-# +1/+1 counters on it and with 'Pay 3 life: Regenerate this creature.'" —
-# phase parses the +1/+1-counter half of the replacement (a typed
-# ``PutCounter`` node) but drops the quoted granted-ability half entirely:
-# ZERO trace anywhere in the tree, not even an ``Unimplemented`` residue (CR
-# 119.4/CR 601.2f — kicker is an announced additional cost the grant itself
-# never becomes a node for). The gap check is an ABSENCE proof (no PayLife /
-# GrantAbility node reachable anywhere) rather than a residue-presence read,
-# since phase leaves no residue to point at.
-_DEGAVOLVER_RX = re.compile(
-    r"kicked with its[^.]*kicker,? it enters with[^.]*and with\s*\""
-    r"[^\"]*\bpay\s+\d+\s+life\b",
-    re.IGNORECASE,
-)
-
-
 def _says(rx: re.Pattern[str], texts: Iterable[str]) -> bool:
     """Whether any of ``texts`` — the residue / hollow-static descriptions a
     presence read returned — says ``rx``. The shape every text bridge's gap and
@@ -209,14 +191,6 @@ def _selfref_def_says(tree: ConceptTree, rx: re.Pattern[str]) -> bool:
         for unit in tree.iter_units()
         for sdef in unit.static_defs()
     )
-
-
-def _degavolver_gap(tree: ConceptTree) -> bool:
-    return all(tag_of(n) not in ("PayLife", "GrantAbility") for n in tree.iter_typed())
-
-
-def _degavolver_match(tree: ConceptTree) -> bool:
-    return bool(_DEGAVOLVER_RX.search(tree.oracle))
 
 
 # ── Withercrown → lifeloss_makers ────────────────────────────────────────────
@@ -475,8 +449,6 @@ _CHEAT_DROPPED_CLAUSE_RX = re.compile(
     r"you may put that card onto the battlefield if it's a permanent card "
     r"with mana value \d+ or less|"
     r"if you reveal a creature card this way, put it onto the battlefield|"
-    r"that doesn't have the same name as a \S+ attached to enchanted "
-    r"player, put it onto the battlefield|"
     r"put those cards onto the battlefield and the rest on the bottom of "
     r"your library|"
     r"put a creature card from among them onto the battlefield\. if that "
@@ -1164,46 +1136,6 @@ def _warchanter_condition_match(tree: ConceptTree) -> bool:
         if "enchanted or equipped" in desc or "equipped or enchanted" in desc:
             return True
     return False
-
-
-# (3) Forge Anew — "You may pay {0} rather than pay the equip cost of the
-# first equip ability you activate during each of your turns" (CR 601.2f /
-# 702.6c). The {0}-alternative-payment half parses as a bare unlinked
-# ``PayCost`` node with no reachable Equipment/equip-keyword tag tying it
-# to the granted timing permission — Bruenor Battlehammer's structurally
-# IDENTICAL clause is excluded because Bruenor ALSO carries a genuine
-# ObjectCount/Aggregate Equipment-count scalar elsewhere on the SAME card
-# ("+2/+0 for each Equipment attached to it"), so its ``voltron_matters``
-# is already served through that other arm before this bridge is ever
-# reached (the ``bridge_fires`` gate call site in crosswalk_signals.py sits
-# at the END of the lane, after every structural arm has already tried).
-_FORGE_ANEW_RX = re.compile(r"pay \{0\} rather than pay the equip cost", re.IGNORECASE)
-
-
-def _forge_anew_paycost_unlinked_gap(tree: ConceptTree) -> bool:
-    """A ``PayCost({0})`` node exists but no equip-keyword
-    ``ReduceAbilityCost`` tag appears anywhere on the card — the alternative-
-    payment clause is structurally unlinked from the equip ability it
-    modifies. Self-retires once phase ties the two together (a whole-card
-    presence read over ``iter_typed``, never a per-unit walk)."""
-    has_paycost_zero = has_equip_link = False
-    for n in tree.iter_typed():
-        if tag_of(n) == "PayCost":
-            mana_cost = getattr(getattr(n, "cost", None), "cost", None)
-            if getattr(mana_cost, "generic", None) == 0 and not getattr(
-                mana_cost, "shards", None
-            ):
-                has_paycost_zero = True
-        if (
-            tag_of(n) == "ReduceAbilityCost"
-            and str(getattr(n, "keyword", "")).lower() == "equip"
-        ):
-            has_equip_link = True
-    return has_paycost_zero and not has_equip_link
-
-
-def _forge_anew_match(tree: ConceptTree) -> bool:
-    return bool(_FORGE_ANEW_RX.search(tree.oracle or ""))
 
 
 # ``_no_typed_discard_node`` — the gap for the dropped-clause bridge below
@@ -2517,7 +2449,8 @@ BRIDGES: dict[str, Bridge] = {
             ),
             pins=(
                 "Forcefield",
-                "Light of Sanction",
+                # Light of Sanction graduated at phase v0.131.0: a typed
+                # Prevention replacement.
                 "Hyperion, Supreme Hero",
                 "Silhouette",
                 "Ajani Steadfast",
@@ -2544,8 +2477,9 @@ BRIDGES: dict[str, Bridge] = {
                 "Teferi's Moat",
                 "Sivitri, Dragon Master",
                 "Chronomantic Escape",
-                "Web of Inertia",
-                "Champions of Minas Tirith",
+                # Web of Inertia and Champions of Minas Tirith graduated at phase
+                # v0.131.0: an AddRestriction ProhibitActivity (Attack) on the
+                # opponent's turn.
                 "Mirri, Weatherlight Duelist",
                 "Varchild, Betrayer of Kjeldor",
                 "Immortal Obligation",
@@ -2833,26 +2767,6 @@ BRIDGES: dict[str, Bridge] = {
             match=_knw_match,
         ),
         Bridge(
-            bridge_id="degavolver_kicker_paylife_regen",
-            key="lifeloss_makers",
-            kind="dropped_clause",
-            todo=(
-                "upstream phase-rs report candidate (Dan posts): the "
-                "kicker-conditional replacement 'it enters with ... and "
-                'with "Pay N life: <ability>"\' drops the quoted '
-                "granted-ability half with ZERO trace (no PayLife / "
-                "GrantAbility node anywhere) — retires on a phase bump "
-                "that structures the quoted grant"
-            ),
-            census=(
-                "2 hits / 31,622 commander-legal (the APC 'Volver' kicker "
-                "cycle: Degavolver, Anavolver), phase v0.20.0, 2026-07-11"
-            ),
-            pins=("Degavolver", "Anavolver"),
-            gap=_degavolver_gap,
-            match=_degavolver_match,
-        ),
-        Bridge(
             bridge_id="withercrown_unless_lose_life",
             key="lifeloss_makers",
             kind="upstream_parse_failure",
@@ -2945,9 +2859,10 @@ BRIDGES: dict[str, Bridge] = {
                 "3 hits / 31,622 commander-legal (Timeline Culler [Warp], "
                 "Tenacious Underdog [Blitz], Zombie Cutthroat [Morph]), "
                 "phase v0.20.0, 2026-07-11; Tenacious Underdog's blitz parses "
-                "at v0.104.0 (2026-10-08)"
+                "at v0.104.0 (2026-10-08), Zombie Cutthroat's morph (a typed "
+                "Morph PayLife cost) at v0.131.0"
             ),
-            pins=("Timeline Culler", "Zombie Cutthroat"),
+            pins=("Timeline Culler",),
             gap=_keyword_dropped_gap,
             match=_keyword_dropped_match,
         ),
@@ -3037,7 +2952,8 @@ BRIDGES: dict[str, Bridge] = {
             pins=(
                 "Matter Reshaper",
                 "Eladamri, Korvecdal",
-                "Curse of Misfortunes",
+                # Curse of Misfortunes graduated at phase v0.131.0: its
+                # SearchLibrary filter is a typed Enchantment — Curse.
                 "Empty the Laboratory",
                 "Wakanda Forever!",
                 "Game Preserve",
@@ -3584,33 +3500,6 @@ BRIDGES: dict[str, Bridge] = {
             match=_warchanter_condition_match,
         ),
         Bridge(
-            bridge_id="forge_anew_equip_cost_paycost_unlinked",
-            key="voltron_matters",
-            kind="dropped_clause",
-            todo=(
-                "upstream phase-rs report candidate (Dan posts): 'pay {0} "
-                "rather than pay the equip cost of the first equip "
-                "ability you activate' parses as a bare unlinked PayCost "
-                "node with no ReduceAbilityCost/equip-keyword tag tying "
-                "it to the ability it modifies — retires on a phase bump "
-                "that links the alternative payment to its equip-keyword "
-                "target"
-            ),
-            census=(
-                "2 hits / 31,622 commander-legal cards matching 'pay {0} "
-                "rather than pay the equip cost' (Forge Anew, Bruenor "
-                "Battlehammer), phase v0.20.0, 2026-07-12; Bruenor is "
-                "already served through its OWN '+2/+0 for each "
-                "Equipment attached to it' ObjectCount arm before this "
-                "bridge is ever reached (the bridge_fires call sits at "
-                "the end of the lane, after every structural arm) — "
-                "exactly the 1 remaining pin"
-            ),
-            pins=("Forge Anew",),
-            gap=_forge_anew_paycost_unlinked_gap,
-            match=_forge_anew_match,
-        ),
-        Bridge(
             bridge_id="opp_discard_fungal_shambler_dropped_conjunct",
             key="opponent_discard",
             scope="opponents",
@@ -3826,9 +3715,10 @@ BRIDGES: dict[str, Bridge] = {
                 "reflect), MTGJSON 2026-09-22 @ phase v0.94.0, 2026-09-26"
             ),
             pins=(
-                "Light of Sanction",
-                "Well-Laid Plans",
-                "Ironscale Hydra",
+                # Light of Sanction and Ironscale Hydra graduated at phase
+                # v0.131.0 (typed Prevention replacements); Well-Laid Plans's line
+                # parks as a prevention_source_scope residue the damage_prevention
+                # lane reads.
                 "Hyperion, Supreme Hero",
                 "Silhouette",
             ),
@@ -3937,7 +3827,9 @@ BRIDGES: dict[str, Bridge] = {
             "combat_buff_engine",
             "unparsed_condition",
             "an intervening-if on a combat-keyed pump trigger",
-            ("Septic Rats", "Sickle Dancer"),
+            # Septic Rats graduated at phase v0.131.0: an IsPoisoned
+            # (DefendingPlayer) condition on its Pump.
+            ("Sickle Dancer",),
             _combat_pump_gap,
             _oracle_match(_COMBAT_PUMP_RX),
             hits=3,
@@ -3957,7 +3849,9 @@ BRIDGES: dict[str, Bridge] = {
             "pump_makers",
             "unparsed_condition",
             "an intervening-if 'gets +N/+N until end of turn'",
-            ("Alex Wilder, Runaway", "Septic Rats", "Sickle Dancer"),
+            # Septic Rats graduated at phase v0.131.0 (see
+            # conditional_combat_pump_parked).
+            ("Alex Wilder, Runaway", "Sickle Dancer"),
             _pump_condition_gap,
             _oracle_match(_PUMP_CONDITION_RX),
             hits=3,
@@ -4341,13 +4235,22 @@ _BURN_PLANESWALKER_RX = re.compile(
     re.IGNORECASE,
 )
 # One player's board swept by damage, the creature half dropped: "~ deals 2 damage
-# to that player and each creature that player controls" (Mob Verdict, Chandra's
-# Flame Wave, Chandra, Flame's Fury's -8 — only the player half is typed); Path
-# of Mettle's "it deals 1 damage to each creature that doesn't have first strike,
-# …" parsed as keyword grants.
+# to target player and each creature that player controls" (Chandra's Flame Wave,
+# Chandra, Flame's Fury's -8 — only the player half is typed); Path of Mettle's
+# "it deals 1 damage to each creature that doesn't have first strike, …" parsed as
+# keyword grants.
 _ONE_SIDED_SWEEP_RX = re.compile(
-    r"\bdeals \d+ damage to (?:target|that) player and each creature that player "
+    r"\bdeals \d+ damage to target player and each creature that player "
     r"controls\b|\bdeals \d+ damage to each creature that doesn't have\b",
+    re.IGNORECASE,
+)
+# Mob Verdict's "For each vote an opponent received, ~ deals 2 damage to that player
+# and each creature that player controls": the player half alone typed through
+# v0.118.0; phase v0.131.0 parks the whole sentence as an ``unparsed_quantity``
+# residue, which the recovery stage reads as a ``damage`` clause without the
+# swept-board mark (``EACH_PERMANENT``) ``removal_tutors.recovered_sweep`` reads.
+_VOTED_SWEEP_RX = re.compile(
+    r"\bdeals \d+ damage to that player and each creature that player controls\b",
     re.IGNORECASE,
 )
 # A shrink phase drops with no node: Decimator Beetle's attack trigger keeps only
@@ -4380,18 +4283,16 @@ _DROPPED_SHRINK_RX = re.compile(
 # A modified reference phase drops: a replacement's "if you control a modified
 # creature" (Heir of the Ancient Fang), a count's "for each modified creature you
 # controlled" (Lethal Exploit), an additional cost's "sacrifice a modified
-# creature" (Lethal Throwdown), "Enchant modified creature" (Lion Umbra).
+# creature" (Lethal Throwdown), "Enchant modified creature" (Lion Umbra), and an
+# attack trigger's intervening-if "if it's modified" (Ian the Reckless: parked
+# whole as an ``unparsed_condition`` residue until phase v0.131.0, which drops the
+# condition and parks only the damage clause).
 _DROPPED_MODIFIED_RX = re.compile(
     r"\b(?:you control a modified creature|for each modified creature you "
-    r"control(?:led)?|sacrifice a modified creature|enchant modified creature)\b",
+    r"control(?:led)?|sacrifice a modified creature|enchant modified creature"
+    r"|if it's modified)\b",
     re.IGNORECASE,
 )
-# Ian the Reckless's attack-trigger gate "if it's modified", parked whole.
-_IT_IS_MODIFIED_RX = re.compile(r"\bif it's modified\b", re.IGNORECASE)
-
-
-def _it_is_modified_gap(tree: ConceptTree) -> bool:
-    return _says(_IT_IS_MODIFIED_RX, tree.residues("unparsed_condition"))
 
 
 # A shield counter phase drops: Elspeth Resplendent's -3 "onto the battlefield with
@@ -4569,26 +4470,47 @@ BRIDGES.update(
                 kind="dropped_clause",
                 todo=(
                     "upstream phase-rs report candidate (Dan posts): '~ deals N "
-                    "damage to that player and each creature that player controls' "
-                    "keeps only the player half (Mob Verdict, Chandra's Flame Wave, "
+                    "damage to target player and each creature that player "
+                    "controls' keeps only the player half (Chandra's Flame Wave, "
                     "Chandra, Flame's Fury), "
                     "and Path of Mettle's 'deals 1 damage to each creature that "
                     "doesn't have first strike, …' parses as keyword grants. "
                     "Retires on the bump that types the DamageAll"
                 ),
                 census=(
-                    "4 hits / 32,046 commander-legal (Chandra's Flame Wave, "
-                    "Chandra, Flame's Fury's -8, Mob Verdict, Path of Mettle), "
-                    "MTGJSON 2026-10-17 @ phase v0.104.0"
+                    "3 hits / the legal corpus (Chandra's Flame Wave, Chandra, "
+                    "Flame's Fury's -8, Path of Mettle) @ phase v0.131.0; Mob "
+                    "Verdict, the fourth at v0.104.0, parks since v0.131.0 "
+                    "(one_sided_sweep_creature_half_parked)"
                 ),
                 pins=(
-                    "Mob Verdict",
                     "Chandra's Flame Wave",
                     "Chandra, Flame's Fury",
                     "Path of Mettle // Metzali, Tower of Triumph",
                 ),
                 gap=_no_damage_all_node,
                 match=_oracle_match(_ONE_SIDED_SWEEP_RX),
+            ),
+            Bridge(
+                bridge_id="one_sided_sweep_creature_half_parked",
+                key="mass_removal",
+                kind="upstream_parse_failure",
+                todo=(
+                    "upstream phase-rs report candidate (Dan posts): Mob Verdict's "
+                    "'For each vote an opponent received, ~ deals 2 damage to that "
+                    "player and each creature that player controls' parks whole "
+                    "(unparsed_quantity) — retires on the bump that types the "
+                    "DamageAll, or once the recovery stage marks the clause's "
+                    "'each creature that player controls' as a swept board "
+                    "(EACH_PERMANENT), which removal_tutors.recovered_sweep reads"
+                ),
+                census=(
+                    "1 hit / the legal corpus (Mob Verdict), MTGJSON @ phase "
+                    "v0.131.0, 2026-11-24"
+                ),
+                pins=("Mob Verdict",),
+                gap=_no_damage_all_node,
+                match=_oracle_match(_VOTED_SWEEP_RX),
             ),
             Bridge(
                 bridge_id="shrink_clause_dropped",
@@ -4642,31 +4564,24 @@ BRIDGES.update(
                     "upstream phase-rs report candidate (Dan posts): a 'modified' "
                     "reference dropped with no node — a count (Lethal Exploit), an "
                     "additional cost (Lethal Throwdown), an enchant restriction "
-                    "(Lion Umbra); Heir of the Ancient Fang's replacement "
-                    "condition is typed since v0.118.0. Retires on the bump that "
-                    "carries the Modified predicate"
+                    "(Lion Umbra), an attack trigger's intervening-if (Ian the "
+                    "Reckless, since v0.131.0); Heir of the Ancient Fang's "
+                    "replacement condition is typed since v0.118.0. Retires on the "
+                    "bump that carries the Modified predicate"
                 ),
                 census=(
-                    "3 hits / 32,046 commander-legal (Lethal Exploit, Lethal "
-                    "Throwdown, Lion Umbra), MTGJSON 2026-10-17 @ phase v0.104.0"
+                    "4 hits / 32,046 commander-legal (Lethal Exploit, Lethal "
+                    "Throwdown, Lion Umbra; Ian the Reckless at v0.131.0), MTGJSON "
+                    "2026-10-17 @ phase v0.104.0"
                 ),
                 pins=(
                     "Lethal Exploit",
                     "Lethal Throwdown",
                     "Lion Umbra",
+                    "Ian the Reckless",
                 ),
                 gap=_no_modified_reference,
                 match=_oracle_match(_DROPPED_MODIFIED_RX),
-            ),
-            _residue_row(
-                "ian_modified_condition_parked",
-                "modified_matters",
-                "unparsed_condition",
-                "the 'if it's modified' gate on an attack trigger",
-                ("Ian the Reckless",),
-                _it_is_modified_gap,
-                _oracle_match(_IT_IS_MODIFIED_RX),
-                hits=1,
             ),
             Bridge(
                 bridge_id="shield_counter_dropped",
@@ -4776,14 +4691,16 @@ BRIDGES.update(
 # targets of spells or abilities your opponents control" (CR 702.11: hexproof's
 # "can't be the target of spells or abilities your opponents control") parses
 # as a Hexproof grant to Tomik itself (a SelfRef def), the shield
-# ``lanes.stax_and_tempo._land_protection_shield`` reads off a land filter.
+# ``lanes.stax_and_tempo._land_protection_shield`` reads off a land filter. Phase
+# v0.131.0 stops mis-typing it and leaves the line an ``Other`` static mode
+# (``ConceptTree.other_static_modes``), still no land filter.
 _LANDS_UNTARGETABLE_RX = re.compile(
     r"\blands on the battlefield[^.]*can't be the targets? of", re.IGNORECASE
 )
 
 
 def _land_shield_on_self(tree: ConceptTree) -> bool:
-    return _selfref_def_says(tree, _LANDS_UNTARGETABLE_RX)
+    return _says(_LANDS_UNTARGETABLE_RX, tree.other_static_modes())
 
 
 # Sacred Ground's "Whenever a spell or ability an opponent controls causes a
@@ -4813,8 +4730,9 @@ BRIDGES.update(
                     "upstream phase-rs report candidate (Dan posts): Tomik's "
                     "'Lands on the battlefield and land cards in graveyards can't "
                     "be the targets of spells or abilities your opponents "
-                    "control' parses as a Hexproof grant to Tomik itself (a "
-                    "SelfRef def). Retires on the bump that scopes it to lands"
+                    "control' is an unmodelled Other static mode (phase v0.131.0; "
+                    "a Hexproof grant to Tomik itself before). Retires on the "
+                    "bump that scopes it to lands"
                 ),
                 census=(
                     "1 hit / the legal corpus (Tomik, Distinguished Advokist), "
@@ -5091,11 +5009,6 @@ _CREATURE_REANIMATION_RX = re.compile(
     r"battlefield\b",
     re.IGNORECASE,
 )
-# Return of the Nightstalkers' "Return all Nightstalker permanent cards from your
-# graveyard to the battlefield" parks whole.
-_PERMANENT_REANIMATION_RX = re.compile(
-    r"\bpermanent cards from your graveyard to the battlefield\b", re.IGNORECASE
-)
 # Agadeem's Awakening's and Lich-Knights' Conquest's "creature cards", and
 # Balthor's "black and all red creature cards", drop from the filter.
 _TYPELESS_REANIMATION_RX = re.compile(
@@ -5103,10 +5016,6 @@ _TYPELESS_REANIMATION_RX = re.compile(
     r"|\bfrom your graveyard to the battlefield any number of target creature cards\b",
     re.IGNORECASE,
 )
-
-
-def _permanent_reanimation_parked(tree: ConceptTree) -> bool:
-    return _parked_says(tree, _PERMANENT_REANIMATION_RX)
 
 
 # Mirrormind Crown's token-copy replacement is a hollow static;
@@ -5192,25 +5101,6 @@ BRIDGES.update(
                 ),
                 gap=_no_graveyard_reanimation,
                 match=_oracle_match(_CREATURE_REANIMATION_RX),
-                subject="reanimate",
-            ),
-            Bridge(
-                bridge_id="permanent_reanimation_parse_failure",
-                key="permanent_recast",
-                kind="upstream_parse_failure",
-                todo=(
-                    "upstream phase-rs report candidate (Dan posts): Return of the "
-                    "Nightstalkers' 'Return all Nightstalker permanent cards from "
-                    "your graveyard to the battlefield' parks whole. Retires on the "
-                    "bump that types it"
-                ),
-                census=(
-                    "1 hit / the legal corpus (Return of the Nightstalkers), "
-                    "MTGJSON 2026-10-17 @ phase v0.104.0, 2026-10-25"
-                ),
-                pins=("Return of the Nightstalkers",),
-                gap=_permanent_reanimation_parked,
-                match=_oracle_match(_PERMANENT_REANIMATION_RX),
                 subject="reanimate",
             ),
             Bridge(
@@ -5323,46 +5213,6 @@ BRIDGES.update(
                 gap=_unplayed_exile_sweep_parked,
                 match=_oracle_match(_BANK_JOB_TREASURE_RX),
                 subject="put",
-            ),
-        )
-    }
-)
-
-
-# Edgar, King of Figaro's Two-Headed Coin — "The first time you flip one or more
-# coins each turn, those coins come up heads and you win those flips" (a flip
-# fixer, CR 705.3) — parks whole as an Unimplemented residue.
-_FLIP_RESULT_FIXED_RX = re.compile(
-    r"\bcoins? come up heads and you win\b", re.IGNORECASE
-)
-
-
-def _flip_result_fixed_parked(tree: ConceptTree) -> bool:
-    return _says(_FLIP_RESULT_FIXED_RX, tree.residues())
-
-
-BRIDGES.update(
-    {
-        b.bridge_id: b
-        for b in (
-            Bridge(
-                bridge_id="flip_result_fixer_parse_failure",
-                key="coin_flip",
-                kind="upstream_parse_failure",
-                todo=(
-                    "upstream phase-rs report candidate (Dan posts): Edgar, King of "
-                    "Figaro's 'those coins come up heads and you win those flips' "
-                    "parks as an Unimplemented residue — retires on the phase bump "
-                    "that types the fixed flip result"
-                ),
-                census=(
-                    "1 hit / the legal corpus's parked flip fixers (Edgar, King of "
-                    "Figaro), MTGJSON 2026-10-17 @ phase v0.104.0, 2026-10-25"
-                ),
-                pins=("Edgar, King of Figaro",),
-                gap=_flip_result_fixed_parked,
-                match=_flip_result_fixed_parked,
-                subject="fixer",
             ),
         )
     }
@@ -5494,23 +5344,6 @@ _SECRET_CHOICE_EDICT_RX = re.compile(
 
 def _secret_choice_edict_parked(tree: ConceptTree) -> bool:
     return _says(_SECRET_CHOICE_EDICT_RX, tree.residues("unrecognized_clause_head"))
-
-
-# Goreclaw's "Creature spells you cast with power 4 or greater cost {2} less"
-# parses as a ModifyCost with no spell filter: the creature class is lost.
-_CREATURE_SPELL_DISCOUNT_RX = re.compile(
-    r"\bcreature spells you cast with power \d+ or greater cost \{\d+\} less\b",
-    re.IGNORECASE,
-)
-
-
-def _no_creature_spell_discount(tree: ConceptTree) -> bool:
-    return not any(
-        static_mode_field(sdef, "mode") == "Reduce"
-        and "Creature" in filter_core_types(static_mode_field(sdef, "spell_filter"))
-        for unit in tree.iter_units()
-        for sdef in unit.static_defs()
-    )
 
 
 # All Hallow's Eve's "each player returns all creature cards from their graveyard
@@ -5752,25 +5585,6 @@ BRIDGES.update(
                 scope="opponents",
             ),
             Bridge(
-                bridge_id="creature_spell_discount_filter_dropped",
-                key="cost_reduction",
-                kind="upstream_parse_failure",
-                todo=(
-                    "upstream phase-rs report candidate (Dan posts): Goreclaw's "
-                    "'Creature spells you cast with power 4 or greater cost {2} "
-                    "less' parses as a ModifyCost with no spell filter. Retires on "
-                    "the bump that keeps the filter"
-                ),
-                census=(
-                    "1 hit / the legal corpus (Goreclaw, Terror of Qal Sisma), "
-                    "MTGJSON 2026-10-17 @ phase v0.104.0, 2026-10-25"
-                ),
-                pins=("Goreclaw, Terror of Qal Sisma",),
-                gap=_no_creature_spell_discount,
-                match=_oracle_match(_CREATURE_SPELL_DISCOUNT_RX),
-                subject="creature",
-            ),
-            Bridge(
                 bridge_id="mass_reanimation_parse_failure",
                 key="reanimator",
                 kind="upstream_parse_failure",
@@ -5875,49 +5689,6 @@ BRIDGES.update(
                 ),
                 gap=_protective_grant_parked,
                 match=_protective_grant_parked,
-            ),
-        )
-    }
-)
-
-
-# Tinybones Joins Up's "any number of target players each mill a card and lose 1
-# life" parses its life loss with no target, which the lifeloss lane reads as yours.
-_TARGET_PLAYERS_MILL_DRAIN_RX = re.compile(
-    r"\bany number of target players each mill a card and lose \d+ life\b",
-    re.IGNORECASE,
-)
-
-
-def _untargeted_life_loss(tree: ConceptTree) -> bool:
-    return any(
-        tag_of(c.node) == "LoseLife" and tag_of(getattr(c.node, "target", None)) is None
-        for c in tree.iter_concepts()
-    )
-
-
-BRIDGES.update(
-    {
-        b.bridge_id: b
-        for b in (
-            Bridge(
-                bridge_id="target_players_drain_target_dropped",
-                key="lifeloss_makers",
-                kind="upstream_parse_failure",
-                todo=(
-                    "upstream phase-rs report candidate (Dan posts): Tinybones Joins "
-                    "Up's 'any number of target players each mill a card and lose 1 "
-                    "life' parses its LoseLife with no target. Retires on the bump "
-                    "that keeps the targeted players"
-                ),
-                census=(
-                    "1 hit / the legal corpus (Tinybones Joins Up), MTGJSON "
-                    "2026-10-17 @ phase v0.104.0, 2026-10-25"
-                ),
-                pins=("Tinybones Joins Up",),
-                gap=_untargeted_life_loss,
-                match=_oracle_match(_TARGET_PLAYERS_MILL_DRAIN_RX),
-                scope="opponents",
             ),
         )
     }
@@ -6131,15 +5902,6 @@ _MASS_TOKEN_RX = re.compile(
 
 def _mass_token_parked(tree: ConceptTree) -> bool:
     return _parked_says(tree, _MASS_TOKEN_RX)
-
-
-def _mass_token_static_misparse(tree: ConceptTree) -> bool:
-    """No Token node, and a static def (not a residue) carries the clause."""
-    return not tree.has_typed("Token") and any(
-        _MASS_TOKEN_RX.search(getattr(sdef, "description", "") or "")
-        for u in tree.iter_units("static")
-        for sdef in u.static_defs()
-    )
 
 
 # Commence the Endgame's "amass Zombies X": phase drops the amass clause (the
@@ -6374,24 +6136,11 @@ BRIDGES.update(
                     "Tangled Colony",
                     "Undercellar Sweep",
                     "Vault 12: The Necropolis",
-                    "Vren, the Relentless",
+                    # Vren, the Relentless graduated at phase v0.131.0: its Rat
+                    # Token's where-X count is a typed ZoneChangeCountThisTurn.
                 ),
                 gap=_mass_token_parked,
                 match=_mass_token_parked,
-            ),
-            Bridge(
-                bridge_id="mass_token_static_misparse",
-                key="mass_token_makers",
-                kind="upstream_parse_failure",
-                todo=_upstream(
-                    "Brood Birthing's 'If you control an Eldrazi Spawn, create three "
-                    "… Spawn creature tokens' parses as a static def with no Token "
-                    "node. Retires on the bump that types it"
-                ),
-                census=_item_o_census("Brood Birthing"),
-                pins=("Brood Birthing",),
-                gap=_mass_token_static_misparse,
-                match=_oracle_match(_MASS_TOKEN_RX),
             ),
             Bridge(
                 bridge_id="amass_zombies_dropped",
@@ -6616,21 +6365,6 @@ BRIDGES.update(
                 match=_oracle_match(_AURA_UNTAP_THAT_RX),
             ),
             Bridge(
-                bridge_id="enters_drain_recipient_dropped",
-                key="creature_etb",
-                subject="punish",
-                kind="upstream_parse_failure",
-                todo=_upstream(
-                    "Tinybones Joins Up's 'any number of target players each mill a "
-                    "card and lose 1 life' keeps a LoseLife with no recipient. "
-                    "Retires on the bump that carries the targets onto it"
-                ),
-                census=_item_o_census("Tinybones Joins Up"),
-                pins=("Tinybones Joins Up",),
-                gap=_untargeted_life_loss,
-                match=_oracle_match(_TARGET_PLAYERS_MILL_DRAIN_RX),
-            ),
-            Bridge(
                 bridge_id="landwalk_choice_grant_parked",
                 key="keyword_grant_target",
                 subject="landwalk",
@@ -6697,9 +6431,6 @@ _ZOMBIE_GRANT_PARKED_RX = re.compile(
 )
 _ZOMBIE_REFERENCE_PARKED_RX = re.compile(r"\bZombies you control gain\b", re.IGNORECASE)
 _ZOMBIE_GRANT_DROPPED_RX = re.compile(r"\band is a black Zombie\b", re.IGNORECASE)
-_ZOMBIE_REFERENCE_DROPPED_RX = re.compile(
-    r"\bIf a Zombie you control would deal\b", re.IGNORECASE
-)
 _BLOCKED_BY_ZOMBIE_RX = re.compile(
     r"\bthat blocked or was blocked by a Zombie\b", re.IGNORECASE
 )
@@ -6753,10 +6484,6 @@ def _zombie_grant_parked(tree: ConceptTree) -> bool:
 
 def _zombie_reference_parked(tree: ConceptTree) -> bool:
     return _parked_says(tree, _ZOMBIE_REFERENCE_PARKED_RX)
-
-
-def _no_zombie_reference(tree: ConceptTree) -> bool:
-    return not _names_yours(tree, "Zombie")
 
 
 def _no_zombie_reference_any_side(tree: ConceptTree) -> bool:
@@ -6900,19 +6627,12 @@ BRIDGES.update(
                 scope="any",
             ),
             _reference_row(
-                "zombie_reference_dropped",
-                "Zombie",
-                "dropped_clause",
-                "Undead Alchemist's 'If a Zombie you control would deal combat "
-                "damage to a player'",
-                ("Undead Alchemist",),
-                _no_zombie_reference,
-                _oracle_match(_ZOMBIE_REFERENCE_DROPPED_RX),
-            ),
-            _reference_row(
                 "blocked_by_zombie_dropped",
                 "Zombie",
-                "dropped_clause",
+                # dropped whole through v0.118.0; phase v0.131.0 parks the whole
+                # spell as a ``block_history_partner`` residue (the exile itself
+                # recovered, the Zombie reference not)
+                "upstream_parse_failure",
                 "Time to Reflect's 'that blocked or was blocked by a Zombie this turn'",
                 ("Time to Reflect",),
                 _no_zombie_reference_any_side,
@@ -7306,17 +7026,6 @@ _KEYWORD_BODY_ROWS: tuple[tuple[str, str, str, str, tuple[str, ...], str], ...] 
         ),
         ("Salvation Colossus",),
         r"\bUnearth—Pay\b",
-    ),
-    (
-        "gingerbrute_token_parked",
-        "haste",
-        "upstream_parse_failure",
-        (
-            "Ginger, Queen of Sweets's 'create a Gingerbrute token' (a 1/1 artifact "
-            "creature with haste), an Unimplemented residue"
-        ),
-        ("Ginger, Queen of Sweets",),
-        r"\bcreate a Gingerbrute token\b",
     ),
     (
         "self_suspend_haste_dropped",
@@ -7717,6 +7426,164 @@ _ENERGY_PLUS_ONE_RX = re.compile(
 
 def _energy_plus_one_parked(tree: ConceptTree) -> bool:
     return _says(_ENERGY_PLUS_ONE_RX, tree.residues("replacement_structure"))
+
+
+# ── Phase v0.131.0's fail-closed lines the recovery stage can't read ──────────
+# Revivify's d20 row "15+ | Return those cards from your graveyard to the
+# battlefield": "those cards" are the creature cards the 1—14 row names, a row
+# (an ability) of its own, so the recovered reanimation names no card type
+# (permanent_recast's reanimate and creature_recursion's battlefield).
+_THOSE_CARDS_REANIMATED_RX = re.compile(
+    r"\breturn those cards from your graveyard to the battlefield\b", re.IGNORECASE
+)
+# The antecedent the row before names: "Return all creature cards in your
+# graveyard that were put there from the battlefield this turn to your hand".
+_CREATURE_CARDS_ANTECEDENT_RX = re.compile(
+    r"\breturn all creature cards in your graveyard\b", re.IGNORECASE
+)
+
+
+def _those_cards_reanimation_parked(tree: ConceptTree) -> bool:
+    return _says(
+        _THOSE_CARDS_REANIMATED_RX, tree.residues("unrecognized_clause_head")
+    ) and _oracle_says(tree, _CREATURE_CARDS_ANTECEDENT_RX)
+
+
+# Raiding Party's "Then destroy all Plains that weren't chosen this way by any
+# player" (``unparsed_verb_arguments``): the recovered destroy names no card type
+# (Plains is a land type, CR 205.3i), so neither land read sees a land.
+_ALL_PLAINS_DESTROYED_RX = re.compile(
+    r"\bdestroy all Plains that weren't chosen this way\b", re.IGNORECASE
+)
+
+
+def _all_plains_destroy_parked(tree: ConceptTree) -> bool:
+    return _says(_ALL_PLAINS_DESTROYED_RX, tree.residues("unparsed_verb_arguments"))
+
+
+# "Creatures you control can't be the targets of blue or black spells" (Autumn's
+# Veil) / "Permanents you control can't be the targets of blue or black spells
+# your opponents control" (Display of Dominance): a targeting restriction over
+# your board, no verb or keyword for the grammar to read (phase v0.118.0 typed
+# it as a Shroud / Hexproof grant, which it isn't: only spells of two colours).
+_YOURS_UNTARGETABLE_RX = re.compile(
+    r"\b(?:creatures|permanents) you control can't be the targets of\b",
+    re.IGNORECASE,
+)
+
+
+def _yours_untargetable_parked(tree: ConceptTree) -> bool:
+    return _says(_YOURS_UNTARGETABLE_RX, tree.residues("unrecognized_clause_head"))
+
+
+# Thrasta, Tempest's Roar's "This spell costs {3} less to cast for each other
+# spell cast this turn" (CR 601.2f: a cost reduction), parked whole as a
+# ``static_structure`` residue: no ``ModifyCost`` static for free_spell_storm's
+# self-discount read.
+_PER_SPELL_SELF_DISCOUNT_RX = re.compile(
+    r"\bthis spell costs \{\d+\} less to cast for each other spell cast this turn\b",
+    re.IGNORECASE,
+)
+
+
+def _per_spell_self_discount_parked(tree: ConceptTree) -> bool:
+    return _says(_PER_SPELL_SELF_DISCOUNT_RX, tree.residues("static_structure"))
+
+
+_V0_131_CENSUS = "MTGJSON + phase v0.131.0 card-data, 2026-11-24"
+
+BRIDGES.update(
+    {
+        b.bridge_id: b
+        for b in (
+            *(
+                Bridge(
+                    bridge_id=f"those_cards_reanimation_parked_{key}",
+                    key=key,
+                    kind="upstream_parse_failure",
+                    todo=_upstream(
+                        "Revivify's d20 row 'Return those cards from your "
+                        "graveyard to the battlefield', an unrecognized_clause_head "
+                        "residue whose 'those cards' (the creature cards of the "
+                        "row before) no recovered node carries. Retires on the bump "
+                        "that types the d20 rows"
+                    ),
+                    census=f"1 hit / the legal corpus (Revivify), {_V0_131_CENSUS}",
+                    pins=("Revivify",),
+                    gap=_those_cards_reanimation_parked,
+                    match=_oracle_match(_THOSE_CARDS_REANIMATED_RX),
+                    subject=subject,
+                )
+                for key, subject in (
+                    ("permanent_recast", "reanimate"),
+                    ("creature_recursion", "battlefield"),
+                )
+            ),
+            *(
+                Bridge(
+                    bridge_id=f"all_plains_destroy_parked_{key}",
+                    key=key,
+                    kind="upstream_parse_failure",
+                    todo=_upstream(
+                        "Raiding Party's 'Then destroy all Plains that weren't "
+                        "chosen this way by any player', an unparsed_verb_arguments "
+                        "residue (no DestroyAll over the Plains). Retires on the "
+                        "bump that types it"
+                    ),
+                    census=(
+                        f"1 hit / the legal corpus (Raiding Party), {_V0_131_CENSUS}"
+                    ),
+                    pins=("Raiding Party",),
+                    gap=_all_plains_destroy_parked,
+                    match=_oracle_match(_ALL_PLAINS_DESTROYED_RX),
+                    scope=scope,
+                    subject="destroy",
+                )
+                for key, scope in (
+                    ("land_destruction", "you"),
+                    ("mass_land_denial", "each"),
+                )
+            ),
+            Bridge(
+                bridge_id="yours_untargetable_parked",
+                key="board_protection",
+                kind="upstream_parse_failure",
+                todo=_upstream(
+                    "'creatures / permanents you control can't be the targets of "
+                    "blue or black spells', an unrecognized_clause_head residue "
+                    "(Autumn's Veil, Display of Dominance; a Shroud / Hexproof "
+                    "grant at v0.118.0). Retires on the bump that types the "
+                    "targeting restriction"
+                ),
+                census=(
+                    "2 hits / the legal corpus (Autumn's Veil, Display of "
+                    f"Dominance), {_V0_131_CENSUS}"
+                ),
+                pins=("Autumn's Veil", "Display of Dominance"),
+                gap=_yours_untargetable_parked,
+                match=_yours_untargetable_parked,
+            ),
+            Bridge(
+                bridge_id="per_spell_self_discount_parked",
+                key="free_spell_storm",
+                kind="upstream_parse_failure",
+                todo=_upstream(
+                    "Thrasta, Tempest's Roar's 'This spell costs {3} less to cast "
+                    "for each other spell cast this turn', a static_structure "
+                    "residue (no ModifyCost static). Retires on the bump that "
+                    "types the self-discount"
+                ),
+                census=(
+                    "1 hit / the legal corpus (Thrasta, Tempest's Roar), "
+                    f"{_V0_131_CENSUS}"
+                ),
+                pins=("Thrasta, Tempest's Roar",),
+                gap=_per_spell_self_discount_parked,
+                match=_per_spell_self_discount_parked,
+            ),
+        )
+    }
+)
 
 
 BRIDGES.update(
