@@ -12916,6 +12916,31 @@ class SelfDrawbacks(NamedTuple):
     harm: bool  # it hurts its controller
 
 
+def _declinable_modes(trigger: object) -> tuple[object, ...]:
+    """The modes of a modal trigger whose controller picks freely among them
+    (CR 700.2b: "The controller of a modal triggered ability chooses the
+    mode(s) as part of putting that ability on the stack"), or ``()``: fewer choices
+    than modes, and no rule that every mode comes up in turn ("choose one that
+    hasn't been chosen" — Demonic Pact, Captive Audience: ``NoRepeatThisGame``)
+    or that an opponent picks."""
+    execute = getattr(trigger, "execute", None)
+    modal = getattr(execute, "modal", None)
+    modes = getattr(execute, "mode_abilities", None)
+    if not isinstance(modal, TypedMirrorNode) or not isinstance(modes, list):
+        return ()
+    most = getattr(modal, "max_choices", None)
+    if not isinstance(most, int) or most >= len(modes):
+        return ()
+    if tag_of(getattr(modal, "chooser", None)) != "Controller":
+        return ()
+    constraints = getattr(modal, "constraints", MISSING)
+    if isinstance(constraints, list) and any(
+        tag_of(c) == "NoRepeatThisGame" for c in constraints
+    ):
+        return ()
+    return tuple(modes)
+
+
 def self_drawbacks(tree: ConceptTree) -> SelfDrawbacks:
     """A permanent's own drawbacks.
 
@@ -12938,7 +12963,9 @@ def self_drawbacks(tree: ConceptTree) -> SelfDrawbacks:
     trigger watching another object enter is an engine's cost; an instant or
     sorcery (a pact's next-upkeep payment) is no permanent to strip or hand
     over; a downside the card hands other permanents (Pillory of the Sleepless,
-    Magus of the Tabernacle) is a curse or a stax piece, not its own."""
+    Magus of the Tabernacle) is a curse or a stax piece, not its own; a harm in
+    a mode you need not choose (:func:`_declinable_modes`) is no drawback unless
+    every mode has one."""
     if not set(tree.card_types) & PERMANENT_CARD_TYPES:
         return SelfDrawbacks(restriction=False, harm=False)
     # Cumulative upkeep (CR 702.24a) and champion (CR 702.72a: sacrifice it
@@ -12984,6 +13011,18 @@ def self_drawbacks(tree: ConceptTree) -> SelfDrawbacks:
                 for c in unit.effects
             ):
                 harm = True
+            continue
+        # A harm in a mode its controller need not pick is no drawback ("Choose
+        # one — … • Investigate. You lose 2 life." — Commander Raffi Musiker).
+        modes = _declinable_modes(node)
+        if modes and not all(
+            _loses_you_the_game(mode)
+            or any(
+                _harms_you(unit, n, mill_is_fuel=mill_is_fuel)
+                for n in iter_typed_nodes(mode)
+            )
+            for mode in modes
+        ):
             continue
         if _loses_you_the_game(node):
             harm = True

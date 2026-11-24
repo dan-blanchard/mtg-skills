@@ -31,9 +31,6 @@ category on about 2,500 records now, so many of these are already known to it.
     Phantasm `permanent_etb|put`, Words of Wind `bounce_tempo`.
   - Will of the Abzan's edict mode is a `TargetOnly` + `Sacrifice{ScopedPlayer}`
     now; `edict_makers|opponents` stays, its `target` subject is gone.
-  - A harm inside a chosen mode of an enters trigger reads as `self_drawback`
-    (Orcus, Ghastly Death Tyrant, and now Commander Raffi Musiker's "Investigate.
-    You lose 2 life"), though the controller picks the mode.
 - **Phase gaps the bump found** (report upstream, Dan posts; none worked around
   unless a canary is named): Danse Macabre's non-targeting "return up to two
   creature cards" carries a `multi_target` (reads `per_target_payoff|variable`);

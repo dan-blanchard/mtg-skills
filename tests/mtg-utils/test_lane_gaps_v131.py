@@ -117,3 +117,26 @@ def test_those_creatures_after_chosen_targets_stays_a_targeted_grant():
     idents = _idents("Arm the Cathars")
     assert ("keyword_grant_target", "you", "vigilance") in idents
     assert not {i for i in idents if i[0] == "team_buff"}
+
+
+# ── A harm in a mode you need not choose is no drawback ─────────────────────────
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        # enters: "Choose one — • Exile … You gain 2 life. • Investigate. You
+        # lose 2 life."
+        "Commander Raffi Musiker",
+        # dies: "Choose one — • Each opponent discards two cards and loses 2
+        # life. • Put target non-Dragon creature card … You lose 2 life."
+        "Junji, the Midnight Sky",
+    ],
+)
+def test_a_harm_in_one_mode_of_several_is_no_drawback(name):
+    assert not {i for i in _idents(name) if i[0] == "self_drawback"}
+
+
+def test_modes_that_each_come_up_in_turn_keep_the_drawback():
+    # Demonic Pact: "choose one that hasn't been chosen — … • You lose the game."
+    assert ("self_drawback", "you", "harm") in _idents("Demonic Pact")
