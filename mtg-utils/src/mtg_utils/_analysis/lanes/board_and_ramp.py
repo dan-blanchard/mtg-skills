@@ -2220,35 +2220,10 @@ def _artifacts_enchantments_matter(tree: ConceptTree) -> list[Signal]:
                 "Hand",
                 "Library",
             )
-            # ADR-0038 W5 tails: a BATTLEFIELD-sourced library-bounce ("put
-            # target artifacts on top of their owners' libraries" —
-            # Rebuking Ceremony) is a DIFFERENT CR provision (401.4's
-            # library-position "tuck" removal, not graveyard recursion)
-            # but the SAME broad "cares about the Artifact type" tell (an
-            # artifact-hate spell targeting the type specifically, same as
-            # the graveyard-recursion arm's philosophy — CR 301). A
-            # targeted spell's origin is ``None`` (wherever the object
-            # currently is, implicitly the battlefield for a permanent-
-            # only filter) or explicit ``Battlefield``; ``Graveyard``
-            # origin is excluded here — that shape is ALREADY ``gy_
-            # recursion`` above (a genuinely different CR 400.7 recursion
-            # idiom, not double-counted). MANDATORY EXCLUSION: gated to
-            # the TARGETED ``ChangeZone`` tag only, never ``ChangeZoneAll``
-            # — Harmonic Convergence's "Put ALL enchantments on top of
-            # their owners' libraries" is the SAME MASS/symmetric-reset
-            # shed the enchantments_matter sibling already adjudicates (CR
-            # 205.2, no controller restriction at all — a board-wide reset
-            # affecting every player equally, never a "my deck wants this
-            # type" build-around, same philosophy as the TYPE-DIES doer's
-            # symmetric-punisher exclusion elsewhere in this lane); a
-            # TARGETED tuck (a specific chosen count) is a genuine
-            # build-around tell a mass reset is not.
-            bf_library_bounce = (
-                tag_of(node) == "ChangeZone"
-                and origin in (None, "Battlefield")
-                and dest == "Library"
-            )
-            if gy_recursion or bf_library_bounce:
+            # A tuck of an artifact on the battlefield ("The owner of target
+            # artifact or creature … shuffles it into their library" — Zoyowa's
+            # Justice) is removal, no care for the type: Shatter is none either.
+            if gy_recursion:
                 out.extend(_type_recursion_lanes(effect_filter(node)))
             # Putting an artifact / enchantment card from your own hand onto
             # the battlefield (Origin of Iron Man's chapter III) is the same

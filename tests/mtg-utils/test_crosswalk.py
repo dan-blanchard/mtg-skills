@@ -16622,17 +16622,15 @@ def test_artifacts_matter_excludes_symmetric_death_punisher():
 # ── ADR-0038 W5 tails: artifacts_matter deep descent + local type reads ──
 
 
-def test_artifacts_matter_battlefield_library_bounce():
-    """A battlefield-sourced library tuck phase types as a targeted
-    ``ChangeZone`` (Zoyowa's Justice's "The owner of target artifact or
-    creature … shuffles it into their library") carries the same "cares
-    about the Artifact type" tell as the graveyard-recursion arm. Phase v0.131.0
-    types Rebuking Ceremony's "Put two target artifacts on top of their owners'
-    libraries" as the ``PutAtLibraryPosition`` it writes for every other such
-    tuck (Natural Obsolescence, Disempower), which this arm never read: plain
-    removal."""
-    assert ("artifacts_matter", "you", "") in _idents("Zoyowa's Justice")
-    assert _keys("Rebuking Ceremony") == {"removal"}
+@pytest.mark.parametrize("name", ["Zoyowa's Justice", "Rebuking Ceremony"])
+def test_a_tuck_of_an_artifact_is_removal_not_an_artifacts_payoff(name):
+    """A tuck of an artifact on the battlefield ("The owner of target artifact
+    or creature … shuffles it into their library" — Zoyowa's Justice; "Put two
+    target artifacts on top of their owners' libraries" — Rebuking Ceremony) is
+    removal, as Shatter is: it says nothing of a deck that cares for artifacts
+    (Dan, 2026-11-24)."""
+    assert "removal" in _keys(name)
+    assert "artifacts_matter" not in _keys(name)
 
 
 def test_artifacts_matter_search_outside_game():

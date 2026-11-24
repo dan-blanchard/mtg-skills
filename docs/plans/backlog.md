@@ -16,11 +16,6 @@ category on about 2,500 records now, so many of these are already known to it.
 **From the phase v0.131.0 pin bump (2026-11-24)**
 
 - **Reads the bump left as they were** (each a decision, not a regression):
-  - `artifacts_matter`'s battlefield-tuck arm (`board_and_ramp`, "bf_library_bounce")
-    fires only on a tuck phase types as a targeted `ChangeZone` (Zoyowa's Justice);
-    the nine tucks phase types as `PutAtLibraryPosition` (Natural Obsolescence,
-    Disempower, and since v0.131.0 Rebuking Ceremony) never had it. Either every
-    targeted artifact tuck is an artifacts payoff or none is.
   - "Those creatures gain [keyword]" after a mass effect over creatures you
     control is the team's now (`crosswalk.group_grant_statics`). Left out by
     Dan's rule (2026-11-24): a group you take (Mob Rule, Call for Aid,
