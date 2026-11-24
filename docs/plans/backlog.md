@@ -44,11 +44,6 @@ category on about 2,500 records now, so many of these are already known to it.
   Tomik's ledger row.
 - **Signals lost at v0.131.0 to a shape no read has learned yet** (each one or a
   few cards; the old read is named by its key):
-  - A zone list on the filter (`InAnyZone[…]`, no `origin` / `InZone`): Huskburster
-    Swarm's and Sailors' Bane's "you own in exile and in your graveyard"
-    (`exile_matters`), Next of Kin's "from your hand or the command zone"
-    (`cheat_into_play`, `death_matters`). `puts_commander_into_hand` already reads
-    both properties (Campfire).
   - `DistinctFrom{reference: ParentTarget}` for "each other creature you control"
     beside a targeted one, where phase wrote `Another`: Phalanx Tactics
     (`team_buff`).

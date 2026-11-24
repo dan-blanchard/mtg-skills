@@ -3705,6 +3705,25 @@ def filter_inzone_zones(filt: object) -> tuple[str, ...]:
     return tuple(out)
 
 
+def filter_named_zones(filt: object) -> tuple[str, ...]:
+    """Every zone a filter says its objects are in: its ``InZone`` properties
+    (:func:`filter_inzone_zones`) and the zones an ``InAnyZone`` lists
+    (:func:`filter_inanyzone_zones` — "each creature card you own in exile and
+    in your graveyard", Huskburster Swarm)."""
+    return (*filter_inzone_zones(filt), *filter_inanyzone_zones(filt))
+
+
+def zone_change_origins(node: object) -> tuple[str, ...]:
+    """The zones a zone-change effect takes its object from: its own
+    ``origin``, or, when phase names none, the zones the object's filter says
+    it is in (:func:`filter_named_zones` — "from your hand or from the command
+    zone", Next of Kin; "from your hand or graveyard", Swift Warkite)."""
+    origin = getattr(node, "origin", None)
+    if isinstance(origin, str):
+        return (origin,)
+    return filter_named_zones(effect_filter(node))
+
+
 # The card types a ``Typed`` filter must not carry for its ``Named`` property to name a
 # permanent: ``Card`` is a card in a zone (a tutor, a grandeur discard, a graveyard
 # count), and an empty type list is the "a card named X" of a search or seek.

@@ -613666,6 +613666,180 @@
     "type_line": "Creature — Faerie"
    }
   },
+  "Huskburster Swarm": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Elemental",
+       "Insect"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Black"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [
+      "Deathtouch",
+      "Menace"
+     ],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "standard": "legal",
+      "standardbrawl": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 7,
+      "shards": [
+       "Black"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "ed2f61d7-4eb0-41c5-8a34-a0793c2abc51"
+      ]
+     },
+     "name": "Huskburster Swarm",
+     "non_ability_text": null,
+     "oracle_text": "This spell costs {1} less to cast for each creature card you own in exile and in your graveyard.\nMenace, deathtouch",
+     "power": {
+      "type": "Fixed",
+      "value": 6
+     },
+     "printings": [
+      "BLB"
+     ],
+     "rarities": [
+      "uncommon"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "faefb352-575c-49f7-9f7a-96f2279a077b",
+     "static_abilities": [
+      {
+       "active_zones": [
+        "Hand",
+        "Stack",
+        "Command",
+        "Graveyard",
+        "Exile",
+        "Library"
+       ],
+       "affected": {
+        "type": "SelfRef"
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": null,
+       "description": "This spell costs {1} less to cast for each creature card you own in exile and in your graveyard.",
+       "effect_zone": null,
+       "mode": {
+        "ModifyCost": {
+         "amount": {
+          "generic": 1,
+          "shards": [],
+          "type": "Cost"
+         },
+         "dynamic_count": {
+          "filter": {
+           "controller": null,
+           "properties": [
+            {
+             "controller": "You",
+             "type": "Owned"
+            },
+            {
+             "type": "InAnyZone",
+             "zones": [
+              "Exile",
+              "Graveyard"
+             ]
+            }
+           ],
+           "type": "Typed",
+           "type_filters": [
+            "Creature"
+           ]
+          },
+          "type": "ObjectCount"
+         },
+         "mode": "Reduce",
+         "spell_filter": null
+        }
+       },
+       "modifications": []
+      }
+     ],
+     "toughness": {
+      "type": "Fixed",
+      "value": 6
+     },
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 8.0,
+    "color_identity": [
+     "B"
+    ],
+    "colors": [
+     "B"
+    ],
+    "keywords": [
+     "Deathtouch",
+     "Menace"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "legal",
+     "standardbrawl": "legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{7}{B}",
+    "name": "Huskburster Swarm",
+    "oracle_id": "faefb352-575c-49f7-9f7a-96f2279a077b",
+    "oracle_text": "This spell costs {1} less to cast for each creature card you own in exile and in your graveyard.\nMenace, deathtouch",
+    "power": "6",
+    "toughness": "6",
+    "type_line": "Creature — Elemental Insect"
+   }
+  },
   "Hydra Omnivore": {
    "phase_records": [
     {
@@ -1008732,6 +1008906,220 @@
     "oracle_id": "0a8956d0-bd37-4305-8443-4df043796f6e",
     "oracle_text": "Will of the council — Starting with you, each player votes for return or embark. If return gets more votes, each player returns up to two cards from their graveyard to their hand, then you exile Sail into the West. If embark gets more votes or the vote is tied, each player may discard their hand and draw seven cards.",
     "type_line": "Instant"
+   }
+  },
+  "Sailors' Bane": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Dragon",
+       "Turtle"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Blue"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [
+      {
+       "Ward": {
+        "data": {
+         "generic": 4,
+         "shards": [],
+         "type": "Cost"
+        },
+        "type": "Mana"
+       }
+      }
+     ],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 7,
+      "shards": [
+       "Blue",
+       "Blue"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "confirmed_misparse": "dropped_qualifier",
+      "source_printing_ids": [
+       "d175a716-5b69-401b-9902-684a30810288"
+      ]
+     },
+     "name": "Sailors' Bane",
+     "non_ability_text": null,
+     "oracle_text": "This spell costs {1} less to cast for each card you own in exile and in your graveyard that's an instant card, a sorcery card, or a card that has an Adventure.\nWard {4} (Whenever this creature becomes the target of a spell or ability an opponent controls, counter it unless that player pays {4}.)",
+     "power": {
+      "type": "Fixed",
+      "value": 7
+     },
+     "printings": [
+      "CLB"
+     ],
+     "rarities": [
+      "uncommon"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "5d22ab00-b454-4407-93d7-65b47f56cbaa",
+     "static_abilities": [
+      {
+       "active_zones": [
+        "Hand",
+        "Stack",
+        "Command",
+        "Graveyard",
+        "Exile",
+        "Library"
+       ],
+       "affected": {
+        "type": "SelfRef"
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": null,
+       "description": "This spell costs {1} less to cast for each card you own in exile and in your graveyard that's an instant card, a sorcery card, or a card that has an Adventure.",
+       "effect_zone": null,
+       "mode": {
+        "ModifyCost": {
+         "amount": {
+          "generic": 1,
+          "shards": [],
+          "type": "Cost"
+         },
+         "dynamic_count": {
+          "filter": {
+           "filters": [
+            {
+             "controller": null,
+             "properties": [
+              {
+               "controller": "You",
+               "type": "Owned"
+              },
+              {
+               "type": "InAnyZone",
+               "zones": [
+                "Exile",
+                "Graveyard"
+               ]
+              }
+             ],
+             "type": "Typed",
+             "type_filters": [
+              "Card"
+             ]
+            },
+            {
+             "filters": [
+              {
+               "controller": null,
+               "properties": [],
+               "type": "Typed",
+               "type_filters": [
+                "Instant"
+               ]
+              },
+              {
+               "controller": null,
+               "properties": [],
+               "type": "Typed",
+               "type_filters": [
+                "Sorcery"
+               ]
+              },
+              {
+               "controller": null,
+               "properties": [
+                {
+                 "type": "HasAdventure"
+                }
+               ],
+               "type": "Typed",
+               "type_filters": [
+                "Card"
+               ]
+              }
+             ],
+             "type": "Or"
+            }
+           ],
+           "type": "And"
+          },
+          "type": "ObjectCount"
+         },
+         "mode": "Reduce",
+         "spell_filter": null
+        }
+       },
+       "modifications": []
+      }
+     ],
+     "toughness": {
+      "type": "Fixed",
+      "value": 7
+     },
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 9.0,
+    "color_identity": [
+     "U"
+    ],
+    "colors": [
+     "U"
+    ],
+    "keywords": [
+     "Ward"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{7}{U}{U}",
+    "name": "Sailors' Bane",
+    "oracle_id": "5d22ab00-b454-4407-93d7-65b47f56cbaa",
+    "oracle_text": "This spell costs {1} less to cast for each card you own in exile and in your graveyard that's an instant card, a sorcery card, or a card that has an Adventure.\nWard {4} (Whenever this creature becomes the target of a spell or ability an opponent controls, counter it unless that player pays {4}.)",
+    "power": "7",
+    "toughness": "7",
+    "type_line": "Creature — Dragon Turtle"
    }
   },
   "Sakura-Tribe Elder": {

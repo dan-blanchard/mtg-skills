@@ -58,6 +58,7 @@ from mtg_utils._card_ir.crosswalk import (
     filter_controller,
     filter_core_types,
     filter_inzone_zones,
+    filter_named_zones,
     filter_subtypes,
     filter_takes_in_card,
     graveyard_recursion,
@@ -3093,7 +3094,7 @@ def _exile_matters(tree: ConceptTree) -> list[Signal]:
             if c.role == "cost":
                 continue
             cof = count_operand_filter(c.node)
-            if cof is not None and "Exile" in filter_inzone_zones(cof):
+            if cof is not None and "Exile" in filter_named_zones(cof):
                 return [Signal("exile_matters", "you", "", c.raw, tree.name, "high")]
             for fld in ("amount", "count", "value"):
                 sub = getattr(c.node, fld, None)
@@ -3145,7 +3146,7 @@ def _exile_matters(tree: ConceptTree) -> list[Signal]:
             or (
                 tag_of(n) == "ObjectCount"
                 and (
-                    "Exile" in filter_inzone_zones(getattr(n, "filter", None))
+                    "Exile" in filter_named_zones(getattr(n, "filter", None))
                     or any(
                         tag_of(x) == "ExiledBySource"
                         for x in iter_typed_nodes(getattr(n, "filter", None))

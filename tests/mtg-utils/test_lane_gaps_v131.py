@@ -149,3 +149,30 @@ def test_a_cast_copy_of_a_named_card_is_a_battlefield_put():
     # Garth One-Eye: "Create a copy of the card with the chosen name. You may
     # cast the copy" — Shivan Dragon and Black Lotus among the names.
     assert ("permanent_etb", "you", "put") in _idents("Garth One-Eye")
+
+
+# ── A zone list on the card's filter names its zones ────────────────────────────
+
+
+@pytest.mark.parametrize("name", ["Huskburster Swarm", "Sailors' Bane"])
+def test_a_count_over_exile_and_graveyard_counts_exile(name):
+    # "costs {1} less to cast for each creature card you own in exile and in
+    # your graveyard": an ``InAnyZone`` of the two zones.
+    assert ("exile_matters", "you", "") in _idents(name)
+
+
+def test_a_put_from_hand_or_the_command_zone_is_a_put_from_hand():
+    # Next of Kin: "When enchanted creature dies, you may put a creature card
+    # you own with lesser mana value from your hand or from the command zone
+    # onto the battlefield."
+    idents = _idents("Next of Kin")
+    assert ("cheat_into_play", "you", "Creature") in idents
+    assert ("death_matters", "any", "") in idents
+
+
+def test_a_put_from_hand_or_graveyard_is_both_a_cheat_and_a_reanimation():
+    # Swift Warkite: "you may put a creature card with mana value 3 or less
+    # from your hand or graveyard onto the battlefield."
+    idents = _idents("Swift Warkite")
+    assert ("cheat_into_play", "you", "Creature") in idents
+    assert ("creature_recursion", "you", "battlefield") in idents

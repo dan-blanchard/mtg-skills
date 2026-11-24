@@ -112,6 +112,7 @@ from mtg_utils._card_ir.crosswalk import (
     team_buff_sites,
     token_creator_side,
     watches_each_players_land_taps,
+    zone_change_origins,
 )
 from mtg_utils._card_ir.mirror.runtime import (
     MirrorVariant,
@@ -2354,6 +2355,15 @@ def _cheat_into_play_signals(tree: ConceptTree) -> list[Signal]:
             origin, dest = change_zone_dirs(c.node)
             if dest != "Battlefield":
                 continue
+            # A card put from one of several zones the hand is among ("from
+            # your hand or from the command zone" — Next of Kin; "from your
+            # hand or graveyard" — Swift Warkite) is put from the hand.
+            if (
+                node_tag == "ChangeZone"
+                and origin is None
+                and "Hand" in zone_change_origins(c.node)
+            ):
+                origin = "Hand"
             # Fix (c): ChangeZoneAll (the SYMMETRIC "each player puts
             # revealed permanent cards onto the battlefield" idiom — Warp
             # World, Over the Top) is reveal-sourced with an UNTRACKED origin

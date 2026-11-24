@@ -38,6 +38,7 @@ from mtg_utils._card_ir.crosswalk import (
     trigger_scope,
     trigger_subject,
     zone_change_count_reads,
+    zone_change_origins,
 )
 from mtg_utils._card_ir.mirror.runtime import (
     MISSING,
@@ -110,16 +111,18 @@ def _is_death_payoff_effect(e: ConceptNode) -> bool:
     form is distinguished from the return-THE-SOURCE resilience ``change_zone``
     (Resurrection Orb / Oathkeeper / Gift of Immortality — "return that card to the
     battlefield", which phase emits with an EMPTY subject and origin unset) by a
-    named ``Creature`` subject moving Hand/Graveyard → Battlefield, so widening the
-    gate here recovers Deathrender without re-admitting the resilience auras.
+    named ``Creature`` subject moving Hand/Graveyard → Battlefield
+    (:func:`zone_change_origins`: Next of Kin's "from your hand or from the
+    command zone" is a zone list on the card's filter), so widening the gate
+    here recovers Deathrender without re-admitting the resilience auras.
     """
     if e.concept in _DEATH_PAYOFF_EFFECTS:
         return True
     if e.concept == "change_zone":
-        origin, dest = change_zone_dirs(e.node)
+        dest = change_zone_dirs(e.node)[1]
         return (
             dest == "Battlefield"
-            and origin in ("Hand", "Graveyard")
+            and bool({"Hand", "Graveyard"} & set(zone_change_origins(e.node)))
             and "Creature" in e.subject
         )
     return False
