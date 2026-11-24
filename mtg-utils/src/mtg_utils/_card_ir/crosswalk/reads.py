@@ -10813,7 +10813,7 @@ BackReferenceKind = Literal["chosen", "event", "self", "linked", "unknown"]
 #: The back-reference targets :func:`effect_back_reference` resolves: "it" /
 #: "those cards", and a trigger's "it" / "that permanent".
 BACK_REFERENCE_TARGETS: frozenset[str] = frozenset(
-    {"ParentTarget", "TrackedSet", "TriggeringSource", "EventTarget"}
+    {"ParentTarget", "TrackedSet", "TriggeringSource", "EventTarget", "ExiledBySource"}
 )
 
 
@@ -10855,9 +10855,10 @@ def effect_back_reference(
     * ``("self", None)`` — the card itself: a trigger or replacement that
       watches only the card, or a phase trigger with no event object (Cactuar's
       "return it to its owner's hand" at your end step);
-    * ``("linked", None)`` — a ``TrackedSet`` no target of the unit fills: the
-      cards another of the card's abilities set aside (Tidehollow Sculler's
-      "return the exiled card"; CR 607.2a: "The second ability refers only to
+    * ``("linked", None)`` — a ``TrackedSet`` no target of the unit fills, or
+      phase's own ``ExiledBySource`` (v0.131.0): the cards another of the
+      card's abilities set aside (Tidehollow Sculler's "return the exiled
+      card"; CR 607.2a: "The second ability refers only to
       cards in the exile zone that were put there as a result of an
       instruction to exile them in the first ability");
     * ``("unknown", None)`` — an ability whose chain chose nothing the thread
@@ -10872,7 +10873,7 @@ def effect_back_reference(
         ):
             if eff is node:
                 return "chosen", tracked
-    if tag == "TrackedSet":
+    if tag in ("TrackedSet", "ExiledBySource"):
         return "linked", None
     if unit.origin not in ("trigger", "replacement"):
         return "unknown", None

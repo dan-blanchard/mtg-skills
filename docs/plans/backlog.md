@@ -70,17 +70,10 @@ category on about 2,500 records now, so many of these are already known to it.
   - A parked "discard …" with no subject after a typed `RevealHand` could take
     that reveal's player in `recovery.read_clause`; today `_discard_outlet`
     vetoes it lane-side (Shatter Assumptions), and no other discard lane sees it.
-  - `effect_back_reference`'s `"linked"` kind doesn't know `ExiledBySource`,
-    the tag phase now writes for "return the exiled card" (Tidehollow Sculler);
-    `exiles_until_host_leaves` keys the tag itself.
   - A spell's `SelfRef` bound to the object it acted on is guarded read-side in
     three places (`protection._filter_recipient`, `attack_deterrent`,
     `has_structural_self_counter_grow`); one `misparsed_shapes` row rebinding
     it would reach every lane.
-  - `crosswalk.attack_recipient` is applied by the superfriends reads only;
-    `protection`'s `DEFENDED_YOU` comparisons read the raw field (harmless while
-    only `Planeswalker` has the variant form), and the two modules each keep an
-    `_ATTACK_RECIPIENT_FIELDS` table.
 
 **From comparing Arena game logs with phase (2026-11-09)**
 

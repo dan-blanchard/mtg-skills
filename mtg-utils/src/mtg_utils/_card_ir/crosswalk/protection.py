@@ -697,12 +697,39 @@ def attack_recipient(value: object) -> str | None:
     return None
 
 
+#: The fields phase writes an attack recipient on (see :data:`DEFENDED_YOU`): a
+#: trigger's ``attack_target_filter``, a static's ``attack_defended``, an
+#: ``AttackTarget`` quantity's ``attacked``, and the ``defended`` of an
+#: ``UnlessPay`` condition or a prohibited ``Attack`` activity.
+ATTACK_RECIPIENT_FIELDS: tuple[str, ...] = (
+    "attack_target_filter",
+    "attack_defended",
+    "attacked",
+    "defended",
+)
+
+
+def attack_recipients(node: object) -> tuple[str, ...]:
+    """The attack recipients a node names (:func:`attack_recipient` of each of
+    :data:`ATTACK_RECIPIENT_FIELDS` it carries)."""
+    return tuple(
+        recipient
+        for field in ATTACK_RECIPIENT_FIELDS
+        if (recipient := attack_recipient(getattr(node, field, None))) is not None
+    )
+
+
+def _names_an_attack_on_you(node: object) -> bool:
+    """Whether a node's attack recipient defends you (:data:`DEFENDED_YOU`)."""
+    return any(r in DEFENDED_YOU for r in attack_recipients(node))
+
+
 def _taxes_attacks_on_you(cond: object) -> bool:
     """Whether an attack restriction's condition is "unless their controller
     pays" for attacking you, alone or beside another condition (Archangel of
     Tithes' "as long as this creature is untapped")."""
     if tag_of(cond) == "UnlessPay":
-        return getattr(cond, "defended", None) in DEFENDED_YOU
+        return _names_an_attack_on_you(cond)
     if tag_of(cond) == "And":
         return any(
             _taxes_attacks_on_you(c) for c in getattr(cond, "conditions", None) or ()
@@ -748,7 +775,7 @@ def attack_deterrent(tree: ConceptTree) -> AttackDeterrentKind | None:
             activity = getattr(n, "activity", None)
             if (
                 tag_of(activity) == "Attack"
-                and getattr(activity, "defended", None) in DEFENDED_YOU
+                and _names_an_attack_on_you(activity)
                 and tag_of(getattr(n, "affected_players", None)) != "SourceController"
             ):
                 return "attack_ban"
@@ -769,7 +796,7 @@ def attack_deterrent(tree: ConceptTree) -> AttackDeterrentKind | None:
             return "attack_ban"
         if _taxes_attacks_on_you(getattr(n, "condition", MISSING)):
             return "attack_tax"
-        if getattr(n, "attack_defended", None) in DEFENDED_YOU:
+        if _names_an_attack_on_you(n):
             return "attack_ban"
     return None
 
@@ -788,15 +815,6 @@ def defends_you(tree: ConceptTree) -> bool:
     return any(redirects_damage_from_you(n) for n in tree.iter_typed())
 
 
-#: The fields phase writes an attack recipient on (see :data:`DEFENDED_YOU`).
-_ATTACK_RECIPIENT_FIELDS: tuple[str, ...] = (
-    "attack_target_filter",
-    "attack_defended",
-    "attacked",
-    "defended",
-)
-
-
 def watches_attacks_on_you(tree: ConceptTree) -> bool:
     """Whether the card types an attack on you: an attack recipient in
     :data:`DEFENDED_YOU` on any node — a trigger on creatures attacking you
@@ -811,9 +829,6 @@ def watches_attacks_on_you(tree: ConceptTree) -> bool:
     for n in tree.iter_typed():
         if tag_of(n) == "Attacking" and getattr(n, "defender", None) == "You":
             return True
-        if any(
-            getattr(n, field, None) in DEFENDED_YOU
-            for field in _ATTACK_RECIPIENT_FIELDS
-        ):
+        if _names_an_attack_on_you(n):
             return True
     return False

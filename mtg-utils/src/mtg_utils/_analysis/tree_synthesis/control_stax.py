@@ -30,6 +30,7 @@ from mtg_utils._card_ir.crosswalk import (
     ConceptNode,
     ConceptTree,
     attack_recipient,
+    attack_recipients,
     change_zone_dirs,
     counter_kind,
     counter_kind_any,
@@ -698,11 +699,8 @@ def _arm_symmetric_stax(tree: ConceptTree) -> ConceptNode | None:
 # cycle, Blood Reckoning, Isperia and Mangara protect you, they don't pay off
 # planeswalkers (Blame Game precon audit, 2026-10-18).
 _PW_ATTACK_RECIPIENTS: frozenset[str] = frozenset({"Planeswalker"})
-#: The attack-recipient field of each node that carries one.
-_ATTACK_RECIPIENT_FIELDS: dict[str, str] = {
-    "UnlessPay": "defended",
-    "AttackTarget": "attacked",
-}
+#: The nodes whose attack recipient is read for the tell.
+_ATTACK_RECIPIENT_NODES: frozenset[str] = frozenset({"UnlessPay", "AttackTarget"})
 _SUPERFRIENDS_COUNTER_EFFECTS: frozenset[str] = frozenset(
     {"place_counter", "remove_counter", "move_counters", "multiply_counter"}
 )
@@ -713,10 +711,9 @@ def _attack_recipient_tell(node: TypedMirrorNode) -> bool | None:
     superfriends tell: ``True`` for your planeswalkers alone, ``False`` for a
     recipient that defends you (``DEFENDED_YOU``) or an opponent's
     planeswalkers, ``None`` for any other node or recipient."""
-    field = _ATTACK_RECIPIENT_FIELDS.get(tag_of(node) or "")
-    if field is None:
+    if tag_of(node) not in _ATTACK_RECIPIENT_NODES:
         return None
-    recipient = attack_recipient(getattr(node, field, None))
+    recipient = next(iter(attack_recipients(node)), None)
     if recipient in DEFENDED_YOU:
         return False
     if recipient in _PW_ATTACK_RECIPIENTS:
