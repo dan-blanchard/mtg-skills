@@ -238,4 +238,20 @@ Each has a comment at the read that learned it.
   activation gate, the cast-trigger blink arm, the flanking / blocking-it
   misparse vetoes, the `counter_cost_reduction` token, and eleven ledger rows.
   Phase now publishes its own `metadata.confirmed_misparse` category on about
-  2,500 records — unread here so far.
+  2,500 records — unread here so far. Learned after the bump, each a loss the
+  first signal diff showed: "you own in exile and in your graveyard" / "from
+  your hand or from the command zone" → an `InAnyZone` zone list on the filter,
+  no `InZone` and no `origin` (`reads.filter_named_zones`,
+  `reads.zone_change_origins`); "each other creature you control" beside a
+  target → `DistinctFrom{reference: ParentTarget}` (was `Another`); "from
+  defending player's graveyard" → an `Owned{controller: DefendingPlayer}`
+  property; "those creatures" / "they" after a mass effect → `TrackedSet` (was
+  `ParentTarget`; `reads.group_grant_statics`, `reads.iter_named_object_statics`);
+  an alternative cost's "If you control a Forest" → the `condition` of its
+  `casting_options` entry (`ConceptTree.card_alt_cost_conditions`); "for each
+  kind of counter" → `DistinctCounterKindsAmong`; a targeted edict → `TargetOnly`
+  + `Sacrifice{controller: ScopedPlayer}`; "they can't attack this turn" → a
+  `CantAttack` static on `ScopedPlayer` (was `ProhibitActivity`); "you may play
+  the chosen cards" → `GrantCastingPermission` (was `CastFromZone`); a counted
+  pump → `AddDynamicPower` under a `GenericEffect` where phase wrote a fixed
+  `AddPower` (`reads.static_def_scales_up`).
